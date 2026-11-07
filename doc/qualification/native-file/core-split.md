@@ -92,3 +92,14 @@ Docker Engine 29.8.2, PostgreSQL 18.6 and SeaweedFS 4.48 were used. The runner,
 services and broker pollers shared one Go process; PostgreSQL and S3 were
 separate containers. API, browser, aggregate provider memory, whole-host loss
 and provider lifecycle policy remain outside this test.
+
+On clean revision `d937c37605de2592d010e0b0a9572ff7b5755cc5`, a separate
+native Linux arm64 Git fixture passed clone, read, write and push of
+1,073,741,841 bytes. Independent full readback matched the source SHA-256.
+The client phase took 76.43 seconds; test-process RSS peaked at 18,415,616
+bytes. The largest reaped child also peaked at 18,415,616 bytes; this is not
+aggregate process memory. The client kept its 512 MiB address-space and 16 MiB
+single-allocation limits. [The measurement record](git-core-current.json)
+includes the source hash, logical scratch sizes and scope. The loopback TLS Git
+server spooled requests to disk; broker, retention, API and hosted providers
+were outside this test.
