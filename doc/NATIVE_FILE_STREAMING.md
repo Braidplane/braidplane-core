@@ -54,6 +54,13 @@ organization, artifact identity and sequence as well as its bytes. Retrieval
 must verify sequence, final length and digest rather than trusting a manifest
 alone.
 
+The complete source file is retained in PostgreSQL before the sink starts. Size
+database storage for the sum of retained files across organizations, plus WAL,
+indexes, replicas and backups. Completion does not immediately delete the input:
+request expiry and maintenance govern deletion. PostgreSQL may retain allocated
+disk space after deletion for reuse. Limits on active transfers do not bound the
+total size of completed files awaiting expiry.
+
 Executor access must retain the existing request/claim capability boundary:
 no general tenant-table reads, no cross-organization artifact references, and
 no writes from cancelled, expired or replaced claims. Runtime and broker
@@ -86,6 +93,12 @@ a failed acknowledgement is returned as an unknown outcome. Failed uploads
 attempt abort with a separate bounded cleanup context. Host loss, a lost upload
 creation acknowledgement or failed abort additionally require provider lifecycle
 cleanup; in-process abort cannot prove cleanup after a crash.
+
+At most 10,000 parts are supported, so one streaming S3 destination object is
+limited to 78.125 GiB (83,886,080,000 bytes), even if the profile allows more.
+The S3 connector's request timeout is at most 300 seconds and includes reading
+an S3 response body. The total transfer deadline and any lower operation limit
+also apply. These are technical limits, not a qualified capacity target.
 
 The shared remote-file adapter selects streaming for explicit `format: file`
 reads with a positive file allowance, and for retained-reference writes. Missing
