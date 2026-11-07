@@ -71,3 +71,24 @@ test passed streaming read and write, digest and size verification, preservation
 of the previous destination after a failed checksum, and rejection of
 unsupported no-overwrite writes. These are local fixture results, not hosted
 provider acceptance.
+
+## Qualification after Core reconciliation
+
+On 2026-11-07, the complete S3 harness passed on clean revision
+`de37013a8edcecdaf2f065b47c54cb4304cfa123`, after reconciling current Core
+and its migration catalog. Independent readback verified 1,073,741,841 bytes
+and SHA-256 `42e0ba806f9eea358c4b32b3a25fc39f633849b5f60359194d4c746cae21b364`.
+The runner took 25.76 seconds; sampled Go heap peaked at 56,633,016 bytes and
+the test process RSS high-water mark was 117,686,272 bytes. PostgreSQL retained
+1,073,845,281 encrypted bytes and grew by 1,116,031,824 bytes, excluding WAL.
+[The measurement record](core-current.json) includes the explicit profile,
+storage and executor-loss evidence.
+
+Below/at/above limits, source and completion faults, cancellation and executor
+replacement passed in the same run. After a killed executor, recovery preserved
+the prior object, marked the request ambiguous and refused redispatch; the
+fixture explicitly aborted the orphaned upload. Darwin arm64, Go 1.26.10,
+Docker Engine 29.8.2, PostgreSQL 18.6 and SeaweedFS 4.48 were used. The runner,
+services and broker pollers shared one Go process; PostgreSQL and S3 were
+separate containers. API, browser, aggregate provider memory, whole-host loss
+and provider lifecycle policy remain outside this test.
