@@ -1,0 +1,56 @@
+services:
+  database:
+    container_name: ${COMPOSE_PROJECT_NAME:-braidplane}-database
+    image: postgres:18.6@sha256:edb0c08dc33befd0262ab3b5cf1c4f3f8cfd8b09e88c05b45adee29d6761ddb6
+    ports:
+      - "127.0.0.1:${DB_PORT:-35432}:5432"
+    restart: always
+    environment:
+      - POSTGRES_PASSWORD=postgres
+      - POSTGRES_DB=braidplane
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d braidplane"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 5s
+    networks:
+      - internal
+
+  email-mailpit:
+    container_name: ${COMPOSE_PROJECT_NAME:-braidplane}-mailpit
+    image: axllent/mailpit:v1.30@sha256:7f33095f80e901f6ad08028f06ca284aa58fe84942be5496008d041d3b9f4d4d
+    ports:
+      - "127.0.0.1:${MAILPIT_WEB_PORT:-38025}:8025"  # Web UI
+      - "127.0.0.1:${MAILPIT_SMTP_PORT:-31025}:1025"  # SMTP
+    restart: always
+    secrets:
+      - mailpit-passwords
+      - mailpit-cert
+      - mailpit-key
+    environment:
+      - MP_SMTP_TLS_CERT=/run/secrets/mailpit-cert
+      - MP_SMTP_TLS_KEY=/run/secrets/mailpit-key
+      - MP_SMTP_REQUIRE_STARTTLS=true
+      - MP_SMTP_AUTH_FILE=/run/secrets/mailpit-passwords
+      - MP_SMTP_DISABLE_RDNS=true
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q --spider http://localhost:8025/"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 5s
+    networks:
+      - internal
+
+networks:
+  internal:
+    driver: bridge
+
+secrets:
+  mailpit-passwords:
+    file: ./docker/mailpit/passwords
+  mailpit-cert:
+    file: ./docker/mailpit/mail.example.com-cert.pem
+  mailpit-key:
+    file: ./docker/mailpit/mail.example.com-key.pem

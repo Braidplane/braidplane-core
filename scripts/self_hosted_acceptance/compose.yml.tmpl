@@ -1,0 +1,152 @@
+name: braidplane-selfhost-acceptance
+x-bounded-logs: &bounded-logs
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "2"
+services:
+  database:
+    image: postgres:18.6@sha256:edb0c08dc33befd0262ab3b5cf1c4f3f8cfd8b09e88c05b45adee29d6761ddb6
+    env_file: database.env
+    entrypoint: ["sh", "-ec"]
+    command:
+      - |
+        cp /fixture/server.key /tmp/customer-server.key
+        chown postgres:postgres /tmp/customer-server.key
+        chmod 600 /tmp/customer-server.key
+        cp /fixture/init.sql /docker-entrypoint-initdb.d/customer.sql
+        chown postgres:postgres /docker-entrypoint-initdb.d/customer.sql
+        chmod 600 /docker-entrypoint-initdb.d/customer.sql
+        exec docker-entrypoint.sh postgres -c ssl=on -c ssl_cert_file=/fixture/server.pem -c ssl_key_file=/tmp/customer-server.key
+    volumes:
+      - ./server.key:/fixture/server.key:ro
+      - ./server.pem:/fixture/server.pem:ro
+      - ./init.sql:/fixture/init.sql:ro
+    networks:
+      isolated:
+        aliases: [database.customer.test]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U customer_operator -d braidplane"]
+      interval: 2s
+      timeout: 2s
+      retries: 30
+  migrate:
+    image: braidplane-selfhost-acceptance-migrate:local
+    env_file: migrator.env
+    environment:
+      CONFIG_PATH: /fixture/config.toml
+    volumes: ["./ca.pem:/fixture/ca.pem:ro", "./config.toml:/fixture/config.toml:ro"]
+    networks: [isolated]
+    depends_on:
+      database: {condition: service_healthy}
+  grants:
+    image: postgres:18.6@sha256:edb0c08dc33befd0262ab3b5cf1c4f3f8cfd8b09e88c05b45adee29d6761ddb6
+    env_file: migrator.env
+    entrypoint: ["sh", "-ec"]
+    command:
+      - |
+        export PGHOST=$$DB_HOST PGPORT=$$DB_PORT PGUSER=$$DB_USER PGPASSWORD=$$DB_PASSWORD PGDATABASE=$$DB_DATABASE PGSSLMODE=$$DB_SSL_MODE PGSSLROOTCERT=$$DB_SSL_ROOT_CERT
+        exec psql -v ON_ERROR_STOP=1 -v runtime_role=customer_runtime -v migrator_role=customer_migrator -f /fixture/grants.sql
+    volumes:
+      - ./ca.pem:/fixture/ca.pem:ro
+      - "@GRANTS@"
+    networks: [isolated]
+  mail:
+    image: axllent/mailpit:v1.30@sha256:7f33095f80e901f6ad08028f06ca284aa58fe84942be5496008d041d3b9f4d4d
+    environment:
+      MP_SMTP_TLS_CERT: /fixture/server.pem
+      MP_SMTP_TLS_KEY: /fixture/server.key
+      MP_SMTP_REQUIRE_STARTTLS: "true"
+      MP_SMTP_DISABLE_RDNS: "true"
+    volumes:
+      - ./server.pem:/fixture/server.pem:ro
+      - ./server.key:/fixture/server.key:ro
+    networks:
+      isolated:
+        aliases: [mail.customer.test]
+  api:
+    logging: *bounded-logs
+    image: braidplane-selfhost-acceptance-backend:local
+    command: [api, "--log-backend-file="]
+    env_file: runtime.env
+    volumes: ["./ca.pem:/fixture/ca.pem:ro", "./config.toml:/fixture/config.toml:ro"]
+    networks: [isolated]
+  worker:
+    logging: *bounded-logs
+    image: braidplane-selfhost-acceptance-backend:local
+    command: [worker, "--log-backend-file="]
+    env_file: runtime.env
+    environment:
+      SERVER_PORT: "3003"
+    volumes: ["./ca.pem:/fixture/ca.pem:ro", "./config.toml:/fixture/config.toml:ro"]
+    networks: [isolated]
+  frontend:
+    logging: *bounded-logs
+    image: braidplane-selfhost-acceptance-frontend:local
+    env_file: runtime.env
+    environment:
+      BACKEND_API_URL: http://api:3001
+      FRONTEND_SERVER_PORT: "3002"
+    volumes: ["./ca.pem:/fixture/ca.pem:ro", "./config.toml:/fixture/config.toml:ro"]
+    networks: [isolated]
+  edge:
+    image: caddy:2.11.4-alpine@sha256:5f5c8640aae01df9654968d946d8f1a56c497f1dd5c5cda4cf95ab7c14d58648
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - ./server.pem:/fixture/server.pem:ro
+      - ./server.key:/fixture/server.key:ro
+    networks:
+      isolated:
+        aliases: [app.customer.test]
+  browser:
+    image: braidplane-selfhost-acceptance-browser:local
+    profiles: [tools]
+    entrypoint: [sh, -ec]
+    command:
+      - |
+        mkdir -p /root/.pki/nssdb
+        certutil -N --empty-password -d sql:/root/.pki/nssdb
+        certutil -A -d sql:/root/.pki/nssdb -n synthetic-customer -t "C,," -i /fixture/ca.pem
+        node /fixture/browser.cjs
+    volumes:
+      - "@NODEMODULES@"
+      - ./browser.cjs:/fixture/browser.cjs:ro
+      - ./ca.pem:/fixture/ca.pem:ro
+      - ./passwords.json:/fixture/passwords.json:ro
+    networks: [isolated]
+  private-source:
+    image: braidplane-selfhost-acceptance-backend:local
+    profiles: [tools]
+    env_file: runtime.env
+    environment:
+      SELF_HOSTED_CONNECTOR_ACCEPTANCE: "true"
+    entrypoint: [/fixture/private-source.test]
+    command: [-test.run, TestSelfHostedPinnedPrivatePostgres, -test.v, -test.count=1]
+    volumes:
+      - ./private-source.test:/fixture/private-source.test:ro
+      - ./ca.pem:/fixture/ca.pem:ro
+      - ./config.toml:/fixture/config.toml:ro
+    networks: [isolated]
+  cli:
+    image: braidplane-selfhost-acceptance-cli:local
+    profiles: [tools]
+    env_file: cli.env
+    command: [user, profile, get]
+    volumes: ["./ca.pem:/fixture/ca.pem:ro"]
+    networks: [isolated]
+  bootstrap:
+    image: braidplane-selfhost-acceptance-backend:local
+    profiles: [tools]
+    env_file: migrator.env
+    entrypoint: [/braidplane-admin]
+    command: [bootstrap, --user, customer-owner, --name, Customer Owner, --email, owner@customer.test, --email-ownership-verified]
+    volumes: ["./ca.pem:/fixture/ca.pem:ro", "./config.toml:/fixture/config.toml:ro"]
+    networks: [isolated]
+  probe:
+    image: python:3.13-alpine@sha256:399babc8b49529dabfd9c922f2b5eea81d611e4512e3ed250d75bd2e7683f4b0
+    profiles: [tools]
+    volumes: ["./providers.py:/fixture/providers.py:ro", "./traffic.py:/fixture/traffic.py:ro", "./closed.py:/fixture/closed.py:ro", "./signup.py:/fixture/signup.py:ro", "./cli_token.py:/fixture/cli_token.py:ro", "./cli.env:/fixture/cli.env", "./network.py:/fixture/network.py:ro", "./frontend_security.py:/fixture/frontend_security.py:ro", "./recovery.py:/fixture/recovery.py:ro", "./passwords.json:/fixture/passwords.json:ro", "./ca.pem:/fixture/ca.pem:ro", "./config.toml:/fixture/config.toml:ro"]
+    networks: [isolated]
+networks:
+  isolated:
+    internal: true

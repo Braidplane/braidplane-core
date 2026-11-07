@@ -1,0 +1,455 @@
+{
+  "name": "${BRAIDPLANE_PROJECT_NAME:?installation project identity required}",
+  "services": {
+    "database": {
+      "image": "${POSTGRES_IMAGE:?release image required}",
+      "platform": "${BRAIDPLANE_PLATFORM:?release platform required}",
+      "logging": {
+        "driver": "json-file",
+        "options": {
+          "max-size": "10m",
+          "max-file": "3"
+        }
+      },
+      "networks": [
+        "private"
+      ],
+      "env_file": [
+        "database.env"
+      ],
+      "command": [
+        "cp /certificates/database.key /tmp/database.key; chown postgres:postgres /tmp/database.key; chmod 600 /tmp/database.key; cp /bootstrap/init.sql /docker-entrypoint-initdb.d/roles.sql; chown postgres:postgres /docker-entrypoint-initdb.d/roles.sql; chmod 600 /docker-entrypoint-initdb.d/roles.sql; exec docker-entrypoint.sh postgres -c ssl=on -c ssl_cert_file=/certificates/database.pem -c ssl_key_file=/tmp/database.key"
+      ],
+      "volumes": [
+        "database:/var/lib/postgresql",
+        "./certificates/database.pem:/certificates/database.pem:ro",
+        "./certificates/database.key:/certificates/database.key:ro",
+        "./init.sql:/bootstrap/init.sql:ro"
+      ],
+      "restart": "unless-stopped",
+      "stop_grace_period": "60s",
+      "healthcheck": {
+        "test": [
+          "CMD-SHELL",
+          "pg_isready -h 127.0.0.1 -U \"$${POSTGRES_USER}\" -d \"$${POSTGRES_DB}\""
+        ],
+        "interval": "5s",
+        "timeout": "3s",
+        "retries": 30
+      },
+      "entrypoint": [
+        "sh",
+        "-ec"
+      ]
+    },
+    "migrate": {
+      "image": "${MIGRATE_IMAGE:?release image required}",
+      "platform": "${BRAIDPLANE_PLATFORM:?release platform required}",
+      "logging": {
+        "driver": "json-file",
+        "options": {
+          "max-size": "10m",
+          "max-file": "3"
+        }
+      },
+      "networks": [
+        "private"
+      ],
+      "env_file": [
+        "migrator.env"
+      ],
+      "environment": {
+        "CONFIG_PATH": "/etc/braidplane/customer.toml"
+      },
+      "volumes": [
+        "./config.toml:/etc/braidplane/customer.toml:ro",
+        "./certificates/ca.pem:/etc/braidplane/ca.pem:ro"
+      ],
+      "depends_on": {
+        "database": {
+          "condition": "service_healthy"
+        }
+      },
+      "restart": "no"
+    },
+    "grants": {
+      "image": "${POSTGRES_IMAGE:?release image required}",
+      "platform": "${BRAIDPLANE_PLATFORM:?release platform required}",
+      "logging": {
+        "driver": "json-file",
+        "options": {
+          "max-size": "10m",
+          "max-file": "3"
+        }
+      },
+      "networks": [
+        "private"
+      ],
+      "env_file": [
+        "migrator.env"
+      ],
+      "entrypoint": [
+        "sh",
+        "-ec"
+      ],
+      "command": [
+        "export PGHOST=$$DB_HOST PGPORT=$$DB_PORT PGUSER=$$DB_USER PGPASSWORD=$$DB_PASSWORD PGDATABASE=$$DB_DATABASE PGSSLMODE=$$DB_SSL_MODE PGSSLROOTCERT=$$DB_SSL_ROOT_CERT; exec psql -v ON_ERROR_STOP=1 -v runtime_role=braidplane_runtime -v migrator_role=braidplane_migrator -v executor_role=braidplane_executor -f /bundle/runtime-grants.sql -f /bundle/execution-grants.sql"
+      ],
+      "volumes": [
+        "./certificates/ca.pem:/etc/braidplane/ca.pem:ro",
+        "./runtime-grants.sql:/bundle/runtime-grants.sql:ro",
+        "./execution-grants.sql:/bundle/execution-grants.sql:ro"
+      ],
+      "depends_on": {
+        "migrate": {
+          "condition": "service_completed_successfully"
+        }
+      },
+      "restart": "no"
+    },
+    "api": {
+      "image": "${BACKEND_IMAGE:?release image required}",
+      "platform": "${BRAIDPLANE_PLATFORM:?release platform required}",
+      "logging": {
+        "driver": "json-file",
+        "options": {
+          "max-size": "10m",
+          "max-file": "3"
+        }
+      },
+      "networks": [
+        "private"
+      ],
+      "command": [
+        "api"
+      ],
+      "env_file": [
+        "runtime.env"
+      ],
+      "environment": {
+        "CONFIG_PATH": "/etc/braidplane/customer.toml",
+        "EXECUTION_BACKEND": "poller",
+        "DEPLOYMENT_PROFILE": "self-hosted"
+      },
+      "volumes": [
+        "./config.toml:/etc/braidplane/customer.toml:ro",
+        "./certificates/ca.pem:/etc/braidplane/ca.pem:ro"
+      ],
+      "read_only": true,
+      "tmpfs": [
+        "/tmp:rw,nosuid,nodev,size=512m,mode=1777"
+      ],
+      "cap_drop": [
+        "ALL"
+      ],
+      "security_opt": [
+        "no-new-privileges:true"
+      ],
+      "restart": "unless-stopped",
+      "stop_grace_period": "45s",
+      "depends_on": {
+        "grants": {
+          "condition": "service_completed_successfully"
+        }
+      },
+      "healthcheck": {
+        "test": [
+          "CMD",
+          "/braidplane-healthcheck",
+          "3001"
+        ],
+        "interval": "10s",
+        "timeout": "3s",
+        "retries": 12,
+        "start_period": "20s"
+      }
+    },
+    "worker": {
+      "image": "${BACKEND_IMAGE:?release image required}",
+      "platform": "${BRAIDPLANE_PLATFORM:?release platform required}",
+      "logging": {
+        "driver": "json-file",
+        "options": {
+          "max-size": "10m",
+          "max-file": "3"
+        }
+      },
+      "networks": [
+        "private"
+      ],
+      "command": [
+        "worker"
+      ],
+      "env_file": [
+        "runtime.env"
+      ],
+      "environment": {
+        "CONFIG_PATH": "/etc/braidplane/customer.toml",
+        "EXECUTION_BACKEND": "poller",
+        "DEPLOYMENT_PROFILE": "self-hosted"
+      },
+      "volumes": [
+        "./config.toml:/etc/braidplane/customer.toml:ro",
+        "./certificates/ca.pem:/etc/braidplane/ca.pem:ro"
+      ],
+      "read_only": true,
+      "tmpfs": [
+        "/tmp:rw,nosuid,nodev,size=512m,mode=1777"
+      ],
+      "cap_drop": [
+        "ALL"
+      ],
+      "security_opt": [
+        "no-new-privileges:true"
+      ],
+      "restart": "unless-stopped",
+      "stop_grace_period": "45s",
+      "depends_on": {
+        "grants": {
+          "condition": "service_completed_successfully"
+        }
+      },
+      "healthcheck": {
+        "test": [
+          "CMD",
+          "/braidplane-healthcheck",
+          "3001"
+        ],
+        "interval": "10s",
+        "timeout": "3s",
+        "retries": 12,
+        "start_period": "20s"
+      }
+    },
+    "executor": {
+      "image": "${BACKEND_IMAGE:?release image required}",
+      "platform": "${BRAIDPLANE_PLATFORM:?release platform required}",
+      "logging": {
+        "driver": "json-file",
+        "options": {
+          "max-size": "10m",
+          "max-file": "3"
+        }
+      },
+      "networks": [
+        "private"
+      ],
+      "command": [
+        "executor"
+      ],
+      "env_file": [
+        "executor.env"
+      ],
+      "environment": {
+        "CONFIG_PATH": "/etc/braidplane/customer.toml",
+        "EXECUTION_BACKEND": "poller",
+        "DEPLOYMENT_PROFILE": "self-hosted"
+      },
+      "volumes": [
+        "./executor.toml:/etc/braidplane/customer.toml:ro",
+        "./certificates/ca.pem:/etc/braidplane/ca.pem:ro"
+      ],
+      "read_only": true,
+      "tmpfs": [
+        "/tmp:rw,nosuid,nodev,size=512m,mode=1777"
+      ],
+      "cap_drop": [
+        "ALL"
+      ],
+      "security_opt": [
+        "no-new-privileges:true"
+      ],
+      "restart": "unless-stopped",
+      "stop_grace_period": "45s",
+      "depends_on": {
+        "grants": {
+          "condition": "service_completed_successfully"
+        }
+      },
+      "healthcheck": {
+        "test": [
+          "CMD",
+          "/braidplane-healthcheck",
+          "3001"
+        ],
+        "interval": "10s",
+        "timeout": "3s",
+        "retries": 12,
+        "start_period": "20s"
+      }
+    },
+    "frontend": {
+      "image": "${FRONTEND_IMAGE:?release image required}",
+      "platform": "${BRAIDPLANE_PLATFORM:?release platform required}",
+      "logging": {
+        "driver": "json-file",
+        "options": {
+          "max-size": "10m",
+          "max-file": "3"
+        }
+      },
+      "networks": [
+        "private"
+      ],
+      "env_file": [
+        "runtime.env"
+      ],
+      "environment": {
+        "CONFIG_PATH": "/etc/braidplane/customer.toml",
+        "EXECUTION_BACKEND": "poller",
+        "DEPLOYMENT_PROFILE": "self-hosted",
+        "BACKEND_API_URL": "http://api:3001",
+        "FRONTEND_SERVER_PORT": "3002"
+      },
+      "volumes": [
+        "./config.toml:/etc/braidplane/customer.toml:ro",
+        "./certificates/ca.pem:/etc/braidplane/ca.pem:ro"
+      ],
+      "read_only": true,
+      "tmpfs": [
+        "/tmp:rw,nosuid,nodev,size=512m,mode=1777"
+      ],
+      "cap_drop": [
+        "ALL"
+      ],
+      "security_opt": [
+        "no-new-privileges:true"
+      ],
+      "restart": "unless-stopped",
+      "stop_grace_period": "45s",
+      "depends_on": {
+        "grants": {
+          "condition": "service_completed_successfully"
+        }
+      },
+      "healthcheck": {
+        "test": [
+          "CMD",
+          "/braidplane-healthcheck",
+          "3002"
+        ],
+        "interval": "10s",
+        "timeout": "3s",
+        "retries": 12,
+        "start_period": "20s"
+      }
+    },
+    "edge": {
+      "image": "${EDGE_IMAGE:?release image required}",
+      "platform": "${BRAIDPLANE_PLATFORM:?release platform required}",
+      "logging": {
+        "driver": "json-file",
+        "options": {
+          "max-size": "10m",
+          "max-file": "3"
+        }
+      },
+      "networks": [
+        "private"
+      ],
+      "volumes": [
+        "./Caddyfile:/etc/caddy/Caddyfile:ro",
+        "./certificates/edge.pem:/certificates/edge.pem:ro",
+        "./certificates/edge.key:/certificates/edge.key:ro"
+      ],
+      "ports": [
+        "${BRAIDPLANE_BIND_ADDRESS:?customer bind address required}:443:443"
+      ],
+      "restart": "unless-stopped",
+      "depends_on": {
+        "frontend": {
+          "condition": "service_healthy"
+        }
+      },
+      "environment": {
+        "BRAIDPLANE_HOST": "${BRAIDPLANE_HOST:?customer hostname required}"
+      }
+    },
+    "cli": {
+      "image": "${CLI_IMAGE:?release image required}",
+      "platform": "${BRAIDPLANE_PLATFORM:?release platform required}",
+      "logging": {
+        "driver": "json-file",
+        "options": {
+          "max-size": "10m",
+          "max-file": "3"
+        }
+      },
+      "networks": [
+        "private"
+      ],
+      "profiles": [
+        "tools"
+      ],
+      "volumes": [
+        "./certificates/ca.pem:/etc/braidplane/ca.pem:ro"
+      ],
+      "environment": {
+        "SSL_CERT_FILE": "/etc/braidplane/ca.pem"
+      },
+      "tmpfs": [
+        "/tmp:rw,nosuid,nodev,size=64m,mode=1777"
+      ],
+      "read_only": true,
+      "cap_drop": [
+        "ALL"
+      ],
+      "security_opt": [
+        "no-new-privileges:true"
+      ]
+    },
+    "bootstrap": {
+      "image": "${BACKEND_IMAGE:?release image required}",
+      "platform": "${BRAIDPLANE_PLATFORM:?release platform required}",
+      "logging": {
+        "driver": "json-file",
+        "options": {
+          "max-size": "10m",
+          "max-file": "3"
+        }
+      },
+      "networks": [
+        "private"
+      ],
+      "command": [
+        "bootstrap"
+      ],
+      "env_file": [
+        "runtime.env",
+        "migrator.env"
+      ],
+      "environment": {
+        "CONFIG_PATH": "/etc/braidplane/customer.toml",
+        "EXECUTION_BACKEND": "poller",
+        "DEPLOYMENT_PROFILE": "self-hosted"
+      },
+      "volumes": [
+        "./config.toml:/etc/braidplane/customer.toml:ro",
+        "./certificates/ca.pem:/etc/braidplane/ca.pem:ro"
+      ],
+      "read_only": true,
+      "tmpfs": [
+        "/tmp:rw,nosuid,nodev,size=512m,mode=1777"
+      ],
+      "cap_drop": [
+        "ALL"
+      ],
+      "security_opt": [
+        "no-new-privileges:true"
+      ],
+      "stop_grace_period": "45s",
+      "profiles": [
+        "tools"
+      ],
+      "entrypoint": [
+        "/braidplane-admin"
+      ]
+    }
+  },
+  "volumes": {
+    "database": {}
+  },
+  "networks": {
+    "private": {}
+  }
+}

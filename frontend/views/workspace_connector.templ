@@ -1,0 +1,53 @@
+package views
+
+import api "github.com/Braidplane/braidplane-core/api-schema/gen/client"
+
+templ WorkspaceDataDisclosure(privacyURL string) {
+	<div class="space-y-2 text-sm text-base-content/80" data-workspace-data-disclosure>
+		<p>Google access covers files you explicitly share with Braidplane and files Braidplane creates. Select files or folders with Google, then choose targets and spreadsheet ranges for queries and scheduled pipelines. Google grants read and write permission on those files; Braidplane blocks writes by default unless you enable them.</p>
+		<p>Braidplane stores an encrypted Google authorization grant so scheduled workflows can run while access remains valid. Results may be retained in workflow history, viewed by authorized workspace members and sent to destinations you configure. Revoking Google access does not erase retained history or delivered copies.</p>
+		if privacyURL != "" {
+			<p>Before connecting, review <a class="link link-primary" href={ templ.URL(privacyURL) } target="_blank" rel="noopener noreferrer">Workspace data use and retention</a>, including restrictions on transfers and human access.</p>
+		} else {
+			<p>Contact your instance administrator for Workspace data use and retention details.</p>
+		}
+	</div>
+}
+
+templ WorkspaceSelection(org string, source *api.DataSource, privacyURL string) {
+	<div class="space-y-3 border-b border-base-300 pb-4" data-workspace-selection data-org={ org } data-source={ string(source.Slug) }>
+		<p class="text-sm font-semibold">Connected Workspace</p>
+		@WorkspaceDataDisclosure(privacyURL)
+		<form method="post" action={ templ.URL("/orgs/" + org + "/data-sources/" + string(source.Slug) + "/google_workspace/oauth") } hx-post={ "/orgs/" + org + "/data-sources/" + string(source.Slug) + "/google_workspace/oauth" } hx-swap="none" class="flex flex-wrap gap-2">
+			<button type="submit" class="btn btn-outline btn-sm self-end">Connect / reconnect Google</button>
+		</form>
+	</div>
+}
+
+templ WorkspaceOperationFields(form QueryEditorFormData, org string, source string) {
+	<div class="grid min-w-0 gap-3 md:grid-cols-2" data-workspace-operation data-org={ org } data-source={ source }>
+		<label class="form-control"><span class="label-text text-xs">Resource</span><select name="workspace_resource" class="select select-bordered select-sm"><option value="spreadsheet" selected?={ form.WorkspaceResource == "spreadsheet" }>Spreadsheet</option><option value="file" selected?={ form.WorkspaceResource == "file" }>Drive file</option><option value="document" selected?={ form.WorkspaceResource == "document" }>Google Doc</option><option value="presentation" selected?={ form.WorkspaceResource == "presentation" }>Google Slides</option></select></label>
+		<label class="form-control"><span class="label-text text-xs">Operation</span><select name="workspace_operation" class="select select-bordered select-sm"><option value="read" selected?={ form.WorkspaceOperation == "read" }>Read</option><option value="list" selected?={ form.WorkspaceOperation == "list" }>List files</option><option value="create" selected?={ form.WorkspaceOperation == "create" }>Create</option><option value="update" selected?={ form.WorkspaceOperation == "update" }>Update</option><option value="export" selected?={ form.WorkspaceOperation == "export" }>Export PDF</option></select></label>
+		<div class="md:col-span-2 flex flex-wrap gap-2"><button class="btn btn-primary btn-sm" type="button" data-workspace-pick disabled>Select files with Google</button><button class="btn btn-outline btn-sm" type="button" data-workspace-discover>Browse authorized files</button><button class="btn btn-outline btn-sm hidden" type="button" data-workspace-next>Next page</button></div>
+		<select class="select select-bordered select-sm min-w-0 w-full hidden md:col-span-2" aria-label="Authorized Workspace files" data-workspace-files></select>
+		<p class="text-sm md:col-span-2" role="status" data-workspace-feedback></p>
+		<div data-workspace-fields="sheet"><input type="hidden" name="workspace_spreadsheet_id" value={ form.WorkspaceSpreadsheetID }/><p class="text-xs">Spreadsheet: <span data-workspace-target-name>{ form.WorkspaceSpreadsheetID }</span></p><p class="text-xs text-base-content/70 break-all">File ID: <span data-workspace-target-id>{ form.WorkspaceSpreadsheetID }</span></p></div>
+		<label class="form-control" data-workspace-fields="sheet"><span class="label-text text-xs">Worksheet</span><select class="select select-bordered select-sm" name="workspace_worksheet_id" aria-label="Worksheet"><option value={ form.WorkspaceWorksheetID }>Loading worksheets…</option></select><span class="block text-xs text-base-content/70 break-all">Worksheet ID: <span data-workspace-worksheet-id>{ form.WorkspaceWorksheetID }</span></span></label>
+		<label class="form-control" data-workspace-fields="sheet"><span class="label-text text-xs">Bounded A1 range, e.g. A1:C10</span><input class="input input-bordered input-sm font-mono" name="workspace_range" value={ form.WorkspaceRange }/></label>
+		<div data-workspace-fields="file-target"><input type="hidden" name="workspace_file_id" value={ form.WorkspaceFileID }/><p class="text-xs">File: <span data-workspace-target-name>{ form.WorkspaceFileID }</span></p><p class="text-xs text-base-content/70 break-all">File ID: <span data-workspace-target-id>{ form.WorkspaceFileID }</span></p></div>
+		<label class="form-control" data-workspace-fields="folder"><span class="label-text text-xs">Authorized folder ID (required to create; optional list filter)</span><input class="input input-bordered input-sm font-mono" name="workspace_folder_id" value={ form.WorkspaceFolderID }/></label>
+		<label class="form-control" data-workspace-fields="list"><span class="label-text text-xs">Shared drive ID (optional list filter)</span><input class="input input-bordered input-sm font-mono" name="workspace_drive_id" value={ form.WorkspaceDriveID }/></label>
+		<label class="form-control" data-workspace-fields="create"><span class="label-text text-xs">Filename (creates a new file)</span><input class="input input-bordered input-sm font-mono" name="workspace_name" value={ form.WorkspaceName }/></label>
+		<label class="form-control" data-workspace-fields="mime"><span class="label-text text-xs">MIME type (optional)</span><input class="input input-bordered input-sm font-mono" name="workspace_mime_type" value={ form.WorkspaceMIMEType }/></label>
+		<label class="form-control" data-workspace-fields="list"><span class="label-text text-xs">Continuation token (optional)</span><input class="input input-bordered input-sm font-mono" name="workspace_page_token" value={ form.WorkspacePageToken }/></label>
+		<label class="form-control" data-workspace-fields="csv"><span class="label-text text-xs">CSV delimiter (optional)</span><input class="input input-bordered input-sm font-mono" name="workspace_delimiter" value={ form.WorkspaceDelimiter }/></label>
+		<label class="form-control" data-workspace-fields="format"><span class="label-text text-xs">Format</span><select name="workspace_format" class="select select-bordered select-sm"><option value="json" selected?={ form.WorkspaceFormat == "json" }>JSON</option><option value="csv" selected?={ form.WorkspaceFormat == "csv" }>CSV</option><option value="file" selected?={ form.WorkspaceFormat == "file" }>File payload</option></select></label>
+		<label class="form-control" data-workspace-fields="csv"><span class="label-text text-xs">CSV header</span><select class="select select-bordered select-sm" name="workspace_has_header"><option value="">Default</option><option value="true" selected?={ form.WorkspaceHasHeader == "true" }>Present</option><option value="false" selected?={ form.WorkspaceHasHeader == "false" }>Absent</option></select></label>
+		<label class="form-control md:col-span-2" data-workspace-fields="sheet-update"><span class="label-text text-xs">Ordered columns (JSON array)</span><textarea class="textarea textarea-bordered font-mono text-xs" name="workspace_columns">{ form.WorkspaceColumns }</textarea></label>
+		<label class="form-control md:col-span-2" data-workspace-fields="sheet-update"><span class="label-text text-xs">{ "Rows (JSON objects or {{input}})" }</span><textarea class="textarea textarea-bordered font-mono text-xs" name="workspace_rows" data-param-source-input>{ form.WorkspaceRows }</textarea></label>
+		<label class="form-control md:col-span-2" data-workspace-fields="native-update"><span class="label-text text-xs">Exact text to replace (case-sensitive)</span><textarea class="textarea textarea-bordered font-mono text-xs" rows="2" name="workspace_match_text" data-workspace-initial-match-text={ form.WorkspaceMatchText }>{ form.WorkspaceMatchText }</textarea></label>
+		<p class="text-xs md:col-span-2" data-workspace-fields="native">Native reads retain structure. Create makes a blank file; update replaces all exact matches; export produces PDF. Native writes require unsafe replay.</p>
+		<label class="form-control md:col-span-2" data-workspace-fields="file-write"><span class="label-text text-xs">{ "Content (native replacement: JSON string or {{input}})" }</span><textarea class="textarea textarea-bordered font-mono text-xs" name="workspace_content" data-param-source-input>{ form.WorkspaceContent }</textarea></label>
+		<p class="text-xs md:col-span-2" data-workspace-fields="create">Create always creates a new file, including when the filename already exists. Pipelines must use unsafe replay policy.</p>
+	</div>
+}

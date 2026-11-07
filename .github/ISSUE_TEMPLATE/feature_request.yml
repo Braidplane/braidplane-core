@@ -1,0 +1,27 @@
+name: Feature or connector proposal
+description: Describe a problem and a proposed improvement.
+body:
+  - type: markdown
+    attributes:
+      value: "Use synthetic data. For security concerns, email contact@braidplane.com privately."
+  - type: textarea
+    id: detail-0
+    attributes:
+      label: "Problem"
+      description: "What are you trying to do, and what blocks you?"
+    validations:
+      required: true
+  - type: textarea
+    id: detail-1
+    attributes:
+      label: "Proposal"
+      description: "Describe the change, connector operation or support combination you need."
+    validations:
+      required: true
+  - type: textarea
+    id: detail-2
+    attributes:
+      label: "Alternatives"
+      description: "What have you tried? Include compatibility or permission concerns."
+    validations:
+      required: true

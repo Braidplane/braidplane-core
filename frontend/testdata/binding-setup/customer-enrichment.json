@@ -1,0 +1,145 @@
+{
+  "metadata": {
+    "slug": "http-customer-enrichment",
+    "name": "Enrich API orders with customer segments for an object export"
+  },
+  "steps": [
+    {
+      "kind": "query",
+      "slug": "read-orders",
+      "query": {
+        "data_source_ref": "orders-api",
+        "operation_type": "http",
+        "operation_inline": {
+          "method": "GET",
+          "path": "/orders"
+        },
+        "output_contract": {
+          "representation": "json",
+          "root_shape": "array",
+          "fields": [
+            {
+              "name": "order_id",
+              "type": "string",
+              "required": true
+            },
+            {
+              "name": "customer_id",
+              "type": "string",
+              "required": true
+            },
+            {
+              "name": "amount_cents",
+              "type": "integer",
+              "required": true
+            }
+          ]
+        }
+      }
+    },
+    {
+      "kind": "query",
+      "slug": "read-customers",
+      "query": {
+        "data_source_ref": "customer-db",
+        "operation_type": "sql",
+        "operation_inline": {
+          "sql": "SELECT customer_id, segment FROM recipe_customers ORDER BY customer_id"
+        },
+        "output_contract": {
+          "representation": "rows",
+          "fields": [
+            {
+              "name": "customer_id",
+              "type": "string",
+              "required": true
+            },
+            {
+              "name": "segment",
+              "type": "string",
+              "required": true
+            }
+          ]
+        }
+      }
+    },
+    {
+      "kind": "transform",
+      "slug": "enrich-orders",
+      "transform": {
+        "inputs": {
+          "orders": "read-orders",
+          "customers": "read-customers"
+        },
+        "sql": "SELECT orders.order_id, orders.customer_id, orders.amount_cents, COALESCE(customers.segment, 'unmatched') AS segment FROM orders LEFT JOIN customers ON customers.customer_id = orders.customer_id ORDER BY order_id",
+        "output_kind": "rows",
+        "output_contract": {
+          "representation": "rows",
+          "fields": [
+            {
+              "name": "order_id",
+              "type": "string",
+              "required": true
+            },
+            {
+              "name": "customer_id",
+              "type": "string",
+              "required": true
+            },
+            {
+              "name": "amount_cents",
+              "type": "integer",
+              "required": true
+            },
+            {
+              "name": "segment",
+              "type": "string",
+              "required": true
+            }
+          ]
+        }
+      }
+    },
+    {
+      "kind": "sink",
+      "slug": "export-orders",
+      "sink": {
+        "input": "enrich-orders",
+        "data_source_ref": "enriched-export",
+        "operation_type": "s3",
+        "input_contract": {
+          "representation": "rows",
+          "fields": [
+            {
+              "name": "order_id",
+              "type": "string",
+              "required": true
+            },
+            {
+              "name": "customer_id",
+              "type": "string",
+              "required": true
+            },
+            {
+              "name": "amount_cents",
+              "type": "integer",
+              "required": true
+            },
+            {
+              "name": "segment",
+              "type": "string",
+              "required": true
+            }
+          ]
+        },
+        "idempotency_class": "naturally_idempotent",
+        "operation_ref": "http-customer-enrichment-write",
+        "config": {
+          "key": "recipes/enriched-orders.json",
+          "format": "json",
+          "overwrite": true
+        }
+      }
+    }
+  ]
+}

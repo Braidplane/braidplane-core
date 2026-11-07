@@ -1,0 +1,32 @@
+package views
+
+templ MFAPage(title string, challengeToken string, returnTo string, pageError string, pageErrorDetails string) {
+	@AuthPage(title, true, MFAPageContent(challengeToken, returnTo, pageError, pageErrorDetails))
+}
+
+templ MFAPageContent(challengeToken string, returnTo string, pageError string, pageErrorDetails string) {
+	if pageError != "" {
+		@ErrorPopup("mfa-error-popup", pageError, pageErrorDetails)
+	}
+	<div class="space-y-5">
+		<header>
+			<p class="text-xs font-semibold uppercase tracking-wide text-info">Security check</p>
+			<h1 class="mt-2 text-2xl font-semibold">Check your email</h1>
+			<p class="mt-2 text-sm text-base-content/70">Enter the six-digit code to finish signing in.</p>
+		</header>
+		<form class="space-y-3" method="post" action="/auth/mfa" hx-post="/auth/mfa" hx-target="main" hx-select="main" hx-swap="innerHTML">
+			<input type="hidden" name="challenge_token" value={ challengeToken }/>
+			<input type="hidden" name="return_to" value={ returnTo }/>
+			<label class="form-control w-full">
+				<div class="label">
+					<span class="label-text">Code</span>
+				</div>
+				<input class="input input-bordered w-full tracking-widest" type="text" name="code" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9]{6}" maxlength="6" placeholder="123456" required/>
+			</label>
+			<button class="btn btn-primary w-full" type="submit">Verify code</button>
+		</form>
+		<p class="text-center text-sm text-base-content/70">
+			<a class="link link-primary" href="/auth/login">Back to sign in</a>
+		</p>
+	</div>
+}

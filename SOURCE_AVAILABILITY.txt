@@ -1,0 +1,45 @@
+Braidplane Community dependency source
+
+The unmodified upstream module source ZIPs identified by MPL_SOURCES.sha256
+are included in the sources/ directory beside this file. Their existing
+license and source notices remain in the ZIPs. Covered source retains its
+Mozilla Public License 2.0 terms; the Community Apache license does not
+replace those terms. See THIRD_PARTY_NOTICES.txt for the complete retained
+MPL text and notices.
+
+Executable bundles: keep licenses/ and its sources/ directory with the binaries.
+Container images: the same files are at /usr/share/licenses/braidplane/.
+The files can be copied from a stopped container; no application startup or
+network request is required. For example:
+
+  docker create --name braidplane-source-copy IMAGE
+  docker cp braidplane-source-copy:/usr/share/licenses/braidplane ./licenses
+  docker rm braidplane-source-copy
+
+Replace IMAGE with the exact image being distributed. The temporary container
+must have an unused name. Compare ZIP bytes with MPL_SOURCES.sha256 after
+changing to licenses/sources/ using a SHA-256 checksum verifier.
+
+Container images additionally include the exact Debian CA-certificate source
+package and its .dsc receipt under sources/runtime/. The Dockerfile pins both
+download hashes and checks the installed CA package version. The .dsc contains
+the source archive's SHA-256 checksum and identifies its version and contents.
+
+This delivers the listed Go module and CA-certificate sources. It is not a
+source offer for other container OS packages or a claim that the inventory
+covers every component. Source and copyright terms inside each archive remain
+applicable to that archive's files.
+
+Debian backend distributors must also supply the matching OS source companion.
+Prepare it from the exact built image with:
+
+  task container-sources image=IMAGE
+
+The result is out/container-sources/backend-IMAGE_SHA256.tar and a JSON hash
+receipt. Its manifest.json records the immutable image digest, installed
+binary package versions, selected source package versions and source-file
+hashes. The collector checks Debian Snapshot file identities and each source
+descriptor's SHA-256 file inventory. Original package source/license material
+is retained. Keep the matching companion with the image distribution and tell
+recipients where to obtain it; preparing it locally does not publish it or
+create a public source endpoint. Rebuild the companion for a changed image.

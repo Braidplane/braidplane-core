@@ -1,0 +1,79 @@
+{
+  "metadata": {
+    "slug": "installation-first-result",
+    "name": "Installation first result"
+  },
+  "steps": [
+    {
+      "kind": "query",
+      "slug": "read-fixture",
+      "query": {
+        "data_source_ref": "installation-git",
+        "operation_type": "git",
+        "operation_inline": {
+          "type": "git",
+          "operation": "read",
+          "path": "first-result/input.json",
+          "format": "json"
+        },
+        "output_contract": {
+          "representation": "rows",
+          "fields": [
+            {
+              "name": "value",
+              "type": "integer",
+              "required": true
+            }
+          ]
+        }
+      }
+    },
+    {
+      "kind": "transform",
+      "slug": "calculate-result",
+      "transform": {
+        "inputs": {
+          "fixture": "read-fixture"
+        },
+        "sql": "SELECT value + 1 AS result FROM fixture",
+        "output_kind": "rows",
+        "output_contract": {
+          "representation": "rows",
+          "fields": [
+            {
+              "name": "result",
+              "type": "number",
+              "required": true
+            }
+          ]
+        }
+      }
+    },
+    {
+      "kind": "sink",
+      "slug": "write-result",
+      "sink": {
+        "input": "calculate-result",
+        "input_contract": {
+          "representation": "rows",
+          "fields": [
+            {
+              "name": "result",
+              "type": "number",
+              "required": true
+            }
+          ]
+        },
+        "data_source_ref": "installation-git",
+        "operation_type": "git",
+        "operation_ref": "write-installation-result",
+        "config": {
+          "path": "generated/installation/{{runtime.sink.replay_identity}}.json",
+          "format": "json",
+          "message": "Record synthetic installation result"
+        },
+        "idempotency_class": "deduplicated_by_ledger"
+      }
+    }
+  ]
+}

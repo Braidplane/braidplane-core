@@ -1,0 +1,14 @@
+# Only connect() addresses are traced. No host PID/network namespace or payload tracing.
+services:
+  api:
+    image: braidplane-selfhost-acceptance-trace:local
+    command: [/braidplane-server, api, "--log-backend-file="]
+    cap_add: [SYS_PTRACE]
+  worker:
+    image: braidplane-selfhost-acceptance-trace:local
+    command: [/braidplane-server, worker, "--log-backend-file="]
+    cap_add: [SYS_PTRACE]
+  cli:
+    image: braidplane-selfhost-acceptance-trace:local
+    command: [/braidplane, user, profile, get]
+    cap_add: [SYS_PTRACE]

@@ -1,0 +1,6 @@
+FROM charmcli/soft-serve:latest@sha256:e8a12ff7f112558a6cd461ca192fe237d9deb2ec081ace944d2b5a61138a0db9
+
+COPY soft-serve-init.sh /usr/local/bin/soft-serve-init.sh
+RUN chmod +x /usr/local/bin/soft-serve-init.sh
+
+ENTRYPOINT ["/usr/local/bin/soft-serve-init.sh"]

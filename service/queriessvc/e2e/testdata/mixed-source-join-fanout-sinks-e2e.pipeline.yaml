@@ -1,0 +1,126 @@
+metadata:
+  slug: ${PIPELINE_SLUG}
+  name: E2E Mixed Source Join Fan Out Sinks
+steps:
+  - kind: query
+    slug: fetch-users
+    query:
+      data_source_ref: ${PG_DATA_SOURCE_SLUG}
+      operation_type: sql
+      operation_ref: ${USERS_QUERY_SLUG}
+      output_contract:
+        representation: rows
+        fields:
+          - name: id
+            type: integer
+            required: true
+          - name: email
+            type: string
+            required: true
+  - kind: query
+    slug: fetch-profiles-json
+    query:
+      data_source_ref: ${HTTP_DATA_SOURCE_SLUG}
+      operation_type: http
+      operation_ref: ${PROFILES_QUERY_SLUG}
+      output_contract:
+        representation: rows
+        fields:
+          - name: id
+            type: integer
+            required: true
+          - name: status
+            type: string
+            required: true
+  - kind: query
+    slug: fetch-segments-csv
+    query:
+      data_source_ref: ${HTTP_DATA_SOURCE_SLUG}
+      operation_type: http
+      operation_ref: ${SEGMENTS_QUERY_SLUG}
+      output_contract:
+        representation: rows
+        fields:
+          - name: id
+            type: integer
+            required: true
+          - name: segment
+            type: string
+            required: true
+  - kind: transform
+    slug: join-mixed-sources
+    transform:
+      inputs:
+        users: fetch-users
+        profiles: fetch-profiles-json
+        segments: fetch-segments-csv
+      sql: "SELECT users.id AS user_id, users.email AS email, profiles.status AS status, segments.segment AS segment FROM users JOIN profiles ON profiles.id = users.id JOIN segments ON segments.id = users.id ORDER BY user_id"
+      output_kind: rows
+      output_contract:
+        name: join-mixed-sources-output
+        representation: rows
+        fields:
+          - name: user_id
+            type: integer
+            required: true
+          - name: email
+            type: string
+            required: true
+          - name: status
+            type: string
+            required: true
+          - name: segment
+            type: string
+            required: true
+  - kind: sink
+    slug: persist-mixed-join
+    sink:
+      idempotency_class: deduplicated_by_ledger
+      input: join-mixed-sources
+      input_contract:
+        name: persist-mixed-join-input
+        representation: rows
+        fields:
+          - name: user_id
+            type: integer
+            required: true
+          - name: email
+            type: string
+            required: true
+          - name: status
+            type: string
+            required: true
+          - name: segment
+            type: string
+            required: true
+      data_source_ref: ${PG_DATA_SOURCE_SLUG}
+      operation_type: sql
+      operation_ref: ${DB_SINK_QUERY_SLUG}
+      config:
+        org_slug: ${ORG_SLUG}
+  - kind: sink
+    slug: deliver-mixed-join
+    sink:
+      idempotency_class: deduplicated_by_ledger
+      input: join-mixed-sources
+      input_contract:
+        name: deliver-mixed-join-input
+        representation: rows
+        fields:
+          - name: user_id
+            type: integer
+            required: true
+          - name: email
+            type: string
+            required: true
+          - name: status
+            type: string
+            required: true
+          - name: segment
+            type: string
+            required: true
+      data_source_ref: ${HTTP_DATA_SOURCE_SLUG}
+      operation_type: http
+      operation_ref: ${HTTP_SINK_QUERY_SLUG}
+      config:
+        mode: mixed-fanout

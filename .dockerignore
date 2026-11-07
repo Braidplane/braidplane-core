@@ -1,0 +1,21 @@
+.git
+.github
+.worktree
+.worktree-env
+.env
+.env.*
+.ops
+.cache
+node_modules
+**/node_modules
+frontend/playwright-report
+frontend/test-results
+frontend/e2e/.auth
+out
+*.log
+config.local.toml
+config.*.local.toml
+
+# Generated isolated Mailpit identity.
+/docker/mailpit/*.pem
+/docker/mailpit/.tls-*

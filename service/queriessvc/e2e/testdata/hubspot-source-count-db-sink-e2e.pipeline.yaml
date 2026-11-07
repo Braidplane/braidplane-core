@@ -1,0 +1,98 @@
+metadata:
+  slug: ${PIPELINE_SLUG}
+  name: E2E HubSpot Source Count DB Sink
+steps:
+  - kind: query
+    slug: fetch-contacts
+    query:
+      data_source_ref: ${HUBSPOT_DATA_SOURCE_SLUG}
+      operation_type: hubspot
+      operation_ref: ${HUBSPOT_QUERY_SLUG}
+      output_contract:
+        representation: rows
+        fields:
+          - name: hs_object_id
+            type: string
+            required: true
+          - name: email
+            type: string
+            required: true
+          - name: firstname
+            type: string
+            required: true
+  - kind: transform
+    slug: project-contacts
+    transform:
+      inputs:
+        input: fetch-contacts
+      sql: "SELECT hs_object_id, email, firstname AS display_name FROM input ORDER BY email"
+      output_kind: rows
+      output_contract:
+        representation: rows
+        fields:
+          - name: hs_object_id
+            type: string
+            required: true
+          - name: email
+            type: string
+            required: true
+          - name: display_name
+            type: string
+            required: true
+  - kind: transform
+    slug: count-contacts
+    transform:
+      inputs:
+        input: fetch-contacts
+      sql: "SELECT COUNT(*) AS contact_count, CAST(COUNT(*) AS SIGNED) AS cast_contact_count FROM input"
+      output_kind: rows
+      output_contract:
+        representation: rows
+        fields:
+          - name: contact_count
+            type: integer
+            required: true
+          - name: cast_contact_count
+            type: integer
+            required: true
+  - kind: sink
+    slug: persist-contacts
+    sink:
+      idempotency_class: deduplicated_by_ledger
+      input: project-contacts
+      input_contract:
+        representation: rows
+        fields:
+          - name: hs_object_id
+            type: string
+            required: true
+          - name: email
+            type: string
+            required: true
+          - name: display_name
+            type: string
+            required: true
+      data_source_ref: ${PG_DATA_SOURCE_SLUG}
+      operation_type: sql
+      operation_ref: ${CONTACTS_SINK_QUERY_SLUG}
+      config:
+        org_slug: ${ORG_SLUG}
+  - kind: sink
+    slug: persist-contact-counts
+    sink:
+      idempotency_class: deduplicated_by_ledger
+      input: count-contacts
+      input_contract:
+        representation: rows
+        fields:
+          - name: contact_count
+            type: integer
+            required: true
+          - name: cast_contact_count
+            type: integer
+            required: true
+      data_source_ref: ${PG_DATA_SOURCE_SLUG}
+      operation_type: sql
+      operation_ref: ${COUNTS_SINK_QUERY_SLUG}
+      config:
+        org_slug: ${ORG_SLUG}

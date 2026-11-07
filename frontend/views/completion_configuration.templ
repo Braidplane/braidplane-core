@@ -1,0 +1,38 @@
+package views
+
+import (
+	"fmt"
+	api "github.com/Braidplane/braidplane-core/api-schema/gen/client"
+)
+
+templ PipelineCompletionConfiguration(org, project, environment string, trigger api.PipelineTrigger, detail PipelineScheduleSelectedDetail) {
+	if trigger.Completion!=nil {
+		<section class="min-w-0 space-y-2 border-b border-base-300 pb-4" aria-label="Completion configuration">
+			<h2 class="text-base font-semibold">Completion subscription</h2>
+			<p class="break-all font-mono text-sm">{ trigger.Completion.UpstreamPipelineSlug } → { string(trigger.Completion.Condition) } → { trigger.PipelineSlug }</p>
+			<p class="text-sm">Trigger revision { fmt.Sprint(trigger.Revision) }</p>
+			if !trigger.Enabled {
+				<p class="text-sm">Disabled subscription. Pending dispatch is suppressed; accepted children continue.</p>
+			} else if !trigger.Completion.ExecutionGrantEnabled {
+				<p class="text-sm">Execution grant revoked. Pending dispatch is refused.</p>
+			} else {
+				<p class="text-sm">Enabled subscription, waiting for the next matching logical closure. This does not represent a queued run.</p>
+			}
+			<p class="text-sm">No payload is transferred. Only the final logical outcome after automatic retries is eligible.</p>
+			<h3 class="pt-2 text-sm font-semibold">Current configuration preview</h3>
+			<p class="text-xs text-base-content/70">Preview can change before closure. Exact selected deployment/version belongs to the persisted run decision.</p>
+			if trigger.VersionPolicy.PinnedVersionHash!=nil {
+				<p class="break-all text-sm">Pinned version: <code>{ *trigger.VersionPolicy.PinnedVersionHash }</code></p>
+			}
+			if detail.CompletionPreview!=nil {
+				<p class="break-all text-sm">Current deployment revision { fmt.Sprint(detail.CompletionPreview.Revision) }: <code>{ detail.CompletionPreview.CurrentVersionSpecHash }</code></p>
+				if trigger.VersionPolicy.Mode==api.PipelineTriggerVersionPolicyModePinned {
+					<p class="text-xs text-base-content/70">Pinned execution requires that version's retained deployment materialization. The current deployment may use a different version.</p>
+				}
+			} else {
+				<p role="status" class="text-sm text-warning">{ detail.CompletionPreviewError }</p>
+			}
+			<a class="link link-primary text-sm" href={ templ.URL(buildEnvironmentRunsListHrefWithProject(org, project, environment, "", "", "", trigger.Completion.UpstreamPipelineSlug, "", "")) }>Inspect upstream runs</a>
+		</section>
+	}
+}

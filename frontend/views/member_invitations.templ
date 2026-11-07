@@ -1,0 +1,78 @@
+package views
+
+templ MemberInvitationActionPage(shellData AuthenticatedShellData, state MemberInvitationActionState) {
+	@AuthenticatedShell(shellData, MemberInvitationActionContent(state))
+}
+
+templ MemberInvitationActionContent(state MemberInvitationActionState) {
+	<div class="space-y-6">
+		if state.Success != "" {
+			@SuccessPopup("member-invitation-success", state.Success)
+		}
+		if state.ErrorSummary != "" {
+			@ErrorPopup("member-invitation-error", state.ErrorSummary, state.ErrorDetails)
+		}
+		<div class="flex flex-col gap-1">
+			<h2 class="text-2xl font-semibold text-base-content">Member invitation</h2>
+			<p class="text-sm text-base-content/70">Accept or decline an organization invitation for your verified email address.</p>
+		</div>
+		if !AccountActionsEnabled(ctx) {
+			<div class="alert alert-warning" role="note">Invitation acceptance is currently unavailable.</div>
+		}
+		<section class="rounded-xl border border-base-300 bg-base-100 p-4 lg:p-6">
+			if state.Success != "" && state.Invitation != nil {
+				<div class="space-y-4">
+					<div>
+						<h2 class="text-xl font-semibold text-base-content">{ state.Success }</h2>
+						<p class="mt-1 text-sm text-base-content/70">Organization { string(state.Invitation.OrganizationSlug) } · role { string(state.Invitation.Role) }</p>
+					</div>
+					if state.Member != nil {
+						<div class="alert alert-success">
+							<span>Membership is active for { string(state.Member.Email) }.</span>
+						</div>
+						<a class="btn btn-primary" href={ templ.URL("/organizations/" + string(state.Invitation.OrganizationSlug)) }>Open organization</a>
+					} else {
+						<div class="alert">
+							<span>The invitation has been declined.</span>
+						</div>
+						<a class="btn btn-outline" href="/account">Back to account</a>
+					}
+				</div>
+			} else if state.MissingToken {
+				<div class="space-y-4">
+					<div class="alert alert-error">
+						<span>Invitation link is missing a token.</span>
+					</div>
+					<a class="btn btn-outline" href="/account">Back to account</a>
+				</div>
+			} else if state.ErrorSummary != "" {
+				<div class="space-y-4">
+					<div class="alert alert-error">
+						<span>{ state.InvalidReason }</span>
+					</div>
+					<a class="btn btn-outline" href="/account">Back to account</a>
+				</div>
+			} else {
+				<div class="space-y-4">
+					<div>
+						<h2 class="text-xl font-semibold text-base-content">Review invitation</h2>
+						<p class="mt-1 text-sm text-base-content/70">This link can create organization membership for the signed-in user.</p>
+					</div>
+					<div class="flex flex-col gap-2 sm:flex-row">
+						if AccountActionsEnabled(ctx) {
+							<form method="post" action={ templ.URL(MemberInvitationActionURL("accept", state.Token)) }>
+								<input type="hidden" name="token" value={ state.Token }/>
+								@AccountFields(ctx)
+								<button class="btn btn-primary w-full sm:w-auto" type="submit">Accept Invitation</button>
+							</form>
+						}
+						<form method="post" action={ templ.URL(MemberInvitationActionURL("decline", state.Token)) } data-destructive-confirm={ DestructiveConfirmation("Decline", "member invitation", "", "You will not join this organization.") }>
+							<input type="hidden" name="token" value={ state.Token }/>
+							<button class="btn btn-outline w-full sm:w-auto" type="submit">Decline</button>
+						</form>
+					</div>
+				</div>
+			}
+		</section>
+	</div>
+}

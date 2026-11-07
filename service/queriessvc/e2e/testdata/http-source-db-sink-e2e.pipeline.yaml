@@ -1,0 +1,54 @@
+metadata:
+  slug: ${PIPELINE_SLUG}
+  name: E2E HTTP Source DB Sink
+steps:
+  - kind: query
+    slug: fetch-items
+    query:
+      data_source_ref: ${HTTP_DATA_SOURCE_SLUG}
+      operation_type: sql
+      operation_ref: ${HTTP_QUERY_SLUG}
+      output_contract:
+        representation: rows
+        fields:
+          - name: id
+            type: number
+            required: true
+          - name: name
+            type: string
+            required: true
+  - kind: transform
+    slug: project-items
+    transform:
+      inputs:
+        input: fetch-items
+      sql: "SELECT id, name FROM input"
+      output_kind: rows
+      output_contract:
+        representation: rows
+        fields:
+          - name: id
+            type: number
+            required: true
+          - name: name
+            type: string
+            required: true
+  - kind: sink
+    slug: persist-items
+    sink:
+      idempotency_class: deduplicated_by_ledger
+      input: project-items
+      input_contract:
+        representation: rows
+        fields:
+          - name: id
+            type: number
+            required: true
+          - name: name
+            type: string
+            required: true
+      data_source_ref: ${PG_DATA_SOURCE_SLUG}
+      operation_type: sql
+      operation_ref: ${SINK_QUERY_SLUG}
+      config:
+        org_slug: ${ORG_SLUG}

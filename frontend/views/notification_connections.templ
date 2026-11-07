@@ -1,0 +1,74 @@
+package views
+
+import api "github.com/Braidplane/braidplane-core/api-schema/gen/client"
+
+templ NotificationConnectionsPage(shell AuthenticatedShellData, org string, connections []api.NotificationConnection, permissions OrganizationPermissions, message string, failed bool, form NotificationConnectionFormData) {
+	@AuthenticatedShell(shell, NotificationConnectionsContent(org, connections, permissions, message, failed, form))
+}
+
+templ NotificationConnectionsContent(org string, connections []api.NotificationConnection, permissions OrganizationPermissions, message string, failed bool, form NotificationConnectionFormData) {
+	<div class="space-y-6" id="notification-connections">
+		<a class="btn btn-outline btn-sm" href={ templ.URL("/orgs/" + org + "/alerts?tab=destinations") }>Back to alert destinations</a>
+		<div>
+			<h2 class="text-base font-semibold">Notification connections</h2>
+			<p class="mt-1 text-sm text-base-content/70">Authorize a provider connection, then use it in an alert destination.</p>
+		</div>
+		if message != "" {
+			if failed {
+				@ErrorPopup("slack-connection-error", message, "")
+			} else {
+				@SuccessPopup("slack-connection-success", message)
+			}
+		}
+		if permissions.Can("alert_destinations", "create") {
+			<form class="grid items-end gap-3 sm:grid-cols-2 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto_auto]" method="post" action={ templ.URL("/orgs/" + org + "/alerts/connections") }>
+				<label class="form-control min-w-0">
+					<span class="label label-text text-xs">Name</span>
+					<input class="input input-bordered input-sm w-full" name="name" value={ form.Name } placeholder="Operations Slack" maxlength="255" required/>
+				</label>
+				@CustomizeIdentifier(form.Slug)
+				<label class="form-control">
+					<span class="label label-text text-xs">Provider</span>
+					<select class="select select-bordered select-sm w-full" name="provider" required>
+						<option value="slack">Slack</option>
+					</select>
+				</label>
+				<button class="btn btn-primary btn-sm" type="submit">Add connection</button>
+			</form>
+		}
+		if len(connections) == 0 {
+			<p class="text-sm text-base-content/70">No notification connections. Add a connection to start setup.</p>
+		}
+		<div class="divide-y divide-base-300">
+			for _, connection := range connections {
+				<section class="flex flex-wrap items-start justify-between gap-4 py-4">
+					<div class="min-w-0 space-y-1">
+						<h3 class="break-words font-medium">{ connection.Name }</h3>
+						<p class="break-all font-mono text-xs text-base-content/70">{ connection.Slug }</p>
+						<span class="badge badge-outline badge-sm">{ string(connection.Status) }</span>
+						if NotificationConnectionDescription(connection) != "" {
+							<p class="break-words text-sm">{ NotificationConnectionDescription(connection) }</p>
+						}
+					</div>
+					if permissions.Can("alert_destinations", "update") {
+						<div class="flex flex-wrap gap-2">
+							<form method="post" action={ templ.URL("/orgs/" + org + "/alerts/connections/" + connection.Slug + "/connect") } hx-post={ "/orgs/" + org + "/alerts/connections/" + connection.Slug + "/connect" } hx-target="#notification-connections" hx-select="#notification-connections" hx-swap="outerHTML">
+								if connection.Status == api.CredentialStatusActive {
+									<button class="btn btn-outline btn-sm" type="submit">Reconnect / change target</button>
+								} else {
+									<button class="btn btn-primary btn-sm" type="submit">Connect</button>
+								}
+							</form>
+							if connection.Status == api.CredentialStatusActive {
+								<form method="post" action={ templ.URL("/orgs/" + org + "/alerts/connections/" + connection.Slug + "/disconnect") }>
+									<button class="btn btn-outline btn-sm" type="submit">Disconnect</button>
+								</form>
+							}
+						</div>
+					}
+				</section>
+			}
+		</div>
+		<p class="text-xs text-base-content/70">For Slack, changing the channel redirects every destination using this connection after Slack consent succeeds. Disconnect stops their delivery in Braidplane. Other connections remain installed; remove the app in Slack to revoke the workspace installation.</p>
+	</div>
+}

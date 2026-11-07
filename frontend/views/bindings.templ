@@ -1,0 +1,415 @@
+package views
+
+import (
+	"fmt"
+
+	api "github.com/Braidplane/braidplane-core/api-schema/gen/client"
+)
+
+templ ProjectDataSourceBindingsPanel(organization api.Organization, project api.Project, projectContext ProjectOperationalContext, permissions OrganizationPermissions, fullPage bool) {
+	{{ rows := ProjectBindingRows(projectContext) }}
+	<section class="rounded-xl border border-base-300 bg-base-100 p-4">
+		<div class="flex flex-wrap items-start justify-between gap-3">
+			<div>
+				<h2 class="text-base font-semibold text-base-content">Logical bindings</h2>
+				<p class="mt-1 text-xs text-base-content/65">Logical refs required by project pipeline specs across enabled runtime targets.</p>
+			</div>
+			<a class="btn btn-outline btn-sm" href={ templ.URL(projectRuntimeHref(ctx, ProjectEnvironmentsHref(string(organization.Slug), string(project.Slug)))) }>Open runtime targets</a>
+		</div>
+		if projectContext.PipelineDetailsUnavailable {
+			<div class="alert alert-warning mt-4"><span>Pipeline requirements are unavailable for one or more project pipelines.</span></div>
+		}
+		if projectContext.BindingsUnavailable {
+			<div class="alert alert-warning mt-4"><span>Logical binding state is unavailable.</span></div>
+		}
+		if projectContext.DataSourcesUnavailable {
+			<div class="alert alert-warning mt-4"><span>Data-source options are unavailable. Current binding status is shown where it could be loaded.</span></div>
+		}
+		<div class="mt-4 grid gap-3 border-y border-base-300 py-3 sm:grid-cols-3">
+			<div>
+				<p class="text-xs font-semibold uppercase tracking-wide text-base-content/55">Required refs</p>
+				<p class="mt-1 text-xl font-semibold text-base-content">{ fmt.Sprintf("%d", len(rows)) }</p>
+			</div>
+			<div>
+				<p class="text-xs font-semibold uppercase tracking-wide text-base-content/55">Enabled targets</p>
+				<p class="mt-1 text-xl font-semibold text-base-content">{ fmt.Sprintf("%d", len(projectContext.Environments)) }</p>
+			</div>
+			<div>
+				<p class="text-xs font-semibold uppercase tracking-wide text-base-content/55">Needs action</p>
+				<p class="mt-1 text-xl font-semibold text-base-content">{ fmt.Sprintf("%d", ProjectBindingAttentionCount(rows)) }</p>
+			</div>
+		</div>
+		if len(rows) == 0 {
+			<div class="mt-4 rounded-lg border border-dashed border-base-300 bg-base-200/30 px-4 py-3 text-sm text-base-content/70">No data-source requirements found in project pipelines.</div>
+		} else if len(projectContext.Environments) == 0 {
+			<div class="mt-4 rounded-lg border border-dashed border-base-300 bg-base-200/30 px-4 py-3 text-sm text-base-content/70">Enable a runtime environment before bindings can be resolved.</div>
+		} else {
+			<style>
+				[data-project-binding-details]:not([open]) > [data-project-binding-details-content] {
+					display: none !important;
+				}
+				[data-project-binding-details][open] > [data-project-binding-details-content] {
+					display: block !important;
+				}
+			</style>
+			<details class="mt-4 rounded-lg border border-base-300 bg-base-200/20" data-project-binding-details>
+				<summary class="cursor-pointer px-4 py-3 text-sm font-semibold text-base-content">Manage binding rows</summary>
+				<div class="px-4 pb-4" data-project-binding-details-content>
+					@DataSourceBindingMatrix(
+						string(organization.Slug),
+						string(project.Slug),
+						"",
+						"",
+						rows,
+						projectContext.DataSourcesUnavailable,
+						permissions,
+						fullPage,
+						false,
+					)
+				</div>
+			</details>
+		}
+	</section>
+}
+
+templ PipelineDataSourceBindingsPanel(orgSlug string, projectSlug string, activeEnvironmentSlug string, pipeline *api.Pipeline, bindingContext PipelineBindingContext, permissions OrganizationPermissions, embedded bool) {
+	{{ rows := PipelineBindingRows(pipeline, bindingContext) }}
+	<section class="rounded-xl border border-base-300 bg-base-100 p-5">
+		<div class="flex flex-wrap items-start justify-between gap-3">
+			<div>
+				<h3 class="text-base font-semibold text-base-content">Pipeline data-source requirements</h3>
+				<p class="mt-1 text-sm text-base-content/70">Logical refs used by query and sink steps in the canonical pipeline spec.</p>
+			</div>
+			if pipeline != nil {
+				<span class="badge badge-outline">{ fmt.Sprintf("%d refs", len(rows)) }</span>
+			}
+		</div>
+		if pipeline != nil && pipeline.CurrentVersionSpecHash != nil {
+			<a class="link link-primary mt-3 inline-block text-sm" href={ templ.URL(PipelineBindingSetupHref(orgSlug, projectSlug, activeEnvironmentSlug, string(pipeline.Slug), *pipeline.CurrentVersionSpecHash, entitySectionHref(ctx, PipelineDetailHrefWithEnvironment(orgSlug, projectSlug, activeEnvironmentSlug, string(pipeline.Slug)), "deployments")+"#pipeline-bindings")) }>Resolve current version bindings</a>
+		}
+		if !permissions.Can("data_sources", "update") {
+			<p class="mt-3 text-sm text-base-content/70">Read-only for your role. Updating bindings requires data-source update permission.</p>
+		}
+		@PipelineBindingAttentionSummary(activeEnvironmentSlug, pipeline, bindingContext)
+		if bindingContext.RefsUnavailable {
+			<div class="alert alert-warning mt-4"><span>Project logical refs are unavailable for this pipeline.</span></div>
+		}
+		if bindingContext.EnvironmentsUnavailable {
+			<div class="alert alert-warning mt-4"><span>Project runtime targets are unavailable for this pipeline.</span></div>
+		}
+		if bindingContext.DataSourcesUnavailable {
+			<div class="alert alert-warning mt-4"><span>Data-source options are unavailable. Current binding status is shown where it could be loaded.</span></div>
+		}
+		if pipeline == nil {
+			<div class="mt-4 rounded-lg border border-dashed border-base-300 bg-base-200/30 px-4 py-3 text-sm text-base-content/70">Pipeline requirements are unavailable.</div>
+		} else if len(rows) == 0 {
+			<div class="mt-4 rounded-lg border border-dashed border-base-300 bg-base-200/30 px-4 py-3 text-sm text-base-content/70">No data-source requirements in this pipeline.</div>
+		} else if len(bindingContext.Environments) == 0 {
+			<div class="mt-4 rounded-lg border border-dashed border-base-300 bg-base-200/30 px-4 py-3 text-sm text-base-content/70">Enable a runtime environment before pipeline bindings can be resolved.</div>
+		} else {
+			<h4 class="mt-6 text-sm font-semibold">Expert binding matrix · all enabled targets</h4>
+			@DataSourceBindingMatrix(
+				orgSlug,
+				projectSlug,
+				string(pipeline.Slug),
+				activeEnvironmentSlug,
+				rows,
+				bindingContext.DataSourcesUnavailable,
+				permissions,
+				false,
+				embedded,
+			)
+		}
+	</section>
+}
+
+templ DataSourceBindingMatrix(orgSlug string, projectSlug string, pipelineSlug string, activeEnvironmentSlug string, rows []DataSourceBindingRow, dataSourcesUnavailable bool, permissions OrganizationPermissions, fullPage bool, embedded bool) {
+	{{ compact := embedded || (pipelineSlug == "" && !fullPage) }}
+	if compact {
+		@DataSourceBindingCompactList(orgSlug, projectSlug, pipelineSlug, activeEnvironmentSlug, rows, dataSourcesUnavailable, permissions, fullPage, embedded)
+	} else {
+		<div class="mt-4 overflow-x-auto">
+			<table class="table table-sm w-full border-separate border-spacing-0 lg:min-w-[48rem]">
+				<thead class="hidden lg:table-header-group">
+					<tr>
+						<th class="w-64 border-b border-base-300 bg-base-100 text-xs uppercase tracking-wide text-base-content/60">Logical ref</th>
+						if len(rows) > 0 {
+							for _, cell := range rows[0].Cells {
+								<th class="min-w-64 border-b border-base-300 bg-base-100 text-xs uppercase tracking-wide text-base-content/60">
+									<div class="flex items-center gap-2">
+										<span class={ EnvironmentColorBadgeClass(cell.EnvironmentColor) }>{ cell.EnvironmentSlug }</span>
+										if cell.EnvironmentProtected {
+											<span class={ badgeErrorSoft }>protected</span>
+										}
+									</div>
+								</th>
+							}
+						}
+					</tr>
+				</thead>
+				<tbody class="block lg:table-row-group">
+					for _, row := range rows {
+						<tr class="grid gap-3 border-b border-base-300 py-3 align-top lg:table-row lg:border-0 lg:py-0">
+							<th class="block bg-base-100 py-3 pr-4 lg:table-cell lg:border-b lg:border-base-300">
+								@DataSourceBindingRefSummary(row)
+							</th>
+							for _, cell := range row.Cells {
+								<td class="block min-w-0 py-3 lg:table-cell lg:border-b lg:border-base-300 lg:pr-3">
+									<div class="mb-3 flex flex-wrap gap-2 lg:hidden">
+										<span class={ EnvironmentColorBadgeClass(cell.EnvironmentColor) }>{ cell.EnvironmentSlug }</span>
+										if cell.EnvironmentProtected {
+											<span class={ badgeErrorSoft }>protected</span>
+										}
+									</div>
+									@DataSourceBindingCellControl(
+										orgSlug,
+										projectSlug,
+										pipelineSlug,
+										activeEnvironmentSlug,
+										row,
+										cell,
+										dataSourcesUnavailable,
+										permissions,
+										fullPage,
+										embedded,
+									)
+								</td>
+							}
+						</tr>
+					}
+				</tbody>
+			</table>
+		</div>
+	}
+}
+
+templ DataSourceBindingCompactList(orgSlug string, projectSlug string, pipelineSlug string, activeEnvironmentSlug string, rows []DataSourceBindingRow, dataSourcesUnavailable bool, permissions OrganizationPermissions, fullPage bool, embedded bool) {
+	<div class="mt-4 divide-y divide-base-300 border-t border-base-300">
+		for _, row := range rows {
+			<div class="grid min-w-0 gap-3 py-4 lg:grid-cols-[minmax(0,13rem)_minmax(0,1fr)]">
+				@DataSourceBindingRefSummary(row)
+				<div class="grid min-w-0 gap-3">
+					for _, cell := range row.Cells {
+						<div class="min-w-0 rounded-lg border border-base-300 bg-base-200/30 p-3">
+							<div class="mb-3 flex flex-wrap items-center gap-2">
+								<span class={ EnvironmentColorBadgeClass(cell.EnvironmentColor) }>{ cell.EnvironmentSlug }</span>
+								if cell.EnvironmentProtected {
+									<span class={ badgeErrorSoft }>protected</span>
+								}
+							</div>
+							@DataSourceBindingCellControl(
+								orgSlug,
+								projectSlug,
+								pipelineSlug,
+								activeEnvironmentSlug,
+								row,
+								cell,
+								dataSourcesUnavailable,
+								permissions,
+								fullPage,
+								embedded,
+							)
+						</div>
+					}
+				</div>
+			</div>
+		}
+	</div>
+}
+
+templ DataSourceBindingRefSummary(row DataSourceBindingRow) {
+	<div class="min-w-0 overflow-hidden space-y-2">
+		@DataSourceIdentity(row.DataSourceType, DataSourceBindingRefIdentityName(row), DataSourceBindingRefIdentitySlug(row), "sm", "")
+		if row.PipelineSlug != "" {
+			<p class="break-all text-xs text-base-content/60">Pipeline <span class="font-mono">{ row.PipelineSlug }</span></p>
+		}
+		<div class="flex flex-wrap gap-1">
+			if row.DataSourceType != "" {
+				<span class="badge badge-outline">{ row.DataSourceType }</span>
+			}
+			for _, capability := range row.Capabilities {
+				<span class="badge badge-ghost badge-outline">{ capability }</span>
+			}
+		</div>
+		if !row.RefAvailable {
+			<p class="text-xs text-warning">Pipeline ref is unavailable.</p>
+		} else if row.CapabilityMismatch {
+			<p class="text-xs text-warning">Ref contract does not declare the pipeline-required capability.</p>
+		}
+	</div>
+}
+
+templ DataSourceBindingCellControl(orgSlug string, projectSlug string, pipelineSlug string, activeEnvironmentSlug string, row DataSourceBindingRow, cell DataSourceBindingCell, dataSourcesUnavailable bool, permissions OrganizationPermissions, fullPage bool, embedded bool) {
+	{{ canUpdate := permissions.Can("data_sources", "update") }}
+	{{ canDelete := permissions.Can("data_sources", "delete") }}
+	{{ canSubmit := DataSourceBindingCanSubmit(cell.Options, dataSourcesUnavailable, canUpdate) && row.RefAvailable && !row.CapabilityMismatch && cell.State != "unavailable" }}
+	{{ bindingScopeSlug := DataSourceBindingScopeSlug(pipelineSlug, row) }}
+	{{ upsertFormID := DataSourceBindingFormID("binding", "upsert", bindingScopeSlug, row.RefSlug, cell.EnvironmentSlug) }}
+	{{ upsertModalID := DataSourceBindingFormID("binding", "confirm", "upsert", bindingScopeSlug, row.RefSlug, cell.EnvironmentSlug) }}
+	{{ deleteModalID := DataSourceBindingFormID("binding", "confirm", "delete", bindingScopeSlug, row.RefSlug, cell.EnvironmentSlug) }}
+	{{ upsertAction := DataSourceBindingUpsertActionForRow(orgSlug, projectSlug, pipelineSlug, cell.EnvironmentSlug, row, activeEnvironmentSlug, fullPage, embedded) }}
+	{{ deleteAction := DataSourceBindingDeleteActionForRow(orgSlug, projectSlug, pipelineSlug, cell.EnvironmentSlug, row, activeEnvironmentSlug, fullPage, embedded) }}
+	if fullPage {
+		{{ upsertAction = projectSectionAction(ctx, upsertAction, "environments") }}
+		{{ deleteAction = projectSectionAction(ctx, deleteAction, "environments") }}
+	}
+	{{
+		if pipelineSlug != "" && !embedded {
+			upsertAction = entitySectionHref(ctx, upsertAction, "deployments")
+			deleteAction = entitySectionHref(ctx, deleteAction, "deployments")
+		}
+	}}
+	{{ upsertAction = pipelineBindingSetupAction(ctx, upsertAction) }}
+	{{ deleteAction = pipelineBindingSetupAction(ctx, deleteAction) }}
+	<div id={ pipelineBindingCellID(row, cell) } tabindex="-1" class="min-w-0 space-y-2">
+		<div class="flex flex-wrap items-center gap-2">
+			<span class={ cell.StateClass }>{ cell.StateLabel }</span>
+			if cell.HasBinding {
+				if cell.Binding.DataSourceActive {
+					<span class={ badgeSuccessSoft }>active</span>
+				} else {
+					<span class={ badgeErrorSoft }>inactive</span>
+				}
+				if cell.Binding.DataSourceReadOnly {
+					<span class={ badgeWarningSoft }>read only</span>
+				}
+			}
+		</div>
+		if cell.HasBinding {
+			@DataSourceIdentity(row.DataSourceType, dataSourceBindingConnectionLabel(cell.Binding.DataSourceName, cell.Binding.DataSourceSlug), "", "sm", "")
+			if len(cell.InvalidReasons) > 0 {
+				<ul class="space-y-1 text-xs text-error">
+					for _, reason := range cell.InvalidReasons {
+						<li>{ reason }</li>
+					}
+				</ul>
+			}
+		} else {
+			<p class="text-xs text-base-content/70">{ cell.StateDescription }</p>
+		}
+		if row.RefAvailable && !row.CapabilityMismatch && cell.State != "unavailable" {
+			<form
+				id={ upsertFormID }
+				class="grid min-w-0 gap-2 overflow-hidden"
+				method="post"
+				action={ templ.URL(upsertAction) }
+				hx-post={ upsertAction }
+				hx-target={ DataSourceBindingHTMXTarget(pipelineSlug, fullPage, embedded) }
+				hx-select={ DataSourceBindingHTMXSelect(pipelineSlug, fullPage, embedded) }
+				hx-swap="outerHTML show:none focus-scroll:false"
+				data-preserve-scroll
+			>
+				<select class="select select-bordered select-xs w-full min-w-0 max-w-full truncate" name="data_source_slug" aria-label={ "Data source for " + row.RefSlug + " in " + cell.EnvironmentSlug } required disabled?={ !canUpdate || dataSourcesUnavailable || len(cell.Options) == 0 }>
+					<option value="">Select data source</option>
+					for _, option := range cell.Options {
+						<option value={ option.Slug } selected?={ option.Selected }>{ option.Label }</option>
+					}
+				</select>
+				if !canUpdate {
+					<p class="text-xs text-base-content/60">Read-only for your role.</p>
+				} else if dataSourcesUnavailable {
+					<p class="text-xs text-warning">Data-source options could not be loaded.</p>
+				} else if !DataSourceBindingCanSubmit(cell.Options, false, true) {
+					<p class="text-xs text-warning">No compatible active data source is available.</p>
+				}
+			</form>
+			<div class="flex flex-wrap items-center gap-2">
+				if cell.EnvironmentProtected {
+					<button class="btn btn-primary btn-xs" type="button" data-protected-action-trigger={ upsertModalID } disabled?={ !canSubmit }>{ func() string { if cell.HasBinding { return "Update" }; return "Bind" }() }</button>
+				} else {
+					<button class="btn btn-primary btn-xs" type="submit" form={ upsertFormID } disabled?={ !canSubmit }>{ func() string { if cell.HasBinding { return "Update" }; return "Bind" }() }</button>
+				}
+				if cell.HasBinding {
+					if cell.EnvironmentProtected {
+						<button class="btn btn-error btn-outline btn-xs" type="button" data-protected-action-trigger={ deleteModalID } disabled?={ !canDelete }>Remove</button>
+					} else {
+						<form method="post" action={ templ.URL(deleteAction) } hx-post={ deleteAction } hx-target={ DataSourceBindingHTMXTarget(pipelineSlug, fullPage, embedded) } hx-select={ DataSourceBindingHTMXSelect(pipelineSlug, fullPage, embedded) } hx-swap="outerHTML show:none focus-scroll:false" data-preserve-scroll hx-confirm={ DestructiveConfirmation("Remove", "data-source binding", DestructiveResourceLabel(row.RefSlug, cell.EnvironmentSlug), "Pipelines using this ref in the runtime target will lose the binding.") } data-destructive-confirm={ DestructiveConfirmation("Remove", "data-source binding", DestructiveResourceLabel(row.RefSlug, cell.EnvironmentSlug), "Pipelines using this ref in the runtime target will lose the binding.") }>
+							<button class="btn btn-error btn-outline btn-xs" type="submit" disabled?={ !canDelete }>Remove</button>
+						</form>
+					}
+				}
+			</div>
+			if cell.EnvironmentProtected {
+				@DataSourceBindingProtectedSubmitModal(upsertFormID, upsertModalID, cell.EnvironmentSlug, row.RefSlug, "Save binding", "Save this binding for a protected runtime target.", "btn btn-primary btn-sm")
+			}
+			if cell.HasBinding {
+				if cell.EnvironmentProtected {
+					@DataSourceBindingProtectedDeleteModal(deleteModalID, deleteAction, DataSourceBindingHTMXTarget(pipelineSlug, fullPage, embedded), DataSourceBindingHTMXSelect(pipelineSlug, fullPage, embedded), cell.EnvironmentSlug, row.RefSlug)
+				}
+				if !canDelete {
+					<p class="text-xs text-base-content/60">Removal is disabled for your role.</p>
+				}
+			}
+		}
+	</div>
+}
+
+templ DataSourceBindingProtectedSubmitModal(formID string, modalID string, environmentSlug string, refSlug string, actionLabel string, actionDescription string, submitClass string) {
+	<dialog class="modal" id={ modalID } data-protected-action-modal data-confirm-slug={ environmentSlug }>
+		<div class="modal-box max-w-lg border border-error/35 bg-base-100 p-0">
+			<div class="border-b border-error/25 bg-error/10 px-5 py-4">
+				<div class="flex flex-wrap items-start justify-between gap-3">
+					<div>
+						<h3 class="text-lg font-semibold text-base-content">Confirm protected action</h3>
+						<p class="mt-1 text-sm text-base-content/70">{ actionDescription }</p>
+					</div>
+					<span class={ badgeErrorSoft }>{ environmentSlug }</span>
+				</div>
+			</div>
+			<div class="px-5 py-4">
+				<div class="rounded-lg border border-base-300 bg-base-200/35 p-3">
+					<p class="text-sm font-semibold text-base-content">{ refSlug }</p>
+					<p class="mt-1 text-xs text-base-content/60">This changes a data-source binding for <span class="font-mono">{ environmentSlug }</span>.</p>
+				</div>
+				<label class="form-control mt-4 w-full">
+					<div class="label py-1">
+						<span class="label-text text-xs">Type <span class="font-mono font-semibold text-error">{ environmentSlug }</span> to confirm</span>
+					</div>
+					<input class="input input-bordered w-full font-mono" type="text" name="protected_environment_confirmation" form={ formID } autocomplete="off" placeholder={ environmentSlug } required data-protected-confirm-input data-confirm-slug={ environmentSlug }/>
+				</label>
+				<div class="modal-action mt-5">
+					<button class="btn btn-ghost btn-sm" type="button" data-protected-action-close={ modalID }>Cancel</button>
+					<button class={ submitClass } type="submit" form={ formID } data-protected-confirm-submit disabled aria-disabled="true">{ actionLabel }</button>
+				</div>
+			</div>
+		</div>
+		<form method="dialog" class="modal-backdrop">
+			<button type="submit">close</button>
+		</form>
+	</dialog>
+}
+
+templ DataSourceBindingProtectedDeleteModal(modalID string, actionURL string, htmxTarget string, htmxSelect string, environmentSlug string, refSlug string) {
+	<dialog class="modal" id={ modalID } data-protected-action-modal data-confirm-slug={ environmentSlug }>
+		<div class="modal-box max-w-lg border border-error/35 bg-base-100 p-0">
+			<div class="border-b border-error/25 bg-error/10 px-5 py-4">
+				<div class="flex flex-wrap items-start justify-between gap-3">
+					<div>
+						<h3 class="text-lg font-semibold text-base-content">Confirm protected action</h3>
+						<p class="mt-1 text-sm text-base-content/70">Remove this binding from a protected runtime target.</p>
+					</div>
+					<span class={ badgeErrorSoft }>{ environmentSlug }</span>
+				</div>
+			</div>
+			<form class="px-5 py-4" method="post" action={ templ.URL(actionURL) } hx-post={ actionURL } hx-target={ htmxTarget } hx-select={ htmxSelect } hx-swap="outerHTML show:none focus-scroll:false" data-preserve-scroll>
+				<div class="rounded-lg border border-base-300 bg-base-200/35 p-3">
+					<p class="text-sm font-semibold text-base-content">{ refSlug }</p>
+					<p class="mt-1 text-xs text-base-content/60">This removes the binding for <span class="font-mono">{ environmentSlug }</span>.</p>
+				</div>
+				<label class="form-control mt-4 w-full">
+					<div class="label py-1">
+						<span class="label-text text-xs">Type <span class="font-mono font-semibold text-error">{ environmentSlug }</span> to confirm</span>
+					</div>
+					<input class="input input-bordered w-full font-mono" type="text" name="protected_environment_confirmation" autocomplete="off" placeholder={ environmentSlug } required data-protected-confirm-input data-confirm-slug={ environmentSlug }/>
+				</label>
+				<div class="modal-action mt-5">
+					<button class="btn btn-ghost btn-sm" type="button" data-protected-action-close={ modalID }>Cancel</button>
+					<button class="btn btn-error btn-sm" type="submit" data-protected-confirm-submit disabled aria-disabled="true">Remove binding</button>
+				</div>
+			</form>
+		</div>
+		<form method="dialog" class="modal-backdrop">
+			<button type="submit">close</button>
+		</form>
+	</dialog>
+}

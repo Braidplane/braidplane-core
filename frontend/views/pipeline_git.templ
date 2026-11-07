@@ -1,0 +1,249 @@
+package views
+
+import (
+	"fmt"
+	"github.com/Braidplane/braidplane-core/pkg/ptr"
+)
+
+templ PipelineSyncPage(shell AuthenticatedShellData, data PipelineSyncView) {
+	@AuthenticatedShell(shell, pipelineSyncContent(data))
+}
+
+templ pipelineSyncContent(data PipelineSyncView) {
+	<section id="pipeline-git-workflow" class="space-y-4">
+		<div class="flex flex-wrap items-center justify-between gap-3">
+			<h2 class="text-xl font-semibold">Sync from Git</h2>
+			<a class="btn btn-outline btn-sm" href={ templ.URL(buildEnvironmentProjectPipelinesListHref(data.Org, data.Project, data.Environment, "", "")) }>Back to pipelines</a>
+		</div>
+		<p class="text-sm text-base-content/70">Preview committed definitions before syncing. Deployment is a separate action.</p>
+		if data.Pipeline != "" {
+			<p>Pipeline: <span class="font-mono">{ data.Pipeline }</span></p>
+		}
+		if data.Error != "" {
+			<div role="alert" class="alert alert-error">{ data.Error }</div>
+		}
+		if data.Backend == nil {
+			<p>No Git backend is available for this project.</p>
+			<a class="link link-primary" href={ templ.URL("/organizations/" + data.Org + "/projects/" + data.Project) }>Configure project Git backend</a>
+		} else {
+			<p class="break-all font-mono text-sm">{ data.Backend.Repo } · { data.Backend.TrackedBranch }</p>
+			<form method="post" action={ templ.URL(PipelineSyncHref(data.Org, data.Project, data.Environment, data.Pipeline)) } hx-post={ PipelineSyncHref(data.Org, data.Project, data.Environment, data.Pipeline) } hx-target="#pipeline-git-workflow" hx-select="#pipeline-git-workflow" hx-swap="outerHTML" hx-disabled-elt="find button">
+				<input type="hidden" name="action" value="preview"/>
+				<input type="hidden" name="pipeline_slug" value={ data.Pipeline }/>
+				<input type="hidden" name="environment_slug" value={ data.Environment }/>
+				<button class="btn btn-outline btn-sm" type="submit">Preview Git changes</button>
+				<span class="htmx-indicator ml-2 text-sm" role="status">Reading Git…</span>
+				<p data-request-error role="alert" hidden></p>
+			</form>
+		}
+		if data.Report != nil {
+			{{ report := data.Report }}
+			if report.DryRun {
+				<h3 class="text-lg font-semibold">Sync preview</h3>
+				<p class="text-sm">No changes applied. Database state may change before sync.</p>
+			} else if report.Summary.Failed > 0 {
+				<div role="alert" class="alert alert-warning">Sync completed with failures. Only successfully synced versions can be deployed.</div>
+			} else {
+				<div role="status" class="alert alert-success">Git sync completed. Deploy synced versions separately.</div>
+			}
+			<dl class="grid gap-2 text-sm sm:grid-cols-2">
+				<div><dt class="font-semibold">Repository</dt><dd class="break-all font-mono">{ ptr.Value(report.Source.Repo) }</dd></div>
+				<div><dt class="font-semibold">Tracked ref</dt><dd class="break-all font-mono">{ ptr.Value(report.Source.Ref) }</dd></div>
+				<div><dt class="font-semibold">Commit</dt><dd class="break-all font-mono">{ ptr.Value(report.Source.Commit) }</dd></div>
+			</dl>
+			<p class="text-sm">{ fmt.Sprintf("%d synced · %d skipped · %d deleted · %d drift resets · %d failed", report.Summary.Synced, report.Summary.Skipped, report.Summary.Deleted, report.Summary.DriftReset, report.Summary.Failed) }</p>
+			if report.Summary.Deleted > 0 || report.Summary.DriftReset > 0 {
+				<div role="alert" class="alert alert-warning">Review deletions and drift resets below. Sync can remove pipelines missing from Git and replace stored definitions.</div>
+			}
+			<div class="overflow-x-auto">
+				<table class="table table-sm">
+					<thead><tr><th>Result</th><th>Pipeline / path</th><th>Version / reason</th><th><span class="sr-only">Actions</span></th></tr></thead>
+					<tbody>
+						for _, item := range report.Synced {
+							<tr>
+								<td>Synced</td>
+								<td class="break-all">{ item.PipelineSlug }<br/>{ item.SourcePath }</td>
+								<td class="max-w-xs break-all font-mono">{ item.SpecHash }</td>
+								<td>
+									if !report.DryRun {
+										<a class="btn btn-primary btn-sm" href={ templ.URL(PipelineDeployHref(data.Org, data.Project, data.Environment, item.PipelineSlug, item.SpecHash)) }>Deploy version</a>
+										<a class="link ml-2" href={ templ.URL(PipelineDetailHrefWithEnvironment(data.Org, data.Project, data.Environment, item.PipelineSlug)) }>Bindings and details</a>
+									}
+								</td>
+							</tr>
+						}
+						for _, item := range report.Skipped {
+							<tr><td>Skipped</td><td class="break-all">{ item.PipelineSlug }<br/>{ ptr.Value(item.SourcePath) }</td><td>{ string(item.Reason) }</td><td></td></tr>
+						}
+						for _, item := range report.Deleted {
+							<tr><td class="text-warning">Deleted</td><td class="break-all">{ item.PipelineSlug }<br/>{ ptr.Value(item.PreviousSourcePath) }</td><td>Missing from Git</td><td></td></tr>
+						}
+						for _, item := range report.DriftResets {
+							<tr><td class="text-warning">Drift reset</td><td class="break-all">{ item.PipelineSlug }<br/>{ item.SourcePath }</td><td class="max-w-xs break-all font-mono">{ item.PreviousSpecHash } → { item.AppliedSpecHash }</td><td></td></tr>
+						}
+						for _, item := range report.Failures {
+							<tr><td class="text-error">Failed</td><td class="break-all">{ ptr.Value(item.PipelineSlug) }<br/>{ ptr.Value(item.PipelinePath) }</td><td>{ string(item.Stage) }: check the committed definition and Git source, then preview again.</td><td></td></tr>
+						}
+					</tbody>
+				</table>
+			</div>
+			if pipelineSyncCanApply(report) {
+				<form method="post" action={ templ.URL(PipelineSyncHref(data.Org, data.Project, data.Environment, data.Pipeline)) } hx-post={ PipelineSyncHref(data.Org, data.Project, data.Environment, data.Pipeline) } hx-target="#pipeline-git-workflow" hx-select="#pipeline-git-workflow" hx-swap="outerHTML" hx-disabled-elt="find button">
+					<input type="hidden" name="action" value="apply"/>
+					<input type="hidden" name="pipeline_dir" value={ report.PipelineDir }/>
+					<input type="hidden" name="pipeline_slug" value={ data.Pipeline }/>
+					<input type="hidden" name="environment_slug" value={ data.Environment }/>
+					<input type="hidden" name="data_source_slug" value={ ptr.Value(report.Source.DataSourceSlug) }/>
+					<input type="hidden" name="repo" value={ ptr.Value(report.Source.Repo) }/>
+					<input type="hidden" name="ref" value={ ptr.Value(report.Source.Ref) }/>
+					<input type="hidden" name="commit" value={ ptr.Value(report.Source.Commit) }/>
+					<button type="submit" class="btn btn-primary btn-sm">Apply Git changes</button>
+					<span class="htmx-indicator ml-2 text-sm" role="status">Syncing…</span>
+					<p data-request-error role="alert" hidden></p>
+				</form>
+			}
+		}
+	</section>
+}
+
+templ PipelineDeployPage(shell AuthenticatedShellData, data PipelineDeployView) {
+	@AuthenticatedShell(shell, pipelineDeployContent(data))
+}
+
+templ pipelineDeployContent(data PipelineDeployView) {
+	<section id="pipeline-git-workflow" class="max-w-4xl space-y-4">
+		<h2 class="text-xl font-semibold">Deploy pipeline version</h2>
+		<p class="break-all font-mono">{ data.Pipeline }</p>
+		if data.Error != "" {
+			<div role="alert" class="alert alert-error">{ data.Error }</div>
+		}
+		if data.Version != nil {
+			<a class="link link-primary" href={ templ.URL(PipelineBindingSetupHref(data.Org, data.Project, data.Environment, data.Pipeline, data.Version.SpecHash, PipelineDeployHref(data.Org, data.Project, data.Environment, data.Pipeline, data.Version.SpecHash))) }>Resolve selected version bindings</a>
+		}
+		if data.Version != nil {
+			<dl class="space-y-2 text-sm">
+				<div><dt class="font-semibold">Selected immutable version</dt><dd class="break-all font-mono">{ data.Version.SpecHash }</dd></div>
+				<div><dt class="font-semibold">Source commit</dt><dd class="break-all font-mono">{ ptr.Value(data.Version.GitCommitSha) }</dd></div>
+			</dl>
+			if data.Deployed != nil {
+				<div role="status" class="alert alert-success break-all">Deployed { data.Deployed.CurrentVersionSpecHash } to { data.Deployed.EnvironmentSlug }.</div>
+				<a class="btn btn-outline btn-sm" href={ templ.URL(pipelineBuilderHrefWithEnvironment(data.Org, data.Project, data.Environment, data.Pipeline)) }>Open pipeline to run</a>
+				<a class="link ml-2" href={ templ.URL(buildEnvironmentRunsListHrefWithProject(data.Org, data.Project, data.Environment, "", "", "", data.Pipeline)) }>View runs</a>
+			} else {
+				if len(data.Environments) == 0 {
+					<a class="link link-primary" href={ templ.URL("/orgs/" + data.Org + "/projects/" + data.Project + "/environments") }>Manage enabled environments</a>
+				}
+				<form method="get" action={ templ.URL("/orgs/" + data.Org + "/projects/" + data.Project + "/pipelines/" + data.Pipeline + "/deploy") } class="flex flex-wrap items-end gap-3">
+					<input type="hidden" name="spec_hash" value={ data.Version.SpecHash }/>
+					<input type="hidden" name="compiled_plan_digest" value={ data.CompiledDigest }/>
+					<input type="hidden" name="resolution_digest" value={ data.ResolutionDigest }/>
+					<label class="form-control">
+						<span class="label-text mb-1">Runtime environment</span>
+						<select class="select select-bordered select-sm" name="environment_slug" required>
+							for _, env := range data.Environments {
+								<option value={ env.EnvironmentSlug } selected?={ env.EnvironmentSlug == data.Environment }>{ env.EnvironmentName } ({ env.EnvironmentSlug })</option>
+							}
+						</select>
+					</label>
+					<button type="submit" class="btn btn-outline btn-sm">Review target</button>
+				</form>
+				if data.Environment != "" {
+					<p class="text-sm">Target: <strong>{ data.Environment }</strong></p>
+					if data.Current != nil {
+						<p class="break-all text-sm">Currently deployed: <span class="font-mono">{ data.Current.CurrentVersionSpecHash }</span></p>
+					} else if data.CanDeploy {
+						<p class="text-sm">No version deployed in this environment.</p>
+					}
+				}
+				<section class="space-y-3 border-t border-base-300 pt-4" aria-label="Compiled plan">
+					<h3 class="font-semibold">Compiled plan</h3>
+					<form method="post" action={ templ.URL(PipelineDeployHref(data.Org, data.Project, data.Environment, data.Pipeline, data.Version.SpecHash)) } class="flex flex-wrap items-center gap-3">
+						<input type="hidden" name="spec_hash" value={ data.Version.SpecHash }/>
+						<input type="hidden" name="environment_slug" value={ data.Environment }/>
+						<details class="w-full">
+							<summary class="cursor-pointer text-sm">Rich projection selection</summary>
+							<label class="form-control mt-2"><span class="label-text">Projection selection JSON</span><textarea class="textarea textarea-bordered mt-1 w-full font-mono text-xs" name="projection" rows="8" aria-describedby="pipeline-projection-help">{ data.ProjectionJSON }</textarea></label>
+							<p id="pipeline-projection-help" class="mt-1 text-xs text-base-content/70">Optional exact revision/object pins, explicit mapping declarations, non-secret values with revisions, and local relationships. Catalog documents come from this project. A mapping declaration does not prove provider support or runtime conformance.</p>
+						</details>
+						<details class="w-full">
+							<summary class="cursor-pointer text-sm">Resource scope selection</summary>
+							<label class="form-control mt-2"><span class="label-text">Resource scope selection JSON</span><textarea class="textarea textarea-bordered mt-1 w-full font-mono text-xs" name="resource_scopes" rows="8" aria-describedby="pipeline-resource-scopes-help">{ data.ResourceScopesJSON }</textarea></label>
+							<p id="pipeline-resource-scopes-help" class="mt-1 text-xs text-base-content/70">Optional JSON array of step, role and scope selections. Pin the logical source, saved operation, contract revision and object with the s3/relative-key/v1 policy. Supply fixed endpoint, region, bucket and prefix, and explicit dynamic_key and force_path_style flags. Use non-secret values only. Deployment still resolves authorized bindings.</p>
+						</details>
+						<button class="btn btn-outline btn-sm" type="submit" name="action" value="compile" disabled?={ !data.CanCompile }>Compile selected version</button>
+						<p class="text-sm text-base-content/70">Capture source, contracts and saved operations from this immutable version.</p>
+					</form>
+					<form method="get" class="space-y-3">
+						<input type="hidden" name="spec_hash" value={ data.Version.SpecHash }/>
+						<input type="hidden" name="environment_slug" value={ data.Environment }/>
+						<label class="form-control"><span class="label-text mb-1">Exact compiled plan digest</span><input class="input input-bordered input-sm w-full font-mono" name="compiled_plan_digest" value={ data.CompiledDigest } placeholder="sha256:…"/></label>
+						<label class="form-control"><span class="label-text mb-1">Exact resolution digest for rollback</span><input class="input input-bordered input-sm w-full font-mono" name="resolution_digest" value={ data.ResolutionDigest } placeholder="sha256:…"/><span class="label-text-alt mt-1">Select a compiled plan or a resolution, one at a time.</span></label>
+						<button class="btn btn-outline btn-sm" type="submit">Inspect selection</button>
+					</form>
+					if data.Compiled != nil {
+						<dl class="space-y-2 text-sm">
+							<div><dt class="font-semibold">Compiled digest</dt><dd class="break-all font-mono">{ data.Compiled.Digest }</dd></div>
+							<div><dt class="font-semibold">Retained source</dt><dd class="break-all font-mono">{ ptr.Value(data.Compiled.SourceCommit) } · { ptr.Value(data.Compiled.SourcePath) }</dd></div>
+							<div><dt class="font-semibold">Status</dt><dd>{ string(data.Compiled.Status) }</dd></div>
+						</dl>
+						if data.Compiled.Projections != nil {
+							<h4 class="font-semibold">Retained projection inputs</h4>
+							<ul class="space-y-2 text-xs">
+								for _, projection := range *data.Compiled.Projections {
+									<li class="break-all">Input { fmt.Sprint(projection.Input) } · { projection.ContractSlug + " / " + projection.RevisionSlug + " / " + projection.SchemaObjectId }<br/>{ projection.MappingId + " · " + projection.Representation + " / " + projection.RootShape }<br/><code>{ projection.ResolvedDigest }</code></li>
+								}
+							</ul>
+						}
+						if len(data.Compiled.Operations) > 0 {
+							<h4 class="font-semibold text-sm">Retained operations</h4>
+							<ul class="space-y-2 text-sm">
+								for _, operation := range data.Compiled.Operations {
+									<li class="break-all">
+										<span class="font-mono">{ operation.Step } / { operation.Role } / { operation.OperationSlug }</span>
+										<br/>
+										<span class="text-base-content/70">{ operation.Revision } · { operation.Digest }</span>
+										if scope := operation.ResourceScope; scope != nil {
+											<p class="text-xs">Resource scope: { scope.PolicyId } · { scope.DataSource } · { scope.Contract + " / " + scope.Revision + " / " + scope.ObjectId } · { scope.Representation }</p>
+										}
+									</li>
+								}
+							</ul>
+						}
+						if len(data.Compiled.Pins) > 0 {
+							<h4 class="font-semibold text-sm">Retained contracts</h4>
+							<ul class="space-y-2 text-sm">
+								for _, pin := range data.Compiled.Pins {
+									<li class="break-all"><span class="font-mono">{ pin.Step } / { pin.Port } / { pin.ContractSlug } / { pin.RevisionSlug } / { pin.SchemaObjectId }</span><br/><span class="text-base-content/70">{ pin.Digest }</span></li>
+								}
+							</ul>
+						}
+					}
+				</section>
+				if data.CanDeploy {
+					<form method="post" action={ templ.URL(PipelineDeployHref(data.Org, data.Project, data.Environment, data.Pipeline, data.Version.SpecHash)) } hx-post={ PipelineDeployHref(data.Org, data.Project, data.Environment, data.Pipeline, data.Version.SpecHash) } hx-target="#pipeline-git-workflow" hx-select="#pipeline-git-workflow" hx-swap="outerHTML" hx-disabled-elt="find button" class="space-y-3">
+						<input type="hidden" name="spec_hash" value={ data.Version.SpecHash }/>
+						<input type="hidden" name="environment_slug" value={ data.Environment }/>
+						<input type="hidden" name="expected_revision" value={ fmt.Sprint(data.ExpectedRevision) }/>
+						<input type="hidden" name="compiled_plan_digest" value={ data.CompiledDigest }/>
+						<input type="hidden" name="resolution_digest" value={ data.ResolutionDigest }/>
+						<p class="text-sm">Expected deployment revision: <span class="font-mono">{ fmt.Sprint(data.ExpectedRevision) }</span></p>
+						if data.Current != nil {
+							<input type="hidden" name="expected_current_spec_hash" value={ data.Current.CurrentVersionSpecHash }/>
+						}
+						if data.Protected {
+							<label class="form-control max-w-sm">
+								<span class="label-text mb-1">Confirm protected environment</span>
+								<input class="input input-bordered input-sm" name="protected_environment_confirmation" placeholder={ data.Environment } required autocomplete="off"/>
+								<span class="label-text-alt mt-1">Type { data.Environment } to confirm deployment.</span>
+							</label>
+						}
+						<button type="submit" class="btn btn-primary btn-sm">Deploy to { data.Environment }</button>
+						<span class="htmx-indicator ml-2 text-sm" role="status">Deploying…</span>
+						<p data-request-error role="alert" hidden></p>
+					</form>
+				}
+				<p class="text-sm text-base-content/70">Resolve bindings for this selected version, then return here and review the target again.</p>
+			}
+		}
+	</section>
+}

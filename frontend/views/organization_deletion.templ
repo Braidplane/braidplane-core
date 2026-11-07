@@ -1,0 +1,36 @@
+package views
+
+templ OrganizationDeletionSection(orgSlug string) {
+	<section class="rounded-xl border border-error/35 bg-base-100 p-4 sm:p-5">
+		<h2 class="text-lg font-semibold">Delete organization</h2>
+		<p class="mt-2 text-sm text-base-content/70">Remove projects and data sources first. Deletion permanently removes this organization's memberships and settings, but not member accounts. Minimal legal-acceptance evidence is retained.</p>
+		<button class="btn btn-error btn-outline btn-sm mt-4" type="button" data-protected-action-trigger="organization-delete-confirm">Delete organization</button>
+	</section>
+	<dialog class="modal" id="organization-delete-confirm" data-protected-action-modal data-confirm-slug={ orgSlug } aria-labelledby="organization-delete-title">
+		<div class="modal-box max-w-lg border border-error/35 bg-base-100">
+			<h2 class="text-lg font-semibold" id="organization-delete-title">Confirm organization deletion</h2>
+			<p class="mt-3 text-sm">This cannot be undone. External provider resources and backups are not deleted by this operation.</p>
+			<form class="mt-4 space-y-4" method="post" action={ templ.URL("/organizations/" + orgSlug + "/delete") } hx-boost="false">
+				<label class="form-control w-full">
+					<span class="label-text text-sm">Type { orgSlug } to confirm</span>
+					<input class="input input-bordered w-full font-mono" type="text" name="confirmation" autocomplete="off" required data-protected-confirm-input data-confirm-slug={ orgSlug }/>
+				</label>
+				<div class="modal-action flex-wrap">
+					<button class="btn btn-ghost btn-sm" type="button" data-protected-action-close="organization-delete-confirm">Cancel</button>
+					<button class="btn btn-error btn-sm" type="submit" data-protected-confirm-submit disabled aria-disabled="true">Confirm deletion</button>
+				</div>
+			</form>
+		</div>
+		<form method="dialog" class="modal-backdrop"><button type="submit">Close</button></form>
+	</dialog>
+}
+
+templ OrganizationDeletionError(orgSlug string, message string) {
+	@AuthPage("Organization deletion", false, OrganizationDeletionErrorContent(orgSlug, message))
+}
+
+templ OrganizationDeletionErrorContent(orgSlug string, message string) {
+	<h1 class="text-xl font-semibold">Organization not deleted</h1>
+	<p class="my-4 text-sm" role="alert">{ message }</p>
+	<a class="btn btn-outline w-full" href={ templ.URL("/organizations/" + orgSlug) }>Back to organization</a>
+}

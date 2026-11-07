@@ -1,0 +1,179 @@
+package views
+
+templ QueryPipelineSetupPage(shell AuthenticatedShellData, data QueryPipelineSetupData) {
+	@AuthenticatedShell(shell, QueryPipelineSetupContent(data))
+}
+
+templ QueryPipelineSetupContent(data QueryPipelineSetupData) {
+	<div class="max-w-3xl space-y-6">
+		if data.Error != "" {
+			<p class="text-sm text-error" role="alert">{ data.Error }</p>
+		}
+		if data.Query != nil {
+			<section class="space-y-2">
+				<h2 class="text-lg font-semibold">Build a pipeline from { data.Query.Name }</h2>
+				<p class="text-sm text-base-content/70">Use the current saved query as a repeatable pipeline. Its connection is { data.DataSource }.</p>
+				<a class="link link-primary text-sm" href={ templ.URL("/orgs/" + data.Org + "/data-sources/" + data.DataSource + "/queries/" + data.Query.Slug) }>Review saved query</a>
+			</section>
+			if !data.Permissions.Can("pipelines", "create") {
+				@EntityState("Pipeline creation needs access", "Ask a workspace admin for permission to create pipelines.")
+			} else {
+				<section class="space-y-3 border-t border-base-300 pt-5">
+					<h3 class="text-base font-semibold">Choose a project</h3>
+					<p class="text-sm text-base-content/70">The project owns the pipeline's Git repository and runtime targets.</p>
+					<form method="get" action={ QueryPipelineSetupHref(data.Org, data.DataSource, data.Query.Slug, "") } class="flex flex-wrap items-end gap-3">
+						<label class="form-control min-w-0 gap-1">
+							<span id="first-pipeline-project-label" class="label-text text-sm">Project</span>
+							<select aria-labelledby="first-pipeline-project-label" class="select select-bordered w-full" name="project" required>
+								<option value="">Select a project</option>
+								for _, project := range data.Projects {
+									<option value={ project.Slug } selected?={ project.Slug == data.Project }>{ project.Name }</option>
+								}
+							</select>
+						</label>
+						<button type="submit" class="btn btn-outline">Check readiness</button>
+					</form>
+					if data.ProjectAvailable {
+						<a class="btn btn-outline btn-sm" href={ templ.URL(PipelineCreationListHref(data.Org, data.Project, "", "")) }>View creation proposals</a>
+					}
+					if data.Permissions.Can("projects", "create") {
+						<p class="text-sm"><a class="link link-primary" href={ templ.URL("/organizations/" + data.Org + "/projects") } target="_blank" rel="noopener noreferrer">Create a project in a new tab</a>, then check readiness here.</p>
+					}
+				</section>
+				if data.ProjectAvailable && !data.BackendConfigured {
+					<section class="space-y-3 border-t border-base-300 pt-5">
+						<h3 class="text-base font-semibold">Connect the project's repository</h3>
+						<p class="text-sm text-base-content/70">Git stores the pipeline definition. Create or connect a repository, then check readiness here.</p>
+						if data.Permissions.Can("projects", "update") {
+							<a class="btn btn-outline" href={ templ.URL("/organizations/" + data.Org + "/projects/" + data.Project + "?section=repository") } target="_blank" rel="noopener noreferrer">Set up repository (new tab)</a>
+						} else {
+							<p class="text-sm">Ask a workspace admin to connect this project's pipeline repository.</p>
+						}
+					</section>
+				}
+				if data.BackendConfigured {
+					<form method="post" action={ QueryPipelineSetupHref(data.Org, data.DataSource, data.Query.Slug, data.Project) } class="space-y-4 border-t border-base-300 pt-5" data-dirty-form="first-pipeline">
+						<input type="hidden" name="project" value={ data.Project }/>
+						<input type="hidden" name="query_revision" value={ data.QueryRevision }/>
+						<h3 class="text-base font-semibold">Name the first pipeline</h3>
+						<p class="text-sm text-base-content/70">The repository is attached. Publishing access is checked when you propose this definition.</p>
+						<label class="form-control gap-1"><span class="label-text text-sm">Pipeline name</span><input aria-label="Pipeline name" class="input input-bordered w-full" name="name" value={ data.Name } required/></label>
+						if len(data.Query.Parameters) > 0 {
+							<fieldset class="space-y-3">
+								<legend class="text-sm font-medium">Query parameters</legend>
+								for _, parameter := range data.Query.Parameters {
+									<label class="form-control gap-1"><span class="label-text text-sm">{ parameter.Name } ({ string(parameter.DataType) })</span><input aria-label={ parameter.Name + " (" + string(parameter.DataType) + ")" } class="input input-bordered w-full" name={ QueryExecutionFieldName(parameter.Name) } value={ queryPipelineParameterValue(data, parameter) } required?={ QueryParameterRequired(parameter) }/><span class="text-xs text-base-content/70">{ valueOrEmpty(parameter.Description) }</span></label>
+								}
+							</fieldset>
+						}
+						<details open?={ data.Slug != "" }><summary class="cursor-pointer text-sm font-medium">Advanced settings</summary><label class="form-control mt-3 gap-1"><span class="label-text text-sm">Pipeline slug</span><input class="input input-bordered w-full font-mono" name="pipeline_slug" value={ data.Slug } placeholder="Derived from the pipeline name"/><span class="text-xs text-base-content/70">Use a new name or slug for a changed definition. Existing proposals keep their recorded content.</span></label></details>
+						<p class="text-sm text-base-content/70">This opens a Git proposal for review. Merge and sync it before configuring its source binding, deploying and running.</p>
+						<button type="submit" class="btn btn-primary">Propose pipeline</button>
+					</form>
+				}
+			}
+		}
+	</div>
+}
+
+templ PipelineCreationProgressPage(shell AuthenticatedShellData, data PipelineCreationProgressData) {
+	@AuthenticatedShell(shell, PipelineCreationProgressContent(data))
+}
+
+templ PipelineCreationProgressContent(data PipelineCreationProgressData) {
+	{{ inspectionQuery := entityPageURL(ctx).Query() }}
+	<div class="space-y-6">
+		if data.Error != "" {
+			<p class="text-sm text-error" role="alert">{ data.Error }</p>
+		}
+		if data.Creation != nil {
+			<section class="max-w-3xl space-y-3">
+				<h2 class="text-lg font-semibold">Proposed pipeline: { data.Creation.PipelineSlug }</h2>
+				<p class="text-sm">Recorded proposal state: <span class="badge badge-outline">{ pipelineCreationStatusLabel(data.Creation.Status) }</span></p>
+				<p class="break-all text-xs text-base-content/70">{ data.Creation.SourcePath }</p>
+				if data.Creation.BranchName != nil {
+					<dl class="grid min-w-0 gap-3 border-y border-base-300 py-3 text-sm sm:grid-cols-2">
+						<div class="min-w-0 space-y-1"><dt class="font-medium">Proposal branch</dt><dd class="break-all font-mono text-xs">{ *data.Creation.BranchName }</dd></div>
+						if data.Creation.BranchHeadSha != nil {
+							<div class="min-w-0 space-y-1"><dt class="font-medium">Pushed commit</dt><dd class="break-all font-mono text-xs">{ *data.Creation.BranchHeadSha }</dd></div>
+						}
+					</dl>
+				}
+				if string(data.Creation.Status) == "publish_queued" {
+					<p class="text-sm">Preparing the proposal. Refresh progress to check the recorded outcome.</p>
+				}
+				if string(data.Creation.Status) == "publish_failed" {
+					<p class="text-sm text-error" role="alert">The proposal could not be opened. Review repository access, then retry this recorded definition.</p>
+					if data.Creation.FailureCode != nil {
+						<p class="break-all font-mono text-xs">{ *data.Creation.FailureCode }</p>
+					}
+					if data.CanRetry {
+						<form method="post" action={ PipelineCreationProgressHref(data.Org, data.Project, data.Creation.Slug, data.Environment) }><button class="btn btn-primary" type="submit">Retry this proposal</button></form>
+					}
+				}
+				<div class="flex flex-wrap gap-2">
+					<a class="btn btn-outline btn-sm" href={ templ.URL(PipelineCreationListHref(data.Org, data.Project, data.Environment, "")) }>All creation proposals</a>
+					<a class="btn btn-outline btn-sm" href={ templ.URL(PipelineCreationProgressHref(data.Org, data.Project, data.Creation.Slug, data.Environment)) }>Refresh progress</a>
+					if data.Creation.ProposalUrl != nil {
+						<a class="btn btn-outline btn-sm" href={ templ.URL(*data.Creation.ProposalUrl) } target="_blank" rel="noopener noreferrer">Review Git proposal</a>
+					}
+				</div>
+				if data.VersionError != "" {
+					<p class="text-sm text-warning" role="status">{ data.VersionError }</p>
+				} else if !data.VersionAvailable && (string(data.Creation.Status) == "proposal_open" || string(data.Creation.Status) == "branch_pushed") {
+					<p class="text-sm text-base-content/70">Review and merge the proposal branch in Git, then sync the merged definition. Pushing a proposal branch does not change the tracked branch or create a deployable version.</p>
+					<a class="btn btn-outline" href={ templ.URL(PipelineSyncHref(data.Org, data.Project, data.Environment, data.Creation.PipelineSlug)) }>Sync merged pipeline</a>
+				} else if data.VersionAvailable && data.Environment == "" {
+					<p class="text-sm">The proposed version is imported. Enable a runtime target to configure and deploy it.</p>
+					<a class="btn btn-primary" href={ templ.URL("/organizations/" + data.Org + "/projects/" + data.Project + "?section=environments") }>Configure runtime target</a>
+				} else if data.VersionAvailable {
+					<p class="text-sm">This exact proposed version is imported. Continue in { data.Environment }.</p>
+					<div class="flex flex-wrap gap-2">
+						<a class="btn btn-primary" href={ templ.URL(PipelineBindingSetupHref(data.Org, data.Project, data.Environment, data.Creation.PipelineSlug, data.Creation.SpecHash, PipelineCreationProgressHref(data.Org, data.Project, data.Creation.Slug, data.Environment))) }>Configure source bindings</a>
+						<a class="btn btn-outline" href={ templ.URL(PipelineDeployHref(data.Org, data.Project, data.Environment, data.Creation.PipelineSlug, data.Creation.SpecHash)) }>Deploy this version</a>
+					</div>
+				}
+			</section>
+			<details class="border-t border-base-300 pt-4" open?={ inspectionQuery.Get("definition_view") != "" || inspectionQuery.Get("lineage_step") != "" || inspectionQuery.Get("definition_scope") != "" }>
+				<summary class="cursor-pointer text-sm font-medium">Inspect proposed definition</summary>
+				<div class="mt-4">
+					@DefinitionInspector(data.Org, data.Project)
+				</div>
+			</details>
+		}
+	</div>
+}
+
+templ PipelineCreationListPage(shell AuthenticatedShellData, data PipelineCreationListData) {
+	@AuthenticatedShell(shell, PipelineCreationListContent(data))
+}
+
+templ PipelineCreationListContent(data PipelineCreationListData) {
+	<div class="max-w-4xl space-y-5">
+		<div class="space-y-2">
+			<p class="text-sm text-base-content/70">Resume a proposed pipeline or inspect its recorded definition. Git review, import, deployment and successful runs are separate steps.</p>
+			<a class="btn btn-outline btn-sm" href={ templ.URL(ProjectPipelinesListHrefWithEnvironment(data.Org, data.Project, data.Environment, "", "")) }>Back to pipelines</a>
+		</div>
+		if data.Error != "" {
+			<p class="text-sm text-error" role="alert">{ data.Error }</p>
+		} else if data.Page != nil && len(data.Page.PipelineCreations) == 0 {
+			@EntityState("No creation proposals on this page", "Create a pipeline in Builder, from a saved query, or with the CLI. Its progress will stay available here.")
+		} else if data.Page != nil {
+			<ul class="divide-y divide-base-300 border-y border-base-300">
+				for _, proposal := range data.Page.PipelineCreations {
+					<li class="flex min-w-0 flex-wrap items-center justify-between gap-3 py-4">
+						<div class="min-w-0 space-y-1">
+							<p class="break-words text-sm font-semibold">{ proposal.PipelineSlug }</p>
+							<p class="break-all font-mono text-xs text-base-content/70">{ proposal.Slug }</p>
+							<span class="badge badge-outline badge-sm">{ pipelineCreationStatusLabel(proposal.Status) }</span>
+						</div>
+						<a class="btn btn-outline btn-sm" href={ templ.URL(PipelineCreationProgressHref(data.Org, data.Project, proposal.Slug, data.Environment)) } aria-label={ "Resume proposal for " + proposal.PipelineSlug }>Resume proposal</a>
+					</li>
+				}
+			</ul>
+			if data.Page.HasMore && data.Page.NextCursor != nil {
+				<a class="btn btn-outline btn-sm" href={ templ.URL(PipelineCreationListHref(data.Org, data.Project, data.Environment, *data.Page.NextCursor)) }>Next page</a>
+			}
+		}
+	</div>
+}

@@ -1,0 +1,4 @@
+{
+  "type": "postgres",
+  "sql": "SELECT customer_slug, customer_name, customer_segment, region FROM etl_golden_customers WHERE lifecycle_stage = 'active' ORDER BY customer_slug;"
+}

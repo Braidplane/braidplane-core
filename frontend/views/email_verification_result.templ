@@ -1,0 +1,36 @@
+package views
+
+templ EmailVerificationResultPage(title string, verified bool, message string, details string) {
+	@AuthPage(title, false, EmailVerificationResultPageContent(verified, message, details))
+}
+
+templ EmailVerificationResultPageContent(verified bool, message string, details string) {
+	if !verified && message != "" {
+		@ErrorPopup("email-verification-error-popup", message, details)
+	}
+	<div class="space-y-5 text-center">
+		if verified {
+			<div class="mx-auto grid h-12 w-12 place-items-center rounded-full bg-success/15 text-lg font-semibold text-success" aria-hidden="true">✓</div>
+			<h1 class="text-2xl font-semibold">Email verified</h1>
+			<div class="alert alert-success">
+				<span>{ message }</span>
+			</div>
+			<a class="btn btn-primary w-full" href="/auth/login">Continue to sign in</a>
+		} else {
+			<div class="mx-auto grid h-12 w-12 place-items-center rounded-full bg-error/15 text-lg font-semibold text-error" aria-hidden="true">!</div>
+			<h1 class="text-2xl font-semibold">Verification failed</h1>
+			if message != "" {
+				<p class="text-sm text-base-content/70">{ message }</p>
+			}
+			<form class="space-y-3 text-left" method="post" action="/auth/resend-verification" hx-post="/auth/resend-verification" hx-target="main" hx-select="main" hx-swap="innerHTML">
+				<label class="form-control w-full">
+					<div class="label"><span class="label-text">Account email</span></div>
+					<input class="input input-bordered w-full" type="email" name="email" autocomplete="email" required/>
+				</label>
+				<button class="btn btn-primary w-full" type="submit">Send a new verification link</button>
+			</form>
+			<p class="text-xs text-base-content/60">For privacy, the response is the same whether or not the address has an account.</p>
+			<a class="btn btn-ghost w-full" href="/auth/login">Back to sign in</a>
+		}
+	</div>
+}

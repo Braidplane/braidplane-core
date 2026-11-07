@@ -1,0 +1,19 @@
+package views
+
+templ httpExecutionPolicyFields(form QueryEditorFormData) {
+	<details class="mt-3 rounded-lg border border-base-300 p-3">
+		<summary class="cursor-pointer text-sm font-medium">Pagination and write retries</summary>
+		<div class="mt-3 space-y-3">
+			<label class="form-control w-full">
+				<span class="label-text text-xs">Pagination (JSON, optional)</span>
+				<textarea class="textarea textarea-bordered mt-1 min-h-24 w-full font-mono text-sm" name="http_pagination" placeholder="Leave empty for a single request">{ form.HTTPPagination }</textarea>
+				<span class="mt-1 text-xs text-base-content/70">GET only. Configure cursor, page-number or next-link traversal with records_path, max_pages and timeout_seconds. Failed drains return no partial result.</span>
+			</label>
+			<label class="form-control w-full">
+				<span class="label-text text-xs">Write retry policy (JSON, optional)</span>
+				<textarea class="textarea textarea-bordered mt-1 min-h-24 w-full font-mono text-sm" name="http_write_retry" placeholder="Leave empty to disable automatic write retries">{ form.HTTPWriteRetry }</textarea>
+				<span class="mt-1 text-xs text-base-content/70">Saved pipeline sinks only. Requires a verified provider contract, runtime idempotency key header, payload conflict rejection and key retention. Use only input and runtime.sink.idempotency_key bindings. Retries also require an attempt budget above one.</span>
+			</label>
+		</div>
+	</details>
+}

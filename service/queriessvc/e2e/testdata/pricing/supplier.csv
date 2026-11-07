@@ -1,0 +1,4 @@
+supplier_sku,title,product_url,list_price,valid_from,valid_to,source_date,tag
+ 0002 ,"Żółć, ""duża""
+linia",https://example.test/p?id=0002&variant=a%2Bb, 2.675 ,10.10.2026,01.11.2026,10.10.2026," PROMO "
+0001,zero,https://example.test/p?id=0001,0,10.10.2026,01.11.2026,10.10.2026," "

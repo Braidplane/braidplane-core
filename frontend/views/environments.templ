@@ -1,0 +1,1294 @@
+package views
+
+import (
+	"fmt"
+
+	api "github.com/Braidplane/braidplane-core/api-schema/gen/client"
+)
+
+templ OrganizationEnvironmentsPage(shellData AuthenticatedShellData, orgSlug string, environments []api.Environment, selectedEnvironmentSlug string, runtimeVariables []api.RuntimeVariable, runtimeVariablesUnavailable bool, environmentSecrets []api.EnvironmentSecret, environmentSecretsUnavailable bool, formData EnvironmentCreateFormData, permissions OrganizationPermissions) {
+	@AuthenticatedShell(shellData, OrganizationEnvironmentsPageContent(orgSlug, environments, selectedEnvironmentSlug, runtimeVariables, runtimeVariablesUnavailable, environmentSecrets, environmentSecretsUnavailable, formData, permissions))
+}
+
+templ OrganizationEnvironmentsPageContent(orgSlug string, environments []api.Environment, selectedEnvironmentSlug string, runtimeVariables []api.RuntimeVariable, runtimeVariablesUnavailable bool, environmentSecrets []api.EnvironmentSecret, environmentSecretsUnavailable bool, formData EnvironmentCreateFormData, permissions OrganizationPermissions) {
+	<div id="organization-environments-content">
+		<div class="flex flex-wrap items-center justify-end gap-3">
+			if permissions.Can("environments", "create") {
+				<button
+					class="btn btn-primary btn-sm w-full sm:w-auto"
+					type="button"
+					aria-controls="create-environment"
+					aria-expanded={ func() string { if formData.HasInput() || (environments != nil && len(environments) == 0) { return "true" }; return "false" }() }
+					data-toggle-target="create-environment"
+				>Create environment</button>
+			}
+		</div>
+		<div class="mt-6 grid gap-3 sm:grid-cols-3">
+			<div class="rounded-lg border border-base-300 bg-base-200/40 p-4">
+				<p class="text-xs font-semibold uppercase tracking-wide text-base-content/60">Runtime targets</p>
+				<p class="mt-2 text-2xl font-semibold text-base-content">{ fmt.Sprintf("%d", len(environments)) }</p>
+				<p class="mt-1 text-xs text-base-content/65">Available runtime targets</p>
+			</div>
+			<div class="rounded-lg border border-error/35 bg-error/10 p-4">
+				<p class="text-xs font-semibold uppercase tracking-wide text-base-content/60">Protected targets</p>
+				<p class="mt-2 text-2xl font-semibold text-error">{ fmt.Sprintf("%d", ProtectedEnvironmentCount(environments)) }</p>
+				<p class="mt-1 text-xs text-base-content/65">Require confirmation for production-risk changes</p>
+			</div>
+			<div class="rounded-lg border border-base-300 bg-base-200/40 p-4">
+				<p class="text-xs font-semibold uppercase tracking-wide text-base-content/60">Project enablement</p>
+				<p class="mt-2 text-sm font-semibold text-base-content">Project scoped</p>
+				<p class="mt-1 text-xs text-base-content/65">Projects opt into the targets they use</p>
+			</div>
+		</div>
+		if permissions.Can("environments", "create") {
+			<div
+				id="create-environment"
+				class={ "mt-6 scroll-mt-6" + func() string {
+	if formData.HasInput() || (environments != nil && len(environments) == 0) {
+		return ""
+	}
+	return " hidden"
+}() }
+			>
+				@OrganizationEnvironmentCreateCard(orgSlug, formData)
+			</div>
+		}
+		if environments == nil {
+			@EntityState("Environments unavailable", "Runtime target inventory could not be loaded.")
+		} else if len(environments) == 0 {
+			<div class="mt-6 rounded-xl border border-dashed border-base-300 bg-base-200/30 p-8 text-center">
+				<h2 class="text-lg font-semibold text-base-content">No environments</h2>
+				<p class="mt-2 text-sm text-base-content/70">Create runtime targets before projects can enable environments.</p>
+			</div>
+		} else {
+			@EntityListLayout("organization-environments-loading", OrganizationEnvironmentDetailPanel(orgSlug, environments, selectedEnvironmentSlug, runtimeVariables, runtimeVariablesUnavailable, environmentSecrets, environmentSecretsUnavailable, formData, permissions)) {
+				<section class="min-w-0 rounded-xl border border-base-300 bg-base-100 p-4">
+					<div class="flex items-center justify-between gap-3">
+						<div>
+							<h2 class="text-base font-semibold text-base-content">Runtime targets</h2>
+							<p class="mt-1 text-xs text-base-content/65">Select an environment for a read-only quick look.</p>
+						</div>
+						<span class="badge badge-outline h-auto min-h-6 py-1 leading-tight">{ fmt.Sprintf("%d entries", len(environments)) }</span>
+					</div>
+					<div class="mt-4 space-y-3">
+						for _, environment := range environments {
+							@EntityListItem(EnvironmentCatalogCardClass(environment.Slug == selectedEnvironmentSlug), environment.Slug == selectedEnvironmentSlug, "environment-"+environment.Slug, environment.Name, EnvironmentSelectionHref(orgSlug, environment.Slug), "#organization-environments-content", "organization-environment-preview", "#organization-environments-loading") {
+								<div class="flex flex-wrap items-start justify-between gap-3">
+									<div class="min-w-0 flex-1 basis-full sm:basis-auto">
+										<h3 class="break-words text-base font-semibold text-base-content"><a class="relative z-10 hover:underline" href={ templ.URL(entityDetailHref(OrganizationEnvironmentDetailHref(orgSlug, environment.Slug), EnvironmentSelectionHref(orgSlug, environment.Slug))) }>{ environment.Name }</a></h3>
+										<p class="mt-1 break-all font-mono text-xs text-base-content/70">{ environment.Slug }</p>
+									</div>
+									<div class="flex flex-wrap gap-2">
+										<span class={ EnvironmentColorBadgeClass(string(environment.Color)) }>{ EnvironmentRiskLabel(string(environment.Slug), environment.Protected) }</span>
+										if environment.Protected {
+											<span class={ badgeErrorSoft }>protected</span>
+										}
+									</div>
+								</div>
+								<p class="mt-3 text-sm text-base-content/70">{ EnvironmentRiskSummary(string(environment.Slug), environment.Protected) }</p>
+							}
+						}
+					</div>
+				</section>
+			}
+		}
+	</div>
+}
+
+templ OrganizationEnvironmentDetailPanel(orgSlug string, environments []api.Environment, selectedEnvironmentSlug string, runtimeVariables []api.RuntimeVariable, runtimeVariablesUnavailable bool, environmentSecrets []api.EnvironmentSecret, environmentSecretsUnavailable bool, formData EnvironmentCreateFormData, permissions OrganizationPermissions) {
+	if SelectedCatalogEnvironmentSlug(environments, selectedEnvironmentSlug) == "" {
+		@EntityState("Select an environment", "Inspect identity and protection before opening configuration.")
+	} else {
+		for _, environment := range environments {
+			if environment.Slug == selectedEnvironmentSlug {
+				@EntityQuickLook("organization-environment-preview", environment.Name, environment.Slug, entityDetailHref(OrganizationEnvironmentDetailHref(orgSlug, environment.Slug), EnvironmentSelectionHref(orgSlug, environment.Slug)), EnvironmentSelectionHref(orgSlug, ""), "#organization-environments-content", "environment-"+environment.Slug) {
+					@EntityFacts() {
+						@EntityFact("Ownership") {
+							<span>Organization runtime target</span>
+						}
+						@EntityFact("Protection") {
+							if environment.Protected {
+								<span class={ badgeWarningSoft }>Protected; changes require confirmation</span>
+							} else {
+								<span>Unprotected</span>
+							}
+						}
+					}
+					<p class="text-sm text-base-content/70">Project enablement and bindings are configured per project.</p>
+				}
+			}
+		}
+	}
+}
+
+templ OrganizationEnvironmentDetailPage(shellData AuthenticatedShellData, orgSlug string, environment api.Environment, runtimeVariables []api.RuntimeVariable, runtimeVariablesUnavailable bool, environmentSecrets []api.EnvironmentSecret, environmentSecretsUnavailable bool, formData EnvironmentCreateFormData, permissions OrganizationPermissions) {
+	@AuthenticatedShell(shellData, OrganizationEnvironmentDetailPageContent(orgSlug, environment, runtimeVariables, runtimeVariablesUnavailable, environmentSecrets, environmentSecretsUnavailable, formData, permissions))
+}
+
+templ OrganizationEnvironmentDetailPageContent(orgSlug string, environment api.Environment, runtimeVariables []api.RuntimeVariable, runtimeVariablesUnavailable bool, environmentSecrets []api.EnvironmentSecret, environmentSecretsUnavailable bool, formData EnvironmentCreateFormData, permissions OrganizationPermissions) {
+	{{ section := OrganizationEnvironmentSection(entityPageURL(ctx).Query().Get("section")) }}
+	{{ detailHref := OrganizationEnvironmentDetailHref(orgSlug, string(environment.Slug)) }}
+	<div id="organization-environment-full-page" class="max-w-5xl">
+		<div class="mb-4">
+			<a class="btn btn-outline btn-sm" href={ templ.URL(entityBackHref(ctx, EnvironmentSelectionHref(orgSlug, string(environment.Slug)))) }>Back to environments</a>
+		</div>
+		@EntityDetailHeader(environment.Name, environment.Slug) {
+			if environment.Protected {
+				<span class={ badgeWarningSoft }>Protected</span>
+			}
+		}
+		@EntitySectionNavigation("Environment configuration") {
+			@EntitySectionLink(entitySectionHref(ctx, detailHref, "settings"), "Settings", section == "settings")
+			@EntitySectionLink(entitySectionHref(ctx, detailHref, "variables"), "Variables", section == "variables")
+			@EntitySectionLink(entitySectionHref(ctx, detailHref, "secrets"), "Secrets", section == "secrets")
+		}
+		@OrganizationEnvironmentDetailContent(orgSlug, environment, runtimeVariables, runtimeVariablesUnavailable, environmentSecrets, environmentSecretsUnavailable, formData, permissions, false, true)
+	</div>
+}
+
+templ OrganizationEnvironmentDetailContent(orgSlug string, environment api.Environment, runtimeVariables []api.RuntimeVariable, runtimeVariablesUnavailable bool, environmentSecrets []api.EnvironmentSecret, environmentSecretsUnavailable bool, formData EnvironmentCreateFormData, permissions OrganizationPermissions, showFullPageLink bool, fullPage bool) {
+	{{ updateFormID := "organization-environment-" + string(environment.Slug) + "-update" }}
+	<div class="grid content-start gap-4">
+		if OrganizationEnvironmentSection(entityPageURL(ctx).Query().Get("section")) == "settings" {
+			<section id="environment-settings" class="rounded-xl border border-base-300 bg-base-100 p-4">
+				<div class="flex flex-wrap items-start justify-between gap-3">
+					<div>
+						<h2 class="text-base font-semibold text-base-content">Settings</h2>
+						<p class="mt-1 break-all font-mono text-xs text-base-content/70">{ environment.Slug }</p>
+					</div>
+					<div class="flex flex-wrap gap-2">
+						if showFullPageLink {
+							<a class="btn btn-outline btn-sm" href={ templ.URL(OrganizationEnvironmentDetailHref(orgSlug, string(environment.Slug))) }>Open full page</a>
+						}
+						<span class={ EnvironmentColorBadgeClass(string(environment.Color)) }>{ EnvironmentRiskLabel(string(environment.Slug), environment.Protected) }</span>
+						if environment.Protected {
+							<span class={ badgeErrorSoft }>protected</span>
+						}
+					</div>
+				</div>
+				<p class="mt-3 text-sm text-base-content/70">{ EnvironmentRiskSummary(string(environment.Slug), environment.Protected) }</p>
+				if permissions.Can("environments", "update") {
+					<form id={ updateFormID } class="mt-4 grid gap-3 lg:grid-cols-2" method="post" action={ templ.URL(organizationEnvironmentAction(ctx, "/organizations/"+orgSlug+"/environments/"+string(environment.Slug)+"/update", fullPage)) } hx-post={ organizationEnvironmentAction(ctx, "/organizations/"+orgSlug+"/environments/"+string(environment.Slug)+"/update", fullPage) } hx-target={ OrganizationEnvironmentHTMXTarget(fullPage) } hx-select={ OrganizationEnvironmentHTMXSelect(fullPage) } hx-swap="outerHTML show:none focus-scroll:false" data-dirty-form="environment-update" data-preserve-scroll>
+						if fullPage {
+							<input type="hidden" name="return_to" value="full"/>
+						}
+						<label class="form-control w-full">
+							<div class="label py-1"><span class="label-text text-xs">Name</span></div>
+							<input class="input input-bordered input-sm w-full" type="text" name="name" value={ environment.Name } required/>
+						</label>
+						<label class="form-control w-full">
+							<div class="label py-1"><span class="label-text text-xs">Description</span></div>
+							<input class="input input-bordered input-sm w-full" type="text" name="description" value={ EnvironmentDescriptionValue(environment.Description) }/>
+						</label>
+						<label class="form-control w-full">
+							<div class="label py-1"><span class="label-text text-xs">Color</span></div>
+							<select class="select select-bordered select-sm w-full" name="color" required>
+								for _, option := range EnvironmentColorOptions(string(environment.Color)) {
+									<option value={ option.Value } selected?={ option.Selected }>{ option.Label }</option>
+								}
+							</select>
+						</label>
+						<label class="label cursor-pointer justify-start gap-2">
+							<input class="checkbox checkbox-sm" type="checkbox" name="protected" checked?={ environment.Protected }/>
+							<span class="label-text text-sm">Protected</span>
+						</label>
+						if environment.Protected {
+							<div></div>
+						}
+						<div class="lg:col-span-2">
+							if environment.Protected {
+								<button class="btn btn-primary btn-sm" type="button" data-protected-action-trigger={ "organization-protected-env-" + string(environment.Slug) + "-save" } data-dirty-submit disabled>Save environment</button>
+							} else {
+								<button class="btn btn-primary btn-sm" type="submit" data-dirty-submit disabled>Save environment</button>
+							}
+						</div>
+					</form>
+					if environment.Protected {
+						@OrganizationProtectedEnvironmentSaveModal(updateFormID, string(environment.Slug), environment.Name)
+					}
+				}
+				if permissions.Can("environments", "delete") {
+					<div class="mt-3">
+						<button class="btn btn-error btn-sm" type="button" data-protected-action-trigger={ "organization-env-" + string(environment.Slug) + "-delete" }>Delete</button>
+					</div>
+					@OrganizationEnvironmentDeleteModal(orgSlug, environment, fullPage)
+				}
+			</section>
+		}
+		if OrganizationEnvironmentSection(entityPageURL(ctx).Query().Get("section")) == "variables" {
+			@OrganizationRuntimeVariablesPanel(orgSlug, environment, runtimeVariables, runtimeVariablesUnavailable, permissions, fullPage)
+		}
+		if OrganizationEnvironmentSection(entityPageURL(ctx).Query().Get("section")) == "secrets" {
+			@OrganizationEnvironmentSecretsPanel(orgSlug, environment, environmentSecrets, environmentSecretsUnavailable, permissions, fullPage)
+		}
+	</div>
+}
+
+templ OrganizationProtectedEnvironmentSaveModal(formID string, environmentSlug string, environmentName string) {
+	{{ modalID := "organization-protected-env-" + environmentSlug + "-save" }}
+	<dialog class="modal" id={ modalID } data-protected-action-modal data-confirm-slug={ environmentSlug }>
+		<div class="modal-box max-w-lg border border-error/35 bg-base-100 p-0">
+			<div class="border-b border-error/25 bg-error/10 px-5 py-4">
+				<div class="flex flex-wrap items-start justify-between gap-3">
+					<div>
+						<h3 class="text-lg font-semibold text-base-content">Confirm protected action</h3>
+						<p class="mt-1 text-sm text-base-content/70">Save changes for this protected runtime target.</p>
+					</div>
+					<span class={ badgeErrorSoft }>{ environmentSlug }</span>
+				</div>
+			</div>
+			<div class="px-5 py-4">
+				<div class="rounded-lg border border-base-300 bg-base-200/35 p-3">
+					<p class="text-sm font-semibold text-base-content">{ environmentName }</p>
+					<p class="mt-1 text-xs text-base-content/60">This changes runtime target settings for <span class="font-mono">{ environmentSlug }</span>.</p>
+				</div>
+				<label class="form-control mt-4 w-full">
+					<div class="label py-1">
+						<span class="label-text text-xs">Type <span class="font-mono font-semibold text-error">{ environmentSlug }</span> to confirm</span>
+					</div>
+					<input
+						class="input input-bordered w-full font-mono"
+						type="text"
+						name="protected_environment_confirmation"
+						form={ formID }
+						autocomplete="off"
+						placeholder={ environmentSlug }
+						required
+						data-protected-confirm-input
+						data-confirm-slug={ environmentSlug }
+					/>
+				</label>
+				<div class="modal-action mt-5">
+					<button class="btn btn-ghost btn-sm" type="button" data-protected-action-close={ modalID }>Cancel</button>
+					<button class="btn btn-primary btn-sm" type="submit" form={ formID } data-protected-confirm-submit disabled aria-disabled="true">Save environment</button>
+				</div>
+			</div>
+		</div>
+		<form method="dialog" class="modal-backdrop">
+			<button type="submit">close</button>
+		</form>
+	</dialog>
+}
+
+templ OrganizationEnvironmentDeleteModal(orgSlug string, environment api.Environment, fullPage bool) {
+	{{ modalID := "organization-env-" + string(environment.Slug) + "-delete" }}
+	<dialog class="modal" id={ modalID } data-protected-action-modal data-confirm-slug={ string(environment.Slug) }>
+		<div class="modal-box max-w-lg border border-error/35 bg-base-100 p-0">
+			<div class="border-b border-error/25 bg-error/10 px-5 py-4">
+				<div class="flex flex-wrap items-start justify-between gap-3">
+					<div>
+						if environment.Protected {
+							<h3 class="text-lg font-semibold text-base-content">Confirm protected action</h3>
+							<p class="mt-1 text-sm text-base-content/70">Delete this protected organization runtime target.</p>
+						} else {
+							<h3 class="text-lg font-semibold text-base-content">Delete runtime target</h3>
+							<p class="mt-1 text-sm text-base-content/70">Delete this organization runtime target.</p>
+						}
+					</div>
+					<span class={ badgeErrorSoft }>{ environment.Slug }</span>
+				</div>
+			</div>
+			<form
+				class="px-5 py-4"
+				method="post"
+				action={ templ.URL(organizationEnvironmentAction(ctx, "/organizations/"+orgSlug+"/environments/"+string(environment.Slug)+"/delete", fullPage)) }
+				hx-post={ organizationEnvironmentAction(ctx, "/organizations/"+orgSlug+"/environments/"+string(environment.Slug)+"/delete", fullPage) }
+				hx-target={ OrganizationEnvironmentHTMXTarget(fullPage) }
+				hx-select={ OrganizationEnvironmentHTMXSelect(fullPage) }
+				hx-swap="outerHTML show:none focus-scroll:false"
+				data-preserve-scroll
+			>
+				if fullPage {
+					<input type="hidden" name="return_to" value="full"/>
+				}
+				<div class="rounded-lg border border-base-300 bg-base-200/35 p-3">
+					<p class="text-sm font-semibold text-base-content">{ environment.Name }</p>
+					<p class="mt-1 text-xs text-base-content/60">This deletes runtime target <span class="font-mono">{ environment.Slug }</span>.</p>
+				</div>
+				<label class="form-control mt-4 w-full">
+					<div class="label py-1">
+						<span class="label-text text-xs">Type <span class="font-mono font-semibold text-error">{ environment.Slug }</span> to confirm</span>
+					</div>
+					<input
+						class="input input-bordered w-full font-mono"
+						type="text"
+						name="confirm_slug"
+						autocomplete="off"
+						placeholder={ string(environment.Slug) }
+						required
+						data-protected-confirm-input
+						data-confirm-slug={ string(environment.Slug) }
+					/>
+				</label>
+				<label class="form-control mt-4 w-full">
+					<div class="label py-1"><span class="label-text text-xs">Delete reason</span></div>
+					<input class="input input-bordered w-full" type="text" name="delete_reason"/>
+				</label>
+				<div class="modal-action mt-5">
+					<button class="btn btn-ghost btn-sm" type="button" data-protected-action-close={ modalID }>Cancel</button>
+					<button class="btn btn-error btn-sm" type="submit" data-protected-confirm-submit disabled aria-disabled="true">Delete</button>
+				</div>
+			</form>
+		</div>
+		<form method="dialog" class="modal-backdrop">
+			<button type="submit">close</button>
+		</form>
+	</dialog>
+}
+
+templ OrganizationRuntimeVariablesPanel(orgSlug string, environment api.Environment, runtimeVariables []api.RuntimeVariable, runtimeVariablesUnavailable bool, permissions OrganizationPermissions, fullPage bool) {
+	{{ variableFormID := "organization-runtime-variable-" + string(environment.Slug) + "-create" }}
+	<section id="runtime-variables" class="rounded-xl border border-base-300 bg-base-100 p-4">
+		<div class="flex flex-wrap items-start justify-between gap-3">
+			<div>
+				<h2 class="text-base font-semibold text-base-content">Runtime variables</h2>
+				<p class="mt-1 text-xs text-base-content/65">Non-secret values scoped to this organization runtime target.</p>
+			</div>
+			<span class="badge badge-outline">{ fmt.Sprintf("%d variables", len(runtimeVariables)) }</span>
+		</div>
+		if runtimeVariablesUnavailable {
+			<div class="alert alert-warning mt-4">
+				<span>Runtime variables are unavailable.</span>
+			</div>
+		} else if len(runtimeVariables) == 0 {
+			<div class="mt-4 rounded-lg border border-dashed border-base-300 bg-base-200/30 px-4 py-3 text-sm text-base-content/70">No runtime variables for this target.</div>
+		} else {
+			<div class="mt-4 space-y-2">
+				for _, variable := range runtimeVariables {
+					{{ updateFormID := "organization-runtime-variable-" + string(environment.Slug) + "-" + variable.Key + "-update" }}
+					{{ updateModalID := updateFormID + "-confirm" }}
+					{{ editPanelID := updateFormID + "-panel" }}
+					<div class="rounded-lg border border-base-300 bg-base-200/40 p-3">
+						<div class="grid items-center gap-3 md:grid-cols-[1fr_1fr_1.2fr_1fr_auto]">
+							<button class="min-w-0 cursor-pointer text-left" type="button" aria-controls={ editPanelID } aria-expanded="false" data-toggle-target={ editPanelID }>
+								<span class="block text-[0.65rem] font-semibold uppercase text-base-content/45">Key</span>
+								<span class="mt-1 flex min-w-0 items-center gap-2">
+									<span class="truncate font-mono text-sm font-semibold text-base-content">{ variable.Key }</span>
+									<span class="badge badge-outline badge-sm shrink-0">{ string(variable.ValueType) }</span>
+								</span>
+							</button>
+							<button class="min-w-0 cursor-pointer text-left" type="button" aria-controls={ editPanelID } aria-expanded="false" data-toggle-target={ editPanelID }>
+								<span class="block text-[0.65rem] font-semibold uppercase text-base-content/45">Value</span>
+								<span class="mt-1 block truncate font-mono text-sm text-base-content">{ variable.Value }</span>
+							</button>
+							<button class="min-w-0 cursor-pointer text-left" type="button" aria-controls={ editPanelID } aria-expanded="false" data-toggle-target={ editPanelID }>
+								<span class="block text-[0.65rem] font-semibold uppercase text-base-content/45">Runtime key</span>
+								<span class="mt-1 block truncate font-mono text-xs text-base-content/70">{ "{{runtime.env." + variable.Key + "}}" }</span>
+							</button>
+							<button class="min-w-0 cursor-pointer text-left" type="button" aria-controls={ editPanelID } aria-expanded="false" data-toggle-target={ editPanelID }>
+								<span class="block text-[0.65rem] font-semibold uppercase text-base-content/45">Description</span>
+								if variable.Description != nil && *variable.Description != "" {
+									<span class="mt-1 block truncate text-sm text-base-content/70">{ *variable.Description }</span>
+								} else {
+									<span class="mt-1 block text-sm text-base-content/40">None</span>
+								}
+							</button>
+							<div class="flex items-center justify-end gap-2">
+								if permissions.Can("environments", "update") {
+									<button class="btn btn-ghost btn-xs" type="button" aria-controls={ editPanelID } aria-expanded="false" data-toggle-target={ editPanelID }>Edit</button>
+								}
+								if permissions.Can("environments", "delete") {
+									if environment.Protected {
+										@OrganizationRuntimeProtectedVariableDeleteButton(orgSlug, environment, variable, fullPage)
+									} else {
+										<form method="post" action={ templ.URL(organizationEnvironmentAction(ctx, "/organizations/"+orgSlug+"/environments/"+string(environment.Slug)+"/runtime-variables/"+variable.Key+"/delete", fullPage)) } hx-post={ organizationEnvironmentAction(ctx, "/organizations/"+orgSlug+"/environments/"+string(environment.Slug)+"/runtime-variables/"+variable.Key+"/delete", fullPage) } hx-target={ OrganizationEnvironmentHTMXTarget(fullPage) } hx-select={ OrganizationEnvironmentHTMXSelect(fullPage) } hx-swap="outerHTML show:none focus-scroll:false" data-preserve-scroll hx-confirm={ DestructiveConfirmation("Delete", "runtime variable", variable.Key, "Pipelines using this variable will no longer resolve it.") } data-destructive-confirm={ DestructiveConfirmation("Delete", "runtime variable", variable.Key, "Pipelines using this variable will no longer resolve it.") }>
+											if fullPage {
+												<input type="hidden" name="return_to" value="full"/>
+											}
+											<button class="btn btn-error btn-outline btn-xs" type="submit">Delete</button>
+										</form>
+									}
+								}
+							</div>
+						</div>
+						if permissions.Can("environments", "update") {
+							<form id={ editPanelID } class="mt-3 hidden grid gap-3 border-t border-base-300 pt-3 lg:grid-cols-[minmax(0,10rem)_minmax(0,1fr)]" method="post" action={ templ.URL(organizationEnvironmentAction(ctx, "/organizations/"+orgSlug+"/environments/"+string(environment.Slug)+"/runtime-variables", fullPage)) } hx-post={ organizationEnvironmentAction(ctx, "/organizations/"+orgSlug+"/environments/"+string(environment.Slug)+"/runtime-variables", fullPage) } hx-target={ OrganizationEnvironmentHTMXTarget(fullPage) } hx-select={ OrganizationEnvironmentHTMXSelect(fullPage) } hx-swap="outerHTML show:none focus-scroll:false" data-preserve-scroll>
+								if fullPage {
+									<input type="hidden" name="return_to" value="full"/>
+								}
+								<input type="hidden" name="key" value={ variable.Key }/>
+								<label class="form-control w-full">
+									<div class="label py-1"><span class="label-text text-xs">Type</span></div>
+									<select class="select select-bordered select-sm w-full" name="value_type" required>
+										<option value={ string(api.RuntimeVariableValueTypeText) } selected?={ variable.ValueType == api.RuntimeVariableValueTypeText }>text</option>
+										<option value={ string(api.RuntimeVariableValueTypeInteger) } selected?={ variable.ValueType == api.RuntimeVariableValueTypeInteger }>integer</option>
+										<option value={ string(api.RuntimeVariableValueTypeBoolean) } selected?={ variable.ValueType == api.RuntimeVariableValueTypeBoolean }>boolean</option>
+										<option value={ string(api.RuntimeVariableValueTypeDate) } selected?={ variable.ValueType == api.RuntimeVariableValueTypeDate }>date</option>
+										<option value={ string(api.RuntimeVariableValueTypeUUID) } selected?={ variable.ValueType == api.RuntimeVariableValueTypeUUID }>uuid</option>
+									</select>
+								</label>
+								<label class="form-control w-full">
+									<div class="label py-1"><span class="label-text text-xs">Value</span></div>
+									<input class="input input-bordered input-sm w-full font-mono" type="text" name="value" value={ variable.Value } required/>
+								</label>
+								<label class="form-control w-full lg:col-span-2">
+									<div class="label py-1"><span class="label-text text-xs">Description</span></div>
+									<input class="input input-bordered input-sm w-full" type="text" name="description" value={ RuntimeVariableDescriptionValue(variable.Description) }/>
+								</label>
+								<div class="lg:col-span-2">
+									if environment.Protected {
+										<button class="btn btn-primary btn-sm" type="button" data-protected-action-trigger={ updateModalID }>Update variable</button>
+									} else {
+										<button class="btn btn-primary btn-sm" type="submit">Update variable</button>
+									}
+								</div>
+							</form>
+							if environment.Protected {
+								@OrganizationRuntimeProtectedVariableSaveModal(editPanelID, updateModalID, environment, "Update variable", "Update this runtime variable for this protected target.")
+							}
+						}
+					</div>
+				}
+			</div>
+		}
+		if permissions.Can("environments", "update") {
+			<form id={ variableFormID } class="mt-4 grid gap-3 lg:grid-cols-[minmax(0,12rem)_minmax(0,10rem)_minmax(0,1fr)]" method="post" action={ templ.URL(organizationEnvironmentAction(ctx, "/organizations/"+orgSlug+"/environments/"+string(environment.Slug)+"/runtime-variables", fullPage)) } hx-post={ organizationEnvironmentAction(ctx, "/organizations/"+orgSlug+"/environments/"+string(environment.Slug)+"/runtime-variables", fullPage) } hx-target={ OrganizationEnvironmentHTMXTarget(fullPage) } hx-select={ OrganizationEnvironmentHTMXSelect(fullPage) } hx-swap="outerHTML show:none focus-scroll:false" data-preserve-scroll>
+				if fullPage {
+					<input type="hidden" name="return_to" value="full"/>
+				}
+				<label class="form-control w-full">
+					<div class="label py-1"><span class="label-text text-xs">Key</span></div>
+					<input class="input input-bordered input-sm w-full font-mono" type="text" name="key" placeholder="s3_prefix" required/>
+				</label>
+				<label class="form-control w-full">
+					<div class="label py-1"><span class="label-text text-xs">Type</span></div>
+					<select class="select select-bordered select-sm w-full" name="value_type" required>
+						<option value={ string(api.RuntimeVariableValueTypeText) }>text</option>
+						<option value={ string(api.RuntimeVariableValueTypeInteger) }>integer</option>
+						<option value={ string(api.RuntimeVariableValueTypeBoolean) }>boolean</option>
+						<option value={ string(api.RuntimeVariableValueTypeDate) }>date</option>
+						<option value={ string(api.RuntimeVariableValueTypeUUID) }>uuid</option>
+					</select>
+				</label>
+				<label class="form-control w-full">
+					<div class="label py-1"><span class="label-text text-xs">Value</span></div>
+					<input class="input input-bordered input-sm w-full font-mono" type="text" name="value" required/>
+				</label>
+				<label class="form-control w-full lg:col-span-2">
+					<div class="label py-1"><span class="label-text text-xs">Description</span></div>
+					<input class="input input-bordered input-sm w-full" type="text" name="description"/>
+				</label>
+				<div class="lg:col-span-3">
+					if environment.Protected {
+						<button class="btn btn-primary btn-sm" type="button" data-protected-action-trigger={ "organization-runtime-variable-" + string(environment.Slug) + "-save" }>Save variable</button>
+					} else {
+						<button class="btn btn-primary btn-sm" type="submit">Save variable</button>
+					}
+				</div>
+			</form>
+			if environment.Protected {
+				@OrganizationRuntimeProtectedVariableSaveModal(variableFormID, "organization-runtime-variable-"+string(environment.Slug)+"-save", environment, "Save variable", "Save a runtime variable for this protected target.")
+			}
+		}
+	</section>
+}
+
+templ OrganizationEnvironmentSecretsPanel(orgSlug string, environment api.Environment, environmentSecrets []api.EnvironmentSecret, environmentSecretsUnavailable bool, permissions OrganizationPermissions, fullPage bool) {
+	{{ secretFormID := "organization-environment-secret-" + string(environment.Slug) + "-create" }}
+	<section id="environment-secrets" class="rounded-xl border border-base-300 bg-base-100 p-4">
+		<div class="flex flex-wrap items-start justify-between gap-3">
+			<div>
+				<h2 class="text-base font-semibold text-base-content">Environment secrets</h2>
+				<p class="mt-1 text-xs text-base-content/65">Write-only sensitive values scoped to this runtime target.</p>
+			</div>
+			<span class="badge badge-outline">{ fmt.Sprintf("%d secrets", len(environmentSecrets)) }</span>
+		</div>
+		if environmentSecretsUnavailable {
+			<div class="alert alert-warning mt-4">
+				<span>Environment secrets are unavailable.</span>
+			</div>
+		} else if len(environmentSecrets) == 0 {
+			<div class="mt-4 rounded-lg border border-dashed border-base-300 bg-base-200/30 px-4 py-3 text-sm text-base-content/70">No environment secrets for this target.</div>
+		} else {
+			<div class="mt-4 space-y-2">
+				for _, secret := range environmentSecrets {
+					{{ updateFormID := "organization-environment-secret-" + string(environment.Slug) + "-" + secret.Key + "-update" }}
+					{{ updateModalID := updateFormID + "-confirm" }}
+					{{ editPanelID := updateFormID + "-panel" }}
+					<div class="rounded-lg border border-base-300 bg-base-200/40 p-3">
+						<div class="grid items-center gap-3 md:grid-cols-[1fr_1.25fr_1.2fr_auto]">
+							<button class="min-w-0 cursor-pointer text-left" type="button" aria-controls={ editPanelID } aria-expanded="false" data-toggle-target={ editPanelID }>
+								<span class="block text-[0.65rem] font-semibold uppercase text-base-content/45">Key</span>
+								<span class="mt-1 flex min-w-0 items-center gap-2">
+									<span class="truncate font-mono text-sm font-semibold text-base-content">{ secret.Key }</span>
+									<span class="badge badge-error badge-outline badge-sm shrink-0">secret</span>
+								</span>
+							</button>
+							<button class="min-w-0 cursor-pointer text-left" type="button" aria-controls={ editPanelID } aria-expanded="false" data-toggle-target={ editPanelID }>
+								<span class="block text-[0.65rem] font-semibold uppercase text-base-content/45">Runtime key</span>
+								<span class="mt-1 block truncate font-mono text-xs text-base-content/70">{ "{{runtime.secrets." + secret.Key + "}}" }</span>
+							</button>
+							<button class="min-w-0 cursor-pointer text-left" type="button" aria-controls={ editPanelID } aria-expanded="false" data-toggle-target={ editPanelID }>
+								<span class="block text-[0.65rem] font-semibold uppercase text-base-content/45">Description</span>
+								if secret.Description != nil && *secret.Description != "" {
+									<span class="mt-1 block truncate text-sm text-base-content/70">{ *secret.Description }</span>
+								} else {
+									<span class="mt-1 block text-sm text-base-content/40">None</span>
+								}
+							</button>
+							<div class="flex items-center justify-end gap-2">
+								if permissions.Can("environments", "update") {
+									<button class="btn btn-ghost btn-xs" type="button" aria-controls={ editPanelID } aria-expanded="false" data-toggle-target={ editPanelID }>Edit</button>
+								}
+								if permissions.Can("environments", "delete") {
+									if environment.Protected {
+										@OrganizationRuntimeProtectedSecretDeleteButton(orgSlug, environment, secret, fullPage)
+									} else {
+										<form method="post" action={ templ.URL(organizationEnvironmentAction(ctx, "/organizations/"+orgSlug+"/environments/"+string(environment.Slug)+"/secrets/"+secret.Key+"/delete", fullPage)) } hx-post={ organizationEnvironmentAction(ctx, "/organizations/"+orgSlug+"/environments/"+string(environment.Slug)+"/secrets/"+secret.Key+"/delete", fullPage) } hx-target={ OrganizationEnvironmentHTMXTarget(fullPage) } hx-select={ OrganizationEnvironmentHTMXSelect(fullPage) } hx-swap="outerHTML show:none focus-scroll:false" data-preserve-scroll hx-confirm={ DestructiveConfirmation("Delete", "environment secret", secret.Key, "Pipelines using this secret will no longer resolve it.") } data-destructive-confirm={ DestructiveConfirmation("Delete", "environment secret", secret.Key, "Pipelines using this secret will no longer resolve it.") }>
+											if fullPage {
+												<input type="hidden" name="return_to" value="full"/>
+											}
+											<button class="btn btn-error btn-outline btn-xs" type="submit">Delete</button>
+										</form>
+									}
+								}
+							</div>
+						</div>
+						if permissions.Can("environments", "update") {
+							<form id={ editPanelID } class="mt-3 hidden grid gap-3 border-t border-base-300 pt-3 lg:grid-cols-[minmax(0,12rem)_minmax(0,1fr)]" method="post" action={ templ.URL(organizationEnvironmentAction(ctx, "/organizations/"+orgSlug+"/environments/"+string(environment.Slug)+"/secrets", fullPage)) } hx-post={ organizationEnvironmentAction(ctx, "/organizations/"+orgSlug+"/environments/"+string(environment.Slug)+"/secrets", fullPage) } hx-target={ OrganizationEnvironmentHTMXTarget(fullPage) } hx-select={ OrganizationEnvironmentHTMXSelect(fullPage) } hx-swap="outerHTML show:none focus-scroll:false" data-preserve-scroll>
+								if fullPage {
+									<input type="hidden" name="return_to" value="full"/>
+								}
+								<input type="hidden" name="key" value={ secret.Key }/>
+								<label class="form-control w-full">
+									<div class="label py-1"><span class="label-text text-xs">Replacement value</span></div>
+									<textarea class="textarea textarea-bordered textarea-sm min-h-20 w-full font-mono" name="value" autocomplete="new-password" required></textarea>
+								</label>
+								<label class="form-control w-full">
+									<div class="label py-1"><span class="label-text text-xs">Description</span></div>
+									<input class="input input-bordered input-sm w-full" type="text" name="description" value={ EnvironmentSecretDescriptionValue(secret.Description) }/>
+								</label>
+								<div class="lg:col-span-2">
+									if environment.Protected {
+										<button class="btn btn-primary btn-sm" type="button" data-protected-action-trigger={ updateModalID }>Update secret</button>
+									} else {
+										<button class="btn btn-primary btn-sm" type="submit">Update secret</button>
+									}
+								</div>
+							</form>
+							if environment.Protected {
+								@OrganizationRuntimeProtectedSecretSaveModal(editPanelID, updateModalID, environment, "Update secret", "Update this environment secret for this protected target.")
+							}
+						}
+					</div>
+				}
+			</div>
+		}
+		if permissions.Can("environments", "update") {
+			<form id={ secretFormID } class="mt-4 grid gap-3 lg:grid-cols-[minmax(0,12rem)_minmax(0,1fr)]" method="post" action={ templ.URL(organizationEnvironmentAction(ctx, "/organizations/"+orgSlug+"/environments/"+string(environment.Slug)+"/secrets", fullPage)) } hx-post={ organizationEnvironmentAction(ctx, "/organizations/"+orgSlug+"/environments/"+string(environment.Slug)+"/secrets", fullPage) } hx-target={ OrganizationEnvironmentHTMXTarget(fullPage) } hx-select={ OrganizationEnvironmentHTMXSelect(fullPage) } hx-swap="outerHTML show:none focus-scroll:false" data-preserve-scroll>
+				if fullPage {
+					<input type="hidden" name="return_to" value="full"/>
+				}
+				<label class="form-control w-full">
+					<div class="label py-1"><span class="label-text text-xs">Key</span></div>
+					<input class="input input-bordered input-sm w-full font-mono" type="text" name="key" placeholder="API_TOKEN" required/>
+				</label>
+				<label class="form-control w-full">
+					<div class="label py-1"><span class="label-text text-xs">Value</span></div>
+					<textarea class="textarea textarea-bordered textarea-sm min-h-20 w-full font-mono" name="value" autocomplete="new-password" required></textarea>
+				</label>
+				<label class="form-control w-full lg:col-span-2">
+					<div class="label py-1"><span class="label-text text-xs">Description</span></div>
+					<input class="input input-bordered input-sm w-full" type="text" name="description"/>
+				</label>
+				<div class="lg:col-span-2">
+					if environment.Protected {
+						<button class="btn btn-primary btn-sm" type="button" data-protected-action-trigger={ "organization-environment-secret-" + string(environment.Slug) + "-save" }>Save secret</button>
+					} else {
+						<button class="btn btn-primary btn-sm" type="submit">Save secret</button>
+					}
+				</div>
+			</form>
+			if environment.Protected {
+				@OrganizationRuntimeProtectedSecretSaveModal(secretFormID, "organization-environment-secret-"+string(environment.Slug)+"-save", environment, "Save secret", "Save an environment secret for this protected target.")
+			}
+		}
+	</section>
+}
+
+templ OrganizationRuntimeProtectedSecretSaveModal(formID string, modalID string, environment api.Environment, actionLabel string, actionDescription string) {
+	<dialog class="modal" id={ modalID } data-protected-action-modal data-confirm-slug={ string(environment.Slug) }>
+		<div class="modal-box max-w-lg border border-error/35 bg-base-100 p-0">
+			<div class="border-b border-error/25 bg-error/10 px-5 py-4">
+				<div class="flex flex-wrap items-start justify-between gap-3">
+					<div>
+						<h3 class="text-lg font-semibold text-base-content">Confirm protected action</h3>
+						<p class="mt-1 text-sm text-base-content/70">{ actionDescription }</p>
+					</div>
+					<span class={ badgeErrorSoft }>{ environment.Slug }</span>
+				</div>
+			</div>
+			<div class="px-5 py-4">
+				<div class="rounded-lg border border-base-300 bg-base-200/35 p-3">
+					<p class="text-sm font-semibold text-base-content">{ environment.Name }</p>
+					<p class="mt-1 text-xs text-base-content/60">This changes environment secrets for <span class="font-mono">{ environment.Slug }</span>.</p>
+				</div>
+				<label class="form-control mt-4 w-full">
+					<div class="label py-1">
+						<span class="label-text text-xs">Type <span class="font-mono font-semibold text-error">{ environment.Slug }</span> to confirm</span>
+					</div>
+					<input
+						class="input input-bordered w-full font-mono"
+						type="text"
+						name="protected_environment_confirmation"
+						form={ formID }
+						autocomplete="off"
+						placeholder={ string(environment.Slug) }
+						required
+						data-protected-confirm-input
+						data-confirm-slug={ string(environment.Slug) }
+					/>
+				</label>
+				<div class="modal-action mt-5">
+					<button class="btn btn-ghost btn-sm" type="button" data-protected-action-close={ modalID }>Cancel</button>
+					<button class="btn btn-primary btn-sm" type="submit" form={ formID } data-protected-confirm-submit disabled aria-disabled="true">{ actionLabel }</button>
+				</div>
+			</div>
+		</div>
+		<form method="dialog" class="modal-backdrop">
+			<button type="submit">close</button>
+		</form>
+	</dialog>
+}
+
+templ OrganizationRuntimeProtectedSecretDeleteButton(orgSlug string, environment api.Environment, secret api.EnvironmentSecret, fullPage bool) {
+	{{ modalID := "organization-environment-secret-" + string(environment.Slug) + "-" + secret.Key + "-delete" }}
+	<button class="btn btn-error btn-outline btn-xs" type="button" data-protected-action-trigger={ modalID }>Delete</button>
+	<dialog class="modal" id={ modalID } data-protected-action-modal data-confirm-slug={ string(environment.Slug) }>
+		<div class="modal-box max-w-lg border border-error/35 bg-base-100 p-0">
+			<div class="border-b border-error/25 bg-error/10 px-5 py-4">
+				<div class="flex flex-wrap items-start justify-between gap-3">
+					<div>
+						<h3 class="text-lg font-semibold text-base-content">Confirm protected action</h3>
+						<p class="mt-1 text-sm text-base-content/70">Delete this environment secret from a protected target.</p>
+					</div>
+					<span class={ badgeErrorSoft }>{ environment.Slug }</span>
+				</div>
+			</div>
+			<form
+				class="px-5 py-4"
+				method="post"
+				action={ templ.URL(organizationEnvironmentAction(ctx, "/organizations/"+orgSlug+"/environments/"+string(environment.Slug)+"/secrets/"+secret.Key+"/delete", fullPage)) }
+				hx-post={ organizationEnvironmentAction(ctx, "/organizations/"+orgSlug+"/environments/"+string(environment.Slug)+"/secrets/"+secret.Key+"/delete", fullPage) }
+				hx-target={ OrganizationEnvironmentHTMXTarget(fullPage) }
+				hx-select={ OrganizationEnvironmentHTMXSelect(fullPage) }
+				hx-swap="outerHTML show:none focus-scroll:false"
+				data-preserve-scroll
+			>
+				if fullPage {
+					<input type="hidden" name="return_to" value="full"/>
+				}
+				<div class="rounded-lg border border-base-300 bg-base-200/35 p-3">
+					<p class="font-mono text-sm font-semibold text-base-content">{ secret.Key }</p>
+					<p class="mt-1 text-xs text-base-content/60">This removes the environment secret from <span class="font-mono">{ environment.Slug }</span>.</p>
+				</div>
+				<label class="form-control mt-4 w-full">
+					<div class="label py-1">
+						<span class="label-text text-xs">Type <span class="font-mono font-semibold text-error">{ environment.Slug }</span> to confirm</span>
+					</div>
+					<input
+						class="input input-bordered w-full font-mono"
+						type="text"
+						name="protected_environment_confirmation"
+						autocomplete="off"
+						placeholder={ string(environment.Slug) }
+						required
+						data-protected-confirm-input
+						data-confirm-slug={ string(environment.Slug) }
+					/>
+				</label>
+				<div class="modal-action mt-5">
+					<button class="btn btn-ghost btn-sm" type="button" data-protected-action-close={ modalID }>Cancel</button>
+					<button class="btn btn-error btn-sm" type="submit" data-protected-confirm-submit disabled aria-disabled="true">Delete</button>
+				</div>
+			</form>
+		</div>
+		<form method="dialog" class="modal-backdrop">
+			<button type="submit">close</button>
+		</form>
+	</dialog>
+}
+
+templ OrganizationRuntimeProtectedVariableSaveModal(formID string, modalID string, environment api.Environment, actionLabel string, actionDescription string) {
+	<dialog class="modal" id={ modalID } data-protected-action-modal data-confirm-slug={ string(environment.Slug) }>
+		<div class="modal-box max-w-lg border border-error/35 bg-base-100 p-0">
+			<div class="border-b border-error/25 bg-error/10 px-5 py-4">
+				<div class="flex flex-wrap items-start justify-between gap-3">
+					<div>
+						<h3 class="text-lg font-semibold text-base-content">Confirm protected action</h3>
+						<p class="mt-1 text-sm text-base-content/70">{ actionDescription }</p>
+					</div>
+					<span class={ badgeErrorSoft }>{ environment.Slug }</span>
+				</div>
+			</div>
+			<div class="px-5 py-4">
+				<div class="rounded-lg border border-base-300 bg-base-200/35 p-3">
+					<p class="text-sm font-semibold text-base-content">{ environment.Name }</p>
+					<p class="mt-1 text-xs text-base-content/60">This changes runtime variables for <span class="font-mono">{ environment.Slug }</span>.</p>
+				</div>
+				<label class="form-control mt-4 w-full">
+					<div class="label py-1">
+						<span class="label-text text-xs">Type <span class="font-mono font-semibold text-error">{ environment.Slug }</span> to confirm</span>
+					</div>
+					<input
+						class="input input-bordered w-full font-mono"
+						type="text"
+						name="protected_environment_confirmation"
+						form={ formID }
+						autocomplete="off"
+						placeholder={ string(environment.Slug) }
+						required
+						data-protected-confirm-input
+						data-confirm-slug={ string(environment.Slug) }
+					/>
+				</label>
+				<div class="modal-action mt-5">
+					<button class="btn btn-ghost btn-sm" type="button" data-protected-action-close={ modalID }>Cancel</button>
+					<button class="btn btn-primary btn-sm" type="submit" form={ formID } data-protected-confirm-submit disabled aria-disabled="true">{ actionLabel }</button>
+				</div>
+			</div>
+		</div>
+		<form method="dialog" class="modal-backdrop">
+			<button type="submit">close</button>
+		</form>
+	</dialog>
+}
+
+templ OrganizationRuntimeProtectedVariableDeleteButton(orgSlug string, environment api.Environment, variable api.RuntimeVariable, fullPage bool) {
+	{{ modalID := "organization-runtime-variable-" + string(environment.Slug) + "-" + variable.Key + "-delete" }}
+	<button class="btn btn-error btn-outline btn-xs" type="button" data-protected-action-trigger={ modalID }>Delete</button>
+	<dialog class="modal" id={ modalID } data-protected-action-modal data-confirm-slug={ string(environment.Slug) }>
+		<div class="modal-box max-w-lg border border-error/35 bg-base-100 p-0">
+			<div class="border-b border-error/25 bg-error/10 px-5 py-4">
+				<div class="flex flex-wrap items-start justify-between gap-3">
+					<div>
+						<h3 class="text-lg font-semibold text-base-content">Confirm protected action</h3>
+						<p class="mt-1 text-sm text-base-content/70">Delete this runtime variable from a protected target.</p>
+					</div>
+					<span class={ badgeErrorSoft }>{ environment.Slug }</span>
+				</div>
+			</div>
+			<form
+				class="px-5 py-4"
+				method="post"
+				action={ templ.URL(organizationEnvironmentAction(ctx, "/organizations/"+orgSlug+"/environments/"+string(environment.Slug)+"/runtime-variables/"+variable.Key+"/delete", fullPage)) }
+				hx-post={ organizationEnvironmentAction(ctx, "/organizations/"+orgSlug+"/environments/"+string(environment.Slug)+"/runtime-variables/"+variable.Key+"/delete", fullPage) }
+				hx-target={ OrganizationEnvironmentHTMXTarget(fullPage) }
+				hx-select={ OrganizationEnvironmentHTMXSelect(fullPage) }
+				hx-swap="outerHTML show:none focus-scroll:false"
+				data-preserve-scroll
+			>
+				if fullPage {
+					<input type="hidden" name="return_to" value="full"/>
+				}
+				<div class="rounded-lg border border-base-300 bg-base-200/35 p-3">
+					<p class="font-mono text-sm font-semibold text-base-content">{ variable.Key }</p>
+					<p class="mt-1 text-xs text-base-content/60">This removes the runtime variable from <span class="font-mono">{ environment.Slug }</span>.</p>
+				</div>
+				<label class="form-control mt-4 w-full">
+					<div class="label py-1">
+						<span class="label-text text-xs">Type <span class="font-mono font-semibold text-error">{ environment.Slug }</span> to confirm</span>
+					</div>
+					<input
+						class="input input-bordered w-full font-mono"
+						type="text"
+						name="protected_environment_confirmation"
+						autocomplete="off"
+						placeholder={ string(environment.Slug) }
+						required
+						data-protected-confirm-input
+						data-confirm-slug={ string(environment.Slug) }
+					/>
+				</label>
+				<div class="modal-action mt-5">
+					<button class="btn btn-ghost btn-sm" type="button" data-protected-action-close={ modalID }>Cancel</button>
+					<button class="btn btn-error btn-sm" type="submit" data-protected-confirm-submit disabled aria-disabled="true">Delete</button>
+				</div>
+			</form>
+		</div>
+		<form method="dialog" class="modal-backdrop">
+			<button type="submit">close</button>
+		</form>
+	</dialog>
+}
+
+templ OrganizationEnvironmentCreateCard(orgSlug string, formData EnvironmentCreateFormData) {
+	<div class="rounded-xl border border-base-300 bg-base-100 p-5">
+		<div class="flex flex-wrap items-start justify-between gap-3">
+			<div>
+				<h2 class="text-base font-semibold text-base-content">Create environment</h2>
+				<p class="mt-1 text-xs text-base-content/65">Add runtime targets before a project can enable them.</p>
+			</div>
+			<span class="badge badge-outline">runtime target</span>
+		</div>
+		<form class="mt-4 grid gap-3 lg:grid-cols-[minmax(0,1fr)_minmax(0,14rem)]" method="post" action={ templ.URL("/organizations/" + orgSlug + "/environments") } hx-post={ "/organizations/" + orgSlug + "/environments" } hx-target="#organization-environments-content" hx-select="#organization-environments-content" hx-swap="outerHTML show:none focus-scroll:false" data-preserve-scroll>
+			<label class="form-control w-full">
+				<div class="label py-1"><span class="label-text text-xs">Name</span></div>
+				<input class="input input-bordered input-sm w-full" type="text" name="name" value={ formData.Name } required/>
+			</label>
+			@CustomizeIdentifier(formData.Slug)
+			<label class="form-control w-full lg:col-span-2">
+				<div class="label py-1"><span class="label-text text-xs">Description</span></div>
+				<textarea class="textarea textarea-bordered textarea-sm min-h-20 w-full" name="description">{ formData.Description }</textarea>
+			</label>
+			<label class="form-control w-full">
+				<div class="label py-1"><span class="label-text text-xs">Color</span></div>
+				<select class="select select-bordered select-sm w-full" name="color" required>
+					for _, option := range EnvironmentColorOptions(formData.Color) {
+						<option value={ option.Value } selected?={ option.Selected }>{ option.Label }</option>
+					}
+				</select>
+			</label>
+			<label class="label cursor-pointer justify-start gap-2 lg:col-span-2">
+				<input class="checkbox checkbox-sm" type="checkbox" name="protected" checked?={ formData.Protected }/>
+				<span class="label-text text-sm">Protected</span>
+			</label>
+			<div class="lg:col-span-2">
+				<button class="btn btn-primary btn-sm" type="submit">Create environment</button>
+			</div>
+		</form>
+	</div>
+}
+
+templ ProjectEnvironmentsPage(shellData AuthenticatedShellData, orgSlug string, projectSlug string, selectedEnvironmentSlug string, environments []api.ProjectEnvironment, catalog []api.Environment, refs []api.DataSourceRef, bindings map[string][]api.DataSourceBinding, environmentsUnavailable bool, bindingsUnavailable bool, permissions OrganizationPermissions) {
+	@AuthenticatedShell(shellData, ProjectEnvironmentsPageContent(orgSlug, projectSlug, shellData.ActiveEnvironmentSlug, selectedEnvironmentSlug, environments, catalog, refs, bindings, environmentsUnavailable, bindingsUnavailable, permissions))
+}
+
+templ ProjectEnvironmentsPageContent(orgSlug string, projectSlug string, activeEnvironmentSlug string, selectedEnvironmentSlug string, environments []api.ProjectEnvironment, catalog []api.Environment, refs []api.DataSourceRef, bindings map[string][]api.DataSourceBinding, environmentsUnavailable bool, bindingsUnavailable bool, permissions OrganizationPermissions) {
+	<div id="project-environments-workspace">
+		<div class="flex flex-wrap items-center justify-end gap-3">
+			<a class="btn btn-outline btn-sm w-full sm:w-auto" href={ templ.URL(buildEnvironmentProjectPipelinesListHref(orgSlug, projectSlug, activeEnvironmentSlug, "", "")) }>Back to pipelines</a>
+		</div>
+		<div class="mt-5 grid gap-3 md:grid-cols-4">
+			<div class="rounded-lg border border-base-300 bg-base-200/40 p-4">
+				<p class="text-xs font-semibold uppercase tracking-wide text-base-content/60">Available</p>
+				<p class="mt-2 text-2xl font-semibold text-base-content">{ fmt.Sprintf("%d", len(catalog)) }</p>
+				<p class="mt-1 text-xs text-base-content/65">Organization-scoped targets</p>
+			</div>
+			<div class="rounded-lg border border-base-300 bg-base-200/40 p-4">
+				<p class="text-xs font-semibold uppercase tracking-wide text-base-content/60">Enabled</p>
+				<p class="mt-2 text-2xl font-semibold text-base-content">{ fmt.Sprintf("%d", len(environments)) }</p>
+				<p class="mt-1 text-xs text-base-content/65">Project runtime targets</p>
+			</div>
+			<div class="rounded-lg border border-error/35 bg-error/10 p-4">
+				<p class="text-xs font-semibold uppercase tracking-wide text-base-content/60">Protected</p>
+				<p class="mt-2 text-2xl font-semibold text-error">{ fmt.Sprintf("%d", ProtectedProjectEnvironmentCount(environments)) }</p>
+				<p class="mt-1 text-xs text-base-content/65">Enabled targets with protected mutation guards</p>
+			</div>
+			<div class="rounded-lg border border-warning/35 bg-warning/10 p-4">
+				<p class="text-xs font-semibold uppercase tracking-wide text-base-content/60">Missing bindings</p>
+				if bindingsUnavailable {
+					<p class="mt-2 text-sm font-semibold text-warning">Unavailable</p>
+				} else {
+					<p class="mt-2 text-2xl font-semibold text-warning">{ fmt.Sprintf("%d", MissingBindingCount(refs, environments, bindings)) }</p>
+				}
+				<p class="mt-1 text-xs text-base-content/65">Logical refs without targets</p>
+			</div>
+		</div>
+		if environmentsUnavailable {
+			<div class="alert alert-warning mt-6">
+				<span>Project environments are unavailable.</span>
+			</div>
+		} else if len(environments) == 0 {
+			<div class="mt-6 rounded-xl border border-dashed border-base-300 bg-base-200/30 p-8 text-center">
+				<h2 class="text-lg font-semibold text-base-content">No environments enabled</h2>
+				<p class="mt-2 text-sm text-base-content/70">Enable a project environment before validating, deploying, or running pipelines.</p>
+			</div>
+		}
+		if !environmentsUnavailable && catalog == nil {
+			@EntityState("Runtime targets unavailable", "Organization target inventory could not be loaded.")
+		}
+		if !environmentsUnavailable && catalog != nil && !projectEnvironmentConfiguration(ctx) {
+			@EntityListLayout("project-environments-loading", ProjectEnvironmentQuickLook(orgSlug, projectSlug, activeEnvironmentSlug, selectedEnvironmentSlug, environments, catalog, refs, bindings, bindingsUnavailable)) {
+				<section class="min-w-0 rounded-xl border border-base-300 bg-base-100 p-4">
+					<div class="flex flex-wrap items-start justify-between gap-3">
+						<div>
+							<h2 class="text-base font-semibold text-base-content">Project enablement</h2>
+							<p class="mt-1 text-xs text-base-content/65">Disabled targets are visible until this project opts in.</p>
+						</div>
+						<span class="badge badge-outline">{ fmt.Sprintf("%d available", len(AvailableCatalogEnvironments(catalog, environments))) }</span>
+					</div>
+					<div class="mt-4 space-y-3">
+						for _, environment := range catalog {
+							@EntityListItem(ProjectEnvironmentCatalogCardClass(environment.Slug == selectedEnvironmentSlug, ProjectEnvironmentEnabled(environment.Slug, environments)), environment.Slug == selectedEnvironmentSlug, "project-environment-"+environment.Slug, environment.Name, ProjectEnvironmentSelectionHref(orgSlug, projectSlug, activeEnvironmentSlug, environment.Slug), "#project-environments-workspace", "project-environment-preview", "#project-environments-loading") {
+								<div class="flex flex-wrap items-start justify-between gap-3">
+									<div class="min-w-0 flex-1 basis-full sm:basis-auto">
+										<h3 class="break-words text-base font-semibold text-base-content"><a class="relative z-10 hover:underline" href={ templ.URL(ProjectEnvironmentConfigurationHref(orgSlug, projectSlug, activeEnvironmentSlug, environment.Slug)) }>{ environment.Name }</a></h3>
+										<p class="mt-1 break-all font-mono text-xs text-base-content/70">{ environment.Slug }</p>
+									</div>
+									<div class="flex flex-wrap gap-2">
+										<span class={ EnvironmentColorBadgeClass(string(environment.Color)) }>{ EnvironmentRiskLabel(string(environment.Slug), environment.Protected) }</span>
+										if environment.Protected {
+											<span class={ badgeErrorSoft }>protected</span>
+										}
+										if ProjectEnvironmentEnabled(string(environment.Slug), environments) {
+											<span class={ badgeSuccessSoft }>enabled</span>
+										} else {
+											<span class={ badgeGhostSoft }>not enabled</span>
+										}
+									</div>
+								</div>
+								<p class="mt-2 text-sm text-base-content/70">{ EnvironmentRiskSummary(string(environment.Slug), environment.Protected) }</p>
+							}
+						}
+					</div>
+				</section>
+			}
+		}
+		if !environmentsUnavailable && projectEnvironmentConfiguration(ctx) {
+			<a class="btn btn-outline btn-sm mt-4" href={ templ.URL(entityBackHref(ctx, ProjectEnvironmentSelectionHref(orgSlug, projectSlug, activeEnvironmentSlug, selectedEnvironmentSlug))) }>Back to environments</a>
+			@ProjectEnvironmentFocusPanel(orgSlug, projectSlug, activeEnvironmentSlug, selectedEnvironmentSlug, environments, catalog, permissions)
+			if SelectedCatalogEnvironmentSlug(catalog, selectedEnvironmentSlug) != "" {
+				<a class="btn btn-ghost btn-sm mt-3" href={ templ.URL(OrganizationEnvironmentDetailHref(orgSlug, selectedEnvironmentSlug)) }>Organization target settings</a>
+			}
+		}
+		if !environmentsUnavailable && projectEnvironmentConfiguration(ctx) && len(environments) > 0 {
+			<div class="mt-8 scroll-mt-6 rounded-xl border border-base-300 bg-base-100 p-4" id="project-binding-matrix">
+				<div class="flex flex-wrap items-end justify-between gap-3">
+					<div>
+						<h2 class="text-xl font-semibold text-base-content">Project binding matrix</h2>
+						<p class="mt-1 text-sm text-base-content/70">Project logical data-source references resolve per enabled runtime environment. Data sources remain organization-scoped.</p>
+					</div>
+					<a class="btn btn-outline btn-sm" href={ templ.URL(projectSectionHref(ctx, orgSlug, projectSlug, "environments")) }>Configure bindings</a>
+					<a class="btn btn-ghost btn-sm" href={ templ.URL(DataSourcesListHref(orgSlug, activeEnvironmentSlug, "")) }>Manage data sources</a>
+				</div>
+				if bindingsUnavailable {
+					<div class="alert alert-warning mt-4">
+						<span>Binding matrix is unavailable.</span>
+					</div>
+				} else if len(refs) == 0 {
+					<div class="mt-4 rounded-xl border border-dashed border-base-300 bg-base-200/30 p-8 text-center">
+						<h3 class="text-base font-semibold text-base-content">No logical references yet</h3>
+						<p class="mt-2 text-sm text-base-content/70">Create project data-source references before configuring per-environment bindings.</p>
+					</div>
+				} else {
+					if MissingBindingCount(refs, environments, bindings) > 0 {
+						<div class="alert alert-warning mt-4">
+							<span>{ fmt.Sprintf("%d missing project environment bindings need a data source target.", MissingBindingCount(refs, environments, bindings)) }</span>
+						</div>
+					}
+					<div class="mt-4 hidden overflow-x-auto rounded-xl border border-base-300 bg-base-100 lg:block">
+						<table class="table table-sm">
+							<thead>
+								<tr>
+									<th>Reference</th>
+									for _, environment := range environments {
+										<th>
+											<div class="font-semibold">{ environment.EnvironmentName }</div>
+											<div class="mt-1 flex flex-wrap gap-1">
+												<span class={ EnvironmentColorBadgeClass(string(environment.EnvironmentColor)) }>{ string(environment.EnvironmentSlug) }</span>
+												if environment.IsDefault {
+													<span class={ badgePrimarySoft }>default</span>
+												}
+											</div>
+										</th>
+									}
+								</tr>
+							</thead>
+							<tbody>
+								for _, row := range EnvironmentBindingMatrixRows(refs, environments, bindings) {
+									<tr>
+										<td>
+											@DataSourceIdentity(row.DataSourceType, row.RefName, row.RefSlug, "sm", dataSourceIdentityVariantTable)
+											if row.PipelineSlug != "" {
+												<p class="mt-1 break-all text-xs text-base-content/60">Pipeline <span class="font-mono">{ row.PipelineSlug }</span></p>
+											}
+											<div class="mt-2 flex flex-wrap gap-1">
+												<span class="badge badge-outline">{ row.DataSourceType }</span>
+												for _, capability := range row.Capabilities {
+													<span class="badge badge-ghost">{ capability }</span>
+												}
+											</div>
+										</td>
+										for _, cell := range row.Cells {
+											<td>
+												@EnvironmentBindingCell(cell)
+											</td>
+										}
+									</tr>
+								}
+							</tbody>
+						</table>
+					</div>
+					<div class="mt-4 space-y-3 lg:hidden">
+						for _, row := range EnvironmentBindingMatrixRows(refs, environments, bindings) {
+							<div class="rounded-xl border border-base-300 bg-base-200/30 p-4">
+								<div class="flex flex-wrap items-start justify-between gap-3">
+									<div>
+										@DataSourceIdentity(row.DataSourceType, row.RefName, row.RefSlug, "sm", dataSourceIdentityVariantCard)
+										if row.PipelineSlug != "" {
+											<p class="mt-1 break-all text-xs text-base-content/60">Pipeline <span class="font-mono">{ row.PipelineSlug }</span></p>
+										}
+									</div>
+									<span class="badge badge-outline">{ row.DataSourceType }</span>
+								</div>
+								<div class="mt-4 space-y-3">
+									for _, cell := range row.Cells {
+										<div class="rounded-lg border border-base-300 bg-base-200/40 p-3">
+											<p class="text-xs font-semibold uppercase tracking-wide text-base-content/60">{ cell.EnvironmentSlug }</p>
+											<div class="mt-2">
+												@EnvironmentBindingCell(cell)
+											</div>
+										</div>
+									}
+								</div>
+							</div>
+						}
+					</div>
+				}
+			</div>
+		}
+	</div>
+}
+
+templ ProjectEnvironmentFocusPanel(orgSlug string, projectSlug string, activeEnvironmentSlug string, selectedEnvironmentSlug string, environments []api.ProjectEnvironment, catalog []api.Environment, permissions OrganizationPermissions) {
+	if SelectedCatalogEnvironmentSlug(catalog, selectedEnvironmentSlug) == "" {
+		<div class="mt-4 rounded-lg border border-warning/45 bg-warning/15 px-4 py-3 text-sm text-base-content">
+			<span>Select a runtime target to inspect enablement, protection, and binding context.</span>
+		</div>
+	} else {
+		for _, catalogEnvironment := range catalog {
+			if string(catalogEnvironment.Slug) == SelectedCatalogEnvironmentSlug(catalog, selectedEnvironmentSlug) {
+				<div class="mt-4 rounded-lg border border-base-300 bg-base-200/30 p-4">
+					<div class="flex flex-wrap items-start justify-between gap-3">
+						<div>
+							<h3 class="font-semibold text-base-content">{ catalogEnvironment.Name }</h3>
+							<p class="mt-1 font-mono text-xs text-base-content/70">{ catalogEnvironment.Slug }</p>
+						</div>
+						<div class="flex flex-wrap gap-2">
+							<span class={ EnvironmentColorBadgeClass(string(catalogEnvironment.Color)) }>{ EnvironmentRiskLabel(string(catalogEnvironment.Slug), catalogEnvironment.Protected) }</span>
+							if catalogEnvironment.Protected {
+								<span class={ badgeErrorSoft }>protected</span>
+							}
+							if ProjectEnvironmentEnabled(string(catalogEnvironment.Slug), environments) {
+								<span class={ badgeSuccessSoft }>enabled</span>
+							} else {
+								<span class={ badgeWarningSoft }>not enabled</span>
+							}
+						</div>
+					</div>
+					<p class="mt-3 text-sm text-base-content/70">{ EnvironmentRiskSummary(string(catalogEnvironment.Slug), catalogEnvironment.Protected) }</p>
+					if ProjectEnvironmentEnabled(string(catalogEnvironment.Slug), environments) {
+						for _, environment := range environments {
+							if environment.EnvironmentSlug == string(catalogEnvironment.Slug) {
+								<div class="mt-4 flex flex-wrap gap-2">
+									if environment.IsDefault {
+										<span class={ badgePrimarySoft }>default runtime</span>
+									} else if permissions.Can("environments", "update") {
+										if environment.EnvironmentProtected {
+											@ProjectRuntimeProtectedEnvironmentActionButton(
+												string(environment.EnvironmentSlug),
+												string(environment.EnvironmentName),
+												"set-default",
+												"Set default",
+												"Set this protected runtime target as the project default.",
+												"/orgs/"+orgSlug+"/projects/"+projectSlug+"/environments/"+string(environment.EnvironmentSlug)+"/default",
+												"btn btn-outline btn-xs",
+												"btn btn-primary btn-sm",
+												activeEnvironmentSlug,
+												false,
+											)
+										} else {
+											<form method="post" action={ templ.URL(projectEnvironmentAction(ctx, "/orgs/"+orgSlug+"/projects/"+projectSlug+"/environments/"+string(environment.EnvironmentSlug)+"/default")) } hx-post={ projectEnvironmentAction(ctx, "/orgs/"+orgSlug+"/projects/"+projectSlug+"/environments/"+string(environment.EnvironmentSlug)+"/default") } hx-target="#project-environments-workspace" hx-select="#project-environments-workspace" hx-swap="outerHTML show:none focus-scroll:false" data-preserve-scroll>
+												<input type="hidden" name="active_environment_slug" value={ activeEnvironmentSlug }/>
+												<button class="btn btn-outline btn-xs" type="submit">Set default</button>
+											</form>
+										}
+									}
+									if permissions.Can("environments", "delete") {
+										if environment.EnvironmentProtected {
+											@ProjectRuntimeProtectedEnvironmentActionButton(
+												string(environment.EnvironmentSlug),
+												string(environment.EnvironmentName),
+												"disable",
+												"Disable",
+												"Disable this protected runtime target for the project.",
+												"/orgs/"+orgSlug+"/projects/"+projectSlug+"/environments/"+string(environment.EnvironmentSlug)+"/disable",
+												"btn btn-ghost btn-xs",
+												"btn btn-error btn-sm",
+												activeEnvironmentSlug,
+												false,
+											)
+										} else {
+											<form method="post" action={ templ.URL(projectEnvironmentAction(ctx, "/orgs/"+orgSlug+"/projects/"+projectSlug+"/environments/"+string(environment.EnvironmentSlug)+"/disable")) } hx-post={ projectEnvironmentAction(ctx, "/orgs/"+orgSlug+"/projects/"+projectSlug+"/environments/"+string(environment.EnvironmentSlug)+"/disable") } hx-target="#project-environments-workspace" hx-select="#project-environments-workspace" hx-swap="outerHTML show:none focus-scroll:false" data-preserve-scroll hx-confirm={ DestructiveConfirmation("Disable", "project runtime target", DestructiveResourceLabel(string(environment.EnvironmentName), string(environment.EnvironmentSlug)), "The project will stop using this runtime target.") } data-destructive-confirm={ DestructiveConfirmation("Disable", "project runtime target", DestructiveResourceLabel(string(environment.EnvironmentName), string(environment.EnvironmentSlug)), "The project will stop using this runtime target.") }>
+												<input type="hidden" name="active_environment_slug" value={ activeEnvironmentSlug }/>
+												<button class="btn btn-ghost btn-xs" type="submit">Disable</button>
+											</form>
+										}
+									}
+								</div>
+							}
+						}
+					} else if permissions.Can("environments", "update") {
+						if catalogEnvironment.Protected {
+							<div class="mt-4">
+								@ProjectRuntimeProtectedEnvironmentActionButton(
+									string(catalogEnvironment.Slug),
+									string(catalogEnvironment.Name),
+									"enable",
+									"Enable for project",
+									"Enable this protected runtime target for the project.",
+									"/orgs/"+orgSlug+"/projects/"+projectSlug+"/environments/enable",
+									"btn btn-primary btn-sm",
+									"btn btn-primary btn-sm",
+									activeEnvironmentSlug,
+									true,
+								)
+							</div>
+						} else {
+							<form class="mt-4 grid gap-3 sm:grid-cols-[minmax(0,1fr)_auto]" method="post" action={ templ.URL(projectEnvironmentAction(ctx, "/orgs/"+orgSlug+"/projects/"+projectSlug+"/environments/enable")) } hx-post={ projectEnvironmentAction(ctx, "/orgs/"+orgSlug+"/projects/"+projectSlug+"/environments/enable") } hx-target="#project-environments-workspace" hx-select="#project-environments-workspace" hx-swap="outerHTML show:none focus-scroll:false" data-preserve-scroll>
+								<input type="hidden" name="environment_slug" value={ string(catalogEnvironment.Slug) }/>
+								<input type="hidden" name="active_environment_slug" value={ activeEnvironmentSlug }/>
+								<button class="btn btn-primary btn-sm" type="submit">Enable for project</button>
+							</form>
+						}
+					}
+				</div>
+			}
+		}
+	}
+}
+
+templ ProjectRuntimeProtectedEnvironmentActionButton(environmentSlug string, environmentName string, actionKey string, actionLabel string, actionDescription string, actionURL string, triggerClass string, submitClass string, activeEnvironmentSlug string, includeEnvironmentSlug bool) {
+	{{ modalID := "project-runtime-protected-env-" + environmentSlug + "-" + actionKey }}
+	{{ actionURL = projectEnvironmentAction(ctx, actionURL) }}
+	<button class={ triggerClass } type="button" data-protected-action-trigger={ modalID }>{ actionLabel }</button>
+	<dialog class="modal" id={ modalID } data-protected-action-modal data-confirm-slug={ environmentSlug }>
+		<div class="modal-box max-w-lg border border-error/35 bg-base-100 p-0">
+			<div class="border-b border-error/25 bg-error/10 px-5 py-4">
+				<div class="flex flex-wrap items-start justify-between gap-3">
+					<div>
+						<h3 class="text-lg font-semibold text-base-content">Confirm protected action</h3>
+						<p class="mt-1 text-sm text-base-content/70">{ actionDescription }</p>
+					</div>
+					<span class={ badgeErrorSoft }>{ environmentSlug }</span>
+				</div>
+			</div>
+			<form
+				class="px-5 py-4"
+				method="post"
+				action={ templ.URL(actionURL) }
+				hx-post={ actionURL }
+				hx-target="#project-environments-workspace"
+				hx-select="#project-environments-workspace"
+				hx-swap="outerHTML show:none focus-scroll:false"
+				data-preserve-scroll
+			>
+				<input type="hidden" name="active_environment_slug" value={ activeEnvironmentSlug }/>
+				if includeEnvironmentSlug {
+					<input type="hidden" name="environment_slug" value={ environmentSlug }/>
+				}
+				<div class="rounded-lg border border-base-300 bg-base-200/35 p-3">
+					<p class="text-sm font-semibold text-base-content">{ environmentName }</p>
+					<p class="mt-1 text-xs text-base-content/60">This changes project environment access for <span class="font-mono">{ environmentSlug }</span>.</p>
+				</div>
+				<label class="form-control mt-4 w-full">
+					<div class="label py-1">
+						<span class="label-text text-xs">Type <span class="font-mono font-semibold text-error">{ environmentSlug }</span> to confirm</span>
+					</div>
+					<input
+						class="input input-bordered w-full font-mono"
+						type="text"
+						name="protected_environment_confirmation"
+						autocomplete="off"
+						placeholder={ environmentSlug }
+						required
+						data-protected-confirm-input
+						data-confirm-slug={ environmentSlug }
+					/>
+				</label>
+				<div class="modal-action mt-5">
+					<button class="btn btn-ghost btn-sm" type="button" data-protected-action-close={ modalID }>Cancel</button>
+					<button class={ submitClass } type="submit" data-protected-confirm-submit disabled aria-disabled="true">{ actionLabel }</button>
+				</div>
+			</form>
+		</div>
+		<form method="dialog" class="modal-backdrop">
+			<button type="submit">close</button>
+		</form>
+	</dialog>
+}
+
+templ EnvironmentBindingCell(cell EnvironmentBindingMatrixCell) {
+	if cell.IsBound {
+		<div class="space-y-1">
+			@DataSourceIdentity(cell.DataSourceType, cell.DataSourceName, cell.DataSourceSlug, "sm", dataSourceIdentityVariantTable)
+			<div class="flex flex-wrap gap-1 pt-1">
+				<span class="badge badge-outline">{ cell.DataSourceType }</span>
+				if cell.IsActive {
+					<span class={ badgeSuccessSoft }>active</span>
+				} else {
+					<span class={ badgeErrorSoft }>inactive</span>
+				}
+				if cell.IsReadOnly {
+					<span class={ badgeWarningSoft }>read only</span>
+				}
+			</div>
+		</div>
+	} else {
+		<div class="rounded-lg border border-warning/35 bg-warning/10 px-3 py-2">
+			<p class="text-sm font-semibold text-warning">missing binding</p>
+			<p class="mt-1 text-xs text-base-content/70">Choose an organization data source for this logical reference.</p>
+		</div>
+	}
+}
+
+templ ProjectEnvironmentQuickLook(orgSlug string, projectSlug string, activeEnvironmentSlug string, selectedEnvironmentSlug string, environments []api.ProjectEnvironment, catalog []api.Environment, refs []api.DataSourceRef, bindings map[string][]api.DataSourceBinding, bindingsUnavailable bool) {
+	if SelectedCatalogEnvironmentSlug(catalog, selectedEnvironmentSlug) == "" {
+		@EntityState("Select a runtime target", "Inspect project enablement and binding readiness.")
+	} else {
+		for _, environment := range catalog {
+			if environment.Slug == selectedEnvironmentSlug {
+				@EntityQuickLook("project-environment-preview", environment.Name, environment.Slug, ProjectEnvironmentConfigurationHref(orgSlug, projectSlug, activeEnvironmentSlug, environment.Slug), ProjectEnvironmentSelectionHref(orgSlug, projectSlug, activeEnvironmentSlug, ""), "#project-environments-workspace", "project-environment-"+environment.Slug) {
+					@EntityFacts() {
+						@EntityFact("Project") {
+							<span class="break-all">{ projectSlug }</span>
+						}
+						@EntityFact("Protection") {
+							if environment.Protected {
+								<span class={ badgeWarningSoft }>Protected; changes require confirmation</span>
+							} else {
+								<span>Unprotected</span>
+							}
+						}
+						@EntityFact("Enablement") {
+							if ProjectEnvironmentEnabled(environment.Slug, environments) {
+								<span class={ badgeSuccessSoft }>Enabled</span>
+							} else {
+								<span class={ badgeGhostSoft }>Disabled</span>
+							}
+							for _, enabled := range environments {
+								if enabled.EnvironmentSlug == environment.Slug && enabled.IsDefault {
+									<span class={ badgePrimarySoft }>Default</span>
+								}
+							}
+						}
+						@EntityFact("Bindings") {
+							if bindingsUnavailable {
+								<span class={ badgeWarningSoft }>Readiness unavailable</span>
+							} else if !ProjectEnvironmentEnabled(environment.Slug, environments) {
+								<span>Enable this target before configuring bindings.</span>
+							} else {
+								for _, enabled := range environments {
+									if enabled.EnvironmentSlug == environment.Slug {
+										if MissingBindingCount(refs, []api.ProjectEnvironment{enabled}, bindings) > 0 {
+											<span class={ badgeWarningSoft }>{ fmt.Sprintf("%d missing bindings", MissingBindingCount(refs, []api.ProjectEnvironment{enabled}, bindings)) }</span>
+										}
+										if inactiveEnvironmentBindingCount(refs, enabled, bindings) > 0 {
+											<span class={ badgeWarningSoft }>{ fmt.Sprintf("%d inactive bindings", inactiveEnvironmentBindingCount(refs, enabled, bindings)) }</span>
+										}
+										if len(refs) == 0 {
+											<span>No logical references</span>
+										} else if MissingBindingCount(refs, []api.ProjectEnvironment{enabled}, bindings) == 0 && inactiveEnvironmentBindingCount(refs, enabled, bindings) == 0 {
+											<span>All references bound to active sources</span>
+										}
+									}
+								}
+							}
+						}
+					}
+				}
+			}
+		}
+	}
+}

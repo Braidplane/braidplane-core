@@ -1,0 +1,67 @@
+metadata:
+  slug: ${PIPELINE_SLUG}
+  name: E2E Null Aggregate Casts DB Sink
+steps:
+  - kind: query
+    slug: fetch-null-amounts
+    query:
+      data_source_ref: ${PG_DATA_SOURCE_SLUG}
+      operation_type: sql
+      operation_ref: ${SOURCE_QUERY_SLUG}
+      parameters:
+        org_slug: ${ORG_SLUG}
+      output_contract:
+        representation: rows
+        fields:
+          - name: category
+            type: string
+            required: true
+          - name: amount
+            type: number
+            required: false
+            nullable: true
+  - kind: transform
+    slug: aggregate-null-amounts
+    transform:
+      inputs:
+        input: fetch-null-amounts
+      sql: "SELECT category, CAST(SUM(amount) AS CHAR) AS total_char, CAST(SUM(amount) AS SIGNED) AS total_signed FROM input GROUP BY category"
+      output_kind: rows
+      output_contract:
+        representation: rows
+        fields:
+          - name: category
+            type: string
+            required: true
+          - name: total_char
+            type: string
+            required: false
+            nullable: true
+          - name: total_signed
+            type: integer
+            required: false
+            nullable: true
+  - kind: sink
+    slug: persist-null-aggregate-casts
+    sink:
+      idempotency_class: deduplicated_by_ledger
+      input: aggregate-null-amounts
+      input_contract:
+        representation: rows
+        fields:
+          - name: category
+            type: string
+            required: true
+          - name: total_char
+            type: string
+            required: false
+            nullable: true
+          - name: total_signed
+            type: integer
+            required: false
+            nullable: true
+      data_source_ref: ${PG_DATA_SOURCE_SLUG}
+      operation_type: sql
+      operation_ref: ${SINK_QUERY_SLUG}
+      config:
+        org_slug: ${ORG_SLUG}

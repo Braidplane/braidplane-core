@@ -1,0 +1,3386 @@
+[
+  {
+    "source": "docs/examples/all/full-example.odcs.yaml",
+    "valid": true,
+    "document": {
+      "domain": "seller",
+      "dataProduct": "my quantum",
+      "version": "1.1.0",
+      "status": "active",
+      "id": "53581432-6c55-4ba2-a65f-72344a91553a",
+      "authoritativeDefinitions": [
+        {
+          "type": "canonical",
+          "url": "https://github.com/bitol-io/open-data-contract-standard/blob/main/docs/examples/all/full-example.odcs.yaml",
+          "description": "Canonical URL to the latest version of the contract."
+        }
+      ],
+      "description": {
+        "purpose": "Views built on top of the seller tables.",
+        "limitations": "Data based on seller perspective, no buyer information",
+        "usage": "Predict sales over time",
+        "authoritativeDefinitions": [
+          {
+            "type": "privacy-statement",
+            "url": "https://example.com/gdpr.pdf"
+          }
+        ]
+      },
+      "tenant": "ClimateQuantumInc",
+      "kind": "DataContract",
+      "apiVersion": "v3.2.0",
+      "servers": [
+        {
+          "server": "my-postgres",
+          "type": "postgres",
+          "host": "localhost",
+          "port": 5432,
+          "database": "pypl-edw",
+          "schema": "pp_access_views"
+        }
+      ],
+      "schema": [
+        {
+          "id": "tbl_obj",
+          "name": "tbl",
+          "physicalName": "tbl_1",
+          "physicalType": "table",
+          "businessName": "Core Payment Metrics",
+          "description": "Provides core payment metrics",
+          "authoritativeDefinitions": [
+            {
+              "url": "https://catalog.data.gov/dataset/air-quality",
+              "type": "businessDefinition"
+            },
+            {
+              "url": "https://youtu.be/jbY1BKFj9ec",
+              "type": "videoTutorial"
+            }
+          ],
+          "tags": [
+            "finance",
+            "payments"
+          ],
+          "dataGranularityDescription": "Aggregation on columns txn_ref_dt, pmt_txn_id",
+          "relationships": [
+            {
+              "type": "foreignKey",
+              "from": [
+                "tbl.rcvr_id",
+                "tbl.rcvr_cntry_code"
+              ],
+              "to": [
+                "receivers.id",
+                "receivers.country_code"
+              ],
+              "customProperties": [
+                {
+                  "property": "description",
+                  "value": "Composite key linking to receivers table"
+                },
+                {
+                  "property": "cardinality",
+                  "value": "many-to-one"
+                }
+              ]
+            }
+          ],
+          "properties": [
+            {
+              "id": "txn_ref_dt_prop",
+              "name": "transaction_reference_date",
+              "physicalName": "txn_ref_dt",
+              "primaryKey": false,
+              "primaryKeyPosition": -1,
+              "businessName": "transaction reference date",
+              "logicalType": "date",
+              "physicalType": "date",
+              "required": false,
+              "description": "Reference date for transaction",
+              "partitioned": true,
+              "partitionKeyPosition": 1,
+              "criticalDataElement": false,
+              "tags": [],
+              "classification": "public",
+              "transformSourceObjects": [
+                "table_name_1",
+                "table_name_2",
+                "table_name_3"
+              ],
+              "transformLogic": "sel t1.txn_dt as txn_ref_dt from table_name_1 as t1, table_name_2 as t2, table_name_3 as t3 where t1.txn_dt=date-3",
+              "transformDescription": "defines the logic in business terms; logic for dummies",
+              "examples": [
+                "2022-10-03",
+                "2020-01-28"
+              ],
+              "customProperties": [
+                {
+                  "property": "anonymizationStrategy",
+                  "value": "none"
+                }
+              ]
+            },
+            {
+              "id": "rcvr_id_prop",
+              "name": "rcvr_id",
+              "primaryKey": true,
+              "primaryKeyPosition": 1,
+              "businessName": "receiver id",
+              "logicalType": "string",
+              "physicalType": "varchar(18)",
+              "required": false,
+              "description": "A description for column rcvr_id.",
+              "partitioned": false,
+              "partitionKeyPosition": -1,
+              "criticalDataElement": false,
+              "tags": [
+                "uid"
+              ],
+              "classification": "restricted",
+              "relationships": [
+                {
+                  "to": "receivers.id",
+                  "type": "foreignKey",
+                  "customProperties": [
+                    {
+                      "property": "description",
+                      "value": "Links to receiver master data"
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "id": "rcvr_cntry_code_prop",
+              "name": "rcvr_cntry_code",
+              "primaryKey": false,
+              "primaryKeyPosition": -1,
+              "businessName": "receiver country code",
+              "logicalType": "string",
+              "physicalType": "varchar(2)",
+              "required": false,
+              "description": "Country code",
+              "partitioned": false,
+              "partitionKeyPosition": -1,
+              "criticalDataElement": false,
+              "tags": [],
+              "classification": "public",
+              "enum": [
+                {
+                  "value": "US",
+                  "label": "United States",
+                  "description": "ISO 3166-1 alpha-2 code for the United States."
+                },
+                {
+                  "value": "CA",
+                  "label": "Canada"
+                },
+                {
+                  "value": "MX",
+                  "label": "Mexico",
+                  "customProperties": [
+                    {
+                      "property": "languageEs",
+                      "value": "M\u00e9xico"
+                    }
+                  ]
+                }
+              ],
+              "authoritativeDefinitions": [
+                {
+                  "url": "https://collibra.com/asset/742b358f-71a5-4ab1-bda4-dcdba9418c25",
+                  "type": "businessDefinition"
+                },
+                {
+                  "url": "https://github.com/myorg/myrepo",
+                  "type": "transformationImplementation"
+                },
+                {
+                  "url": "jdbc:postgresql://localhost:5432/adventureworks/tbl_1/rcvr_cntry_code",
+                  "type": "implementation"
+                }
+              ],
+              "encryptedName": "rcvr_cntry_code_encrypted",
+              "quality": [
+                {
+                  "metric": "nullValues",
+                  "mustBe": 0,
+                  "description": "column should not contain null values",
+                  "dimension": "completeness",
+                  "type": "library",
+                  "severity": "error",
+                  "businessImpact": "operational",
+                  "schedule": "0 20 * * *",
+                  "scheduler": "cron",
+                  "customProperties": [
+                    {
+                      "property": "FIELD_NAME",
+                      "value": null
+                    },
+                    {
+                      "property": "COMPARE_TO",
+                      "value": null
+                    },
+                    {
+                      "property": "COMPARISON_TYPE",
+                      "value": "Greater than"
+                    }
+                  ]
+                }
+              ]
+            }
+          ],
+          "quality": [
+            {
+              "metric": "rowCount",
+              "mustBeGreaterThan": 1000000,
+              "type": "library",
+              "description": "Ensure row count is within expected volume range",
+              "dimension": "completeness",
+              "method": "reconciliation",
+              "severity": "error",
+              "businessImpact": "operational",
+              "schedule": "0 20 * * *",
+              "scheduler": "cron"
+            }
+          ],
+          "customProperties": [
+            {
+              "property": "business-key",
+              "value": [
+                "txn_ref_dt",
+                "rcvr_id"
+              ]
+            }
+          ]
+        },
+        {
+          "id": "receivers_obj",
+          "name": "receivers",
+          "physicalName": "receivers_master",
+          "physicalType": "table",
+          "businessName": "Receivers Master Data",
+          "description": "Master data for all receivers",
+          "tags": [
+            "master-data",
+            "receivers"
+          ],
+          "properties": [
+            {
+              "id": "receiver_id_prop",
+              "name": "id",
+              "primaryKey": true,
+              "primaryKeyPosition": 1,
+              "businessName": "receiver identifier",
+              "logicalType": "string",
+              "physicalType": "varchar(18)",
+              "required": true,
+              "description": "Unique identifier for receiver",
+              "unique": true,
+              "classification": "restricted"
+            },
+            {
+              "id": "country_code_prop",
+              "name": "country_code",
+              "primaryKey": true,
+              "primaryKeyPosition": 2,
+              "businessName": "receiver country",
+              "logicalType": "string",
+              "physicalType": "varchar(2)",
+              "required": true,
+              "description": "Country code of the receiver",
+              "classification": "public"
+            },
+            {
+              "id": "receiver_name_prop",
+              "name": "receiver_name",
+              "businessName": "receiver name",
+              "logicalType": "string",
+              "physicalType": "varchar(255)",
+              "required": true,
+              "description": "Name of the receiver",
+              "classification": "restricted"
+            },
+            {
+              "id": "receiver_type_prop",
+              "name": "receiver_type",
+              "businessName": "receiver type",
+              "logicalType": "string",
+              "physicalType": "varchar(20)",
+              "required": false,
+              "description": "Type of receiver (individual, business, etc.)",
+              "classification": "public",
+              "relationships": [
+                {
+                  "to": "receiver_types.type_code",
+                  "customProperties": [
+                    {
+                      "property": "description",
+                      "value": "Links to receiver type definitions"
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "id": "receiver_attributes_prop",
+              "name": "receiver_attributes",
+              "businessName": "receiver attributes",
+              "logicalType": "map",
+              "physicalType": "MAP<STRING, STRING>",
+              "required": false,
+              "description": "Free-form attributes attached to a receiver, keyed by attribute name.",
+              "classification": "restricted",
+              "map": {
+                "key": {
+                  "logicalType": "string",
+                  "description": "Attribute name."
+                },
+                "value": {
+                  "logicalType": "string",
+                  "description": "Attribute value."
+                }
+              }
+            }
+          ]
+        }
+      ],
+      "price": {
+        "priceAmount": 9.95,
+        "priceCurrency": "USD",
+        "priceUnit": "megabyte"
+      },
+      "team": {
+        "name": "my-team",
+        "description": "The team owning the data contract",
+        "members": [
+          {
+            "username": "ceastwood",
+            "role": "Data Scientist",
+            "dateIn": "2022-08-02",
+            "dateOut": "2022-10-01",
+            "replacedByUsername": "mhopper"
+          },
+          {
+            "username": "mhopper",
+            "role": "Data Scientist",
+            "dateIn": "2022-10-01"
+          },
+          {
+            "username": "daustin",
+            "role": "Owner",
+            "description": "Keeper of the grail",
+            "dateIn": "2022-10-01"
+          }
+        ]
+      },
+      "roles": [
+        {
+          "role": "microstrategy_user_opr",
+          "access": "read",
+          "firstLevelApprovers": "Reporting Manager",
+          "secondLevelApprovers": "mandolorian"
+        },
+        {
+          "role": "bq_queryman_user_opr",
+          "access": "read",
+          "firstLevelApprovers": "Reporting Manager",
+          "secondLevelApprovers": "na"
+        },
+        {
+          "role": "risk_data_access_opr",
+          "access": "read",
+          "firstLevelApprovers": "Reporting Manager",
+          "secondLevelApprovers": "dathvador"
+        },
+        {
+          "role": "bq_unica_user_opr",
+          "access": "write",
+          "firstLevelApprovers": "Reporting Manager",
+          "secondLevelApprovers": "mickey"
+        }
+      ],
+      "slaProperties": [
+        {
+          "property": "latency",
+          "value": 4,
+          "unit": "d",
+          "element": "tab1.txn_ref_dt"
+        },
+        {
+          "property": "generalAvailability",
+          "value": "2022-05-12T09:30:10-08:00"
+        },
+        {
+          "property": "endOfSupport",
+          "value": "2032-05-12T09:30:10-08:00"
+        },
+        {
+          "property": "endOfLife",
+          "value": "2042-05-12T09:30:10-08:00"
+        },
+        {
+          "property": "retention",
+          "value": 3,
+          "unit": "y",
+          "element": "tab1.txn_ref_dt"
+        },
+        {
+          "property": "frequency",
+          "value": 1,
+          "valueExt": 1,
+          "unit": "d",
+          "element": "tab1.txn_ref_dt"
+        },
+        {
+          "property": "timeOfAvailability",
+          "value": "09:00-08:00",
+          "element": "tab1.txn_ref_dt",
+          "driver": "regulatory"
+        },
+        {
+          "property": "timeOfAvailability",
+          "value": "08:00-08:00",
+          "element": "tab1.txn_ref_dt",
+          "driver": "analytics"
+        }
+      ],
+      "support": [
+        {
+          "channel": "#product-help",
+          "tool": "slack"
+        },
+        {
+          "channel": "datacontract-ann",
+          "tool": "email",
+          "url": "mailto:datacontract-ann@bitol.io"
+        },
+        {
+          "channel": "Feedback",
+          "description": "General Product Feedback (Public)",
+          "url": "https://product-feedback.com"
+        },
+        {
+          "channel": "product-issues",
+          "tool": "teams",
+          "scope": "issues",
+          "customProperties": [
+            {
+              "property": "servicehours",
+              "value": "9-5 CET"
+            }
+          ]
+        }
+      ],
+      "tags": [
+        "transactions"
+      ],
+      "customProperties": [
+        {
+          "property": "refRulesetName",
+          "value": "gcsc.ruleset.name"
+        },
+        {
+          "property": "somePropertyName",
+          "value": "property.value"
+        },
+        {
+          "property": "dataprocClusterName",
+          "value": [
+            "cluster name"
+          ]
+        }
+      ],
+      "contractCreatedTs": "2022-11-15T02:59:43+00:00"
+    }
+  },
+  {
+    "source": "docs/examples/authoritative-definitions/authoritative-definitions.odcs.yaml",
+    "valid": true,
+    "document": {
+      "version": "1.0.0",
+      "kind": "DataContract",
+      "id": "9a4b1c2d-3e5f-4a7b-8c9d-1e2f3a4b5c6d",
+      "apiVersion": "v3.2.0",
+      "status": "active",
+      "name": "catalog_with_authoritative_definitions",
+      "description": {
+        "purpose": "Show authoritativeDefinitions blocks at multiple scopes (root, schema element, schema property), exercising every recommended `type`."
+      },
+      "authoritativeDefinitions": [
+        {
+          "url": "https://github.com/bitol-io/open-data-contract-standard/blob/main/docs/examples/authoritative-definitions/authoritative-definitions.odcs.yaml",
+          "type": "canonicalUrl",
+          "description": "Canonical URL of this data contract."
+        },
+        {
+          "url": "https://catalog.example.com/contracts/catalog",
+          "type": "businessDefinition"
+        }
+      ],
+      "schema": [
+        {
+          "name": "products",
+          "physicalType": "table",
+          "description": "Product master.",
+          "authoritativeDefinitions": [
+            {
+              "url": "https://glossary.example.com/products",
+              "type": "businessDefinition",
+              "description": "Business glossary entry for the product master table."
+            },
+            {
+              "url": "https://www.youtube.com/watch?v=Iq6SxdsIHHE",
+              "type": "videoTutorial",
+              "description": "Walk-through of the product schema."
+            },
+            {
+              "url": "https://docs.example.com/onboarding/products",
+              "type": "tutorial"
+            }
+          ],
+          "properties": [
+            {
+              "name": "id",
+              "primaryKey": true,
+              "primaryKeyPosition": 1,
+              "logicalType": "string",
+              "physicalType": "VARCHAR(36)"
+            },
+            {
+              "name": "price",
+              "logicalType": "number",
+              "authoritativeDefinitions": [
+                {
+                  "url": "https://github.com/example/pipelines/blob/main/dbt/models/products.sql",
+                  "type": "transformationImplementation",
+                  "description": "dbt model that computes `price`."
+                },
+                {
+                  "url": "https://github.com/example/pricing-lib",
+                  "type": "implementation"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "source": "docs/examples/custom-other-properties/custom-properties.odcs.yaml",
+    "valid": true,
+    "document": {
+      "version": "1.0.0",
+      "kind": "DataContract",
+      "id": "4f7a8b9c-1d2e-4f3a-8b5c-6d7e8f9a0b1c",
+      "apiVersion": "v3.2.0",
+      "status": "active",
+      "name": "catalog_with_custom_properties",
+      "description": {
+        "purpose": "Show `customProperties` at every relevant scope \u2014 root, schema element, schema property \u2014 and demonstrate the optional root-level `contractCreatedTs`."
+      },
+      "contractCreatedTs": "2026-04-29T10:00:00Z",
+      "customProperties": [
+        {
+          "id": "ref_ruleset",
+          "property": "refRulesetName",
+          "value": "gcsc.ruleset.name",
+          "description": "Pointer to the GCSC ruleset that governs this contract."
+        },
+        {
+          "property": "dataprocClusterName",
+          "value": [
+            "analytics-prod",
+            "analytics-uat"
+          ],
+          "description": "Cluster names this contract is published from."
+        },
+        {
+          "property": "ownerEmail",
+          "value": "data-platform@example.com"
+        }
+      ],
+      "schema": [
+        {
+          "name": "events",
+          "physicalType": "table",
+          "customProperties": [
+            {
+              "property": "retentionDays",
+              "value": 365
+            },
+            {
+              "property": "storageTier",
+              "value": "hot"
+            }
+          ],
+          "properties": [
+            {
+              "name": "event_id",
+              "primaryKey": true,
+              "primaryKeyPosition": 1,
+              "logicalType": "string"
+            },
+            {
+              "name": "payload",
+              "logicalType": "string",
+              "customProperties": [
+                {
+                  "property": "maxBytes",
+                  "value": 1048576
+                },
+                {
+                  "property": "encoding",
+                  "value": "utf-8"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "source": "docs/examples/custom-other-properties/vendor.odcs.yaml",
+    "valid": true,
+    "document": {
+      "version": "1.0.0",
+      "apiVersion": "v3.2.0",
+      "kind": "DataContract",
+      "id": "6a2f8c1d-3b4e-4f9a-8c7d-0e1f2a3b4c5d",
+      "status": "active",
+      "customProperties": [
+        {
+          "id": "prop_gov_object",
+          "property": "propGovObject",
+          "vendor": "confluent",
+          "value": {
+            "myObject": {
+              "mox": "abc",
+              "moy": 123
+            }
+          }
+        },
+        {
+          "property": "glossaryRefs",
+          "vendor": "zeenea",
+          "value": [
+            {
+              "category": "KPI",
+              "def": "Number of delivered doses"
+            }
+          ]
+        },
+        {
+          "property": "genericFlag",
+          "value": true
+        }
+      ],
+      "schema": [
+        {
+          "name": "orders",
+          "physicalType": "table",
+          "properties": [
+            {
+              "name": "order_id",
+              "logicalType": "integer",
+              "required": true
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "source": "docs/examples/fundamentals/variables.odcs.yaml",
+    "valid": true,
+    "document": {
+      "version": "1.0.0",
+      "apiVersion": "v3.2.0",
+      "kind": "DataContract",
+      "id": "4c1cbb2a-1c86-4e0e-8f0e-6d7c9b1a5e42",
+      "status": "active",
+      "name": "orders",
+      "servers": [
+        {
+          "server": "prod_db",
+          "environment": "prod",
+          "type": "postgresql",
+          "host": "${DB_HOST}",
+          "port": "${DB_PORT:-5432}",
+          "database": "${DB_NAME:-orders}",
+          "schema": "${DB_SCHEMA:-public}"
+        }
+      ],
+      "schema": [
+        {
+          "name": "orders",
+          "physicalType": "table",
+          "properties": [
+            {
+              "name": "order_id",
+              "logicalType": "string",
+              "physicalType": "varchar(36)"
+            }
+          ],
+          "quality": [
+            {
+              "type": "sql",
+              "query": "SELECT COUNT(*) FROM ${TARGET_TABLE} WHERE created_at > ${CUTOFF_DATE}",
+              "mustBe": 0,
+              "description": "Variable references are valid in any string value, including as substrings."
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "source": "docs/examples/pricing/basic-pricing.odcs.yaml",
+    "valid": true,
+    "document": {
+      "version": "1.0.0",
+      "kind": "DataContract",
+      "id": "8d9e0f1a-2b3c-4d5e-6f70-8a9b0c1d2e3f",
+      "apiVersion": "v3.2.0",
+      "status": "active",
+      "name": "catalog_with_pricing",
+      "description": {
+        "purpose": "Minimal example showing the `price` block \u2014 amount, currency, and unit-of-measure."
+      },
+      "price": {
+        "priceAmount": 9.95,
+        "priceCurrency": "USD",
+        "priceUnit": "gigabyte"
+      },
+      "schema": [
+        {
+          "name": "events",
+          "physicalType": "table",
+          "properties": [
+            {
+              "name": "id",
+              "primaryKey": true,
+              "primaryKeyPosition": 1,
+              "logicalType": "string"
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "source": "docs/examples/quality/column-accuracy.odcs.yaml",
+    "valid": true,
+    "document": {
+      "version": "1.0.0",
+      "kind": "DataContract",
+      "id": "53581432-6c55-4ba2-a65f-72344a91553a",
+      "status": "active",
+      "name": "my_table",
+      "apiVersion": "v3.2.0",
+      "schema": [
+        {
+          "name": "Air_Quality",
+          "description": "Air quality of the city of New York",
+          "authoritativeDefinitions": [
+            {
+              "url": "https://catalog.data.gov/dataset/air-quality",
+              "type": "Reference definition on Data.gov"
+            }
+          ],
+          "dataGranularityDescription": "Raw records",
+          "physicalType": "table",
+          "properties": [
+            {
+              "name": "DataValue",
+              "businessName": "Measured value",
+              "logicalType": "number",
+              "physicalType": "float(3,2)",
+              "quality": [
+                {
+                  "type": "sql",
+                  "query": "select count(*) from Air_Quality where DataValue <= 0 or DataValue >= 500",
+                  "mustBe": 0,
+                  "description": "This column should contain positive values under 500",
+                  "dimension": "accuracy",
+                  "severity": "error",
+                  "businessImpact": "operational"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "source": "docs/examples/quality/column-custom.odcs.yaml",
+    "valid": true,
+    "document": {
+      "version": "1.0.0",
+      "apiVersion": "v3.2.0",
+      "kind": "DataContract",
+      "id": "53581432-6c55-4ba2-a65f-72344a91553a",
+      "status": "active",
+      "name": "my_table",
+      "schema": [
+        {
+          "name": "Air_Quality",
+          "description": "Air quality of the city of New York",
+          "authoritativeDefinitions": [
+            {
+              "url": "https://catalog.data.gov/dataset/air-quality",
+              "type": "Reference definition on Data.gov"
+            }
+          ],
+          "dataGranularityDescription": "Raw records",
+          "physicalType": "table",
+          "properties": [
+            {
+              "name": "UniqueID",
+              "primaryKey": true,
+              "businessName": "Unique identifier",
+              "logicalType": "number",
+              "physicalType": "int",
+              "quality": [
+                {
+                  "type": "custom",
+                  "description": "This column should not contain values under 100000",
+                  "dimension": "conformity",
+                  "severity": "error",
+                  "businessImpact": "operational",
+                  "engine": "soda",
+                  "implementation": "type: duplicate_percent\ncolumns:\n  - carrier\n  - shipment_numer\nmust_be_less_than: 1.0\n"
+                },
+                {
+                  "type": "custom",
+                  "dimension": "uniqueness",
+                  "severity": "error",
+                  "businessImpact": "operational",
+                  "engine": "soda",
+                  "implementation": {
+                    "type": "duplicate_percent",
+                    "columns": [
+                      "carrier",
+                      "shipment_numer"
+                    ],
+                    "must_be_less_than": 1.0
+                  }
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "source": "docs/examples/quality/column-validity.odcs.yaml",
+    "valid": true,
+    "document": {
+      "version": "1.0.0",
+      "apiVersion": "v3.2.0",
+      "kind": "DataContract",
+      "id": "53581432-6c55-4ba2-a65f-72344a91553a",
+      "status": "active",
+      "name": "my_table",
+      "schema": [
+        {
+          "name": "Air_Quality",
+          "description": "Air quality of the city of New York",
+          "authoritativeDefinitions": [
+            {
+              "url": "https://catalog.data.gov/dataset/air-quality",
+              "type": "Reference definition on Data.gov"
+            }
+          ],
+          "dataGranularityDescription": "Raw records",
+          "physicalType": "table",
+          "properties": [
+            {
+              "name": "air_quality_status",
+              "primaryKey": true,
+              "logicalType": "string",
+              "physicalType": "varchar",
+              "quality": [
+                {
+                  "metric": "invalidValues",
+                  "mustBeLessOrEqualTo": 5,
+                  "unit": "percent",
+                  "arguments": {
+                    "validValues": [
+                      "",
+                      null,
+                      "n/a"
+                    ]
+                  },
+                  "description": "This column should be filled in 95% of the time",
+                  "dimension": "conformity",
+                  "severity": "error",
+                  "businessImpact": "operational"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "source": "docs/examples/references/relationships.odcs.yaml",
+    "valid": true,
+    "document": {
+      "version": "1.0.0",
+      "kind": "DataContract",
+      "id": "5e9f1c2a-7b6d-4e3f-8a1b-2c3d4e5f6a7b",
+      "apiVersion": "v3.2.0",
+      "status": "active",
+      "name": "orders_with_relationships",
+      "description": {
+        "purpose": "Demonstrate property-level, schema-level, composite, and shorthand foreign-key relationships (RFC 0026), each carrying a stable relationship id (RFC 0047)."
+      },
+      "schema": [
+        {
+          "id": "customers_obj",
+          "name": "customers",
+          "physicalType": "table",
+          "properties": [
+            {
+              "id": "customer_id_prop",
+              "name": "id",
+              "primaryKey": true,
+              "primaryKeyPosition": 1,
+              "logicalType": "string",
+              "physicalType": "VARCHAR(36)",
+              "required": true
+            }
+          ]
+        },
+        {
+          "id": "addresses_obj",
+          "name": "addresses",
+          "physicalType": "table",
+          "properties": [
+            {
+              "id": "address_customer_id_prop",
+              "name": "customer_id",
+              "primaryKey": true,
+              "primaryKeyPosition": 1,
+              "logicalType": "string",
+              "physicalType": "VARCHAR(36)",
+              "required": true
+            },
+            {
+              "id": "address_seq_prop",
+              "name": "address_seq",
+              "primaryKey": true,
+              "primaryKeyPosition": 2,
+              "logicalType": "integer",
+              "required": true
+            },
+            {
+              "id": "address_street_prop",
+              "name": "street",
+              "logicalType": "string"
+            }
+          ]
+        },
+        {
+          "id": "orders_obj",
+          "name": "orders",
+          "physicalType": "table",
+          "properties": [
+            {
+              "id": "order_id_prop",
+              "name": "id",
+              "primaryKey": true,
+              "primaryKeyPosition": 1,
+              "logicalType": "string",
+              "physicalType": "VARCHAR(36)",
+              "required": true
+            },
+            {
+              "id": "order_customer_prop",
+              "name": "customer_id",
+              "logicalType": "string",
+              "physicalType": "VARCHAR(36)",
+              "relationships": [
+                {
+                  "id": "fk_order_customer",
+                  "to": "customers.id",
+                  "type": "foreignKey",
+                  "customProperties": [
+                    {
+                      "property": "cardinality",
+                      "value": "many-to-one"
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "id": "order_address_prop",
+              "name": "shipping_address_street",
+              "logicalType": "string",
+              "relationships": [
+                {
+                  "id": "fk_order_shipping_address",
+                  "to": "addresses.address_street",
+                  "type": "foreignKey"
+                }
+              ]
+            }
+          ],
+          "relationships": [
+            {
+              "id": "fk_orders_address_composite",
+              "type": "foreignKey",
+              "from": [
+                "orders.customer_id",
+                "orders.shipping_address_street"
+              ],
+              "to": [
+                "addresses.customer_id",
+                "addresses.address_street"
+              ],
+              "customProperties": [
+                {
+                  "property": "description",
+                  "value": "Composite FK linking an order to a specific address row."
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "source": "docs/examples/schema/deprecated.odcs.yaml",
+    "valid": true,
+    "document": {
+      "version": "1.0.0",
+      "apiVersion": "v3.2.0",
+      "kind": "DataContract",
+      "id": "3e8a1b6c-4d2f-4a90-b1c7-5e9f0a2b3c4d",
+      "status": "active",
+      "schema": [
+        {
+          "name": "legacy_orders",
+          "physicalType": "table",
+          "deprecated": true,
+          "description": "DEPRECATED: use 'orders' instead. Will be removed in the next major version.",
+          "properties": [
+            {
+              "name": "order_id",
+              "logicalType": "integer",
+              "required": true
+            },
+            {
+              "name": "category_id",
+              "logicalType": "integer",
+              "deprecated": true,
+              "description": "DEPRECATED: use the nested 'category' object instead."
+            },
+            {
+              "name": "category",
+              "logicalType": "object",
+              "properties": [
+                {
+                  "name": "id",
+                  "logicalType": "integer"
+                },
+                {
+                  "name": "legacy_code",
+                  "logicalType": "string",
+                  "deprecated": true,
+                  "description": "DEPRECATED: retained for backward compatibility only."
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "source": "docs/examples/schema/enum.odcs.yaml",
+    "valid": true,
+    "document": {
+      "version": "1.0.0",
+      "kind": "DataContract",
+      "id": "a3e8e1f9-1c8b-4f2e-9a7d-3c5e7b6a9f12",
+      "apiVersion": "v3.2.0",
+      "status": "active",
+      "name": "orders_with_enums",
+      "description": {
+        "purpose": "Demonstrate the v3.2.0 `enum` constraint on schema properties (RFC 0033)."
+      },
+      "schema": [
+        {
+          "name": "orders",
+          "physicalType": "table",
+          "description": "Order records, with status and priority constrained by enum.",
+          "properties": [
+            {
+              "name": "order_id",
+              "primaryKey": true,
+              "primaryKeyPosition": 1,
+              "logicalType": "string",
+              "physicalType": "VARCHAR(36)",
+              "required": true,
+              "description": "Unique identifier for the order."
+            },
+            {
+              "name": "status",
+              "logicalType": "string",
+              "physicalType": "VARCHAR(32)",
+              "required": true,
+              "description": "Order lifecycle status.",
+              "enum": [
+                {
+                  "value": "pending",
+                  "label": "Pending",
+                  "description": "Order received, awaiting processing.",
+                  "tags": [
+                    "initial"
+                  ]
+                },
+                {
+                  "value": "processing",
+                  "label": "Processing",
+                  "tags": [
+                    "active"
+                  ]
+                },
+                {
+                  "value": "shipped",
+                  "label": "Shipped",
+                  "tags": [
+                    "terminal",
+                    "success"
+                  ]
+                },
+                {
+                  "value": "cancelled",
+                  "label": "Cancelled",
+                  "tags": [
+                    "terminal"
+                  ],
+                  "authoritativeDefinitions": [
+                    {
+                      "url": "https://catalog.example.com/orders/cancelled",
+                      "type": "businessDefinition",
+                      "description": "Internal definition of a cancelled order."
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "name": "priority",
+              "logicalType": "integer",
+              "physicalType": "INT",
+              "required": false,
+              "description": "Numeric priority bucket (1 highest, 3 lowest).",
+              "enum": [
+                {
+                  "value": 1,
+                  "label": "One",
+                  "description": "Highest priority."
+                },
+                {
+                  "value": 2,
+                  "label": "Two"
+                },
+                {
+                  "value": 3,
+                  "label": "Three",
+                  "description": "Lowest priority.",
+                  "customProperties": [
+                    {
+                      "property": "slaHoursOverride",
+                      "value": 72
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "name": "country_code",
+              "logicalType": "string",
+              "physicalType": "VARCHAR(2)",
+              "required": true,
+              "description": "ISO 3166-1 alpha-2 country code; restricted to served regions.",
+              "enum": [
+                {
+                  "value": "US",
+                  "label": "United States"
+                },
+                {
+                  "value": "FR",
+                  "label": "France"
+                },
+                {
+                  "value": "CA",
+                  "label": "Canada"
+                },
+                {
+                  "value": "MX",
+                  "label": "Mexico",
+                  "customProperties": [
+                    {
+                      "property": "languageEs",
+                      "value": "M\u00e9xico"
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "source": "docs/examples/schema/map.odcs.yaml",
+    "valid": true,
+    "document": {
+      "version": "1.0.0",
+      "kind": "DataContract",
+      "id": "7d2c4f6a-9b1e-4d3a-8c5f-1a2b3c4d5e6f",
+      "apiVersion": "v3.2.0",
+      "status": "active",
+      "name": "catalog_with_maps",
+      "description": {
+        "purpose": "Demonstrate the v3.2.0 `map` logical type (RFC 0030) across simple, numeric, struct, and array values."
+      },
+      "schema": [
+        {
+          "name": "products",
+          "physicalType": "table",
+          "description": "Product records with several map-typed columns.",
+          "properties": [
+            {
+              "name": "product_id",
+              "primaryKey": true,
+              "primaryKeyPosition": 1,
+              "logicalType": "string",
+              "physicalType": "VARCHAR(36)",
+              "required": true
+            },
+            {
+              "name": "user_preferences",
+              "logicalType": "map",
+              "physicalType": "MAP<STRING, STRING>",
+              "description": "User preference key/value pairs (locale, theme, ...).",
+              "map": {
+                "key": {
+                  "logicalType": "string",
+                  "description": "Preference name."
+                },
+                "value": {
+                  "logicalType": "string",
+                  "description": "Preference value."
+                }
+              }
+            },
+            {
+              "name": "daily_counts",
+              "logicalType": "map",
+              "physicalType": "MAP<STRING, INT>",
+              "description": "Daily counts keyed by metric name.",
+              "map": {
+                "key": {
+                  "logicalType": "string",
+                  "description": "Metric name."
+                },
+                "value": {
+                  "logicalType": "integer",
+                  "description": "Non-negative count.",
+                  "logicalTypeOptions": {
+                    "minimum": 0
+                  }
+                }
+              }
+            },
+            {
+              "name": "product_details",
+              "logicalType": "map",
+              "physicalType": "MAP<STRING, STRUCT>",
+              "description": "Per-locale product details, keyed by locale code.",
+              "map": {
+                "key": {
+                  "logicalType": "string",
+                  "description": "Locale code (e.g., en-US, es-MX)."
+                },
+                "value": {
+                  "logicalType": "object",
+                  "description": "Localised product detail.",
+                  "properties": [
+                    {
+                      "name": "name",
+                      "logicalType": "string",
+                      "required": true
+                    },
+                    {
+                      "name": "price",
+                      "logicalType": "number"
+                    },
+                    {
+                      "name": "currency",
+                      "logicalType": "string",
+                      "physicalType": "CHAR(3)"
+                    }
+                  ]
+                }
+              }
+            },
+            {
+              "name": "tag_scores",
+              "logicalType": "map",
+              "physicalType": "MAP<STRING, ARRAY<DOUBLE>>",
+              "description": "Score arrays keyed by tag name.",
+              "map": {
+                "key": {
+                  "logicalType": "string",
+                  "description": "Tag name."
+                },
+                "value": {
+                  "logicalType": "array",
+                  "description": "Scores associated with the tag.",
+                  "items": {
+                    "logicalType": "number"
+                  }
+                }
+              }
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "source": "docs/examples/schema/measures-and-dimensions.odcs.yaml",
+    "valid": true,
+    "document": {
+      "version": "1.0.0",
+      "kind": "DataContract",
+      "id": "2f1d9c6a-4b3e-4d8a-9f51-7a0c2e6b8d34",
+      "apiVersion": "v3.2.0",
+      "status": "active",
+      "name": "turnover_metrics",
+      "description": {
+        "purpose": "Demonstrate the v3.2.0 `semanticType` field for measures and dimensions on schema properties (RFC 0034)."
+      },
+      "schema": [
+        {
+          "name": "turnover",
+          "physicalType": "table",
+          "physicalName": "metrics_turnover",
+          "description": "Turnover (TO) metrics for sales and financial analysis.",
+          "synonyms": [
+            {
+              "synonym": "Sales metrics"
+            },
+            {
+              "synonym": "Chiffre d'affaires",
+              "locale": "fr-FR"
+            }
+          ],
+          "properties": [
+            {
+              "name": "turnover_ts",
+              "logicalType": "date",
+              "physicalType": "TIMESTAMP",
+              "description": "Timestamp when the turnover is calculated."
+            },
+            {
+              "name": "order_id",
+              "primaryKey": true,
+              "primaryKeyPosition": 1,
+              "logicalType": "string",
+              "physicalType": "VARCHAR(36)",
+              "description": "Order ID."
+            },
+            {
+              "name": "turnover_euros",
+              "logicalType": "number",
+              "physicalType": "DECIMAL(18,2)",
+              "description": "Turnover converted to Euros."
+            },
+            {
+              "name": "country_code",
+              "logicalType": "string",
+              "physicalType": "VARCHAR(2)",
+              "description": "ISO-3166-2 country code."
+            },
+            {
+              "name": "country_code_dim",
+              "semanticType": "dimension",
+              "logicalType": "string",
+              "transformLogic": "country_code",
+              "description": "Country code where the order was made.",
+              "businessName": "Country Code"
+            },
+            {
+              "name": "order_month",
+              "semanticType": "dimension",
+              "logicalType": "date",
+              "transformLogic": "DATE_TRUNC('MONTH', turnover_ts)",
+              "description": "Month of the order.",
+              "businessName": "Order Month"
+            },
+            {
+              "name": "total_turnover_euros",
+              "semanticType": "measure",
+              "logicalType": "number",
+              "physicalType": "DECIMAL(18,2)",
+              "transformLogic": "SUM(turnover_euros)",
+              "description": "Total turnover in Euros.",
+              "businessName": "TurnOver (Euros)",
+              "synonyms": [
+                {
+                  "synonym": "TO",
+                  "description": "Common abbreviation used by the finance team.",
+                  "source": "finance-team"
+                },
+                {
+                  "synonym": "Sales",
+                  "locale": "en-US"
+                },
+                {
+                  "id": "sales-fr",
+                  "synonym": "Chiffre d'affaires",
+                  "locale": "fr-FR",
+                  "description": "French equivalent used in European subsidiaries."
+                }
+              ]
+            },
+            {
+              "name": "nb_receipts",
+              "semanticType": "measure",
+              "logicalType": "integer",
+              "physicalType": "BIGINT",
+              "transformLogic": "COUNT(DISTINCT order_id)",
+              "description": "Number of receipts.",
+              "businessName": "Number of Receipts"
+            },
+            {
+              "name": "average_basket_value",
+              "semanticType": "measure",
+              "logicalType": "number",
+              "physicalType": "DECIMAL(18,2)",
+              "transformLogic": "SUM(turnover_euros) / NULLIF(COUNT(DISTINCT order_id), 0)",
+              "description": "Average basket value in Euros.",
+              "businessName": "Average Basket Value"
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "source": "docs/examples/schema/property-without-logicaltype.odcs.yaml",
+    "valid": true,
+    "document": {
+      "version": "1.0.0",
+      "kind": "DataContract",
+      "id": "8f2b1c74-3d9e-4a6b-b0c5-7e1f2a3d4b5c",
+      "apiVersion": "v3.2.0",
+      "status": "active",
+      "name": "property_without_logicaltype",
+      "description": {
+        "purpose": "`logicalType` is optional on a schema property. A contract that describes its columns with `physicalType` alone \u2014 the common shape when a schema is imported from DDL and the source type has no portable logical equivalent \u2014 must validate. Guards the regression fixed alongside this example, where the `logicalType: map` conditional applied to properties that declared no `logicalType` at all and demanded a `map` block from them."
+      },
+      "schema": [
+        {
+          "name": "raw_import",
+          "physicalType": "table",
+          "description": "A table described by physical types only, as a DDL import produces.",
+          "properties": [
+            {
+              "name": "order_id",
+              "physicalType": "bigint",
+              "primaryKey": true,
+              "primaryKeyPosition": 1,
+              "description": "Source system identifier, carried through untranslated."
+            },
+            {
+              "name": "vendor_specific_code",
+              "physicalType": "VARCHAR2(30)",
+              "description": "A vendor type with no portable logical equivalent."
+            },
+            {
+              "name": "untyped_passthrough",
+              "description": "Neither a logical nor a physical type is known for this column yet."
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "source": "docs/examples/schema/stable-id-special-characters.odcs.yaml",
+    "valid": true,
+    "document": {
+      "version": "1.0.0",
+      "kind": "DataContract",
+      "id": "5c0a7f16-2b48-4d31-9e6a-1f8c3b2d5a94",
+      "apiVersion": "v3.2.0",
+      "status": "active",
+      "name": "stable_id_special_characters",
+      "description": {
+        "purpose": "RFC-0026a defines the `id` character rule as a denylist: an id cannot contain `.`, `#`, `/`, `\\`, `@`, `!`, `%`, `&` or `^`. Everything else is legal, including `:`, which namespaced identifiers coming from a catalog or an ontology commonly use. Guards the regression fixed alongside this example, where the schema implemented a far narrower allowlist (`^[A-Za-z0-9_-]+$`) and rejected every id and every fully qualified reference carrying a colon."
+      },
+      "team": [
+        {
+          "username": "fdir_steward",
+          "id": "fdir:ISU:TAD",
+          "role": "owner"
+        }
+      ],
+      "schema": [
+        {
+          "id": "fdir:dataset",
+          "name": "dataset",
+          "physicalType": "table",
+          "description": "A schema object whose id is namespaced with colons.",
+          "relationships": [
+            {
+              "from": "schema/fdir:dataset/properties/fdir:field",
+              "to": "schema/fdir:other_dataset/properties/fdir:key"
+            }
+          ],
+          "properties": [
+            {
+              "id": "fdir:field",
+              "name": "field",
+              "logicalType": "string",
+              "physicalType": "varchar(64)",
+              "description": "A property whose id is namespaced with colons."
+            },
+            {
+              "id": "urn:uuid:0f6d2c11-4a7e-4a1d-9b3f-8c5e2a7d1b40",
+              "name": "urn_style_id",
+              "logicalType": "string",
+              "physicalType": "varchar(64)",
+              "description": "URNs are colon-separated and are legal ids under RFC-0026a."
+            },
+            {
+              "id": "plain-id_1",
+              "name": "plain_id",
+              "logicalType": "string",
+              "physicalType": "varchar(64)",
+              "description": "The previously allowed character set stays valid."
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "source": "docs/examples/schema/vector.odcs.yaml",
+    "valid": true,
+    "document": {
+      "version": "1.0.0",
+      "apiVersion": "v3.2.0",
+      "kind": "DataContract",
+      "id": "8c1d4e7f-2a3b-4c5d-9e0f-1a2b3c4d5e6f",
+      "status": "active",
+      "schema": [
+        {
+          "name": "tickets",
+          "physicalName": "ticket_embeddings",
+          "properties": [
+            {
+              "name": "ticket_id",
+              "logicalType": "string",
+              "primaryKey": true,
+              "required": true
+            },
+            {
+              "name": "body",
+              "logicalType": "string"
+            },
+            {
+              "name": "body_embedding",
+              "logicalType": "vector",
+              "physicalType": "vector(1536)",
+              "required": true,
+              "logicalTypeOptions": {
+                "dimensions": 1536,
+                "elementType": "float32",
+                "distanceMetric": "cosine",
+                "normalized": true,
+                "embeddingModel": "openai/text-embedding-3-small",
+                "embeddingModelVersion": "2024-01-25"
+              }
+            },
+            {
+              "name": "body_embedding_int8",
+              "logicalType": "vector",
+              "logicalTypeOptions": {
+                "dimensions": 1536,
+                "elementType": "int8",
+                "distanceMetric": "cosine"
+              }
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "source": "docs/examples/server/actian-servers.odcs.yaml",
+    "valid": true,
+    "document": {
+      "version": "1.0.0",
+      "apiVersion": "v3.2.0",
+      "kind": "DataContract",
+      "id": "8f2c4b16-3e57-4d90-a1c8-5b7e0d2f9a64",
+      "status": "active",
+      "servers": [
+        {
+          "server": "ingres-prod",
+          "type": "ingres",
+          "description": "Order-entry OLTP system of record",
+          "environment": "prod",
+          "host": "ingres01.acme.com",
+          "port": 21064,
+          "database": "orders",
+          "roles": [
+            {
+              "role": "acme_orders_ro",
+              "access": "read"
+            },
+            {
+              "role": "acme_orders_rw",
+              "access": "write"
+            }
+          ]
+        },
+        {
+          "server": "vector-preprod",
+          "type": "vectorwise",
+          "description": "Columnar serving layer for the sales data product",
+          "environment": "preprod",
+          "host": "vector02.acme.com",
+          "port": 21164,
+          "database": "sales_mart"
+        },
+        {
+          "server": "versant-prod",
+          "type": "versant",
+          "description": "Policy administration OLTP object store",
+          "environment": "prod",
+          "host": "nosql01.acme.com",
+          "port": 5019,
+          "database": "policies",
+          "roles": [
+            {
+              "role": "acme_policies_ro",
+              "access": "read"
+            }
+          ]
+        },
+        {
+          "server": "fastobjects-device",
+          "type": "poet",
+          "description": "On-device telemetry store",
+          "environment": "dev",
+          "database": "telemetry"
+        },
+        {
+          "server": "fastobjects-prod",
+          "type": "fastobjects",
+          "description": "Parts catalog for the CAD workstations",
+          "environment": "prod",
+          "host": "fastobjects.acme.com",
+          "port": 6001,
+          "database": "parts_catalog"
+        },
+        {
+          "server": "zen-prod",
+          "type": "btrieve",
+          "description": "Embedded inventory store",
+          "environment": "prod",
+          "host": "zen.acme.com",
+          "database": "inventory"
+        }
+      ],
+      "schema": [
+        {
+          "name": "orders",
+          "physicalType": "table",
+          "properties": [
+            {
+              "name": "order_id",
+              "logicalType": "string",
+              "required": true
+            },
+            {
+              "name": "order_total",
+              "logicalType": "number"
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "source": "docs/examples/server/exasol-server.odcs.yaml",
+    "valid": true,
+    "document": {
+      "version": "1.0.0",
+      "apiVersion": "v3.2.0",
+      "kind": "DataContract",
+      "id": "5c9a1e73-8d24-4f60-b1a7-6e0c3b5d9f42",
+      "status": "active",
+      "servers": [
+        {
+          "server": "prod",
+          "type": "exasol",
+          "host": "exasol.acme.com",
+          "port": 8563,
+          "schema": "SALES"
+        }
+      ],
+      "schema": [
+        {
+          "name": "sales",
+          "physicalType": "table",
+          "properties": [
+            {
+              "name": "sale_id",
+              "logicalType": "string",
+              "required": true
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "source": "docs/examples/server/hana-server.odcs.yaml",
+    "valid": true,
+    "document": {
+      "version": "1.0.0",
+      "apiVersion": "v3.2.0",
+      "kind": "DataContract",
+      "id": "5d8b2a1c-7e3f-4a6d-9b0c-1e2f3a4b5c6d",
+      "status": "active",
+      "servers": [
+        {
+          "server": "prod",
+          "type": "hana",
+          "host": "hana.acme.com",
+          "port": 30015,
+          "database": "HXE",
+          "schema": "SALES"
+        }
+      ],
+      "schema": [
+        {
+          "name": "sales",
+          "physicalType": "table",
+          "properties": [
+            {
+              "name": "sale_id",
+              "logicalType": "string",
+              "required": true
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "source": "docs/examples/server/iceberg-server.odcs.yaml",
+    "valid": true,
+    "document": {
+      "version": "1.0.0",
+      "apiVersion": "v3.2.0",
+      "kind": "DataContract",
+      "id": "7f2e4c91-3a6d-4b8e-9c0f-1d2e3f4a5b6c",
+      "status": "active",
+      "servers": [
+        {
+          "server": "prod",
+          "type": "iceberg",
+          "catalog": "prod_catalog",
+          "catalogUrl": "https://catalog.acme.com",
+          "namespace": "acme_db.sales",
+          "warehouse": "s3://acme-warehouse/sales/"
+        }
+      ],
+      "schema": [
+        {
+          "name": "sales",
+          "physicalType": "table",
+          "properties": [
+            {
+              "name": "sale_id",
+              "logicalType": "string",
+              "required": true
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "source": "docs/examples/server/s3-server-encoding.odcs.yaml",
+    "valid": true,
+    "document": {
+      "version": "1.0.0",
+      "apiVersion": "v3.2.0",
+      "kind": "DataContract",
+      "id": "7b3f0c2e-1d4a-4e6b-9f2a-0a1b2c3d4e5f",
+      "status": "active",
+      "servers": [
+        {
+          "server": "modern",
+          "type": "s3",
+          "location": "s3://modern-bucket/customers/*.csv",
+          "format": "csv",
+          "encoding": "UTF-8"
+        },
+        {
+          "server": "legacy",
+          "type": "s3",
+          "location": "s3://legacy-bucket/customers/*.csv",
+          "format": "csv",
+          "encoding": "ISO-8859-1"
+        }
+      ],
+      "schema": [
+        {
+          "name": "customers",
+          "physicalType": "table",
+          "properties": [
+            {
+              "name": "customer_id",
+              "logicalType": "string",
+              "required": true
+            },
+            {
+              "name": "customer_name",
+              "logicalType": "string"
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "source": "docs/examples/server/teradata-server.odcs.yaml",
+    "valid": true,
+    "document": {
+      "version": "1.0.0",
+      "apiVersion": "v3.2.0",
+      "kind": "DataContract",
+      "id": "3b7d1c58-2f94-4a06-8e1b-9c5a0d4f7e23",
+      "status": "active",
+      "servers": [
+        {
+          "server": "prod",
+          "type": "teradata",
+          "host": "teradata.acme.com",
+          "port": 1025,
+          "database": "SALES"
+        }
+      ],
+      "schema": [
+        {
+          "name": "sales",
+          "physicalType": "table",
+          "properties": [
+            {
+              "name": "sale_id",
+              "logicalType": "string",
+              "required": true
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "source": "docs/examples/sla/database-table-sla.odcs.yaml",
+    "valid": true,
+    "document": {
+      "version": "1.0.0",
+      "apiVersion": "v3.2.0",
+      "kind": "DataContract",
+      "id": "53581432-6c55-4ba2-a65f-72344a91553a",
+      "status": "active",
+      "name": "my_table",
+      "dataProduct": "my_quantum",
+      "schema": [],
+      "slaProperties": [
+        {
+          "property": "latency",
+          "value": 4,
+          "unit": "d",
+          "element": "tab1.txn_ref_dt"
+        },
+        {
+          "property": "generalAvailability",
+          "value": "2022-05-12T09:30:10-08:00",
+          "description": "Initial GA date 15.5.22"
+        },
+        {
+          "property": "endOfSupport",
+          "value": "2032-05-12T09:30:10-08:00"
+        },
+        {
+          "property": "endOfLife",
+          "value": "2042-05-12T09:30:10-08:00"
+        },
+        {
+          "property": "retention",
+          "value": 3,
+          "unit": "y",
+          "element": "tab1.txn_ref_dt"
+        },
+        {
+          "property": "frequency",
+          "value": 1,
+          "valueExt": 1,
+          "unit": "d",
+          "element": "tab1.txn_ref_dt"
+        },
+        {
+          "property": "timeOfAvailability",
+          "value": "09:00-08:00",
+          "element": "tab1.txn_ref_dt",
+          "driver": "regulatory"
+        },
+        {
+          "property": "timeOfAvailability",
+          "value": "08:00-08:00",
+          "element": "tab1.txn_ref_dt",
+          "driver": "analytics"
+        }
+      ]
+    }
+  },
+  {
+    "source": "docs/examples/sla/sla-extensions.odcs.yaml",
+    "valid": true,
+    "document": {
+      "version": "1.0.0",
+      "apiVersion": "v3.2.0",
+      "kind": "DataContract",
+      "id": "7f2a9c4d-1b6e-4a8d-9c0f-3e4a5b6c7d8e",
+      "status": "active",
+      "name": "my_table",
+      "schema": [],
+      "slaProperties": [
+        {
+          "property": "availability",
+          "value": 99.9,
+          "unit": "%",
+          "customProperties": [
+            {
+              "property": "alertPolicyId",
+              "value": "pol-123"
+            }
+          ]
+        },
+        {
+          "property": "latency",
+          "value": 100,
+          "unit": "ms",
+          "authoritativeDefinitions": [
+            {
+              "url": "https://wiki.acme.com/sla/latency",
+              "type": "businessDefinition"
+            }
+          ],
+          "customProperties": [
+            {
+              "property": "alertPolicyId",
+              "value": "pol-123"
+            },
+            {
+              "property": "owner",
+              "value": "data-platform-team"
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "source": "docs/examples/support/support-channels.odcs.yaml",
+    "valid": false,
+    "document": {
+      "version": "1.0.0",
+      "kind": "DataContract",
+      "id": "b2c3d4e5-f6a7-4b8c-9d0e-1f2a3b4c5d6e",
+      "apiVersion": "v3.2.0",
+      "status": "active",
+      "name": "catalog_with_support_channels",
+      "description": {
+        "purpose": "Cover all six recommended `tool` values (email, slack, teams, discord, ticket, googlechat) and the four `scope` values (interactive, announcements, issues, notifications)."
+      },
+      "support": [
+        {
+          "id": "support_email",
+          "channel": "support@example.com",
+          "tool": "email",
+          "scope": "issues",
+          "url": "mailto:support@example.com",
+          "description": "Issue intake mailbox monitored 9-5 PT."
+        },
+        {
+          "id": "support_slack_help",
+          "channel": "#data-platform-help",
+          "tool": "slack",
+          "scope": "interactive",
+          "invitationUrl": "https://example.slack.com/invite/data-platform-help",
+          "description": "Real-time Q&A with the platform team."
+        },
+        {
+          "id": "support_slack_announcements",
+          "channel": "#data-platform-announcements",
+          "tool": "slack",
+          "scope": "announcements",
+          "description": "Read-only channel for breaking changes and incidents."
+        },
+        {
+          "id": "support_teams",
+          "channel": "Data Platform / General",
+          "tool": "teams",
+          "scope": "interactive"
+        },
+        {
+          "id": "support_discord",
+          "channel": "data-platform",
+          "tool": "discord",
+          "scope": "interactive",
+          "invitationUrl": "https://discord.gg/example"
+        },
+        {
+          "id": "support_googlechat",
+          "channel": "data-platform-room",
+          "tool": "googlechat",
+          "scope": "notifications",
+          "description": "Operational notifications (deploys, refresh windows)."
+        },
+        {
+          "id": "support_ticket",
+          "channel": "DATA-PLATFORM",
+          "tool": "ticket",
+          "scope": "issues",
+          "url": "https://example.atlassian.net/jira/software/projects/DATA-PLATFORM/issues",
+          "description": "Long-lived issues, change requests, and feature asks."
+        }
+      ]
+    },
+    "normativeDifference": "Pinned schema.md requires root schema; this upstream example omits it."
+  },
+  {
+    "source": "docs/examples/tags/tags.odcs.yaml",
+    "valid": true,
+    "document": {
+      "version": "1.0.0",
+      "kind": "DataContract",
+      "id": "6c1a2b3d-4e5f-4789-9abc-def012345678",
+      "apiVersion": "v3.2.0",
+      "status": "active",
+      "name": "catalog_with_tags",
+      "description": {
+        "purpose": "Demonstrate `tags` at every level \u2014 root contract, schema element, schema property, enum value, quality rule, team, and team member."
+      },
+      "tags": [
+        "finance",
+        "gdpr",
+        "tier-1"
+      ],
+      "schema": [
+        {
+          "name": "payments",
+          "physicalType": "table",
+          "tags": [
+            "transactional",
+            "pii"
+          ],
+          "properties": [
+            {
+              "name": "payment_id",
+              "primaryKey": true,
+              "primaryKeyPosition": 1,
+              "logicalType": "string",
+              "tags": [
+                "identifier"
+              ]
+            },
+            {
+              "name": "status",
+              "logicalType": "string",
+              "enum": [
+                {
+                  "value": "pending",
+                  "tags": [
+                    "initial"
+                  ]
+                },
+                {
+                  "value": "completed",
+                  "tags": [
+                    "terminal",
+                    "success"
+                  ]
+                },
+                {
+                  "value": "refunded",
+                  "tags": [
+                    "terminal",
+                    "reversal"
+                  ]
+                }
+              ],
+              "quality": [
+                {
+                  "type": "library",
+                  "metric": "invalidValues",
+                  "mustBeLessThan": 1,
+                  "unit": "percent",
+                  "tags": [
+                    "compliance",
+                    "pci"
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      ],
+      "team": {
+        "name": "payments-platform",
+        "tags": [
+          "engineering",
+          "core"
+        ],
+        "members": [
+          {
+            "username": "ada",
+            "role": "Data Steward",
+            "tags": [
+              "oncall",
+              "primary"
+            ]
+          },
+          {
+            "username": "grace",
+            "role": "Data Engineer",
+            "tags": [
+              "oncall"
+            ]
+          }
+        ]
+      }
+    }
+  },
+  {
+    "source": "docs/examples/team/team.odcs.yaml",
+    "valid": true,
+    "document": {
+      "version": "1.0.0",
+      "kind": "DataContract",
+      "id": "c5d6e7f8-9a0b-4c1d-2e3f-4a5b6c7d8e9f",
+      "apiVersion": "v3.2.0",
+      "status": "active",
+      "name": "catalog_with_team",
+      "description": {
+        "purpose": "Show the modern `team` object (RFC 16) with multiple members covering common roles, dateIn/dateOut transitions, and member-level metadata. Replaces the older `stakeholders`-style example."
+      },
+      "team": {
+        "id": "data-platform-team",
+        "name": "data-platform",
+        "description": "Owners and contributors of the data-platform contracts.",
+        "tags": [
+          "core",
+          "engineering"
+        ],
+        "customProperties": [
+          {
+            "property": "oncallRotation",
+            "value": "data-platform-primary"
+          }
+        ],
+        "authoritativeDefinitions": [
+          {
+            "url": "https://wiki.example.com/teams/data-platform",
+            "type": "businessDefinition"
+          }
+        ],
+        "members": [
+          {
+            "id": "ada",
+            "username": "ada",
+            "name": "Ada Lovelace",
+            "role": "Data Product Owner",
+            "description": "Owns the contract roadmap.",
+            "dateIn": "2024-01-15",
+            "tags": [
+              "owner"
+            ]
+          },
+          {
+            "id": "grace",
+            "username": "grace",
+            "name": "Grace Hopper",
+            "role": "Data Steward",
+            "dateIn": "2024-01-15",
+            "tags": [
+              "steward"
+            ],
+            "authoritativeDefinitions": [
+              {
+                "url": "https://wiki.example.com/people/grace",
+                "type": "businessDefinition"
+              }
+            ]
+          },
+          {
+            "id": "alan",
+            "username": "alan",
+            "name": "Alan Turing",
+            "role": "Data Engineer",
+            "dateIn": "2024-01-15",
+            "dateOut": "2025-09-30",
+            "replacedByUsername": "ceastwood",
+            "description": "Original platform engineer; rotated off the team in Sep 2025."
+          },
+          {
+            "id": "ceastwood",
+            "username": "ceastwood",
+            "role": "Data Engineer",
+            "dateIn": "2025-10-01",
+            "tags": [
+              "oncall"
+            ],
+            "customProperties": [
+              {
+                "property": "timezone",
+                "value": "Europe/Paris"
+              }
+            ]
+          }
+        ]
+      },
+      "schema": [
+        {
+          "name": "events",
+          "physicalType": "table",
+          "properties": [
+            {
+              "name": "id",
+              "primaryKey": true,
+              "primaryKeyPosition": 1,
+              "logicalType": "string"
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "source": "src/script/negative-tests/additional-unknown-property.odcs.yaml",
+    "valid": false,
+    "document": {
+      "version": "1.0.0",
+      "apiVersion": "v3.2.0",
+      "kind": "DataContract",
+      "id": "53581432-6c55-4ba2-a65f-72344a91553a",
+      "status": "active",
+      "unknownRootField": "this should not be here"
+    }
+  },
+  {
+    "source": "src/script/negative-tests/btrieve-missing-host.odcs.yaml",
+    "valid": false,
+    "document": {
+      "version": "1.0.0",
+      "apiVersion": "v3.2.0",
+      "kind": "DataContract",
+      "id": "5e719314-6f8a-40c5-d24e-b06fa18c2d59",
+      "status": "active",
+      "servers": [
+        {
+          "server": "prod",
+          "type": "btrieve",
+          "database": "inventory"
+        }
+      ],
+      "schema": [
+        {
+          "name": "inventory",
+          "physicalType": "table"
+        }
+      ]
+    }
+  },
+  {
+    "source": "src/script/negative-tests/deprecated-wrong-type.odcs.yaml",
+    "valid": false,
+    "document": {
+      "version": "1.0.0",
+      "apiVersion": "v3.2.0",
+      "kind": "DataContract",
+      "id": "5f1c7a2d-8b3e-4c6a-9d0f-2e4b6a8c0d1e",
+      "status": "active",
+      "schema": [
+        {
+          "name": "customers",
+          "physicalType": "table",
+          "properties": [
+            {
+              "name": "email_address",
+              "logicalType": "string",
+              "deprecated": "maybe"
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "source": "src/script/negative-tests/enum-duplicate-values.odcs.yaml",
+    "valid": false,
+    "document": {
+      "version": "1.0.0",
+      "apiVersion": "v3.2.0",
+      "kind": "DataContract",
+      "id": "53581432-6c55-4ba2-a65f-72344a91553a",
+      "status": "active",
+      "schema": [
+        {
+          "name": "orders",
+          "physicalType": "table",
+          "properties": [
+            {
+              "name": "status",
+              "logicalType": "string",
+              "enum": [
+                {
+                  "value": "pending"
+                },
+                {
+                  "value": "pending"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "source": "src/script/negative-tests/enum-empty.odcs.yaml",
+    "valid": false,
+    "document": {
+      "version": "1.0.0",
+      "apiVersion": "v3.2.0",
+      "kind": "DataContract",
+      "id": "53581432-6c55-4ba2-a65f-72344a91553a",
+      "status": "active",
+      "schema": [
+        {
+          "name": "orders",
+          "physicalType": "table",
+          "properties": [
+            {
+              "name": "status",
+              "logicalType": "string",
+              "enum": []
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "source": "src/script/negative-tests/enum-missing-value.odcs.yaml",
+    "valid": false,
+    "document": {
+      "version": "1.0.0",
+      "apiVersion": "v3.2.0",
+      "kind": "DataContract",
+      "id": "53581432-6c55-4ba2-a65f-72344a91553a",
+      "status": "active",
+      "schema": [
+        {
+          "name": "orders",
+          "physicalType": "table",
+          "properties": [
+            {
+              "name": "status",
+              "logicalType": "string",
+              "enum": [
+                {
+                  "label": "Pending"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "source": "src/script/negative-tests/exasol-missing-host.odcs.yaml",
+    "valid": false,
+    "document": {
+      "version": "1.0.0",
+      "apiVersion": "v3.2.0",
+      "kind": "DataContract",
+      "id": "6d0b2f84-9e35-4a71-c2b8-7f1d4c6e0a53",
+      "status": "active",
+      "servers": [
+        {
+          "server": "prod",
+          "type": "exasol",
+          "port": 8563,
+          "schema": "SALES"
+        }
+      ],
+      "schema": [
+        {
+          "name": "sales",
+          "physicalType": "table"
+        }
+      ]
+    }
+  },
+  {
+    "source": "src/script/negative-tests/fastobjects-missing-database.odcs.yaml",
+    "valid": false,
+    "document": {
+      "version": "1.0.0",
+      "apiVersion": "v3.2.0",
+      "kind": "DataContract",
+      "id": "4d608203-5e79-4fb4-c13d-af5e907b1c48",
+      "status": "active",
+      "servers": [
+        {
+          "server": "prod",
+          "type": "fastobjects",
+          "host": "fastobjects.acme.com",
+          "port": 6001
+        }
+      ],
+      "schema": [
+        {
+          "name": "parts_catalog",
+          "physicalType": "table"
+        }
+      ]
+    }
+  },
+  {
+    "source": "src/script/negative-tests/hana-missing-host.odcs.yaml",
+    "valid": false,
+    "document": {
+      "version": "1.0.0",
+      "apiVersion": "v3.2.0",
+      "kind": "DataContract",
+      "id": "6e9c3b2d-8f4a-4b7e-9c1d-2f3a4b5c6d7e",
+      "status": "active",
+      "servers": [
+        {
+          "server": "prod",
+          "type": "hana",
+          "port": 30015,
+          "database": "HXE"
+        }
+      ],
+      "schema": [
+        {
+          "name": "sales",
+          "physicalType": "table"
+        }
+      ]
+    }
+  },
+  {
+    "source": "src/script/negative-tests/iceberg-missing-catalogurl.odcs.yaml",
+    "valid": false,
+    "document": {
+      "version": "1.0.0",
+      "apiVersion": "v3.2.0",
+      "kind": "DataContract",
+      "id": "8a3f5d02-4b7e-4c9f-a0d1-2e3f4a5b6c7d",
+      "status": "active",
+      "servers": [
+        {
+          "server": "prod",
+          "type": "iceberg",
+          "catalog": "prod_catalog",
+          "namespace": "acme_db.sales"
+        }
+      ],
+      "schema": [
+        {
+          "name": "sales",
+          "physicalType": "table"
+        }
+      ]
+    }
+  },
+  {
+    "source": "src/script/negative-tests/ingres-missing-host.odcs.yaml",
+    "valid": false,
+    "document": {
+      "version": "1.0.0",
+      "apiVersion": "v3.2.0",
+      "kind": "DataContract",
+      "id": "1a3d5f70-2b46-4c81-9e0a-7c2b6d4f8e15",
+      "status": "active",
+      "servers": [
+        {
+          "server": "prod",
+          "type": "ingres",
+          "port": 21064,
+          "database": "orders"
+        }
+      ],
+      "schema": [
+        {
+          "name": "orders",
+          "physicalType": "table"
+        }
+      ]
+    }
+  },
+  {
+    "source": "src/script/negative-tests/invalid-api-version.odcs.yaml",
+    "valid": false,
+    "document": {
+      "version": "1.0.0",
+      "apiVersion": "v4.0.0",
+      "kind": "DataContract",
+      "id": "53581432-6c55-4ba2-a65f-72344a91553a",
+      "status": "active"
+    }
+  },
+  {
+    "source": "src/script/negative-tests/invalid-kind.odcs.yaml",
+    "valid": false,
+    "document": {
+      "version": "1.0.0",
+      "apiVersion": "v3.2.0",
+      "kind": "DataModel",
+      "id": "53581432-6c55-4ba2-a65f-72344a91553a",
+      "status": "active"
+    }
+  },
+  {
+    "source": "src/script/negative-tests/invalid-quality-dimension.odcs.yaml",
+    "valid": false,
+    "document": {
+      "version": "1.0.0",
+      "apiVersion": "v3.2.0",
+      "kind": "DataContract",
+      "id": "53581432-6c55-4ba2-a65f-72344a91553a",
+      "status": "active",
+      "schema": [
+        {
+          "name": "orders",
+          "physicalType": "table",
+          "properties": [
+            {
+              "name": "amount",
+              "logicalType": "number",
+              "physicalType": "float",
+              "quality": [
+                {
+                  "type": "sql",
+                  "query": "SELECT COUNT(*) FROM orders WHERE amount < 0",
+                  "mustBe": 0,
+                  "dimension": "validity"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "source": "src/script/negative-tests/invalid-quality-metric.odcs.yaml",
+    "valid": false,
+    "document": {
+      "version": "1.0.0",
+      "apiVersion": "v3.2.0",
+      "kind": "DataContract",
+      "id": "53581432-6c55-4ba2-a65f-72344a91553a",
+      "status": "active",
+      "schema": [
+        {
+          "name": "orders",
+          "physicalType": "table",
+          "properties": [
+            {
+              "name": "customer_id",
+              "logicalType": "string",
+              "physicalType": "varchar",
+              "quality": [
+                {
+                  "metric": "invalidMetric",
+                  "mustBe": 0
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "source": "src/script/negative-tests/invalid-quality-type.odcs.yaml",
+    "valid": false,
+    "document": {
+      "version": "1.0.0",
+      "apiVersion": "v3.2.0",
+      "kind": "DataContract",
+      "id": "53581432-6c55-4ba2-a65f-72344a91553a",
+      "status": "active",
+      "schema": [
+        {
+          "name": "orders",
+          "physicalType": "table",
+          "properties": [
+            {
+              "name": "status",
+              "logicalType": "string",
+              "physicalType": "varchar",
+              "quality": [
+                {
+                  "type": "unknown",
+                  "description": "Check order status values"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "source": "src/script/negative-tests/map-missing-block.odcs.yaml",
+    "valid": false,
+    "document": {
+      "version": "1.0.0",
+      "apiVersion": "v3.2.0",
+      "kind": "DataContract",
+      "id": "53581432-6c55-4ba2-a65f-72344a91553a",
+      "status": "active",
+      "schema": [
+        {
+          "name": "orders",
+          "physicalType": "table",
+          "properties": [
+            {
+              "name": "user_preferences",
+              "logicalType": "map"
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "source": "src/script/negative-tests/map-missing-key.odcs.yaml",
+    "valid": false,
+    "document": {
+      "version": "1.0.0",
+      "apiVersion": "v3.2.0",
+      "kind": "DataContract",
+      "id": "53581432-6c55-4ba2-a65f-72344a91553a",
+      "status": "active",
+      "schema": [
+        {
+          "name": "orders",
+          "physicalType": "table",
+          "properties": [
+            {
+              "name": "user_preferences",
+              "logicalType": "map",
+              "map": {
+                "value": {
+                  "logicalType": "string"
+                }
+              }
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "source": "src/script/negative-tests/map-missing-value.odcs.yaml",
+    "valid": false,
+    "document": {
+      "version": "1.0.0",
+      "apiVersion": "v3.2.0",
+      "kind": "DataContract",
+      "id": "53581432-6c55-4ba2-a65f-72344a91553a",
+      "status": "active",
+      "schema": [
+        {
+          "name": "orders",
+          "physicalType": "table",
+          "properties": [
+            {
+              "name": "user_preferences",
+              "logicalType": "map",
+              "map": {
+                "key": {
+                  "logicalType": "string"
+                }
+              }
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "source": "src/script/negative-tests/missing-required-fields.odcs.yaml",
+    "valid": false,
+    "document": {
+      "version": "1.0.0",
+      "apiVersion": "v3.2.0",
+      "kind": "DataContract"
+    }
+  },
+  {
+    "source": "src/script/negative-tests/quality-custom-missing-implementation.odcs.yaml",
+    "valid": false,
+    "document": {
+      "version": "1.0.0",
+      "apiVersion": "v3.2.0",
+      "kind": "DataContract",
+      "id": "53581432-6c55-4ba2-a65f-72344a91553a",
+      "status": "active",
+      "schema": [
+        {
+          "name": "orders",
+          "physicalType": "table",
+          "properties": [
+            {
+              "name": "customer_id",
+              "logicalType": "string",
+              "physicalType": "varchar",
+              "quality": [
+                {
+                  "type": "custom",
+                  "engine": "soda"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "source": "src/script/negative-tests/quality-element-field.odcs.yaml",
+    "valid": false,
+    "document": {
+      "version": "1.0.0",
+      "apiVersion": "v3.2.0",
+      "kind": "DataContract",
+      "id": "53581432-6c55-4ba2-a65f-72344a91553a",
+      "status": "active",
+      "schema": [
+        {
+          "name": "orders",
+          "physicalType": "table",
+          "properties": [
+            {
+              "name": "customer_id",
+              "logicalType": "string",
+              "physicalType": "varchar",
+              "quality": [
+                {
+                  "description": "Validate customer_id exists in customers table",
+                  "element": "orders.customer_id",
+                  "rule": "EXISTS IN customers.id"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "source": "src/script/negative-tests/quality-library-missing-metric.odcs.yaml",
+    "valid": false,
+    "document": {
+      "version": "1.0.0",
+      "apiVersion": "v3.2.0",
+      "kind": "DataContract",
+      "id": "53581432-6c55-4ba2-a65f-72344a91553a",
+      "status": "active",
+      "schema": [
+        {
+          "name": "orders",
+          "physicalType": "table",
+          "properties": [
+            {
+              "name": "customer_id",
+              "logicalType": "string",
+              "physicalType": "varchar",
+              "quality": [
+                {
+                  "type": "library",
+                  "mustBe": 0
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "source": "src/script/negative-tests/quality-multiple-operators.odcs.yaml",
+    "valid": false,
+    "document": {
+      "version": "1.0.0",
+      "apiVersion": "v3.2.0",
+      "kind": "DataContract",
+      "id": "53581432-6c55-4ba2-a65f-72344a91553a",
+      "status": "active",
+      "schema": [
+        {
+          "name": "orders",
+          "physicalType": "table",
+          "properties": [
+            {
+              "name": "customer_id",
+              "logicalType": "string",
+              "physicalType": "varchar",
+              "quality": [
+                {
+                  "type": "library",
+                  "metric": "nullValues",
+                  "mustBe": 0,
+                  "mustNotBe": 5
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "source": "src/script/negative-tests/quality-mustbebetween-wrong-size.odcs.yaml",
+    "valid": false,
+    "document": {
+      "version": "1.0.0",
+      "apiVersion": "v3.2.0",
+      "kind": "DataContract",
+      "id": "53581432-6c55-4ba2-a65f-72344a91553a",
+      "status": "active",
+      "schema": [
+        {
+          "name": "orders",
+          "physicalType": "table",
+          "quality": [
+            {
+              "type": "library",
+              "metric": "rowCount",
+              "mustBeBetween": [
+                100
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "source": "src/script/negative-tests/quality-sql-missing-query.odcs.yaml",
+    "valid": false,
+    "document": {
+      "version": "1.0.0",
+      "apiVersion": "v3.2.0",
+      "kind": "DataContract",
+      "id": "53581432-6c55-4ba2-a65f-72344a91553a",
+      "status": "active",
+      "schema": [
+        {
+          "name": "orders",
+          "physicalType": "table",
+          "properties": [
+            {
+              "name": "amount",
+              "logicalType": "number",
+              "physicalType": "float",
+              "quality": [
+                {
+                  "type": "sql",
+                  "mustBe": 0
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "source": "src/script/negative-tests/relationship-property-level-with-from.odcs.yaml",
+    "valid": false,
+    "document": {
+      "version": "1.0.0",
+      "apiVersion": "v3.2.0",
+      "kind": "DataContract",
+      "id": "53581432-6c55-4ba2-a65f-72344a91553a",
+      "status": "active",
+      "schema": [
+        {
+          "name": "orders",
+          "physicalType": "table",
+          "properties": [
+            {
+              "name": "customer_id",
+              "logicalType": "string",
+              "physicalType": "varchar",
+              "relationships": [
+                {
+                  "from": "orders.customer_id",
+                  "to": "customers.id"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "source": "src/script/negative-tests/relationship-schema-level-missing-from-to.odcs.yaml",
+    "valid": false,
+    "document": {
+      "version": "1.0.0",
+      "apiVersion": "v3.2.0",
+      "kind": "DataContract",
+      "id": "53581432-6c55-4ba2-a65f-72344a91553a",
+      "status": "active",
+      "schema": [
+        {
+          "name": "orders",
+          "physicalType": "table",
+          "relationships": [
+            {
+              "type": "foreignKey"
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "source": "src/script/negative-tests/schema-property-invalid-logicaltype.odcs.yaml",
+    "valid": false,
+    "document": {
+      "version": "1.0.0",
+      "apiVersion": "v3.2.0",
+      "kind": "DataContract",
+      "id": "53581432-6c55-4ba2-a65f-72344a91553a",
+      "status": "active",
+      "schema": [
+        {
+          "name": "orders",
+          "physicalType": "table",
+          "properties": [
+            {
+              "name": "customer_id",
+              "logicalType": "binary",
+              "physicalType": "bytea"
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "source": "src/script/negative-tests/schema-property-missing-name.odcs.yaml",
+    "valid": false,
+    "document": {
+      "version": "1.0.0",
+      "apiVersion": "v3.2.0",
+      "kind": "DataContract",
+      "id": "53581432-6c55-4ba2-a65f-72344a91553a",
+      "status": "active",
+      "schema": [
+        {
+          "name": "orders",
+          "physicalType": "table",
+          "properties": [
+            {
+              "logicalType": "string",
+              "physicalType": "varchar"
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "source": "src/script/negative-tests/server-encoding-wrong-type.odcs.yaml",
+    "valid": false,
+    "document": {
+      "version": "1.0.0",
+      "apiVersion": "v3.2.0",
+      "kind": "DataContract",
+      "id": "9c2d4e6f-2a1b-4c3d-8e5f-1a2b3c4d5e6f",
+      "status": "active",
+      "servers": [
+        {
+          "server": "production",
+          "type": "s3",
+          "location": "s3://my-bucket/customer_export/*.csv",
+          "format": "csv",
+          "encoding": 65001
+        }
+      ],
+      "schema": [
+        {
+          "name": "customers",
+          "physicalType": "table",
+          "properties": [
+            {
+              "name": "customer_id",
+              "logicalType": "string"
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "source": "src/script/negative-tests/server-invalid-type.odcs.yaml",
+    "valid": false,
+    "document": {
+      "version": "1.0.0",
+      "apiVersion": "v3.2.0",
+      "kind": "DataContract",
+      "id": "53581432-6c55-4ba2-a65f-72344a91553a",
+      "status": "active",
+      "servers": [
+        {
+          "server": "prod-db",
+          "type": "mongodb"
+        }
+      ]
+    }
+  },
+  {
+    "source": "src/script/negative-tests/server-missing-conditional-fields.odcs.yaml",
+    "valid": false,
+    "document": {
+      "version": "1.0.0",
+      "apiVersion": "v3.2.0",
+      "kind": "DataContract",
+      "id": "53581432-6c55-4ba2-a65f-72344a91553a",
+      "status": "active",
+      "servers": [
+        {
+          "server": "athena-prod",
+          "type": "athena",
+          "regionName": "eu-west-1"
+        }
+      ]
+    }
+  },
+  {
+    "source": "src/script/negative-tests/server-missing-required-fields.odcs.yaml",
+    "valid": false,
+    "document": {
+      "version": "1.0.0",
+      "apiVersion": "v3.2.0",
+      "kind": "DataContract",
+      "id": "53581432-6c55-4ba2-a65f-72344a91553a",
+      "status": "active",
+      "servers": [
+        {
+          "host": "db.example.com",
+          "port": 5432,
+          "database": "mydb",
+          "schema": "public"
+        }
+      ]
+    }
+  },
+  {
+    "source": "src/script/negative-tests/sla-authoritativedefinition-missing-type.odcs.yaml",
+    "valid": false,
+    "document": {
+      "version": "1.0.0",
+      "apiVersion": "v3.2.0",
+      "kind": "DataContract",
+      "id": "8a3b0c5e-2c7f-4b9e-8d1a-4f5b6c7d8e9f",
+      "status": "active",
+      "schema": [],
+      "slaProperties": [
+        {
+          "property": "latency",
+          "value": 100,
+          "unit": "ms",
+          "authoritativeDefinitions": [
+            {
+              "url": "https://wiki.acme.com/sla/latency"
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "source": "src/script/negative-tests/sla-missing-required-value.odcs.yaml",
+    "valid": false,
+    "document": {
+      "version": "1.0.0",
+      "apiVersion": "v3.2.0",
+      "kind": "DataContract",
+      "id": "53581432-6c55-4ba2-a65f-72344a91553a",
+      "status": "active",
+      "slaProperties": [
+        {
+          "property": "latency",
+          "unit": "d",
+          "element": "orders.created_at"
+        }
+      ]
+    }
+  },
+  {
+    "source": "src/script/negative-tests/stable-id-denied-characters.odcs.yaml",
+    "valid": false,
+    "document": {
+      "version": "1.0.0",
+      "apiVersion": "v3.2.0",
+      "kind": "DataContract",
+      "id": "7d4e9a02-8b13-4c56-aa2f-3e19d6b4c807",
+      "status": "active",
+      "schema": [
+        {
+          "id": "fdir.dataset",
+          "name": "dataset",
+          "physicalType": "table",
+          "properties": [
+            {
+              "name": "field"
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "source": "src/script/negative-tests/synonym-missing-term.odcs.yaml",
+    "valid": false,
+    "document": {
+      "version": "1.0.0",
+      "apiVersion": "v3.2.0",
+      "kind": "DataContract",
+      "id": "53581432-6c55-4ba2-a65f-72344a91553a",
+      "status": "active",
+      "schema": [
+        {
+          "name": "orders",
+          "physicalType": "table",
+          "properties": [
+            {
+              "name": "total_revenue",
+              "semanticType": "measure",
+              "logicalType": "number",
+              "transformLogic": "SUM(revenue)",
+              "synonyms": [
+                {
+                  "description": "Missing the required `synonym` term."
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "source": "src/script/negative-tests/teradata-missing-host.odcs.yaml",
+    "valid": false,
+    "document": {
+      "version": "1.0.0",
+      "apiVersion": "v3.2.0",
+      "kind": "DataContract",
+      "id": "4e8c2a19-6b03-4d75-9f28-1a3b6c8d0e54",
+      "status": "active",
+      "servers": [
+        {
+          "server": "prod",
+          "type": "teradata",
+          "port": 1025,
+          "database": "SALES"
+        }
+      ],
+      "schema": [
+        {
+          "name": "sales",
+          "physicalType": "table"
+        }
+      ]
+    }
+  },
+  {
+    "source": "src/script/negative-tests/variables-in-integer-field.odcs.yaml",
+    "valid": false,
+    "document": {
+      "version": "1.0.0",
+      "apiVersion": "v3.2.0",
+      "kind": "DataContract",
+      "id": "9d8f1c3a-5b2e-4f7d-a6c4-0e1b2d3c4f5a",
+      "status": "active",
+      "servers": [
+        {
+          "server": "prod_db",
+          "environment": "prod",
+          "type": "postgresql",
+          "host": "${DB_HOST}",
+          "port": "${DB_PORT}",
+          "database": "orders",
+          "schema": "public"
+        }
+      ],
+      "schema": [
+        {
+          "name": "orders",
+          "physicalType": "table",
+          "properties": [
+            {
+              "name": "order_id",
+              "logicalType": "string",
+              "physicalType": "varchar(36)",
+              "primaryKey": true,
+              "primaryKeyPosition": "${KEY_POS}"
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "source": "src/script/negative-tests/vector-missing-dimensions.odcs.yaml",
+    "valid": false,
+    "document": {
+      "version": "1.0.0",
+      "apiVersion": "v3.2.0",
+      "kind": "DataContract",
+      "id": "9d2e5f8a-3b4c-4d6e-8f1a-2b3c4d5e6f7a",
+      "status": "active",
+      "schema": [
+        {
+          "name": "products",
+          "physicalType": "table",
+          "properties": [
+            {
+              "name": "description_embedding",
+              "logicalType": "vector",
+              "logicalTypeOptions": {
+                "elementType": "float32",
+                "distanceMetric": "cosine"
+              }
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "source": "src/script/negative-tests/vectorwise-missing-database.odcs.yaml",
+    "valid": false,
+    "document": {
+      "version": "1.0.0",
+      "apiVersion": "v3.2.0",
+      "kind": "DataContract",
+      "id": "2b4e6081-3c57-4d92-af1b-8d3c7e5f9a26",
+      "status": "active",
+      "servers": [
+        {
+          "server": "prod",
+          "type": "vectorwise",
+          "host": "analytics.acme.com",
+          "port": 21064
+        }
+      ],
+      "schema": [
+        {
+          "name": "sales",
+          "physicalType": "table"
+        }
+      ]
+    }
+  },
+  {
+    "source": "src/script/negative-tests/vendor-wrong-type.odcs.yaml",
+    "valid": false,
+    "document": {
+      "version": "1.0.0",
+      "apiVersion": "v3.2.0",
+      "kind": "DataContract",
+      "id": "7b3e9d2f-4c5a-4e0b-9f1c-2d3e4f5a6b7c",
+      "status": "active",
+      "customProperties": [
+        {
+          "property": "propGovObject",
+          "value": "abc",
+          "vendor": 12345
+        }
+      ],
+      "schema": [
+        {
+          "name": "orders",
+          "physicalType": "table"
+        }
+      ]
+    }
+  },
+  {
+    "source": "src/script/negative-tests/versant-missing-database.odcs.yaml",
+    "valid": false,
+    "document": {
+      "version": "1.0.0",
+      "apiVersion": "v3.2.0",
+      "kind": "DataContract",
+      "id": "3c5f7192-4d68-4ea3-b02c-9e4d8f6a0b37",
+      "status": "active",
+      "servers": [
+        {
+          "server": "prod",
+          "type": "versant",
+          "host": "nosql01.acme.com",
+          "port": 5019
+        }
+      ],
+      "schema": [
+        {
+          "name": "policies",
+          "physicalType": "table"
+        }
+      ]
+    }
+  }
+]

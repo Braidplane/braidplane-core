@@ -1,0 +1,71 @@
+import (
+  "context"
+  "log/slog"
+  "time"
+
+  "github.com/Braidplane/braidplane-core/pkg/logging"
+  "github.com/Braidplane/braidplane-core/pkg/tracing"
+)
+
+{{ $decorator := (or .Vars.DecoratorName (printf "%sWithLogging" .Interface.Name)) }}
+{{ $layer := (or .Vars.Layer "service") }}
+{{ $pkg := (or .Vars.Package .SourcePackage.PkgPath) }}
+
+// {{$decorator}} implements {{.Interface.Type}} with method completion logging.
+type {{$decorator}} struct {
+  _base {{.Interface.Type}}
+  _logger *slog.Logger
+}
+
+// New{{$decorator}} wraps base with method completion logging.
+func New{{$decorator}}(base {{.Interface.Type}}, logger *slog.Logger) {{.Interface.Type}} {
+  return {{$decorator}}{
+    _base: base,
+    _logger: logger,
+  }
+}
+
+{{range $method := .Interface.Methods}}
+  // {{$method.Name}} implements {{$.Interface.Type}}.
+  func (_d {{$decorator}}) {{$method.Declaration}} {
+    _startedAt := time.Now()
+    {{- if $method.AcceptsContext}}
+    _ctx := ctx
+    {{- else}}
+    _ctx := context.Background()
+    {{- end}}
+    _ctx, _span := tracing.StartMethodSpan(_ctx, tracing.MethodSpan{
+      Layer: "{{$layer}}",
+      Package: "{{$pkg}}",
+      Interface: "{{$.Interface.Name}}",
+      Method: "{{$method.Name}}",
+    })
+    defer _span.End()
+    defer func() {
+      {{- if $method.ReturnsError}}
+      if err != nil {
+        tracing.RecordError(_span, err)
+      }
+      {{- end}}
+      logging.LogMethodCompletion(_ctx, _d._logger, logging.MethodCompletion{
+        Layer: "{{$layer}}",
+        Package: "{{$pkg}}",
+        Interface: "{{$.Interface.Name}}",
+        Method: "{{$method.Name}}",
+        StartedAt: _startedAt,
+        CompletedAt: time.Now(),
+        {{- if $method.ReturnsError}}
+        Err: err,
+        {{- end}}
+      })
+    }()
+
+    {{- if $method.HasResults}}
+    {{$method.ResultsNames}} = _d._base.{{$method.Name}}({{range $index, $param := $method.Params}}{{if $index}}, {{end}}{{if and $method.AcceptsContext (eq $param.Name "ctx")}}_ctx{{else}}{{$param.Pass}}{{end}}{{end}})
+    return
+    {{- else}}
+    _d._base.{{$method.Name}}({{range $index, $param := $method.Params}}{{if $index}}, {{end}}{{if and $method.AcceptsContext (eq $param.Name "ctx")}}_ctx{{else}}{{$param.Pass}}{{end}}{{end}})
+    return
+    {{- end}}
+  }
+{{end}}

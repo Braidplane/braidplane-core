@@ -1,0 +1,721 @@
+package views
+
+import "fmt"
+import api "github.com/Braidplane/braidplane-core/api-schema/gen/client"
+
+templ QueriesPage(shellData AuthenticatedShellData, dataSources []api.DataSource, selectedDataSource string, selectedDataSourceType string, queries []api.Query, selectedQuery *api.Query, selectedQueryFormData QueryEditorFormData, hasMore bool, nextCursor string, prevCursor string, orgSlug string, createFormData QueryEditorFormData, executionResult *QueryExecutionResultView, executionError string, focusQuerySlug string, showDeleted bool, permissions OrganizationPermissions) {
+	@AuthenticatedShell(shellData, QueriesPageContent(dataSources, selectedDataSource, selectedDataSourceType, queries, selectedQuery, selectedQueryFormData, hasMore, nextCursor, prevCursor, orgSlug, createFormData, executionResult, executionError, focusQuerySlug, showDeleted, permissions))
+}
+
+templ QueriesPageContent(dataSources []api.DataSource, selectedDataSource string, selectedDataSourceType string, queries []api.Query, selectedQuery *api.Query, selectedQueryFormData QueryEditorFormData, hasMore bool, nextCursor string, prevCursor string, orgSlug string, createFormData QueryEditorFormData, executionResult *QueryExecutionResultView, executionError string, focusQuerySlug string, showDeleted bool, permissions OrganizationPermissions) {
+	<div id="queries-workspace">
+		if selectedDataSource != "" {
+			<div class="flex min-h-8 flex-wrap items-center justify-end gap-3">
+				if !showDeleted && permissions.Can("queries", "create") {
+					<button
+						class="btn btn-primary btn-sm w-full sm:w-auto"
+						type="button"
+						aria-controls="create-query-form"
+						aria-expanded={ func() string { if createFormData.Name != "" { return "true" }; return "false" }() }
+						data-toggle-target="create-query-form"
+					>New query</button>
+				}
+			</div>
+		}
+		<div class="mt-5 max-w-md">
+			<form id="queries-filter-form" class="rounded-xl border border-base-300 bg-base-100 p-4" method="get" action={ templ.URL("/orgs/" + orgSlug + "/queries") }>
+				if showDeleted {
+					<input type="hidden" name="deleted" value="true"/>
+				}
+				<label class="form-control w-full">
+					<div class="label py-1">
+						<span class="label-text text-xs font-semibold uppercase tracking-wide text-base-content/60">Data source</span>
+					</div>
+					<select
+						class="select select-bordered select-sm w-full"
+						name="ds"
+						hx-get={ "/orgs/" + orgSlug + "/queries" }
+						hx-trigger="change"
+						hx-include="#queries-filter-form"
+						hx-target="#queries-workspace"
+						hx-select="#queries-workspace"
+						hx-swap="outerHTML show:none focus-scroll:false"
+						hx-push-url="true"
+						data-preserve-scroll
+					>
+						if len(dataSources) == 0 {
+							<option value="">No data sources</option>
+						} else {
+							for _, ds := range dataSources {
+								<option selected?={ selectedDataSource == string(ds.Slug) } value={ string(ds.Slug) }>{ QuerySourceName(dataSources, string(ds.Slug)) }</option>
+							}
+						}
+					</select>
+				</label>
+				<div class="mt-3 flex flex-wrap items-center gap-2">
+					if selectedDataSourceType != "" {
+						@DataSourceIcon(selectedDataSourceType, "sm")
+					}
+					<span class="badge badge-outline">{ fmt.Sprintf("%d sources", len(dataSources)) }</span>
+					if selectedDataSourceType != "" {
+						<span class="badge badge-outline">{ selectedDataSourceType }</span>
+					}
+					<span class={ QuerySourceStatusBadgeClass(dataSources, selectedDataSource) }>{ QuerySourceStatusLabel(dataSources, selectedDataSource) }</span>
+				</div>
+			</form>
+		</div>
+		if selectedDataSource == "" {
+			<section class="mt-6 space-y-3" aria-label="Get your first result">
+				<h2 class="text-lg font-semibold">Get your first result</h2>
+				if len(dataSources) == 0 {
+					<p class="max-w-prose text-sm text-base-content/70">Connect a supported system, then save and run a read. You do not need a project or Git repository.</p>
+					if permissions.Can("datasources", "create") {
+						<a class="btn btn-primary btn-sm" href={ templ.URL("/orgs/" + orgSlug + "/data-sources") }>Connect a system</a>
+					} else {
+						<p class="text-sm text-base-content/70">Ask a workspace admin to connect a system or grant you access to an existing connection.</p>
+					}
+				} else {
+					<p class="text-sm text-base-content/70">Select a data source above to create or run a saved read.</p>
+				}
+			</section>
+		}
+		if selectedDataSource != "" {
+			<div class="tabs tabs-boxed mt-6 w-fit bg-base-200 p-1">
+				<a class={ func() string { if showDeleted { return "tab tab-sm" }; return "tab tab-sm tab-active" }() } href={ templ.URL(QueriesListHref(orgSlug, selectedDataSource, "", false)) } hx-get={ QueriesListHref(orgSlug, selectedDataSource, "", false) } hx-target="#queries-workspace" hx-select="#queries-workspace" hx-swap="outerHTML show:none focus-scroll:false" hx-push-url="true" data-preserve-scroll>Active</a>
+				if permissions.Can("queries", "restore") || permissions.Can("queries", "purge") {
+					<a class={ func() string { if showDeleted { return "tab tab-sm tab-active" }; return "tab tab-sm" }() } href={ templ.URL(QueriesListHref(orgSlug, selectedDataSource, "", true)) } hx-get={ QueriesListHref(orgSlug, selectedDataSource, "", true) } hx-target="#queries-workspace" hx-select="#queries-workspace" hx-swap="outerHTML show:none focus-scroll:false" hx-push-url="true" data-preserve-scroll>Deleted queries</a>
+				}
+			</div>
+			if !showDeleted && permissions.Can("queries", "create") {
+				<div
+					id="create-query-form"
+					class={ "mt-6 rounded-xl border border-base-300 bg-base-100 p-5 scroll-mt-6" + func() string {
+	if createFormData.Name != "" {
+		return ""
+	}
+	return " hidden"
+}() }
+				>
+					<div class="flex flex-wrap items-center gap-2">
+						<p class="text-sm font-semibold text-base-content">New query</p>
+						<div class="badge badge-outline">Data source type: { selectedDataSourceType }</div>
+					</div>
+					<form
+						class="mt-4 space-y-3"
+						method="post"
+						action={ templ.URL("/orgs/" + orgSlug + "/queries") }
+						hx-post={ "/orgs/" + orgSlug + "/queries" }
+						hx-target="#queries-workspace"
+						hx-select="#queries-workspace"
+						hx-swap="outerHTML show:none focus-scroll:false"
+						data-preserve-scroll
+					>
+						<input type="hidden" name="ds" value={ selectedDataSource }/>
+						<input type="hidden" name="statement_type" value={ queryStatementTypeValue(selectedDataSourceType) }/>
+						<div class="grid gap-3 md:grid-cols-2">
+							<label class="form-control w-full">
+								<div class="label py-1"><span class="label-text text-xs">Name</span></div>
+								<input class="input input-bordered input-sm w-full" type="text" name="name" value={ createFormData.Name } required/>
+							</label>
+							@CustomizeIdentifier(createFormData.Slug)
+						</div>
+						<label class="form-control w-full">
+							<div class="label py-1"><span class="label-text text-xs">Description</span></div>
+							<input class="input input-bordered input-sm w-full" type="text" name="description" value={ createFormData.Description }/>
+						</label>
+						if selectedDataSourceType == "google_workspace" {
+							@WorkspaceOperationFields(createFormData, orgSlug, selectedDataSource)
+						} else if selectedDataSourceType == "http" {
+							<div class="grid gap-3 md:grid-cols-2">
+								<label class="form-control w-full">
+									<div class="label py-1"><span class="label-text text-xs">HTTP method</span></div>
+									<select class="select select-bordered input-sm w-full" name="http_method">
+										<option selected?={ createFormData.HTTPMethod == "GET" } value="GET">GET</option>
+										<option selected?={ createFormData.HTTPMethod == "POST" } value="POST">POST</option>
+										<option selected?={ createFormData.HTTPMethod == "PUT" } value="PUT">PUT</option>
+										<option selected?={ createFormData.HTTPMethod == "DELETE" } value="DELETE">DELETE</option>
+										<option selected?={ createFormData.HTTPMethod == "PATCH" } value="PATCH">PATCH</option>
+										<option selected?={ createFormData.HTTPMethod == "HEAD" } value="HEAD">HEAD</option>
+									</select>
+								</label>
+								<label class="form-control w-full">
+									<div class="label py-1"><span class="label-text text-xs">Path</span></div>
+									<input class="input input-bordered input-sm w-full font-mono" type="text" name="http_path" value={ createFormData.HTTPPath } placeholder="/users/{user_id}" data-param-source-input data-http-path-input required/>
+								</label>
+							</div>
+							<div class="space-y-2" data-http-tabs>
+								<div class="tabs tabs-boxed w-fit gap-1 bg-base-200 p-1">
+									<button class="tab tab-sm" type="button" data-http-tab="query">Query</button>
+									<button class="tab tab-sm tab-active" type="button" data-http-tab="body">Body</button>
+									<button class="tab tab-sm" type="button" data-http-tab="headers">Headers</button>
+								</div>
+								<div data-http-pane="query" class="hidden">
+									<div class="rounded-lg border border-base-300 p-3" data-kv-editor data-http-query-editor>
+										<div class="flex flex-wrap items-center justify-between gap-2">
+											<p class="text-xs font-semibold uppercase tracking-wide text-base-content/70">Query params</p>
+											<button class="btn btn-outline btn-xs" type="button" data-add-kv>+ Add param</button>
+										</div>
+										<div class="mt-2 space-y-2" data-kv-rows>
+											for _, row := range createFormData.HTTPQueryParamRows {
+												<div class="grid gap-2 md:grid-cols-[1fr_1fr_auto]" data-kv-row>
+													<input class="input input-bordered input-sm font-mono" type="text" name="http_query_param_key" placeholder="key" value={ row.Key }/>
+													<input class="input input-bordered input-sm font-mono" type="text" name="http_query_param_value" placeholder="value" value={ row.Value } data-param-source-input/>
+													<button class="btn btn-ghost btn-xs" type="button" data-remove-kv>Remove</button>
+												</div>
+											}
+										</div>
+										<template data-kv-row-template>
+											<div class="grid gap-2 md:grid-cols-[1fr_1fr_auto]" data-kv-row>
+												<input class="input input-bordered input-sm font-mono" type="text" name="http_query_param_key" placeholder="key" value=""/>
+												<input class="input input-bordered input-sm font-mono" type="text" name="http_query_param_value" placeholder="value" value="" data-param-source-input/>
+												<button class="btn btn-ghost btn-xs" type="button" data-remove-kv>Remove</button>
+											</div>
+										</template>
+									</div>
+								</div>
+								<div data-http-pane="body">
+									<label class="form-control w-full">
+										<div class="label py-1"><span class="label-text text-xs">Body (JSON, optional)</span></div>
+										<textarea class="textarea textarea-bordered min-h-28 w-full font-mono text-sm" name="http_body" placeholder="Any valid JSON value" data-param-source-input>{ createFormData.HTTPBody }</textarea>
+									</label>
+								</div>
+								<div data-http-pane="headers" class="hidden">
+									@httpHeaderNameSuggestions("http-operation-header-names-create", false)
+									<div class="rounded-lg border border-base-300 p-3" data-kv-editor>
+										<div class="flex flex-wrap items-center justify-between gap-2">
+											<p class="text-xs font-semibold uppercase tracking-wide text-base-content/70">Headers</p>
+											<p class="text-xs text-base-content/70">Choose a suggested header or enter a custom name. Store credentials in the data source secret headers.</p>
+											<button class="btn btn-outline btn-xs" type="button" data-add-kv>+ Add header</button>
+										</div>
+										<div class="mt-2 space-y-2" data-kv-rows>
+											for _, row := range createFormData.HTTPHeaderRows {
+												<div class="grid gap-2 md:grid-cols-[1fr_1fr_auto]" data-kv-row>
+													<input class="input input-bordered input-sm font-mono" type="text" name="http_header_key" list="http-operation-header-names-create" placeholder="header" value={ row.Key }/>
+													<input class="input input-bordered input-sm font-mono" type="text" name="http_header_value" placeholder="value" value={ row.Value } data-param-source-input/>
+													<button class="btn btn-ghost btn-xs" type="button" data-remove-kv>Remove</button>
+												</div>
+											}
+										</div>
+										<template data-kv-row-template>
+											<div class="grid gap-2 md:grid-cols-[1fr_1fr_auto]" data-kv-row>
+												<input class="input input-bordered input-sm font-mono" type="text" name="http_header_key" list="http-operation-header-names-create" placeholder="header" value=""/>
+												<input class="input input-bordered input-sm font-mono" type="text" name="http_header_value" placeholder="value" value="" data-param-source-input/>
+												<button class="btn btn-ghost btn-xs" type="button" data-remove-kv>Remove</button>
+											</div>
+										</template>
+									</div>
+								</div>
+							</div>
+							@httpAcknowledgementFields(createFormData.HTTPAcknowledgement)
+							@httpExecutionPolicyFields(createFormData)
+						} else if selectedDataSourceType == "mongodb" {
+							<div class="grid gap-3 md:grid-cols-2">
+								<label class="form-control w-full">
+									<div class="label py-1"><span class="label-text text-xs">Collection</span></div>
+									<input class="input input-bordered input-sm w-full" type="text" name="mongo_collection" value={ createFormData.MongoCollection } required/>
+								</label>
+								<label class="form-control w-full">
+									<div class="label py-1"><span class="label-text text-xs">Operation</span></div>
+									<select class="select select-bordered input-sm w-full" name="mongo_operation">
+										<option selected?={ createFormData.MongoOperation == "find" } value="find">find</option>
+										<option selected?={ createFormData.MongoOperation == "aggregate" } value="aggregate">aggregate</option>
+										<option selected?={ createFormData.MongoOperation == "count_documents" } value="count_documents">count_documents</option>
+										<option selected?={ createFormData.MongoOperation == "insert_one" } value="insert_one">insert_one</option>
+										<option selected?={ createFormData.MongoOperation == "update_one" } value="update_one">update_one</option>
+										<option selected?={ createFormData.MongoOperation == "delete_one" } value="delete_one">delete_one</option>
+										<option selected?={ createFormData.MongoOperation == "update_many" } value="update_many">update_many</option>
+										<option selected?={ createFormData.MongoOperation == "delete_many" } value="delete_many">delete_many</option>
+									</select>
+								</label>
+							</div>
+							<label class="form-control w-full">
+								<div class="label py-1"><span class="label-text text-xs">Filter (JSON)</span></div>
+								<textarea class="textarea textarea-bordered min-h-24 w-full font-mono text-sm" name="mongo_filter" placeholder="JSON object filter" data-param-source-input>{ createFormData.MongoFilter }</textarea>
+							</label>
+							<div class="grid gap-3 md:grid-cols-2">
+								<label class="form-control w-full">
+									<div class="label py-1"><span class="label-text text-xs">Sort (JSON)</span></div>
+									<textarea class="textarea textarea-bordered min-h-24 w-full font-mono text-sm" name="mongo_sort" placeholder="JSON object sort, values 1 or -1" data-param-source-input>{ createFormData.MongoSort }</textarea>
+								</label>
+								<label class="form-control w-full">
+									<div class="label py-1"><span class="label-text text-xs">Projection (JSON)</span></div>
+									<textarea class="textarea textarea-bordered min-h-24 w-full font-mono text-sm" name="mongo_projection" placeholder="JSON object projection, values 0 or 1" data-param-source-input>{ createFormData.MongoProjection }</textarea>
+								</label>
+							</div>
+							<div class="grid gap-3 md:grid-cols-2">
+								<label class="form-control w-full">
+									<div class="label py-1"><span class="label-text text-xs">Limit value (optional)</span></div>
+									<input class="input input-bordered input-sm w-full" type="number" min="1" name="mongo_limit_value" value={ createFormData.MongoLimitValue }/>
+								</label>
+								<label class="form-control w-full">
+									<div class="label py-1"><span class="label-text text-xs">Document (JSON, optional)</span></div>
+									<textarea class="textarea textarea-bordered min-h-24 w-full font-mono text-sm" name="mongo_document" placeholder="JSON object document" data-param-source-input>{ createFormData.MongoDocument }</textarea>
+								</label>
+							</div>
+						} else if selectedDataSourceType == "hubspot" {
+							<div class="rounded-lg border border-base-300 bg-base-200/40 p-3">
+								<p class="text-xs font-semibold uppercase tracking-wide text-base-content/70">HubSpot CRM</p>
+								if QuerySourceIsReadOnly(dataSources, selectedDataSource) {
+									<p class="mt-1 text-xs text-base-content/70">Read CRM rows. Row limit caps returned rows.</p>
+								} else {
+									<p class="mt-1 text-xs text-base-content/70">Read CRM rows or configure a key-based upsert sink. Row limit caps reads and sink input rows.</p>
+								}
+							</div>
+							<div class="grid gap-3 md:grid-cols-2">
+								<label class="form-control w-full">
+									<div class="label py-1"><span class="label-text text-xs">Object name or type ID</span></div>
+									<input class="input input-bordered input-sm w-full font-mono" type="text" name="hubspot_object_type" value={ createFormData.HubSpotObjectType } list="hubspot-object-types" placeholder="contacts or 2-7282133" required/>
+									<datalist id="hubspot-object-types">
+										<option value="contacts"></option>
+										<option value="companies"></option>
+										<option value="deals"></option>
+									</datalist>
+									<div class="label py-1"><span class="label-text-alt text-base-content/60">Use the object type ID shown by schema discovery for custom objects.</span></div>
+								</label>
+								<label class="form-control w-full">
+									<div class="label py-1"><span class="label-text text-xs">Operation</span></div>
+									<select class="select select-bordered input-sm w-full" name="hubspot_operation">
+										<option selected?={ createFormData.HubSpotOperation == "search" } value="search">search</option>
+										<option selected?={ createFormData.HubSpotOperation == "list" } value="list">list</option>
+										if !QuerySourceIsReadOnly(dataSources, selectedDataSource) {
+											<option selected?={ createFormData.HubSpotOperation == "upsert" } value="upsert">upsert</option>
+										}
+									</select>
+								</label>
+							</div>
+							if !QuerySourceIsReadOnly(dataSources, selectedDataSource) {
+								<div class="grid gap-3 rounded-lg border border-base-300 bg-base-200/40 p-3 md:grid-cols-2">
+									<label class="form-control w-full">
+										<div class="label py-1"><span class="label-text text-xs">Upsert ID property</span></div>
+										<input class="input input-bordered input-sm w-full font-mono" type="text" name="hubspot_id_property" value={ createFormData.HubSpotIDProperty } placeholder="external_customer_id" data-param-source-input/>
+										<div class="label py-1"><span class="label-text-alt text-base-content/60">Must be a unique HubSpot property and included as a mapping target.</span></div>
+									</label>
+									<label class="form-control w-full">
+										<div class="label py-1"><span class="label-text text-xs">Rows binding</span></div>
+										<input class="input input-bordered input-sm w-full font-mono" type="text" name="hubspot_rows" value={ createFormData.HubSpotRows } placeholder="{{input}}" data-param-source-input/>
+										<div class="label py-1"><span class="label-text-alt text-base-content/60">Use the input placeholder for pipeline sink rows.</span></div>
+									</label>
+									<label class="form-control w-full md:col-span-2">
+										<div class="label py-1"><span class="label-text text-xs">Upsert property mapping (JSON)</span></div>
+										<textarea class="textarea textarea-bordered min-h-24 w-full font-mono text-sm" name="hubspot_property_mapping" placeholder='{"customer_id":"external_customer_id","email":"email"}' data-param-source-input>{ createFormData.HubSpotMapping }</textarea>
+									</label>
+								</div>
+							}
+							<label class="form-control w-full">
+								<div class="label py-1"><span class="label-text text-xs">Properties (comma or newline separated)</span></div>
+								<textarea class="textarea textarea-bordered min-h-24 w-full font-mono text-sm" name="hubspot_properties" placeholder="email, firstname, lastname" data-param-source-input>{ createFormData.HubSpotProperties }</textarea>
+							</label>
+							<div class="grid gap-3 md:grid-cols-2">
+								<label class="form-control w-full">
+									<div class="label py-1"><span class="label-text text-xs">Search query (optional)</span></div>
+									<input class="input input-bordered input-sm w-full font-mono" type="text" name="hubspot_query" value={ createFormData.HubSpotQuery } placeholder="acme" data-param-source-input/>
+								</label>
+								<label class="form-control w-full">
+									<div class="label py-1"><span class="label-text text-xs">After cursor (optional)</span></div>
+									<input class="input input-bordered input-sm w-full font-mono" type="text" name="hubspot_after" value={ createFormData.HubSpotAfter } placeholder="1024" data-param-source-input/>
+								</label>
+							</div>
+							<label class="form-control w-full">
+								<div class="label py-1"><span class="label-text text-xs">Sorts (comma or newline separated, search only)</span></div>
+								<input class="input input-bordered input-sm w-full font-mono" type="text" name="hubspot_sorts" value={ createFormData.HubSpotSorts } placeholder="-createdate, hs_lastmodifieddate" data-param-source-input/>
+							</label>
+							<label class="form-control w-full">
+								<div class="label py-1"><span class="label-text text-xs">Filter groups (JSON, search only)</span></div>
+								<textarea class="textarea textarea-bordered min-h-28 w-full font-mono text-sm" name="hubspot_filter_groups" placeholder='[{"filters":[{"property_name":"email","operator":"EQ","value":"{{email}}"}]}]' data-param-source-input>{ createFormData.HubSpotFilterGroups }</textarea>
+							</label>
+						} else if selectedDataSourceType == "ftp" {
+							<label class="form-control w-full">
+								<div class="label py-1"><span class="label-text text-xs">Path</span></div>
+								<input class="input input-bordered input-sm w-full font-mono" type="text" name="ftp_path" value={ createFormData.FTPPath } placeholder="/path/to/file.xlsx" data-param-source-input required/>
+							</label>
+							<input type="hidden" name="ftp_operation" value="read"/>
+							<div class="grid gap-3 md:grid-cols-2">
+								<label class="form-control w-full">
+									<div class="label py-1"><span class="label-text text-xs">Format</span></div>
+									<select class="select select-bordered select-sm w-full" name="ftp_format">
+										<option value="auto" selected?={ createFormData.FTPFormat == "auto" }>Auto</option>
+										<option value="csv" selected?={ createFormData.FTPFormat == "csv" }>CSV</option>
+										<option value="json" selected?={ createFormData.FTPFormat == "json" }>JSON</option>
+										<option value="spreadsheet" selected?={ createFormData.FTPFormat == "spreadsheet" }>Spreadsheet</option>
+									</select>
+								</label>
+								<label class="form-control w-full">
+									<div class="label py-1"><span class="label-text text-xs">Delimiter (optional, single character)</span></div>
+									<input class="input input-bordered input-sm w-full font-mono" type="text" maxlength="1" name="ftp_delimiter" value={ createFormData.FTPDelimiter } placeholder=","/>
+								</label>
+								<label class="form-control w-full">
+									<div class="label py-1"><span class="label-text text-xs">Sheet (optional)</span></div>
+									<input class="input input-bordered input-sm w-full font-mono" type="text" name="ftp_sheet" value={ createFormData.FTPSheet } placeholder="Orders" data-param-source-input/>
+								</label>
+								<label class="form-control w-full">
+									<div class="label py-1"><span class="label-text text-xs">Range (optional)</span></div>
+									<input class="input input-bordered input-sm w-full font-mono" type="text" name="ftp_range" value={ createFormData.FTPRange } placeholder="A1:D200" data-param-source-input/>
+								</label>
+								<div class="flex flex-col gap-2 pt-1">
+									<label class="label cursor-pointer justify-start gap-3">
+										<input class="checkbox checkbox-sm" type="checkbox" name="ftp_has_header" value="on" checked?={ createFormData.FTPHasHeader }/>
+										<span class="label-text text-xs">Has header row</span>
+									</label>
+								</div>
+							</div>
+						} else if selectedDataSourceType == "s3" {
+							<label class="form-control w-full">
+								<div class="label py-1"><span class="label-text text-xs">Object key</span></div>
+								<input class="input input-bordered input-sm w-full font-mono" type="text" name="s3_key" value={ createFormData.S3Key } placeholder="exports/customers.csv" data-param-source-input/>
+							</label>
+							<input type="hidden" name="s3_operation" value="read"/>
+							<div class="grid gap-3 md:grid-cols-2">
+								<label class="form-control w-full">
+									<div class="label py-1"><span class="label-text text-xs">Bucket override (optional)</span></div>
+									<input class="input input-bordered input-sm w-full font-mono" type="text" name="s3_bucket" value={ createFormData.S3Bucket } placeholder="data-exports" data-param-source-input/>
+								</label>
+								<label class="form-control w-full">
+									<div class="label py-1"><span class="label-text text-xs">Format</span></div>
+									<select class="select select-bordered select-sm w-full" name="s3_format">
+										<option value="auto" selected?={ createFormData.S3Format == "auto" }>Auto</option>
+										<option value="csv" selected?={ createFormData.S3Format == "csv" }>CSV</option>
+										<option value="json" selected?={ createFormData.S3Format == "json" }>JSON</option>
+										<option value="file" selected?={ createFormData.S3Format == "file" }>File</option>
+										<option value="spreadsheet" selected?={ createFormData.S3Format == "spreadsheet" }>Spreadsheet</option>
+									</select>
+								</label>
+								<label class="form-control w-full">
+									<div class="label py-1"><span class="label-text text-xs">Delimiter (optional, single character)</span></div>
+									<input class="input input-bordered input-sm w-full font-mono" type="text" maxlength="1" name="s3_delimiter" value={ createFormData.S3Delimiter } placeholder=","/>
+								</label>
+								<label class="form-control w-full">
+									<div class="label py-1"><span class="label-text text-xs">Sheet (optional)</span></div>
+									<input class="input input-bordered input-sm w-full font-mono" type="text" name="s3_sheet" value={ createFormData.S3Sheet } placeholder="Orders" data-param-source-input/>
+								</label>
+								<label class="form-control w-full">
+									<div class="label py-1"><span class="label-text text-xs">Range (optional)</span></div>
+									<input class="input input-bordered input-sm w-full font-mono" type="text" name="s3_range" value={ createFormData.S3Range } placeholder="A1:D200" data-param-source-input/>
+								</label>
+							</div>
+							<div class="flex flex-col gap-2 pt-1">
+								<label class="label cursor-pointer justify-start gap-3">
+									<input class="checkbox checkbox-sm" type="checkbox" name="s3_has_header" value="on" checked?={ createFormData.S3HasHeader }/>
+									<span class="label-text text-xs">Has header row</span>
+								</label>
+							</div>
+							<details>
+								<summary class="cursor-pointer text-sm">Complete S3 operation JSON (optional)</summary>
+								<p class="mt-2 text-xs text-base-content/70">When provided, this complete operation replaces the read fields above. Review content and overwrite settings before running writes.</p>
+								<textarea class="textarea textarea-bordered mt-2 min-h-36 w-full font-mono text-sm" name="statement" aria-label="Complete S3 operation JSON" data-param-source-input>{ createFormData.Statement }</textarea>
+							</details>
+						} else if selectedDataSourceType == "git" || selectedDataSourceType == "github" || selectedDataSourceType == "gitlab" {
+							<label class="form-control w-full">
+								<div class="label py-1"><span class="label-text text-xs">Path</span></div>
+								<input class="input input-bordered input-sm w-full font-mono" type="text" name="git_path" value={ createFormData.GitPath } placeholder="data/file.xlsx" data-param-source-input required/>
+							</label>
+							<input type="hidden" name="git_operation" value="read"/>
+							<div class="grid gap-3 md:grid-cols-2">
+								<label class="form-control w-full">
+									<div class="label py-1"><span class="label-text text-xs">Branch / ref (optional)</span></div>
+									<input class="input input-bordered input-sm w-full font-mono" type="text" name="git_branch" value={ createFormData.GitBranch } placeholder="main"/>
+								</label>
+								<label class="form-control w-full">
+									<div class="label py-1"><span class="label-text text-xs">Format</span></div>
+									<select class="select select-bordered select-sm w-full" name="git_format">
+										<option value="auto" selected?={ createFormData.GitFormat == "auto" }>Auto</option>
+										<option value="csv" selected?={ createFormData.GitFormat == "csv" }>CSV</option>
+										<option value="json" selected?={ createFormData.GitFormat == "json" }>JSON</option>
+										<option value="file" selected?={ createFormData.GitFormat == "file" }>File</option>
+										<option value="spreadsheet" selected?={ createFormData.GitFormat == "spreadsheet" }>Spreadsheet</option>
+									</select>
+								</label>
+								<label class="form-control w-full">
+									<div class="label py-1"><span class="label-text text-xs">Delimiter (optional, single character)</span></div>
+									<input class="input input-bordered input-sm w-full font-mono" type="text" maxlength="1" name="git_delimiter" value={ createFormData.GitDelimiter } placeholder=","/>
+								</label>
+								<label class="form-control w-full">
+									<div class="label py-1"><span class="label-text text-xs">Sheet (optional)</span></div>
+									<input class="input input-bordered input-sm w-full font-mono" type="text" name="git_sheet" value={ createFormData.GitSheet } placeholder="Orders" data-param-source-input/>
+								</label>
+								<label class="form-control w-full">
+									<div class="label py-1"><span class="label-text text-xs">Range (optional)</span></div>
+									<input class="input input-bordered input-sm w-full font-mono" type="text" name="git_range" value={ createFormData.GitRange } placeholder="A1:D200" data-param-source-input/>
+								</label>
+							</div>
+							<div class="flex flex-col gap-2 pt-1">
+								<label class="label cursor-pointer justify-start gap-3">
+									<input class="checkbox checkbox-sm" type="checkbox" name="git_has_header" value="on" checked?={ createFormData.GitHasHeader }/>
+									<span class="label-text text-xs">Has header row</span>
+								</label>
+							</div>
+						} else {
+							<label class="form-control w-full">
+								<div class="label py-1"><span class="label-text text-xs">Statement</span></div>
+								<textarea class="textarea textarea-bordered min-h-36 w-full font-mono text-sm" name="statement" data-param-source-input required>{ createFormData.Statement }</textarea>
+							</label>
+							if selectedDataSourceType == "s3" {
+								<p class="text-xs text-base-content/70">Enter an S3 operation as JSON, including type, operation and key.</p>
+							}
+						}
+						<div class="grid gap-3 md:grid-cols-2">
+							if selectedDataSourceType != "http" {
+								<label class="form-control w-full">
+									<div class="label py-1"><span class="label-text text-xs">Row limit</span></div>
+									<input class="input input-bordered input-sm w-full" type="number" min="1" name="row_limit" value={ createFormData.RowLimit } required/>
+								</label>
+							}
+							<label class="form-control w-full">
+								<div class="label py-1"><span class="label-text text-xs">Timeout (seconds)</span></div>
+								<input class="input input-bordered input-sm w-full" type="number" min="1" name="timeout_seconds" value={ createFormData.TimeoutSeconds } required/>
+							</label>
+						</div>
+						<div class="rounded-lg border border-base-300 p-3" data-param-editor>
+							<p class="text-xs font-semibold uppercase tracking-wide text-base-content/70">Parameters</p>
+							<div class="mt-2 flex flex-wrap gap-2">
+								<button class="btn btn-outline btn-xs" data-add-param type="button">+ Add param</button>
+								<button class="btn btn-outline btn-xs" data-sync-params type="button">Sync from statement</button>
+							</div>
+							<div class="mt-2 space-y-2" data-param-rows>
+								for _, param := range createFormData.Parameters {
+									<div class="grid gap-2 xl:grid-cols-[1.2fr_0.8fr_0.8fr_1fr_1.4fr_auto_auto]" data-param-row>
+										<input class="input input-bordered input-sm" type="text" name="param_name" placeholder="name" value={ param.Name }/>
+										<select class="select select-bordered select-sm" name="param_type">
+											<option selected?={ param.Type == string(api.QueryParameterDataTypeText) } value={ string(api.QueryParameterDataTypeText) }>text</option>
+											<option selected?={ param.Type == string(api.QueryParameterDataTypeInteger) } value={ string(api.QueryParameterDataTypeInteger) }>integer</option>
+											<option selected?={ param.Type == string(api.QueryParameterDataTypeBoolean) } value={ string(api.QueryParameterDataTypeBoolean) }>boolean</option>
+											<option selected?={ param.Type == string(api.QueryParameterDataTypeDate) } value={ string(api.QueryParameterDataTypeDate) }>date</option>
+											<option selected?={ param.Type == string(api.QueryParameterDataTypeUuid) } value={ string(api.QueryParameterDataTypeUuid) }>uuid</option>
+										</select>
+										<select class="select select-bordered select-sm" name="param_required">
+											<option selected?={ param.Required } value="true">required</option>
+											<option selected?={ !param.Required } value="false">optional</option>
+										</select>
+										<input class="input input-bordered input-sm" type="text" name="param_default" placeholder="default" value={ param.DefaultValue }/>
+										<input class="input input-bordered input-sm" type="text" name="param_description" placeholder="description" value={ param.Description }/>
+										<input type="hidden" name="param_source" value={ param.Source } data-param-source/>
+										<span class="badge badge-outline badge-sm self-center" data-param-source-badge>{ param.Source }</span>
+										<button class="btn btn-ghost btn-xs self-center" type="button" data-remove-param>Remove</button>
+									</div>
+								}
+							</div>
+							<template data-param-row-template>
+								<div class="grid gap-2 xl:grid-cols-[1.2fr_0.8fr_0.8fr_1fr_1.4fr_auto_auto]" data-param-row>
+									<input class="input input-bordered input-sm" type="text" name="param_name" placeholder="name" value=""/>
+									<select class="select select-bordered select-sm" name="param_type">
+										<option selected value={ string(api.QueryParameterDataTypeText) }>text</option>
+										<option value={ string(api.QueryParameterDataTypeInteger) }>integer</option>
+										<option value={ string(api.QueryParameterDataTypeBoolean) }>boolean</option>
+										<option value={ string(api.QueryParameterDataTypeDate) }>date</option>
+										<option value={ string(api.QueryParameterDataTypeUuid) }>uuid</option>
+									</select>
+									<select class="select select-bordered select-sm" name="param_required">
+										<option value="true">required</option>
+										<option selected value="false">optional</option>
+									</select>
+									<input class="input input-bordered input-sm" type="text" name="param_default" placeholder="default" value=""/>
+									<input class="input input-bordered input-sm" type="text" name="param_description" placeholder="description" value=""/>
+									<input type="hidden" name="param_source" value="manual" data-param-source/>
+									<span class="badge badge-outline badge-sm self-center" data-param-source-badge>manual</span>
+									<button class="btn btn-ghost btn-xs self-center" type="button" data-remove-param>Remove</button>
+								</div>
+							</template>
+						</div>
+						<button class="btn btn-primary btn-sm" type="submit">Save query</button>
+					</form>
+				</div>
+			}
+			if len(queries) == 0 {
+				<div class="mt-6 rounded-lg border border-warning/45 bg-warning/15 px-4 py-3 text-sm text-base-content">
+					if showDeleted {
+						<span>No deleted queries found for the selected data source.</span>
+					} else {
+						<span>No queries found for the selected data source.</span>
+					}
+				</div>
+			}
+			@EntityListLayout("query-preview-loading", QuerySidePanelSlot(orgSlug, selectedDataSource, selectedQuery, selectedQueryFormData, executionResult, executionError, "", permissions, func() string {
+				if selectedQuery == nil && entityPageURL(ctx).Query().Get("query") != "" {
+					return "Selected query is unavailable on this page. Check the source, lifecycle filter and pagination."
+				}
+				return ""
+			}(), "", "")) {
+				<section class="grid min-w-0 content-start gap-3">
+					for _, query := range queries {
+						<article class="min-w-0">
+							if showDeleted {
+								<div class={ QueryCardClass(query, focusQuerySlug) }>
+									<div class="flex items-start justify-between gap-3">
+										<div class="min-w-0">
+											<a class="break-words text-base font-semibold link link-hover" href={ templ.URL(entityListHref(ctx, QueriesListHref(orgSlug, selectedDataSource, "", true), "query", string(query.Slug))) } id={ "query-opener-" + string(query.Slug) }>{ query.Name }</a>
+											<p class="mt-0.5 truncate font-mono text-xs text-base-content/55" title={ string(query.Slug) }>{ string(query.Slug) }</p>
+											<p class="mt-2 text-sm text-base-content/65">{ QueryDescriptionLabel(query) }</p>
+										</div>
+										<span class="badge badge-outline">{ QueryStatementKindLabel(query) }</span>
+									</div>
+									@QueryCardFacts(query)
+									<div class="mt-3 flex flex-wrap items-center justify-between gap-2">
+										<div class="flex flex-wrap gap-2">
+											<span class={ QueryStatusBadgeClass(query) }>deleted</span>
+											if query.ExpectedInputContract != nil {
+												<span class={ QueryContractBadgeClass(query) }>contract</span>
+											}
+										</div>
+										<div class="flex flex-wrap items-center gap-2">
+											if permissions.Can("queries", "restore") {
+												<form
+													method="post"
+													action={ templ.URL("/orgs/" + orgSlug + "/data-sources/" + selectedDataSource + "/queries/" + string(query.Slug) + "/restore") }
+													hx-post={ "/orgs/" + orgSlug + "/data-sources/" + selectedDataSource + "/queries/" + string(query.Slug) + "/restore" }
+													hx-target="#queries-workspace"
+													hx-select="#queries-workspace"
+													hx-swap="outerHTML show:none focus-scroll:false"
+													data-preserve-scroll
+												>
+													<button class="btn btn-outline btn-sm" type="submit">Restore</button>
+												</form>
+											}
+											if permissions.Can("queries", "purge") {
+												<form
+													method="post"
+													action={ templ.URL("/orgs/" + orgSlug + "/data-sources/" + selectedDataSource + "/queries/" + string(query.Slug) + "/purge") }
+													hx-post={ "/orgs/" + orgSlug + "/data-sources/" + selectedDataSource + "/queries/" + string(query.Slug) + "/purge" }
+													hx-target="#queries-workspace"
+													hx-select="#queries-workspace"
+													hx-swap="outerHTML show:none focus-scroll:false"
+													data-preserve-scroll
+													hx-confirm={ DestructiveConfirmation("Purge", "query", DestructiveResourceLabel(query.Name, string(query.Slug)), "This cannot be undone.") }
+													data-destructive-confirm={ DestructiveConfirmation("Purge", "query", DestructiveResourceLabel(query.Name, string(query.Slug)), "This cannot be undone.") }
+												>
+													<button class="btn btn-error btn-outline btn-sm" type="submit">Purge</button>
+												</form>
+											}
+										</div>
+									</div>
+								</div>
+							} else {
+								<div
+									class={ "relative " + QueryCardClass(query, func() string {
+	if selectedQuery != nil {
+		return string(selectedQuery.Slug)
+	}
+	return focusQuerySlug
+}()) }
+									data-query-card
+									data-selected?={ selectedQuery != nil && selectedQuery.Slug == query.Slug }
+								>
+									<a class="relative z-10 break-words text-base font-semibold link link-hover" href={ templ.URL(entityDetailHref("/orgs/"+orgSlug+"/data-sources/"+selectedDataSource+"/queries/"+string(query.Slug), entityListHref(ctx, QueriesListHref(orgSlug, selectedDataSource, "", false), "query", string(query.Slug)))) }>{ query.Name }</a>
+									<a
+										class="absolute inset-0 rounded-xl focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+										aria-label={ "Preview " + query.Name }
+										href={ templ.URL(entityListHref(ctx, QueriesListHref(orgSlug, selectedDataSource, "", false), "query", string(query.Slug))) }
+										hx-get={ entityListHref(ctx, QueriesListHref(orgSlug, selectedDataSource, "", false), "query", string(query.Slug)) }
+										hx-target="#query-side-panel"
+										hx-select="#query-side-panel"
+										hx-swap="outerHTML show:none focus-scroll:false"
+										hx-push-url="true"
+										data-preserve-scroll
+										id={ "query-opener-" + string(query.Slug) }
+										data-entity-focus="query-quick-look-heading"
+										hx-indicator="#query-preview-loading"
+									></a>
+									<div class="flex items-start justify-between gap-3">
+										<div class="min-w-0">
+											<p class="mt-0.5 truncate font-mono text-xs text-base-content/55" title={ string(query.Slug) }>{ string(query.Slug) }</p>
+											<p class="mt-2 text-sm text-base-content/65">{ QueryDescriptionLabel(query) }</p>
+										</div>
+										<span class="badge badge-outline">{ QueryStatementKindLabel(query) }</span>
+									</div>
+									@QueryCardFacts(query)
+									<div class="mt-3 flex flex-wrap gap-2">
+										<span class={ QueryStatusBadgeClass(query) }>active</span>
+										if query.ExpectedInputContract != nil {
+											<span class={ QueryContractBadgeClass(query) }>contract</span>
+										}
+									</div>
+								</div>
+							}
+						</article>
+					}
+				</section>
+			}
+		}
+		if prevCursor != "" || hasMore {
+			<div class="mt-6 flex items-center justify-end gap-2">
+				if prevCursor != "" {
+					<a class="btn btn-sm btn-outline" href={ templ.URL(QueriesListCursorHref(orgSlug, selectedDataSource, showDeleted, prevCursor)) } hx-get={ QueriesListCursorHref(orgSlug, selectedDataSource, showDeleted, prevCursor) } hx-target="#queries-workspace" hx-select="#queries-workspace" hx-swap="outerHTML show:none focus-scroll:false" hx-push-url="true" data-preserve-scroll>Previous</a>
+				} else {
+					<button class="btn btn-sm btn-outline" type="button" disabled>Previous</button>
+				}
+				if hasMore && nextCursor != "" {
+					<a class="btn btn-sm btn-outline" href={ templ.URL(QueriesListCursorHref(orgSlug, selectedDataSource, showDeleted, nextCursor)) } hx-get={ QueriesListCursorHref(orgSlug, selectedDataSource, showDeleted, nextCursor) } hx-target="#queries-workspace" hx-select="#queries-workspace" hx-swap="outerHTML show:none focus-scroll:false" hx-push-url="true" data-preserve-scroll>Next</a>
+				} else {
+					<button class="btn btn-sm btn-outline" type="button" disabled>Next</button>
+				}
+			</div>
+		}
+	</div>
+	<script src={ versionedAssetPath("/assets/js/query_param_editor.js") }></script>
+}
+
+templ QuerySidePanelSlot(orgSlug string, selectedDataSource string, selectedQuery *api.Query, selectedQueryFormData QueryEditorFormData, executionResult *QueryExecutionResultView, executionError string, executionErrorDetails string, permissions OrganizationPermissions, feedbackMessage string, feedbackKind string, feedbackDetails string) {
+	<div id="query-side-panel" class="min-w-0">
+		if feedbackMessage != "" {
+			if feedbackDetails != "" {
+				@ErrorPopup("query-side-panel-feedback", feedbackMessage, feedbackDetails)
+			} else {
+				<div class={ QueryPanelFeedbackClass(feedbackKind) }>
+					<span>{ feedbackMessage }</span>
+				</div>
+			}
+		}
+		if selectedQuery == nil {
+			<div class="rounded-xl border border-base-300 bg-base-100 p-5">
+				<h2 class="text-base font-semibold text-base-content">Quick look</h2>
+				<p class="mt-2 text-sm text-base-content/70">Select a query to see its purpose, connection and limits.</p>
+			</div>
+		} else {
+			@QueryQuickLook(orgSlug, selectedDataSource, *selectedQuery)
+		}
+	</div>
+}
+
+templ QueryCardFacts(query api.Query) {
+	<div class="mt-3 grid gap-2 text-xs text-base-content/70 sm:grid-cols-3">
+		<div class="min-w-0 rounded-lg border border-info/25 bg-info/10 p-2">
+			<p class="font-semibold text-base-content">{ fmt.Sprintf("%d", len(query.Parameters)) }</p>
+			<p>params</p>
+		</div>
+		<div class="min-w-0 rounded-lg border border-primary/25 bg-primary/10 p-2">
+			<p class="font-semibold text-base-content">{ fmt.Sprintf("%d", query.RowLimit) }</p>
+			<p>row limit</p>
+		</div>
+		<div class="min-w-0 rounded-lg border border-success/25 bg-success/10 p-2">
+			<p class="font-semibold text-base-content">{ fmt.Sprintf("%ds", query.TimeoutSeconds) }</p>
+			<p>timeout</p>
+		</div>
+	</div>
+}
+
+templ QueryQuickLook(orgSlug string, dataSourceSlug string, query api.Query) {
+	@EntityQuickLook("query-quick-look-heading", query.Name, string(query.Slug), entityDetailHref("/orgs/"+orgSlug+"/data-sources/"+dataSourceSlug+"/queries/"+string(query.Slug), entityListHref(ctx, QueriesListHref(orgSlug, dataSourceSlug, "", query.DeletedAt != nil), "query", string(query.Slug))), entityListHref(ctx, QueriesListHref(orgSlug, dataSourceSlug, "", query.DeletedAt != nil), "query", ""), "#query-side-panel", "query-opener-"+string(query.Slug)) {
+		<p class="break-words text-sm text-base-content/70">{ QueryDescriptionLabel(query) }</p>
+		@EntityFacts() {
+			@EntityFact("Connection") {
+				<span class="break-all">{ dataSourceSlug }</span>
+			}
+			@EntityFact("Operation") {
+				{ QueryStatementKindLabel(query) }
+			}
+			@EntityFact("Behavior") {
+				{ QueryOperationBehavior(query) }
+			}
+			@EntityFact("Parameters") {
+				{ fmt.Sprintf("%d", len(query.Parameters)) }
+			}
+			@EntityFact("Limits") {
+				{ fmt.Sprintf("%d rows · %ds timeout", query.RowLimit, query.TimeoutSeconds) }
+			}
+			@EntityFact("Input contract") {
+				{ func() string { if query.ExpectedInputContract != nil { return "Required" }; return "None" }() }
+			}
+		}
+		if query.DeletedAt != nil {
+			@EntityState("Deleted query", "Restore it before editing or execution.")
+		}
+	}
+}

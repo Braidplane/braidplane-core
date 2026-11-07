@@ -1,0 +1,80 @@
+package views
+
+import (
+	api "github.com/Braidplane/braidplane-core/api-schema/gen/client"
+	"github.com/Braidplane/braidplane-core/pkg/ptr"
+)
+
+templ PipelineBindingSetupPage(shell AuthenticatedShellData, data PipelineBindingSetupView) {
+	@AuthenticatedShell(shell, pipelineBindingSetupContent(data))
+}
+
+templ pipelineBindingSetupContent(data PipelineBindingSetupView) {
+	<section class="min-w-0 space-y-4" id="pipeline-binding-setup">
+		<div class="flex flex-wrap items-start justify-between gap-3">
+			<div class="min-w-0">
+				<h2 class="text-xl font-semibold">Resolve pipeline bindings</h2>
+				<p class="break-all font-mono text-sm">{ data.Pipeline } · { data.Environment }</p>
+			</div>
+			<a class="btn btn-outline btn-sm" href={ templ.URL(data.ReturnHref) }>Return to selected pipeline</a>
+		</div>
+		<p class="break-all text-sm">Selected immutable version: <span class="font-mono">{ data.SpecHash }</span></p>
+		<p class="text-sm text-base-content/70">Bindings edit current environment configuration. They do not change this version or reconstruct a historical run.</p>
+		<p class="text-sm">Runtime readiness: <strong>Not evaluated</strong>. A bound reference is configuration, not proof of runtime health. Validation receipts may be stale after a binding change; validate the selected version again before relying on them.</p>
+		if data.ValidationUnavailable {
+			<p role="status" class="text-sm text-warning">Validation history could not be loaded.</p>
+		} else if latest := pipelineValidationLatest(data.ValidationResults); latest != nil {
+			<p class="break-all text-sm">Latest stored validation: { pipelineValidationStatusLabel(latest.Valid) } · <span class="font-mono">{ ptr.Value(latest.SpecHash) }</span></p>
+			if ptr.Value(latest.SpecHash) != data.SpecHash {
+				<p role="status" class="text-sm text-warning">Stale validation: this receipt belongs to another version and does not validate the selected version.</p>
+			}
+		} else {
+			<p class="text-sm">No stored validation evidence for this environment.</p>
+		}
+		if data.Error != "" {
+			<div role="alert" class="alert alert-error">{ data.Error }</div>
+		}
+		if data.Definition != nil {
+			@PipelineDataSourceBindingsPanel(data.Org, data.Project, data.Environment, data.Definition, data.Bindings, data.Permissions, false)
+		} else {
+			<p role="status">Selected version requirements are unavailable. Return and retry; the current definition has not been substituted.</p>
+		}
+	</section>
+}
+
+templ PipelineBindingAttentionSummary(environment string, pipeline *api.Pipeline, bindings PipelineBindingContext) {
+	{{ rows := PipelineBindingRows(pipeline, bindings) }}
+	{{ attention := pipelineBindingAttentionRows(rows, environment) }}
+	<div class="mt-4 space-y-3" aria-label="Selected environment binding attention">
+		<h4 class="text-sm font-semibold">Selected target bindings</h4>
+		if pipeline == nil {
+			<p role="status" class="text-sm text-warning">Pipeline requirements are unavailable.</p>
+		} else if environment == "" {
+			<p class="text-sm">Select a runtime target to see its binding attention.</p>
+		} else if bindings.EnvironmentsUnavailable || bindings.RefsUnavailable {
+			<p role="status" class="text-sm text-warning">Binding requirements could not be fully loaded. Retry before relying on this configuration.</p>
+		} else if !pipelineBindingEnvironmentEnabled(bindings, environment) {
+			<p class="text-sm text-warning">This runtime target is not enabled for the project. Enable it before resolving bindings.</p>
+		} else if len(rows) == 0 {
+			<p class="text-sm">No data-source requirements in this pipeline.</p>
+		} else if len(attention) == 0 {
+			<p class="text-sm">All required references are bound in this environment. Runtime readiness: Not evaluated.</p>
+		} else {
+			<ul class="divide-y divide-base-300">
+				for _, row := range attention {
+					for _, cell := range row.Cells {
+						<li class="flex min-w-0 flex-wrap items-start justify-between gap-3 py-3">
+							<div class="min-w-0 flex-1">
+								<p class="break-all font-mono text-sm">{ row.RefSlug } <span class={ cell.StateClass }>{ cell.StateLabel }</span></p>
+								<p class="text-xs text-base-content/70">{ cell.StateDescription }</p>
+							</div>
+							if pipeline != nil {
+								<a class="link link-primary text-sm" href={ templ.URL("#" + pipelineBindingCellID(row, cell)) }>Review { row.RefSlug }</a>
+							}
+						</li>
+					}
+				}
+			</ul>
+		}
+	</div>
+}

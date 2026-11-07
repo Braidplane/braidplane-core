@@ -1,0 +1,45 @@
+language: "en-US"
+reviews:
+  auto_review:
+    enabled: false
+  path_filters:
+    - "!.worktree/**"
+    - "!.worktree-env"
+    - "!.aws/**"
+    - "!**/.env*"
+    - "!**/*.pem"
+    - "!**/*.key"
+    - "!**/*.age"
+    - "!node_modules/**"
+    - "!frontend/node_modules/**"
+    - "!tmp/**"
+    - "!autopilot/**"
+    - "!logs/**"
+    - "!**/*.log"
+    - "!coverage*.out"
+    - "!coverage*.html"
+    - "!frontend/playwright-report/**"
+    - "!frontend/test-results/**"
+    - "!frontend/.playwright/**"
+    - "!frontend/e2e/.auth/**"
+    - "!**/*.dockerignore"
+    - "!frontend/assets/css/app.css"
+    - "!api-schema/gen/**"
+    - "!cli/apiclient/**"
+    - "!cli/api/schema.json"
+    - "!**/*_enumer.go"
+    - "!**/*_string.go"
+    - "!**/*logging_decorator.go"
+    - "!postgres/dbgen/**"
+    - "!internal/testutil/testdata/bigquery-service-account.json"
+    - "!frontend/views/**/*_templ.go"
+    - "!.task/**"
+    - "!.tools/**"
+
+  path_instructions:
+    - path: "**/*.go"
+      instructions: >
+        Prioritize correctness, tenant isolation, HTTP authorization, typed errors,
+        and the dependency boundaries in doc/PACKAGE_BOUNDARIES.md.
+chat:
+  auto_reply: false

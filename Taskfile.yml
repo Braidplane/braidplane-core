@@ -1,0 +1,177 @@
+version: '3'
+
+env:
+  GOWORK: 'off'
+
+tasks:
+  docs-check:
+    desc: Validate documentation inventory, links, anchors and strict public build
+    cmds:
+      - bash scripts/docs-check.sh
+  worktree-create:
+    desc: Create a sibling worktree and same-name branch
+    requires:
+      vars: [name]
+    cmds:
+      - bash scripts/worktree-add.sh {{.name | shellQuote}}
+  worktree-remove:
+    desc: Remove a clean sibling worktree while retaining its branch
+    requires:
+      vars: [name]
+    cmds:
+      - bash scripts/worktree-remove.sh {{.name | shellQuote}}
+  dev:
+    desc: Build and run the local application with retained keys and database
+    cmds:
+      - python3 scripts/dev.py
+  build:
+    desc: Build the Community backend, administrator tool, frontend, migrator, CLI and CSS
+    cmds:
+      - task: build-css
+      - task: build-go
+  build-go:
+    desc: Build all Community executables
+    cmds:
+      - mkdir -p out
+      - bash scripts/go-toolchain.sh build -trimpath -o out/braidplane-server .
+      - bash scripts/go-toolchain.sh build -trimpath -o out/braidplane-admin ./cmd/admin
+      - bash scripts/go-toolchain.sh build -trimpath -o out/ ./cmd/frontend ./cmd/migrate
+      - bash scripts/go-toolchain.sh build -trimpath -o out/braidplane ./cli/cmd/braidplane
+      - mkdir -p out/licenses
+      - cp LICENSE NOTICE THIRD_PARTY_NOTICES.txt MPL_SOURCES.sha256 SOURCE_AVAILABILITY.txt out/licenses/
+      - python3 -m scripts.package_sources
+  notices:
+    deps: [frontend-install]
+    desc: Refresh the bounded dependency notice inventory
+    cmds:
+      - python3 -m scripts.generate_notices
+  container-sources:
+    desc: Collect exact Debian sources for a locally built backend image
+    requires:
+      vars: [image]
+    cmds:
+      - python3 -m scripts.package_container_sources --image {{.image | shellQuote}}
+  frontend-install:
+    run: once
+    cmds:
+      - bash scripts/node-toolchain.sh npm --prefix frontend ci
+  build-css:
+    deps: [frontend-install]
+    desc: Build Community styles from the locked frontend dependencies
+    cmds:
+      - bash scripts/node-toolchain.sh npm --prefix frontend run build:css
+  test:
+    desc: Run hermetic core, CLI and frontend unit tests
+    cmds:
+      - task: test-go
+      - task: test-js
+      - task: test-mailpit-fixture
+      - python3 -m unittest discover -s scripts -p test_dev.py
+      - python3 -m unittest discover -s scripts -p "test_worktree_*.py"
+      - python3 -m unittest cli.scripts.test_release scripts.test_notices scripts.test_package_sources scripts.test_package_container_sources
+      - python3 -m unittest discover -s scripts -p test_require_go_tests.py
+      - python3 -m unittest discover -s scripts -p test_go_test_gate.py
+      - python3 -m unittest discover -s scripts -p test_ci_fixture_cache.py
+      - python3 -m unittest scripts.test_publish_core_candidate scripts.test_validate_core_candidate scripts.test_verify_core_oci scripts.test_build_core_candidate scripts.test_core_release_candidate scripts.test_admit_core_ci scripts.test_verify_core_release scripts.test_core_release_provenance scripts.test_verify_core_attestation scripts.test_core_release_sbom scripts.test_qualify_core_images scripts.test_self_hosted_acceptance scripts.test_installation_release scripts.test_installation_compose scripts.test_installation_prepare scripts.test_installation_preflight scripts.test_installation_lifecycle scripts.test_installation_package scripts.test_installation_upgrade scripts.test_installation_runtime
+  generate-email-cert:
+    desc: Generate an isolated self-signed Mailpit TLS fixture without changing host trust
+    cmds:
+      - bash scripts/generate-email-cert.sh
+  test-mailpit-fixture:
+    desc: Check isolated Mailpit fixture generation and refusal behavior
+    cmds:
+      - python3 -m unittest discover -s scripts -p 'test_mailpit_fixture.py'
+  test-go:
+    deps: [build-css]
+    cmds:
+      - bash scripts/go-toolchain.sh tool -modfile=tools/go.mod cue version
+      - |
+        set -e
+        packages=$(bash scripts/go-test-packages.sh unit)
+        test -n "$packages"
+        if [ "${CI:-}" = true ]; then
+          set -o pipefail
+          bash scripts/go-toolchain.sh test -json -p 2 -short $packages | python3 -u scripts/require-go-tests.py
+        else
+          bash scripts/go-toolchain.sh test -p 2 -short $packages
+        fi
+  test-go-e2e:
+    desc: Discover and run every Go E2E package on package-owned disposable fixtures
+    deps: [build-css]
+    cmds:
+      - |
+        set -euo pipefail
+        packages=$(bash scripts/go-test-packages.sh e2e)
+        test -n "$packages"
+        bash scripts/go-toolchain.sh test -json -count=1 -timeout=90m -p 1 $packages | python3 -u scripts/require-go-tests.py --packages $packages
+  test-cli:
+    cmds:
+      - bash scripts/go-toolchain.sh test -short ./cli/...
+  test-js:
+    deps: [frontend-install]
+    cmds:
+      - bash scripts/node-toolchain.sh npm --prefix frontend test
+  lint:
+    desc: Run pinned Go and frontend linters
+    deps: [frontend-install]
+    cmds:
+      - bash scripts/go-toolchain.sh tool -modfile=tools/go.mod golangci-lint run
+      - bash scripts/node-toolchain.sh npm --prefix frontend run lint:js
+      - python3 scripts/test_package_boundaries.py
+      - python3 -m scripts.generate_notices --check
+  generate:
+    desc: Regenerate API, CLI, templates, wrappers, enums and SQLC using DATABASE_URL
+    cmds:
+      - task: generate-api
+      - task: generate-templ
+      - bash scripts/go-toolchain.sh generate ./...
+      - task: generate-sqlc
+  generate-api:
+    cmds:
+      - bash scripts/generate-oapi.sh
+      - bash scripts/generate-oapi-client.sh
+      - bash scripts/go-toolchain.sh run ./cmd/clischema
+      - cd cli && bash ../scripts/go-toolchain.sh tool -modfile=../tools/go.mod oapi-codegen -config api/oapi-client.yml api/schema.json
+  generate-templ:
+    cmds:
+      - bash scripts/go-toolchain.sh tool -modfile=tools/go.mod templ generate ./frontend
+  generate-sqlc:
+    preconditions:
+      - sh: test -n "$DATABASE_URL"
+        msg: DATABASE_URL must name the intended core-only database
+    cmds:
+      - bash scripts/go-toolchain.sh tool -modfile=tools/go.mod sqlc generate
+      - bash scripts/go-toolchain.sh tool -modfile=tools/go.mod sqlc vet
+  fake-seed:
+    desc: Seed authorized local fixtures through core services
+    dotenv: [".worktree-env", ".env"]
+    cmds:
+      - bash scripts/go-toolchain.sh run ./cmd/fake --config config.toml {{.CLI_ARGS}}
+  git-seed:
+    desc: Bootstrap only the local Git repository fixtures
+    dotenv: [".worktree-env", ".env"]
+    cmds:
+      - bash scripts/go-toolchain.sh run ./cmd/fake --config config.toml --git-only {{.CLI_ARGS}}
+  test-e2e:
+    desc: Run the configured Community critical browser profile against owned fixtures
+    deps: [frontend-install]
+    env:
+      BRAIDPLANE_BROWSER_PROFILE: '{{default "critical" .BRAIDPLANE_BROWSER_PROFILE}}'
+    cmds:
+      - bash scripts/node-toolchain.sh npm --prefix frontend run test:e2e -- {{.CLI_ARGS}}
+  migrate-run:
+    desc: Apply the core catalog using the explicit DB_* configuration
+    cmds:
+      - bash scripts/go-toolchain.sh run ./cmd/migrate up --path postgres/migrations --ledger core_schema_migrations
+  ci:
+    desc: Verify a core checkout with a prepared core-only DATABASE_URL
+    cmds:
+      - task: migrate-run
+      - task: generate
+      - task: test
+      - task: lint
+      - task: build
+  containers:
+    desc: Build local Community backend, frontend, migrator and CLI images
+    cmds:
+      - set -e; for target in backend frontend migrate cli; do docker build --target "$target" -t "braidplane-core-$target:local" .; done

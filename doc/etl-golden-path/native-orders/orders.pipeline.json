@@ -1,0 +1,234 @@
+{
+  "metadata": {
+    "slug": "native-orders",
+    "name": "Synthetic native order export"
+  },
+  "steps": [
+    {
+      "kind": "query",
+      "slug": "read-orders",
+      "name": "Read order snapshot",
+      "query": {
+        "data_source_ref": "orders-source",
+        "operation_type": "sql",
+        "operation_inline": {
+          "type": "sql",
+          "sql": "SELECT order_id, customer_id, status, amount_cents, discount_cents, currency, placed_at_utc, note FROM golden_path.orders ORDER BY order_id"
+        },
+        "output_contract": {
+          "representation": "rows",
+          "fields": [
+            {
+              "name": "order_id",
+              "type": "integer",
+              "required": true
+            },
+            {
+              "name": "customer_id",
+              "type": "integer",
+              "required": true
+            },
+            {
+              "name": "status",
+              "type": "string",
+              "required": true
+            },
+            {
+              "name": "amount_cents",
+              "type": "integer",
+              "required": true
+            },
+            {
+              "name": "discount_cents",
+              "type": "integer",
+              "required": true
+            },
+            {
+              "name": "currency",
+              "type": "string",
+              "required": true
+            },
+            {
+              "name": "placed_at_utc",
+              "type": "string",
+              "required": true
+            },
+            {
+              "name": "note",
+              "type": "string",
+              "required": false,
+              "nullable": true
+            }
+          ]
+        }
+      }
+    },
+    {
+      "kind": "transform",
+      "slug": "project-paid-orders",
+      "name": "Project paid order export",
+      "transform": {
+        "inputs": {
+          "orders": "read-orders"
+        },
+        "sql": "SELECT order_id, customer_id, CAST(amount_cents - discount_cents AS SIGNED) AS net_total_cents, currency, placed_at_utc, note AS comment FROM orders WHERE status = 'paid' ORDER BY order_id",
+        "output_kind": "rows",
+        "output_contract": {
+          "representation": "rows",
+          "fields": [
+            {
+              "name": "order_id",
+              "type": "integer",
+              "required": true,
+              "nullable": true
+            },
+            {
+              "name": "customer_id",
+              "type": "integer",
+              "required": true,
+              "nullable": true
+            },
+            {
+              "name": "net_total_cents",
+              "type": "integer",
+              "required": true,
+              "nullable": true
+            },
+            {
+              "name": "currency",
+              "type": "string",
+              "required": true,
+              "nullable": true
+            },
+            {
+              "name": "placed_at_utc",
+              "type": "string",
+              "required": true,
+              "nullable": true
+            },
+            {
+              "name": "comment",
+              "type": "string",
+              "required": true,
+              "nullable": true
+            }
+          ]
+        },
+        "input_contracts": {
+          "orders": {
+            "contract": {
+              "representation": "rows",
+              "fields": [
+                {
+                  "name": "order_id",
+                  "type": "integer",
+                  "required": true
+                },
+                {
+                  "name": "customer_id",
+                  "type": "integer",
+                  "required": true
+                },
+                {
+                  "name": "status",
+                  "type": "string",
+                  "required": true
+                },
+                {
+                  "name": "amount_cents",
+                  "type": "integer",
+                  "required": true
+                },
+                {
+                  "name": "discount_cents",
+                  "type": "integer",
+                  "required": true
+                },
+                {
+                  "name": "currency",
+                  "type": "string",
+                  "required": true
+                },
+                {
+                  "name": "placed_at_utc",
+                  "type": "string",
+                  "required": true
+                },
+                {
+                  "name": "note",
+                  "type": "string",
+                  "required": false,
+                  "nullable": true
+                }
+              ]
+            }
+          }
+        }
+      }
+    },
+    {
+      "kind": "sink",
+      "slug": "write-orders",
+      "name": "Write snapshot",
+      "sink": {
+        "idempotency_class": "naturally_idempotent",
+        "input": "project-paid-orders",
+        "input_contract": {
+          "representation": "rows",
+          "fields": [
+            {
+              "name": "order_id",
+              "type": "integer",
+              "required": true,
+              "nullable": true
+            },
+            {
+              "name": "customer_id",
+              "type": "integer",
+              "required": true,
+              "nullable": true
+            },
+            {
+              "name": "net_total_cents",
+              "type": "integer",
+              "required": true,
+              "nullable": true
+            },
+            {
+              "name": "currency",
+              "type": "string",
+              "required": true,
+              "nullable": true
+            },
+            {
+              "name": "placed_at_utc",
+              "type": "string",
+              "required": true,
+              "nullable": true
+            },
+            {
+              "name": "comment",
+              "type": "string",
+              "required": true,
+              "nullable": true
+            }
+          ]
+        },
+        "data_source_ref": "orders-export",
+        "operation_type": "s3",
+        "operation_inline": {
+          "type": "s3",
+          "operation": "write",
+          "key": "native-orders/{{runtime.sink.replay_identity}}/orders.json",
+          "format": "json",
+          "overwrite": true
+        },
+        "config": {
+          "key": "native-orders/{{runtime.sink.replay_identity}}/orders.json",
+          "format": "json",
+          "overwrite": true
+        }
+      }
+    }
+  ]
+}

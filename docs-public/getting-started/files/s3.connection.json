@@ -1,0 +1,16 @@
+{
+  "type": "s3",
+  "name": "Tutorial S3",
+  "slug": "tutorial-s3",
+  "read_only": false,
+  "config": {
+    "region": "<your-bucket-region>",
+    "bucket": "<your-private-bucket>",
+    "prefix": "tutorial/first-pipeline",
+    "timeout_seconds": 30
+  },
+  "credentials": {
+    "access_key_id_file": "s3-access-key-id",
+    "secret_access_key_file": "s3-secret-access-key"
+  }
+}

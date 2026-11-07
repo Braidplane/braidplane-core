@@ -1,0 +1,89 @@
+package views
+
+templ PipelineEnvironmentRunPreview(org string, project string, environment string, pipeline string, detailHref string, preview PipelineRunPreview, deployments []PipelineDeploymentBadge, deploymentsUnavailable bool, history bool) {
+	<section class="min-w-0 space-y-4" aria-label="Environment run preview" data-pipeline-run-preview>
+		<div class="flex flex-wrap items-center justify-between gap-3">
+			<h2 class="text-lg font-semibold">
+				if preview.SelectedSlug != "" && preview.HistoryUnavailable {
+					{ "Selected run in " + environment }
+				} else if preview.SelectedSlug != "" && preview.SelectedSlug != preview.LatestSlug {
+					{ "Selected historical run in " + environment }
+				} else {
+					{ "Latest run in " + environment }
+				}
+			</h2>
+			if environment != "" {
+				<a class="btn btn-outline btn-sm" href={ templ.URL(buildEnvironmentRunsListHrefWithProject(org, project, environment, "", "", "", pipeline)) }>{ runtimeTargetActionLabel("View runs", environment) }</a>
+			}
+		</div>
+		if environment == "" {
+			<p class="text-sm">Select a runtime target to inspect its runs.</p>
+		} else {
+			if preview.HistoryUnavailable {
+				<p class="text-sm text-warning">Run history unavailable. Latest run could not be determined.</p>
+			}
+			if preview.Message != "" {
+				<p class="text-sm" role="status">{ preview.Message }</p>
+			}
+			if preview.Run != nil {
+				{{ run := preview.Run.Metadata }}
+				<div class="flex min-w-0 flex-wrap items-center gap-3 text-sm">
+					<span class={ runStatusBadgeClass(run.Status) }>{ string(run.Status) }</span>
+					<a class="link break-all font-mono" href={ templ.URL(buildEnvironmentRunDetailHref(org, project, environment, run.RunSlug)) }>{ run.RunSlug }</a>
+					<a class="btn btn-primary btn-sm" href={ templ.URL(buildEnvironmentRunDetailHref(org, project, environment, run.RunSlug)) }>Open run</a>
+				</div>
+				<dl class="grid min-w-0 gap-3 text-sm sm:grid-cols-2 lg:grid-cols-4">
+					<div><dt class="text-base-content/60">Started</dt><dd>{ formatPipelineTimestamp(run.StartedAt) }</dd></div>
+					<div><dt class="text-base-content/60">Recorded duration</dt><dd>{ runDurationLabel(run.DurationMs) }</dd></div>
+					<div><dt class="text-base-content/60">Source / trigger</dt><dd>{ runSourceLabel(apiRunSourceView(run.Source)) }</dd></div>
+					<div><dt class="text-base-content/60">Attempt</dt><dd>{ runAttemptLabel(apiRunSourceView(run.Source)) }</dd></div>
+				</dl>
+				if runHasRetryContext(apiRunSourceView(run.Source)) {
+					<p class="break-all text-sm">{ runRetryGroupLabel(apiRunSourceView(run.Source)) }</p>
+				}
+				<p class="break-words text-sm" title={ run.PipelineVersionSpecHash }>{ pipelineRunVersionLabel(run.PipelineVersionSpecHash, deployments, environment, deploymentsUnavailable) }</p>
+				if run.ErrorSummary != nil {
+					<p class="break-words text-sm">{ *run.ErrorSummary }</p>
+				}
+				<p class="text-xs text-base-content/60">Recorded evidence for this run. Select a step to open its run evidence.</p>
+				if preview.Lineage.Available {
+					@PipelineRunLineageGraph(org, project, environment, *preview.Run, preview.Lineage)
+				} else {
+					<p class="text-sm" role="status">{ "Execution topology unavailable. " + preview.Lineage.Message }</p>
+				}
+			} else if preview.SelectedSlug == "" && !preview.HistoryUnavailable {
+				<p class="text-sm">{ "No runs in " + environment + " for this pipeline." }</p>
+			}
+			if history && len(preview.Runs) > 0 {
+				<nav class="flex gap-2 overflow-x-auto pb-2" aria-label="Recent run selection">
+					for _, run := range preview.Runs {
+						<a class={ "btn btn-outline btn-sm shrink-0", templ.KV("btn-active", run.RunSlug == preview.SelectedSlug) } href={ templ.URL(pipelineRunSelectionHref(entitySectionHref(ctx, detailHref, "runs"), run.RunSlug)) } aria-current={ func() string { if run.RunSlug == preview.SelectedSlug { return "true" }; return "false" }() }>
+							{ string(run.Status) + " · " + run.RunSlug }
+						</a>
+					}
+				</nav>
+				<div class="overflow-x-auto">
+					<table class="table table-sm">
+						<thead><tr><th>Run</th><th>Status</th><th>Started / duration</th><th>Source / attempt</th><th>Failure</th><th scope="col"><span class="sr-only">Actions</span></th></tr></thead>
+						<tbody>
+							for _, run := range preview.Runs {
+								<tr class={ templ.KV("bg-base-200/60", run.RunSlug == preview.SelectedSlug) }>
+									<td><a class="link font-mono" href={ templ.URL(pipelineRunSelectionHref(entitySectionHref(ctx, detailHref, "runs"), run.RunSlug)) }>{ run.RunSlug }</a></td>
+									<td><span class={ runStatusBadgeClass(run.Status) }>{ string(run.Status) }</span></td>
+									<td>{ formatPipelineTimestamp(run.StartedAt) }<br/>{ runDurationLabel(run.DurationMs) }</td>
+									<td>{ runSourceLabel(apiRunSourceView(run.Source)) }<br/>{ runAttemptLabel(apiRunSourceView(run.Source)) }</td>
+									<td class="max-w-xs break-words">
+										if run.ErrorSummary != nil {
+											{ *run.ErrorSummary }
+										}
+									</td>
+									<td><a class="link whitespace-nowrap" href={ templ.URL(buildEnvironmentRunDetailHref(org, project, environment, run.RunSlug)) }>Open run</a></td>
+								</tr>
+							}
+						</tbody>
+					</table>
+				</div>
+			}
+		}
+	</section>
+}

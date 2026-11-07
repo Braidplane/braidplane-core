@@ -1,0 +1,67 @@
+package views
+
+import api "github.com/Braidplane/braidplane-core/api-schema/gen/client"
+
+templ ProviderConnectionsPage(shell AuthenticatedShellData, org string, gitlab *api.CredentialMetadata, configurations []api.DataSourceProofConfiguration, feedback string, failed bool, connectionError, proofError string, permissions OrganizationPermissions) {
+	@AuthenticatedShell(shell, ProviderConnectionsContent(org, gitlab, configurations, feedback, failed, connectionError, proofError, permissions))
+}
+
+templ ProviderConnectionsContent(org string, gitlab *api.CredentialMetadata, configurations []api.DataSourceProofConfiguration, feedback string, failed bool, connectionError, proofError string, permissions OrganizationPermissions) {
+	<div class="space-y-5">
+		@OrganizationDetailTabs(org, "connections")
+		<header>
+			<h2 class="text-lg font-semibold">Repository access</h2>
+			<p class="mt-1 text-sm text-base-content/70">Authorize repository access once for your organization, then select a repository for each managed data source. Proof is optional.</p>
+		</header>
+		if feedback != "" {
+			<div role="status" class={ "alert", templ.KV("alert-error", failed), templ.KV("alert-success", !failed) }>{ feedback }</div>
+		}
+		if connectionError == "" || permissions.Can("organizations", "read") {
+			<section class="rounded-xl border border-base-300 bg-base-100 p-4 sm:p-5">
+				<h2 class="text-lg font-semibold">GitHub App</h2>
+				<p class="mt-1 text-sm text-base-content/70">Alpha supports one GitHub organization or personal account per Braidplane organization. Multiple data sources can use repositories from that account through the shared App installation.</p>
+				<a class="btn btn-outline btn-sm mt-4" href={ templ.URL("/organizations/" + org + "/github") }>Manage GitHub connection</a>
+			</section>
+		}
+		if connectionError == "" {
+			<section class="rounded-xl border border-base-300 bg-base-100 p-4 sm:p-5">
+				<h2 class="text-lg font-semibold">GitLab OAuth</h2>
+				if gitlab == nil {
+					<p class="mt-1 text-sm text-base-content/70">No GitLab account is connected.</p>
+				} else {
+					<p class="mt-1 text-sm">Connection status: { string(gitlab.Status) }</p>
+					if gitlab.Oauth != nil && gitlab.Oauth.Account != nil && gitlab.Oauth.Account.Name != nil {
+						<p class="mt-1 break-words text-sm text-base-content/70">{ *gitlab.Oauth.Account.Name }</p>
+					}
+				}
+				<p class="mt-3 text-sm text-base-content/70">Reconnecting replaces authorization for all attached GitLab data sources. Each source keeps its own repository and read-only setting.</p>
+				if permissions.Can("organizations", "update") {
+					<form class="mt-4 space-y-3" method="post" action={ templ.URL("/organizations/" + org + "/gitlab/connect") } hx-post={ "/organizations/" + org + "/gitlab/connect" } hx-swap="none">
+						<label class="flex items-start gap-3 text-sm"><input type="checkbox" name="include_write_scopes" class="checkbox checkbox-sm"/>Allow Git writes for sources that are not read-only</label>
+						<p class="text-xs text-base-content/60">This requests GitLab's API and repository-write scopes. API permission is also needed to install Proof webhooks; individual sources can remain read-only.</p>
+						<button type="submit" class="btn btn-primary btn-sm">Connect or reconnect GitLab</button>
+					</form>
+					if gitlab != nil && string(gitlab.Status) == "active" {
+						<form class="mt-3" method="post" action={ templ.URL("/organizations/" + org + "/gitlab/disconnect") } data-destructive-confirm={ DestructiveConfirmation("Disconnect", "GitLab connection", org, "All attached GitLab sources will lose repository access and new Proof assessments will stop.") }>
+							<button type="submit" class="btn btn-outline btn-error btn-sm">Disconnect GitLab</button>
+						</form>
+					}
+				} else {
+					<p class="mt-4 text-sm text-base-content/60">Organization management permission is required to change shared connections.</p>
+				}
+			</section>
+		} else {
+			<p class="text-sm text-base-content/60">{ connectionError }</p>
+		}
+		<p class="text-sm text-base-content/60">Use Generic Git for manual HTTPS or SSH credentials.</p>
+		<section id="proof" class="space-y-4 border-t border-base-300 pt-5">
+			<h2 class="text-lg font-semibold">Proof assessments</h2>
+			<p class="text-sm text-base-content/70">Optionally assess changes for each managed repository. Repository access works independently of Proof.</p>
+			if proofError == "" {
+				@ProofConfigurationSummaries(org, configurations)
+			} else {
+				<p class="text-sm text-base-content/60">{ proofError }</p>
+			}
+		</section>
+	</div>
+}

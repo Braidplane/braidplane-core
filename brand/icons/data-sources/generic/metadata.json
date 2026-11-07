@@ -1,0 +1,140 @@
+[
+  {
+    "file": "csv",
+    "title": "CSV",
+    "lucideIcon": "file-spreadsheet",
+    "license": "ISC / MIT-derived where noted by Lucide"
+  },
+  {
+    "file": "json",
+    "title": "JSON",
+    "lucideIcon": "braces",
+    "license": "ISC / MIT-derived where noted by Lucide"
+  },
+  {
+    "file": "xml",
+    "title": "XML",
+    "lucideIcon": "code-xml",
+    "license": "ISC / MIT-derived where noted by Lucide"
+  },
+  {
+    "file": "http",
+    "title": "HTTP API",
+    "lucideIcon": "globe",
+    "license": "ISC / MIT-derived where noted by Lucide"
+  },
+  {
+    "file": "rest-api",
+    "title": "REST API",
+    "lucideIcon": "route",
+    "license": "ISC / MIT-derived where noted by Lucide"
+  },
+  {
+    "file": "ftp",
+    "title": "FTP",
+    "lucideIcon": "folder-symlink",
+    "license": "ISC / MIT-derived where noted by Lucide"
+  },
+  {
+    "file": "sftp",
+    "title": "SFTP",
+    "lucideIcon": "folder-lock",
+    "license": "ISC / MIT-derived where noted by Lucide"
+  },
+  {
+    "file": "email",
+    "title": "Email",
+    "lucideIcon": "mail",
+    "license": "ISC / MIT-derived where noted by Lucide"
+  },
+  {
+    "file": "webhook",
+    "title": "Webhook",
+    "lucideIcon": "webhook",
+    "license": "ISC / MIT-derived where noted by Lucide"
+  },
+  {
+    "file": "file",
+    "title": "File",
+    "lucideIcon": "file",
+    "license": "ISC / MIT-derived where noted by Lucide"
+  },
+  {
+    "file": "directory",
+    "title": "Directory",
+    "lucideIcon": "folder",
+    "license": "ISC / MIT-derived where noted by Lucide"
+  },
+  {
+    "file": "local-fs",
+    "title": "Local filesystem",
+    "lucideIcon": "hard-drive",
+    "license": "ISC / MIT-derived where noted by Lucide"
+  },
+  {
+    "file": "database",
+    "title": "Database",
+    "lucideIcon": "database",
+    "license": "ISC / MIT-derived where noted by Lucide"
+  },
+  {
+    "file": "cloud-storage",
+    "title": "Cloud storage",
+    "lucideIcon": "cloud",
+    "license": "ISC / MIT-derived where noted by Lucide"
+  },
+  {
+    "file": "terminal",
+    "title": "CLI",
+    "lucideIcon": "terminal",
+    "license": "ISC / MIT-derived where noted by Lucide"
+  },
+  {
+    "file": "transform",
+    "title": "Transform",
+    "lucideIcon": "workflow",
+    "license": "ISC / MIT-derived where noted by Lucide"
+  },
+  {
+    "file": "pipeline",
+    "title": "Pipeline",
+    "lucideIcon": "git-branch",
+    "license": "ISC / MIT-derived where noted by Lucide"
+  },
+  {
+    "file": "scheduler",
+    "title": "Scheduler",
+    "lucideIcon": "calendar-clock",
+    "license": "ISC / MIT-derived where noted by Lucide"
+  },
+  {
+    "file": "secrets",
+    "title": "Secrets",
+    "lucideIcon": "key-round",
+    "license": "ISC / MIT-derived where noted by Lucide"
+  },
+  {
+    "file": "environment",
+    "title": "Environment",
+    "lucideIcon": "layers",
+    "license": "ISC / MIT-derived where noted by Lucide"
+  },
+  {
+    "file": "observability",
+    "title": "Observability",
+    "lucideIcon": "activity",
+    "license": "ISC / MIT-derived where noted by Lucide"
+  },
+  {
+    "file": "typed-contract",
+    "title": "Typed contract",
+    "lucideIcon": "file-check-corner",
+    "license": "ISC / MIT-derived where noted by Lucide"
+  },
+  {
+    "file": "replay",
+    "title": "Replay",
+    "lucideIcon": "rotate-ccw",
+    "license": "ISC / MIT-derived where noted by Lucide"
+  }
+]

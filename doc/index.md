@@ -1,0 +1,38 @@
+# Engineering documentation
+
+Repository navigation for connector internals, security, operators and architecture.
+Public user guides live under `docs-public/` with separate MkDocs navigation.
+
+## Guides
+
+- [Documentation contract](DOCUMENTATION.md)
+- [CI trust boundary](CI_TRUST_BOUNDARY.md)
+- [Connector support evidence](CONNECTOR_SUPPORT_EVIDENCE.md)
+- [Data sources](DATA_SOURCES.md)
+  - [BigQuery data source](data-sources/BIGQUERY.md)
+  - [File/object schema discovery](data-sources/FILE_DISCOVERY.md)
+  - [FTP data source](data-sources/FTP.md)
+  - [Git data source](data-sources/GIT.md)
+  - [Google Workspace](data-sources/GOOGLE_WORKSPACE.md)
+  - [HTTP data source](data-sources/HTTP.md)
+  - [HTTP OAuth reference](data-sources/HTTP_OAUTH.md)
+  - [HubSpot data source](data-sources/HUBSPOT.md)
+  - [MongoDB data source](data-sources/MONGODB.md)
+  - [MySQL data source](data-sources/MYSQL.md)
+  - [PostgreSQL data source](data-sources/POSTGRES.md)
+  - [S3 data source](data-sources/S3.md)
+  - [Snowflake data source](data-sources/SNOWFLAKE.md)
+  - [Connector transport encryption](data-sources/TRANSPORT_SECURITY.md)
+- [Deployment resolutions and attempt snapshots](DEPLOYMENT_RESOLUTIONS.md)
+- [Community product design](DESIGN_SYSTEM.md)
+- [Incremental Operator Controls](INCREMENTAL_OPERATIONS.md)
+- [Local instance administrator provisioning](INSTANCE_ADMIN.md)
+- [Credential encryption operations](CREDENTIAL_ENCRYPTION.md)
+- [Self-hosted custody and network boundaries](SELF_HOSTED_CUSTODY.md)
+- [Package Boundaries](PACKAGE_BOUNDARIES.md)
+- [Pipeline proposal authority](PROPOSAL_AUTHORITY.md)
+- [Public entrypoint preparation review](PUBLIC_ENTRYPOINT_REVIEW.md)
+- [Community core validation](QUALITY_GATES.md)
+- [Community release rights and notice delivery](RELEASE_RIGHTS.md)
+- [Pinned resource scopes and dynamic selectors](RESOURCE_SCOPES.md)
+- [Local HTTP timestamp ingestion](examples/http-timestamp-watermark/README.md)

@@ -1,0 +1,120 @@
+package views
+
+templ EntityListLayout(loadingID string, preview templ.Component) {
+	<div class="relative mt-4">
+		@EntityLoading(loadingID)
+		<div class="grid min-w-0 grid-cols-1 gap-4 xl:grid-cols-2" data-entity-layout>
+			<div class="min-w-0">
+				{ children... }
+			</div>
+			<aside class="min-w-0" aria-label="Quick look">
+				@preview
+			</aside>
+		</div>
+	</div>
+}
+
+templ EntityListItem(stateClass string, selected bool, openerID string, label string, href string, target string, focusID string, loadingID string) {
+	<div class={ "relative block min-w-0 rounded-lg border p-3 text-left transition hover:border-primary/55 hover:bg-primary/10", stateClass, templ.KV("entity-selected", selected) } data-entity-list-item data-selected?={ selected }>
+		{ children... }
+		<a
+			class="absolute inset-0 rounded-lg focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+			id={ openerID }
+			aria-label={ "Quick look: " + label }
+			aria-current={ func() string { if selected { return "true" }; return "false" }() }
+			href={ templ.URL(href) }
+			hx-get={ href }
+			hx-target={ target }
+			hx-select={ target }
+			hx-swap="outerHTML show:none focus-scroll:false"
+			hx-push-url="true"
+			data-preserve-scroll
+			hx-indicator={ loadingID }
+			hx-sync="closest [data-entity-layout]:replace"
+			data-entity-focus={ focusID }
+		><span class="sr-only">Quick look</span></a>
+	</div>
+}
+
+templ EntityQuickLook(id string, name string, slug string, fullHref string, closeHref string, target string, openerID string) {
+	<section class="min-w-0 rounded-xl border border-base-300 bg-base-100 p-4" aria-labelledby={ id } data-entity-preview>
+		<div class="flex flex-wrap items-start justify-between gap-3">
+			<div class="min-w-0 flex-1">
+				<h2 id={ id } tabindex="-1" class="break-words text-lg font-semibold text-base-content focus:outline-none focus:ring-2 focus:ring-primary">{ name }</h2>
+				<p class="mt-1 break-all font-mono text-xs text-base-content/70">{ slug }</p>
+			</div>
+			<a class="btn btn-ghost btn-sm" href={ templ.URL(closeHref) } hx-get={ closeHref } hx-target={ target } hx-select={ target } hx-swap="outerHTML show:none focus-scroll:false" hx-push-url="true" hx-sync="closest [data-entity-layout]:replace" data-preserve-scroll data-entity-focus={ openerID }>Close</a>
+		</div>
+		<div class="mt-4 space-y-3">
+			{ children... }
+		</div>
+		<a class="btn btn-outline btn-sm mt-4" href={ templ.URL(fullHref) }>Open full page</a>
+	</section>
+}
+
+templ EntityFacts() {
+	<dl class="space-y-3 text-sm">
+		{ children... }
+	</dl>
+}
+
+templ EntityFact(label string) {
+	<div class="grid min-w-0 gap-1 sm:grid-cols-[8rem_minmax(0,1fr)]">
+		<dt class="text-base-content/60">{ label }</dt>
+		<dd class="min-w-0 break-words text-base-content">
+			{ children... }
+		</dd>
+	</div>
+}
+
+templ EntityDetailHeader(name string, slug string) {
+	<header class="flex min-w-0 flex-wrap items-start justify-between gap-4">
+		<div class="min-w-0 flex-1">
+			<h2 class="break-words text-xl font-semibold text-base-content">{ name }</h2>
+			<p class="mt-1 break-all font-mono text-xs text-base-content/70">{ slug }</p>
+		</div>
+		<div class="flex min-w-0 basis-full flex-wrap gap-2 sm:basis-auto">
+			{ children... }
+		</div>
+	</header>
+}
+
+templ EntitySectionNavigation(label string) {
+	<nav aria-label={ label } class="my-4 flex flex-wrap gap-2 border-b border-base-300 pb-3">
+		{ children... }
+	</nav>
+}
+
+templ EntitySectionLink(href string, label string, current bool) {
+	<a href={ templ.URL(href) } class={ "btn btn-ghost btn-sm", templ.KV("btn-active", current) } aria-current={ func() string { if current { return "page" }; return "false" }() }>
+		{ label }
+		{ children... }
+	</a>
+}
+
+templ EntityState(title string, description string) {
+	<div class="rounded-lg border border-base-300 bg-base-200/30 p-4 text-sm text-base-content" role="status" tabindex="-1" data-entity-state>
+		<p class="font-semibold break-words">{ title }</p>
+		if description != "" {
+			<p class="mt-1 break-words text-base-content/70">{ description }</p>
+		}
+	</div>
+}
+
+// Keep loading announcements separate from the content being replaced.
+templ EntityLoading(id string) {
+	<div id={ id } class="entity-loading htmx-indicator absolute -top-5 right-0 flex items-center gap-2 text-xs text-base-content/70" role="status" aria-live="polite">
+		<span class="loading loading-spinner loading-xs" aria-hidden="true"></span>
+		<span>Loading…</span>
+	</div>
+}
+
+// The caller supplies the reason; color alone must never carry the warning.
+templ EntityAttentionBadge(reason string) {
+	if reason != "" {
+		<span class="badge badge-warning badge-sm shrink-0" title={ reason }>
+			<span aria-hidden="true">!</span>
+			<span class="sr-only">{ reason }</span>
+		</span>
+	}
+}

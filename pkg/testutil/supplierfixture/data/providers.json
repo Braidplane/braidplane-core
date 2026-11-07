@@ -1,0 +1,152 @@
+[
+  {
+    "slug": "northstar",
+    "name": "Northstar",
+    "headers": [
+      "sku",
+      "description",
+      "price_eur",
+      "units",
+      "currency",
+      "price_date"
+    ],
+    "date_format": "%Y-%m-%d",
+    "divisor": 1,
+    "pack": 1
+  },
+  {
+    "slug": "packworks",
+    "name": "Packworks",
+    "headers": [
+      "item_code",
+      "item_name",
+      "carton_price",
+      "carton_qty",
+      "ccy",
+      "valid_on"
+    ],
+    "date_format": "%d.%m.%Y",
+    "divisor": 1,
+    "pack": 12
+  },
+  {
+    "slug": "summit",
+    "name": "Summit",
+    "headers": [
+      "product",
+      "label",
+      "price_cents",
+      "quantity",
+      "iso_currency",
+      "snapshot"
+    ],
+    "date_format": "%Y-%m-%d",
+    "divisor": 100,
+    "pack": 1
+  },
+  {
+    "slug": "harbour",
+    "name": "Harbour",
+    "headers": [
+      "article",
+      "name",
+      "net_amount",
+      "pack_size",
+      "currency_code",
+      "dated"
+    ],
+    "date_format": "%d.%m.%Y",
+    "divisor": 1,
+    "pack": 1
+  },
+  {
+    "slug": "orbit",
+    "name": "Orbit",
+    "headers": [
+      "code",
+      "product_name",
+      "net_price",
+      "unit_count",
+      "currency",
+      "as_of"
+    ],
+    "date_format": "%Y-%m-%d",
+    "divisor": 1,
+    "pack": 1
+  },
+  {
+    "slug": "ridge",
+    "name": "Ridge",
+    "headers": [
+      "manufacturer_code",
+      "title",
+      "box_price",
+      "box_units",
+      "ccy",
+      "issued"
+    ],
+    "date_format": "%d.%m.%Y",
+    "divisor": 1,
+    "pack": 6
+  },
+  {
+    "slug": "pine",
+    "name": "Pine",
+    "headers": [
+      "reference",
+      "description",
+      "amount_cents",
+      "count",
+      "iso",
+      "day"
+    ],
+    "date_format": "%Y-%m-%d",
+    "divisor": 100,
+    "pack": 1
+  },
+  {
+    "slug": "beacon",
+    "name": "Beacon",
+    "headers": [
+      "product_id",
+      "product_title",
+      "price",
+      "units_per_pack",
+      "currency",
+      "effective_date"
+    ],
+    "date_format": "%d.%m.%Y",
+    "divisor": 1,
+    "pack": 1
+  },
+  {
+    "slug": "cedar",
+    "name": "Cedar",
+    "headers": [
+      "part_number",
+      "display_name",
+      "case_cost",
+      "case_count",
+      "currency",
+      "source_date"
+    ],
+    "date_format": "%Y-%m-%d",
+    "divisor": 1,
+    "pack": 12
+  },
+  {
+    "slug": "fieldnotes",
+    "name": "Fieldnotes",
+    "headers": [
+      "stock_code",
+      "item",
+      "cost",
+      "pack",
+      "curr",
+      "date"
+    ],
+    "date_format": "%d.%m.%Y",
+    "divisor": 1,
+    "pack": 1
+  }
+]

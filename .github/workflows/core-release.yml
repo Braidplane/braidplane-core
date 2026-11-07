@@ -1,0 +1,263 @@
+name: Core release candidate
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: Approved release version
+        required: true
+        type: string
+      platform:
+        description: Target platform
+        required: true
+        type: choice
+        options: [linux/amd64, linux/arm64]
+      edge:
+        description: Approved edge image digest reference
+        required: true
+        type: string
+      postgres:
+        description: Approved PostgreSQL image digest reference
+        required: true
+        type: string
+      ci_run_id:
+        description: Successful main-push CI run ID
+        required: true
+        type: string
+      ci_attempt:
+        description: CI run attempt
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: core-release-candidate
+  cancel-in-progress: false
+
+jobs:
+  prepare:
+    if: ${{ false && github.ref == 'refs/heads/main' && github.event.repository.visibility == 'public' && vars.CORE_RELEASE_PUBLICATION_ENABLED == 'true' }}
+    runs-on: ${{ inputs.platform == 'linux/arm64' && 'ubuntu-24.04-arm' || 'ubuntu-24.04' }}
+    timeout-minutes: 120
+    permissions:
+      contents: read
+    outputs:
+      approval_sha256: ${{ steps.review.outputs.approval_sha256 }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Prepare candidate OCI archives
+        env:
+          RELEASE_VERSION: ${{ inputs.version }}
+          RELEASE_PLATFORM: ${{ inputs.platform }}
+          RELEASE_EDGE: ${{ inputs.edge }}
+          RELEASE_POSTGRES: ${{ inputs.postgres }}
+        run: |
+          python3 -m scripts.build_core_candidate \
+            "$RELEASE_VERSION" "$RELEASE_PLATFORM" "$RELEASE_EDGE" "$RELEASE_POSTGRES" \
+            "$GITHUB_WORKSPACE" "$RUNNER_TEMP/core-release-candidate"
+      - name: Show the candidate for approval
+        id: review
+        run: |
+          digest=$(sha256sum "$RUNNER_TEMP/core-release-candidate/approval.json" | cut -d ' ' -f 1)
+          printf 'approval_sha256=%s\n' "$digest" >> "$GITHUB_OUTPUT"
+          {
+            printf '## Core release candidate\n\nApproval document SHA-256: %s\n\n' "$digest"
+            printf '%s\n' '~~~json'
+            cat "$RUNNER_TEMP/core-release-candidate/approval.json"
+            printf '\n%s\n' '~~~'
+            printf '\n%s\n' 'Release record:' '~~~json'
+            cat "$RUNNER_TEMP/core-release-candidate/record.json"
+            printf '\n%s\n' '~~~'
+          } >> "$GITHUB_STEP_SUMMARY"
+      - name: Retain the candidate for review
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: core-release-candidate
+          path: ${{ runner.temp }}/core-release-candidate/
+          if-no-files-found: error
+
+  publish:
+    needs: [prepare]
+    if: ${{ false && github.ref == 'refs/heads/main' && github.event.repository.visibility == 'public' && vars.CORE_RELEASE_PUBLICATION_ENABLED == 'true' }}
+    environment: core-release
+    runs-on: ${{ inputs.platform == 'linux/arm64' && 'ubuntu-24.04-arm' || 'ubuntu-24.04' }}
+    timeout-minutes: 120
+    permissions:
+      contents: read
+      packages: write
+      id-token: write
+      attestations: write
+      artifact-metadata: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GITHUB_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Download the reviewed candidate
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8
+        with:
+          name: core-release-candidate
+          path: ${{ runner.temp }}/core-release-candidate
+      - name: Set temporary paths
+        id: prepare_paths
+        run: |
+          {
+            printf 'DOCKER_CONFIG=%s\n' "$RUNNER_TEMP/core-release-signing-docker"
+            printf 'RELEASE_OUTPUT=%s\n' "$RUNNER_TEMP/core-release-output"
+            printf 'CANDIDATE_DIR=%s\n' "$RUNNER_TEMP/core-release-candidate"
+          } >> "$GITHUB_ENV"
+      - name: Publish the approved candidate by digest
+        id: publish_candidate
+        env:
+          CORE_RELEASE_PUBLICATION_AUTHORIZED: 'yes'
+          APPROVED_SHA256: ${{ needs.prepare.outputs.approval_sha256 }}
+          RELEASE_CI_RUN: ${{ inputs.ci_run_id }}
+          RELEASE_CI_ATTEMPT: ${{ inputs.ci_attempt }}
+        run: |
+          python3 -m scripts.publish_core_candidate "$CANDIDATE_DIR" "$APPROVED_SHA256" \
+            "$GITHUB_WORKSPACE" "$RELEASE_OUTPUT" "$RELEASE_CI_RUN" "$RELEASE_CI_ATTEMPT"
+      - name: Prepare signing credentials and coordinates
+        id: images
+        run: |
+          mkdir -m 700 "$DOCKER_CONFIG"
+          printf '%s' "$GITHUB_TOKEN" | docker login ghcr.io --username "$GITHUB_ACTOR" --password-stdin
+          python3 - <<'PY'
+          import json, os
+          with open(os.path.join(os.environ['CANDIDATE_DIR'], 'release.json')) as source:
+              images = json.load(source)['images']
+          with open(os.environ['GITHUB_OUTPUT'], 'a') as output:
+              for component in ('backend', 'frontend', 'migrate', 'cli'):
+                  name, digest = images[component].split('@')
+                  print(f'{component}_name={name}', file=output)
+                  print(f'{component}_digest={digest}', file=output)
+          PY
+      - name: Sign backend provenance
+        id: backend_provenance
+        uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4.2.2
+        with:
+          subject-name: ${{ steps.images.outputs.backend_name }}
+          subject-digest: ${{ steps.images.outputs.backend_digest }}
+          predicate-type: https://slsa.dev/provenance/v1
+          predicate-path: ${{ runner.temp }}/core-release-output/provenance.json
+          push-to-registry: true
+      - name: Sign backend SBOM
+        id: backend_sbom
+        uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4.2.2
+        with:
+          subject-name: ${{ steps.images.outputs.backend_name }}
+          subject-digest: ${{ steps.images.outputs.backend_digest }}
+          sbom-path: ${{ runner.temp }}/core-release-output/sboms/backend.spdx.json
+          push-to-registry: true
+      - name: Sign frontend provenance
+        id: frontend_provenance
+        uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4.2.2
+        with:
+          subject-name: ${{ steps.images.outputs.frontend_name }}
+          subject-digest: ${{ steps.images.outputs.frontend_digest }}
+          predicate-type: https://slsa.dev/provenance/v1
+          predicate-path: ${{ runner.temp }}/core-release-output/provenance.json
+          push-to-registry: true
+      - name: Sign frontend SBOM
+        id: frontend_sbom
+        uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4.2.2
+        with:
+          subject-name: ${{ steps.images.outputs.frontend_name }}
+          subject-digest: ${{ steps.images.outputs.frontend_digest }}
+          sbom-path: ${{ runner.temp }}/core-release-output/sboms/frontend.spdx.json
+          push-to-registry: true
+      - name: Sign migrate provenance
+        id: migrate_provenance
+        uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4.2.2
+        with:
+          subject-name: ${{ steps.images.outputs.migrate_name }}
+          subject-digest: ${{ steps.images.outputs.migrate_digest }}
+          predicate-type: https://slsa.dev/provenance/v1
+          predicate-path: ${{ runner.temp }}/core-release-output/provenance.json
+          push-to-registry: true
+      - name: Sign migrate SBOM
+        id: migrate_sbom
+        uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4.2.2
+        with:
+          subject-name: ${{ steps.images.outputs.migrate_name }}
+          subject-digest: ${{ steps.images.outputs.migrate_digest }}
+          sbom-path: ${{ runner.temp }}/core-release-output/sboms/migrate.spdx.json
+          push-to-registry: true
+      - name: Sign cli provenance
+        id: cli_provenance
+        uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4.2.2
+        with:
+          subject-name: ${{ steps.images.outputs.cli_name }}
+          subject-digest: ${{ steps.images.outputs.cli_digest }}
+          predicate-type: https://slsa.dev/provenance/v1
+          predicate-path: ${{ runner.temp }}/core-release-output/provenance.json
+          push-to-registry: true
+      - name: Sign cli SBOM
+        id: cli_sbom
+        uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4.2.2
+        with:
+          subject-name: ${{ steps.images.outputs.cli_name }}
+          subject-digest: ${{ steps.images.outputs.cli_digest }}
+          sbom-path: ${{ runner.temp }}/core-release-output/sboms/cli.spdx.json
+          push-to-registry: true
+      - name: Sign record provenance
+        id: record_provenance
+        uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4.2.2
+        with:
+          subject-path: ${{ runner.temp }}/core-release-candidate/record.json
+          predicate-type: https://slsa.dev/provenance/v1
+          predicate-path: ${{ runner.temp }}/core-release-output/provenance.json
+      - name: Sign archive provenance
+        id: archive_provenance
+        uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4.2.2
+        with:
+          subject-path: ${{ runner.temp }}/core-release-candidate/installation.tar.gz
+          predicate-type: https://slsa.dev/provenance/v1
+          predicate-path: ${{ runner.temp }}/core-release-output/provenance.json
+      - name: Retain signature bundles
+        if: ${{ always() && steps.publish_candidate.outcome == 'success' }}
+        env:
+          ALL_SIGNED: ${{ steps.archive_provenance.outcome == 'success' }}
+          BACKEND_PROVENANCE: ${{ steps.backend_provenance.outputs.bundle-path }}
+          BACKEND_SBOM: ${{ steps.backend_sbom.outputs.bundle-path }}
+          FRONTEND_PROVENANCE: ${{ steps.frontend_provenance.outputs.bundle-path }}
+          FRONTEND_SBOM: ${{ steps.frontend_sbom.outputs.bundle-path }}
+          MIGRATE_PROVENANCE: ${{ steps.migrate_provenance.outputs.bundle-path }}
+          MIGRATE_SBOM: ${{ steps.migrate_sbom.outputs.bundle-path }}
+          CLI_PROVENANCE: ${{ steps.cli_provenance.outputs.bundle-path }}
+          CLI_SBOM: ${{ steps.cli_sbom.outputs.bundle-path }}
+          RECORD_PROVENANCE: ${{ steps.record_provenance.outputs.bundle-path }}
+          ARCHIVE_PROVENANCE: ${{ steps.archive_provenance.outputs.bundle-path }}
+        run: |
+          mkdir "$RELEASE_OUTPUT/signatures"
+          for variable in BACKEND_PROVENANCE BACKEND_SBOM FRONTEND_PROVENANCE FRONTEND_SBOM MIGRATE_PROVENANCE MIGRATE_SBOM CLI_PROVENANCE CLI_SBOM RECORD_PROVENANCE ARCHIVE_PROVENANCE; do
+            if [[ -z "${!variable}" ]]; then
+              if [[ "$ALL_SIGNED" == true ]]; then exit 1; fi
+              continue
+            fi
+            cp "${!variable}" "$RELEASE_OUTPUT/signatures/$variable.sigstore.json"
+          done
+      - name: Retain candidate evidence
+        if: ${{ always() && steps.prepare_paths.outcome == 'success' }}
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: core-release-evidence-${{ inputs.platform == 'linux/arm64' && 'arm64' || 'amd64' }}
+          path: |
+            ${{ runner.temp }}/core-release-candidate/release.json
+            ${{ runner.temp }}/core-release-candidate/record.json
+            ${{ runner.temp }}/core-release-candidate/installation.tar.gz
+            ${{ runner.temp }}/core-release-candidate/approval.json
+            ${{ runner.temp }}/core-release-output/provenance.json
+            ${{ runner.temp }}/core-release-output/ci-admission.json
+            ${{ runner.temp }}/core-release-output/publication.jsonl
+            ${{ runner.temp }}/core-release-output/sboms/
+            ${{ runner.temp }}/core-release-output/signatures/
+          if-no-files-found: error
+      - name: Remove signing credentials
+        if: ${{ always() && steps.prepare_paths.outcome == 'success' }}
+        run: rm -rf "$DOCKER_CONFIG"

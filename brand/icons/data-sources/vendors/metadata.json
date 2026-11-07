@@ -1,0 +1,115 @@
+[
+  {
+    "file": "git",
+    "title": "Git",
+    "format": "svg",
+    "sourceType": "vendor-provided",
+    "source": "https://raw.githubusercontent.com/git/git-scm.com/75ff5d74fd2a0e16d35b86d69443f053f9ade644/static/images/logos/downloads/Git-Icon-1788C.svg",
+    "guidelines": "https://git-scm.com/about/trademark",
+    "license": {
+      "type": "CC-BY-3.0",
+      "url": "https://creativecommons.org/licenses/by/3.0/"
+    },
+    "attribution": "Git Logo by Jason Long. Unmodified official orange logomark.",
+    "usage": "Factual identification of the Git component and protocol; no endorsement or affiliation.",
+    "checked": "2026-11-04",
+    "sha256": "1080a5430edb6278dc03e4b04efc16c8bed5b943408d648ad721a28836814220"
+  },
+  {
+    "file": "mongodb",
+    "title": "MongoDB",
+    "format": "png",
+    "sourceType": "vendor-provided",
+    "source": "https://images.contentstack.io/v3/assets/blt7151619cb9560896/blt8d2881fd93f3787c/69bd6abdd4ee4e25b6d09f35/MongoDBLeaf1.png",
+    "guidelines": "https://www.mongodb.com/legal/trademark-usage-guidelines",
+    "license": null,
+    "attribution": "MongoDB and the MongoDB leaf logo are registered trademarks of MongoDB, Inc.",
+    "usage": "Unmodified official leaf identifies MongoDB products in the connector UI, with registration notice and Braidplane branding. No sponsorship, endorsement or affiliation.",
+    "checked": "2026-11-04",
+    "sha256": "4db424ea74950fc0c134befd71f56d95559b51f53967976141ef19c02214c186"
+  },
+  {
+    "file": "postgres",
+    "title": "PostgreSQL",
+    "simpleIconsKey": "siPostgresql",
+    "hex": "4169E1",
+    "source": "https://wiki.postgresql.org/wiki/Logo",
+    "guidelines": "https://www.postgresql.org/about/policies/trademarks/",
+    "license": null,
+    "format": "svg",
+    "sha256": "90cc94ce4bf07ff9b43289bdf546177b8032f3d7b1b33a1b30e324bc61d5cd6e",
+    "releaseDecision": "Retained provisionally by owner on 4 November 2026 for the existing connector UI; underlying vendor terms and recorded restrictions remain applicable. This is not a new vendor permission or an Apache-2.0 grant for the artwork."
+  },
+  {
+    "file": "mysql",
+    "title": "MySQL",
+    "simpleIconsKey": "siMysql",
+    "hex": "4479A1",
+    "source": "https://www.mysql.com/about/legal/logos.html",
+    "guidelines": "https://www.mysql.com/about/legal/trademark.html",
+    "license": null,
+    "format": "svg",
+    "sha256": "60622620f3d8039fceb991563a4a1a67e368b0ba5766beffa9382e0ff8099f06",
+    "releaseDecision": "Retained provisionally by owner on 4 November 2026 for the existing connector UI; underlying vendor terms and recorded restrictions remain applicable. This is not a new vendor permission or an Apache-2.0 grant for the artwork."
+  },
+  {
+    "file": "hubspot",
+    "title": "HubSpot",
+    "simpleIconsKey": "siHubspot",
+    "hex": "FF7A59",
+    "source": "https://www.hubspot.com/style-guide",
+    "guidelines": "https://legal.hubspot.com/tm-usage-guidelines",
+    "license": null,
+    "format": "svg",
+    "sha256": "504b5d9947e669327c178673d11a041a76a1c538199ed6aecb6e795e1225d1a5",
+    "releaseDecision": "Retained provisionally by owner on 4 November 2026 for the existing connector UI; underlying vendor terms and recorded restrictions remain applicable. This is not a new vendor permission or an Apache-2.0 grant for the artwork."
+  },
+  {
+    "file": "github",
+    "title": "GitHub",
+    "simpleIconsKey": "siGithub",
+    "hex": "181717",
+    "source": "https://github.com/logos",
+    "guidelines": "https://github.com/logos",
+    "license": null,
+    "format": "svg",
+    "sha256": "61aa5d849dc6cfbe7b3a7a6ab13a1c01f5d17b655d7970fd5197b0a92d7afdba",
+    "releaseDecision": "Retained provisionally by owner on 4 November 2026 for the existing connector UI; underlying vendor terms and recorded restrictions remain applicable. This is not a new vendor permission or an Apache-2.0 grant for the artwork."
+  },
+  {
+    "file": "google-bigquery",
+    "title": "Google BigQuery",
+    "simpleIconsKey": "siGooglebigquery",
+    "hex": "669DF6",
+    "source": "https://cloud.google.com/icons",
+    "guidelines": "https://about.google/brand-resource-center",
+    "license": null,
+    "format": "svg",
+    "sha256": "fae325eb5a07d6b2a9aa8ceb2713067766bf88171db006111107f5074b9ad0f5",
+    "releaseDecision": "Retained provisionally by owner on 4 November 2026 for the existing connector UI; underlying vendor terms and recorded restrictions remain applicable. This is not a new vendor permission or an Apache-2.0 grant for the artwork."
+  },
+  {
+    "file": "snowflake",
+    "title": "Snowflake",
+    "simpleIconsKey": "siSnowflake",
+    "hex": "29B5E8",
+    "source": "https://www.snowflake.com/brand-guidelines/",
+    "guidelines": "https://www.snowflake.com/brand-guidelines/",
+    "license": null,
+    "format": "svg",
+    "sha256": "d382c8e68fa33f38facade656f1e348cc910597240e2f98a510e6fb0a649a468",
+    "releaseDecision": "Retained provisionally by owner on 4 November 2026 for the existing connector UI; underlying vendor terms and recorded restrictions remain applicable. This is not a new vendor permission or an Apache-2.0 grant for the artwork."
+  },
+  {
+    "file": "google-drive",
+    "title": "Google Drive",
+    "format": "png",
+    "sourceType": "vendor-provided",
+    "source": "https://www.gstatic.com/images/branding/productlogos/drive_2026/v2/web-64dp/logo_drive_2026_color_2x_web_64dp.png",
+    "guidelines": "https://developers.google.com/workspace/drive/api/guides/branding",
+    "license": null,
+    "usage": "Unmodified transparent Google Drive mark identifying the Google Workspace connector for Drive files and Sheets. Product integration identification only; no endorsement or partnership claim.",
+    "sha256": "39e2c15449e7fa75ebe3a29f3f99e2e9ee11b5ef36aebf4dda3d30e484635495",
+    "releaseDecision": "Retained provisionally by owner on 4 November 2026 for the existing connector UI; underlying vendor terms and recorded restrictions remain applicable. This is not a new vendor permission or an Apache-2.0 grant for the artwork."
+  }
+]

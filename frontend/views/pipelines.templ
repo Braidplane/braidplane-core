@@ -1,0 +1,296 @@
+package views
+
+import (
+	"fmt"
+
+	api "github.com/Braidplane/braidplane-core/api-schema/gen/client"
+)
+
+templ PipelinesPage(shellData AuthenticatedShellData, orgSlug string, activeProjectSlug string, activeEnvironmentSlug string, pipelines []api.PipelineRef, deployments map[string][]PipelineDeploymentBadge, deploymentsUnavailable bool, latestRuns map[string]PipelineLatestRunSummary, latestRunsUnavailable bool, hasMore bool, nextCursor string, prevCursor string, filters PipelineCatalogFilters, selectedDetail PipelineSelectedDetail, permissions OrganizationPermissions) {
+	@AuthenticatedShell(shellData, PipelinesPageContent(orgSlug, activeProjectSlug, activeEnvironmentSlug, shellData.ActiveEnvironmentColor, pipelines, deployments, deploymentsUnavailable, latestRuns, latestRunsUnavailable, hasMore, nextCursor, prevCursor, filters, selectedDetail, permissions))
+}
+
+templ PipelinesPageContent(orgSlug string, activeProjectSlug string, activeEnvironmentSlug string, activeEnvironmentColor string, pipelines []api.PipelineRef, deployments map[string][]PipelineDeploymentBadge, deploymentsUnavailable bool, latestRuns map[string]PipelineLatestRunSummary, latestRunsUnavailable bool, hasMore bool, nextCursor string, prevCursor string, filters PipelineCatalogFilters, selectedDetail PipelineSelectedDetail, permissions OrganizationPermissions) {
+	{{ rows := PipelineCatalogRows(pipelines, deployments, latestRuns, filters) }}
+	<div id="pipeline-catalog-workspace">
+		if activeProjectSlug != "" && (permissions.Can("pipelines", "read") || permissions.Can("pipelines", "update") || permissions.Can("pipelines", "create")) {
+			<div class="mb-3 flex flex-wrap justify-end gap-2">
+				if permissions.Can("pipelines", "create") {
+					<a class="btn btn-primary btn-sm" href={ templ.URL(pipelineBuilderHrefWithEnvironment(orgSlug, activeProjectSlug, activeEnvironmentSlug, "")) }>Create pipeline</a>
+				}
+				if permissions.Can("pipelines", "read") {
+					<a class="btn btn-outline btn-sm" href={ templ.URL(PipelineCreationListHref(orgSlug, activeProjectSlug, activeEnvironmentSlug, "")) }>Creation proposals</a>
+				}
+				if permissions.Can("pipelines", "update") {
+					<a class="btn btn-outline btn-sm" href={ templ.URL(pipelineBuilderHrefWithEnvironment(orgSlug, activeProjectSlug, activeEnvironmentSlug, "")) }>Open Builder</a>
+					<a class="btn btn-outline btn-sm" href={ templ.URL(PipelineSyncHref(orgSlug, activeProjectSlug, activeEnvironmentSlug, "")) }>Sync from Git</a>
+				}
+			</div>
+		}
+		<div class="space-y-3">
+			<form
+				class="rounded-lg border border-base-300 bg-base-100 p-3"
+				method="get"
+				action={ templ.URL(buildEnvironmentProjectPipelinesListHref(orgSlug, activeProjectSlug, activeEnvironmentSlug, "", "")) }
+				hx-get={ buildEnvironmentProjectPipelinesListHref(orgSlug, activeProjectSlug, activeEnvironmentSlug, "", "") }
+				hx-target="#pipeline-catalog-workspace"
+				hx-select="#pipeline-catalog-workspace"
+				hx-swap="outerHTML show:none focus-scroll:false"
+				hx-push-url="true"
+				data-preserve-scroll
+				hx-indicator="#pipeline-catalog-loading"
+			>
+				if activeEnvironmentSlug != "" {
+					<input type="hidden" name="environment_slug" value={ activeEnvironmentSlug }/>
+				}
+				<div class="flex flex-wrap items-end gap-2">
+					<label class="form-control w-64 max-w-full">
+						<div class="label py-0.5"><span class="label-text text-xs">Search</span></div>
+						<input class="input input-bordered input-sm w-full" type="search" name="q" value={ filters.Query } placeholder="name, slug, version"/>
+					</label>
+					<label class="form-control w-36">
+						<div class="label py-0.5"><span class="label-text text-xs">Sync</span></div>
+						<select class="select select-bordered select-sm w-full" name="sync_status">
+							<option selected?={ filters.SyncStatus == "" } value="">Any sync</option>
+							<option selected?={ filters.SyncStatus == "synced" } value="synced">Synced</option>
+							<option selected?={ filters.SyncStatus == "drifted" } value="drifted">Drifted</option>
+						</select>
+					</label>
+					<label class="form-control w-36">
+						<div class="label py-0.5"><span class="label-text text-xs">Draft</span></div>
+						<select class="select select-bordered select-sm w-full" name="draft">
+							<option selected?={ filters.DraftState == "" } value="">Any draft</option>
+							<option selected?={ filters.DraftState == "draft" } value="draft">Draft saved</option>
+							<option selected?={ filters.DraftState == pipelineCatalogFilterNone } value={ pipelineCatalogFilterNone }>No draft</option>
+						</select>
+					</label>
+					<label class="form-control w-40">
+						<div class="label py-0.5"><span class="label-text text-xs">Deploy</span></div>
+						<select class="select select-bordered select-sm w-full" name="deployment">
+							<option selected?={ filters.DeploymentState == "" } value="">Any deploy</option>
+							<option selected?={ filters.DeploymentState == "deployed" } value="deployed">Deployed</option>
+							<option selected?={ filters.DeploymentState == "not_deployed" } value="not_deployed">Not deployed</option>
+						</select>
+					</label>
+					<label class="form-control w-36">
+						<div class="label py-0.5"><span class="label-text text-xs">Run</span></div>
+						<select class="select select-bordered select-sm w-full" name="run_status">
+							<option selected?={ filters.RunStatus == "" } value="">Any run</option>
+							<option selected?={ filters.RunStatus == "succeeded" } value="succeeded">Succeeded</option>
+							<option selected?={ filters.RunStatus == "failed" } value="failed">Failed</option>
+							<option selected?={ filters.RunStatus == pipelineCatalogFilterNone } value={ pipelineCatalogFilterNone }>No runs</option>
+						</select>
+					</label>
+					<div class="flex items-end gap-2">
+						<button class="btn btn-primary btn-sm" type="submit">Apply</button>
+						<a class="btn btn-outline btn-sm" href={ templ.URL(buildEnvironmentProjectPipelinesListHref(orgSlug, activeProjectSlug, activeEnvironmentSlug, "", "")) }>Reset</a>
+					</div>
+				</div>
+			</form>
+		</div>
+		if activeEnvironmentSlug != "" {
+			<div class="mt-3 flex flex-wrap items-center gap-2 rounded-lg border border-base-300 bg-base-200/35 px-3 py-2 text-xs text-base-content/70">
+				<span class="font-semibold uppercase tracking-wide text-base-content/60">Runtime target</span>
+				<span class={ ShellEnvironmentBadgeClass(activeEnvironmentColor) }>{ activeEnvironmentSlug }</span>
+				<span>Catalog run filters, Builder links, and execution history use this project target.</span>
+			</div>
+		}
+		if pipelineCatalogFiltersActive(filters) || deploymentsUnavailable || latestRunsUnavailable {
+			<div class="mt-3 flex flex-wrap gap-2">
+				if pipelineCatalogFiltersActive(filters) {
+					<span class="badge badge-primary badge-outline">filters active</span>
+				}
+				if deploymentsUnavailable {
+					<span class="badge badge-warning badge-outline">deployments unavailable</span>
+				}
+				if latestRunsUnavailable {
+					<span class="badge badge-warning badge-outline">runs unavailable</span>
+				}
+			</div>
+		}
+		<div id="pipeline-catalog-results" class="mt-4">
+			if len(pipelines) == 0 {
+				@EntityState("No pipelines yet", "Create a pipeline in Builder and propose it to Git, then merge and sync it here. You can also sync existing pipeline definitions from the project repository.")
+			} else if len(rows) == 0 {
+				<div class="rounded-xl border border-dashed border-base-300 bg-base-100 p-8 text-center">
+					<h2 class="text-lg font-semibold text-base-content">No pipelines match these filters</h2>
+					<p class="mt-2 text-sm text-base-content/70">Clear a state filter or search term to inspect the visible catalog again.</p>
+					<a class="btn btn-outline btn-sm mt-4" href={ templ.URL(buildEnvironmentProjectPipelinesListHref(orgSlug, activeProjectSlug, activeEnvironmentSlug, "", "")) }>Clear filters</a>
+				</div>
+			} else {
+				@EntityListLayout("pipeline-catalog-loading", PipelineDetailPanelSlot(orgSlug, activeProjectSlug, activeEnvironmentSlug, selectedDetail, permissions)) {
+					<section class="min-h-0">
+						<div class="flex flex-wrap items-start justify-between gap-3">
+							<div>
+								<h2 class="text-base font-semibold text-base-content">Canonical pipeline catalog</h2>
+								<p class="mt-1 text-xs text-base-content/70">{ fmt.Sprintf("%d", len(rows)) } visible of { fmt.Sprintf("%d", len(pipelines)) } loaded definitions</p>
+							</div>
+						</div>
+						<div class="mt-4 space-y-3">
+							for _, row := range rows {
+								@EntityListItem(PipelineCatalogItemClass(row, ""), string(row.Pipeline.Slug) == selectedDetail.Slug, "pipeline-preview-"+string(row.Pipeline.Slug), string(row.Pipeline.Name), pipelineSelectionHrefWithFilters(orgSlug, activeProjectSlug, activeEnvironmentSlug, string(row.Pipeline.Slug), filters), "#pipeline-detail-panel-slot", "pipeline-preview-heading", "#pipeline-catalog-loading") {
+									<a class="relative z-10 block break-words text-base font-semibold link link-hover" href={ templ.URL(entityDetailHref(pipelineDetailHrefWithEnvironment(orgSlug, activeProjectSlug, activeEnvironmentSlug, string(row.Pipeline.Slug)), pipelineSelectionHrefWithFilters(orgSlug, activeProjectSlug, activeEnvironmentSlug, string(row.Pipeline.Slug), filters))) }>{ string(row.Pipeline.Name) }</a>
+									<div class="flex flex-wrap items-start justify-between gap-3">
+										<div class="min-w-0">
+											<p class="mt-1 break-all font-mono text-xs text-base-content/70">{ string(row.Pipeline.Slug) }</p>
+										</div>
+										<div class="flex shrink-0 flex-wrap gap-1">
+											<span class={ pipelineSyncStatusBadgeClass(row.Pipeline.SyncStatus) }>{ pipelineSyncStatusLabel(row.Pipeline.SyncStatus) }</span>
+										</div>
+									</div>
+									<div class="mt-3 grid gap-3 sm:grid-cols-2">
+										<div class="space-y-1">
+											<span class={ pipelineDraftBadgeClass(row.Pipeline.HasDraft) }>{ pipelineDraftBadgeLabel(row.Pipeline.HasDraft) }</span>
+											<p class="font-mono text-xs text-base-content/70" title={ pipelineVersionTitle(row.Pipeline.CurrentVersionSpecHash) }>version { shortPipelineVersionSpecHash(row.Pipeline.CurrentVersionSpecHash) }</p>
+										</div>
+										<div class="space-y-1 sm:text-right">
+											<p class="text-xs text-base-content/60">{ pipelineDeploymentStateLabel(row.Deployments, deploymentsUnavailable) }</p>
+											<div class="flex justify-start sm:justify-end">
+												@PipelineDeploymentBadges(row.Deployments, deploymentsUnavailable)
+											</div>
+										</div>
+									</div>
+									if latestRunsUnavailable || row.HasLatestRun {
+										<div class="relative z-10 mt-3 border-t border-base-300/70 pt-3">
+											@PipelineLatestRunCell(orgSlug, activeProjectSlug, activeEnvironmentSlug, row.LatestRun, row.HasLatestRun, latestRunsUnavailable)
+										</div>
+									}
+								}
+							}
+						</div>
+					</section>
+				}
+			}
+			if prevCursor != "" || hasMore {
+				<div class="mt-6 flex items-center justify-end gap-2">
+					if prevCursor != "" {
+						<a class="btn btn-sm btn-outline" href={ templ.URL(buildEnvironmentProjectPipelinesListHrefWithFilters(orgSlug, activeProjectSlug, activeEnvironmentSlug, prevCursor, "prev", filters)) }>Previous</a>
+					} else {
+						<button class="btn btn-sm btn-outline" type="button" disabled>Previous</button>
+					}
+					if hasMore && nextCursor != "" {
+						<a class="btn btn-sm btn-outline" href={ templ.URL(buildEnvironmentProjectPipelinesListHrefWithFilters(orgSlug, activeProjectSlug, activeEnvironmentSlug, nextCursor, "next", filters)) }>Next</a>
+					} else {
+						<button class="btn btn-sm btn-outline" type="button" disabled>Next</button>
+					}
+				</div>
+			}
+		</div>
+	</div>
+}
+
+templ PipelineDeploymentBadges(badges []PipelineDeploymentBadge, unavailable bool) {
+	if unavailable {
+		<span class="badge badge-warning badge-outline">deployments unavailable</span>
+	} else if len(badges) == 0 {
+		<span class="badge badge-ghost badge-outline">not deployed</span>
+	} else {
+		<div class="flex flex-wrap gap-1">
+			for _, badge := range badges {
+				<span class={ pipelineDeploymentBadgeClass(badge.EnvironmentColor) } title={ badge.FullSpecHash + " deployed " + badge.DeployedAt }>
+					{ badge.EnvironmentSlug }:{ badge.ShortSpecHash }
+				</span>
+			}
+		</div>
+	}
+}
+
+templ PipelineDeploymentInspectionLinks(orgSlug string, activeProjectSlug string, pipelineSlug string, badges []PipelineDeploymentBadge, unavailable bool) {
+	if !unavailable && len(badges) > 0 {
+		<div class="mt-3 flex flex-wrap gap-2">
+			for _, badge := range badges {
+				<a class="btn btn-outline btn-xs" href={ templ.URL(PipelineDeploymentDetailHrefWithEnvironment(orgSlug, activeProjectSlug, badge.EnvironmentSlug, pipelineSlug)) }>
+					Inspect { badge.EnvironmentSlug } deployment
+				</a>
+			}
+		</div>
+	}
+}
+
+templ PipelineDetailPanelSlot(orgSlug string, activeProjectSlug string, activeEnvironmentSlug string, selectedDetail PipelineSelectedDetail, permissions OrganizationPermissions) {
+	{{ listHref := entityListHref(ctx, buildEnvironmentProjectPipelinesListHref(orgSlug, activeProjectSlug, activeEnvironmentSlug, "", ""), "pipeline_slug", selectedDetail.Slug) }}
+	<div id="pipeline-detail-panel-slot">
+		if selectedDetail.ErrorSummary != "" {
+			@EntityState(selectedDetail.ErrorSummary, selectedDetail.ErrorDetails)
+		} else if selectedDetail.Pipeline == nil {
+			@EntityState("Select a pipeline", "Select a card to inspect a pipeline summary.")
+		} else {
+			@EntityQuickLook("pipeline-preview-heading", string(selectedDetail.Pipeline.Name), selectedDetail.Slug, entityDetailHref(pipelineDetailHrefWithEnvironment(orgSlug, activeProjectSlug, activeEnvironmentSlug, selectedDetail.Slug), listHref), entityListHref(ctx, listHref, "pipeline_slug", ""), "#pipeline-detail-panel-slot", "pipeline-preview-"+selectedDetail.Slug) {
+				<p class="text-sm text-base-content/70">{ pipelineWorkflowSummary(selectedDetail.Pipeline) }</p>
+				@EntityFacts() {
+					@EntityFact("Target") {
+						if activeEnvironmentSlug == "" {
+							<span>No runtime target selected</span>
+						} else {
+							<span>{ activeProjectSlug } / { activeEnvironmentSlug }</span>
+						}
+					}
+					@EntityFact("Source sync") {
+						<span
+							class={ pipelineSyncStatusBadgeClass(selectedDetail.Pipeline.SyncStatus) }
+						>
+							{ pipelineSyncStatusLabel(selectedDetail.Pipeline.SyncStatus) }
+						</span>
+					}
+					@EntityFact("Deployments") {
+						@PipelineDeploymentBadges(selectedDetail.Deployments, selectedDetail.DeploymentsUnavailable)
+					}
+					@EntityFact("Latest target run") {
+						@PipelineLatestRunCell(orgSlug, activeProjectSlug, activeEnvironmentSlug, selectedDetail.LatestRun, selectedDetail.HasLatestRun, selectedDetail.LatestRunUnavailable)
+					}
+					@EntityFact("Canonical version") {
+						<span class="break-all">
+							{ shortPipelineVersionSpecHash(selectedDetail.Pipeline.CurrentVersionSpecHash) }
+						</span>
+					}
+					@EntityFact("Validation") {
+						@PipelineValidationSummary(activeEnvironmentSlug, selectedDetail.ValidationResults, selectedDetail.ValidationUnavailable)
+					}
+				}
+				@PipelineAttention(selectedDetail.Pipeline, activeEnvironmentSlug, selectedDetail.ValidationResults, selectedDetail.ValidationUnavailable, selectedDetail.BindingContext, false)
+			}
+		}
+	</div>
+}
+
+templ PipelineLatestRunCell(orgSlug string, activeProjectSlug string, activeEnvironmentSlug string, latestRun PipelineLatestRunSummary, ok bool, unavailable bool) {
+	if activeEnvironmentSlug == "" {
+		<span class="text-sm text-base-content/70">Select a runtime target</span>
+	} else if unavailable {
+		<div class="space-y-1">
+			<span class="badge badge-warning badge-outline">runs unavailable</span>
+			<p class="text-xs text-base-content/60">Latest run status could not be loaded.</p>
+		</div>
+	} else if !ok {
+		<div class="space-y-1">
+			<span class="badge badge-ghost badge-outline">no runs</span>
+		</div>
+	} else {
+		<div class="space-y-1">
+			<a class={ pipelineLatestRunBadgeClass(latestRun.Status) } href={ templ.URL(buildEnvironmentRunDetailHref(orgSlug, activeProjectSlug, activeEnvironmentSlug, latestRun.RunSlug)) }>{ pipelineLatestRunStatusLabel(latestRun, ok, unavailable) }</a>
+			<p class="break-all font-mono text-xs text-base-content/70">{ latestRun.RunSlug }</p>
+			<p class="text-xs text-base-content/60">{ pipelineLatestRunTimingLabel(latestRun) }</p>
+			if pipelineLatestRunErrorLabel(latestRun) != "" {
+				<p
+					class="break-words text-xs text-error"
+					title={ pipelineLatestRunErrorLabel(latestRun) }
+				>
+					{ pipelineLatestRunErrorLabel(latestRun) }
+				</p>
+			}
+		</div>
+	}
+}
+
+templ PipelineValidationSummary(environment string, results []api.PipelineValidationResultRecord, unavailable bool) {
+	if environment == "" {
+		<span>Select a runtime target</span>
+	} else if unavailable {
+		<span>Unavailable</span>
+	} else if latest := pipelineValidationLatest(results); latest != nil {
+		<span>{ pipelineValidationStatusLabel(latest.Valid) } (recorded evidence)</span>
+		<p class="text-xs text-base-content/70">{ formatPipelineTimestamp(latest.CreatedAt) } · spec { pipelineValidationSpecHashLabel(latest.SpecHash) }</p>
+	} else {
+		<span>No validation recorded</span>
+	}
+}

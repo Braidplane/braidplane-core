@@ -1,0 +1,66 @@
+metadata:
+  slug: ${PIPELINE_SLUG}
+  name: Synthetic supplier pricing patch
+steps:
+  - kind: query
+    slug: fetch-prices
+    query:
+      data_source_ref: ${HTTP_DATA_SOURCE_SLUG}
+      operation_type: http
+      operation_ref: ${HTTP_QUERY_SLUG}
+      output_contract:
+        representation: rows
+        fields:
+          - {name: supplier_sku, type: string, required: true}
+          - {name: title, type: string, required: true}
+          - {name: product_url, type: string, required: true}
+          - {name: list_price, type: string, required: true}
+          - {name: valid_from, type: string, required: true}
+          - {name: valid_to, type: string, required: true}
+          - {name: source_date, type: string, required: true}
+          - {name: tag, type: string, required: true, nullable: true}
+  - kind: transform
+    slug: normalize-prices
+    transform:
+      inputs:
+        input: fetch-prices
+      sql: >-
+        SELECT TRIM(supplier_sku) AS sku, title, product_url,
+        CAST(TRIM(list_price) AS DECIMAL(18,2)) AS price,
+        STR_TO_DATE(valid_from, '%d.%m.%Y') AS effective_from,
+        STR_TO_DATE(valid_to, '%d.%m.%Y') AS effective_to,
+        STR_TO_DATE(source_date, '%d.%m.%Y') AS snapshot_date,
+        CASE WHEN NULLIF(TRIM(tag), '') IS NULL THEN 'standard' ELSE LOWER(TRIM(tag)) END AS category
+        FROM input ORDER BY sku
+      output_kind: rows
+      output_contract: &canonical
+        representation: rows
+        fields:
+          - name: sku
+            type: string
+            required: true
+            validations: {min_length: 1, unique: true}
+          - {name: title, type: string, required: true}
+          - name: product_url
+            type: string
+            required: true
+            validations: {format: url}
+          - {name: price, type: decimal, precision: 18, scale: 2, required: true}
+          - {name: effective_from, type: string, required: true}
+          - {name: effective_to, type: string, required: true}
+          - {name: snapshot_date, type: string, required: true}
+          - name: category
+            type: string
+            required: true
+            validations: {enum: [standard, promo]}
+  - kind: sink
+    slug: patch-catalog
+    sink:
+      idempotency_class: naturally_idempotent
+      input: normalize-prices
+      input_contract: *canonical
+      data_source_ref: ${PG_DATA_SOURCE_SLUG}
+      operation_type: sql
+      operation_ref: ${PATCH_QUERY_SLUG}
+      config:
+        org_slug: ${ORG_SLUG}

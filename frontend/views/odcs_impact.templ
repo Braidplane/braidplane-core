@@ -1,0 +1,75 @@
+package views
+
+import "github.com/Braidplane/braidplane-core/pkg/ptr"
+
+templ ODCSImpactComparison(data ODCSCatalogView) {
+	<section class="min-w-0 space-y-4" aria-labelledby="contract-impact-heading">
+		<h3 id="contract-impact-heading" class="text-base font-semibold">Compare revisions</h3>
+		<p class="max-w-prose text-base-content/70">Compare the selected revision with an exact revision. Rich executable meaning requires both retained compiled plans. This is static impact; runtime conformance, delivery and quality remain separate. External consumers are unknown.</p>
+		<form method="get" action={ ODCSCatalogHref(data.Org, data.Project, "", "", false, "") } hx-get={ ODCSCatalogHref(data.Org, data.Project, "", "", false, "") } hx-target="#odcs-catalog" hx-select="#odcs-catalog" hx-swap="outerHTML" hx-push-url={ boolString(!data.Selector) } class="space-y-3">
+			if data.Selector {
+				<input type="hidden" name="selector" value="1"/>
+			}
+			<input type="hidden" name="contract" value={ data.Contract }/>
+			<input type="hidden" name="revision" value={ data.Revision }/>
+			<input type="hidden" name="section" value="impact"/>
+			<label class="form-control block max-w-sm"><span class="label-text">Compare with revision</span><input class="input input-bordered mt-1 w-full" name="compare_revision" value={ data.CompareRevision } required/></label>
+			<details>
+				<summary class="cursor-pointer">Select retained executable projections</summary>
+				<p class="mt-2 max-w-prose text-xs text-base-content/70">Use exact portable compiled-plan digests from retained evidence. Current operations and bindings cannot reconstruct historical projections.</p>
+				<div class="mt-3 grid gap-3 sm:grid-cols-2">
+					<label class="form-control"><span class="label-text">Source pipeline</span><input class="input input-bordered mt-1 w-full" name="from_pipeline" value={ data.FromPipeline }/></label>
+					<label class="form-control"><span class="label-text">Target pipeline</span><input class="input input-bordered mt-1 w-full" name="to_pipeline" value={ data.ToPipeline }/></label>
+					<label class="form-control"><span class="label-text">Source plan digest</span><input class="input input-bordered mt-1 w-full font-mono text-xs" name="from_plan" value={ data.FromPlan }/></label>
+					<label class="form-control"><span class="label-text">Target plan digest</span><input class="input input-bordered mt-1 w-full font-mono text-xs" name="to_plan" value={ data.ToPlan }/></label>
+					<label class="form-control"><span class="label-text">Source projection input</span><input class="input input-bordered mt-1 w-full" type="number" min="0" max="63" name="from_projection_input" value={ data.FromInput }/></label>
+					<label class="form-control"><span class="label-text">Target projection input</span><input class="input input-bordered mt-1 w-full" type="number" min="0" max="63" name="to_projection_input" value={ data.ToInput }/></label>
+				</div>
+				<p class="mt-2 text-xs text-base-content/70">Use the input index shown by retained plan inspection when an object has multiple mappings. Leaving it empty requires an unambiguous selection.</p>
+			</details>
+			<button class="btn btn-primary btn-sm" type="submit">Compare</button>
+		</form>
+		if data.ImpactError != "" {
+			<p class="text-warning" role="alert">{ data.ImpactError }</p>
+		} else if data.Impact != nil {
+			<p class="break-all font-mono text-xs">{ data.Impact.FromRevisionSlug + " · " + data.Impact.FromDigest }<br/>{ data.Impact.ToRevisionSlug + " · " + data.Impact.ToDigest }</p>
+			if data.Impact.FromPlan != nil && data.Impact.ToPlan != nil {
+				<p class="break-all font-mono text-xs">{ data.Impact.FromPlan.PipelineSlug + " · " + data.Impact.FromPlan.Digest }<br/>{ data.Impact.ToPlan.PipelineSlug + " · " + data.Impact.ToPlan.Digest }</p>
+			}
+			if len(data.Impact.Objects) == 0 {
+				<p>No selected objects to compare. This does not establish compatibility.</p>
+			}
+			for _, object := range data.Impact.Objects {
+				<section class="space-y-2 border-t border-base-300 pt-3">
+					<h4 class="break-all font-mono font-semibold">{ object.SchemaObjectId }</h4>
+					<p>{ string(object.Comparison) } · { string(ptr.Value(object.ComparisonScope)) }</p>
+					if len(object.Changes) == 0 && object.Comparison == "supported" {
+						<p>No changes detected within this comparison scope.</p>
+					}
+					<ul class="space-y-2">
+						for _, change := range object.Changes {
+							<li class="break-words"><span class="badge badge-sm badge-outline">{ string(change.Severity) }</span> { change.Kind }<p class="break-all font-mono text-xs">{ change.Path }</p><p class="break-all text-xs">{ change.Before + " → " + change.After }</p><code class="break-all text-xs">{ change.ReasonCode }</code></li>
+						}
+						for _, diagnostic := range object.Diagnostics {
+							<li class="break-words text-warning"><code class="break-all text-xs">{ diagnostic.Code + " · " + diagnostic.Path }</code><p>{ diagnostic.Message }</p></li>
+						}
+					</ul>
+				</section>
+			}
+			<h4 class="font-semibold">Known project consumers</h4>
+			if len(data.Impact.Consumers) == 0 {
+				<p>No known project consumers. External consumers remain unknown.</p>
+			}
+			<ul class="space-y-2">
+				for _, consumer := range data.Impact.Consumers {
+					<li class="break-words">
+						<code class="break-all text-xs">{ consumer.PipelineSlug + " / " + consumer.StepSlug + " / " + consumer.Port }</code> · { string(consumer.Origin) } · { string(consumer.Comparison) }
+						if consumer.Impact != nil {
+							<p>{ consumer.Impact.Summary }</p>
+						}
+					</li>
+				}
+			</ul>
+		}
+	</section>
+}

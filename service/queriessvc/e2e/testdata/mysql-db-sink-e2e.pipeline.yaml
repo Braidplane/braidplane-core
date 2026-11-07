@@ -1,0 +1,67 @@
+metadata:
+  slug: ${PIPELINE_SLUG}
+  name: E2E MySQL DB Sink
+steps:
+  - kind: query
+    slug: fetch-users
+    query:
+      data_source_ref: ${DATA_SOURCE_SLUG}
+      operation_type: sql
+      operation_ref: ${SOURCE_QUERY_SLUG}
+      output_contract:
+        name: fetch-users-output
+        representation: rows
+        fields:
+          - name: id
+            type: integer
+            required: true
+          - name: email
+            type: string
+            required: true
+  - kind: transform
+    slug: project-users
+    transform:
+      inputs:
+        input: fetch-users
+      input_contract:
+        name: project-users-input
+        representation: rows
+        fields:
+          - name: id
+            type: integer
+            required: true
+          - name: email
+            type: string
+            required: true
+      sql: "SELECT id, email FROM input"
+      output_kind: rows
+      output_contract:
+        name: project-users-output
+        representation: rows
+        fields:
+          - name: id
+            type: integer
+            required: true
+          - name: email
+            type: string
+            required: true
+  - kind: sink
+    slug: persist-users
+    sink:
+      idempotency_class: deduplicated_by_ledger
+      input: project-users
+      input_contract:
+        name: persist-users-input
+        representation: rows
+        fields:
+          - name: id
+            type: integer
+            required: true
+          - name: email
+            type: string
+            required: true
+      data_source_ref: ${DATA_SOURCE_SLUG}
+      operation_type: sql
+      operation_ref: ${SINK_QUERY_SLUG}
+      config:
+        org_slug: ${ORG_SLUG}

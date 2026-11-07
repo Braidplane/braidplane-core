@@ -1,0 +1,38 @@
+[
+  {
+    "order_id": "ord-1001",
+    "customer_slug": "atlas-retail",
+    "customer_name": "Atlas Retail",
+    "customer_segment": "retail",
+    "region": "emea",
+    "order_total_cents": 129900,
+    "discount_cents": 10000,
+    "net_total_cents": 119900,
+    "net_total_amount": 1199,
+    "placed_at_utc": "2026-06-01T09:15:00Z"
+  },
+  {
+    "order_id": "ord-1002",
+    "customer_slug": "atlas-retail",
+    "customer_name": "Atlas Retail",
+    "customer_segment": "retail",
+    "region": "emea",
+    "order_total_cents": 34999,
+    "discount_cents": 0,
+    "net_total_cents": 34999,
+    "net_total_amount": 349.99,
+    "placed_at_utc": "2026-06-02T11:30:00Z"
+  },
+  {
+    "order_id": "ord-1004",
+    "customer_slug": "northstar-logistics",
+    "customer_name": "Northstar Logistics",
+    "customer_segment": "logistics",
+    "region": "apac",
+    "order_total_cents": 87500,
+    "discount_cents": 7500,
+    "net_total_cents": 80000,
+    "net_total_amount": 800,
+    "placed_at_utc": "2026-06-04T07:05:00Z"
+  }
+]

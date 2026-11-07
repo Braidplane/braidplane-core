@@ -1,0 +1,879 @@
+package views
+
+import (
+	"fmt"
+	"strconv"
+	"strings"
+	"time"
+
+	api "github.com/Braidplane/braidplane-core/api-schema/gen/client"
+	"github.com/Braidplane/braidplane-core/frontend/runlineage"
+)
+
+templ PipelineRunsPage(
+	shellData AuthenticatedShellData,
+	orgSlug string,
+	activeProjectSlug string,
+	runs []api.PipelineRunMetadata,
+	hasMore bool,
+	nextCursor string,
+	prevCursor string,
+	cursor string,
+	direction string,
+	environmentSlug string,
+	statusFilter string,
+	pipelineSlugFilter string,
+	modeFilter string,
+	backfillSeriesFilter string,
+	selectedDetail PipelineRunSelectedDetail,
+) {
+	@AuthenticatedShell(
+		shellData,
+		PipelineRunsPageContent(
+			orgSlug,
+			activeProjectSlug,
+			runs,
+			hasMore,
+			nextCursor,
+			prevCursor,
+			cursor,
+			direction,
+			environmentSlug,
+			shellData.ActiveEnvironmentColor,
+			statusFilter,
+			pipelineSlugFilter,
+			modeFilter,
+			backfillSeriesFilter,
+			selectedDetail,
+		),
+	)
+}
+
+templ PipelineRunsPageContent(
+	orgSlug string,
+	activeProjectSlug string,
+	runs []api.PipelineRunMetadata,
+	hasMore bool,
+	nextCursor string,
+	prevCursor string,
+	cursor string,
+	direction string,
+	environmentSlug string,
+	environmentColor string,
+	statusFilter string,
+	pipelineSlugFilter string,
+	modeFilter string,
+	backfillSeriesFilter string,
+	selectedDetail PipelineRunSelectedDetail,
+) {
+	<div id="pipeline-runs-workspace">
+		<form
+			class="rounded-lg border border-base-300 bg-base-100 p-3"
+			method="get"
+			action={ templ.URL(buildRunsListHrefWithProject(orgSlug, activeProjectSlug, "", "", "", "", "", "")) }
+			hx-get={ buildRunsListHrefWithProject(orgSlug, activeProjectSlug, "", "", "", "", "", "") }
+			hx-target="#pipeline-runs-workspace"
+			hx-select="#pipeline-runs-workspace"
+			hx-swap="outerHTML show:none focus-scroll:false"
+			hx-push-url="true"
+			hx-indicator="#pipeline-runs-loading"
+		>
+			<input type="hidden" name="environment_slug" value={ environmentSlug }/>
+			<div class="flex flex-wrap items-end gap-2">
+				<label class="form-control w-36">
+					<div class="label py-0.5"><span class="label-text text-xs">Status</span></div>
+					<select class="select select-bordered select-sm w-full" name="status">
+						<option selected?={ statusFilter == "" } value="">All statuses</option>
+						<option selected?={ statusFilter == "succeeded" } value="succeeded">Succeeded</option>
+						<option selected?={ statusFilter == "failed" } value="failed">Failed</option>
+					</select>
+				</label>
+				<label class="form-control w-36">
+					<div class="label py-0.5"><span class="label-text text-xs">Mode</span></div>
+					<select class="select select-bordered select-sm w-full" name="mode">
+						<option selected?={ modeFilter == "" } value="">All modes</option>
+						<option selected?={ modeFilter == "full" } value="full">Full</option>
+						<option selected?={ modeFilter == "incremental" } value="incremental">Incremental</option>
+						<option selected?={ modeFilter == "backfill" } value="backfill">Backfill</option>
+					</select>
+				</label>
+				<label class="form-control w-56 max-w-full">
+					<div class="label py-0.5"><span class="label-text text-xs">Pipeline slug</span></div>
+					<input class="input input-bordered input-sm w-full" type="text" name="pipeline_slug" value={ pipelineSlugFilter } placeholder="e.g. acme-users-sync"/>
+				</label>
+				<label class="form-control w-56 max-w-full">
+					<div class="label py-0.5"><span class="label-text text-xs">Backfill series</span></div>
+					<input class="input input-bordered input-sm w-full" type="text" name="backfill_series_slug" value={ backfillSeriesFilter } placeholder="e.g. series-001"/>
+				</label>
+				<div class="flex items-end gap-2">
+					<button class="btn btn-primary btn-sm" type="submit">Apply</button>
+					<a
+						class="btn btn-outline btn-sm"
+						href={ templ.URL(buildEnvironmentRunsListHrefWithProject(orgSlug, activeProjectSlug, environmentSlug, "", "", "", "", "", "")) }
+						hx-get={ buildEnvironmentRunsListHrefWithProject(orgSlug, activeProjectSlug, environmentSlug, "", "", "", "", "", "") }
+						hx-target="#pipeline-runs-workspace"
+						hx-select="#pipeline-runs-workspace"
+						hx-swap="outerHTML show:none focus-scroll:false"
+						hx-push-url="true"
+						data-preserve-scroll
+					>Reset</a>
+				</div>
+			</div>
+		</form>
+		if environmentSlug != "" {
+			<div class="mt-3 flex flex-wrap items-center gap-2 rounded-lg border border-base-300 bg-base-200/35 px-3 py-2 text-xs text-base-content/70">
+				<span class="font-semibold uppercase tracking-wide text-base-content/60">Runtime target</span>
+				<span class={ ShellEnvironmentBadgeClass(environmentColor) }>{ environmentSlug }</span>
+				<span>Run filters and detail links are scoped to this project target.</span>
+			</div>
+		}
+		if runFiltersActive(statusFilter, pipelineSlugFilter, modeFilter, backfillSeriesFilter) {
+			<div class="mt-3 flex flex-wrap gap-2">
+				<span class="badge badge-primary badge-outline">filters active</span>
+			</div>
+		}
+		<div id="pipeline-runs-results" class="mt-4">
+			if len(runs) == 0 {
+				<div class="rounded-xl border border-dashed border-base-300 bg-base-100 p-8 text-center">
+					if runFiltersActive(statusFilter, pipelineSlugFilter, modeFilter, backfillSeriesFilter) {
+						<h2 class="text-lg font-semibold text-base-content">No runs match these filters</h2>
+						<p class="mt-2 text-sm text-base-content/70">Adjust the status or pipeline filter to see other project runs.</p>
+						<a
+							class="btn btn-outline btn-sm mt-4"
+							href={ templ.URL(buildEnvironmentRunsListHrefWithProject(orgSlug, activeProjectSlug, environmentSlug, "", "", "", "", "", "")) }
+							hx-get={ buildEnvironmentRunsListHrefWithProject(orgSlug, activeProjectSlug, environmentSlug, "", "", "", "", "", "") }
+							hx-target="#pipeline-runs-workspace"
+							hx-select="#pipeline-runs-workspace"
+							hx-swap="outerHTML show:none focus-scroll:false"
+							hx-push-url="true"
+							data-preserve-scroll
+						>Clear filters</a>
+					} else {
+						<h2 class="text-lg font-semibold text-base-content">No project runs yet</h2>
+						<p class="mt-2 text-sm text-base-content/70">Runs will appear here after a pipeline executes in this runtime target.</p>
+						<a class="btn btn-primary btn-sm mt-4" href={ templ.URL(buildEnvironmentProjectPipelinesListHref(orgSlug, activeProjectSlug, environmentSlug, "", "")) }>{ runtimeTargetActionLabel("View pipelines", environmentSlug) }</a>
+					}
+				</div>
+			} else {
+				@EntityListLayout("pipeline-runs-loading", PipelineRunDetailPanelSlot(orgSlug, activeProjectSlug, environmentSlug, selectedDetail)) {
+					<section class="min-h-0 rounded-xl border border-base-300 bg-base-100 p-4">
+						<div class="flex flex-wrap items-start justify-between gap-3">
+							<div>
+								<h2 class="text-base font-semibold text-base-content">{ runStatusFilterLabel(statusFilter) }</h2>
+								<p class="mt-1 text-xs text-base-content/70">{ fmt.Sprintf("%d", len(runs)) } visible runs in target { environmentSlug }</p>
+							</div>
+						</div>
+						<div class="mt-4 space-y-3">
+							for _, run := range runs {
+								@EntityListItem(pipelineRunListItemStateClass(string(run.RunSlug), selectedDetail.Slug), string(run.RunSlug) == selectedDetail.Slug, "run-opener-"+string(run.RunSlug), string(run.RunSlug), runSelectionHrefWithFilters(orgSlug, activeProjectSlug, environmentSlug, string(run.RunSlug), cursor, direction, statusFilter, pipelineSlugFilter, modeFilter, backfillSeriesFilter), "#pipeline-runs-results", "run-preview-heading", "#pipeline-runs-loading") {
+									<div class="flex flex-wrap items-start justify-between gap-3">
+										<div class="min-w-0">
+											<h3 class="break-all font-mono text-sm font-semibold text-base-content">{ string(run.RunSlug) }</h3>
+											<p class="mt-1 break-all font-mono text-xs text-base-content/70">{ string(run.PipelineSlug) }</p>
+										</div>
+										<div class="flex shrink-0 flex-wrap gap-1">
+											<span class={ runStatusBadgeClass(run.Status) }>{ string(run.Status) }</span>
+										</div>
+									</div>
+									<div class="mt-3 grid gap-2 border-t border-base-300/70 pt-3 text-xs text-base-content/70 sm:grid-cols-2">
+										<p>Started { formatRunTimestamp(run.StartedAt) }</p>
+										<p class="sm:text-right">Ended { formatNullableRunTimestamp(run.EndedAt) } / Recorded duration { runDurationLabel(run.DurationMs) }</p>
+									</div>
+									if run.ErrorSummary != nil && *run.ErrorSummary != "" {
+										<p class="mt-3 line-clamp-2 break-words text-xs text-error">{ *run.ErrorSummary }</p>
+									}
+								}
+							}
+						</div>
+					</section>
+				}
+				if prevCursor != "" || hasMore {
+					<div class="mt-6 flex items-center justify-end gap-2">
+						if prevCursor != "" {
+							<a class="btn btn-sm btn-outline" href={ templ.URL(buildEnvironmentRunsListHrefWithProject(orgSlug, activeProjectSlug, environmentSlug, prevCursor, "prev", statusFilter, pipelineSlugFilter, modeFilter, backfillSeriesFilter)) }>Previous</a>
+						} else {
+							<button class="btn btn-sm btn-outline" type="button" disabled>Previous</button>
+						}
+						if hasMore && nextCursor != "" {
+							<a class="btn btn-sm btn-outline" href={ templ.URL(buildEnvironmentRunsListHrefWithProject(orgSlug, activeProjectSlug, environmentSlug, nextCursor, "next", statusFilter, pipelineSlugFilter, modeFilter, backfillSeriesFilter)) }>Next</a>
+						} else {
+							<button class="btn btn-sm btn-outline" type="button" disabled>Next</button>
+						}
+					</div>
+				}
+			}
+		</div>
+	</div>
+}
+
+templ PipelineRunDetailPage(
+	shellData AuthenticatedShellData,
+	orgSlug string,
+	activeProjectSlug string,
+	environmentSlug string,
+	run api.PipelineRunRecord,
+	retryAttempts []api.PipelineRunTriggerRetryAttempt,
+	retryAttemptsUnavailable bool,
+	retryAttemptsErrorSummary string,
+	lineage runlineage.View,
+	permissions OrganizationPermissions,
+	completion RunCompletionInspection,
+) {
+	@AuthenticatedShell(shellData, PipelineRunDetailPageContent(orgSlug, activeProjectSlug, environmentSlug, run, retryAttempts, retryAttemptsUnavailable, retryAttemptsErrorSummary, lineage, permissions, completion))
+}
+
+templ PipelineRunDetailPanelSlot(orgSlug string, activeProjectSlug string, environmentSlug string, selectedDetail PipelineRunSelectedDetail) {
+	if selectedDetail.ErrorSummary != "" {
+		@EntityState("Run unavailable", selectedDetail.ErrorSummary)
+	} else if selectedDetail.Run == nil {
+		@EntityState("Select a run", "Choose a run to inspect its outcome.")
+	} else {
+		{{ run := *selectedDetail.Run }}
+		{{ listHref := entityListHref(ctx, buildEnvironmentRunsListHrefWithProject(orgSlug, activeProjectSlug, environmentSlug, "", "", "", "", "", ""), "run_slug", selectedDetail.Slug) }}
+		@EntityQuickLook("run-preview-heading", string(run.Metadata.PipelineSlug), selectedDetail.Slug, entityDetailHref(buildEnvironmentRunDetailHref(orgSlug, activeProjectSlug, environmentSlug, selectedDetail.Slug), listHref), entityListHref(ctx, listHref, "run_slug", ""), "#pipeline-runs-results", "run-opener-"+selectedDetail.Slug) {
+			@EntityFacts() {
+				@EntityFact("Pipeline") {
+					{ string(run.Metadata.PipelineSlug) }
+				}
+				@EntityFact("Environment") {
+					{ environmentSlug }
+				}
+				@EntityFact("Status") {
+					<span class={ runStatusBadgeClass(run.Metadata.Status) }>{ string(run.Metadata.Status) }</span>
+				}
+				@EntityFact("Started") {
+					{ formatRunTimestamp(run.Metadata.StartedAt) }
+				}
+				@EntityFact("Recorded duration") {
+					{ runDurationLabel(run.Metadata.DurationMs) }
+				}
+			}
+			if run.Timeline.Failure != nil {
+				<p class="break-all text-sm text-error">{ runFailureLocation(run.Timeline.Failure) }</p>
+			}
+			if run.Metadata.ErrorSummary != nil && *run.Metadata.ErrorSummary != "" {
+				<p class="line-clamp-3 break-words text-sm text-error">{ *run.Metadata.ErrorSummary }</p>
+			} else if run.Timeline.Failure != nil {
+				<p class="line-clamp-3 break-words text-sm text-error">{ runFailureSummary(run.Timeline.Failure) }</p>
+			}
+		}
+	}
+}
+
+templ PipelineRunDetailPageContent(
+	orgSlug string,
+	activeProjectSlug string,
+	environmentSlug string,
+	run api.PipelineRunRecord,
+	retryAttempts []api.PipelineRunTriggerRetryAttempt,
+	retryAttemptsUnavailable bool,
+	retryAttemptsErrorSummary string,
+	lineage runlineage.View,
+	permissions OrganizationPermissions,
+	completion RunCompletionInspection,
+) {
+	{{ sourceView := apiRunSourceView(run.Metadata.Source) }}
+	{{ section := runDetailSection(ctx) }}
+	{{ detailHref := buildEnvironmentRunDetailHref(orgSlug, activeProjectSlug, environmentSlug, string(run.Metadata.RunSlug)) }}
+	<span hidden data-run-section-compat></span>
+	@EntityDetailHeader("Run", string(run.Metadata.RunSlug)) {
+		<a class="btn btn-outline btn-sm" href={ templ.URL(pipelineDetailHrefWithEnvironment(orgSlug, activeProjectSlug, environmentSlug, string(run.Metadata.PipelineSlug))) }>Open pipeline</a>
+		<a class="btn btn-outline btn-sm" href={ templ.URL(entityBackHref(ctx, buildEnvironmentRunsListHrefWithProject(orgSlug, activeProjectSlug, environmentSlug, "", "", "", "", "", ""))) }>Back to runs</a>
+	}
+	@EntitySectionNavigation("Run sections") {
+		@EntitySectionLink(runSectionHref(ctx, detailHref, "overview"), "Overview", section == "overview")
+		@EntitySectionLink(runSectionHref(ctx, detailHref, "steps"), "Steps", section == "steps")
+		@EntitySectionLink(runSectionHref(ctx, detailHref, "definition"), "Definition", section == "definition")
+		@EntitySectionLink(runSectionHref(ctx, detailHref, "attempts"), "Attempts & recovery", section == "attempts")
+		@EntitySectionLink(runSectionHref(ctx, detailHref, "connected"), "Connected runs", section == "connected")
+		@EntitySectionLink(runSectionHref(ctx, detailHref, "completion"), "Completion", section == "completion")
+	}
+	@EntityFacts() {
+		@EntityFact("Environment") {
+			{ environmentSlug }
+		}
+		@EntityFact("Recorded status") {
+			<span id="run-recorded-status" class={ runStatusBadgeClass(run.Metadata.Status) }>{ string(run.Metadata.Status) }</span>
+		}
+		@EntityFact("Executed version") {
+			if run.Metadata.PipelineVersionSpecHash != "" {
+				<details id="run-recorded-version"><summary class="cursor-pointer font-mono">{ shortPipelineVersionSpecHash(&run.Metadata.PipelineVersionSpecHash) }</summary><code class="break-all select-all">{ run.Metadata.PipelineVersionSpecHash }</code></details>
+			} else {
+				<span id="run-recorded-version">Not recorded</span>
+			}
+		}
+		@EntityFact("Attempt") {
+			{ runAttemptLabel(sourceView) }
+		}
+		@EntityFact("Root / retry relationship") {
+			{ runRetryGroupLabel(sourceView) }
+		}
+		if runHasReplayContext(run.Metadata.ReplayOfRunSlug, sourceView) {
+			@EntityFact("Retained-input replay") {
+				{ runReplayContextLabel(run.Metadata.ReplayOfRunSlug, run.Metadata.ReplayFromStep) }
+			}
+		}
+	}
+	@PipelineRunProgressPanel(detailHref, runProgressInspection(ctx))
+	<div id="run-live-content" class="min-w-0 space-y-6">
+		if section == "definition" {
+			@DefinitionInspector(orgSlug, activeProjectSlug)
+		}
+		if section == "connected" {
+			@PipelineConnectedRuns(orgSlug, activeProjectSlug, environmentSlug, string(run.Metadata.RunSlug), completion)
+		}
+		if section == "completion" {
+			@PipelineRunCompletionPanel(orgSlug, activeProjectSlug, environmentSlug, string(run.Metadata.RunSlug), completion)
+		}
+		if section == "overview" {
+			<section
+				id="run-outcome"
+				class="min-w-0 space-y-3"
+				aria-labelledby="run-outcome-heading"
+			>
+				<h2 id="run-outcome-heading" class="text-lg font-semibold">Overview</h2>
+				<span class={ runStatusBadgeClass(run.Metadata.Status) }>{ string(run.Metadata.Status) }</span>
+				if run.Timeline.StructuralChecks != nil {
+					for _, check := range *run.Timeline.StructuralChecks {
+						if check.Status == api.PipelineRunStructuralCheckStatusFailed {
+							<p class="break-words text-sm text-error">
+								Contract failed at step { check.Step }.
+								if check.ContractFailure != nil {
+									<span>Field { check.ContractFailure.FieldName } · { check.ContractFailure.Rule }.</span>
+								}
+							</p>
+						}
+					}
+				}
+				if run.Timeline.Failure != nil {
+					<p class="break-all font-semibold text-error">{ runFailureLocation(run.Timeline.Failure) }</p>
+					@PipelineRunFailureDiagnostic(run.Timeline.Failure)
+					<p class="break-words text-xs">Recorded { formatRunTimestamp(run.Timeline.Failure.At) } · { failureKindLabel(string(run.Timeline.Failure.Kind)) } · { failureSideLabel(string(run.Timeline.Failure.Side)) }</p>
+					<a class="link link-primary text-sm" data-entity-focus="definition-inspector" href={ templ.URL(DefinitionHref(detailHref, string(run.Timeline.Failure.Step), "", "", "structured")) }>
+						if strings.TrimSpace(string(run.Timeline.Failure.Step)) != "" {
+							Inspect failing step
+						} else {
+							Inspect executed definition
+						}
+					</a>
+				} else if run.Metadata.ErrorSummary != nil && *run.Metadata.ErrorSummary != "" {
+					<p class="break-all text-sm text-error">{ *run.Metadata.ErrorSummary }</p>
+					<p class="text-xs text-base-content/70">Step-level failure provenance was not recorded.</p>
+				} else if run.Metadata.Status == "failed" {
+					<p class="text-sm text-base-content/70">No run-level failure summary was recorded.</p>
+				} else if run.Metadata.Status == "canceled" {
+					<p class="text-sm text-base-content/70">Run canceled. Unrecorded steps and deliveries are not evidence of skipped or completed work.</p>
+				}
+				<p class="text-sm">Started { formatRunTimestamp(run.Metadata.StartedAt) } / Recorded duration { runDurationLabel(run.Metadata.DurationMs) }</p>
+				@PipelineRunSinkDeliveryPanel(run, lineage)
+				<p class="text-xs text-base-content/70">Recorded execution outcome; current deployment state is shown on the pipeline page.</p>
+				<a class="link link-primary text-sm" href={ templ.URL(runSectionHref(ctx, detailHref, "attempts")) }>Review attempts & recovery</a>
+			</section>
+		}
+		if section == "steps" {
+			<section id="run-steps" class="min-w-0" aria-labelledby="run-steps-heading">
+				<h2 id="run-steps-heading" class="text-lg font-semibold">Steps</h2>
+				if run.Timeline.Failure != nil {
+					<p class="mt-2 text-sm font-semibold text-error">{ runFailureLocation(run.Timeline.Failure) } · { runFailureSummary(run.Timeline.Failure) }</p>
+					if !lineage.Available {
+						@PipelineRunFailureDiagnostic(run.Timeline.Failure)
+					}
+				}
+				<section id="run-outputs" class="min-w-0" aria-labelledby="run-outputs-heading">
+					<h3 id="run-outputs-heading" class="sr-only">Step evidence</h3>
+					@PipelineRunLineageWorkbench(orgSlug, activeProjectSlug, environmentSlug, run, lineage, false)
+					@PipelineRunSinkDeliveryPanel(run, lineage)
+					@PipelineRunContractEvidence(run)
+				</section>
+				if len(run.Timeline.Snapshots) == 0 && !lineage.Available {
+					<p class="mt-3 text-sm text-base-content/70">No step snapshots recorded.</p>
+				}
+				for _, snapshot := range run.Timeline.Snapshots {
+					<details data-run-details-key={ "snapshot-" + snapshot.Step } class="mt-3 min-w-0 border-t border-base-300 pt-3">
+						<summary class="cursor-pointer break-all text-sm font-semibold">Step { string(snapshot.Step) }</summary>
+						<a class="link link-primary text-sm" data-entity-focus="definition-inspector" href={ templ.URL(DefinitionHref(detailHref, string(snapshot.Step), "", "", "structured")) }>Inspect this step</a>
+						@EntityFacts() {
+							@EntityFact("Data source") {
+								{ lineageDataSourceLabel(&snapshot) }
+							}
+							@EntityFact("Operation") {
+								{ runOperationLabel(&snapshot) }
+							}
+							@EntityFact("Parameter names") {
+								{ lineageParameterKeysLabel(&snapshot) }
+							}
+							@EntityFact("Output") {
+								{ lineageOutputLabel(&snapshot) }
+							}
+						}
+					</details>
+				}
+				<details open data-run-details-key="timeline">
+					<summary class="mt-4 cursor-pointer text-sm font-semibold">Execution timeline</summary>
+					<div class="mt-6 rounded-xl border border-base-300 bg-base-100 p-4 shadow-sm">
+						if len(run.Timeline.Events) == 0 {
+							<p class="mt-3 text-sm text-base-content/70">No events recorded.</p>
+						} else {
+							<ul class="timeline timeline-vertical timeline-compact mt-4">
+								for i, event := range runlineage.ChronologicalEvents(run.Timeline.Events) {
+									<li>
+										if i > 0 {
+											<hr/>
+										}
+										<div class="timeline-middle">
+											<div class={ runTimelineDotClass(event.Type, event.Status) }></div>
+										</div>
+										<div class="timeline-end timeline-box mb-2 min-w-0 break-words">
+											<time class="mb-2 block text-xs text-base-content/60" datetime={ event.At.Format(time.RFC3339Nano) } title={ event.At.Format(time.RFC3339Nano) }>{ runTimelineTimestamp(ctx, event.At) }</time>
+											<div class="flex flex-wrap items-center gap-2">
+												<span class={ runEventBadgeClass(event.Type, event.Status) }>{ runEventTypeLabel(event.Type) }</span>
+												if event.Step != nil {
+													<a
+														class="link link-primary font-mono text-xs"
+														data-entity-focus="definition-inspector"
+														href={ templ.URL(DefinitionHref(detailHref, string(*event.Step), "", "", "structured")) }
+														if selected := lineageSelectedNode(lineage); selected != nil && selected.Slug == string(*event.Step) {
+															aria-current="true"
+														}
+													>{ string(*event.Step) }</a>
+												}
+											</div>
+											if event.Type == "step_failed" && run.Timeline.Failure != nil && event.Step != nil && string(*event.Step) == string(run.Timeline.Failure.Step) {
+												<p class="mt-1 break-words text-xs text-error">{ runFailureSummary(run.Timeline.Failure) }</p>
+											}
+											if event.Step != nil {
+												if snap := runStepSnapshot(run, string(*event.Step)); snap != nil && snap.Output != nil {
+													<div class="mt-2 flex flex-wrap gap-x-4 gap-y-1">
+														<p class="text-xs text-base-content/60">{ snap.Output.ResultType } &middot; { snap.Output.VendorType } &middot; { runDurationLabel(snap.Output.DurationMs) }</p>
+														if rowCount := runOutputRowCount(snap.Output); rowCount != nil {
+															<p class="text-xs text-base-content/60">{ strconv.Itoa(*rowCount) } rows</p>
+														}
+													</div>
+												}
+											}
+										</div>
+										if i < len(run.Timeline.Events) - 1 {
+											<hr/>
+										}
+									</li>
+								}
+							</ul>
+						}
+						if run.Timeline.Failure != nil && len(run.Timeline.Events) == 0 {
+							<div class="alert alert-error mt-3">
+								<span>{ runFailureLocation(run.Timeline.Failure) }: { run.Timeline.Failure.Error }</span>
+							</div>
+						}
+					</div>
+				</details>
+			</section>
+		}
+		if section == "attempts" {
+			<section id="run-attempts" class="min-w-0" aria-labelledby="run-attempts-heading">
+				<h2 id="run-attempts-heading" class="text-lg font-semibold">Attempts & recovery</h2>
+				if run.Timeline.Failure != nil {
+					<p class="mt-2 break-words text-sm text-error">{ runFailureLocation(run.Timeline.Failure) }.</p>
+					@PipelineRunFailureDiagnostic(run.Timeline.Failure)
+				}
+				<p class="mt-2 break-all text-sm">{ runSourceLabel(sourceView) } / { runAttemptLabel(sourceView) }</p>
+				if runHasRetryContext(sourceView) {
+					<p class="mt-2 break-all text-sm">Retry group: { runRetryGroupLabel(sourceView) }</p>
+				}
+				if runHasReplayContext(run.Metadata.ReplayOfRunSlug, sourceView) {
+					<p class="mt-2 break-all text-sm">{ runReplayContextLabel(run.Metadata.ReplayOfRunSlug, run.Metadata.ReplayFromStep) }</p>
+				}
+				<p class="mt-2 text-sm">Trigger retries create another attempt in the run group. Retained-input recovery reuses the recorded version and inputs. A new run uses its selected deployment and reads inputs again; it does not resolve an earlier uncertain write.</p>
+				<p class="mt-2 text-xs text-base-content/70">Later successful attempts do not change this run’s recorded failure or effects.</p>
+				@PipelineRunSinkDeliveryPanel(run, lineage)
+				if run.Metadata.Status == "failed" && run.Timeline.Failure != nil && (run.Timeline.Failure.Side == "sink" || (run.Timeline.Failure.ReasonCode != nil && *run.Timeline.Failure.ReasonCode == api.WorkerOwnershipLost)) {
+					<p class="mt-3 text-sm">Recovery requests retained inputs and the original version. The API checks retention, environment protection and replay safety. Worker loss also requires fenced queue ownership; missing inputs and unsafe deliveries remain blocked.</p>
+					if permissions.Can("pipelines", "execute") {
+						<form method="post" action={ templ.URL(fmt.Sprintf("/orgs/%s/projects/%s/runs/%s/recover", orgSlug, activeProjectSlug, run.Metadata.RunSlug)) } class="mt-3 flex flex-wrap items-end gap-3">
+							<input type="hidden" name="environment_slug" value={ environmentSlug }/>
+							<label class="form-control max-w-sm">
+								<span class="label-text">Environment confirmation (if protected)</span>
+								<input id="run-recovery-confirmation" hx-preserve class="input input-bordered input-sm" name="protected_environment_confirmation" placeholder={ environmentSlug }/>
+							</label>
+							<button type="submit" class="btn btn-primary btn-sm">Recover sink delivery</button>
+						</form>
+					} else {
+						<p class="mt-3 text-sm text-base-content/70">Pipeline execute permission is required for recovery.</p>
+					}
+				}
+				@PipelineRunRetryAttemptsPanel(orgSlug, activeProjectSlug, environmentSlug, retryAttempts, retryAttemptsUnavailable, retryAttemptsErrorSummary)
+				if runIncrementalDiagnosticsVisible(run) {
+					<div class="mt-6 rounded-xl border border-base-300 bg-base-100 p-4 shadow-sm">
+						<div class="flex flex-wrap items-center gap-2">
+							<p class="text-sm font-semibold text-base-content">Incremental diagnostics</p>
+							<span class={ runModeBadgeClass(run.Metadata.Incremental.Mode) }>{ string(run.Metadata.Incremental.Mode) }</span>
+							if runCheckpointStatusVisible(run.Metadata.Incremental.CheckpointStatus) {
+								<span class={ checkpointStatusBadgeClass(run.Metadata.Incremental.CheckpointStatus) }>{ string(run.Metadata.Incremental.CheckpointStatus) }</span>
+							}
+						</div>
+						if run.Metadata.Incremental.BlockedReason != "" {
+							<div class="alert alert-warning mt-3 py-2">
+								<span class="text-xs">{ run.Metadata.Incremental.BlockedReason }</span>
+							</div>
+						}
+						if run.Metadata.Incremental.ReplayBlockedReason != "" {
+							<div class="alert alert-error mt-3 py-2">
+								<span class="text-xs">Replay blocked: { run.Metadata.Incremental.ReplayBlockedReason }</span>
+							</div>
+						}
+						if len(run.IncrementalDiagnostics.Sources) == 0 {
+							<p class="mt-3 text-sm text-base-content/70">No incremental source diagnostics recorded.</p>
+						} else {
+							<div class="mt-4 space-y-3">
+								for _, source := range run.IncrementalDiagnostics.Sources {
+									<div class="rounded-lg border border-base-300 p-3">
+										<div class="flex flex-wrap items-center gap-2">
+											<code class="font-mono text-sm text-base-content">{ source.SourceStepSlug }</code>
+											<span class="badge badge-ghost badge-sm">{ source.CheckpointKind }</span>
+											<span class={ checkpointStatusBadgeClass(source.CommitResult.Status) }>{ string(source.CommitResult.Status) }</span>
+										</div>
+										<div class="mt-3 grid gap-3 md:grid-cols-3">
+											<div>
+												<p class="text-xs uppercase tracking-wide text-base-content/60">Previous checkpoint</p>
+												<p class="mt-1 text-sm text-base-content">{ source.PreviousCheckpoint.Summary }</p>
+											</div>
+											<div>
+												<p class="text-xs uppercase tracking-wide text-base-content/60">Source window</p>
+												<p class="mt-1 text-sm text-base-content">{ source.Window.Summary }</p>
+											</div>
+											<div>
+												<p class="text-xs uppercase tracking-wide text-base-content/60">Observed checkpoint</p>
+												<p class="mt-1 text-sm text-base-content">{ source.ObservedCheckpoint.Summary }</p>
+											</div>
+										</div>
+										if source.CommitResult.BlockedReason != "" {
+											<p class="mt-3 text-xs text-error">Blocked by { source.CommitResult.BlockedByStep }: { source.CommitResult.BlockedReason }</p>
+										}
+									</div>
+								}
+							</div>
+						}
+					</div>
+				}
+			</section>
+		}
+		if section == "overview" {
+			<section id="run-metadata" class="min-w-0" aria-labelledby="run-metadata-heading">
+				<h2 id="run-metadata-heading" class="text-lg font-semibold">Metadata</h2>
+				<div class="min-w-0">
+					<div class="mt-3 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+						if run.ProofLink != nil {
+							<div>
+								<p class="text-xs uppercase tracking-wide text-base-content/60">Proof receipt</p>
+								<a class="link link-primary mt-1 inline-block font-mono text-sm" href={ templ.URL(ProofReceiptHref(orgSlug, activeProjectSlug, environmentSlug, run.ProofLink.ReceiptId)) }>{ string(run.ProofLink.ReceiptId) }</a>
+								<span class={ ProofLifecycleStatusBadgeClass(run.ProofLink.Status) }>{ ProofLifecycleStatusLabel(run.ProofLink.Status) }</span>
+								<p class="mt-1 text-xs text-base-content/60">Observed after deployment; this run does not rewrite the original receipt.</p>
+							</div>
+						}
+						<div>
+							<p class="text-xs uppercase tracking-wide text-base-content/60">Pipeline</p>
+							<a class="link link-primary mt-1 inline-block font-mono text-sm" href={ templ.URL(pipelineDetailHrefWithEnvironment(orgSlug, activeProjectSlug, environmentSlug, string(run.Metadata.PipelineSlug))) }>{ string(run.Metadata.PipelineSlug) }</a>
+						</div>
+						<div>
+							<p class="text-xs uppercase tracking-wide text-base-content/60">Runtime target</p>
+							<p class="mt-1 font-mono text-sm text-base-content">{ environmentSlug }</p>
+						</div>
+						<div>
+							<p class="text-xs uppercase tracking-wide text-base-content/60">Started</p>
+							<p class="mt-1 text-sm text-base-content">{ formatRunTimestamp(run.Metadata.StartedAt) }</p>
+						</div>
+						<div>
+							<p class="text-xs uppercase tracking-wide text-base-content/60">Ended</p>
+							<p class="mt-1 text-sm text-base-content">{ formatNullableRunTimestamp(run.Metadata.EndedAt) }</p>
+						</div>
+						<div>
+							<p class="text-xs uppercase tracking-wide text-base-content/60">Recorded duration</p>
+							<p class="mt-1 text-sm text-base-content">{ runDurationLabel(run.Metadata.DurationMs) }</p>
+						</div>
+						<div>
+							<p class="text-xs uppercase tracking-wide text-base-content/60">Last step</p>
+							<p class="mt-1 text-sm text-base-content">{ string(run.Metadata.StepSlug) }</p>
+						</div>
+						<div>
+							<p class="text-xs uppercase tracking-wide text-base-content/60">Created</p>
+							<p class="mt-1 text-sm text-base-content">{ formatRunTimestamp(run.Metadata.CreatedAt) }</p>
+						</div>
+						<div>
+							<p class="text-xs uppercase tracking-wide text-base-content/60">Source</p>
+							<p class="mt-1 text-sm text-base-content">{ runSourceLabel(sourceView) }</p>
+							<p class="mt-1 text-xs text-base-content/60">
+								{ runSourceActorLabel(sourceView) }
+								if runHasRetryContext(sourceView) {
+									<span>/ { runAttemptLabel(sourceView) }</span>
+								}
+							</p>
+						</div>
+						<div>
+							<p class="text-xs uppercase tracking-wide text-base-content/60">Source event</p>
+							<p class="mt-1 break-all text-sm text-base-content">{ runSourceEventLabel(sourceView) }</p>
+						</div>
+						if runHasReplayContext(run.Metadata.ReplayOfRunSlug, sourceView) {
+							<div>
+								<p class="text-xs uppercase tracking-wide text-base-content/60">Replay context</p>
+								<p class="mt-1 text-sm text-base-content">{ runReplayContextLabel(run.Metadata.ReplayOfRunSlug, run.Metadata.ReplayFromStep) }</p>
+							</div>
+						}
+						if runHasRetryContext(sourceView) {
+							<div>
+								<p class="text-xs uppercase tracking-wide text-base-content/60">Retry group</p>
+								<p class="mt-1 break-all text-sm text-base-content">{ runRetryGroupLabel(sourceView) }</p>
+							</div>
+						}
+						if run.Metadata.Incremental.Mode != api.Full || run.Metadata.Incremental.ReplayBlockedReason != "" {
+							<div>
+								<p class="text-xs uppercase tracking-wide text-base-content/60">Replay safety</p>
+								<p class="mt-1 text-sm text-base-content">{ string(run.Metadata.Incremental.ReplaySafetyStatus) }</p>
+							</div>
+						}
+					</div>
+					<div class="mt-4 border-t border-base-300 pt-4">
+						<p class="text-sm font-semibold text-base-content">Run source</p>
+						<div class="mt-3 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+							<div>
+								<p class="text-xs uppercase tracking-wide text-base-content/60">Why</p>
+								<p class="mt-1 text-sm text-base-content">{ runSourceLabel(sourceView) }</p>
+							</div>
+							<div>
+								<p class="text-xs uppercase tracking-wide text-base-content/60">Actor</p>
+								<p class="mt-1 text-sm text-base-content">{ runSourceActorLabel(sourceView) }</p>
+							</div>
+							<div>
+								<p class="text-xs uppercase tracking-wide text-base-content/60">Request context</p>
+								<p class="mt-1 break-all text-sm text-base-content">{ runSourceRequestLabel(sourceView) }</p>
+							</div>
+							if sourceView.sourceEventSlug != nil && strings.TrimSpace(*sourceView.sourceEventSlug) != "" {
+								<div>
+									<p class="text-xs uppercase tracking-wide text-base-content/60">Source event</p>
+									<p class="mt-1 break-all text-sm text-base-content">{ runSourceEventLabel(sourceView) }</p>
+								</div>
+							}
+							if runHasRetryContext(sourceView) {
+								<div>
+									<p class="text-xs uppercase tracking-wide text-base-content/60">Retry group</p>
+									<p class="mt-1 break-all text-sm text-base-content">{ runRetryGroupLabel(sourceView) }</p>
+								</div>
+							}
+							if len(sourceView.parameterKeys) > 0 {
+								<div>
+									<p class="text-xs uppercase tracking-wide text-base-content/60">Supplied names</p>
+									<p class="mt-1 text-sm text-base-content">{ runSourceParameterKeysLabel(sourceView) }</p>
+								</div>
+							}
+						</div>
+						if sourceView.webhook != nil {
+							<div class="mt-4 grid min-w-0 gap-3 border-t border-base-300 pt-4 md:grid-cols-2">
+								<div><p class="text-xs uppercase tracking-wide text-base-content/60">Webhook trigger</p><p class="mt-1 break-all text-sm">{ string(sourceView.webhook.TriggerSlug) } · revision { fmt.Sprint(sourceView.webhook.TriggerRevision) }</p></div>
+								<div><p class="text-xs uppercase tracking-wide text-base-content/60">Delivery</p><p class="mt-1 break-all text-sm">{ sourceView.webhook.DeliveryId }</p></div>
+								<div><p class="text-xs uppercase tracking-wide text-base-content/60">Verification</p><p class="mt-1 text-sm">{ string(sourceView.webhook.VerificationStatus) }</p></div>
+								<div><p class="text-xs uppercase tracking-wide text-base-content/60">Payload digest</p><p class="mt-1 break-all font-mono text-xs">{ sourceView.webhook.PayloadDigest }</p></div>
+							</div>
+						}
+						if sourceView.schedule != nil {
+							<div class="mt-4 rounded-lg border border-base-300 bg-base-200 px-3 py-3">
+								<p class="text-sm font-semibold text-base-content">Scheduled workflow</p>
+								<div class="mt-3 grid gap-3 md:grid-cols-2">
+									<div>
+										<p class="text-xs uppercase tracking-wide text-base-content/60">Trigger</p>
+										<p class="mt-1 break-all text-sm text-base-content">{ runScheduleTriggerLabel(sourceView) }</p>
+									</div>
+									<div>
+										<p class="text-xs uppercase tracking-wide text-base-content/60">Cadence</p>
+										<p class="mt-1 break-all text-sm text-base-content">{ runScheduleCadenceLabel(sourceView) }</p>
+									</div>
+									<div>
+										<p class="text-xs uppercase tracking-wide text-base-content/60">Fire time</p>
+										<p class="mt-1 text-sm text-base-content">{ runScheduleFireLabel(sourceView) }</p>
+									</div>
+									<div>
+										<p class="text-xs uppercase tracking-wide text-base-content/60">Misfire result</p>
+										<p class="mt-1 text-sm text-base-content">{ runScheduleMisfireLabel(sourceView) }</p>
+									</div>
+								</div>
+							</div>
+						}
+					</div>
+				</div>
+			</section>
+		}
+	</div>
+}
+
+templ PipelineRunSinkOutputPanel(output PipelineRunSinkOutputView) {
+	if output.Visible {
+		<div class="mt-4 rounded-lg border border-base-300 bg-base-200/45 px-3 py-3">
+			<div class="flex flex-wrap items-center justify-between gap-2">
+				<p class="text-sm font-semibold text-base-content">Sink output metadata</p>
+				<span class="badge badge-ghost badge-sm">metadata only</span>
+			</div>
+			<div class="mt-3 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+				<div>
+					<p class="text-xs uppercase tracking-wide text-base-content/60">Sink step</p>
+					<code class="mt-1 block break-all font-mono text-sm text-base-content">{ output.Step }</code>
+				</div>
+				<div>
+					<p class="text-xs uppercase tracking-wide text-base-content/60">Data source</p>
+					<code class="mt-1 block break-all font-mono text-sm text-base-content">{ output.DataSource }</code>
+				</div>
+				<div>
+					<p class="text-xs uppercase tracking-wide text-base-content/60">Operation</p>
+					<p class="mt-1 break-all text-sm text-base-content">{ output.Operation }</p>
+				</div>
+				if output.RowCount != nil {
+					<div>
+						<p class="text-xs uppercase tracking-wide text-base-content/60">Rows written</p>
+						<p class="mt-1 text-sm text-base-content">{ strconv.Itoa(*output.RowCount) }</p>
+					</div>
+				} else {
+					<div>
+						<p class="text-xs uppercase tracking-wide text-base-content/60">{ output.LocationLabel }</p>
+						if output.Available {
+							<code class="mt-1 block break-all font-mono text-sm text-base-content">{ output.TargetPath }</code>
+						} else {
+							<p class="mt-1 text-sm text-warning">Output location was not captured for this run.</p>
+						}
+					</div>
+				}
+				if output.FileMetadata != "" {
+					<div class="md:col-span-2 xl:col-span-4">
+						<p class="text-xs uppercase tracking-wide text-base-content/60">File payload</p>
+						<p class="mt-1 break-all text-sm text-base-content">{ output.FileMetadata }</p>
+					</div>
+				}
+			</div>
+			<p class="mt-3 text-xs text-base-content/60">Object body and credential values are not shown.</p>
+		</div>
+	}
+}
+
+templ PipelineRunRetryAttemptsPanel(
+	orgSlug string,
+	activeProjectSlug string,
+	environmentSlug string,
+	retryAttempts []api.PipelineRunTriggerRetryAttempt,
+	retryAttemptsUnavailable bool,
+	retryAttemptsErrorSummary string,
+) {
+	<div class="mt-6 rounded-xl border border-base-300 bg-base-100 p-4 shadow-sm">
+		<div class="flex flex-wrap items-start justify-between gap-3">
+			<div>
+				<p class="text-sm font-semibold text-base-content">Trigger retry attempts</p>
+				<p class="mt-1 text-xs text-base-content/70">Retry decisions and queued retry runs for this run group.</p>
+			</div>
+			if !retryAttemptsUnavailable {
+				<span class="badge badge-outline">{ fmt.Sprintf("%d", len(retryAttempts)) } attempts</span>
+			}
+		</div>
+		if retryAttemptsUnavailable {
+			<div class="alert alert-warning mt-3 py-2">
+				if retryAttemptsErrorSummary != "" {
+					<span class="text-xs">{ retryAttemptsErrorSummary }</span>
+				} else {
+					<span class="text-xs">Retry diagnostics are unavailable.</span>
+				}
+			</div>
+		} else if len(retryAttempts) == 0 {
+			<p class="mt-3 text-sm text-base-content/70">No trigger retry attempts recorded for this run group.</p>
+		} else {
+			<div class="mt-4 space-y-3">
+				for _, attempt := range retryAttempts {
+					<div class="rounded-lg border border-base-300 bg-base-200 px-3 py-3">
+						<div class="flex flex-wrap items-center justify-between gap-2">
+							<div class="flex flex-wrap items-center gap-2">
+								<span class="badge badge-ghost badge-outline">attempt { fmt.Sprintf("%d", attempt.AttemptNumber) }</span>
+								<span class={ retryAttemptStatusBadgeClass(attempt.Status) }>{ string(attempt.Status) }</span>
+								if attempt.FailureKind != nil {
+									<span class={ failureKindBadgeClass(string(*attempt.FailureKind)) }>{ failureKindLabel(string(*attempt.FailureKind)) }</span>
+								}
+							</div>
+							<code class="break-all font-mono text-xs text-base-content/70">{ string(attempt.AttemptSlug) }</code>
+						</div>
+						<div class="mt-3 grid gap-3 md:grid-cols-2">
+							<div>
+								<p class="text-xs uppercase tracking-wide text-base-content/60">Trigger</p>
+								<p class="mt-1 break-all text-sm text-base-content">{ string(attempt.TriggerSlug) } rev { fmt.Sprintf("%d", attempt.TriggerRevision) }</p>
+							</div>
+							<div>
+								<p class="text-xs uppercase tracking-wide text-base-content/60">Retry lineage</p>
+								<p class="mt-1 break-all text-sm text-base-content">Root { string(attempt.RootRunSlug) } / retry of { string(attempt.RetryOfRunSlug) }</p>
+							</div>
+							<div>
+								<p class="text-xs uppercase tracking-wide text-base-content/60">Retry run</p>
+								if attempt.RunSlug != nil && string(*attempt.RunSlug) != "" {
+									<a class="link link-primary mt-1 inline-block break-all font-mono text-sm" href={ templ.URL(buildEnvironmentRunDetailHref(orgSlug, activeProjectSlug, environmentSlug, string(*attempt.RunSlug))) }>{ string(*attempt.RunSlug) }</a>
+								} else {
+									<p class="mt-1 text-sm text-base-content">No run reserved</p>
+								}
+							</div>
+							<div>
+								<p class="text-xs uppercase tracking-wide text-base-content/60">Scheduled</p>
+								<p class="mt-1 text-sm text-base-content">{ formatRunTimestamp(attempt.ScheduledAt) }</p>
+							</div>
+							<div class="md:col-span-2">
+								<p class="text-xs uppercase tracking-wide text-base-content/60">Decision</p>
+								<p class="mt-1 text-sm text-base-content">{ retryAttemptDecisionLabel(attempt) }</p>
+							</div>
+						</div>
+					</div>
+				}
+			</div>
+		}
+	</div>
+}
+
+templ PipelineRunDetailUnavailablePage(
+	shellData AuthenticatedShellData,
+	orgSlug string,
+	activeProjectSlug string,
+	environmentSlug string,
+	runSlug string,
+	message string,
+) {
+	@AuthenticatedShell(shellData, PipelineRunDetailUnavailablePageContent(orgSlug, activeProjectSlug, environmentSlug, runSlug, message))
+}
+
+templ PipelineRunDetailUnavailablePageContent(orgSlug string, activeProjectSlug string, environmentSlug string, runSlug string, message string) {
+	<div class="rounded-xl border border-base-300 bg-base-100 p-5">
+		<p class="text-sm text-base-content/70">The full run details are unavailable.</p>
+		<div class="alert alert-warning mt-4">
+			<span>{ message }</span>
+		</div>
+		<div class="mt-4 flex flex-wrap gap-2">
+			<a class="btn btn-outline btn-sm" href={ templ.URL(entityBackHref(ctx, buildEnvironmentRunsListHrefWithProject(orgSlug, activeProjectSlug, environmentSlug, "", "", "", "", "", ""))) }>Back to runs</a>
+			<div class="badge badge-outline">{ runSlug }</div>
+		</div>
+	</div>
+}
+
+// PipelineRunSinkDeliveryPanel shows delivery evidence independently of the overall run status.
+templ PipelineRunSinkDeliveryPanel(run api.PipelineRunRecord, lineage runlineage.View) {
+	{{ sinks := runSinkSnapshots(run, lineage) }}
+	if len(sinks) > 0 {
+		<section class="mt-3 min-w-0" aria-label="Sink delivery outcomes">
+			<h3 class="text-sm font-semibold">Sink delivery</h3>
+			for _, snapshot := range sinks {
+				<div class="mt-2 min-w-0 border-t border-base-300 pt-2">
+					if runSinkBlocked(lineage, snapshot.Step) {
+						<p class="text-sm"><code>{ snapshot.Step }</code> · <strong>Not executed</strong></p>
+						<p class="mt-1 text-xs text-base-content/70">Blocked by a failed dependency before this sink started.</p>
+					} else {
+						<p class="break-words text-sm"><code>{ string(snapshot.Step) }</code> · <strong>{ runSinkDeliveryLabel(snapshot.Input) }</strong></p>
+						@PipelineRunSinkOutputPanel(runSinkOutputView(&snapshot))
+						if snapshot.Input.SinkDeliveryOutcome != nil && *snapshot.Input.SinkDeliveryOutcome == api.PipelineRunStepInputSnapshotSinkDeliveryOutcomeConfirmed {
+							<p class="mt-1 text-xs text-base-content/70">A sink acknowledgement is not independent delivery readback.</p>
+						}
+						if snapshot.Input.SinkDeliveryOutcome != nil && *snapshot.Input.SinkDeliveryOutcome == api.PipelineRunStepInputSnapshotSinkDeliveryOutcomeUnknown {
+							<p class="mt-1 text-sm font-semibold text-warning">The provider may have applied this write. Reconcile its outcome before repeating it.</p>
+						}
+						<p class="mt-1 break-words text-xs text-base-content/70">{ runSinkRecoveryHint(snapshot.Input) }</p>
+					}
+				</div>
+			}
+		</section>
+	} else {
+		<p class="mt-3 text-sm text-base-content/70">Sink effects unavailable: no sink snapshots or exact sink definitions are available.</p>
+	}
+}

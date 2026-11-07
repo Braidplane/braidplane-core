@@ -1,0 +1,4 @@
+{
+  "type": "postgres",
+  "sql": "SELECT provider, product_code, title, currency, pack_units, quoted_price, unit_price, source_date\nFROM supplier_price_offers\nWHERE org_slug = {{org_slug}} AND product_code = '000104'\nORDER BY unit_price, provider;\n"
+}

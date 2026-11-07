@@ -1,0 +1,201 @@
+metadata:
+  slug: golden-path-joined-orders
+  name: Golden Path Joined Orders
+steps:
+  - kind: query
+    slug: fetch-paid-orders
+    name: Fetch paid orders
+    query:
+      data_source_ref: golden-path-orders-postgres
+      operation_type: sql
+      operation_ref: golden-path-orders
+      output_contract:
+        name: golden-path-paid-orders
+        representation: rows
+        fields:
+          - name: order_id
+            type: string
+            required: true
+          - name: customer_slug
+            type: string
+            required: true
+          - name: order_total_cents
+            type: integer
+            required: true
+          - name: discount_cents
+            type: integer
+            required: true
+          - name: net_total_cents
+            type: integer
+            required: true
+          - name: placed_at_utc
+            type: string
+            required: true
+
+  - kind: query
+    slug: fetch-active-customers
+    name: Fetch active customers
+    query:
+      data_source_ref: golden-path-customers-postgres
+      operation_type: sql
+      operation_ref: golden-path-customers
+      output_contract:
+        name: golden-path-active-customers
+        representation: rows
+        fields:
+          - name: customer_slug
+            type: string
+            required: true
+          - name: customer_name
+            type: string
+            required: true
+          - name: customer_segment
+            type: string
+            required: true
+          - name: region
+            type: string
+            required: true
+
+  - kind: transform
+    slug: join-orders-customers
+    name: Join orders to active customers
+    transform:
+      inputs:
+        orders: fetch-paid-orders
+        customers: fetch-active-customers
+      input_contract:
+        name: golden-path-join-inputs
+        representation: rows
+        fields:
+          - name: orders.order_id
+            type: string
+            required: true
+          - name: orders.customer_slug
+            type: string
+            required: true
+          - name: orders.order_total_cents
+            type: integer
+            required: true
+          - name: orders.discount_cents
+            type: integer
+            required: true
+          - name: orders.net_total_cents
+            type: integer
+            required: true
+          - name: orders.placed_at_utc
+            type: string
+            required: true
+          - name: customers.customer_slug
+            type: string
+            required: true
+          - name: customers.customer_name
+            type: string
+            required: true
+          - name: customers.customer_segment
+            type: string
+            required: true
+          - name: customers.region
+            type: string
+            required: true
+      sql: |
+        SELECT
+          orders.order_id AS order_id,
+          orders.customer_slug AS customer_slug,
+          customers.customer_name AS customer_name,
+          customers.customer_segment AS customer_segment,
+          customers.region AS region,
+          orders.order_total_cents AS order_total_cents,
+          orders.discount_cents AS discount_cents,
+          orders.net_total_cents AS net_total_cents,
+          CAST(orders.net_total_cents AS DOUBLE) / 100 AS net_total_amount,
+          orders.placed_at_utc AS placed_at_utc
+        FROM orders
+        JOIN customers ON customers.customer_slug = orders.customer_slug
+        ORDER BY placed_at_utc, order_id
+      output_kind: rows
+      output_contract:
+        name: golden-path-joined-orders
+        representation: rows
+        fields:
+          - name: order_id
+            type: string
+            required: true
+          - name: customer_slug
+            type: string
+            required: true
+          - name: customer_name
+            type: string
+            required: true
+          - name: customer_segment
+            type: string
+            required: true
+          - name: region
+            type: string
+            required: true
+          - name: order_total_cents
+            type: integer
+            required: true
+          - name: discount_cents
+            type: integer
+            required: true
+          - name: net_total_cents
+            type: integer
+            required: true
+          - name: net_total_amount
+            type: number
+            required: true
+          - name: placed_at_utc
+            type: string
+            required: true
+
+  - kind: sink
+    slug: write-joined-orders
+    name: Write joined orders to S3
+    sink:
+      idempotency_class: naturally_idempotent
+      input: join-orders-customers
+      input_contract:
+        name: golden-path-joined-orders-s3-input
+        representation: rows
+        fields:
+          - name: order_id
+            type: string
+            required: true
+          - name: customer_slug
+            type: string
+            required: true
+          - name: customer_name
+            type: string
+            required: true
+          - name: customer_segment
+            type: string
+            required: true
+          - name: region
+            type: string
+            required: true
+          - name: order_total_cents
+            type: integer
+            required: true
+          - name: discount_cents
+            type: integer
+            required: true
+          - name: net_total_cents
+            type: integer
+            required: true
+          - name: net_total_amount
+            type: number
+            required: true
+          - name: placed_at_utc
+            type: string
+            required: true
+      data_source_ref: golden-path-s3-sink
+      operation_type: s3
+      operation_ref: golden-path-s3-write-joined-orders
+      config:
+        key: runs/{{runtime.sink.replay_identity}}/joined-orders.json
+        format: json
+        content_type: application/json
+        metadata:
+          source: braidplane-golden-path
+          run: "{{runtime.run.slug}}"
+        overwrite: true

@@ -1,0 +1,249 @@
+package views
+
+import (
+	"fmt"
+	api "github.com/Braidplane/braidplane-core/api-schema/gen/client"
+	"github.com/Braidplane/braidplane-core/pkg/ptr"
+)
+
+templ ODCSCatalogPage(shell AuthenticatedShellData, data ODCSCatalogView) {
+	@AuthenticatedShell(shell, ODCSCatalogPanel(data))
+}
+
+templ ODCSCatalogLink(data ODCSCatalogView, contract, revision, cursor, label string) {
+	<a class="link link-primary break-all" href={ templ.URL(ODCSCatalogHref(data.Org, data.Project, contract, revision, data.Selector, cursor)) } hx-get={ ODCSCatalogHref(data.Org, data.Project, contract, revision, data.Selector, cursor) } hx-target="#odcs-catalog" hx-select="#odcs-catalog" hx-swap="outerHTML" hx-push-url={ boolString(!data.Selector) }>{ label }</a>
+}
+
+templ ODCSRevisionSectionLink(data ODCSCatalogView, section, label string) {
+	<a href={ templ.URL(ODCSCatalogSectionHref(data, section)) } hx-get={ ODCSCatalogSectionHref(data, section) } hx-target="#odcs-catalog" hx-select="#odcs-catalog" hx-swap="outerHTML" hx-push-url={ boolString(!data.Selector) } class={ "btn btn-ghost btn-sm", templ.KV("btn-active", data.Section == section) } aria-current={ func() string { if data.Section == section { return "page" }; return "false" }() }>{ label }</a>
+}
+
+templ ODCSCatalogPanel(data ODCSCatalogView) {
+	<section id="odcs-catalog" class="min-w-0 space-y-4 text-sm">
+		if data.DefinitionReturn != "" {
+			<a class="link link-primary" data-entity-focus="definition-inspector" href={ templ.URL(DefinitionReturnHref(data.DefinitionReturn, data.Org, data.Project)) }>Return to requested definition</a>
+		}
+		if data.Selector {
+			<h2 class="text-lg font-semibold">Data contracts</h2>
+		} else {
+			<a class="link link-primary" href={ templ.URL(projectDetailHref(ctx, data.Org, data.Project)) }>Back to project</a>
+		}
+		if data.Error != "" {
+			<div class="alert alert-error" role="alert">{ data.Error }</div>
+		}
+		if data.Contract != "" {
+			<div class="flex flex-wrap items-center gap-3">
+				@ODCSCatalogLink(data, "", "", "", "All contracts")
+				if data.Revision != "" {
+					@ODCSCatalogLink(data, data.Contract, "", "", data.Contract)
+				} else {
+					<span class="break-all font-mono">{ data.Contract }</span>
+				}
+			</div>
+		}
+		if data.Contract == "" {
+			if len(data.Contracts) == 0 && data.Error == "" {
+				<p>No contracts yet. Create a contract and JSON revision with the CLI.</p>
+			}
+			<ul class="divide-y divide-base-300">
+				for _, contract := range data.Contracts {
+					<li class="flex flex-wrap items-center justify-between gap-2 py-3">
+						<div>
+							@ODCSCatalogLink(data, contract.Slug, "", "", contract.Name)
+							if contract.Name != contract.Slug {
+								<p class="break-all font-mono text-xs text-base-content/70">{ contract.Slug }</p>
+							}
+						</div>
+						<span class="badge badge-outline">{ string(contract.Status) }</span>
+					</li>
+				}
+			</ul>
+			if data.NextContracts != nil {
+				@ODCSCatalogLink(data, "", "", *data.NextContracts, "Next contracts")
+			}
+		} else if data.Revision == "" {
+			if len(data.Revisions) == 0 && data.Error == "" {
+				<p>No revisions yet. Record a JSON revision with the CLI.</p>
+			}
+			<ul class="divide-y divide-base-300">
+				for _, revision := range data.Revisions {
+					<li class="flex flex-wrap items-center justify-between gap-2 py-3">
+						@ODCSCatalogLink(data, data.Contract, revision.Slug, "", revision.Slug)
+						<span class="text-base-content/70">{ "Version " + revision.DocumentVersion }</span>
+					</li>
+				}
+			</ul>
+			if data.NextRevisions != nil {
+				@ODCSCatalogLink(data, data.Contract, "", *data.NextRevisions, "Next revisions")
+			}
+		} else if data.Metadata != nil {
+			<div class="flex flex-wrap items-center gap-3">
+				<h2 class="break-all text-lg font-semibold">{ data.Metadata.Slug }</h2>
+				<span class="badge badge-outline">Immutable revision</span>
+			</div>
+			@EntitySectionNavigation("Revision sections") {
+				@ODCSRevisionSectionLink(data, "schema", "Schema")
+				@ODCSRevisionSectionLink(data, "details", "Details")
+				@ODCSRevisionSectionLink(data, "document", "Document")
+				@ODCSRevisionSectionLink(data, "coverage", "Coverage")
+				@ODCSRevisionSectionLink(data, "consumers", "Consumers")
+				@ODCSRevisionSectionLink(data, "impact", "Compare")
+			}
+			switch data.Section {
+				case "impact":
+					@ODCSImpactComparison(data)
+				case "document":
+					if data.Inspection != nil {
+						<p class="max-w-prose text-base-content/70">Complete admitted canonical JSON. Authored text, links and instructions are inert. Descriptive contact and team information is visible to project readers. Original Git formatting and comments are separate artifact provenance.</p>
+						<p class="break-all font-mono text-xs">{ data.Metadata.Digest }</p>
+						<pre hx-history="false" class="max-h-96 overflow-auto rounded border border-base-300 p-4 text-xs" tabindex="0" aria-label="Canonical ODCS document"><code>{ data.Document }</code></pre>
+					}
+				case "coverage":
+					if data.Inspection != nil {
+						<p class="max-w-prose text-base-content/70">Static declaration coverage. Enforced means compiled into selected port constraints; no execution has passed here. Quality, SLA and other declarations without evaluators remain unsupported or unresolved.</p>
+						<dl class="grid gap-3 sm:grid-cols-2">
+							<div class="sm:col-span-2"><dt>Revision digest</dt><dd class="break-all font-mono text-xs">{ data.Metadata.Digest }</dd></div>
+							<div><dt>Compiler</dt><dd class="break-all font-mono text-xs">{ data.Inspection.CompilerId }</dd></div>
+							<div><dt>Document valid</dt><dd>{ fmt.Sprint(data.Inspection.DocumentValid) }</dd></div>
+							<div><dt>Coverage complete</dt><dd>{ fmt.Sprint(data.Inspection.CoverageComplete) }</dd></div>
+							<div><dt>Selected projection available</dt><dd>{ fmt.Sprint(data.Inspection.ProjectionAvailable) }</dd></div>
+						</dl>
+						<form method="get" hx-get={ ODCSCatalogHref(data.Org, data.Project, "", "", false, "") } hx-target="#odcs-catalog" hx-select="#odcs-catalog" hx-swap="outerHTML" hx-push-url={ boolString(!data.Selector) } class="flex flex-wrap items-end gap-3">
+							<input type="hidden" name="contract" value={ data.Contract }/>
+							<input type="hidden" name="revision" value={ data.Revision }/>
+							<input type="hidden" name="section" value="coverage"/>
+							if data.Selector {
+								<input type="hidden" name="selector" value="1"/>
+							}
+							<label class="min-w-0"><span class="mb-1 block">Schema object ID</span><input class="input input-bordered w-full" name="object" value={ data.Object } maxlength="1024"/></label>
+							<button type="submit" class="btn btn-sm">Inspect coverage</button>
+						</form>
+						for _, diagnostic := range data.Inspection.Diagnostics {
+							<p><code class="break-all text-xs">{ diagnostic.Code + " · " + diagnostic.Path }</code> { diagnostic.Message }</p>
+						}
+						if len(data.Coverage) == 0 {
+							<p>No declaration entries available. Review coverage completeness and diagnostics.</p>
+						}
+						<div class="overflow-x-auto" tabindex="0" role="region" aria-label="Declaration coverage">
+							<table class="table table-sm">
+								<caption>All declarations, including unselected objects and opaque extensions. Paths identify declarations within this digest.</caption>
+								<thead><tr><th scope="col">Declaration</th><th scope="col">State</th><th scope="col">Applicability</th><th scope="col">Reason / runtime scope</th></tr></thead>
+								<tbody>
+									for _, entry := range data.Coverage {
+										<tr>
+											<th scope="row" class="break-all font-mono text-xs">{ entry.Path }</th>
+											<td>{ string(entry.State) }</td>
+											<td>{ string(entry.Applicability) }</td>
+											<td class="break-all text-xs">
+												{ entry.Reason }
+												if entry.RuntimeScope != nil {
+													<code>{ *entry.RuntimeScope }</code>
+												}
+											</td>
+										</tr>
+									}
+								</tbody>
+							</table>
+						</div>
+						<div class="flex flex-wrap gap-4">
+							if data.CoveragePage > 0 {
+								<a class="link link-primary" href={ templ.URL(ODCSCoverageHref(data, data.CoveragePage-1)) } hx-get={ ODCSCoverageHref(data, data.CoveragePage-1) } hx-target="#odcs-catalog" hx-select="#odcs-catalog" hx-swap="outerHTML" hx-push-url={ boolString(!data.Selector) }>Previous declarations</a>
+							}
+							if data.CoverageMore {
+								<a class="link link-primary" href={ templ.URL(ODCSCoverageHref(data, data.CoveragePage+1)) } hx-get={ ODCSCoverageHref(data, data.CoveragePage+1) } hx-target="#odcs-catalog" hx-select="#odcs-catalog" hx-swap="outerHTML" hx-push-url={ boolString(!data.Selector) }>Next declarations</a>
+							}
+						</div>
+					}
+				case "details":
+					<dl class="grid gap-4 sm:grid-cols-2">
+						<div class="sm:col-span-2"><dt class="text-base-content/70">Canonical digest</dt><dd class="mt-1 break-all font-mono text-xs">{ data.Metadata.Digest }</dd></div>
+						<div><dt class="text-base-content/70">Authored ODCS version</dt><dd>{ data.Metadata.DocumentVersion }</dd></div>
+						<div><dt class="text-base-content/70">Declared status</dt><dd>{ data.Metadata.DeclaredStatus }</dd></div>
+					</dl>
+					<p class="max-w-prose text-base-content/70">Only the supported port shape is enforced. Quality, SLA, governance, live observations and Proof are separate.</p>
+					for _, object := range data.Objects {
+						<section class="space-y-2 border-t border-base-300 pt-4">
+							<h3 class="break-all font-mono font-semibold">{ object.SchemaObjectID }</h3>
+							if object.DocumentValid {
+								<p>Document valid against ODCS v3.2.0.</p>
+							} else {
+								<p class="text-error">Document invalid against ODCS v3.2.0.</p>
+							}
+							if len(object.Diagnostics) > 0 {
+								<ul class="space-y-2">
+									for _, diagnostic := range object.Diagnostics {
+										<li><code class="break-all text-xs">{ diagnostic.Code } · { diagnostic.Path }</code><p>{ diagnostic.Message }</p></li>
+									}
+								</ul>
+							}
+						</section>
+					}
+				case "consumers":
+					<p class="text-base-content/70">Project definitions, drafts and deployments. External consumers are unknown.</p>
+					if data.ConsumersError != "" {
+						<p role="alert" class="text-warning">{ data.ConsumersError }</p>
+					} else if len(data.Consumers) == 0 {
+						<p>No known consumers.</p>
+					}
+					<ul class="divide-y divide-base-300">
+						for _, consumer := range data.Consumers {
+							<li class="flex flex-wrap items-center justify-between gap-2 py-3">
+								<div>
+									<a class="link link-primary" href={ templ.URL(PipelineDetailHrefWithEnvironment(data.Org, data.Project, ptr.Value(consumer.EnvironmentSlug), consumer.PipelineSlug)) }>{ consumer.PipelineSlug }</a>
+									<p class="break-all text-xs text-base-content/70">{ consumer.StepSlug + " · " + string(consumer.Port) + " · " + consumer.SchemaObjectId }</p>
+								</div>
+								<span class="badge badge-outline">{ string(consumer.Origin) }</span>
+							</li>
+						}
+					</ul>
+				default:
+					for _, object := range data.Objects {
+						<section class="space-y-3 border-t border-base-300 pt-4">
+							<div class="flex flex-wrap items-center justify-between gap-3">
+								<h3 class="break-all font-mono font-semibold">{ object.SchemaObjectID }</h3>
+								if object.Shape != nil {
+									if data.Selector {
+										<button type="button" class="btn btn-primary btn-sm" data-odcs-select data-contract={ data.Contract } data-revision={ data.Revision } data-object={ object.SchemaObjectID } data-digest={ data.Metadata.Digest }>Use this object</button>
+									} else {
+										<span class="badge badge-success badge-outline">Supported port shape</span>
+									}
+								}
+							</div>
+							if object.Shape != nil {
+								<div class="overflow-x-auto">
+									<table class="table table-sm">
+										<caption class="sr-only">{ "Supported fields for " + object.SchemaObjectID }</caption>
+										<thead><tr><th scope="col">Field</th><th scope="col">Type</th><th scope="col">Required</th><th scope="col">Nullable</th><th scope="col">Constraints</th></tr></thead>
+										<tbody>
+											for _, field := range object.Shape.Fields {
+												<tr><th scope="row" class="whitespace-nowrap font-mono">{ field.Name }</th><td>{ field.Type.String() }</td><td>{ fmt.Sprint(field.Required) }</td><td>{ fmt.Sprint(field.Nullable) }</td><td class="break-all font-mono text-xs">{ ODCSFieldValidations(field) }</td></tr>
+											}
+										</tbody>
+									</table>
+								</div>
+							} else {
+								<p class="text-warning">Unsupported port shape. This object cannot be selected.</p>
+								@ODCSRevisionSectionLink(data, "details", "View diagnostics")
+							}
+						</section>
+					}
+			}
+		}
+	</section>
+}
+
+templ PipelineODCSReferences(org, project string, pipeline *api.Pipeline) {
+	<section class="space-y-2">
+		<h3 class="font-semibold">ODCS inspection</h3>
+		for _, steps := range [][]PipelineSpecStepProjection{PipelineSpecProjectionFromPipeline(pipeline).SourceSteps, PipelineSpecProjectionFromPipeline(pipeline).TransformSteps, PipelineSpecProjectionFromPipeline(pipeline).SinkSteps} {
+			for _, step := range steps {
+				for _, slot := range step.ContractSlots {
+					if slot.Ref != nil {
+						<p><a class="link link-primary break-all" href={ templ.URL(ODCSCatalogHref(org, project, slot.Ref.ContractSlug, slot.Ref.RevisionSlug, false, "")) }>{ step.Slug + " · " + slot.Label + " · " + slot.Ref.SchemaObjectId }</a></p>
+					}
+				}
+			}
+		}
+		<a class="link link-primary" href={ templ.URL(ODCSCatalogHref(org, project, "", "", false, "")) }>Browse project contracts</a>
+	</section>
+}

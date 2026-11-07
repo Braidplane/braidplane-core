@@ -1,0 +1,17 @@
+{
+  "type": "postgres",
+  "name": "Tutorial PostgreSQL",
+  "slug": "tutorial-postgres",
+  "read_only": true,
+  "config": {
+    "host": "<your-database-host>",
+    "port": 5432,
+    "database": "<your-database>",
+    "ssl_mode": "verify-full",
+    "connect_timeout": 5
+  },
+  "credentials": {
+    "username": "<your-read-only-role>",
+    "password_file": "postgres-password"
+  }
+}

@@ -1,0 +1,24 @@
+package views
+
+templ AppHead(title string, includeHTMX bool) {
+	<head>
+		<meta charset="UTF-8"/>
+		<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+		<meta name="description" content="Braidplane helps teams run operational data workflows with secure data access, durable pipelines, and fast diagnostics."/>
+		<meta name="theme-color" content="#0b1118"/>
+		<title>{ title }</title>
+		<link rel="icon" href={ versionedAssetPath("/assets/icons/app/favicon.ico") } sizes="any"/>
+		<link rel="icon" href={ versionedAssetPath("/assets/icons/app/favicon-32.png") } type="image/png" sizes="32x32"/>
+		<link rel="icon" href={ versionedAssetPath("/assets/icons/app/favicon-16.png") } type="image/png" sizes="16x16"/>
+		<link rel="apple-touch-icon" href={ versionedAssetPath("/assets/icons/app/apple-touch-icon.png") }/>
+		<link rel="manifest" href={ versionedAssetPath("/assets/site.webmanifest") }/>
+		<link rel="stylesheet" href={ versionedAssetPath("/assets/css/app.css") } type="text/css"/>
+		<link rel="stylesheet" href={ versionedAssetPath("/assets/css/app-custom.css") } type="text/css"/>
+		if includeHTMX {
+			<script src={ versionedAssetPath("/assets/vendor/htmx-2.0.8.min.js") } defer></script>
+			<script src={ versionedAssetPath("/assets/js/security.js") } defer></script>
+		}
+		<script src={ versionedAssetPath("/assets/js/ui-utils.js") } defer></script>
+		<script src={ versionedAssetPath("/assets/js/workspace_connector.js") } defer></script>
+	</head>
+}

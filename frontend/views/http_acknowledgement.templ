@@ -1,0 +1,113 @@
+package views
+
+import (
+	"strconv"
+	"strings"
+
+	api "github.com/Braidplane/braidplane-core/api-schema/gen/client"
+)
+
+type HTTPAcknowledgementFormData struct {
+	Enabled     bool
+	StatusCodes string
+	Success     []QueryKeyValueFormData
+	EmptyFields []string
+	Error       string
+}
+
+func httpAcknowledgementFormData(contract *api.HTTPAcknowledgement) HTTPAcknowledgementFormData {
+	form := HTTPAcknowledgementFormData{Enabled: true}
+	statuses := make([]string, len(contract.StatusCodes))
+	for i, status := range contract.StatusCodes {
+		statuses[i] = strconv.Itoa(status)
+	}
+	form.StatusCodes = strings.Join(statuses, ", ")
+	for _, check := range contract.Success {
+		form.Success = append(form.Success, QueryKeyValueFormData{Key: check.Path, Value: string(check.Equals)})
+	}
+	if contract.EmptyFields != nil {
+		form.EmptyFields = *contract.EmptyFields
+	}
+	return form
+}
+
+templ httpAcknowledgementFields(form HTTPAcknowledgementFormData) {
+	<details class="mt-3 rounded-lg border border-base-300 p-3" open?={ form.Enabled }>
+		<summary class="cursor-pointer text-sm font-medium">Response acknowledgement (optional)</summary>
+		<div class="mt-3 space-y-3">
+			if form.Error != "" {
+				<p class="text-sm text-error" role="alert">{ form.Error }</p>
+			}
+			<label class="flex items-center gap-2 text-sm">
+				<input type="checkbox" class="checkbox checkbox-sm" name="http_acknowledgement_enabled" checked?={ form.Enabled }/>
+				Require response acknowledgement
+			</label>
+			<p class="text-xs text-base-content/70">Opt in to require every check on every response. Clear the checkbox and save to remove the contract.</p>
+			<div class="space-y-1">
+				<label class="form-control w-full">
+					<span class="label-text text-xs">Accepted HTTP status codes</span>
+					<input class="input input-bordered input-sm w-full font-mono" type="text" name="http_acknowledgement_status_codes" value={ form.StatusCodes } placeholder="200, 201"/>
+				</label>
+				<p class="text-xs text-base-content/70">1–16 distinct codes from 200 to 299, separated by commas.</p>
+			</div>
+			<div class="space-y-2" data-kv-editor>
+				<div class="flex flex-wrap items-center justify-between gap-2">
+					<p class="text-sm font-medium">Success checks</p>
+					<button class="btn btn-outline btn-xs" type="button" data-add-kv>Add success check</button>
+				</div>
+				<p class="text-xs text-base-content/70">1–8 object paths, such as status.code. Expected values are JSON scalars: "OK", true or 1.0. Types must match; 1 and 1.0 differ. No arrays, wildcards or templates.</p>
+				<div class="space-y-2" data-kv-rows>
+					for _, row := range form.Success {
+						@httpAcknowledgementSuccessRow(row)
+					}
+					if len(form.Success) == 0 {
+						@httpAcknowledgementSuccessRow(QueryKeyValueFormData{})
+					}
+				</div>
+				<template data-kv-row-template>
+					@httpAcknowledgementSuccessRow(QueryKeyValueFormData{})
+				</template>
+			</div>
+			<div class="space-y-2" data-kv-editor>
+				<div class="flex flex-wrap items-center justify-between gap-2">
+					<p class="text-sm font-medium">Empty error fields (optional)</p>
+					<button class="btn btn-outline btn-xs" type="button" data-add-kv>Add empty field</button>
+				</div>
+				<p class="text-xs text-base-content/70">Up to 8 distinct field names, checked recursively in objects and arrays. Each occurrence must be null, an empty object or an empty array. Absent fields are allowed.</p>
+				<div class="space-y-2" data-kv-rows>
+					for _, name := range form.EmptyFields {
+						@httpAcknowledgementEmptyFieldRow(name)
+					}
+				</div>
+				<template data-kv-row-template>
+					@httpAcknowledgementEmptyFieldRow("")
+				</template>
+			</div>
+			<p class="text-xs text-base-content/70">Rejection means a status or value failed a check. Uncertain means evidence is missing or malformed. Neither confirms a sink effect or advances its dependent checkpoint. Automatic retries are refused. Rejection does not prove rollback; verify remote state before retrying a write.</p>
+		</div>
+	</details>
+}
+
+templ httpAcknowledgementSuccessRow(row QueryKeyValueFormData) {
+	<div class="grid items-end gap-2 md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto]" data-kv-row>
+		<label class="form-control min-w-0">
+			<span class="label-text text-xs">Success path</span>
+			<input class="input input-bordered input-sm w-full font-mono" type="text" name="http_acknowledgement_path" value={ row.Key } placeholder="status.code"/>
+		</label>
+		<label class="form-control min-w-0">
+			<span class="label-text text-xs">Equals (JSON scalar)</span>
+			<input class="input input-bordered input-sm w-full font-mono" type="text" name="http_acknowledgement_equals" value={ row.Value } placeholder="&quot;OK&quot;"/>
+		</label>
+		<button class="btn btn-ghost btn-xs" type="button" data-remove-kv aria-label="Remove success check">Remove</button>
+	</div>
+}
+
+templ httpAcknowledgementEmptyFieldRow(name string) {
+	<div class="grid items-end gap-2 md:grid-cols-[minmax(0,1fr)_auto]" data-kv-row>
+		<label class="form-control min-w-0">
+			<span class="label-text text-xs">Empty field name</span>
+			<input class="input input-bordered input-sm w-full font-mono" type="text" name="http_acknowledgement_empty_field" value={ name } placeholder="errors"/>
+		</label>
+		<button class="btn btn-ghost btn-xs" type="button" data-remove-kv aria-label="Remove empty field">Remove</button>
+	</div>
+}

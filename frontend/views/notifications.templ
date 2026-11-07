@@ -1,0 +1,359 @@
+package views
+
+import (
+	"strings"
+
+	api "github.com/Braidplane/braidplane-core/api-schema/gen/client"
+)
+
+templ NotificationsPage(
+	shellData AuthenticatedShellData,
+	orgSlug string,
+	notifications []api.NotificationRecord,
+	deliveryAttemptsByNotification map[string][]api.AlertDeliveryAttempt,
+	hasMore bool,
+	nextCursor string,
+	prevCursor string,
+	filters NotificationFilters,
+	permissions OrganizationPermissions,
+	workspaceError string,
+	diagnosticsError string,
+) {
+	@AuthenticatedShell(
+		shellData,
+		NotificationsPageContent(
+			orgSlug,
+			notifications,
+			deliveryAttemptsByNotification,
+			hasMore,
+			nextCursor,
+			prevCursor,
+			filters,
+			permissions,
+			workspaceError,
+			diagnosticsError,
+		),
+	)
+}
+
+templ NotificationsPageContent(
+	orgSlug string,
+	notifications []api.NotificationRecord,
+	deliveryAttemptsByNotification map[string][]api.AlertDeliveryAttempt,
+	hasMore bool,
+	nextCursor string,
+	prevCursor string,
+	filters NotificationFilters,
+	permissions OrganizationPermissions,
+	workspaceError string,
+	diagnosticsError string,
+) {
+	<div id="notifications-workspace">
+		<p class="mb-3 text-xs text-base-content/70">Acknowledge marks attention as seen; resolve closes it. Neither repairs the source nor retries delivery.</p>
+		<div class="tabs tabs-boxed w-fit">
+			<a
+				class={ notificationStateTabClass(filters, NotificationFilterStateActive) }
+				href={ templ.URL(buildNotificationsListHref(orgSlug, "", "", NotificationFilters{State: NotificationFilterStateActive, NotificationType: filters.NotificationType, Severity: filters.Severity})) }
+				hx-get={ buildNotificationsListHref(orgSlug, "", "", NotificationFilters{State: NotificationFilterStateActive, NotificationType: filters.NotificationType, Severity: filters.Severity}) }
+				hx-target="#notifications-workspace"
+				hx-select="#notifications-workspace"
+				hx-swap="outerHTML show:none focus-scroll:false"
+				hx-push-url="true"
+				hx-indicator="#notifications-loading"
+			>Active</a>
+			<a
+				class={ notificationStateTabClass(filters, NotificationFilterStateResolved) }
+				href={ templ.URL(buildNotificationsListHref(orgSlug, "", "", NotificationFilters{State: NotificationFilterStateResolved, NotificationType: filters.NotificationType, Severity: filters.Severity})) }
+				hx-get={ buildNotificationsListHref(orgSlug, "", "", NotificationFilters{State: NotificationFilterStateResolved, NotificationType: filters.NotificationType, Severity: filters.Severity}) }
+				hx-target="#notifications-workspace"
+				hx-select="#notifications-workspace"
+				hx-swap="outerHTML show:none focus-scroll:false"
+				hx-push-url="true"
+				hx-indicator="#notifications-loading"
+			>Resolved</a>
+		</div>
+		<form
+			class="mt-3 rounded-lg border border-base-300 bg-base-100 p-3"
+			method="get"
+			action={ templ.URL(buildNotificationsListHref(orgSlug, "", "", NotificationFilters{})) }
+			hx-get={ buildNotificationsListHref(orgSlug, "", "", NotificationFilters{}) }
+			hx-target="#notifications-workspace"
+			hx-select="#notifications-workspace"
+			hx-swap="outerHTML show:none focus-scroll:false"
+			hx-push-url="true"
+			hx-indicator="#notifications-loading"
+		>
+			<input type="hidden" name="state" value={ filters.State }/>
+			<div class="flex flex-wrap items-end gap-2">
+				<label class="form-control w-64 max-w-full">
+					<div class="label py-0.5"><span class="label-text text-xs">Type</span></div>
+					<select class="select select-bordered select-sm w-full" name="notification_type">
+						<option selected?={ filters.NotificationType == "" } value="">All types</option>
+						for _, option := range notificationTypeOptions(RecencyAvailable(ctx)) {
+							<option selected?={ filters.NotificationType == option.Value } value={ option.Value }>{ option.Label }</option>
+						}
+					</select>
+				</label>
+				<label class="form-control w-40">
+					<div class="label py-0.5"><span class="label-text text-xs">Severity</span></div>
+					<select class="select select-bordered select-sm w-full" name="severity">
+						<option selected?={ filters.Severity == "" } value="">All severities</option>
+						for _, option := range notificationSeverityOptions() {
+							<option selected?={ filters.Severity == option.Value } value={ option.Value }>{ option.Label }</option>
+						}
+					</select>
+				</label>
+				<div class="flex items-end gap-2">
+					<button class="btn btn-primary btn-sm" type="submit">Apply</button>
+					<a
+						class="btn btn-outline btn-sm"
+						href={ templ.URL(buildNotificationsListHref(orgSlug, "", "", NotificationFilters{State: filters.State})) }
+						hx-get={ buildNotificationsListHref(orgSlug, "", "", NotificationFilters{State: filters.State}) }
+						hx-target="#notifications-workspace"
+						hx-select="#notifications-workspace"
+						hx-swap="outerHTML show:none focus-scroll:false"
+						hx-push-url="true"
+						data-preserve-scroll
+					>Reset</a>
+				</div>
+			</div>
+		</form>
+		if notificationFiltersActive(filters) {
+			<div class="mt-3 flex flex-wrap gap-2">
+				<span class="badge badge-primary badge-outline">filters active</span>
+			</div>
+		}
+		<div id="notifications-loading" class="htmx-indicator mt-3 rounded-lg border border-base-300 bg-base-200 px-3 py-2 text-xs text-base-content/70">
+			<span class="loading loading-spinner loading-xs align-middle"></span>
+			<span class="ml-2 align-middle">Loading updated notifications</span>
+		</div>
+		if strings.TrimSpace(workspaceError) != "" {
+			<div class="alert alert-error mt-3 text-error-content">
+				<div class="text-error-content">
+					<p class="font-semibold">Unable to refresh notifications</p>
+					<p class="text-sm">{ workspaceError }</p>
+				</div>
+			</div>
+		}
+		if strings.TrimSpace(diagnosticsError) != "" {
+			<div class="alert alert-warning mt-3 text-warning-content">
+				<div class="text-warning-content">
+					<p class="font-semibold">Unable to load alert delivery diagnostics</p>
+					<p class="text-sm">{ diagnosticsError }</p>
+				</div>
+			</div>
+		}
+		<div id="notifications-results" class="mt-4">
+			if len(notifications) == 0 && strings.TrimSpace(workspaceError) == "" {
+				<div class="rounded-xl border border-dashed border-base-300 bg-base-100 p-8 text-center">
+					if notificationFiltersActive(filters) {
+						<h2 class="text-lg font-semibold text-base-content">No notifications match these filters</h2>
+						<p class="mt-2 text-sm text-base-content/70">Adjust the type or severity filter to inspect other notification records.</p>
+						<a
+							class="btn btn-outline btn-sm mt-4"
+							href={ templ.URL(buildNotificationsListHref(orgSlug, "", "", NotificationFilters{State: filters.State})) }
+							hx-get={ buildNotificationsListHref(orgSlug, "", "", NotificationFilters{State: filters.State}) }
+							hx-target="#notifications-workspace"
+							hx-select="#notifications-workspace"
+							hx-swap="outerHTML show:none focus-scroll:false"
+							hx-push-url="true"
+							data-preserve-scroll
+						>Clear filters</a>
+					} else if filters.State == NotificationFilterStateResolved {
+						<h2 class="text-lg font-semibold text-base-content">No resolved notifications</h2>
+						<p class="mt-2 text-sm text-base-content/70">Notifications appear here after you manually resolve them or a producer resolves them.</p>
+					} else {
+						<h2 class="text-lg font-semibold text-base-content">No active notifications</h2>
+						<p class="mt-2 text-sm text-base-content/70">Recorded notifications appear here for supported conditions. An empty inbox does not establish pipeline health.</p>
+					}
+				</div>
+			} else {
+				<div class="space-y-3">
+					for _, notification := range notifications {
+						<article id={ "notification-" + notification.Slug } tabindex="-1" class="rounded-xl border border-base-300 bg-base-100 p-4">
+							<div class="flex flex-wrap items-start justify-between gap-3">
+								<div class="min-w-0">
+									<div class="flex flex-wrap items-center gap-2">
+										<span class={ notificationSeverityBadgeClass(notification.Severity) }>{ notificationSeverityLabel(notification.Severity) }</span>
+										<span class={ notificationLifecycleBadgeClass(notification.LifecycleState) }>{ notificationLifecycleLabel(notification.LifecycleState) }</span>
+									</div>
+									<h2 class="mt-2 break-words text-base font-semibold text-base-content">{ notification.Summary }</h2>
+									<p class="mt-1 break-all font-mono text-xs text-base-content/60">{ string(notification.Slug) }</p>
+								</div>
+								<div class="flex flex-col items-start gap-2 text-xs text-base-content/60 sm:items-end">
+									<div class="text-left sm:text-right">
+										<p>last seen { notificationTimestamp(notification.LastSeenAt) }</p>
+										<p class="mt-1">first seen { notificationTimestamp(notification.FirstSeenAt) }</p>
+									</div>
+									if permissions.Can("notifications", "update") && (notificationCanAcknowledge(notification) || notificationCanResolve(notification)) {
+										<div class="flex flex-wrap items-center gap-2">
+											if notificationCanAcknowledge(notification) {
+												<form
+													method="post"
+													action={ templ.URL(notificationActionHref(orgSlug, notification, "acknowledge")) }
+													hx-post={ notificationActionHref(orgSlug, notification, "acknowledge") }
+													hx-target="#notifications-workspace"
+													hx-select="#notifications-workspace"
+													hx-swap="outerHTML show:none focus-scroll:false"
+													hx-indicator="#notifications-loading"
+													data-preserve-scroll
+												>
+													<input type="hidden" name="state" value={ filters.State }/>
+													<input type="hidden" name="notification_type" value={ filters.NotificationType }/>
+													<input type="hidden" name="severity" value={ filters.Severity }/>
+													<input type="hidden" name="cursor" value={ filters.Cursor }/>
+													<input type="hidden" name="direction" value={ filters.Direction }/>
+													<button class="btn btn-outline btn-xs" type="submit">Acknowledge</button>
+												</form>
+											}
+											if notificationCanResolve(notification) {
+												<form
+													method="post"
+													action={ templ.URL(notificationActionHref(orgSlug, notification, "resolve")) }
+													hx-post={ notificationActionHref(orgSlug, notification, "resolve") }
+													hx-target="#notifications-workspace"
+													hx-select="#notifications-workspace"
+													hx-swap="outerHTML show:none focus-scroll:false"
+													hx-indicator="#notifications-loading"
+													data-preserve-scroll
+												>
+													<input type="hidden" name="state" value={ filters.State }/>
+													<input type="hidden" name="notification_type" value={ filters.NotificationType }/>
+													<input type="hidden" name="severity" value={ filters.Severity }/>
+													<input type="hidden" name="cursor" value={ filters.Cursor }/>
+													<input type="hidden" name="direction" value={ filters.Direction }/>
+													<button class="btn btn-primary btn-xs" type="submit">Resolve</button>
+												</form>
+											}
+										</div>
+									}
+								</div>
+							</div>
+							{{ lifecycleEvidenceRows := notificationLifecycleEvidenceRows(notification) }}
+							if len(lifecycleEvidenceRows) > 0 {
+								<div class="mt-4 grid gap-2 rounded-lg border border-base-300 bg-base-200/35 p-3 text-xs md:grid-cols-2">
+									for _, row := range lifecycleEvidenceRows {
+										<div>
+											<p class="font-semibold uppercase text-base-content/50">{ row.Label }</p>
+											<p class="mt-1 text-base-content/60">{ row.Timestamp }</p>
+										</div>
+									}
+								</div>
+							}
+							<div class="mt-4 grid gap-3 border-t border-base-300/70 pt-4 text-sm lg:grid-cols-[1fr_1fr_1fr]">
+								<div>
+									<p class="text-xs font-semibold uppercase text-base-content/50">Type</p>
+									<p class="mt-1 text-base-content">{ notificationTypeLabel(string(notification.NotificationType)) }</p>
+								</div>
+								<div>
+									<p class="text-xs font-semibold uppercase text-base-content/50">Source</p>
+									<p class="mt-1 text-base-content">{ notificationSourceLabel(notification) }</p>
+									<p class="mt-1 break-all font-mono text-xs text-base-content/60">{ notificationNullableSlugLabel(notification.SourceEventSlug) }</p>
+								</div>
+								<div>
+									<p class="text-xs font-semibold uppercase text-base-content/50">Occurrences</p>
+									<p class="mt-1 text-base-content">{ notificationOccurrenceLabel(notification.OccurrenceCount) }</p>
+									<p class="mt-1 text-xs text-base-content/60">last occurrence { notificationTimestamp(notification.LastOccurrenceAt) }</p>
+								</div>
+							</div>
+							if permissions.Can("alert_policies", "read") || permissions.Can("alert_policies", "create") {
+								if NotificationTypeAvailable(string(notification.NotificationType)) || (notification.NotificationType == api.NotificationTypePipelineFreshnessSLABreached && RecencyAvailable(ctx)) {
+									<a class="btn btn-outline btn-xs mt-4" href={ templ.URL(notificationConfigureAlertsHref(orgSlug, notification, filters)) }>Configure alerts</a>
+								} else {
+									<p class="mt-4 text-xs text-base-content/70">This historical condition is not currently monitored by notifications.</p>
+								}
+							}
+							if !permissions.Can("pipelines", "read") && len(notification.SourceRefs) > 0 {
+								<p class="mt-2 text-xs text-base-content/70">Source detail is restricted. Notification attention remains available.</p>
+							}
+							{{ evidenceLinks := notificationEvidenceLinks(orgSlug, notification, permissions) }}
+							if len(evidenceLinks) > 0 {
+								<div class="mt-4 flex flex-wrap gap-2">
+									for _, link := range evidenceLinks {
+										<a class="btn btn-outline btn-xs" href={ templ.URL(notificationSourceReturnHref(link.Href, NotificationReturnHref(orgSlug, notification, filters))) }>{ link.Label }</a>
+									}
+								</div>
+							}
+							if len(notification.DispatchStatuses) > 0 {
+								<div class="mt-4 rounded-lg border border-base-300 bg-base-200/35 p-3">
+									<p class="text-xs font-semibold uppercase text-base-content/50">Dispatch</p>
+									<div class="mt-2 flex flex-wrap gap-2">
+										for _, status := range notification.DispatchStatuses {
+											<span class={ notificationDispatchBadgeClass(status.Status) }>
+												{ string(status.DestinationSlug) }: { notificationDispatchStatusLabel(status.Status) }
+											</span>
+											if status.QueuedAt != nil {
+												<span class="text-xs text-base-content/60">queued { notificationTimestamp(*status.QueuedAt) }</span>
+											}
+										}
+									</div>
+								</div>
+							}
+							{{ attempts := deliveryAttemptsByNotification[string(notification.Slug)] }}
+							if strings.TrimSpace(diagnosticsError) != "" {
+								<p class="mt-4 text-sm text-base-content/70">Delivery evidence is unavailable. Delivery status is unknown.</p>
+							} else if len(attempts) == 0 && len(notification.DispatchStatuses) > 0 {
+								<p class="mt-4 text-sm text-base-content/70">No provider attempt recorded yet. A queue handoff does not confirm provider delivery.</p>
+							} else if len(attempts) == 0 {
+								<p class="mt-4 text-sm text-base-content/70">No delivery evidence recorded. Historical routing or skip reasons are unknown.</p>
+							}
+							if len(attempts) > 0 {
+								<div class="mt-4 rounded-lg border border-base-300 bg-base-200/35 p-3">
+									<div class="flex flex-wrap items-center justify-between gap-2">
+										<p class="text-xs font-semibold uppercase text-base-content/50">Alert deliveries</p>
+										<span class="text-xs text-base-content/50">{ notificationDeliveryAttemptCountLabel(len(attempts)) }</span>
+									</div>
+									<p class="mt-2 text-xs text-base-content/60">Sent records provider acknowledgement. Recipient receipt is not confirmed.</p>
+									<div class="mt-2 divide-y divide-base-300">
+										for _, attempt := range attempts {
+											<div class="flex flex-wrap items-center gap-x-3 gap-y-1 py-2 text-xs">
+												<span class={ notificationDeliveryAttemptBadgeClass(attempt.Status) }>{ notificationDeliveryAttemptStatusLabel(attempt.Status) }</span>
+												<span class="font-medium text-base-content">{ notificationDeliveryAttemptDestinationNameLabel(attempt) }</span>
+												<span class="break-all font-mono text-base-content/60">{ notificationDeliveryAttemptDestinationSlugLabel(attempt) }</span>
+												<span class="text-base-content/60">{ notificationDeliveryAttemptTimestampLabel(attempt) }</span>
+												<span class="text-base-content/60">{ notificationProviderAttemptLabel(attempt.ProviderAttempt) }</span>
+												if permissions.Can("alert_policies", "read") && attempt.AlertPolicySlug != nil {
+													<a class="link" href={ templ.URL(AlertJourneyHref(orgSlug, AlertTabPolicies, NotificationReturnHref(orgSlug, notification, filters), string(*attempt.AlertPolicySlug))) }>Recorded policy: { string(*attempt.AlertPolicySlug) }</a>
+												}
+												if permissions.Can("alert_destinations", "read") && attempt.DestinationSlug != nil {
+													<a class="link" href={ templ.URL(AlertJourneyHref(orgSlug, AlertTabDestinations, NotificationReturnHref(orgSlug, notification, filters), string(*attempt.DestinationSlug))) }>Recorded destination: { string(*attempt.DestinationSlug) }</a>
+												}
+												if attempt.ErrorMessage != nil && strings.TrimSpace(*attempt.ErrorMessage) != "" {
+													<span class="basis-full break-words text-error">{ *attempt.ErrorMessage }</span>
+												}
+											</div>
+										}
+									</div>
+								</div>
+							}
+							<div class="mt-4 grid gap-3 md:grid-cols-2">
+								<details class="rounded-lg border border-base-300 bg-base-200/40 px-3 py-2">
+									<summary class="cursor-pointer text-xs font-medium text-base-content/70 select-none">Source refs</summary>
+									<pre class="mt-2 max-h-56 overflow-auto whitespace-pre-wrap break-words font-mono text-xs text-base-content">{ notificationSourceRefsJSON(notification.SourceRefs) }</pre>
+								</details>
+								<details class="rounded-lg border border-base-300 bg-base-200/40 px-3 py-2">
+									<summary class="cursor-pointer text-xs font-medium text-base-content/70 select-none">Safe metadata</summary>
+									<pre class="mt-2 max-h-56 overflow-auto whitespace-pre-wrap break-words font-mono text-xs text-base-content">{ notificationMetadataJSON(notification.SafeMetadata) }</pre>
+								</details>
+							</div>
+						</article>
+					}
+				</div>
+			}
+			if prevCursor != "" || hasMore {
+				<div class="mt-6 flex items-center justify-end gap-2">
+					if prevCursor != "" {
+						<a class="btn btn-sm btn-outline" href={ templ.URL(buildNotificationsListHref(orgSlug, prevCursor, "prev", filters)) }>Previous</a>
+					} else {
+						<button class="btn btn-sm btn-outline" type="button" disabled>Previous</button>
+					}
+					if hasMore && strings.TrimSpace(nextCursor) != "" {
+						<a class="btn btn-sm btn-outline" href={ templ.URL(buildNotificationsListHref(orgSlug, nextCursor, "next", filters)) }>Next</a>
+					} else {
+						<button class="btn btn-sm btn-outline" type="button" disabled>Next</button>
+					}
+				</div>
+			}
+		</div>
+	</div>
+}

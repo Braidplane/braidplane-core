@@ -1,0 +1,100 @@
+"""Opt-in live Core image transition using only a fixture-owned loopback registry."""
+import json
+import os
+from pathlib import Path
+import platform
+import secrets
+import subprocess
+import tempfile
+import time
+import unittest
+import uuid
+
+from scripts.installation.lifecycle import operate
+from scripts.installation.prepare import prepare
+from scripts import test_installation_preflight
+from scripts.test_installation_database import POSTGRES
+
+
+@unittest.skipUnless(os.environ.get('BRAIDPLANE_INSTALL_IMAGE_TEST') == '1', 'requires locally built Core images and disposable Docker fixtures')
+class ImageUpgradeTest(unittest.TestCase):
+    def test_running_core_image_upgrade(self):
+        def docker(*args, **kwargs):
+            result = subprocess.run(['docker', *args], capture_output=True, **kwargs)
+            if result.returncode:
+                self.fail(result.stderr.decode())
+            return result.stdout.decode().strip()
+        temporary = tempfile.TemporaryDirectory()
+        self.addCleanup(temporary.cleanup)
+        root = Path(temporary.name)
+        identity = 'recovery-images-' + uuid.uuid4().hex[:12]
+        registry = identity + '-registry'
+        registry_image = docker('image', 'inspect', 'registry:2', '--format', '{{.Id}}')
+        docker('run', '--detach', '--name', registry, '-p', '127.0.0.1::5000', registry_image)
+        self.addCleanup(docker, 'rm', '--force', '--volumes', registry)
+        bindings = json.loads(docker('inspect', registry, '--format', '{{json .NetworkSettings.Ports}}'))
+        endpoint = 'localhost:' + bindings['5000/tcp'][0]['HostPort']
+        def publish(name, image):
+            reference = endpoint + '/' + name + ':fixture'
+            docker('tag', image, reference)
+            docker('push', reference)
+            digests = json.loads(docker('image', 'inspect', reference, '--format', '{{json .RepoDigests}}'))
+            return next(digest for digest in digests if digest.startswith(endpoint + '/'))
+        def variant(name, base, extra):
+            context = root / name
+            context.mkdir()
+            (context / 'Dockerfile').write_text('FROM ' + base + '\n' + extra + '\n')
+            tag = identity + '-' + name + ':local'
+            docker('build', '-t', tag, str(context))
+            return tag
+        old = variant('old', 'braidplane-recovery-backend:local', 'LABEL recovery.fixture.version="old"')
+        new = variant('new', 'braidplane-recovery-backend:local', 'LABEL recovery.fixture.version="new"')
+        images = {name: publish(name, 'braidplane-recovery-' + name + ':local') for name in ('frontend', 'migrate', 'cli')}
+        images.update(backend=publish('backend-old', old), edge=publish('edge', 'caddy:2'), postgres=publish('postgres', POSTGRES))
+        revision = subprocess.run(['git', 'rev-parse', 'HEAD'], check=True, capture_output=True, text=True).stdout.strip()
+        release = {'version': 'v0.1.0-alpha.1', 'core_revision': revision,
+                   'platform': 'linux/arm64' if platform.machine() == 'arm64' else 'linux/amd64', 'images': images}
+        first = root / 'first.json'
+        first.write_text(json.dumps(release))
+        second_release = dict(release, version='v0.1.0-alpha.2', images=dict(images, backend=publish('backend-new', new)))
+        second = root / 'second.json'
+        second.write_text(json.dumps(second_release))
+        tls = test_installation_preflight.TLSPreflightTest()
+        tls.setUp()
+        self.addCleanup(tls.doCleanups)
+        installation = root / 'installation'
+        prepare(installation, first, 'app.customer.test', '127.0.0.1', 'mail.customer.test:587', 'owner@customer.test', tls.certs, api_only=True)
+        topology = json.loads((installation / 'compose.json').read_text())
+        topology['services']['edge']['ports'] = ['127.0.0.1::443']
+        (installation / 'compose.json').write_text(json.dumps(topology))
+        command = ['compose', '--env-file', str(installation / 'release.env'), '-f', str(installation / 'compose.json')]
+        def compose(*args, **kwargs):
+            return docker(*command, *args, cwd=installation, **kwargs)
+        self.addCleanup(compose, 'down', '--volumes')
+        operate(installation, 'install')
+        # Bootstrap and retain real application state, keeping the generated password on stdin.
+        compose('run', '--rm', '--no-deps', '-T', 'bootstrap', 'bootstrap', '--user', 'recovery-owner',
+                '--name', 'Recovery Owner', '--email', 'owner@customer.test', '--email-ownership-verified',
+                input=(secrets.token_hex(24) + '\n').encode())
+        keys = (installation / 'runtime.env').read_bytes()
+        def api_image():
+            container = compose('ps', '-q', 'api')
+            return docker('inspect', container, '--format', '{{.Image}}')
+        def state():
+            return compose('exec', '-T', 'database', 'psql', '-U', 'braidplane_operator', '-d', 'braidplane',
+                           '-At', '-c', "SELECT slug FROM public.users WHERE slug='recovery-owner'")
+        old_image = docker('image', 'inspect', old, '--format', '{{.Id}}')
+        new_image = docker('image', 'inspect', new, '--format', '{{.Id}}')
+        self.assertNotEqual(old_image, new_image)
+        self.assertEqual(api_image(), old_image)
+        self.assertEqual(state(), 'recovery-owner')
+        started = time.monotonic()
+        operate(installation, 'upgrade', release=second, backup_directory=root / 'before-upgrade')
+        upgrade_seconds = round(time.monotonic() - started, 3)
+        self.assertEqual(api_image(), new_image)
+        self.assertEqual(state(), 'recovery-owner')
+        self.assertEqual((installation / 'runtime.env').read_bytes(), keys)
+        self.assertFalse((installation / '.upgrade-in-progress.json').exists())
+        print('PASS: live Core API-only upgrade switched image IDs with retained administrator and keys')
+        print(json.dumps({'old_backend': old_image, 'new_backend': new_image,
+                          'upgrade_seconds': upgrade_seconds, 'scope': 'same-code/catalog local fixture'}, sort_keys=True))

@@ -1,0 +1,544 @@
+body {
+    min-height: 100vh;
+    font-family: "Avenir Next", Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+    font-weight: 400;
+}
+
+[data-theme="control-room"] {
+    color-scheme: dark;
+    --braidplane-page-bg: #0b1118;
+    --braidplane-surface: #111923;
+    --braidplane-elevated: #172231;
+    --braidplane-raised: #1b2737;
+    --braidplane-border: #263445;
+    --braidplane-text: #eef4fa;
+    --braidplane-muted: #96a6b8;
+
+    --color-base-100: var(--braidplane-surface);
+    --color-base-200: var(--braidplane-elevated);
+    --color-base-300: var(--braidplane-border);
+    --color-base-content: var(--braidplane-text);
+    --color-primary: #4f8cff;
+    --color-primary-content: #07111f;
+    --color-info: #4ab3d9;
+    --color-info-content: #06131a;
+    --color-success: #36c47d;
+    --color-success-content: #06150f;
+    --color-warning: #e2a93b;
+    --color-warning-content: #1c1204;
+    --color-error: #f2635f;
+    --color-error-content: #1d0807;
+    --radius-selector: 0.5rem;
+    --radius-field: 0.5rem;
+    --radius-box: 0.75rem;
+    --border: 1px;
+    --depth: 0;
+}
+
+.shell-layout {
+    align-items: start;
+}
+
+.shell-sidebar {
+    position: sticky;
+    top: 1.5rem;
+}
+
+.shell-brand {
+    min-height: 2.25rem;
+}
+
+.shell-content {
+    min-height: calc(100vh - 4rem);
+    overflow-x: hidden;
+}
+
+.shell-topbar {
+    background: linear-gradient(180deg, color-mix(in oklab, var(--braidplane-raised, transparent) 38%, transparent), transparent);
+}
+
+body.bg-base-200 {
+    background:
+        linear-gradient(180deg, color-mix(in oklab, var(--braidplane-page-bg, #f8fafc) 88%, #112033 12%) 0%, var(--braidplane-page-bg, #f8fafc) 42rem),
+        var(--braidplane-page-bg, #f8fafc);
+}
+
+.auth-page {
+    overflow-x: hidden;
+}
+
+.auth-shell {
+    position: relative;
+    display: grid;
+    min-height: 100vh;
+    align-items: start;
+    isolation: isolate;
+    padding: 1rem 0.75rem;
+}
+
+.auth-shell-grid {
+    position: relative;
+    z-index: 1;
+    display: grid;
+    width: 100%;
+    max-width: 68rem;
+    margin: auto;
+}
+
+.auth-context {
+    display: none;
+}
+
+.auth-panel {
+    position: relative;
+    width: 100%;
+    max-width: 32rem;
+    margin: auto;
+    padding: 1rem;
+    border: 1px solid color-mix(in oklab, var(--braidplane-border) 88%, transparent);
+    border-radius: 0.75rem;
+    background:
+        linear-gradient(180deg, color-mix(in oklab, var(--braidplane-raised) 38%, transparent), transparent 10rem),
+        color-mix(in oklab, var(--braidplane-surface) 96%, transparent);
+    box-shadow:
+        inset 0 1px 0 color-mix(in oklab, #fff 5%, transparent),
+        0 24px 70px color-mix(in oklab, #000 34%, transparent);
+}
+
+.auth-panel::before {
+    content: "";
+    position: absolute;
+    top: 0.4rem;
+    right: 0;
+    width: 10rem;
+    height: 4.5rem;
+    pointer-events: none;
+    opacity: 0.34;
+    background:
+        radial-gradient(circle at 20% 68%, var(--color-primary) 0 2px, transparent 3px),
+        radial-gradient(circle at 78% 31%, var(--color-info) 0 2px, transparent 3px),
+        linear-gradient(160deg, transparent 49.2%, color-mix(in oklab, var(--color-primary) 48%, transparent) 49.5%, color-mix(in oklab, var(--color-info) 34%, transparent) 50%, transparent 50.3%);
+}
+
+.auth-panel > :not([data-error-popup], [data-success-popup]) {
+    position: relative;
+    z-index: 1;
+}
+
+.auth-brand-compact {
+    margin-bottom: 1.5rem;
+    padding-bottom: 1rem;
+    border-bottom: 1px solid color-mix(in oklab, var(--braidplane-border) 76%, transparent);
+}
+
+.auth-flow {
+    position: absolute;
+    z-index: 0;
+    inset: 0;
+    overflow: hidden;
+    pointer-events: none;
+    opacity: 0.5;
+    background-image:
+        linear-gradient(color-mix(in oklab, var(--braidplane-border) 18%, transparent) 1px, transparent 1px),
+        linear-gradient(90deg, color-mix(in oklab, var(--braidplane-border) 18%, transparent) 1px, transparent 1px);
+    background-size: 44px 44px;
+    -webkit-mask-image: radial-gradient(ellipse at 32% 48%, #000 0%, transparent 72%);
+    mask-image: radial-gradient(ellipse at 32% 48%, #000 0%, transparent 72%);
+}
+
+.auth-flow-line {
+    position: absolute;
+    display: none;
+    height: 1px;
+    transform-origin: left center;
+    background: linear-gradient(90deg, transparent, color-mix(in oklab, var(--color-primary) 58%, transparent), color-mix(in oklab, var(--color-info) 36%, transparent), transparent);
+}
+
+.auth-flow-line-one {
+    top: 29%;
+    left: -4%;
+    width: 58%;
+    transform: rotate(8deg);
+}
+
+.auth-flow-line-two {
+    top: 53%;
+    left: 3%;
+    width: 52%;
+    transform: rotate(-13deg);
+}
+
+.auth-flow-line-three {
+    top: 70%;
+    left: 14%;
+    width: 42%;
+    transform: rotate(5deg);
+}
+
+.auth-flow-node {
+    position: absolute;
+    display: none;
+    width: 0.5rem;
+    height: 0.5rem;
+    border: 1px solid color-mix(in oklab, var(--color-info) 72%, #fff 8%);
+    border-radius: 999px;
+    background: var(--braidplane-page-bg);
+    box-shadow: 0 0 0 5px color-mix(in oklab, var(--color-primary) 8%, transparent);
+}
+
+.auth-flow-node-one { top: 31%; left: 12%; }
+.auth-flow-node-two { top: 38%; left: 34%; }
+.auth-flow-node-three { top: 57%; left: 24%; }
+.auth-flow-node-four { top: 67%; left: 45%; }
+
+.auth-flow-summary {
+    display: flex;
+    align-items: center;
+    gap: 0.625rem;
+    color: color-mix(in oklab, var(--braidplane-text) 62%, var(--braidplane-muted) 38%);
+    font-size: 0.75rem;
+    font-weight: 600;
+}
+
+.auth-flow-summary span {
+    display: flex;
+    align-items: center;
+    gap: 0.375rem;
+}
+
+.auth-flow-summary i {
+    width: 0.375rem;
+    height: 0.375rem;
+    border-radius: 999px;
+    background: var(--color-primary);
+    box-shadow: 0 0 0 3px color-mix(in oklab, var(--color-primary) 10%, transparent);
+}
+
+@media (min-width: 640px) {
+    .auth-shell {
+        align-items: center;
+        padding: 1.5rem 1rem;
+    }
+
+    .auth-panel {
+        padding: 1.5rem;
+    }
+}
+
+@media (min-width: 1024px) {
+    .auth-shell {
+        padding: 2rem 1.5rem;
+    }
+
+    .auth-shell-grid {
+        grid-template-columns: minmax(0, 1fr) minmax(26rem, 32rem);
+        align-items: center;
+        gap: 5rem;
+    }
+
+    .auth-context {
+        display: flex;
+        min-height: 29rem;
+        flex-direction: column;
+        justify-content: space-between;
+        padding: 1.5rem 0;
+    }
+
+    .auth-context-copy {
+        margin: auto 0;
+    }
+
+    .auth-panel {
+        margin: 0;
+        padding: 2rem;
+    }
+
+    .auth-panel::before {
+        display: none;
+    }
+
+    .auth-brand-compact {
+        display: none;
+    }
+
+    .auth-flow {
+        opacity: 0.72;
+    }
+
+    .auth-flow-line,
+    .auth-flow-node {
+        display: block;
+    }
+
+    .auth-flow-line-one {
+        top: 14%;
+    }
+
+    .auth-flow-line-two {
+        top: 67%;
+    }
+
+    .auth-flow-line-three {
+        top: 82%;
+    }
+
+    .auth-flow-node-one { top: 11%; left: 12%; }
+    .auth-flow-node-two { top: 17%; left: 34%; }
+    .auth-flow-node-three { top: 65%; left: 24%; }
+    .auth-flow-node-four { top: 78%; left: 45%; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .auth-flow,
+    .auth-flow-line,
+    .auth-flow-node {
+        animation: none !important;
+        transition: none !important;
+    }
+}
+
+[data-theme="control-room"] .shell-sidebar {
+    background:
+        linear-gradient(180deg, color-mix(in oklab, var(--braidplane-surface) 72%, #05090f 28%), color-mix(in oklab, var(--braidplane-page-bg) 84%, #05090f 16%)),
+        var(--braidplane-page-bg);
+    border-color: color-mix(in oklab, var(--braidplane-border) 64%, transparent);
+    box-shadow: inset -1px 0 0 color-mix(in oklab, #fff 3%, transparent);
+}
+
+[data-theme="control-room"] .shell-content,
+[data-theme="control-room"] .dropdown-content {
+    background-image: linear-gradient(180deg, color-mix(in oklab, var(--braidplane-raised) 24%, transparent), transparent 11rem);
+    border-color: color-mix(in oklab, var(--braidplane-border) 86%, transparent);
+    box-shadow:
+        inset 0 1px 0 color-mix(in oklab, #fff 4%, transparent),
+        0 18px 40px color-mix(in oklab, #000 24%, transparent);
+}
+
+[data-theme="control-room"] .shell-nav-link {
+    min-height: 2rem;
+    border: 1px solid transparent;
+    border-radius: 0.375rem;
+    color: color-mix(in oklab, var(--braidplane-text) 72%, var(--braidplane-muted) 28%);
+    font-size: 0.8125rem;
+    font-weight: 600;
+}
+
+[data-theme="control-room"] .shell-nav-link:hover {
+    border-color: color-mix(in oklab, var(--braidplane-border) 68%, transparent);
+    background: color-mix(in oklab, var(--braidplane-elevated) 42%, transparent);
+    color: var(--braidplane-text);
+}
+
+[data-theme="control-room"] .shell-nav-link[aria-current="page"] {
+    border-color: color-mix(in oklab, var(--color-primary) 30%, var(--braidplane-border) 70%);
+    background: color-mix(in oklab, var(--color-primary) 16%, transparent);
+    color: var(--braidplane-text);
+    box-shadow:
+        inset 2px 0 0 color-mix(in oklab, var(--color-primary) 84%, #fff 16%),
+        inset 0 1px 0 color-mix(in oklab, #fff 5%, transparent);
+}
+
+[data-theme="control-room"] .shell-nav-link[aria-disabled="true"] {
+    border-color: transparent;
+    background: transparent;
+    cursor: not-allowed;
+}
+
+[data-theme="control-room"] .shell-layout[data-sidebar-state="collapsed"] .shell-sidebar {
+    padding-left: 0.75rem;
+    padding-right: 0.75rem;
+}
+
+[data-theme="control-room"] .shell-layout[data-sidebar-state="collapsed"] .shell-brand {
+    justify-content: center;
+}
+
+[data-theme="control-room"] .shell-layout[data-sidebar-state="collapsed"] .shell-nav-link {
+    min-height: 2.25rem;
+}
+
+[data-theme="control-room"] .btn {
+    border-radius: 0.5rem;
+    font-weight: 600;
+}
+
+[data-theme="control-room"] .btn-outline {
+    border-color: color-mix(in oklab, var(--braidplane-border) 95%, #fff 5%);
+    background-color: color-mix(in oklab, var(--braidplane-surface) 64%, transparent);
+}
+
+[data-theme="control-room"] .btn-outline.btn-active {
+    border-color: color-mix(in oklab, var(--color-primary) 45%, var(--braidplane-border));
+    background-color: color-mix(in oklab, var(--color-primary) 16%, var(--braidplane-surface));
+}
+
+[data-theme="control-room"] .btn-ghost:hover {
+    background-color: color-mix(in oklab, var(--color-primary) 10%, transparent);
+}
+
+[data-theme="control-room"] .btn-primary {
+    border-color: color-mix(in oklab, var(--color-primary) 80%, #fff 12%);
+    background: linear-gradient(180deg, color-mix(in oklab, var(--color-primary) 92%, #fff 8%), color-mix(in oklab, var(--color-primary) 86%, #000 14%));
+    color: var(--color-primary-content);
+    box-shadow:
+        inset 0 1px 0 color-mix(in oklab, #fff 22%, transparent),
+        0 0 0 1px color-mix(in oklab, var(--color-primary) 18%, transparent),
+        0 12px 26px color-mix(in oklab, var(--color-primary) 18%, transparent);
+}
+
+[data-theme="control-room"] .btn[data-dirty-submit]:disabled,
+[data-theme="control-room"] .btn[data-dirty-submit][aria-disabled="true"] {
+    cursor: not-allowed;
+    opacity: 0.42;
+    filter: saturate(55%);
+    box-shadow: none;
+}
+
+[data-theme="control-room"] [data-ds-card][data-selected="true"],
+[data-theme="control-room"] [data-query-card][data-selected="true"] {
+    border-color: color-mix(in oklab, var(--color-primary) 62%, #fff 8%) !important;
+    background-color: color-mix(in oklab, var(--color-primary) 16%, transparent) !important;
+    box-shadow: 0 0 0 1px color-mix(in oklab, var(--color-primary) 26%, transparent);
+}
+
+[data-theme="control-room"] .input,
+[data-theme="control-room"] .select,
+[data-theme="control-room"] .textarea {
+    border-color: color-mix(in oklab, var(--braidplane-border) 86%, transparent);
+    background-color: color-mix(in oklab, var(--braidplane-surface) 76%, #000 24%);
+}
+
+/* Single-value choices follow their label; form columns can keep their own width. */
+[data-theme="control-room"] select:where(:not([multiple])):where(:not([size]), [size="0"], [size="1"]) {
+    field-sizing: content;
+    inline-size: auto;
+    min-inline-size: 0;
+    max-inline-size: 100%;
+    flex: 0 1 auto;
+    align-self: flex-start;
+    justify-self: start;
+}
+
+[data-theme="control-room"] [data-org-switcher] .dropdown-content {
+    inline-size: max-content;
+    max-inline-size: calc(100vw - 2rem);
+}
+
+[data-theme="control-room"] .input:focus,
+[data-theme="control-room"] .input:focus-within,
+[data-theme="control-room"] .select:focus,
+[data-theme="control-room"] .textarea:focus {
+    outline-color: color-mix(in oklab, var(--color-primary) 62%, transparent);
+}
+
+[data-theme="control-room"] .badge {
+    border-radius: 0.5rem;
+    font-weight: 650;
+}
+
+[data-theme="control-room"] .badge-outline,
+[data-theme="control-room"] .badge-ghost {
+    border-color: color-mix(in oklab, var(--braidplane-border) 92%, #fff 8%);
+    color: color-mix(in oklab, var(--braidplane-text) 76%, var(--braidplane-muted) 24%);
+}
+
+[data-theme="control-room"] .alert {
+    border-color: color-mix(in oklab, var(--braidplane-border) 86%, transparent);
+    background-color: color-mix(in oklab, var(--braidplane-elevated) 68%, transparent);
+    color: var(--braidplane-text);
+}
+
+[data-theme="control-room"] .tabs-boxed,
+[data-theme="control-room"] .tabs-box {
+    border: 1px solid color-mix(in oklab, var(--braidplane-border) 86%, transparent);
+    background-color: color-mix(in oklab, var(--braidplane-surface) 76%, #000 24%);
+}
+
+[data-theme="control-room"] .tab-active {
+    background-color: color-mix(in oklab, var(--color-primary) 16%, transparent);
+    color: var(--braidplane-text);
+}
+
+[data-theme="control-room"] .mockup-code,
+[data-theme="control-room"] pre,
+[data-theme="control-room"] code,
+[data-theme="control-room"] .kbd {
+    border-color: color-mix(in oklab, var(--braidplane-border) 86%, transparent);
+}
+
+[data-theme="control-room"] .mockup-code,
+[data-theme="control-room"] pre {
+    background-color: color-mix(in oklab, #02060a 88%, var(--braidplane-page-bg) 12%);
+}
+
+[data-theme="control-room"] .font-mono,
+[data-theme="control-room"] code,
+[data-theme="control-room"] pre,
+[data-theme="control-room"] .mockup-code {
+    font-family: "JetBrains Mono", ui-monospace, "Cascadia Code", "SFMono-Regular", Menlo, Consolas, monospace;
+}
+
+[data-theme="control-room"] .link {
+    text-underline-offset: 0.18rem;
+}
+
+[data-theme="control-room"] .table {
+    table-layout: auto;
+}
+
+[data-theme="control-room"] .table :where(thead tr) {
+    border-color: var(--braidplane-border);
+    color: var(--braidplane-muted);
+}
+
+[data-theme="control-room"] .table :where(tbody tr) {
+    border-color: color-mix(in oklab, var(--braidplane-border) 72%, transparent);
+}
+
+[data-theme="control-room"] .table-zebra tbody tr:nth-child(even) {
+    background-color: color-mix(in oklab, var(--braidplane-elevated) 38%, transparent);
+}
+
+.table {
+    table-layout: auto;
+}
+
+.query-detail-actionbar {
+    position: sticky;
+    bottom: 0.75rem;
+    z-index: 20;
+    box-shadow: 0 18px 40px color-mix(in oklab, #000 24%, transparent);
+}
+
+@media (max-width: 640px) {
+    .shell-layout {
+        gap: 1rem;
+    }
+
+    .shell-content {
+        min-height: auto;
+    }
+
+    .query-detail-actionbar {
+        bottom: 0.5rem;
+    }
+}
+
+/* Selection belongs to the list even when only its quick look is replaced. */
+[data-entity-list-item].entity-selected,
+[data-ds-card][data-selected] {
+    border-color: color-mix(in oklab, var(--color-primary) 60%, transparent);
+    background-color: color-mix(in oklab, var(--color-primary) 15%, transparent);
+}
+
+.pipeline-graph-grid {
+    background-image: radial-gradient(circle at 1px 1px, color-mix(in oklab, var(--color-base-content) 3.2%, transparent) 1px, transparent 0);
+    background-size: 10px 10px;
+}
+
+#builder-grid .builder-node-content.node-card-selected,
+#builder-grid .builder-node:focus-visible .builder-node-content {
+    border-color: color-mix(in oklab, var(--color-primary) 88%, #fff 12%) !important;
+    background: color-mix(in oklab, var(--color-primary) 14%, var(--color-base-100)) !important;
+    box-shadow: none !important;
+}

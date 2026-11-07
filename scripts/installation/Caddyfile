@@ -1,0 +1,7 @@
+{
+  admin off
+}
+https://{$BRAIDPLANE_HOST} {
+  tls /certificates/edge.pem /certificates/edge.key
+  reverse_proxy frontend:3002
+}

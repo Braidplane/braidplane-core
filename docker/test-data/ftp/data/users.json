@@ -1,0 +1,63 @@
+[
+    {
+        "id": 1,
+        "email": "alice@example.com",
+        "full_name": "Alice",
+        "is_active": true,
+        "score": null,
+        "attributes": {},
+        "items": [],
+        "profile": {
+            "locale": "en",
+            "flags": {
+                "vip": true
+            }
+        },
+        "orders": [
+            {
+                "id": 1001,
+                "total": 12.5
+            }
+        ],
+        "history": [
+            {
+                "sku": "SKU-1",
+                "price": null
+            }
+        ]
+    },
+    {
+        "id": 2,
+        "email": "bob@example.com",
+        "full_name": "Bob",
+        "is_active": false,
+        "score": 9,
+        "attributes": {
+            "tier": "gold"
+        },
+        "items": [
+            {
+                "sku": "SKU-2",
+                "price": 14.5
+            }
+        ],
+        "profile": {
+            "locale": "pl",
+            "flags": {
+                "vip": false
+            }
+        },
+        "orders": [
+            {
+                "id": 1002,
+                "total": 99.99
+            }
+        ],
+        "history": [
+            {
+                "sku": "SKU-3",
+                "price": 7
+            }
+        ]
+    }
+]

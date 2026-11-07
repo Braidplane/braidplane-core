@@ -1,0 +1,71 @@
+package views
+
+templ BuilderRunEvidence(data BuilderRunEvidenceData) {
+	<div class="space-y-3" data-builder-run-fragment>
+		<label class="form-control">
+			<span class="label-text">Run for this connection</span>
+			<select class="select select-bordered select-sm w-full" aria-label="Run for this connection" data-builder-run-select>
+				<option value="">Choose a run</option>
+				if data.Run != nil && !builderRunListed(data) {
+					<option value={ data.SelectedRun } selected>{ data.SelectedRun } · { string(data.Run.Metadata.Status) }</option>
+				}
+				for _, run := range data.Runs {
+					<option value={ run.RunSlug } selected?={ run.RunSlug == data.SelectedRun }>{ run.RunSlug } · { string(run.Status) }</option>
+				}
+			</select>
+		</label>
+		if len(data.Runs) == 0 {
+			<p class="text-xs text-base-content/70">No runs on this page for the selected pipeline and environment.</p>
+		}
+		<div class="flex flex-wrap gap-2">
+			if data.HasCursor {
+				<button type="button" class="btn btn-xs btn-outline" data-builder-run-cursor="">Newest runs</button>
+			}
+			if data.NextCursor != "" {
+				<button type="button" class="btn btn-xs btn-outline" data-builder-run-cursor={ data.NextCursor }>Older runs</button>
+			}
+			<button type="button" class="btn btn-xs btn-outline" data-builder-run-reload>Refresh evidence</button>
+		</div>
+		if data.Run != nil {
+			<dl class="builder-inspector-metadata">
+				<dt>Run</dt>
+				<dd class="font-mono break-all">{ data.Run.Metadata.RunSlug }</dd>
+				<dt>Environment</dt>
+				<dd class="font-mono">{ data.Run.Metadata.EnvironmentSlug }</dd>
+				<dt>Executed version</dt>
+				<dd class="font-mono break-all">{ data.Run.Metadata.PipelineVersionSpecHash }</dd>
+				<dt>Run outcome</dt>
+				<dd>{ lineageStatusLabel(string(data.Run.Metadata.Status)) }</dd>
+			</dl>
+			<p class="text-xs text-base-content/70">Historical evidence from this run. Current draft edits are not reflected.</p>
+			if data.Message != "" {
+				<p class="text-sm text-warning" role="status">{ data.Message }</p>
+			} else {
+				for _, node := range data.Nodes {
+					<div class="border-t border-base-300 pt-3 space-y-1">
+						<p class="font-mono text-xs break-all">{ node.Slug }</p>
+						<p class="text-sm">{ lineageStatusLabel(node.Status) }</p>
+						<p class="text-xs text-base-content/75">Output: { lineageOutputLabel(node.Snapshot) }</p>
+					</div>
+				}
+				<div class="border-t border-base-300 pt-3 space-y-2">
+					<h4>Recorded structural checks for these steps</h4>
+					if len(data.Checks) == 0 {
+						<p class="text-xs text-base-content/70">No recorded checks. Missing evidence does not imply a pass.</p>
+					}
+					for _, check := range data.Checks {
+						<div class="text-xs border-b border-base-300 pb-2">
+							<p class="font-mono break-words">{ check.Step } · { check.Phase }</p>
+							if check.Input != nil {
+								<p>Input: { *check.Input }</p>
+							}
+							<p>{ check.Status } · { check.ReasonCode }</p>
+						</div>
+					}
+				</div>
+			}
+			<a class="link link-primary text-xs" href={ templ.SafeURL(data.RunHref) }>Open this run’s lineage</a>
+		}
+		<p class="text-xs text-base-content/70">Raw payload values are not retained for inspection. Counts and structural checks do not prove delivery or destination contents.</p>
+	</div>
+}

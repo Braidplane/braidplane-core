@@ -1,0 +1,127 @@
+package views
+
+import api "github.com/Braidplane/braidplane-core/api-schema/gen/client"
+
+templ PipelineDeploymentDetailPage(shellData AuthenticatedShellData, orgSlug string, activeProjectSlug string, environmentSlug string, pipelineSlug string, pipeline *api.Pipeline, deployment *api.PipelineDeployment) {
+	@AuthenticatedShell(shellData, PipelineDeploymentDetailPageContent(orgSlug, activeProjectSlug, environmentSlug, shellData.ActiveEnvironmentColor, pipelineSlug, pipeline, deployment))
+}
+
+templ PipelineDeploymentDetailPageContent(orgSlug string, activeProjectSlug string, environmentSlug string, environmentColor string, pipelineSlug string, pipeline *api.Pipeline, deployment *api.PipelineDeployment) {
+	<div class="flex flex-wrap items-start justify-between gap-3">
+		<div>
+			<h2 class="text-xl font-semibold text-base-content">Pipeline deployment</h2>
+			<p class="mt-1 text-sm text-base-content/70">Environment-scoped deployed version state for this pipeline.</p>
+		</div>
+		<div class="flex flex-wrap gap-2">
+			<a class="btn btn-outline btn-sm" href={ templ.URL(PipelineDetailHrefWithEnvironment(orgSlug, activeProjectSlug, environmentSlug, pipelineSlug)) }>Open pipeline</a>
+			<a class="btn btn-outline btn-sm" href={ templ.URL(buildEnvironmentRunsListHrefWithProject(orgSlug, activeProjectSlug, environmentSlug, "", "", "", pipelineSlug)) }>{ runtimeTargetActionLabel("View runs", environmentSlug) }</a>
+		</div>
+	</div>
+	if deployment == nil {
+		<div class="alert alert-warning mt-6">
+			<span>Deployment details are unavailable. No deployment pointer exists for this pipeline in the selected runtime target.</span>
+		</div>
+		<section class="mt-4 rounded-xl border border-base-300 bg-base-100 p-5">
+			<div class="grid gap-4 md:grid-cols-3">
+				<div>
+					<p class="text-xs font-semibold uppercase tracking-wide text-base-content/60">Runtime target</p>
+					<p class="mt-1 font-mono text-sm text-base-content">{ runtimeTargetBadgeLabel(environmentSlug) }</p>
+				</div>
+				<div>
+					<p class="text-xs font-semibold uppercase tracking-wide text-base-content/60">Canonical pipeline</p>
+					<a class="link link-primary mt-1 inline-block font-mono text-sm" href={ templ.URL(PipelineDetailHrefWithEnvironment(orgSlug, activeProjectSlug, environmentSlug, pipelineSlug)) }>{ pipelineSlug }</a>
+				</div>
+				<div>
+					<p class="text-xs font-semibold uppercase tracking-wide text-base-content/60">Deployment state</p>
+					<span class={ pipelineDeploymentStateBadgeClass(deployment) }>{ pipelineDeploymentStateDetailLabel(deployment) }</span>
+				</div>
+			</div>
+		</section>
+	} else {
+		<a class="btn btn-outline btn-sm mt-4" data-entity-focus="definition-inspector" href={ templ.URL(definitionAuthorityHref(PipelineDetailHrefWithEnvironment(orgSlug, activeProjectSlug, environmentSlug, pipelineSlug), "deployed", deployment.CurrentVersionSpecHash)) }>Inspect deployed definition</a>
+		<section class="mt-6 rounded-xl border border-base-300 bg-base-100 p-5">
+			<div class="flex flex-wrap items-start justify-between gap-4">
+				<div class="min-w-0">
+					<div class="flex flex-wrap items-center gap-2">
+						if pipeline != nil {
+							<h3 class="break-words text-lg font-semibold text-base-content">{ string(pipeline.Name) }</h3>
+						} else {
+							<h3 class="break-all text-lg font-semibold text-base-content">{ pipelineSlug }</h3>
+						}
+						<span class={ pipelineDeploymentStateBadgeClass(deployment) }>{ pipelineDeploymentStateDetailLabel(deployment) }</span>
+						<span class={ pipelineDeploymentBadgeClass(environmentColor) }>{ string(deployment.EnvironmentSlug) }</span>
+					</div>
+					<p class="mt-2 break-all font-mono text-sm text-base-content/70">{ string(deployment.PipelineSlug) }</p>
+				</div>
+				<span class="badge badge-outline" title={ deployment.CurrentVersionSpecHash }>version { deployment.CurrentVersionShortSpecHash }</span>
+			</div>
+		</section>
+		<div class="mt-4 grid gap-4 lg:grid-cols-4">
+			<div class="rounded-xl border border-base-300 bg-base-100 p-4">
+				<p class="text-xs font-semibold uppercase tracking-wide text-base-content/60">Runtime target</p>
+				<p class="mt-2 font-mono text-sm text-base-content">{ string(deployment.EnvironmentSlug) }</p>
+				<p class="mt-1 text-xs text-base-content/70">Project environment that owns this pointer.</p>
+			</div>
+			<div class="rounded-xl border border-base-300 bg-base-100 p-4">
+				<p class="text-xs font-semibold uppercase tracking-wide text-base-content/60">Canonical pipeline</p>
+				<a class="link link-primary mt-2 inline-block break-all font-mono text-sm" href={ templ.URL(PipelineDetailHrefWithEnvironment(orgSlug, activeProjectSlug, environmentSlug, string(deployment.PipelineSlug))) }>{ string(deployment.PipelineSlug) }</a>
+				<p class="mt-1 text-xs text-base-content/70">{ pipelineDeploymentCanonicalComparisonLabel(pipeline, deployment) }</p>
+			</div>
+			<div class="rounded-xl border border-base-300 bg-base-100 p-4">
+				<p class="text-xs font-semibold uppercase tracking-wide text-base-content/60">Deployed version</p>
+				<p class="mt-2 break-all font-mono text-sm text-base-content" title={ deployment.CurrentVersionSpecHash }>{ deployment.CurrentVersionShortSpecHash }</p>
+				<p class="mt-1 text-xs text-base-content/70">Immutable version hash selected for this target.</p>
+			</div>
+			<div class="rounded-xl border border-base-300 bg-base-100 p-4">
+				<p class="text-xs font-semibold uppercase tracking-wide text-base-content/60">Deployment state</p>
+				<p class="mt-2 text-sm font-semibold text-base-content">{ pipelineDeploymentStateDetailLabel(deployment) }</p>
+				<p class="mt-1 text-xs text-base-content/70">Run state is inspected from scoped runs.</p>
+			</div>
+		</div>
+		<div class="mt-6 grid gap-6 xl:grid-cols-[minmax(0,1fr)_22rem]">
+			<section class="rounded-xl border border-base-300 bg-base-100 p-5">
+				<h3 class="text-base font-semibold text-base-content">Pointer metadata</h3>
+				<div class="mt-4 grid gap-4 md:grid-cols-2">
+					<div>
+						<p class="text-xs font-semibold uppercase tracking-wide text-base-content/60">Full deployed hash</p>
+						<p class="mt-1 break-all font-mono text-sm text-base-content">{ deployment.CurrentVersionSpecHash }</p>
+					</div>
+					<div>
+						<p class="text-xs font-semibold uppercase tracking-wide text-base-content/60">Previous version</p>
+						<p class="mt-1 break-all font-mono text-sm text-base-content">{ pipelineDeploymentPreviousVersionLabel(deployment) }</p>
+					</div>
+					<div>
+						<p class="text-xs font-semibold uppercase tracking-wide text-base-content/60">Deployed at</p>
+						<p class="mt-1 text-sm text-base-content">{ formatPipelineTimestamp(deployment.DeployedAt) }</p>
+					</div>
+					<div>
+						<p class="text-xs font-semibold uppercase tracking-wide text-base-content/60">Updated at</p>
+						<p class="mt-1 text-sm text-base-content">{ formatPipelineTimestamp(deployment.UpdatedAt) }</p>
+					</div>
+					<div>
+						<p class="text-xs font-semibold uppercase tracking-wide text-base-content/60">Deployed by</p>
+						<p class="mt-1 text-sm text-base-content">{ pipelineDeploymentActorLabel(deployment) }</p>
+					</div>
+					<div>
+						<p class="text-xs font-semibold uppercase tracking-wide text-base-content/60">Project</p>
+						<p class="mt-1 font-mono text-sm text-base-content">{ string(deployment.ProjectSlug) }</p>
+					</div>
+				</div>
+			</section>
+			<aside class="rounded-xl border border-base-300 bg-base-100 p-5">
+				<h3 class="text-base font-semibold text-base-content">Inspection entry points</h3>
+				<div class="mt-4 grid gap-2">
+					<a class="btn btn-outline btn-sm justify-start" href={ templ.URL(PipelineDetailHrefWithEnvironment(orgSlug, activeProjectSlug, environmentSlug, string(deployment.PipelineSlug))) }>Pipeline detail</a>
+					<a class="btn btn-outline btn-sm justify-start" href={ templ.URL(buildEnvironmentRunsListHrefWithProject(orgSlug, activeProjectSlug, environmentSlug, "", "", "", string(deployment.PipelineSlug))) }>{ runtimeTargetActionLabel("Scoped runs", environmentSlug) }</a>
+					if deployment.ProofLink != nil {
+						<a class="btn btn-outline btn-sm justify-start" href={ templ.URL(ProofReceiptHref(orgSlug, activeProjectSlug, environmentSlug, deployment.ProofLink.ReceiptId)) }>Proof receipt</a>
+						<span class={ ProofLifecycleStatusBadgeClass(deployment.ProofLink.Status) }>{ ProofLifecycleStatusLabel(deployment.ProofLink.Status) }</span>
+					}
+				</div>
+				<div class="alert alert-info mt-4 py-2 text-sm">
+					<span>This page shows deployment state only; execution state and output proof stay with runs.</span>
+				</div>
+			</aside>
+		</div>
+	}
+}

@@ -1,0 +1,59 @@
+package views
+
+templ AuthPage(title string, includeHTMX bool, content templ.Component) {
+	<!DOCTYPE html>
+	<html lang="en" data-theme="control-room">
+		@AppHead(title, includeHTMX)
+		<body class="auth-page min-h-screen bg-base-200">
+			<a class="sr-only z-50 rounded-md bg-base-100 px-3 py-2 text-sm font-medium text-base-content shadow focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary" href="#main-content">Skip to main content</a>
+			<main class="auth-shell" id="main-content" data-auth-shell>
+				<div class="auth-flow" data-auth-flow aria-hidden="true">
+					<span class="auth-flow-line auth-flow-line-one"></span>
+					<span class="auth-flow-line auth-flow-line-two"></span>
+					<span class="auth-flow-line auth-flow-line-three"></span>
+					<span class="auth-flow-node auth-flow-node-one"></span>
+					<span class="auth-flow-node auth-flow-node-two"></span>
+					<span class="auth-flow-node auth-flow-node-three"></span>
+					<span class="auth-flow-node auth-flow-node-four"></span>
+				</div>
+				<div class="auth-shell-grid">
+					<aside class="auth-context" aria-label="Braidplane product context">
+						@AuthBrand()
+						<div class="auth-context-copy">
+							<p class="text-xs font-semibold uppercase tracking-wide text-primary">Operational data workflows</p>
+							<h2 class="mt-3 text-3xl font-semibold tracking-tight text-base-content">Move data with a clear operational trail.</h2>
+							<p class="mt-4 max-w-md text-sm leading-6 text-base-content/65">Secure access to pipelines, runs, contracts, and diagnostics.</p>
+						</div>
+						<div class="auth-flow-summary" aria-label="Product workflow">
+							<span><i></i>Sources</span>
+							<span><i></i>Contracts</span>
+							<span><i></i>Runs</span>
+						</div>
+					</aside>
+					<section class="auth-panel" aria-label="Account access">
+						<div class="auth-brand-compact">
+							@AuthBrand()
+						</div>
+						@content
+					</section>
+				</div>
+			</main>
+		</body>
+	</html>
+}
+
+templ AuthBrand() {
+	<div class="flex items-center gap-3 text-base-content">
+		@AuthLogo()
+		<span class="text-lg font-semibold">Braidplane</span>
+		<span class="badge badge-ghost badge-sm">Alpha</span>
+	</div>
+}
+
+templ AuthLogo() {
+	<img class="h-24 w-24 shrink-0 object-contain" src={ versionedAssetPath("/assets/icons/app/logo-1024-transparent.png") } alt="" aria-hidden="true"/>
+}
+
+templ BraidplaneLogo() {
+	<img class="h-12 w-12 shrink-0 object-contain" src={ versionedAssetPath("/assets/icons/app/logo-1024-transparent.png") } alt="" aria-hidden="true"/>
+}

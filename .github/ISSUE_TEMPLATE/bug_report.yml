@@ -1,0 +1,27 @@
+name: Bug report
+description: Report a reproducible Community defect.
+body:
+  - type: markdown
+    attributes:
+      value: "Use synthetic data. For security concerns, email contact@braidplane.com privately."
+  - type: textarea
+    id: detail-0
+    attributes:
+      label: "Version and environment"
+      description: "Exact revision, OS/architecture, deployment and connector/provider versions."
+    validations:
+      required: true
+  - type: textarea
+    id: detail-1
+    attributes:
+      label: "Reproduction"
+      description: "Minimal synthetic steps or input; remove credentials and tenant data."
+    validations:
+      required: true
+  - type: textarea
+    id: detail-2
+    attributes:
+      label: "Expected and actual behavior"
+      description: "What should happen, what happened, and sanitized errors."
+    validations:
+      required: true

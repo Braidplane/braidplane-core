@@ -1,0 +1,56 @@
+package views
+
+import "fmt"
+
+templ PipelineRunProgressPanel(detailHref string, inspection RunProgressInspection) {
+	<section
+		id="run-progress-live"
+		class="min-w-0 space-y-1 border-y border-base-300 py-3 text-sm"
+		aria-label="Live execution progress"
+		data-run-progress
+		if inspection.Poll {
+			hx-get={ runProgressHref(ctx, detailHref, inspection.Evidence) }
+			hx-trigger="every 2s"
+			hx-target="this"
+			hx-select="#run-progress-live"
+			if !inspection.VersionRecorded {
+				hx-select-oob="#run-live-content, #run-recorded-status, #run-recorded-version"
+			} else {
+				hx-select-oob="#run-live-content, #run-recorded-status"
+			}
+			hx-swap="outerHTML show:none focus-scroll:false"
+			hx-timeout="10000"
+			data-preserve-scroll
+		}
+	>
+		if inspection.Evidence == nil {
+			<p data-run-progress-connection role="status">Progress unavailable. Retained run evidence is shown below.</p>
+		} else {
+			{{ evidence := inspection.Evidence }}
+			<p data-run-progress-connection role="status">{ runProgressLivenessLabel(evidence) }</p>
+			<p class="flex flex-wrap gap-x-4 gap-y-1 text-base-content/70">
+				if evidence.Metadata.Status == "queued" {
+					<span>Queue wait { runProgressDuration(evidence) }</span>
+				} else {
+					<span>Elapsed { runProgressDuration(evidence) }</span>
+				}
+				if evidence.CurrentStep != nil {
+					<span class="break-all">Running step { *evidence.CurrentStep }</span>
+				}
+				if evidence.ObservedAt != nil {
+					<span>Last durable observation { formatRunTimestamp(*evidence.ObservedAt) }</span>
+				} else {
+					<span>Durable observation time unavailable</span>
+				}
+			</p>
+			if evidence.Metadata.StepCount > 0 {
+				<p class="text-xs text-base-content/70">{ fmt.Sprintf("%d completed · %d failed · %d pending · %d interrupted",evidence.CompletedSteps,evidence.FailedSteps,evidence.PendingSteps,evidence.InterruptedSteps) }</p>
+			} else {
+				<p class="text-xs text-base-content/70">Planned step count was not recorded.</p>
+			}
+			if evidence.WorkerLiveness == "stale" || evidence.WorkerLiveness == "unavailable" {
+				<p class="text-xs text-base-content/70">A quiet step does not prove worker failure. Completed provider effects require recorded delivery evidence.</p>
+			}
+		}
+	</section>
+}

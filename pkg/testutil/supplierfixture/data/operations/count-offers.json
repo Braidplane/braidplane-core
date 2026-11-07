@@ -1,0 +1,4 @@
+{
+  "type": "postgres",
+  "sql": "SELECT COUNT(*) AS offer_count, COUNT(DISTINCT provider) AS provider_count,\n       COUNT(DISTINCT product_code) AS product_count\nFROM supplier_price_offers\nWHERE org_slug = {{org_slug}};\n"
+}

@@ -1,0 +1,94 @@
+package views
+
+templ SignupPage(title string, fullName string, email string, pageError string, pageErrorDetails string, returnTo string, selfServiceRegistrationEnabled bool, signup SignupState) {
+	@AuthPage(title, true, SignupPageContent(fullName, email, pageError, pageErrorDetails, returnTo, selfServiceRegistrationEnabled, signup))
+}
+
+templ SignupPageContent(fullName string, email string, pageError string, pageErrorDetails string, returnTo string, selfServiceRegistrationEnabled bool, signup SignupState) {
+	if pageError != "" {
+		@ErrorPopup("signup-error-popup", pageError, pageErrorDetails)
+	}
+	<div class="space-y-5">
+		if !selfServiceRegistrationEnabled {
+			<header>
+				<p class="text-xs font-semibold uppercase tracking-wide text-warning">Registration closed</p>
+				<h1 class="mt-2 text-2xl font-semibold">Account creation unavailable</h1>
+			</header>
+			<div class="alert alert-warning text-sm">
+				<span>Account creation is currently unavailable.</span>
+			</div>
+			<p class="text-sm text-base-content/70">Existing and invited users can still sign in. Contact your instance administrator if you need an account.</p>
+			<div class="grid gap-2">
+				<a class="btn btn-primary w-full" href={ templ.URL(AuthReturnURL("/auth/login", returnTo)) }>Sign in</a>
+			</div>
+		} else {
+			<header>
+				<p class="text-xs font-semibold uppercase tracking-wide text-primary">Account setup</p>
+				<h1 class="mt-2 text-2xl font-semibold">Sign up</h1>
+				<p class="mt-2 text-sm text-base-content/70">Create an account on this instance.</p>
+			</header>
+			@AccountNotice(ctx)
+			if googleSignInEnabled(ctx) || signup.GoogleSignupPending {
+				<form class="space-y-3" method="post" action={ templ.URL(AuthReturnURL("/api/auth/google", returnTo)) }>
+					if signup.GoogleSignupPending {
+						<p class="text-sm text-base-content/70">Google verified your account. Continue to finish creating your account.</p>
+						@AccountFields(ctx)
+						<button class="btn btn-primary w-full" type="submit">Create account with Google</button>
+					} else {
+						@AccountFields(ctx)
+						<button class="btn btn-outline w-full" type="submit">Continue with Google</button>
+					}
+				</form>
+				<div class="divider text-xs uppercase tracking-wide text-base-content/50">or use email</div>
+			}
+			<form class="space-y-3" method="post" action="/auth/signup" hx-post="/auth/signup" hx-target="main" hx-select="main" hx-swap="innerHTML">
+				if returnTo != "" {
+					<input type="hidden" name="return_to" value={ returnTo }/>
+				}
+				<label class="form-control block w-full">
+					<div class="label">
+						<span class="label-text">Full name</span>
+					</div>
+					<input class="input input-bordered w-full" type="text" name="full_name" placeholder="Jane Doe" value={ fullName } autocomplete="name" maxlength="255" required/>
+				</label>
+				<label class="form-control block w-full">
+					<div class="label">
+						<span class="label-text">Email</span>
+					</div>
+					<input class="input input-bordered w-full" type="email" name="email" placeholder="name@company.com" value={ email } autocomplete="email" maxlength="255" required/>
+				</label>
+				<label class="form-control block w-full">
+					<div class="label">
+						<span class="label-text">Password</span>
+					</div>
+					<input class="input input-bordered w-full" type="password" name="password" placeholder="At least 8 characters" autocomplete="new-password" minlength="8" required/>
+					<p class="pt-1 text-xs text-base-content/60">Use at least 8 characters.</p>
+				</label>
+				<label class="form-control block w-full">
+					<div class="label">
+						<span class="label-text">Confirm password</span>
+					</div>
+					<input class="input input-bordered w-full" type="password" name="confirm_password" placeholder="Repeat your password" autocomplete="new-password" minlength="8" required/>
+				</label>
+				@AccountFields(ctx)
+				<button class="btn btn-primary w-full" type="submit">Create account</button>
+			</form>
+			<p class="text-center text-sm text-base-content/70">
+				Already have an account?
+				<a class="link link-primary" href={ templ.URL(AuthReturnURL("/auth/login", returnTo)) }>Sign in</a>
+			</p>
+		}
+	</div>
+}
+
+// signupUsageClass marks the active workspace choice without client-side state.
+func signupUsageClass(current string, value string) string {
+	base := "block h-full rounded-lg border p-3 text-left transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+	if current == value {
+		return base + " border-primary bg-primary/10"
+	}
+	return base + " border-base-300 bg-base-200/35 hover:border-primary/50 hover:bg-base-200"
+}
+
+// SignupState tracks a verified identity awaiting explicit account creation.
+type SignupState struct{ GoogleSignupPending bool }

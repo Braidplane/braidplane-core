@@ -1,0 +1,38 @@
+package views
+
+import (
+	"fmt"
+	api "github.com/Braidplane/braidplane-core/api-schema/gen/client"
+)
+
+templ ProofOperationalContext(receipt *api.ProofReceipt) {
+	<section class="mt-5 min-w-0 space-y-3 border-b border-base-300 pb-4" aria-labelledby="proof-operational-heading">
+		<h3 id="proof-operational-heading" class="text-base font-semibold">Operational evidence</h3>
+		if receipt.Operational == nil {
+			<p class="text-sm">This receipt contains no admitted operational capture. Static compatibility does not establish runtime conformance, delivery, quality or freshness.</p>
+		} else {
+			{{ capture := receipt.Operational }}
+			<dl class="grid gap-3 sm:grid-cols-2">
+				@ProofDefinition("Captured verdict", ProofVerdictLabel(receipt.AggregateVerdict))
+				if receipt.OperationalCurrentVerdict != nil {
+					@ProofDefinition("Current supporting verdict", ProofVerdictLabel(*receipt.OperationalCurrentVerdict))
+				} else {
+					@ProofDefinition("Current supporting verdict", "Unavailable")
+				}
+				@ProofDefinition("Supporting evidence", ProofOperationalAvailabilityLabel(receipt.OperationalEvidenceStatus))
+				@ProofDefinition("Source static receipt", capture.SourceReceiptId)
+				@ProofDefinition("Captured attempt", fmt.Sprintf("%s / attempt %d", capture.Selection.Run, capture.Selection.Attempt))
+				@ProofDefinition("Step / input / phase", capture.Selection.Step+" / "+capture.Selection.Input+" / "+string(capture.Selection.Phase))
+				@ProofDefinition("Obligation", string(capture.Selection.Origin)+" / "+capture.Selection.Declaration)
+				@ProofDefinition("Compiled plan", capture.Selection.CompiledPlanDigest)
+				@ProofDefinition("Deployment resolution", capture.Selection.DeploymentResolutionDigest)
+				@ProofDefinition("Projection", capture.Selection.ProjectionDigest)
+				@ProofDefinition("Evidence record", capture.RecordDigest)
+				@ProofDefinition("Admission policy", capture.PolicyVersion)
+				@ProofDefinition("Evidence expiry", ProofTimestampLabel(&capture.ExpiresAt))
+			</dl>
+			<a class="link link-primary inline-block text-sm" href={ templ.URL(buildEnvironmentRunDetailHref(receipt.Candidate.OrganizationSlug, receipt.Candidate.ProjectSlug, receipt.Candidate.EnvironmentSlug, capture.Selection.Run)) }>Inspect recorded attempt</a>
+			<p class="text-sm text-base-content/70">Captured claims stay historical. Pruned or expired evidence cannot be reconstructed from current operations. Run-history retention and the seven-day Proof cap are independent. Structural conformance does not establish sink delivery, quality or freshness.</p>
+		}
+	</section>
+}

@@ -1,0 +1,34 @@
+version: "2"
+sql:
+  - engine: "postgresql"
+    queries: "postgres/query.sql"
+    schema: "postgres/migrations"
+    database:
+      uri: "${DATABASE_URL}"
+    gen:
+      go:
+        package: "dbgen"
+        out: "postgres/dbgen"
+        sql_package: "pgx/v5"
+        overrides:
+          - column: "river_client.id" # River client IDs are text identifiers from River
+            go_type:
+              type: "string"
+          - column: "proof_change_candidate_mappings.id"
+            go_type:
+              type: "int64"
+          - column: "active_proof_candidate_mappings.id"
+            go_type:
+              type: "int64"
+          - column: "proof_change_candidates.id"
+            go_type:
+              type: "int64"
+          - column: "*.id" # Replace all id columns to use int type
+            go_type:
+              type: "int"
+          - column: "*.slug" # Replace all slug columns to use custom slug.Slug type
+            go_type:
+              import: "github.com/Braidplane/braidplane-core/pkg/slug"
+              type: "Slug"
+    rules:
+      - sqlc/db-prepare

@@ -1,0 +1,84 @@
+package views
+
+import api "github.com/Braidplane/braidplane-core/api-schema/gen/client"
+
+templ AccountDeletionSection() {
+	<section class="rounded-xl border border-error/35 bg-base-100 p-4 lg:p-6" id="account-removal">
+		<h2 class="text-xl font-semibold text-base-content">Remove account</h2>
+		<p class="mt-2 max-w-2xl text-sm leading-6 text-base-content/70">Organization data is not deleted with your account. Delete any organization where you are the only member first. If other members remain and you are the last admin, transfer ownership first.</p>
+		<p class="mt-2 max-w-2xl text-sm leading-6 text-base-content/70">Your account and private data will be permanently deleted once your processing stops. Minimal legal-acceptance evidence is retained separately.</p>
+		<button class="btn btn-error btn-outline btn-sm mt-4" type="button" data-protected-action-trigger="account-removal-confirm">Remove account</button>
+		<noscript><p class="mt-3 text-sm">To request removal without JavaScript, contact your instance administrator.</p></noscript>
+	</section>
+	<dialog class="modal" id="account-removal-confirm" data-protected-action-modal data-confirm-slug="DELETE MY ACCOUNT" aria-labelledby="account-removal-title">
+		<div class="modal-box max-w-lg border border-error/35 bg-base-100">
+			<h2 class="text-lg font-semibold text-base-content" id="account-removal-title">Confirm account removal</h2>
+			<p class="mt-3 text-sm text-base-content/70">You will be signed out and your account will be permanently deleted. Organization data is not deleted. This cannot be undone.</p>
+			<form class="mt-4 space-y-4" method="post" action="/account/deletion" hx-boost="false">
+				<label class="form-control w-full">
+					<span class="label-text text-sm">Type DELETE MY ACCOUNT to confirm</span>
+					<input class="input input-bordered w-full font-mono" type="text" name="confirmation" autocomplete="off" required data-protected-confirm-input data-confirm-slug="DELETE MY ACCOUNT"/>
+				</label>
+				<div class="modal-action flex-wrap">
+					<button class="btn btn-ghost btn-sm" type="button" data-protected-action-close="account-removal-confirm">Cancel</button>
+					<button class="btn btn-error btn-sm" type="submit" data-protected-confirm-submit disabled aria-disabled="true">Confirm removal</button>
+				</div>
+			</form>
+		</div>
+		<form method="dialog" class="modal-backdrop"><button type="submit">Close</button></form>
+	</dialog>
+}
+
+templ AccountDeletionOutcome(receipt *api.AccountDeletionRequest, message string) {
+	@AuthPage("Account removal", false, AccountDeletionOutcomeContent(receipt, message))
+}
+
+templ AccountDeletionOutcomeContent(receipt *api.AccountDeletionRequest, message string) {
+	<div class="space-y-4" id="account-removal-outcome">
+		if message != "" {
+			<h1 class="text-2xl font-semibold text-base-content">Account removal not confirmed</h1>
+			<p class="text-sm text-base-content/80" role="alert">{ message }</p>
+			<a class="btn btn-outline w-full" href="/account">Back to account</a>
+		} else if receipt != nil {
+			if receipt.State == "ownership_required" {
+				if len(receipt.OrganizationRemovalRequired) > 0 {
+					<h1 class="text-2xl font-semibold text-base-content">Delete your sole-member organizations first</h1>
+					<p class="text-sm text-base-content/80">Your account is still active. You are the only member of these organizations. Explicitly delete them before deleting your account.</p>
+					<ul class="list-disc space-y-2 pl-5 text-sm">
+						for _, org := range receipt.OrganizationRemovalRequired {
+							<li class="break-all">{ string(org) }</li>
+						}
+					</ul>
+				}
+				if len(receipt.OwnershipRequired) > 0 {
+					if len(receipt.OrganizationRemovalRequired) == 0 {
+						<h1 class="text-2xl font-semibold text-base-content">Transfer ownership first</h1>
+					} else {
+						<h2 class="text-xl font-semibold text-base-content">Transfer ownership first</h2>
+					}
+					<p class="text-sm text-base-content/80">Your account is still active. Other members remain in these organizations. Assign another active admin before deleting your account.</p>
+					<ul class="list-disc space-y-2 pl-5 text-sm">
+						for _, org := range receipt.OwnershipRequired {
+							<li class="break-all">{ string(org) }</li>
+						}
+					</ul>
+				}
+				<a class="btn btn-outline w-full" href="/account">Back to account</a>
+			} else if receipt.State == "completed" {
+				<h1 class="text-2xl font-semibold text-base-content">Account deleted</h1>
+				<p class="text-sm text-base-content/80">Your account and private account data have been deleted. You are signed out.</p>
+				<p class="text-sm text-base-content/70">Minimal acceptance evidence remains separately. Shared organization data, external provider resources and backups are not deleted by this request.</p>
+			} else {
+				<h1 class="text-2xl font-semibold text-base-content">Account deletion pending</h1>
+				<p class="text-sm text-base-content/80">Access has been revoked and you are signed out. Deletion will continue automatically once your processing stops.</p>
+				<p class="text-sm text-base-content/70">This is not confirmation of completed deletion. Minimal acceptance evidence will be retained separately.</p>
+			}
+			<div class="border-t border-base-300 pt-4">
+				<p class="text-sm font-semibold">Save your request ID</p>
+				<p class="mt-1 break-all font-mono text-sm" data-account-removal-receipt>{ string(receipt.Slug) }</p>
+				<p class="mt-2 text-xs text-base-content/70">Keep this ID for follow-up. Refreshing this page may not restore the receipt.</p>
+			</div>
+		}
+		<p class="text-sm">Contact your instance administrator with questions.</p>
+	</div>
+}

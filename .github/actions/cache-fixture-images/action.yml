@@ -1,0 +1,42 @@
+name: Cache public fixture images
+description: Cache image layers only; always resolve the pinned registry manifests.
+inputs:
+  enabled:
+    description: Restore and save fixture image layers
+    default: 'true'
+runs:
+  using: composite
+  steps:
+    - if: inputs.enabled == 'true'
+      uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+      id: images
+      with:
+        path: ${{ runner.temp }}/community-fixture-images.tar
+        key: community-fixture-images-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('docker-compose.yml', '.github/actions/cache-fixture-images/action.yml') }}
+    - name: Load or pull pinned fixture images
+      shell: bash
+      env:
+        IMAGE_ARCHIVE: ${{ runner.temp }}/community-fixture-images.tar
+        CACHE_ENABLED: ${{ inputs.enabled }}
+        CACHE_HIT: ${{ steps.images.outputs.cache-hit }}
+      run: |
+        if [ -f "$IMAGE_ARCHIVE" ]; then
+          docker image load --input "$IMAGE_ARCHIVE"
+        fi
+        image_list=$(docker compose config --images)
+        test -n "$image_list"
+        images=()
+        while IFS= read -r image; do
+          docker pull "$image"
+          docker tag "$image" "${image%@*}"
+          images+=("${image%@*}")
+        done <<< "$image_list"
+        test "${#images[@]}" -gt 0
+        if [ "$CACHE_ENABLED" = true ] && [ "$CACHE_HIT" != true ]; then
+          docker image save --output "$IMAGE_ARCHIVE" "${images[@]}"
+        fi
+    - uses: actions/cache/save@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+      if: inputs.enabled == 'true' && steps.images.outputs.cache-hit != 'true'
+      with:
+        path: ${{ runner.temp }}/community-fixture-images.tar
+        key: ${{ steps.images.outputs.cache-primary-key }}

@@ -1,0 +1,47 @@
+package views
+
+import api "github.com/Braidplane/braidplane-core/api-schema/gen/client"
+
+templ ProofHistoryPage(shell AuthenticatedShellData, history *api.ProofReceiptListResponse) {
+	@AuthenticatedShell(shell, ProofHistoryContent(shell, history))
+}
+
+templ ProofHistoryContent(shell AuthenticatedShellData, history *api.ProofReceiptListResponse) {
+	<p class="text-sm text-base-content/70">Receipt history for { shell.ActiveOrganizationSlug } / { shell.ActiveProjectSlug } / { shell.ActiveEnvironmentSlug }. Evidence describes the evaluated commit, not permission to deploy.</p>
+	if history != nil {
+		if len(history.Receipts) == 0 {
+			<div class="mt-4 text-base-content">
+				<h2 class="text-base font-semibold">No Proof receipts</h2>
+				<p class="mt-2 text-sm text-base-content/70">No receipts on this page for the selected project and environment. Receipts appear after a configured change is evaluated, including metadata-only checks without a deployment or run.</p>
+				<a class="link link-primary mt-2 inline-block" href={ templ.URL("/organizations/" + shell.ActiveOrganizationSlug + "/projects/" + shell.ActiveProjectSlug) }>View project Git setup</a>
+			</div>
+		} else {
+			<ul class="mt-4 divide-y divide-base-300" aria-label="Proof receipt history">
+				for _, receipt := range history.Receipts {
+					<li class="py-4 min-w-0">
+						<div class="flex flex-wrap items-center justify-between gap-2">
+							<a class="link link-primary break-all font-medium" href={ templ.URL(proofHistoryReceiptHref(ctx, shell, receipt)) }>Change #{ receipt.Candidate.ChangeRequestId } · { receipt.Candidate.PipelinePath }</a>
+							<span class={ ProofVerdictBadgeClass(receipt.AggregateVerdict) }>{ ProofVerdictLabel(receipt.AggregateVerdict) }</span>
+						</div>
+						<dl class="mt-2 grid min-w-0 gap-2 text-sm sm:grid-cols-2">
+							<div class="min-w-0"><dt class="text-base-content/60">Project / environment</dt><dd class="break-all">{ receipt.Candidate.ProjectSlug } / { receipt.Candidate.EnvironmentSlug }</dd></div>
+							<div class="min-w-0"><dt class="text-base-content/60">Target ref</dt><dd class="break-all">{ receipt.Candidate.TargetRef }</dd></div>
+							<div><dt class="text-base-content/60">Created</dt><dd>{ ProofTimestampLabel(&receipt.CreatedAt) }</dd></div>
+							<div><dt class="text-base-content/60">Evidence freshness</dt><dd>{ ProofFreshnessLabel(receipt) }</dd></div>
+						</dl>
+					</li>
+				}
+			</ul>
+		}
+		<nav class="mt-4 flex flex-wrap gap-3" aria-label="Receipt history pages">
+			if history.PrevCursor != nil && *history.PrevCursor != "" {
+				<a class="btn btn-outline btn-sm" href={ templ.URL(ProofHistoryHref(shell.ActiveOrganizationSlug, shell.ActiveProjectSlug, shell.ActiveEnvironmentSlug, *history.PrevCursor, "prev")) }>Newer receipts</a>
+			}
+			if history.NextCursor != nil && *history.NextCursor != "" {
+				<a class="btn btn-outline btn-sm" href={ templ.URL(ProofHistoryHref(shell.ActiveOrganizationSlug, shell.ActiveProjectSlug, shell.ActiveEnvironmentSlug, *history.NextCursor, "next")) }>Older receipts</a>
+			}
+		</nav>
+	} else if shell.PageError == "" {
+		<p class="mt-4 text-sm text-base-content/70">Select an enabled project environment to view its receipt history.</p>
+	}
+}

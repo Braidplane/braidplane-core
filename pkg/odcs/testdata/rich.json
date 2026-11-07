@@ -1,0 +1,313 @@
+{
+  "apiVersion": "v3.2.0",
+  "kind": "DataContract",
+  "id": "orders",
+  "version": "1",
+  "status": "active",
+  "description": {
+    "purpose": "Order interchange"
+  },
+  "schema": [
+    {
+      "id": "summary",
+      "name": "Summary",
+      "properties": [
+        {
+          "name": "count",
+          "logicalType": "integer"
+        }
+      ]
+    },
+    {
+      "id": "order",
+      "name": "Orders",
+      "logicalType": "object",
+      "description": "One order",
+      "properties": [
+        {
+          "name": "id",
+          "logicalType": "integer",
+          "required": true,
+          "description": "Stable order identifier",
+          "enum": [
+            {
+              "value": 9007199254740993
+            },
+            {
+              "value": 9007199254740994
+            }
+          ]
+        },
+        {
+          "name": "state",
+          "logicalType": "string",
+          "enum": [
+            {
+              "value": "new"
+            },
+            {
+              "value": "paid"
+            }
+          ],
+          "logicalTypeOptions": {
+            "minLength": 1,
+            "maxLength": 10
+          }
+        },
+        {
+          "name": "total",
+          "logicalType": "number",
+          "required": false,
+          "logicalTypeOptions": {
+            "minimum": 0,
+            "maximum": 100
+          }
+        },
+        {
+          "name": "enabled",
+          "logicalType": "boolean",
+          "required": true,
+          "enum": [
+            {
+              "value": true
+            },
+            {
+              "value": false
+            }
+          ]
+        },
+        {
+          "name": "metadata",
+          "logicalType": "object"
+        },
+        {
+          "name": "labels",
+          "logicalType": "array"
+        },
+        {
+          "name": "email",
+          "logicalType": "string",
+          "logicalTypeOptions": {
+            "format": "email"
+          }
+        },
+        {
+          "name": "external_id",
+          "logicalType": "string",
+          "logicalTypeOptions": {
+            "format": "uuid"
+          }
+        }
+      ]
+    },
+    {
+      "id": "rich-object",
+      "name": "Orders",
+      "quality": [
+        {
+          "type": "text",
+          "description": "Must reconcile"
+        }
+      ],
+      "properties": [
+        {
+          "name": "details",
+          "logicalType": "map",
+          "map": {
+            "key": {
+              "logicalType": "string"
+            },
+            "value": {
+              "logicalType": "integer"
+            }
+          }
+        },
+        {
+          "name": "child",
+          "logicalType": "object",
+          "properties": [
+            {
+              "name": "leaf",
+              "logicalType": "string"
+            }
+          ]
+        },
+        {
+          "name": "items",
+          "logicalType": "array",
+          "items": {
+            "logicalType": "integer"
+          }
+        },
+        {
+          "name": "secret_note",
+          "logicalType": "string",
+          "classification": "restricted",
+          "relationships": [
+            {
+              "to": "schema/order/properties/id"
+            }
+          ]
+        },
+        {
+          "name": "created",
+          "logicalType": "timestamp"
+        },
+        {
+          "name": "date",
+          "logicalType": "date"
+        },
+        {
+          "name": "time",
+          "logicalType": "time"
+        },
+        {
+          "name": "vector",
+          "logicalType": "vector",
+          "logicalTypeOptions": {
+            "dimensions": 3
+          }
+        },
+        {
+          "name": "missing_type"
+        },
+        {
+          "name": "status",
+          "logicalType": "string",
+          "enum": [
+            {
+              "value": "new",
+              "label": "New",
+              "description": "Initial"
+            }
+          ]
+        },
+        {
+          "name": "patterned",
+          "logicalType": "string",
+          "logicalTypeOptions": {
+            "pattern": "[a-z]+",
+            "format": "uri"
+          }
+        },
+        {
+          "name": "bounded",
+          "logicalType": "number",
+          "logicalTypeOptions": {
+            "exclusiveMinimum": 0,
+            "multipleOf": 2,
+            "format": "f64"
+          }
+        }
+      ]
+    },
+    {
+      "name": "ID-less object",
+      "properties": [
+        {
+          "name": "ID-less property",
+          "logicalType": "string"
+        }
+      ]
+    }
+  ],
+  "name": "Complete document",
+  "tenant": "Example tenant",
+  "domain": "Commerce",
+  "dataProduct": "Orders",
+  "context": {
+    "instructions": "Descriptive instructions; never executed.",
+    "constraints": [
+      {
+        "constraint": "Do not infer operational authority."
+      }
+    ],
+    "verifiedStatements": [
+      {
+        "question": "What is an order?",
+        "answer": "A synthetic fixture."
+      }
+    ]
+  },
+  "servers": [
+    {
+      "id": "warehouse",
+      "server": "warehouse",
+      "type": "custom",
+      "host": "${HOST}",
+      "port": "${PORT:-5432}",
+      "roles": [
+        {
+          "role": "reader"
+        }
+      ],
+      "customProperties": [
+        {
+          "property": "password",
+          "value": "${DB_PASSWORD}"
+        }
+      ]
+    }
+  ],
+  "team": {
+    "name": "Data team",
+    "members": [
+      {
+        "username": "example@example.invalid",
+        "role": "owner"
+      }
+    ]
+  },
+  "support": [
+    {
+      "channel": "help",
+      "url": "mailto:help@example.invalid"
+    }
+  ],
+  "roles": [
+    {
+      "role": "reader",
+      "access": "read"
+    }
+  ],
+  "price": {
+    "priceAmount": 1.25,
+    "priceCurrency": "EUR",
+    "priceUnit": "month"
+  },
+  "slaDefaultElement": "order",
+  "slaProperties": [
+    {
+      "property": "freshness",
+      "value": 1,
+      "unit": "h",
+      "scheduler": "cron",
+      "schedule": "0 * * * *"
+    }
+  ],
+  "authoritativeDefinitions": [
+    {
+      "url": "https://example.invalid/definition",
+      "type": "unknown-vendor-type"
+    }
+  ],
+  "customProperties": [
+    {
+      "property": "opaque extension",
+      "vendor": "UnknownVendor",
+      "value": {
+        "items": [
+          {
+            "id": "same"
+          },
+          {
+            "id": "same"
+          }
+        ],
+        "precise": 9007199254740993,
+        "unresolved": "prefix-${UNKNOWN:-fallback}"
+      }
+    }
+  ],
+  "contractCreatedTs": "2026-10-14T00:00:00Z"
+}

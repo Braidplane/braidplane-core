@@ -1,0 +1,88 @@
+[email_verification]
+description = "Email verification message sent to users to verify their email address."
+hash = "sha1-428fd16670d762dc30841e3c9b359f20169add32"
+other = "Proszę potwierdź swój adres e-mail, klikając poniższy link: {{.VerificationLink}}"
+
+[email_verification_subject]
+description = "Subject line for the email verification message."
+hash = "sha1-d9603380d8bd2d23429d6119e6c7ca1a353200bb"
+other = "Prosimy o potwierdzenie adresu e-mail"
+
+[password_reset]
+description = "Password reset message sent to users to reset their password."
+other = "Zresetuj swoje hasło, klikając poniższy link: {{.ResetLink}}"
+
+[password_reset_subject]
+description = "Subject line for the password reset message."
+other = "Zresetuj swoje hasło"
+
+[member_invitation]
+description = "Organization member invitation message sent to invited users."
+other = "{{.InviterName}} ({{.InviterEmail}}) zaprasza Cię do organizacji {{.OrganizationName}} jako {{.Role}}. Zaproszenie wygasa {{.ExpiresAt}}. Zaakceptuj zaproszenie tutaj: {{.AcceptanceLink}}"
+
+[member_invitation_subject]
+description = "Subject line for the organization member invitation message."
+other = "Zaproszenie do organizacji {{.OrganizationName}}"
+
+[session_mfa]
+description = "Email MFA code sent to users during sign-in."
+other = "Użyj tego kodu, aby dokończyć logowanie: {{.Code}}"
+
+[session_mfa_subject]
+description = "Subject line for the email MFA code message."
+other = "Twój kod logowania"
+
+[notification_delivery]
+description = "Generic notification email sent to configured operator recipients."
+other = "{{.OrganizationName}} ma powiadomienie {{.Severity}} typu {{.NotificationType}}. {{.Summary}} Liczba wystąpień: {{.OccurrenceCount}}. Źródło: {{.SourceEntityType}}/{{.SourceAction}}. Powiadomienie: {{.RecordSlug}}"
+
+[notification_delivery_subject]
+description = "Subject line for a generic notification email."
+other = "[{{.Severity}}] {{.NotificationType}} w {{.OrganizationName}}"
+
+[notification_type_pipeline_run_failed_label]
+description = "Display label for pipeline run failed notifications."
+other = "nieudane uruchomienie potoku"
+
+[notification_type_pipeline_retry_exhausted_label]
+description = "Display label for pipeline retry exhausted notifications."
+other = "wyczerpane ponowienia potoku"
+
+[notification_type_pipeline_scheduled_run_delayed_label]
+description = "Display label for delayed scheduled pipeline run notifications."
+other = "opóźnione zaplanowane uruchomienie potoku"
+
+[notification_type_pipeline_scheduled_run_missing_label]
+description = "Display label for missing scheduled pipeline run notifications."
+other = "brak zaplanowanego uruchomienia potoku"
+
+[notification_type_pipeline_freshness_sla_breached_label]
+description = "Display label for pipeline freshness SLA breach notifications."
+other = "naruszenie SLA świeżości potoku"
+
+[notification_type_pipeline_contract_failure_label]
+description = "Display label for pipeline contract failure notifications."
+other = "błąd kontraktu potoku"
+
+[notification_severity_info_label]
+description = "Display label for informational notifications."
+other = "informacyjne"
+
+[notification_severity_warning_label]
+description = "Display label for warning notifications."
+other = "ostrzeżenie"
+
+[notification_severity_critical_label]
+description = "Display label for critical notifications."
+other = "krytyczne"
+
+[event_entity_pipeline_run_label]
+description = "Display label for pipeline run event sources."
+other = "uruchomienie potoku"
+
+[event_action_execute_label]
+description = "Display label for execute event actions."
+other = "wykonanie"
+
+[notification_type_pipeline_run_succeeded_label]
+other = "Uruchomienie potoku zakończone pomyślnie"

@@ -1,0 +1,829 @@
+package views
+
+import "strconv"
+
+import api "github.com/Braidplane/braidplane-core/api-schema/gen/client"
+
+templ QueryDetailPage(shellData AuthenticatedShellData, orgSlug string, dataSourceSlug string, query api.Query, editFormData QueryEditorFormData, executionResult *QueryExecutionResultView, executionError string, executionErrorDetails string, permissions OrganizationPermissions) {
+	@AuthenticatedShell(shellData, QueryDetailPageContent(orgSlug, dataSourceSlug, query, editFormData, executionResult, executionError, executionErrorDetails, permissions))
+}
+
+templ QueryDetailUnavailablePage(shellData AuthenticatedShellData, orgSlug string, dataSourceSlug string, querySlug string, message string) {
+	@AuthenticatedShell(shellData, QueryDetailUnavailablePageContent(orgSlug, dataSourceSlug, querySlug, message))
+}
+
+templ QueryDetailPageContent(orgSlug string, dataSourceSlug string, query api.Query, editFormData QueryEditorFormData, executionResult *QueryExecutionResultView, executionError string, executionErrorDetails string, permissions OrganizationPermissions) {
+	{{ resultsActive := executionResult != nil || executionError != "" }}
+	<div data-query-detail>
+		@EntityDetailHeader(query.Name, string(query.Slug)) {
+			if query.DeletedAt == nil && permissions.Can("pipelines", "create") {
+				<a class="btn btn-primary btn-sm" href={ templ.URL(QueryPipelineSetupHref(orgSlug, dataSourceSlug, query.Slug, "")) }>Build pipeline</a>
+			}
+			<a class="btn btn-outline btn-sm" href={ templ.URL(entityBackHref(ctx, QueriesListHref(orgSlug, dataSourceSlug, string(query.Slug), query.DeletedAt != nil))) }>Back to list</a>
+		}
+		if query.Description != nil && *query.Description != "" {
+			<p class="mt-3 break-words text-sm text-base-content/70">{ *query.Description }</p>
+		}
+		<p class="mt-2 break-all text-sm text-base-content/70">Connection: { dataSourceSlug } · { QueryStatementKindLabel(query) }</p>
+		<div class="mt-4">
+			@EntityState("Execution behavior", QueryOperationBehavior(query))
+		</div>
+		@EntitySectionNavigation("Query sections") {
+			<div role="tablist" aria-label="Query sections" class="flex flex-wrap gap-2">
+				<button id="query-definition-tab" type="button" role="tab" disabled class={ "btn btn-ghost btn-sm", templ.KV("btn-active", !resultsActive) } aria-selected={ strconv.FormatBool(!resultsActive) } tabindex={ func() string { if resultsActive { return "-1" }; return "0" }() } aria-controls="query-definition" data-query-tab="query-definition">Definition</button>
+				<button id="query-results-tab" type="button" role="tab" disabled class={ "btn btn-ghost btn-sm", templ.KV("btn-active", resultsActive) } aria-selected={ strconv.FormatBool(resultsActive) } tabindex={ func() string { if resultsActive { return "0" }; return "-1" }() } aria-controls="query-execution-feedback-slot" data-query-tab="query-execution-feedback-slot">Results</button>
+			</div>
+		}
+		<div id="query-definition" hidden?={ resultsActive } role="tabpanel" aria-labelledby="query-definition-tab" class="min-w-0" tabindex="0">
+			if query.ExpectedInputContract != nil {
+				<details class="my-3 border-b border-base-300 pb-3">
+					<summary class="cursor-pointer text-sm font-semibold">Input contract</summary>
+					@PipelineSpecContractSlotCard(PipelineSpecContractSlot{Label: "Expected input", Contract: query.ExpectedInputContract})
+				</details>
+			}
+			if permissions.Can("queries", "update") {
+				<form
+					id="query-update-form"
+					class="mt-4 rounded-xl border border-base-300 bg-base-100 p-4"
+					method="post"
+					action={ templ.URL(entityDetailHref("/orgs/"+orgSlug+"/data-sources/"+dataSourceSlug+"/queries/"+string(query.Slug)+"/update", entityBackHref(ctx, QueriesListHref(orgSlug, dataSourceSlug, string(query.Slug), query.DeletedAt != nil)))) }
+					hx-post={ entityDetailHref("/orgs/"+orgSlug+"/data-sources/"+dataSourceSlug+"/queries/"+string(query.Slug)+"/update", entityBackHref(ctx, QueriesListHref(orgSlug, dataSourceSlug, string(query.Slug), query.DeletedAt != nil))) }
+					hx-target={ htmxMainContentSelector }
+					hx-select={ htmxMainContentSelector }
+					hx-swap={ htmxScrollPreserveSwap }
+					data-query-detail-scroll-form
+					data-dirty-form="query-update"
+					data-preserve-scroll
+				>
+					<p class="text-sm font-semibold text-base-content">Edit query definition</p>
+					<input type="hidden" name="statement_type" value={ editFormData.StatementType }/>
+					<div class="mt-3 grid gap-3 md:grid-cols-2">
+						<label class="form-control w-full">
+							<div class="label py-1"><span class="label-text text-xs">Name</span></div>
+							<input class="input input-bordered input-sm w-full" type="text" name="name" value={ editFormData.Name } required/>
+						</label>
+						<label class="form-control w-full">
+							<div class="label py-1"><span class="label-text text-xs">Description</span></div>
+							<input class="input input-bordered input-sm w-full" type="text" name="description" value={ editFormData.Description }/>
+						</label>
+					</div>
+					if editFormData.StatementType == "google_workspace" {
+						@WorkspaceOperationFields(editFormData, orgSlug, dataSourceSlug)
+					} else if editFormData.StatementType == "http" {
+						<div class="mt-3 grid gap-3 md:grid-cols-2">
+							<label class="form-control w-full">
+								<div class="label py-1"><span class="label-text text-xs">HTTP method</span></div>
+								<select class="select select-bordered input-sm w-full" name="http_method">
+									<option selected?={ editFormData.HTTPMethod == "GET" } value="GET">GET</option>
+									<option selected?={ editFormData.HTTPMethod == "POST" } value="POST">POST</option>
+									<option selected?={ editFormData.HTTPMethod == "PUT" } value="PUT">PUT</option>
+									<option selected?={ editFormData.HTTPMethod == "DELETE" } value="DELETE">DELETE</option>
+									<option selected?={ editFormData.HTTPMethod == "PATCH" } value="PATCH">PATCH</option>
+									<option selected?={ editFormData.HTTPMethod == "HEAD" } value="HEAD">HEAD</option>
+								</select>
+							</label>
+							<label class="form-control w-full">
+								<div class="label py-1"><span class="label-text text-xs">Path</span></div>
+								<input class="input input-bordered input-sm w-full font-mono" type="text" name="http_path" value={ editFormData.HTTPPath } placeholder="/users/{user_id}" data-param-source-input data-http-path-input required/>
+							</label>
+						</div>
+						<div class="mt-3 space-y-2" data-http-tabs>
+							<div class="tabs tabs-boxed w-fit gap-1 bg-base-200 p-1">
+								<button class="tab tab-sm" type="button" data-http-tab="query">Query</button>
+								<button class="tab tab-sm tab-active" type="button" data-http-tab="body">Body</button>
+								<button class="tab tab-sm" type="button" data-http-tab="headers">Headers</button>
+							</div>
+							<div data-http-pane="query" class="hidden">
+								<div class="rounded-lg border border-base-300 p-3" data-kv-editor data-http-query-editor>
+									<div class="flex flex-wrap items-center justify-between gap-2">
+										<p class="text-xs font-semibold uppercase tracking-wide text-base-content/70">Query params</p>
+										<button class="btn btn-outline btn-xs" type="button" data-add-kv>+ Add param</button>
+									</div>
+									<div class="mt-2 space-y-2" data-kv-rows>
+										for _, row := range editFormData.HTTPQueryParamRows {
+											<div class="grid gap-2 md:grid-cols-[1fr_1fr_auto]" data-kv-row>
+												<input class="input input-bordered input-sm font-mono" type="text" name="http_query_param_key" placeholder="key" value={ row.Key }/>
+												<input class="input input-bordered input-sm font-mono" type="text" name="http_query_param_value" placeholder="value" value={ row.Value } data-param-source-input/>
+												<button class="btn btn-ghost btn-xs" type="button" data-remove-kv>Remove</button>
+											</div>
+										}
+									</div>
+									<template data-kv-row-template>
+										<div class="grid gap-2 md:grid-cols-[1fr_1fr_auto]" data-kv-row>
+											<input class="input input-bordered input-sm font-mono" type="text" name="http_query_param_key" placeholder="key" value=""/>
+											<input class="input input-bordered input-sm font-mono" type="text" name="http_query_param_value" placeholder="value" value="" data-param-source-input/>
+											<button class="btn btn-ghost btn-xs" type="button" data-remove-kv>Remove</button>
+										</div>
+									</template>
+								</div>
+							</div>
+							<div data-http-pane="body">
+								<label class="form-control w-full">
+									<div class="label py-1"><span class="label-text text-xs">Body (JSON, optional)</span></div>
+									<textarea class="textarea textarea-bordered min-h-28 w-full font-mono text-sm" name="http_body" placeholder="Any valid JSON value" data-param-source-input>{ editFormData.HTTPBody }</textarea>
+								</label>
+							</div>
+							<div data-http-pane="headers" class="hidden">
+								@httpHeaderNameSuggestions("http-operation-header-names-edit", false)
+								<div class="rounded-lg border border-base-300 p-3" data-kv-editor>
+									<div class="flex flex-wrap items-center justify-between gap-2">
+										<p class="text-xs font-semibold uppercase tracking-wide text-base-content/70">Headers</p>
+										<p class="text-xs text-base-content/70">Choose a suggested header or enter a custom name. Store credentials in the data source secret headers.</p>
+										<button class="btn btn-outline btn-xs" type="button" data-add-kv>+ Add header</button>
+									</div>
+									<div class="mt-2 space-y-2" data-kv-rows>
+										for _, row := range editFormData.HTTPHeaderRows {
+											<div class="grid gap-2 md:grid-cols-[1fr_1fr_auto]" data-kv-row>
+												<input class="input input-bordered input-sm font-mono" type="text" name="http_header_key" list="http-operation-header-names-edit" placeholder="header" value={ row.Key }/>
+												<input class="input input-bordered input-sm font-mono" type="text" name="http_header_value" placeholder="value" value={ row.Value } data-param-source-input/>
+												<button class="btn btn-ghost btn-xs" type="button" data-remove-kv>Remove</button>
+											</div>
+										}
+									</div>
+									<template data-kv-row-template>
+										<div class="grid gap-2 md:grid-cols-[1fr_1fr_auto]" data-kv-row>
+											<input class="input input-bordered input-sm font-mono" type="text" name="http_header_key" list="http-operation-header-names-edit" placeholder="header" value=""/>
+											<input class="input input-bordered input-sm font-mono" type="text" name="http_header_value" placeholder="value" value="" data-param-source-input/>
+											<button class="btn btn-ghost btn-xs" type="button" data-remove-kv>Remove</button>
+										</div>
+									</template>
+								</div>
+							</div>
+						</div>
+						@httpAcknowledgementFields(editFormData.HTTPAcknowledgement)
+						@httpExecutionPolicyFields(editFormData)
+					} else if editFormData.StatementType == "mongodb" {
+						<div class="mt-3 grid gap-3 md:grid-cols-2">
+							<label class="form-control w-full">
+								<div class="label py-1"><span class="label-text text-xs">Collection</span></div>
+								<input class="input input-bordered input-sm w-full" type="text" name="mongo_collection" value={ editFormData.MongoCollection } required/>
+							</label>
+							<label class="form-control w-full">
+								<div class="label py-1"><span class="label-text text-xs">Operation</span></div>
+								<select class="select select-bordered input-sm w-full" name="mongo_operation">
+									<option selected?={ editFormData.MongoOperation == "find" } value="find">find</option>
+									<option selected?={ editFormData.MongoOperation == "aggregate" } value="aggregate">aggregate</option>
+									<option selected?={ editFormData.MongoOperation == "count_documents" } value="count_documents">count_documents</option>
+									<option selected?={ editFormData.MongoOperation == "insert_one" } value="insert_one">insert_one</option>
+									<option selected?={ editFormData.MongoOperation == "update_one" } value="update_one">update_one</option>
+									<option selected?={ editFormData.MongoOperation == "delete_one" } value="delete_one">delete_one</option>
+									<option selected?={ editFormData.MongoOperation == "update_many" } value="update_many">update_many</option>
+									<option selected?={ editFormData.MongoOperation == "delete_many" } value="delete_many">delete_many</option>
+								</select>
+							</label>
+						</div>
+						<label class="form-control mt-3 w-full">
+							<div class="label py-1"><span class="label-text text-xs">Filter (JSON)</span></div>
+							<textarea class="textarea textarea-bordered min-h-24 w-full font-mono text-sm" name="mongo_filter" placeholder="JSON object filter" data-param-source-input>{ editFormData.MongoFilter }</textarea>
+						</label>
+						<div class="mt-3 grid gap-3 md:grid-cols-2">
+							<label class="form-control w-full">
+								<div class="label py-1"><span class="label-text text-xs">Sort (JSON)</span></div>
+								<textarea class="textarea textarea-bordered min-h-24 w-full font-mono text-sm" name="mongo_sort" placeholder="JSON object sort, values 1 or -1" data-param-source-input>{ editFormData.MongoSort }</textarea>
+							</label>
+							<label class="form-control w-full">
+								<div class="label py-1"><span class="label-text text-xs">Projection (JSON)</span></div>
+								<textarea class="textarea textarea-bordered min-h-24 w-full font-mono text-sm" name="mongo_projection" placeholder="JSON object projection, values 0 or 1" data-param-source-input>{ editFormData.MongoProjection }</textarea>
+							</label>
+						</div>
+						<div class="mt-3 grid gap-3 md:grid-cols-2">
+							<label class="form-control w-full">
+								<div class="label py-1"><span class="label-text text-xs">Limit value (optional)</span></div>
+								<input class="input input-bordered input-sm w-full" type="number" min="1" name="mongo_limit_value" value={ editFormData.MongoLimitValue }/>
+							</label>
+							<label class="form-control w-full">
+								<div class="label py-1"><span class="label-text text-xs">Document (JSON, optional)</span></div>
+								<textarea class="textarea textarea-bordered min-h-24 w-full font-mono text-sm" name="mongo_document" placeholder="JSON object document" data-param-source-input>{ editFormData.MongoDocument }</textarea>
+							</label>
+						</div>
+					} else if editFormData.StatementType == "hubspot" {
+						<div class="mt-3 rounded-lg border border-base-300 bg-base-200/40 p-3">
+							<p class="text-xs font-semibold uppercase tracking-wide text-base-content/70">HubSpot CRM</p>
+							<p class="mt-1 text-xs text-base-content/70">Read CRM rows or configure a key-based upsert sink. Row limit caps reads and sink input rows.</p>
+						</div>
+						<div class="mt-3 grid gap-3 md:grid-cols-2">
+							<label class="form-control w-full">
+								<div class="label py-1"><span class="label-text text-xs">Object name or type ID</span></div>
+								<input class="input input-bordered input-sm w-full font-mono" type="text" name="hubspot_object_type" value={ editFormData.HubSpotObjectType } list="hubspot-object-types-edit" placeholder="contacts or 2-7282133" required/>
+								<datalist id="hubspot-object-types-edit">
+									<option value="contacts"></option>
+									<option value="companies"></option>
+									<option value="deals"></option>
+								</datalist>
+								<div class="label py-1"><span class="label-text-alt text-base-content/60">Use the object type ID shown by schema discovery for custom objects.</span></div>
+							</label>
+							<label class="form-control w-full">
+								<div class="label py-1"><span class="label-text text-xs">Operation</span></div>
+								<select class="select select-bordered input-sm w-full" name="hubspot_operation" data-hubspot-operation-select>
+									<option selected?={ editFormData.HubSpotOperation == "search" } value="search">search</option>
+									<option selected?={ editFormData.HubSpotOperation == "list" } value="list">list</option>
+									<option selected?={ editFormData.HubSpotOperation == "upsert" } value="upsert">upsert</option>
+								</select>
+							</label>
+						</div>
+						<div class={ func() string { if editFormData.HubSpotOperation == "upsert" { return "mt-3 grid gap-3 rounded-lg border border-base-300 bg-base-200/40 p-3 md:grid-cols-2" }; return "mt-3 hidden grid gap-3 rounded-lg border border-base-300 bg-base-200/40 p-3 md:grid-cols-2" }() } data-hubspot-upsert-fields>
+							<label class="form-control w-full">
+								<div class="label py-1"><span class="label-text text-xs">Upsert ID property</span></div>
+								<input class="input input-bordered input-sm w-full font-mono" type="text" name="hubspot_id_property" value={ editFormData.HubSpotIDProperty } placeholder="external_customer_id" data-param-source-input/>
+								<div class="label py-1"><span class="label-text-alt text-base-content/60">Must be a unique HubSpot property and included as a mapping target.</span></div>
+							</label>
+							<label class="form-control w-full">
+								<div class="label py-1"><span class="label-text text-xs">Rows binding</span></div>
+								<input class="input input-bordered input-sm w-full font-mono" type="text" name="hubspot_rows" value={ editFormData.HubSpotRows } placeholder="{{input}}" data-param-source-input/>
+								<div class="label py-1"><span class="label-text-alt text-base-content/60">Use the input placeholder for pipeline sink rows.</span></div>
+							</label>
+							<label class="form-control w-full md:col-span-2">
+								<div class="label py-1"><span class="label-text text-xs">Upsert property mapping (JSON)</span></div>
+								<textarea class="textarea textarea-bordered min-h-24 w-full font-mono text-sm" name="hubspot_property_mapping" placeholder='{"customer_id":"external_customer_id","email":"email"}' data-param-source-input>{ editFormData.HubSpotMapping }</textarea>
+							</label>
+						</div>
+						<label class="form-control mt-3 w-full">
+							<div class="label py-1"><span class="label-text text-xs">Properties (comma or newline separated)</span></div>
+							<textarea class="textarea textarea-bordered min-h-24 w-full font-mono text-sm" name="hubspot_properties" placeholder="email, firstname, lastname" data-param-source-input>{ editFormData.HubSpotProperties }</textarea>
+						</label>
+						<div class="mt-3 grid gap-3 md:grid-cols-2">
+							<label class="form-control w-full">
+								<div class="label py-1"><span class="label-text text-xs">Search query (optional)</span></div>
+								<input class="input input-bordered input-sm w-full font-mono" type="text" name="hubspot_query" value={ editFormData.HubSpotQuery } placeholder="acme" data-param-source-input/>
+							</label>
+							<label class="form-control w-full">
+								<div class="label py-1"><span class="label-text text-xs">After cursor (optional)</span></div>
+								<input class="input input-bordered input-sm w-full font-mono" type="text" name="hubspot_after" value={ editFormData.HubSpotAfter } placeholder="1024" data-param-source-input/>
+							</label>
+						</div>
+						<label class="form-control mt-3 w-full">
+							<div class="label py-1"><span class="label-text text-xs">Sorts (comma or newline separated, search only)</span></div>
+							<input class="input input-bordered input-sm w-full font-mono" type="text" name="hubspot_sorts" value={ editFormData.HubSpotSorts } placeholder="-createdate, hs_lastmodifieddate" data-param-source-input/>
+						</label>
+						<label class="form-control mt-3 w-full">
+							<div class="label py-1"><span class="label-text text-xs">Filter groups (JSON, search only)</span></div>
+							<textarea class="textarea textarea-bordered min-h-28 w-full font-mono text-sm" name="hubspot_filter_groups" placeholder='[{"filters":[{"property_name":"email","operator":"EQ","value":"{{email}}"}]}]' data-param-source-input>{ editFormData.HubSpotFilterGroups }</textarea>
+						</label>
+					} else if editFormData.StatementType == "ftp" {
+						<label class="form-control mt-3 w-full">
+							<div class="label py-1"><span class="label-text text-xs">Path</span></div>
+							<input class="input input-bordered input-sm w-full font-mono" type="text" name="ftp_path" value={ editFormData.FTPPath } placeholder="/path/to/file.xlsx" data-param-source-input required/>
+						</label>
+						<input type="hidden" name="ftp_operation" value={ editFormData.FTPOperation }/>
+						if editFormData.FTPOperation == "write" {
+							<label class="form-control mt-3 w-full">
+								<div class="label py-1"><span class="label-text text-xs">Content (JSON)</span></div>
+								<textarea class="textarea textarea-bordered min-h-28 w-full font-mono text-sm" name="ftp_content" data-param-source-input>{ editFormData.FTPContent }</textarea>
+							</label>
+							<label class="label cursor-pointer justify-start gap-3">
+								<input class="checkbox checkbox-sm" type="checkbox" name="ftp_overwrite" value="on" checked?={ editFormData.FTPOverwrite }/>
+								<span class="label-text text-xs">Overwrite existing files</span>
+							</label>
+						}
+						<div class="mt-3 grid gap-3 md:grid-cols-2">
+							<label class="form-control w-full">
+								<div class="label py-1"><span class="label-text text-xs">Format</span></div>
+								<select class="select select-bordered select-sm w-full" name="ftp_format">
+									<option value="auto" selected?={ editFormData.FTPFormat == "auto" }>Auto</option>
+									<option value="csv" selected?={ editFormData.FTPFormat == "csv" }>CSV</option>
+									<option value="json" selected?={ editFormData.FTPFormat == "json" }>JSON</option>
+									<option value="spreadsheet" selected?={ editFormData.FTPFormat == "spreadsheet" }>Spreadsheet</option>
+								</select>
+							</label>
+							<label class="form-control w-full">
+								<div class="label py-1"><span class="label-text text-xs">Delimiter (optional, single character)</span></div>
+								<input class="input input-bordered input-sm w-full font-mono" type="text" maxlength="1" name="ftp_delimiter" value={ editFormData.FTPDelimiter } placeholder=","/>
+							</label>
+							<label class="form-control w-full">
+								<div class="label py-1"><span class="label-text text-xs">Sheet (optional)</span></div>
+								<input class="input input-bordered input-sm w-full font-mono" type="text" name="ftp_sheet" value={ editFormData.FTPSheet } placeholder="Orders" data-param-source-input/>
+							</label>
+							<label class="form-control w-full">
+								<div class="label py-1"><span class="label-text text-xs">Range (optional)</span></div>
+								<input class="input input-bordered input-sm w-full font-mono" type="text" name="ftp_range" value={ editFormData.FTPRange } placeholder="A1:D200" data-param-source-input/>
+							</label>
+							<div class="flex flex-col gap-2 pt-1">
+								<label class="label cursor-pointer justify-start gap-3">
+									<input class="checkbox checkbox-sm" type="checkbox" name="ftp_has_header" value="on" checked?={ editFormData.FTPHasHeader }/>
+									<span class="label-text text-xs">Has header row</span>
+								</label>
+							</div>
+						</div>
+					} else if editFormData.StatementType == "git" {
+						<label class="form-control mt-3 w-full">
+							<div class="label py-1"><span class="label-text text-xs">Path</span></div>
+							<input class="input input-bordered input-sm w-full font-mono" type="text" name="git_path" value={ editFormData.GitPath } placeholder="data/file.xlsx" data-param-source-input required/>
+						</label>
+						<input type="hidden" name="git_operation" value={ editFormData.GitOperation }/>
+						if editFormData.GitOperation == "write" {
+							<label class="form-control mt-3 w-full">
+								<div class="label py-1"><span class="label-text text-xs">Content (JSON)</span></div>
+								<textarea class="textarea textarea-bordered min-h-28 w-full font-mono text-sm" name="git_content" data-param-source-input>{ editFormData.GitContent }</textarea>
+							</label>
+							<label class="form-control mt-3 w-full">
+								<div class="label py-1"><span class="label-text text-xs">Commit message</span></div>
+								<input class="input input-bordered input-sm w-full" type="text" name="git_message" value={ editFormData.GitMessage }/>
+							</label>
+						}
+						<div class="mt-3 grid gap-3 md:grid-cols-2">
+							<label class="form-control w-full">
+								<div class="label py-1"><span class="label-text text-xs">Branch / ref (optional)</span></div>
+								<input class="input input-bordered input-sm w-full font-mono" type="text" name="git_branch" value={ editFormData.GitBranch } placeholder="main"/>
+							</label>
+							<label class="form-control w-full">
+								<div class="label py-1"><span class="label-text text-xs">Format</span></div>
+								<select class="select select-bordered select-sm w-full" name="git_format">
+									<option value="auto" selected?={ editFormData.GitFormat == "auto" }>Auto</option>
+									<option value="csv" selected?={ editFormData.GitFormat == "csv" }>CSV</option>
+									<option value="json" selected?={ editFormData.GitFormat == "json" }>JSON</option>
+									<option value="file" selected?={ editFormData.GitFormat == "file" }>File</option>
+									<option value="spreadsheet" selected?={ editFormData.GitFormat == "spreadsheet" }>Spreadsheet</option>
+								</select>
+							</label>
+							<label class="form-control w-full">
+								<div class="label py-1"><span class="label-text text-xs">Delimiter (optional, single character)</span></div>
+								<input class="input input-bordered input-sm w-full font-mono" type="text" maxlength="1" name="git_delimiter" value={ editFormData.GitDelimiter } placeholder=","/>
+							</label>
+							<label class="form-control w-full">
+								<div class="label py-1"><span class="label-text text-xs">Sheet (optional)</span></div>
+								<input class="input input-bordered input-sm w-full font-mono" type="text" name="git_sheet" value={ editFormData.GitSheet } placeholder="Orders" data-param-source-input/>
+							</label>
+							<label class="form-control w-full">
+								<div class="label py-1"><span class="label-text text-xs">Range (optional)</span></div>
+								<input class="input input-bordered input-sm w-full font-mono" type="text" name="git_range" value={ editFormData.GitRange } placeholder="A1:D200" data-param-source-input/>
+							</label>
+						</div>
+						<div class="mt-3 grid gap-3 md:grid-cols-2">
+							<div class="flex flex-col gap-2 pt-1">
+								<label class="label cursor-pointer justify-start gap-3">
+									<input class="checkbox checkbox-sm" type="checkbox" name="git_has_header" value="on" checked?={ editFormData.GitHasHeader }/>
+									<span class="label-text text-xs">Has header row</span>
+								</label>
+							</div>
+						</div>
+					} else {
+						<label class="form-control mt-3 w-full">
+							<div class="label py-1"><span class="label-text text-xs">Statement</span></div>
+							<textarea class="textarea textarea-bordered min-h-40 w-full font-mono text-sm" name="statement" data-param-source-input required>{ editFormData.Statement }</textarea>
+						</label>
+						if editFormData.StatementType == "s3" {
+							<p class="mt-2 text-xs text-base-content/70">S3 operation JSON. Review the object key, content and overwrite policy before running.</p>
+						}
+					}
+					<details class="mt-3">
+						<summary class="cursor-pointer text-sm font-semibold">Advanced limits</summary>
+						<div class={ "mt-3 grid gap-2 md:grid-cols-2" }>
+							if editFormData.StatementType != "http" {
+								<label class="form-control w-full">
+									<div class="label py-1"><span class="label-text text-xs">Row limit</span></div>
+									<input class="input input-bordered input-sm w-full" type="number" min="1" name="row_limit" value={ editFormData.RowLimit } required/>
+								</label>
+							}
+							<label class="form-control w-full">
+								<div class="label py-1"><span class="label-text text-xs">Timeout (seconds)</span></div>
+								<input class="input input-bordered input-sm w-full" type="number" min="1" name="timeout_seconds" value={ editFormData.TimeoutSeconds } required/>
+							</label>
+						</div>
+					</details>
+					<div class="mt-3 rounded-lg border border-base-300 p-3" data-param-editor>
+						<div class="flex flex-wrap items-center justify-between gap-2">
+							<p class="text-xs font-semibold uppercase tracking-wide text-base-content/70">Parameters</p>
+							<div class="flex flex-wrap gap-2">
+								<button class="btn btn-outline btn-xs" data-add-param type="button">+ Add param</button>
+								<button class="btn btn-outline btn-xs" data-sync-params type="button">Sync from statement</button>
+							</div>
+						</div>
+						<div class="mt-2 space-y-2" data-param-rows>
+							for _, param := range editFormData.Parameters {
+								<div class="grid gap-2 xl:grid-cols-[1.2fr_0.8fr_0.8fr_1fr_1.4fr_auto_auto]" data-param-row>
+									<input class="input input-bordered input-sm" type="text" name="param_name" placeholder="name" value={ param.Name }/>
+									<select class="select select-bordered select-sm" name="param_type">
+										<option selected?={ param.Type == string(api.QueryParameterDataTypeText) } value={ string(api.QueryParameterDataTypeText) }>text</option>
+										<option selected?={ param.Type == string(api.QueryParameterDataTypeInteger) } value={ string(api.QueryParameterDataTypeInteger) }>integer</option>
+										<option selected?={ param.Type == string(api.QueryParameterDataTypeBoolean) } value={ string(api.QueryParameterDataTypeBoolean) }>boolean</option>
+										<option selected?={ param.Type == string(api.QueryParameterDataTypeDate) } value={ string(api.QueryParameterDataTypeDate) }>date</option>
+										<option selected?={ param.Type == string(api.QueryParameterDataTypeUuid) } value={ string(api.QueryParameterDataTypeUuid) }>uuid</option>
+									</select>
+									<select class="select select-bordered select-sm" name="param_required">
+										<option selected?={ param.Required } value="true">required</option>
+										<option selected?={ !param.Required } value="false">optional</option>
+									</select>
+									<input class="input input-bordered input-sm" type="text" name="param_default" placeholder="default" value={ param.DefaultValue }/>
+									<input class="input input-bordered input-sm" type="text" name="param_description" placeholder="description" value={ param.Description }/>
+									<input type="hidden" name="param_source" value={ param.Source } data-param-source/>
+									<span class="badge badge-outline badge-sm self-center" data-param-source-badge>{ param.Source }</span>
+									<button class="btn btn-ghost btn-xs self-center" type="button" data-remove-param>Remove</button>
+								</div>
+							}
+						</div>
+						<template data-param-row-template>
+							<div class="grid gap-2 xl:grid-cols-[1.2fr_0.8fr_0.8fr_1fr_1.4fr_auto_auto]" data-param-row>
+								<input class="input input-bordered input-sm" type="text" name="param_name" placeholder="name" value=""/>
+								<select class="select select-bordered select-sm" name="param_type">
+									<option selected value={ string(api.QueryParameterDataTypeText) }>text</option>
+									<option value={ string(api.QueryParameterDataTypeInteger) }>integer</option>
+									<option value={ string(api.QueryParameterDataTypeBoolean) }>boolean</option>
+									<option value={ string(api.QueryParameterDataTypeDate) }>date</option>
+									<option value={ string(api.QueryParameterDataTypeUuid) }>uuid</option>
+								</select>
+								<select class="select select-bordered select-sm" name="param_required">
+									<option value="true">required</option>
+									<option selected value="false">optional</option>
+								</select>
+								<input class="input input-bordered input-sm" type="text" name="param_default" placeholder="default" value=""/>
+								<input class="input input-bordered input-sm" type="text" name="param_description" placeholder="description" value=""/>
+								<input type="hidden" name="param_source" value="manual" data-param-source/>
+								<span class="badge badge-outline badge-sm self-center" data-param-source-badge>manual</span>
+								<button class="btn btn-ghost btn-xs self-center" type="button" data-remove-param>Remove</button>
+							</div>
+						</template>
+					</div>
+				</form>
+			} else {
+				<div class="mt-4 rounded-xl border border-base-300 bg-base-100 p-4">
+					<div class="flex flex-wrap items-center justify-between gap-2">
+						<p class="text-sm font-semibold text-base-content">Query definition (read-only)</p>
+						<div class="badge badge-outline">No update permission</div>
+					</div>
+					<div class="mt-3 grid gap-3 md:grid-cols-2">
+						<div>
+							<p class="text-xs uppercase tracking-wide text-base-content/60">Name</p>
+							<p class="mt-1 text-sm text-base-content">{ editFormData.Name }</p>
+						</div>
+						<div>
+							<p class="text-xs uppercase tracking-wide text-base-content/60">Description</p>
+							if editFormData.Description != "" {
+								<p class="mt-1 text-sm text-base-content">{ editFormData.Description }</p>
+							} else {
+								<p class="mt-1 text-sm text-base-content">-</p>
+							}
+						</div>
+					</div>
+					if editFormData.StatementType == "google_workspace" {
+						<div class="mt-3 grid gap-3 md:grid-cols-3">
+							<div>
+								<p class="text-xs uppercase tracking-wide text-base-content/60">Worksheet ID</p>
+								<p class="mt-1 text-sm text-base-content">{ editFormData.WorkspaceWorksheetID }</p>
+							</div>
+							<div>
+								<p class="text-xs uppercase tracking-wide text-base-content/60">Range</p>
+								<p class="mt-1 font-mono text-sm text-base-content">{ editFormData.WorkspaceRange }</p>
+							</div>
+							<div>
+								<p class="text-xs uppercase tracking-wide text-base-content/60">Operation</p>
+								<p class="mt-1 text-sm text-base-content">{ editFormData.WorkspaceOperation }</p>
+							</div>
+						</div>
+					} else if editFormData.StatementType == "http" {
+						<div class="mt-3 grid gap-3 md:grid-cols-2">
+							<div>
+								<p class="text-xs uppercase tracking-wide text-base-content/60">HTTP method</p>
+								<p class="mt-1 text-sm text-base-content">{ editFormData.HTTPMethod }</p>
+							</div>
+							<div>
+								<p class="text-xs uppercase tracking-wide text-base-content/60">Path</p>
+								<p class="mt-1 break-all font-mono text-sm text-base-content">{ editFormData.HTTPPath }</p>
+							</div>
+						</div>
+						if len(editFormData.HTTPBody) > 0 {
+							<div class="mt-3">
+								<p class="text-xs uppercase tracking-wide text-base-content/60">Body</p>
+								<pre class="mt-1 overflow-x-auto rounded-lg border border-base-300 bg-base-200 p-3 text-xs">{ editFormData.HTTPBody }</pre>
+							</div>
+						}
+					} else if editFormData.StatementType == "mongodb" {
+						<div class="mt-3 grid gap-3 md:grid-cols-2">
+							<div>
+								<p class="text-xs uppercase tracking-wide text-base-content/60">Collection</p>
+								<p class="mt-1 text-sm text-base-content">{ editFormData.MongoCollection }</p>
+							</div>
+							<div>
+								<p class="text-xs uppercase tracking-wide text-base-content/60">Operation</p>
+								<p class="mt-1 text-sm text-base-content">{ editFormData.MongoOperation }</p>
+							</div>
+						</div>
+						if len(editFormData.MongoFilter) > 0 {
+							<div class="mt-3">
+								<p class="text-xs uppercase tracking-wide text-base-content/60">Filter</p>
+								<pre class="mt-1 overflow-x-auto rounded-lg border border-base-300 bg-base-200 p-3 text-xs">{ editFormData.MongoFilter }</pre>
+							</div>
+						}
+					} else if editFormData.StatementType == "hubspot" {
+						<div class="mt-3 grid gap-3 md:grid-cols-2">
+							<div>
+								<p class="text-xs uppercase tracking-wide text-base-content/60">Object</p>
+								<p class="mt-1 text-sm text-base-content">{ editFormData.HubSpotObjectType }</p>
+							</div>
+							<div>
+								<p class="text-xs uppercase tracking-wide text-base-content/60">Operation</p>
+								<p class="mt-1 text-sm text-base-content">{ editFormData.HubSpotOperation }</p>
+							</div>
+						</div>
+						if editFormData.HubSpotProperties != "" {
+							<div class="mt-3">
+								<p class="text-xs uppercase tracking-wide text-base-content/60">Properties</p>
+								<p class="mt-1 break-all font-mono text-sm text-base-content">{ editFormData.HubSpotProperties }</p>
+							</div>
+						}
+						if editFormData.HubSpotQuery != "" {
+							<div class="mt-3">
+								<p class="text-xs uppercase tracking-wide text-base-content/60">Search query</p>
+								<p class="mt-1 break-all font-mono text-sm text-base-content">{ editFormData.HubSpotQuery }</p>
+							</div>
+						}
+						if editFormData.HubSpotAfter != "" {
+							<div class="mt-3">
+								<p class="text-xs uppercase tracking-wide text-base-content/60">After cursor</p>
+								<p class="mt-1 break-all font-mono text-sm text-base-content">{ editFormData.HubSpotAfter }</p>
+							</div>
+						}
+						if editFormData.HubSpotSorts != "" {
+							<div class="mt-3">
+								<p class="text-xs uppercase tracking-wide text-base-content/60">Sorts</p>
+								<p class="mt-1 break-all font-mono text-sm text-base-content">{ editFormData.HubSpotSorts }</p>
+							</div>
+						}
+						if editFormData.HubSpotFilterGroups != "" {
+							<div class="mt-3">
+								<p class="text-xs uppercase tracking-wide text-base-content/60">Filter groups</p>
+								<pre class="mt-1 overflow-x-auto rounded-lg border border-base-300 bg-base-200 p-3 text-xs">{ editFormData.HubSpotFilterGroups }</pre>
+							</div>
+						}
+						if editFormData.HubSpotOperation == "upsert" {
+							<div class="mt-3 grid gap-3 md:grid-cols-2">
+								<div>
+									<p class="text-xs uppercase tracking-wide text-base-content/60">Upsert ID property</p>
+									<p class="mt-1 break-all font-mono text-sm text-base-content">{ editFormData.HubSpotIDProperty }</p>
+								</div>
+								<div>
+									<p class="text-xs uppercase tracking-wide text-base-content/60">Rows binding</p>
+									<p class="mt-1 break-all font-mono text-sm text-base-content">{ editFormData.HubSpotRows }</p>
+								</div>
+								<div class="md:col-span-2">
+									<p class="text-xs uppercase tracking-wide text-base-content/60">Property mapping</p>
+									<pre class="mt-1 overflow-x-auto rounded-lg border border-base-300 bg-base-200 p-3 text-xs">{ editFormData.HubSpotMapping }</pre>
+								</div>
+							</div>
+						}
+					} else if editFormData.StatementType == "ftp" {
+						<div class="mt-3 grid gap-3 md:grid-cols-2">
+							<div>
+								<p class="text-xs uppercase tracking-wide text-base-content/60">Path</p>
+								<p class="mt-1 break-all font-mono text-sm text-base-content">{ editFormData.FTPPath }</p>
+							</div>
+							<div>
+								<p class="text-xs uppercase tracking-wide text-base-content/60">Operation</p>
+								<p class="mt-1 text-sm text-base-content">{ editFormData.FTPOperation }</p>
+							</div>
+							<div>
+								<p class="text-xs uppercase tracking-wide text-base-content/60">Format</p>
+								<p class="mt-1 text-sm text-base-content">{ editFormData.FTPFormat }</p>
+							</div>
+							<div>
+								<p class="text-xs uppercase tracking-wide text-base-content/60">Delimiter</p>
+								<p class="mt-1 text-sm text-base-content">{ valueOrFallback(editFormData.FTPDelimiter, "-") }</p>
+							</div>
+							<div>
+								<p class="text-xs uppercase tracking-wide text-base-content/60">Has header</p>
+								<p class="mt-1 text-sm text-base-content">{ boolText(editFormData.FTPHasHeader) }</p>
+							</div>
+							<div>
+								<p class="text-xs uppercase tracking-wide text-base-content/60">Sheet</p>
+								<p class="mt-1 text-sm text-base-content">{ valueOrFallback(editFormData.FTPSheet, "-") }</p>
+							</div>
+							<div>
+								<p class="text-xs uppercase tracking-wide text-base-content/60">Range</p>
+								<p class="mt-1 text-sm text-base-content">{ valueOrFallback(editFormData.FTPRange, "-") }</p>
+							</div>
+							<div>
+								<p class="text-xs uppercase tracking-wide text-base-content/60">Overwrite</p>
+								<p class="mt-1 text-sm text-base-content">{ boolText(editFormData.FTPOverwrite) }</p>
+							</div>
+						</div>
+					} else if editFormData.StatementType == "s3" {
+						<div class="mt-3 grid gap-3 md:grid-cols-2">
+							<div><p class="text-xs uppercase tracking-wide text-base-content/60">Object key</p><p class="mt-1 break-all font-mono text-sm text-base-content">{ editFormData.S3Key }</p></div>
+							<div><p class="text-xs uppercase tracking-wide text-base-content/60">Bucket override</p><p class="mt-1 break-all font-mono text-sm text-base-content">{ valueOrFallback(editFormData.S3Bucket, "-") }</p></div>
+							<div><p class="text-xs uppercase tracking-wide text-base-content/60">Operation</p><p class="mt-1 text-sm text-base-content">{ editFormData.S3Operation }</p></div>
+							<div><p class="text-xs uppercase tracking-wide text-base-content/60">Format</p><p class="mt-1 text-sm text-base-content">{ editFormData.S3Format }</p></div>
+							<div><p class="text-xs uppercase tracking-wide text-base-content/60">Delimiter</p><p class="mt-1 text-sm text-base-content">{ valueOrFallback(editFormData.S3Delimiter, "-") }</p></div>
+							<div><p class="text-xs uppercase tracking-wide text-base-content/60">Has header</p><p class="mt-1 text-sm text-base-content">{ boolText(editFormData.S3HasHeader) }</p></div>
+							<div><p class="text-xs uppercase tracking-wide text-base-content/60">Sheet</p><p class="mt-1 text-sm text-base-content">{ valueOrFallback(editFormData.S3Sheet, "-") }</p></div>
+							<div><p class="text-xs uppercase tracking-wide text-base-content/60">Range</p><p class="mt-1 text-sm text-base-content">{ valueOrFallback(editFormData.S3Range, "-") }</p></div>
+						</div>
+						<pre class="mt-3 whitespace-pre-wrap break-all font-mono text-xs">{ editFormData.Statement }</pre>
+					} else if editFormData.StatementType == "git" {
+						<div class="mt-3 grid gap-3 md:grid-cols-2">
+							<div>
+								<p class="text-xs uppercase tracking-wide text-base-content/60">Path</p>
+								<p class="mt-1 break-all font-mono text-sm text-base-content">{ editFormData.GitPath }</p>
+							</div>
+							<div>
+								<p class="text-xs uppercase tracking-wide text-base-content/60">Operation</p>
+								<p class="mt-1 text-sm text-base-content">{ editFormData.GitOperation }</p>
+							</div>
+							<div>
+								<p class="text-xs uppercase tracking-wide text-base-content/60">Format</p>
+								<p class="mt-1 text-sm text-base-content">{ editFormData.GitFormat }</p>
+							</div>
+							<div>
+								<p class="text-xs uppercase tracking-wide text-base-content/60">Delimiter</p>
+								<p class="mt-1 text-sm text-base-content">{ valueOrFallback(editFormData.GitDelimiter, "-") }</p>
+							</div>
+							<div>
+								<p class="text-xs uppercase tracking-wide text-base-content/60">Has header</p>
+								<p class="mt-1 text-sm text-base-content">{ boolText(editFormData.GitHasHeader) }</p>
+							</div>
+							<div>
+								<p class="text-xs uppercase tracking-wide text-base-content/60">Sheet</p>
+								<p class="mt-1 text-sm text-base-content">{ valueOrFallback(editFormData.GitSheet, "-") }</p>
+							</div>
+							<div>
+								<p class="text-xs uppercase tracking-wide text-base-content/60">Range</p>
+								<p class="mt-1 text-sm text-base-content">{ valueOrFallback(editFormData.GitRange, "-") }</p>
+							</div>
+							<div>
+								<p class="text-xs uppercase tracking-wide text-base-content/60">Branch / ref</p>
+								<p class="mt-1 text-sm text-base-content">{ valueOrFallback(editFormData.GitBranch, "-") }</p>
+							</div>
+							<div class="md:col-span-2">
+								<p class="text-xs uppercase tracking-wide text-base-content/60">Commit message</p>
+								<p class="mt-1 text-sm text-base-content">{ valueOrFallback(editFormData.GitMessage, "-") }</p>
+							</div>
+						</div>
+					} else {
+						<div class="mt-3">
+							<p class="text-xs uppercase tracking-wide text-base-content/60">Statement</p>
+							<pre class="mt-1 overflow-x-auto rounded-lg border border-base-300 bg-base-200 p-3 text-xs">{ editFormData.Statement }</pre>
+						</div>
+					}
+					<div class="mt-3 grid gap-3 md:grid-cols-2">
+						if editFormData.StatementType != "http" {
+							<div>
+								<p class="text-xs uppercase tracking-wide text-base-content/60">Row limit</p>
+								<p class="mt-1 text-sm text-base-content">{ editFormData.RowLimit }</p>
+							</div>
+						}
+						<div>
+							<p class="text-xs uppercase tracking-wide text-base-content/60">Timeout (seconds)</p>
+							<p class="mt-1 text-sm text-base-content">{ editFormData.TimeoutSeconds }</p>
+						</div>
+					</div>
+					if len(editFormData.Parameters) > 0 {
+						<div class="mt-3">
+							<p class="text-xs uppercase tracking-wide text-base-content/60">Parameters</p>
+							<div class="mt-1 flex flex-wrap gap-2">
+								for _, param := range editFormData.Parameters {
+									<div class="badge badge-outline badge-sm">{ param.Name }: { param.Type }</div>
+								}
+							</div>
+						</div>
+					}
+				</div>
+			}
+			if permissions.Can("queries", "execute") {
+				<div id="query-execution-panel">
+					<form
+						id="query-execute-form"
+						class="mt-4 rounded-xl border border-base-300 bg-base-100 p-4"
+						method="post"
+						action={ templ.URL(entityDetailHref("/orgs/"+orgSlug+"/data-sources/"+dataSourceSlug+"/queries/"+string(query.Slug)+"/execute", entityBackHref(ctx, QueriesListHref(orgSlug, dataSourceSlug, string(query.Slug), query.DeletedAt != nil)))) }
+						hx-post={ entityDetailHref("/orgs/"+orgSlug+"/data-sources/"+dataSourceSlug+"/queries/"+string(query.Slug)+"/execute", entityBackHref(ctx, QueriesListHref(orgSlug, dataSourceSlug, string(query.Slug), query.DeletedAt != nil))) }
+						hx-target="#query-execution-feedback-slot"
+						hx-select="#query-execution-feedback-slot &gt; *"
+						hx-swap="innerHTML"
+					>
+						<p class="text-sm font-semibold text-base-content">Direct data-source execution inputs</p>
+						<p class="mt-1 text-xs text-base-content/70">Run query executes the latest saved definition against this data source.</p>
+						<div class="mt-2 grid gap-2 md:grid-cols-2 xl:grid-cols-3">
+							for _, parameter := range query.Parameters {
+								<label class="form-control w-full">
+									<div class="label py-1">
+										<span class="label-text text-xs">{ parameter.Name } ({ string(parameter.DataType) })</span>
+									</div>
+									<input class="input input-bordered input-sm w-full" type="text" name={ QueryExecutionFieldName(parameter.Name) } value={ valueOrEmpty(parameter.DefaultValue) } placeholder={ valueOrEmpty(parameter.Description) }/>
+								</label>
+							}
+						</div>
+					</form>
+				</div>
+			}
+			if permissions.Can("queries", "delete") {
+				<form
+					id="query-delete-form"
+					method="post"
+					action={ templ.URL(entityDetailHref("/orgs/"+orgSlug+"/data-sources/"+dataSourceSlug+"/queries/"+string(query.Slug)+"/delete", entityBackHref(ctx, QueriesListHref(orgSlug, dataSourceSlug, string(query.Slug), query.DeletedAt != nil)))) }
+					hx-post={ entityDetailHref("/orgs/"+orgSlug+"/data-sources/"+dataSourceSlug+"/queries/"+string(query.Slug)+"/delete", entityBackHref(ctx, QueriesListHref(orgSlug, dataSourceSlug, string(query.Slug), query.DeletedAt != nil))) }
+					hx-target={ htmxMainContentSelector }
+					hx-select={ htmxMainContentSelector }
+					hx-swap={ htmxScrollPreserveSwap }
+					hx-confirm={ DestructiveConfirmation("Delete", "query", DestructiveResourceLabel(query.Name, string(query.Slug)), "It will move to deleted queries.") }
+					data-destructive-confirm={ DestructiveConfirmation("Delete", "query", DestructiveResourceLabel(query.Name, string(query.Slug)), "It will move to deleted queries.") }
+					data-preserve-scroll
+				></form>
+			}
+			<div class="query-detail-actionbar mt-6 border-t border-base-300 py-3">
+				<div class="flex flex-wrap items-center justify-between gap-2">
+					<p class="text-xs text-base-content/70">Save changes before running the latest saved definition.</p>
+					<div class="flex flex-wrap items-center gap-2">
+						if permissions.Can("queries", "delete") {
+							<button class="btn btn-error btn-outline btn-sm" type="submit" form="query-delete-form">Delete</button>
+						}
+						if permissions.Can("queries", "execute") {
+							<button id="query-run-btn" class="btn btn-outline btn-sm" type="submit" form="query-execute-form" data-idle-label="Run query" data-loading-label="Running...">Run query</button>
+						}
+						if permissions.Can("queries", "update") {
+							<button class="btn btn-primary btn-sm" type="submit" form="query-update-form" data-dirty-submit disabled>Save</button>
+						}
+					</div>
+				</div>
+			</div>
+		</div>
+		@QueryExecutionFeedbackSlot(executionResult, executionError, executionErrorDetails)
+		<script src={ versionedAssetPath("/assets/js/query_param_editor.js") }></script>
+	</div>
+}
+
+templ QueryExecutionFeedbackSlot(executionResult *QueryExecutionResultView, executionError string, executionErrorDetails string) {
+	<div id="query-execution-feedback-slot" hidden?={ executionResult == nil && executionError == "" } role="tabpanel" aria-labelledby="query-results-tab" class="scroll-mt-24" tabindex="0">
+		if executionError == "" && executionResult == nil {
+			@EntityState("No results yet", "Run the saved query to see results here.")
+		}
+		if executionError != "" || executionResult != nil {
+			<div id="query-execution-feedback" data-query-execution-feedback="true" tabindex="-1">
+				if executionError != "" {
+					if executionErrorDetails != "" {
+						@ErrorPopup("query-execution-error-popup", executionError, executionErrorDetails)
+					} else {
+						<div class="alert alert-warning mt-4 py-2 text-sm text-base-content">
+							<span>{ executionError }</span>
+						</div>
+					}
+				}
+				if executionResult != nil {
+					<div class="mt-4 rounded-xl border border-base-300 bg-base-100 p-4">
+						<div class="flex flex-wrap items-center justify-between gap-2">
+							<h3 class="text-sm font-semibold text-base-content">Result</h3>
+							<p class="text-xs text-base-content/70">Duration: { executionResult.DurationMs }ms</p>
+						</div>
+						<div class="mt-2 flex flex-wrap items-center gap-2 text-xs text-base-content/70">
+							<div class="badge badge-outline">{ executionResult.Type }</div>
+							if executionResult.Success {
+								<div class="badge badge-success">success</div>
+							} else {
+								<div class="badge badge-warning">failed</div>
+							}
+							for _, line := range executionResult.Summary {
+								<div>{ line }</div>
+							}
+						</div>
+						if executionResult.Error != "" {
+							<p class="mt-2 text-sm text-warning">{ executionResult.Error }</p>
+						}
+						if executionResult.Success && len(executionResult.Rows) == 0 && len(executionResult.Columns) > 0 {
+							@EntityState("No rows returned", "Execution completed successfully.")
+						}
+						if len(executionResult.Columns) > 0 {
+							<div class="mt-3 overflow-x-auto rounded-lg border border-base-300">
+								<table class="table table-zebra w-full min-w-[640px]">
+									<thead>
+										<tr>
+											for _, column := range executionResult.Columns {
+												<th>{ column }</th>
+											}
+										</tr>
+									</thead>
+									<tbody>
+										for _, row := range executionResult.Rows {
+											<tr>
+												for _, column := range executionResult.Columns {
+													<td>{ row[column] }</td>
+												}
+											</tr>
+										}
+									</tbody>
+								</table>
+							</div>
+						}
+						if executionResult.Raw != "" {
+							<pre class="mt-3 overflow-x-auto rounded-lg border border-base-300 bg-base-200 p-3 text-xs">{ executionResult.Raw }</pre>
+						}
+					</div>
+				}
+			</div>
+		}
+	</div>
+}
+
+templ QueryDetailUnavailablePageContent(orgSlug string, dataSourceSlug string, querySlug string, message string) {
+	<div class="flex justify-end">
+		<a class="btn btn-outline btn-sm" href={ templ.URL(entityBackHref(ctx, QueriesListHref(orgSlug, dataSourceSlug, "", false))) }>Back to list</a>
+	</div>
+	<div class="mt-6 rounded-xl border border-base-300 bg-base-100 p-4">
+		<p class="text-lg font-medium text-base-content">{ querySlug }</p>
+		<p class="text-sm text-base-content/70">The full query details are unavailable.</p>
+		<div class="mt-2 flex flex-wrap items-center gap-2 text-xs">
+			@DataSourceIcon("", "sm")
+			<div class="badge badge-outline">data source: { dataSourceSlug }</div>
+			<div class="badge badge-outline">query: { querySlug }</div>
+		</div>
+	</div>
+	<div class="alert alert-warning mt-6">
+		<span>{ message }</span>
+	</div>
+}

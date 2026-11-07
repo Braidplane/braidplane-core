@@ -1,0 +1,6 @@
+{
+  "status": "ready",
+  "data_source_slug": "golden-path-s3-sink",
+  "bucket": "braidplane-fixtures",
+  "prefix": "golden-path"
+}

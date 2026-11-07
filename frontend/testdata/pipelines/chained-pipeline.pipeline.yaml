@@ -1,0 +1,34 @@
+metadata:
+  slug: chained-pipeline
+  name: Chained Pipeline
+steps:
+  - kind: query
+    slug: fetch-records
+    name: Fetch records
+    query:
+      data_source_ref: pg-main
+      operation_type: sql
+      operation_ref: list-records
+  - kind: query
+    slug: send-notifications
+    name: Send notifications
+    query:
+      data_source_ref: smtp-relay
+      operation_type: sql
+      operation_ref: send-bulk
+      parameters:
+        items: $steps.fetch-records.rows
+      output_contract:
+        representation: rows
+        fields:
+          - name: status
+            type: string
+            required: true
+  - kind: sink
+    slug: chained-pipeline
+    sink:
+      idempotency_class: idempotent_with_key
+      input: send-notifications
+      data_source_ref: pg-main
+      operation_type: sql
+      operation_ref: record-notification-run

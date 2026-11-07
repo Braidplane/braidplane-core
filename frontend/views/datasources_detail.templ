@@ -1,0 +1,741 @@
+package views
+
+import api "github.com/Braidplane/braidplane-core/api-schema/gen/client"
+
+func booleanFormValue(value bool) string {
+	if value {
+		return "true"
+	}
+	return "false"
+}
+
+templ DataSourceDetailPage(shellData AuthenticatedShellData, orgSlug string, dataSource *api.DataSource, schemaPanel DataSourceSchemaPanelData, connectionInfo *ConnectionInfo, updateFormData DataSourceUpdateFormData, permissions OrganizationPermissions, operationsPanel DataSourceOperationsPanelData, feedbackMessage string, feedbackKind string) {
+	@AuthenticatedShell(shellData, DataSourceDetailPageContent(orgSlug, shellData.ActiveEnvironmentSlug, dataSource, schemaPanel, connectionInfo, updateFormData, permissions, operationsPanel, feedbackMessage, feedbackKind))
+}
+
+templ DataSourceDetailPageContent(orgSlug string, activeEnvironmentSlug string, dataSource *api.DataSource, schemaPanel DataSourceSchemaPanelData, connectionInfo *ConnectionInfo, updateFormData DataSourceUpdateFormData, permissions OrganizationPermissions, operationsPanel DataSourceOperationsPanelData, feedbackMessage string, feedbackKind string) {
+	<div class="flex flex-wrap items-center justify-end gap-3">
+		<div class="flex flex-wrap gap-2">
+			<a
+				class="btn btn-outline btn-sm"
+				href={ templ.URL(entityBackHref(ctx, DataSourcesListHref(orgSlug, activeEnvironmentSlug, DataSourceSelectionSlug(dataSource)))) }
+			>Back to list</a>
+		</div>
+	</div>
+	if feedbackMessage != "" {
+		<div class={ DataSourcePanelFeedbackClass(feedbackKind) }>
+			<span>{ feedbackMessage }</span>
+		</div>
+	}
+	<div class="mt-6">
+		@DataSourceDetailPanelContent(orgSlug, activeEnvironmentSlug, dataSource, schemaPanel, connectionInfo, updateFormData, permissions, operationsPanel)
+	</div>
+}
+
+templ DataSourceDetailPanelSlot(orgSlug string, activeEnvironmentSlug string, dataSource *api.DataSource, schemaPanel DataSourceSchemaPanelData, connectionInfo *ConnectionInfo, updateFormData DataSourceUpdateFormData, permissions OrganizationPermissions, feedbackMessage string, feedbackKind string) {
+	<div id="data-source-side-panel" class="min-w-0">
+		if feedbackMessage != "" {
+			@EntityState(feedbackMessage, "")
+		}
+		if dataSource == nil {
+			if feedbackMessage == "" {
+				@EntityState("Select a data source", "Select a card to inspect a connection summary.")
+			}
+		} else {
+			{{ listHref := entityListHref(ctx, DataSourcesListHref(orgSlug, activeEnvironmentSlug, string(dataSource.Slug)), "selected", string(dataSource.Slug)) }}
+			@EntityQuickLook("data-source-preview-heading", ShellContextDisplay(string(dataSource.Name), string(dataSource.Slug), "Unnamed data source"), string(dataSource.Slug), entityDetailHref(DataSourceDetailHref(orgSlug, activeEnvironmentSlug, string(dataSource.Slug)), listHref), entityListHref(ctx, listHref, "selected", ""), "#data-source-side-panel", "data-source-preview-"+string(dataSource.Slug)) {
+				@EntityFacts() {
+					@EntityFact("Connector") {
+						<span class="inline-flex items-center gap-2">
+							@DataSourceIcon(string(dataSource.Type), "sm")
+							<span>{ string(dataSource.Type) }</span>
+						</span>
+					}
+					@EntityFact("Access mode") {
+						{ DataSourceCapabilityLabel(*dataSource) }
+					}
+					@EntityFact("Connection") {
+						<span class={ DataSourceStatusBadgeClass(*dataSource) }>{ DataSourceStatusLabel(*dataSource) }</span>
+					}
+					@EntityFact("Last test") {
+						{ DataSourceLastTestLabel(*dataSource) }
+					}
+				}
+				<p class="mt-3 text-sm text-base-content/70">{ DataSourcePurposeLabel(*dataSource) }</p>
+				@DataSourceReadinessProblems(entityDetailHref(DataSourceDetailHref(orgSlug, activeEnvironmentSlug, string(dataSource.Slug)), listHref), dataSource, schemaPanel, updateFormData)
+			}
+		}
+	</div>
+}
+
+templ DataSourceDetailPanelContent(orgSlug string, activeEnvironmentSlug string, dataSource *api.DataSource, schemaPanel DataSourceSchemaPanelData, connectionInfo *ConnectionInfo, updateFormData DataSourceUpdateFormData, permissions OrganizationPermissions, operationsPanel DataSourceOperationsPanelData) {
+	{{ section := dataSourceDetailSection(ctx) }}
+	if dataSource == nil {
+		<div class="rounded-lg border border-warning/45 bg-warning/15 px-4 py-3 text-sm text-base-content">
+			<span>Select a data source to inspect its connection settings and schema.</span>
+		</div>
+	} else {
+		<div class="space-y-4">
+			<div class="rounded-xl border border-base-300 bg-base-100 p-5">
+				@EntityDetailHeader(ShellContextDisplay(string(dataSource.Name), string(dataSource.Slug), "Unnamed data source"), string(dataSource.Slug)) {
+					<div class="min-w-0">
+						<div class="flex flex-wrap items-center gap-2">
+							@DataSourceIcon(string(dataSource.Type), "lg")
+							<span class="badge badge-outline">{ string(dataSource.Type) }</span>
+							<span class={ DataSourceStatusBadgeClass(*dataSource) }>{ DataSourceStatusLabel(*dataSource) }</span>
+							<span class={ DataSourceCapabilityBadgeClass(*dataSource) }>{ DataSourceCapabilityLabel(*dataSource) }</span>
+						</div>
+						if dataSource.Type == api.DataSourceTypeBigquery && dataSource.Credential != nil && dataSource.Credential.Oauth != nil && dataSource.Credential.Oauth.Account != nil && dataSource.Credential.Oauth.Account.Email != nil {
+							<p class="mt-2 text-sm text-base-content/70">Google account: { string(*dataSource.Credential.Oauth.Account.Email) }. Access depends on this account's grant and Google IAM permissions.</p>
+						}
+					</div>
+				}
+				@EntitySectionNavigation("Data source sections") {
+					@EntitySectionLink(entitySectionHref(ctx, DataSourceDetailHref(orgSlug, activeEnvironmentSlug, string(dataSource.Slug)), "overview"), "Overview", section == "overview") {
+						if DataSourceHasTestError(*dataSource) {
+							@EntityAttentionBadge("Connection test failed")
+						}
+					}
+					@EntitySectionLink(entitySectionHref(ctx, DataSourceDetailHref(orgSlug, activeEnvironmentSlug, string(dataSource.Slug)), "operations"), "Operations", section == "operations")
+					@EntitySectionLink(entitySectionHref(ctx, DataSourceDetailHref(orgSlug, activeEnvironmentSlug, string(dataSource.Slug)), "schema"), "Schema", section == "schema") {
+						if schemaPanel.Status == api.DataSourceSchemaStatusFailed {
+							@EntityAttentionBadge("Schema unavailable")
+						}
+					}
+					@EntitySectionLink(entitySectionHref(ctx, DataSourceDetailHref(orgSlug, activeEnvironmentSlug, string(dataSource.Slug)), "settings"), "Settings", section == "settings") {
+						if updateFormData.ProviderSelectionPending || DataSourceStatusLabel(*dataSource) == "authorization pending" || DataSourceStatusLabel(*dataSource) == "authorization unavailable" {
+							@EntityAttentionBadge("Connection setup required")
+						}
+					}
+				}
+				if section == "settings" {
+					<section class="mt-5 space-y-4" aria-label="Connection management">
+						if dataSource.Type == api.DataSourceTypeGoogleWorkspace && permissions.Can("datasources", "update") {
+							@WorkspaceSelection(orgSlug, dataSource, updateFormData.WorkspacePrivacyURL)
+						}
+						<div class="flex flex-wrap gap-2">
+							if UsesHTTPOAuth(*dataSource) && permissions.Can("datasources", "update") {
+								<form method="post" action={ templ.URL(entitySectionHref(ctx, DataSourceExistingProviderOAuthHref(orgSlug, activeEnvironmentSlug, string(dataSource.Slug), "http"), section)) } hx-post={ entitySectionHref(ctx, DataSourceExistingProviderOAuthHref(orgSlug, activeEnvironmentSlug, string(dataSource.Slug), "http"), section) } hx-swap="none">
+									<input type="hidden" name="environment_slug" value={ activeEnvironmentSlug }/>
+									<button class="btn btn-primary btn-sm" type="submit">{ DataSourceProviderOAuthActionLabel(*dataSource) }</button>
+								</form>
+							} else if dataSource.Type == api.DataSourceTypeGitlab {
+								<a class="btn btn-outline btn-sm" href={ templ.URL("/organizations/" + orgSlug + "/connections") }>Git integrations</a>
+							} else if dataSource.Type != api.DataSourceTypeGoogleWorkspace && CanStartDataSourceProviderOAuth(*dataSource, permissions) {
+								<form method="post" action={ templ.URL(entitySectionHref(ctx, DataSourceExistingProviderOAuthHref(orgSlug, activeEnvironmentSlug, string(dataSource.Slug), string(dataSource.Type)), section)) } hx-post={ entitySectionHref(ctx, DataSourceExistingProviderOAuthHref(orgSlug, activeEnvironmentSlug, string(dataSource.Slug), string(dataSource.Type)), section) } hx-swap="none">
+									<input type="hidden" name="environment_slug" value={ activeEnvironmentSlug }/>
+									<button class="btn btn-primary btn-sm" type="submit">{ DataSourceProviderOAuthActionLabel(*dataSource) }</button>
+								</form>
+							}
+							if permissions.Can("datasources", "update") && !updateFormData.ProviderSelectionPending {
+								<form
+									method="post"
+									action={ templ.URL(entitySectionHref(ctx, DataSourceTestHref(orgSlug, activeEnvironmentSlug, string(dataSource.Slug)), section)) }
+									hx-post={ entitySectionHref(ctx, DataSourceTestHref(orgSlug, activeEnvironmentSlug, string(dataSource.Slug)), section) }
+									hx-target={ DataSourcePanelHTMXTarget(false) }
+									hx-select={ DataSourcePanelHTMXSelect(false) }
+									hx-swap={ DataSourcePanelHTMXSwap() }
+									data-preserve-scroll
+								>
+									<input type="hidden" name="environment_slug" value={ activeEnvironmentSlug }/>
+									<button class="btn btn-outline btn-sm" type="submit">Recheck access</button>
+								</form>
+							}
+							if permissions.Can("datasources", "delete") {
+								<form
+									method="post"
+									action={ templ.URL(entitySectionHref(ctx, DataSourceDeleteHref(orgSlug, activeEnvironmentSlug, string(dataSource.Slug)), section)) }
+									hx-post={ entitySectionHref(ctx, DataSourceDeleteHref(orgSlug, activeEnvironmentSlug, string(dataSource.Slug)), section) }
+									hx-target={ DataSourcePanelHTMXTarget(false) }
+									hx-select={ DataSourcePanelHTMXSelect(false) }
+									hx-swap={ DataSourcePanelHTMXSwap() }
+									hx-confirm={ DestructiveConfirmation("Delete", "data source", DestructiveResourceLabel(string(dataSource.Name), string(dataSource.Slug)), "It will no longer be available for workflows.") }
+									data-destructive-confirm={ DestructiveConfirmation("Delete", "data source", DestructiveResourceLabel(string(dataSource.Name), string(dataSource.Slug)), "It will no longer be available for workflows.") }
+									data-preserve-scroll
+								>
+									<input type="hidden" name="environment_slug" value={ activeEnvironmentSlug }/>
+									<button class="btn btn-error btn-outline btn-sm" type="submit">Delete</button>
+								</form>
+							}
+						</div>
+					</section>
+				}
+				if section == "settings" && updateFormData.ProviderSelectionPending {
+					<div class="alert alert-warning mt-4 py-3 text-sm text-base-content" role="status">
+						<div class="w-full">
+							<p class="font-semibold">Repository selection required</p>
+							<p class="mt-1 text-xs">Choose the provider repository before Braidplane tests and activates this data source.</p>
+							if permissions.Can("datasources", "update") {
+								if updateFormData.ProviderRepositoryLoadError != "" {
+									<p class="mt-2 text-xs">{ updateFormData.ProviderRepositoryLoadError }</p>
+								} else if len(updateFormData.ProviderRepositories) == 0 {
+									<p class="mt-2 text-xs">No repositories are available to this provider authorization.</p>
+								} else {
+									<form class="mt-3 flex flex-col gap-3 sm:flex-row sm:items-end" method="post" action={ templ.URL(entitySectionHref(ctx, DataSourceProviderRepositoryHref(orgSlug, activeEnvironmentSlug, string(dataSource.Slug)), section)) }>
+										<input type="hidden" name="environment_slug" value={ activeEnvironmentSlug }/>
+										<label class="form-control min-w-0 flex-1">
+											<span class="label-text mb-1 text-xs font-semibold">Repository</span>
+											<select class="select select-bordered select-sm w-full" name="repository_id" required>
+												<option value="" disabled selected>Select one repository</option>
+												for _, repository := range updateFormData.ProviderRepositories {
+													<option value={ repository.Id }>{ repository.FullName }</option>
+												}
+											</select>
+										</label>
+										<button class="btn btn-primary btn-sm" type="submit">Use repository</button>
+									</form>
+								}
+							}
+						</div>
+					</div>
+				}
+				if section == "overview" {
+					<div id="data-source-overview" class="mt-5 grid gap-3 xl:grid-cols-3">
+						<div class="rounded-lg border border-base-300 bg-base-200/40 p-3">
+							<p class="text-xs font-semibold uppercase tracking-wide text-base-content/60">Connection</p>
+							<p class="mt-1 text-sm font-semibold text-base-content">{ DataSourceStatusLabel(*dataSource) }</p>
+						</div>
+						<div class="rounded-lg border border-primary/30 bg-primary/10 p-3">
+							<p class="text-xs font-semibold uppercase tracking-wide text-base-content/60">Capability</p>
+							<p class="mt-1 text-sm font-semibold text-base-content">{ DataSourceCapabilityLabel(*dataSource) }</p>
+						</div>
+						<div class="rounded-lg border border-info/30 bg-info/10 p-3">
+							<p class="text-xs font-semibold uppercase tracking-wide text-base-content/60">Last test</p>
+							<p class="mt-1 text-sm font-semibold text-base-content">{ DataSourceLastTestLabel(*dataSource) }</p>
+						</div>
+					</div>
+					<p class="mt-4 text-sm text-base-content/70">{ DataSourcePurposeLabel(*dataSource) }</p>
+					@DataSourceReadinessProblems(entitySectionHref(ctx, DataSourceDetailHref(orgSlug, activeEnvironmentSlug, string(dataSource.Slug)), "overview"), dataSource, schemaPanel, updateFormData)
+					if DataSourceStatusLabel(*dataSource) == "ready" && DataSourceSupportsQueryEditor(dataSource.Type) && permissions.Can("queries", "read") {
+						<div class="mt-5 space-y-3 border-t border-base-300 pt-4">
+							<h3 class="text-base font-semibold">Get a result from this connection</h3>
+							<p class="max-w-prose text-sm text-base-content/70">Save and run a read using your data. No project or Git setup is needed.</p>
+							<a class="btn btn-primary btn-sm" href={ templ.URL(DataSourceQueriesHref(orgSlug, activeEnvironmentSlug, string(dataSource.Slug))) }>Open queries</a>
+						</div>
+					}
+				}
+			</div>
+			if section == "operations" {
+				<section class="space-y-3" aria-label="Data source operations">
+					<h3 class="text-base font-semibold">Queries and operations</h3>
+					<p class="text-sm text-base-content/70">{ DataSourcePurposeLabel(*dataSource) } Operations execute explicitly through queries and pipelines.</p>
+					if permissions.Can("queries", "read") {
+						<a class="btn btn-primary btn-sm" href={ templ.URL(DataSourceQueriesHref(orgSlug, activeEnvironmentSlug, string(dataSource.Slug))) }>Open queries</a>
+						if operationsPanel.Error != "" {
+							@EntityState("Queries unavailable", operationsPanel.Error)
+						} else if len(operationsPanel.Queries) == 0 {
+							@EntityState("No saved queries", "Open queries to create an operation for this source.")
+						} else {
+							<ul class="divide-y divide-base-300 rounded-lg border border-base-300">
+								for _, query := range operationsPanel.Queries {
+									<li class="min-w-0 space-y-2 p-3">
+										<a class="link link-hover break-words font-semibold" href={ templ.URL(entityDetailHref(dataSourceMutationHref(orgSlug, activeEnvironmentSlug, string(dataSource.Slug), "queries/"+string(query.Slug)), entitySectionHref(ctx, DataSourceDetailHref(orgSlug, activeEnvironmentSlug, string(dataSource.Slug)), "operations"))) }>{ query.Name }</a>
+										<p class="break-all font-mono text-xs text-base-content/60">{ string(query.Slug) }</p>
+										@QueryCardFacts(query)
+									</li>
+								}
+							</ul>
+							if operationsPanel.HasMore {
+								<p class="text-xs text-base-content/70">Showing the first page. Open queries to view the remaining operations.</p>
+							}
+						}
+					} else {
+						@EntityState("Query access required", "Your role cannot view this source's queries.")
+					}
+					if DataSourceTypeIsGitLike(string(dataSource.Type)) && permissions.Can("pipelines", "read") {
+						<a class="btn btn-outline btn-sm" href={ templ.URL(dataSourceMutationHref(orgSlug, activeEnvironmentSlug, string(dataSource.Slug), "proof")) }>Proof configuration</a>
+					}
+				</section>
+			}
+			if section == "settings" && !permissions.Can("datasources", "update") && !CanStartDataSourceProviderOAuth(*dataSource, permissions) {
+				@EntityState("Read-only settings", "Your role cannot edit connection settings or credentials.")
+			}
+			if section == "settings" && connectionInfo != nil && len(connectionInfo.Fields) > 0 {
+				<div class="rounded-xl border border-base-300 bg-base-100 p-5">
+					<h3 class="text-base font-semibold text-base-content">Connection info</h3>
+					if dataSource.LastTestedAt != nil {
+						<p class="mt-1 text-xs text-base-content/70">Last tested: { dataSource.LastTestedAt.Format("2006-01-02 15:04:05") }</p>
+					}
+					<div class="mt-3 grid gap-2 xl:grid-cols-3">
+						for _, field := range connectionInfo.Fields {
+							<div class="min-w-0 rounded-lg border border-base-300 bg-base-200/40 p-3">
+								<p class="text-xs font-semibold uppercase tracking-wide text-base-content/70">{ field.Key }</p>
+								<p class="mt-1 break-all text-sm text-base-content">{ field.Value }</p>
+							</div>
+						}
+					</div>
+				</div>
+			}
+			if section == "settings" && permissions.Can("datasources", "update") {
+				<div class="rounded-xl border border-base-300 bg-base-100 p-5">
+					<h3 id="data-source-settings" tabindex="-1" class="text-base font-semibold text-base-content">Update connection settings</h3>
+					<p class="mt-1 text-xs text-base-content/70">Update metadata and config separately from credentials.</p>
+					<form
+						class="mt-3 space-y-3"
+						method="post"
+						action={ templ.URL(entitySectionHref(ctx, DataSourceUpdateHref(orgSlug, activeEnvironmentSlug, string(dataSource.Slug)), section)) }
+						hx-post={ entitySectionHref(ctx, DataSourceUpdateHref(orgSlug, activeEnvironmentSlug, string(dataSource.Slug)), section) }
+						hx-target={ DataSourcePanelHTMXTarget(false) }
+						hx-select={ DataSourcePanelHTMXSelect(false) }
+						hx-swap={ DataSourcePanelHTMXSwap() }
+						data-dirty-form="data-source-update"
+						data-preserve-scroll
+					>
+						<input type="hidden" name="type" value={ updateFormData.Type }/>
+						if updateFormData.ManagedProvider {
+							<input type="hidden" name="managed_provider" value="true"/>
+						}
+						<input type="hidden" name="environment_slug" value={ activeEnvironmentSlug }/>
+						<div class="grid gap-3 xl:grid-cols-2">
+							<label class="form-control w-full xl:col-span-2">
+								<div class="label py-1"><span class="label-text text-xs">Name</span></div>
+								<input class="input input-bordered input-sm w-full" type="text" name="name" value={ updateFormData.Name } required/>
+							</label>
+							if updateFormData.Type == "google_workspace" {
+								<p class="text-xs text-base-content/70 xl:col-span-2">Choose files and spreadsheets in queries and pipelines.</p>
+							} else if updateFormData.Type == "http" {
+								if updateFormData.AllowPrivateDataSourceHosts {
+									<label class="label cursor-pointer justify-start gap-2 xl:col-span-2">
+										<input class="checkbox checkbox-sm" type="checkbox" name="http_allow_private_hosts" checked?={ updateFormData.HTTPAllowPrivateHosts }/>
+										<span class="label-text text-xs">Allow private hosts</span>
+									</label>
+								}
+								<label class="form-control w-full xl:col-span-2">
+									<div class="label py-1"><span class="label-text text-xs">Base URL</span></div>
+									<input class="input input-bordered input-sm w-full" type="text" name="base_url" value={ updateFormData.BaseURL } required/>
+								</label>
+								<label class="form-control w-full">
+									<div class="label py-1"><span class="label-text text-xs">Health path</span></div>
+									<input class="input input-bordered input-sm w-full" type="text" name="health_path" value={ updateFormData.HealthPath }/>
+								</label>
+								<label class="form-control w-full">
+									<div class="label py-1"><span class="label-text text-xs">Timeout (sec)</span></div>
+									<input class="input input-bordered input-sm w-full" type="number" min="1" name="timeout_seconds" value={ updateFormData.TimeoutSeconds }/>
+								</label>
+								<label class="form-control w-full xl:col-span-2">
+									<div class="label py-1"><span class="label-text text-xs">OpenAPI spec URL</span></div>
+									<input class="input input-bordered input-sm w-full" type="text" name="openapi_url" value={ updateFormData.OpenAPIURL }/>
+								</label>
+								<label class="form-control w-full">
+									<div class="label py-1"><span class="label-text text-xs">OpenAPI fetch timeout</span></div>
+									<input class="input input-bordered input-sm w-full" type="number" min="1" max="60" name="openapi_fetch_timeout_seconds" value={ updateFormData.OpenAPIFetchTimeout }/>
+								</label>
+							} else if updateFormData.Type == "hubspot" {
+								<label class="form-control w-full">
+									<div class="label py-1"><span class="label-text text-xs">Access mode</span></div>
+									<select class="select select-bordered select-sm w-full" name="hubspot_access_mode">
+										<option value="read" selected?={ updateFormData.HubSpotReadOnly }>Read-only source</option>
+										<option value="write" selected?={ !updateFormData.HubSpotReadOnly }>Write-enabled upsert destination</option>
+									</select>
+									if dataSource.Credential != nil && dataSource.Credential.Kind == api.Oauth2Grant {
+										<div class="label py-1"><span class="label-text-alt text-base-content/60">Reconnect HubSpot after saving to apply changed OAuth permissions.</span></div>
+									} else {
+										<div class="label py-1"><span class="label-text-alt text-base-content/60">The private app token must have matching write permissions.</span></div>
+									}
+								</label>
+								<label class="form-control w-full">
+									<div class="label py-1"><span class="label-text text-xs">Timeout (sec)</span></div>
+									<input class="input input-bordered input-sm w-full" type="number" min="1" name="timeout_seconds" value={ updateFormData.TimeoutSeconds }/>
+								</label>
+							} else if updateFormData.Type == "s3" {
+								<label class="form-control w-full xl:col-span-2">
+									<div class="label py-1"><span class="label-text text-xs">Endpoint URL</span></div>
+									<input class="input input-bordered input-sm w-full font-mono" type="url" name="endpoint" value={ updateFormData.S3Endpoint }/>
+								</label>
+								<label class="form-control w-full">
+									<div class="label py-1"><span class="label-text text-xs">Region</span></div>
+									<input class="input input-bordered input-sm w-full font-mono" type="text" name="region" value={ updateFormData.S3Region } required/>
+								</label>
+								<label class="form-control w-full">
+									<div class="label py-1"><span class="label-text text-xs">Bucket</span></div>
+									<input class="input input-bordered input-sm w-full font-mono" type="text" name="bucket" value={ updateFormData.S3Bucket } required/>
+								</label>
+								<label class="form-control w-full">
+									<div class="label py-1"><span class="label-text text-xs">Prefix</span></div>
+									<input class="input input-bordered input-sm w-full font-mono" type="text" name="prefix" value={ updateFormData.S3Prefix }/>
+								</label>
+								<label class="form-control w-full">
+									<div class="label py-1"><span class="label-text text-xs">Timeout (sec)</span></div>
+									<input class="input input-bordered input-sm w-full" type="number" min="1" max="300" name="timeout_seconds" value={ updateFormData.TimeoutSeconds }/>
+								</label>
+								<label class="label cursor-pointer justify-start gap-2">
+									<input class="checkbox checkbox-sm" type="checkbox" name="force_path_style" checked?={ updateFormData.S3ForcePathStyle }/>
+									<span class="label-text text-xs">Force path-style addressing</span>
+								</label>
+								if updateFormData.AllowPrivateDataSourceHosts {
+									<label class="label cursor-pointer justify-start gap-2">
+										<input class="checkbox checkbox-sm" type="checkbox" name="allow_private_hosts" checked?={ updateFormData.S3AllowPrivateHosts }/>
+										<span class="label-text text-xs">Allow private hosts</span>
+									</label>
+								}
+							} else if updateFormData.Type == "bigquery" {
+								<label class="form-control w-full xl:col-span-2">
+									<div class="label py-1"><span class="label-text text-xs">Project ID</span></div>
+									<input class="input input-bordered input-sm w-full font-mono" type="text" name="project_id" value={ updateFormData.ProjectID } required/>
+								</label>
+								<label class="form-control w-full">
+									<div class="label py-1"><span class="label-text text-xs">Location</span></div>
+									<input class="input input-bordered input-sm w-full" type="text" name="location" value={ updateFormData.Location }/>
+								</label>
+								<label class="form-control w-full">
+									<div class="label py-1"><span class="label-text text-xs">Default dataset</span></div>
+									<input class="input input-bordered input-sm w-full font-mono" type="text" name="default_dataset" value={ updateFormData.DefaultDataset }/>
+								</label>
+								<label class="form-control w-full">
+									<div class="label py-1"><span class="label-text text-xs">Timeout (sec)</span></div>
+									<input class="input input-bordered input-sm w-full" type="number" min="1" max="300" name="timeout_seconds" value={ updateFormData.TimeoutSeconds }/>
+								</label>
+								<label class="form-control w-full">
+									<div class="label py-1"><span class="label-text text-xs">Maximum bytes billed</span></div>
+									<input class="input input-bordered input-sm w-full" type="number" min="1" name="maximum_bytes_billed" value={ updateFormData.MaximumBytesBilled }/>
+								</label>
+							} else if updateFormData.Type == "snowflake" {
+								<label class="form-control w-full xl:col-span-2">
+									<div class="label py-1"><span class="label-text text-xs">Account</span></div>
+									<input class="input input-bordered input-sm w-full font-mono" type="text" name="account" value={ updateFormData.Account } required/>
+								</label>
+								<label class="form-control w-full">
+									<div class="label py-1"><span class="label-text text-xs">Warehouse</span></div>
+									<input class="input input-bordered input-sm w-full font-mono" type="text" name="warehouse" value={ updateFormData.Warehouse } required/>
+								</label>
+								<label class="form-control w-full">
+									<div class="label py-1"><span class="label-text text-xs">Database</span></div>
+									<input class="input input-bordered input-sm w-full font-mono" type="text" name="database" value={ updateFormData.Database } required/>
+								</label>
+								<label class="form-control w-full">
+									<div class="label py-1"><span class="label-text text-xs">Schema</span></div>
+									<input class="input input-bordered input-sm w-full font-mono" type="text" name="schema" value={ updateFormData.Schema } required/>
+								</label>
+								<label class="form-control w-full">
+									<div class="label py-1"><span class="label-text text-xs">Role</span></div>
+									<input class="input input-bordered input-sm w-full font-mono" type="text" name="role" value={ updateFormData.Role }/>
+								</label>
+								<label class="form-control w-full">
+									<div class="label py-1"><span class="label-text text-xs">Connect timeout (sec)</span></div>
+									<input class="input input-bordered input-sm w-full" type="number" min="1" max="300" name="connect_timeout" value={ updateFormData.ConnectTimeout }/>
+								</label>
+								@SnowflakeObjectFields(updateFormData.SnowflakeSelectTables, updateFormData.SnowflakeInsertTables)
+							} else if updateFormData.ProviderSelectionPending {
+								<div class="rounded-lg border border-base-300 bg-base-200/40 p-3 xl:col-span-2">
+									<p class="text-xs text-base-content/70">Repository settings become available after repository selection.</p>
+								</div>
+							} else if updateFormData.ManagedProvider {
+								<div class="rounded-lg border border-base-300 bg-base-200/40 p-3 xl:col-span-2">
+									<p class="text-xs font-semibold uppercase tracking-wide text-base-content/60">Selected repository</p>
+									<a class="mt-1 block break-all text-sm font-medium link link-primary" href={ templ.SafeURL(updateFormData.ProviderRepositoryURL) } target="_blank" rel="noopener noreferrer">{ updateFormData.ProviderRepositoryName }</a>
+									<p class="mt-1 text-xs text-base-content/60">Provider ID: { updateFormData.ProviderRepositoryID }</p>
+									if updateFormData.GitBasePath != "" {
+										<p class="mt-1 text-xs text-base-content/60">Base path: { updateFormData.GitBasePath }</p>
+									}
+								</div>
+							} else if DataSourceTypeIsGitLike(updateFormData.Type) {
+								<label class="form-control w-full xl:col-span-2">
+									<div class="label py-1"><span class="label-text text-xs">Repository URL</span></div>
+									<input class="input input-bordered input-sm w-full" type="text" name="git_repo_url" value={ updateFormData.GitRepoURL } required/>
+								</label>
+								<label class="form-control w-full">
+									<div class="label py-1"><span class="label-text text-xs">Default branch</span></div>
+									<input class="input input-bordered input-sm w-full" type="text" name="git_default_branch" value={ updateFormData.GitBranch }/>
+								</label>
+								<label class="form-control w-full">
+									<div class="label py-1"><span class="label-text text-xs">Base path</span></div>
+									<input class="input input-bordered input-sm w-full" type="text" name="git_base_path" value={ updateFormData.GitBasePath }/>
+								</label>
+								if updateFormData.AllowPrivateDataSourceHosts {
+									<label class="label cursor-pointer justify-start gap-2 xl:col-span-2">
+										<input class="checkbox checkbox-sm" type="checkbox" name="git_allow_private_hosts" checked?={ updateFormData.GitAllowPrivateHosts }/>
+										<span class="label-text text-xs">Allow private hosts</span>
+									</label>
+								}
+							} else {
+								<label class="form-control w-full">
+									<div class="label py-1"><span class="label-text text-xs">Host</span></div>
+									<input class="input input-bordered input-sm w-full" type="text" name="host" value={ updateFormData.Host } required/>
+								</label>
+								<label class="form-control w-full">
+									<div class="label py-1"><span class="label-text text-xs">Port</span></div>
+									<input class="input input-bordered input-sm w-full" type="number" name="port" value={ updateFormData.Port } required/>
+								</label>
+								<label class="form-control w-full">
+									<div class="label py-1"><span class="label-text text-xs">Database</span></div>
+									<input class="input input-bordered input-sm w-full" type="text" name="database" value={ updateFormData.Database } required/>
+								</label>
+								if updateFormData.Type == "postgres" {
+									@postgresSSLModeField(updateFormData.SSLMode)
+								}
+								<label class="form-control w-full">
+									<div class="label py-1"><span class="label-text text-xs">Connect timeout (sec)</span></div>
+									<input class="input input-bordered input-sm w-full" type="number" min="1" name="connect_timeout" value={ updateFormData.ConnectTimeout }/>
+								</label>
+								if updateFormData.AllowPrivateDataSourceHosts {
+									<label class="label cursor-pointer justify-start gap-2">
+										<input class="checkbox checkbox-sm" type="checkbox" name="database_allow_private_hosts" checked?={ updateFormData.DatabaseAllowPrivateHosts }/>
+										<span class="label-text text-xs">Allow private hosts</span>
+									</label>
+								}
+								if updateFormData.Type == "mongodb" {
+									<label class="form-control w-full xl:col-span-2">
+										<div class="label py-1"><span class="label-text text-xs">Auth database</span></div>
+										<input class="input input-bordered input-sm w-full" type="text" name="auth_database" value={ updateFormData.AuthDatabase }/>
+									</label>
+								}
+							}
+						</div>
+						<button class="btn btn-primary btn-sm" type="submit" data-dirty-submit disabled>Save connection settings</button>
+					</form>
+				</div>
+				if updateFormData.ManagedProvider || updateFormData.ProviderSelectionPending {
+					<div class="rounded-xl border border-base-300 bg-base-100 p-5">
+						<h3 class="text-base font-semibold text-base-content">Managed provider authorization</h3>
+						<p class="mt-1 text-xs text-base-content/70">Repository credentials are managed through the provider connection and are never entered as generic Git credentials.</p>
+						if dataSource.Type == api.DataSourceTypeGitlab {
+							if dataSource.OrganizationGitlabConnection {
+								<p class="mt-3 text-sm">This source uses the organization's shared GitLab connection.</p>
+							} else if permissions.Can("datasources", "update") {
+								<p class="mt-3 text-sm">This source uses an earlier source-specific grant. Attach the organization connection after confirming it can access this repository.</p>
+								<form class="mt-3" method="post" action={ templ.URL(entitySectionHref(ctx, "/orgs/"+orgSlug+"/data-sources/"+string(dataSource.Slug)+"/gitlab-connection", section)) }>
+									<input type="hidden" name="environment_slug" value={ activeEnvironmentSlug }/>
+									<button class="btn btn-outline btn-sm" type="submit">Use organization GitLab connection</button>
+								</form>
+							}
+						}
+					</div>
+				} else if updateFormData.Type != "bigquery" && updateFormData.Type != "google_workspace" {
+					<div class="rounded-xl border border-base-300 bg-base-100 p-5">
+						<h3 class="text-base font-semibold text-base-content">Rotate credentials</h3>
+						<p class="mt-1 text-xs text-base-content/70">Credentials are never prefilled. Enter new values explicitly.</p>
+						<form
+							class="mt-3 space-y-3"
+							method="post"
+							action={ templ.URL(entitySectionHref(ctx, DataSourceUpdateCredentialHref(orgSlug, activeEnvironmentSlug, string(dataSource.Slug)), section)) }
+							hx-post={ entitySectionHref(ctx, DataSourceUpdateCredentialHref(orgSlug, activeEnvironmentSlug, string(dataSource.Slug)), section) }
+							hx-target={ DataSourcePanelHTMXTarget(false) }
+							hx-select={ DataSourcePanelHTMXSelect(false) }
+							hx-swap={ DataSourcePanelHTMXSwap() }
+							data-git-auth-form
+							data-snowflake-auth-form
+							data-dirty-form="data-source-credentials"
+							hx-confirm={ DestructiveConfirmation("Rotate credentials for", "data source", DestructiveResourceLabel(string(dataSource.Name), string(dataSource.Slug)), "The current credentials will be replaced.") }
+							data-destructive-confirm={ DestructiveConfirmation("Rotate credentials for", "data source", DestructiveResourceLabel(string(dataSource.Name), string(dataSource.Slug)), "The current credentials will be replaced.") }
+							data-preserve-scroll
+						>
+							<input type="hidden" name="type" value={ updateFormData.Type }/>
+							<input type="hidden" name="environment_slug" value={ activeEnvironmentSlug }/>
+							if updateFormData.Type == "http" {
+								@HTTPAuthenticationFields(HTTPAuthFormData{}, "")
+							} else if updateFormData.Type == "hubspot" {
+								<div class="grid gap-3 xl:grid-cols-2">
+									<label class="form-control w-full xl:col-span-2">
+										<div class="label py-1"><span class="label-text text-xs">Private app token</span></div>
+										<input class="input input-bordered input-sm w-full" type="password" name="private_app_token" required/>
+									</label>
+								</div>
+							} else if updateFormData.Type == "snowflake" {
+								<div class="grid gap-3 xl:grid-cols-2">
+									<label class="form-control w-full xl:col-span-2">
+										<div class="label py-1"><span class="label-text text-xs">Authentication</span></div>
+										<select class="select select-bordered select-sm w-full" name="snowflake_auth_type" data-snowflake-auth-select>
+											<option value="workload_identity" selected?={ updateFormData.SnowflakeAuthType != "password" }>Workload identity (requires onboarding)</option>
+											<option value="password" selected?={ updateFormData.SnowflakeAuthType == "password" }>Username and password</option>
+										</select>
+									</label>
+									<div class="rounded-lg border border-primary/30 bg-primary/5 p-3 xl:col-span-2" data-snowflake-auth-fields="workload_identity">
+										<p class="text-xs text-base-content/70">Save the connection, run the generated SQL script in Snowflake, then select Verify. Braidplane provisions the identity automatically. No administrator password or token is requested.</p>
+									</div>
+									<label class="form-control w-full" data-snowflake-auth-fields="password">
+										<div class="label py-1"><span class="label-text text-xs">Username</span></div>
+										<input class="input input-bordered input-sm w-full" type="text" name="username" data-required-for="snowflake"/>
+									</label>
+									<label class="form-control w-full" data-snowflake-auth-fields="password">
+										<div class="label py-1"><span class="label-text text-xs">Password</span></div>
+										<input class="input input-bordered input-sm w-full" type="password" name="password" data-required-for="snowflake"/>
+									</label>
+								</div>
+							} else if updateFormData.Type == "s3" {
+								<div class="grid gap-3 xl:grid-cols-2">
+									<label class="form-control w-full">
+										<div class="label py-1"><span class="label-text text-xs">Access key ID</span></div>
+										<input class="input input-bordered input-sm w-full font-mono" type="text" name="access_key_id" required/>
+									</label>
+									<label class="form-control w-full">
+										<div class="label py-1"><span class="label-text text-xs">Secret access key</span></div>
+										<input class="input input-bordered input-sm w-full font-mono" type="password" name="secret_access_key" required/>
+									</label>
+									<label class="form-control w-full xl:col-span-2">
+										<div class="label py-1"><span class="label-text text-xs">Session token</span></div>
+										<input class="input input-bordered input-sm w-full font-mono" type="password" name="session_token"/>
+									</label>
+								</div>
+							} else if DataSourceTypeIsGitLike(updateFormData.Type) {
+								<div class="grid gap-3 xl:grid-cols-2">
+									<label class="form-control w-full">
+										<div class="label py-1"><span class="label-text text-xs">Auth type</span></div>
+										<select class="select select-bordered select-sm w-full" name="git_auth_type" data-git-auth-select>
+											if updateFormData.GitAuthType == "ssh" {
+												<option value="https">HTTPS</option>
+												<option value="ssh" selected>SSH</option>
+											} else {
+												<option value="https" selected>HTTPS</option>
+												<option value="ssh">SSH</option>
+											}
+										</select>
+									</label>
+									<label class="form-control w-full" data-git-auth-fields="https">
+										<div class="label py-1"><span class="label-text text-xs">HTTPS username (optional)</span></div>
+										<input class="input input-bordered input-sm w-full" type="text" name="git_username" value={ updateFormData.GitUsername } placeholder="x-access-token or git"/>
+									</label>
+									<label class="form-control w-full xl:col-span-2" data-git-auth-fields="https">
+										<div class="label py-1"><span class="label-text text-xs">HTTPS token or personal access token (optional)</span></div>
+										<input class="input input-bordered input-sm w-full" type="password" name="git_token"/>
+									</label>
+									<label class="form-control w-full xl:col-span-2" data-git-auth-fields="ssh">
+										<div class="label py-1"><span class="label-text text-xs">SSH private key</span></div>
+										<textarea class="textarea textarea-bordered textarea-sm w-full min-h-24" name="git_ssh_private_key"></textarea>
+									</label>
+									<label class="form-control w-full xl:col-span-2" data-git-auth-fields="ssh">
+										<div class="label py-1"><span class="label-text text-xs">SSH known_hosts</span></div>
+										<textarea class="textarea textarea-bordered textarea-sm w-full min-h-20 font-mono" name="git_ssh_known_hosts" placeholder="github.com ssh-ed25519 AAAAC3...">{ updateFormData.GitKnownHosts }</textarea>
+									</label>
+									<label class="form-control w-full" data-git-auth-fields="ssh">
+										<div class="label py-1"><span class="label-text text-xs">SSH passphrase (optional)</span></div>
+										<input class="input input-bordered input-sm w-full" type="password" name="git_ssh_passphrase"/>
+									</label>
+								</div>
+							} else {
+								<div class="grid gap-3 xl:grid-cols-2">
+									<label class="form-control w-full">
+										<div class="label py-1"><span class="label-text text-xs">Username</span></div>
+										<input class="input input-bordered input-sm w-full" type="text" name="username" required/>
+									</label>
+									<label class="form-control w-full">
+										<div class="label py-1"><span class="label-text text-xs">Password</span></div>
+										<input class="input input-bordered input-sm w-full" type="password" name="password" required?={ updateFormData.Type != "mysql" }/>
+										if updateFormData.Type == "mysql" {
+											<span class="label-text-alt mt-1">Leave blank only for an account configured without a password.</span>
+										}
+									</label>
+								</div>
+							}
+							<button class="btn btn-primary btn-sm" type="submit" data-dirty-submit disabled>Rotate credentials</button>
+						</form>
+					</div>
+				}
+			}
+			if section == "settings" && dataSource.Type == api.DataSourceTypeSnowflake {
+				<section class="min-w-0" hx-get={ SnowflakeOnboardingHref(orgSlug, activeEnvironmentSlug, string(dataSource.Slug)) } hx-trigger="load" hx-swap="outerHTML" aria-label="Snowflake onboarding">
+					<p class="text-sm" role="status">Loading Snowflake onboarding…</p>
+				</section>
+			}
+			if section == "schema" {
+				<div
+					id="data-source-schema-browser"
+					class="rounded-xl border border-base-300 bg-base-100 p-5"
+					if schemaPanel.Status == api.DataSourceSchemaStatusImporting {
+						hx-get={ entitySectionHref(ctx, DataSourceDetailHref(orgSlug, activeEnvironmentSlug, string(dataSource.Slug)), section) }
+						hx-trigger="every 2s"
+						hx-target="this"
+						hx-select="#data-source-schema-browser"
+						hx-swap="outerHTML show:none focus-scroll:false"
+						data-preserve-scroll
+					}
+				>
+					<div class="flex flex-wrap items-start justify-between gap-3">
+						<div>
+							<div class="flex flex-wrap items-center gap-2">
+								<h3 class="text-base font-semibold text-base-content">Schema browser</h3>
+								<span class={ DataSourceSchemaStatusBadgeClass(schemaPanel.Status) }>{ DataSourceSchemaStatusLabel(schemaPanel.Status) }</span>
+							</div>
+							if schemaPanel.Title != "" && schemaPanel.Status != api.DataSourceSchemaStatusImporting {
+								<p class="mt-1 text-xs text-base-content/70">{ schemaPanel.Title }</p>
+							}
+						</div>
+						if permissions.Can("datasources", "update") {
+							<form
+								method="post"
+								action={ templ.URL(entitySectionHref(ctx, DataSourceRefreshHref(orgSlug, activeEnvironmentSlug, string(dataSource.Slug)), section)) }
+								hx-post={ entitySectionHref(ctx, DataSourceRefreshHref(orgSlug, activeEnvironmentSlug, string(dataSource.Slug)), section) }
+								hx-target={ DataSourcePanelHTMXTarget(false) }
+								hx-select={ DataSourcePanelHTMXSelect(false) }
+								hx-swap={ DataSourcePanelHTMXSwap() }
+								data-preserve-scroll
+							>
+								<input type="hidden" name="environment_slug" value={ activeEnvironmentSlug }/>
+								<button class="btn btn-outline btn-sm" type="submit" disabled?={ schemaPanel.Status == api.DataSourceSchemaStatusImporting }>{ DataSourceSchemaRefreshLabel(schemaPanel.Status) }</button>
+							</form>
+						}
+					</div>
+					if dataSource.Type == api.DataSourceTypeGoogleWorkspace {
+						<p class="mt-3 text-sm text-base-content/70">Refresh imports a bounded list of accessible files and folders with their IDs and types. This cached inventory does not read file contents. Browse accessible files in a query or pipeline to choose a target.</p>
+					}
+					if schemaPanel.Error != "" {
+						<div class="mt-3 rounded-lg border border-warning/45 bg-warning/15 px-3 py-2 text-sm text-base-content">
+							<span>{ schemaPanel.Error }</span>
+						</div>
+					} else if schemaPanel.Status == api.DataSourceSchemaStatusImporting {
+						<p class="mt-3 text-sm text-base-content/70" role="status">{ DataSourceSchemaEmptyMessage(schemaPanel.Status) }</p>
+					} else if len(schemaPanel.Operations) > 0 {
+						<p class="mt-3 text-sm text-base-content/70">Create a query draft, review its fields, then save it for explicit execution or pipeline operation_ref use.</p>
+						<ul class="mt-3 divide-y divide-base-300">
+							for _, operation := range schemaPanel.Operations {
+								<li class="space-y-2 py-3">
+									<p class="break-all font-mono text-sm">{ string(operation.Method) + " " + operation.Path }</p>
+									<p class="break-all text-xs text-base-content/70">{ operation.Id }</p>
+									if operation.Description != nil {
+										<p class="text-sm text-base-content/70">{ *operation.Description }</p>
+									}
+									if operation.Diagnostics != nil && len(*operation.Diagnostics) > 0 {
+										for _, diagnostic := range *operation.Diagnostics {
+											<p class="text-sm text-warning">{ diagnostic }</p>
+										}
+									} else if operation.Draft == nil {
+										<p class="text-sm text-base-content/70">Refresh the schema to generate a query draft.</p>
+									} else if permissions.Can("queries", "create") {
+										<a class="btn btn-outline btn-sm" href={ templ.URL(OpenAPIOperationDraftHref(orgSlug, string(dataSource.Slug), operation.Id)) }>Create query draft</a>
+									}
+									if operation.RequestBody != nil || operation.Responses != nil {
+										<details class="text-xs"><summary class="cursor-pointer">Inspect request body and response status metadata</summary><pre class="mt-2 overflow-x-auto whitespace-pre-wrap break-all">{ OpenAPIOperationMetadata(operation) }</pre></details>
+									}
+								</li>
+							}
+						</ul>
+					} else if len(schemaPanel.Lines) == 0 {
+						<p class="mt-3 text-sm text-base-content/70">{ DataSourceSchemaEmptyMessage(schemaPanel.Status) }</p>
+					} else {
+						<ul class="mt-3 space-y-1 rounded-lg border border-base-300 bg-base-200/50 p-3 text-xs leading-relaxed text-base-content">
+							for _, line := range schemaPanel.Lines {
+								<li class="break-all">{ line }</li>
+							}
+						</ul>
+					}
+				</div>
+			}
+		</div>
+	}
+}
+
+// Recovery links navigate to full-page controls; summaries never mutate a source.
+templ DataSourceReadinessProblems(detailHref string, dataSource *api.DataSource, schemaPanel DataSourceSchemaPanelData, form DataSourceUpdateFormData) {
+	{{ status := DataSourceStatusLabel(*dataSource) }}
+	<div class="mt-3 space-y-3 break-words [overflow-wrap:anywhere]">
+		if form.ProviderSelectionPending {
+			@EntityState("Repository selection required", "Choose a repository in Settings before testing and activating this source.")
+			<a class="link link-primary text-sm" href={ templ.URL(entitySectionHref(ctx, detailHref, "settings")) }>Choose repository</a>
+		} else if status == "authorization pending" || status == "authorization unavailable" || status == "inactive" {
+			@EntityState("Connection setup required", "Review connection and authorization settings on the full page.")
+			<a class="link link-primary text-sm" href={ templ.URL(entitySectionHref(ctx, detailHref, "settings")) }>Review connection setup</a>
+		} else if status == "test failed" {
+			@EntityState("Last test failed", *dataSource.TestError)
+			<a class="link link-primary text-sm" href={ templ.URL(entitySectionHref(ctx, detailHref, "settings")) }>Review connection settings</a>
+		} else if status == "untested" {
+			@EntityState("Connection untested", "Run a connection test on the full page before relying on this source.")
+			<a class="link link-primary text-sm" href={ templ.URL(entitySectionHref(ctx, detailHref, "settings")) }>Review connection readiness</a>
+		}
+		if DataSourceHasTestError(*dataSource) && (form.ProviderSelectionPending || status == "authorization pending" || status == "authorization unavailable") {
+			<p class="text-sm text-base-content/70">Last test failed: { *dataSource.TestError }</p>
+		}
+		if schemaPanel.Status == api.DataSourceSchemaStatusFailed {
+			@EntityState("Schema unavailable", "Connection readiness and schema import are separate. Review the schema diagnostic on the full page.")
+			<a class="link link-primary text-sm" href={ templ.URL(entitySectionHref(ctx, detailHref, "schema")) }>Review schema</a>
+		}
+	</div>
+}

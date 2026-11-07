@@ -1,0 +1,34 @@
+{
+    "$schema": "https://biomejs.dev/schemas/2.5.15/schema.json",
+    "files": {
+        "includes": [
+            "assets/js/**/*.js",
+            "assets/js/**/*.cjs",
+            "e2e/**/*.js",
+            "e2e/**/*.cjs",
+            "acceptance/**/*.cjs",
+            "playwright.acceptance.config.cjs",
+            "playwright.config.cjs",
+            "playwright.public.config.cjs",
+            "vitest.config.js"
+        ]
+    },
+    "linter": {
+        "enabled": true,
+        "rules": {
+            "preset": "recommended"
+        }
+    },
+    "formatter": {
+        "enabled": true,
+        "indentStyle": "space",
+        "indentWidth": 4,
+        "lineWidth": 120
+    },
+    "javascript": {
+        "formatter": {
+            "quoteStyle": "double",
+            "trailingCommas": "all"
+        }
+    }
+}

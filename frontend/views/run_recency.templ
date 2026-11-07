@@ -1,0 +1,107 @@
+package views
+
+import api "github.com/Braidplane/braidplane-core/api-schema/gen/client"
+import "fmt"
+
+templ RunRecencyPage(shell AuthenticatedShellData, org string, project string, environment string, pipeline string, inspection *api.SuccessfulRunRecency, canUpdate bool, canConfigureAlerts bool, message string) {
+	@AuthenticatedShell(shell, RunRecencyContent(org, project, environment, pipeline, inspection, canUpdate, canConfigureAlerts, message))
+}
+
+templ RunRecencyContent(org string, project string, environment string, pipeline string, inspection *api.SuccessfulRunRecency, canUpdate bool, canConfigureAlerts bool, message string) {
+	<div class="min-w-0 space-y-6">
+		@EntityDetailHeader("Successful-run recency", pipeline+" · "+environment) {
+			<a class="btn btn-outline btn-sm" href={ templ.URL(pipelineDetailHrefWithEnvironment(org, project, environment, pipeline)) }>Back to pipeline</a>
+		}
+		<p class="text-sm text-base-content/70">Track how recently this deployment completed a successful run. This expectation does not measure payload data age or promise an SLA. Pausing a schedule or webhook trigger does not pause the expectation.</p>
+		if message != "" {
+			<div class="alert alert-error" role="alert">{ message }</div>
+		}
+		if inspection != nil {
+			<section aria-labelledby="recency-current-heading" class="min-w-0">
+				<h2 id="recency-current-heading" class="text-lg font-semibold">Current state</h2>
+				<dl class="mt-3 grid gap-4 text-sm sm:grid-cols-2 lg:grid-cols-3">
+					<div><dt class="text-base-content/60">Outcome</dt><dd data-recency-outcome class="font-semibold">{ string(inspection.Outcome) }</dd></div>
+					<div><dt class="text-base-content/60">Evaluated at</dt><dd>{ RecencyTime(&inspection.EvaluatedAt) }</dd></div>
+					<div><dt class="text-base-content/60">Deadline</dt><dd>{ RecencyTime(inspection.DeadlineAt) }</dd></div>
+					<div><dt class="text-base-content/60">Rule revision</dt><dd>{ fmt.Sprint(inspection.Revision) }</dd></div>
+					<div><dt class="text-base-content/60">Maximum age (seconds)</dt><dd>{ RecencyNumber(inspection.MaximumAgeSeconds) }</dd></div>
+					<div><dt class="text-base-content/60">Rule enabled</dt><dd>{ fmt.Sprint(inspection.Enabled) }</dd></div>
+					<div><dt class="text-base-content/60">Window started</dt><dd>{ RecencyTime(inspection.EnabledAt) }</dd></div>
+					<div><dt class="text-base-content/60">Deployment revision</dt><dd>{ RecencyNumber(inspection.DeploymentRevision) }</dd></div>
+					<div><dt class="text-base-content/60">Deployed at</dt><dd>{ RecencyTime(inspection.DeployedAt) }</dd></div>
+					<div class="min-w-0"><dt class="text-base-content/60">Version</dt><dd class="break-all font-mono text-xs">{ RecencyText(inspection.VersionSpecHash) }</dd></div>
+					<div class="min-w-0"><dt class="text-base-content/60">Resolution digest</dt><dd class="break-all font-mono text-xs">{ RecencyText(inspection.ResolutionDigest) }</dd></div>
+					<div><dt class="text-base-content/60">Qualifying successful completion</dt><dd>{ RecencyTime(inspection.SucceededAt) }</dd></div>
+					<div class="min-w-0">
+						<dt class="text-base-content/60">Qualifying run</dt>
+						<dd class="break-all">
+							if inspection.SuccessRunSlug != nil {
+								<a class="link" href={ templ.URL(buildEnvironmentRunDetailHref(org, project, environment, *inspection.SuccessRunSlug)) }>{ *inspection.SuccessRunSlug }</a>
+							} else {
+								<span>No retained qualifying success</span>
+							}
+						</dd>
+					</div>
+				</dl>
+				if inspection.UnavailableReason != nil {
+					<p class="mt-3 text-sm">{ RecencyUnavailableLabel(*inspection.UnavailableReason) }</p>
+				}
+				<p class="mt-3 text-sm text-base-content/70">Current state is calculated on read. Recorded episodes below reflect the periodic observer; notification delivery has its own evidence. A retained success can outlive its detailed run history.</p>
+			</section>
+			if inspection.CapabilityEnabled && inspection.DeploymentRevision != nil && canUpdate {
+				<section class="border-t border-base-300 pt-4" aria-labelledby="recency-rule-heading">
+					<h2 id="recency-rule-heading" class="text-lg font-semibold">Expectation</h2>
+					<form method="post" action={ templ.URL(RecencyHref(org, project, environment, pipeline)) } class="mt-3 flex flex-wrap items-end gap-3">
+						<input type="hidden" name="expected_revision" value={ fmt.Sprint(inspection.Revision) }/>
+						<label class="form-control w-full sm:w-auto">
+							<span class="label-text mb-1">Maximum age (seconds)</span>
+							<input class="input input-bordered input-sm" type="number" name="maximum_age_seconds" min="1" max="9223372036" step="1" required value={ RecencyAgeInput(inspection.MaximumAgeSeconds) }/>
+						</label>
+						<label class="form-control w-full sm:w-auto">
+							<span class="label-text mb-1">State</span>
+							<select class="select select-bordered select-sm" name="enabled">
+								<option value="true" selected?={ !inspection.Configured || inspection.Enabled }>Enabled</option>
+								<option value="false" selected?={ inspection.Configured && !inspection.Enabled }>Disabled</option>
+							</select>
+						</label>
+						<button class="btn btn-primary btn-sm" type="submit">Save expectation</button>
+					</form>
+					<p class="mt-2 text-sm text-base-content/70">Creating, changing or re-enabling a rule starts a full grace window. A new deployment also starts a full window. Disable the rule to stop future monitoring; historical evidence remains.</p>
+				</section>
+			}
+			if inspection.CapabilityEnabled && canConfigureAlerts {
+				<a class="btn btn-outline btn-sm" href={ templ.URL(RecencyAlertsHref(org, project, environment, pipeline)) }>Configure recency alerts</a>
+			}
+			<section class="min-w-0 border-t border-base-300 pt-4" aria-labelledby="recency-history-heading">
+				<h2 id="recency-history-heading" class="text-lg font-semibold">Recorded breach and recovery evidence</h2>
+				if len(inspection.Episodes) == 0 {
+					<p class="mt-2 text-sm text-base-content/70">No recorded episodes. This alone does not prove the observer has evaluated this target.</p>
+				}
+				for _, episode := range inspection.Episodes {
+					<details class="mt-3 border-b border-base-300 pb-3">
+						<summary class="cursor-pointer break-words text-sm font-medium">{ episode.NotificationSlug } · rule { fmt.Sprint(episode.ExpectationRevision) } · deployment { fmt.Sprint(episode.DeploymentRevision) } · { RecencyTime(&episode.BreachedAt) }</summary>
+						<dl class="mt-3 grid gap-3 text-sm sm:grid-cols-2">
+							<div><dt class="text-base-content/60">Maximum age (seconds)</dt><dd>{ fmt.Sprint(episode.MaximumAgeSeconds) }</dd></div>
+							<div><dt class="text-base-content/60">Window started</dt><dd>{ RecencyTime(&episode.EnabledAt) }</dd></div>
+							<div class="min-w-0"><dt class="text-base-content/60">Recorded version</dt><dd class="break-all font-mono text-xs">{ episode.VersionSpecHash }</dd></div>
+							<div class="min-w-0"><dt class="text-base-content/60">Recorded resolution</dt><dd class="break-all font-mono text-xs">{ RecencyText(episode.ResolutionDigest) }</dd></div>
+							<div><dt class="text-base-content/60">Deployed at</dt><dd>{ RecencyTime(&episode.DeployedAt) }</dd></div>
+							<div><dt class="text-base-content/60">Deadline</dt><dd>{ RecencyTime(&episode.DeadlineAt) }</dd></div>
+							<div class="min-w-0"><dt class="text-base-content/60">Last success at breach</dt><dd class="break-all">{ RecencyText(episode.LastSuccessRunSlug) } · { RecencyTime(episode.LastSuccessAt) }</dd></div>
+							<div><dt class="text-base-content/60">Resolved at</dt><dd>{ RecencyTime(episode.ResolvedAt) }</dd></div>
+							<div><dt class="text-base-content/60">Resolution</dt><dd>{ RecencyResolutionLabel(episode.ResolutionReason) }</dd></div>
+							<div><dt class="text-base-content/60">Recovery completion</dt><dd>{ RecencyTime(episode.RecoverySucceededAt) }</dd></div>
+							if episode.RecoveryRunSlug != nil {
+								<div class="min-w-0"><dt class="text-base-content/60">Recovery run</dt><dd class="break-all"><a class="link" href={ templ.URL(buildEnvironmentRunDetailHref(org, project, environment, *episode.RecoveryRunSlug)) }>{ *episode.RecoveryRunSlug }</a></dd></div>
+							}
+						</dl>
+					</details>
+				}
+				if inspection.HasMoreEpisodes {
+					<p class="mt-3 text-sm">Showing the latest 20 episodes. Older records remain in notification history.</p>
+				}
+				<a class="link mt-3 inline-block text-sm" href={ templ.URL("/orgs/" + org + "/notifications") }>Open notification history</a>
+			</section>
+		}
+	</div>
+}

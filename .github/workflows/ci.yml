@@ -1,0 +1,338 @@
+name: Community core
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      cold_cache:
+        description: Skip application and Docker caches for capacity qualification
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: community-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    services:
+      postgres:
+        image: postgres:18.6@sha256:edb0c08dc33befd0262ab3b5cf1c4f3f8cfd8b09e88c05b45adee29d6761ddb6
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: braidplane
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U postgres -d braidplane"
+          --health-interval 5s --health-timeout 5s --health-retries 12
+    env:
+      GOWORK: 'off'
+      GOFLAGS: '-p=1'
+      GOMEMLIMIT: 4GiB
+      DB_HOST: '127.0.0.1'
+      DB_PORT: '5432'
+      DB_USER: postgres
+      DB_PASSWORD: postgres
+      DB_DATABASE: braidplane
+      DB_SSL_MODE: disable
+      DATABASE_URL: postgres://postgres:postgres@127.0.0.1:5432/braidplane?sslmode=disable
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: ./.github/actions/prepare-hosted-runner
+      - if: ${{ !inputs.cold_cache }}
+        uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        id: cache-1
+        with:
+          path: |
+            ~/go/pkg/mod
+            ~/.cache/braidplane/go
+            ${{ runner.temp }}/bin
+          key: community-go-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('ci/toolchain/versions.env') }}-${{ hashFiles('go.sum', 'tools/go.sum') }}-${{ github.sha }}-${{ github.job }}
+          restore-keys: |
+            community-go-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('ci/toolchain/versions.env') }}-${{ hashFiles('go.sum', 'tools/go.sum') }}-
+            community-go-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('ci/toolchain/versions.env') }}-
+            community-go-browser-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('ci/toolchain/versions.env') }}-
+      - if: ${{ !inputs.cold_cache }}
+        uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        id: cache-2
+        with:
+          path: |
+            ~/.cache/braidplane/node
+            ~/.cache/braidplane/npm
+          key: community-node-verify-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('ci/toolchain/versions.env', 'frontend/package-lock.json') }}
+      - if: ${{ !inputs.cold_cache }}
+        uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        id: lint-cache
+        with:
+          path: ~/.cache/braidplane/golangci-lint
+          key: community-lint-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('ci/toolchain/versions.env') }}-${{ github.sha }}
+          restore-keys: community-lint-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('ci/toolchain/versions.env') }}-
+      - name: Generate, test, lint and build without managed sources
+        run: |
+          source ci/toolchain/versions.env
+          mkdir -p "$RUNNER_TEMP/bin"
+          if [ ! -x "$RUNNER_TEMP/bin/task" ]; then
+            GOBIN="$RUNNER_TEMP/bin" bash scripts/go-toolchain.sh install github.com/go-task/task/v3/cmd/task@v"$TASK_VERSION"
+          fi
+          export PATH="$RUNNER_TEMP/bin:$PATH"
+          nproc
+          free -h
+          df -h .
+          vmstat -w 15 &
+          sampler_pid=$!
+          trap 'kill "$sampler_pid" 2>/dev/null || true; wait "$sampler_pid" 2>/dev/null || true; free -h; df -h .' EXIT
+          /usr/bin/time -v task ci
+          df -h .
+      - name: Verify generated files are committed
+        run: |
+          git diff --exit-code
+          test -z "$(git ls-files --others --exclude-standard)"
+      - uses: actions/cache/save@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        if: ${{ !inputs.cold_cache && !cancelled() && steps.cache-1.outputs.cache-hit != 'true' }}
+        with:
+          path: |
+            ~/go/pkg/mod
+            ~/.cache/braidplane/go
+            ${{ runner.temp }}/bin
+          key: ${{ steps.cache-1.outputs.cache-primary-key }}
+      - uses: actions/cache/save@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        if: ${{ !inputs.cold_cache && !cancelled() && steps.cache-2.outputs.cache-hit != 'true' }}
+        with:
+          path: |
+            ~/.cache/braidplane/node
+            ~/.cache/braidplane/npm
+          key: ${{ steps.cache-2.outputs.cache-primary-key }}
+      - uses: actions/cache/save@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        if: ${{ !inputs.cold_cache && !cancelled() && steps.lint-cache.outputs.cache-hit != 'true' }}
+        with:
+          path: ~/.cache/braidplane/golangci-lint
+          key: ${{ steps.lint-cache.outputs.cache-primary-key }}
+  go-e2e:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: ./.github/actions/prepare-hosted-runner
+      - uses: ./.github/actions/cache-fixture-images
+        with:
+          enabled: ${{ !inputs.cold_cache }}
+      - if: ${{ !inputs.cold_cache }}
+        uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        id: cache-1
+        with:
+          path: |
+            ~/go/pkg/mod
+            ~/.cache/braidplane/go
+            ${{ runner.temp }}/bin
+          key: community-go-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('ci/toolchain/versions.env') }}-${{ hashFiles('go.sum', 'tools/go.sum') }}-${{ github.sha }}-${{ github.job }}
+          restore-keys: |
+            community-go-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('ci/toolchain/versions.env') }}-${{ hashFiles('go.sum', 'tools/go.sum') }}-
+            community-go-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('ci/toolchain/versions.env') }}-
+            community-go-browser-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('ci/toolchain/versions.env') }}-
+      - name: Prepare matching PostgreSQL recovery clients
+        env:
+          TMPDIR: ${{ runner.temp }}/go-e2e
+        run: |
+          mkdir -p "$TMPDIR" "$RUNNER_TEMP/postgres-client-bin"
+          cat > "$RUNNER_TEMP/postgres-client-bin/pg_dump" <<'SH'
+          #!/usr/bin/env bash
+          set -euo pipefail
+          exec docker run --rm --network host --user "$(id -u):$(id -g)" \
+            --mount "type=bind,src=$TMPDIR,dst=$TMPDIR" \
+            --env PGPASSWORD --env PGSSLMODE \
+            postgres:18.6@sha256:edb0c08dc33befd0262ab3b5cf1c4f3f8cfd8b09e88c05b45adee29d6761ddb6 \
+            "${0##*/}" "$@"
+          SH
+          cp "$RUNNER_TEMP/postgres-client-bin/pg_dump" "$RUNNER_TEMP/postgres-client-bin/pg_restore"
+          chmod +x "$RUNNER_TEMP/postgres-client-bin/pg_dump" "$RUNNER_TEMP/postgres-client-bin/pg_restore"
+          export PATH="$RUNNER_TEMP/postgres-client-bin:$PATH"
+          [[ $(pg_dump --version) == 'pg_dump (PostgreSQL) 18.6'* ]]
+          [[ $(pg_restore --version) == 'pg_restore (PostgreSQL) 18.6'* ]]
+          echo "$RUNNER_TEMP/postgres-client-bin" >> "$GITHUB_PATH"
+          echo "TMPDIR=$TMPDIR" >> "$GITHUB_ENV"
+      - name: Run every Go E2E package on disposable fixtures
+        run: |
+          source ci/toolchain/versions.env
+          mkdir -p "$RUNNER_TEMP/bin"
+          if [ ! -x "$RUNNER_TEMP/bin/task" ]; then
+            GOBIN="$RUNNER_TEMP/bin" bash scripts/go-toolchain.sh install github.com/go-task/task/v3/cmd/task@v"$TASK_VERSION"
+          fi
+          export PATH="$RUNNER_TEMP/bin:$PATH"
+          task test-go-e2e
+      - uses: actions/cache/save@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        if: ${{ !inputs.cold_cache && !cancelled() && steps.cache-1.outputs.cache-hit != 'true' }}
+        with:
+          path: |
+            ~/go/pkg/mod
+            ~/.cache/braidplane/go
+            ${{ runner.temp }}/bin
+          key: ${{ steps.cache-1.outputs.cache-primary-key }}
+  docs:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - if: ${{ !inputs.cold_cache }}
+        uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        id: cache-1
+        with:
+          path: ~/.cache/pip
+          key: community-docs-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('requirements-docs.lock.txt') }}
+      - name: Validate documentation contract
+        run: bash scripts/docs-check.sh
+      - uses: actions/cache/save@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        if: ${{ !inputs.cold_cache && !cancelled() && steps.cache-1.outputs.cache-hit != 'true' }}
+        with:
+          path: ~/.cache/pip
+          key: ${{ steps.cache-1.outputs.cache-primary-key }}
+  browser:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: ./.github/actions/prepare-hosted-runner
+      - uses: ./.github/actions/cache-fixture-images
+        with:
+          enabled: ${{ !inputs.cold_cache }}
+      - if: ${{ !inputs.cold_cache }}
+        uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        id: cache-1
+        with:
+          path: |
+            ~/go/pkg/mod
+            ~/.cache/braidplane/go
+            ${{ runner.temp }}/bin
+          key: community-go-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('ci/toolchain/versions.env') }}-${{ hashFiles('go.sum', 'tools/go.sum') }}-${{ github.sha }}-${{ github.job }}
+          restore-keys: |
+            community-go-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('ci/toolchain/versions.env') }}-${{ hashFiles('go.sum', 'tools/go.sum') }}-
+            community-go-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('ci/toolchain/versions.env') }}-
+            community-go-browser-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('ci/toolchain/versions.env') }}-
+      - if: ${{ !inputs.cold_cache }}
+        uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        id: cache-2
+        with:
+          path: |
+            ~/.cache/braidplane/node
+            ~/.cache/braidplane/npm
+            ~/.cache/ms-playwright
+          key: community-node-browser-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('ci/toolchain/versions.env', 'frontend/package-lock.json') }}
+      - uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3
+      - name: Build cached Git fixture image
+        uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6
+        env:
+          DOCKER_BUILD_RECORD_UPLOAD: 'false'
+        with:
+          context: docker
+          file: docker/Dockerfile.soft-serve
+          load: true
+          no-cache: ${{ inputs.cold_cache == true }}
+          tags: braidplane-ci-git:ci
+          cache-from: ${{ !inputs.cold_cache && 'type=gha,scope=community-git-fixture' || '' }}
+          cache-to: ${{ !inputs.cold_cache && 'type=gha,mode=max,scope=community-git-fixture' || '' }}
+      - name: Install pinned task and browsers
+        run: |
+          source ci/toolchain/versions.env
+          mkdir -p "$RUNNER_TEMP/bin"
+          if [ ! -x "$RUNNER_TEMP/bin/task" ]; then
+            GOBIN="$RUNNER_TEMP/bin" bash scripts/go-toolchain.sh install github.com/go-task/task/v3/cmd/task@v"$TASK_VERSION"
+          fi
+          echo "$RUNNER_TEMP/bin" >> "$GITHUB_PATH"
+          bash scripts/node-toolchain.sh npm --prefix frontend ci
+          bash scripts/node-toolchain.sh npm --prefix frontend exec -- playwright install --with-deps chromium firefox webkit
+      - name: Run critical browser profile on disposable fixtures
+        env:
+          CI_GIT_IMAGE: braidplane-ci-git:ci
+        run: |
+          nproc
+          free -h
+          df -h .
+          vmstat -w 15 &
+          sampler_pid=$!
+          trap 'kill "$sampler_pid" 2>/dev/null || true; wait "$sampler_pid" 2>/dev/null || true; free -h; df -h .' EXIT
+          /usr/bin/time -v bash scripts/ci-browser.sh
+          df -h .
+      - uses: actions/cache/save@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        if: ${{ !inputs.cold_cache && !cancelled() && steps.cache-1.outputs.cache-hit != 'true' }}
+        with:
+          path: |
+            ~/go/pkg/mod
+            ~/.cache/braidplane/go
+            ${{ runner.temp }}/bin
+          key: ${{ steps.cache-1.outputs.cache-primary-key }}
+      - uses: actions/cache/save@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        if: ${{ !inputs.cold_cache && !cancelled() && steps.cache-2.outputs.cache-hit != 'true' }}
+        with:
+          path: |
+            ~/.cache/braidplane/node
+            ~/.cache/braidplane/npm
+            ~/.cache/ms-playwright
+          key: ${{ steps.cache-2.outputs.cache-primary-key }}
+  containers:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      max-parallel: 2
+      matrix:
+        target: [backend, frontend, migrate, cli]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: ./.github/actions/prepare-hosted-runner
+      - uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3
+      - name: Build cached container target
+        uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6
+        env:
+          DOCKER_BUILD_RECORD_UPLOAD: 'false'
+        with:
+          context: .
+          target: ${{ matrix.target }}
+          load: true
+          no-cache: ${{ inputs.cold_cache == true }}
+          tags: braidplane-core-${{ matrix.target }}:ci
+          cache-from: ${{ !inputs.cold_cache && format('type=gha,scope=community-{0}', matrix.target) || '' }}
+          cache-to: ${{ !inputs.cold_cache && format('type=gha,mode=max,scope=community-{0}', matrix.target) || '' }}
+      - name: Smoke-test packaged administrator commands
+        if: matrix.target == 'backend'
+        run: |
+          for command in bootstrap grant revoke credential-rekey; do
+            docker run --rm --network none --read-only --entrypoint /braidplane-admin \
+              braidplane-core-backend:ci "$command" --help
+          done
+  community-gate:
+    if: ${{ always() }}
+    needs: [verify, go-e2e, docs, browser, containers]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    permissions: {}
+    steps:
+      - name: Require every validation job
+        env:
+          VERIFY: ${{ needs.verify.result }}
+          GO_E2E: ${{ needs.go-e2e.result }}
+          DOCS: ${{ needs.docs.result }}
+          BROWSER: ${{ needs.browser.result }}
+          CONTAINERS: ${{ needs.containers.result }}
+        run: |
+          for result in "$VERIFY" "$GO_E2E" "$DOCS" "$BROWSER" "$CONTAINERS"; do
+            if [ "$result" != success ]; then
+              echo "Required validation did not succeed: $result" >&2
+              exit 1
+            fi
+          done

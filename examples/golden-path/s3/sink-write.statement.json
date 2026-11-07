@@ -1,0 +1,13 @@
+{
+  "type": "s3",
+  "operation": "write",
+  "key": "runs/{{runtime.run.slug}}/joined-orders.json",
+  "format": "json",
+  "content": "{{input}}",
+  "content_type": "application/json",
+  "metadata": {
+    "source": "braidplane-golden-path",
+    "run": "{{runtime.run.slug}}"
+  },
+  "overwrite": true
+}

@@ -1,0 +1,40 @@
+{
+  "result_type": "sql",
+  "type": "postgres",
+  "success": true,
+  "payload": {
+    "row_count": 4,
+    "column_names": [
+      "customer_slug",
+      "customer_name",
+      "customer_segment",
+      "region"
+    ],
+    "rows": [
+      {
+        "customer_slug": "atlas-retail",
+        "customer_name": "Atlas Retail",
+        "customer_segment": "retail",
+        "region": "emea"
+      },
+      {
+        "customer_slug": "evergreen-ops",
+        "customer_name": "Evergreen Ops",
+        "customer_segment": "operations",
+        "region": "na"
+      },
+      {
+        "customer_slug": "harbor-health",
+        "customer_name": "Harbor Health",
+        "customer_segment": "healthcare",
+        "region": "na"
+      },
+      {
+        "customer_slug": "northstar-logistics",
+        "customer_name": "Northstar Logistics",
+        "customer_segment": "logistics",
+        "region": "apac"
+      }
+    ]
+  }
+}

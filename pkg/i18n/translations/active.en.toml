@@ -1,0 +1,86 @@
+[email_verification]
+description = "Email verification message sent to users to verify their email address."
+other = "Please verify your email address by clicking the link below: {{.VerificationLink}}"
+
+[email_verification_subject]
+description = "Subject line for the email verification message."
+other = "Please verify your email address"
+
+[password_reset]
+description = "Password reset message sent to users to reset their password."
+other = "Reset your password by clicking the link below: {{.ResetLink}}"
+
+[password_reset_subject]
+description = "Subject line for the password reset message."
+other = "Reset your password"
+
+[member_invitation]
+description = "Organization member invitation message sent to invited users."
+other = "{{.InviterName}} ({{.InviterEmail}}) invited you to join {{.OrganizationName}} as {{.Role}}. This invitation expires at {{.ExpiresAt}}. Accept the invitation here: {{.AcceptanceLink}}"
+
+[member_invitation_subject]
+description = "Subject line for the organization member invitation message."
+other = "You're invited to join {{.OrganizationName}}"
+
+[session_mfa]
+description = "Email MFA code sent to users during sign-in."
+other = "Use this code to finish signing in: {{.Code}}"
+
+[session_mfa_subject]
+description = "Subject line for the email MFA code message."
+other = "Your sign-in code"
+
+[notification_delivery]
+description = "Generic notification email sent to configured operator recipients."
+other = "{{.OrganizationName}} has a {{.Severity}} {{.NotificationType}} notification. {{.Summary}} Occurrences: {{.OccurrenceCount}}. Source: {{.SourceEntityType}}/{{.SourceAction}}. Notification: {{.RecordSlug}}"
+
+[notification_delivery_subject]
+description = "Subject line for a generic notification email."
+other = "[{{.Severity}}] {{.NotificationType}} in {{.OrganizationName}}"
+
+[notification_type_pipeline_run_failed_label]
+description = "Display label for pipeline run failed notifications."
+other = "pipeline run failed"
+
+[notification_type_pipeline_retry_exhausted_label]
+description = "Display label for pipeline retry exhausted notifications."
+other = "pipeline retries exhausted"
+
+[notification_type_pipeline_scheduled_run_delayed_label]
+description = "Display label for delayed scheduled pipeline run notifications."
+other = "scheduled pipeline run delayed"
+
+[notification_type_pipeline_scheduled_run_missing_label]
+description = "Display label for missing scheduled pipeline run notifications."
+other = "scheduled pipeline run missing"
+
+[notification_type_pipeline_freshness_sla_breached_label]
+description = "Display label for pipeline freshness SLA breach notifications."
+other = "pipeline freshness SLA breached"
+
+[notification_type_pipeline_contract_failure_label]
+description = "Display label for pipeline contract failure notifications."
+other = "pipeline contract failure"
+
+[notification_severity_info_label]
+description = "Display label for informational notifications."
+other = "info"
+
+[notification_severity_warning_label]
+description = "Display label for warning notifications."
+other = "warning"
+
+[notification_severity_critical_label]
+description = "Display label for critical notifications."
+other = "critical"
+
+[event_entity_pipeline_run_label]
+description = "Display label for pipeline run event sources."
+other = "pipeline run"
+
+[event_action_execute_label]
+description = "Display label for execute event actions."
+other = "execute"
+
+[notification_type_pipeline_run_succeeded_label]
+other = "Pipeline run succeeded"

@@ -1,0 +1,7 @@
+{
+  "type": "s3",
+  "operation": "read",
+  "key": "pricing-demo/orbit.csv",
+  "format": "csv",
+  "has_header": true
+}

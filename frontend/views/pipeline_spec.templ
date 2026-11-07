@@ -1,0 +1,235 @@
+package views
+
+import "fmt"
+import api "github.com/Braidplane/braidplane-core/api-schema/gen/client"
+
+templ PipelineSpecProjectionPanel(pipeline *api.Pipeline, embedded bool) {
+	{{ projection := PipelineSpecProjectionFromPipeline(pipeline) }}
+	<section class="min-w-0" data-pipeline-spec-projection>
+		<div class="flex flex-wrap items-start justify-between gap-3">
+			<div>
+				<h3 class="text-base font-semibold text-base-content">Pipeline spec and contracts</h3>
+				<p class="mt-1 text-sm text-base-content/70">Canonical source, transform, and sink steps with declared payload contracts.</p>
+			</div>
+			if pipeline != nil {
+				<span class="badge badge-outline">{ fmt.Sprintf("%d steps", projection.TotalSteps) }</span>
+			}
+		</div>
+		if pipeline == nil {
+			<div class="mt-4 rounded-lg border border-dashed border-base-300 bg-base-200/30 px-4 py-3 text-sm text-base-content/70">Pipeline spec is unavailable.</div>
+		} else {
+			if len(projection.DecodeIssues) > 0 {
+				<div class="mt-4 rounded-lg border border-warning/40 bg-warning/10 px-4 py-3 text-sm text-base-content shadow-sm">
+					<div>
+						<p class="font-medium">{ PipelineSpecDecodeIssueSummary(len(projection.DecodeIssues)) }</p>
+						<ul class="mt-2 list-disc space-y-1 pl-5">
+							for _, issue := range projection.DecodeIssues {
+								<li>{ issue }</li>
+							}
+						</ul>
+					</div>
+				</div>
+			}
+			if projection.TotalSteps == 0 {
+				<div class="mt-4 rounded-lg border border-dashed border-base-300 bg-base-200/30 px-4 py-3 text-sm text-base-content/70">No steps declared in the canonical spec.</div>
+			} else {
+				<p class="mt-4 text-sm text-base-content/70">{ pipelineWorkflowSummary(pipeline) }</p>
+				<div class="mt-5 space-y-5">
+					@PipelineSpecStepGroup("Source steps", projection.SourceSteps, "No source steps declared.", embedded)
+					@PipelineSpecStepGroup("Transform steps", projection.TransformSteps, "No transform steps declared.", embedded)
+					@PipelineSpecStepGroup("Sink steps", projection.SinkSteps, "No sink steps declared.", embedded)
+				</div>
+			}
+		}
+	</section>
+}
+
+templ PipelineSpecStepGroup(title string, steps []PipelineSpecStepProjection, emptyMessage string, embedded bool) {
+	<div>
+		<div>
+			<h4 class="text-sm font-semibold text-base-content">{ title }</h4>
+		</div>
+		if len(steps) == 0 {
+			<div class="mt-2 rounded-lg border border-dashed border-base-300 bg-base-200/25 px-4 py-3 text-sm text-base-content/70">{ emptyMessage }</div>
+		} else {
+			<div class="mt-2 divide-y divide-base-300 rounded-lg border border-base-300 bg-base-200/20">
+				for _, step := range steps {
+					@PipelineSpecStepRow(step, embedded)
+				}
+			</div>
+		}
+	</div>
+}
+
+templ PipelineSpecStepRow(step PipelineSpecStepProjection, embedded bool) {
+	<details class="min-w-0 p-4" data-pipeline-step open?={ embedded }>
+		<summary class="cursor-pointer break-words text-sm font-semibold focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary">{ step.KindLabel }: { PipelineSpecStepDisplayName(step) }</summary>
+		<div class="mt-4 flex flex-wrap items-start justify-between gap-3">
+			<div class="min-w-0">
+				<div class="flex flex-wrap items-center gap-2">
+					<span class="badge badge-ghost badge-outline">{ fmt.Sprintf("%02d", step.SpecPosition) }</span>
+					<span class={ PipelineSpecStepKindBadgeClass(step.Kind) }>{ step.KindLabel }</span>
+					<p class="break-words text-sm font-semibold text-base-content">{ PipelineSpecStepDisplayName(step) }</p>
+				</div>
+				if PipelineSpecStepSlugDisplay(step) != "" {
+					<p class="mt-1 break-all font-mono text-xs text-base-content/65">{ PipelineSpecStepSlugDisplay(step) }</p>
+				}
+			</div>
+			if step.OperationLabel != "" {
+				<div class="min-w-0 text-right">
+					<p class="text-xs font-semibold uppercase tracking-wide text-base-content/55">{ step.OperationMode }</p>
+					if step.OperationInline != "" {
+						<pre class="mt-1 max-h-24 overflow-auto whitespace-pre-wrap break-all rounded border border-base-300 bg-base-100/70 p-2 text-left font-mono text-xs text-base-content/70">{ step.OperationInline }</pre>
+					} else {
+						<p class="mt-1 break-all font-mono text-xs text-base-content/70">{ step.OperationLabel }</p>
+					}
+				</div>
+			}
+		</div>
+		<div class={ func() string { if embedded { return "mt-4 grid gap-3" }; return "mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-4" }() }>
+			if step.DataSourceSlug != "" {
+				<div>
+					<p class="text-xs font-semibold uppercase tracking-wide text-base-content/55">Data source ref</p>
+					<p class="mt-1 break-all font-mono text-xs text-base-content/75">{ step.DataSourceSlug }</p>
+				</div>
+			}
+			if step.OperationType != "" {
+				<div>
+					<p class="text-xs font-semibold uppercase tracking-wide text-base-content/55">Operation type</p>
+					<p class="mt-1 font-mono text-xs text-base-content/75">{ step.OperationType }</p>
+				</div>
+			}
+			if step.OutputKind != "" {
+				<div>
+					<p class="text-xs font-semibold uppercase tracking-wide text-base-content/55">Output kind</p>
+					<p class="mt-1 font-mono text-xs text-base-content/75">{ step.OutputKind }</p>
+				</div>
+			}
+			if step.IdempotencyClass != "" {
+				<div>
+					<p class="text-xs font-semibold uppercase tracking-wide text-base-content/55">Idempotency</p>
+					<p class="mt-1 font-mono text-xs text-base-content/75">{ step.IdempotencyClass }</p>
+				</div>
+			}
+			if len(step.Inputs) > 0 {
+				<div class={ func() string { if embedded { return "" }; return "sm:col-span-2 xl:col-span-4" }() }>
+					<p class="text-xs font-semibold uppercase tracking-wide text-base-content/55">Inputs</p>
+					<div class="mt-1 flex flex-wrap gap-1">
+						for _, input := range step.Inputs {
+							<span class="badge badge-ghost badge-outline font-mono">{ PipelineSpecInputLabel(input) }</span>
+						}
+					</div>
+				</div>
+			}
+		</div>
+		if step.SQL != "" {
+			<pre class="mt-4 max-h-32 overflow-auto whitespace-pre-wrap rounded-lg border border-base-300 bg-base-100/70 p-3 font-mono text-xs text-base-content/80">{ step.SQL }</pre>
+		}
+		if len(step.ContractSlots) > 0 {
+			<div class={ func() string { if embedded { return "mt-4 grid gap-3" }; return "mt-4 grid gap-3 lg:grid-cols-2" }() }>
+				for _, slot := range step.ContractSlots {
+					@PipelineSpecContractSlotCard(slot)
+				}
+			</div>
+		}
+	</details>
+}
+
+templ PipelineSpecContractSlotCard(slot PipelineSpecContractSlot) {
+	<div class="min-w-0 rounded-lg border border-base-300 bg-base-100/65 p-3">
+		<div class="flex flex-wrap items-start justify-between gap-2">
+			<div class="min-w-0">
+				<p class="text-xs font-semibold uppercase tracking-wide text-base-content/60">{ slot.Label }</p>
+				if slot.Contract != nil {
+					<p class="mt-1 break-words text-sm font-semibold text-base-content">{ PipelineSpecContractName(slot.Contract) }</p>
+				}
+			</div>
+			if slot.Ref != nil {
+				<span class="badge badge-info badge-outline">Exact ODCS reference</span>
+			} else if slot.Contract == nil {
+				<span class="badge badge-ghost badge-outline">not declared</span>
+			} else {
+				<span class="badge badge-info badge-outline">{ PipelineSpecContractSummary(slot.Contract) }</span>
+			}
+		</div>
+		if slot.Ref != nil {
+			<p class="mt-3 break-all font-mono text-xs">{ slot.Ref.ContractSlug + " · " + slot.Ref.RevisionSlug + " · " + slot.Ref.SchemaObjectId }</p>
+			<p class="mt-2 text-xs text-base-content/70">Inspect this exact revision in the project ODCS catalog for its digest, supported semantics and known consumers.</p>
+		} else if slot.Contract == nil {
+			<p class="mt-3 text-xs text-base-content/65">No contract is declared at this boundary.</p>
+		} else {
+			<div class={ func() string { if PipelineSpecContractHasRootShape(slot.Contract) { return "mt-3 grid gap-2 sm:grid-cols-2" }; return "mt-3" }() }>
+				<div>
+					<p class="text-xs font-semibold uppercase tracking-wide text-base-content/55">Representation</p>
+					<p class="mt-1 font-mono text-xs text-base-content/75">{ PipelineSpecContractRepresentation(slot.Contract) }</p>
+				</div>
+				if PipelineSpecContractHasRootShape(slot.Contract) {
+					<div>
+						<p class="text-xs font-semibold uppercase tracking-wide text-base-content/55">Root shape</p>
+						<p class="mt-1 font-mono text-xs text-base-content/75">{ PipelineSpecContractRootShape(slot.Contract) }</p>
+					</div>
+				}
+			</div>
+			if len(PipelineSpecContractFields(slot.Contract)) == 0 {
+				<p class="mt-3 text-xs text-base-content/65">No field-level schema declared.</p>
+			} else {
+				<div class="mt-3 overflow-x-auto">
+					<table class="table table-xs min-w-[30rem]">
+						<thead>
+							<tr>
+								<th class="text-xs uppercase tracking-wide text-base-content/55">Field</th>
+								<th class="text-xs uppercase tracking-wide text-base-content/55">Type</th>
+								<th class="text-xs uppercase tracking-wide text-base-content/55">Rules</th>
+							</tr>
+						</thead>
+						<tbody>
+							for _, field := range PipelineSpecContractFields(slot.Contract) {
+								<tr>
+									<td class="break-all font-mono text-xs">{ field.Name }</td>
+									<td class="font-mono text-xs">{ string(field.Type) }</td>
+									<td>
+										<div class="flex flex-wrap gap-1">
+											for _, label := range PipelineSpecContractFieldLabels(field) {
+												<span class="badge badge-ghost badge-outline badge-xs">{ label }</span>
+											}
+										</div>
+									</td>
+								</tr>
+							}
+						</tbody>
+					</table>
+				</div>
+			}
+		}
+	</div>
+}
+
+templ PipelineWorkflowOverview(pipeline *api.Pipeline) {
+	{{ projection := PipelineSpecProjectionFromPipeline(pipeline) }}
+	<div class="min-w-0" data-pipeline-workflow-overview>
+		<p class="text-sm text-base-content/70">{ pipelineWorkflowSummary(pipeline) }</p>
+		if len(projection.DecodeIssues) > 0 {
+			<p class="mt-2 text-sm text-base-content">{ PipelineSpecDecodeIssueSummary(len(projection.DecodeIssues)) } Inspect Workflow for details.</p>
+		}
+		<div class="mt-3 grid gap-4 md:grid-cols-3">
+			for _, group := range []struct { label string; steps []PipelineSpecStepProjection }{{"Source", projection.SourceSteps}, {"Transform", projection.TransformSteps}, {"Sink", projection.SinkSteps}} {
+				<div class="min-w-0 border-t border-base-300 pt-3">
+					<h3 class="text-sm font-semibold">{ group.label }</h3>
+					if len(group.steps) == 0 {
+						<p class="mt-2 text-sm text-base-content/70">None declared</p>
+					}
+					<ul class="mt-2 space-y-2 text-sm">
+						for i, step := range group.steps {
+							if i < 3 {
+								<li class="break-words">{ PipelineSpecStepDisplayName(step) }</li>
+							}
+						}
+					</ul>
+					if len(group.steps) > 3 {
+						<p class="mt-2 text-xs text-base-content/70">{ fmt.Sprintf("%d more in Workflow", len(group.steps)-3) }</p>
+					}
+				</div>
+			}
+		</div>
+	</div>
+}

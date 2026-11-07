@@ -1,0 +1,302 @@
+[
+  {
+    "provider": "northstar",
+    "product_code": "000104",
+    "title": "Trail Bottle 750 ml",
+    "currency": "EUR",
+    "pack_units": 1,
+    "quoted_price": "2.10",
+    "unit_price": "2.1000",
+    "source_date": "2026-10-19"
+  },
+  {
+    "provider": "northstar",
+    "product_code": "000205",
+    "title": "City Helmet M",
+    "currency": "EUR",
+    "pack_units": 1,
+    "quoted_price": "24.00",
+    "unit_price": "24.0000",
+    "source_date": "2026-10-19"
+  },
+  {
+    "provider": "northstar",
+    "product_code": "000306",
+    "title": "Clip Light",
+    "currency": "EUR",
+    "pack_units": 1,
+    "quoted_price": "8.00",
+    "unit_price": "8.0000",
+    "source_date": "2026-10-19"
+  },
+  {
+    "provider": "packworks",
+    "product_code": "000104",
+    "title": "Trail Bottle 750 ml",
+    "currency": "EUR",
+    "pack_units": 12,
+    "quoted_price": "18.00",
+    "unit_price": "1.5000",
+    "source_date": "2026-10-19"
+  },
+  {
+    "provider": "packworks",
+    "product_code": "000205",
+    "title": "City Helmet M",
+    "currency": "EUR",
+    "pack_units": 12,
+    "quoted_price": "300.00",
+    "unit_price": "25.0000",
+    "source_date": "2026-10-19"
+  },
+  {
+    "provider": "packworks",
+    "product_code": "000306",
+    "title": "Clip Light",
+    "currency": "EUR",
+    "pack_units": 12,
+    "quoted_price": "90.00",
+    "unit_price": "7.5000",
+    "source_date": "2026-10-19"
+  },
+  {
+    "provider": "summit",
+    "product_code": "000104",
+    "title": "Trail Bottle 750 ml",
+    "currency": "EUR",
+    "pack_units": 1,
+    "quoted_price": "1.75",
+    "unit_price": "1.7500",
+    "source_date": "2026-10-19"
+  },
+  {
+    "provider": "summit",
+    "product_code": "000205",
+    "title": "City Helmet M",
+    "currency": "EUR",
+    "pack_units": 1,
+    "quoted_price": "23.00",
+    "unit_price": "23.0000",
+    "source_date": "2026-10-19"
+  },
+  {
+    "provider": "summit",
+    "product_code": "000306",
+    "title": "Clip Light",
+    "currency": "EUR",
+    "pack_units": 1,
+    "quoted_price": "7.75",
+    "unit_price": "7.7500",
+    "source_date": "2026-10-19"
+  },
+  {
+    "provider": "harbour",
+    "product_code": "000104",
+    "title": "Trail Bottle 750 ml",
+    "currency": "EUR",
+    "pack_units": 1,
+    "quoted_price": "1.80",
+    "unit_price": "1.8000",
+    "source_date": "2026-10-19"
+  },
+  {
+    "provider": "harbour",
+    "product_code": "000205",
+    "title": "City Helmet M",
+    "currency": "EUR",
+    "pack_units": 1,
+    "quoted_price": "22.50",
+    "unit_price": "22.5000",
+    "source_date": "2026-10-19"
+  },
+  {
+    "provider": "harbour",
+    "product_code": "000306",
+    "title": "Clip Light",
+    "currency": "EUR",
+    "pack_units": 1,
+    "quoted_price": "8.10",
+    "unit_price": "8.1000",
+    "source_date": "2026-10-19"
+  },
+  {
+    "provider": "orbit",
+    "product_code": "000104",
+    "title": "Trail Bottle 750 ml",
+    "currency": "EUR",
+    "pack_units": 1,
+    "quoted_price": "1.95",
+    "unit_price": "1.9500",
+    "source_date": "2026-10-19"
+  },
+  {
+    "provider": "orbit",
+    "product_code": "000205",
+    "title": "City Helmet M",
+    "currency": "EUR",
+    "pack_units": 1,
+    "quoted_price": "23.50",
+    "unit_price": "23.5000",
+    "source_date": "2026-10-19"
+  },
+  {
+    "provider": "orbit",
+    "product_code": "000306",
+    "title": "Clip Light",
+    "currency": "EUR",
+    "pack_units": 1,
+    "quoted_price": "7.60",
+    "unit_price": "7.6000",
+    "source_date": "2026-10-19"
+  },
+  {
+    "provider": "ridge",
+    "product_code": "000104",
+    "title": "Trail Bottle 750 ml",
+    "currency": "EUR",
+    "pack_units": 6,
+    "quoted_price": "10.20",
+    "unit_price": "1.7000",
+    "source_date": "2026-10-19"
+  },
+  {
+    "provider": "ridge",
+    "product_code": "000205",
+    "title": "City Helmet M",
+    "currency": "EUR",
+    "pack_units": 6,
+    "quoted_price": "132.00",
+    "unit_price": "22.0000",
+    "source_date": "2026-10-19"
+  },
+  {
+    "provider": "ridge",
+    "product_code": "000306",
+    "title": "Clip Light",
+    "currency": "EUR",
+    "pack_units": 6,
+    "quoted_price": "45.00",
+    "unit_price": "7.5000",
+    "source_date": "2026-10-19"
+  },
+  {
+    "provider": "pine",
+    "product_code": "000104",
+    "title": "Trail Bottle 750 ml",
+    "currency": "EUR",
+    "pack_units": 1,
+    "quoted_price": "1.85",
+    "unit_price": "1.8500",
+    "source_date": "2026-10-19"
+  },
+  {
+    "provider": "pine",
+    "product_code": "000205",
+    "title": "City Helmet M",
+    "currency": "EUR",
+    "pack_units": 1,
+    "quoted_price": "22.50",
+    "unit_price": "22.5000",
+    "source_date": "2026-10-19"
+  },
+  {
+    "provider": "pine",
+    "product_code": "000306",
+    "title": "Clip Light",
+    "currency": "EUR",
+    "pack_units": 1,
+    "quoted_price": "7.20",
+    "unit_price": "7.2000",
+    "source_date": "2026-10-19"
+  },
+  {
+    "provider": "beacon",
+    "product_code": "000104",
+    "title": "Trail Bottle 750 ml",
+    "currency": "EUR",
+    "pack_units": 1,
+    "quoted_price": "1.60",
+    "unit_price": "1.6000",
+    "source_date": "2026-10-19"
+  },
+  {
+    "provider": "beacon",
+    "product_code": "000205",
+    "title": "City Helmet M",
+    "currency": "EUR",
+    "pack_units": 1,
+    "quoted_price": "24.00",
+    "unit_price": "24.0000",
+    "source_date": "2026-10-19"
+  },
+  {
+    "provider": "beacon",
+    "product_code": "000306",
+    "title": "Clip Light",
+    "currency": "EUR",
+    "pack_units": 1,
+    "quoted_price": "7.90",
+    "unit_price": "7.9000",
+    "source_date": "2026-10-19"
+  },
+  {
+    "provider": "cedar",
+    "product_code": "000104",
+    "title": "Trail Bottle 750 ml",
+    "currency": "EUR",
+    "pack_units": 12,
+    "quoted_price": "26.40",
+    "unit_price": "2.2000",
+    "source_date": "2026-10-20"
+  },
+  {
+    "provider": "cedar",
+    "product_code": "000205",
+    "title": "City Helmet M",
+    "currency": "EUR",
+    "pack_units": 12,
+    "quoted_price": "276.00",
+    "unit_price": "23.0000",
+    "source_date": "2026-10-20"
+  },
+  {
+    "provider": "cedar",
+    "product_code": "000306",
+    "title": "Clip Light",
+    "currency": "EUR",
+    "pack_units": 12,
+    "quoted_price": "93.00",
+    "unit_price": "7.7500",
+    "source_date": "2026-10-20"
+  },
+  {
+    "provider": "fieldnotes",
+    "product_code": "000104",
+    "title": "Trail Bottle 750 ml",
+    "currency": "EUR",
+    "pack_units": 1,
+    "quoted_price": "1.90",
+    "unit_price": "1.9000",
+    "source_date": "2026-10-19"
+  },
+  {
+    "provider": "fieldnotes",
+    "product_code": "000205",
+    "title": "City Helmet M",
+    "currency": "EUR",
+    "pack_units": 1,
+    "quoted_price": "23.25",
+    "unit_price": "23.2500",
+    "source_date": "2026-10-19"
+  },
+  {
+    "provider": "fieldnotes",
+    "product_code": "000306",
+    "title": "Clip Light",
+    "currency": "EUR",
+    "pack_units": 1,
+    "quoted_price": "7.85",
+    "unit_price": "7.8500",
+    "source_date": "2026-10-19"
+  }
+]

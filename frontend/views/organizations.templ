@@ -1,0 +1,2073 @@
+package views
+
+import (
+	"fmt"
+	"net/url"
+	"strings"
+
+	api "github.com/Braidplane/braidplane-core/api-schema/gen/client"
+)
+
+// projectPipelineBackendDataSourceSlug returns the configured backend data-source slug for a project form.
+func projectPipelineBackendDataSourceSlug(project api.Project) string {
+	if project.PipelineBackend == nil {
+		return ""
+	}
+	return string(project.PipelineBackend.DataSourceSlug)
+}
+
+// projectPipelineBackendTrackedBranch returns the configured backend branch for a project form.
+func projectPipelineBackendTrackedBranch(project api.Project) string {
+	if project.PipelineBackend == nil {
+		return ""
+	}
+	return project.PipelineBackend.TrackedBranch
+}
+
+// projectPipelineBackendRepo returns the resolved remote repository for the project backend detail panel.
+func projectPipelineBackendRepo(project api.Project) string {
+	if project.PipelineBackend == nil {
+		return ""
+	}
+	return project.PipelineBackend.Repo
+}
+
+func projectPipelineBackendPipelineDir(project api.Project) string {
+	if project.PipelineBackend == nil || strings.TrimSpace(project.PipelineBackend.PipelineDir) == "" {
+		return "pipelines"
+	}
+	return project.PipelineBackend.PipelineDir
+}
+
+func projectPipelineBackendFirstCommit(project api.Project) string {
+	if project.PipelineBackend == nil || project.PipelineBackend.FirstCommitSha == nil {
+		return "Not registered"
+	}
+	return strings.TrimSpace(*project.PipelineBackend.FirstCommitSha)
+}
+
+// selectedOrganizationProjectSlug resolves the visible project detail from an explicit URL selection.
+func selectedOrganizationProjectSlug(projects []api.Project, requestedSlug string) string {
+	requestedSlug = strings.TrimSpace(requestedSlug)
+	if requestedSlug != "" {
+		for _, project := range projects {
+			if string(project.Slug) == requestedSlug {
+				return requestedSlug
+			}
+		}
+	}
+	if len(projects) == 0 {
+		return ""
+	}
+	return ""
+}
+
+// organizationProjectIsSelected reports whether a project should render as the active portfolio row.
+func organizationProjectIsSelected(project api.Project, projects []api.Project, requestedSlug string) bool {
+	return string(project.Slug) == selectedOrganizationProjectSlug(projects, requestedSlug)
+}
+
+// organizationProjectSelectionHref builds the master-detail project selection URL.
+func organizationProjectSelectionHref(orgSlug string, projectSlug string) string {
+	base := "/organizations/" + strings.TrimSpace(orgSlug) + "/projects"
+	trimmedProjectSlug := strings.TrimSpace(projectSlug)
+	if trimmedProjectSlug == "" {
+		return base
+	}
+
+	values := url.Values{}
+	values.Set("project_slug", trimmedProjectSlug)
+	return base + "?" + values.Encode()
+}
+
+// organizationProjectItemStateClass preserves setup readiness in the shared inventory row.
+func organizationProjectItemStateClass(project api.Project, projects []api.Project, requestedSlug string) string {
+	if organizationProjectIsSelected(project, projects, requestedSlug) {
+		if project.PipelineBackend == nil {
+			return "border-warning/60 bg-warning/15 shadow-sm shadow-warning/10"
+		}
+		return "border-primary/60 bg-primary/15 shadow-sm shadow-primary/10"
+	}
+	if project.PipelineBackend == nil {
+		return "border-warning/35 bg-warning/10"
+	}
+	return "border-success/30 bg-success/10"
+}
+
+// projectBackendConfiguredCount counts projects with a configured git-backed pipeline backend.
+func projectBackendConfiguredCount(projects []api.Project) int {
+	count := 0
+	for _, project := range projects {
+		if project.PipelineBackend != nil {
+			count++
+		}
+	}
+	return count
+}
+
+// projectBackendMissingCount counts projects without a Git pipeline backend.
+func projectBackendMissingCount(projects []api.Project) int {
+	return len(projects) - projectBackendConfiguredCount(projects)
+}
+
+// projectPipelineBackendStatusLabel summarizes whether a project can use Git-authored pipelines.
+func projectPipelineBackendStatusLabel(project api.Project) string {
+	if project.PipelineBackend == nil {
+		return "no Git backend"
+	}
+	if !projectRepositoryValidated(project) {
+		return "Git backend attached; validation unavailable"
+	}
+	return "Git backend attached"
+}
+
+// projectPipelineBackendStatusClass maps backend setup to a badge class.
+func projectPipelineBackendStatusClass(project api.Project) string {
+	class := badgeSuccessSoft
+	if !projectRepositoryValidated(project) {
+		class = badgeWarningSoft
+	}
+	return class + " h-auto max-w-full whitespace-normal py-1 leading-snug"
+}
+
+// projectSetupAttentionMetricClass maps the setup attention total to the data-source attention treatment.
+func projectSetupAttentionMetricClass(projects []api.Project) string {
+	if projectBackendMissingCount(projects) > 0 {
+		return "rounded-lg border border-warning/40 bg-warning/10 p-4"
+	}
+	return "rounded-lg border border-success/35 bg-success/10 p-4"
+}
+
+// projectPipelineBackendRepoLabel returns a stable fallback when the backend repo has not been resolved.
+func projectPipelineBackendRepoLabel(project api.Project) string {
+	repo := strings.TrimSpace(projectPipelineBackendRepo(project))
+	if repo == "" {
+		return "No backend repo resolved yet."
+	}
+	return repo
+}
+
+// projectPipelineBackendListLabel identifies the Git backend in compact project rows.
+func projectPipelineBackendListLabel(project api.Project) string {
+	if project.PipelineBackend == nil {
+		return "no Git backend"
+	}
+	repo := strings.TrimSpace(project.PipelineBackend.Repo)
+	if repo == "" {
+		return "backend " + strings.TrimSpace(project.PipelineBackend.DataSourceSlug)
+	}
+	return repo
+}
+
+// projectPipelineBackendBranchLabel returns a stable fallback for missing tracked branches.
+func projectPipelineBackendBranchLabel(project api.Project) string {
+	branch := strings.TrimSpace(projectPipelineBackendTrackedBranch(project))
+	if branch == "" {
+		return "No tracked branch configured"
+	}
+	return branch
+}
+
+func retentionRunStatusBadgeClass(status api.OrganizationRetentionRunStatus) string {
+	switch status {
+	case api.OrganizationRetentionRunStatusSucceeded:
+		return "badge badge-success badge-outline"
+	case api.OrganizationRetentionRunStatusFailed:
+		return "badge badge-error badge-outline"
+	default:
+		return "badge badge-outline"
+	}
+}
+
+func retentionRunStatusLabel(status api.OrganizationRetentionRunStatus) string {
+	switch status {
+	case api.OrganizationRetentionRunStatusSucceeded:
+		return "Succeeded"
+	case api.OrganizationRetentionRunStatusFailed:
+		return "Failed"
+	default:
+		return "Unknown"
+	}
+}
+
+func retentionRunDeletedTotal(run api.OrganizationRetentionRun) int64 {
+	return run.Outcome.QueryExecutionsDeleted +
+		run.Outcome.ReplayCheckpointsDeleted +
+		run.Outcome.PipelineRunsDeleted +
+		run.Outcome.EventLogsDeleted
+}
+
+func retentionRunFailureMessage(run api.OrganizationRetentionRun) string {
+	if run.FailureCode == nil {
+		return ""
+	}
+	switch *run.FailureCode {
+	case api.OrganizationRetentionRunFailureCodeInvalidPolicy:
+		return "The saved retention policy could not be applied. Review the policy windows before the next maintenance run."
+	case api.OrganizationRetentionRunFailureCodeMaintenanceFailed:
+		return "Retention maintenance did not complete. Braidplane will try again automatically."
+	default:
+		return "Retention maintenance did not complete."
+	}
+}
+
+// organizationProjectFullPageHref builds the canonical full project detail URL.
+func organizationProjectFullPageHref(orgSlug, projectSlug string) string {
+	return "/organizations/" + strings.TrimSpace(orgSlug) + "/projects/" + strings.TrimSpace(projectSlug)
+}
+
+templ OrganizationsPage(shellData AuthenticatedShellData, organizations []api.OrganizationWithRole, hasMore bool, nextCursor string, prevCursor string, activeOrganizationSlug string) {
+	@AuthenticatedShell(shellData, OrganizationsPageContent(organizations, hasMore, nextCursor, prevCursor, activeOrganizationSlug, shellData.PageError))
+}
+
+templ OrganizationsPageContent(organizations []api.OrganizationWithRole, hasMore bool, nextCursor string, prevCursor string, activeOrganizationSlug string, pageError string) {
+	<div class="rounded-xl border border-base-300 bg-base-100 p-4 sm:p-6 lg:p-7">
+		<div class="flex flex-wrap items-center justify-end gap-4">
+			<a class="btn btn-primary btn-sm w-full sm:w-auto sm:min-w-44" href="/organizations/new">Create Organization</a>
+		</div>
+		if len(organizations) == 0 && pageError == "" {
+			<div class="alert mt-4">
+				<span>No organizations yet. Create one to get started.</span>
+			</div>
+		}
+		if len(organizations) > 0 {
+			<div class="mt-4 space-y-3" id="organizations-list">
+				for _, org := range organizations {
+					<div class="rounded-xl border border-base-300 bg-base-100 p-4 sm:p-5">
+						<div class="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+							<div class="min-w-0">
+								<h2 class="text-base font-semibold text-base-content sm:text-lg">{ string(org.Name) }</h2>
+								<p class="mt-1 break-all text-sm text-base-content/70">Slug: { string(org.Slug) }</p>
+								<div class="mt-2 inline-flex flex-wrap items-center gap-2">
+									<div class="badge badge-outline">Role: { string(org.MemberRole) }</div>
+									if activeOrganizationSlug == string(org.Slug) {
+										<div class="badge badge-success">Active</div>
+									}
+								</div>
+							</div>
+							<div class="grid w-full grid-cols-1 gap-2 sm:flex sm:w-auto sm:flex-row sm:flex-wrap sm:justify-end sm:items-center lg:shrink-0">
+								<a class="btn btn-sm btn-outline w-full sm:min-w-24" href={ templ.URL("/organizations/" + string(org.Slug)) }>Details</a>
+								if activeOrganizationSlug != string(org.Slug) {
+									<form class="w-full sm:w-auto" method="post" action={ templ.URL("/organizations/" + string(org.Slug) + "/switch?return_to=/organizations") } hx-post={ "/organizations/" + string(org.Slug) + "/switch?return_to=/organizations" } hx-swap="none">
+										<button class="btn btn-sm btn-outline w-full sm:min-w-24" type="submit">Switch</button>
+									</form>
+								} else {
+									<button class="btn btn-sm btn-outline w-full sm:w-auto sm:min-w-24" type="button" disabled>Active Context</button>
+								}
+							</div>
+						</div>
+					</div>
+				}
+			</div>
+		}
+		if prevCursor != "" || hasMore {
+			<div class="mt-6 flex items-center justify-end gap-2">
+				if prevCursor != "" {
+					<a class="btn btn-sm btn-outline" href={ templ.URL("/organizations?cursor=" + prevCursor) }>Previous</a>
+				} else {
+					<button class="btn btn-sm btn-outline" type="button" disabled>Previous</button>
+				}
+				if hasMore && nextCursor != "" {
+					<a class="btn btn-sm btn-outline" href={ templ.URL("/organizations?cursor=" + nextCursor) }>Next</a>
+				} else {
+					<button class="btn btn-sm btn-outline" type="button" disabled>Next</button>
+				}
+			</div>
+		}
+	</div>
+}
+
+templ OrganizationDetailPage(shellData AuthenticatedShellData, organization api.Organization, activeOrganizationSlug string, canDelete bool) {
+	@AuthenticatedShell(shellData, OrganizationDetailPageContent(organization, activeOrganizationSlug, shellData.ActiveProjectSlug, canDelete))
+}
+
+templ OrganizationDetailPageContent(organization api.Organization, activeOrganizationSlug string, activeProjectSlug string, canDelete bool) {
+	<div class="space-y-6">
+		@OrganizationDetailTabs(string(organization.Slug), "overview")
+		if canDelete {
+			@OrganizationDeletionSection(string(organization.Slug))
+		}
+		<section class="rounded-xl border border-base-300 bg-base-100 p-4 sm:p-5">
+			<div class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+				<div>
+					<h2 class="text-xl font-semibold text-base-content">{ string(organization.Name) }</h2>
+					<p class="mt-1 text-sm text-base-content/70">Organization identity and management metadata.</p>
+				</div>
+				<a class="btn btn-outline btn-sm w-full sm:w-auto" href={ templ.URL("/organizations/" + string(organization.Slug) + "/connections") }>Git integrations</a>
+			</div>
+			<div class="mt-5 grid gap-3 sm:grid-cols-2">
+				<div class="rounded-lg border border-base-300 bg-base-200/30 p-4">
+					<p class="text-xs font-semibold uppercase tracking-wide text-base-content/60">Slug</p>
+					<p class="mt-1 break-all font-medium text-base-content">{ string(organization.Slug) }</p>
+				</div>
+				<div class="rounded-lg border border-base-300 bg-base-200/30 p-4">
+					<p class="text-xs font-semibold uppercase tracking-wide text-base-content/60">Created at</p>
+					<p class="mt-1 font-medium text-base-content">{ organization.CreatedAt.Format("2006-01-02 15:04:05 MST") }</p>
+				</div>
+			</div>
+		</section>
+
+	</div>
+}
+
+templ OrganizationDetailTabs(orgSlug string, activeTab string) {
+	<div class="mt-6 overflow-x-auto">
+		<div class="tabs tabs-border min-w-max" role="tablist" aria-label="Organization detail sections">
+			<a
+				class={ "tab" + func() string {
+	if activeTab == "overview" {
+		return " tab-active"
+	}
+	return ""
+}() }
+				role="tab"
+				href={ templ.URL("/organizations/" + orgSlug) }
+			>Overview</a>
+			<a class={ "tab", templ.KV("tab-active", activeTab == "github" || activeTab == "connections") } role="tab" href={ templ.URL("/organizations/" + orgSlug + "/connections") }>Git integrations</a>
+			<a
+				class={ "tab" + func() string {
+	if activeTab == "retention" {
+		return " tab-active"
+	}
+	return ""
+}() }
+				role="tab"
+				href={ templ.URL("/organizations/" + orgSlug + "/retention") }
+			>Retention</a>
+			<a
+				class={ "tab" + func() string {
+	if activeTab == "members" {
+		return " tab-active"
+	}
+	return ""
+}() }
+				role="tab"
+				href={ templ.URL("/organizations/" + orgSlug + "/members") }
+			>Members</a>
+			<a
+				class={ "tab" + func() string {
+	if activeTab == "roles" {
+		return " tab-active"
+	}
+	return ""
+}() }
+				role="tab"
+				href={ templ.URL("/organizations/" + orgSlug + "/roles") }
+			>Roles</a>
+			<a
+				class={ "tab" + func() string {
+	if activeTab == "security" {
+		return " tab-active"
+	}
+	return ""
+}() }
+				role="tab"
+				href={ templ.URL("/organizations/" + orgSlug + "/security") }
+			>Security</a>
+		</div>
+	</div>
+}
+
+templ OrganizationGitHubPage(shellData AuthenticatedShellData, organization api.Organization, connection *api.GitHubAppConnection, feedback string, feedbackError bool) {
+	@AuthenticatedShell(shellData, OrganizationGitHubPageContent(organization, connection, feedback, feedbackError))
+}
+
+templ OrganizationGitHubPageContent(organization api.Organization, connection *api.GitHubAppConnection, feedback string, feedbackError bool) {
+	<div class="space-y-6">
+		@OrganizationDetailTabs(string(organization.Slug), "github")
+		<section class="rounded-xl border border-base-300 bg-base-100 p-4 sm:p-5">
+			<div class="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+				<div>
+					<h2 class="text-xl font-semibold text-base-content">GitHub App</h2>
+					<p class="mt-1 text-sm text-base-content/70">Alpha supports one GitHub organization or personal account per Braidplane organization. Multiple data sources share this installation and can select different repositories. Proof is optional.</p>
+				</div>
+				if connection == nil || connection.DeletedAt != nil {
+					<form method="post" action={ templ.URL("/organizations/" + string(organization.Slug) + "/github/connect") } hx-post={ "/organizations/" + string(organization.Slug) + "/github/connect" } hx-swap="none">
+						<button class="btn btn-primary btn-sm w-full sm:w-auto" type="submit">Connect GitHub</button>
+					</form>
+				} else {
+					<form method="post" action={ templ.URL("/organizations/" + string(organization.Slug) + "/github/disconnect") } hx-confirm={ DestructiveConfirmation("Disconnect", "GitHub connection", string(connection.AccountLogin), "Repository access and Proof deliveries from these repositories will stop.") } data-destructive-confirm={ DestructiveConfirmation("Disconnect", "GitHub connection", string(connection.AccountLogin), "Repository access and Proof deliveries from these repositories will stop.") }>
+						<button class="btn btn-outline btn-error btn-sm w-full sm:w-auto" type="submit">Disconnect</button>
+					</form>
+				}
+			</div>
+			if feedback != "" {
+				if feedbackError {
+					<div class="alert alert-error mt-4" role="alert">{ feedback }</div>
+				} else {
+					<div class="alert alert-info mt-4" role="status">{ feedback }</div>
+				}
+			}
+			if connection != nil && connection.DeletedAt == nil {
+				<div class="mt-5 border-t border-base-300 pt-4">
+					<div class="flex flex-wrap items-center gap-2">
+						<span class="font-semibold">{ string(connection.AccountLogin) }</span>
+						if connection.SuspendedAt != nil {
+							<span class="badge badge-warning badge-sm">Suspended</span>
+						} else {
+							<span class="badge badge-success badge-sm">Connected</span>
+						}
+					</div>
+					if connection.SuspendedAt != nil {
+						<div class="alert alert-warning mt-4"><span>GitHub suspended this installation. Re-enable it in GitHub before repository access and Proof deliveries can resume.</span></div>
+					}
+					<p class="mt-1 text-xs text-base-content/60">{ fmt.Sprintf("%d repositories selected", len(connection.Repositories)) }</p>
+					if len(connection.Repositories) == 0 {
+						<p class="mt-4 rounded-lg border border-base-300 bg-base-200/40 px-3 py-2 text-sm text-base-content/70">No repositories are selected.</p>
+					} else {
+						<ul class="mt-4 divide-y divide-base-300 rounded-lg border border-base-300">
+							for _, repository := range connection.Repositories {
+								<li class="break-all px-3 py-2 text-sm font-medium">{ string(repository.FullName) }</li>
+							}
+						</ul>
+					}
+					<form class="mt-4" method="post" action={ templ.URL("/organizations/" + string(organization.Slug) + "/github/connect") } hx-post={ "/organizations/" + string(organization.Slug) + "/github/connect" } hx-swap="none"><button class="btn btn-ghost btn-sm" type="submit">Reconnect</button></form>
+				</div>
+			} else {
+				<div class="mt-5 space-y-4 border-t border-base-300 pt-4">
+					<p class="text-sm text-base-content/60">No GitHub account is connected.</p>
+					<form class="flex flex-col gap-2 sm:flex-row sm:items-end" method="post" action="github/authorize-existing" hx-post="github/authorize-existing" hx-swap="none">
+						<label class="form-control w-full sm:max-w-xs"><span class="label-text text-sm">Already installed? GitHub account or organization</span><input class="input input-bordered input-sm" type="text" name="account_login" required maxlength="39" pattern="[A-Za-z0-9][A-Za-z0-9-]*" autocomplete="username"/></label>
+						<button class="btn btn-outline btn-sm" type="submit">Connect existing installation</button>
+					</form>
+					<p class="text-xs text-base-content/60">Use the exact GitHub account or organization where the App is already installed. If it is not installed yet, use Connect GitHub above.</p>
+				</div>
+			}
+		</section>
+	</div>
+}
+
+templ OrganizationRetentionPage(
+	shellData AuthenticatedShellData,
+	organization api.Organization,
+	policy *api.OrganizationRetentionPolicy,
+	history *api.OrganizationRetentionRunList,
+	policyError string,
+	historyError string,
+	policySaved bool,
+	canEdit bool,
+) {
+	@AuthenticatedShell(
+		shellData,
+		OrganizationRetentionPageContent(
+			organization,
+			policy,
+			history,
+			policyError,
+			historyError,
+			policySaved,
+			canEdit,
+		),
+	)
+}
+
+templ OrganizationRetentionPageContent(
+	organization api.Organization,
+	policy *api.OrganizationRetentionPolicy,
+	history *api.OrganizationRetentionRunList,
+	policyError string,
+	historyError string,
+	policySaved bool,
+	canEdit bool,
+) {
+	<div class="space-y-6" id="organization-retention-content">
+		if policySaved {
+			@SuccessPopup("organization-retention-success", "Retention policy saved.")
+		}
+		@OrganizationDetailTabs(string(organization.Slug), "retention")
+		<section class="rounded-xl border border-base-300 bg-base-100 p-4 sm:p-5" aria-labelledby="retention-heading">
+			<div class="flex flex-wrap items-start justify-between gap-3">
+				<div>
+					<div class="flex flex-wrap items-center gap-2">
+						<h2 id="retention-heading" class="text-xl font-semibold text-base-content">Data retention</h2>
+						<span class="badge badge-info badge-outline">System managed</span>
+					</div>
+					<p class="mt-1 max-w-3xl text-sm text-base-content/70">Braidplane applies this organization policy through trusted maintenance. Tenant users cannot edit, disable, delete, or repurpose the maintenance implementation.</p>
+				</div>
+				if history != nil {
+					<div class="flex flex-wrap items-center gap-2 text-xs text-base-content/70">
+						<span class="badge badge-outline">{ string(history.Schedule.Cadence) }</span>
+						<span>{ history.Schedule.Timezone }</span>
+					</div>
+				}
+			</div>
+			if history != nil {
+				<div class="mt-5 grid gap-3 sm:grid-cols-3">
+					<div class="rounded-lg border border-base-300 bg-base-200/30 p-4">
+						<p class="text-xs font-semibold uppercase tracking-wide text-base-content/60">Latest outcome</p>
+						if len(history.Runs) > 0 {
+							<div class="mt-2"><span class={ retentionRunStatusBadgeClass(history.Runs[0].Status) }>{ retentionRunStatusLabel(history.Runs[0].Status) }</span></div>
+						} else {
+							<p class="mt-2 text-sm font-medium text-base-content">No runs yet</p>
+						}
+					</div>
+					<div class="rounded-lg border border-base-300 bg-base-200/30 p-4">
+						<p class="text-xs font-semibold uppercase tracking-wide text-base-content/60">Last completed</p>
+						if len(history.Runs) > 0 {
+							<p class="mt-2 text-sm font-medium text-base-content">{ history.Runs[0].CompletedAt.Format("2006-01-02 15:04 MST") }</p>
+						} else {
+							<p class="mt-2 text-sm font-medium text-base-content">Not recorded</p>
+						}
+					</div>
+					<div class="rounded-lg border border-base-300 bg-base-200/30 p-4">
+						<p class="text-xs font-semibold uppercase tracking-wide text-base-content/60">Next expected</p>
+						<p class="mt-2 text-sm font-medium text-base-content">{ history.Schedule.NextRunAt.Format("2006-01-02 15:04 MST") }</p>
+					</div>
+				</div>
+			}
+		</section>
+		<section class="rounded-xl border border-base-300 bg-base-100 p-4 sm:p-5" aria-labelledby="retention-policy-heading">
+			<div>
+				<h2 id="retention-policy-heading" class="text-base font-semibold text-base-content">Retention policy</h2>
+				<p class="mt-1 max-w-3xl text-sm text-base-content/70">Organization-wide windows for saved query executions, replay checkpoints, completed pipeline runs, and durable event logs. Each window must be between 1 and 30 days.</p>
+			</div>
+			if policyError != "" {
+				<div class="alert alert-warning mt-4"><span>{ policyError }</span></div>
+			}
+			if policy != nil {
+				if canEdit {
+					<form class="mt-5 grid gap-3" method="post" action={ templ.URL("/organizations/" + string(organization.Slug) + "/retention") }>
+						<div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+							<label class="form-control">
+								<div class="label py-1"><span class="label-text text-xs">Saved query executions (days)</span></div>
+								<input class="input input-bordered input-sm w-full" type="number" min="1" max="30" name="query_execution_retention_days" value={ fmt.Sprintf("%d", policy.QueryExecutionRetentionDays) } required/>
+							</label>
+							<label class="form-control">
+								<div class="label py-1"><span class="label-text text-xs">Replay checkpoints (days)</span></div>
+								<input class="input input-bordered input-sm w-full" type="number" min="1" max="30" name="replay_checkpoint_retention_days" value={ fmt.Sprintf("%d", policy.ReplayCheckpointRetentionDays) } required/>
+							</label>
+							<label class="form-control">
+								<div class="label py-1"><span class="label-text text-xs">Completed pipeline runs (days)</span></div>
+								<input class="input input-bordered input-sm w-full" type="number" min="1" max="30" name="run_history_retention_days" value={ fmt.Sprintf("%d", policy.RunHistoryRetentionDays) } required/>
+							</label>
+							<label class="form-control">
+								<div class="label py-1"><span class="label-text text-xs">Durable event logs (days)</span></div>
+								<input class="input input-bordered input-sm w-full" type="number" min="1" max="30" name="event_log_retention_days" value={ fmt.Sprintf("%d", policy.EventLogRetentionDays) } required/>
+							</label>
+						</div>
+						<div class="flex justify-end pt-1">
+							<button class="btn btn-primary btn-sm w-full sm:w-auto" type="submit">Save retention policy</button>
+						</div>
+					</form>
+				} else {
+					<div class="mt-5 grid gap-3 sm:grid-cols-2">
+						@OrganizationRetentionPolicyValue("Saved query executions", policy.QueryExecutionRetentionDays)
+						@OrganizationRetentionPolicyValue("Replay checkpoints", policy.ReplayCheckpointRetentionDays)
+						@OrganizationRetentionPolicyValue("Completed pipeline runs", policy.RunHistoryRetentionDays)
+						@OrganizationRetentionPolicyValue("Durable event logs", policy.EventLogRetentionDays)
+					</div>
+					<p class="mt-4 text-xs text-base-content/60">Your organization role has read-only access to this policy.</p>
+				}
+			}
+		</section>
+		<section class="rounded-xl border border-base-300 bg-base-100 p-4 sm:p-5" aria-labelledby="retention-history-heading">
+			<div>
+				<h2 id="retention-history-heading" class="text-base font-semibold text-base-content">Maintenance history</h2>
+				<p class="mt-1 max-w-3xl text-sm text-base-content/70">Sanitized product outcomes from system-managed retention. Implementation details and executable operations are never included.</p>
+			</div>
+			if historyError != "" {
+				<div class="alert alert-warning mt-4"><span>{ historyError }</span></div>
+			} else if history != nil && len(history.Runs) == 0 {
+				<div class="mt-4 rounded-xl border border-dashed border-base-300 bg-base-200/20 p-6 text-center">
+					<p class="text-sm font-medium text-base-content">No maintenance runs recorded yet</p>
+					<p class="mt-1 text-xs text-base-content/70">History will appear after system-managed retention completes for this organization.</p>
+				</div>
+			} else if history != nil {
+				<div class="mt-4 space-y-3">
+					for _, run := range history.Runs {
+						@OrganizationRetentionRun(run)
+					}
+				</div>
+			}
+		</section>
+	</div>
+}
+
+templ OrganizationRetentionPolicyValue(label string, days int) {
+	<div class="rounded-lg border border-base-300 bg-base-200/30 p-4">
+		<p class="text-xs font-semibold uppercase tracking-wide text-base-content/60">{ label }</p>
+		<p class="mt-1 text-sm font-medium text-base-content">{ fmt.Sprintf("%d days", days) }</p>
+	</div>
+}
+
+templ OrganizationRetentionRun(run api.OrganizationRetentionRun) {
+	<article class="rounded-lg border border-base-300 bg-base-200/25 p-4">
+		<div class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+			<div class="min-w-0">
+				<div class="flex flex-wrap items-center gap-2">
+					<span class={ retentionRunStatusBadgeClass(run.Status) }>{ retentionRunStatusLabel(run.Status) }</span>
+					if run.Attempt > 1 {
+						<span class="badge badge-outline">Attempt { fmt.Sprintf("%d", run.Attempt) }</span>
+					}
+				</div>
+				<p class="mt-2 break-all font-mono text-xs text-base-content/70">{ run.Slug }</p>
+			</div>
+			<div class="text-left sm:text-right">
+				<p class="text-sm font-medium text-base-content">{ run.CompletedAt.Format("2006-01-02 15:04 MST") }</p>
+				<p class="mt-1 text-xs text-base-content/60">Started { run.StartedAt.Format("15:04:05 MST") }</p>
+			</div>
+		</div>
+		if message := retentionRunFailureMessage(run); message != "" {
+			<div class="alert alert-warning mt-3"><span>{ message }</span></div>
+		}
+		<div class="mt-4 grid gap-2 sm:grid-cols-2 lg:grid-cols-5">
+			<div class="rounded-lg border border-base-300 bg-base-100/45 p-3">
+				<p class="text-xs uppercase tracking-wide text-base-content/60">Deleted total</p>
+				<p class="mt-1 text-lg font-semibold text-base-content">{ fmt.Sprintf("%d", retentionRunDeletedTotal(run)) }</p>
+			</div>
+			@OrganizationRetentionOutcomeValue("Query executions", run.Outcome.QueryExecutionsDeleted)
+			@OrganizationRetentionOutcomeValue("Replay checkpoints", run.Outcome.ReplayCheckpointsDeleted)
+			@OrganizationRetentionOutcomeValue("Pipeline runs", run.Outcome.PipelineRunsDeleted)
+			@OrganizationRetentionOutcomeValue("Event logs", run.Outcome.EventLogsDeleted)
+		</div>
+		if run.PolicySnapshot != nil {
+			<details class="mt-3 rounded-lg border border-base-300 bg-base-100/35">
+				<summary class="cursor-pointer px-3 py-2 text-xs font-medium text-base-content">Policy applied</summary>
+				<div class="grid gap-2 border-t border-base-300 p-3 sm:grid-cols-2 lg:grid-cols-4">
+					@OrganizationRetentionPolicySnapshotValue("Query executions", run.PolicySnapshot.QueryExecutionRetentionDays)
+					@OrganizationRetentionPolicySnapshotValue("Replay checkpoints", run.PolicySnapshot.ReplayCheckpointRetentionDays)
+					@OrganizationRetentionPolicySnapshotValue("Pipeline runs", run.PolicySnapshot.RunHistoryRetentionDays)
+					@OrganizationRetentionPolicySnapshotValue("Event logs", run.PolicySnapshot.EventLogRetentionDays)
+				</div>
+			</details>
+		}
+	</article>
+}
+
+templ OrganizationRetentionOutcomeValue(label string, value int64) {
+	<div class="rounded-lg border border-base-300 bg-base-100/45 p-3">
+		<p class="text-xs uppercase tracking-wide text-base-content/60">{ label }</p>
+		<p class="mt-1 text-base font-semibold text-base-content">{ fmt.Sprintf("%d", value) }</p>
+	</div>
+}
+
+templ OrganizationRetentionPolicySnapshotValue(label string, days int) {
+	<div class="px-1 py-1">
+		<p class="text-xs uppercase tracking-wide text-base-content/60">{ label }</p>
+		<p class="mt-1 text-sm font-medium text-base-content">{ fmt.Sprintf("%d days", days) }</p>
+	</div>
+}
+
+templ OrganizationRolesPage(shellData AuthenticatedShellData, organization api.Organization, roles []api.OrgRole, createFormData RoleFormData, roleListView string, permissions OrganizationPermissions, contentErrorSummary string, contentErrorDetails string, contentSuccessSummary string) {
+	@AuthenticatedShell(shellData, OrganizationRolesPageContent(organization, roles, createFormData, roleListView, permissions, contentErrorSummary, contentErrorDetails, contentSuccessSummary))
+}
+
+templ OrganizationRolesPageContent(organization api.Organization, roles []api.OrgRole, createFormData RoleFormData, roleListView string, permissions OrganizationPermissions, contentErrorSummary string, contentErrorDetails string, contentSuccessSummary string) {
+	{{ currentRoleView := NormalizeRoleListView(roleListView) }}
+	{{ visibleRoles := RolesForListView(roles, currentRoleView) }}
+	<div class="space-y-6" id="organization-roles-content">
+		if contentSuccessSummary != "" {
+			@SuccessPopup("organization-roles-success", contentSuccessSummary)
+		}
+		if contentErrorSummary != "" {
+			@ErrorPopup("organization-roles-error", contentErrorSummary, contentErrorDetails)
+		}
+		@OrganizationDetailTabs(string(organization.Slug), "roles")
+		if currentRoleView == RoleListViewActive && permissions.Can("roles", "create") {
+			<section class="rounded-xl border border-base-300 bg-base-100 p-4 sm:p-5">
+				<div>
+					<h2 class="text-base font-semibold text-base-content">Create role</h2>
+					<p class="mt-1 text-xs text-base-content/70">Roles grant organization-scoped permissions used by members, invitations, and organization API keys.</p>
+				</div>
+				<form
+					class="mt-4 grid gap-4"
+					method="post"
+					action={ templ.URL("/organizations/" + string(organization.Slug) + "/roles") }
+					hx-post={ "/organizations/" + string(organization.Slug) + "/roles" }
+					hx-target="#organization-roles-content"
+					hx-select="#organization-roles-content"
+					hx-swap="outerHTML show:none focus-scroll:false"
+					data-preserve-scroll
+				>
+					<div class="grid gap-3 lg:grid-cols-[minmax(0,1fr)_minmax(0,.8fr)]">
+						<label class="form-control w-full">
+							<div class="label py-1"><span class="label-text text-xs">Name</span></div>
+							<input class="input input-bordered input-sm w-full" type="text" name="name" placeholder="Pipeline operator" value={ createFormData.Name } required/>
+						</label>
+						@CustomizeIdentifier(createFormData.Slug)
+					</div>
+					<div>
+						<p class="text-xs font-semibold uppercase tracking-wide text-base-content/60">Permissions</p>
+						<p class="mt-1 text-xs text-base-content/65">Leave unused rows blank. Use <span class="font-mono">*:*</span> only for full organization administration.</p>
+						@RolePermissionFormRows(createFormData.Permissions)
+					</div>
+					<div class="flex justify-end">
+						<button class="btn btn-primary btn-sm" type="submit">Create role</button>
+					</div>
+				</form>
+			</section>
+		}
+		<section class="rounded-xl border border-base-300 bg-base-100 p-4 sm:p-5">
+			<div class="mb-4 flex flex-wrap items-start justify-between gap-3">
+				<div>
+					<h2 class="text-base font-semibold text-base-content">{ RoleListViewLabel(currentRoleView) }</h2>
+					<p class="mt-1 text-xs text-base-content/70">Roles control organization-scoped permissions for members, invitations, and organization API keys.</p>
+				</div>
+				<div class="flex flex-wrap items-center justify-end gap-2">
+					<a class={ RoleListViewButtonClass(currentRoleView, RoleListViewActive) } href={ templ.URL(RoleListViewHref(string(organization.Slug), RoleListViewActive)) }>Active</a>
+					if permissions.Can("roles", "restore") {
+						<a class={ RoleListViewButtonClass(currentRoleView, RoleListViewArchived) } href={ templ.URL(RoleListViewHref(string(organization.Slug), RoleListViewArchived)) }>Archived</a>
+					}
+					if visibleRoles != nil {
+						<span class="badge badge-outline">{ RoleCountLabel(len(visibleRoles)) }</span>
+					}
+				</div>
+			</div>
+			if roles == nil {
+				<div class="alert alert-error">
+					<span>Organization roles are unavailable.</span>
+				</div>
+			} else if len(visibleRoles) == 0 {
+				<div class="alert">
+					if currentRoleView == RoleListViewArchived {
+						<span>No archived roles.</span>
+					} else {
+						<span>No active roles yet.</span>
+					}
+				</div>
+			} else {
+				<div class="hidden grid-cols-[1.2fr_.75fr_1.6fr_.8fr_1.15fr] gap-4 border-b border-base-300 px-2 pb-3 text-xs font-semibold uppercase tracking-wide text-base-content/60 lg:grid">
+					<div>Role</div>
+					<div>Type</div>
+					<div>Permissions</div>
+					<div>Updated</div>
+					<div class="text-right">Actions</div>
+				</div>
+				<div class="divide-y divide-base-300">
+					for _, role := range visibleRoles {
+						<div class="grid gap-3 py-4 lg:grid-cols-[1.2fr_.75fr_1.6fr_.8fr_1.15fr] lg:items-start">
+							<div class="min-w-0">
+								<p class="font-medium text-base-content">{ string(role.Name) }</p>
+								<p class="break-all font-mono text-xs text-base-content/70">{ string(role.Slug) }</p>
+							</div>
+							<div>
+								<span class="text-xs font-semibold uppercase tracking-wide text-base-content/60 lg:hidden">Type </span>
+								<span class={ RoleSystemBadgeClass(role) }>
+									{ func() string {
+	if role.IsDefault {
+		return "System"
+	}
+	return "Custom"
+}() }
+								</span>
+								<div class="mt-1">
+									<span class={ RoleLifecycleBadgeClass(role) }>{ RoleLifecycleLabel(role) }</span>
+								</div>
+							</div>
+							<div class="min-w-0 text-sm text-base-content/80">
+								<span class="text-xs font-semibold uppercase tracking-wide text-base-content/60 lg:hidden">Permissions </span>
+								<p>{ RolePermissionSummary(role) }</p>
+								<p class="mt-1 text-xs text-base-content/60">{ RolePermissionCountLabel(len(role.Permissions)) }</p>
+							</div>
+							<div class="text-sm text-base-content/80">
+								<span class="text-xs font-semibold uppercase tracking-wide text-base-content/60 lg:hidden">Updated </span>{ role.UpdatedAt.Format("2006-01-02") }
+								if RoleArchived(role) {
+									<p class="mt-1 text-xs text-base-content/60">Archived { RoleArchivedAtLabel(role) }</p>
+								}
+							</div>
+							<div class="flex flex-wrap gap-2 lg:justify-end">
+								<button class="btn btn-outline btn-xs" type="button" aria-controls={ RoleDetailsPanelID(role) } aria-expanded="false" data-toggle-target={ RoleDetailsPanelID(role) }>Details</button>
+								if RoleMutable(role) && permissions.Can("roles", "update") {
+									<button class="btn btn-ghost btn-xs" type="button" aria-controls={ RoleEditPanelID(role) } aria-expanded="false" data-toggle-target={ RoleEditPanelID(role) }>Edit</button>
+								}
+								if RoleMutable(role) && permissions.Can("roles", "delete") {
+									<button class="btn btn-error btn-outline btn-xs" type="button" data-protected-action-trigger={ RoleArchiveModalID(role) }>Archive</button>
+								}
+								if RoleRestorable(role) && permissions.Can("roles", "restore") {
+									<form method="post" action={ templ.URL("/organizations/" + string(organization.Slug) + "/roles/" + string(role.Slug) + "/restore") } hx-post={ "/organizations/" + string(organization.Slug) + "/roles/" + string(role.Slug) + "/restore" } hx-target="#organization-roles-content" hx-select="#organization-roles-content" hx-swap="outerHTML show:none focus-scroll:false" data-preserve-scroll>
+										<button class="btn btn-primary btn-xs" type="submit">Restore</button>
+									</form>
+								}
+								if role.IsDefault {
+									<span class="text-sm text-base-content/60">System role</span>
+								} else if RoleArchived(role) && !permissions.Can("roles", "restore") {
+									<span class="text-sm text-base-content/60">Archived</span>
+								} else if !permissions.Can("roles", "update") && !permissions.Can("roles", "delete") && !permissions.Can("roles", "restore") {
+									<span class="text-sm text-base-content/60">No actions</span>
+								}
+							</div>
+							<div id={ RoleDetailsPanelID(role) } class="hidden rounded-lg border border-base-300 bg-base-200/35 p-3 lg:col-span-5">
+								<div class="flex flex-wrap items-start justify-between gap-2">
+									<div>
+										<p class="text-sm font-semibold text-base-content">All permissions</p>
+										<p class="mt-1 text-xs text-base-content/60">Complete organization-scoped permission set granted by this role.</p>
+									</div>
+									<span class="badge badge-outline">{ RolePermissionCountLabel(len(role.Permissions)) }</span>
+								</div>
+								if len(role.Permissions) == 0 {
+									<div class="mt-3 rounded-lg border border-dashed border-base-300 bg-base-100/60 px-3 py-2 text-sm text-base-content/70">This role does not grant any permissions.</div>
+								} else {
+									<div class="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+										for _, permission := range role.Permissions {
+											<div class="rounded-lg border border-base-300 bg-base-100 px-3 py-2">
+												<p class="break-all font-mono text-sm text-base-content">{ RolePermissionLabel(permission) }</p>
+											</div>
+										}
+									</div>
+								}
+							</div>
+							if RoleMutable(role) && permissions.Can("roles", "update") {
+								<form
+									id={ RoleEditPanelID(role) }
+									class="hidden rounded-lg border border-base-300 bg-base-200/35 p-3 lg:col-span-5"
+									method="post"
+									action={ templ.URL("/organizations/" + string(organization.Slug) + "/roles/" + string(role.Slug) + "/update") }
+									hx-post={ "/organizations/" + string(organization.Slug) + "/roles/" + string(role.Slug) + "/update" }
+									hx-target="#organization-roles-content"
+									hx-select="#organization-roles-content"
+									hx-swap="outerHTML show:none focus-scroll:false"
+									data-dirty-form={ "organization-role-" + string(role.Slug) + "-update" }
+									data-preserve-scroll
+								>
+									<div class="grid gap-3">
+										<label class="form-control w-full">
+											<div class="label py-1"><span class="label-text text-xs">Name</span></div>
+											<input class="input input-bordered input-sm w-full" type="text" name="name" value={ string(role.Name) } required/>
+										</label>
+										<div>
+											<p class="text-xs font-semibold uppercase tracking-wide text-base-content/60">Permissions</p>
+											@RolePermissionFormRows(RolePermissionRows(role.Permissions))
+										</div>
+										<div class="flex justify-end">
+											<button class="btn btn-primary btn-sm" type="submit" data-dirty-submit disabled>Save</button>
+										</div>
+									</div>
+								</form>
+							}
+							if RoleMutable(role) && permissions.Can("roles", "delete") {
+								@RoleArchiveConfirmModal(
+									RoleArchiveModalID(role),
+									string(role.Name),
+									string(role.Slug),
+									"/organizations/"+string(organization.Slug)+"/roles/"+string(role.Slug)+"/archive",
+								)
+							}
+						</div>
+					}
+				</div>
+			}
+		</section>
+		@RolePermissionDatalists()
+	</div>
+}
+
+templ RolePermissionFormRows(rows []RolePermissionFormData) {
+	<div class="mt-3 grid gap-2">
+		for _, row := range rows {
+			<div class="grid gap-2 sm:grid-cols-2">
+				<label class="form-control w-full">
+					<div class="label py-1"><span class="label-text text-xs">Resource</span></div>
+					<input class="input input-bordered input-sm w-full font-mono" type="text" name="permission_resource" list="role-resource-options" placeholder="members" value={ row.Resource }/>
+				</label>
+				<label class="form-control w-full">
+					<div class="label py-1"><span class="label-text text-xs">Action</span></div>
+					<input class="input input-bordered input-sm w-full font-mono" type="text" name="permission_action" list="role-action-options" placeholder="read" value={ row.Action }/>
+				</label>
+			</div>
+		}
+	</div>
+}
+
+templ RolePermissionDatalists() {
+	<datalist id="role-resource-options">
+		for _, option := range RoleResourceOptions() {
+			<option value={ option.Value }>{ option.Label }</option>
+		}
+	</datalist>
+	<datalist id="role-action-options">
+		for _, option := range RoleActionOptions() {
+			<option value={ option.Value }>{ option.Label }</option>
+		}
+	</datalist>
+}
+
+templ RoleArchiveConfirmModal(modalID string, roleName string, roleSlug string, actionURL string) {
+	<dialog class="modal" id={ modalID } data-protected-action-modal data-confirm-slug={ roleSlug }>
+		<div class="modal-box max-w-lg border border-error/35 bg-base-100 p-0">
+			<div class="border-b border-error/25 bg-error/10 px-5 py-4">
+				<div class="flex flex-wrap items-start justify-between gap-3">
+					<div>
+						<h3 class="text-lg font-semibold text-base-content">Archive role</h3>
+						<p class="mt-1 text-sm text-base-content/70">Archive this custom organization role.</p>
+					</div>
+					<span class="badge badge-outline max-w-full break-all">{ roleSlug }</span>
+				</div>
+			</div>
+			<form
+				class="px-5 py-4"
+				method="post"
+				action={ templ.URL(actionURL) }
+				hx-post={ actionURL }
+				hx-target="#organization-roles-content"
+				hx-select="#organization-roles-content"
+				hx-swap="outerHTML show:none focus-scroll:false"
+				data-preserve-scroll
+			>
+				<div class="rounded-lg border border-base-300 bg-base-200/35 p-3">
+					<p class="text-sm font-semibold text-base-content">{ roleName }</p>
+					<p class="mt-1 text-xs text-base-content/60">Archived roles are hidden from assignment and stop granting permissions until restored.</p>
+				</div>
+				<label class="form-control mt-4 w-full">
+					<div class="label py-1">
+						<span class="label-text text-xs">Type <span class="font-mono font-semibold text-error">{ roleSlug }</span> to confirm</span>
+					</div>
+					<input
+						class="input input-bordered w-full font-mono"
+						type="text"
+						name="role_confirmation"
+						autocomplete="off"
+						placeholder={ roleSlug }
+						required
+						data-protected-confirm-input
+						data-confirm-slug={ roleSlug }
+					/>
+				</label>
+				<div class="modal-action mt-5">
+					<button class="btn btn-ghost btn-sm" type="button" data-protected-action-close={ modalID }>Cancel</button>
+					<button class="btn btn-error btn-sm" type="submit" data-protected-confirm-submit disabled aria-disabled="true">Archive</button>
+				</div>
+			</form>
+		</div>
+		<form method="dialog" class="modal-backdrop">
+			<button type="submit">close</button>
+		</form>
+	</dialog>
+}
+
+templ OrganizationProjectsPage(shellData AuthenticatedShellData, organization api.Organization, projects []api.Project, selectedProjectSlug string, backendControls ProjectPipelineBackendControls, projectContext ProjectOperationalContext, permissions OrganizationPermissions, createFormData ProjectCreateFormData, contentErrorSummary string, contentErrorDetails string, contentSuccessSummary string) {
+	@AuthenticatedShell(shellData, OrganizationProjectsPageContent(organization, projects, selectedProjectSlug, backendControls, projectContext, permissions, createFormData, contentErrorSummary, contentErrorDetails, contentSuccessSummary))
+}
+
+templ OrganizationProjectsPageContent(organization api.Organization, projects []api.Project, selectedProjectSlug string, backendControls ProjectPipelineBackendControls, projectContext ProjectOperationalContext, permissions OrganizationPermissions, createFormData ProjectCreateFormData, contentErrorSummary string, contentErrorDetails string, contentSuccessSummary string) {
+	<div id="organization-projects-workspace">
+		if permissions.Can("projects", "create") {
+			<div class="flex flex-wrap items-center justify-end gap-3">
+				<button
+					class="btn btn-primary btn-sm w-full sm:w-auto"
+					type="button"
+					aria-controls="create-project"
+					aria-expanded={ func() string { if createFormData.HasInput() { return "true" }; return "false" }() }
+					data-toggle-target="create-project"
+				>Create project</button>
+			</div>
+			<form
+				class={ "mt-4 rounded-xl border border-base-300 bg-base-100 p-5 scroll-mt-6" + func() string {
+	if createFormData.HasInput() {
+		return ""
+	}
+	return " hidden"
+}() }
+				id="create-project"
+				method="post"
+				action={ templ.URL("/organizations/" + string(organization.Slug) + "/projects") }
+				hx-post={ "/organizations/" + string(organization.Slug) + "/projects" }
+				hx-target="#organization-projects-workspace"
+				hx-select="#organization-projects-workspace"
+				hx-swap="outerHTML show:none focus-scroll:false"
+				data-preserve-scroll
+			>
+				<p class="text-sm font-semibold text-base-content">Create project</p>
+				<p class="mt-1 text-xs text-base-content/70">Create a project scope for pipelines, runs, environments, and logical binding context.</p>
+				<div class="mt-4 grid gap-3 md:grid-cols-[minmax(0,1fr)_minmax(0,16rem)_auto] md:items-end">
+					<label class="form-control w-full">
+						<div class="label py-1"><span class="label-text text-xs">Name</span></div>
+						<input class="input input-bordered input-sm w-full" type="text" name="name" value={ createFormData.Name } required/>
+					</label>
+					@CustomizeIdentifier(createFormData.Slug)
+					<button class="btn btn-primary btn-sm" type="submit">Create project</button>
+				</div>
+			</form>
+		}
+		if contentErrorSummary != "" {
+			<div class="alert alert-error mb-5 items-start" role="alert">
+				<div>
+					<p class="font-semibold">{ contentErrorSummary }</p>
+					if contentErrorDetails != "" {
+						<p class="mt-1 text-sm opacity-80">{ contentErrorDetails }</p>
+					}
+				</div>
+			</div>
+		}
+		if contentSuccessSummary != "" {
+			@SuccessPopup("organization-projects-success-popup", contentSuccessSummary)
+		}
+		if len(projects) == 0 && contentErrorSummary == "" {
+			<div class="mt-5 rounded-xl border border-dashed border-base-300 bg-base-200/30 p-8 text-center">
+				<h2 class="text-lg font-semibold text-base-content">No projects found</h2>
+				<p class="mt-2 text-sm text-base-content/70">Create a project before configuring pipeline backends, environments, or bindings.</p>
+			</div>
+		}
+		if len(projects) > 0 {
+			<div class="mt-5 grid gap-3 sm:grid-cols-3">
+				<div class="rounded-lg border border-base-300 bg-base-200/40 p-4">
+					<p class="text-xs font-semibold uppercase tracking-wide text-base-content/60">Project scopes</p>
+					<p class="mt-2 text-2xl font-semibold text-base-content">{ fmt.Sprintf("%d", len(projects)) }</p>
+					<p class="mt-1 text-xs text-base-content/65">Organization-owned workspaces</p>
+				</div>
+				<div class="rounded-lg border border-base-300 bg-base-200/40 p-4">
+					<p class="text-xs font-semibold uppercase tracking-wide text-base-content/60">Pipeline backends</p>
+					<p class="mt-2 text-2xl font-semibold text-base-content">{ fmt.Sprintf("%d", projectBackendConfiguredCount(projects)) }</p>
+					<p class="mt-1 text-xs text-base-content/65">Git-backed pipeline stores attached</p>
+				</div>
+				<div class={ projectSetupAttentionMetricClass(projects) }>
+					<p class="text-xs font-semibold uppercase tracking-wide text-base-content/60">Setup attention</p>
+					<p class="mt-2 text-2xl font-semibold text-warning">{ fmt.Sprintf("%d", projectBackendMissingCount(projects)) }</p>
+					<p class="mt-1 text-xs text-base-content/65">Projects without a Git backend</p>
+				</div>
+			</div>
+			@EntityListLayout("projects-loading", OrganizationProjectDetailPanelSlot(organization, projects, selectedProjectSlug, backendControls, projectContext, permissions)) {
+				<section class="min-h-0 rounded-xl border border-base-300 bg-base-100 p-4">
+					<div class="flex flex-wrap items-start justify-between gap-3">
+						<div>
+							<h2 class="text-base font-semibold text-base-content">Project portfolio</h2>
+							<p class="mt-1 text-xs text-base-content/65">Select a project to inspect deployment context and setup readiness.</p>
+						</div>
+					</div>
+					<div class="mt-4 space-y-3">
+						for _, project := range projects {
+							@EntityListItem(organizationProjectItemStateClass(project, projects, ""), organizationProjectIsSelected(project, projects, selectedProjectSlug), "project-opener-"+string(project.Slug), string(project.Name), projectListHref(ctx, string(organization.Slug), string(project.Slug)), "#project-quick-look", "project-preview-heading", "#projects-loading") {
+								<div class="flex flex-wrap items-start justify-between gap-3">
+									<div class="min-w-0">
+										<h3 class="break-words text-base font-semibold text-base-content"><a class="relative z-10 hover:underline" href={ templ.URL(projectDetailHref(ctx, string(organization.Slug), string(project.Slug))) }>{ string(project.Name) }</a></h3>
+										<p class="mt-1 break-all font-mono text-xs text-base-content/70">{ string(project.Slug) }</p>
+									</div>
+								</div>
+								<div class="mt-3 flex flex-wrap gap-2">
+									<span class={ projectPipelineBackendStatusClass(project) }>{ projectPipelineBackendStatusLabel(project) }</span>
+									if project.PipelineBackend != nil {
+										<span class="badge badge-ghost badge-outline max-w-full h-auto break-all whitespace-normal">{ projectPipelineBackendListLabel(project) }</span>
+										<span class="badge badge-ghost badge-outline max-w-full h-auto break-all whitespace-normal">{ projectPipelineBackendBranchLabel(project) }</span>
+									}
+								</div>
+							}
+						}
+					</div>
+				</section>
+			}
+		}
+	</div>
+}
+
+templ OrganizationProjectDetailPanelSlot(organization api.Organization, projects []api.Project, selectedProjectSlug string, backendControls ProjectPipelineBackendControls, projectContext ProjectOperationalContext, permissions OrganizationPermissions) {
+	<div id="project-quick-look">
+		if selectedOrganizationProjectSlug(projects, selectedProjectSlug) == "" {
+			@EntityState("Select a project", "Inspect repository and runtime readiness, then open the full page to complete setup.")
+		} else {
+			for _, project := range projects {
+				if organizationProjectIsSelected(project, projects, selectedProjectSlug) {
+					@EntityQuickLook("project-preview-heading", string(project.Name), string(project.Slug), projectDetailHref(ctx, string(organization.Slug), string(project.Slug)), projectListHref(ctx, string(organization.Slug), ""), "#project-quick-look", "project-opener-"+string(project.Slug)) {
+						<p class="text-sm text-base-content/70">Workspace for Git-authored pipelines and their runtime targets.</p>
+						@EntityFacts() {
+							@EntityFact("Repository") {
+								<span
+									class={ projectPipelineBackendStatusClass(project) }
+								>
+									{ projectRepositoryLabel(project) }
+								</span>
+							}
+							if project.PipelineBackend != nil {
+								@EntityFact("Git source") {
+									<span class="break-all">
+										{ projectPipelineBackendListLabel(project) }
+									</span>
+								}
+								@EntityFact("Branch") {
+									<span class="break-all font-mono">
+										{ projectPipelineBackendBranchLabel(project) }
+									</span>
+								}
+							}
+							@EntityFact("Default target") {
+								if projectContext.EnvironmentsUnavailable {
+									<span>Unavailable</span>
+								} else {
+									<span>
+										{ ProjectDefaultEnvironmentLabel(projectContext.Environments) }
+									</span>
+								}
+							}
+						}
+						@ProjectReadinessProblems(organization, project, projectContext, permissions, true)
+					}
+				}
+			}
+		}
+	</div>
+}
+
+templ ProjectReadinessProblems(organization api.Organization, project api.Project, projectContext ProjectOperationalContext, permissions OrganizationPermissions, preview bool) {
+	if !projectRepositoryValidated(project) {
+		<div class="text-sm text-warning break-words">
+			<p>
+				{ projectRepositoryLabel(project) }. Open Repository to review setup.
+			</p>
+			if !permissions.Can("projects", "update") {
+				<p>Ask an administrator with project update permission to configure the repository.</p>
+			}
+			if !preview {
+				<a
+					class="link"
+					href={ templ.URL(projectSectionHref(ctx, string(organization.Slug), string(project.Slug), "repository")) }
+				>Review repository setup</a>
+			}
+		</div>
+	}
+	{{ problem := projectEnvironmentProblem(projectContext) }}
+	if preview {
+		{{ problem = projectRuntimeTargetProblem(projectContext) }}
+	}
+	if problem != "" {
+		<div class="text-sm text-warning break-words">
+			<p>{ problem }</p>
+			if !preview {
+				<a
+					class="link"
+					href={ templ.URL(projectSectionHref(ctx, string(organization.Slug), string(project.Slug), "environments")) }
+				>Review environments and bindings</a>
+			}
+		</div>
+	}
+}
+
+templ OrganizationProjectDetailPanel(organization api.Organization, project api.Project, backendControls ProjectPipelineBackendControls, projectContext ProjectOperationalContext, permissions OrganizationPermissions) {
+	<div class="grid min-w-0 content-start gap-4">
+		{{ fullPage := true }}
+		{{ section := projectSection(ctx) }}
+		{{ externalBackendLink := ProjectPipelineBackendExternalURL(project, backendControls) }}
+		@EntityDetailHeader(string(project.Name), string(project.Slug)) {
+			if externalBackendLink != nil {
+				<a
+					class="btn btn-outline btn-sm"
+					href={ templ.URL(externalBackendLink.Href) }
+					target="_blank"
+					rel="noreferrer"
+				>{ externalBackendLink.Label }</a>
+			}
+		}
+		@EntitySectionNavigation("Project sections") {
+			for _, item := range []struct{Key, Label string}{{"overview", "Overview"}, {"pipelines", "Pipelines"}, {"repository", "Repository"}, {"environments", "Environments"}, {"settings", "Settings"}} {
+				@EntitySectionLink(projectSectionHref(ctx, string(organization.Slug), string(project.Slug), item.Key), item.Label, section == item.Key) {
+					if item.Key == "repository" && (!projectRepositoryValidated(project)) {
+						@EntityAttentionBadge(projectRepositoryLabel(project))
+					}
+					if item.Key == "environments" {
+						@EntityAttentionBadge(projectEnvironmentProblem(projectContext))
+					}
+				}
+				if item.Key == "pipelines" && permissions.Can("projects", "read") {
+					@EntitySectionLink(ODCSCatalogHref(string(organization.Slug), string(project.Slug), "", "", false, ""), "Data contracts", false)
+				}
+			}
+		}
+		if section == "overview" {
+			<section class="space-y-4 text-sm text-base-content">
+				<h3 class="text-base font-semibold">Project readiness</h3>
+				<p class="text-base-content/70">Workspace for Git-authored pipelines and their runtime targets. Repository validation and runtime binding readiness are separate prerequisites.</p>
+				@EntityFacts() {
+					@EntityFact("Repository") {
+						<span>
+							{ projectRepositoryLabel(project) }
+						</span>
+					}
+					@EntityFact("Default target") {
+						if projectContext.EnvironmentsUnavailable {
+							<span>Unavailable</span>
+						} else {
+							<span>
+								{ ProjectDefaultEnvironmentLabel(projectContext.Environments) }
+							</span>
+						}
+					}
+				}
+				@ProjectReadinessProblems(organization, project, projectContext, permissions, false)
+			</section>
+		}
+		if section == "repository" {
+			<section class="rounded-xl border border-base-300 bg-base-100 p-4">
+				<div class="flex flex-wrap items-start justify-between gap-3">
+					<div>
+						<h2 class="text-base font-semibold text-base-content">Pipeline backend</h2>
+						<p class="mt-1 text-xs text-base-content/65">Connect an existing customer repository or create a private GitHub or GitLab repository.</p>
+					</div>
+					<span
+						class={ projectPipelineBackendStatusClass(project) }
+					>
+						{ projectPipelineBackendStatusLabel(project) }
+					</span>
+				</div>
+				if permissions.Can("projects", "update") {
+					<div class="mt-5 flex flex-wrap gap-2" role="group" aria-label="Repository setup path">
+						<a
+							class={ "btn btn-outline btn-sm", templ.KV("btn-active", projectRepositoryPath(ctx) == "existing") }
+							aria-current={ func() string { if projectRepositoryPath(ctx) == "existing" { return "page" }; return "false" }() }
+							href={ templ.URL(projectRepositoryHref(ctx, string(organization.Slug), string(project.Slug), "existing")) }
+						>Use existing repository</a>
+						<a
+							class={ "btn btn-outline btn-sm", templ.KV("btn-active", projectRepositoryPath(ctx) == "create") }
+							aria-current={ func() string { if projectRepositoryPath(ctx) == "create" { return "page" }; return "false" }() }
+							href={ templ.URL(projectRepositoryHref(ctx, string(organization.Slug), string(project.Slug), "create")) }
+						>Create repository</a>
+					</div>
+					if projectRepositoryPath(ctx) == "existing" {
+						<form
+							class="mt-6 grid min-w-0 max-w-3xl gap-5"
+							method="post"
+							action={ templ.URL(projectRepositoryAction(ctx, ProjectPipelineBackendFormAction(string(organization.Slug), string(project.Slug), fullPage))) }
+							hx-post={ projectRepositoryAction(ctx, ProjectPipelineBackendFormAction(string(organization.Slug), string(project.Slug), fullPage)) }
+							hx-push-url={ projectRepositoryHref(ctx, string(organization.Slug), string(project.Slug), projectRepositoryPath(ctx)) }
+							hx-indicator="#project-repository-pending"
+							hx-disabled-elt="find button[type=submit]"
+							hx-target={ ProjectDetailHTMXTarget(fullPage) }
+							hx-select={ ProjectDetailHTMXTarget(fullPage) }
+							hx-swap="outerHTML show:none focus-scroll:false"
+							data-dirty-form="project-pipeline-backend"
+							data-dirty-baseline={ ProjectPipelineBackendDirtyBaseline(project) }
+							data-preserve-scroll
+						>
+							<input
+								type="hidden"
+								name="project_slug"
+								value={ string(project.Slug) }
+							/>
+							<input type="hidden" name="mode" value="adopt_existing"/>
+							<div>
+								<h3 class="text-sm font-semibold text-base-content">Connect existing repository</h3>
+								<p class="mt-1 text-xs text-base-content/65">Read and validate the selected branch without changing repository contents.</p>
+							</div>
+							<label class="form-control w-full">
+								<div class="label py-1">
+									<span class="label-text text-xs">Backend data source</span>
+								</div>
+								<select
+									class="select select-bordered select-sm w-full"
+									name="data_source_slug"
+									required
+									disabled?={ len(backendControls.DataSourceOptions) == 0 }
+									hx-get={ projectRepositoryHref(ctx, string(organization.Slug), string(project.Slug), projectRepositoryPath(ctx)) }
+									hx-include="closest form"
+									hx-params="data_source_slug,pipeline_dir,tracked_branch"
+									hx-trigger="change"
+									hx-target={ ProjectDetailHTMXTarget(fullPage) }
+									hx-select={ ProjectDetailHTMXTarget(fullPage) }
+									hx-swap="outerHTML show:none focus-scroll:false"
+									hx-push-url="true"
+									data-preserve-scroll
+								>
+									if len(backendControls.DataSourceOptions) == 0 {
+										<option value="">No Git data sources available</option>
+									} else {
+										<option value="" selected?={ backendControls.SelectedDataSource == "" }>Select Git data source</option>
+										if ProjectPipelineBackendSelectedDataSourceMissing(backendControls) {
+											<option value={ backendControls.SelectedDataSource } selected>{ backendControls.SelectedDataSource } (unavailable)</option>
+										}
+										for _, option := range backendControls.DataSourceOptions {
+											<option value={ option.Slug } selected?={ option.Slug == backendControls.SelectedDataSource }>
+												{ ProjectPipelineBackendDataSourceLabel(option) }
+											</option>
+										}
+									}
+								</select>
+								if backendControls.DataSourceLoadError != "" {
+									<p class="mt-1 text-xs text-warning">{ backendControls.DataSourceLoadError }</p>
+								} else {
+									<p class="mt-1 text-xs text-base-content/60">
+										{ ProjectPipelineBackendOptionCountLabel(backendControls.DataSourceOptions) }
+									</p>
+								}
+								if backendControls.DataSourceLoadDetails != "" {
+									<p class="mt-1 break-words text-xs text-warning/90">{ backendControls.DataSourceLoadDetails }</p>
+								}
+							</label>
+							<details open?={ backendControls.PipelineDir != "pipelines" }>
+								<summary class="cursor-pointer text-sm text-base-content/70">Pipeline path</summary>
+								<label class="form-control w-full">
+									<div class="label py-1"><span class="label-text text-xs">Pipeline path</span></div>
+									<input
+										class="input input-bordered input-sm w-full font-mono"
+										type="text"
+										name="pipeline_dir"
+										required
+										value={ backendControls.PipelineDir }
+										placeholder="pipelines"
+									/>
+									<p class="mt-1 text-xs text-base-content/60">Only pipeline manifests under this repository-relative directory are imported.</p>
+								</label>
+							</details>
+							@ProjectBackendBranchControl(string(organization.Slug), project, backendControls)
+							<div class="rounded-lg border border-base-300 bg-base-200/40 px-3 py-2 text-xs text-base-content/70">
+								<p class="font-semibold text-base-content/80">Current backend repo</p>
+								<p class="mt-1 break-all font-mono">
+									{ projectPipelineBackendRepoLabel(project) }
+								</p>
+							</div>
+							<button class="btn btn-primary btn-sm justify-self-start" type="submit" data-dirty-submit disabled>Save backend</button>
+						</form>
+					}
+					if projectRepositoryPath(ctx) == "create" {
+						@ManagedProjectRepositoryForm(organization, project, backendControls, permissions, fullPage)
+					}
+					<div id="project-repository-pending" class="htmx-indicator mt-3 text-sm text-base-content/70" role="status" aria-live="polite">Setting up repository…</div>
+				} else {
+					@EntityState("View only", "Project update permission is required to configure or create a repository.")
+				}
+				if project.PipelineBackend != nil {
+					<div class="mt-5 grid gap-2 text-xs sm:grid-cols-2">
+						<div class="rounded-lg border border-base-300 bg-base-200/40 p-3">
+							<p class="font-semibold text-base-content/75">Pipeline path</p>
+							<p class="mt-1 break-all font-mono">
+								{ projectPipelineBackendPipelineDir(project) }
+							</p>
+						</div>
+						<div class="rounded-lg border border-base-300 bg-base-200/40 p-3">
+							<p class="font-semibold text-base-content/75">First validated commit</p>
+							<p class="mt-1 break-all font-mono">
+								{ projectPipelineBackendFirstCommit(project) }
+							</p>
+						</div>
+					</div>
+				}
+			</section>
+		}
+		if section == "environments" {
+			@OrganizationProjectEnvironmentsSummary(organization, project, projectContext, permissions, fullPage)
+			@ProjectDataSourceBindingsPanel(organization, project, projectContext, permissions, fullPage)
+		}
+		if section == "pipelines" {
+			@OrganizationProjectPipelinesSummary(organization, project, projectContext)
+		}
+		if section == "settings" {
+			<section class="rounded-xl border border-base-300 bg-base-100 p-4">
+				<div class="flex flex-wrap items-start justify-between gap-3">
+					<div>
+						<h2 class="text-base font-semibold text-base-content">Project actions</h2>
+						<p class="mt-1 text-xs text-base-content/65">Delete the project scope and its project-owned resources.</p>
+					</div>
+				</div>
+				if permissions.Can("projects", "delete") {
+					<form
+						class="mt-4"
+						method="post"
+						action={ templ.URL(projectSectionAction(ctx, ProjectDeleteFormAction(string(organization.Slug), string(project.Slug), fullPage), "settings")) }
+						hx-post={ projectSectionAction(ctx, ProjectDeleteFormAction(string(organization.Slug), string(project.Slug), fullPage), "settings") }
+						hx-target={ ProjectDetailHTMXTarget(fullPage) }
+						hx-select={ ProjectDetailHTMXTarget(fullPage) }
+						hx-swap="outerHTML show:none focus-scroll:false"
+						data-preserve-scroll
+						hx-confirm={ DestructiveConfirmation("Delete", "project", DestructiveResourceLabel(string(project.Name), string(project.Slug)), "Project deletion is permanent and removes project-owned resources.") }
+						data-destructive-confirm={ DestructiveConfirmation("Delete", "project", DestructiveResourceLabel(string(project.Name), string(project.Slug)), "Project deletion is permanent and removes project-owned resources.") }
+					>
+						<button class="btn btn-error btn-outline btn-sm" type="submit">Delete project</button>
+					</form>
+				} else {
+					@EntityState("View only", "Project delete permission is required to delete this project.")
+				}
+			</section>
+		}
+	</div>
+}
+
+templ OrganizationProjectEnvironmentsSummary(organization api.Organization, project api.Project, projectContext ProjectOperationalContext, permissions OrganizationPermissions, fullPage bool) {
+	<section class="rounded-xl border border-base-300 bg-base-100 p-4">
+		<div class="flex flex-wrap items-start justify-between gap-3">
+			<div>
+				<h2 class="text-base font-semibold text-base-content">Project environments</h2>
+				<p class="mt-1 text-xs text-base-content/65">Enable runtime targets and choose the project default without leaving this project.</p>
+			</div>
+		</div>
+		if !permissions.Can("environments", "update") {
+			@EntityState("View only", "Environment update permission is required to enable targets or change the default.")
+		}
+		if projectContext.EnvironmentsUnavailable {
+			<div class="alert alert-warning mt-4"><span>Project environment enablement is unavailable.</span></div>
+		} else {
+			<div class="mt-4 grid gap-3 sm:grid-cols-3">
+				<div class="rounded-lg border border-base-300 bg-base-200/40 p-3">
+					<p class="text-xs font-semibold uppercase tracking-wide text-base-content/55">Enabled</p>
+					<p class="mt-2 text-xl font-semibold text-base-content">
+						{ fmt.Sprintf("%d", len(projectContext.Environments)) }
+					</p>
+				</div>
+				<div class="rounded-lg border border-base-300 bg-base-200/40 p-3">
+					<p class="text-xs font-semibold uppercase tracking-wide text-base-content/55">Default</p>
+					<p class="mt-2 font-mono text-sm font-semibold text-base-content">
+						{ ProjectDefaultEnvironmentLabel(projectContext.Environments) }
+					</p>
+				</div>
+				<div class="rounded-lg border border-error/35 bg-error/10 p-3">
+					<p class="text-xs font-semibold uppercase tracking-wide text-base-content/55">Protected</p>
+					<p class="mt-2 text-xl font-semibold text-error">
+						{ fmt.Sprintf("%d", ProtectedProjectEnvironmentCount(projectContext.Environments)) }
+					</p>
+				</div>
+			</div>
+			if len(projectContext.Environments) == 0 {
+				<div class="mt-4 rounded-lg border border-dashed border-base-300 bg-base-200/30 px-4 py-3 text-sm text-base-content/70">No runtime environments enabled.</div>
+			} else {
+				<div class="mt-4 space-y-2">
+					for _, environment := range projectContext.Environments {
+						<div class="rounded-lg border border-base-300 bg-base-200/35 p-3">
+							<div class="flex flex-wrap items-start justify-between gap-3">
+								<div class="min-w-0">
+									<p class="font-semibold text-base-content">{ environment.EnvironmentName }</p>
+									<div class="mt-1 flex flex-wrap gap-2">
+										<span
+											class={ EnvironmentColorBadgeClass(string(environment.EnvironmentColor)) }
+										>
+											{ string(environment.EnvironmentSlug) }
+										</span>
+										if environment.IsDefault {
+											<span class={ badgePrimarySoft }>default</span>
+										}
+										if environment.EnvironmentProtected {
+											<span class={ badgeErrorSoft }>protected</span>
+										}
+									</div>
+								</div>
+								<div class="flex flex-wrap gap-2">
+									if !environment.IsDefault && permissions.Can("environments", "update") {
+										if environment.EnvironmentProtected {
+											@ProjectProtectedEnvironmentActionButton(
+												string(organization.Slug),
+												string(project.Slug),
+												string(environment.EnvironmentSlug),
+												string(environment.EnvironmentName),
+												"set-default",
+												"Set default",
+												"Set this protected runtime target as the project default.",
+												projectSectionAction(ctx, ProjectEnvironmentDefaultFormAction(string(organization.Slug), string(project.Slug), string(environment.EnvironmentSlug), fullPage), "environments"),
+												"btn btn-outline btn-xs",
+												"btn btn-primary btn-sm",
+												fullPage,
+												false,
+											)
+										} else {
+											<form
+												method="post"
+												action={ templ.URL(projectSectionAction(ctx, ProjectEnvironmentDefaultFormAction(string(organization.Slug), string(project.Slug), string(environment.EnvironmentSlug), fullPage), "environments")) }
+												hx-post={ projectSectionAction(ctx, ProjectEnvironmentDefaultFormAction(string(organization.Slug), string(project.Slug), string(environment.EnvironmentSlug), fullPage), "environments") }
+												hx-target={ ProjectDetailHTMXTarget(fullPage) }
+												hx-select={ ProjectDetailHTMXTarget(fullPage) }
+												hx-swap="outerHTML show:none focus-scroll:false"
+												data-preserve-scroll
+											>
+												if fullPage {
+													<input type="hidden" name="return_to" value="full"/>
+												}
+												<button class="btn btn-outline btn-xs" type="submit">Set default</button>
+											</form>
+										}
+									}
+									if permissions.Can("environments", "delete") {
+										if environment.EnvironmentProtected {
+											@ProjectProtectedEnvironmentActionButton(
+												string(organization.Slug),
+												string(project.Slug),
+												string(environment.EnvironmentSlug),
+												string(environment.EnvironmentName),
+												"disable",
+												"Disable",
+												"Disable this protected runtime target for the project.",
+												projectSectionAction(ctx, ProjectEnvironmentDisableFormAction(string(organization.Slug), string(project.Slug), string(environment.EnvironmentSlug), fullPage), "environments"),
+												"btn btn-ghost btn-xs",
+												"btn btn-error btn-sm",
+												fullPage,
+												false,
+											)
+										} else {
+											<form
+												method="post"
+												action={ templ.URL(projectSectionAction(ctx, ProjectEnvironmentDisableFormAction(string(organization.Slug), string(project.Slug), string(environment.EnvironmentSlug), fullPage), "environments")) }
+												hx-post={ projectSectionAction(ctx, ProjectEnvironmentDisableFormAction(string(organization.Slug), string(project.Slug), string(environment.EnvironmentSlug), fullPage), "environments") }
+												hx-target={ ProjectDetailHTMXTarget(fullPage) }
+												hx-select={ ProjectDetailHTMXTarget(fullPage) }
+												hx-swap="outerHTML show:none focus-scroll:false"
+												data-preserve-scroll
+												hx-confirm={ DestructiveConfirmation("Disable", "project runtime target", DestructiveResourceLabel(string(environment.EnvironmentName), string(environment.EnvironmentSlug)), "The project will stop using this runtime target.") }
+												data-destructive-confirm={ DestructiveConfirmation("Disable", "project runtime target", DestructiveResourceLabel(string(environment.EnvironmentName), string(environment.EnvironmentSlug)), "The project will stop using this runtime target.") }
+											>
+												if fullPage {
+													<input type="hidden" name="return_to" value="full"/>
+												}
+												<button class="btn btn-ghost btn-xs" type="submit">Disable</button>
+											</form>
+										}
+									}
+								</div>
+							</div>
+						</div>
+					}
+				</div>
+			}
+			if projectContext.CatalogUnavailable {
+				<div class="alert alert-warning mt-4"><span>Runtime targets are unavailable.</span></div>
+			} else if permissions.Can("environments", "update") && len(AvailableCatalogEnvironments(projectContext.Catalog, projectContext.Environments)) > 0 {
+				<form
+					class="mt-4 grid gap-3 lg:grid-cols-[minmax(0,1fr)_auto]"
+					method="post"
+					action={ templ.URL(projectSectionAction(ctx, ProjectEnvironmentEnableFormAction(string(organization.Slug), string(project.Slug), fullPage), "environments")) }
+					hx-post={ projectSectionAction(ctx, ProjectEnvironmentEnableFormAction(string(organization.Slug), string(project.Slug), fullPage), "environments") }
+					hx-target={ ProjectDetailHTMXTarget(fullPage) }
+					hx-select={ ProjectDetailHTMXTarget(fullPage) }
+					hx-swap="outerHTML show:none focus-scroll:false"
+					data-protected-select-form
+					data-preserve-scroll
+				>
+					if fullPage {
+						<input type="hidden" name="return_to" value="full"/>
+					}
+					<label class="form-control w-full">
+						<div class="label py-1"><span class="label-text text-xs">Enable runtime target</span></div>
+						<select class="select select-bordered select-sm w-full" name="environment_slug" required data-protected-select>
+							<option value="">Select environment</option>
+							for _, environment := range AvailableCatalogEnvironments(projectContext.Catalog, projectContext.Environments) {
+								if environment.Protected {
+									<option
+										value={ string(environment.Slug) }
+										data-protected="true"
+										data-protected-modal={ ProjectProtectedEnvironmentActionModalID(string(project.Slug), string(environment.Slug), "enable") }
+									>{ environment.Name } ({ environment.Slug }, protected)</option>
+								} else {
+									<option
+										value={ string(environment.Slug) }
+									>{ environment.Name } ({ environment.Slug })</option>
+								}
+							}
+						</select>
+					</label>
+					<button class="btn btn-primary btn-sm self-end" type="submit">Enable</button>
+				</form>
+				for _, environment := range AvailableCatalogEnvironmentsByProtection(projectContext.Catalog, projectContext.Environments, true) {
+					@ProjectProtectedEnvironmentActionModal(
+						string(organization.Slug),
+						string(project.Slug),
+						string(environment.Slug),
+						string(environment.Name),
+						"enable",
+						"Enable",
+						"Enable this protected runtime target for the project.",
+						projectSectionAction(ctx, ProjectEnvironmentEnableFormAction(string(organization.Slug), string(project.Slug), fullPage), "environments"),
+						"btn btn-primary btn-sm",
+						fullPage,
+						true,
+					)
+				}
+			}
+		}
+	</section>
+}
+
+templ ProjectProtectedEnvironmentActionButton(orgSlug string, projectSlug string, environmentSlug string, environmentName string, actionKey string, actionLabel string, actionDescription string, actionURL string, triggerClass string, submitClass string, fullPage bool, includeEnvironmentSlug bool) {
+	{{ modalID := ProjectProtectedEnvironmentActionModalID(projectSlug, environmentSlug, actionKey) }}
+	<button class={ triggerClass } type="button" data-protected-action-trigger={ modalID }>{ actionLabel }</button>
+	@ProjectProtectedEnvironmentActionModal(orgSlug, projectSlug, environmentSlug, environmentName, actionKey, actionLabel, actionDescription, actionURL, submitClass, fullPage, includeEnvironmentSlug)
+}
+
+templ ProjectProtectedEnvironmentActionModal(orgSlug string, projectSlug string, environmentSlug string, environmentName string, actionKey string, actionLabel string, actionDescription string, actionURL string, submitClass string, fullPage bool, includeEnvironmentSlug bool) {
+	{{ modalID := ProjectProtectedEnvironmentActionModalID(projectSlug, environmentSlug, actionKey) }}
+	<dialog class="modal" id={ modalID } data-protected-action-modal data-confirm-slug={ environmentSlug }>
+		<div class="modal-box max-w-lg border border-error/35 bg-base-100 p-0">
+			<div class="border-b border-error/25 bg-error/10 px-5 py-4">
+				<div class="flex flex-wrap items-start justify-between gap-3">
+					<div>
+						<h3 class="text-lg font-semibold text-base-content">Confirm protected action</h3>
+						<p class="mt-1 text-sm text-base-content/70">{ actionDescription }</p>
+					</div>
+					<span class={ badgeErrorSoft }>{ environmentSlug }</span>
+				</div>
+			</div>
+			<form
+				class="px-5 py-4"
+				method="post"
+				action={ templ.URL(actionURL) }
+				hx-post={ actionURL }
+				hx-target={ ProjectDetailHTMXTarget(fullPage) }
+				hx-select={ ProjectDetailHTMXTarget(fullPage) }
+				hx-swap="outerHTML show:none focus-scroll:false"
+				data-preserve-scroll
+			>
+				if fullPage {
+					<input type="hidden" name="return_to" value="full"/>
+				}
+				if includeEnvironmentSlug {
+					<input type="hidden" name="environment_slug" value={ environmentSlug }/>
+				}
+				<div class="rounded-lg border border-base-300 bg-base-200/35 p-3">
+					<p class="text-sm font-semibold text-base-content">{ environmentName }</p>
+					<p class="mt-1 text-xs text-base-content/60">This changes project environment access for <span class="font-mono">{ environmentSlug }</span>.</p>
+				</div>
+				<label class="form-control mt-4 w-full">
+					<div class="label py-1">
+						<span class="label-text text-xs">Type <span class="font-mono font-semibold text-error">{ environmentSlug }</span> to confirm</span>
+					</div>
+					<input
+						class="input input-bordered w-full font-mono"
+						type="text"
+						name="protected_environment_confirmation"
+						autocomplete="off"
+						placeholder={ environmentSlug }
+						required
+						data-protected-confirm-input
+						data-confirm-slug={ environmentSlug }
+					/>
+				</label>
+				<div class="modal-action mt-5">
+					<button class="btn btn-ghost btn-sm" type="button" data-protected-action-close={ modalID }>Cancel</button>
+					<button class={ submitClass } type="submit" data-protected-confirm-submit disabled aria-disabled="true">{ actionLabel }</button>
+				</div>
+			</form>
+		</div>
+		<form method="dialog" class="modal-backdrop">
+			<button type="submit">close</button>
+		</form>
+	</dialog>
+}
+
+templ OrganizationProjectPipelinesSummary(organization api.Organization, project api.Project, projectContext ProjectOperationalContext) {
+	<section class="rounded-xl border border-base-300 bg-base-100 p-4">
+		<div class="flex flex-wrap items-start justify-between gap-3">
+			<div>
+				<h2 class="text-base font-semibold text-base-content">Pipelines</h2>
+				<p class="mt-1 text-xs text-base-content/65">Git-authored pipeline definitions and materialization state.</p>
+			</div>
+			<a
+				class="btn btn-outline btn-sm"
+				href={ templ.URL(projectRuntimeHref(ctx, "/orgs/"+string(organization.Slug)+"/projects/"+string(project.Slug)+"/pipelines")) }
+			>Open pipelines</a>
+		</div>
+		if projectContext.PipelinesUnavailable {
+			<div class="alert alert-warning mt-4"><span>Pipelines are unavailable.</span></div>
+		} else if len(projectContext.Pipelines) == 0 {
+			<div class="mt-4 rounded-lg border border-dashed border-base-300 bg-base-200/30 px-4 py-3 text-sm text-base-content/70">No pipelines in this project.</div>
+		} else {
+			<div class="mt-4 space-y-2">
+				for _, pipeline := range projectContext.Pipelines {
+					<a
+						class="block rounded-lg border border-base-300 bg-base-200/35 p-3 transition hover:border-primary/50 hover:bg-primary/10"
+						href={ templ.URL(projectRuntimeHref(ctx, pipelineDetailHref(string(organization.Slug), string(project.Slug), string(pipeline.Slug)))) }
+					>
+						<div class="flex flex-wrap items-start justify-between gap-3">
+							<div class="min-w-0">
+								<p class="truncate text-sm font-semibold text-base-content">
+									{ string(pipeline.Name) }
+								</p>
+								<p class="mt-1 break-all font-mono text-xs text-base-content/65">
+									{ string(pipeline.Slug) }
+								</p>
+							</div>
+							<div class="flex flex-wrap gap-2">
+								if pipeline.HasDraft {
+									<span
+										class={ pipelineDraftBadgeClass(true) }
+									>draft</span>
+								}
+								<span
+									class={ pipelineSyncStatusBadgeClass(pipeline.SyncStatus) }
+								>
+									{ string(pipeline.SyncStatus) }
+								</span>
+							</div>
+						</div>
+					</a>
+				}
+			</div>
+		}
+	</section>
+}
+
+templ OrganizationProjectFullPage(shellData AuthenticatedShellData, organization api.Organization, project api.Project, backendControls ProjectPipelineBackendControls, projectContext ProjectOperationalContext, permissions OrganizationPermissions, contentErrorSummary string, contentErrorDetails string, contentSuccessSummary string) {
+	@AuthenticatedShell(shellData, OrganizationProjectFullPageContent(organization, project, backendControls, projectContext, permissions, contentErrorSummary, contentErrorDetails, contentSuccessSummary))
+}
+
+templ OrganizationProjectFullPageContent(organization api.Organization, project api.Project, backendControls ProjectPipelineBackendControls, projectContext ProjectOperationalContext, permissions OrganizationPermissions, contentErrorSummary string, contentErrorDetails string, contentSuccessSummary string) {
+	<div id="organization-project-full-page" class="max-w-5xl">
+		if contentErrorSummary != "" {
+			<div class="alert alert-error mb-5 items-start" role="alert">
+				<div>
+					<p class="font-semibold">{ contentErrorSummary }</p>
+					if contentErrorDetails != "" {
+						<p class="mt-1 text-sm opacity-80">{ contentErrorDetails }</p>
+					}
+				</div>
+			</div>
+		}
+		if contentSuccessSummary != "" {
+			@SuccessPopup("organization-project-success-popup", contentSuccessSummary)
+		}
+		<div class="mb-4">
+			<a
+				class="btn btn-outline btn-sm"
+				href={ templ.URL(entityBackHref(ctx, organizationProjectSelectionHref(string(organization.Slug), ""))) }
+			>Back to project list</a>
+		</div>
+		@OrganizationProjectDetailPanel(organization, project, backendControls, projectContext, permissions)
+	</div>
+}
+
+templ OrganizationSecurityPage(shellData AuthenticatedShellData, organization api.Organization, apiKeys []api.APIKey, roles []api.OrgRole, hasMore bool, nextCursor string, prevCursor string, createFormData APIKeyCreateFormData, tokenNotice *APIKeyTokenNotice, permissions OrganizationPermissions, contentErrorSummary string, contentErrorDetails string) {
+	@AuthenticatedShell(shellData, OrganizationSecurityPageContent(organization, apiKeys, roles, hasMore, nextCursor, prevCursor, createFormData, tokenNotice, permissions, contentErrorSummary, contentErrorDetails))
+}
+
+templ OrganizationSecurityPageContent(organization api.Organization, apiKeys []api.APIKey, roles []api.OrgRole, hasMore bool, nextCursor string, prevCursor string, createFormData APIKeyCreateFormData, tokenNotice *APIKeyTokenNotice, permissions OrganizationPermissions, contentErrorSummary string, contentErrorDetails string) {
+	<div class="space-y-6" id="organization-security-content">
+		if contentErrorSummary != "" {
+			@ErrorPopup("api-keys-error-popup", contentErrorSummary, contentErrorDetails)
+		}
+		@OrganizationDetailTabs(string(organization.Slug), "security")
+		if tokenNotice != nil {
+			<div class="alert alert-warning items-start">
+				<div class="min-w-0">
+					<p class="font-semibold">{ tokenNotice.Action } token for { tokenNotice.Name }</p>
+					<p class="mt-1 text-sm">Copy this token now. It will not be shown again.</p>
+					<code class="mt-3 block break-all rounded-md bg-base-100 p-3 font-mono text-sm text-base-content">{ tokenNotice.Token }</code>
+				</div>
+			</div>
+		}
+		if permissions.Can("api_keys", "create") {
+			<section class="rounded-xl border border-base-300 bg-base-100 p-4 sm:p-5">
+				<div>
+					<h2 class="text-base font-semibold text-base-content">Create API key</h2>
+					<p class="mt-1 text-xs text-base-content/70">Organization API keys are machine-scoped bearer tokens. Use personal access tokens for user-owned workflows. Role changes require creating a replacement key.</p>
+				</div>
+				<form
+					class="mt-4 grid gap-3"
+					method="post"
+					action={ templ.URL("/organizations/" + string(organization.Slug) + "/security/api-keys") }
+					hx-post={ "/organizations/" + string(organization.Slug) + "/security/api-keys" }
+					hx-target="#organization-security-content"
+					hx-select="#organization-security-content"
+					hx-swap="outerHTML show:none focus-scroll:false"
+					data-preserve-scroll
+				>
+					<div class="grid gap-3 xl:grid-cols-[minmax(0,1.2fr)_12rem_minmax(0,1fr)_13rem] xl:items-end">
+						<label class="form-control w-full">
+							<div class="label py-1"><span class="label-text text-xs">Name</span></div>
+							<input class="input input-bordered input-sm w-full" type="text" name="name" placeholder="Production automation" value={ createFormData.Name } required/>
+						</label>
+						@CustomizeIdentifier(createFormData.Slug)
+						<label class="form-control w-full">
+							<div class="label py-1"><span class="label-text text-xs">Role</span></div>
+							<select class="select select-bordered select-sm w-full" name="role" required disabled?={ len(roles) == 0 }>
+								if len(roles) == 0 {
+									<option value="">No roles available</option>
+								}
+								for _, role := range roles {
+									<option value={ string(role.Slug) } selected?={ createFormData.Role == string(role.Slug) }>{ string(role.Name) } ({ string(role.Slug) })</option>
+								}
+							</select>
+						</label>
+						<label class="form-control w-full">
+							<div class="label py-1"><span class="label-text text-xs">Description</span></div>
+							<input class="input input-bordered input-sm w-full" type="text" name="description" placeholder="Optional description" value={ createFormData.Description }/>
+						</label>
+						<label class="form-control w-full">
+							<div class="label py-1"><span class="label-text text-xs">Expires</span></div>
+							<input class="input input-bordered input-sm w-full" type="datetime-local" name="expires_at" value={ createFormData.ExpiresAt }/>
+						</label>
+					</div>
+					<label class="flex cursor-pointer items-start gap-3 rounded-lg border border-warning/30 bg-warning/5 p-3">
+						<input class="checkbox checkbox-warning checkbox-sm mt-0.5" type="checkbox" name="can_manage_api_keys" checked?={ createFormData.CanManageAPIKeys }/>
+						<span>
+							<span class="block text-sm font-medium text-base-content">Allow this key to manage API keys</span>
+							<span class="mt-0.5 block text-xs text-base-content/70">Its role must also grant the requested API key action, and it can manage only keys with the same role. Keys it creates cannot inherit this permission.</span>
+						</span>
+					</label>
+					<div class="flex justify-end">
+						<button class="btn btn-primary btn-sm w-full sm:w-auto" type="submit" disabled?={ len(roles) == 0 }>Create key</button>
+					</div>
+				</form>
+			</section>
+		}
+		<section class="rounded-xl border border-base-300 bg-base-100 p-4 sm:p-5">
+			<div class="mb-4 flex flex-wrap items-start justify-between gap-3">
+				<div>
+					<h2 class="text-base font-semibold text-base-content">API keys</h2>
+					<p class="mt-1 text-xs text-base-content/70">Safe metadata only. Raw tokens are shown once after create or rotation.</p>
+				</div>
+				if apiKeys != nil {
+					<span class="badge badge-outline">{ APIKeyCountLabel(len(apiKeys)) }</span>
+				}
+			</div>
+			if apiKeys == nil {
+				<div class="alert alert-error">
+					<span>API key metadata is unavailable.</span>
+				</div>
+			} else if len(apiKeys) == 0 {
+				<div class="alert">
+					<span>No API keys yet.</span>
+				</div>
+			} else {
+				<div class="hidden grid-cols-[1.3fr_.8fr_.8fr_1fr_1fr_1.3fr] gap-4 border-b border-base-300 px-2 pb-3 text-xs font-semibold uppercase tracking-wide text-base-content/60 lg:grid">
+					<div>Key</div>
+					<div>Role</div>
+					<div>Status</div>
+					<div>Expires</div>
+					<div>Last used</div>
+					<div class="text-right">Actions</div>
+				</div>
+				<div class="divide-y divide-base-300">
+					for _, key := range apiKeys {
+						<div class="grid gap-3 py-4 lg:grid-cols-[1.3fr_.8fr_.8fr_1fr_1fr_1.3fr] lg:items-start">
+							<div class="min-w-0">
+								<p class="font-medium text-base-content">{ string(key.Name) }</p>
+								<p class="break-all text-xs text-base-content/70">{ string(key.Slug) } · { key.TokenPrefix }</p>
+								if key.Description != nil && *key.Description != "" {
+									<p class="mt-1 text-xs text-base-content/70">{ *key.Description }</p>
+								}
+								if key.CanManageApiKeys {
+									<div class="mt-2 flex flex-wrap gap-2">
+										if key.CanManageApiKeys {
+											<span class="badge badge-warning badge-sm">Can manage API keys</span>
+										}
+									</div>
+								}
+							</div>
+							<div><span class="text-xs font-semibold uppercase tracking-wide text-base-content/60 lg:hidden">Role </span><span class="badge badge-outline">{ string(key.Role) }</span></div>
+							<div><span class="text-xs font-semibold uppercase tracking-wide text-base-content/60 lg:hidden">Status </span><span class={ APIKeyStatusBadgeClass(key) }>{ APIKeyStatusLabel(key) }</span></div>
+							<div class="text-sm text-base-content/80"><span class="text-xs font-semibold uppercase tracking-wide text-base-content/60 lg:hidden">Expires </span>{ FormatOptionalAPIKeyTime(key.ExpiresAt) }</div>
+							<div class="text-sm text-base-content/80"><span class="text-xs font-semibold uppercase tracking-wide text-base-content/60 lg:hidden">Last used </span>{ FormatOptionalAPIKeyTime(key.LastUsedAt) }</div>
+							<div class="flex flex-wrap gap-2 lg:justify-end">
+								if permissions.Can("api_keys", "update") && key.RevokedAt == nil {
+									<button class="btn btn-ghost btn-xs" type="button" aria-controls={ APIKeyEditPanelID(key) } aria-expanded="false" data-toggle-target={ APIKeyEditPanelID(key) }>Edit</button>
+									<button class="btn btn-outline btn-xs" type="button" data-protected-action-trigger={ APIKeyRotateModalID(key) }>Rotate</button>
+								}
+								if permissions.Can("api_keys", "delete") && key.RevokedAt == nil {
+									<button class="btn btn-error btn-outline btn-xs" type="button" data-protected-action-trigger={ APIKeyRevokeModalID(key) }>Revoke</button>
+								}
+								if permissions.Can("api_keys", "delete") && key.RevokedAt != nil {
+									<button class="btn btn-error btn-outline btn-xs" type="button" data-protected-action-trigger={ APIKeyDeleteModalID(key) }>Remove</button>
+								}
+								if (!permissions.Can("api_keys", "update") && !permissions.Can("api_keys", "delete")) || (key.RevokedAt != nil && !permissions.Can("api_keys", "delete")) {
+									<span class="text-sm text-base-content/60">No actions</span>
+								}
+							</div>
+							if permissions.Can("api_keys", "update") && key.RevokedAt == nil {
+								<form
+									id={ APIKeyEditPanelID(key) }
+									class="hidden rounded-lg border border-base-300 bg-base-200/35 p-3 lg:col-span-6"
+									method="post"
+									action={ templ.URL("/organizations/" + string(organization.Slug) + "/security/api-keys/" + string(key.Slug) + "/update") }
+									hx-post={ "/organizations/" + string(organization.Slug) + "/security/api-keys/" + string(key.Slug) + "/update" }
+									hx-target="#organization-security-content"
+									hx-select="#organization-security-content"
+									hx-swap="outerHTML show:none focus-scroll:false"
+									data-dirty-form={ "api-key-" + string(key.Slug) + "-update" }
+									data-preserve-scroll
+								>
+									<div class="grid gap-3 xl:grid-cols-[minmax(0,1.1fr)_13rem_minmax(0,1fr)] xl:items-end">
+										<label class="form-control w-full">
+											<div class="label py-1"><span class="label-text text-xs">Name</span></div>
+											<input class="input input-bordered input-sm w-full" type="text" name="name" value={ string(key.Name) } required/>
+										</label>
+										<label class="form-control w-full">
+											<div class="label py-1"><span class="label-text text-xs">Expires</span></div>
+											<input class="input input-bordered input-sm w-full" type="datetime-local" name="expires_at" value={ FormatAPIKeyDateTimeLocal(key.ExpiresAt) }/>
+										</label>
+										<label class="form-control w-full">
+											<div class="label py-1"><span class="label-text text-xs">Description</span></div>
+											<input class="input input-bordered input-sm w-full" type="text" name="description" value={ APIKeyDescriptionValue(key.Description) }/>
+										</label>
+									</div>
+									<label class="mt-3 flex cursor-pointer items-start gap-3 rounded-lg border border-warning/30 bg-warning/5 p-3">
+										<input class="checkbox checkbox-warning checkbox-sm mt-0.5" type="checkbox" name="can_manage_api_keys" checked?={ key.CanManageApiKeys }/>
+										<span>
+											<span class="block text-sm font-medium text-base-content">Allow this key to manage API keys</span>
+											<span class="mt-0.5 block text-xs text-base-content/70">Its role must also grant the requested API key action, and it can manage only keys with the same role. Keys it creates cannot inherit this permission.</span>
+										</span>
+									</label>
+									<div class="mt-3 flex justify-end">
+										<button class="btn btn-primary btn-sm" type="submit" data-dirty-submit disabled>Save</button>
+									</div>
+								</form>
+								@APIKeyActionConfirmModal(
+									APIKeyRotateModalID(key),
+									"Rotate API key",
+									"Rotate this organization API key token.",
+									"Rotation invalidates the current bearer token immediately and shows the replacement token once.",
+									string(key.Name),
+									string(key.Slug),
+									"/organizations/"+string(organization.Slug)+"/security/api-keys/"+string(key.Slug)+"/rotate",
+									"Rotate",
+									"btn btn-warning btn-sm",
+								)
+							}
+							if permissions.Can("api_keys", "delete") && key.RevokedAt == nil {
+								@APIKeyActionConfirmModal(
+									APIKeyRevokeModalID(key),
+									"Revoke API key",
+									"Revoke this organization API key.",
+									"Requests using this bearer token will be rejected immediately. This is not a hard-delete.",
+									string(key.Name),
+									string(key.Slug),
+									"/organizations/"+string(organization.Slug)+"/security/api-keys/"+string(key.Slug)+"/revoke",
+									"Revoke",
+									"btn btn-error btn-sm",
+								)
+							}
+							if permissions.Can("api_keys", "delete") && key.RevokedAt != nil {
+								@APIKeyActionConfirmModal(
+									APIKeyDeleteModalID(key),
+									"Remove API key",
+									"Permanently delete this revoked organization API key.",
+									"This removes the retained metadata from the visible list. The bearer token remains revoked and cannot be recovered.",
+									string(key.Name),
+									string(key.Slug),
+									"/organizations/"+string(organization.Slug)+"/security/api-keys/"+string(key.Slug)+"/delete",
+									"Remove",
+									"btn btn-error btn-sm",
+								)
+							}
+						</div>
+					}
+				</div>
+			}
+		</section>
+		if prevCursor != "" || hasMore {
+			<div class="flex items-center justify-end gap-2">
+				if prevCursor != "" {
+					<a class="btn btn-sm btn-outline" href={ templ.URL("/organizations/" + string(organization.Slug) + "/security?cursor=" + prevCursor + "&direction=prev") }>Previous</a>
+				} else {
+					<button class="btn btn-sm btn-outline" type="button" disabled>Previous</button>
+				}
+				if hasMore && nextCursor != "" {
+					<a class="btn btn-sm btn-outline" href={ templ.URL("/organizations/" + string(organization.Slug) + "/security?cursor=" + nextCursor + "&direction=next") }>Next</a>
+				} else {
+					<button class="btn btn-sm btn-outline" type="button" disabled>Next</button>
+				}
+			</div>
+		}
+	</div>
+}
+
+templ APIKeyActionConfirmModal(modalID string, title string, summary string, details string, keyName string, keySlug string, actionURL string, submitLabel string, submitClass string) {
+	<dialog class="modal" id={ modalID } data-protected-action-modal data-confirm-slug={ keySlug }>
+		<div class="modal-box max-w-lg border border-error/35 bg-base-100 p-0">
+			<div class="border-b border-error/25 bg-error/10 px-5 py-4">
+				<div class="flex flex-wrap items-start justify-between gap-3">
+					<div>
+						<h3 class="text-lg font-semibold text-base-content">{ title }</h3>
+						<p class="mt-1 text-sm text-base-content/70">{ summary }</p>
+					</div>
+					<span class="badge badge-outline max-w-full break-all">{ keySlug }</span>
+				</div>
+			</div>
+			<form
+				class="px-5 py-4"
+				method="post"
+				action={ templ.URL(actionURL) }
+				hx-post={ actionURL }
+				hx-target="#organization-security-content"
+				hx-select="#organization-security-content"
+				hx-swap="outerHTML show:none focus-scroll:false"
+				data-preserve-scroll
+			>
+				<div class="rounded-lg border border-base-300 bg-base-200/35 p-3">
+					<p class="text-sm font-semibold text-base-content">{ keyName }</p>
+					<p class="mt-1 text-xs text-base-content/60">{ details }</p>
+				</div>
+				<label class="form-control mt-4 w-full">
+					<div class="label py-1">
+						<span class="label-text text-xs">Type <span class="font-mono font-semibold text-error">{ keySlug }</span> to confirm</span>
+					</div>
+					<input
+						class="input input-bordered w-full font-mono"
+						type="text"
+						name="api_key_confirmation"
+						autocomplete="off"
+						placeholder={ keySlug }
+						required
+						data-protected-confirm-input
+						data-confirm-slug={ keySlug }
+					/>
+				</label>
+				<div class="modal-action mt-5">
+					<button class="btn btn-ghost btn-sm" type="button" data-protected-action-close={ modalID }>Cancel</button>
+					<button class={ submitClass } type="submit" data-protected-confirm-submit disabled aria-disabled="true">{ submitLabel }</button>
+				</div>
+			</form>
+		</div>
+		<form method="dialog" class="modal-backdrop">
+			<button type="submit">close</button>
+		</form>
+	</dialog>
+}
+
+templ OrganizationDetailUnavailablePage(shellData AuthenticatedShellData, organizationSlug string, message string) {
+	@AuthenticatedShell(shellData, OrganizationDetailUnavailablePageContent(organizationSlug, message))
+}
+
+templ OrganizationDetailUnavailablePageContent(organizationSlug string, message string) {
+	<div class="rounded-xl border border-base-300 bg-base-100 p-4 sm:p-6 lg:p-7">
+		<h2 class="text-2xl font-semibold text-base-content sm:text-3xl">Organization unavailable</h2>
+		<p class="mt-1 text-sm text-base-content/70">Could not load organization <span class="font-medium">{ organizationSlug }</span>.</p>
+		<div class="alert alert-error mt-4"><span>{ message }</span></div>
+		<div class="mt-4">
+			<a class="btn btn-outline btn-sm" href="/organizations">Back to organizations</a>
+		</div>
+	</div>
+}
+
+templ ProjectQuickLookUnavailable(message string) {
+	<div id="project-quick-look">
+		@EntityState("Project unavailable", message)
+	</div>
+}
+
+templ ProjectBackendBranchControl(orgSlug string, project api.Project, backendControls ProjectPipelineBackendControls) {
+	<div
+		id="project-backend-branches"
+		class="form-control w-full"
+		hx-get={ "/organizations/" + orgSlug + "/projects/" + string(project.Slug) + "/settings/pipeline-backend/branches" }
+		hx-trigger={ func() string { if backendControls.BranchesPending { return "load" }; return "retryBranches" }() }
+		hx-include="closest form"
+		hx-params="data_source_slug,tracked_branch"
+		hx-target="this"
+		hx-select="unset"
+		hx-swap="outerHTML"
+		hx-push-url="false"
+		hx-indicator="this"
+	>
+		<label class="label py-1" for="project-tracked-branch">
+			<span class="label-text text-xs">Tracked branch</span>
+		</label>
+		<select
+			class="select select-bordered select-sm w-full font-mono"
+			id="project-tracked-branch"
+			name="tracked_branch"
+			required
+			disabled?={ backendControls.SelectedDataSource == "" || (!backendControls.BranchesPending && len(ProjectPipelineBackendBranchOptions(project, backendControls, backendControls.SelectedDataSource)) == 0) }
+		>
+			if backendControls.SelectedDataSource == "" {
+				<option value="">Select a Git data source first</option>
+			} else if backendControls.BranchesPending && backendControls.SelectedBranch == "" {
+				<option value="">Loading branches…</option>
+			} else if len(ProjectPipelineBackendBranchOptions(project, backendControls, backendControls.SelectedDataSource)) == 0 {
+				<option value="">No branches available</option>
+			} else {
+				<option value="" selected?={ backendControls.SelectedBranch == "" }>Select branch</option>
+				for _, branch := range ProjectPipelineBackendBranchOptions(project, backendControls, backendControls.SelectedDataSource) {
+					<option value={ branch.Name } selected?={ branch.Name == backendControls.SelectedBranch }>{ branch.Label }</option>
+				}
+			}
+		</select>
+		<p
+			class={ "mt-1 text-xs " + func() string {
+	if backendControls.BranchLoadError != "" {
+		return "text-warning"
+	}
+	return "text-base-content/60"
+}() }
+		>
+			if backendControls.BranchesPending {
+				<span role="status">Loading branches…</span>
+			} else {
+				{ ProjectPipelineBackendBranchHelpText(backendControls, backendControls.SelectedDataSource, ProjectPipelineBackendBranchOptions(project, backendControls, backendControls.SelectedDataSource)) }
+			}
+		</p>
+		if backendControls.BranchLoadDetails != "" {
+			<p class="mt-1 break-words text-xs text-warning/90">{ backendControls.BranchLoadDetails }</p>
+		}
+		if backendControls.BranchLoadError != "" || backendControls.BranchesPending {
+			<button type="button" class="btn btn-ghost btn-xs" hx-get={ "/organizations/" + orgSlug + "/projects/" + string(project.Slug) + "/settings/pipeline-backend/branches" } hx-target="#project-backend-branches">Retry branches</button>
+		}
+	</div>
+}

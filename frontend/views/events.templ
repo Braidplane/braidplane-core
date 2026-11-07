@@ -1,0 +1,228 @@
+package views
+
+import (
+	"fmt"
+	"strings"
+
+	api "github.com/Braidplane/braidplane-core/api-schema/gen/client"
+)
+
+templ EventsPage(
+	shellData AuthenticatedShellData,
+	orgSlug string,
+	events []api.EventRecord,
+	hasMore bool,
+	nextCursor string,
+	prevCursor string,
+	filters EventFilters,
+	retentionDays int,
+) {
+	@AuthenticatedShell(
+		shellData,
+		EventsPageContent(
+			orgSlug,
+			events,
+			hasMore,
+			nextCursor,
+			prevCursor,
+			filters,
+			retentionDays,
+		),
+	)
+}
+
+templ EventsPageContent(
+	orgSlug string,
+	events []api.EventRecord,
+	hasMore bool,
+	nextCursor string,
+	prevCursor string,
+	filters EventFilters,
+	retentionDays int,
+) {
+	<div class="flex flex-wrap items-start justify-between gap-4 rounded-xl border border-base-300 bg-base-100 p-4">
+		<div>
+			<div class="tabs tabs-box" role="tablist" aria-label="Event class">
+				<a
+					class={ "tab" + func() string {
+	if filters.EventClass == EventClassGeneric {
+		return " tab-active"
+	}
+	return ""
+}() }
+					role="tab"
+					href={ templ.URL(buildEventsListHref(orgSlug, "", "", EventFilters{EventClass: EventClassGeneric})) }
+				>All events</a>
+				<a
+					class={ "tab" + func() string {
+	if filters.EventClass == EventClassSecurityAudit {
+		return " tab-active"
+	}
+	return ""
+}() }
+					role="tab"
+					href={ templ.URL(buildEventsListHref(orgSlug, "", "", EventFilters{EventClass: EventClassSecurityAudit})) }
+				>Security audit</a>
+			</div>
+			if filters.EventClass == EventClassSecurityAudit {
+				<p class="mt-3 max-w-3xl text-xs text-base-content/70">
+					Security and administrative events retained online
+					if retentionDays > 0 {
+						<span>{ fmt.Sprintf(" for %d days from occurrence.", retentionDays) }</span>
+					} else {
+						<span>; the current retention boundary is unavailable.</span>
+					}
+					This is not a pre-prune archive.
+				</p>
+			} else {
+				<p class="mt-3 text-xs text-base-content/70">Generic retained history across organization resources, including each event's recorded class.</p>
+			}
+		</div>
+		if filters.EventClass == EventClassSecurityAudit {
+			<a class="btn btn-outline btn-sm" href={ templ.URL(buildSecurityAuditExportHref(orgSlug, filters)) } download>
+				Export CSV
+			</a>
+			<p class="basis-full text-right text-[11px] text-base-content/60">Exports up to 10,000 matching retained records. Narrow the occurrence window for larger results.</p>
+		}
+	</div>
+	<form class="mt-4 grid gap-3 rounded-xl border border-base-300 bg-base-100 p-4 md:grid-cols-2 xl:grid-cols-4" method="get" action={ templ.URL(buildEventsListHref(orgSlug, "", "", EventFilters{EventClass: filters.EventClass})) }>
+		<input type="hidden" name="event_class" value={ filters.EventClass }/>
+		<label class="form-control w-full">
+			<div class="label py-1">
+				<span class="label-text text-xs">Actor type</span>
+			</div>
+			<select class="select select-bordered select-sm" name="actor_type">
+				<option selected?={ filters.ActorType == "" } value="">All actors</option>
+				for _, option := range eventActorTypeOptions() {
+					<option selected?={ filters.ActorType == option.Value } value={ option.Value }>{ option.Label }</option>
+				}
+			</select>
+		</label>
+		<label class="form-control w-full">
+			<div class="label py-1">
+				<span class="label-text text-xs">Actor slug</span>
+			</div>
+			<input class="input input-bordered input-sm" type="text" name="actor_slug" value={ filters.ActorSlug } placeholder="jane-admin"/>
+		</label>
+		<label class="form-control w-full">
+			<div class="label py-1">
+				<span class="label-text text-xs">Entity type</span>
+			</div>
+			<select class="select select-bordered select-sm" name="entity_type">
+				<option selected?={ filters.EntityType == "" } value="">All entities</option>
+				for _, option := range eventEntityTypeOptions() {
+					<option selected?={ filters.EntityType == option.Value } value={ option.Value }>{ option.Label }</option>
+				}
+			</select>
+		</label>
+		<label class="form-control w-full">
+			<div class="label py-1">
+				<span class="label-text text-xs">Entity slug</span>
+			</div>
+			<input class="input input-bordered input-sm" type="text" name="entity_slug" value={ filters.EntitySlug } placeholder="users-sync"/>
+		</label>
+		<label class="form-control w-full">
+			<div class="label py-1">
+				<span class="label-text text-xs">Action</span>
+			</div>
+			<select class="select select-bordered select-sm" name="action">
+				<option selected?={ filters.Action == "" } value="">All actions</option>
+				for _, option := range eventActionOptions() {
+					<option selected?={ filters.Action == option.Value } value={ option.Value }>{ option.Label }</option>
+				}
+			</select>
+		</label>
+		if filters.EventClass == EventClassSecurityAudit {
+			<label class="form-control w-full">
+				<div class="label py-1"><span class="label-text text-xs">Request ID</span></div>
+				<input class="input input-bordered input-sm" type="text" name="request_id" value={ filters.RequestID } placeholder="req-..."/>
+			</label>
+			<label class="form-control w-full">
+				<div class="label py-1"><span class="label-text text-xs">Occurred from</span></div>
+				<input class="input input-bordered input-sm" type="text" name="occurred_from" value={ filters.OccurredFrom } placeholder="2026-07-01T00:00:00Z"/>
+			</label>
+			<label class="form-control w-full">
+				<div class="label py-1"><span class="label-text text-xs">Occurred before</span></div>
+				<input class="input input-bordered input-sm" type="text" name="occurred_before" value={ filters.OccurredBefore } placeholder="2026-08-01T00:00:00Z"/>
+			</label>
+		}
+		<div class="flex items-end gap-2">
+			<button class="btn btn-primary btn-sm" type="submit">Apply</button>
+			<a class="btn btn-outline btn-sm" href={ templ.URL(buildEventsListHref(orgSlug, "", "", EventFilters{EventClass: filters.EventClass})) }>Reset</a>
+		</div>
+	</form>
+	if len(events) == 0 {
+		<div class="alert mt-6">
+			<span>No events found for the selected filters.</span>
+		</div>
+	} else {
+		<div class="mt-6 overflow-x-auto rounded-xl border border-base-300 bg-base-100">
+			<table class="table table-zebra">
+				<thead>
+					<tr>
+						<th>Occurred</th>
+						<th>Action</th>
+						<th>Class / schema</th>
+						<th>Actor</th>
+						<th>Entity</th>
+						<th>Request</th>
+						<th>Metadata</th>
+					</tr>
+				</thead>
+				<tbody>
+					for _, event := range events {
+						<tr class="align-top">
+							<td class="whitespace-nowrap text-xs text-base-content/70">
+								{ formatEventTimestamp(event.OccurredAt) }
+								<div class="mt-1 text-[11px] text-base-content/50">Recorded { formatEventTimestamp(event.CreatedAt) }</div>
+							</td>
+							<td>
+								<div class={ eventActionBadgeClass(event.Action) }>{ eventTypeLabel(string(event.Action)) }</div>
+								<code class="mt-2 block font-mono text-[11px] text-base-content/60">{ string(event.Slug) }</code>
+							</td>
+							<td>
+								<div class="badge badge-outline">{ eventTypeLabel(string(event.EventClass)) }</div>
+								<div class="mt-2 text-xs text-base-content/60">Schema v{ fmt.Sprintf("%d", event.SchemaVersion) }</div>
+							</td>
+							<td>
+								<div class="text-sm font-medium text-base-content">{ eventTypeLabel(string(event.ActorType)) }</div>
+								<code class="mt-1 block font-mono text-xs text-base-content/70">{ eventSlugLabel(event.ActorSlug) }</code>
+							</td>
+							<td>
+								<div class="text-sm font-medium text-base-content">{ eventTypeLabel(string(event.EntityType)) }</div>
+								<code class="mt-1 block font-mono text-xs text-base-content/70">{ eventSlugLabel(event.EntitySlug) }</code>
+							</td>
+							<td class="max-w-52">
+								<code class="break-all font-mono text-xs text-base-content/70">{ eventRequestIDLabel(event.RequestId) }</code>
+							</td>
+							<td class="min-w-72">
+								if len(event.Metadata) == 0 {
+									<span class="text-xs text-base-content/50">None</span>
+								} else {
+									<details class="rounded-lg border border-base-300 bg-base-200/40 px-3 py-2">
+										<summary class="cursor-pointer text-xs font-medium text-base-content/70 select-none">View metadata</summary>
+										<pre class="mt-2 max-h-64 overflow-auto whitespace-pre-wrap break-words font-mono text-xs text-base-content">{ eventMetadataJSON(event.Metadata) }</pre>
+									</details>
+								}
+							</td>
+						</tr>
+					}
+				</tbody>
+			</table>
+		</div>
+	}
+	if prevCursor != "" || hasMore {
+		<div class="mt-6 flex items-center justify-end gap-2">
+			if prevCursor != "" {
+				<a class="btn btn-sm btn-outline" href={ templ.URL(buildEventsListHref(orgSlug, prevCursor, "prev", filters)) }>Previous</a>
+			} else {
+				<button class="btn btn-sm btn-outline" type="button" disabled>Previous</button>
+			}
+			if hasMore && strings.TrimSpace(nextCursor) != "" {
+				<a class="btn btn-sm btn-outline" href={ templ.URL(buildEventsListHref(orgSlug, nextCursor, "next", filters)) }>Next</a>
+			} else {
+				<button class="btn btn-sm btn-outline" type="button" disabled>Next</button>
+			}
+		</div>
+	}
+}

@@ -1,0 +1,10 @@
+[deployment]
+profile="self-hosted"
+[logging]
+backend_file=""
+frontend_file=""
+[smtp]
+user=""
+password=""
+[auth]
+self_service_registration_enabled=false

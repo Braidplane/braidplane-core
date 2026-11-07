@@ -1,0 +1,58 @@
+{
+    "metadata": {
+        "slug": "acme-users-sync",
+        "name": "ACME Users Sync"
+    },
+    "steps": [
+        {
+            "kind": "query",
+            "slug": "fetch-users",
+            "name": "Fetch users from Postgres",
+            "query": {
+                "data_source_ref": "acme-postgres",
+                "operation_type": "sql",
+                "operation_ref": "list-active-users",
+                "parameters": {
+                    "is_active": true,
+                    "limit": 100
+                },
+                "output_contract": {
+                    "representation": "rows",
+                    "fields": [
+                        {
+                            "name": "email",
+                            "type": "string",
+                            "required": true
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "kind": "sink",
+            "slug": "acme-users-sync",
+            "name": "Persist to MySQL",
+            "sink": {
+                "idempotency_class": "deduplicated_by_ledger",
+                "input": "fetch-users",
+                "input_contract": {
+                    "representation": "rows",
+                    "fields": [
+                        {
+                            "name": "email",
+                            "type": "string",
+                            "required": true
+                        }
+                    ]
+                },
+                "data_source_ref": "acme-mysql",
+                "operation_type": "sql",
+                "operation_ref": "upsert-users",
+                "config": {
+                    "mode": "upsert",
+                    "table": "users"
+                }
+            }
+        }
+    ]
+}

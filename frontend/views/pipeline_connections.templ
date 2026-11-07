@@ -1,0 +1,99 @@
+package views
+
+import "fmt"
+
+templ PipelineConnectionsPanel() {
+	{{ connections := pipelineConnections(ctx) }}
+	<div class="space-y-4">
+		<div>
+			<h2 class="text-lg font-semibold">Connections</h2>
+			<p class="mt-1 text-sm text-base-content/70">Current completion subscriptions in the selected runtime target. This configuration does not establish that a trigger ran or that a linked run completed.</p>
+		</div>
+		if connections.Partial || connections.Truncated {
+			<div class="rounded-lg border border-warning/40 bg-warning/10 px-4 py-3 text-sm text-base-content">
+				Only a bounded subset of current subscriptions is shown.
+				if connections.CatalogHref!="" {
+					<a class="link link-primary" href={ templ.URL(connections.CatalogHref) }>Browse all triggers to continue inspection</a>
+				}
+				if connections.Partial {
+					<span>The trigger list exceeded 500 records or could not advance safely.</span>
+				}
+				if connections.Truncated {
+					<span>The connected graph exceeded 40 pipelines or 100 subscriptions.</span>
+				}
+			</div>
+		}
+		if connections.Message != "" {
+			<div class="rounded-lg border border-base-300 bg-base-200/40 px-4 py-3 text-sm text-base-content/70">{ connections.Message }</div>
+		} else if len(connections.Edges) == 0 {
+			<div class="rounded-lg border border-dashed border-base-300 bg-base-200/30 px-4 py-3 text-sm text-base-content/70">No completion subscriptions are visible in the returned configuration subset.</div>
+		} else {
+			<div class="lg:hidden">
+				@PipelineConnectionsCompact(connections)
+			</div>
+			<div class="hidden lg:block" data-lineage-view={ entityPageURL(ctx).Path + "|connections|" + entityPageURL(ctx).Query().Get("environment_slug") }>
+				<div class="flex flex-wrap items-center justify-between gap-2 rounded-t-xl border border-b-0 border-base-300 bg-base-100 px-3 py-2 text-xs text-base-content/60">
+					<span>Current completion subscriptions</span>
+					<div class="flex flex-wrap items-center gap-1" role="group" aria-label="Connections graph controls">
+						<button type="button" class="btn btn-ghost btn-xs" data-lineage-action="out" aria-label="Zoom out">−</button>
+						<output class="w-12 text-center tabular-nums" data-lineage-zoom aria-live="polite" aria-label="Current zoom">100%</output>
+						<button type="button" class="btn btn-ghost btn-xs" data-lineage-action="in" aria-label="Zoom in">+</button>
+						<button type="button" class="btn btn-ghost btn-xs" data-lineage-action="fit" aria-pressed="true">Fit</button>
+						<button type="button" class="btn btn-ghost btn-xs" data-lineage-action="reset">100%</button>
+					</div>
+					<span>Drag background or scroll to pan · + / − to zoom · 0 to fit</span>
+				</div>
+				<div data-lineage-viewport class="pipeline-graph-grid relative h-[32rem] min-w-0 overflow-auto rounded-b-xl border border-base-300 bg-base-200/35 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary" tabindex="0" role="region" aria-label="Current pipeline connections graph">
+					<div data-lineage-bounds class="relative overflow-hidden" style={ templ.SafeCSS(fmt.Sprintf("width:%dpx;height:%dpx;", connections.CanvasWidth, connections.CanvasHeight)) }>
+						<div data-lineage-canvas class="absolute origin-top-left" style={ templ.SafeCSS(fmt.Sprintf("width:%dpx;height:%dpx;", connections.CanvasWidth, connections.CanvasHeight)) }>
+							<svg class="pointer-events-none absolute inset-0 z-0" width={ fmt.Sprintf("%d", connections.CanvasWidth) } height={ fmt.Sprintf("%d", connections.CanvasHeight) } viewBox={ fmt.Sprintf("0 0 %d %d", connections.CanvasWidth, connections.CanvasHeight) } aria-hidden="true">
+								for _, edge := range connections.Edges {
+									<path class="text-primary/60" d={ edge.Path } fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"></path>
+									<polygon class="text-primary/60" points={ edge.ArrowPoints } fill="currentColor"></polygon>
+								}
+							</svg>
+							for _, edge := range connections.Edges {
+								<a href={ templ.URL(edge.TriggerHref) } class="absolute z-20 w-40 text-center -translate-x-1/2 -translate-y-1/2 rounded border border-base-300 bg-base-100 px-2 py-1 text-xs shadow-sm hover:border-primary focus:outline-none focus-visible:ring-2 focus-visible:ring-primary" style={ templ.SafeCSS(fmt.Sprintf("left:%dpx;top:%dpx;", edge.LabelX, edge.LabelY)) } aria-label={ "Trigger " + edge.TriggerSlug + ", revision " + fmt.Sprintf("%d", edge.Revision) }>
+									{ pipelineConnectionConditionLabel(edge.Condition) } → { edge.State }
+									<br/>
+									{ edge.TriggerSlug } · r{ fmt.Sprintf("%d", edge.Revision) }
+								</a>
+							}
+							for _, node := range connections.Nodes {
+								<a href={ templ.URL(node.Href) } data-entity-focus="pipeline-connections" aria-current={ fmt.Sprint(node.Selected) } class={ "absolute z-10 block h-[116px] w-[208px] rounded-xl border bg-base-100 px-3 py-3 shadow-sm hover:border-primary focus:outline-none focus-visible:ring-2 focus-visible:ring-primary",templ.KV("border-primary",node.Selected),templ.KV("border-base-300",!node.Selected) } style={ templ.SafeCSS(fmt.Sprintf("left:%dpx;top:%dpx;", node.X, node.Y)) }>
+									<span class="text-xs font-semibold uppercase tracking-wide text-base-content/55">Pipeline</span>
+									<span class="mt-2 block truncate text-sm font-semibold text-base-content">{ node.Slug }</span>
+									<span class="mt-2 block text-xs text-base-content/60">Open current configuration</span>
+								</a>
+							}
+						</div>
+					</div>
+				</div>
+			</div>
+			<div class="hidden lg:block">
+				@PipelineConnectionsCompact(connections)
+			</div>
+		}
+	</div>
+}
+
+templ PipelineConnectionsCompact(connections PipelineConnections) {
+	<ol class="space-y-2" aria-label="Current completion subscriptions">
+		for _, edge := range connections.Edges {
+			<li class="rounded-lg border border-base-300 bg-base-100 px-3 py-3">
+				<div class="flex flex-wrap items-center gap-2 text-sm">
+					<a class="link link-primary break-all font-medium" href={ templ.URL(pipelineConnectionNodeHref(connections, edge.From)) }>{ edge.From }</a>
+					<span class="text-base-content/50">→</span>
+					<a class="link link-primary break-all font-medium" href={ templ.URL(pipelineConnectionNodeHref(connections, edge.To)) }>{ edge.To }</a>
+					<span class={ pipelineConnectionStateBadgeClass(edge.State) }>{ edge.State }</span>
+					<span class="badge badge-ghost badge-xs">{ pipelineConnectionConditionLabel(edge.Condition) }</span>
+				</div>
+				<div class="mt-2 flex flex-wrap gap-x-3 gap-y-1 text-xs text-base-content/65">
+					<a class="link" href={ templ.URL(edge.TriggerHref) }>{ edge.TriggerSlug }</a>
+					<span>Revision { edge.Revision }</span>
+					<a class="link" href={ templ.URL(edge.TriggerHref) }>Trigger details</a>
+				</div>
+			</li>
+		}
+	</ol>
+}

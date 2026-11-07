@@ -1,0 +1,95 @@
+package views
+
+import (
+	"fmt"
+	api "github.com/Braidplane/braidplane-core/api-schema/gen/client"
+	"github.com/Braidplane/braidplane-core/pkg/ptr"
+)
+
+templ PipelineRunContractEvidence(run api.PipelineRunRecord) {
+	<section class="mt-6 min-w-0 border-t border-base-300 pt-4" aria-labelledby="run-contract-evidence-heading">
+		<h3 id="run-contract-evidence-heading" class="text-base font-semibold">Contract evidence</h3>
+		<p class="mt-1 text-sm text-base-content/70">Recorded structural conformance for this attempt. Static compatibility, delivery acknowledgement and Proof are separate. Quality and freshness remain unverified without their own evaluator.</p>
+		<details class="mt-3">
+			<summary class="cursor-pointer text-sm">Recorded contract and operation provenance</summary>
+			<dl class="mt-3 grid gap-3 text-sm sm:grid-cols-2">
+				<div><dt class="text-base-content/60">Executed authored version</dt><dd class="break-all font-mono text-xs">{ fallbackLineageFact(run.Metadata.PipelineVersionSpecHash) }</dd></div>
+				<div><dt class="text-base-content/60">Deployment resolution</dt><dd class="break-all font-mono text-xs">{ fallbackLineageFact(ptr.Value(run.Timeline.DeploymentResolutionDigest)) }</dd></div>
+			</dl>
+			if run.Composition != nil {
+				<p class="mt-3 text-sm">Stored composition: <strong>{ string(run.Composition.Status) }</strong>. Current authoring and bindings are independent of this recorded selection.</p>
+				if run.Composition.Status == "available" {
+					<dl class="mt-3 grid gap-3 text-xs sm:grid-cols-2">
+						<div><dt>Portable template</dt><dd class="break-all font-mono">{ ptr.Value(run.Composition.TemplateDigest) }</dd></div>
+						<div><dt>Resolved compiled plan</dt><dd class="break-all font-mono">{ ptr.Value(run.Composition.CompiledPlanDigest) }</dd></div>
+						<div><dt>Source commit</dt><dd class="break-all font-mono">{ ptr.Value(run.Composition.SourceCommit) }</dd></div>
+					</dl>
+					<ul class="mt-3 space-y-2 text-sm" aria-label="Exact contract pins">
+						for _, pin := range run.Composition.Pins {
+							<li class="break-words"><strong>{ pin.Step }</strong> · { string(pin.Origin) } · { pin.Port }<br/><code class="break-all text-xs">{ pin.ContractSlug + " / " + pin.RevisionSlug + " / " + pin.SchemaObjectId }</code><br/><code class="break-all text-xs">{ pin.Digest }</code><p class="text-xs text-base-content/70">{ pin.Representation + " / " + pin.RootShape + " · " + pin.CompilerId }</p></li>
+						}
+					</ul>
+					<ul class="mt-3 space-y-2 text-xs" aria-label="Recorded saved operations">
+						for _, operation := range run.Composition.Operations {
+							<li class="break-all">
+								{ operation.Step + " / " + operation.Role + " / " + operation.OperationSlug + " · revision " + operation.Revision }
+								<br/>
+								<code>{ operation.Digest }</code>
+								if scope := operation.ResourceScope; scope != nil {
+									<p>Resource scope: { scope.PolicyId } · { scope.DataSource } · { scope.Contract + " / " + scope.Revision + " / " + scope.ObjectId } · { scope.Representation }</p>
+								}
+							</li>
+						}
+					</ul>
+					<ul class="mt-3 space-y-2 text-xs" aria-label="Recorded deployment targets">
+						for _, target := range run.Composition.Targets {
+							<li class="break-words">{ target.Step + " / " + target.Role + " · logical " + target.Reference + " → resolved " + target.DataSourceSlug }<br/><code class="break-all">Binding revision { target.BindingRevision }</code></li>
+						}
+					</ul>
+				} else {
+					<p class="mt-1 text-sm text-base-content/70">The exact stored material is missing or unsupported. Current operations and bindings cannot reconstruct historical evidence.</p>
+				}
+			}
+		</details>
+		if run.Timeline.StructuralChecks == nil || len(*run.Timeline.StructuralChecks) == 0 {
+			<p class="mt-3 text-sm text-base-content/70">No structural checks recorded. Historical or unavailable evidence does not establish conformance.</p>
+		} else {
+			<ul class="mt-4 divide-y divide-base-300" aria-label="Attempt structural checks">
+				for _, check := range *run.Timeline.StructuralChecks {
+					<li class="min-w-0 py-3">
+						<details>
+							<summary class="cursor-pointer break-words text-sm">
+								<strong>{ string(check.Step) }</strong> · { string(check.Origin) } · { string(check.Phase) }
+								if check.Input != nil {
+									<span>· input { *check.Input }</span>
+								}
+								<span class="badge badge-sm badge-outline">{ string(check.Status) }</span>
+							</summary>
+							<p class="mt-2 break-words text-sm">{ string(check.ReasonCode) }</p>
+							if check.ContractFailure != nil {
+								<p class="mt-2 break-words text-sm">Field { check.ContractFailure.FieldName } · { check.ContractFailure.Rule }</p>
+							}
+							<dl class="mt-3 grid gap-3 text-xs sm:grid-cols-2">
+								<div><dt>Declaration</dt><dd class="break-all font-mono">{ check.Declaration }</dd></div>
+								<div><dt>Attempt</dt><dd>{ fmt.Sprint(check.AttemptNumber) }</dd></div>
+								<div><dt>Compiled plan</dt><dd class="break-all font-mono">{ fallbackLineageFact(ptr.Value(check.CompiledPlanDigest)) }</dd></div>
+								<div><dt>Deployment resolution</dt><dd class="break-all font-mono">{ fallbackLineageFact(ptr.Value(check.DeploymentResolutionDigest)) }</dd></div>
+								<div><dt>Projection</dt><dd class="break-all font-mono">{ check.ProjectionDigest }</dd></div>
+								<div><dt>Resolved target</dt><dd class="break-all font-mono">{ fallbackLineageFact(ptr.Value(check.Target)) }</dd></div>
+								<div><dt>Evaluator / policy</dt><dd class="break-all font-mono">{ check.Evaluator + " / " + check.Policy }</dd></div>
+								<div><dt>Evidence digest</dt><dd class="break-all font-mono">{ fallbackLineageFact(ptr.Value(check.EvidenceDigest)) }</dd></div>
+								<div><dt>Observation scope</dt><dd class="break-words">{ string(check.Window.Kind) } · batch only; completeness unknown</dd></div>
+								if check.Evidence != nil {
+									<div><dt>Observed batch</dt><dd>{ fmt.Sprintf("%d rows · %s", check.Evidence.Rows, check.Evidence.BatchScope) }</dd></div>
+								}
+								if check.ReusedFromRun != nil {
+									<div><dt>Retained output reused from</dt><dd class="break-all font-mono">{ *check.ReusedFromRun }</dd></div>
+								}
+							</dl>
+						</details>
+					</li>
+				}
+			</ul>
+		}
+	</section>
+}

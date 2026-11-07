@@ -1,0 +1,149 @@
+package views
+
+import api "github.com/Braidplane/braidplane-core/api-schema/gen/client"
+
+templ ManagedProjectRepositoryForm(organization api.Organization, project api.Project, controls ProjectPipelineBackendControls, permissions OrganizationPermissions, fullPage bool) {
+	if !permissions.Can("organizations", "update") || !permissions.Can("datasources", "create") {
+		<div class="mt-6">
+			@EntityState("Repository setup access needed", "Ask an organization admin for organization update and connection creation access.")
+		</div>
+	} else if controls.RepositorySetupLoadError!="" {
+		<div class="mt-6" role="alert">
+			@EntityState("Setup progress unavailable", controls.RepositorySetupLoadError)
+		</div>
+	} else if project.PipelineBackend!=nil {
+		<div class="mt-6">
+			@EntityState("Repository already connected", "Use the connected repository to create a pipeline. Existing repository setup can change the connection deliberately.")
+		</div>
+	} else {
+		if controls.PreviousSetupLoadError!="" {
+			<p class="mt-5 text-sm text-warning" role="alert">{ controls.PreviousSetupLoadError }</p>
+		}
+		if previous:=controls.PreviousRepositorySetup; previous!=nil {
+			<div class="mt-5 border-l-2 border-info/40 pl-4 text-sm" role="status">
+				<p class="font-medium">Previous target kept</p>
+				<p class="mt-1 break-words font-mono text-xs">{ previous.Request.Owner+"/"+previous.Request.RepositoryName }</p>
+				<p class="mt-2 text-base-content/70">Any repository or connection from this attempt stays in your account. Choose a new target below.</p>
+				if previous.RepositoryUrl!=nil && *previous.RepositoryUrl!="" {
+					<a class="link underline underline-offset-2" href={ templ.URL(*previous.RepositoryUrl) } target="_blank" rel="noopener noreferrer">Open previous repository</a>
+				}
+			</div>
+		}
+		<form
+			class="mt-6 grid min-w-0 max-w-3xl gap-5"
+			method="post"
+			action={ templ.URL(projectRepositoryAction(ctx, ProjectPipelineBackendFormAction(string(organization.Slug), string(project.Slug), fullPage))) }
+			hx-post={ projectRepositoryAction(ctx, ProjectPipelineBackendFormAction(string(organization.Slug), string(project.Slug), fullPage)) }
+			hx-indicator="#project-repository-pending"
+			hx-disabled-elt="find button[type=submit]"
+			hx-target={ ProjectDetailHTMXTarget(fullPage) }
+			hx-select={ ProjectDetailHTMXTarget(fullPage) }
+			hx-swap="outerHTML show:none focus-scroll:false"
+			data-preserve-scroll
+		>
+			<input type="hidden" name="mode" value="managed_create"/>
+			<input type="hidden" name="project_slug" value={ string(project.Slug) }/>
+			<div>
+				<h3 class="text-sm font-semibold text-base-content">Create a private repository</h3>
+				<p class="mt-1 text-sm text-base-content/70">Choose your account or team. Braidplane adds the pipeline folder and connects this project. The repository stays in your account.</p>
+			</div>
+			if controls.RepositorySetup!=nil {
+				<div class="rounded-lg border border-info/30 bg-info/5 px-3 py-3 text-sm" role="status">
+					<p class="font-medium">Resume repository setup</p>
+					<p class="mt-1 text-base-content/70">Your target is saved. Retry with the same details to continue without creating duplicate resources.</p>
+					if controls.RepositorySetup.FailureCode!=nil && *controls.RepositorySetup.FailureCode!="" {
+						if *controls.RepositorySetup.FailureCode=="source_test_required" {
+							<p class="mt-2 text-warning">Test the saved repository connection successfully, then resume setup.</p>
+							if permissions.Can("datasources", "read") {
+								<a class="mt-3 inline-flex btn btn-outline btn-sm" href={ templ.URL(DataSourceDetailHref(string(organization.Slug), entityPageURL(ctx).Query().Get("environment_slug"), string(controls.RepositorySetup.DataSourceSlug))) }>Review connection</a>
+							}
+							if !permissions.Can("datasources", "update") {
+								<p class="mt-2 text-base-content/70">Ask an organization admin to test this connection.</p>
+							}
+						} else if *controls.RepositorySetup.FailureCode=="authorization_denied" {
+							<p class="mt-2 text-warning">Authorization was declined. Resume this saved setup to open a fresh authorization request.</p>
+						} else if *controls.RepositorySetup.FailureCode=="authorization_failed" {
+							<p class="mt-2 text-warning">Authorization could not finish. Review provider access, then resume this saved setup to authorize again.</p>
+						} else {
+							<p class="mt-2 text-warning">The last attempt was interrupted. Check provider access, then try again.</p>
+						}
+					}
+				</div>
+			}
+			<details class="text-sm text-base-content/70">
+				<summary class="cursor-pointer">First GitHub installation with selected repositories?</summary>
+				<p class="mt-2">GitHub needs an existing repository before you can select it for installation. Create a private repository with a README, install Braidplane for that repository only, then return here and choose Use existing repository. No pipeline files are needed.</p>
+				<div class="mt-2 flex flex-wrap gap-3">
+					<a class="link" href="https://github.com/new" target="_blank" rel="noopener noreferrer">Create empty repository in GitHub</a>
+					<a class="link" href={ templ.URL(projectRepositoryHref(ctx, string(organization.Slug), string(project.Slug), "existing")) }>Use existing repository</a>
+				</div>
+			</details>
+			<label class="form-control w-full sm:max-w-xs">
+				<span class="label-text text-xs">Provider</span>
+				if controls.RepositorySetup!=nil {
+					<input type="hidden" name="repository_provider" value={ controls.RepositoryProvider }/>
+				}
+				<select class="select select-bordered select-sm w-full" name="repository_provider" required disabled?={ controls.RepositorySetup!=nil }>
+					<option value="github" selected?={ controls.RepositoryProvider!="gitlab" }>GitHub</option>
+					<option value="gitlab" selected?={ controls.RepositoryProvider=="gitlab" }>GitLab</option>
+				</select>
+			</label>
+			<div class="grid min-w-0 gap-5 sm:grid-cols-2">
+				<label class="form-control min-w-0">
+					<span class="label-text text-xs">Owner, organization or group</span>
+					<input class="input input-bordered input-sm w-full" type="text" name="provider_owner" value={ controls.ProviderOwner } required maxlength="255" readonly?={ controls.RepositorySetup!=nil } placeholder="your-team"/>
+				</label>
+				<label class="form-control min-w-0">
+					<span class="label-text text-xs">Repository name</span>
+					<input class="input input-bordered input-sm w-full" type="text" name="repository_name" value={ controls.RepositoryName } required maxlength="100" readonly?={ controls.RepositorySetup!=nil } placeholder="data-pipelines" autocomplete="off"/>
+				</label>
+			</div>
+			<p class="text-xs text-base-content/65">GitHub asks you to authorize the selected owner. GitLab asks for API write access if your organization connection needs it. Replacing GitLab access may require retesting other connections. <a class="link underline underline-offset-2" href={ templ.URL("/organizations/" + string(organization.Slug) + "/connections") }>Manage provider access</a></p>
+			<details class="min-w-0" open?={ controls.PipelineDir!="pipelines" || controls.CreationBranch!="main" }>
+				<summary class="cursor-pointer text-sm text-base-content/70">Advanced settings</summary>
+				<div class="mt-3 grid min-w-0 gap-4 sm:grid-cols-2">
+					<label class="form-control min-w-0"><span class="label-text text-xs">Default branch</span><input class="input input-bordered input-sm w-full font-mono" type="text" name="tracked_branch" required value={ controls.CreationBranch } readonly?={ controls.RepositorySetup!=nil }/></label>
+					<label class="form-control min-w-0"><span class="label-text text-xs">Pipeline path</span><input class="input input-bordered input-sm w-full font-mono" type="text" name="pipeline_dir" required value={ controls.PipelineDir } readonly?={ controls.RepositorySetup!=nil }/></label>
+				</div>
+			</details>
+			<label class="flex cursor-pointer items-start gap-3 text-sm">
+				<input class="checkbox checkbox-sm mt-0.5 shrink-0" type="checkbox" name="create_private_repository" required/>
+				<span>Create this private repository and add the Braidplane template.</span>
+			</label>
+			<div class="flex flex-wrap gap-2">
+				<button class="btn btn-primary btn-sm" type="submit">
+					if controls.RepositorySetup!=nil {
+						<span>Resume setup</span>
+					} else {
+						<span>Create and connect</span>
+					}
+				</button>
+				<a class="btn btn-outline btn-sm" href={ templ.URL(projectRepositoryHref(ctx, string(organization.Slug), string(project.Slug), "")) }>Cancel</a>
+			</div>
+		</form>
+		if controls.RepositorySetup!=nil {
+			<details class="mt-6 max-w-3xl border-t border-base-300 pt-5">
+				<summary class="cursor-pointer text-sm text-base-content/70">Choose a different target</summary>
+				<form
+					class="mt-4 grid gap-4"
+					method="post"
+					action={ templ.URL(projectRepositoryAction(ctx, ProjectPipelineBackendFormAction(string(organization.Slug), string(project.Slug), fullPage))) }
+					hx-post={ projectRepositoryAction(ctx, ProjectPipelineBackendFormAction(string(organization.Slug), string(project.Slug), fullPage)) }
+					hx-disabled-elt="find button[type=submit]"
+					hx-target={ ProjectDetailHTMXTarget(fullPage) }
+					hx-select={ ProjectDetailHTMXTarget(fullPage) }
+					hx-swap="outerHTML show:none focus-scroll:false"
+				>
+					<input type="hidden" name="mode" value="managed_abandon"/>
+					<input type="hidden" name="setup_slug" value={ controls.RepositorySetup.Slug }/>
+					<p class="text-sm text-base-content/70">Use this after a naming conflict or when you want another account or repository. The saved attempt stops here; any resources already created stay in place.</p>
+					<label class="flex cursor-pointer items-start gap-3 text-sm">
+						<input class="checkbox checkbox-sm mt-0.5 shrink-0" type="checkbox" name="preserve_resources" required/>
+						<span>Keep any existing repository and connection from this attempt.</span>
+					</label>
+					<div><button class="btn btn-outline btn-sm" type="submit">Change target</button></div>
+				</form>
+			</details>
+		}
+	}
+}

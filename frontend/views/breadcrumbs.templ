@@ -1,0 +1,20 @@
+package views
+
+templ BreadcrumbTrail(items []BreadcrumbItem) {
+	<nav aria-label="Breadcrumb">
+		<ol class="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-base-content/70">
+			for index, item := range items {
+				if index > 0 {
+					<li aria-hidden="true" class="text-base-content/40">/</li>
+				}
+				<li class="min-w-0 max-w-full break-words [overflow-wrap:anywhere]">
+					if item.Href != "" {
+						<a class="hover:text-base-content hover:underline focus:outline-none focus-visible:underline focus-visible:ring-2 focus-visible:ring-primary" href={ templ.URL(item.Href) }>{ item.Label }</a>
+					} else {
+						<span aria-current="page" class="font-medium text-base-content">{ item.Label }</span>
+					}
+				</li>
+			}
+		</ol>
+	</nav>
+}

@@ -1,0 +1,42 @@
+{
+  "result_type": "sql",
+  "type": "postgres",
+  "success": true,
+  "payload": {
+    "row_count": 3,
+    "column_names": [
+      "order_id",
+      "customer_slug",
+      "order_total_cents",
+      "discount_cents",
+      "net_total_cents",
+      "placed_at_utc"
+    ],
+    "rows": [
+      {
+        "order_id": "ord-1001",
+        "customer_slug": "atlas-retail",
+        "order_total_cents": 129900,
+        "discount_cents": 10000,
+        "net_total_cents": 119900,
+        "placed_at_utc": "2026-06-01T09:15:00Z"
+      },
+      {
+        "order_id": "ord-1002",
+        "customer_slug": "atlas-retail",
+        "order_total_cents": 34999,
+        "discount_cents": 0,
+        "net_total_cents": 34999,
+        "placed_at_utc": "2026-06-02T11:30:00Z"
+      },
+      {
+        "order_id": "ord-1004",
+        "customer_slug": "northstar-logistics",
+        "order_total_cents": 87500,
+        "discount_cents": 7500,
+        "net_total_cents": 80000,
+        "placed_at_utc": "2026-06-04T07:05:00Z"
+      }
+    ]
+  }
+}

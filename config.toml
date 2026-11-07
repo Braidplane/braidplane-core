@@ -1,0 +1,171 @@
+# Community application configuration
+
+frontend_url = "http://localhost:3002"
+backend_api_url = "http://localhost:3001"
+documentation_url = "https://docs.braidplane.com/"
+default_language = "en"
+
+[deployment]
+profile = "local"
+
+[server]
+host = "0.0.0.0"
+port = 3001
+shutdown_timeout = "30s"  # duration (e.g., 30s, 1m, 1m30s)
+drain_timeout = "0s"  # local drain window before shutdown; non-local deployments must set >0
+static_cache_max_age = 0  # seconds; 0 = no cache (dev). Set to 31536000 in production.
+# Leave proxy_header empty unless every request reaches Braidplane through a trusted reverse proxy.
+proxy_header = ""
+trusted_proxies = []
+
+[frontend_server]
+host = "0.0.0.0"
+port = 3002
+shutdown_timeout = "30s"  # duration (e.g., 30s, 1m, 1m30s)
+drain_timeout = "0s"  # local drain window before shutdown; non-local deployments must set >0
+static_cache_max_age = 0  # seconds; 0 = no cache (dev). Set to 31536000 in production.
+# Leave proxy_header empty unless every request reaches Braidplane through a trusted reverse proxy.
+proxy_header = ""
+trusted_proxies = []
+
+[database]
+host = "localhost"
+port = 35432
+user = "postgres"
+password = "postgres"
+database = "braidplane"
+ssl_mode = "disable"
+
+# Connection pool settings
+max_conns = 10
+min_conns = 5
+max_conn_lifetime = 3600    # seconds
+max_conn_idle_time = 300    # seconds
+health_check_period = 60    # seconds
+
+[session]
+table_name = "user_sessions"
+cookie_secure = false
+
+[frontend_session]
+table_name = "user_sessions"
+cookie_secure = false
+
+[security]
+# Argon2 password hashing parameters
+argon2_memory = 65536        # 64 * 1024 KB
+argon2_iterations = 3
+argon2_parallelism = 2
+argon2_salt_length = 16
+argon2_key_length = 32
+# AES-256 encryption key in hex format (32 bytes = 64 hex chars).
+# Set ENCRYPTION_KEY_HEX in your local environment instead of committing key material here.
+allow_private_data_source_hosts = true
+# Plaintext requires an explicit local development override; hosted profiles reject it.
+allow_plaintext_connectors = false
+
+[auth]
+google_client_id = ""
+google_client_secret = ""
+google_redirect_uri = "http://localhost:3002/api/auth/google/callback"
+self_service_registration_enabled = false
+
+# Local browser and API suites intentionally exercise many operations in one
+# minute. Production-like limits live in deploy/staging/config.toml.example.
+[abuse_controls]
+auth_attempts = 1000
+auth_window = "1m"
+expensive_client_attempts = 1000
+expensive_tenant_attempts = 1000
+credential_attempts = 1000
+expensive_window = "1m"
+
+[hubspot]
+# Optional local override for HubSpot connector development or mock testing.
+# Leave empty and false to use the public HubSpot API.
+base_url = ""
+allow_private_hosts = false
+
+# Configure OAuth and Picker together for Google Workspace onboarding.
+[google_workspace]
+oauth_client_id = ""
+oauth_client_secret = ""
+oauth_redirect_uri = ""
+picker_api_key = ""
+project_number = ""
+
+[bigquery]
+# Optional operator endpoint overrides for private Google API routing or local verification.
+# Leave empty and false to use Google BigQuery's public REST and token endpoints.
+base_url = ""
+token_url = ""
+allow_private_hosts = false
+
+[cors]
+allowed_origins = ["http://localhost:3000"]
+
+[smtp]
+host = "localhost:31025"
+user = "user"
+password = "testpass"
+insecure_skip_verify = true
+no_reply_address = "no-reply@braidplane.com"
+
+[logging]
+level = "debug"
+backend_file = "logs/backend.log"
+frontend_file = "logs/frontend.log"
+rotation_interval = "1h"
+log_http_requests = true
+max_file_size_mb = 100
+environment = "local"
+# Generated worktree environments set LOG_OTLP_LOGS_ENDPOINT to the local Alloy endpoint.
+otlp_logs_endpoint = ""
+
+[tracing]
+# Generated worktree environments set TRACING_OTLP_TRACES_ENDPOINT to the local Alloy endpoint.
+otlp_traces_endpoint = ""
+sampling_ratio = 1.0
+
+[metrics]
+enabled = false
+path = "/metrics"
+
+[execution]
+completion_triggers_enabled = false
+backend = "river"
+request_timeout = "30s"
+
+[execution_limits]
+query_timeout = "30s"
+connector_timeout = "30s"
+max_result_rows = 1000
+max_response_bytes = 10485760
+connector_concurrency_per_data_source = 4
+connector_concurrency_queue_timeout = "5s"
+connector_concurrency_max_queued_per_data_source = 16
+http_timeout = "10s"
+http_max_redirects = 3
+http_max_request_bytes = 1048576
+http_max_response_bytes = 10485760
+http_retry_attempts = 1
+http_retry_backoff = "250ms"
+transform_timeout = "10s"
+transform_max_work = 1000000
+transform_max_intermediate_rows = 10000
+transform_max_intermediate_bytes = 33554432
+transform_max_output_rows = 1000
+transform_max_output_bytes = 10485760
+transform_max_depth = 16
+
+[worker]
+pipeline_git_max_workers = 1
+email_max_workers = 1
+notification_delivery_max_workers = 1
+events_max_workers = 1
+event_maintenance_max_workers = 1
+pipeline_schedule_max_workers = 4
+pipeline_retry_max_workers = 4
+pipeline_run_max_workers = 4
+data_source_schema_import_max_workers = 2
+execution_max_workers = 4

@@ -1,0 +1,122 @@
+package views
+
+import (
+	"fmt"
+	api "github.com/Braidplane/braidplane-core/api-schema/gen/client"
+)
+
+templ PipelineRunCompletionPanel(org, project, environment, run string, inspection RunCompletionInspection) {
+	<section
+		id="run-completion"
+		class="min-w-0 space-y-4"
+		aria-labelledby="run-completion-heading"
+		if completionPending(inspection.Evidence) {
+			hx-get={ completionRunHref(org, project, environment, run) }
+			hx-trigger="every 3s"
+			hx-select="#run-completion"
+			hx-target="this"
+			hx-swap="outerHTML show:none focus-scroll:false"
+			data-preserve-scroll
+		}
+	>
+		<h2 id="run-completion-heading" class="text-lg font-semibold">Logical completion</h2>
+		if inspection.Evidence == nil {
+			<div role="status" class="alert alert-warning"><span>{ inspection.ErrorSummary }</span></div>
+		} else {
+			{{ evidence := *inspection.Evidence }}
+			if evidence.Truncated!=nil && *evidence.Truncated {
+				<p role="status" class="alert alert-warning">Read limit reached. Additional attempts or dispatch decisions are not shown.</p>
+			}
+			if evidence.ContextUnavailable!=nil && *evidence.ContextUnavailable {
+				<p role="status" class="alert alert-warning">Some causal context is unavailable or cannot be shown with your access.</p>
+			}
+			<p class="text-sm">Completion follows the logical root after automatic retries. Dispatch decisions and child outcomes are separate; no payload is transferred.</p>
+			<div class="flex flex-wrap items-center gap-2 text-sm">
+				<span>Root</span>
+				<a class="link link-primary break-all font-mono" href={ templ.URL(completionRunHref(org, project, environment, evidence.RootRunSlug)) }>{ evidence.RootRunSlug }</a>
+				<span class="badge badge-outline">{ completionRootState(evidence) }</span>
+			</div>
+			if evidence.FinalAttemptRunSlug != nil {
+				<p class="break-all text-sm">Final attempt: <a class="link link-primary font-mono" href={ templ.URL(completionRunHref(org, project, environment, *evidence.FinalAttemptRunSlug)) }>{ *evidence.FinalAttemptRunSlug }</a></p>
+			}
+			if evidence.DecisionReason != nil {
+				<p class="break-words text-sm">Closure reason: { *evidence.DecisionReason }</p>
+			}
+			<div class="overflow-x-auto">
+				<table class="table table-sm min-w-[40rem]">
+					<caption class="pb-2 text-left text-sm font-semibold">Recorded attempts</caption>
+					<thead><tr><th>Attempt</th><th>Status</th><th>Executed version</th><th>Deployment revision</th></tr></thead>
+					<tbody>
+						for _, attempt := range evidence.Attempts {
+							<tr>
+								<td><a class="link link-primary break-all font-mono" href={ templ.URL(completionRunHref(org, project, environment, attempt.RunSlug)) }>{ fmt.Sprintf("%d · %s",attempt.AttemptNumber,attempt.RunSlug) }</a></td>
+								<td>{ attempt.Status }</td>
+								<td class="break-all font-mono">{ attempt.VersionHash }</td>
+								<td>{ completionRevision(attempt.DeploymentRevision) }</td>
+							</tr>
+						}
+					</tbody>
+				</table>
+			</div>
+			if evidence.Parent != nil {
+				<h3 class="text-base font-semibold">Exact parent</h3>
+				@PipelineCompletionDecisionDetails(org, project, environment, *evidence.Parent)
+			}
+			<h3 class="text-base font-semibold">Current subscriptions (preview)</h3>
+			<p class="text-xs text-base-content/70">Current configuration can change. Persisted decisions below retain the revision and deployment selected for this root.</p>
+			if !inspection.CurrentSubscriptionsLoaded {
+				<p class="text-sm text-base-content/70">Current subscriptions are unavailable or require trigger read permission.</p>
+			} else if len(inspection.CurrentSubscriptions)==0 {
+				<p class="text-sm">No completion trigger is currently configured for this pipeline in this environment.</p>
+			} else {
+				for _, trigger:=range inspection.CurrentSubscriptions {
+					<div class="min-w-0 border-b border-base-300 pb-2 text-sm">
+						<a class="link link-primary break-all" href={ templ.URL(scheduleDetailHref(org, project, environment, trigger.Slug)) }>{ trigger.Slug }</a>
+						<p class="break-all font-mono">{ trigger.Completion.UpstreamPipelineSlug } → { string(trigger.Completion.Condition) } → { trigger.PipelineSlug }</p>
+						<p>{ completionSubscriptionState(trigger,evidence) }</p>
+						<p class="break-all">Revision { fmt.Sprint(trigger.Revision) } · { scheduleVersionPolicyLabel(trigger.VersionPolicy) }</p>
+					</div>
+				}
+			}
+			<h3 class="text-base font-semibold">Persisted dispatch decisions</h3>
+			if len(evidence.Children)==0 {
+				<p class="text-sm text-base-content/70">No visible persisted dispatch decisions. This does not establish whether a trigger was configured or its condition matched.</p>
+			} else {
+				for _, decision := range evidence.Children {
+					@PipelineCompletionDecisionDetails(org, project, environment, decision)
+				}
+			}
+		}
+	</section>
+}
+
+templ PipelineCompletionDecisionDetails(org, project, environment string, decision api.PipelineCompletionDecision) {
+	<div class="min-w-0 space-y-2 border-b border-base-300 pb-4 text-sm">
+		<p class="break-all font-mono">{ decision.UpstreamPipelineSlug } → { completionCondition(decision.Condition) } → { decision.DownstreamPipelineSlug }</p>
+		<p class="break-all">Trigger { decision.TriggerSlug } · revision { fmt.Sprint(decision.TriggerRevision) }</p>
+		<p class="break-all">Dispatch: <span class="badge badge-outline">{ decision.State }</span></p>
+		if decision.DecisionReason!=nil {
+			<p class="break-words">{ *decision.DecisionReason }</p>
+		}
+		<p class="break-all">Parent root: <a class="link link-primary font-mono" href={ templ.URL(completionRunHref(org, project, environment, decision.RootRunSlug)) }>{ decision.RootRunSlug }</a></p>
+		<p class="break-all">Exact final attempt: <a class="link link-primary font-mono" href={ templ.URL(completionRunHref(org, project, environment, decision.FinalAttemptRunSlug)) }>{ decision.FinalAttemptRunSlug }</a></p>
+		if decision.ChildRunSlug != nil {
+			<p class="break-all">Accepted child: <a class="link link-primary font-mono" href={ templ.URL(completionRunHref(org, project, environment, *decision.ChildRunSlug)) }>{ *decision.ChildRunSlug }</a></p>
+			if decision.ChildStatus!=nil {
+				<p>Initial child attempt: <span class="badge badge-outline">{ *decision.ChildStatus }</span></p>
+			}
+			if decision.ChildOutcome!=nil {
+				<p>Child logical outcome: <span class="badge badge-outline">{ *decision.ChildOutcome }</span></p>
+			} else {
+				<p>Child logical root has not closed.</p>
+			}
+		} else {
+			<p>No child run accepted.</p>
+		}
+		<dl class="grid min-w-0 gap-2 sm:grid-cols-2">
+			<div><dt class="text-xs text-base-content/60">Selected immutable version</dt><dd class="break-all font-mono">{ completionText(decision.SelectedVersionHash) }</dd></div>
+			<div><dt class="text-xs text-base-content/60">Selected deployment revision</dt><dd>{ completionRevision(decision.SelectedDeploymentRevision) }</dd></div>
+			<div class="sm:col-span-2"><dt class="text-xs text-base-content/60">Selected resolution</dt><dd class="break-all font-mono">{ completionText(decision.SelectedResolutionDigest) }</dd></div>
+		</dl>
+	</div>
+}

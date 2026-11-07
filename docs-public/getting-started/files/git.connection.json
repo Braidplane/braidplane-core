@@ -1,0 +1,15 @@
+{
+  "type": "git",
+  "name": "Tutorial Git",
+  "slug": "tutorial-git",
+  "read_only": false,
+  "config": {
+    "repo_url": "<your-https-clone-url>",
+    "default_branch": "<your-initialized-branch>"
+  },
+  "credentials": {
+    "auth_type": "https",
+    "username": "<your-provider-username>",
+    "token_file": "git-token"
+  }
+}

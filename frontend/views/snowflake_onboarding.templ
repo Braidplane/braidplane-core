@@ -1,0 +1,66 @@
+package views
+
+import api "github.com/Braidplane/braidplane-core/api-schema/gen/client"
+
+func SnowflakeOnboardingHref(org, environment, ds string) string {
+	return dataSourceMutationHref(org, environment, ds, "snowflake-onboarding")
+}
+
+templ SnowflakeObjectFields(selectTables, insertTables string) {
+	<div class="grid min-w-0 gap-3 sm:col-span-2 sm:grid-cols-2 xl:col-span-2">
+		<label class="form-control w-full">
+			<span class="label"><span class="label-text">Source tables (SELECT)</span></span>
+			<textarea class="textarea textarea-bordered w-full font-mono text-sm" name="snowflake_select_tables" rows="3" placeholder="ORDERS">{ selectTables }</textarea>
+		</label>
+		<label class="form-control w-full">
+			<span class="label"><span class="label-text">Sink tables (INSERT)</span></span>
+			<textarea class="textarea textarea-bordered w-full font-mono text-sm" name="snowflake_insert_tables" rows="3" placeholder="ORDER_EXPORT">{ insertTables }</textarea>
+		</label>
+		<p class="text-xs text-base-content/70 sm:col-span-2">For workload identity, select at least one existing table in this database and schema. One exact name per line. Use uppercase for ordinary unquoted Snowflake names. No wildcard or future grants.</p>
+	</div>
+}
+
+templ SnowflakeOnboardingPanel(org, environment, ds string, onboarding *api.SnowflakeOnboarding, message string, canUpdate bool) {
+	<div class="min-w-0 space-y-3 border-b border-base-300 pb-4" data-snowflake-onboarding>
+		<h3 class="text-base font-semibold">Snowflake workload identity</h3>
+		if message != "" {
+			<p role="status" class="text-sm">{ message }</p>
+		}
+		if onboarding != nil {
+			<p class="text-sm" role="status"><span class="badge badge-outline mr-2">{ string(onboarding.IdentityState) }</span>{ onboarding.Diagnostic }</p>
+			<dl class="grid min-w-0 gap-2 text-sm sm:grid-cols-[auto_minmax(0,1fr)]">
+				<dt class="font-medium">Issuer</dt>
+				<dd class="break-all font-mono text-xs">{ onboarding.Issuer }</dd>
+				<dt class="font-medium">Subject</dt>
+				<dd class="break-all font-mono text-xs">{ onboarding.Subject }</dd>
+				<dt class="font-medium">Audience</dt>
+				<dd class="break-all font-mono text-xs">{ onboarding.Audience }</dd>
+			</dl>
+			<details class="min-w-0">
+				<summary class="cursor-pointer text-sm font-medium">Customer-admin SQL script</summary>
+				<p class="my-2 text-sm">Review and run this script in the configured Snowflake account, then select Verify. Use a dedicated role. Braidplane never runs this script or requests administrator credentials.</p>
+				<label class="form-control"><span class="label-text mb-1">SQL to run in Snowflake</span><textarea class="textarea textarea-bordered w-full font-mono text-xs" rows="14" readonly>{ onboarding.Sql }</textarea></label>
+			</details>
+			<p class="text-xs text-base-content/70">Disable revokes the Braidplane identity for new logins. For immediate removal, your Snowflake administrator must also terminate already-open sessions.</p>
+		}
+		<div class="flex flex-wrap gap-2">
+			<button type="button" class="btn btn-outline btn-sm" hx-get={ SnowflakeOnboardingHref(org, environment, ds) } hx-target="closest [data-snowflake-onboarding]" hx-swap="outerHTML">Retry status</button>
+			if canUpdate {
+				<form method="post" action={ templ.URL(DataSourceTestHref(org, environment, ds)) }>
+					<input type="hidden" name="environment_slug" value={ environment }/>
+					<button type="submit" class="btn btn-primary btn-sm" disabled?={ onboarding == nil || onboarding.IdentityState != api.SnowflakeOnboardingIdentityStateReady }>Verify</button>
+				</form>
+				<form method="post" action={ templ.URL(dataSourceMutationHref(org, environment, ds, "snowflake-identity")) }>
+					<input type="hidden" name="environment_slug" value={ environment }/>
+					if onboarding != nil && (onboarding.IdentityState == api.SnowflakeOnboardingIdentityStateDisabled || onboarding.IdentityState == api.SnowflakeOnboardingIdentityStateRevoking) {
+						<input type="hidden" name="enabled" value="true"/>
+						<button type="submit" class="btn btn-outline btn-sm">Enable identity</button>
+					} else {
+						<input type="hidden" name="enabled" value="false"/>
+						<button type="submit" class="btn btn-outline btn-sm">Disable identity</button>
+					}
+				</form>
+			}
+		</div>
+	</div>
+}

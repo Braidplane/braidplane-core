@@ -1,0 +1,149 @@
+package views
+
+import (
+	api "github.com/Braidplane/braidplane-core/api-schema/gen/client"
+	"strings"
+)
+
+func proofConfiguredPaths(configuration api.DataSourceProofConfiguration, context api.ProofTargetContext) string {
+	paths := []string{}
+	for _, target := range configuration.Targets {
+		if target.ProjectSlug == context.ProjectSlug && target.EnvironmentSlug == context.EnvironmentSlug {
+			paths = append(paths, target.PipelinePath)
+		}
+	}
+	return strings.Join(paths, "\n")
+}
+
+templ ProofConfigurationPage(shell AuthenticatedShellData, org, selected string, configurations []api.DataSourceProofConfiguration, feedback string, failed, canEdit bool) {
+	@AuthenticatedShell(shell, ProofConfigurationContent(org, selected, configurations, feedback, failed, canEdit))
+}
+
+templ ProofConfigurationContent(org, selected string, configurations []api.DataSourceProofConfiguration, feedback string, failed, canEdit bool) {
+	<div class="space-y-5">
+		<header class="flex flex-wrap items-start justify-between gap-3">
+			<div>
+				<h1 class="text-xl font-semibold">Proof configuration</h1>
+				<p class="mt-1 max-w-3xl text-sm text-base-content/70">Choose which managed repository changes receive assessments. Repository access works independently of Proof.</p>
+			</div>
+			<a class="btn btn-outline btn-sm" href={ templ.URL("/organizations/" + org + "/connections") }>Git integrations</a>
+		</header>
+		if feedback!="" {
+			<div role="status" class={ "alert",templ.KV("alert-error",failed),templ.KV("alert-success",!failed) }>{ feedback }</div>
+		}
+		@ProofConfigurationForms(org, selected, configurations, canEdit, failed)
+	</div>
+}
+
+templ ProofConfigurationForms(org, selected string, configurations []api.DataSourceProofConfiguration, canEdit, failed bool) {
+	if len(configurations)==0 {
+		<div class="rounded-xl border border-base-300 bg-base-100 p-5">
+			<p class="text-sm">Create a managed GitHub or GitLab data source to configure Proof.</p>
+			<a class="btn btn-primary btn-sm mt-3" href={ templ.URL("/organizations/" + org + "/datasources/new") }>Add data source</a>
+		</div>
+	}
+	for _,configuration:=range configurations {
+		@ProofDataSourceForm(org, selected, configuration, canEdit, failed)
+	}
+}
+
+templ ProofDataSourceForm(org, selected string, configuration api.DataSourceProofConfiguration, canEdit, failed bool) {
+	<section class="rounded-xl border border-base-300 bg-base-100 p-4 sm:p-5">
+		<div class="flex flex-wrap items-start justify-between gap-3">
+			<div class="min-w-0">
+				<h2 class="break-words text-lg font-semibold">{ configuration.Name }</h2>
+				<p class="mt-1 break-all text-xs text-base-content/60">{ configuration.Provider } · { string(configuration.DataSourceSlug) }</p>
+			</div>
+			<a class="btn btn-ghost btn-sm" href={ templ.URL("/orgs/" + org + "/data-sources/" + string(configuration.DataSourceSlug)) }>Repository settings</a>
+		</div>
+		@ProofConfigurationReadiness(configuration)
+		if configuration.Provider!="git" {
+			<form method="post" action={ templ.URL("/orgs/" + org + "/data-sources/" + string(configuration.DataSourceSlug) + "/proof") } class="mt-4 space-y-4" data-dirty-form>
+				<input type="hidden" name="expected_repository_id" value={ configuration.RepositoryId }/>
+				if selected=="" {
+					<input type="hidden" name="return_to" value="organization"/>
+				}
+				<fieldset disabled?={ !canEdit } class="space-y-4">
+					<label class="flex items-center gap-3 text-sm font-medium"><input type="checkbox" class="checkbox checkbox-sm" name="enabled" checked?={ configuration.Enabled }/>Enable Proof assessments</label>
+					<details class="border-t border-base-300 pt-3" open?={ failed }>
+						<summary class="cursor-pointer text-sm font-semibold">Assessment targets ({ len(configuration.Targets) })</summary>
+						if len(configuration.AvailableTargets)>0 {
+							<div class="border-t border-base-300 pt-4">
+								<h3 class="text-sm font-semibold">Assessment targets</h3>
+								<p class="mt-1 text-xs text-base-content/60">Enter one repository-relative pipeline path per line for each target you want assessed. Leave unused targets empty.</p>
+								for _,target:=range configuration.AvailableTargets {
+									<div class="mt-4 min-w-0">
+										<label class="block text-sm font-medium" for={ "paths-" + string(configuration.DataSourceSlug) + "-" + string(target.ProjectSlug) + "-" + string(target.EnvironmentSlug) }>{ string(target.ProjectSlug) } / { string(target.EnvironmentSlug) }</label>
+										<p class="mt-1 break-all text-xs text-base-content/60">{ target.TargetRef } · { target.PipelineDirectory }</p>
+										<input type="hidden" name={ "ref:" + string(target.ProjectSlug) + ":" + string(target.EnvironmentSlug) } value={ target.TargetRef }/>
+										<textarea id={ "paths-" + string(configuration.DataSourceSlug) + "-" + string(target.ProjectSlug) + "-" + string(target.EnvironmentSlug) } name={ "paths:" + string(target.ProjectSlug) + ":" + string(target.EnvironmentSlug) } class="textarea textarea-bordered mt-2 w-full font-mono text-xs" rows="3" placeholder={ target.PipelineDirectory + "/pipeline.yaml" }>{ proofConfiguredPaths(configuration,target) }</textarea>
+										<a class="link mt-1 inline-block text-xs" href={ templ.URL("/orgs/" + org + "/projects/" + string(target.ProjectSlug) + "/proof-receipts?environment_slug=" + string(target.EnvironmentSlug)) }>Receipt history</a>
+									</div>
+								}
+							</div>
+						} else {
+							<a class="link text-sm" href={ templ.URL("/organizations/" + org + "/projects") }>Configure a project's Git repository and environment</a>
+						}
+					</details>
+					<details class="border-t border-base-300 pt-3" open?={ failed }>
+						<summary class="cursor-pointer text-sm font-semibold">Publication options</summary>
+						if configuration.Provider=="github" || configuration.Provider=="gitlab" {
+							<label class="flex items-center gap-3 text-sm">
+								<input type="checkbox" class="checkbox checkbox-sm" name="publish_checks" checked?={ configuration.PublishChecks }/>
+								if configuration.Provider=="gitlab" {
+									Publish informational GitLab notes
+								} else {
+									Publish informational GitHub checks
+								}
+							</label>
+						}
+					</details>
+					<p class="text-xs text-base-content/60">Live connector evidence requires separate environment policy and explicit authorization. Existing receipts are retained when configuration changes.</p>
+					if canEdit {
+						<button class="btn btn-primary btn-sm disabled:opacity-40" type="submit" data-dirty-submit disabled>Save Proof configuration</button>
+						if configuration.WebhookSetupRequired {
+							<button class="btn btn-outline btn-sm" type="submit">Retry GitLab webhook setup</button>
+						}
+					} else {
+						<p class="text-sm text-base-content/60">Updating Proof requires data source and pipeline management permissions.</p>
+					}
+				</fieldset>
+			</form>
+		}
+	</section>
+}
+
+templ ProofConfigurationReadiness(configuration api.DataSourceProofConfiguration) {
+	<div class="mt-3 flex flex-wrap items-center gap-3 text-sm">
+		<span class={ badgeGhostSoft }>
+			if configuration.Enabled {
+				Enabled
+			} else {
+				Disabled
+			}
+		</span>
+		<span>{ len(configuration.Targets) } assessment targets</span>
+	</div>
+	<p class="mt-3 break-words text-sm text-base-content/70">Repository readiness: { configuration.Status }</p>
+	if configuration.WebhookSetupRequired {
+		<p class="mt-2 text-sm text-warning">GitLab webhook setup requires attention. Open Proof configuration to retry setup.</p>
+	}
+}
+
+templ ProofConfigurationSummaries(org string, configurations []api.DataSourceProofConfiguration) {
+	if len(configurations) == 0 {
+		<p class="text-sm">Create a managed GitHub or GitLab data source to configure Proof.</p>
+		<a class="btn btn-primary btn-sm" href={ templ.URL("/organizations/" + org + "/datasources/new") }>Add data source</a>
+	}
+	<ul class="divide-y divide-base-300" aria-label="Repository Proof configuration">
+		for _, configuration := range configurations {
+			<li class="min-w-0 py-4">
+				<div class="flex flex-wrap items-center justify-between gap-3">
+					<div class="min-w-0"><h3 class="break-words font-semibold">{ configuration.Name }</h3><p class="break-all text-xs text-base-content/60">{ configuration.Provider } · { string(configuration.DataSourceSlug) }</p></div>
+					<a class="btn btn-outline btn-sm" href={ templ.URL("/orgs/" + org + "/data-sources/" + string(configuration.DataSourceSlug) + "/proof") }>Configure Proof</a>
+				</div>
+				@ProofConfigurationReadiness(configuration)
+			</li>
+		}
+	</ul>
+}

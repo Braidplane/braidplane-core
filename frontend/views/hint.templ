@@ -1,0 +1,11 @@
+package views
+
+templ HoverHintText(text string, hint string, textClass string) {
+	if hint != "" {
+		<span class="tooltip tooltip-bottom" data-tip={ hint }>
+			<span class={ textClass + " cursor-help underline decoration-dotted underline-offset-2" }>{ text }</span>
+		</span>
+	} else {
+		<span class={ textClass }>{ text }</span>
+	}
+}

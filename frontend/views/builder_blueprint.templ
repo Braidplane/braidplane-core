@@ -1,0 +1,1407 @@
+package views
+
+import (
+	"encoding/json"
+	"fmt"
+	"strconv"
+	"strings"
+)
+
+type BuilderBlueprintState struct {
+	MemberSlug             string
+	IsEmpty                bool
+	IsValid                bool
+	HasDraft               bool
+	CanExecutePipeline     bool
+	CanRun                 bool
+	CanRefreshSchemas      bool
+	CanCreatePipeline      bool
+	ErrorCount             int
+	ValidationIssues       []string
+	SaveReason             string
+	RunReason              string
+	PipelineExample        string
+	DeepLinkOrgSlug        string
+	DeepLinkProjectSlug    string
+	DeepLinkPipelineSlug   string
+	TargetEnvironmentSlug  string
+	TargetEnvironmentColor string
+
+	HasImportedGraph     bool
+	ImportedNodes        []BuilderBlueprintNode
+	ImportedEdges        []BuilderBlueprintEdge
+	ImportedBindings     []BuilderBlueprintBinding
+	ImportedEdgeCount    int
+	ImportedBindingCount int
+
+	PipelineSlug             string
+	PipelineName             string
+	ExpectedVersionID        *string
+	CurrentVersionID         *string
+	DraftBasedOnVersionID    *string
+	SaveURL                  string
+	SourceFormat             string
+	ExportFormat             string
+	InitialPipelineSource    string
+	ConnectorDescriptorsJSON string
+	PaletteEntries           []BuilderPaletteEntry
+	ProposalReview           *BuilderProposalReview
+}
+
+type BuilderProposalReview struct {
+	MatchesCanonicalSource bool
+	Repository             string
+	InitiatingMember       string
+	PublicationMode        string
+	ProviderActor          string
+	AuthoritySource        string
+	Attribution            string
+	SourcePath             string
+	BaseRef                string
+	BaseCommitSHA          string
+	BranchName             string
+	BranchHeadSHA          string
+	DraftState             string
+	ProposalProvider       string
+	ProposalID             string
+	ProposalURL            string
+	ProposalState          string
+	ProposalIsStale        bool
+	ProviderSupported      bool
+	StatusObservedAt       string
+}
+
+type BuilderPaletteEntry struct {
+	Group       string
+	Kind        string
+	NodeType    string
+	Label       string
+	Description string
+}
+
+type BuilderBlueprintNode struct {
+	Slug                    string
+	Kind                    string
+	X                       int
+	Y                       int
+	DataSourceSlug          string
+	OperationType           string
+	OperationInline         string
+	QueryOutputContract     string
+	QueryIncremental        string
+	QuerySlug               string
+	UseInlineSQL            bool
+	UseInlineOperation      bool
+	InlineSQL               string
+	StepSlug                string
+	StepName                string
+	OriginalStep            string
+	TransformOutputKind     string
+	TransformSQL            string
+	TransformInputs         string
+	TransformInputContract  string
+	TransformOutputContract string
+	Parameters              string
+	SinkBackend             string
+	SinkDataSourceSlug      string
+	SinkOperationType       string
+	SinkOperationInline     string
+	SinkIdempotencyClass    string
+	SinkInputContract       string
+	SinkUseInlineOperation  bool
+	SinkQuerySlug           string
+}
+
+// builderRuntimeActionLabel includes the selected runtime target in Builder action copy.
+func builderRuntimeActionLabel(action, environmentSlug string) string {
+	trimmedEnvironmentSlug := strings.TrimSpace(environmentSlug)
+	if trimmedEnvironmentSlug == "" {
+		return action
+	}
+	return action + " in " + trimmedEnvironmentSlug
+}
+
+// builderRuntimeTargetBadgeLabel returns compact target copy for the Builder toolbar.
+func builderRuntimeTargetBadgeLabel(environmentSlug string) string {
+	trimmedEnvironmentSlug := strings.TrimSpace(environmentSlug)
+	if trimmedEnvironmentSlug == "" {
+		return "No runtime target"
+	}
+	return "Target: " + trimmedEnvironmentSlug
+}
+
+type BuilderBlueprintEdge struct {
+	From string
+	To   string
+}
+
+type BuilderBlueprintBinding struct {
+	FromNode string
+	FromPort string
+	ToNode   string
+	ToPort   string
+}
+
+const (
+	builderGridUnitXPx  = 44
+	builderGridUnitYPx  = 50
+	builderNodeWidthPx  = 208
+	builderNodeHeightPx = 116
+)
+
+func builderIncrementalKind(node BuilderBlueprintNode) string {
+	var contract struct {
+		Kind string `json:"checkpoint_kind"`
+	}
+	if json.Unmarshal([]byte(node.QueryIncremental), &contract) != nil {
+		return ""
+	}
+	return contract.Kind
+}
+
+templ BuilderBlueprintPage(shellData AuthenticatedShellData, state BuilderBlueprintState) {
+	@AuthenticatedShell(shellData, BuilderBlueprintContent(state))
+}
+
+templ BuilderBlueprintContent(state BuilderBlueprintState) {
+	<div class="space-y-3">
+		if state.DeepLinkOrgSlug != "" && state.DeepLinkProjectSlug != "" {
+			<a class="btn btn-ghost btn-sm" href={ templ.URL(fmt.Sprintf("/organizations/%s/projects/%s", state.DeepLinkOrgSlug, state.DeepLinkProjectSlug)) }>
+				<svg class="h-4 w-4" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M15 18l-6-6 6-6" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+				Back to project
+			</a>
+		}
+		if !state.HasImportedGraph && state.CanCreatePipeline && state.DeepLinkProjectSlug != "" {
+			<form id="builder-creation-form" class="space-y-3 border-b border-base-300 pb-5">
+				<div class="space-y-1">
+					<h2 class="text-lg font-semibold">Create pipeline</h2>
+					<p class="max-w-3xl text-sm text-base-content/70">Name your pipeline and add steps. Choose connections in Properties to browse queries and schemas. Propose to Git, then merge, sync and configure runtime bindings before validation and deployment.</p>
+				</div>
+				<div class="flex flex-wrap items-end gap-3">
+					<label class="form-control min-w-0 w-full gap-1 sm:flex-1"><span class="label-text text-sm">Pipeline name</span><input class="input input-bordered w-full" name="name" value={ state.PipelineName } required/></label>
+					<label class="form-control min-w-0 w-full gap-1 sm:flex-1"><span class="label-text text-sm">Pipeline slug</span><input class="input input-bordered w-full font-mono" name="pipeline_slug" placeholder="orders-to-warehouse" pattern="[a-z0-9]+(-[a-z0-9]+)*" required/></label>
+					<button class="btn btn-primary w-full sm:w-auto" type="submit">Propose new pipeline</button>
+				</div>
+				<p class="text-sm text-base-content/70">The project's Git connection needs permission to push a separate proposal branch. <a class="link link-primary" href={ templ.URL("/organizations/" + state.DeepLinkOrgSlug + "/projects/" + state.DeepLinkProjectSlug + "?section=repository") }>Repository settings</a></p>
+				<p id="builder-creation-status" class="text-sm" role="status" aria-live="polite"></p>
+			</form>
+		}
+		<div class="rounded-xl border border-base-300 bg-base-100 shadow-sm">
+			<div class="border-b border-base-300 px-4 py-3 sm:px-6">
+				<div class="flex flex-wrap items-center justify-between gap-3">
+					<div class="flex flex-wrap items-center gap-2">
+						if state.IsEmpty {
+							<div class="badge badge-neutral badge-outline uppercase">Unsaved Canvas</div>
+						} else if state.IsValid {
+							<div class="badge badge-success badge-outline uppercase">Draft checks passed</div>
+						} else {
+							<div class="badge badge-warning badge-outline uppercase">Unsaved Changes</div>
+						}
+						<div class={ builderDraftBadgeClass(state.HasDraft) } id="builder-draft-badge">Draft Active</div>
+						if strings.TrimSpace(state.TargetEnvironmentSlug) != "" {
+							<div class={ ShellEnvironmentBadgeClass(state.TargetEnvironmentColor) }>{ builderRuntimeTargetBadgeLabel(state.TargetEnvironmentSlug) }</div>
+						} else {
+							<div class="badge badge-sm badge-warning badge-outline uppercase">{ builderRuntimeTargetBadgeLabel(state.TargetEnvironmentSlug) }</div>
+						}
+					</div>
+					<div class="flex flex-wrap items-center gap-2">
+						<button class="btn btn-xs btn-outline" id="builder-mode-preview-btn" type="button">Preview</button>
+						<button class="btn btn-xs btn-outline" id="builder-mode-split-btn" type="button">Split</button>
+						<button class="btn btn-xs btn-outline" id="builder-mode-source-btn" type="button">Source</button>
+					</div>
+					<div class="flex flex-wrap items-center gap-2">
+						<button class="btn btn-sm btn-outline max-w-44" id="builder-validate-btn" type="button" disabled?={ !state.HasImportedGraph && state.CanCreatePipeline && state.DeepLinkProjectSlug != "" } title={ builderRuntimeActionLabel("Validate", state.TargetEnvironmentSlug) }>
+							<span class="min-w-0 truncate">{ builderRuntimeActionLabel("Validate", state.TargetEnvironmentSlug) }</span>
+						</button>
+						<button class="btn btn-sm btn-outline" id="builder-publish-btn" type="button" disabled?={ builderPublishDisabled(state) } title={ builderPublishTitle(state) }>Propose</button>
+						<button class="btn btn-sm btn-outline max-w-44" id="builder-run-btn" data-can-execute={ strconv.FormatBool(state.CanExecutePipeline) } type="button" disabled?={ !state.CanRun } title={ strings.TrimSpace(state.RunReason) }>
+							<span class="min-w-0 truncate">{ builderRuntimeActionLabel("Run", state.TargetEnvironmentSlug) }</span>
+						</button>
+						<button class="btn btn-sm btn-primary" id="builder-save-btn" type="button" disabled?={ builderSaveDisabled(state) } title={ builderSaveTitle(state) }>Save</button>
+					</div>
+				</div>
+				<details class="mt-3 border-t border-base-300 pt-3" id="builder-backfill-controls">
+					<summary class="cursor-pointer text-sm font-medium">Incremental controls</summary>
+					<p class="mt-2 text-sm text-base-content/70">Bootstrap initial progress or run a bounded historical window in the selected environment. Bootstrap never resets existing progress. Backfills leave normal checkpoints unchanged and require replay-safe sinks.</p>
+					<form id="builder-backfill-form" class="mt-3 space-y-3">
+						<label class="flex max-w-sm flex-col gap-1 text-sm">Action<select class="select select-sm w-full" id="builder-incremental-action"><option value="backfill">Historical backfill</option><option value="bootstrap">Bootstrap initial checkpoints</option></select></label>
+						<label class="hidden max-w-sm flex-col gap-1 text-sm" id="builder-bootstrap-request-field">Request slug<input class="input input-sm w-full" id="builder-bootstrap-request" autocomplete="off" disabled/></label>
+						for _, node := range state.ImportedNodes {
+							if kind := builderIncrementalKind(node); kind != "" {
+								<fieldset class="grid min-w-0 gap-3 sm:grid-cols-2" data-backfill-source={ node.Slug } data-checkpoint-kind={ kind }>
+									<legend class="mb-1 text-sm font-medium">{ node.Slug }<span class="ml-2 text-xs text-base-content/70">{ kind }</span></legend>
+									<label class="flex min-w-0 flex-col gap-1 text-sm"><span data-incremental-lower-label>From</span><input class="input input-sm w-full" name="lower_bound" required autocomplete="off"/></label>
+									<label class="flex min-w-0 flex-col gap-1 text-sm" data-backfill-upper>To<input class="input input-sm w-full" name="upper_bound" required autocomplete="off"/></label>
+								</fieldset>
+							}
+						}
+						<p class="text-xs text-base-content/70">Watermarks accept a number or text value, such as an ISO timestamp. Cursors are opaque text. Each source operation must use both bounds.</p>
+						<button class="btn btn-sm btn-outline" id="builder-backfill-btn" data-can-execute={ strconv.FormatBool(state.CanExecutePipeline) } type="submit" disabled?={ !state.CanRun }>{ builderRuntimeActionLabel("Start backfill", state.TargetEnvironmentSlug) }</button>
+					</form>
+				</details>
+				if strings.TrimSpace(state.SaveReason) != "" {
+					<p class="mt-3 text-xs text-base-content/70" id="builder-save-reason">{ state.SaveReason }</p>
+				} else {
+					<p class="mt-3 text-xs text-base-content/70" id="builder-save-reason">Save blocked: select a node and resolve validation issues.</p>
+				}
+				if strings.TrimSpace(state.RunReason) != "" {
+					<p class="mt-1 text-xs text-base-content/60" id="builder-run-reason">{ state.RunReason }</p>
+				}
+				if state.ProposalReview != nil {
+					if state.ProposalReview.MatchesCanonicalSource {
+						<div class="mt-3 space-y-2 rounded-lg border border-base-300 p-3 text-sm" id="builder-matching-draft-notice" role="status">
+							<p>Your saved draft matches the current pipeline definition. Review it in Git settings and discard the duplicate copy before running the deployment.</p>
+							<a class="link link-primary" href={ templ.URL(fmt.Sprintf("/orgs/%s/projects/%s/pipelines/%s?environment_slug=%s&section=git", state.DeepLinkOrgSlug, state.DeepLinkProjectSlug, state.PipelineSlug, state.TargetEnvironmentSlug)) }>Review saved draft</a>
+						</div>
+					}
+					<section class="mt-3 border-y border-base-300 py-3" id="builder-proposal-status" aria-label="Git proposal status">
+						<div class="flex flex-wrap items-start justify-between gap-3">
+							<div class="min-w-0">
+								<div class="flex flex-wrap items-center gap-2">
+									<p class="text-xs font-semibold uppercase tracking-wide text-base-content/70">Git proposal</p>
+									<span class={ builderProposalStatusClass(state.ProposalReview) }>{ builderProposalStatusLabel(state.ProposalReview) }</span>
+								</div>
+								<p class="mt-1 break-all font-mono text-xs text-base-content/80">{ state.ProposalReview.SourcePath } · { state.ProposalReview.BaseRef }</p>
+								<p class="mt-1 break-all text-xs text-base-content/60">{ state.ProposalReview.Repository }</p>
+								if state.ProposalReview.Attribution != "" {
+									<p class="mt-1 text-xs text-base-content/70">{ state.ProposalReview.Attribution }</p>
+								}
+							</div>
+							<div class="text-left text-xs text-base-content/60 sm:text-right">
+								<p>{ state.ProposalReview.StatusObservedAt }</p>
+								if state.ProposalReview.ProposalID != "" && state.ProposalReview.ProviderSupported {
+									<button class="link link-primary mr-2" id="builder-proposal-refresh-btn" type="button">Refresh status</button>
+								}
+								if state.ProposalReview.ProposalURL != "" {
+									<a class="link link-primary" href={ templ.URL(state.ProposalReview.ProposalURL) } target="_blank" rel="noopener noreferrer">Open proposal</a>
+								}
+							</div>
+						</div>
+						if state.ProposalReview.PublicationMode == "repository_credential" && state.ProposalReview.BranchName != "" {
+							<dl class="mt-3 grid min-w-0 gap-3 text-xs sm:grid-cols-2">
+								<div class="min-w-0 space-y-1"><dt class="font-medium">Proposal branch</dt><dd class="break-all font-mono">{ state.ProposalReview.BranchName }</dd></div>
+								if state.ProposalReview.BranchHeadSHA != "" {
+									<div class="min-w-0 space-y-1"><dt class="font-medium">Last pushed commit</dt><dd class="break-all font-mono">{ state.ProposalReview.BranchHeadSHA }</dd></div>
+								}
+							</dl>
+						}
+					</section>
+				}
+				<div class="mt-3 rounded-lg border border-base-300 bg-base-100 p-3" id="builder-validation-summary">
+					<p class="text-xs font-semibold uppercase tracking-wide text-base-content/70">Draft checks</p>
+					<ul class="mt-2 space-y-1 text-xs text-base-content/80" id="builder-validation-list">
+						if len(state.ValidationIssues) > 0 {
+							for _, issue := range state.ValidationIssues {
+								<li>{ issue }</li>
+							}
+						} else if state.IsEmpty {
+							<li>Add a source step to begin. Draft checks run as you build.</li>
+						} else if state.IsValid {
+							<li>No draft issues found.</li>
+						} else {
+							<li>Resolve { state.ErrorCount } validation issues to continue.</li>
+						}
+					</ul>
+				</div>
+				<div id="builder-server-validation" class="hidden mt-3 border-t border-base-300 pt-3" role="status" aria-live="polite">
+					<p class="text-xs font-medium">Server preflight</p>
+					<ul id="builder-server-validation-list" class="mt-1 space-y-1 text-xs"></ul>
+				</div>
+			</div>
+			<div class="relative grid gap-0 xl:grid-cols-[220px_minmax(0,1fr)_320px]" id="builder-main-grid">
+				<aside class="relative border-b border-base-300 p-4 md:border-b-0 md:border-r" id="builder-palette-aside">
+					<button aria-label="Hide palette" class="btn btn-ghost btn-xs btn-circle border border-base-300 bg-base-100 absolute -right-3 z-10" id="builder-toggle-palette-btn" style="top: 1.25rem;" title="Hide palette" type="button">
+						<svg xmlns="http://www.w3.org/2000/svg" class="shell-sidebar-toggle-icon h-3.5 w-3.5 transition-transform duration-200" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" aria-hidden="true">
+							<path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7"></path>
+						</svg>
+					</button>
+					<div class="flex items-center justify-between gap-2">
+						<p class="text-xs font-semibold uppercase tracking-wide text-base-content/60" id="builder-palette-title">Canonical Steps</p>
+					</div>
+					<div class="hidden mt-3 text-[10px] font-semibold uppercase tracking-[0.2em] text-base-content/50" id="builder-palette-rail-label" style="writing-mode: vertical-rl; transform: rotate(180deg);">Palette</div>
+					<div id="builder-palette-body">
+						<label class="form-control mt-2">
+							<input aria-label="Search pipeline steps" class="input input-bordered input-sm" id="builder-palette-search" placeholder="Search nodes..." type="text"/>
+						</label>
+						<p class="mt-2 text-xs text-base-content/70">
+							Add semantic steps. The graph position is computed from step kind and dependencies.
+						</p>
+						<div class="mt-5 space-y-5" id="builder-palette-groups">
+							if len(state.PaletteEntries) == 0 {
+								<div>
+									<p class="text-xs font-semibold uppercase tracking-wide text-base-content/50">Query Steps</p>
+									<div class="mt-2 space-y-2 text-sm">
+										<button class="block w-full cursor-pointer rounded-lg border border-base-300 bg-base-200 p-2.5 text-left hover:border-primary/30 hover:bg-base-100" data-add-node-kind="query" data-add-node-type="query" data-palette-item="true" type="button">
+											<span class="block font-medium">Query Step (Execute)</span>
+											<span class="block text-xs text-base-content/60">Run the referenced query with step parameters.</span>
+										</button>
+									</div>
+								</div>
+								<div>
+									<p class="text-xs font-semibold uppercase tracking-wide text-base-content/50">Transform Steps</p>
+									<div class="mt-2 space-y-2 text-sm">
+										<button class="block w-full cursor-pointer rounded-lg border border-base-300 bg-base-200 p-2.5 text-left hover:border-primary/30 hover:bg-base-100" data-add-node-kind="transform" data-add-node-type="query" data-palette-item="true" type="button">
+											<span class="block font-medium">Transform Step</span>
+											<span class="block text-xs text-base-content/60">Apply SQL transform logic to upstream rows.</span>
+										</button>
+									</div>
+								</div>
+								<div>
+									<p class="text-xs font-semibold uppercase tracking-wide text-base-content/50">Sinks</p>
+									<div class="mt-2 space-y-2 text-sm">
+										<button class="block w-full cursor-pointer rounded-lg border border-base-300 bg-base-200 p-2.5 text-left hover:border-primary/30 hover:bg-base-100" data-add-node-kind="sink" data-add-node-type="query" data-palette-item="true" type="button">
+											<span class="block font-medium">Sink Step</span>
+											<span class="block text-xs text-base-content/60">Write ordered upstream output to a target operation.</span>
+										</button>
+									</div>
+								</div>
+							} else {
+								for _, group := range []string{"Inputs", "Query Steps", "Transform Steps", "Sinks"} {
+									<div>
+										<p class="text-xs font-semibold uppercase tracking-wide text-base-content/50">{ group }</p>
+										<div class="mt-2 space-y-2 text-sm">
+											for _, entry := range state.PaletteEntries {
+												if entry.Group == group {
+													<button class="block w-full cursor-pointer rounded-lg border border-base-300 bg-base-200 p-2.5 text-left hover:border-primary/30 hover:bg-base-100" data-add-node-kind={ entry.Kind } data-add-node-type={ entry.NodeType } data-palette-item="true" type="button">
+														<span class="block font-medium">{ entry.Label }</span>
+														<span class="block text-xs text-base-content/60">{ entry.Description }</span>
+													</button>
+												}
+											}
+										</div>
+									</div>
+								}
+							}
+						</div>
+					</div>
+				</aside>
+				<section class="relative border-b border-base-300 bg-base-200/40 p-3 sm:p-4 md:border-b-0" id="builder-main-section">
+					<div class="grid gap-4 2xl:grid-cols-[minmax(48rem,1fr)_minmax(22rem,30rem)]" id="builder-workspace" data-view-mode="preview">
+						<div class="relative min-h-[380px] overflow-hidden bg-base-100 p-2 sm:min-h-[440px]" id="builder-canvas-root" data-member-slug={ state.MemberSlug } data-org-slug={ state.DeepLinkOrgSlug } data-project-slug={ state.DeepLinkProjectSlug } data-target-environment-slug={ state.TargetEnvironmentSlug } data-pipeline-slug={ state.PipelineSlug } data-pipeline-name={ state.PipelineName } data-pipeline-has-draft={ boolString(state.HasDraft) } data-pipeline-expected-version-id={ optionalString(state.ExpectedVersionID) } data-pipeline-current-version-id={ optionalString(state.CurrentVersionID) } data-pipeline-draft-based-on-version-id={ optionalString(state.DraftBasedOnVersionID) } data-pipeline-source-format={ state.SourceFormat } data-pipeline-export-format={ state.ExportFormat } data-pipeline-example={ state.PipelineExample } data-save-url={ state.SaveURL }>
+							<div class="pipeline-graph-grid absolute inset-0 rounded-lg"></div>
+							<div class="relative z-10">
+								<div class="flex flex-wrap items-center gap-2 rounded-lg border border-base-300 bg-base-100 px-3 py-2 text-xs text-base-content/80">
+									<span class="mr-auto text-base-content/70">Select a step to inspect or edit it.</span>
+									<div class="flex items-center gap-1" aria-label="Canvas controls">
+										<button type="button" class="btn btn-ghost btn-sm" id="builder-zoom-out-btn" aria-label="Zoom out" title="Zoom out">−</button>
+										<button type="button" class="btn btn-ghost btn-sm" id="builder-zoom-in-btn" aria-label="Zoom in" title="Zoom in">+</button>
+										<output class="min-w-10 text-center text-xs tabular-nums" id="builder-zoom-level" aria-label="Canvas zoom">100%</output>
+										<button type="button" class="btn btn-ghost btn-sm" id="builder-fit-btn">Fit</button>
+										<button type="button" class="btn btn-ghost btn-sm" id="builder-toggle-mappings-btn" aria-expanded="false">Expand mappings</button>
+									</div>
+								</div>
+								if state.HasImportedGraph {
+									<div class="mt-3 text-xs text-base-content/70">
+										{ len(state.ImportedNodes) } steps · { state.ImportedEdgeCount } connections · { state.ImportedBindingCount } bindings
+									</div>
+								}
+								<div class="mt-4 overflow-x-auto pb-2" id="builder-canvas-viewport">
+									<style>
+									#builder-canvas-stage {
+										overflow: auto;
+									}
+
+									#builder-canvas-bounds {
+                                        overflow: hidden;
+										min-width: 0;
+										min-height: 380px;
+									}
+
+									#builder-canvas-surface {
+										position: absolute;
+										transform-origin: top left;
+									}
+
+									#builder-lane-overlay {
+										position: absolute;
+										inset: 0;
+										/* Lane boundaries follow the canonical node columns and card dimensions. */
+										--builder-lane-divider-1: calc((5.5 * var(--builder-grid-unit-x)) + (0.5 * var(--builder-node-width)));
+										--builder-lane-divider-2: calc((12.5 * var(--builder-grid-unit-x)) + (0.5 * var(--builder-node-width)));
+										pointer-events: none;
+										z-index: 1;
+									}
+
+									#builder-lane-overlay .builder-lane {
+										position: absolute;
+										top: 0;
+										bottom: 0;
+									}
+
+									#builder-lane-overlay .builder-lane-sources {
+										left: 0;
+										right: calc(100% - var(--builder-lane-divider-1));
+										background: linear-gradient(180deg, color-mix(in oklab, var(--color-primary) 8%, transparent), color-mix(in oklab, var(--color-primary) 2%, transparent));
+										border-right: 1px dashed color-mix(in oklab, var(--color-base-content) 18%, transparent);
+									}
+
+									#builder-lane-overlay .builder-lane-transforms {
+										left: var(--builder-lane-divider-1);
+										right: calc(100% - var(--builder-lane-divider-2));
+										background: linear-gradient(180deg, color-mix(in oklab, var(--color-info) 8%, transparent), color-mix(in oklab, var(--color-info) 2%, transparent));
+										border-right: 1px dashed color-mix(in oklab, var(--color-base-content) 18%, transparent);
+									}
+
+									#builder-lane-overlay .builder-lane-sinks {
+										left: var(--builder-lane-divider-2);
+										right: 0;
+										background: linear-gradient(180deg, color-mix(in oklab, var(--color-success) 8%, transparent), color-mix(in oklab, var(--color-success) 2%, transparent));
+									}
+
+									#builder-lane-overlay .builder-lane-label {
+										position: absolute;
+										top: 10px;
+										left: 12px;
+										padding: 2px 8px;
+										border-radius: 9999px;
+										font-size: 10px;
+										font-weight: 700;
+										letter-spacing: 0.12em;
+										text-transform: uppercase;
+										color: var(--color-base-content);
+										background: color-mix(in oklab, var(--color-base-100) 84%, transparent);
+										border: 1px solid color-mix(in oklab, var(--color-base-300) 70%, transparent);
+									}
+
+									#builder-grid {
+                                        pointer-events: none;
+										position: relative;
+										z-index: 30;
+									}
+
+									#builder-grid .builder-node {
+                                        pointer-events: auto;
+										overflow: visible;
+										z-index: 10;
+										--builder-node-accent: var(--color-primary);
+									}
+
+									#builder-grid .builder-node[data-kind="transform"] {
+										--builder-node-accent: var(--color-info);
+									}
+
+									#builder-grid .builder-node[data-kind="sink"] {
+										--builder-node-accent: var(--color-success);
+									}
+
+                                    #builder-grid .builder-node-content {
+                                        border-color: var(--color-base-300);
+                                        background: var(--color-base-100);
+                                        color: var(--color-base-content);
+                                        padding: 12px;
+                                    }
+                                    #builder-grid .builder-node-content:hover {
+                                        border-color: color-mix(in oklab, var(--color-primary) 60%, transparent);
+                                    }
+
+									.builder-node-badges {
+										display: flex;
+										min-height: 18px;
+										gap: 4px;
+										margin-top: auto;
+										overflow: hidden;
+									}
+
+									.builder-node-badge {
+										display: inline-flex;
+										align-items: center;
+										max-width: 72px;
+										height: 18px;
+										padding: 0 6px;
+										border-radius: 9999px;
+										border: 1px solid color-mix(in oklab, var(--builder-node-accent) 34%, transparent);
+										background: color-mix(in oklab, var(--builder-node-accent) 14%, transparent);
+										color: var(--color-base-content);
+										font-size: 10px;
+										font-weight: 700;
+										line-height: 1;
+										overflow: hidden;
+										text-overflow: ellipsis;
+										white-space: nowrap;
+									}
+
+									.builder-node-badge[data-tone="success"] {
+										border-color: color-mix(in oklab, var(--color-success) 42%, transparent);
+										background: color-mix(in oklab, var(--color-success) 16%, transparent);
+									}
+
+									.builder-node-badge[data-tone="warning"] {
+										border-color: color-mix(in oklab, var(--color-warning) 46%, transparent);
+										background: color-mix(in oklab, var(--color-warning) 16%, transparent);
+									}
+
+									.builder-node-badge[data-tone="error"] {
+										border-color: color-mix(in oklab, var(--color-error) 54%, transparent);
+										background: color-mix(in oklab, var(--color-error) 18%, transparent);
+									}
+
+									.builder-node-disclosure-popover {
+										position: absolute;
+										z-index: 80;
+										width: min(340px, calc(100% - 24px));
+										border-radius: 0.5rem;
+										border: 1px solid color-mix(in oklab, var(--color-primary) 34%, var(--color-base-300));
+										background: color-mix(in oklab, var(--color-base-100) 94%, #000 6%);
+										color: var(--color-base-content);
+										box-shadow: 0 16px 40px color-mix(in oklab, #000 40%, transparent);
+										pointer-events: none;
+									}
+
+									.builder-node-disclosure-popover dl {
+										display: grid;
+										grid-template-columns: 74px minmax(0, 1fr);
+										gap: 6px 10px;
+										margin: 0;
+									}
+
+									.builder-node-disclosure-popover dt {
+										color: var(--color-base-content);
+										font-size: 11px;
+										opacity: 0.58;
+									}
+
+									.builder-node-disclosure-popover dd {
+										min-width: 0;
+										margin: 0;
+										overflow: hidden;
+										color: var(--color-base-content);
+										font-size: 11px;
+										text-overflow: ellipsis;
+										white-space: nowrap;
+									}
+
+									#builder-grid .builder-node:focus-visible { outline: none; }
+                                    #builder-edges-layer [role="button"]:focus { outline: none; }
+                                    #builder-edges-layer [role="button"]:focus {
+                                        stroke: color-mix(in oklab, var(--color-info) 20%, transparent);
+                                    }
+                                    #builder-edges-layer {
+										pointer-events: none;
+									}
+
+									.node-port {
+										position: absolute;
+										top: 50%;
+										transform: translateY(-50%);
+										display: flex;
+										align-items: center;
+										justify-content: center;
+										width: 16px;
+										height: 16px;
+										border-radius: 50%;
+										background: color-mix(in oklab, var(--builder-node-accent) 18%, var(--color-base-100));
+										box-shadow: 0 0 0 1px color-mix(in oklab, var(--builder-node-accent) 24%, transparent);
+										cursor: pointer;
+										z-index: 30;
+										font-size: 7px;
+										font-weight: 700;
+										line-height: 1;
+										opacity: 0.72;
+										transition: opacity 0.15s, background-color 0.1s, color 0.1s, transform 0.1s;
+										pointer-events: auto;
+										touch-action: none;
+										user-select: none;
+									}
+
+									.node-port-in {
+										left: -8px;
+										color: var(--color-success);
+										border: 2px solid var(--color-success);
+										background: color-mix(in oklab, var(--color-success) 18%, var(--color-base-100));
+									}
+
+									.node-port-out {
+										right: -8px;
+										color: var(--color-primary);
+										border: 2px solid var(--color-primary);
+										background: color-mix(in oklab, var(--color-primary) 18%, var(--color-base-100));
+									}
+
+									#builder-grid .builder-node:hover .node-port,
+									#builder-grid .builder-node:focus-within .node-port,
+									.node-port:hover {
+										opacity: 1;
+									}
+
+									.node-port:hover {
+										transform: translateY(-50%) scale(1.08);
+									}
+
+									.node-port-connect-target {
+										opacity: 1;
+										box-shadow:
+											0 0 0 3px color-mix(in oklab, var(--color-success) 24%, transparent),
+											0 0 0 1px color-mix(in oklab, var(--color-success) 52%, transparent);
+										transform: translateY(-50%) scale(1.14);
+									}
+
+									#builder-grid .builder-node[data-kind="query"] .node-port-in {
+										display: none;
+									}
+
+									#builder-grid .builder-node[data-kind="sink"] .node-port-out {
+										display: none;
+									}
+
+									#builder-grid .builder-node-content.node-card-has-error {
+										border-color: color-mix(in oklab, var(--color-error) 72%, var(--color-base-content) 10%) !important;
+										background: linear-gradient(
+											180deg,
+											color-mix(in oklab, var(--color-base-100) 76%, var(--color-error) 24%),
+											color-mix(in oklab, var(--color-base-200) 82%, var(--color-error) 18%)
+										) !important;
+										box-shadow: 0 0 0 1px color-mix(in oklab, var(--color-error) 32%, transparent) !important;
+									}
+
+
+									.node-error-badge {
+										position: absolute;
+										top: 4px;
+										right: 4px;
+										min-width: 18px;
+										height: 18px;
+										border-radius: 9px;
+										background-color: var(--color-error);
+										color: var(--color-error-content);
+										font-size: 10px;
+										font-weight: 700;
+										display: flex;
+										align-items: center;
+										justify-content: center;
+										padding: 0 4px;
+										z-index: 40;
+										pointer-events: none;
+									}
+                                    #builder-property-panel { font-size: 13px; line-height: 1.6; }
+                                    #builder-property-kind, #builder-edge-preview > h3 { font-size: 18px; line-height: 1.35; font-weight: 650; overflow-wrap: anywhere; color: var(--color-base-content); }
+                                    #builder-property-panel h4, #builder-property-panel .builder-inspector-section-title {
+                                        font-size: 14px; line-height: 1.5; font-weight: 650; color: var(--color-base-content);
+                                    }
+                                    #builder-property-panel .builder-inspector-header { padding-bottom: 16px; }
+                                    #builder-property-panel .builder-inspector-subtitle { margin-top: 6px; font-size: 12px; color: color-mix(in oklab, var(--color-base-content) 75%, transparent); }
+                                    #builder-property-panel .builder-inspector-identifier { display: block; margin-top: 6px; font-size: 12px; overflow-wrap: anywhere; }
+                                    #builder-property-panel .builder-inspector-section {
+                                        margin-top: 24px; padding-top: 20px; border-top: 1px solid var(--color-base-300);
+                                    }
+                                    #builder-property-panel .builder-inspector-section > h4 { margin-bottom: 12px; }
+                                    #builder-property-panel .builder-inspector-metadata {
+                                        display: grid; grid-template-columns: 88px minmax(0, 1fr); gap: 8px 12px; margin: 12px 0 16px;
+                                    }
+                                    #builder-property-panel .builder-inspector-metadata dt { font-size: 12px; color: color-mix(in oklab, var(--color-base-content) 75%, transparent); }
+                                    #builder-property-panel .builder-inspector-metadata dd { min-width: 0; margin: 0; font-size: 13px; overflow-wrap: anywhere; }
+                                    #builder-property-form p { font-size: 12px; line-height: 1.6; }
+                                    #builder-property-panel .label-text { font-size: 12px; font-weight: 500; line-height: 1.5; }
+                                    #builder-property-panel :is(.input, .select, .textarea) { font-size: 13px; }
+                                    #builder-property-panel :is(.input, .select) { min-height: 32px; height: auto; }
+                                    #builder-property-panel .form-control { margin-top: 12px; }
+                                    #builder-property-panel .builder-contract-field-editor {
+                                        padding: 16px 0; border-top: 1px solid var(--color-base-300);
+                                    }
+                                    #builder-property-panel .builder-contract-field-editor [data-contract-field-name] { font-weight: 600; }
+                                    #builder-property-panel .builder-contract-rules {
+                                        margin-top: 12px; padding: 10px 12px; background: var(--color-base-200); border-radius: 6px;
+                                    }
+                                    #builder-property-panel .builder-contract-rules > summary { font-size: 12px; font-weight: 500; cursor: pointer; }
+                                    #builder-property-panel .builder-contract-field-summary {
+                                        cursor: pointer; padding: 10px 0; font-size: 12px; line-height: 1.8; overflow-wrap: anywhere;
+                                    }
+                                    #builder-property-panel .builder-contract-field-name { font-size: 13px; font-weight: 600; }
+                                    #builder-property-panel .builder-contract-field-type {
+                                        display: inline-block; padding: 0 6px; background: var(--color-base-200); border-radius: 4px; font-size: 11px;
+                                    }
+                                    #builder-property-panel .builder-contract-description { margin: 0 0 12px; font-size: 13px; line-height: 1.6; color: color-mix(in oklab, var(--color-base-content) 80%, transparent); }
+                                    #builder-property-panel .builder-inspector-note {
+                                        margin-top: 16px; font-size: 12px; line-height: 1.6; color: color-mix(in oklab, var(--color-base-content) 75%, transparent);
+                                    }
+                                    .builder-mapping-attachment {
+                                        position: absolute; top: calc(100% + 12px); left: 12px; right: 0;
+                                        border: 1px solid var(--color-base-300); border-radius: 8px;
+                                        background: var(--color-base-200); color: var(--color-base-content);
+                                    }
+                                    .builder-mapping-attachment::before {
+                                        content: ""; position: absolute; top: -13px; left: 16px; height: 12px;
+                                        border-left: 1px solid var(--color-base-300);
+                                    }
+                                    .builder-mapping-attachment-header { display: flex; align-items: center; gap: 4px; padding: 8px; }
+                                    .builder-mapping-open { flex: 1; min-width: 0; text-align: left; font-size: 12px; cursor: pointer; }
+                                    .builder-mapping-open > span { display: block; font-weight: 600; }
+                                    .builder-mapping-open small { display: block; margin-top: 3px; font-size: 11px; color: color-mix(in oklab, var(--color-base-content) 75%, transparent); }
+                                    .builder-mapping-toggle svg { width: 14px; height: 14px; fill: none; stroke: currentColor; stroke-width: 1.7; }
+                                    .builder-mapping-toggle[aria-expanded="true"] svg { transform: rotate(180deg); }
+                                    .builder-mapping-attachment-detail { border-top: 1px solid var(--color-base-300); padding: 10px; }
+                                    .builder-mapping-attachment-detail > p { margin-top: 8px; font-size: 11px; line-height: 1.5; }
+                                    .builder-mapping-pair { display: grid; grid-template-columns: minmax(0, 1fr) 12px minmax(0, 1fr); gap: 4px; padding: 4px 0; font-size: 11px; overflow-wrap: anywhere; }
+                                    .builder-mapping-warning { border-color: var(--color-warning); }
+                                    .builder-mapping-warning small { color: var(--color-warning); }
+                                    #builder-mapping-workspace { position: fixed; inset: auto; margin: 0; width: min(480px, calc(100vw - 24px)); max-height: min(520px, calc(100dvh - 24px)); overflow: auto; padding: 16px; background: var(--color-base-100); color: var(--color-base-content); border: 1px solid var(--color-base-300); border-radius: 8px; }
+                                    #builder-mapping-workspace[data-editing="true"] { width: min(600px, calc(100vw - 24px)); max-height: min(680px, calc(100dvh - 24px)); }
+                                    #builder-mapping-workspace::backdrop { background: transparent; pointer-events: none; }
+                                    #builder-mapping-preview { margin-top: 8px; }
+                                    .builder-mapping-columns { display: grid; grid-template-columns: minmax(0, 1fr) 16px minmax(0, 1fr); gap: 8px; margin-top: 16px; font-size: 11px; color: color-mix(in oklab, var(--color-base-content) 75%, transparent); }
+                                    #builder-mapping-workspace[data-editing="true"] .builder-mapping-columns { display: none; }
+                                    #builder-mapping-preview .builder-mapping-pair { grid-template-columns: minmax(0, 1fr) 16px minmax(0, 1fr); gap: 8px; padding: 8px 0; font-size: 12px; border-bottom: 1px solid var(--color-base-300); }
+                                    #builder-mapping-preview > p { margin-top: 12px; font-size: 12px; line-height: 1.5; }
+                                    #builder-mapping-preview-actions:not(.hidden) { display: flex; justify-content: end; margin-top: 16px; }
+                                    #builder-mapping-workspace-header { position: sticky; top: -16px; z-index: 1; display: flex; align-items: start; justify-content: space-between; gap: 16px; padding: 12px 0; background: var(--color-base-100); border-bottom: 1px solid var(--color-base-300); }
+                                    #builder-mapping-workspace-title { font-size: 18px; font-weight: 600; }
+                                    #builder-field-mapping { padding-top: 16px; }
+                                    #builder-field-mapping fieldset { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+                                    #builder-field-mapping fieldset > :is(details, div) { grid-column: 1 / -1; }
+                                    #builder-field-mapping :is(input, select, textarea) { min-width: 0; }
+                                    #builder-field-mapping pre { padding: 12px; background: var(--color-base-200); }
+                                    @media (max-width: 640px) {
+                                        #builder-mapping-workspace { padding: 12px; }
+                                        #builder-field-mapping fieldset { grid-template-columns: minmax(0, 1fr); }
+                                    }
+
+									</style>
+									<div class="relative h-[420px] overflow-auto rounded-lg border border-base-300 bg-base-200/40 sm:h-[520px]" id="builder-canvas-stage">
+										<div class="relative" id="builder-canvas-bounds">
+											<div class={ builderEmptyCanvasHintClass(state.HasImportedGraph) } id="builder-empty-canvas-hint">
+												<div class="max-w-sm space-y-2 text-center">
+													<h2 class="text-base font-semibold text-base-content">Add your first step</h2>
+													<p class="text-sm text-base-content/70">Choose Event Input or Query Step from the palette to start your pipeline.</p>
+												</div>
+											</div>
+											<div id="builder-canvas-surface" style={ templ.SafeCSS(fmt.Sprintf("--builder-grid-unit-x: %dpx; --builder-grid-unit-y: %dpx; --builder-node-width: %dpx; --builder-node-height: %dpx;", builderGridUnitXPx, builderGridUnitYPx, builderNodeWidthPx, builderNodeHeightPx)) }>
+												<div aria-hidden="true" id="builder-lane-overlay">
+													<div class="builder-lane builder-lane-sources">
+														<div class="builder-lane-label">Sources</div>
+													</div>
+													<div class="builder-lane builder-lane-transforms">
+														<div class="builder-lane-label">Transforms</div>
+													</div>
+													<div class="builder-lane builder-lane-sinks">
+														<div class="builder-lane-label">Sinks</div>
+													</div>
+												</div>
+												<svg role="group" aria-label="Pipeline connections" class="absolute inset-0 z-20 h-full w-full" id="builder-edges-layer"></svg>
+												<div class="relative" id="builder-grid" data-grid-enabled="false">
+													for _, node := range state.ImportedNodes {
+														<div class="builder-node absolute" data-kind={ node.Kind } data-node-type="query" data-node-slug={ node.Slug } data-data-source-slug={ node.DataSourceSlug } data-operation-type={ node.OperationType } data-operation-inline={ node.OperationInline } data-query-output-contract={ node.QueryOutputContract } data-query-incremental={ node.QueryIncremental } data-query-slug={ node.QuerySlug } data-use-inline-sql={ boolString(node.UseInlineSQL) } data-use-inline-operation={ boolString(node.UseInlineOperation) } data-inline-sql={ node.InlineSQL } data-step-slug={ node.StepSlug } data-step-name={ node.StepName } data-original-step={ node.OriginalStep } data-transform-output-kind={ node.TransformOutputKind } data-transform-sql={ node.TransformSQL } data-transform-inputs={ node.TransformInputs } data-transform-input-contract={ node.TransformInputContract } data-transform-output-contract={ node.TransformOutputContract } data-parameters={ node.Parameters } data-sink-backend={ node.SinkBackend } data-sink-data-source-slug={ node.SinkDataSourceSlug } data-sink-operation-type={ node.SinkOperationType } data-sink-operation-inline={ node.SinkOperationInline } data-sink-idempotency-class={ node.SinkIdempotencyClass } data-sink-input-contract={ node.SinkInputContract } data-sink-use-inline-operation={ boolString(node.SinkUseInlineOperation) } data-sink-query-slug={ node.SinkQuerySlug } data-grid-x={ node.X } data-grid-y={ node.Y } style={ templ.SafeCSS(fmt.Sprintf("left: calc(%d * var(--builder-grid-unit-x)); top: calc(%d * var(--builder-grid-unit-y)); width: var(--builder-node-width); height: var(--builder-node-height);", node.X, node.Y)) }>
+															<div class="builder-node-content rounded-lg border border-primary/30 bg-base-100 px-3 py-2 shadow-sm h-full">
+																<p class="text-[10px] font-semibold uppercase tracking-wide text-base-content/50">{ node.Kind }</p>
+																<p class="mt-0.5 truncate text-xs font-medium text-base-content">{ node.Slug }</p>
+																if node.Kind == "sink" {
+																	<p class="mt-0.5 truncate text-[11px] text-base-content/70">{ node.SinkBackend }</p>
+																}
+															</div>
+															if node.Kind == "transform" || node.Kind == "sink" {
+																<div class="node-port node-port-in" data-port="in" title="Input">◀</div>
+															}
+															if node.Kind == "query" || node.Kind == "transform" {
+																<div class="node-port node-port-out" data-port="out" title="Output">▶</div>
+															}
+														</div>
+													}
+												</div>
+											</div>
+										</div>
+									</div>
+									<div class="hidden" id="builder-edges-data">
+										for _, edge := range state.ImportedEdges {
+											<div data-edge-from={ edge.From } data-edge-to={ edge.To }></div>
+										}
+									</div>
+									<div class="hidden" id="builder-bindings-data">
+										for _, binding := range state.ImportedBindings {
+											<div data-binding-from-node={ binding.FromNode } data-binding-from-port={ binding.FromPort } data-binding-to-node={ binding.ToNode } data-binding-to-port={ binding.ToPort }></div>
+										}
+									</div>
+									<div aria-live="polite" class="builder-node-disclosure-popover hidden p-3 text-xs" id="builder-node-disclosure-popover" role="tooltip"></div>
+								</div>
+							</div>
+						</div>
+						<div class="min-w-0 rounded-lg border border-base-300 bg-base-100 p-3" id="builder-source-workspace-panel">
+							<div class="flex items-center justify-between gap-2">
+								<p class="text-xs font-semibold uppercase tracking-wide text-base-content/70">Canonical Source</p>
+								<span class="text-[11px] text-base-content/60" id="builder-source-format-hint">YAML</span>
+							</div>
+							<p class="mt-1 text-xs text-base-content/70">Preview or edit the canonical YAML/JSON spec, then apply it back to refresh the graph projection.</p>
+							<div class="mt-3 rounded-lg border border-base-300 bg-base-200/40">
+								<style>
+									#builder-source-line-numbers {
+										scrollbar-width: none;
+										-ms-overflow-style: none;
+									}
+
+									#builder-source-line-numbers::-webkit-scrollbar {
+										display: none;
+										width: 0;
+										height: 0;
+									}
+								</style>
+								<div class="relative h-[520px] overflow-hidden">
+									<pre aria-hidden="true" class="m-0 pointer-events-none whitespace-pre border-r border-base-300 bg-base-200/50 px-2 py-3 text-right text-[11px] text-base-content/50" id="builder-source-line-numbers" style="position: absolute; top: 0; bottom: 0; left: 0; z-index: 20; width: 3rem; overflow-y: scroll; overflow-x: hidden; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace; line-height: 20px;"></pre>
+									<div id="builder-source-content-viewport" style="position: absolute; top: 0; bottom: 0; left: 3rem; right: 0; z-index: 10; overflow: hidden;">
+										<pre aria-hidden="true" class="hidden m-0 pointer-events-none whitespace-pre text-base-content/90" id="builder-source-highlight" style="position: absolute; top: 0; left: 0; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace; font-size: 12px; line-height: 20px; letter-spacing: 0; tab-size: 2; font-variant-ligatures: none; padding: 12px;"></pre>
+										<textarea aria-label="Pipeline source" class="resize-none overflow-auto border-0 bg-transparent p-3 text-base-content pointer-events-auto cursor-text focus:outline-none focus:ring-2 focus:ring-primary/30" id="builder-source-editor" spellcheck="false" style="position: absolute; top: 0; right: 0; bottom: 0; left: 0; z-index: 30; width: 100%; height: 100%; box-sizing: border-box; overscroll-behavior: contain; -webkit-overflow-scrolling: touch; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace; font-size: 12px; line-height: 20px; letter-spacing: 0; tab-size: 2; font-variant-ligatures: none; color: var(--color-base-content) !important; -webkit-text-fill-color: var(--color-base-content) !important; opacity: 1 !important; caret-color: var(--color-primary);" wrap="off"></textarea>
+									</div>
+								</div>
+							</div>
+							<div class="mt-3 flex flex-wrap items-center gap-2">
+								<button class="btn btn-xs btn-outline" id="builder-source-sync-btn" type="button">Sync From Canvas</button>
+								<button class="btn btn-xs btn-primary" id="builder-source-apply-btn" type="button">Apply To Canvas</button>
+							</div>
+							<p class="mt-2 text-xs text-base-content/70" id="builder-source-status">Source editor is ready.</p>
+						</div>
+					</div>
+					<section popover="auto" id="builder-mapping-workspace" aria-label="Mapping details">
+						<div id="builder-mapping-workspace-header">
+							<div><h3 id="builder-mapping-workspace-title" tabindex="-1">Field mapping</h3><p class="mt-1 text-xs text-base-content/70" id="builder-mapping-workspace-parent"></p></div>
+							<button class="btn btn-sm btn-outline" type="button" id="builder-close-mapping-btn">Close mapping</button>
+						</div>
+						<p class="mt-3 text-xs text-base-content/70" id="builder-mapping-preview-help">From authored SQL · checks not run</p>
+						<div class="builder-mapping-columns"><span>Input / expression</span><span></span><span>Output field</span></div>
+						<div id="builder-mapping-preview"></div>
+						<div id="builder-mapping-preview-actions"><button class="btn btn-sm btn-outline" id="builder-edit-mapping-btn" type="button">Edit mapping</button></div>
+						<button class="btn btn-xs btn-ghost mt-3 hidden" id="builder-preview-mapping-btn" type="button">Show assignments</button>
+						<section id="builder-field-mapping" aria-label="Field mapping" class="hidden"></section>
+					</section>
+				</section>
+				<aside class="relative z-10 border-t border-base-300 bg-base-100/95 p-4 xl:border-l xl:border-t-0" id="builder-properties-aside">
+					<button aria-label="Hide properties" class="btn btn-ghost btn-xs btn-circle border border-base-300 bg-base-100 absolute -left-3 z-10" id="builder-toggle-properties-btn" style="top: 1.25rem;" title="Hide properties" type="button">
+						<svg xmlns="http://www.w3.org/2000/svg" class="shell-sidebar-toggle-icon h-3.5 w-3.5 transition-transform duration-200" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" aria-hidden="true">
+							<path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7"></path>
+						</svg>
+					</button>
+					<div class="flex items-center justify-between gap-2">
+						<p class="text-xs font-semibold uppercase tracking-wide text-base-content/60" id="builder-properties-title">Properties</p>
+					</div>
+					<div class="hidden mt-3 ml-auto text-[10px] font-semibold uppercase tracking-[0.2em] text-base-content/50" id="builder-properties-rail-label" style="writing-mode: vertical-rl;">Properties</div>
+					<div class="flex h-full flex-col" id="builder-properties-body">
+						<div class="mt-3 min-w-0 flex-1 overflow-y-auto" id="builder-property-panel">
+							<div id="builder-property-empty">
+								<p class="text-xs text-base-content/70">Select a node to edit properties, contracts, checkpoints, and links.</p>
+							</div>
+							<section class="hidden" id="builder-edge-preview" aria-label="Connection preview"></section>
+							<form class="hidden space-y-3" id="builder-property-form" novalidate>
+								<div class="builder-inspector-header">
+									<h3 id="builder-property-kind">Node</h3>
+									<p class="builder-inspector-subtitle" id="builder-property-node-type">query</p>
+									<code class="builder-inspector-identifier" id="builder-property-identifier"></code>
+								</div>
+								<details class="hidden border-y border-base-300 py-3" id="builder-schema-panel">
+									<summary class="cursor-pointer text-xs font-medium">Data source schema</summary>
+									<div class="mt-3 space-y-3">
+										<p class="text-xs text-base-content/70" id="builder-schema-status" role="status"></p>
+										<div class="flex flex-wrap gap-2">
+											<button class="btn btn-xs btn-outline" type="button" id="builder-schema-reload">Reload cache</button>
+											if state.CanRefreshSchemas {
+												<button class="btn btn-xs btn-outline" type="button" id="builder-schema-refresh">Refresh schema</button>
+											}
+										</div>
+										<pre class="max-h-48 overflow-auto whitespace-pre-wrap break-words text-[11px]" id="builder-schema-lines"></pre>
+										<label class="form-control">
+											<span class="label-text text-xs">Table, collection or file</span>
+											<select class="select select-bordered select-sm w-full" id="builder-schema-dataset" aria-label="Schema dataset"></select>
+										</label>
+										<p class="text-xs text-base-content/70" id="builder-schema-hint"></p>
+										<button class="btn btn-xs btn-outline" type="button" id="builder-schema-apply" disabled>Add proposed fields</button>
+										<div id="builder-schema-operation" class="hidden space-y-2">
+											<h4>Proposed source operation</h4>
+											<pre class="max-h-48 overflow-auto whitespace-pre-wrap break-words font-mono text-xs" id="builder-schema-operation-preview"></pre>
+											<p class="text-xs text-base-content/70">Reads the selected dataset. Review filters, projection and schema qualification before running. Replaces this step’s saved or inline operation; the contract is unchanged.</p>
+											<button class="btn btn-xs btn-outline" type="button" id="builder-schema-operation-apply">Replace source operation</button>
+										</div>
+										<p class="text-[11px] text-base-content/60">Draft fields only. Review the query projection, required fields and nullability, then save and validate. Existing fields and pinned ODCS references are preserved.</p>
+									</div>
+								</details>
+								<input class="hidden" id="builder-field-slug" type="text" readonly aria-hidden="true" tabindex="-1"/>
+								<span class="hidden label-text-alt text-error" id="builder-error-slug"></span>
+								<div class="hidden" id="builder-group-source">
+									<h4 class="builder-inspector-section-title">Source configuration</h4>
+									<label class="form-control">
+										<span class="label-text text-xs">Logical data source ref <span class="text-error">*</span></span>
+										<input class="input input-bordered input-sm" id="builder-field-data-source" type="text"/>
+										<span class="label-text-alt text-error" id="builder-error-data-source"></span>
+									</label>
+									<p class="mt-2 text-[11px] text-base-content/60" id="builder-source-config-hint"></p>
+									if state.DeepLinkOrgSlug != "" {
+										<p class="mt-2 text-xs text-base-content/70"><a class="link link-primary" href={ templ.URL(DataSourcesListHref(state.DeepLinkOrgSlug, state.TargetEnvironmentSlug, "")) } target="_blank" rel="noopener noreferrer">Manage connections (new tab)</a>.</p>
+										<button type="button" class="btn btn-ghost btn-xs mt-1" data-builder-refresh-connections>Refresh connections</button>
+									}
+									<label class="form-control mt-2" id="builder-inline-sql-toggle-group">
+										<span class="label-text text-xs">Inline SQL</span>
+										<label class="label cursor-pointer justify-start gap-2">
+											<input class="checkbox checkbox-sm" id="builder-field-inline-sql-toggle" type="checkbox"/>
+											<span class="label-text text-xs" id="builder-inline-sql-toggle-label">Use inline SQL instead of a saved query</span>
+										</label>
+									</label>
+									<label class="form-control mt-2 hidden" id="builder-inline-operation-toggle-group">
+										<span class="label-text text-xs">Inline operation</span>
+										<label class="label cursor-pointer justify-start gap-2">
+											<input class="checkbox checkbox-sm" id="builder-field-inline-operation-toggle" type="checkbox"/>
+											<span class="label-text text-xs" id="builder-inline-operation-toggle-label">Use inline operation instead of a saved query</span>
+										</label>
+									</label>
+									<div class="hidden" id="builder-source-inline-operation-group">
+										<label class="form-control mt-2" id="builder-source-inline-operation-json-field">
+											<span class="label-text text-xs" id="builder-inline-operation-label">Inline operation (JSON)</span>
+											<textarea class="textarea textarea-bordered textarea-sm" id="builder-field-operation-inline" rows="5"></textarea>
+											<span class="label-text-alt text-error" id="builder-error-operation-inline"></span>
+										</label>
+										<div class="hidden mt-2 space-y-2" id="builder-source-inline-operation-guided"></div>
+									</div>
+									<div id="builder-source-saved-query-group">
+										<label class="form-control mt-2">
+											<span class="label-text text-xs" id="builder-query-ref-label">Saved query</span>
+											<input class="input input-bordered input-sm" id="builder-field-query" type="text"/>
+											<span class="label-text-alt text-error" id="builder-error-query"></span>
+										</label>
+									</div>
+									<div class="hidden" id="builder-source-inline-sql-group">
+										<label class="form-control mt-2">
+											<span class="label-text text-xs">Inline SQL <span class="text-error">*</span></span>
+											<textarea class="textarea textarea-bordered textarea-sm" id="builder-field-inline-sql" rows="5"></textarea>
+											<span class="label-text-alt text-error"></span>
+										</label>
+									</div>
+									<div class="builder-inspector-section" id="builder-query-incremental-section">
+										<div class="flex items-center justify-between gap-2">
+											<h4 class="builder-inspector-section-title">Checkpoint</h4>
+											<p class="text-[11px] text-base-content/60">query.incremental</p>
+										</div>
+										<label class="form-control mt-2">
+											<span class="label-text text-xs">Mode</span>
+											<select class="select select-bordered select-sm" id="builder-field-query-incremental-kind">
+												<option value="">Full read</option>
+												<option value="watermark">Watermark</option>
+												<option value="cursor">Cursor</option>
+											</select>
+										</label>
+										<div class="mt-2 grid gap-2">
+											<label class="form-control" id="builder-query-incremental-field-group">
+												<span class="label-text text-xs">Watermark field</span>
+												<input class="input input-bordered input-sm font-mono" id="builder-field-query-incremental-field" type="text" placeholder="updated_at"/>
+											</label>
+											<label class="form-control" id="builder-query-incremental-cursor-group">
+												<span class="label-text text-xs">Cursor name</span>
+												<input class="input input-bordered input-sm font-mono" id="builder-field-query-incremental-cursor" type="text" placeholder="next_page_token"/>
+											</label>
+											<label class="form-control">
+												<span class="label-text text-xs">Lookback window</span>
+												<input class="input input-bordered input-sm font-mono" id="builder-field-query-incremental-lookback" type="text" placeholder="15m"/>
+											</label>
+											<label class="form-control">
+												<span class="label-text text-xs">Ordering fields</span>
+												<input class="input input-bordered input-sm font-mono" id="builder-field-query-incremental-ordering" type="text" placeholder="updated_at, id"/>
+											</label>
+											<label class="form-control">
+												<span class="label-text text-xs">Dedupe key</span>
+												<input class="input input-bordered input-sm font-mono" id="builder-field-query-incremental-dedupe" type="text" placeholder="id"/>
+											</label>
+										</div>
+										<p class="mt-2 text-[11px] text-error" id="builder-error-query-incremental"></p>
+									</div>
+									<div class="builder-inspector-section" id="builder-query-output-contract-group">
+										<div class="flex items-center justify-between gap-2">
+											<h4 class="builder-inspector-section-title">Output contract</h4>
+											<p class="text-[11px] text-base-content/60">query.output_contract</p>
+										</div>
+										<div class="mt-2 space-y-2" id="builder-query-output-contract-editor"></div>
+										<details class="mt-2">
+											<summary class="cursor-pointer text-[11px] font-medium text-base-content/70">Raw contract JSON</summary>
+											<textarea aria-label="Source output contract JSON" class="textarea textarea-bordered textarea-sm mt-2 font-mono text-xs" id="builder-field-query-output-contract" rows="7" placeholder="{ &quot;representation&quot;: &quot;rows&quot;, &quot;fields&quot;: [] }"></textarea>
+										</details>
+										<span class="label-text-alt text-error" id="builder-error-query-output-contract"></span>
+									</div>
+								</div>
+								<div class="hidden" id="builder-group-transform">
+									<input class="hidden" id="builder-field-step-slug" type="text" readonly aria-hidden="true" tabindex="-1"/>
+									<span class="hidden label-text-alt text-error" id="builder-error-step-slug"></span>
+									<label class="form-control mt-2" id="builder-step-name-group">
+										<span class="label-text text-xs">Step name</span>
+										<input class="input input-bordered input-sm" id="builder-field-step-name" type="text"/>
+									</label>
+									<div class="builder-inspector-section" id="builder-parameters-group">
+										<div class="flex items-center justify-between gap-2">
+											<h4 class="builder-inspector-section-title">Parameters</h4>
+											<button class="btn btn-xs btn-outline" id="builder-add-parameter-btn" type="button">Add</button>
+										</div>
+										<p class="mt-2 text-xs text-base-content/70">Use date expressions in query parameters or sink config, then reference named parameters in connector fields. Example: <code>{ "{{runtime.run.datetime | offset:-24h}}" }</code>. Date-typed environment variables and ISO date inputs also support date operations; month offsets clamp to the last day. Previous success is scoped to this pipeline version and environment; <code>{ "{{runtime.previous_success.finished_at}}" }</code> is null on the first run. Run time and previous success are pinned for retries and recovery.</p>
+										<div class="mt-2 space-y-2" id="builder-parameter-rows"></div>
+										<textarea class="hidden" id="builder-field-parameters" rows="1"></textarea>
+										<span class="label-text-alt text-error" id="builder-error-parameters"></span>
+									</div>
+									<label class="form-control mt-2" id="builder-transform-sql-group">
+										<span class="label-text text-xs">Transform SQL <span class="text-error">*</span></span>
+										<textarea class="textarea textarea-bordered textarea-sm font-mono text-xs" id="builder-field-transform-sql" rows="6"></textarea>
+										<span class="label-text-alt text-error" id="builder-error-transform-sql"></span>
+									</label>
+									<section class="builder-inspector-section hidden" id="builder-mapping-properties">
+										<h4 class="builder-inspector-section-title">Field mapping</h4>
+										<p class="text-xs text-base-content/70">Click the canvas attachment to inspect field pairs. Choose Edit mapping to make changes.</p>
+										<button class="btn btn-xs btn-outline mt-2" type="button" id="builder-open-mapping-btn">Inspect field mapping</button>
+									</section>
+									<div class="builder-inspector-section" id="builder-transform-contracts-section">
+										<h4 class="builder-inspector-section-title">Contracts and validations</h4>
+										<div class="mt-2" id="builder-transform-legacy-input-contract-group">
+											<p class="text-xs font-medium text-base-content/80">Input contract</p>
+											<div class="mt-2 space-y-2" id="builder-transform-input-contract-editor"></div>
+											<details class="mt-2">
+												<summary class="cursor-pointer text-[11px] font-medium text-base-content/70">Raw contract JSON</summary>
+												<textarea aria-label="Transform input contract JSON" class="textarea textarea-bordered textarea-sm mt-2 font-mono text-xs" id="builder-field-transform-input-contract" rows="6"></textarea>
+											</details>
+											<span class="label-text-alt text-error" id="builder-error-transform-input-contract"></span>
+										</div>
+										<div class="mt-3">
+											<p class="text-xs font-medium text-base-content/80">Output contract</p>
+											<div class="mt-2 space-y-2" id="builder-transform-output-contract-editor"></div>
+											<details class="mt-2">
+												<summary class="cursor-pointer text-[11px] font-medium text-base-content/70">Raw contract JSON</summary>
+												<textarea aria-label="Transform output contract JSON" class="textarea textarea-bordered textarea-sm mt-2 font-mono text-xs" id="builder-field-transform-output-contract" rows="6"></textarea>
+											</details>
+											<span class="label-text-alt text-error" id="builder-error-transform-output-contract"></span>
+										</div>
+										<p class="mt-2 text-[11px] text-base-content/60">Contract fields may include validations that run at pipeline boundaries.</p>
+									</div>
+								</div>
+								<div class="hidden" id="builder-group-sink">
+									<h4 class="builder-inspector-section-title">Destination configuration</h4>
+									<label class="form-control">
+										<span class="label-text text-xs">Sink logical data source ref</span>
+										<select class="select select-bordered select-sm" id="builder-field-sink-backend">
+											<option value="">Select writable data source</option>
+										</select>
+										<span class="label-text-alt text-error" id="builder-error-sink-data-source"></span>
+									</label>
+									<p class="mt-2 text-[11px] text-base-content/60" id="builder-sink-config-hint"></p>
+									if state.DeepLinkOrgSlug != "" {
+										<p class="mt-2 text-xs text-base-content/70"><a class="link link-primary" href={ templ.URL(DataSourcesListHref(state.DeepLinkOrgSlug, state.TargetEnvironmentSlug, "")) } target="_blank" rel="noopener noreferrer">Manage connections (new tab)</a>.</p>
+										<button type="button" class="btn btn-ghost btn-xs mt-1" data-builder-refresh-connections>Refresh connections</button>
+									}
+									<label class="form-control mt-2">
+										<span class="label-text text-xs">Replay policy</span>
+										<select class="select select-bordered select-sm" id="builder-field-sink-replay-policy" aria-describedby="builder-sink-replay-help"></select>
+									</label>
+									<p class="mt-2 text-[11px] text-base-content/60" id="builder-sink-replay-help">Choose how repeated attempts avoid duplicate writes. Uncertain delivery may still require investigation.</p>
+									<label class="form-control mt-2" id="builder-sink-inline-operation-toggle-group">
+										<span class="label-text text-xs">Inline operation</span>
+										<label class="label cursor-pointer justify-start gap-2">
+											<input class="checkbox checkbox-sm" id="builder-field-sink-inline-operation-toggle" type="checkbox"/>
+											<span class="label-text text-xs" id="builder-sink-inline-operation-toggle-label">Use inline operation instead of a saved query</span>
+										</label>
+									</label>
+									<div id="builder-sink-saved-query-group">
+										<label class="form-control mt-2">
+											<span class="label-text text-xs" id="builder-sink-query-ref-label">Saved query</span>
+											<input class="input input-bordered input-sm" id="builder-field-sink-query" type="text"/>
+											<span class="label-text-alt text-error" id="builder-error-sink-query"></span>
+										</label>
+									</div>
+									<div class="hidden" id="builder-sink-inline-operation-group">
+										<label class="form-control mt-2" id="builder-sink-inline-operation-json-field">
+											<span class="label-text text-xs">Inline operation (JSON) <span class="text-error">*</span></span>
+											<textarea class="textarea textarea-bordered textarea-sm" id="builder-field-sink-operation-inline" rows="5"></textarea>
+											<span class="label-text-alt text-error" id="builder-error-sink-operation-inline"></span>
+										</label>
+										<div class="hidden mt-2 space-y-2" id="builder-sink-inline-operation-guided"></div>
+									</div>
+									<div id="builder-s3-output" class="hidden builder-inspector-section space-y-2">
+										<h4 class="builder-inspector-section-title">S3 output</h4>
+										<label class="form-control">
+											<span class="label-text">Object key</span>
+											<input class="input input-bordered input-sm font-mono" id="builder-s3-key" type="text" placeholder="runs/{{runtime.run.slug}}/output.json"/>
+										</label>
+										<p class="text-xs text-base-content/70">Required by the S3 sink. Relative to the data source prefix; runtime templates are supported.</p>
+										<label class="form-control">
+											<span class="label-text">Output format</span>
+											<select class="select select-bordered select-sm" id="builder-s3-format">
+												<option value="">Use operation format</option>
+												<option value="auto">Auto</option>
+												<option value="csv">CSV</option>
+												<option value="json">JSON</option>
+												<option value="file">File bytes</option>
+												<option value="spreadsheet">Spreadsheet</option>
+											</select>
+										</label>
+									</div>
+									<div class="builder-inspector-section" id="builder-sink-input-contract-group">
+										<div class="flex items-center justify-between gap-2">
+											<h4 class="builder-inspector-section-title">Input contract</h4>
+											<p class="text-[11px] text-base-content/60">sink.input_contract</p>
+										</div>
+										<div class="mt-2 space-y-2" id="builder-sink-input-contract-editor"></div>
+										<details class="mt-2">
+											<summary class="cursor-pointer text-[11px] font-medium text-base-content/70">Raw contract JSON</summary>
+											<textarea aria-label="Sink input contract JSON" class="textarea textarea-bordered textarea-sm mt-2 font-mono text-xs" id="builder-field-sink-input-contract" rows="7"></textarea>
+										</details>
+										<span class="label-text-alt text-error" id="builder-error-sink-input-contract"></span>
+									</div>
+								</div>
+								<div class="hidden builder-inspector-section" id="builder-bindings-section">
+									<div class="flex items-center justify-between gap-2">
+										<h4 class="builder-inspector-section-title">Inputs</h4>
+										<p class="text-[11px] text-base-content/60" id="builder-bindings-status">No input</p>
+									</div>
+									<p class="mt-1 text-xs text-base-content/70" id="builder-bindings-help">Choose upstream sources and SQL aliases for this step.</p>
+									<div class="mt-3 space-y-2" id="builder-binding-rows"></div>
+									<p class="text-[11px] text-base-content/60" id="builder-binding-edge-hint"></p>
+									<p class="hidden mt-2 text-[11px]" id="builder-binding-payload-diagnostic"></p>
+									<p class="text-[11px] text-error" id="builder-binding-error"></p>
+								</div>
+								<div class="hidden builder-inspector-section" id="builder-connections-section">
+									<div class="flex items-center justify-between gap-2">
+										<h4 class="builder-inspector-section-title">Outputs</h4>
+										<p class="text-[11px] text-base-content/60" id="builder-connections-status">No links</p>
+									</div>
+									<p class="mt-1 text-xs text-base-content/70" id="builder-connections-help">Choose downstream steps produced by this node.</p>
+									<div class="mt-3 space-y-2" id="builder-connections-editor"></div>
+									<p class="text-[11px] text-error" id="builder-connections-error"></p>
+								</div>
+								<section id="builder-odcs-section" class="mt-4 space-y-3 border-t border-base-300 pt-4">
+									<h3 class="text-sm font-semibold">Reusable ODCS agreement</h3>
+									<p id="builder-event-input-help" class="hidden text-xs text-base-content/70">Receives the run's JSON event payload. Define its output agreement, then connect this node to a transform or sink. Event delivery is configured separately; use a query step to fetch data.</p>
+									<label class="form-control gap-1">
+										<span class="label-text text-xs">Port</span>
+										<select id="builder-odcs-port" class="select select-bordered select-sm w-full"></select>
+									</label>
+									<div class="grid grid-cols-2 gap-2">
+										<label class="form-control min-w-0 gap-1">
+											<span class="label-text text-xs">Wire representation</span>
+											<select id="builder-odcs-representation" class="select select-bordered select-sm w-full">
+												<option value="">Not declared</option><option value="rows">Rows</option><option value="json">JSON</option><option value="csv">CSV</option><option value="file">File</option><option value="multipart_form">Multipart form</option>
+											</select>
+										</label>
+										<label class="form-control min-w-0 gap-1">
+											<span class="label-text text-xs">Root shape</span>
+											<select id="builder-odcs-root-shape" class="select select-bordered select-sm w-full">
+												<option value="">Not declared</option><option value="object">Object</option><option value="array">Array</option>
+											</select>
+										</label>
+									</div>
+									<p id="builder-odcs-current" class="break-all text-xs" role="status"></p>
+									<button id="builder-odcs-inline" type="button" class="btn btn-outline btn-sm">Use inline contract</button>
+									<label id="builder-odcs-inline-agreement" class="hidden form-control gap-1">
+										<span class="label-text text-xs">Inline agreement (JSON)</span>
+										<textarea id="builder-odcs-inline-json" class="textarea textarea-bordered textarea-sm w-full font-mono text-xs" rows="8" spellcheck="false" aria-describedby="builder-odcs-inline-help builder-odcs-inline-error"></textarea>
+										<span id="builder-odcs-inline-help" class="text-xs text-base-content/70">Edit the complete contract declaration, including rich ODCS fields. Exact references use the catalog below.</span>
+										<span id="builder-odcs-inline-error" class="text-xs text-error" role="alert"></span>
+									</label>
+									<p class="text-xs text-base-content/70">Choose a port or named input, then select an object from an exact revision. Selecting an object replaces that port's inline contract.</p>
+									if state.DeepLinkOrgSlug != "" && state.DeepLinkProjectSlug != "" {
+										<button type="button" class="btn btn-outline btn-sm" hx-get={ ODCSCatalogHref(state.DeepLinkOrgSlug, state.DeepLinkProjectSlug, "", "", true, "") } hx-target="#odcs-catalog" hx-select="#odcs-catalog" hx-swap="outerHTML">Browse exact revisions</button>
+										<div id="odcs-catalog" class="space-y-2"><p class="text-xs text-base-content/70">Browse this project's catalog to inspect supported shapes and consumers.</p></div>
+									} else {
+										<p class="text-xs text-base-content/70">Select an organization and project to browse its contract catalog.</p>
+									}
+								</section>
+							</form>
+						</div>
+					</div>
+				</aside>
+			</div>
+		</div>
+		<textarea class="hidden" id="builder-initial-source">{ state.InitialPipelineSource }</textarea>
+		<textarea class="hidden" id="builder-connector-descriptors">{ state.ConnectorDescriptorsJSON }</textarea>
+		<script src={ versionedAssetPath("/assets/js/builder_canvas_shared.js") } defer></script>
+		<script src={ versionedAssetPath("/assets/js/builder_canvas_rendering.js") } defer></script>
+		<script src={ versionedAssetPath("/assets/js/builder_canvas_state.js") } defer></script>
+		<script src={ versionedAssetPath("/assets/js/builder_canvas_conflicts.js") } defer></script>
+		<script src={ versionedAssetPath("/assets/js/builder_canvas_serialization.js") } defer></script>
+		<script src={ versionedAssetPath("/assets/js/builder_canvas_api.js") } defer></script>
+		<script src={ versionedAssetPath("/assets/js/builder_field_mapping.js") } defer></script>
+		<script src={ versionedAssetPath("/assets/js/builder_canvas_interactions.js") } defer></script>
+		<script src={ versionedAssetPath("/assets/js/builder_canvas.js") } defer></script>
+		<script src={ versionedAssetPath("/assets/js/builder_actions.js") } defer></script>
+		<!-- Draft conflict modal -->
+		<dialog id="builder-conflict-modal" class="modal">
+			<div class="modal-box h-[min(92vh,960px)] w-11/12 max-w-[min(96vw,1440px)] overflow-hidden p-0">
+				<div class="flex h-full min-h-0 flex-col">
+					<div class="border-b border-base-300 px-5 py-4">
+						<h3 class="text-lg font-bold" id="builder-conflict-modal-title">Version conflict</h3>
+						<p class="pt-3 text-sm" id="builder-conflict-modal-summary"></p>
+						<p class="text-sm text-base-content/60" id="builder-conflict-modal-detail"></p>
+					</div>
+					<div class="min-h-0 flex-1 overflow-hidden px-5 py-4">
+						<div class="flex h-full min-h-0 flex-col gap-4" id="builder-conflict-modal-overview">
+							<details class="rounded-lg border border-base-300 bg-base-200/40 px-3 py-2" id="builder-conflict-modal-diff-container" open>
+								<summary class="cursor-pointer text-sm text-base-content/70 select-none">Show diff (canonical vs. your draft)</summary>
+								<pre id="builder-conflict-modal-diff" class="mt-2 max-h-[50vh] overflow-auto whitespace-pre-wrap break-all rounded bg-base-200 p-2 text-xs font-mono">Loading diff…</pre>
+							</details>
+						</div>
+						<div class="hidden h-full min-h-0" id="builder-conflict-resolver">
+							<div class="grid h-full min-h-0 gap-4 lg:grid-cols-[minmax(280px,360px)_minmax(0,1fr)]">
+								<section class="min-h-0 overflow-hidden rounded-lg border border-base-300 bg-base-100">
+									<div class="border-b border-base-300 px-4 py-3">
+										<div class="flex flex-wrap items-center justify-between gap-2">
+											<div>
+												<p class="text-sm font-semibold text-base-content">Changed units</p>
+												<p class="text-xs text-base-content/60">Pick a unit, then resolve its fields on the right.</p>
+											</div>
+											<div class="text-right">
+												<p class="text-xs font-semibold uppercase tracking-wide text-base-content/60" id="builder-conflict-resolver-unresolved-count">0 unresolved</p>
+												<p class="text-[11px] text-base-content/50" id="builder-conflict-resolver-validation-count">No validation issues.</p>
+											</div>
+										</div>
+									</div>
+									<div class="h-[calc(100%-74px)] overflow-auto px-3 py-3" id="builder-conflict-units-list"></div>
+								</section>
+								<section class="min-h-0 overflow-hidden rounded-lg border border-base-300 bg-base-100">
+									<div class="border-b border-base-300 px-4 py-3">
+										<p class="text-sm font-semibold text-base-content">Manual merge</p>
+										<p class="text-xs text-base-content/60">Resolve the selected unit field-by-field and then apply the merged draft.</p>
+									</div>
+									<div class="h-[calc(100%-74px)] min-h-0 overflow-auto px-4 py-4" id="builder-conflict-resolver-inspector"></div>
+								</section>
+							</div>
+						</div>
+					</div>
+					<div class="border-t border-base-300 px-5 py-4">
+						<div class="flex flex-wrap items-center justify-between gap-3">
+							<div class="text-xs text-base-content/60" id="builder-conflict-modal-status">Use canonical, use your draft, or merge manually before saving again.</div>
+							<div class="flex flex-wrap gap-2" id="builder-conflict-modal-actions"></div>
+						</div>
+					</div>
+				</div>
+			</div>
+			<form method="dialog" class="modal-backdrop">
+				<button type="submit" class="cursor-default">close</button>
+			</form>
+		</dialog>
+		<dialog id="builder-proposal-review-modal" class="modal">
+			<div class="modal-box h-[min(92vh,940px)] w-11/12 max-w-[min(96vw,1280px)] overflow-hidden p-0">
+				<div class="flex h-full min-h-0 flex-col">
+					<div class="border-b border-base-300 px-5 py-4">
+						<div class="flex flex-wrap items-start justify-between gap-3">
+							<div>
+								<h3 class="text-lg font-bold">Review Git proposal</h3>
+								<p class="mt-1 text-sm text-base-content/60">Only the canonical pipeline file is committed. Merge does not deploy until Git reconciliation runs.</p>
+							</div>
+							<span class="badge badge-outline" id="builder-proposal-review-state">Loading</span>
+						</div>
+					</div>
+					<div class="min-h-0 flex-1 overflow-auto px-5 py-4">
+						<div class="grid gap-2 text-xs sm:grid-cols-2 lg:grid-cols-3" id="builder-proposal-review-facts"></div>
+						<div class="mt-4 grid min-h-0 gap-4 lg:grid-cols-2">
+							<details class="rounded-lg border border-base-300 bg-base-100 p-3" open>
+								<summary class="cursor-pointer text-sm font-semibold">Structural diff</summary>
+								<pre class="mt-3 max-h-[44vh] overflow-auto whitespace-pre-wrap break-all rounded bg-base-200 p-3 text-xs font-mono" id="builder-proposal-structural-diff">Loading…</pre>
+							</details>
+							<details class="rounded-lg border border-base-300 bg-base-100 p-3" open>
+								<summary class="cursor-pointer text-sm font-semibold">Canonical source diff</summary>
+								<pre class="mt-3 max-h-[44vh] overflow-auto whitespace-pre-wrap break-all rounded bg-base-200 p-3 text-xs font-mono" id="builder-proposal-source-diff">Loading…</pre>
+							</details>
+						</div>
+						<p class="mt-3 text-sm font-medium text-base-content" id="builder-proposal-review-attribution"></p>
+						<a class="hidden mt-3 btn btn-outline btn-sm" id="builder-proposal-review-link" target="_blank" rel="noopener noreferrer">Review proposal in Git</a>
+						<p class="mt-2 text-xs text-error" id="builder-proposal-review-error"></p>
+					</div>
+					<div class="border-t border-base-300 px-5 py-4">
+						<div class="flex flex-wrap items-center justify-between gap-3">
+							<p class="text-xs text-base-content/60">The provider status shown here is last-known at the displayed observation time.</p>
+							<div class="flex gap-2">
+								<button class="btn btn-sm btn-ghost" id="builder-proposal-review-cancel" type="button">Cancel</button>
+								<button class="btn btn-sm btn-primary" id="builder-proposal-review-confirm" type="button">Create or update proposal</button>
+							</div>
+						</div>
+					</div>
+				</div>
+			</div>
+			<form method="dialog" class="modal-backdrop"><button type="submit">close</button></form>
+		</dialog>
+		<script src={ versionedAssetPath("/assets/js/builder_canvas_init.js") } defer></script>
+	</div>
+}
+
+func builderProposalStatusLabel(review *BuilderProposalReview) string {
+	if review == nil {
+		return "No draft"
+	}
+	if !review.ProviderSupported {
+		return "Provider unsupported"
+	}
+	if review.DraftState == "publish_failed" {
+		return "Publish failed — retry available"
+	}
+	if review.DraftState == "publish_queued" {
+		return "Publish queued"
+	}
+	if review.ProposalIsStale {
+		return "Proposal behind draft"
+	}
+	if review.ProposalState != "" {
+		return "Last known: " + review.ProposalState
+	}
+	return strings.ReplaceAll(review.DraftState, "_", " ")
+}
+
+func builderProposalStatusClass(review *BuilderProposalReview) string {
+	base := "badge badge-sm badge-outline uppercase"
+	if review != nil && review.DraftState == "publish_failed" {
+		return base + " badge-error"
+	}
+	if review == nil || !review.ProviderSupported || review.ProposalIsStale || review.ProposalState == "closed" {
+		return base + " badge-warning"
+	}
+	if review.ProposalState == "merged" {
+		return base + " badge-info"
+	}
+	if review.ProposalState == "open" {
+		return base + " badge-success"
+	}
+	return base
+}
+
+func builderDraftBadgeClass(hasDraft bool) string {
+	if hasDraft {
+		return "badge badge-warning badge-outline uppercase"
+	}
+
+	return "badge badge-ghost badge-outline uppercase hidden"
+}
+
+func boolString(value bool) string {
+	if value {
+		return "true"
+	}
+
+	return "false"
+}
+
+func builderHasMaterializedPipeline(state BuilderBlueprintState) bool {
+	pipelineSlug := strings.TrimSpace(state.PipelineSlug)
+	return pipelineSlug != "" && pipelineSlug != BuilderDraftPipelineSlug
+}
+
+func builderSaveDisabled(state BuilderBlueprintState) bool {
+	return !builderHasMaterializedPipeline(state)
+}
+
+func builderSaveTitle(state BuilderBlueprintState) string {
+	if builderSaveDisabled(state) {
+		return "Save Draft is available after a pipeline has been materialized from the project Git repository."
+	}
+	return ""
+}
+
+func builderPublishDisabled(state BuilderBlueprintState) bool {
+	return !state.HasDraft || !builderHasMaterializedPipeline(state)
+}
+
+func builderPublishTitle(state BuilderBlueprintState) string {
+	if !state.HasDraft {
+		return "Propose is unavailable until a draft exists on the server."
+	}
+	if !builderHasMaterializedPipeline(state) {
+		return "Propose is unavailable until this draft has a real pipeline slug."
+	}
+	return ""
+}
+
+func optionalString(value *string) string {
+	if value == nil {
+		return ""
+	}
+
+	return *value
+}
+
+func builderEmptyCanvasHintClass(hasImportedGraph bool) string {
+	base := "pointer-events-none absolute inset-0 z-30 flex items-center justify-center px-6"
+	if hasImportedGraph {
+		return base + " hidden"
+	}
+	return base
+}

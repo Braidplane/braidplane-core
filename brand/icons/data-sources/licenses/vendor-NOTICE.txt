@@ -1,0 +1,35 @@
+Connector artwork and trademarks
+
+These marks identify the systems Braidplane connects to. Braidplane is an
+independent product, with no implied sponsorship, endorsement or affiliation.
+The repository's Apache-2.0 grant does not relicense these marks or artwork.
+
+Git Logo by Jason Long, licensed under Creative Commons Attribution 3.0
+Unported (CC BY 3.0): https://creativecommons.org/licenses/by/3.0/
+Source: https://git-scm.com/community/logos
+The official orange logomark is reproduced without modification.
+Full license: git-CC-BY-3.0.txt in this directory.
+Git and the Git logo are either registered trademarks or trademarks of
+Software Freedom Conservancy, Inc., corporate home of the Git Project,
+in the United States and/or other countries.
+Trademark policy: https://git-scm.com/about/trademark
+
+MongoDB and the MongoDB leaf logo are registered trademarks of MongoDB, Inc.
+The official leaf is reproduced without modification under the published
+identification allowance, subject to the Trademark Standards for Use:
+https://www.mongodb.com/legal/trademark-usage-guidelines
+Copyright and trademark rights remain with MongoDB, Inc.; no Apache or CC0
+license is asserted for the artwork. The UI displays the registration notice.
+
+Exact download URLs, SHA-256 digests and review dates are recorded in
+../vendors/metadata.json. These records cover the existing connector UI and
+its necessary source/image delivery. Review a new presentation or channel
+against the applicable current terms; this is not general marketing approval.
+
+Other provisionally retained connector artwork identifies PostgreSQL, MySQL,
+Google Drive, BigQuery, Snowflake, HubSpot and GitHub. Those marks and artwork
+remain the property of their respective owners, subject to their applicable
+terms. Their presence here does not grant an Apache-2.0 license to that material,
+prove vendor approval, or imply sponsorship, endorsement or partnership.
+See ../vendors/metadata.json and ../RELEASE_REVIEW.md for sources, hashes and
+unresolved use conditions. Existing promotional restrictions remain applicable.

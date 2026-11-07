@@ -1,0 +1,462 @@
+{
+  "version": 1,
+  "suites": {
+    "product": {
+      "budgets": {
+        "critical": {
+          "logical": 15,
+          "executions": 25,
+          "runner_seconds": 240
+        },
+        "full": {
+          "logical": 64,
+          "executions": 174,
+          "runner_seconds": 660
+        }
+      },
+      "cases": [
+        {
+          "file": "auth.spec.cjs",
+          "title": "signs in and navigates from dashboard to scoped pipelines",
+          "tier": "critical",
+          "cross_browser": false,
+          "reason": "Authentication and scoped navigation."
+        },
+        {
+          "file": "auth.spec.cjs",
+          "title": "resets a signed-out account from its emailed link and signs in",
+          "tier": "critical",
+          "cross_browser": false,
+          "reason": "Recovery link and browser session handoff."
+        },
+        {
+          "file": "google-signup.spec.cjs",
+          "title": "creates a Google account through a separate local issuer",
+          "tier": "critical",
+          "cross_browser": false,
+          "reason": "Cross-site OIDC callback and persistent account creation."
+        },
+        {
+          "file": "google-signup.spec.cjs",
+          "title": "creates a Google account from the login entry point when registration is open",
+          "tier": "critical",
+          "cross_browser": false,
+          "reason": "Login reaches workspace setup when registration is enabled."
+        },
+        {
+          "file": "google-signup.spec.cjs",
+          "title": "stops its fixture with an unanswered browser preconnection",
+          "tier": "extended",
+          "cross_browser": false,
+          "reason": "Preserve the upstream regression check for shutdown with an idle browser preconnection."
+        },
+        {
+          "file": "http-oauth.spec.cjs",
+          "title": "preserves sign-in feedback and email with JavaScript disabled",
+          "tier": "extended",
+          "cross_browser": false,
+          "reason": "Broader progressive-enhancement and native-focus checks beyond the canonical OAuth handoff."
+        },
+        {
+          "file": "http-oauth.spec.cjs",
+          "title": "keeps OAuth validation visible and focuses the invalid field before redirecting",
+          "tier": "extended",
+          "cross_browser": false,
+          "reason": "Broader progressive-enhancement and native-focus checks beyond the canonical OAuth handoff."
+        },
+        {
+          "file": "http-oauth.spec.cjs",
+          "title": "sets up HTTP OAuth and reconnects after replacing the app grant type",
+          "tier": "critical",
+          "cross_browser": true,
+          "reason": "OAuth setup and reconnect navigation."
+        },
+        {
+          "file": "notification-connections.spec.cjs",
+          "title": "connects Slack, configures and tests an alert destination, then disconnects",
+          "tier": "critical",
+          "cross_browser": false,
+          "reason": "Notification provider setup and destination handoff."
+        },
+        {
+          "file": "notification-connections.spec.cjs",
+          "title": "follows notification source, recorded routing and delivery evidence without sending",
+          "tier": "extended",
+          "cross_browser": false,
+          "reason": "Broader cross-page evidence navigation; the critical journey covers provider and destination setup."
+        },
+        {
+          "file": "pipeline-builder.spec.cjs",
+          "title": "saves a materialized pipeline draft and reloads it",
+          "tier": "critical",
+          "cross_browser": false,
+          "reason": "Real persisted Builder draft mutation."
+        },
+        {
+          "file": "pipeline-builder.spec.cjs",
+          "title": "previews an unmaterialized definition while keeping runtime preflight separate",
+          "tier": "extended",
+          "cross_browser": false,
+          "reason": "Broader browser draft-storage, incomplete editor rows and preflight presentation beyond the persisted-save smoke."
+        },
+        {
+          "file": "pipeline-builder.spec.cjs",
+          "title": "recovers a new pipeline after reload and retains unfinished contract rows",
+          "tier": "extended",
+          "cross_browser": false,
+          "reason": "Broader browser draft-storage, incomplete editor rows and preflight presentation beyond the persisted-save smoke."
+        },
+        {
+          "file": "pipeline-git.spec.cjs",
+          "title": "edits Builder event and named ODCS agreements without changing pinned siblings",
+          "tier": "extended",
+          "cross_browser": false,
+          "reason": "Broader Builder/repository interaction, consent/retry navigation and responsive form behavior; lower layers do not prove these browser handoffs."
+        },
+        {
+          "file": "pipeline-git.spec.cjs",
+          "title": "inspects Builder connection declarations and explicit historical run evidence",
+          "tier": "extended",
+          "cross_browser": false,
+          "reason": "Broader Builder/repository interaction, consent/retry navigation and responsive form behavior; lower layers do not prove these browser handoffs."
+        },
+        {
+          "file": "pipeline-git.spec.cjs",
+          "title": "uses cached Builder schema proposals without replacing agreements",
+          "tier": "extended",
+          "cross_browser": false,
+          "reason": "Broader Builder/repository interaction, consent/retry navigation and responsive form behavior; lower layers do not prove these browser handoffs."
+        },
+        {
+          "file": "pipeline-git.spec.cjs",
+          "title": "validates Builder drafts on the selected server target and keeps rejected drafts editable",
+          "tier": "extended",
+          "cross_browser": false,
+          "reason": "Broader Builder/repository interaction, consent/retry navigation and responsive form behavior; lower layers do not prove these browser handoffs."
+        },
+        {
+          "file": "pipeline-git.spec.cjs",
+          "title": "imports Git definitions, binds a source, and deploys an exact version",
+          "tier": "critical",
+          "cross_browser": true,
+          "reason": "Canonical Git import, binding and protected deployment."
+        },
+        {
+          "file": "pipeline-git.spec.cjs",
+          "title": "bootstraps initial progress and requests a bounded backfill",
+          "tier": "extended",
+          "cross_browser": false,
+          "reason": "Broader Builder/repository interaction, consent/retry navigation and responsive form behavior; lower layers do not prove these browser handoffs."
+        },
+        {
+          "file": "pipeline-git.spec.cjs",
+          "title": "keeps Builder logical refs through environment inspection, draft save, and reload",
+          "tier": "extended",
+          "cross_browser": false,
+          "reason": "Broader Builder/repository interaction, consent/retry navigation and responsive form behavior; lower layers do not prove these browser handoffs."
+        },
+        {
+          "file": "pipeline-git.spec.cjs",
+          "title": "keeps repository setup choices and advanced fields clear on desktop and compact screens",
+          "tier": "extended",
+          "cross_browser": false,
+          "reason": "Broader Builder/repository interaction, consent/retry navigation and responsive form behavior; lower layers do not prove these browser handoffs."
+        },
+        {
+          "file": "pipeline-git.spec.cjs",
+          "title": "keeps repository selection parameters safe and clears stale fields after saving",
+          "tier": "extended",
+          "cross_browser": false,
+          "reason": "Broader Builder/repository interaction, consent/retry navigation and responsive form behavior; lower layers do not prove these browser handoffs."
+        },
+        {
+          "file": "pipeline-git.spec.cjs",
+          "title": "resumes managed GitLab creation after partial failure without reentering the target",
+          "tier": "extended",
+          "cross_browser": false,
+          "reason": "Broader Builder/repository interaction, consent/retry navigation and responsive form behavior; lower layers do not prove these browser handoffs."
+        },
+        {
+          "file": "pipeline-git.spec.cjs",
+          "title": "changes a repository target while preserving the previous attempt",
+          "tier": "extended",
+          "cross_browser": false,
+          "reason": "Broader Builder/repository interaction, consent/retry navigation and responsive form behavior; lower layers do not prove these browser handoffs."
+        },
+        {
+          "file": "pipeline-git.spec.cjs",
+          "title": "resumes declined GitLab consent and returns approval to the originating project",
+          "tier": "extended",
+          "cross_browser": false,
+          "reason": "Broader Builder/repository interaction, consent/retry navigation and responsive form behavior; lower layers do not prove these browser handoffs."
+        },
+        {
+          "file": "pipeline-git.spec.cjs",
+          "title": "explains a saved repository connection that needs retesting",
+          "tier": "extended",
+          "cross_browser": false,
+          "reason": "Broader Builder/repository interaction, consent/retry navigation and responsive form behavior; lower layers do not prove these browser handoffs."
+        },
+        {
+          "file": "pipeline-git.spec.cjs",
+          "title": "returns declined and approved GitHub consent to the originating project",
+          "tier": "extended",
+          "cross_browser": false,
+          "reason": "Broader Builder/repository interaction, consent/retry navigation and responsive form behavior; lower layers do not prove these browser handoffs."
+        },
+        {
+          "file": "pipeline-git.spec.cjs",
+          "title": "proposes a first pipeline from a saved query and resumes its immutable definition",
+          "tier": "extended",
+          "cross_browser": false,
+          "reason": "Broader Builder/repository interaction, consent/retry navigation and responsive form behavior; lower layers do not prove these browser handoffs."
+        },
+        {
+          "file": "pipeline-git.spec.cjs",
+          "title": "creates a new pipeline from the Builder palette without an existing pipeline",
+          "tier": "extended",
+          "cross_browser": false,
+          "reason": "Broader Builder/repository interaction, consent/retry navigation and responsive form behavior; lower layers do not prove these browser handoffs."
+        },
+        {
+          "file": "pipeline-git.spec.cjs",
+          "title": "builds a new SQL pipeline using an authoring connection before runtime bindings exist",
+          "tier": "extended",
+          "cross_browser": false,
+          "reason": "Broader Builder/repository interaction, consent/retry navigation and responsive form behavior; lower layers do not prove these browser handoffs."
+        },
+        {
+          "file": "pipeline-git.spec.cjs",
+          "title": "configures successful-run recency and inspects historical evidence",
+          "tier": "extended",
+          "cross_browser": false,
+          "reason": "Broader Builder/repository interaction, consent/retry navigation and responsive form behavior; lower layers do not prove these browser handoffs."
+        },
+        {
+          "file": "pipeline-git.spec.cjs",
+          "title": "authors supplier field mapping and catches a fixture regression before saving",
+          "tier": "extended",
+          "cross_browser": false,
+          "reason": "Broader Builder/repository interaction, consent/retry navigation and responsive form behavior; lower layers do not prove these browser handoffs."
+        },
+        {
+          "file": "pipeline-git.spec.cjs",
+          "title": "discloses three transform mappings and returns from the workspace without changing the canvas",
+          "tier": "extended",
+          "cross_browser": false,
+          "reason": "Broader Builder/repository interaction, consent/retry navigation and responsive form behavior; lower layers do not prove these browser handoffs."
+        },
+        {
+          "file": "pipeline-git.spec.cjs",
+          "title": "connects a missing mapping input before enabling Open and New mapping",
+          "tier": "extended",
+          "cross_browser": false,
+          "reason": "Broader Builder/repository interaction, consent/retry navigation and responsive form behavior; lower layers do not prove these browser handoffs."
+        },
+        {
+          "file": "proof-receipts.spec.cjs",
+          "title": "discovers a Proof receipt and inspects its recorded claims",
+          "tier": "critical",
+          "cross_browser": false,
+          "reason": "Proof discovery and retained claim rendering."
+        },
+        {
+          "file": "proof-receipts.spec.cjs",
+          "title": "keeps a captured operational verdict distinct from pruned supporting evidence",
+          "tier": "extended",
+          "cross_browser": false,
+          "reason": "Broader rendered distinction between a captured verdict and expired supporting evidence."
+        },
+        {
+          "file": "proof-receipts.spec.cjs",
+          "title": "Reconnect navigates to GitHub under same-origin form CSP on desktop",
+          "tier": "critical",
+          "cross_browser": true,
+          "reason": "Provider redirect under real browser CSP."
+        },
+        {
+          "file": "query-workspace-owned.spec.cjs",
+          "title": "opens a data source, previews a query, and saves its definition",
+          "tier": "critical",
+          "cross_browser": true,
+          "reason": "Real query authoring and organization-owned result."
+        },
+        {
+          "file": "query-workspace.spec.cjs",
+          "title": "authors, reopens, changes and removes HTTP acknowledgements",
+          "tier": "critical",
+          "cross_browser": false,
+          "reason": "Acknowledgement authoring and saved definition."
+        },
+        {
+          "file": "query-workspace.spec.cjs",
+          "title": "tests and creates a MySQL source without re-entering its password",
+          "tier": "extended",
+          "cross_browser": false,
+          "reason": "Broader connector onboarding form retention and connection-feedback swaps beyond the critical query authoring journey."
+        },
+        {
+          "file": "query-workspace.spec.cjs",
+          "title": "tests a HubSpot token, creates its source, and reads mock CRM contacts",
+          "tier": "extended",
+          "cross_browser": false,
+          "reason": "Broader connector onboarding form retention and connection-feedback swaps beyond the critical query authoring journey."
+        },
+        {
+          "file": "query-workspace.spec.cjs",
+          "title": "sets up three secret HTTP headers and reads every numbered page",
+          "tier": "critical",
+          "cross_browser": false,
+          "reason": "Write-only credentials and query pagination authoring."
+        },
+        {
+          "file": "run-inspection.spec.cjs",
+          "title": "refreshes contract evidence and recorded status during an active run",
+          "tier": "extended",
+          "cross_browser": false,
+          "reason": "Broader rendered graph/definition selection, compact layout and live HTMX refresh; lower layers do not prove these interactions."
+        },
+        {
+          "file": "run-inspection.spec.cjs",
+          "title": "inspects a successful run and returns to its scoped list",
+          "tier": "critical",
+          "cross_browser": true,
+          "reason": "Run preview, outputs and scoped navigation."
+        },
+        {
+          "file": "run-inspection.spec.cjs",
+          "title": "compares exact retained contract projections without losing named input context",
+          "tier": "extended",
+          "cross_browser": false,
+          "reason": "Broader rendered graph/definition selection, compact layout and live HTMX refresh; lower layers do not prove these interactions."
+        },
+        {
+          "file": "run-inspection.spec.cjs",
+          "title": "inspects exact authored definitions with shared keyboard and compact selection",
+          "tier": "extended",
+          "cross_browser": false,
+          "reason": "Broader rendered graph/definition selection, compact layout and live HTMX refresh; lower layers do not prove these interactions."
+        },
+        {
+          "file": "run-inspection.spec.cjs",
+          "title": "diagnoses the recorded failure and retains context after recovery refusal",
+          "tier": "extended",
+          "cross_browser": false,
+          "reason": "Broader rendered graph/definition selection, compact layout and live HTMX refresh; lower layers do not prove these interactions."
+        },
+        {
+          "file": "run-inspection.spec.cjs",
+          "title": "navigates the complete 22-step lineage while preserving the selected view",
+          "tier": "extended",
+          "cross_browser": false,
+          "reason": "Broader rendered graph/definition selection, compact layout and live HTMX refresh; lower layers do not prove these interactions."
+        },
+        {
+          "file": "run-inspection.spec.cjs",
+          "title": "keeps lineage full width above step inspection",
+          "tier": "extended",
+          "cross_browser": false,
+          "reason": "Broader rendered graph/definition selection, compact layout and live HTMX refresh; lower layers do not prove these interactions."
+        },
+        {
+          "file": "run-inspection.spec.cjs",
+          "title": "inspects completion roots and follows exact parent and child links",
+          "tier": "extended",
+          "cross_browser": false,
+          "reason": "Broader rendered graph/definition selection, compact layout and live HTMX refresh; lower layers do not prove these interactions."
+        },
+        {
+          "file": "run-inspection.spec.cjs",
+          "title": "selects environment run history on the pipeline and opens exact run step evidence",
+          "tier": "extended",
+          "cross_browser": false,
+          "reason": "Broader rendered graph/definition selection, compact layout and live HTMX refresh; lower layers do not prove these interactions."
+        },
+        {
+          "file": "run-inspection.spec.cjs",
+          "title": "pinpoints source and named-input failures with historical definition navigation",
+          "tier": "extended",
+          "cross_browser": false,
+          "reason": "Broader rendered graph/definition selection, compact layout and live HTMX refresh; lower layers do not prove these interactions."
+        },
+        {
+          "file": "run-inspection.spec.cjs",
+          "title": "compares Builder and lineage for the same multi-input topology",
+          "tier": "extended",
+          "cross_browser": false,
+          "reason": "Broader rendered graph/definition selection, compact layout and live HTMX refresh; lower layers do not prove these interactions."
+        },
+        {
+          "file": "run-inspection.spec.cjs",
+          "title": "reviews and saves the complete S3 query from a failed sink",
+          "tier": "extended",
+          "cross_browser": false,
+          "reason": "Broader rendered graph/definition selection, compact layout and live HTMX refresh; lower layers do not prove these interactions."
+        },
+        {
+          "file": "run-inspection.spec.cjs",
+          "title": "explains retained failure causes and offers concrete review actions",
+          "tier": "extended",
+          "cross_browser": false,
+          "reason": "Broader rendered graph/definition selection, compact layout and live HTMX refresh; lower layers do not prove these interactions."
+        },
+        {
+          "file": "run-inspection.spec.cjs",
+          "title": "inspects connected run outcomes with grouped retries and keyboard selection",
+          "tier": "extended",
+          "cross_browser": false,
+          "reason": "Broader rendered graph/definition selection, compact layout and live HTMX refresh; lower layers do not prove these interactions."
+        },
+        {
+          "file": "run-inspection.spec.cjs",
+          "title": "inspects current connections separately from historical runs",
+          "tier": "extended",
+          "cross_browser": false,
+          "reason": "Broader rendered graph/definition selection, compact layout and live HTMX refresh; lower layers do not prove these interactions."
+        },
+        {
+          "file": "run-inspection.spec.cjs",
+          "title": "fits and bounds a large connected graph with continuation guidance",
+          "tier": "extended",
+          "cross_browser": false,
+          "reason": "Broader rendered graph/definition selection, compact layout and live HTMX refresh; lower layers do not prove these interactions."
+        },
+        {
+          "file": "run-inspection.spec.cjs",
+          "title": "refreshes connected retry closure while keeping the selected context",
+          "tier": "extended",
+          "cross_browser": false,
+          "reason": "Broader rendered graph/definition selection, compact layout and live HTMX refresh; lower layers do not prove these interactions."
+        },
+        {
+          "file": "run-inspection.spec.cjs",
+          "title": "navigates retained connected attempts when root evidence has expired",
+          "tier": "extended",
+          "cross_browser": false,
+          "reason": "Broader rendered graph/definition selection, compact layout and live HTMX refresh; lower layers do not prove these interactions."
+        },
+        {
+          "file": "run-inspection.spec.cjs",
+          "title": "keeps live Steps selection, graph position and focus through quiet work, outages and failure",
+          "tier": "extended",
+          "cross_browser": false,
+          "reason": "Broader rendered graph/definition selection, compact layout and live HTMX refresh; lower layers do not prove these interactions."
+        },
+        {
+          "file": "run-inspection.spec.cjs",
+          "title": "keeps the selected step after navigating away from a pending progress poll",
+          "tier": "critical",
+          "cross_browser": false,
+          "reason": "Unique in-flight HTMX response/navigation race."
+        },
+        {
+          "file": "run-inspection.spec.cjs",
+          "title": "reveals the admitted version after queued intake and retains its expanded identity",
+          "tier": "extended",
+          "cross_browser": false,
+          "reason": "Broader rendered graph/definition selection, compact layout and live HTMX refresh; lower layers do not prove these interactions."
+        }
+      ]
+    }
+  }
+}

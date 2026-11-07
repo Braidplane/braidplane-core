@@ -1,0 +1,20 @@
+package views
+
+templ ErrorPopup(id string, summary string, details string) {
+	<div id={ id } data-error-popup role="alert" aria-live="assertive" class="fixed bottom-4 left-4 right-4 z-50 rounded-xl border border-error/30 bg-base-100 p-4 shadow-xl sm:bottom-auto sm:left-auto sm:right-4 sm:top-4 sm:w-[min(92vw,420px)]">
+		<div class="flex items-start gap-3">
+			<div class="mt-0.5 text-error" aria-hidden="true">&#9888;</div>
+			<div class="min-w-0">
+				<p class="text-sm font-semibold text-base-content">Something went wrong</p>
+				<p class="mt-1 text-sm text-base-content/80">{ summary }</p>
+				if details != "" {
+					<details class="mt-2">
+						<summary class="cursor-pointer text-xs font-semibold uppercase tracking-wide text-base-content/70">More details</summary>
+						<pre class="mt-2 max-h-40 overflow-auto rounded-md bg-base-200 p-2 text-xs text-base-content/80 whitespace-pre-wrap">{ details }</pre>
+					</details>
+				}
+			</div>
+			<button class="btn btn-ghost btn-xs btn-circle focus:outline-none focus-visible:ring-2 focus-visible:ring-error" type="button" aria-label="Dismiss error" data-popup-dismiss="[data-error-popup]">X</button>
+		</div>
+	</div>
+}

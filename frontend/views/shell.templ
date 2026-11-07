@@ -1,0 +1,350 @@
+package views
+
+templ AuthenticatedShell(data AuthenticatedShellData, content templ.Component) {
+	<!DOCTYPE html>
+	<html lang="en" data-theme="control-room">
+		@AppHead(data.Title, true)
+		<body class={ "min-h-screen bg-base-200", templ.KV("builder-page", data.CurrentPath == "/builder") }>
+			<style>
+
+                .builder-page > main { padding: 12px; }
+                .builder-page .shell-layout,
+                .builder-page .shell-layout[data-sidebar-state="collapsed"] { grid-template-columns: minmax(0, 1fr); }
+                .builder-page .shell-sidebar { display: none; }
+                .builder-page #main-content { padding: 16px; min-width: 0; }
+                .builder-page .shell-topbar { margin-bottom: 12px; padding-bottom: 12px; }
+                .builder-page .shell-topbar h1 { font-size: 1.125rem; }
+                .builder-page .shell-topbar .shell-title-row + p:not([role="note"]) { display: none; }
+                .builder-page .shell-breadcrumbs { display: none; }
+                @media (max-width: 639px) {
+                    .builder-page > main { padding: 0; }
+                    .builder-page #main-content { padding: 8px; }
+                }
+				.shell-nav-icon {
+					width: 1rem;
+					height: 1rem;
+				}
+
+				.shell-sidebar-toggle-icon {
+					width: 0.875rem;
+					height: 0.875rem;
+				}
+
+				.shell-menu-icon {
+					width: 1.25rem;
+					height: 1.25rem;
+				}
+
+				@media (min-width: 1024px) {
+					.shell-layout[data-sidebar-state="collapsed"] {
+						grid-template-columns: 80px minmax(0, 1fr);
+					}
+
+					.shell-layout[data-sidebar-state="collapsed"] .shell-nav-label {
+						display: none;
+					}
+
+					.shell-layout[data-sidebar-state="collapsed"] .shell-expanded-only {
+						display: none;
+					}
+
+					.shell-layout[data-sidebar-state="collapsed"] .shell-nav-link {
+						justify-content: center;
+						padding-left: 0.5rem;
+						padding-right: 0.5rem;
+					}
+
+					.shell-layout[data-sidebar-state="collapsed"] .shell-sidebar-toggle-icon {
+						transform: rotate(180deg);
+					}
+				}
+			</style>
+			<a class="sr-only z-50 rounded-md bg-base-100 px-3 py-2 text-sm font-medium text-base-content shadow focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary" href="#main-content">Skip to main content</a>
+			if data.PageError != "" {
+				@ErrorPopup("shell-error-popup", data.PageError, data.PageErrorDetails)
+			}
+			<main class="min-h-screen w-full px-3 py-4 sm:px-4 sm:py-6 lg:px-6 lg:py-8">
+				<div class="shell-layout grid gap-4 lg:grid-cols-[220px_minmax(0,1fr)]" data-sidebar-state="expanded" id="shell-layout">
+					<aside class="shell-sidebar relative hidden min-h-[calc(100vh-4rem)] rounded-xl border border-base-300 bg-base-100 p-5 shadow-sm lg:flex lg:flex-col" aria-label="Workspace navigation">
+						<button class="btn btn-ghost btn-xs btn-circle border border-base-300 bg-base-100 absolute -right-3 top-5 z-10" id="sidebar-toggle" type="button" aria-label="Toggle sidebar" aria-pressed="false">
+							<svg xmlns="http://www.w3.org/2000/svg" class="shell-sidebar-toggle-icon h-3.5 w-3.5 transition-transform duration-200" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" aria-hidden="true">
+								<path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7"></path>
+							</svg>
+						</button>
+						<div class="border-b border-base-300 pb-4">
+							<a class="shell-brand flex items-center gap-3 rounded-lg text-base-content focus:outline-none focus-visible:ring-2 focus-visible:ring-primary" href="/dashboard" aria-label="Braidplane dashboard">
+								@BraidplaneLogo()
+								<span class="shell-nav-label text-lg font-semibold">Braidplane</span>
+							</a>
+						</div>
+						<nav class="mt-5 flex-1 space-y-1 text-sm" aria-label="Primary">
+							@ShellNavigation(data)
+							if data.DocumentationURL != "" {
+								<a class="shell-nav-link flex items-center gap-2 rounded-md px-3 py-2 text-base-content/70 hover:text-base-content focus:outline-none focus-visible:ring-2 focus-visible:ring-primary" href={ templ.URL(data.DocumentationURL) } title="Documentation" aria-label="Documentation">
+									@ShellNavIcon("document")
+									<span class="shell-nav-label">Documentation</span>
+								</a>
+							}
+						</nav>
+						<div class="mt-5 border-t border-base-300 pt-4">
+							<a class="shell-nav-link flex items-center gap-3 rounded-lg px-1 py-2 text-base-content focus:outline-none focus-visible:ring-2 focus-visible:ring-primary" href="/account" title="Account">
+								<span class="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-base-300 text-xs font-bold text-base-content" aria-hidden="true">{ ShellUserInitial(data.User) }</span>
+								<span class="sr-only">{ ShellUserDisplay(data.User) } Account</span>
+								<span class="shell-nav-label min-w-0" aria-hidden="true">
+									<span class="block truncate text-sm font-semibold">{ ShellUserDisplay(data.User) }</span>
+									<span class="block truncate text-xs text-base-content/60">Account</span>
+								</span>
+							</a>
+							<form class="shell-expanded-only mt-2" method="post" action="/auth/logout" hx-post="/auth/logout" hx-swap="none">
+								<button class="btn btn-ghost btn-xs w-full justify-start" type="submit">Logout</button>
+							</form>
+						</div>
+					</aside>
+					<section class={ ShellContentClass(data.CurrentPath) } id="main-content">
+						<div class="shell-topbar mb-5 grid gap-4 border-b border-base-300 pb-5 xl:grid-cols-[minmax(0,1fr)_minmax(0,37rem)] xl:items-start">
+							<div class="flex min-w-0 items-start gap-3">
+								<div class="lg:hidden">
+									<button class="btn btn-outline btn-sm btn-square" style="anchor-name: --shell-navigation" type="button" aria-label="Open navigation menu" popovertarget="shell-mobile-navigation">
+										<svg xmlns="http://www.w3.org/2000/svg" class="shell-menu-icon h-5 w-5" width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" aria-hidden="true">
+											<path stroke-linecap="round" stroke-linejoin="round" d="M4 6h16M4 12h16M4 18h16"></path>
+										</svg>
+									</button>
+									<div id="shell-mobile-navigation" popover="auto" style="position-anchor: --shell-navigation; background-color: var(--color-base-100)" class="dropdown dropdown-bottom mt-2 max-h-[70vh] overflow-y-auto w-64 rounded-xl border border-base-300 p-3 shadow-lg">
+										<nav class="space-y-1 text-sm" aria-label="Mobile primary">
+											@ShellNavigation(data)
+											if data.DocumentationURL != "" {
+												<a class="block rounded-md px-3 py-2 text-base-content/70 hover:text-base-content focus:outline-none focus-visible:ring-2 focus-visible:ring-primary" href={ templ.URL(data.DocumentationURL) }>Documentation</a>
+											}
+										</nav>
+										<div class="divider my-3"></div>
+										<a class="btn btn-ghost btn-sm w-full justify-start" href="/account">Account</a>
+										<form class="mt-1" method="post" action="/auth/logout" hx-post="/auth/logout" hx-swap="none">
+											<button class="btn btn-ghost btn-sm w-full justify-start" type="submit">Logout</button>
+										</form>
+									</div>
+								</div>
+								<div class="min-w-0">
+									if data.NotificationReturnHref != "" {
+										<a class="link text-sm" href={ templ.URL(data.NotificationReturnHref) }>Back to notification</a>
+									}
+									<div class="shell-title-row flex min-w-0 items-center gap-2">
+										<h1 class="min-w-0 truncate text-2xl font-semibold text-base-content">{ ShellTopbarTitle(data.CurrentPath, data.NavItems, data.Title) }</h1>
+										<span class="shrink-0 text-xs font-normal text-base-content/60" aria-label="Product stage">Alpha</span>
+									</div>
+									if data.Subtitle != "" {
+										<p class="mt-1 max-w-3xl text-sm text-base-content/65">{ data.Subtitle }</p>
+									}
+								</div>
+							</div>
+							<div class={ ShellTopbarControlsClass(data) }>
+								@ShellOrganizationSwitcher(data)
+								if !ShellIsCommandCenter(data.CurrentPath) && data.ActiveProjectSlug != "" && len(data.Environments) > 0 {
+									<div class="flex w-fit min-w-0 max-w-full items-center gap-2">
+										<div class="min-w-0 flex-1">
+											<label class="sr-only" for="environment-switcher">Runtime target</label>
+											<select
+												class="select select-bordered h-11 min-h-11 w-full truncate bg-base-200/30"
+												id="environment-switcher"
+												data-runtime-switcher
+												aria-label="Switch project runtime target"
+											>
+												for _, environment := range data.Environments {
+													if environment.IsActive {
+														<option selected value={ environment.Href }>{ ShellRuntimeTargetDisplay(environment.Name, environment.Slug) }</option>
+													} else {
+														<option value={ environment.Href }>{ ShellRuntimeTargetDisplay(environment.Name, environment.Slug) }</option>
+													}
+												}
+											</select>
+										</div>
+										if data.ActiveEnvironmentSlug != "" {
+											<span class={ ShellEnvironmentBadgeClass(data.ActiveEnvironmentColor) }>{ data.ActiveEnvironmentSlug }</span>
+											<span class="hidden text-xs font-medium text-base-content/60 2xl:inline">{ ShellEnvironmentRiskLabel(data.ActiveEnvironmentSlug, data.ActiveEnvironmentProtected) }</span>
+										}
+									</div>
+								} else if !ShellIsCommandCenter(data.CurrentPath) {
+									<div class="flex h-11 items-center rounded-lg border border-base-300 px-3 text-sm font-medium text-base-content/60">No runtime target</div>
+								}
+							</div>
+						</div>
+						if !ShellIsCommandCenter(data.CurrentPath) && len(data.Breadcrumbs) > 0 {
+							<div class="shell-breadcrumbs mb-6">
+								@BreadcrumbTrail(data.Breadcrumbs)
+							</div>
+						}
+						@content
+					</section>
+				</div>
+			</main>
+			<script src={ versionedAssetPath("/assets/js/shell.js") } defer></script>
+			<script src={ versionedAssetPath("/assets/js/run-lineage.js") } defer></script>
+		</body>
+	</html>
+}
+
+templ ShellOrganizationSwitcher(data AuthenticatedShellData) {
+	<div class="w-full min-w-0 max-w-full sm:w-fit" data-org-switcher-root>
+		<div class="dropdown dropdown-end w-full min-w-0 max-w-full sm:w-fit" data-org-switcher>
+			<button
+				class="btn btn-outline h-11 min-h-11 min-w-0 w-full max-w-full justify-between gap-2 bg-base-200/30 px-3 normal-case"
+				type="button"
+				tabindex="0"
+				aria-haspopup="menu"
+			>
+				<span class="sr-only">Switch organization: </span>
+				<span class="flex min-w-0 items-center gap-2">
+					<span class="grid h-6 w-6 shrink-0 place-items-center rounded-full bg-primary/10 text-xs font-semibold text-primary" aria-hidden="true">{ ShellContextInitial(data.ActiveOrganizationName, data.ActiveOrganizationSlug, "Org") }</span>
+					<span class="min-w-0 truncate text-left" title={ ShellContextDisplay(data.ActiveOrganizationName, data.ActiveOrganizationSlug, "No organization") }>{ ShellOrganizationDisplayName(data) }</span>
+				</span>
+				<svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 shrink-0 text-base-content/60" width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" aria-hidden="true">
+					<path stroke-linecap="round" stroke-linejoin="round" d="M6 9l6 6 6-6"></path>
+				</svg>
+			</button>
+			<div class="dropdown-content z-[10] mt-2 w-80 max-w-[calc(100vw-2rem)] rounded-xl border border-base-300 bg-base-100 p-2 shadow-xl" tabindex="0" aria-label="Organization menu">
+				if len(data.Organizations) == 0 {
+					<div class="rounded-lg px-3 py-3 text-sm text-base-content/60">No organizations available.</div>
+				} else {
+					<div class="max-h-64 overflow-y-auto py-1">
+						for _, org := range data.Organizations {
+							if org.IsActive {
+								<div class="flex items-center gap-3 rounded-lg bg-primary/10 px-3 py-2 text-sm font-semibold text-primary" aria-current="true">
+									<span class="grid h-7 w-7 shrink-0 place-items-center rounded-full bg-primary text-xs font-bold text-primary-content">{ ShellContextInitial(org.Name, org.Slug, "Org") }</span>
+									<span class="min-w-0 flex-1 truncate">{ org.Name }</span>
+									<span class="text-xs font-medium text-primary/80">Active</span>
+								</div>
+							} else {
+								<form
+									method="post"
+									action={ templ.URL(ShellOrganizationSwitchHref(org.Slug, data.CurrentPath)) }
+									hx-post={ ShellOrganizationSwitchHref(org.Slug, data.CurrentPath) }
+									hx-swap="none"
+								>
+									<button class="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-left text-sm text-base-content/75 hover:bg-base-200 hover:text-base-content focus:outline-none focus-visible:ring-2 focus-visible:ring-primary" type="submit">
+										<span class="grid h-7 w-7 shrink-0 place-items-center rounded-full bg-base-300 text-xs font-bold text-base-content">{ ShellContextInitial(org.Name, org.Slug, "Org") }</span>
+										<span class="min-w-0 flex-1 truncate">{ org.Name }</span>
+									</button>
+								</form>
+							}
+						}
+					</div>
+				}
+				<div class="divider my-2"></div>
+				<a class="flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium text-base-content/75 hover:bg-base-200 hover:text-base-content focus:outline-none focus-visible:ring-2 focus-visible:ring-primary" href="/organizations">
+					@ShellNavIcon("building")
+					<span>See all organizations</span>
+				</a>
+				<a class="flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium text-base-content/75 hover:bg-base-200 hover:text-base-content focus:outline-none focus-visible:ring-2 focus-visible:ring-primary" href="/organizations/new">
+					@ShellNavIcon("builder")
+					<span>New organization</span>
+				</a>
+				if data.ActiveOrganizationSlug != "" {
+					<a class="flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium text-base-content/75 hover:bg-base-200 hover:text-base-content focus:outline-none focus-visible:ring-2 focus-visible:ring-primary" href={ templ.URL(ShellOrganizationSettingsHref(data.ActiveOrganizationSlug)) }>
+						@ShellNavIcon("environment")
+						<span>Organization settings</span>
+					</a>
+				} else {
+					<span class="flex items-center gap-3 rounded-lg px-3 py-2 text-sm text-base-content/40" aria-disabled="true">
+						@ShellNavIcon("environment")
+						<span>Organization settings</span>
+					</span>
+				}
+			</div>
+		</div>
+		<span class="sr-only" data-org-switcher-status aria-live="polite">Active tenant boundary</span>
+	</div>
+}
+
+templ ShellNavigation(data AuthenticatedShellData) {
+	for _, group := range []string{"", "Build", "Operate", "Admin"} {
+		if group != "" {
+			<p class="shell-expanded-only px-3 pb-1 pt-4 text-xs font-semibold uppercase tracking-wide text-base-content/50">{ group }</p>
+		}
+		for _, item := range data.NavItems {
+			if item.Group == group {
+				if item.Enabled {
+					<a class={ "shell-nav-link flex min-h-11 items-center gap-2 rounded-md px-3 py-2 text-base-content/70 hover:text-base-content focus:outline-none focus-visible:ring-2 focus-visible:ring-primary", templ.KV("bg-primary/10 font-semibold text-primary", item.IsActive) } href={ templ.URL(item.Href) } title={ item.Label } aria-label={ item.Label } aria-current={ func() string { if item.IsActive { return "page" }; return "false" }() }>
+						@ShellNavIcon(item.Icon)
+						<span class="shell-nav-label">{ item.Label }</span>
+					</a>
+				} else {
+					<span class="shell-nav-link flex min-h-11 items-center gap-2 rounded-md px-3 py-2 text-base-content/40" title={ item.Label + ShellNavScopeRequirement(data) } aria-label={ item.Label + ShellNavScopeRequirement(data) } aria-disabled="true">
+						@ShellNavIcon(item.Icon)
+						<span class="shell-nav-label">{ item.Label }</span>
+					</span>
+				}
+			}
+		}
+	}
+}
+
+templ ShellNavIcon(icon string) {
+	<svg xmlns="http://www.w3.org/2000/svg" class="shell-nav-icon h-4 w-4 shrink-0" width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" aria-hidden="true">
+		if icon == "home" {
+			<path stroke-linecap="round" stroke-linejoin="round" d="M3 10.5L12 3l9 7.5"></path>
+			<path stroke-linecap="round" stroke-linejoin="round" d="M5.25 9.75V21h13.5V9.75"></path>
+		} else if icon == "building" {
+			<path stroke-linecap="round" stroke-linejoin="round" d="M4 21h16"></path>
+			<path stroke-linecap="round" stroke-linejoin="round" d="M7 21V6h10v15"></path>
+			<path stroke-linecap="round" stroke-linejoin="round" d="M10 9h.01M14 9h.01M10 13h.01M14 13h.01"></path>
+		} else if icon == "users" {
+			<path stroke-linecap="round" stroke-linejoin="round" d="M16 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"></path>
+			<circle cx="10" cy="7" r="3"></circle>
+			<path stroke-linecap="round" stroke-linejoin="round" d="M20 21v-2a4 4 0 00-3-3.87"></path>
+			<path stroke-linecap="round" stroke-linejoin="round" d="M15 4.13a3 3 0 010 5.74"></path>
+		} else if icon == "project" {
+			<path stroke-linecap="round" stroke-linejoin="round" d="M4 6.5h6l2 2h8v9H4z"></path>
+			<path stroke-linecap="round" stroke-linejoin="round" d="M7 12h10M7 15h6"></path>
+		} else if icon == "data-source" {
+			<path stroke-linecap="round" stroke-linejoin="round" d="M8 7V3M16 7V3M7 11h10"></path>
+			<path stroke-linecap="round" stroke-linejoin="round" d="M8 7h8v5a4 4 0 01-8 0z"></path>
+			<path stroke-linecap="round" stroke-linejoin="round" d="M12 16v2.5a2.5 2.5 0 002.5 2.5H18"></path>
+			<circle cx="20" cy="21" r="1.5"></circle>
+		} else if icon == "query" {
+			<path stroke-linecap="round" stroke-linejoin="round" d="M5 6h9M5 10h7M5 14h5"></path>
+			<circle cx="16" cy="16" r="3.5"></circle>
+			<path stroke-linecap="round" stroke-linejoin="round" d="M18.5 18.5L21 21"></path>
+		} else if icon == "environment" {
+			<path stroke-linecap="round" stroke-linejoin="round" d="M5 7h14M5 12h14M5 17h14"></path>
+			<circle cx="9" cy="7" r="2"></circle>
+			<circle cx="15" cy="12" r="2"></circle>
+			<circle cx="11" cy="17" r="2"></circle>
+		} else if icon == "proof" {
+			<path stroke-linecap="round" stroke-linejoin="round" d="M12 3l8 3v6c0 5-8 9-8 9s-8-4-8-9V6l8-3zM8 12l3 3 5-6"></path>
+		} else if icon == "pipeline" {
+			<circle cx="5" cy="12" r="2"></circle>
+			<circle cx="12" cy="6" r="2"></circle>
+			<circle cx="19" cy="12" r="2"></circle>
+			<circle cx="12" cy="18" r="2"></circle>
+			<path stroke-linecap="round" stroke-linejoin="round" d="M6.8 10.5L10.2 7.5M13.8 7.5l3.4 3M17.2 13.5l-3.4 3M10.2 16.5l-3.4-3"></path>
+		} else if icon == "run" {
+			<circle cx="12" cy="12" r="8"></circle>
+			<path stroke-linecap="round" stroke-linejoin="round" d="M10 8.5l5 3.5-5 3.5z"></path>
+			<path stroke-linecap="round" stroke-linejoin="round" d="M4 19l3-3M20 5l-3 3"></path>
+		} else if icon == "builder" {
+			<rect x="4" y="4" width="6" height="6" rx="1.5"></rect>
+			<rect x="14" y="4" width="6" height="6" rx="1.5"></rect>
+			<rect x="4" y="14" width="6" height="6" rx="1.5"></rect>
+			<path stroke-linecap="round" stroke-linejoin="round" d="M14 17h6M17 14v6"></path>
+		} else if icon == "database" {
+			<ellipse cx="12" cy="5" rx="7" ry="3"></ellipse>
+			<path stroke-linecap="round" stroke-linejoin="round" d="M5 5v6c0 1.66 3.13 3 7 3s7-1.34 7-3V5"></path>
+			<path stroke-linecap="round" stroke-linejoin="round" d="M5 11v6c0 1.66 3.13 3 7 3s7-1.34 7-3v-6"></path>
+		} else if icon == "calendar" {
+			<path stroke-linecap="round" stroke-linejoin="round" d="M7 3v4M17 3v4M4 9h16"></path>
+			<rect x="4" y="5" width="16" height="16" rx="2"></rect>
+			<path stroke-linecap="round" stroke-linejoin="round" d="M8 13h2M14 13h2M8 17h2M14 17h2"></path>
+		} else if icon == "notification" {
+			<path stroke-linecap="round" stroke-linejoin="round" d="M12 3a6 6 0 00-6 6v3.5L4 16h16l-2-3.5V9a6 6 0 00-6-6z"></path>
+			<path stroke-linecap="round" stroke-linejoin="round" d="M9.5 19a2.5 2.5 0 005 0"></path>
+			<path stroke-linecap="round" stroke-linejoin="round" d="M12 7v4"></path>
+		} else if icon == "alert" {
+			<path stroke-linecap="round" stroke-linejoin="round" d="M12 3l9 16H3L12 3z"></path>
+			<path stroke-linecap="round" stroke-linejoin="round" d="M12 9v4"></path>
+			<path stroke-linecap="round" stroke-linejoin="round" d="M12 17h.01"></path>
+		} else {
+			<path stroke-linecap="round" stroke-linejoin="round" d="M8 3h8l5 5v13H3V3h5z"></path>
+			<path stroke-linecap="round" stroke-linejoin="round" d="M16 3v5h5"></path>
+			<path stroke-linecap="round" stroke-linejoin="round" d="M8 13h8M8 17h5"></path>
+		}
+	</svg>
+}

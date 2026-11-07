@@ -1,0 +1,520 @@
+package views
+
+import (
+	"fmt"
+	"strings"
+
+	api "github.com/Braidplane/braidplane-core/api-schema/gen/client"
+)
+
+templ PipelineSchedulesPage(
+	shellData AuthenticatedShellData,
+	orgSlug string,
+	activeProjectSlug string,
+	environmentSlug string,
+	triggers []api.PipelineTrigger,
+	filters PipelineScheduleFilters,
+	selectedDetail PipelineScheduleSelectedDetail,
+) {
+	@AuthenticatedShell(shellData, PipelineSchedulesPageContent(orgSlug, activeProjectSlug, environmentSlug, triggers, filters, selectedDetail))
+}
+
+templ PipelineSchedulesPageContent(
+	orgSlug string,
+	activeProjectSlug string,
+	environmentSlug string,
+	triggers []api.PipelineTrigger,
+	filters PipelineScheduleFilters,
+	selectedDetail PipelineScheduleSelectedDetail,
+) {
+	<div id="pipeline-schedules-workspace">
+		<form
+			class="rounded-lg border border-base-300 bg-base-100 p-3"
+			method="get"
+			action={ templ.URL(buildEnvironmentProjectSchedulesListHref(orgSlug, activeProjectSlug, environmentSlug, PipelineScheduleFilters{})) }
+			hx-get={ buildEnvironmentProjectSchedulesListHref(orgSlug, activeProjectSlug, environmentSlug, PipelineScheduleFilters{}) }
+			hx-target="#pipeline-schedules-workspace"
+			hx-select="#pipeline-schedules-workspace"
+			hx-swap="outerHTML show:none focus-scroll:false"
+			hx-push-url="true"
+			hx-indicator="#pipeline-schedules-loading"
+			data-preserve-scroll
+		>
+			<input type="hidden" name="environment_slug" value={ environmentSlug }/>
+			<div class="flex flex-wrap items-end gap-2">
+				<label class="form-control w-44 max-w-full">
+					<div class="label py-0.5"><span class="label-text text-xs">Pipeline slug</span></div>
+					<input class="input input-bordered input-sm w-full" type="text" name="pipeline_slug" value={ filters.PipelineSlug } placeholder="e.g. orders-etl"/>
+				</label>
+				<label class="form-control w-36">
+					<div class="label py-0.5"><span class="label-text text-xs">State</span></div>
+					<select class="select select-bordered select-sm w-full" name="enabled">
+						<option selected?={ filters.Enabled == "" } value="">All states</option>
+						<option selected?={ filters.Enabled == "enabled" } value="enabled">Enabled</option>
+						<option selected?={ filters.Enabled == "paused" } value="paused">Paused</option>
+					</select>
+				</label>
+				<div class="flex items-end gap-2">
+					<button class="btn btn-primary btn-sm" type="submit">Apply</button>
+					<a
+						class="btn btn-outline btn-sm"
+						href={ templ.URL(buildEnvironmentProjectSchedulesListHref(orgSlug, activeProjectSlug, environmentSlug, PipelineScheduleFilters{})) }
+						hx-get={ buildEnvironmentProjectSchedulesListHref(orgSlug, activeProjectSlug, environmentSlug, PipelineScheduleFilters{}) }
+						hx-target="#pipeline-schedules-workspace"
+						hx-select="#pipeline-schedules-workspace"
+						hx-swap="outerHTML show:none focus-scroll:false"
+						hx-push-url="true"
+						data-preserve-scroll
+					>Reset</a>
+				</div>
+			</div>
+		</form>
+		if scheduleFiltersActive(filters) {
+			<div class="mt-3 flex flex-wrap gap-2">
+				<span class="badge badge-primary badge-outline">{ scheduleFilterChipLabel(filters) }</span>
+			</div>
+		}
+		if len(triggers) == 0 {
+			@EntityLoading("pipeline-schedules-loading")
+		}
+		<div id="pipeline-schedules-results" class="mt-4">
+			if len(triggers) == 0 {
+				<div class="rounded-xl border border-dashed border-base-300 bg-base-100 p-8 text-center">
+					if scheduleFiltersActive(filters) {
+						<h2 class="text-lg font-semibold text-base-content">No triggers match these filters</h2>
+						<p class="mt-2 text-sm text-base-content/70">Adjust the pipeline or state filter to inspect other trigger definitions.</p>
+						<a
+							class="btn btn-outline btn-sm mt-4"
+							href={ templ.URL(buildEnvironmentProjectSchedulesListHref(orgSlug, activeProjectSlug, environmentSlug, PipelineScheduleFilters{})) }
+							hx-get={ buildEnvironmentProjectSchedulesListHref(orgSlug, activeProjectSlug, environmentSlug, PipelineScheduleFilters{}) }
+							hx-target="#pipeline-schedules-workspace"
+							hx-select="#pipeline-schedules-workspace"
+							hx-swap="outerHTML show:none focus-scroll:false"
+							hx-push-url="true"
+							data-preserve-scroll
+						>Clear filters</a>
+					} else {
+						<h2 class="text-lg font-semibold text-base-content">No pipeline triggers yet</h2>
+						<p class="mt-2 text-sm text-base-content/70">Product-managed schedule and webhook triggers will appear here for this environment.</p>
+						<a class="btn btn-primary btn-sm mt-4" href={ templ.URL(buildEnvironmentProjectPipelinesListHref(orgSlug, activeProjectSlug, environmentSlug, "", "")) }>View pipelines</a>
+					}
+				</div>
+			} else {
+				@EntityListLayout("pipeline-schedules-loading", PipelineScheduleQuickLook(orgSlug, activeProjectSlug, environmentSlug, filters, selectedDetail)) {
+					<section class="min-h-0 rounded-xl border border-base-300 bg-base-100 p-4">
+						<div class="flex flex-wrap items-start justify-between gap-3">
+							<div>
+								<h2 class="text-base font-semibold text-base-content">Trigger definitions</h2>
+								<p class="mt-1 text-xs text-base-content/70">{ fmt.Sprintf("%d", len(triggers)) } visible triggers in { environmentSlug }</p>
+							</div>
+						</div>
+						<div class="mt-4 space-y-3">
+							for _, trigger := range triggers {
+								@EntityListItem(scheduleTriggerListItemClass(string(trigger.Slug), selectedDetail.Slug), string(trigger.Slug) == selectedDetail.Slug, "trigger-opener-"+string(trigger.Slug), string(trigger.Name), scheduleSelectionHrefWithFilters(orgSlug, activeProjectSlug, environmentSlug, string(trigger.Slug), filters), "#pipeline-schedules-results", "trigger-preview-heading", "#pipeline-schedules-loading") {
+									<div class="flex flex-wrap items-start justify-between gap-3">
+										<div class="min-w-0">
+											<h3 class="break-words text-sm font-semibold text-base-content">{ string(trigger.Name) }</h3>
+											<p class="mt-1 break-all font-mono text-xs text-base-content/70">{ string(trigger.Slug) }</p>
+										</div>
+										<div class="flex shrink-0 flex-wrap gap-1">
+											<span class={ scheduleEnabledBadgeClass(trigger.Enabled) }>{ scheduleEnabledLabel(trigger.Enabled) }</span>
+											<span class="badge badge-primary badge-outline">{ string(trigger.Type) }</span>
+										</div>
+									</div>
+									<div class="mt-3 grid gap-2 border-t border-base-300/70 pt-3 text-xs text-base-content/70 sm:grid-cols-2">
+										<p class="break-all font-mono">{ string(trigger.PipelineSlug) }</p>
+										if trigger.Schedule != nil {
+											<p class="break-all sm:text-right">{ trigger.Schedule.Cron } / { trigger.Schedule.Timezone }</p>
+										} else {
+											<p class="sm:text-right">webhook delivery</p>
+										}
+										<p>{ scheduleVersionPolicyLabel(trigger.VersionPolicy) }</p>
+										<p class="sm:text-right">updated { formatRunTimestamp(trigger.UpdatedAt) }</p>
+									</div>
+								}
+							}
+						</div>
+					</section>
+				}
+			}
+		</div>
+	</div>
+}
+
+templ PipelineScheduleDetailPanelSlot(
+	orgSlug string,
+	activeProjectSlug string,
+	environmentSlug string,
+	filters PipelineScheduleFilters,
+	selectedDetail PipelineScheduleSelectedDetail,
+) {
+	if selectedDetail.ErrorSummary != "" {
+		<div class="rounded-lg border border-warning/45 bg-warning/15 px-4 py-3 text-sm text-base-content">
+			<p class="font-semibold">{ selectedDetail.ErrorSummary }</p>
+			if selectedDetail.ErrorDetailsSanitized && selectedDetail.ErrorDetails != "" {
+				<p class="mt-1 break-words text-xs text-base-content/70">{ selectedDetail.ErrorDetails }</p>
+			}
+		</div>
+	} else if selectedDetail.Trigger == nil {
+		<div class="rounded-lg border border-warning/45 bg-warning/15 px-4 py-3 text-sm text-base-content">
+			<span>Select a trigger to inspect configuration and delivery history.</span>
+		</div>
+	} else {
+		{{ trigger := *selectedDetail.Trigger }}
+		{{ detailHref := scheduleDetailHref(orgSlug, activeProjectSlug, environmentSlug, selectedDetail.Slug) }}
+		{{ section := scheduleDetailSection(ctx) }}
+		@EntityDetailHeader(string(trigger.Name), string(trigger.Slug)) {
+			<a class="btn btn-outline btn-sm" href={ templ.URL(entityBackHref(ctx, buildEnvironmentProjectSchedulesListHref(orgSlug, activeProjectSlug, environmentSlug, filters))) }>Back to schedules</a>
+		}
+		@EntitySectionNavigation("Trigger sections") {
+			@EntitySectionLink(entitySectionHref(ctx, detailHref, "configuration"), "Configuration", section == "configuration")
+			@EntitySectionLink(entitySectionHref(ctx, detailHref, "history"), "History", section == "history")
+		}
+		if section == "configuration" {
+			<div class="min-w-0 space-y-3">
+				<div class="flex flex-wrap gap-2">
+					<a class="btn btn-outline btn-sm" href={ templ.URL(schedulePipelineHref(orgSlug, activeProjectSlug, environmentSlug, trigger)) }>Open pipeline</a>
+					<a class="btn btn-outline btn-sm" href={ templ.URL(buildEnvironmentRunsListHrefWithProject(orgSlug, activeProjectSlug, environmentSlug, "", "", "", string(trigger.PipelineSlug), "", "")) }>View runs</a>
+				</div>
+				if trigger.Completion!=nil {
+					@PipelineCompletionConfiguration(orgSlug, activeProjectSlug, environmentSlug, trigger, selectedDetail)
+				}
+				<div class="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+					<div>
+						<p class="text-xs uppercase tracking-wide text-base-content/60">Trigger slug</p>
+						<p class="mt-1 break-all font-mono text-sm text-base-content">{ string(trigger.Slug) }</p>
+					</div>
+					<div>
+						<p class="text-xs uppercase tracking-wide text-base-content/60">Trigger name</p>
+						<p class="mt-1 break-words text-sm text-base-content">{ string(trigger.Name) }</p>
+					</div>
+					<div>
+						<p class="text-xs uppercase tracking-wide text-base-content/60">Enabled state</p>
+						<p class="mt-1 text-sm text-base-content">{ scheduleEnabledLabel(trigger.Enabled) }</p>
+					</div>
+					<div>
+						<p class="text-xs uppercase tracking-wide text-base-content/60">Target pipeline</p>
+						<a class="link link-primary mt-1 inline-block break-all font-mono text-sm" href={ templ.URL(schedulePipelineHref(orgSlug, activeProjectSlug, environmentSlug, trigger)) }>{ string(trigger.PipelineSlug) }</a>
+					</div>
+					<div>
+						<p class="text-xs uppercase tracking-wide text-base-content/60">Version policy</p>
+						<p class="mt-1 break-all text-sm text-base-content">{ scheduleVersionPolicyLabel(trigger.VersionPolicy) }</p>
+					</div>
+					<div>
+						<p class="text-xs uppercase tracking-wide text-base-content/60">Runtime input keys</p>
+						<p class="mt-1 break-all text-sm text-base-content">{ scheduleRuntimeInputKeysLabel(trigger.RuntimeInputKeys) }</p>
+					</div>
+					<div>
+						<p class="text-xs uppercase tracking-wide text-base-content/60">Retry policy</p>
+						<p class="mt-1 text-sm text-base-content">{ scheduleRetryPolicyLabel(trigger.RetryPolicy) }</p>
+						<p class="mt-1 text-xs text-base-content/60">{ scheduleRetryTimingLabel(trigger.RetryPolicy) }</p>
+					</div>
+					<div>
+						<p class="text-xs uppercase tracking-wide text-base-content/60">Retryable failures</p>
+						<p class="mt-1 text-sm text-base-content">{ scheduleRetryFailureKindsLabel(trigger.RetryPolicy.RetryableFailureKinds) }</p>
+					</div>
+					if trigger.Schedule != nil {
+						<div>
+							<p class="text-xs uppercase tracking-wide text-base-content/60">Cron</p>
+							<p class="mt-1 break-all font-mono text-sm text-base-content">{ trigger.Schedule.Cron }</p>
+						</div>
+						<div>
+							<p class="text-xs uppercase tracking-wide text-base-content/60">Timezone</p>
+							<p class="mt-1 text-sm text-base-content">{ trigger.Schedule.Timezone }</p>
+						</div>
+						<div>
+							<p class="text-xs uppercase tracking-wide text-base-content/60">Misfire policy</p>
+							<p class="mt-1 text-sm text-base-content">{ string(trigger.Schedule.MisfirePolicy) }</p>
+						</div>
+					} else if trigger.Webhook != nil {
+						<div>
+							<p class="text-xs uppercase tracking-wide text-base-content/60">Receiver ID</p>
+							<p class="mt-1 break-all font-mono text-xs text-base-content">{ trigger.Webhook.ReceiverId }</p>
+						</div>
+						<div>
+							<p class="text-xs uppercase tracking-wide text-base-content/60">Verification</p>
+							<p class="mt-1 text-sm text-base-content">{ string(trigger.Webhook.VerificationStrategy) }</p>
+						</div>
+					}
+					if trigger.Webhook != nil {
+						<div class="min-w-0 md:col-span-2">
+							<p class="text-xs uppercase tracking-wide text-base-content/60">Input mappings</p>
+							for _, mapping := range trigger.Webhook.InputMappings {
+								<p class="mt-1 break-all font-mono text-xs text-base-content">{ mapping.JsonPointer } → { mapping.RuntimeInputKey }</p>
+							}
+							if len(trigger.Webhook.InputMappings) == 0 {
+								<p class="mt-1 text-sm text-base-content">No input mappings</p>
+							}
+						</div>
+					}
+					<div>
+						<p class="text-xs uppercase tracking-wide text-base-content/60">Updated</p>
+						<p class="mt-1 text-sm text-base-content">{ formatRunTimestamp(trigger.UpdatedAt) }</p>
+					</div>
+				</div>
+			</div>
+		}
+		if section == "history" {
+			if trigger.Type == api.PipelineTriggerTypeCompletion {
+				<p class="text-sm">Open an upstream run's Completion section to inspect its exact root, final attempt, persisted dispatch decision and accepted child. Waiting subscriptions do not create placeholder runs.</p>
+				<a class="link link-primary" href={ templ.URL(buildEnvironmentRunsListHrefWithProject(orgSlug, activeProjectSlug, environmentSlug, "", "", "", trigger.Completion.UpstreamPipelineSlug, "", "")) }>Inspect upstream runs</a>
+			} else if trigger.Type == api.PipelineTriggerTypeSchedule {
+				<div class="mt-4 min-w-0 space-y-3">
+					<div class="flex flex-wrap items-start justify-between gap-3">
+						<div>
+							<h3 class="text-base font-semibold text-base-content">Scheduled-fire history</h3>
+							<p class="mt-1 text-xs text-base-content/70">Recent persisted fire diagnostics for { string(trigger.Slug) }</p>
+						</div>
+						<div class="flex flex-wrap gap-1">
+							<span class="badge badge-ghost badge-outline">{ fmt.Sprintf("%d", len(selectedDetail.Fires)) } rows</span>
+						</div>
+					</div>
+					if selectedDetail.FireHistoryUnavailable {
+						<div class="mt-3 rounded-lg border border-warning/45 bg-warning/15 px-4 py-3 text-sm text-base-content">
+							<p class="font-semibold">{ selectedDetail.FireHistoryErrorSummary }</p>
+							if selectedDetail.FireHistoryErrorDetailsSanitized && selectedDetail.FireHistoryErrorDetails != "" {
+								<p class="mt-1 break-words text-xs text-base-content/70">{ selectedDetail.FireHistoryErrorDetails }</p>
+							}
+						</div>
+					} else if len(selectedDetail.Fires) == 0 {
+						<div class="mt-4 rounded-lg border border-dashed border-base-300 bg-base-200 px-4 py-5 text-sm text-base-content/70">
+							No scheduled fires recorded for this trigger yet.
+						</div>
+					} else {
+						<div class="mt-4 overflow-x-auto">
+							<table class="table table-zebra table-sm">
+								<thead>
+									<tr>
+										<th>Scheduled</th>
+										<th>Actual</th>
+										<th>Status</th>
+										<th>Misfire</th>
+										<th>Run</th>
+										<th>Source event</th>
+										<th>Error</th>
+									</tr>
+								</thead>
+								<tbody>
+									for _, fire := range selectedDetail.Fires {
+										<tr>
+											<td class="whitespace-nowrap font-mono text-xs">{ formatRunTimestamp(fire.ScheduledFireAt) }</td>
+											<td class="whitespace-nowrap font-mono text-xs">{ formatRunTimestamp(fire.ActualFireAt) }</td>
+											<td><span class={ scheduleFireStatusBadgeClass(fire.Status) }>{ string(fire.Status) }</span></td>
+											<td><span class={ scheduleMisfireBadgeClass(fire.MisfireResult) }>{ string(fire.MisfireResult) }</span></td>
+											<td class="max-w-[14rem]">
+												if href := scheduleFireRunHref(orgSlug, activeProjectSlug, environmentSlug, fire); href != "" {
+													<a class="link link-primary break-all font-mono text-xs" href={ templ.URL(href) }>{ scheduleFireRunLabel(fire) }</a>
+												} else if scheduleFireHasMissingRunLink(fire) {
+													<span class="badge badge-error badge-outline">{ scheduleFireRunLabel(fire) }</span>
+												} else {
+													<span class="break-all text-xs text-base-content/70">{ scheduleFireRunLabel(fire) }</span>
+												}
+											</td>
+											<td class="max-w-[12rem] break-all font-mono text-xs text-base-content/70">{ scheduleFireSourceEventLabel(fire) }</td>
+											<td class="max-w-[16rem] break-words text-xs">
+												if fire.ErrorSummary != nil && strings.TrimSpace(*fire.ErrorSummary) != "" {
+													<span class="text-error">{ scheduleFireErrorLabel(fire) }</span>
+												} else {
+													<span class="text-base-content/60">{ scheduleFireErrorLabel(fire) }</span>
+												}
+											</td>
+										</tr>
+									}
+								</tbody>
+							</table>
+						</div>
+						if selectedDetail.FiresPrevCursor != "" || selectedDetail.FiresHasMore {
+							<div class="mt-4 flex items-center justify-end gap-2">
+								if selectedDetail.FiresPrevCursor != "" {
+									<a
+										class="btn btn-sm btn-outline"
+										href={ templ.URL(scheduleHistoryHref(ctx, orgSlug, activeProjectSlug, environmentSlug, selectedDetail.Slug, selectedDetail.FiresPrevCursor, "prev", filters)) }
+										hx-get={ scheduleHistoryHref(ctx, orgSlug, activeProjectSlug, environmentSlug, selectedDetail.Slug, selectedDetail.FiresPrevCursor, "prev", filters) }
+										hx-target="#trigger-detail"
+										hx-select="#trigger-detail"
+										hx-swap="outerHTML show:none focus-scroll:false"
+										hx-push-url="true"
+										data-preserve-scroll
+									>Previous</a>
+								} else {
+									<button class="btn btn-sm btn-outline" type="button" disabled>Previous</button>
+								}
+								if selectedDetail.FiresHasMore && selectedDetail.FiresNextCursor != "" {
+									<a
+										class="btn btn-sm btn-outline"
+										href={ templ.URL(scheduleHistoryHref(ctx, orgSlug, activeProjectSlug, environmentSlug, selectedDetail.Slug, selectedDetail.FiresNextCursor, "next", filters)) }
+										hx-get={ scheduleHistoryHref(ctx, orgSlug, activeProjectSlug, environmentSlug, selectedDetail.Slug, selectedDetail.FiresNextCursor, "next", filters) }
+										hx-target="#trigger-detail"
+										hx-select="#trigger-detail"
+										hx-swap="outerHTML show:none focus-scroll:false"
+										hx-push-url="true"
+										data-preserve-scroll
+									>Next</a>
+								} else {
+									<button class="btn btn-sm btn-outline" type="button" disabled>Next</button>
+								}
+							</div>
+						}
+					}
+				</div>
+			} else {
+				@PipelineWebhookDeliveryHistory(orgSlug, activeProjectSlug, environmentSlug, filters, selectedDetail)
+			}
+		}
+	}
+}
+
+templ PipelineWebhookDeliveryHistory(
+	orgSlug string,
+	projectSlug string,
+	environmentSlug string,
+	filters PipelineScheduleFilters,
+	selected PipelineScheduleSelectedDetail,
+) {
+	if selected.DeliveryActionSuccess != "" {
+		@SuccessPopup("webhook-delivery-replay-success", selected.DeliveryActionSuccess)
+	}
+	if selected.DeliveryActionError != "" {
+		@ErrorPopup("webhook-delivery-replay-error", selected.DeliveryActionError, "")
+	}
+	<div class="mt-4 min-w-0 space-y-3">
+		<div class="flex flex-wrap items-start justify-between gap-3">
+			<div>
+				<h3 class="text-base font-semibold text-base-content">Webhook delivery history</h3>
+				<p class="mt-1 text-xs text-base-content/70">Safe diagnostics only; payloads and mapped values are never shown.</p>
+			</div>
+			<span class="badge badge-ghost badge-outline">{ fmt.Sprintf("%d", len(selected.Deliveries)) } rows</span>
+		</div>
+		if selected.DeliveryHistoryUnavailable {
+			<div class="mt-3 rounded-lg border border-warning/45 bg-warning/15 px-4 py-3 text-sm text-base-content">
+				<p class="font-semibold">{ selected.DeliveryHistoryErrorSummary }</p>
+				if selected.DeliveryHistoryErrorDetailsSanitized && selected.DeliveryHistoryErrorDetails != "" {
+					<p class="mt-1 break-words text-xs text-base-content/70">{ selected.DeliveryHistoryErrorDetails }</p>
+				}
+			</div>
+		} else if len(selected.Deliveries) == 0 {
+			<div class="mt-4 rounded-lg border border-dashed border-base-300 bg-base-200 px-4 py-5 text-sm text-base-content/70">No webhook deliveries recorded for this trigger yet.</div>
+		} else {
+			<div class="mt-4 overflow-x-auto">
+				<table class="table table-zebra table-sm">
+					<thead><tr><th>Received</th><th>Delivery</th><th>Status</th><th>Inputs</th><th>Attempt</th><th>Run</th><th>Failure</th><th>Replay</th></tr></thead>
+					<tbody>
+						for _, delivery := range selected.Deliveries {
+							<tr>
+								<td class="whitespace-nowrap font-mono text-xs">{ formatRunTimestamp(delivery.ReceivedAt) }</td>
+								<td class="max-w-[14rem] break-all font-mono text-xs">{ delivery.DeliveryId }<br/><span class="text-base-content/50">duplicates { fmt.Sprintf("%d", delivery.DuplicateCount) }</span></td>
+								<td><span class={ webhookDeliveryStatusBadgeClass(delivery.Status) }>{ string(delivery.Status) }</span></td>
+								<td class="max-w-[12rem] break-all text-xs">{ webhookDeliveryInputsLabel(delivery) }</td>
+								<td class="font-mono text-xs">{ fmt.Sprintf("%d", delivery.AttemptNumber) }</td>
+								<td class="max-w-[12rem] break-all font-mono text-xs">
+									if href := webhookDeliveryRunHref(orgSlug, projectSlug, environmentSlug, delivery); href != "" {
+										<a class="link link-primary" href={ templ.URL(href) }>{ string(*delivery.LinkedRunSlug) }</a>
+									} else {
+										<span class="text-base-content/50">—</span>
+									}
+								</td>
+								<td class="max-w-[14rem] break-all font-mono text-xs">{ webhookDeliveryFailureLabel(delivery) }</td>
+								<td>
+									if delivery.ReplayAvailable {
+										<form method="post" action={ templ.URL(webhookDeliveryReplayAction(orgSlug, projectSlug, selected.Slug, delivery.DeliveryId)) }>
+											<input type="hidden" name="environment_slug" value={ environmentSlug }/>
+											<input type="hidden" name="list_return" value={ entityBackHref(ctx, buildEnvironmentProjectSchedulesListHref(orgSlug, projectSlug, environmentSlug, filters)) }/>
+											<button class="btn btn-warning btn-xs" type="submit">Replay</button>
+										</form>
+									} else if delivery.ReplayUnavailableReason != nil {
+										<span class="text-xs text-base-content/50">{ *delivery.ReplayUnavailableReason }</span>
+									}
+								</td>
+							</tr>
+						}
+					</tbody>
+				</table>
+			</div>
+			if selected.DeliveriesPrevCursor != "" || selected.DeliveriesHasMore {
+				<div class="mt-4 flex items-center justify-end gap-2">
+					if selected.DeliveriesPrevCursor != "" {
+						<a
+							class="btn btn-sm btn-outline"
+							href={ templ.URL(scheduleHistoryHref(ctx, orgSlug, projectSlug, environmentSlug, selected.Slug, selected.DeliveriesPrevCursor, "prev", filters)) }
+							hx-get={ scheduleHistoryHref(ctx, orgSlug, projectSlug, environmentSlug, selected.Slug, selected.DeliveriesPrevCursor, "prev", filters) }
+							hx-target="#trigger-detail"
+							hx-select="#trigger-detail"
+							hx-swap="outerHTML show:none focus-scroll:false"
+							hx-push-url="true"
+							data-preserve-scroll
+						>Previous</a>
+					} else {
+						<button class="btn btn-sm btn-outline" type="button" disabled>Previous</button>
+					}
+					if selected.DeliveriesHasMore && selected.DeliveriesNextCursor != "" {
+						<a
+							class="btn btn-sm btn-outline"
+							href={ templ.URL(scheduleHistoryHref(ctx, orgSlug, projectSlug, environmentSlug, selected.Slug, selected.DeliveriesNextCursor, "next", filters)) }
+							hx-get={ scheduleHistoryHref(ctx, orgSlug, projectSlug, environmentSlug, selected.Slug, selected.DeliveriesNextCursor, "next", filters) }
+							hx-target="#trigger-detail"
+							hx-select="#trigger-detail"
+							hx-swap="outerHTML show:none focus-scroll:false"
+							hx-push-url="true"
+							data-preserve-scroll
+						>Next</a>
+					} else {
+						<button class="btn btn-sm btn-outline" type="button" disabled>Next</button>
+					}
+				</div>
+			}
+		}
+	</div>
+}
+
+templ PipelineScheduleQuickLook(orgSlug string, projectSlug string, environmentSlug string, filters PipelineScheduleFilters, selected PipelineScheduleSelectedDetail) {
+	if selected.ErrorSummary != "" {
+		@EntityState("Trigger unavailable", selected.ErrorSummary)
+	} else if selected.Trigger == nil {
+		@EntityState("Select a trigger", "Choose a trigger to inspect its target and recent delivery.")
+	} else {
+		{{ trigger := *selected.Trigger }}
+		{{ listHref := scheduleSelectionHrefWithFilters(orgSlug, projectSlug, environmentSlug, selected.Slug, filters) }}
+		@EntityQuickLook("trigger-preview-heading", string(trigger.Name), selected.Slug, entityDetailHref(scheduleDetailHref(orgSlug, projectSlug, environmentSlug, selected.Slug), listHref), entityListHref(ctx, listHref, "trigger_slug", ""), "#pipeline-schedules-results", "trigger-opener-"+selected.Slug) {
+			@EntityFacts() {
+				@EntityFact("Pipeline") {
+					<span class="break-all">{ string(trigger.PipelineSlug) }</span>
+				}
+				@EntityFact("Environment") {
+					{ environmentSlug }
+				}
+				@EntityFact("Type") {
+					{ string(trigger.Type) }
+				}
+				@EntityFact("State") {
+					{ scheduleEnabledLabel(trigger.Enabled) }
+				}
+				if trigger.Schedule != nil {
+					@EntityFact("Schedule") {
+						<span class="break-all">{ trigger.Schedule.Cron + " / " + trigger.Schedule.Timezone }</span>
+					}
+				}
+				@EntityFact("Latest delivery") {
+					if selected.FireHistoryUnavailable || selected.DeliveryHistoryUnavailable {
+						<span>History unavailable</span>
+					} else if len(selected.Fires) > 0 {
+						{ string(selected.Fires[0].Status) } <span>{ formatRunTimestamp(selected.Fires[0].ScheduledFireAt) }</span>
+					} else if len(selected.Deliveries) > 0 {
+						{ string(selected.Deliveries[0].Status) } <span>{ formatRunTimestamp(selected.Deliveries[0].ReceivedAt) }</span>
+					} else {
+						<span>No recorded deliveries</span>
+					}
+				}
+			}
+		}
+	}
+}
+
+templ PipelineScheduleDetailPage(shell AuthenticatedShellData, orgSlug string, projectSlug string, environmentSlug string, selected PipelineScheduleSelectedDetail) {
+	@AuthenticatedShell(shell, PipelineScheduleDetailContent(orgSlug, projectSlug, environmentSlug, selected))
+}
+
+templ PipelineScheduleDetailContent(orgSlug string, projectSlug string, environmentSlug string, selected PipelineScheduleSelectedDetail) {
+	<div id="trigger-detail" class="min-w-0">
+		@PipelineScheduleDetailPanelSlot(orgSlug, projectSlug, environmentSlug, PipelineScheduleFilters{}, selected)
+	</div>
+}

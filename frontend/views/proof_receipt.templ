@@ -1,0 +1,205 @@
+package views
+
+import (
+	"fmt"
+	api "github.com/Braidplane/braidplane-core/api-schema/gen/client"
+)
+
+templ ProofReceiptPage(shellData AuthenticatedShellData, receipt *api.ProofReceipt, changeURL string) {
+	@AuthenticatedShell(shellData, ProofReceiptPageContent(receipt, changeURL))
+}
+
+templ ProofReceiptPageContent(receipt *api.ProofReceipt, changeURL string) {
+	{{ section := proofReceiptSection(ctx) }}
+	if receipt != nil {
+		<a class="link link-primary mb-4 inline-block" href={ templ.URL(proofHistoryBackHref(ctx, receipt)) }>Receipt history</a>
+	}
+	<div class="flex flex-wrap items-start justify-between gap-3">
+		<div>
+			<h2 class="text-xl font-semibold text-base-content">Braidplane Proof receipt</h2>
+			<p class="mt-1 text-sm text-base-content/70">Immutable, protected evidence for one exact change and runtime target.</p>
+		</div>
+		if receipt != nil {
+			<span class={ ProofVerdictBadgeClass(receipt.AggregateVerdict) }>{ ProofVerdictLabel(receipt.AggregateVerdict) }</span>
+		}
+	</div>
+	if receipt == nil {
+		<div class="alert alert-warning mt-6" role="status"><span>The receipt could not be displayed. Check the protected error details above.</span></div>
+	}
+	if receipt != nil {
+		@EntitySectionNavigation("Proof receipt sections") {
+			@EntitySectionLink(proofReceiptSectionHref(ctx, receipt, "overview"), "Overview", section == "overview")
+			@EntitySectionLink(proofReceiptSectionHref(ctx, receipt, "claims"), "Claims and evidence", section == "claims")
+			@EntitySectionLink(proofReceiptSectionHref(ctx, receipt, "technical"), "Technical details", section == "technical")
+		}
+		if section == "overview" {
+			@ProofOperationalContext(receipt)
+			<section class="mt-6 border-b border-base-300 pb-5" aria-labelledby="proof-candidate-heading">
+				<div class="flex flex-wrap items-center justify-between gap-3">
+					<h3 id="proof-candidate-heading" class="text-base font-semibold text-base-content">Evaluated candidate</h3>
+				</div>
+				<div class="mt-4 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+					<div class="min-w-0">
+						<p class="text-xs font-semibold uppercase tracking-wide text-base-content/60">Change request</p>
+						if changeURL != "" {
+							<a class="link link-primary mt-1 inline-block text-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2" href={ templ.URL(changeURL) }>View PR #{ receipt.Candidate.ChangeRequestId }</a>
+						} else {
+							<p class="mt-1 break-all font-mono text-sm text-base-content">{ receipt.Candidate.ChangeRequestId }</p>
+						}
+					</div>
+					@ProofIdentity("Head SHA", receipt.Candidate.HeadSha)
+					@ProofIdentity("Source path", receipt.Candidate.PipelinePath)
+					@ProofIdentity("Project", string(receipt.Candidate.ProjectSlug))
+					@ProofIdentity("Runtime target", string(receipt.Candidate.EnvironmentSlug))
+					@ProofIdentity("Target ref", receipt.Candidate.TargetRef)
+					@ProofIdentity("Created", ProofTimestampLabel(&receipt.CreatedAt))
+				</div>
+				<div class="mt-4 grid gap-4 sm:grid-cols-2">
+					@ProofIdentity("Evidence scope", ProofEvidenceScopeLabel(receipt))
+					@ProofIdentity("Evidence freshness", ProofFreshnessLabel(*receipt))
+				</div>
+				@ProofClaimCounts(receipt)
+				<p class="mt-3 text-sm text-base-content/70">A verdict grants no deployment authority and does not establish successful execution.</p>
+				<a class="link link-primary mt-3 inline-block text-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2" href={ templ.URL(proofReceiptSectionHref(ctx, receipt, "claims")) }>Review claims and evidence</a>
+				if receipt.SupersedesReceiptId != nil {
+					<div class="alert alert-info mt-4 py-2 text-sm"><span>This result supersedes an earlier immutable receipt.</span></div>
+				}
+				if receipt.AggregateVerdict == api.ProofVerdictSuperseded {
+					<div class="alert alert-warning mt-4 py-2 text-sm"><span>A later immutable receipt supersedes this result.</span></div>
+				}
+			</section> @ProofReceiptLifecycle(receipt, false)
+		}
+		if section == "claims" {
+			@ProofReceiptClaims(receipt)
+		}
+		if section == "technical" {
+			<section class="mt-4" aria-label="Receipt provenance">
+				<div class="mt-3 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+					@ProofIdentity("Receipt", string(receipt.Id))
+					@ProofIdentity("Schema version", fmt.Sprint(receipt.SchemaVersion))
+					@ProofIdentity("Created", ProofTimestampLabel(&receipt.CreatedAt))
+					@ProofIdentity("Repository ID", receipt.Candidate.RepositoryId)
+					@ProofIdentity("Head SHA", receipt.Candidate.HeadSha)
+					@ProofIdentity("Provider connection", string(receipt.Candidate.ProviderConnectionSlug))
+					@ProofIdentity("Spec hash", receipt.Candidate.SpecHash)
+					@ProofIdentity("Binding fingerprint", receipt.Candidate.BindingFingerprint)
+					@ProofIdentity("Capability fingerprint", receipt.Candidate.CapabilityFingerprint)
+					@ProofIdentity("Compiler", receipt.Candidate.CompilerVersion)
+					@ProofIdentity("Policy", receipt.Candidate.PolicyVersion)
+					@ProofIdentity("Retained until", ProofTimestampLabel(&receipt.RetainUntil))
+				</div>
+				if receipt.SupersedesReceiptId != nil {
+					@ProofIdentity("Supersedes receipt", string(*receipt.SupersedesReceiptId))
+				}
+			</section>
+			@ProofReceiptLifecycle(receipt, true)
+		}
+	}
+}
+
+templ ProofIdentity(label string, value string) {
+	<div class="min-w-0"><p class="text-xs font-semibold uppercase tracking-wide text-base-content/60">{ label }</p><p class="mt-1 break-all font-mono text-sm text-base-content">{ value }</p></div>
+}
+
+templ ProofDefinition(label string, value string) {
+	<div class="min-w-0"><dt class="text-xs font-semibold uppercase tracking-wide text-base-content/60">{ label }</dt><dd class="mt-1 break-all text-sm text-base-content">{ value }</dd></div>
+}
+
+templ ProofReceiptClaims(receipt *api.ProofReceipt) {
+	<section class="mt-4" aria-labelledby="proof-claims-heading">
+		<div class="flex flex-wrap items-end justify-between gap-3">
+			<div>
+				<h3 id="proof-claims-heading" class="text-base font-semibold text-base-content">Promise clauses</h3>
+				<p class="mt-1 text-sm text-base-content/70">Every clause remains visible, including missing, stale, and inconclusive evidence.</p>
+			</div>
+		</div>
+		<div class="mt-3 grid gap-3">
+			for _, claim := range receipt.Claims {
+				<article class={ ProofClaimClass(claim.Verdict) }>
+					<div class="flex flex-wrap items-start justify-between gap-3">
+						<div class="min-w-0">
+							<p class="font-medium text-base-content">{ claim.Description }</p>
+						</div>
+						<span class={ ProofVerdictBadgeClass(claim.Verdict) }>{ ProofVerdictLabel(claim.Verdict) }</span>
+					</div>
+					<dl class="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+						if claim.ActualEvidenceLevel != nil && *claim.ActualEvidenceLevel == claim.RequiredEvidenceLevel {
+							@ProofDefinition("Evidence", ProofEvidenceLevelLabel(claim.ActualEvidenceLevel))
+						} else {
+							@ProofDefinition("Required evidence", ProofEvidenceLevelLabel(&claim.RequiredEvidenceLevel))
+							@ProofDefinition("Actual evidence", ProofEvidenceLevelLabel(claim.ActualEvidenceLevel))
+						}
+						@ProofDefinition("Observed", ProofTimestampLabel(claim.ObservedAt))
+						@ProofDefinition("Fresh until", ProofTimestampLabel(claim.ExpiresAt))
+					</dl>
+					@ProofDiagnostics(claim)
+					<details class="mt-3">
+						<summary class="cursor-pointer text-xs text-base-content/65 focus-visible:outline focus-visible:outline-2">Evidence details</summary>
+						for _, diagnostic := range claim.Diagnostics {
+							<p class="mt-1 break-all font-mono text-xs">{ diagnostic.Code }</p>
+						}
+						<p class="mt-2 break-all font-mono text-xs text-base-content/60">{ string(claim.Identity.Family) } · { claim.Identity.SemanticPath } · { claim.Identity.PipelineVersionHash }</p>
+						if len(claim.Evidence) > 0 {
+							<ul class="mt-3 space-y-1 text-xs text-base-content/65" aria-label="Sanitized evidence references">
+								for _, evidence := range claim.Evidence {
+									<li><span class="font-medium">{ string(evidence.Kind) }</span> <span class="break-all font-mono">{ evidence.Digest }</span></li>
+								}
+							</ul>
+						}
+					</details>
+				</article>
+			}
+		</div>
+	</section>
+}
+
+templ ProofReceiptLifecycle(receipt *api.ProofReceipt, technical bool) {
+	<section class="mt-4 border-b border-base-300 pb-5" aria-labelledby="proof-lifecycle-heading">
+		<h3 id="proof-lifecycle-heading" class="text-base font-semibold text-base-content">Deployment and run evidence</h3>
+		<p class="mt-1 text-sm text-base-content/70">Later records compare this immutable candidate with the selected deployed or executed version.</p>
+		if len(receipt.LifecycleLinks) == 0 {
+			<div class="alert alert-info mt-4 py-2 text-sm" role="status"><span>No deployment or run records reference this receipt yet.</span></div>
+		}
+		if len(receipt.LifecycleLinks) > 0 {
+			<ul class="mt-4 grid gap-3" aria-label="Referenced deployment and run records">
+				for _, link := range receipt.LifecycleLinks {
+					<li class="rounded-lg border border-base-300 p-3">
+						<div class="flex flex-wrap items-start justify-between gap-3">
+							<div class="min-w-0">
+								<p class="text-xs font-semibold uppercase tracking-wide text-base-content/60">{ string(link.Kind) }</p>
+								if href := ProofLifecycleHref(receipt, link); href != "" {
+									<a class="link link-primary mt-1 inline-block break-all font-mono text-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2" href={ templ.URL(href) }>{ link.Identifier }</a>
+								} else {
+									<p class="mt-1 break-all font-mono text-sm">{ link.Identifier }</p>
+								}
+							</div>
+							<span class={ ProofLifecycleStatusBadgeClass(link.Status) }>{ ProofLifecycleStatusLabel(link.Status) }</span>
+						</div>
+						if technical {
+							<dl class="mt-3 grid gap-3 sm:grid-cols-2">
+								@ProofDefinition("Candidate version", receipt.Candidate.SpecHash)
+								if link.CurrentVersionSpecHash != nil {
+									@ProofDefinition("Selected version", *link.CurrentVersionSpecHash)
+								}
+								@ProofDefinition("Linked", ProofTimestampLabel(&link.LinkedAt))
+								@ProofDefinition("Retained until", ProofTimestampLabel(&link.RetainUntil))
+							</dl>
+						}
+					</li>
+				}
+			</ul>
+		}
+	</section>
+}
+
+templ ProofClaimCounts(receipt *api.ProofReceipt) {
+	<p class="text-sm text-base-content/70">{ len(receipt.Claims) } total · { ProofClaimCount(receipt, api.ProofVerdictPassed) } passed · { ProofClaimCount(receipt, api.ProofVerdictFailed) } failed · { ProofClaimCount(receipt, api.ProofVerdictStale) } stale · { ProofClaimCount(receipt, api.ProofVerdictInconclusive) } inconclusive · { ProofClaimCount(receipt, api.ProofVerdictUnverified) } unverified · { ProofClaimCount(receipt, api.ProofVerdictSuperseded) } superseded</p>
+}
+
+templ ProofDiagnostics(claim api.ProofClaim) {
+	for _, diagnostic := range claim.Diagnostics {
+		<div class="alert alert-warning mt-3 items-start py-2 text-sm">
+			<div><p class="font-medium">{ diagnostic.Summary }</p><p class="mt-1">Next: { diagnostic.Remediation }</p></div>
+		</div>
+	}
+}

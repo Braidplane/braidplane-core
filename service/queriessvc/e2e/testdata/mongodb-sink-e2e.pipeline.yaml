@@ -1,0 +1,71 @@
+metadata:
+  slug: ${PIPELINE_SLUG}
+  name: E2E MongoDB Sink
+steps:
+  - kind: query
+    slug: fetch-users
+    query:
+      data_source_ref: ${SOURCE_DATA_SOURCE_SLUG}
+      operation_type: sql
+      operation_ref: ${SOURCE_QUERY_SLUG}
+      output_contract:
+        name: fetch-users-output
+        representation: rows
+        fields:
+          - name: id
+            type: integer
+            required: true
+          - name: email
+            type: string
+            required: true
+  - kind: transform
+    slug: project-users
+    transform:
+      inputs:
+        input: fetch-users
+      input_contract:
+        name: project-users-input
+        representation: rows
+        fields:
+          - name: id
+            type: integer
+            required: true
+          - name: email
+            type: string
+            required: true
+      sql: "SELECT id, email, '${ORG_SLUG}' AS org_slug FROM input"
+      output_kind: rows
+      output_contract:
+        name: project-users-output
+        representation: rows
+        fields:
+          - name: id
+            type: integer
+            required: true
+          - name: email
+            type: string
+            required: true
+          - name: org_slug
+            type: string
+            required: true
+  - kind: sink
+    slug: persist-users
+    sink:
+      idempotency_class: deduplicated_by_ledger
+      input: project-users
+      input_contract:
+        name: persist-users-input
+        representation: rows
+        fields:
+          - name: id
+            type: integer
+            required: true
+          - name: email
+            type: string
+            required: true
+          - name: org_slug
+            type: string
+            required: true
+      data_source_ref: ${SINK_DATA_SOURCE_SLUG}
+      operation_type: mongodb
+      operation_ref: ${SINK_QUERY_SLUG}

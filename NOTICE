@@ -1,0 +1,20 @@
+Braidplane Community core
+Copyright 2026 kerak19
+
+kerak19 is the individual licensor of the covered first-party material.
+
+First-party code and technical documentation are licensed under the Apache
+License, Version 2.0. Third-party components retain their respective licenses
+and notices, including the notices alongside vendored frontend assets, icons,
+and the ODCS schema. Preserve those notices when redistributing those files.
+
+The Braidplane app-icon PNG and ICO exports are licensed under Apache-2.0;
+see brand/icons/app/LICENSE and README.md. Trademark rights remain reserved.
+The Apache license does not grant rights to Braidplane or vendor trade names,
+service marks, or logos except as stated in that license or separate permission.
+
+Binary and container distributors must include the notices and source-availability
+materials required by the dependencies embedded in their particular artifacts.
+THIRD_PARTY_NOTICES.txt contains the bounded dependency notice inventory;
+doc/RELEASE_RIGHTS.md describes its scope and remaining release checks.
+SOURCE_AVAILABILITY.txt describes the included MPL dependency source ZIPs.

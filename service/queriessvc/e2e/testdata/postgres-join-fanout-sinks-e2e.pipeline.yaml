@@ -1,0 +1,121 @@
+metadata:
+  slug: ${PIPELINE_SLUG}
+  name: E2E Postgres Join Fan Out Sinks
+steps:
+  - kind: query
+    slug: fetch-users
+    query:
+      data_source_ref: ${PG_DATA_SOURCE_SLUG}
+      operation_type: sql
+      operation_ref: ${USERS_QUERY_SLUG}
+      output_contract:
+        name: fetch-users-output
+        representation: rows
+        fields:
+          - name: id
+            type: integer
+            required: true
+          - name: email
+            type: string
+            required: true
+  - kind: query
+    slug: fetch-accounts
+    query:
+      data_source_ref: ${PG_DATA_SOURCE_SLUG}
+      operation_type: sql
+      operation_ref: ${ACCOUNTS_QUERY_SLUG}
+      parameters:
+        org_slug: ${ORG_SLUG}
+      output_contract:
+        name: fetch-accounts-output
+        representation: rows
+        fields:
+          - name: user_id
+            type: integer
+            required: true
+          - name: account_name
+            type: string
+            required: true
+  - kind: transform
+    slug: join-users-accounts
+    transform:
+      inputs:
+        users: fetch-users
+        accounts: fetch-accounts
+      input_contract:
+        name: join-users-accounts-input
+        representation: rows
+        fields:
+          - name: users.id
+            type: integer
+            required: true
+          - name: users.email
+            type: string
+            required: true
+          - name: accounts.user_id
+            type: integer
+            required: true
+          - name: accounts.account_name
+            type: string
+            required: true
+      sql: "SELECT users.id AS user_id, users.email AS email, accounts.account_name AS account_name FROM users JOIN accounts ON accounts.user_id = users.id ORDER BY user_id"
+      output_kind: rows
+      output_contract:
+        name: join-users-accounts-output
+        representation: rows
+        fields:
+          - name: user_id
+            type: integer
+            required: true
+          - name: email
+            type: string
+            required: true
+          - name: account_name
+            type: string
+            required: true
+  - kind: sink
+    slug: persist-joined-users
+    sink:
+      idempotency_class: deduplicated_by_ledger
+      input: join-users-accounts
+      input_contract:
+        name: persist-joined-users-input
+        representation: rows
+        fields:
+          - name: user_id
+            type: integer
+            required: true
+          - name: email
+            type: string
+            required: true
+          - name: account_name
+            type: string
+            required: true
+      data_source_ref: ${PG_DATA_SOURCE_SLUG}
+      operation_type: sql
+      operation_ref: ${DB_SINK_QUERY_SLUG}
+      config:
+        org_slug: ${ORG_SLUG}
+  - kind: sink
+    slug: deliver-joined-users
+    sink:
+      idempotency_class: idempotent_with_key
+      input: join-users-accounts
+      input_contract:
+        name: deliver-joined-users-input
+        representation: rows
+        fields:
+          - name: user_id
+            type: integer
+            required: true
+          - name: email
+            type: string
+            required: true
+          - name: account_name
+            type: string
+            required: true
+      data_source_ref: ${HTTP_DATA_SOURCE_SLUG}
+      operation_type: http
+      operation_ref: ${HTTP_SINK_QUERY_SLUG}
+      config:
+        mode: fanout

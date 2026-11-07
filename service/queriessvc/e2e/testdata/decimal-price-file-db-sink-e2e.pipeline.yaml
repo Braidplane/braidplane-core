@@ -1,0 +1,65 @@
+metadata:
+  slug: ${PIPELINE_SLUG}
+  name: E2E Decimal Price File DB Sink
+steps:
+  - kind: query
+    slug: fetch-prices
+    query:
+      data_source_ref: ${HTTP_DATA_SOURCE_SLUG}
+      operation_type: http
+      operation_ref: ${HTTP_QUERY_SLUG}
+      output_contract:
+        representation: rows
+        fields:
+          - name: sku
+            type: string
+            required: true
+          - name: price
+            type: decimal
+            precision: 38
+            scale: 3
+            required: true
+          - name: adjustment
+            type: decimal
+            precision: 38
+            scale: 3
+            required: true
+  - kind: transform
+    slug: calculate-prices
+    transform:
+      inputs:
+        input: fetch-prices
+      sql: "SELECT sku, CAST(CAST(price AS DECIMAL(38,3)) + CAST(adjustment AS DECIMAL(38,3)) AS DECIMAL(38,2)) AS total FROM input"
+      output_kind: rows
+      output_contract:
+        representation: rows
+        fields:
+          - name: sku
+            type: string
+            required: true
+          - name: total
+            type: decimal
+            precision: 38
+            scale: 2
+            required: true
+  - kind: sink
+    slug: persist-prices
+    sink:
+      idempotency_class: deduplicated_by_ledger
+      input: calculate-prices
+      input_contract:
+        representation: rows
+        fields:
+          - name: sku
+            type: string
+            required: true
+          - name: total
+            type: decimal
+            precision: 38
+            scale: 2
+            required: true
+      data_source_ref: ${PG_DATA_SOURCE_SLUG}
+      operation_type: sql
+      operation_ref: ${SINK_QUERY_SLUG}
+      config:
+        org_slug: ${ORG_SLUG}

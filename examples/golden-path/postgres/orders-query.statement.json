@@ -1,0 +1,4 @@
+{
+  "type": "postgres",
+  "sql": "SELECT order_id, customer_slug, order_total_cents, discount_cents, order_total_cents - discount_cents AS net_total_cents, to_char(placed_at AT TIME ZONE 'UTC', 'YYYY-MM-DD\"T\"HH24:MI:SS\"Z\"') AS placed_at_utc FROM etl_golden_orders WHERE order_status = 'paid' ORDER BY placed_at, order_id;"
+}

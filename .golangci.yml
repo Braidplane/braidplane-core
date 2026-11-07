@@ -1,0 +1,779 @@
+version: "2"
+run:
+  relative-path-mode: cfg
+  go: "1.26"
+linters:
+  default: none
+  enable:
+    - asasalint
+    - bidichk
+    - bodyclose
+    - contextcheck
+    - depguard
+    - durationcheck
+    - errcheck
+    - errchkjson
+    - errname
+    - errorlint
+    - exhaustive
+    - forbidigo
+    - gocritic
+    - govet
+    - iface
+    - ineffassign
+    - loggercheck
+    - makezero
+    - misspell
+    - nilnil
+    - nilnesserr
+    - nilerr
+    - noctx
+    - nosprintfhostport
+    - nolintlint
+    - predeclared
+    - promlinter
+    - rowserrcheck
+    - spancheck
+    - sloglint
+    - sqlclosecheck
+    - staticcheck
+    - testifylint
+    - unconvert
+    - unused
+    - usetesting
+    - wastedassign
+    - gosec
+    - wrapcheck
+  settings:
+    depguard:
+      rules:
+        spire_registration_boundary:
+          files:
+            - "$all"
+            - "!${base-path}/pkg/spireregistration/**"
+          deny:
+            - pkg: github.com/Braidplane/braidplane-core/pkg/spireregistration
+              desc: SPIRE administration belongs only to the isolated WIF reconciler
+        cli_boundary:
+          files:
+            - "$all"
+            - "!${base-path}/cli/**"
+          deny:
+            - pkg: github.com/Braidplane/braidplane-core/cli
+              desc: shared and backend packages must not depend on CLI implementation
+        frontend_boundary:
+          files:
+            - "${base-path}/frontend/*.go"
+            - "${base-path}/frontend/**/*.go"
+            - "${base-path}/cmd/frontend/*.go"
+            - "${base-path}/cmd/frontend/**/*.go"
+          list-mode: lax
+          allow:
+            - github.com/Braidplane/braidplane-core/pkg/sinkbinding$
+            - github.com/Braidplane/braidplane-core/pkg/connector/googleworkspace$
+          deny:
+            - pkg: github.com/Braidplane/braidplane-core/pkg/eventtest
+              desc: frontend must not depend on backend provider or tooling internals
+            - pkg: github.com/Braidplane/braidplane-core/pkg/gitlab
+              desc: frontend must not depend on backend provider or tooling internals
+            - pkg: github.com/Braidplane/braidplane-core/pkg/gitprovider
+              desc: frontend must not depend on backend provider or tooling internals
+            - pkg: github.com/Braidplane/braidplane-core/pkg/googleoauth
+              desc: frontend must not depend on backend provider or tooling internals
+            - pkg: github.com/Braidplane/braidplane-core/pkg/googleworkspace
+              desc: frontend must not depend on backend provider or tooling internals
+            - pkg: github.com/Braidplane/braidplane-core/pkg/hubspot
+              desc: frontend must not depend on backend provider or tooling internals
+            - pkg: github.com/Braidplane/braidplane-core/operatorcapability
+              desc: frontend must not depend on backend provider or tooling internals
+            - pkg: github.com/Braidplane/braidplane-core/prworkflow
+              desc: frontend must not depend on backend provider or tooling internals
+            - pkg: github.com/Braidplane/braidplane-core/pkg/slack
+              desc: frontend must not depend on backend provider or tooling internals
+            - pkg: github.com/Braidplane/braidplane-core/pkg/snowflakewif
+              desc: frontend must not depend on backend provider or tooling internals
+            - pkg: github.com/Braidplane/braidplane-core/config/backend
+              desc: frontend runtime must load frontend configuration only
+            - pkg: github.com/Braidplane/braidplane-core/api-schema/gen/server
+              desc: frontend must use the generated API client package, not server stubs
+            - pkg: github.com/Braidplane/braidplane-core/pkg/connector
+              desc: frontend must use the pipeline capability projection
+            - pkg: github.com/Braidplane/braidplane-core/pkg/sinkbinding
+              desc: frontend may use only the neutral sink-binding names package
+            - pkg: github.com/Braidplane/braidplane-core/pkg/connector
+              desc: frontend must not depend on backend connector internals
+            - pkg: github.com/Braidplane/braidplane-core/pkg/crypto
+              desc: frontend must not depend on backend credential or password crypto internals
+            - pkg: github.com/Braidplane/braidplane-core/pkg/fake
+              desc: frontend must not depend on backend fake-data composition internals
+            - pkg: github.com/Braidplane/braidplane-core/pkg/i18n
+              desc: frontend must not depend on backend email/localization runtime internals
+            - pkg: github.com/Braidplane/braidplane-core/pkg/queue
+              desc: frontend must not depend on backend worker queue internals
+            - pkg: github.com/Braidplane/braidplane-core/pkg/repostore
+              desc: frontend must not depend on backend pipeline repository storage internals
+            - pkg: github.com/Braidplane/braidplane-core/pkg/testutil
+              desc: frontend must not depend on backend test composition internals
+            - pkg: github.com/Braidplane/braidplane-core/service
+              desc: frontend must call backend API endpoints, not service packages
+            - pkg: github.com/Braidplane/braidplane-core/postgres
+              desc: frontend must not import database layer packages
+            - pkg: github.com/Braidplane/braidplane-core/transport/http
+              desc: frontend package should stay separate from backend HTTP transport internals
+        backend_composition_boundary:
+          files:
+            - "${base-path}/main.go"
+            - "${base-path}/backend/*.go"
+            - "${base-path}/backend/**/*.go"
+          deny:
+            - pkg: github.com/Braidplane/braidplane-core/config/frontend
+              desc: backend runtime must load backend configuration only
+            - pkg: github.com/Braidplane/braidplane-core/api-schema/gen/client
+              desc: backend runtime must use generated server stubs, not the frontend API client
+            - pkg: github.com/Braidplane/braidplane-core/frontend
+              desc: backend runtime must not compose or render the SSR frontend
+        backend_config_boundary:
+          files:
+            - "${base-path}/config/backend/*.go"
+            - "${base-path}/config/backend/**/*.go"
+          deny:
+            - pkg: github.com/Braidplane/braidplane-core/config/frontend
+              desc: backend configuration must not depend on frontend configuration
+            - pkg: github.com/Braidplane/braidplane-core/api-schema/gen/client
+              desc: backend configuration must not depend on the generated frontend API client
+            - pkg: github.com/Braidplane/braidplane-core/frontend
+              desc: backend configuration must not depend on SSR frontend packages
+        frontend_config_boundary:
+          files:
+            - "${base-path}/config/frontend/*.go"
+            - "${base-path}/config/frontend/**/*.go"
+          list-mode: lax
+          allow:
+            - github.com/Braidplane/braidplane-core/pkg/sinkbinding$
+            - github.com/Braidplane/braidplane-core/pkg/connector/googleworkspace$
+          deny:
+            - pkg: github.com/Braidplane/braidplane-core/pkg/eventtest
+              desc: frontend must not depend on backend provider or tooling internals
+            - pkg: github.com/Braidplane/braidplane-core/pkg/gitlab
+              desc: frontend must not depend on backend provider or tooling internals
+            - pkg: github.com/Braidplane/braidplane-core/pkg/gitprovider
+              desc: frontend must not depend on backend provider or tooling internals
+            - pkg: github.com/Braidplane/braidplane-core/pkg/googleoauth
+              desc: frontend must not depend on backend provider or tooling internals
+            - pkg: github.com/Braidplane/braidplane-core/pkg/googleworkspace
+              desc: frontend must not depend on backend provider or tooling internals
+            - pkg: github.com/Braidplane/braidplane-core/pkg/hubspot
+              desc: frontend must not depend on backend provider or tooling internals
+            - pkg: github.com/Braidplane/braidplane-core/operatorcapability
+              desc: frontend must not depend on backend provider or tooling internals
+            - pkg: github.com/Braidplane/braidplane-core/prworkflow
+              desc: frontend must not depend on backend provider or tooling internals
+            - pkg: github.com/Braidplane/braidplane-core/pkg/slack
+              desc: frontend must not depend on backend provider or tooling internals
+            - pkg: github.com/Braidplane/braidplane-core/pkg/snowflakewif
+              desc: frontend must not depend on backend provider or tooling internals
+            - pkg: github.com/Braidplane/braidplane-core/config/backend
+              desc: frontend configuration must not depend on backend configuration
+            - pkg: github.com/Braidplane/braidplane-core/api-schema/gen/server
+              desc: frontend configuration must not depend on generated backend server stubs
+            - pkg: github.com/Braidplane/braidplane-core/pkg/connector
+              desc: frontend must use the pipeline capability projection
+            - pkg: github.com/Braidplane/braidplane-core/pkg/sinkbinding
+              desc: frontend may use only the neutral sink-binding names package
+            - pkg: github.com/Braidplane/braidplane-core/pkg/connector
+              desc: frontend configuration must not depend on backend connector internals
+            - pkg: github.com/Braidplane/braidplane-core/pkg/crypto
+              desc: frontend configuration must not depend on backend credential or password crypto internals
+            - pkg: github.com/Braidplane/braidplane-core/pkg/fake
+              desc: frontend configuration must not depend on backend fake-data composition internals
+            - pkg: github.com/Braidplane/braidplane-core/pkg/i18n
+              desc: frontend configuration must not depend on backend email/localization runtime internals
+            - pkg: github.com/Braidplane/braidplane-core/pkg/queue
+              desc: frontend configuration must not depend on backend worker queue internals
+            - pkg: github.com/Braidplane/braidplane-core/pkg/repostore
+              desc: frontend configuration must not depend on backend pipeline repository storage internals
+            - pkg: github.com/Braidplane/braidplane-core/pkg/testutil
+              desc: frontend configuration must not depend on backend test composition internals
+            - pkg: github.com/Braidplane/braidplane-core/postgres
+              desc: frontend configuration must not depend on database layer packages
+            - pkg: github.com/Braidplane/braidplane-core/service
+              desc: frontend configuration must not depend on backend services
+            - pkg: github.com/Braidplane/braidplane-core/transport/http
+              desc: frontend configuration must not depend on backend HTTP transport
+        service_boundary:
+          files:
+            - "${base-path}/service/*.go"
+            - "${base-path}/service/**/*.go"
+            - "!${base-path}/service/*_test.go"
+            - "!${base-path}/service/**/*_test.go"
+          deny:
+            - pkg: github.com/Braidplane/braidplane-core/api-schema/gen
+              desc: service must not depend on generated API DTOs or transport contracts
+            - pkg: github.com/Braidplane/braidplane-core/frontend
+              desc: service must not depend on SSR frontend rendering or handlers
+            - pkg: github.com/Braidplane/braidplane-core/transport/http
+              desc: service must not depend on HTTP transport handlers
+        execution_broker_boundary:
+          files:
+            - "${base-path}/service/executionbroker/*.go"
+            - "${base-path}/service/executionbroker/**/*.go"
+          deny:
+            - pkg: github.com/Braidplane/braidplane-core/service/worker
+              desc: execution broker owns the backend-neutral contract; worker packages may adapt it, but the broker must not depend on worker implementation
+        postgres_boundary:
+          files:
+            - "${base-path}/postgres/*.go"
+            - "${base-path}/postgres/**/*.go"
+          deny:
+            - pkg: github.com/Braidplane/braidplane-core/api-schema/gen
+              desc: postgres must not depend on generated API DTOs or transport contracts
+            - pkg: github.com/Braidplane/braidplane-core/frontend
+              desc: postgres must not depend on SSR frontend rendering or handlers
+            - pkg: github.com/Braidplane/braidplane-core/service
+              desc: postgres must not depend on business services
+            - pkg: github.com/Braidplane/braidplane-core/transport/http
+              desc: postgres must not depend on HTTP transport handlers
+        transport_http_boundary:
+          files:
+            - "${base-path}/transport/http/*.go"
+            - "${base-path}/transport/http/**/*.go"
+            - "!${base-path}/transport/http/*_test.go"
+            - "!${base-path}/transport/http/**/*_test.go"
+          deny:
+            - pkg: github.com/Braidplane/braidplane-core/frontend
+              desc: backend HTTP transport must not import SSR frontend packages
+            - pkg: github.com/Braidplane/braidplane-core/api-schema/gen/client
+              desc: backend HTTP transport must use generated server stubs, not the frontend API client
+            - pkg: github.com/Braidplane/braidplane-core/postgres
+              desc: backend HTTP handlers must use services instead of reaching into repositories directly
+        connector_provider_client_boundary:
+          files:
+            - "${base-path}/service/datasourcessvc/connector/**/client/*.go"
+            - "${base-path}/service/datasourcessvc/connector/**/client/**/*.go"
+            - "${base-path}/pkg/gitprovider/*.go"
+            - "${base-path}/pkg/gitprovider/**/*.go"
+            - "${base-path}/pkg/hubspot/*.go"
+            - "${base-path}/pkg/hubspot/**/*.go"
+            - "${base-path}/pkg/googleoauth/*.go"
+            - "${base-path}/pkg/googleoauth/**/*.go"
+            - "${base-path}/pkg/googleworkspace/*.go"
+            - "${base-path}/pkg/googleworkspace/**/*.go"
+            - "${base-path}/pkg/gitlab/oauth/*.go"
+            - "${base-path}/pkg/gitlab/oauth/**/*.go"
+            - "${base-path}/pkg/slack/*.go"
+            - "${base-path}/pkg/slack/**/*.go"
+            - "${base-path}/pkg/snowflakewif/*.go"
+            - "${base-path}/pkg/snowflakewif/**/*.go"
+          deny:
+            - pkg: github.com/Braidplane/braidplane-core/api-schema/gen
+              desc: provider clients must not depend on generated API DTOs or transport contracts
+            - pkg: github.com/Braidplane/braidplane-core/frontend
+              desc: provider clients must not depend on SSR frontend packages
+            - pkg: github.com/Braidplane/braidplane-core/pkg/connector/result
+              desc: provider clients must not depend on Braidplane execution result envelopes
+            - pkg: github.com/Braidplane/braidplane-core/pkg/pipeline
+              desc: provider clients must not depend on backend pipeline state
+            - pkg: github.com/Braidplane/braidplane-core/pkg/pipeline
+              desc: provider clients must not depend on pipeline runtime or spec concerns
+            - pkg: github.com/Braidplane/braidplane-core/postgres
+              desc: provider clients must not depend on Braidplane persistence repositories
+            - pkg: github.com/Braidplane/braidplane-core/service/credentialssvc
+              desc: provider clients must not depend on credential lifecycle services
+            - pkg: github.com/Braidplane/braidplane-core/service/credentialssvc/provider/hubspot
+              desc: provider clients must not depend on the HubSpot credential-lifecycle adapter
+            - pkg: github.com/Braidplane/braidplane-core/service/datasourcessvc
+              desc: provider clients must not depend on Braidplane data-source services or connector adapters
+            - pkg: github.com/Braidplane/braidplane-core/service/datasourcessvc/connector/types
+              desc: provider clients must not depend on Braidplane connector execution parameter contracts
+            - pkg: github.com/Braidplane/braidplane-core/transport/http
+              desc: provider clients must not depend on HTTP transport handlers
+        connector_boundary:
+          files:
+            - "${base-path}/service/datasourcessvc/connector/*.go"
+            - "${base-path}/service/datasourcessvc/connector/**/*.go"
+          deny:
+            - pkg: github.com/Braidplane/braidplane-core/api-schema/gen
+              desc: connectors must not depend on generated API DTOs or transport contracts
+            - pkg: github.com/Braidplane/braidplane-core/frontend
+              desc: connectors must not depend on SSR frontend packages
+            - pkg: github.com/Braidplane/braidplane-core/postgres
+              desc: connectors must not depend on Braidplane persistence repositories
+            - pkg: github.com/Braidplane/braidplane-core/service/credentialssvc
+              desc: connectors must not depend on credential lifecycle services
+            - pkg: github.com/Braidplane/braidplane-core/service/credentialssvc/provider/hubspot
+              desc: connectors must not depend on the HubSpot credential-lifecycle adapter
+            - pkg: github.com/Braidplane/braidplane-core/transport/http
+              desc: connectors must not depend on HTTP transport handlers
+        bigquery_execution_auth_boundary:
+          files:
+            - "${base-path}/service/datasourcessvc/connector/bigquery/*.go"
+            - "${base-path}/service/datasourcessvc/connector/bigquery/**/*.go"
+          deny:
+            - pkg: github.com/Braidplane/braidplane-core/pkg/googleoauth
+              desc: BigQuery execution receives resolved credentials and must not own OAuth consent or refresh
+            - pkg: github.com/Braidplane/braidplane-core/service/credentialssvc
+              desc: BigQuery execution must not depend on credential lifecycle services
+        contract_compilation_boundary:
+          files:
+            - "${base-path}/pkg/contractplan/*.go"
+            - "${base-path}/pkg/contractplan/**/*.go"
+            - "${base-path}/pkg/odcs/*.go"
+            - "${base-path}/pkg/odcs/**/*.go"
+            - "!${base-path}/pkg/contractplan/**/*_test.go"
+            - "!${base-path}/pkg/contractplan/*_test.go"
+            - "!${base-path}/pkg/odcs/**/*_test.go"
+            - "!${base-path}/pkg/odcs/*_test.go"
+          deny:
+            - pkg: github.com/Braidplane/braidplane-core/pkg/gitprovider
+              desc: contract compilation must use explicitly supplied source snapshots
+            - pkg: github.com/Braidplane/braidplane-core/pkg/repostore
+              desc: contract compilation must not read mutable Git resources
+            - pkg: github.com/Braidplane/braidplane-core/pkg/crypto
+              desc: contract compilation must not resolve credentials
+            - pkg: github.com/Braidplane/braidplane-core/pkg/queue
+              desc: contract compilation must not admit execution
+            - pkg: github.com/Braidplane/braidplane-core/pkg/pipeline/run$
+              desc: contract compilation must not dispatch execution
+            - pkg: github.com/Braidplane/braidplane-core/pkg/executiondelivery
+              desc: contract compilation must not dispatch execution
+        internal_boundary:
+          files:
+            - "${base-path}/pkg/apierror/**/*.go"
+            - "${base-path}/pkg/apierror/*.go"
+            - "${base-path}/pkg/apischema/**/*.go"
+            - "${base-path}/pkg/apischema/*.go"
+            - "${base-path}/pkg/as/**/*.go"
+            - "${base-path}/pkg/as/*.go"
+            - "${base-path}/pkg/clock/**/*.go"
+            - "${base-path}/pkg/clock/*.go"
+            - "${base-path}/pkg/connector/**/*.go"
+            - "${base-path}/pkg/connector/*.go"
+            - "${base-path}/pkg/contractplan/**/*.go"
+            - "${base-path}/pkg/contractplan/*.go"
+            - "${base-path}/pkg/crypto/**/*.go"
+            - "${base-path}/pkg/crypto/*.go"
+            - "${base-path}/pkg/dbpool/**/*.go"
+            - "${base-path}/pkg/dbpool/*.go"
+            - "${base-path}/pkg/deploymentplan/**/*.go"
+            - "${base-path}/pkg/deploymentplan/*.go"
+            - "${base-path}/pkg/depsports/**/*.go"
+            - "${base-path}/pkg/depsports/*.go"
+            - "${base-path}/pkg/eventtest/**/*.go"
+            - "${base-path}/pkg/eventtest/*.go"
+            - "${base-path}/pkg/executiondelivery/**/*.go"
+            - "${base-path}/pkg/executiondelivery/*.go"
+            - "${base-path}/pkg/fake/**/*.go"
+            - "${base-path}/pkg/fake/*.go"
+            - "${base-path}/pkg/gitlab/**/*.go"
+            - "${base-path}/pkg/gitlab/*.go"
+            - "${base-path}/pkg/gitprovider/**/*.go"
+            - "${base-path}/pkg/gitprovider/*.go"
+            - "${base-path}/pkg/googleclient/**/*.go"
+            - "${base-path}/pkg/googleclient/*.go"
+            - "${base-path}/pkg/googleoauth/**/*.go"
+            - "${base-path}/pkg/googleoauth/*.go"
+            - "${base-path}/pkg/googleworkspace/**/*.go"
+            - "${base-path}/pkg/googleworkspace/*.go"
+            - "${base-path}/pkg/hostguard/**/*.go"
+            - "${base-path}/pkg/hostguard/*.go"
+            - "${base-path}/pkg/httpoauth/**/*.go"
+            - "${base-path}/pkg/httpoauth/*.go"
+            - "${base-path}/pkg/httpsecurity/**/*.go"
+            - "${base-path}/pkg/httpsecurity/*.go"
+            - "${base-path}/pkg/hubspot/**/*.go"
+            - "${base-path}/pkg/hubspot/*.go"
+            - "${base-path}/pkg/i18n/**/*.go"
+            - "${base-path}/pkg/i18n/*.go"
+            - "${base-path}/pkg/jsonvalue/**/*.go"
+            - "${base-path}/pkg/jsonvalue/*.go"
+            - "${base-path}/pkg/lifecycle/**/*.go"
+            - "${base-path}/pkg/lifecycle/*.go"
+            - "${base-path}/pkg/locale/**/*.go"
+            - "${base-path}/pkg/locale/*.go"
+            - "${base-path}/pkg/logging/**/*.go"
+            - "${base-path}/pkg/logging/*.go"
+            - "${base-path}/pkg/metrics/**/*.go"
+            - "${base-path}/pkg/metrics/*.go"
+            - "${base-path}/pkg/domain/model/**/*.go"
+            - "${base-path}/pkg/domain/model/*.go"
+            - "${base-path}/pkg/oauthflow/**/*.go"
+            - "${base-path}/pkg/oauthflow/*.go"
+            - "${base-path}/pkg/odcs/**/*.go"
+            - "${base-path}/pkg/odcs/*.go"
+            - "${base-path}/pkg/pipeline/**/*.go"
+            - "${base-path}/pkg/pipeline/*.go"
+            - "${base-path}/pkg/proofevidence/**/*.go"
+            - "${base-path}/pkg/proofevidence/*.go"
+            - "${base-path}/pkg/proofidentity/**/*.go"
+            - "${base-path}/pkg/proofidentity/*.go"
+            - "${base-path}/pkg/ptr/**/*.go"
+            - "${base-path}/pkg/ptr/*.go"
+            - "${base-path}/pkg/publicschema/**/*.go"
+            - "${base-path}/pkg/publicschema/*.go"
+            - "${base-path}/pkg/queue/**/*.go"
+            - "${base-path}/pkg/queue/*.go"
+            - "${base-path}/pkg/repostore/**/*.go"
+            - "${base-path}/pkg/repostore/*.go"
+            - "${base-path}/pkg/reqctx/**/*.go"
+            - "${base-path}/pkg/reqctx/*.go"
+            - "${base-path}/pkg/resourcescope/**/*.go"
+            - "${base-path}/pkg/resourcescope/*.go"
+            - "${base-path}/pkg/sinkbinding/**/*.go"
+            - "${base-path}/pkg/sinkbinding/*.go"
+            - "${base-path}/pkg/slack/**/*.go"
+            - "${base-path}/pkg/slack/*.go"
+            - "${base-path}/pkg/snowflakewif/**/*.go"
+            - "${base-path}/pkg/snowflakewif/*.go"
+            - "${base-path}/pkg/spireregistration/**/*.go"
+            - "${base-path}/pkg/spireregistration/*.go"
+            - "${base-path}/pkg/testutil/**/*.go"
+            - "${base-path}/pkg/testutil/*.go"
+            - "${base-path}/pkg/tracing/**/*.go"
+            - "${base-path}/pkg/tracing/*.go"
+            - "${base-path}/pkg/uuid/**/*.go"
+            - "${base-path}/pkg/uuid/*.go"
+            - "${base-path}/pkg/validate/**/*.go"
+            - "${base-path}/pkg/validate/*.go"
+            - "!${base-path}/*_test.go"
+            - "!${base-path}/**/*_test.go"
+            - "!${base-path}/pkg/fake/**"
+            - "!${base-path}/pkg/testutil/**"
+            - "!${base-path}/pkg/eventtest/**"
+          deny:
+            - pkg: github.com/Braidplane/braidplane-core/frontend
+              desc: shared internal packages must not depend on SSR frontend packages
+            - pkg: github.com/Braidplane/braidplane-core/transport/http
+              desc: shared internal packages must not depend on HTTP transport handlers
+        neutral_internal_lower_layers:
+          files:
+            - "${base-path}/pkg/apierror/**/*.go"
+            - "${base-path}/pkg/apierror/*.go"
+            - "${base-path}/pkg/apischema/**/*.go"
+            - "${base-path}/pkg/apischema/*.go"
+            - "${base-path}/pkg/as/**/*.go"
+            - "${base-path}/pkg/as/*.go"
+            - "${base-path}/pkg/clock/**/*.go"
+            - "${base-path}/pkg/clock/*.go"
+            - "${base-path}/pkg/connector/**/*.go"
+            - "${base-path}/pkg/connector/*.go"
+            - "${base-path}/pkg/contractplan/**/*.go"
+            - "${base-path}/pkg/contractplan/*.go"
+            - "${base-path}/pkg/crypto/**/*.go"
+            - "${base-path}/pkg/crypto/*.go"
+            - "${base-path}/pkg/dbpool/**/*.go"
+            - "${base-path}/pkg/dbpool/*.go"
+            - "${base-path}/pkg/deploymentplan/**/*.go"
+            - "${base-path}/pkg/deploymentplan/*.go"
+            - "${base-path}/pkg/depsports/**/*.go"
+            - "${base-path}/pkg/depsports/*.go"
+            - "${base-path}/pkg/eventtest/**/*.go"
+            - "${base-path}/pkg/eventtest/*.go"
+            - "${base-path}/pkg/executiondelivery/**/*.go"
+            - "${base-path}/pkg/executiondelivery/*.go"
+            - "${base-path}/pkg/fake/**/*.go"
+            - "${base-path}/pkg/fake/*.go"
+            - "${base-path}/pkg/gitlab/**/*.go"
+            - "${base-path}/pkg/gitlab/*.go"
+            - "${base-path}/pkg/gitprovider/**/*.go"
+            - "${base-path}/pkg/gitprovider/*.go"
+            - "${base-path}/pkg/googleclient/**/*.go"
+            - "${base-path}/pkg/googleclient/*.go"
+            - "${base-path}/pkg/googleoauth/**/*.go"
+            - "${base-path}/pkg/googleoauth/*.go"
+            - "${base-path}/pkg/googleworkspace/**/*.go"
+            - "${base-path}/pkg/googleworkspace/*.go"
+            - "${base-path}/pkg/hostguard/**/*.go"
+            - "${base-path}/pkg/hostguard/*.go"
+            - "${base-path}/pkg/httpoauth/**/*.go"
+            - "${base-path}/pkg/httpoauth/*.go"
+            - "${base-path}/pkg/httpsecurity/**/*.go"
+            - "${base-path}/pkg/httpsecurity/*.go"
+            - "${base-path}/pkg/hubspot/**/*.go"
+            - "${base-path}/pkg/hubspot/*.go"
+            - "${base-path}/pkg/i18n/**/*.go"
+            - "${base-path}/pkg/i18n/*.go"
+            - "${base-path}/pkg/jsonvalue/**/*.go"
+            - "${base-path}/pkg/jsonvalue/*.go"
+            - "${base-path}/pkg/lifecycle/**/*.go"
+            - "${base-path}/pkg/lifecycle/*.go"
+            - "${base-path}/pkg/locale/**/*.go"
+            - "${base-path}/pkg/locale/*.go"
+            - "${base-path}/pkg/logging/**/*.go"
+            - "${base-path}/pkg/logging/*.go"
+            - "${base-path}/pkg/metrics/**/*.go"
+            - "${base-path}/pkg/metrics/*.go"
+            - "${base-path}/pkg/domain/model/**/*.go"
+            - "${base-path}/pkg/domain/model/*.go"
+            - "${base-path}/pkg/oauthflow/**/*.go"
+            - "${base-path}/pkg/oauthflow/*.go"
+            - "${base-path}/pkg/odcs/**/*.go"
+            - "${base-path}/pkg/odcs/*.go"
+            - "${base-path}/pkg/pipeline/**/*.go"
+            - "${base-path}/pkg/pipeline/*.go"
+            - "${base-path}/pkg/proofevidence/**/*.go"
+            - "${base-path}/pkg/proofevidence/*.go"
+            - "${base-path}/pkg/proofidentity/**/*.go"
+            - "${base-path}/pkg/proofidentity/*.go"
+            - "${base-path}/pkg/ptr/**/*.go"
+            - "${base-path}/pkg/ptr/*.go"
+            - "${base-path}/pkg/publicschema/**/*.go"
+            - "${base-path}/pkg/publicschema/*.go"
+            - "${base-path}/pkg/queue/**/*.go"
+            - "${base-path}/pkg/queue/*.go"
+            - "${base-path}/pkg/repostore/**/*.go"
+            - "${base-path}/pkg/repostore/*.go"
+            - "${base-path}/pkg/reqctx/**/*.go"
+            - "${base-path}/pkg/reqctx/*.go"
+            - "${base-path}/pkg/resourcescope/**/*.go"
+            - "${base-path}/pkg/resourcescope/*.go"
+            - "${base-path}/pkg/sinkbinding/**/*.go"
+            - "${base-path}/pkg/sinkbinding/*.go"
+            - "${base-path}/pkg/slack/**/*.go"
+            - "${base-path}/pkg/slack/*.go"
+            - "${base-path}/pkg/snowflakewif/**/*.go"
+            - "${base-path}/pkg/snowflakewif/*.go"
+            - "${base-path}/pkg/spireregistration/**/*.go"
+            - "${base-path}/pkg/spireregistration/*.go"
+            - "${base-path}/pkg/testutil/**/*.go"
+            - "${base-path}/pkg/testutil/*.go"
+            - "${base-path}/pkg/tracing/**/*.go"
+            - "${base-path}/pkg/tracing/*.go"
+            - "${base-path}/pkg/uuid/**/*.go"
+            - "${base-path}/pkg/uuid/*.go"
+            - "${base-path}/pkg/validate/**/*.go"
+            - "${base-path}/pkg/validate/*.go"
+            - "!${base-path}/*_test.go"
+            - "!${base-path}/**/*_test.go"
+            - "!${base-path}/pkg/fake/**"
+            - "!${base-path}/pkg/testutil/**"
+            - "!${base-path}/pkg/eventtest/**"
+            - "!${base-path}/pkg/queue/**"
+          deny:
+            - pkg: github.com/Braidplane/braidplane-core/postgres
+              desc: internal packages must not own persistence
+            - pkg: github.com/Braidplane/braidplane-core/service
+              desc: internal packages must not orchestrate business services
+        queue_persistence_boundary:
+          list-mode: lax
+          files:
+            - "${base-path}/pkg/queue/*.go"
+            - "${base-path}/pkg/queue/**/*.go"
+            - "!${base-path}/pkg/queue/*_test.go"
+            - "!${base-path}/pkg/queue/**/*_test.go"
+          allow:
+            - github.com/Braidplane/braidplane-core/postgres$
+            - github.com/Braidplane/braidplane-core/postgres/executionrequests$
+          deny:
+            - pkg: github.com/Braidplane/braidplane-core/postgres
+              desc: queue uses only its transaction and execution-request ports
+            - pkg: github.com/Braidplane/braidplane-core/service
+              desc: queue must not depend on business consumers
+        test_composition_visibility:
+          files:
+            - "$all"
+            - "!**/*_test.go"
+            - "!${base-path}/pkg/fake/**"
+            - "!${base-path}/pkg/testutil/**"
+            - "!${base-path}/pkg/eventtest/**"
+          deny:
+            - pkg: github.com/Braidplane/braidplane-core/pkg/eventtest
+              desc: event-test composition is not a production dependency
+        proof_configuration_boundary:
+          list-mode: strict
+          files:
+            - "${base-path}/service/proofconfigsvc/*.go"
+            - "!${base-path}/service/proofconfigsvc/*_test.go"
+          allow:
+            - $gostd
+            - github.com/Braidplane/braidplane-core/postgres$
+            - github.com/Braidplane/braidplane-core/postgres/proofconfig$
+            - github.com/Braidplane/braidplane-core/pkg/domain/model$
+            - github.com/Braidplane/braidplane-core/service/datasourcessvc$
+            - github.com/Braidplane/braidplane-core/service/eventrecorder$
+            - github.com/Braidplane/braidplane-core/service/worker/producer$
+            - github.com/Braidplane/braidplane-core/pkg/slug$
+            - github.com/Braidplane/braidplane-core/pkg/xerror$
+        proof_evidence_boundary:
+          list-mode: strict
+          files:
+            - "${base-path}/pkg/proofevidence/*.go"
+            - "${base-path}/pkg/proofevidence/**/*.go"
+            - "!${base-path}/pkg/proofevidence/*_test.go"
+            - "!${base-path}/pkg/proofevidence/**/*_test.go"
+          allow:
+            - $gostd
+            - github.com/Braidplane/braidplane-core/pkg/hostguard$
+            - github.com/Braidplane/braidplane-core/pkg/domain/model$
+            - github.com/Braidplane/braidplane-core/pkg/slug$
+            - github.com/Braidplane/braidplane-core/pkg/xerror$
+        pipeline_internal_boundary:
+          list-mode: lax
+          files:
+            - "${base-path}/pkg/pipeline/*.go"
+            - "${base-path}/pkg/pipeline/**/*.go"
+          deny:
+            - pkg: github.com/Braidplane/braidplane-core/api-schema/gen
+              desc: internal pipeline packages must not depend on generated API DTOs or transport contracts
+            - pkg: github.com/Braidplane/braidplane-core/frontend
+              desc: internal pipeline packages must not depend on SSR frontend packages
+            - pkg: github.com/Braidplane/braidplane-core/postgres
+              desc: internal pipeline packages must not depend on persistence repositories
+            - pkg: github.com/Braidplane/braidplane-core/service
+              desc: internal pipeline packages must not depend on service-layer orchestration or connector packages
+            - pkg: github.com/Braidplane/braidplane-core/transport/http
+              desc: internal pipeline packages must not depend on HTTP transport handlers
+        no_stdlib_errors:
+          deny:
+            - pkg: errors
+              desc: use internal/xerror helpers instead of the standard errors package
+    exhaustive:
+      default-signifies-exhaustive: true
+    forbidigo:
+      forbid:
+        - pattern: '^errors\.New$'
+          msg: "use xerror constructors (internal/xerror) instead of errors.New"
+        - pattern: '^fmt\.Errorf$'
+          msg: "use xerror constructors or xerror.Wrapf instead of fmt.Errorf"
+        - pattern: '^errors\.As$'
+          msg: "use xerror.As (internal/xerror) instead of errors.As"
+      analyze-types: true
+    govet:
+      enable:
+        - nilness
+    wrapcheck:
+      # Braidplane uses package-local xerror sentinels at service/repository/transport
+      # boundaries. Internal package pass-throughs keep those sentinels intact,
+      # while third-party and stdlib dependency errors remain subject to wrapping.
+      ignore-package-globs:
+        - github.com/Braidplane/braidplane-core/*
+        - github.com/Braidplane/braidplane-core/cli/apiclient
+        - github.com/Braidplane/braidplane-core/cli/cmd/braidplane
+        # Canonical shared packages moved to the standalone CLI module.
+        - github.com/Braidplane/braidplane-core/pkg/xerror
+        - github.com/Braidplane/braidplane-core/pkg/kongcmd
+        - github.com/Braidplane/braidplane-core/pkg/slug
+        - github.com/Braidplane/braidplane-core/pkg/model
+        - github.com/Braidplane/braidplane-core/pkg/must
+        - github.com/Braidplane/braidplane-core/pkg/redaction
+        - github.com/Braidplane/braidplane-core/pkg/nativetype
+        - github.com/Braidplane/braidplane-core/pkg/payload/file
+        - github.com/Braidplane/braidplane-core/pkg/payload/form
+        - github.com/Braidplane/braidplane-core/pkg/connector/catalog
+        - github.com/Braidplane/braidplane-core/pkg/pipeline/spec
+        - github.com/Braidplane/braidplane-core/pkg/pipeline/diff
+        - github.com/Braidplane/braidplane-core/pkg/pipeline/runtime
+        - github.com/Braidplane/braidplane-core/pkg/pipeline/graph
+        - github.com/Braidplane/braidplane-core/pkg/pipeline/payload
+        - github.com/Braidplane/braidplane-core/pkg/pipeline/transform/sql
+        - github.com/Braidplane/braidplane-core/pkg/pipeline/validate
+        - github.com/Braidplane/braidplane-core/pkg/structvalidate
+      ignore-sig-regexps:
+        # Fiber handlers return framework response errors directly to Fiber.
+        - 'func \(github\.com/gofiber/fiber/v3\.Ctx\)\.(JSON|SendString|SendStatus|Send|Next)\('
+        - 'func \(\*github\.com/gofiber/fiber/v3\.Redirect\)\.To\('
+        # Middleware/decorator pass-through methods must preserve interface contracts.
+        - 'func \(net/http\.RoundTripper\)\.RoundTrip\('
+        - 'func \(log/slog\.Handler\)\.Handle\('
+        - 'func \(io\.Closer\)\.Close\('
+        - 'func \(github\.com/a-h/templ\.Component\)\.Render\('
+        - 'func \(context\.Context\)\.Err\('
+        # Codec hook methods keep serialization package errors intact.
+        - 'func encoding/json\.(Marshal|Unmarshal)\('
+        - 'func \(\*encoding/json\.Decoder\)\.Decode\('
+        - 'func \(\*gopkg\.in/yaml\.v3\.(Decoder|Node)\)\.Decode\('
+
+  exclusions:
+    generated: lax
+    presets:
+      - comments
+    rules:
+      - path: ^api-schema/gen/.+\.go$
+        linters:
+          - forbidigo
+      - path: ^pkg/xerror/.+\.go$
+        linters:
+          - depguard
+          - forbidigo
+      - path: .+_test\.go
+        linters:
+          - forbidigo
+          - wrapcheck
+      # Test fixtures intentionally use sample secrets, local subprocesses,
+      # temporary file paths, and executable helper scripts.
+      - path: .+_test\.go
+        text: "G101:|G204:|G304:|G306:"
+        linters:
+          - gosec
+      # Local developer fixture data uses fake credentials and local git helpers.
+      - path: ^pkg/fake/seeder\.go$
+        text: "G101:|G204:"
+        linters:
+          - gosec
+      # Repository storage is a git CLI adapter; command execution and worktree
+      # file reads are the package boundary it owns.
+      - path: ^pkg/repostore/.+\.go$
+        text: "G101:|G204:|G304:"
+        linters:
+          - gosec
+      # CLI and config packages intentionally read user-selected local files.
+      - path: ^(cli/cmd/braidplane/.+|cmd/prdiffreport/main|cmd/observability-smoke/main|config/config)\.go$
+        text: "G117:|G204:|G304:"
+        linters:
+          - gosec
+      # Curated builder examples are resolved through the local example allowlist.
+      - path: ^frontend/handlers_builder\.go$
+        text: "G304:"
+        linters:
+          - gosec
+      # Pipeline spec validation and TLS root loading are local-file APIs by design.
+      - path: ^(pkg/pipeline/validate/repository|service/email/tls)\.go$
+        text: "G304:"
+        linters:
+          - gosec
+      # Worktree connector ports and request-context/sort constants contain token-like names,
+      # not credentials.
+      - path: ^(pkg/depsports/depsports|pkg/reqctx/reqctx|transport/http/list_params)\.go$
+        text: "G101:|G703:"
+        linters:
+          - gosec
+      # Conversions are guarded immediately before use; gosec does not follow
+      # the package-local bounds checks for these legacy integer fields.
+      - path: ^(pkg/crypto/argon2|service/pipelineruntime/run_store|service/pipelinesvc/service)\.go$
+        text: "G115:"
+        linters:
+          - gosec
+      # Executable helper scripts intentionally need owner execute permission.
+      - path: ^service/datasourcessvc/connector/git/auth\.go$
+        text: "G306:"
+        linters:
+          - gosec
+      # HTTP and HubSpot connectors issue customer-configured outbound requests;
+      # provider/network restrictions are enforced by connector configuration.
+      - path: ^(service/datasourcessvc/connector/http/connector|pkg/hubspot/crm/client)\.go$
+        text: "G704:"
+        linters:
+          - gosec
+      # Infrastructure packages that extract third-party error types (pgx, fiber, stdlib)
+      # where importing xerror would introduce wrong coupling.
+      - path: ^postgres/errors\.go$
+        linters:
+          - forbidigo
+      - path: ^pkg/apierror/middleware\.go$
+        linters:
+          - forbidigo
+      - path: ^pkg/repostore/git\.go$
+        linters:
+          - forbidigo
+formatters:
+  enable:
+    - gofumpt
+  settings:
+    gofumpt:
+      # Module path which contains the source code being formatted.
+      # Default: ""
+      module-path: github.com/Braidplane/braidplane-core
+      # Choose whether to use the extra rules.
+      # Default: false
+      extra-rules: true
+  exclusions:
+    generated: lax

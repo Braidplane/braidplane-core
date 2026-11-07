@@ -1,0 +1,16 @@
+package views
+
+templ CustomizeIdentifier(value string) {
+	@CustomizeIdentifierWithError(value, false, "")
+}
+
+templ CustomizeIdentifierWithError(value string, invalid bool, feedbackID string) {
+	<details class="min-w-0" open?={ value != "" || invalid }>
+		<summary class="cursor-pointer text-sm font-medium">Customize identifier</summary>
+		<label class="form-control mt-2 gap-1">
+			<span class="label-text text-xs">Identifier (optional)</span>
+			<input class="input input-bordered input-sm w-full font-mono" name="slug" value={ value } placeholder="Generated from name" maxlength="100" { FormFieldError(invalid, feedbackID)... }/>
+			<span class="text-xs text-base-content/70">Leave blank to generate an identifier. Custom identifiers use lowercase letters, digits, and hyphens.</span>
+		</label>
+	</details>
+}

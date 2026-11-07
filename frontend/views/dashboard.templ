@@ -1,0 +1,444 @@
+package views
+
+templ DashboardPage(shellData AuthenticatedShellData, dashboardData DashboardData) {
+	@AuthenticatedShell(shellData, DashboardPageContent(shellData, dashboardData))
+}
+
+templ DashboardPageContent(shellData AuthenticatedShellData, dashboardData DashboardData) {
+	<div class="grid min-w-0 gap-6">
+		<section class="min-w-0" aria-label="Dashboard scope">
+			<div class="grid min-w-0 gap-3 sm:grid-cols-2">
+				@DashboardProjectScopeSelector(dashboardData.ProjectScope)
+				@DashboardRuntimeScopeSelector(dashboardData.ProjectScope)
+			</div>
+			<p class="mt-2 text-xs text-base-content/60">Runs and bindings use this target. Connections and queries belong to the organization.</p>
+		</section>
+		if !DashboardOnboardingComplete(dashboardData) {
+			<div hidden data-dashboard-onboarding-resume>
+				<button class="btn btn-outline btn-sm" type="button" data-dashboard-onboarding-show aria-controls="dashboard-onboarding">Resume setup</button>
+			</div>
+			@DashboardOnboardingChecklist(dashboardData, shellData.ActiveOrganizationSlug)
+		}
+		@DashboardAttentionPanel(dashboardData)
+		<div class="grid min-w-0 items-start gap-6 xl:grid-cols-2">
+			@DashboardRecentRunsPanel(dashboardData)
+			@DashboardIncidentQueuePanel(dashboardData)
+		</div>
+		if dashboardData.QueryInventory.Unavailable || dashboardData.PipelineStatus.Unavailable || dashboardData.PipelineStatus.DeploymentsUnavailable {
+			<p class="mt-2 text-sm text-warning">Some inventory data is unavailable. Open inventory details for the reason.</p>
+		}
+		<details class="min-w-0 border-t border-base-300 pt-4" id="dashboard-inventory">
+			<summary class="cursor-pointer text-sm font-semibold text-base-content focus-visible:outline-primary">Inventory and setup details</summary>
+			<div class="mt-5 grid min-w-0 items-start gap-6 xl:grid-cols-2">
+				@DashboardMetricGrid(dashboardData.RecentRuns.Metrics)
+				@DashboardPipelineStatusPanel(dashboardData)
+				@DashboardDataSourceReadinessPanel(shellData, dashboardData)
+				@DashboardContractChecksPanel(dashboardData)
+				@DashboardQueryInventoryPanel(shellData, dashboardData)
+			</div>
+		</details>
+	</div>
+}
+
+templ DashboardAttentionPanel(data DashboardData) {
+	<section class="min-w-0 border-t border-base-300 pt-4" aria-labelledby="dashboard-attention-title">
+		<h2 class="text-lg font-semibold text-base-content" id="dashboard-attention-title">Needs attention</h2>
+		<p class="mt-1 text-sm text-base-content/65">Recorded connection tests and setup checks. These do not measure live health.</p>
+		@DashboardPanelMessage(data.DataSourceReadiness.Unavailable, data.DataSourceReadiness.Message)
+		@DashboardIssueList(data.DataSourceReadiness.Issues, data.DataSourceReadiness.HiddenIssueCount)
+		if DashboardScopeHasActiveProject(data.ProjectScope) {
+			if !data.ProjectScope.HasPipelineBackend {
+				@EntityState("Git repository not configured", "Attach the project's pipeline repository before authoring repeatable workflows.")
+				if data.Permissions.Can("projects", "update") && data.Onboarding.ProjectSetupHref != "" {
+					<a class="btn btn-outline btn-sm mt-3" href={ templ.URL(data.Onboarding.ProjectSetupHref) }>Open project setup</a>
+				} else {
+					<p class="mt-2 text-sm text-base-content/65">Ask a workspace admin to configure the project repository.</p>
+				}
+			}
+			if data.ContractChecks.Unavailable || !DashboardScopeHasActiveEnvironment(data.ProjectScope) {
+				@DashboardPanelMessage(data.ContractChecks.Unavailable, data.ContractChecks.Message)
+			}
+			@DashboardIssueList(data.ContractChecks.Issues, data.ContractChecks.HiddenIssueCount)
+			@DashboardPanelMessage(data.PipelineStatus.Unavailable || data.PipelineStatus.DeploymentsUnavailable, data.PipelineStatus.Message)
+			for _, metric := range data.PipelineStatus.Metrics {
+				if metric.Kind == "warning" && (metric.Label == "Not deployed" || metric.Label == "Sync attention") {
+					<a class="mt-3 block break-words text-sm text-warning underline focus-visible:outline-primary" href={ templ.URL(metric.Href) }>{ metric.Label }: { metric.Value } · Open pipelines</a>
+				}
+			}
+		}
+		if !DashboardHasRecordedAttention(data) {
+			<p class="mt-3 text-sm text-base-content/65">No setup or connection-test issues in the loaded records.</p>
+		}
+	</section>
+}
+
+templ DashboardOnboardingChecklist(dashboardData DashboardData, organizationSlug string) {
+	<section class="rounded-lg border border-primary/30 bg-primary/5 p-4 sm:p-5" id="dashboard-onboarding" data-dashboard-onboarding data-dashboard-onboarding-scope={ organizationSlug } aria-labelledby="dashboard-onboarding-title">
+		<div class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+			<div>
+				<h2 class="text-lg font-semibold" id="dashboard-onboarding-title">Build your first workflow</h2>
+				<p class="mt-1 max-w-prose text-sm text-base-content/70">Connect a system, run a read, then build on the result.</p>
+			</div>
+			<div class="flex w-full flex-wrap gap-2 sm:w-auto">
+				if dashboardData.Onboarding.TutorialHref != "" {
+					<a class="btn btn-outline btn-sm" href={ templ.URL(dashboardData.Onboarding.TutorialHref) }>UI / CLI tutorial</a>
+				}
+				<button class="btn btn-ghost btn-sm" type="button" data-dashboard-onboarding-dismiss aria-controls="dashboard-onboarding">Hide</button>
+			</div>
+		</div>
+		{{ currentShown := false }}
+		for _, step := range DashboardOnboardingSteps(dashboardData) {
+			if step.Current {
+				{{ currentShown = true }}
+				<div class="mt-3 flex flex-wrap items-center gap-3 text-sm">
+					<span class="font-semibold">Next: { step.Label }</span>
+					<a class="btn btn-primary btn-sm" href={ templ.URL(step.Href) }>{ step.Action }</a>
+				</div>
+			}
+		}
+		if !currentShown {
+			<p class="mt-3 text-sm text-base-content/70">Ask a workspace admin for access to the remaining setup steps.</p>
+		}
+		if dashboardData.Onboarding.FirstResultUnavailable {
+			<p class="mt-3 text-sm text-warning">First-result progress is unavailable. Open queries to inspect recorded results or retry later.</p>
+		}
+		<details class="mt-3">
+			<summary class="cursor-pointer text-sm text-base-content/70 focus-visible:outline-primary">Setup checklist</summary>
+			<ol class="mt-4 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+				for _, step := range DashboardOnboardingSteps(dashboardData) {
+					<li
+						class={ "rounded-lg border p-3 " + func() string {
+	if step.Current {
+		return "border-primary bg-base-100"
+	}
+	return "border-base-300 bg-base-100/70"
+}() }
+					>
+						<div class="flex items-center gap-2">
+							<span
+								class={ "badge badge-sm " + func() string {
+	if step.Done {
+		return "badge-success"
+	}
+	if step.Current {
+		return "badge-primary"
+	}
+	return "badge-ghost"
+}() }
+							>{ func() string { if step.Done { return "Done" }; if step.Current { return "Next" }; return "Later" }() }</span>
+							<h3 class="text-sm font-semibold">{ step.Label }</h3>
+						</div>
+						<p class="mt-2 text-xs text-base-content/65">{ step.Description }</p>
+						if step.Href != "" && !step.Done {
+							<a class="btn btn-outline btn-sm mt-3" href={ templ.URL(step.Href) }>{ step.Action }</a>
+						} else if step.Href != "" && step.Done && step.CompletedAction != "" {
+							<a class="btn btn-outline btn-sm mt-3" href={ templ.URL(step.Href) }>{ step.CompletedAction }</a>
+						} else if step.Href == "" && !step.Done {
+							<p class="mt-3 text-xs text-base-content/50">{ step.Action }</p>
+						}
+					</li>
+				}
+			</ol>
+		</details>
+	</section>
+}
+
+templ DashboardIncidentQueuePanel(dashboardData DashboardData) {
+	<section class="min-w-0 border-t border-base-300 pt-4" aria-labelledby="dashboard-incident-queue-title">
+		<div class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+			<div class="min-w-0">
+				<h2 class="text-lg font-semibold text-base-content" id="dashboard-incident-queue-title">Recorded failures</h2>
+				<p class="mt-1 text-sm text-base-content/65">Historical runs in this target. A past failure does not establish current health.</p>
+			</div>
+			if DashboardScopeHasActiveProject(dashboardData.ProjectScope) {
+				<a class="btn btn-outline btn-sm" href={ templ.URL(dashboardData.IncidentQueue.Href) }>View failed runs</a>
+			}
+		</div>
+		@DashboardPanelMessage(dashboardData.IncidentQueue.Unavailable, dashboardData.IncidentQueue.Message)
+		if !dashboardData.IncidentQueue.Unavailable && len(dashboardData.IncidentQueue.Runs) > 0 {
+			<div class="mt-4 grid gap-2">
+				for _, run := range dashboardData.IncidentQueue.Runs {
+					@DashboardRunListItem(run)
+				}
+			</div>
+			if dashboardData.IncidentQueue.HasMore {
+				<p class="mt-3 text-xs text-base-content/55">More failed runs are available on the runs page.</p>
+			}
+		}
+	</section>
+}
+
+templ DashboardRecentRunsPanel(dashboardData DashboardData) {
+	<section class="min-w-0 border-t border-base-300 pt-4" aria-labelledby="dashboard-recent-runs-title">
+		<div class="flex items-start justify-between gap-3">
+			<div class="min-w-0">
+				<h2 class="text-lg font-semibold text-base-content" id="dashboard-recent-runs-title">Recent activity</h2>
+				<p class="mt-1 text-sm text-base-content/65">{ dashboardData.RecentRuns.WindowLabel }</p>
+			</div>
+			if DashboardScopeHasActiveProject(dashboardData.ProjectScope) {
+				<a class="btn btn-outline btn-sm" href={ templ.URL(dashboardData.RecentRuns.Href) }>Open runs</a>
+			}
+		</div>
+		@DashboardPanelMessage(dashboardData.RecentRuns.Unavailable, dashboardData.RecentRuns.Message)
+		if !dashboardData.RecentRuns.Unavailable && len(dashboardData.RecentRuns.Metrics) > 0 {
+			for _, run := range dashboardData.RecentRuns.Runs {
+				@DashboardRunListItem(run)
+			}
+			if dashboardData.RecentRuns.HasMore {
+				<p class="mt-3 text-xs text-base-content/55">The runs page has older records beyond this loaded window.</p>
+			}
+		}
+	</section>
+}
+
+templ DashboardPipelineStatusPanel(dashboardData DashboardData) {
+	<section class="min-w-0 border-t border-base-300 pt-4" aria-labelledby="dashboard-pipeline-status-title">
+		<div class="flex items-start justify-between gap-3">
+			<div class="min-w-0">
+				<h2 class="text-lg font-semibold text-base-content" id="dashboard-pipeline-status-title">Pipeline status</h2>
+				<p class="mt-1 text-sm text-base-content/65">Selected project inventory and target deployment pointers.</p>
+			</div>
+			if DashboardScopeHasActiveProject(dashboardData.ProjectScope) {
+				<a class="btn btn-outline btn-sm" href={ templ.URL(dashboardData.PipelineStatus.Href) }>Open pipelines</a>
+			}
+		</div>
+		@DashboardPanelMessage(dashboardData.PipelineStatus.Unavailable, dashboardData.PipelineStatus.Message)
+		if !dashboardData.PipelineStatus.Unavailable && len(dashboardData.PipelineStatus.Metrics) > 0 {
+			if dashboardData.PipelineStatus.DeploymentsUnavailable {
+				<div class="mt-3 break-words text-sm text-warning">
+					<span>Deployment pointers are unavailable for this target.</span>
+				</div>
+			}
+			@DashboardMetricGrid(dashboardData.PipelineStatus.Metrics)
+		}
+	</section>
+}
+
+templ DashboardDataSourceReadinessPanel(shellData AuthenticatedShellData, dashboardData DashboardData) {
+	<section class="min-w-0 border-t border-base-300 pt-4" aria-labelledby="dashboard-data-source-readiness-title">
+		<div class="flex items-start justify-between gap-3">
+			<div class="min-w-0">
+				<h2 class="text-lg font-semibold text-base-content" id="dashboard-data-source-readiness-title">Data-source readiness</h2>
+				<p class="mt-1 text-sm text-base-content/65">Organization connector records and connection-test state.</p>
+			</div>
+			if DashboardHasActiveOrganization(shellData) {
+				<a class="btn btn-outline btn-sm" href={ templ.URL(dashboardData.DataSourceReadiness.Href) }>Open data sources</a>
+			}
+		</div>
+		@DashboardPanelMessage(dashboardData.DataSourceReadiness.Unavailable, dashboardData.DataSourceReadiness.Message)
+		if !dashboardData.DataSourceReadiness.Unavailable && len(dashboardData.DataSourceReadiness.Metrics) > 0 {
+			@DashboardMetricGrid(dashboardData.DataSourceReadiness.Metrics)
+		}
+	</section>
+}
+
+templ DashboardQueryInventoryPanel(shellData AuthenticatedShellData, dashboardData DashboardData) {
+	<section class="min-w-0 border-t border-base-300 pt-4" aria-labelledby="dashboard-query-inventory-title">
+		<div class="flex items-start justify-between gap-3">
+			<div class="min-w-0">
+				<h2 class="text-lg font-semibold text-base-content" id="dashboard-query-inventory-title">Query inventory</h2>
+				<p class="mt-1 text-sm text-base-content/65">Saved operations grouped by organization data source.</p>
+			</div>
+			if DashboardHasActiveOrganization(shellData) {
+				<a class="btn btn-outline btn-sm" href={ templ.URL(dashboardData.QueryInventory.Href) }>Open queries</a>
+			}
+		</div>
+		@DashboardPanelMessage(dashboardData.QueryInventory.Unavailable, dashboardData.QueryInventory.Message)
+		if !dashboardData.QueryInventory.Unavailable && len(dashboardData.QueryInventory.Metrics) > 0 {
+			@DashboardMetricGrid(dashboardData.QueryInventory.Metrics)
+		}
+	</section>
+}
+
+templ DashboardContractChecksPanel(dashboardData DashboardData) {
+	<section class="min-w-0 border-t border-base-300 pt-4" aria-labelledby="dashboard-contract-checks-title">
+		<div class="flex items-start justify-between gap-3">
+			<div class="min-w-0">
+				<h2 class="text-lg font-semibold text-base-content" id="dashboard-contract-checks-title">Contract checks</h2>
+				<p class="mt-1 text-sm text-base-content/65">Logical refs and bindings for the selected runtime target.</p>
+			</div>
+			if DashboardScopeHasActiveProject(dashboardData.ProjectScope) {
+				<a class="btn btn-outline btn-sm" href={ templ.URL(dashboardData.ContractChecks.Href) }>Open environments</a>
+			}
+		</div>
+		@DashboardPanelMessage(dashboardData.ContractChecks.Unavailable, dashboardData.ContractChecks.Message)
+		if !dashboardData.ContractChecks.Unavailable && len(dashboardData.ContractChecks.Metrics) > 0 {
+			@DashboardMetricGrid(dashboardData.ContractChecks.Metrics)
+		}
+	</section>
+}
+
+templ DashboardProjectScopeSelector(scope DashboardProjectScope) {
+	<div class="min-w-0">
+		<p class="text-xs font-semibold uppercase tracking-wide text-base-content/50">Project operations</p>
+		if scope.ProjectsUnavailable {
+			<p class="mt-3 text-sm text-base-content/65">{ scope.Message }</p>
+		} else if len(scope.Projects) == 0 {
+			if scope.Message != "" {
+				<p class="mt-3 text-sm text-base-content/65">{ scope.Message }</p>
+			} else {
+				<p class="mt-3 text-sm text-base-content/65">No projects available</p>
+			}
+		} else {
+			<form class="mt-2" method="get" action="/dashboard">
+				<label class="sr-only" for="dashboard-project-scope">Project operations</label>
+				<select
+					class="select select-bordered h-11 min-h-11 w-full truncate bg-base-100"
+					id="dashboard-project-scope"
+					name="project_slug"
+					aria-label="Choose dashboard project scope"
+					data-auto-submit-form
+				>
+					if DashboardScopeHasActiveProject(scope) {
+						<option value="">No project selected</option>
+					} else {
+						<option selected value="">No project selected</option>
+					}
+					for _, project := range scope.Projects {
+						if project.IsActive {
+							<option selected value={ project.Slug }>{ project.Name }</option>
+						} else {
+							<option value={ project.Slug }>{ project.Name }</option>
+						}
+					}
+				</select>
+				<noscript><button class="btn btn-outline btn-sm mt-2" type="submit">Apply scope</button></noscript>
+			</form>
+		}
+	</div>
+}
+
+templ DashboardRuntimeScopeSelector(scope DashboardProjectScope) {
+	<div class="min-w-0">
+		<p class="text-xs font-semibold uppercase tracking-wide text-base-content/50">Runtime target</p>
+		if !DashboardScopeHasActiveProject(scope) {
+			<select class="select select-bordered mt-2 h-11 min-h-11 w-full truncate bg-base-100" disabled aria-label="Dashboard runtime target unavailable">
+				<option>No project selected</option>
+			</select>
+		} else if scope.EnvironmentsUnavailable {
+			<p class="mt-3 text-sm text-base-content/65">{ scope.EnvironmentMessage }</p>
+		} else if len(scope.Environments) == 0 {
+			if scope.EnvironmentMessage != "" {
+				<p class="mt-3 text-sm text-base-content/65">{ scope.EnvironmentMessage }</p>
+			} else {
+				<p class="mt-3 text-sm text-base-content/65">No runtime target enabled</p>
+			}
+		} else {
+			<form class="mt-2" method="get" action="/dashboard">
+				<input type="hidden" name="project_slug" value={ scope.ActiveProjectSlug }/>
+				<label class="sr-only" for="dashboard-runtime-scope">Runtime target</label>
+				<select
+					class="select select-bordered h-11 min-h-11 w-full truncate bg-base-100"
+					id="dashboard-runtime-scope"
+					name="environment_slug"
+					aria-label="Choose dashboard runtime target"
+					data-auto-submit-form
+				>
+					for _, environment := range scope.Environments {
+						if environment.IsActive {
+							<option selected value={ environment.Slug }>{ ShellRuntimeTargetDisplay(environment.Name, environment.Slug) }</option>
+						} else {
+							<option value={ environment.Slug }>{ ShellRuntimeTargetDisplay(environment.Name, environment.Slug) }</option>
+						}
+					}
+				</select>
+				<noscript><button class="btn btn-outline btn-sm mt-2" type="submit">Apply scope</button></noscript>
+			</form>
+			<div class="mt-2 flex flex-wrap items-center gap-2">
+				if DashboardScopeHasActiveEnvironment(scope) {
+					<span class={ ShellEnvironmentBadgeClass(scope.ActiveEnvironmentColor) }>{ ShellContextDisplay(scope.ActiveEnvironmentName, scope.ActiveEnvironmentSlug, "Runtime target") }</span>
+					<span class="min-w-0 break-words text-sm text-base-content/65">{ ShellEnvironmentRiskLabel(scope.ActiveEnvironmentSlug, scope.ActiveEnvironmentProtected) }</span>
+				}
+			</div>
+		}
+	</div>
+}
+
+templ DashboardPanelMessage(unavailable bool, message string) {
+	if message != "" {
+		if unavailable {
+			<div class="mt-3 break-words text-sm text-warning">
+				<span>{ message }</span>
+			</div>
+		} else {
+			<div class="mt-3 break-words text-sm text-base-content/65">
+				{ message }
+			</div>
+		}
+	}
+}
+
+templ DashboardMetricGrid(metrics []DashboardMetric) {
+	<div class="mt-4 grid grid-cols-1 gap-2 sm:grid-cols-2">
+		for _, metric := range metrics {
+			if metric.Href != "" {
+				<a class={ DashboardMetricCardClass(metric) } href={ templ.URL(metric.Href) } aria-label={ DashboardMetricAriaLabel(metric) }>
+					<div class="grid gap-1">
+						<p class="text-xs font-semibold uppercase leading-tight text-base-content/50">{ metric.Label }</p>
+					</div>
+					<p class="mt-2 text-2xl font-semibold text-base-content">{ metric.Value }</p>
+					if metric.Detail != "" {
+						<p class="mt-1 break-words text-xs text-base-content/55">{ metric.Detail }</p>
+					}
+				</a>
+			} else {
+				<div class={ DashboardMetricCardClass(metric) }>
+					<div class="grid gap-1">
+						<p class="text-xs font-semibold uppercase leading-tight text-base-content/50">{ metric.Label }</p>
+					</div>
+					<p class="mt-2 text-2xl font-semibold text-base-content">{ metric.Value }</p>
+					if metric.Detail != "" {
+						<p class="mt-1 break-words text-xs text-base-content/55">{ metric.Detail }</p>
+					}
+				</div>
+			}
+		}
+	</div>
+}
+
+templ DashboardRunListItem(run DashboardRunSummary) {
+	<div class="rounded-lg border border-base-300 bg-base-200/35 p-3">
+		<div class="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+			<div class="min-w-0">
+				<a class="break-all font-mono text-sm font-semibold text-primary hover:underline" href={ templ.URL(run.Href) }>{ run.RunSlug }</a>
+				<p class="mt-1 truncate text-xs text-base-content/60" title={ run.PipelineSlug }>
+					<a class="hover:text-primary hover:underline" href={ templ.URL(run.PipelineHref) }>{ run.PipelineSlug }</a>
+				</p>
+			</div>
+			<span class={ DashboardRunStatusBadgeClass(run.Status) }>{ string(run.Status) }</span>
+		</div>
+		if run.ErrorSummary != "" {
+			<p class="mt-2 break-words text-sm text-error">{ run.ErrorSummary }</p>
+		}
+		<div class="mt-2 flex flex-wrap gap-x-3 gap-y-1 text-xs text-base-content/55">
+			<span>{ formatRunTimestamp(run.StartedAt) }</span>
+			<span>{ runDurationLabel(run.DurationMs) }</span>
+			if run.FailureKind != "" {
+				<span>{ run.FailureKind }</span>
+			}
+		</div>
+	</div>
+}
+
+templ DashboardIssueList(issues []DashboardInventoryIssue, hiddenIssueCount int) {
+	if len(issues) > 0 || hiddenIssueCount > 0 {
+		<div class="mt-4 grid gap-2">
+			for _, issue := range issues {
+				<a class="rounded-lg border border-base-300 bg-base-200/25 p-3 transition-colors hover:border-primary/40 hover:bg-base-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary" href={ templ.URL(issue.Href) }>
+					<span class="flex items-start justify-between gap-3">
+						<span class="min-w-0">
+							<span class="block truncate text-sm font-semibold text-base-content" title={ issue.Label }>{ issue.Label }</span>
+							<span class="mt-1 block text-xs text-base-content/60">{ issue.Detail }</span>
+						</span>
+						<span class={ DashboardStatusBadgeClass(issue.Kind) }>{ issue.Kind }</span>
+					</span>
+				</a>
+			}
+			if hiddenIssueCount > 0 {
+				<p class="rounded-lg border border-base-300 bg-base-200/25 p-3 text-xs text-base-content/60">
+					{ DashboardHiddenIssueLabel(hiddenIssueCount) }
+				</p>
+			}
+		</div>
+	}
+}

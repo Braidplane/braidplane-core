@@ -1,0 +1,672 @@
+package views
+
+import "fmt"
+import api "github.com/Braidplane/braidplane-core/api-schema/gen/client"
+
+templ DataSourcesPage(shellData AuthenticatedShellData, dataSources []api.DataSource, summaryDataSources []api.DataSource, hasMore bool, nextCursor string, prevCursor string, orgSlug string, activeFilter string, selectedDataSource *api.DataSource, schemaPanel DataSourceSchemaPanelData, connectionInfo *ConnectionInfo, updateFormData DataSourceUpdateFormData, formData DataSourceCreateFormData, permissions OrganizationPermissions, selectedFeedbackMessage string, selectedFeedbackKind string, pageFeedback DataSourcePageFeedback) {
+	@AuthenticatedShell(shellData, DataSourcesPageContent(dataSources, summaryDataSources, hasMore, nextCursor, prevCursor, orgSlug, shellData.ActiveEnvironmentSlug, activeFilter, selectedDataSource, schemaPanel, connectionInfo, updateFormData, formData, permissions, selectedFeedbackMessage, selectedFeedbackKind, pageFeedback))
+}
+
+templ DataSourcesPageContent(dataSources []api.DataSource, summaryDataSources []api.DataSource, hasMore bool, nextCursor string, prevCursor string, orgSlug string, activeEnvironmentSlug string, activeFilter string, selectedDataSource *api.DataSource, schemaPanel DataSourceSchemaPanelData, connectionInfo *ConnectionInfo, updateFormData DataSourceUpdateFormData, formData DataSourceCreateFormData, permissions OrganizationPermissions, selectedFeedbackMessage string, selectedFeedbackKind string, pageFeedback DataSourcePageFeedback) {
+	if pageFeedback.Message != "" {
+		<div
+			class={ "alert mb-5 py-3 text-sm " + func() string {
+			switch pageFeedback.Kind {
+			case "success":
+				return "alert-success"
+			case "error":
+				return "alert-error"
+			default:
+				return "alert-warning"
+			}
+		}() }
+			role="status"
+			data-provider-oauth-feedback
+			data-consume-query-param="provider_oauth"
+		>
+			<div class="w-full">
+				<span>{ pageFeedback.Message }</span>
+			</div>
+		</div>
+	}
+	if permissions.Can("datasources", "create") {
+		<div class="flex flex-wrap items-center justify-end gap-3">
+			<button
+				class="btn btn-primary btn-sm w-full sm:w-auto"
+				type="button"
+				aria-controls="create-data-source"
+				aria-expanded={ func() string { if formData.HasInput() { return "true" }; return "false" }() }
+				data-toggle-target="create-data-source"
+			>Add Data Source</button>
+		</div>
+	}
+	<div class="mt-5 grid gap-3 md:grid-cols-3">
+		<a class={ DataSourceMetricCardClass("ready") } href={ templ.URL(DataSourcesListFilteredHref(orgSlug, activeEnvironmentSlug, "", DataSourceListFilterReady)) }>
+			<p class="text-xs font-semibold uppercase tracking-wide text-base-content/55">Ready sources</p>
+			<p class="mt-2 text-2xl font-semibold text-success">{ fmt.Sprintf("%d", DataSourceReadyCount(summaryDataSources)) }</p>
+			<p class="mt-1 text-xs text-base-content/60">Active, tested, and without a stored test failure.</p>
+		</a>
+		<a class={ DataSourceMetricCardClass("attention") } href={ templ.URL(DataSourcesListFilteredHref(orgSlug, activeEnvironmentSlug, "", DataSourceListFilterAttention)) }>
+			<p class="text-xs font-semibold uppercase tracking-wide text-base-content/55">Needs attention</p>
+			<p class="mt-2 text-2xl font-semibold text-warning">{ fmt.Sprintf("%d", DataSourceAttentionCount(summaryDataSources)) }</p>
+			<p class="mt-1 text-xs text-base-content/60">Inactive, untested, or failed connection tests.</p>
+		</a>
+		<a class={ DataSourceMetricCardClass(failureSideSink) } href={ templ.URL(DataSourcesListFilteredHref(orgSlug, activeEnvironmentSlug, "", DataSourceListFilterReadWrite)) }>
+			<p class="text-xs font-semibold uppercase tracking-wide text-base-content/55">Sink capable</p>
+			<p class="mt-2 text-2xl font-semibold text-primary">{ fmt.Sprintf("%d", DataSourceReadWriteCount(summaryDataSources)) }</p>
+			<p class="mt-1 text-xs text-base-content/60">Active read/write targets for pipeline sinks.</p>
+		</a>
+	</div>
+	if permissions.Can("datasources", "create") {
+		<form
+			class={ "mt-6 rounded-xl border border-base-300 bg-base-100 p-5 scroll-mt-6" + func() string {
+	if formData.HasInput() {
+		return ""
+	}
+	return " hidden"
+}() }
+			id="create-data-source"
+			method="post"
+			action={ templ.URL(DataSourceCreateHref(orgSlug, activeEnvironmentSlug)) }
+			data-form-feedback
+			data-data-source-create-form
+			data-git-auth-form
+			data-provider-auth-form
+			data-gitlab-connection-available={ fmt.Sprint(formData.GitLabConnectionAvailable) }
+			data-github-connection-available={ fmt.Sprintf("%t", formData.GitHubConnectionAvailable) }
+			data-snowflake-auth-form
+			data-parse-uri-url={ templ.URL("/orgs/" + orgSlug + "/data-sources/parse-uri") }
+			hx-post={ DataSourceCreateHref(orgSlug, activeEnvironmentSlug) }
+			hx-target="#create-data-source"
+			hx-select="#create-data-source"
+			hx-swap="outerHTML"
+		>
+			<input type="hidden" name="environment_slug" value={ activeEnvironmentSlug }/>
+			<p class="text-sm font-semibold text-base-content">Create data source</p>
+			<p class="mt-1 text-xs text-base-content/70">Choose the connector type first, then provide the matching connection fields.</p>
+			<button class="link link-primary mt-2 text-xs" type="button" id="data-source-uri-toggle-btn">Got a URI? Click here</button>
+			<div class="mt-3 rounded-lg border border-base-300 bg-base-200/40 p-3 hidden" id="data-source-uri-panel">
+				<p class="text-xs font-semibold uppercase tracking-wide text-base-content/70">Parse Connection URI</p>
+				<p class="mt-1 text-xs text-base-content/70">Paste a URI to auto-fill host, port, database and credentials.</p>
+				<div class="mt-2 flex flex-col gap-2 sm:flex-row sm:items-center">
+					<input class="input input-bordered input-sm w-full font-mono" type="text" name="uri" id="data-source-uri" placeholder="postgres://user:pass@host:5432/db" autocomplete="off"/>
+					<button class="btn btn-outline btn-sm" type="button" id="data-source-uri-parse-btn">Parse URI</button>
+				</div>
+				<p class="mt-2 text-xs text-base-content/70 hidden" id="data-source-uri-parse-message"></p>
+			</div>
+			<div class="mt-4 rounded-lg border border-base-300 bg-base-200/40 p-4">
+				<p class="text-xs font-semibold uppercase tracking-wide text-base-content/70">Identity</p>
+				<div class="mt-2 grid gap-3 md:grid-cols-3">
+					<label class="form-control w-full">
+						<div class="label py-1">
+							<span class="label-text text-xs">Type</span>
+						</div>
+						<select class="select select-bordered select-sm w-full" id="data-source-type" name="type" required data-ds-type-select { FormFieldError(formData.InvalidField == "type", "data-source-create-feedback")... }>
+							<option value="" selected?={ formData.Type == "" }>Select a type</option>
+							<option value="postgres" selected?={ formData.Type == "postgres" }>Postgres</option>
+							<option value="mysql" selected?={ formData.Type == "mysql" }>MySQL</option>
+							<option value="google_workspace" selected?={ formData.Type == "google_workspace" }>Google Workspace</option>
+							<option value="bigquery" selected?={ formData.Type == "bigquery" }>BigQuery</option>
+							<option value="snowflake" selected?={ formData.Type == "snowflake" }>Snowflake</option>
+							<option value="mongodb" selected?={ formData.Type == "mongodb" }>MongoDB</option>
+							<option value="s3" selected?={ formData.Type == "s3" }>S3-compatible storage</option>
+							<option value="http" selected?={ formData.Type == "http" }>HTTP</option>
+							<option value="hubspot" selected?={ formData.Type == "hubspot" }>HubSpot</option>
+							<option value="git" selected?={ formData.Type == "git" }>Git</option>
+							<option value="github" selected?={ formData.Type == "github" }>GitHub</option>
+							<option value="gitlab" selected?={ formData.Type == "gitlab" }>GitLab</option>
+						</select>
+					</label>
+					<label class="form-control w-full">
+						<div class="label py-1">
+							<span class="label-text text-xs">Name</span>
+						</div>
+						<input
+							class="input input-bordered input-sm w-full"
+							type="text"
+							name="name"
+							value={ formData.Name }
+							required
+							{ FormFieldError(formData.InvalidField == "name", "data-source-create-feedback")... }
+						/>
+					</label>
+					@CustomizeIdentifierWithError(formData.Slug, formData.InvalidField == "slug", "data-source-create-feedback")
+				</div>
+			</div>
+			<div
+				class={ "mt-4 rounded-lg border border-base-300 bg-base-200/40 p-4" + func() string {
+	if formData.Type == "" {
+		return " hidden"
+	}
+	return ""
+}() }
+				data-ds-requires-type
+			>
+				<p class="text-xs font-semibold uppercase tracking-wide text-base-content/70">Connection Parameters</p>
+				<div class="mt-2 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+					<div class="min-w-0 space-y-3 md:col-span-2 xl:col-span-3" data-ds-fields="google_workspace">
+						@WorkspaceDataDisclosure(formData.WorkspacePrivacyURL)
+						<label class="label items-start justify-start gap-2 whitespace-normal"><input class="checkbox checkbox-sm" type="checkbox" name="workspace_write" value="true" checked?={ !formData.WorkspaceReadOnly }/><span>Allow file writes and exact-range spreadsheet updates</span></label>
+						<button class="btn btn-primary btn-sm" type="submit" formaction={ templ.URL("/orgs/" + orgSlug + "/data-sources/google_workspace/oauth") } formmethod="post" formnovalidate hx-post={ "/orgs/" + orgSlug + "/data-sources/google_workspace/oauth" } hx-target="#create-data-source" hx-select="#create-data-source" hx-swap="outerHTML">Connect Google</button>
+					</div>
+					<label class="form-control w-full md:col-span-2 xl:col-span-3" data-ds-fields="hubspot">
+						<div class="label py-1">
+							<span class="label-text text-xs">Authentication</span>
+						</div>
+						<select class="select select-bordered select-sm w-full" name="hubspot_auth_type" data-provider-auth-select="hubspot">
+							<option value="oauth2" selected?={ formData.HubSpotAuthType != "private_app" }>OAuth 2.0 (recommended)</option>
+							<option value="private_app" selected?={ formData.HubSpotAuthType == "private_app" }>Private app token</option>
+						</select>
+					</label>
+					<label class="form-control w-full md:col-span-2 xl:col-span-3" data-ds-fields="hubspot">
+						<div class="label py-1">
+							<span class="label-text text-xs">Access mode</span>
+						</div>
+						<select class="select select-bordered select-sm w-full" name="hubspot_access_mode">
+							<option value="read" selected?={ formData.HubSpotReadOnly }>Read-only source</option>
+							<option value="write" selected?={ !formData.HubSpotReadOnly }>Write-enabled upsert destination</option>
+						</select>
+						<div class="label py-1"><span class="label-text-alt text-base-content/60">Write mode still requires the matching HubSpot object read and write scopes.</span></div>
+					</label>
+					<div class="rounded-lg border border-primary/30 bg-primary/5 p-3 md:col-span-2 xl:col-span-3" data-ds-fields="hubspot" data-provider="hubspot" data-provider-auth-fields="oauth2">
+						<p class="text-xs font-semibold uppercase tracking-wide text-primary">OAuth 2.0</p>
+						<p class="mt-1 text-xs text-base-content/70">Connect your HubSpot account securely. You will review Braidplane's requested CRM permissions in HubSpot before the data source becomes active.</p>
+					</div>
+					<label class="form-control w-full md:col-span-2 xl:col-span-3" data-ds-fields="snowflake">
+						<div class="label py-1"><span class="label-text text-xs">Authentication</span></div>
+						<select class="select select-bordered select-sm w-full" name="snowflake_auth_type" data-snowflake-auth-select>
+							<option value="workload_identity" selected?={ formData.SnowflakeAuthType != "password" }>Workload identity (requires onboarding)</option>
+							<option value="password" selected?={ formData.SnowflakeAuthType == "password" }>Username and password</option>
+						</select>
+					</label>
+					<div class="rounded-lg border border-primary/30 bg-primary/5 p-3 md:col-span-2 xl:col-span-3" data-ds-fields="snowflake" data-snowflake-auth-fields="workload_identity">
+						<p class="text-xs font-semibold uppercase tracking-wide text-primary">Connection workload identity</p>
+						<p class="mt-1 text-xs text-base-content/70">Save the connection, run the generated SQL script in Snowflake, then select Verify. Braidplane provisions the identity automatically. No administrator password or token is requested.</p>
+					</div>
+					<label class="form-control w-full" data-ds-fields="postgres,mysql,mongodb">
+						<div class="label py-1">
+							<span class="label-text text-xs">Host</span>
+						</div>
+						<input class="input input-bordered input-sm w-full" type="text" name="host" value={ formData.Host } data-required-for="postgres,mysql,mongodb"/>
+					</label>
+					<label class="form-control w-full" data-ds-fields="postgres,mysql,mongodb">
+						<div class="label py-1">
+							<span class="label-text text-xs">Port</span>
+						</div>
+						<input class="input input-bordered input-sm w-full" type="number" name="port" value={ formData.Port }/>
+					</label>
+					<label class="form-control w-full" data-ds-fields="postgres,mysql,mongodb,snowflake">
+						<div class="label py-1">
+							<span class="label-text text-xs">Database</span>
+						</div>
+						<input class="input input-bordered input-sm w-full" type="text" name="database" value={ formData.Database } data-required-for="postgres,mysql,mongodb,snowflake"/>
+					</label>
+					<label class="form-control w-full" data-ds-fields="postgres,mysql,mongodb,snowflake" data-snowflake-auth-fields="password">
+						<div class="label py-1">
+							<span class="label-text text-xs">Username</span>
+						</div>
+						<input class="input input-bordered input-sm w-full" type="text" name="username" value={ formData.Username } data-required-for="postgres,mysql,mongodb,snowflake"/>
+					</label>
+					<label class="form-control w-full" data-ds-fields="postgres,mysql,mongodb,snowflake" data-snowflake-auth-fields="password">
+						<div class="label py-1">
+							<span class="label-text text-xs">Password</span>
+						</div>
+						<input class="input input-bordered input-sm w-full" type="password" name="password" id="data-source-create-database-password" hx-preserve data-required-for="postgres,mongodb,snowflake"/>
+						<span class="label-text-alt mt-1" data-ds-fields="mysql">Leave blank only for an account configured without a password.</span>
+					</label>
+					<div data-ds-fields="postgres">
+						@postgresSSLModeField(formData.SSLMode)
+					</div>
+					<label class="form-control w-full" data-ds-fields="postgres,mysql,mongodb,snowflake">
+						<div class="label py-1">
+							<span class="label-text text-xs">Connect timeout (sec)</span>
+						</div>
+						<input class="input input-bordered input-sm w-full" type="number" name="connect_timeout" value={ formData.ConnectTimeout } min="1"/>
+					</label>
+					if formData.AllowPrivateDataSourceHosts {
+						<label class="label cursor-pointer justify-start gap-2" data-ds-fields="postgres,mysql,mongodb">
+							<input class="checkbox checkbox-sm" type="checkbox" name="database_allow_private_hosts" checked?={ formData.DatabaseAllowPrivateHosts }/>
+							<span class="label-text text-xs">Allow private hosts</span>
+						</label>
+					}
+					<label class="form-control w-full" data-ds-fields="mongodb">
+						<div class="label py-1">
+							<span class="label-text text-xs">Mongo auth database</span>
+						</div>
+						<input class="input input-bordered input-sm w-full" type="text" name="auth_database" value={ formData.AuthDatabase }/>
+					</label>
+					<div class="sm:col-span-2" data-ds-fields="snowflake">
+						@SnowflakeObjectFields(formData.SnowflakeSelectTables, formData.SnowflakeInsertTables)
+					</div>
+					<label class="form-control w-full" data-ds-fields="bigquery">
+						<div class="label py-1"><span class="label-text text-xs">Access mode</span></div>
+						<select class="select select-bordered select-sm w-full" name="bigquery_access_mode">
+							<option value="read" selected?={ formData.BigQueryReadOnly }>Read-only source</option>
+							<option value="write" selected?={ !formData.BigQueryReadOnly }>Write-enabled destination</option>
+						</select>
+					</label>
+					<p class="text-xs text-base-content/70 md:col-span-2 xl:col-span-3" data-ds-fields="bigquery">Choose the project and dataset below. Google IAM permissions for the account you connect determine access. Read-only mode blocks writes in Braidplane; it does not change Google IAM.</p>
+					<label class="form-control w-full" data-ds-fields="bigquery">
+						<div class="label py-1">
+							<span class="label-text text-xs">BigQuery project ID</span>
+						</div>
+						<input class="input input-bordered input-sm w-full font-mono" type="text" name="project_id" value={ formData.ProjectID } data-required-for="bigquery" placeholder="analytics-prod"/>
+					</label>
+					<label class="form-control w-full" data-ds-fields="snowflake">
+						<div class="label py-1"><span class="label-text text-xs">Account</span></div>
+						<input class="input input-bordered input-sm w-full font-mono" type="text" name="account" value={ formData.Account } data-required-for="snowflake"/>
+					</label>
+					<label class="form-control w-full" data-ds-fields="snowflake">
+						<div class="label py-1"><span class="label-text text-xs">Warehouse</span></div>
+						<input class="input input-bordered input-sm w-full font-mono" type="text" name="warehouse" value={ formData.Warehouse } data-required-for="snowflake"/>
+					</label>
+					<label class="form-control w-full" data-ds-fields="snowflake">
+						<div class="label py-1"><span class="label-text text-xs">Schema</span></div>
+						<input class="input input-bordered input-sm w-full font-mono" type="text" name="schema" value={ formData.Schema } data-required-for="snowflake"/>
+					</label>
+					<label class="form-control w-full" data-ds-fields="snowflake">
+						<div class="label py-1"><span class="label-text text-xs">Dedicated role (required for WIF)</span></div>
+						<input class="input input-bordered input-sm w-full font-mono" type="text" name="role" value={ formData.Role }/>
+					</label>
+					<label class="form-control w-full" data-ds-fields="bigquery">
+						<div class="label py-1">
+							<span class="label-text text-xs">Location</span>
+						</div>
+						<input class="input input-bordered input-sm w-full" type="text" name="location" value={ formData.Location } placeholder="US"/>
+					</label>
+					<label class="form-control w-full" data-ds-fields="bigquery">
+						<div class="label py-1">
+							<span class="label-text text-xs">Default dataset</span>
+						</div>
+						<input class="input input-bordered input-sm w-full font-mono" type="text" name="default_dataset" value={ formData.DefaultDataset } placeholder="analytics"/>
+					</label>
+					<label class="form-control w-full md:col-span-2 xl:col-span-3" data-ds-fields="http">
+						<div class="label py-1">
+							<span class="label-text text-xs">HTTP base URL</span>
+						</div>
+						<input class="input input-bordered input-sm w-full" type="text" name="base_url" value={ formData.BaseURL } data-required-for="http" placeholder="https://api.example.com"/>
+					</label>
+					<label class="form-control w-full" data-ds-fields="http">
+						<div class="label py-1">
+							<span class="label-text text-xs">HTTP health path</span>
+						</div>
+						<input class="input input-bordered input-sm w-full" type="text" name="health_path" value={ formData.HealthPath } placeholder="/health"/>
+					</label>
+					<label class="form-control w-full" data-ds-fields="http,hubspot,bigquery">
+						<div class="label py-1">
+							<span class="label-text text-xs">Timeout (sec)</span>
+						</div>
+						<input class="input input-bordered input-sm w-full" type="number" name="timeout_seconds" value={ formData.TimeoutSeconds } min="1" max="300" { FormFieldError(formData.InvalidField == "timeout_seconds" && formData.Type == "hubspot", "data-source-create-feedback")... }/>
+					</label>
+					<label class="form-control w-full" data-ds-fields="bigquery">
+						<div class="label py-1">
+							<span class="label-text text-xs">Maximum bytes billed</span>
+						</div>
+						<input class="input input-bordered input-sm w-full" type="number" name="maximum_bytes_billed" value={ formData.MaximumBytesBilled } min="1" placeholder="1000000000"/>
+					</label>
+					<div class="md:col-span-2 xl:col-span-3" data-ds-fields="http">
+						@HTTPAuthenticationFields(formData.HTTPAuth, "data-source-create-http")
+					</div>
+					if formData.AllowPrivateDataSourceHosts {
+						<label class="label cursor-pointer justify-start gap-2" data-ds-fields="http">
+							<input class="checkbox checkbox-sm" type="checkbox" name="http_allow_private_hosts" checked?={ formData.HTTPAllowPrivateHosts }/>
+							<span class="label-text text-xs">Allow private hosts</span>
+						</label>
+					}
+					<div class="rounded-lg border border-base-300 bg-base-200/40 p-3 md:col-span-2 xl:col-span-3" data-ds-fields="http">
+						<p class="text-xs font-semibold uppercase tracking-wide text-base-content/70">OpenAPI import</p>
+						<p class="mt-1 text-xs text-base-content/70">Import operations from an OpenAPI document for schema browsing and query authoring.</p>
+						<div class="mt-3 grid gap-3 md:grid-cols-[minmax(0,1fr)_12rem]">
+							<label class="form-control w-full">
+								<div class="label py-1">
+									<span class="label-text text-xs">OpenAPI spec URL</span>
+								</div>
+								<input class="input input-bordered input-sm w-full" type="text" name="openapi_url" value={ formData.OpenAPIURL } placeholder="https://api.example.com/openapi.yaml"/>
+							</label>
+							<label class="form-control w-full">
+								<div class="label py-1">
+									<span class="label-text text-xs">OpenAPI fetch timeout</span>
+								</div>
+								<input class="input input-bordered input-sm w-full" type="number" min="1" max="60" name="openapi_fetch_timeout_seconds" value={ formData.OpenAPIFetchTimeout } placeholder="10"/>
+							</label>
+						</div>
+					</div>
+					<label class="form-control w-full md:col-span-2 xl:col-span-3" data-ds-fields="hubspot" data-provider="hubspot" data-provider-auth-fields="private_app">
+						<div class="label py-1">
+							<span class="label-text text-xs">HubSpot private app token</span>
+						</div>
+						<input class="input input-bordered input-sm w-full" type="password" name="private_app_token" id="data-source-create-hubspot-token" hx-preserve data-required-for="hubspot" autocomplete="off"/>
+					</label>
+					<div class="rounded-lg border border-base-300 bg-base-200/40 p-3 md:col-span-2 xl:col-span-3 hidden" data-ds-fields="hubspot" data-provider="hubspot" data-provider-auth-fields="private_app">
+						<p class="text-xs font-semibold uppercase tracking-wide text-base-content/70">Private app token</p>
+						<p class="mt-1 text-xs text-base-content/70">Use an existing HubSpot private app token with the read or write permissions required by the selected access mode.</p>
+					</div>
+					<div class="contents" data-ds-fields="s3">
+						<label class="form-control w-full">
+							<div class="label py-1"><span class="label-text text-xs">Endpoint (optional)</span></div>
+							<input class="input input-bordered input-sm w-full" type="url" name="endpoint" value={ formData.S3Endpoint }/>
+						</label>
+						<label class="form-control w-full">
+							<div class="label py-1"><span class="label-text text-xs">Region</span></div>
+							<input class="input input-bordered input-sm w-full" type="text" name="region" value={ formData.S3Region } data-required-for="s3"/>
+						</label>
+						<label class="form-control w-full">
+							<div class="label py-1"><span class="label-text text-xs">Bucket</span></div>
+							<input class="input input-bordered input-sm w-full" type="text" name="bucket" value={ formData.S3Bucket } data-required-for="s3"/>
+						</label>
+						<label class="form-control w-full">
+							<div class="label py-1"><span class="label-text text-xs">Key prefix (optional)</span></div>
+							<input class="input input-bordered input-sm w-full" type="text" name="prefix" value={ formData.S3Prefix }/>
+						</label>
+						<label class="form-control w-full">
+							<div class="label py-1"><span class="label-text text-xs">Timeout (seconds)</span></div>
+							<input class="input input-bordered input-sm w-full" type="number" name="timeout_seconds" value={ formData.TimeoutSeconds } min="1" max="300"/>
+						</label>
+						<label class="form-control w-full">
+							<div class="label py-1"><span class="label-text text-xs">Access key ID</span></div>
+							<input class="input input-bordered input-sm w-full" type="text" name="access_key_id" id="data-source-create-s3-access-key-id" hx-preserve autocomplete="off" data-required-for="s3"/>
+						</label>
+						<label class="form-control w-full">
+							<div class="label py-1"><span class="label-text text-xs">Secret access key</span></div>
+							<input class="input input-bordered input-sm w-full" type="password" name="secret_access_key" id="data-source-create-s3-secret-access-key" hx-preserve autocomplete="off" data-required-for="s3"/>
+						</label>
+						<label class="form-control w-full">
+							<div class="label py-1"><span class="label-text text-xs">Session token (optional)</span></div>
+							<input class="input input-bordered input-sm w-full" type="password" name="session_token" id="data-source-create-s3-session-token" hx-preserve autocomplete="off"/>
+						</label>
+						<label class="label cursor-pointer justify-start gap-2"><input class="checkbox checkbox-sm" type="checkbox" name="force_path_style" checked?={ formData.S3ForcePathStyle }/><span class="label-text text-xs">Force path-style addressing</span></label>
+						if formData.AllowPrivateDataSourceHosts {
+							<label class="label cursor-pointer justify-start gap-2"><input class="checkbox checkbox-sm" type="checkbox" name="allow_private_hosts" checked?={ formData.S3AllowPrivateHosts }/><span class="label-text text-xs">Allow private endpoint</span></label>
+						}
+					</div>
+					<label class="form-control w-full md:col-span-2 xl:col-span-3" data-ds-fields="git">
+						<div class="label py-1">
+							<span class="label-text text-xs">Git repository URL (HTTPS or SSH)</span>
+						</div>
+						<input class="input input-bordered input-sm w-full" type="text" name="git_repo_url" value={ formData.GitRepoURL } data-required-for="git" placeholder="https://git.example.com/org/repo.git"/>
+					</label>
+					<label class="form-control w-full" data-ds-fields="git">
+						<div class="label py-1">
+							<span class="label-text text-xs">Default branch</span>
+						</div>
+						<input class="input input-bordered input-sm w-full" type="text" name="git_default_branch" value={ formData.GitBranch } placeholder="main"/>
+					</label>
+					<label class="form-control w-full" data-ds-fields="git,github,gitlab">
+						<div class="label py-1">
+							<span class="label-text text-xs">Base path</span>
+						</div>
+						<input class="input input-bordered input-sm w-full" type="text" name="git_base_path" value={ formData.GitBasePath } placeholder="fixtures"/>
+					</label>
+					if formData.GitHubConnectionAvailable {
+						<label class="form-control w-full md:col-span-2" data-ds-fields="github">
+							<div class="label py-1"><span class="label-text text-xs">GitHub repository</span></div>
+							<select class="select select-bordered select-sm w-full" name="github_repository_id" data-required-for="github">
+								<option value="" disabled selected?={ formData.GitHubRepositoryID == "" }>Select a repository</option>
+								for _, repository := range formData.GitHubRepositories {
+									<option value={ fmt.Sprintf("%d", repository.Id) } selected?={ formData.GitHubRepositoryID == fmt.Sprintf("%d", repository.Id) }>{ repository.FullName }</option>
+								}
+							</select>
+							<div class="label py-1"><span class="label-text-alt text-base-content/60">Repositories come from the organization GitHub App connection.</span></div>
+						</label>
+						<label class="form-control w-full" data-ds-fields="github">
+							<div class="label py-1"><span class="label-text text-xs">Access mode</span></div>
+							<select class="select select-bordered select-sm w-full" name="github_access_mode">
+								<option value="read" selected?={ formData.GitHubReadOnly }>Read-only source</option>
+								<option value="write" selected?={ !formData.GitHubReadOnly }>Write-enabled repository</option>
+							</select>
+						</label>
+					} else {
+						<div class="rounded-lg border border-warning/30 bg-warning/5 p-3 md:col-span-2 xl:col-span-3" data-ds-fields="github">
+							<p class="text-xs font-semibold uppercase tracking-wide text-warning">GitHub connection required</p>
+							<p class="mt-1 text-xs text-base-content/70">Connect the organization GitHub App before creating a managed GitHub data source.</p>
+							<a class="btn btn-outline btn-sm mt-3" href={ templ.URL("/organizations/" + orgSlug + "/github") }>Manage GitHub connection</a>
+						</div>
+					}
+					if formData.GitLabConnectionAvailable {
+						<label class="form-control w-full md:col-span-2 xl:col-span-3" data-ds-fields="gitlab">
+							<div class="label py-1"><span class="label-text text-xs">GitLab repository</span></div>
+							<select class="select select-bordered select-sm w-full" name="gitlab_project_id" data-required-for="gitlab">
+								<option value="" disabled selected?={ formData.GitLabProjectID == "" }>Select a repository</option>
+								for _, repository := range formData.GitLabRepositories {
+									<option value={ repository.Id } selected?={ formData.GitLabProjectID == repository.Id }>{ repository.FullName }</option>
+								}
+							</select>
+						</label>
+						<label class="form-control w-full" data-ds-fields="gitlab">
+							<div class="label py-1"><span class="label-text text-xs">Access mode</span></div>
+							<select class="select select-bordered select-sm w-full" name="gitlab_access_mode">
+								<option value="read" selected?={ formData.GitLabReadOnly }>Read-only source</option>
+								<option value="write" selected?={ !formData.GitLabReadOnly }>Write-enabled repository</option>
+							</select>
+						</label>
+					} else {
+						<div class="rounded-lg border border-warning/30 bg-warning/5 p-3 md:col-span-2 xl:col-span-3" data-ds-fields="gitlab">
+							if formData.GitLabRepositoryError != "" {
+								<p class="text-sm" role="alert">{ formData.GitLabRepositoryError }</p>
+							} else {
+								<p class="text-xs font-semibold uppercase tracking-wide text-warning">GitLab connection required</p>
+								<p class="mt-1 text-xs text-base-content/70">Connect GitLab in organization settings before selecting a managed repository. Use Generic Git for manual credentials.</p>
+							}
+							<a class="btn btn-outline btn-sm mt-3" href={ templ.URL("/organizations/" + orgSlug + "/connections") }>Manage provider connections</a>
+						</div>
+					}
+					<div class="contents" data-ds-fields="git">
+						<label class="form-control w-full">
+							<div class="label py-1">
+								<span class="label-text text-xs">Auth type</span>
+							</div>
+							<select class="select select-bordered select-sm w-full" name="git_auth_type" data-git-auth-select>
+								if formData.GitAuthType == "ssh" {
+									<option value="https">HTTPS</option>
+									<option value="ssh" selected>SSH</option>
+								} else {
+									<option value="https" selected>HTTPS</option>
+									<option value="ssh">SSH</option>
+								}
+							</select>
+						</label>
+						<label class="form-control w-full" data-git-auth-fields="https">
+							<div class="label py-1">
+								<span class="label-text text-xs">HTTPS username</span>
+							</div>
+							<input class="input input-bordered input-sm w-full" type="text" name="git_username" value={ formData.GitUsername } placeholder="x-access-token or git"/>
+						</label>
+						<label class="form-control w-full md:col-span-2 xl:col-span-3" data-git-auth-fields="https">
+							<div class="label py-1">
+								<span class="label-text text-xs">HTTPS token or personal access token</span>
+							</div>
+							<input class="input input-bordered input-sm w-full" id="data-source-create-git-token" type="password" name="git_token" hx-preserve/>
+						</label>
+						<label class="form-control w-full md:col-span-2 xl:col-span-3" data-git-auth-fields="ssh">
+							<div class="label py-1">
+								<span class="label-text text-xs">SSH private key</span>
+							</div>
+							<textarea class="textarea textarea-bordered textarea-sm w-full min-h-24" id="data-source-create-git-private-key" name="git_ssh_private_key" placeholder="-----BEGIN OPENSSH PRIVATE KEY-----" hx-preserve></textarea>
+						</label>
+						<label class="form-control w-full md:col-span-2 xl:col-span-3" data-git-auth-fields="ssh">
+							<div class="label py-1">
+								<span class="label-text text-xs">SSH known_hosts</span>
+							</div>
+							<textarea class="textarea textarea-bordered textarea-sm w-full min-h-20 font-mono" name="git_ssh_known_hosts" placeholder="github.com ssh-ed25519 AAAAC3...">{ formData.GitKnownHosts }</textarea>
+						</label>
+						<label class="form-control w-full" data-git-auth-fields="ssh">
+							<div class="label py-1">
+								<span class="label-text text-xs">SSH passphrase</span>
+							</div>
+							<input class="input input-bordered input-sm w-full" id="data-source-create-git-passphrase" type="password" name="git_ssh_passphrase" hx-preserve/>
+						</label>
+						if formData.AllowPrivateDataSourceHosts {
+							<label class="label cursor-pointer justify-start gap-2">
+								<input class="checkbox checkbox-sm" type="checkbox" name="git_allow_private_hosts" checked?={ formData.GitAllowPrivateHosts }/>
+								<span class="label-text text-xs">Allow private hosts</span>
+							</label>
+						}
+					</div>
+				</div>
+			</div>
+			<div
+				class={ "mt-4 flex flex-col gap-2 sm:flex-row sm:items-center" + func() string {
+				if formData.Type == "" || formData.Type == "bigquery" || (formData.Type == "github" && !formData.GitHubConnectionAvailable) || (formData.Type == "hubspot" && formData.HubSpotAuthType != "private_app") || (formData.Type == "gitlab" && !formData.GitLabConnectionAvailable) {
+		return " hidden"
+	}
+	return ""
+}() }
+				data-ds-requires-type
+				data-static-data-source-actions
+			>
+				<button class="btn btn-outline btn-sm" type="submit" data-ds-fields="postgres,mysql,snowflake,mongodb,http,hubspot,ftp,git,s3" formaction={ templ.URL(DataSourceCreateTestHref(orgSlug, activeEnvironmentSlug)) } hx-post={ DataSourceCreateTestHref(orgSlug, activeEnvironmentSlug) } hx-target="#create-data-source" hx-select="#create-data-source" hx-swap="outerHTML">Test connection</button>
+				<button class="btn btn-primary btn-sm" type="submit" hx-post={ DataSourceCreateHref(orgSlug, activeEnvironmentSlug) } hx-target="#create-data-source" hx-select="#create-data-source" hx-swap="outerHTML">Create data source</button>
+				<span class="text-xs text-base-content/70">Creation saves the source; OAuth apps must then be connected from Settings.</span>
+			</div>
+			<div
+				class={ "mt-4 flex flex-col gap-2 sm:flex-row sm:items-center" + func() string {
+	if formData.Type != "hubspot" || formData.HubSpotAuthType == "private_app" {
+		return " hidden"
+	}
+	return ""
+}() }
+				data-ds-fields="hubspot"
+				data-provider="hubspot"
+				data-provider-auth-fields="oauth2"
+			>
+				<button class="btn btn-primary btn-sm w-full sm:w-auto" type="submit" formnovalidate formaction={ templ.URL(DataSourceHubSpotOAuthHref(orgSlug, activeEnvironmentSlug)) } hx-post={ DataSourceHubSpotOAuthHref(orgSlug, activeEnvironmentSlug) } hx-target="#create-data-source" hx-select="#create-data-source" hx-swap="outerHTML">Connect HubSpot</button>
+				<span class="text-xs text-base-content/70">You will continue in HubSpot to approve access.</span>
+			</div>
+			<div
+				class={ "mt-4 flex flex-col gap-2 sm:flex-row sm:items-center" + func() string {
+				if formData.Type != "bigquery" { return " hidden" }
+                return ""
+            }() }
+				data-ds-fields="bigquery"
+				data-provider="bigquery"
+			>
+				<button class="btn btn-primary btn-sm w-full sm:w-auto" type="submit" formnovalidate formaction={ templ.URL(DataSourceBigQueryOAuthHref(orgSlug, activeEnvironmentSlug)) } hx-post={ DataSourceBigQueryOAuthHref(orgSlug, activeEnvironmentSlug) } hx-target="#create-data-source" hx-select="#create-data-source" hx-swap="outerHTML">Connect with Google</button>
+				<span class="text-xs text-base-content/70">Review access in Google. No client secret or JSON key is needed.</span>
+			</div>
+			if formData.TestMessage != "" {
+				if formData.TestSuccess {
+					<div class="alert alert-success mt-3 py-2 text-sm">
+						<span>{ formData.TestMessage }</span>
+					</div>
+				} else {
+					@FormError("data-source-create-feedback", formData.TestMessage, formData.InvalidField == "")
+				}
+			}
+			@FormRequestError()
+		</form>
+	}
+	if len(summaryDataSources) == 0 {
+		@EntityState("No data sources found for this organization.", "Add a data source to connect your systems.")
+	} else {
+		<div id="data-sources-browser" class="mt-6">
+			<div class="space-y-3">
+				<form
+					class="rounded-lg border border-base-300 bg-base-100 p-3"
+					method="get"
+					action={ templ.URL(DataSourcesListHref(orgSlug, "", "")) }
+					hx-get={ DataSourcesListHref(orgSlug, "", "") }
+					hx-target="#data-sources-browser"
+					hx-select="#data-sources-browser"
+					hx-swap="outerHTML show:none focus-scroll:false"
+					hx-push-url="true"
+					data-preserve-scroll
+				>
+					if activeEnvironmentSlug != "" {
+						<input type="hidden" name="environment_slug" value={ activeEnvironmentSlug }/>
+					}
+					<div class="flex flex-wrap items-end gap-2">
+						<label class="form-control w-48 max-w-full">
+							<div class="label py-0.5"><span class="label-text text-xs">Inventory view</span></div>
+							<select class="select select-bordered select-sm w-full" name="filter">
+								for _, option := range DataSourceListFilterOptions() {
+									<option selected?={ NormalizeDataSourceListFilter(activeFilter) == NormalizeDataSourceListFilter(option.Value) } value={ option.Value }>{ option.Label }</option>
+								}
+							</select>
+						</label>
+						<div class="flex items-end gap-2">
+							<button class="btn btn-primary btn-sm" type="submit">Apply</button>
+							<a class="btn btn-outline btn-sm" href={ templ.URL(DataSourcesListHref(orgSlug, activeEnvironmentSlug, "")) }>Reset</a>
+						</div>
+					</div>
+				</form>
+				if NormalizeDataSourceListFilter(activeFilter) != "" {
+					<div class="flex flex-wrap gap-2">
+						<span class="badge badge-primary badge-outline">filters active</span>
+					</div>
+				}
+			</div>
+			@EntityListLayout("data-source-preview-loading", DataSourceDetailPanelSlot(orgSlug, activeEnvironmentSlug, selectedDataSource, schemaPanel, connectionInfo, updateFormData, permissions, selectedFeedbackMessage, selectedFeedbackKind)) {
+				<section class="rounded-xl border border-base-300 bg-base-100 p-4">
+					<div class="flex items-center justify-between gap-3">
+						<div class="min-w-0">
+							<h2 class="text-base font-semibold text-base-content">Connector inventory</h2>
+							<p class="mt-1 text-xs text-base-content/60">{ DataSourceListFilterLabel(activeFilter) }</p>
+						</div>
+						<span class="badge badge-outline">{ fmt.Sprintf("%d shown", len(dataSources)) }</span>
+					</div>
+					<div class="mt-4 space-y-2">
+						if len(dataSources) == 0 {
+							<div class="rounded-lg border border-base-300 bg-base-200/30 p-4 text-sm text-base-content/70">
+								No data sources match this filter.
+							</div>
+						} else {
+							for _, ds := range dataSources {
+								{{ name := ShellContextDisplay(string(ds.Name), string(ds.Slug), "Unnamed data source") }}
+								<article class={ "relative " + DataSourceCardClass(ds, nil) } data-ds-card data-selected?={ selectedDataSource != nil && selectedDataSource.Slug == ds.Slug }>
+									<div class="flex items-center gap-2">
+										@DataSourceIcon(string(ds.Type), "sm")
+										<a class="relative z-10 min-w-0 break-words text-base font-semibold link link-hover" href={ templ.URL(entityDetailHref(DataSourceDetailHref(orgSlug, activeEnvironmentSlug, string(ds.Slug)), entityListHref(ctx, DataSourcesListFilteredHref(orgSlug, activeEnvironmentSlug, string(ds.Slug), activeFilter), "selected", string(ds.Slug)))) }>{ name }</a>
+									</div>
+									<a
+										id={ "data-source-preview-" + string(ds.Slug) }
+										aria-label={ "Preview " + name + " (" + string(ds.Slug) + ")" }
+										aria-current={ func() string { if selectedDataSource != nil && selectedDataSource.Slug == ds.Slug { return "true" }; return "false" }() }
+										data-entity-focus="data-source-preview-heading"
+										hx-indicator="#data-source-preview-loading"
+										hx-sync="closest [data-entity-layout]:replace"
+										class="absolute inset-0 rounded-md focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/45"
+										href={ templ.URL(entityListHref(ctx, DataSourcesListFilteredHref(orgSlug, activeEnvironmentSlug, string(ds.Slug), activeFilter), "selected", string(ds.Slug))) }
+										hx-get={ entityListHref(ctx, DataSourcesListFilteredHref(orgSlug, activeEnvironmentSlug, string(ds.Slug), activeFilter), "selected", string(ds.Slug)) }
+										hx-target="#data-source-side-panel"
+										hx-select="#data-source-side-panel"
+										hx-swap="outerHTML show:none focus-scroll:false"
+										hx-push-url="true"
+										data-preserve-scroll
+									><span class="sr-only">Preview { name } ({ string(ds.Slug) })</span></a>
+										<div class="flex items-start justify-between gap-3">
+											<div class="min-w-0"><p class="mt-1 break-all font-mono text-xs">{ string(ds.Slug) }</p></div>
+											<span class={ DataSourceStatusBadgeClass(ds) }>{ DataSourceStatusLabel(ds) }</span>
+										</div>
+										<div class="mt-3 flex flex-wrap gap-2">
+											<span class="badge badge-outline">{ string(ds.Type) }</span>
+											<span class={ DataSourceCapabilityBadgeClass(ds) }>{ DataSourceCapabilityLabel(ds) }</span>
+										</div>
+										<div class="mt-3 flex flex-wrap items-center justify-between gap-2 text-xs text-base-content/60">
+											<span>{ DataSourceLastTestLabel(ds) }</span>
+											if ds.TestError != nil && *ds.TestError != "" {
+												<span class="text-warning">connection issue recorded</span>
+											}
+										</div>
+								</article>
+							}
+						}
+					</div>
+				</section>
+			}
+		</div>
+	}
+	if prevCursor != "" || hasMore {
+		<div class="mt-6 flex items-center justify-end gap-2">
+			if prevCursor != "" {
+				<a class="btn btn-sm btn-outline" href={ templ.URL(DataSourcesListCursorFilteredHref(orgSlug, activeEnvironmentSlug, prevCursor, activeFilter)) }>Previous</a>
+			} else {
+				<button class="btn btn-sm btn-outline" type="button" disabled>Previous</button>
+			}
+			if hasMore && nextCursor != "" {
+				<a class="btn btn-sm btn-outline" href={ templ.URL(DataSourcesListCursorFilteredHref(orgSlug, activeEnvironmentSlug, nextCursor, activeFilter)) }>Next</a>
+			} else {
+				<button class="btn btn-sm btn-outline" type="button" disabled>Next</button>
+			}
+		</div>
+	}
+}

@@ -1,0 +1,68 @@
+metadata:
+  slug: users-sync-db
+  name: Users Sync DB
+steps:
+  - kind: query
+    slug: fetch-users
+    query:
+      data_source_ref: acme-postgres
+      operation_type: sql
+      operation_ref: list-users
+      output_contract:
+        name: fetch-users-output
+        representation: rows
+        fields:
+          - name: id
+            type: integer
+            required: true
+          - name: email
+            type: string
+            required: true
+  - kind: transform
+    slug: project-users
+    transform:
+      inputs:
+        input: fetch-users
+      input_contract:
+        name: project-users-input
+        representation: rows
+        fields:
+          - name: id
+            type: integer
+            required: true
+          - name: email
+            type: string
+            required: true
+      sql: "SELECT id, email FROM input"
+      output_kind: rows
+      output_contract:
+        name: project-users-output
+        representation: rows
+        fields:
+          - name: id
+            type: integer
+            required: true
+          - name: email
+            type: string
+            required: true
+  - kind: sink
+    slug: users-sync-db
+    sink:
+      idempotency_class: deduplicated_by_ledger
+      input: project-users
+      input_contract:
+        name: users-sync-db-input
+        representation: rows
+        fields:
+          - name: id
+            type: integer
+            required: true
+          - name: email
+            type: string
+            required: true
+      data_source_ref: acme-postgres
+      operation_type: sql
+      operation_ref: upsert-users
+      config:
+        mode: upsert
+        table: users

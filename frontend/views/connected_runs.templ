@@ -1,0 +1,120 @@
+package views
+
+import "fmt"
+
+templ PipelineConnectedRuns(org, project, environment, run string, inspection RunCompletionInspection) {
+	{{ base := runSectionHref(ctx, buildEnvironmentRunDetailHref(org, project, environment, run), "connected") }}
+	<section
+		id="connected-runs"
+		class="min-w-0 space-y-4"
+		aria-labelledby="connected-runs-heading"
+		if connectedPending(inspection.Connected) {
+			hx-get={ base }
+			hx-trigger="every 5s"
+			hx-select="#connected-runs"
+			hx-target="this"
+			hx-swap="outerHTML show:none focus-scroll:false"
+			data-preserve-scroll
+		}
+	>
+		<div class="flex flex-wrap items-center justify-between gap-2">
+			<h2 id="connected-runs-heading" class="text-lg font-semibold">Connected runs</h2>
+			<a class="btn btn-outline btn-sm" href={ templ.URL(base) }>Refresh evidence</a>
+		</div>
+		<p class="text-sm text-base-content/70">Recorded causal execution. Each pipeline run has its own outcome; dispatch decisions do not guarantee completion of the whole connection.</p>
+		if inspection.Connected==nil {
+			<p role="status" class="alert alert-warning">{ inspection.ErrorSummary }</p>
+		} else {
+			{{ data := inspection.Connected }}
+			{{ selected := entityPageURL(ctx).Query().Get("connected_run") }}
+			{{ selected = connectedSelectedRoot(data, selected, run) }}
+			{{ graph := connectedGraph(data, selected, base) }}
+			if data.Truncated {
+				<p role="status" class="alert alert-warning">Read limit reached: at most 40 logical runs, 10 attempts per run, and 100 distinct dispatch decisions. Open a visible boundary run to inspect farther. Very wide branches can still exceed this limit.</p>
+			}
+			if data.ContextUnavailable {
+				<p role="status" class="alert alert-warning">Some context is unavailable, retained away, or cannot be shown with your access. Hidden identities and totals are omitted.</p>
+			}
+			<div class="hidden lg:block" data-lineage-view={ org + "/" + project + "/" + environment + "|connected|" + graph.Anchor }>
+				<div class="flex flex-wrap items-center gap-2 rounded-t-xl border border-base-300 p-2 text-xs" role="group" aria-label="Connected run graph controls">
+					<button type="button" class="btn btn-ghost btn-xs" data-lineage-action="out" aria-label="Zoom out">−</button>
+					<output class="w-12 text-center" data-lineage-zoom aria-live="polite">100%</output>
+					<button type="button" class="btn btn-ghost btn-xs" data-lineage-action="in" aria-label="Zoom in">+</button>
+					<button type="button" class="btn btn-ghost btn-xs" data-lineage-action="fit" aria-pressed="true">Fit</button>
+					<button type="button" class="btn btn-ghost btn-xs" data-lineage-action="reset">100%</button>
+					<span>Drag or arrow keys to pan · + / − to zoom · 0 to fit · Tab to select a run</span>
+				</div>
+				<div data-lineage-viewport class="pipeline-graph-grid relative h-[32rem] overflow-auto rounded-b-xl border border-base-300 bg-base-200/35 focus-visible:outline-primary" tabindex="0" role="region" aria-label="Connected historical runs graph">
+					<div data-lineage-bounds class="relative overflow-hidden" style={ templ.SafeCSS(fmt.Sprintf("width:%dpx;height:%dpx", graph.Width, graph.Height)) }>
+						<div data-lineage-canvas class="absolute origin-top-left" style={ templ.SafeCSS(fmt.Sprintf("width:%dpx;height:%dpx", graph.Width, graph.Height)) }>
+							<svg class="pointer-events-none absolute inset-0" width={ fmt.Sprint(graph.Width) } height={ fmt.Sprint(graph.Height) } aria-hidden="true">
+								for _,edge:=range graph.Edges {
+									<path d={ edge.Path } fill="none" stroke="currentColor" stroke-width="2" class="text-base-content/40"></path>
+								}
+							</svg>
+							for _,edge:=range graph.Edges {
+								<a class="absolute z-10 w-40 -translate-x-1/2 -translate-y-1/2 rounded border border-base-300 bg-base-100 px-2 py-1 text-center text-xs link focus-visible:outline-primary" href={ templ.URL(base + fmt.Sprintf("#connected-decision-%s-%s-%d", edge.Decision.RootRunSlug, edge.Decision.TriggerSlug, edge.Decision.TriggerRevision)) } style={ templ.SafeCSS(fmt.Sprintf("left:%dpx;top:%dpx", edge.X, edge.Y)) }>{ completionCondition(edge.Decision.Condition) } →<br/>{ edge.Decision.TriggerSlug } · { edge.Decision.State }</a>
+							}
+							for _,node:=range graph.Nodes {
+								<a id={ "connected-run-node-" + node.Record.Completion.RootRunSlug } href={ templ.URL(node.Href) } data-entity-focus="connected-run-evidence" aria-current={ fmt.Sprint(node.Selected) } class={ "absolute z-10 block h-[110px] w-[260px] rounded-xl border-2 bg-base-100 p-3 text-sm shadow-sm focus-visible:outline-primary",templ.KV("border-primary",node.Selected),templ.KV("border-base-300",!node.Selected) } style={ templ.SafeCSS(fmt.Sprintf("left:%dpx;top:%dpx", node.X, node.Y)) }>
+									<span class="block truncate font-semibold">{ node.Record.PipelineSlug }</span>
+									<span class="block truncate font-mono text-xs">{ node.Record.Completion.RootRunSlug }</span>
+									<span class="mt-1 block truncate text-xs">{ connectedRunState(node.Record.Completion) }</span>
+									<span class="block text-xs">Recorded attempts: { fmt.Sprint(len(node.Record.Completion.Attempts)) }</span>
+								</a>
+							}
+						</div>
+					</div>
+				</div>
+			</div>
+			<ul class="space-y-2 lg:hidden" aria-label="Connected logical runs and outcomes">
+				for _,node:=range graph.Nodes {
+					<li class="border-b border-base-300 pb-2 text-sm"><a class="link link-primary break-all" href={ templ.URL(node.Href) }>{ node.Record.PipelineSlug } · { node.Record.Completion.RootRunSlug }</a><p>{ connectedRunState(node.Record.Completion) }</p></li>
+				}
+			</ul>
+			<aside id="connected-run-evidence" tabindex="-1" class="min-w-0 space-y-3 border-t border-base-300 pt-4" aria-label="Selected connected run evidence">
+				if graph.Selected==nil {
+					<p>Select a visible run to inspect its recorded attempts.</p>
+				} else {
+					{{ node := *graph.Selected }}
+					{{ target := connectedRunTarget(node.Completion) }}
+					<h3 class="break-all font-semibold">{ node.PipelineSlug } · { node.Completion.RootRunSlug }</h3>
+					<p class="text-sm">{ connectedRunState(node.Completion) }</p>
+					if node.Completion.FinalAttemptRunSlug!=nil {
+						<p class="break-all text-sm">
+							Final attempt:
+							if connectedAttemptRecorded(node.Completion,*node.Completion.FinalAttemptRunSlug) {
+								<a class="link link-primary font-mono" href={ templ.URL(runSectionHref(ctx, buildEnvironmentRunDetailHref(org, project, environment, *node.Completion.FinalAttemptRunSlug), "steps")) }>{ *node.Completion.FinalAttemptRunSlug }</a>
+							} else {
+								<code>{ *node.Completion.FinalAttemptRunSlug }</code><span>· Evidence unavailable</span>
+							}
+						</p>
+					}
+					if target!=node.Completion.RootRunSlug {
+						<p role="status" class="text-sm text-warning">Root attempt evidence is unavailable. Navigation uses retained attempt <code class="break-all">{ target }</code>.</p>
+					}
+					<a class="btn btn-outline btn-sm" href={ templ.URL(runSectionHref(ctx, buildEnvironmentRunDetailHref(org, project, environment, target), "steps")) }>Open single-run steps</a>
+					<details open>
+						<summary class="cursor-pointer text-sm font-semibold">Recorded attempts ({ fmt.Sprint(len(node.Completion.Attempts)) })</summary>
+						<ul class="mt-2 space-y-2 text-sm">
+							for _,attempt:=range node.Completion.Attempts {
+								<li class="break-all"><a class="link link-primary font-mono" href={ templ.URL(runSectionHref(ctx, buildEnvironmentRunDetailHref(org, project, environment, attempt.RunSlug), "steps")) }>{ fmt.Sprintf("%d · %s",attempt.AttemptNumber,attempt.RunSlug) }</a> · { attempt.Status }<p class="text-xs">Executed version { attempt.VersionHash } · deployment { completionRevision(attempt.DeploymentRevision) }</p></li>
+							}
+						</ul>
+					</details>
+				}
+			</aside>
+			<section id="connected-decisions" class="space-y-3" aria-label="Connected dispatch decisions">
+				<h3 class="font-semibold">Recorded branches and dispatch decisions</h3>
+				if len(graph.Decisions)==0 {
+					<p class="text-sm">No visible persisted causal decisions. This does not prove that no subscription was configured or matched.</p>
+				}
+				for _,decision:=range graph.Decisions {
+					<div id={ fmt.Sprintf("connected-decision-%s-%s-%d", decision.RootRunSlug, decision.TriggerSlug, decision.TriggerRevision) }>
+						@PipelineCompletionDecisionDetails(org, project, environment, decision)
+					</div>
+				}
+			</section>
+		}
+	</section>
+}

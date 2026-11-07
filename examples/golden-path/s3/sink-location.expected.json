@@ -1,0 +1,12 @@
+{
+  "data_source_slug": "golden-path-s3-sink",
+  "bucket": "braidplane-fixtures",
+  "prefix": "golden-path",
+  "operation_slug": "golden-path-s3-write-joined-orders",
+  "relative_key_template": "runs/{{runtime.sink.replay_identity}}/joined-orders.json",
+  "example_run_slug": "golden-path-run-001",
+  "object_key": "golden-path/runs/golden-path-run-001/joined-orders.json",
+  "format": "json",
+  "content_type": "application/json",
+  "overwrite": true
+}

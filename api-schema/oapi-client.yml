@@ -1,0 +1,5 @@
+package: apiclient
+generate:
+  client: true
+  models: true
+output: api-schema/gen/client/oapi_client.go

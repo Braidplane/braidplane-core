@@ -1,0 +1,11 @@
+# Temporary opt-in for synthetic signup acceptance; restore the base file afterward.
+services:
+  api:
+    environment:
+      SELF_SERVICE_REGISTRATION_ENABLED: "true"
+  worker:
+    environment:
+      SELF_SERVICE_REGISTRATION_ENABLED: "true"
+  frontend:
+    environment:
+      SELF_SERVICE_REGISTRATION_ENABLED: "true"

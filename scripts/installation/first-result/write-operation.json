@@ -1,0 +1,7 @@
+{
+  "type": "git",
+  "operation": "write",
+  "path": "generated/installation/unexecuted-placeholder.json",
+  "format": "json",
+  "message": "Record synthetic installation result"
+}

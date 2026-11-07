@@ -1,0 +1,21 @@
+{
+  "apiVersion": "v3.2.0",
+  "kind": "DataContract",
+  "id": "orders",
+  "version": "1",
+  "status": "active",
+  "description": {"purpose": "Order interchange"},
+  "schema": [
+    {"id": "summary", "name": "Summary", "properties": [{"name": "count", "logicalType": "integer"}]},
+    {"id": "order", "name": "Orders", "logicalType": "object", "description": "One order", "properties": [
+      {"name": "id", "logicalType": "integer", "required": true, "description": "Stable order identifier", "enum": [{"value": 9007199254740993}, {"value": 9007199254740994}]},
+      {"name": "state", "logicalType": "string", "enum": [{"value": "new"}, {"value": "paid"}], "logicalTypeOptions": {"minLength": 1, "maxLength": 10}},
+      {"name": "total", "logicalType": "number", "required": false, "logicalTypeOptions": {"minimum": 0, "maximum": 100}},
+      {"name": "enabled", "logicalType": "boolean", "required": true, "enum": [{"value": true}, {"value": false}]},
+      {"name": "metadata", "logicalType": "object"},
+      {"name": "labels", "logicalType": "array"},
+      {"name": "email", "logicalType": "string", "logicalTypeOptions": {"format": "email"}},
+      {"name": "external_id", "logicalType": "string", "logicalTypeOptions": {"format": "uuid"}}
+    ]}
+  ]
+}

@@ -1,0 +1,20 @@
+{
+  "apiVersion": "v3.2.0", "kind": "DataContract", "id": "orders", "version": "1",
+  "tenant": "example", "domain": "sales", "slaDefaultElement": "order",
+  "slaProperties": [{"property": "latency", "value": 10, "unit": "s"}],
+  "schema": [{"id": "order", "name": "Orders", "quality": [{"type": "text", "description": "Must reconcile"}],
+    "properties": [
+      {"name": "details", "logicalType": "map", "map": {"key": {"logicalType": "string"}, "value": {"logicalType": "integer"}}},
+      {"name": "child", "logicalType": "object", "properties": [{"name": "leaf", "logicalType": "string"}]},
+      {"name": "items", "logicalType": "array", "items": {"logicalType": "integer"}},
+      {"name": "secret_note", "logicalType": "string", "classification": "restricted", "relationships": [{"to": "schema/order/properties/id"}]},
+      {"name": "created", "logicalType": "timestamp"},
+      {"name": "date", "logicalType": "date"},
+      {"name": "time", "logicalType": "time"},
+      {"name": "vector", "logicalType": "vector", "logicalTypeOptions": {"dimensions": 3}},
+      {"name": "missing_type"},
+      {"name": "status", "logicalType": "string", "enum": [{"value": "new", "label": "New", "description": "Initial"}]},
+      {"name": "patterned", "logicalType": "string", "logicalTypeOptions": {"pattern": "[a-z]+", "format": "uri"}},
+      {"name": "bounded", "logicalType": "number", "logicalTypeOptions": {"exclusiveMinimum": 0, "multipleOf": 2, "format": "f64"}}
+    ]}]
+}

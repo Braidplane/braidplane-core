@@ -1,0 +1,525 @@
+metadata:
+  slug: supplier-price-desk
+  name: Supplier Price Desk
+steps:
+- kind: query
+  slug: read-northstar
+  query:
+    data_source_ref: prices-northstar
+    operation_type: s3
+    operation_ref: read-prices
+    output_contract:
+      representation: rows
+      fields:
+      - name: sku
+        type: string
+        required: true
+      - name: description
+        type: string
+        required: true
+      - name: price_eur
+        type: string
+        required: true
+      - name: units
+        type: string
+        required: true
+      - name: currency
+        type: string
+        required: true
+      - name: price_date
+        type: string
+        required: true
+- kind: transform
+  slug: normalize-northstar
+  transform:
+    inputs:
+      input: read-northstar
+    sql: SELECT 'northstar' AS provider, TRIM(sku) AS product_code, description AS title, UPPER(TRIM(currency)) AS currency,
+      CAST(TRIM(units) AS SIGNED) AS pack_units, CAST(CAST(TRIM(price_eur) AS DECIMAL(18,2)) AS DECIMAL(18,2)) AS quoted_price,
+      CAST(CAST(TRIM(price_eur) AS DECIMAL(18,2)) / CAST(TRIM(units) AS DECIMAL(18,0)) AS DECIMAL(18,4)) AS unit_price, STR_TO_DATE(price_date,
+      '%Y-%m-%d') AS source_date FROM input ORDER BY product_code
+    output_kind: rows
+    output_contract: &id001
+      representation: rows
+      fields:
+      - name: provider
+        type: string
+        required: true
+      - name: product_code
+        type: string
+        required: true
+        validations:
+          min_length: 1
+          unique: true
+      - name: title
+        type: string
+        required: true
+      - name: currency
+        type: string
+        required: true
+        validations:
+          enum:
+          - EUR
+      - name: pack_units
+        type: integer
+        required: true
+        validations:
+          min: 1
+      - name: quoted_price
+        type: decimal
+        required: true
+        precision: 18
+        scale: 2
+        validations:
+          min: 0
+      - name: unit_price
+        type: decimal
+        required: true
+        precision: 18
+        scale: 4
+        validations:
+          min: 0
+      - name: source_date
+        type: string
+        required: true
+- kind: query
+  slug: read-packworks
+  query:
+    data_source_ref: prices-packworks
+    operation_type: s3
+    operation_ref: read-prices
+    output_contract:
+      representation: rows
+      fields:
+      - name: item_code
+        type: string
+        required: true
+      - name: item_name
+        type: string
+        required: true
+      - name: carton_price
+        type: string
+        required: true
+      - name: carton_qty
+        type: string
+        required: true
+      - name: ccy
+        type: string
+        required: true
+      - name: valid_on
+        type: string
+        required: true
+- kind: transform
+  slug: normalize-packworks
+  transform:
+    inputs:
+      input: read-packworks
+    sql: SELECT 'packworks' AS provider, TRIM(item_code) AS product_code, item_name AS title, UPPER(TRIM(ccy)) AS currency,
+      CAST(TRIM(carton_qty) AS SIGNED) AS pack_units, CAST(CAST(TRIM(carton_price) AS DECIMAL(18,2)) AS DECIMAL(18,2)) AS
+      quoted_price, CAST(CAST(TRIM(carton_price) AS DECIMAL(18,2)) / CAST(TRIM(carton_qty) AS DECIMAL(18,0)) AS DECIMAL(18,4))
+      AS unit_price, STR_TO_DATE(valid_on, '%d.%m.%Y') AS source_date FROM input ORDER BY product_code
+    output_kind: rows
+    output_contract: *id001
+- kind: query
+  slug: read-summit
+  query:
+    data_source_ref: prices-summit
+    operation_type: s3
+    operation_ref: read-prices
+    output_contract:
+      representation: rows
+      fields:
+      - name: product
+        type: string
+        required: true
+      - name: label
+        type: string
+        required: true
+      - name: price_cents
+        type: string
+        required: true
+      - name: quantity
+        type: string
+        required: true
+      - name: iso_currency
+        type: string
+        required: true
+      - name: snapshot
+        type: string
+        required: true
+- kind: transform
+  slug: normalize-summit
+  transform:
+    inputs:
+      input: read-summit
+    sql: SELECT 'summit' AS provider, TRIM(product) AS product_code, label AS title, UPPER(TRIM(iso_currency)) AS currency,
+      CAST(TRIM(quantity) AS SIGNED) AS pack_units, CAST(CAST(TRIM(price_cents) AS DECIMAL(18,2)) / 100 AS DECIMAL(18,2))
+      AS quoted_price, CAST(CAST(TRIM(price_cents) AS DECIMAL(18,2)) / 100 / CAST(TRIM(quantity) AS DECIMAL(18,0)) AS DECIMAL(18,4))
+      AS unit_price, STR_TO_DATE(snapshot, '%Y-%m-%d') AS source_date FROM input ORDER BY product_code
+    output_kind: rows
+    output_contract: *id001
+- kind: query
+  slug: read-harbour
+  query:
+    data_source_ref: prices-harbour
+    operation_type: s3
+    operation_ref: read-prices
+    output_contract:
+      representation: rows
+      fields:
+      - name: article
+        type: string
+        required: true
+      - name: name
+        type: string
+        required: true
+      - name: net_amount
+        type: string
+        required: true
+      - name: pack_size
+        type: string
+        required: true
+      - name: currency_code
+        type: string
+        required: true
+      - name: dated
+        type: string
+        required: true
+- kind: transform
+  slug: normalize-harbour
+  transform:
+    inputs:
+      input: read-harbour
+    sql: SELECT 'harbour' AS provider, TRIM(article) AS product_code, name AS title, UPPER(TRIM(currency_code)) AS currency,
+      CAST(TRIM(pack_size) AS SIGNED) AS pack_units, CAST(CAST(TRIM(net_amount) AS DECIMAL(18,2)) AS DECIMAL(18,2)) AS quoted_price,
+      CAST(CAST(TRIM(net_amount) AS DECIMAL(18,2)) / CAST(TRIM(pack_size) AS DECIMAL(18,0)) AS DECIMAL(18,4)) AS unit_price,
+      STR_TO_DATE(dated, '%d.%m.%Y') AS source_date FROM input ORDER BY product_code
+    output_kind: rows
+    output_contract: *id001
+- kind: query
+  slug: read-orbit
+  query:
+    data_source_ref: prices-orbit
+    operation_type: s3
+    operation_ref: read-prices
+    output_contract:
+      representation: rows
+      fields:
+      - name: code
+        type: string
+        required: true
+      - name: product_name
+        type: string
+        required: true
+      - name: net_price
+        type: string
+        required: true
+      - name: unit_count
+        type: string
+        required: true
+      - name: currency
+        type: string
+        required: true
+      - name: as_of
+        type: string
+        required: true
+- kind: transform
+  slug: normalize-orbit
+  transform:
+    inputs:
+      input: read-orbit
+    sql: SELECT 'orbit' AS provider, TRIM(code) AS product_code, product_name AS title, UPPER(TRIM(currency)) AS currency,
+      CAST(TRIM(unit_count) AS SIGNED) AS pack_units, CAST(CAST(TRIM(net_price) AS DECIMAL(18,2)) AS DECIMAL(18,2)) AS quoted_price,
+      CAST(CAST(TRIM(net_price) AS DECIMAL(18,2)) / CAST(TRIM(unit_count) AS DECIMAL(18,0)) AS DECIMAL(18,4)) AS unit_price,
+      STR_TO_DATE(as_of, '%Y-%m-%d') AS source_date FROM input ORDER BY product_code
+    output_kind: rows
+    output_contract: *id001
+- kind: query
+  slug: read-ridge
+  query:
+    data_source_ref: prices-ridge
+    operation_type: s3
+    operation_ref: read-prices
+    output_contract:
+      representation: rows
+      fields:
+      - name: manufacturer_code
+        type: string
+        required: true
+      - name: title
+        type: string
+        required: true
+      - name: box_price
+        type: string
+        required: true
+      - name: box_units
+        type: string
+        required: true
+      - name: ccy
+        type: string
+        required: true
+      - name: issued
+        type: string
+        required: true
+- kind: transform
+  slug: normalize-ridge
+  transform:
+    inputs:
+      input: read-ridge
+    sql: SELECT 'ridge' AS provider, TRIM(manufacturer_code) AS product_code, title AS title, UPPER(TRIM(ccy)) AS currency,
+      CAST(TRIM(box_units) AS SIGNED) AS pack_units, CAST(CAST(TRIM(box_price) AS DECIMAL(18,2)) AS DECIMAL(18,2)) AS quoted_price,
+      CAST(CAST(TRIM(box_price) AS DECIMAL(18,2)) / CAST(TRIM(box_units) AS DECIMAL(18,0)) AS DECIMAL(18,4)) AS unit_price,
+      STR_TO_DATE(issued, '%d.%m.%Y') AS source_date FROM input ORDER BY product_code
+    output_kind: rows
+    output_contract: *id001
+- kind: query
+  slug: read-pine
+  query:
+    data_source_ref: prices-pine
+    operation_type: s3
+    operation_ref: read-prices
+    output_contract:
+      representation: rows
+      fields:
+      - name: reference
+        type: string
+        required: true
+      - name: description
+        type: string
+        required: true
+      - name: amount_cents
+        type: string
+        required: true
+      - name: count
+        type: string
+        required: true
+      - name: iso
+        type: string
+        required: true
+      - name: day
+        type: string
+        required: true
+- kind: transform
+  slug: normalize-pine
+  transform:
+    inputs:
+      input: read-pine
+    sql: SELECT 'pine' AS provider, TRIM(reference) AS product_code, description AS title, UPPER(TRIM(iso)) AS currency, CAST(TRIM(count)
+      AS SIGNED) AS pack_units, CAST(CAST(TRIM(amount_cents) AS DECIMAL(18,2)) / 100 AS DECIMAL(18,2)) AS quoted_price, CAST(CAST(TRIM(amount_cents)
+      AS DECIMAL(18,2)) / 100 / CAST(TRIM(count) AS DECIMAL(18,0)) AS DECIMAL(18,4)) AS unit_price, STR_TO_DATE(day, '%Y-%m-%d')
+      AS source_date FROM input ORDER BY product_code
+    output_kind: rows
+    output_contract: *id001
+- kind: query
+  slug: read-beacon
+  query:
+    data_source_ref: prices-beacon
+    operation_type: s3
+    operation_ref: read-prices
+    output_contract:
+      representation: rows
+      fields:
+      - name: product_id
+        type: string
+        required: true
+      - name: product_title
+        type: string
+        required: true
+      - name: price
+        type: string
+        required: true
+      - name: units_per_pack
+        type: string
+        required: true
+      - name: currency
+        type: string
+        required: true
+      - name: effective_date
+        type: string
+        required: true
+- kind: transform
+  slug: normalize-beacon
+  transform:
+    inputs:
+      input: read-beacon
+    sql: SELECT 'beacon' AS provider, TRIM(product_id) AS product_code, product_title AS title, UPPER(TRIM(currency)) AS currency,
+      CAST(TRIM(units_per_pack) AS SIGNED) AS pack_units, CAST(CAST(TRIM(price) AS DECIMAL(18,2)) AS DECIMAL(18,2)) AS quoted_price,
+      CAST(CAST(TRIM(price) AS DECIMAL(18,2)) / CAST(TRIM(units_per_pack) AS DECIMAL(18,0)) AS DECIMAL(18,4)) AS unit_price,
+      STR_TO_DATE(effective_date, '%d.%m.%Y') AS source_date FROM input ORDER BY product_code
+    output_kind: rows
+    output_contract: *id001
+- kind: query
+  slug: read-cedar
+  query:
+    data_source_ref: prices-cedar
+    operation_type: s3
+    operation_ref: read-prices
+    output_contract:
+      representation: rows
+      fields:
+      - name: part_number
+        type: string
+        required: true
+      - name: display_name
+        type: string
+        required: true
+      - name: case_cost
+        type: string
+        required: true
+      - name: case_count
+        type: string
+        required: true
+      - name: currency
+        type: string
+        required: true
+      - name: source_date
+        type: string
+        required: true
+- kind: transform
+  slug: normalize-cedar
+  transform:
+    inputs:
+      input: read-cedar
+    sql: SELECT 'cedar' AS provider, TRIM(part_number) AS product_code, display_name AS title, UPPER(TRIM(currency)) AS currency,
+      CAST(TRIM(case_count) AS SIGNED) AS pack_units, CAST(CAST(TRIM(case_cost) AS DECIMAL(18,2)) AS DECIMAL(18,2)) AS quoted_price,
+      CAST(CAST(TRIM(case_cost) AS DECIMAL(18,2)) / CAST(TRIM(case_count) AS DECIMAL(18,0)) AS DECIMAL(18,4)) AS unit_price,
+      STR_TO_DATE(source_date, '%Y-%m-%d') AS source_date FROM input ORDER BY product_code
+    output_kind: rows
+    output_contract: *id001
+- kind: query
+  slug: read-fieldnotes
+  query:
+    data_source_ref: prices-fieldnotes
+    operation_type: s3
+    operation_ref: read-prices
+    output_contract:
+      representation: rows
+      fields:
+      - name: stock_code
+        type: string
+        required: true
+      - name: item
+        type: string
+        required: true
+      - name: cost
+        type: string
+        required: true
+      - name: pack
+        type: string
+        required: true
+      - name: curr
+        type: string
+        required: true
+      - name: date
+        type: string
+        required: true
+- kind: transform
+  slug: normalize-fieldnotes
+  transform:
+    inputs:
+      input: read-fieldnotes
+    sql: SELECT 'fieldnotes' AS provider, TRIM(stock_code) AS product_code, item AS title, UPPER(TRIM(curr)) AS currency,
+      CAST(TRIM(pack) AS SIGNED) AS pack_units, CAST(CAST(TRIM(cost) AS DECIMAL(18,2)) AS DECIMAL(18,2)) AS quoted_price,
+      CAST(CAST(TRIM(cost) AS DECIMAL(18,2)) / CAST(TRIM(pack) AS DECIMAL(18,0)) AS DECIMAL(18,4)) AS unit_price, STR_TO_DATE(date,
+      '%d.%m.%Y') AS source_date FROM input ORDER BY product_code
+    output_kind: rows
+    output_contract: *id001
+- kind: transform
+  slug: combine-offers
+  transform:
+    inputs:
+      northstar: normalize-northstar
+      packworks: normalize-packworks
+      summit: normalize-summit
+      harbour: normalize-harbour
+      orbit: normalize-orbit
+      ridge: normalize-ridge
+      pine: normalize-pine
+      beacon: normalize-beacon
+      cedar: normalize-cedar
+      fieldnotes: normalize-fieldnotes
+    input_contracts:
+      northstar:
+        contract: *id001
+      packworks:
+        contract: *id001
+      summit:
+        contract: *id001
+      harbour:
+        contract: *id001
+      orbit:
+        contract: *id001
+      ridge:
+        contract: *id001
+      pine:
+        contract: *id001
+      beacon:
+        contract: *id001
+      cedar:
+        contract: *id001
+      fieldnotes:
+        contract: *id001
+    sql: SELECT provider, product_code, title, currency, pack_units, quoted_price, unit_price, source_date FROM northstar
+      UNION ALL SELECT provider, product_code, title, currency, pack_units, quoted_price, unit_price, source_date FROM packworks
+      UNION ALL SELECT provider, product_code, title, currency, pack_units, quoted_price, unit_price, source_date FROM summit
+      UNION ALL SELECT provider, product_code, title, currency, pack_units, quoted_price, unit_price, source_date FROM harbour
+      UNION ALL SELECT provider, product_code, title, currency, pack_units, quoted_price, unit_price, source_date FROM orbit
+      UNION ALL SELECT provider, product_code, title, currency, pack_units, quoted_price, unit_price, source_date FROM ridge
+      UNION ALL SELECT provider, product_code, title, currency, pack_units, quoted_price, unit_price, source_date FROM pine
+      UNION ALL SELECT provider, product_code, title, currency, pack_units, quoted_price, unit_price, source_date FROM beacon
+      UNION ALL SELECT provider, product_code, title, currency, pack_units, quoted_price, unit_price, source_date FROM cedar
+      UNION ALL SELECT provider, product_code, title, currency, pack_units, quoted_price, unit_price, source_date FROM fieldnotes
+    output_kind: rows
+    output_contract: &id002
+      representation: rows
+      fields:
+      - name: provider
+        type: string
+        required: true
+      - name: product_code
+        type: string
+        required: true
+        validations:
+          min_length: 1
+      - name: title
+        type: string
+        required: true
+      - name: currency
+        type: string
+        required: true
+        validations:
+          enum:
+          - EUR
+      - name: pack_units
+        type: integer
+        required: true
+        validations:
+          min: 1
+      - name: quoted_price
+        type: decimal
+        required: true
+        precision: 18
+        scale: 2
+        validations:
+          min: 0
+      - name: unit_price
+        type: decimal
+        required: true
+        precision: 18
+        scale: 4
+        validations:
+          min: 0
+      - name: source_date
+        type: string
+        required: true
+- kind: sink
+  slug: write-offers
+  sink:
+    input: combine-offers
+    input_contract: *id002
+    data_source_ref: pricing-database
+    operation_type: sql
+    operation_ref: upsert-offers
+    idempotency_class: naturally_idempotent
+    config:
+      org_slug: '{{runtime.env.demo_org_slug}}'

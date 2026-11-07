@@ -1,0 +1,56 @@
+metadata:
+  slug: ${PIPELINE_SLUG}
+  name: Synthetic catalog pricing export
+steps:
+  - kind: query
+    slug: read-catalog
+    query:
+      data_source_ref: ${PG_DATA_SOURCE_SLUG}
+      operation_type: sql
+      operation_ref: ${EXPORT_QUERY_SLUG}
+      parameters:
+        org_slug: ${ORG_SLUG}
+        as_of: ${AS_OF}
+      output_contract:
+        representation: rows
+        fields:
+          - {name: sku, type: string, required: true}
+          - {name: title, type: string, required: true}
+          - {name: product_url, type: string, required: true}
+          - {name: price, type: decimal, precision: 18, scale: 2, required: true}
+          - {name: effective_from, type: string, required: true}
+          - {name: effective_to, type: string, required: true}
+          - {name: category, type: string, required: true}
+  - kind: transform
+    slug: format-export
+    transform:
+      inputs:
+        input: read-catalog
+      sql: >-
+        SELECT sku, title, product_url, CAST(price AS DECIMAL(18,2)) AS price,
+        DATE_FORMAT(effective_from, '%Y-%m-%d') AS effective_from,
+        DATE_FORMAT(effective_to, '%Y-%m-%d') AS effective_to, category
+        FROM input ORDER BY sku, effective_from
+      output_kind: csv
+      output_contract:
+        representation: csv
+        fields:
+          - {name: sku, type: string, required: true}
+          - {name: title, type: string, required: true}
+          - {name: product_url, type: string, required: true}
+          - {name: price, type: decimal, precision: 18, scale: 2, required: true}
+          - {name: effective_from, type: string, required: true}
+          - {name: effective_to, type: string, required: true}
+          - {name: category, type: string, required: true}
+  - kind: sink
+    slug: publish-export
+    sink:
+      idempotency_class: naturally_idempotent
+      input: format-export
+      data_source_ref: ${S3_DATA_SOURCE_SLUG}
+      operation_type: s3
+      operation_ref: ${S3_QUERY_SLUG}
+      config:
+        key: ${EXPORT_KEY}
+        format: csv
+        overwrite: true

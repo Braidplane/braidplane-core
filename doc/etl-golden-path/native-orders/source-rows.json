@@ -1,0 +1,122 @@
+[
+  {
+    "order_id": 1,
+    "customer_id": 100,
+    "status": "paid",
+    "amount_cents": 1000,
+    "discount_cents": 100,
+    "currency": "EUR",
+    "placed_at_utc": "2026-01-01T00:00:00Z",
+    "note": "ordinary"
+  },
+  {
+    "order_id": 2,
+    "customer_id": 101,
+    "status": "paid",
+    "amount_cents": 2500,
+    "discount_cents": 100,
+    "currency": "EUR",
+    "placed_at_utc": "2026-01-01T01:00:00Z",
+    "note": "comma, inside"
+  },
+  {
+    "order_id": 3,
+    "customer_id": 100,
+    "status": "paid",
+    "amount_cents": 0,
+    "discount_cents": 0,
+    "currency": "EUR",
+    "placed_at_utc": "2026-01-01T02:00:00Z",
+    "note": null
+  },
+  {
+    "order_id": 4,
+    "customer_id": 102,
+    "status": "pending",
+    "amount_cents": 4200,
+    "discount_cents": 0,
+    "currency": "EUR",
+    "placed_at_utc": "2026-01-01T03:00:00Z",
+    "note": "not paid"
+  },
+  {
+    "order_id": 5,
+    "customer_id": 103,
+    "status": "refunded",
+    "amount_cents": -500,
+    "discount_cents": 0,
+    "currency": "EUR",
+    "placed_at_utc": "2026-01-01T04:00:00Z",
+    "note": "refund"
+  },
+  {
+    "order_id": 6,
+    "customer_id": 104,
+    "status": "paid",
+    "amount_cents": 999,
+    "discount_cents": 0,
+    "currency": "EUR",
+    "placed_at_utc": "2026-01-01T05:00:00Z",
+    "note": ""
+  },
+  {
+    "order_id": 7,
+    "customer_id": 105,
+    "status": "paid",
+    "amount_cents": 12000,
+    "discount_cents": 100,
+    "currency": "EUR",
+    "placed_at_utc": "2026-01-01T06:00:00Z",
+    "note": "Łódź 東京"
+  },
+  {
+    "order_id": 8,
+    "customer_id": 106,
+    "status": "pending",
+    "amount_cents": 1,
+    "discount_cents": 0,
+    "currency": "EUR",
+    "placed_at_utc": "2026-01-01T07:00:00Z",
+    "note": "small amount"
+  },
+  {
+    "order_id": 9,
+    "customer_id": 107,
+    "status": "paid",
+    "amount_cents": 1999,
+    "discount_cents": 100,
+    "currency": "EUR",
+    "placed_at_utc": "2026-01-01T08:00:00Z",
+    "note": "\"quoted\""
+  },
+  {
+    "order_id": 10,
+    "customer_id": 108,
+    "status": "paid",
+    "amount_cents": 3500,
+    "discount_cents": 100,
+    "currency": "EUR",
+    "placed_at_utc": "2026-01-01T09:00:00Z",
+    "note": "line one\nline two"
+  },
+  {
+    "order_id": 11,
+    "customer_id": 109,
+    "status": "paid",
+    "amount_cents": 150,
+    "discount_cents": 0,
+    "currency": "EUR",
+    "placed_at_utc": "2026-01-01T10:00:00Z",
+    "note": "trailing space "
+  },
+  {
+    "order_id": 12,
+    "customer_id": 110,
+    "status": "cancelled",
+    "amount_cents": 800,
+    "discount_cents": 0,
+    "currency": "EUR",
+    "placed_at_utc": "2026-01-01T11:00:00Z",
+    "note": "cancelled"
+  }
+]

@@ -1,0 +1,284 @@
+package views
+
+import api "github.com/Braidplane/braidplane-core/api-schema/gen/client"
+
+templ MembersPage(
+	shellData AuthenticatedShellData,
+	members []api.Member,
+	invitations []api.MemberInvitation,
+	hasMore bool,
+	nextCursor string,
+	prevCursor string,
+	invitationHasMore bool,
+	invitationNextCursor string,
+	invitationPrevCursor string,
+	orgSlug string,
+	inviteFormData MemberInviteFormData,
+	memberFormData MemberRoleFormData,
+	permissions OrganizationPermissions,
+	memberInvitationsEnabled bool,
+) {
+	@AuthenticatedShell(shellData, OrganizationMembersPageContent(orgSlug, MembersPageContent(members, invitations, hasMore, nextCursor, prevCursor, invitationHasMore, invitationNextCursor, invitationPrevCursor, orgSlug, inviteFormData, memberFormData, "", "", "", permissions, memberInvitationsEnabled)))
+}
+
+templ OrganizationMembersPageContent(orgSlug string, content templ.Component) {
+	<div class="space-y-6" id="organization-members-tab">
+		@OrganizationDetailTabs(orgSlug, "members")
+		@content
+	</div>
+}
+
+templ MembersPageContent(
+	members []api.Member,
+	invitations []api.MemberInvitation,
+	hasMore bool,
+	nextCursor string,
+	prevCursor string,
+	invitationHasMore bool,
+	invitationNextCursor string,
+	invitationPrevCursor string,
+	orgSlug string,
+	inviteFormData MemberInviteFormData,
+	memberFormData MemberRoleFormData,
+	inviteSuccessMessage string,
+	inviteErrorSummary string,
+	inviteErrorDetails string,
+	permissions OrganizationPermissions,
+	memberInvitationsEnabled bool,
+) {
+	<div id="members-content">
+		if inviteErrorSummary != "" {
+			@ErrorPopup("members-invite-error-popup", inviteErrorSummary, inviteErrorDetails)
+		}
+		if inviteSuccessMessage != "" {
+			@SuccessPopup("members-invite-success-popup", inviteSuccessMessage)
+		}
+		if !memberInvitationsEnabled && (permissions.Can("members", "create") || permissions.Can("members", "update") || permissions.Can("members", "delete")) {
+			<div class="alert alert-warning text-sm">
+				<span>Member invitations are unavailable until the Terms of Service and Privacy Policy are published.</span>
+			</div>
+		}
+		if memberInvitationsEnabled && permissions.Can("members", "create") {
+			<div class="flex justify-end">
+				<button
+					class="btn btn-primary btn-sm"
+					type="button"
+					aria-controls="invite-member"
+					aria-expanded={ func() string { if inviteFormData.Email != "" { return "true" }; return "false" }() }
+					data-toggle-target="invite-member"
+				>Invite Member</button>
+			</div>
+		}
+		if memberInvitationsEnabled && permissions.Can("members", "create") {
+			@MemberInviteSection(orgSlug, inviteFormData, inviteErrorSummary, inviteErrorDetails)
+		}
+		<section class="mt-6 rounded-xl border border-base-300 bg-base-100 p-4">
+			<div class="mb-4 flex flex-wrap items-start justify-between gap-3">
+				<div>
+					<h2 class="text-xl font-semibold text-base-content">Accepted members</h2>
+					<p class="mt-1 text-sm text-base-content/70">Users with active organization access.</p>
+				</div>
+				<div class="badge badge-outline">{ MemberCountLabel(len(members)) }</div>
+			</div>
+			if len(members) == 0 {
+				<div class="alert">
+					<span>No accepted members yet.</span>
+				</div>
+			} else {
+				<div class="hidden grid-cols-[2fr_1fr_1fr_1fr_minmax(0,1.6fr)] gap-4 border-b border-base-300 px-2 pb-3 text-xs font-semibold uppercase tracking-wide text-base-content/60 md:grid">
+					<div>Member</div>
+					<div>Role</div>
+					<div>Status</div>
+					<div>Joined</div>
+					<div class="text-right">Actions</div>
+				</div>
+				<div class="divide-y divide-base-300" id="members-list">
+					for _, member := range members {
+						<div class="grid gap-3 py-4 md:grid-cols-[2fr_1fr_1fr_1fr_minmax(0,1.6fr)] md:items-center">
+							<div>
+								<p class="font-medium text-base-content">{ string(member.Email) }</p>
+								<p class="text-xs text-base-content/70">{ string(member.UserSlug) }</p>
+							</div>
+							@MemberRoleCell(member)
+							<div class="text-sm text-base-content/80"><span class="text-xs font-semibold uppercase tracking-wide text-base-content/60 md:hidden">Status </span>Active</div>
+							<div class="text-sm text-base-content/80"><span class="text-xs font-semibold uppercase tracking-wide text-base-content/60 md:hidden">Joined </span>{ member.CreatedAt.Format("2006-01-02") }</div>
+							<div class="flex flex-col gap-2 md:items-end">
+								if permissions.Can("members", "update") {
+									<form
+										class="grid w-full gap-2 xl:grid-cols-[minmax(0,1fr)_auto] xl:items-center"
+										method="post"
+										action={ templ.URL("/organizations/" + orgSlug + "/members/" + string(member.UserSlug) + "/role") }
+										hx-post={ "/organizations/" + orgSlug + "/members/" + string(member.UserSlug) + "/role" }
+										hx-target={ "#member-role-" + string(member.UserSlug) }
+										hx-select={ "#member-role-" + string(member.UserSlug) }
+										hx-swap="outerHTML"
+									>
+										<select class="select select-bordered w-full min-w-0" name="role" aria-label={ "Role for " + string(member.Email) + " (" + string(member.UserSlug) + ")" }>
+											<option selected?={ memberFormData.RoleFor(member) == "admin" } value="admin">admin</option>
+											<option selected?={ memberFormData.RoleFor(member) == "viewer" } value="viewer">viewer</option>
+										</select>
+										<button class="btn btn-primary btn-sm w-full xl:w-auto" type="submit">Update</button>
+									</form>
+								}
+								if permissions.Can("members", "delete") {
+									<form
+										method="post"
+										action={ templ.URL("/organizations/" + orgSlug + "/members/" + string(member.UserSlug) + "/remove") }
+										hx-post={ "/organizations/" + orgSlug + "/members/" + string(member.UserSlug) + "/remove" }
+										hx-target="#members-content"
+										hx-select="#members-content"
+										hx-swap="outerHTML"
+										hx-confirm={ DestructiveConfirmation("Remove", "member", string(member.Email), "They will lose access immediately.") }
+										data-destructive-confirm={ DestructiveConfirmation("Remove", "member", string(member.Email), "They will lose access immediately.") }
+									>
+										<button class="btn btn-sm btn-outline w-full sm:w-auto" type="submit">Remove</button>
+									</form>
+								}
+							</div>
+						</div>
+					}
+				</div>
+			}
+		</section>
+		if prevCursor != "" || hasMore {
+			<div class="mt-6 flex items-center justify-end gap-2">
+				if prevCursor != "" {
+					<a class="btn btn-sm btn-outline" href={ templ.URL("/organizations/" + orgSlug + "/members?cursor=" + prevCursor) }>Previous</a>
+				} else {
+					<button class="btn btn-sm btn-outline" type="button" disabled>Previous</button>
+				}
+				if hasMore && nextCursor != "" {
+					<a class="btn btn-sm btn-outline" href={ templ.URL("/organizations/" + orgSlug + "/members?cursor=" + nextCursor) }>Next</a>
+				} else {
+					<button class="btn btn-sm btn-outline" type="button" disabled>Next</button>
+				}
+			</div>
+		}
+		<section class="mt-6 rounded-xl border border-base-300 bg-base-100 p-4">
+			<div class="mb-4 flex flex-wrap items-start justify-between gap-3">
+				<div>
+					<h2 class="text-xl font-semibold text-base-content">Pending invitations</h2>
+					<p class="mt-1 text-sm text-base-content/70">Email invitations waiting for acceptance.</p>
+				</div>
+				<div class="badge badge-outline">{ MemberCountLabel(len(invitations)) }</div>
+			</div>
+			if len(invitations) == 0 {
+				<div class="alert">
+					<span>No pending invitations.</span>
+				</div>
+			} else {
+				<div class="hidden grid-cols-[2fr_1fr_1fr_1fr_1fr_minmax(0,1.4fr)] gap-4 border-b border-base-300 px-2 pb-3 text-xs font-semibold uppercase tracking-wide text-base-content/60 md:grid">
+					<div>Invitee</div>
+					<div>Role</div>
+					<div>Status</div>
+					<div>Inviter</div>
+					<div>Expires</div>
+					<div class="text-right">Actions</div>
+				</div>
+				<div class="divide-y divide-base-300" id="member-invitations-list">
+					for _, invitation := range invitations {
+						<div class="grid gap-3 py-4 md:grid-cols-[2fr_1fr_1fr_1fr_1fr_minmax(0,1.4fr)] md:items-center">
+							<div>
+								<p class="font-medium text-base-content">{ string(invitation.Email) }</p>
+								<p class="text-xs text-base-content/70">Sent { invitation.LastSentAt.Format("2006-01-02") }</p>
+							</div>
+							<div class="flex items-center gap-2">
+								<span class="text-xs font-semibold uppercase tracking-wide text-base-content/60 md:hidden">Role</span>
+								<div class="badge badge-outline">{ string(invitation.Role) }</div>
+							</div>
+							<div class="flex items-center gap-2">
+								<span class="text-xs font-semibold uppercase tracking-wide text-base-content/60 md:hidden">Status</span>
+								<div class={ MemberInvitationStatusBadgeClass(invitation.Status) }>{ string(invitation.Status) }</div>
+							</div>
+							<div class="text-sm text-base-content/80"><span class="text-xs font-semibold uppercase tracking-wide text-base-content/60 md:hidden">Inviter </span>{ OptionalAPISlug(invitation.InvitedByUserSlug) }</div>
+							<div class="text-sm text-base-content/80"><span class="text-xs font-semibold uppercase tracking-wide text-base-content/60 md:hidden">Expires </span>{ invitation.ExpiresAt.Format("2006-01-02") }</div>
+							<div class="flex flex-col gap-2 md:items-end">
+								if memberInvitationsEnabled && ShowMemberInvitationActions(invitation.Status) && permissions.Can("members", "update") {
+									<form
+										method="post"
+										action={ templ.URL("/organizations/" + orgSlug + "/member-invitations/" + string(invitation.Slug) + "/resend") }
+										hx-post={ "/organizations/" + orgSlug + "/member-invitations/" + string(invitation.Slug) + "/resend" }
+										hx-target="#members-content"
+										hx-select="#members-content"
+										hx-swap="outerHTML"
+									>
+										<button class="btn btn-sm btn-outline w-full sm:w-auto" type="submit">Resend</button>
+									</form>
+								}
+								if memberInvitationsEnabled && ShowMemberInvitationActions(invitation.Status) && permissions.Can("members", "delete") {
+									<form
+										method="post"
+										action={ templ.URL("/organizations/" + orgSlug + "/member-invitations/" + string(invitation.Slug) + "/revoke") }
+										hx-post={ "/organizations/" + orgSlug + "/member-invitations/" + string(invitation.Slug) + "/revoke" }
+										hx-target="#members-content"
+										hx-select="#members-content"
+										hx-swap="outerHTML"
+										hx-confirm={ DestructiveConfirmation("Revoke", "member invitation", string(invitation.Email), "The email link will stop working.") }
+										data-destructive-confirm={ DestructiveConfirmation("Revoke", "member invitation", string(invitation.Email), "The email link will stop working.") }
+									>
+										<button class="btn btn-sm btn-outline w-full sm:w-auto" type="submit">Revoke</button>
+									</form>
+								}
+								if !memberInvitationsEnabled || !ShowMemberInvitationActions(invitation.Status) || (!permissions.Can("members", "update") && !permissions.Can("members", "delete")) {
+									<span class="text-sm text-base-content/60">No actions</span>
+								}
+							</div>
+						</div>
+					}
+				</div>
+			}
+		</section>
+		if invitationPrevCursor != "" || invitationHasMore {
+			<div class="mt-6 flex items-center justify-end gap-2">
+				if invitationPrevCursor != "" {
+					<a class="btn btn-sm btn-outline" href={ templ.URL("/organizations/" + orgSlug + "/members?invitation_cursor=" + invitationPrevCursor + "&direction=prev") }>Previous invitations</a>
+				} else {
+					<button class="btn btn-sm btn-outline" type="button" disabled>Previous invitations</button>
+				}
+				if invitationHasMore && invitationNextCursor != "" {
+					<a class="btn btn-sm btn-outline" href={ templ.URL("/organizations/" + orgSlug + "/members?invitation_cursor=" + invitationNextCursor + "&direction=next") }>Next invitations</a>
+				} else {
+					<button class="btn btn-sm btn-outline" type="button" disabled>Next invitations</button>
+				}
+			</div>
+		}
+	</div>
+}
+
+templ MemberInviteSection(orgSlug string, inviteFormData MemberInviteFormData, summary string, details string) {
+	<div
+		class={ "mt-6 rounded-xl border border-base-300 bg-base-100 p-5 scroll-mt-6" + func() string {
+		if inviteFormData.Email != "" {
+			return ""
+		}
+		return " hidden"
+	}() }
+		id="invite-member"
+	>
+		<p class="text-sm font-semibold text-base-content">Invite member</p>
+		<p class="mt-1 text-xs text-base-content/70">Send a one-time invitation link to the teammate's email address.</p>
+		<form
+			class="mt-4 grid gap-3 md:grid-cols-[minmax(0,1fr)_160px_auto]"
+			method="post"
+			action={ templ.URL("/organizations/" + orgSlug + "/members/invite") }
+			hx-post={ "/organizations/" + orgSlug + "/members/invite" }
+			hx-target="#members-content"
+			hx-select="#members-content"
+			hx-swap="outerHTML"
+		>
+			<input class="input input-bordered w-full" type="email" name="email" placeholder="teammate@example.com" value={ inviteFormData.Email } required/>
+			<select class="select select-bordered w-full" name="role" required>
+				<option selected?={ inviteFormData.Role == "admin" } value="admin">admin</option>
+				<option selected?={ inviteFormData.Role == "viewer" } value="viewer">viewer</option>
+			</select>
+			<button class="btn btn-primary" type="submit">Send Invite</button>
+		</form>
+	</div>
+}
+
+templ MemberRoleCell(member api.Member) {
+	<div class="flex items-center gap-2" id={ "member-role-" + string(member.UserSlug) }>
+		<span class="text-xs font-semibold uppercase tracking-wide text-base-content/60 md:hidden">Role</span>
+		<div class="badge badge-outline">{ string(member.Role) }</div>
+	</div>
+}

@@ -1,0 +1,8 @@
+.agents/skills/impeccable/scripts/impeccable.cmd text eol=crlf
+
+# Catalog identities bind exact bytes on every checkout platform.
+postgres/migrations/000001_core.up.sql -text
+postgres/migrations/manifest.sha256 -text
+
+# Generated legal inventory preserves upstream whitespace and line endings.
+THIRD_PARTY_NOTICES.txt -text -whitespace

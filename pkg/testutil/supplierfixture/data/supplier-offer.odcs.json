@@ -1,0 +1,91 @@
+{
+  "apiVersion": "v3.2.0",
+  "kind": "DataContract",
+  "id": "supplier-offer",
+  "version": "1",
+  "status": "active",
+  "schema": [
+    {
+      "id": "offer",
+      "name": "Canonical normalized supplier offer",
+      "logicalType": "object",
+      "properties": [
+        {
+          "name": "provider",
+          "logicalType": "string",
+          "required": true
+        },
+        {
+          "name": "product_code",
+          "logicalType": "string",
+          "required": true,
+          "logicalTypeOptions": {
+            "minLength": 1
+          }
+        },
+        {
+          "name": "title",
+          "logicalType": "string",
+          "required": true
+        },
+        {
+          "name": "currency",
+          "logicalType": "string",
+          "required": true,
+          "enum": [
+            {
+              "value": "EUR"
+            }
+          ]
+        },
+        {
+          "name": "pack_units",
+          "logicalType": "integer",
+          "required": true,
+          "logicalTypeOptions": {
+            "minimum": 1
+          }
+        },
+        {
+          "name": "quoted_price",
+          "logicalType": "number",
+          "required": true,
+          "physicalType": "DECIMAL(18,2)",
+          "logicalTypeOptions": {
+            "minimum": 0
+          }
+        },
+        {
+          "name": "unit_price",
+          "logicalType": "number",
+          "required": true,
+          "physicalType": "DECIMAL(18,4)",
+          "logicalTypeOptions": {
+            "minimum": 0
+          }
+        },
+        {
+          "name": "source_date",
+          "logicalType": "string",
+          "required": true
+        }
+      ]
+    }
+  ],
+  "customProperties": [
+    {
+      "vendor": "braidplane",
+      "property": "decimalPhysicalTypes",
+      "value": {
+        "DECIMAL(18,2)": {
+          "precision": 18,
+          "scale": 2
+        },
+        "DECIMAL(18,4)": {
+          "precision": 18,
+          "scale": 4
+        }
+      }
+    }
+  ]
+}
