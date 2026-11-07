@@ -396,6 +396,9 @@ func (t *boundedTransport) RoundTrip(req *http.Request) (*http.Response, error) 
 	if err != nil {
 		return nil, xerror.Unavailable(xerror.DataSource).With(err)
 	}
+	if stream, _ := req.Context().Value(streamDownloadKey{}).(bool); stream && response.StatusCode >= 200 && response.StatusCode < 300 {
+		return response, nil
+	}
 	body, err := googleclient.ReadResponse(response.Body, responseLimit(req.Context(), limits))
 	_ = response.Body.Close()
 	if err != nil {

@@ -4,11 +4,13 @@ import os
 from pathlib import Path
 import platform
 import secrets
+import shutil
 import subprocess
 import tempfile
 import time
 import unittest
 import uuid
+from unittest.mock import patch
 
 from scripts.installation.lifecycle import operate
 from scripts.installation.prepare import prepare
@@ -47,23 +49,38 @@ class ImageUpgradeTest(unittest.TestCase):
             tag = identity + '-' + name + ':local'
             docker('build', '-t', tag, str(context))
             return tag
-        old = variant('old', 'braidplane-recovery-backend:local', 'LABEL recovery.fixture.version="old"')
-        new = variant('new', 'braidplane-recovery-backend:local', 'LABEL recovery.fixture.version="new"')
-        images = {name: publish(name, 'braidplane-recovery-' + name + ':local') for name in ('frontend', 'migrate', 'cli')}
+        old_prefix = os.environ.get('BRAIDPLANE_INSTALL_OLD_IMAGE_PREFIX', 'braidplane-recovery')
+        new_prefix = os.environ.get('BRAIDPLANE_INSTALL_NEW_IMAGE_PREFIX', old_prefix)
+        old = variant('old', old_prefix + '-backend:local', 'LABEL recovery.fixture.version="old"')
+        new = variant('new', new_prefix + '-backend:local', 'LABEL recovery.fixture.version="new"')
+        images = {name: publish(name, old_prefix + '-' + name + ':local') for name in ('frontend', 'migrate', 'cli')}
         images.update(backend=publish('backend-old', old), edge=publish('edge', 'caddy:2'), postgres=publish('postgres', POSTGRES))
         revision = subprocess.run(['git', 'rev-parse', 'HEAD'], check=True, capture_output=True, text=True).stdout.strip()
         release = {'version': 'v0.1.0-alpha.1', 'core_revision': revision,
                    'platform': 'linux/arm64' if platform.machine() == 'arm64' else 'linux/amd64', 'images': images}
         first = root / 'first.json'
         first.write_text(json.dumps(release))
-        second_release = dict(release, version='v0.1.0-alpha.2', images=dict(images, backend=publish('backend-new', new)))
+        second_images = dict(images, backend=publish('backend-new', new))
+        if old_prefix != new_prefix:
+            second_images['migrate'] = publish('migrate-new', new_prefix + '-migrate:local')
+        second_release = dict(release, version='v0.1.0-alpha.2', images=second_images)
         second = root / 'second.json'
         second.write_text(json.dumps(second_release))
+        bundle = root / 'candidate-bundle'
+        (bundle / 'scripts/installation').mkdir(parents=True)
+        (bundle / 'release.json').write_text(json.dumps(second_release))
+        source = Path(__file__).resolve().parent
+        shutil.copyfile(source / 'self-hosted-runtime-grants.sql', bundle / 'scripts/self-hosted-runtime-grants.sql')
+        shutil.copyfile(source / 'installation/execution-grants.sql', bundle / 'scripts/installation/execution-grants.sql')
         tls = test_installation_preflight.TLSPreflightTest()
         tls.setUp()
         self.addCleanup(tls.doCleanups)
         installation = root / 'installation'
         prepare(installation, first, 'app.customer.test', '127.0.0.1', 'mail.customer.test:587', 'owner@customer.test', tls.certs, api_only=True)
+        if old_prefix != new_prefix:
+            grants = (installation / 'execution-grants.sql').read_text()
+            old_grants = grants[:grants.index('    public.begin_retained_file(')].rstrip().removesuffix(',')
+            (installation / 'execution-grants.sql').write_text(old_grants + '\nTO :"executor_role";\nCOMMIT;\n')
         topology = json.loads((installation / 'compose.json').read_text())
         topology['services']['edge']['ports'] = ['127.0.0.1::443']
         (installation / 'compose.json').write_text(json.dumps(topology))
@@ -88,13 +105,26 @@ class ImageUpgradeTest(unittest.TestCase):
         self.assertNotEqual(old_image, new_image)
         self.assertEqual(api_image(), old_image)
         self.assertEqual(state(), 'recovery-owner')
+        if old_prefix != new_prefix:
+            version = compose('exec', '-T', 'database', 'psql', '-U', 'braidplane_operator', '-d', 'braidplane',
+                              '-At', '-c', 'SELECT version FROM core_schema_migrations')
+            self.assertEqual(version, '2')
         started = time.monotonic()
-        operate(installation, 'upgrade', release=second, backup_directory=root / 'before-upgrade')
+        with patch('scripts.installation.upgrade.BUNDLE', bundle):
+            operate(installation, 'upgrade', release=second, backup_directory=root / 'before-upgrade')
         upgrade_seconds = round(time.monotonic() - started, 3)
         self.assertEqual(api_image(), new_image)
         self.assertEqual(state(), 'recovery-owner')
         self.assertEqual((installation / 'runtime.env').read_bytes(), keys)
         self.assertFalse((installation / '.upgrade-in-progress.json').exists())
+        if old_prefix != new_prefix:
+            version = compose('exec', '-T', 'database', 'psql', '-U', 'braidplane_operator', '-d', 'braidplane',
+                              '-At', '-c', 'SELECT version FROM core_schema_migrations')
+            self.assertEqual(version, '3')
+            capability = compose('exec', '-T', 'database', 'psql', '-U', 'braidplane_operator', '-d', 'braidplane',
+                                 '-At', '-c', "SELECT has_function_privilege('braidplane_executor', 'public.begin_retained_file(uuid,uuid,text,bigint,timestamptz)', 'EXECUTE')")
+            self.assertEqual(capability, 't')
         print('PASS: live Core API-only upgrade switched image IDs with retained administrator and keys')
+        scope = 'schema-changing local fixture' if old_prefix != new_prefix else 'same-code/catalog local fixture'
         print(json.dumps({'old_backend': old_image, 'new_backend': new_image,
-                          'upgrade_seconds': upgrade_seconds, 'scope': 'same-code/catalog local fixture'}, sort_keys=True))
+                          'upgrade_seconds': upgrade_seconds, 'scope': scope}, sort_keys=True))

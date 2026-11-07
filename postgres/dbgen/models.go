@@ -358,27 +358,41 @@ type Event struct {
 }
 
 type ExecutionRequest struct {
-	ID                int
-	OrganizationID    int32
-	Kind              string
-	State             string
-	RequestCiphertext []byte
-	ResultCiphertext  []byte
-	DeadlineAt        pgtype.Timestamptz
-	CancelRequestedAt pgtype.Timestamptz
-	LeaseExpiresAt    pgtype.Timestamptz
-	StartedAt         pgtype.Timestamptz
-	CompletedAt       pgtype.Timestamptz
-	ExpiresAt         pgtype.Timestamptz
-	CreatedAt         pgtype.Timestamptz
-	UpdatedAt         pgtype.Timestamptz
-	DataSourceID      pgtype.Int8
-	ConcurrencyLimit  pgtype.Int4
-	QueueCapacity     pgtype.Int4
-	QueueDeadlineAt   pgtype.Timestamptz
-	InitiatingUserID  pgtype.Int4
-	ScopeDataSourceID pgtype.Int8
-	ClaimToken        pgtype.UUID
+	ID                  int
+	OrganizationID      int32
+	Kind                string
+	State               string
+	RequestCiphertext   []byte
+	ResultCiphertext    []byte
+	DeadlineAt          pgtype.Timestamptz
+	CancelRequestedAt   pgtype.Timestamptz
+	LeaseExpiresAt      pgtype.Timestamptz
+	StartedAt           pgtype.Timestamptz
+	CompletedAt         pgtype.Timestamptz
+	ExpiresAt           pgtype.Timestamptz
+	CreatedAt           pgtype.Timestamptz
+	UpdatedAt           pgtype.Timestamptz
+	DataSourceID        pgtype.Int8
+	ConcurrencyLimit    pgtype.Int4
+	QueueCapacity       pgtype.Int4
+	QueueDeadlineAt     pgtype.Timestamptz
+	InitiatingUserID    pgtype.Int4
+	ScopeDataSourceID   pgtype.Int8
+	ClaimToken          pgtype.UUID
+	OrgConnectorLimit   int32
+	OrgFileLimit        int32
+	FileTransfer        bool
+	FileTransferScopeID pgtype.UUID
+}
+
+type FileTransferScope struct {
+	ScopeID          pgtype.UUID
+	OrganizationID   int32
+	ConcurrencyLimit int32
+	DeadlineAt       pgtype.Timestamptz
+	ExpiresAt        pgtype.Timestamptz
+	ClaimedAt        pgtype.Timestamptz
+	ReleasedAt       pgtype.Timestamptz
 }
 
 type GithubAppInstallIntent struct {
@@ -1428,6 +1442,23 @@ type QueryParameter struct {
 	DefaultValue pgtype.Text
 	Description  pgtype.Text
 	CreatedAt    pgtype.Timestamptz
+}
+
+type RetainedFileChunk struct {
+	RequestID  pgtype.UUID
+	Sequence   int32
+	Ciphertext []byte
+}
+
+type RetainedFileStream struct {
+	RequestID      pgtype.UUID
+	OrganizationID int32
+	MaxBytes       int64
+	SizeBytes      int64
+	ChunkCount     int32
+	Sha256         pgtype.Text
+	Sealed         bool
+	ExpiresAt      pgtype.Timestamptz
 }
 
 type RiverClient struct {

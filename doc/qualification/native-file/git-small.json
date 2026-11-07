@@ -1,0 +1,17 @@
+{
+  "bytes": 20971537,
+  "components": "native Git clone/read/write/push with kernel limits; separate TLS CGI Git server with disk-spooled chunked requests and retained packs; disk random seed and independent full Git readback; Go RSS includes fixture/oracle, child RSS includes seed/server/client before oracle and is largest reaped child, not aggregate; broker/retention/API excluded",
+  "elapsed_seconds": 1.702814671,
+  "git_file_write_limit_bytes": 109052416,
+  "git_version": "git version 2.47.3",
+  "go_test_process_peak_rss_bytes": 19349504,
+  "go_version": "go1.26.10",
+  "largest_checkout_file_bytes": 20978237,
+  "process_address_space_limit_bytes": 536870912,
+  "qualification_largest_reaped_child_peak_rss_bytes": 19218432,
+  "read_checkout_logical_bytes": 41978569,
+  "revision": "f6cf58f886cefc2fa4a5ba091a6661a2059f2dab",
+  "sha256": "b8ad393fceaddd2ae947b2d223168063d4b280e72d6af44bc223c99665b8224c",
+  "single_git_allocation_limit_bytes": 16777216,
+  "write_checkout_logical_bytes": 62958353
+}

@@ -1,0 +1,19 @@
+{
+  "components": "real broker executor SIGKILL and replacement process; original lease; source changed after kill; checkpoint replay refused; independent S3 readback and explicit multipart cleanup; API/browser and executor memory excluded",
+  "fault_bytes": 20971520,
+  "incomplete_uploads_after_cleanup": 0,
+  "incomplete_uploads_after_death": 1,
+  "original_lease_expires_at": "2026-11-03T13:02:35.290993+01:00",
+  "part_requests_after": 6,
+  "part_requests_before": 4,
+  "pipeline_run_state": "failed",
+  "prior_destination_bytes": 20971520,
+  "prior_destination_sha256": "b9185b15757f27d70445347bf25e92aac76c0e8b38ceee5b88fa7efdb3ada2c5",
+  "request_state": "ambiguous",
+  "restart_ready_to_assertions_seconds": 29.890552,
+  "revision": "8dc99ee68aeeab4184105e29eeb4ae7b8d65b13a",
+  "sink_effect_state": "in_progress",
+  "source_reads_after": 4,
+  "source_reads_before": 3,
+  "uploaded_part_bytes_after_death": 8388608
+}

@@ -154,7 +154,7 @@ func (c *Connector) execute(ctx context.Context, queryData json.RawMessage, para
 	case operationRead:
 		fileResult, err = c.executeRead(ctx, bucket, key, stmt, execLimits)
 	case operationWrite:
-		fileResult, err = c.executeWrite(ctx, bucket, key, stmt)
+		fileResult, err = c.executeWrite(ctx, bucket, key, stmt, execLimits)
 	default:
 		err = xerror.InvalidInput(xerror.Query).Detailf("unsupported S3 operation %q", stmt.Operation)
 	}
@@ -198,11 +198,12 @@ func (c *Connector) executeWrite(
 	bucket,
 	key string,
 	stmt statement,
+	limits types.ExecutionLimits,
 ) (*result.FileResult, error) {
 	return s3FileAdapter.ExecuteWrite(ctx, s3ObjectProvider{
 		client: c.client,
 		bucket: bucket,
-	}, key, stmt)
+	}, key, stmt, limits)
 }
 
 // applyWriteParamOverrides lets runtime sink bindings override saved write statement fields.

@@ -13408,3 +13408,88 @@ WITH static_rekey AS (
 SELECT (SELECT count(*) FROM static_rekey) + (SELECT count(*) FROM grant_rekey)
     + (SELECT count(*) FROM install_rekey) + (SELECT count(*) FROM app_rekey)
     + (SELECT count(*) FROM hook_rekey) + (SELECT count(*) FROM envelope_rekey) AS changed;
+
+-- name: BeginRetainedFile :one
+SELECT begin_retained_file(sqlc.arg('request_id')::uuid, sqlc.arg('claim_token')::uuid, sqlc.arg('org_slug')::text, sqlc.arg('max_bytes')::bigint, sqlc.arg('expires_at')::timestamptz)::boolean;
+
+-- name: AppendRetainedFileChunk :one
+SELECT append_retained_file_chunk(sqlc.arg('request_id')::uuid, sqlc.arg('claim_token')::uuid, sqlc.arg('org_slug')::text, sqlc.arg('sequence')::integer, sqlc.arg('plain_bytes')::integer, sqlc.arg('ciphertext')::bytea)::boolean;
+
+-- name: SealRetainedFile :one
+SELECT seal_retained_file(sqlc.arg('request_id')::uuid, sqlc.arg('claim_token')::uuid, sqlc.arg('org_slug')::text, sqlc.arg('size_bytes')::bigint, sqlc.arg('sha256')::text)::boolean;
+
+-- name: ReadRetainedFile :one
+SELECT size_bytes::bigint, chunk_count::integer, sha256::text, expires_at::timestamptz
+FROM read_retained_file(sqlc.arg('request_id')::uuid, sqlc.arg('claim_token')::uuid, sqlc.arg('org_slug')::text, sqlc.arg('source_request_id')::uuid);
+
+-- name: ReadRetainedFileChunk :one
+SELECT read_retained_file_chunk(sqlc.arg('request_id')::uuid, sqlc.arg('claim_token')::uuid, sqlc.arg('org_slug')::text, sqlc.arg('source_request_id')::uuid, sqlc.arg('sequence')::integer)::bytea;
+
+-- name: DiscardRetainedFile :one
+SELECT discard_retained_file(sqlc.arg('request_id')::uuid, sqlc.arg('claim_token')::uuid, sqlc.arg('org_slug')::text)::boolean;
+
+-- name: BindExecutionOrganizationLimits :execrows
+WITH target AS (
+    SELECT request.id, request.organization_id FROM execution_requests request
+    JOIN organizations organization ON organization.id = request.organization_id
+    WHERE request.id = sqlc.arg('request_id')::uuid AND organization.slug = sqlc.arg('org_slug')
+        AND request.state = 'pending'
+        AND (NOT sqlc.arg('file_transfer')::boolean OR request.data_source_id IS NOT NULL)
+        AND (NOT sqlc.arg('file_transfer')::boolean OR request.deadline_at <= sqlc.narg('transfer_deadline')::timestamptz)
+        AND sqlc.arg('connector_limit')::integer > 0
+        AND sqlc.arg('file_limit')::integer > 0
+), scope AS (
+    INSERT INTO file_transfer_scopes(scope_id, organization_id, concurrency_limit, deadline_at, expires_at)
+    SELECT sqlc.narg('scope_id')::uuid, target.organization_id, sqlc.arg('file_limit')::integer,
+        sqlc.narg('transfer_deadline')::timestamptz, sqlc.narg('transfer_deadline')::timestamptz + INTERVAL '15 minutes'
+    FROM target WHERE sqlc.arg('file_transfer')::boolean
+        AND sqlc.narg('scope_id')::uuid IS NOT NULL
+        AND sqlc.narg('transfer_deadline')::timestamptz > clock_timestamp()
+    ON CONFLICT (scope_id) DO UPDATE
+    SET concurrency_limit = LEAST(file_transfer_scopes.concurrency_limit, EXCLUDED.concurrency_limit)
+    WHERE file_transfer_scopes.organization_id = EXCLUDED.organization_id
+        AND file_transfer_scopes.released_at IS NULL
+        AND file_transfer_scopes.deadline_at = EXCLUDED.deadline_at
+    RETURNING scope_id
+)
+UPDATE execution_requests request
+SET org_connector_limit = sqlc.arg('connector_limit')::integer,
+    org_file_limit = sqlc.arg('file_limit')::integer,
+    file_transfer = sqlc.arg('file_transfer')::boolean,
+    file_transfer_scope_id = CASE WHEN sqlc.arg('file_transfer')::boolean THEN sqlc.narg('scope_id')::uuid END
+FROM target
+WHERE request.id = target.id
+    AND (NOT sqlc.arg('file_transfer')::boolean OR EXISTS (SELECT 1 FROM scope));
+
+-- name: ReleaseFileTransferScope :exec
+UPDATE file_transfer_scopes scope SET released_at = COALESCE(scope.released_at, clock_timestamp())
+FROM organizations organization
+WHERE scope.scope_id = sqlc.arg('scope_id')::uuid AND scope.organization_id = organization.id
+    AND organization.slug = sqlc.arg('org_slug');
+
+-- name: ListFileTransferRequests :many
+SELECT request.id::uuid AS request_id
+FROM execution_requests request
+JOIN file_transfer_scopes scope ON scope.scope_id=request.file_transfer_scope_id AND scope.organization_id=request.organization_id
+JOIN organizations organization ON organization.id=scope.organization_id
+WHERE scope.scope_id=sqlc.arg('scope_id')::uuid AND organization.slug=sqlc.arg('org_slug')
+    AND scope.released_at IS NOT NULL AND request.state IN ('pending','running')
+ORDER BY request.id;
+
+-- name: DeleteExpiredFileTransferScopes :exec
+DELETE FROM file_transfer_scopes WHERE expires_at <= clock_timestamp();
+
+-- name: RetainedFileCapabilitiesReady :one
+SELECT COALESCE(
+    to_regclass('public.retained_file_streams') IS NOT NULL
+    AND to_regclass('public.file_transfer_scopes') IS NOT NULL
+    AND EXISTS (SELECT 1 FROM pg_attribute WHERE attrelid = 'public.execution_requests'::regclass AND attname = 'file_transfer_scope_id' AND NOT attisdropped)
+    AND to_regclass('public.retained_file_chunks') IS NOT NULL
+    AND EXISTS (SELECT 1 FROM pg_attribute WHERE attrelid = 'public.execution_requests'::regclass AND attname = 'org_connector_limit' AND NOT attisdropped)
+    AND EXISTS (SELECT 1 FROM pg_attribute WHERE attrelid = 'public.execution_requests'::regclass AND attname = 'org_file_limit' AND NOT attisdropped)
+    AND has_function_privilege(current_user, to_regprocedure('public.begin_retained_file(uuid,uuid,text,bigint,timestamptz)'), 'EXECUTE')
+    AND has_function_privilege(current_user, to_regprocedure('public.append_retained_file_chunk(uuid,uuid,text,integer,integer,bytea)'), 'EXECUTE')
+    AND has_function_privilege(current_user, to_regprocedure('public.seal_retained_file(uuid,uuid,text,bigint,text)'), 'EXECUTE')
+    AND has_function_privilege(current_user, to_regprocedure('public.read_retained_file(uuid,uuid,text,uuid)'), 'EXECUTE')
+    AND has_function_privilege(current_user, to_regprocedure('public.read_retained_file_chunk(uuid,uuid,text,uuid,integer)'), 'EXECUTE')
+    AND has_function_privilege(current_user, to_regprocedure('public.discard_retained_file(uuid,uuid,text)'), 'EXECUTE'), FALSE)::boolean AS ready;

@@ -172,14 +172,15 @@ type Payload struct {
 	VerificationStatus VerificationStatus           `json:"verification_status,omitempty"`
 	Provenance         Provenance                   `json:"provenance,omitempty"`
 
-	ColumnNames []string                         `json:"column_names,omitempty"`
-	RowCount    int                              `json:"row_count,omitempty"`
-	Rows        []map[string]any                 `json:"rows,omitempty"`
-	Document    json.RawMessage                  `json:"document,omitempty"`
-	CSV         string                           `json:"csv,omitempty"`
-	File        *filepayload.FilePayloadMetadata `json:"file,omitempty"`
-	FileBytes   []byte                           `json:"-" yaml:"-"`
-	Form        *formpayload.FormData            `json:"form,omitempty"`
+	ColumnNames   []string                         `json:"column_names,omitempty"`
+	RowCount      int                              `json:"row_count,omitempty"`
+	Rows          []map[string]any                 `json:"rows,omitempty"`
+	Document      json.RawMessage                  `json:"document,omitempty"`
+	CSV           string                           `json:"csv,omitempty"`
+	File          *filepayload.FilePayloadMetadata `json:"file,omitempty"`
+	FileReference *filepayload.Reference           `json:"-" yaml:"-"`
+	FileBytes     []byte                           `json:"-" yaml:"-"`
+	Form          *formpayload.FormData            `json:"form,omitempty"`
 }
 
 type Output struct {
@@ -216,6 +217,7 @@ func (p *Payload) Clone() *Payload {
 		CSV:                p.CSV,
 		File:               filepayload.CloneFilePayloadMetadata(p.File),
 		FileBytes:          append([]byte(nil), p.FileBytes...),
+		FileReference:      filepayload.CloneReference(p.FileReference),
 		Form:               p.Form.Clone(),
 	}
 }

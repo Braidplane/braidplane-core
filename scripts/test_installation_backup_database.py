@@ -40,6 +40,9 @@ class BackupDatabaseTest(unittest.TestCase):
         installation = root / 'installation'
         prepare(installation, release_path, 'app.customer.test', '127.0.0.1',
                 'mail.customer.test:587', 'owner@customer.test', tls.certs)
+        grants = (installation / 'execution-grants.sql').read_text()
+        old_grants = grants[:grants.index('    public.begin_retained_file(')].rstrip().removesuffix(',')
+        (installation / 'execution-grants.sql').write_text(old_grants + '\nTO :"executor_role";\nCOMMIT;\n')
         (installation / '.installed-release.json').write_text(json.dumps(release))
         _, values = read_inputs(installation)
         command = ['docker', 'compose', '--project-name', values['BRAIDPLANE_PROJECT_NAME'],
@@ -154,8 +157,13 @@ class BackupDatabaseTest(unittest.TestCase):
         candidate = dict(release, version='v0.1.0-alpha.2')
         candidate_path = root / 'candidate.json'
         candidate_path.write_text(json.dumps(candidate))
+        bundle = root / 'candidate-bundle'
+        (bundle / 'scripts/installation').mkdir(parents=True)
+        (bundle / 'release.json').write_text(json.dumps(candidate))
+        shutil.copyfile(ROOT / 'scripts/self-hosted-runtime-grants.sql', bundle / 'scripts/self-hosted-runtime-grants.sql')
+        shutil.copyfile(ROOT / 'scripts/installation/execution-grants.sql', bundle / 'scripts/installation/execution-grants.sql')
         upgrade_backup = root / 'before-failed-migration'
-        with self.assertRaisesRegex(ValueError, 'no automatic rollback'):
+        with patch('scripts.installation.upgrade.BUNDLE', bundle), self.assertRaisesRegex(ValueError, 'no automatic rollback'):
             operate(installation, 'upgrade', release=candidate_path, backup_directory=upgrade_backup)
         self.assertTrue((installation / '.upgrade-in-progress.json').is_file())
         self.assertEqual(json.loads((installation / '.installed-release.json').read_text()), release)

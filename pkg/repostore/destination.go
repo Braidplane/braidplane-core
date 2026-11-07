@@ -6,7 +6,6 @@ import (
 	"net"
 	"net/url"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -326,11 +325,11 @@ var minimumGitConfigEnvVersion = gitVersion{major: 2, minor: 37}
 // verifyGitHTTPSCapabilities fails closed unless native Git supports isolated GIT_CONFIG_* injection
 // and its linked HTTP transport honors the resolve syntax used for the destination address family.
 func verifyGitHTTPSCapabilities(ctx context.Context, destinationIP net.IP) error {
-	output, err := exec.CommandContext(ctx, "git", "--version", "--build-options").Output()
+	output, _, err := runGitCommandOutput(ctx, "", nil, "--version", "--build-options")
 	if err != nil {
 		return ErrRepositorySetup.With(err)
 	}
-	if err := validateGitHTTPSCapabilities(string(output)); err != nil {
+	if err := validateGitHTTPSCapabilities(output); err != nil {
 		return err
 	}
 	return probeGitHTTPSResolve(ctx, destinationIP)
@@ -375,9 +374,8 @@ func probeGitHTTPSResolve(ctx context.Context, destinationIP net.IP) error {
 
 	probeCtx, cancel := context.WithTimeout(ctx, gitCommandTimeout)
 	defer cancel()
-	command := exec.CommandContext(
+	command := newGitCommand(
 		probeCtx,
-		"git",
 		"ls-remote",
 		"--exit-code",
 		fmt.Sprintf("https://braidplane-git-capability.invalid:%s/probe.git", port),

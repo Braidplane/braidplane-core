@@ -365,6 +365,7 @@ func runExecutionOnlyBackend(
 		distribution.ConnectorFactory(),
 		logger,
 		distribution,
+		cfg.ExecutionLimits.NativeFiles.Profile(),
 	)
 	if err != nil {
 		return xerror.Wrapf("initialize execution worker broker: %w", err)
@@ -592,6 +593,7 @@ func Run(cfg *backendconfig.Config, mode Mode, createDistribution DistributionFa
 		executionFactory,
 		backendLogger,
 		distribution,
+		cfg.ExecutionLimits.NativeFiles.Profile(),
 	)
 	if err != nil {
 		return xerror.Wrapf("initialize API execution request broker: %w", err)
@@ -911,6 +913,7 @@ func Run(cfg *backendconfig.Config, mode Mode, createDistribution DistributionFa
 		credentialsService,
 		clock.New(),
 		queriessvc.ExecutionLimits{
+			NativeFiles:                       cfg.ExecutionLimits.NativeFiles.Profile(),
 			QueryTimeout:                      cfg.ExecutionLimits.QueryTimeout.TimeDuration(),
 			ConnectorTimeout:                  cfg.ExecutionLimits.ConnectorTimeout.TimeDuration(),
 			MaxResultRows:                     cfg.ExecutionLimits.MaxResultRows,

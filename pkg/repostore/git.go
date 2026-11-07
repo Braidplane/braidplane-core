@@ -234,7 +234,7 @@ func isGitAdministrationComponent(component string) bool {
 }
 
 func (s *checkoutRepoStore) commitPath(ctx context.Context, filePath, message string) error {
-	if err := runGit(ctx, s.repoRoot, "add", "-A", "--", filePath); err != nil {
+	if err := runGit(ctx, s.repoRoot, "--literal-pathspecs", "add", "-A", "--", filePath); err != nil {
 		return err
 	}
 
@@ -251,7 +251,7 @@ func (s *checkoutRepoStore) commitPath(ctx context.Context, filePath, message st
 		commitMessage = defaultCommitMessage
 	}
 
-	return runGit(ctx, s.repoRoot, "commit", "-m", commitMessage, "--", filePath)
+	return runGit(ctx, s.repoRoot, "--literal-pathspecs", "commit", "--quiet", "-m", commitMessage, "--", filePath)
 }
 
 func ensureCheckedOutGitRepository(ctx context.Context, repoRoot string) error {
@@ -314,12 +314,16 @@ func hasGitConfig(ctx context.Context, repoRoot, key string) (bool, error) {
 }
 
 func hasStagedChanges(ctx context.Context, repoRoot, filePath string) (bool, error) {
+	// Diff drivers make even --quiet inspect contents instead of object identities.
 	exitCode, stderrMsg, err := runGitWithExitCode(
 		ctx,
 		repoRoot,
+		"--literal-pathspecs",
 		"diff",
 		"--cached",
 		"--quiet",
+		"--no-ext-diff",
+		"--no-textconv",
 		"--",
 		filePath,
 	)
@@ -445,10 +449,10 @@ func runGitWithExitCode(
 	repoRoot string,
 	args ...string,
 ) (int, string, error) {
-	ctx, cancel := context.WithTimeout(ctx, gitCommandTimeout)
+	ctx, cancel := gitCommandContext(ctx)
 	defer cancel()
 
-	cmd := exec.CommandContext(ctx, "git", args...)
+	cmd := newGitCommand(ctx, args...)
 	cmd.Dir = repoRoot
 	cmd.Env = sanitizedGitEnv(os.Environ(), nil)
 
@@ -483,10 +487,10 @@ func runGitCommand(
 	env []string,
 	args ...string,
 ) (string, error) {
-	ctx, cancel := context.WithTimeout(ctx, gitCommandTimeout)
+	ctx, cancel := gitCommandContext(ctx)
 	defer cancel()
 
-	cmd := exec.CommandContext(ctx, "git", args...)
+	cmd := newGitCommand(ctx, args...)
 	if strings.TrimSpace(repoRoot) != "" {
 		cmd.Dir = repoRoot
 	}
@@ -510,10 +514,10 @@ func runGitCommandOutput(
 	env []string,
 	args ...string,
 ) (string, string, error) {
-	ctx, cancel := context.WithTimeout(ctx, gitCommandTimeout)
+	ctx, cancel := gitCommandContext(ctx)
 	defer cancel()
 
-	cmd := exec.CommandContext(ctx, "git", args...)
+	cmd := newGitCommand(ctx, args...)
 	if strings.TrimSpace(repoRoot) != "" {
 		cmd.Dir = repoRoot
 	}

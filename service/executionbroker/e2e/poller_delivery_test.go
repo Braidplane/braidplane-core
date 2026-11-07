@@ -7,6 +7,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 
+	"github.com/Braidplane/braidplane-core/pkg/connector/filestream"
 	"github.com/Braidplane/braidplane-core/pkg/crypto"
 	"github.com/Braidplane/braidplane-core/pkg/domain/model"
 	"github.com/Braidplane/braidplane-core/pkg/testutil"
@@ -35,7 +36,7 @@ func TestPollerConnectionTestPreservesSynchronousSemantics(t *testing.T) {
 	cipher, err := crypto.NewAES256(make([]byte, 32))
 	require.NoError(t, err)
 	txm := postgres.NewTransactionManager(pool)
-	api, err := executionbroker.New(txm, cipher, executionbroker.NewPollerDispatcher(), 10*time.Second, nil, nil, testutil.FakeOperationAdmission{})
+	api, err := executionbroker.New(txm, cipher, executionbroker.NewPollerDispatcher(), 10*time.Second, nil, nil, testutil.FakeOperationAdmission{}, filestream.Profile{})
 	require.NoError(t, err)
 	entered := make(chan struct{})
 	release := make(chan struct{})
@@ -55,7 +56,7 @@ func TestPollerConnectionTestPreservesSynchronousSemantics(t *testing.T) {
 				return ctx.Err()
 			}
 		}}, nil
-	}, nil, testutil.FakeOperationAdmission{})
+	}, nil, testutil.FakeOperationAdmission{}, filestream.Profile{})
 	require.NoError(t, err)
 	defer func() { require.NoError(t, executor.Close()) }()
 	require.NoError(t, executor.Start(ctx, 1))

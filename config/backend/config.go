@@ -14,6 +14,7 @@ import (
 	"github.com/Braidplane/braidplane-core/pkg/snowflakewif"
 
 	"github.com/Braidplane/braidplane-core/config"
+	"github.com/Braidplane/braidplane-core/pkg/connector/filestream"
 
 	"github.com/Braidplane/braidplane-core/pkg/xerror"
 )
@@ -254,8 +255,23 @@ type ExecutionConfig struct {
 	CompletionTriggersEnabled bool            `toml:"completion_triggers_enabled" env:"EXECUTION_COMPLETION_TRIGGERS_ENABLED" flag:"execution-completion-triggers-enabled" desc:"Enable completion trigger resources and dispatch deployment-wide"`
 }
 
+// NativeFileProfileConfig is disabled unless all qualification allowances are explicit.
+type NativeFileProfileConfig struct {
+	Organization string          `toml:"organization" env:"NATIVE_FILE_PROFILE_ORGANIZATION" flag:"native-file-profile-organization" desc:"Organization slug explicitly allowed to qualify Custom native-file streaming; empty disables"`
+	MaxBytes     int64           `toml:"max_bytes" env:"NATIVE_FILE_PROFILE_MAX_BYTES" flag:"native-file-profile-max-bytes" desc:"Maximum bytes per native file operation"`
+	Timeout      config.Duration `toml:"timeout" env:"NATIVE_FILE_PROFILE_TIMEOUT" flag:"native-file-profile-timeout" desc:"Total native-file transfer allowance per pipeline attempt or standalone operation"`
+	Transfers    int             `toml:"transfers" env:"NATIVE_FILE_PROFILE_TRANSFERS" flag:"native-file-profile-transfers" desc:"Organization-wide native-file pipeline attempts or standalone operations across preparation, reads and writes"`
+	Connectors   int             `toml:"connectors" env:"NATIVE_FILE_PROFILE_CONNECTORS" flag:"native-file-profile-connectors" desc:"Organization-wide concurrent connector queries, connection tests and schema introspections"`
+}
+
+func (p NativeFileProfileConfig) Profile() filestream.Profile {
+	return filestream.Profile{Organization: slug.Slug(p.Organization), MaxBytes: p.MaxBytes, Timeout: p.Timeout.TimeDuration(), Transfers: p.Transfers, Connectors: p.Connectors}
+}
+
 // ExecutionLimitsConfig contains backend runtime guardrails for user-triggered execution.
 type ExecutionLimitsConfig struct {
+	NativeFiles NativeFileProfileConfig `toml:"native_files"`
+
 	QueryTimeout                      config.Duration `toml:"query_timeout"                         env:"EXECUTION_LIMITS_QUERY_TIMEOUT"                         flag:"execution-limits-query-timeout"                         desc:"Maximum saved or inline query execution duration (e.g., 30s, 1m)"`
 	ConnectorTimeout                  config.Duration `toml:"connector_timeout"                     env:"EXECUTION_LIMITS_CONNECTOR_TIMEOUT"                     flag:"execution-limits-connector-timeout"                     desc:"Maximum connector operation duration (e.g., 30s, 1m)"`
 	MaxResultRows                     int             `toml:"max_result_rows"                       env:"EXECUTION_LIMITS_MAX_RESULT_ROWS"                       flag:"execution-limits-max-result-rows"                       desc:"Maximum rows/documents returned by a query execution"`
@@ -419,6 +435,9 @@ func (c *Config) validateExecutor() error {
 }
 
 func (c *Config) validateExecutionLimits() error {
+	if err := c.ExecutionLimits.NativeFiles.Profile().Validate(); err != nil {
+		return err
+	}
 	checks := []struct {
 		invalid     bool
 		name        string

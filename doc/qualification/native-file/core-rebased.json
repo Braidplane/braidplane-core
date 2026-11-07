@@ -1,0 +1,46 @@
+{
+  "transfer": {
+    "bytes": 1073741841,
+    "checkpoint_bytes": 1763,
+    "components": "runner + real query/credential services + broker pollers in one Go process; PostgreSQL encrypted retained chunks/checkpoints/ledger; external SeaweedFS S3; independent SDK seed/readback; API/browser and process restart excluded",
+    "database_growth_bytes": 1116061696,
+    "elapsed_seconds": 22.204348917,
+    "heap_baseline_bytes": 8390712,
+    "heap_peak_sampled_bytes": 60989184,
+    "largest_broker_envelope_bytes": 3929,
+    "largest_chunk_bytes": 1048678,
+    "process_peak_rss_bytes": 118947840,
+    "profile": {
+      "Organization": "native-file-1793956498640923000",
+      "MaxBytes": 1073741841,
+      "Timeout": 300000000000,
+      "Transfers": 1,
+      "Connectors": 2
+    },
+    "retained_ciphertext_bytes": 1073845281,
+    "retained_relation_bytes": 1115684864,
+    "revision": "6e26f3aed183c5f6c2c881f5b721e9072525082b",
+    "s3_object_logical_bytes": 2147483682,
+    "seed_disk_bytes": 1073741841,
+    "sha256": "42e0ba806f9eea358c4b32b3a25fc39f633849b5f60359194d4c746cae21b364"
+  },
+  "executor_loss": {
+    "components": "real broker executor SIGKILL and replacement process; original lease; source changed after kill; checkpoint replay refused; independent S3 readback and explicit multipart cleanup; API/browser and executor memory excluded",
+    "fault_bytes": 20971520,
+    "incomplete_uploads_after_cleanup": 0,
+    "incomplete_uploads_after_death": 1,
+    "original_lease_expires_at": "2026-11-06T10:16:43.085771+01:00",
+    "part_requests_after": 6,
+    "part_requests_before": 4,
+    "pipeline_run_state": "failed",
+    "prior_destination_bytes": 20971520,
+    "prior_destination_sha256": "b9185b15757f27d70445347bf25e92aac76c0e8b38ceee5b88fa7efdb3ada2c5",
+    "request_state": "ambiguous",
+    "restart_ready_to_assertions_seconds": 29.944169584,
+    "revision": "6e26f3aed183c5f6c2c881f5b721e9072525082b",
+    "sink_effect_state": "in_progress",
+    "source_reads_after": 4,
+    "source_reads_before": 3,
+    "uploaded_part_bytes_after_death": 8388608
+  }
+}

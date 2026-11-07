@@ -17,6 +17,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"go.opentelemetry.io/otel/trace"
 
+	"github.com/Braidplane/braidplane-core/pkg/connector/filestream"
 	"github.com/Braidplane/braidplane-core/pkg/connector/result"
 	"github.com/Braidplane/braidplane-core/pkg/crypto"
 	"github.com/Braidplane/braidplane-core/pkg/deploymentplan"
@@ -97,7 +98,39 @@ type fakeRequestRepo struct {
 	cancelErr             error
 	boundUser             slug.Slug
 	boundSource           slug.Slug
+	orgConnectors         int
+	orgFiles              int
+	orgFileTransfer       bool
+	boundFileScope        uuid.UUID
+	boundFileDeadline     time.Time
+	releasedFileScopes    atomic.Int32
+	listedFileScopes      atomic.Int32
+	pendingFileRequests   []uuid.UUID
+	cancelCalls           atomic.Int32
 	bindErr               error
+}
+
+func (r *fakeRequestRepo) BindOrganizationLimits(_ context.Context, _ postgres.DBTX, _ uuid.UUID, _ string, connectors, files int, file bool, scope uuid.UUID, deadline time.Time) error {
+	r.boundFileScope, r.boundFileDeadline = scope, deadline
+	r.orgConnectors, r.orgFiles, r.orgFileTransfer = connectors, files, file
+	return r.bindErr
+}
+
+func (r *fakeRequestRepo) ReleaseFileTransfer(context.Context, postgres.DBTX, uuid.UUID, string) error {
+	r.releasedFileScopes.Add(1)
+	return nil
+}
+
+func (r *fakeRequestRepo) ListFileTransferRequests(context.Context, postgres.DBTX, uuid.UUID, string) ([]uuid.UUID, error) {
+	r.listedFileScopes.Add(1)
+	if r.releasedFileScopes.Load() == 0 {
+		return nil, xerror.Unexpected().Detail("transfer admission must close before pending requests are selected")
+	}
+	return r.pendingFileRequests, nil
+}
+
+func (r *fakeRequestRepo) DeleteExpiredFileTransfers(context.Context, postgres.DBTX) error {
+	return nil
 }
 
 func (r *fakeRequestRepo) BindUser(_ context.Context, _ postgres.DBTX, _ uuid.UUID, _ string, user slug.Slug) error {
@@ -180,6 +213,7 @@ func (r *fakeRequestRepo) Complete(
 }
 
 func (r *fakeRequestRepo) Cancel(context.Context, postgres.DBTX, uuid.UUID) (bool, error) {
+	r.cancelCalls.Add(1)
 	return r.cancelBeforeExecution, r.cancelErr
 }
 
@@ -2088,13 +2122,13 @@ func TestSafeQueryErrorCode(t *testing.T) {
 
 func TestBrokerNewRequiresTransactionAndCipher(t *testing.T) {
 	t.Parallel()
-	broker, err := New(nil, nil, nil, 0, nil, nil, testutil.FakeOperationAdmission{})
+	broker, err := New(nil, nil, nil, 0, nil, nil, testutil.FakeOperationAdmission{}, filestream.Profile{})
 	require.Nil(t, broker)
 	require.Error(t, err)
 
 	cipher, err := crypto.NewAES256(make([]byte, 32))
 	require.NoError(t, err)
-	broker, err = New(fakeTXM{}, cipher, NewPollerDispatcher(), testRequestTimeout, nil, nil, testutil.FakeOperationAdmission{})
+	broker, err = New(fakeTXM{}, cipher, NewPollerDispatcher(), testRequestTimeout, nil, nil, testutil.FakeOperationAdmission{}, filestream.Profile{})
 	require.NoError(t, err)
 	require.NotNil(t, broker)
 	require.NotNil(t, broker.logger)
@@ -2104,7 +2138,7 @@ func TestProcessRejectsSubmitOnlyBrokerBeforeClaim(t *testing.T) {
 	t.Parallel()
 	cipher, err := crypto.NewAES256(make([]byte, 32))
 	require.NoError(t, err)
-	broker, err := New(fakeTXM{}, cipher, NewPollerDispatcher(), testRequestTimeout, nil, nil, testutil.FakeOperationAdmission{})
+	broker, err := New(fakeTXM{}, cipher, NewPollerDispatcher(), testRequestTimeout, nil, nil, testutil.FakeOperationAdmission{}, filestream.Profile{})
 	require.NoError(t, err)
 
 	repo := &fakeRequestRepo{request: requestrepo.Request{

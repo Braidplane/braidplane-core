@@ -6,6 +6,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/Braidplane/braidplane-core/pkg/connector/filestream"
 	"github.com/Braidplane/braidplane-core/pkg/crypto"
 	"github.com/Braidplane/braidplane-core/pkg/domain/model"
 	"github.com/Braidplane/braidplane-core/pkg/executiondelivery"
@@ -22,7 +23,7 @@ import (
 func TestNewRequiresOperationAdmission(t *testing.T) {
 	cipher, err := crypto.NewAES256(make([]byte, 32))
 	require.NoError(t, err)
-	broker, err := New(fakeTXM{}, cipher, NewPollerDispatcher(), time.Minute, nil, nil, nil)
+	broker, err := New(fakeTXM{}, cipher, NewPollerDispatcher(), time.Minute, nil, nil, nil, filestream.Profile{})
 	require.ErrorContains(t, err, "execution broker dependencies are required")
 	require.Nil(t, broker)
 }
@@ -51,7 +52,7 @@ func TestSavedOperationsAreFencedBeforeProviderIO(t *testing.T) {
 			broker, err := New(fakeTXM{}, cipher, NewPollerDispatcher(), time.Minute, func(context.Context, model.DataSourceType, []byte, []byte) (connector.Connector, error) {
 				t.Fatal("paused fixture reached provider")
 				return nil, xerror.Unexpected()
-			}, nil, guard)
+			}, nil, guard, filestream.Profile{})
 			require.NoError(t, err)
 			defer func() { require.NoError(t, broker.Close()) }()
 			repo := &fakeRequestRepo{}
@@ -82,7 +83,7 @@ func TestInvalidAdmissionErrorMappingFailsClosed(t *testing.T) {
 		EncodeOperationErrorFn: func(error) (string, bool) { return "", true },
 		DecodeOperationErrorFn: func(string) (error, bool) { return nil, true },
 	}
-	broker, err := New(fakeTXM{}, cipher, NewPollerDispatcher(), time.Minute, nil, nil, guard)
+	broker, err := New(fakeTXM{}, cipher, NewPollerDispatcher(), time.Minute, nil, nil, guard, filestream.Profile{})
 	require.NoError(t, err)
 	defer func() { require.NoError(t, broker.Close()) }()
 	repo := &fakeRequestRepo{}
@@ -111,7 +112,7 @@ func TestSavedConnectionAndSchemaRequestsBindOnlyTheirSourceCapability(t *testin
 			response, err := cipher.Encrypt(plain)
 			require.NoError(t, err)
 			repo := &fakeRequestRepo{request: requestrepo.Request{State: requestrepo.StateSucceeded, ResultCiphertext: response}}
-			broker, err := New(fakeTXM{}, cipher, NewPollerDispatcher(), time.Second, nil, nil, testutil.FakeOperationAdmission{})
+			broker, err := New(fakeTXM{}, cipher, NewPollerDispatcher(), time.Second, nil, nil, testutil.FakeOperationAdmission{}, filestream.Profile{})
 			require.NoError(t, err)
 			broker.repo = repo
 			_, err = broker.submitAndWait(t.Context(), "tester", kind, datasourcessvc.ConnectionTestRequest{OrganizationSlug: "tester", DataSourceSlug: "fixture", DataSourceType: model.DataSourceTypePostgres})

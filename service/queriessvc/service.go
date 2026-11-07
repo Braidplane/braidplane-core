@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/Braidplane/braidplane-core/pkg/clock"
+	"github.com/Braidplane/braidplane-core/pkg/connector/filestream"
 	"github.com/Braidplane/braidplane-core/pkg/connector/result"
 	"github.com/Braidplane/braidplane-core/pkg/contractplan"
 	"github.com/Braidplane/braidplane-core/pkg/deploymentplan"
@@ -76,6 +77,7 @@ type ExecutionLimits struct {
 	QueryTimeout                      time.Duration
 	ConnectorTimeout                  time.Duration
 	MaxResultRows                     int
+	NativeFiles                       filestream.Profile
 	MaxResponseBytes                  int64
 	ConnectorConcurrencyPerDataSource int
 	ConnectorConcurrencyQueueTimeout  time.Duration
@@ -478,6 +480,9 @@ func NewWithExecutionLimits(
 }
 
 func validateExecutionLimits(limits ExecutionLimits) error {
+	if err := limits.NativeFiles.Validate(); err != nil {
+		return ErrInvalidInput.With(err)
+	}
 	if limits.QueryTimeout <= 0 {
 		return ErrInvalidInput.Detail("query timeout must be greater than 0")
 	}
@@ -1222,6 +1227,18 @@ func (s *service) executePrepared(
 		return nil, err
 	}
 
+	native := s.limits.NativeFiles.Matches(orgSlug) && filestream.NativeOperation(ds.Type.String(), prepared.statementJSON)
+	timeout := s.effectiveTimeout(prepared)
+	if native {
+		timeout = s.limits.NativeFiles.Timeout
+		if prepared.timeoutSeconds > 0 {
+			timeout = min(timeout, time.Duration(prepared.timeoutSeconds)*time.Second)
+		}
+		var deadlineCancel context.CancelFunc
+		ctx, deadlineCancel = context.WithDeadline(ctx, s.limits.NativeFiles.Deadline(ctx, time.Now()))
+		defer deadlineCancel()
+	}
+
 	configJSON, credentialsJSON, configVersion, credentialVersion, credentialReference, err := s.resolveExecutionPayload(
 		ctx,
 		orgSlug,
@@ -1236,10 +1253,15 @@ func (s *service) executePrepared(
 		return nil, err
 	}
 
-	execCtx, cancel := context.WithTimeout(ctx, s.effectiveTimeout(prepared))
+	execCtx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
 
 	connectorLimits := s.effectiveConnectorLimits(prepared)
+	if native {
+		connectorLimits.MaxFileBytes = s.limits.NativeFiles.MaxBytes
+		connectorLimits.ConnectorTimeout = timeout
+		connectorLimits.HTTPTimeout = timeout
+	}
 	connectorLimits.ReadOnly = ds.ReadOnly
 	execResult, err := s.connectorExecutor.ExecuteConnector(execCtx, ConnectorExecutionRequest{
 		SinkExecution:           pipelineruntime.IsSinkExecution(ctx),

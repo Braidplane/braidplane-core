@@ -226,6 +226,12 @@ func (c *Connector) Execute(
 	if branch == "" {
 		branch = strings.TrimSpace(c.config.DefaultBranch)
 	}
+	if qd.Format == QueryFormatFile && execLimits.MaxFileBytes > 0 {
+		ctx, err = repostore.WithNativeFileLimits(ctx, execLimits.MaxFileBytes)
+		if err != nil {
+			return result.NewGitResult(nil, time.Since(start).Milliseconds(), err), nil
+		}
+	}
 
 	env, modifier, cleanup, err := authEnv(c.creds)
 	if err != nil {
@@ -245,13 +251,7 @@ func (c *Connector) Execute(
 			xerror.Wrapf("prepare Git destination: %w", err)), nil
 	}
 
-	store, repoRoot, cleanup, err := repostore.CloneRemote(ctx, repoURL, branch, env)
-	if err != nil {
-		return result.NewGitResult(nil, time.Since(start).Milliseconds(), err), nil
-	}
-	defer cleanup()
-
-	basePath, err := joinGitPath(repoRoot, c.config.BasePath)
+	basePath, err := joinGitPath(".", c.config.BasePath)
 	if err != nil {
 		return result.NewGitResult(nil, time.Since(start).Milliseconds(),
 			xerror.Wrapf("invalid Git path: %w", err)), nil
@@ -263,11 +263,23 @@ func (c *Connector) Execute(
 			xerror.Wrapf("invalid Git path: %w", err)), nil
 	}
 
-	repoPath, err := repoRelativePath(repoRoot, joinedPath)
+	repoPath, err := repoRelativePath(".", joinedPath)
 	if err != nil {
 		return result.NewGitResult(nil, time.Since(start).Milliseconds(),
 			xerror.Wrapf("resolve repository-relative path: %w", err)), nil
 	}
+	var store repostore.RepoStore
+	var repoRoot string
+	var cleanupClone func()
+	if qd.Format == QueryFormatFile {
+		store, repoRoot, cleanupClone, err = repostore.CloneNativeFileRemote(ctx, repoURL, branch, repoPath, execLimits.MaxFileBytes, env)
+	} else {
+		store, repoRoot, cleanupClone, err = repostore.CloneRemote(ctx, repoURL, branch, env)
+	}
+	if err != nil {
+		return result.NewGitResult(nil, time.Since(start).Milliseconds(), err), nil
+	}
+	defer cleanupClone()
 
 	var fileResult *result.FileResult
 	switch operation {
@@ -278,7 +290,7 @@ func (c *Connector) Execute(
 		if commitMsg == "" {
 			commitMsg = "update " + qd.Path
 		}
-		fileResult, err = executeWrite(ctx, store, repoPath, qd, repoRoot, commitMsg, repoURL, env)
+		fileResult, err = executeWrite(ctx, store, repoPath, qd, repoRoot, commitMsg, repoURL, env, execLimits)
 	default:
 		err = xerror.Unexpected().Detailf("unsupported Git operation %q", qd.Operation)
 	}
@@ -320,6 +332,7 @@ func executeWrite(
 	qd gitQueryData,
 	repoDir, commitMsg, repoURL string,
 	env []string,
+	limits ...types.ExecutionLimits,
 ) (*result.FileResult, error) {
 	return gitFileAdapter.ExecuteWrite(ctx, gitRepoProvider{
 		store:     store,
@@ -327,7 +340,7 @@ func executeWrite(
 		repoURL:   repoURL,
 		env:       env,
 		commitMsg: commitMsg,
-	}, repoPath, qd)
+	}, repoPath, qd, limits...)
 }
 
 func repoRelativePath(repoDir, absPath string) (string, error) {

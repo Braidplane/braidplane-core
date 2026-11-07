@@ -40,6 +40,7 @@ func runtimePayloadFromExecutionResult(execution *result.ExecutionResult) *pipep
 			return runtimeFilePayload(
 				fileResult.File,
 				fileResult.Content,
+				fileResult.Reference,
 				pipepayload.ProvenanceExecutionResult,
 			)
 		}
@@ -119,6 +120,7 @@ func runtimePayloadFromHTTPResult(httpResult *result.HTTPResult) *pipepayload.Pa
 		return runtimeFilePayload(
 			httpResult.File,
 			httpResult.RawBody,
+			httpResult.Reference,
 			pipepayload.ProvenanceExecutionResult,
 		)
 	}
@@ -180,6 +182,7 @@ func runtimePayloadFromHTTPResult(httpResult *result.HTTPResult) *pipepayload.Pa
 		return runtimeFilePayload(
 			nil,
 			httpResult.RawBody,
+			httpResult.Reference,
 			pipepayload.ProvenanceExecutionResult,
 		)
 	}
@@ -197,6 +200,7 @@ func isNativeFileResult(fileResult *result.FileResult) bool {
 func runtimeFilePayload(
 	metadata *filepayload.FilePayloadMetadata,
 	content []byte,
+	reference *filepayload.Reference,
 	provenance pipepayload.Provenance,
 ) *pipepayload.Payload {
 	fileMetadata := filepayload.CloneFilePayloadMetadata(metadata)
@@ -212,6 +216,7 @@ func runtimeFilePayload(
 		Provenance:         provenance,
 		File:               fileMetadata,
 		FileBytes:          append([]byte(nil), content...),
+		FileReference:      filepayload.CloneReference(reference),
 	}
 }
 

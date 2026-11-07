@@ -265,6 +265,7 @@ func payloadForStorage(payload *pipepayload.Payload) *pipepayload.Payload {
 	stored.Document = nil
 	stored.CSV = ""
 	stored.FileBytes = nil
+	stored.FileReference = nil
 
 	return stored
 }

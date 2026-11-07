@@ -464,3 +464,48 @@ func (Repository) CheckDispatch(ctx context.Context, db postgres.DBTX, expected 
 	}
 	return allowed, nil
 }
+
+// BindOrganizationLimits runs in the same admission transaction as creation.
+func (Repository) BindOrganizationLimits(ctx context.Context, db postgres.DBTX, id uuid.UUID, org string, connectors, files int, fileTransfer bool, scopeID uuid.UUID, deadline time.Time) error {
+	if connectors < 1 || connectors > 1<<31-1 || files < 1 || files > 1<<31-1 {
+		return xerror.ExecutionUnavailable().Detail("invalid organization connector admission limits")
+	}
+	if fileTransfer && (scopeID == uuid.Nil || deadline.IsZero()) {
+		return xerror.ExecutionUnavailable().Detail("native file transfer scope and deadline are required")
+	}
+	connectorLimit, fileLimit := int32(connectors), int32(files)
+	count, err := dbgen.New(db).BindExecutionOrganizationLimits(ctx, dbgen.BindExecutionOrganizationLimitsParams{RequestID: pgtype.UUID{Bytes: id.UUID, Valid: true}, OrgSlug: slug.Slug(org), ConnectorLimit: connectorLimit, FileLimit: fileLimit, FileTransfer: fileTransfer, ScopeID: pgtype.UUID{Bytes: scopeID.UUID, Valid: fileTransfer}, TransferDeadline: pgtype.Timestamptz{Time: deadline, Valid: fileTransfer}})
+	if err != nil {
+		return xerror.Unexpected().With(err)
+	}
+	if count != 1 {
+		return xerror.ExecutionUnavailable().Detail("organization connector admission could not be bound")
+	}
+	return nil
+}
+
+func (Repository) ReleaseFileTransfer(ctx context.Context, db postgres.DBTX, id uuid.UUID, org string) error {
+	if err := dbgen.New(db).ReleaseFileTransferScope(ctx, dbgen.ReleaseFileTransferScopeParams{ScopeID: pgtype.UUID{Bytes: id.UUID, Valid: true}, OrgSlug: slug.Slug(org)}); err != nil {
+		return xerror.Unexpected().With(err)
+	}
+	return nil
+}
+
+func (Repository) DeleteExpiredFileTransfers(ctx context.Context, db postgres.DBTX) error {
+	if err := dbgen.New(db).DeleteExpiredFileTransferScopes(ctx); err != nil {
+		return xerror.Unexpected().With(err)
+	}
+	return nil
+}
+
+func (Repository) ListFileTransferRequests(ctx context.Context, db postgres.DBTX, id uuid.UUID, org string) ([]uuid.UUID, error) {
+	rows, err := dbgen.New(db).ListFileTransferRequests(ctx, dbgen.ListFileTransferRequestsParams{ScopeID: pgtype.UUID{Bytes: id.UUID, Valid: true}, OrgSlug: slug.Slug(org)})
+	if err != nil {
+		return nil, xerror.Unexpected().With(err)
+	}
+	ids := make([]uuid.UUID, len(rows))
+	for i, row := range rows {
+		ids[i] = uuid.UUID{UUID: row.Bytes}
+	}
+	return ids, nil
+}

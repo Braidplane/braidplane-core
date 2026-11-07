@@ -51,6 +51,8 @@ type Connector struct {
 	control      net.Conn
 	data         net.Conn
 	closed       bool
+	config       Config
+	credentials  Credentials
 }
 
 // QueryFormat is an alias for filedata.QueryFormat.
@@ -157,6 +159,7 @@ func New(ctx context.Context, config Config, creds Credentials) (*Connector, err
 	}
 
 	connector.conn, connector.basePath, connector.control = conn, basePath, control
+	connector.config, connector.credentials = config, creds
 	return connector, nil
 }
 
@@ -211,6 +214,7 @@ func (c *Connector) Close() error {
 		return nil
 	}
 
+	c.credentials = Credentials{}
 	if err := c.closeSockets(); err != nil && !xerror.Is(err, net.ErrClosed) {
 		return xerror.Unexpected().With(err)
 	}

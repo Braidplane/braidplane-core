@@ -15,6 +15,7 @@ import (
 	"time"
 
 	"github.com/Braidplane/braidplane-core/pkg/clock"
+	"github.com/Braidplane/braidplane-core/pkg/connector/filestream"
 	"github.com/Braidplane/braidplane-core/pkg/connector/result"
 	"github.com/Braidplane/braidplane-core/pkg/contractplan"
 	"github.com/Braidplane/braidplane-core/pkg/deploymentplan"
@@ -1333,6 +1334,8 @@ func (r *Runner) Run(
 	}
 	req.Source = pipelinerun.NormalizeAttemptSource(req.Source, slug.FromString(runSlugValue))
 	runStartedAt := r.clock.Now()
+	ctx, finishFiles := filestream.BeginAttempt(ctx, time.Now())
+	defer finishFiles()
 
 	snapshot, err := r.executionSnapshot(ctx, req, runStartedAt)
 	if err != nil {
