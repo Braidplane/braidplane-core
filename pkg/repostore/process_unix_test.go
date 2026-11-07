@@ -15,12 +15,16 @@ import (
 )
 
 func TestGitCommandCancellationStopsTransportChild(t *testing.T) {
+	if os.Getenv("BP_GIT_TEST_CHILD_ADDRESS") != "" {
+		runGitTransportChild(t)
+		return
+	}
 	dir := t.TempDir()
 	executable, err := os.Executable()
 	require.NoError(t, err)
 	ready := filepath.Join(dir, "child-address")
 	// The shell represents Git and the test subprocess represents its transport.
-	require.NoError(t, os.WriteFile(filepath.Join(dir, "git"), []byte("#!/bin/sh\n\"$BP_GIT_TEST_EXECUTABLE\" -test.run=^TestGitTransportChild$ &\nwait\n"), 0o700))
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "git"), []byte("#!/bin/sh\n\"$BP_GIT_TEST_EXECUTABLE\" -test.run=^TestGitCommandCancellationStopsTransportChild$ &\nwait\n"), 0o700))
 	t.Setenv("PATH", dir+string(os.PathListSeparator)+os.Getenv("PATH"))
 	ctx, cancel := context.WithCancel(t.Context())
 	done, result := make(chan struct{}), make(chan error, 1)
@@ -60,11 +64,10 @@ func TestGitCommandCancellationStopsTransportChild(t *testing.T) {
 	require.Error(t, err, "Git transport must stop when the command is cancelled")
 }
 
-func TestGitTransportChild(t *testing.T) {
+func runGitTransportChild(t *testing.T) {
+	t.Helper()
 	ready := os.Getenv("BP_GIT_TEST_CHILD_ADDRESS")
-	if ready == "" {
-		t.Skip("subprocess fixture")
-	}
+	require.NotEmpty(t, ready)
 	listener, err := (&net.ListenConfig{}).Listen(t.Context(), "tcp", "127.0.0.1:0")
 	require.NoError(t, err)
 	defer func() { _ = listener.Close() }()

@@ -1,4 +1,4 @@
-//go:build linux
+//go:build linux && nativefilequalification
 
 package repostore_test
 

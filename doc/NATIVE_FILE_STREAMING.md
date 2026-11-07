@@ -273,7 +273,7 @@ Run from a clean committed checkout so the declared revision matches the source:
 ```sh
 export BP_NATIVE_FILE_S3_ENDPOINT=http://localhost:<fixture-port>
 export BP_NATIVE_FILE_REVISION=$(git rev-parse HEAD)
-bash scripts/go-toolchain.sh test ./service/pipelinesvc/e2e \
+bash scripts/go-toolchain.sh test -tags nativefilequalification ./service/pipelinesvc/e2e \
   -run '^TestNativeFileQualification$' -v -timeout 15m
 ```
 

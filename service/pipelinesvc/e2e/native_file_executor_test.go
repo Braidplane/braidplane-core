@@ -1,3 +1,5 @@
+//go:build nativefilequalification
+
 package e2e
 
 import (
