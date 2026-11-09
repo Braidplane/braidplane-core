@@ -12,7 +12,7 @@
 - Interrupt established FTP operations when their caller cancels or times out.
 - Bound BigQuery pagination and row expansion before retaining results.
 - Withhold reflected HTTP credentials for every authentication mode, including
-  JSON and YAML OpenAPI responses.
+  JSON and YAML OpenAPI responses and normalized non-file response text.
 - Reject Git administration paths in repository file operations and schema discovery.
 - Require pipeline execution permission to create or update schedule and webhook
   trigger definitions, including disabled definitions.

@@ -730,6 +730,9 @@ func (c *Connector) executeSingle(
 					xerror.Unexpected().With(err),
 				), nil
 			}
+			if c.responseExposesSecret(nil, quoted) {
+				return result.NewHTTPResult(nil, time.Since(start).Milliseconds(), xerror.HTTPAcknowledgementUncertain().WithPublicDetail("HTTP response contained credential material and was withheld. Verify remote state before retrying a write.")), nil
+			}
 			body = json.RawMessage(quoted)
 		} else {
 			body = json.RawMessage(respBody)

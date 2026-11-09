@@ -16,7 +16,9 @@ The [public examples repository](https://github.com/Braidplane/examples) owns th
 
 Choose provider resources appropriate for your evaluation. Start with the repository's [shared setup and execution guide](https://github.com/Braidplane/examples/blob/main/GUIDE.md). It covers authentication, Git authoring, connections, saved operations, logical bindings, target validation, exact-version deployment, run inspection and cleanup. Provider permissions and destination effects are separate from Braidplane permissions.
 
-Use the published public CLI v0.1.0-alpha.6, pinned by the examples repository. Public CLI alpha.5 lacks the required left-join support. See [CLI installation](../getting-started/cli.md) and [pipeline specifications](../getting-started/pipeline-specifications.md) for the platform fundamentals.
+Build the CLI from the same Core revision as your application. See [CLI installation](../getting-started/cli.md) and [pipeline specifications](../getting-started/pipeline-specifications.md) for setup.
+
+The recorded examples used public CLI v0.1.0-alpha.6 because alpha.5 lacked the required left-join support. That historical offline validation does not qualify alpha.6 against your current server.
 
 ## What the evidence establishes
 

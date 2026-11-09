@@ -1,8 +1,8 @@
 Braidplane Community dependency source
 
-The unmodified upstream module source ZIPs identified by MPL_SOURCES.sha256
-are included in the sources/ directory beside this file. Their existing
-license and source notices remain in the ZIPs. Covered source retains its
+Executable bundles and container images include the unmodified upstream module
+source ZIPs listed in MPL_SOURCES.sha256. They are in sources/ beside this file.
+Existing license and source notices remain in each ZIP. Covered source retains its
 Mozilla Public License 2.0 terms; the Community Apache license does not
 replace those terms. See THIRD_PARTY_NOTICES.txt for the complete retained
 MPL text and notices.

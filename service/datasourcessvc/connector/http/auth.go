@@ -4,10 +4,12 @@ import (
 	"bytes"
 	"encoding/base64"
 	"encoding/json"
+	"fmt"
 	"io"
 	"net/http"
 	"net/url"
 	"strings"
+	"unicode/utf8"
 
 	"golang.org/x/net/http/httpguts"
 	"gopkg.in/yaml.v3"
@@ -116,7 +118,7 @@ func (c *Connector) responseExposesSecret(headers http.Header, body []byte) bool
 	for _, secret := range secrets {
 		for _, values := range headers {
 			for _, value := range values {
-				if strings.Contains(value, secret) {
+				if containsCredentialText(value, secret) {
 					return true
 				}
 			}
@@ -176,6 +178,14 @@ func (c *Connector) credentialSecrets() []string {
 	return secrets
 }
 
+func containsCredentialText(value, secret string) bool {
+	if strings.Contains(value, secret) {
+		return true
+	}
+	// JSON serialization replaces each invalid UTF-8 byte with a replacement rune.
+	return !utf8.ValidString(value) && strings.Contains(string([]rune(value)), secret)
+}
+
 func (c *Connector) openAPIResponseExposesSecret(body []byte) bool {
 	if c.responseExposesSecret(nil, body) {
 		return true
@@ -184,40 +194,53 @@ func (c *Connector) openAPIResponseExposesSecret(body []byte) bool {
 	if len(secrets) == 0 || json.Valid(body) {
 		return false
 	}
+	type nodeContext struct {
+		node       *yaml.Node
+		mappingKey bool
+	}
 	decoder := yaml.NewDecoder(bytes.NewReader(body))
 	for {
 		var document yaml.Node
 		if err := decoder.Decode(&document); err != nil {
 			return false
 		}
-		seen := map[*yaml.Node]bool{}
-		pending := []*yaml.Node{&document}
+		seen := map[nodeContext]bool{}
+		pending := []nodeContext{{node: &document}}
 		for len(pending) > 0 {
-			node := pending[len(pending)-1]
+			current := pending[len(pending)-1]
 			pending = pending[:len(pending)-1]
-			if seen[node] {
+			if seen[current] {
 				continue
 			}
-			seen[node] = true
+			seen[current] = true
+			node := current.node
 			value := node.Value
 			if node.Kind == yaml.ScalarNode {
 				var scalar any
 				if err := node.Decode(&scalar); err == nil {
 					if text, ok := scalar.(string); ok {
 						value = text
+					} else if number, ok := scalar.(float64); ok && current.mappingKey {
+						// YAML floating-point keys use the loader's spelling, not JSON's.
+						value = fmt.Sprint(number)
 					} else if encoded, encodeErr := json.Marshal(scalar); encodeErr == nil {
 						value = string(encoded)
 					}
 				}
 			}
 			for _, secret := range secrets {
-				if strings.Contains(value, secret) {
+				if containsCredentialText(value, secret) {
 					return true
 				}
 			}
-			pending = append(pending, node.Content...)
+			for index, child := range node.Content {
+				pending = append(pending, nodeContext{
+					node:       child,
+					mappingKey: node.Kind == yaml.MappingNode && index%2 == 0,
+				})
+			}
 			if node.Alias != nil {
-				pending = append(pending, node.Alias)
+				pending = append(pending, nodeContext{node: node.Alias, mappingKey: current.mappingKey})
 			}
 		}
 	}
