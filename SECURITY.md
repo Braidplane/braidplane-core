@@ -4,8 +4,9 @@
 
 Email [contact@braidplane.com](mailto:contact@braidplane.com) with the subject
 “Braidplane security report”. Do not put suspected vulnerabilities, credentials
-or exploit details in public issues or pull requests. GitHub private reporting
-has not been verified; use email for now.
+or exploit details in public issues or pull requests. You can also use
+[GitHub private vulnerability reporting](https://github.com/Braidplane/braidplane-core/security/advisories/new)
+for this repository. Both routes are handled by the maintainer.
 
 Include the affected revision/version, component, impact, prerequisites and
 minimal synthetic reproduction. Remove tokens, personal information, tenant data
