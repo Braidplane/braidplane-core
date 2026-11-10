@@ -48,6 +48,17 @@ journeys use `task test-e2e` and its documented runtime fixtures.
 `test-go` prepares the pinned CUE tool before running tests so tool compilation
 is outside the per-test timeout.
 
+For local Unix-socket daemons selected through Docker contexts, Go E2E may report
+`rootless Docker not found` even when `docker info` succeeds. Confirm that the
+current context is your local test daemon, then export its endpoint for Go clients:
+
+```sh
+docker context show
+docker context inspect --format '{{.Endpoints.docker.Host}}'
+export DOCKER_HOST="$(docker context inspect --format '{{.Endpoints.docker.Host}}')"
+task test-go-e2e
+```
+
 If Docker's automatic network pools are exhausted, set
 `BRAIDPLANE_E2E_NETWORK_SUBNET` to an explicitly chosen unused IPv4 CIDR before
 running S3-backed tests. Check it against Docker networks and host routes first.
