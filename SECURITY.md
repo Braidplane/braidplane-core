@@ -15,8 +15,10 @@ before sharing sensitive material. Test only systems you own or may assess.
 
 kerak19 is responsible for triage and coordination. Reporting is best
 effort, with no guaranteed response time, bounty or round-the-clock monitoring.
-If you receive no reply, follow up on the same email thread without posting the
-vulnerability publicly. No independent backup responder is currently designated.
+If you receive no reply to an email report, follow up in the same thread. For a
+GitHub report, email [contact@braidplane.com](mailto:contact@braidplane.com) with a
+link to the private report. Do not post the vulnerability publicly.
+No independent backup responder is currently designated.
 Before an absence, the maintainer must arrange a named responder with mailbox
 access or state that intake is unattended; do not assume continuous coverage.
 
