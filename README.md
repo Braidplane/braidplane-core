@@ -1,16 +1,48 @@
+<p align="center">
+  <img src="brand/icons/app/logo-256-transparent.png" alt="Braidplane logo" width="128" height="128" />
+</p>
+
 # Braidplane Community core
 
-Braidplane is a multi-tenant data integration platform. It connects systems
-through pipelines that read data, transform it and write the result elsewhere.
-For example, a pipeline can join database records and write the result to S3.
+**Connect systems, transform data, and run pipelines versioned in Git.**
 
-Pipeline definitions live in Git. Teams can review a definition, bind its
-connections for a project environment, validate it, deploy a version and
-inspect its runs. The web interface, CLI and API provide ways to work with the
-platform. Connectors include PostgreSQL, MySQL, MongoDB, HTTP, HubSpot and S3;
-available operations and limits differ by connector. Braidplane and its
-connectors are in Alpha; see the [connector guide](docs-public/connectors/index.md)
-for capabilities and current support levels.
+Braidplane is an open-source data integration platform for developers and data
+teams who need to move and combine data across databases, APIs, CRMs and file
+stores. For example, join order records with customer data and write the result
+to S3. Work through the web interface, CLI or API.
+
+[How it works](docs-public/getting-started/overview.md) ·
+[Run locally](#run-locally) ·
+[Pipeline examples](docs-public/examples/index.md) ·
+[Connector capabilities](docs-public/connectors/index.md)
+
+[![Braidplane run lineage: read a settlement file and payment ledger, normalize and compare records, then write comparison rows and batch totals. All seven steps succeeded.](docs-public/getting-started/images/product-run-lineage.png)](docs-public/getting-started/images/product-run-lineage.png)
+
+*Run lineage with synthetic data: settlement file + payment ledger → comparison
+rows and totals. Inspect the executed pipeline version, step status, timing and
+row counts. Click the image for a full-size view.*
+
+[Explore pipeline examples](docs-public/examples/index.md) ·
+[How runs work](docs-public/getting-started/overview.md#5-run-and-inspect)
+
+## What you can do
+
+- **Connect your systems.** Configure connections to PostgreSQL, MySQL, MongoDB,
+  HTTP, HubSpot, S3 and other supported systems.
+- **Review pipeline changes in Git.** Keep definitions versioned, with credentials
+  stored separately in configured connections.
+- **Use different connections per environment.** Bind a definition's logical
+  connection names to a project's saved data sources.
+- **Validate, deploy and inspect.** Check the definition, deploy an immutable
+  version, then inspect run status, step timelines and failure diagnostics.
+- **Assess changes with Proof.** Inspect claims and evidence for an exact Git
+  change and target before deciding whether to apply it.
+
+Braidplane and its connectors are **Alpha**. Use synthetic test data; connector
+operations and limits vary. See the [connector guide](docs-public/connectors/index.md)
+for capabilities and support levels.
+
+## Community edition
 
 This repository contains the Community backend, frontend, CLI, API schema and
 core migrations.
