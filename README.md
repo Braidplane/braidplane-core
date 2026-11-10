@@ -16,6 +16,8 @@ This repository contains the Community backend, frontend, CLI, API schema and
 core migrations.
 Read [how Braidplane works](docs-public/getting-started/overview.md) for a tour,
 or explore [pipeline examples](docs-public/examples/index.md).
+Use the [AI agent quickstart](docs-public/getting-started/agent-quickstart.md)
+to work through a synthetic pipeline with the CLI and a coding agent.
 
 Community includes Proof and the existing authentication, authorization and
 diagnostics. It has no pipeline-count, usage or trial restrictions.
