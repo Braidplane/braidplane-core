@@ -4,12 +4,13 @@
 
 # Braidplane Community core
 
-**Connect systems, transform data, and run pipelines versioned in Git.**
+**Braidplane is a declarative, contract-based data integration platform.**
 
-Braidplane is an open-source data integration platform for developers and data
-teams who need to move and combine data across databases, APIs, CRMs and file
-stores. For example, join order records with customer data and write the result
-to S3. Work through the web interface, CLI or API.
+Define ETL pipelines in Git, specify data contracts between steps, and inspect
+the exact version and results of each run. Braidplane is open source and built
+for developers and data teams who move and combine data across databases, APIs,
+CRMs and file stores. For example, join order records with customer data and
+write the result to S3. Work through the web interface, CLI or API.
 
 [How it works](docs-public/getting-started/overview.md) ·
 [Run locally](#run-locally) ·
