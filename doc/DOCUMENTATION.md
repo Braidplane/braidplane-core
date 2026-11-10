@@ -1,6 +1,6 @@
 # Documentation contract
 
-Run `task docs-check` from a checkout or the exact exported source candidate.
+Run `task docs-check` from a checkout or the exact exported source bundle.
 CI calls the same `scripts/docs-check.sh` implementation. Python 3.12 and public
 locked wheels are required; Git metadata and private tooling are not.
 
@@ -33,14 +33,14 @@ images and downloads are checked when linked. Source code is not parsed as prose
 
 The gate renders Markdown with the public site's extensions before checking
 inline, reference, image and HTML links. Code examples are not links. Targets
-must exist inside the candidate; Markdown fragments must match rendered IDs.
+must exist inside the checked source tree; Markdown fragments must match rendered IDs.
 The OpenAPI build placeholder uses the same reserved staging URL as MkDocs.
 Strict MkDocs warnings also reject missing anchors and unlisted pages.
 
 This is deterministic local validation. Remote HTTP availability, GitHub intake,
 public downloads and absence of private-access requirements need the separate
-post-public acceptance receipt. CI execution remains unverified until enabled
-after publication. Do not infer those results from a passing local build.
+post-public acceptance receipt. Verify hosted CI against the exact source
+revision and workflow run. Do not infer those results from a passing local build.
 
 For a release, run this command inside its exact retained source/bundle, including
 the entrypoints, changelog and selected version's install/upgrade/recovery inputs.

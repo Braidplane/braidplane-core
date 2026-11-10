@@ -183,8 +183,9 @@ the same. Fresh hosted VMs still include GitHub's preinstalled software.
 
 ### Public contribution acceptance
 
-Keep contribution execution disabled until the actual public destination passes
-its fork and trust checks. Before enabling it:
+Keep outside-fork workflow runs awaiting maintainer approval until the actual
+public destination passes its fork and trust checks. Before approving a
+controlled fork rehearsal:
 
 1. Read back fork approval, token and secret-delivery policies and repository
    and organization runner access. Public candidate code must use disposable
@@ -195,7 +196,7 @@ its fork and trust checks. Before enabling it:
 3. Verify default-branch rules, require `community-gate`, and protect workflow
    changes with the approved review policy.
 4. Review the fork, cache, artifact and runner-isolation results with the trust
-   owner. Leave contribution execution disabled if any required check fails.
+   owner. Keep ordinary outside-fork runs unapproved if any required check fails.
 
 Hosted runners have Internet access. Read-only tokens and absent secrets do not
 establish network isolation. The release workflow remains disabled and needs
