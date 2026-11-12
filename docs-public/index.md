@@ -53,9 +53,8 @@ Each pattern still needs its own provider connection, permissions, bindings,
 deployment, and destination check. The [pipeline specification reference](getting-started/pipeline-specifications.md)
 explains those shared steps.
 
-See [Braidplane's future directions](https://braidplane.com/roadmap) for current
-priorities and areas we may explore next. It is directional and not a delivery
-commitment.
+See the [Core issue tracker](https://github.com/Braidplane/braidplane-core/issues)
+for planned work and proposals. Open issues are not delivery commitments.
 
 The [API reference](api/index.md) describes the API available in this environment.
 

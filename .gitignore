@@ -90,6 +90,7 @@ __pycache__/
 
 # Logs
 *.log
+/logs/*
 !logs/.gitkeep
 
 # Build artifacts

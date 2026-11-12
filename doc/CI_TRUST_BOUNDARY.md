@@ -17,9 +17,9 @@ infrastructure identity. They have no deployment environment or private source
 token. Fixtures and credentials are synthetic. Hosted VMs can reach the
 internet; this setup does not block general network access.
 
-Contributors will use fork PRs once the public checks pass. Keep contribution
-execution disabled until those checks verify fork approval, token denial and
-runner exclusion. Both repository and organization settings must prevent public
+Keep outside-fork workflow runs awaiting maintainer approval until the public
+checks verify fork approval, token denial and runner exclusion. Both repository
+and organization settings must prevent public
 candidates from using private runners. See [public contribution acceptance](../COMMUNITY_BUILD.md#public-contribution-acceptance).
 
 ## Caches and artifacts
