@@ -24,7 +24,7 @@ for the canonical cross-connector contract.
 
 | Field | Required | Type | Default | Notes |
 |---|:---:|---|---|---|
-| `timeout_seconds` | no | integer | 5 | Request timeout in seconds (1–300) |
+| `timeout_seconds` | no | integer | 5 | Request timeout in seconds (1 to 300) |
 
 The connector targets HubSpot's latest stable date-versioned API at the time of implementation: `2026-03`. This version is pinned internally and is not user-configurable in v1.
 
@@ -38,7 +38,7 @@ The connector targets HubSpot's latest stable date-versioned API at the time of 
 HubSpot private app tokens are `static_secret` credentials owned by
 `service/credentialssvc`. They are encrypted at rest, resolved only as
 short-lived in-memory connector credentials, and never returned in API
-responses. See [DATA_SOURCES.md — Shared credential lifecycle](../DATA_SOURCES.md#shared-credential-lifecycle).
+responses. See [DATA_SOURCES.md: Shared credential lifecycle](../DATA_SOURCES.md#shared-credential-lifecycle).
 
 HubSpot OAuth2 is the recommended product-managed `oauth2_grant` credential.
 The Braidplane deployment owns the developer-app client ID, client secret, and
@@ -109,19 +109,19 @@ operations allowed by the active grant. Archived schemas are omitted.
 
 Queries use a dedicated `HubSpotStatement` with these core fields:
 
-- `object_type` — `contacts`, `companies`, `deals`, or a discovered custom
+- `object_type`: `contacts`, `companies`, `deals`, or a discovered custom
   object `objectTypeId` such as `2-7282133`
-- `operation` — `list`, `search`, or `upsert`
-- `properties` — projected property names
-- `query` — optional free-text search input
-- `filter_groups` — optional HubSpot search filters
-- `sorts` — optional HubSpot search sorts
-- `limit` — page size, maximum `200`
-- `after` — pagination cursor for the next page
-- `id_property` — the stable HubSpot unique property for `upsert`
-- `property_mapping` — explicit input-field to HubSpot-property mapping for
+- `operation`: `list`, `search`, or `upsert`
+- `properties`: projected property names
+- `query`: optional free-text search input
+- `filter_groups`: optional HubSpot search filters
+- `sorts`: optional HubSpot search sorts
+- `limit`: page size, maximum `200`
+- `after`: pagination cursor for the next page
+- `id_property`: the stable HubSpot unique property for `upsert`
+- `property_mapping`: explicit input-field to HubSpot-property mapping for
   `upsert`
-- `rows` — row object or row array, normally `{{input}}` in a pipeline sink
+- `rows`: row object or row array, normally `{{input}}` in a pipeline sink
 
 Parameter placeholders use the shared `{{param_name}}` syntax and can be used
 in projected properties, search query text, pagination cursors, filter values,
@@ -310,7 +310,7 @@ Automated tests should not call the live HubSpot service. Connector coverage use
 ## Implementation boundary
 
 The reusable connector ownership rule is documented in
-[DATA_SOURCES.md — Connector implementation boundary](../DATA_SOURCES.md#connector-implementation-boundary).
+[DATA_SOURCES.md: Connector implementation boundary](../DATA_SOURCES.md#connector-implementation-boundary).
 HubSpot is the first concrete application of that rule.
 
 The HubSpot implementation is intentionally split across a neutral provider
@@ -368,4 +368,4 @@ architecture debt.
 - The remaining staged behavior is documented in
   [Expansion contract](#expansion-contract).
 
-See [connector support levels](../../docs-public/connectors/support-levels.md) for shipped connector scope, limitations and acceptance boundaries.
+See [connector support levels](../../docs-public/connectors/support-levels.md) for available operations, connector status and provider requirements.

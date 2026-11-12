@@ -1,11 +1,9 @@
 # Google Workspace
 
 Read and update selected Sheets ranges and Drive files, or use bounded native
-Docs/Slides operations. The connector is **preview, provider-limited**; see
-[support levels and evidence](support-levels.md). Sheets/Drive have historical
-selected-file Alpha acceptance. Native Docs/Slides have bounded historical
-staging acceptance; current-release acceptance remains unverified. Provider app
-publication and approval are separate from runtime support.
+Docs/Slides operations. Authorize files through Google Picker, then use the
+operations below. See [support levels and evidence](support-levels.md) for
+connector status and provider requirements.
 
 ## Connect and authorize
 

@@ -1,13 +1,9 @@
 # Connector support levels
 
-This page defines Braidplane's connector classifications. The connector catalog
-owns executable capability facts; this page owns their support criteria and
-evidence interpretation. Braidplane is Alpha. No connector currently carries a
-production-ready classification.
-
-Classify the **operation, authentication mode and environment** you intend to
-use. A working read, a catalog entry, a connection test or a fake-provider test
-does not establish successful writes or live provider acceptance.
+Braidplane's connectors are in Alpha: preview, except experimental FTP. None
+currently has a production-ready classification. Check the operation,
+authentication mode and environment you intend to use in the table below.
+Reads and writes can require different permissions and have different limits.
 
 ## Levels and qualifiers
 
@@ -98,12 +94,9 @@ must remain within the execution deadline; they never imply unlimited retry.
 
 ## Evidence record
 
-The review date above records source inspection. No live provider tests ran
-as part of that review. This matrix records existing evidence and does not
-qualify an independently released connector version or distribution.
-Except HubSpot's pinned API above, exact provider service/protocol versions
-remain unverified here. Use a future release's exact commit/tag and actual
-provider version when recording acceptance.
+The source review above used existing test records without running live provider
+tests. The table below lists those records and their scope. Exact provider
+versions are not recorded here except for HubSpot's pinned API.
 
 | Scope | Available evidence | Last provider verification: date / environment / exact version |
 |---|---|---|
@@ -116,9 +109,9 @@ provider version when recording acceptance.
 | Google Workspace Docs/Slides | Deterministic native-operation coverage and recorded selected-file acceptance for both native types | Historical acceptance completed 17 October 2026 UTC: structured reads, blank creation, exact text replacement and PDF export under selected-file `drive.file` OAuth. Exact candidate, environment and provider versions are unverified in this matrix. Current-release acceptance remains unverified. |
 | Snowflake | Deterministic SQL/onboarding coverage; recorded isolated live WIF acceptance and hosted source/sink acceptance | Historical isolated/hosted scope includes source/sink identities, renewal, independent revocation and signing-key retirement. Exact last run date, candidate and provider version are unverified in this matrix. |
 
-Historical records describe bounded acceptance; they do not promote a
-current build or other auth modes. Metadata-only Proof never establishes
-record extraction, successful delivery or full workflow recovery.
+Use the recorded operation, authentication mode and version when comparing test
+results. Metadata-only Proof checks metadata; test extraction, delivery and
+recovery through the corresponding operations.
 
 A promotion record must include the exact Braidplane commit/release, provider
 API/protocol version (or an explicit non-versioned service), UTC test date,
@@ -145,10 +138,8 @@ payloads out of public records.
 
 ## Planned portfolio
 
-These initial classifications describe the first-wave backlog and advertised
-CRM/ERP candidates as of the review date. **All are planned, unshipped and
-unverified.** Native source and sink operations, auth, pagination, runtime and
-provider evidence are unsupported today. Intended scope is not a release promise.
+These connectors are planned and are not available yet. The table lists the
+proposed first operations for each system.
 
 | Candidate | Intended first scope |
 |---|---|

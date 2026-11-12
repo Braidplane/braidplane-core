@@ -20,10 +20,10 @@ for the canonical cross-connector contract.
 
 | Field | Required | Type | Default | Notes |
 |---|:---:|---|---|---|
-| `host` | yes | string | — | Hostname or IP of the FTP server |
-| `port` | yes | integer | 21 | 1–65535 |
-| `base_path` | no | string | — | Base directory for file listing and relative paths |
-| `connect_timeout` | no | integer | 5 | Connection and TLS/login timeout in seconds (1–300); later transfers are not capped by this setting |
+| `host` | yes | string | None | Hostname or IP of the FTP server |
+| `port` | yes | integer | 21 | 1 to 65535 |
+| `base_path` | no | string | None | Base directory for file listing and relative paths |
+| `connect_timeout` | no | integer | 5 | Connection and TLS/login timeout in seconds (1 to 300); later transfers are not capped by this setting |
 | `allow_private_hosts` | no | boolean | `false` | Requires private host access to be enabled for the deployment; hosted/default deployments reject `true` |
 
 Operation cancellation and deadlines interrupt control commands, passive data
@@ -100,11 +100,11 @@ Spreadsheet behavior:
 - Write mode creates a new workbook from rows. It does not preserve existing macros, add-in behavior, template metadata, formatting, or charts.
 
 Execution returns:
-- `column_names` — field names from the file header (CSV/spreadsheet) or JSON keys
-- `rows` — array of objects (field name → value)
-- `row_count` — number of rows read
+- `column_names`: field names from the file header (CSV/spreadsheet) or JSON keys
+- `rows`: array of objects (field name → value)
+- `row_count`: number of rows read
 - `written_rows` and `written_bytes` for writes when the connector can report them
-- `file` — safe metadata for native file reads/writes; raw bytes are omitted from API responses and persisted run diagnostics
+- `file`: safe metadata for native file reads/writes; raw bytes are omitted from API responses and persisted run diagnostics
 
 ## Pipeline relevance
 
@@ -129,4 +129,4 @@ Private IP ranges and loopback addresses are blocked by default to prevent SSRF.
 - Explicit FTPS is required by default. SFTP is a separate, unimplemented connector.
 - OpenDocument spreadsheets, workbook rendering, spreadsheet editing UI, multi-sheet merge behavior, formula evaluation, and preservation of existing workbook artifacts are not supported.
 
-See [connector support levels](../../docs-public/connectors/support-levels.md) for shipped connector scope, limitations and acceptance boundaries.
+See [connector support levels](../../docs-public/connectors/support-levels.md) for available operations, connector status and provider requirements.

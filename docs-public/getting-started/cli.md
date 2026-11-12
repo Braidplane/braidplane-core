@@ -54,8 +54,8 @@ stdout, so inspect both the result and exit status. Errors remain on stderr.
 See [support levels](../connectors/support-levels.md) for classification
 criteria, maintenance ownership and provider evidence. Structured output
 includes `connectors[].capabilities`; text output lists payload binding modes,
-load semantics, pagination, authentication, renewal and recovery. Capabilities
-describe the CLI build and do not prove provider access or successful delivery.
+load semantics, pagination, authentication, renewal and recovery for this CLI
+build. Configure provider access using the connector's setup guide.
 
 ## Use the CLI with an agent
 
@@ -75,9 +75,9 @@ braidplane pipeline validate --local --file candidate.pipeline.yaml -o json
 
 Replace `ORG` and the file path with the intended values. Pipeline capabilities
 apply to the organization, not a specific project. Local validation does not
-contact the server. Server validation can record failed validation history
-or a contract impact report; it is not a read-only dry run. Neither proves that
-a pipeline ran or delivered data. The CLI reads only the first YAML document or
+contact the server. Server validation can save validation failures or a contract
+impact report. Use run history to inspect execution and delivery.
+The CLI reads only the first YAML document or
 JSON value in a file. Ensure it contains one document or value before validation;
 additional content is not checked or sent to the server.
 The API-backed `pipeline format` command rejects extra documents or values; it

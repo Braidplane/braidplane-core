@@ -77,18 +77,16 @@ application images use UID 65532, read-only roots and dropped capabilities.
 PostgreSQL owns its data; database startup copies key/bootstrap files to
 PostgreSQL-owned files without changing the customer originals.
 
-See the first-result procedure below for a deterministic Git-authored pipeline.
-Backup/restore and upgrades still need independent recovery qualification.
-Do not upgrade by editing `release.json`: lifecycle commands
-reject a changed release after the first attempt. Retain the original tools
-archive, protected installation directory and database until recovery has been
-qualified. These tools do not establish HA, provider acceptance or public release
-provenance.
+Follow the first-result procedure below to run a Git-authored pipeline. Test
+backup restoration before upgrading. Use the lifecycle commands for upgrades;
+editing `release.json` after the first attempt is rejected. Retain the original
+tools archive, protected installation directory and database until you have
+verified recovery.
 
 ## First administrator and sign-in
 
 After all application roles are ready, independently verify the first owner's
-email address. Supply a password of 8–1024 bytes through a mode-0600 temporary
+email address. Supply a password of 8 to 1024 bytes through a mode-0600 temporary
 file or a protected secret-manager pipe. Keep it out of command arguments and
 shell history. Replace the illustrative account fields before running:
 

@@ -9,11 +9,8 @@ You can read this guide without an account. Using Proof requires a Braidplane
 workspace, a managed [GitHub](../connectors/github.md) or
 [GitLab](../connectors/gitlab.md) repository, and permission to read the pipeline.
 
-!!! warning "Alpha evaluation"
-    A passed assessment establishes
-    only the evaluated claims at their recorded evidence levels. It does not
-    prove a successful pipeline run, provider write permission, or production
-    readiness. Proof never authorizes a merge or deployment.
+Proof checks the claims listed in a receipt using static, cached or live
+metadata. Merge, deployment and pipeline execution remain explicit actions.
 
 ## What an assessment covers
 
@@ -55,8 +52,8 @@ data-source and pipeline management permissions can enable assessments:
 
 ![Proof configuration with repository readiness, an unchecked assessment enablement control, and separate Assessment targets and Publication options disclosures.](images/proof-configuration.png)
 
-*Synthetic local UI example, captured 6 October 2026. Proof is disabled in this
-example; no provider connection or observation was performed.*
+*Proof configuration with synthetic data, captured locally on 6 October 2026.
+Assessments are disabled in this example.*
 
 Assessment enablement, Git publication, and live connector evidence are separate
 controls. Live evidence needs deployment enablement, an environment policy,
@@ -93,14 +90,13 @@ Existing receipts remain subject to access and retention rules.
 
 ![Receipt Overview for a synthetic candidate, showing an unverified verdict, no observed evidence, the exact commit and target, and a link to review claims.](images/proof-overview.png)
 
-*Synthetic local UI example, captured 6 October 2026. Names, paths, commits,
-dates, and the target named `prod` are fixture values, not production resources.
-No deployment, run, or live observation is demonstrated.*
+*Receipt overview with synthetic data, captured locally on 6 October 2026.
+The `prod` target is a fixture; this example has no observed evidence.*
 
 ## Understand evidence and results
 
-The evidence a claim **requires** may be stronger than the evidence actually
-recorded. Required live evidence is not proof that a live check happened.
+Compare the evidence a claim requires with the evidence recorded in its receipt.
+For live evidence, check the observation time and scope.
 
 | Recorded evidence | What it establishes |
 |---|---|
@@ -109,12 +105,12 @@ recorded. Required live evidence is not proof that a live check happened.
 | Live read-only | A fresh, explicitly authorized provider metadata observation within its approved scope. |
 | No observed evidence | There is no recorded provider observation supporting the claim. |
 
-Bounded execution is a separate evidence level, outside the demonstrated Alpha
-scope described here. Proof in this guide does not execute pipelines.
+The assessments described here use metadata. Bounded execution is a separate
+evidence level.
 
 | Result | Meaning and next step |
 |---|---|
-| `passed` | Available evidence meets the claim's required level and supports it. Check scope and freshness; this is not permission to deploy. |
+| `passed` | Available evidence meets the claim's required level and supports it. Check its scope and freshness before deciding whether to apply the change. |
 | `failed` | Evidence disproves the evaluated clause. Read its diagnostic and correct the relevant definition or binding. |
 | `unverified` | Evidence is missing or the capability is unsupported. Identify the gap; retrying cannot add unsupported capability. |
 | `inconclusive` | Evidence cannot decide the claim, for example because access was denied, a provider was unavailable, or a limit was reached. Resolve the diagnostic before a newly authorized assessment. |
@@ -123,29 +119,26 @@ scope described here. Proof in this guide does not execute pipelines.
 
 ![Claims and evidence showing a stale clause, required live read-only evidence, actual cached evidence, observation and expiry times, and a refresh-introspection diagnostic.](images/proof-claims.png)
 
-*Synthetic local UI example, captured 6 October 2026. The expired dates are
-deliberate fixture values. This illustrates a gap between required and actual
-evidence, not a live provider check.*
+*Claims with synthetic data, captured locally on 6 October 2026. The expired
+fixture dates show how stale evidence appears.*
 
-An overall result can contain several kinds of gaps. A failed validation clause
-does not establish that every other promise failed; inspect each clause's result.
-Unsupported and denied evidence never silently becomes passed.
+Inspect each claim's result and diagnostic. One receipt can contain passed,
+failed and unresolved claims.
 
 ## Demonstrated Alpha connector scope
 
-Controlled hosted acceptance has demonstrated the
-[HubSpot](../connectors/hubspot.md)/[BigQuery](../connectors/bigquery.md) pair with
-explicitly authorized, read-only metadata observations:
+Live read-only metadata observations are available for the
+[HubSpot](../connectors/hubspot.md)/[BigQuery](../connectors/bigquery.md) pair when
+enabled by your workspace operator:
 
 - HubSpot verifies the account identity and contact-property metadata. It does
   not read contact records, search CRM data, discover custom objects, or write.
 - BigQuery verifies one selected table's identity and metadata. It does not
   run discovery, read table rows, start query jobs, or insert data.
 
-This does not establish provider write permission or successful sink writes.
-Other connector capabilities and ordinary pipeline operations do not inherit
-live Proof support from these observations. Live observations may be disabled
-on a deployment; ask your workspace operator about availability and policy.
+These observations cover metadata for those two connectors. Check write
+permissions through the provider and inspect sink results after execution.
+Ask your workspace operator which live observations are enabled.
 
 ## Follow the Git result
 
@@ -155,16 +148,15 @@ contains a sanitized summary and a link to the protected receipt. Its neutral
 conclusion is informational; read the Proof verdict rather than treating the
 check conclusion as a passed assessment.
 
-Accepted GitHub behavior includes refreshing the same check to a newer receipt,
-idempotent retries without duplicate checks, and truthful stale/superseded
-results. A changed head must get its own assessment rather than inheriting an
-older result.
+A newer receipt updates the same GitHub check. Retrying publication avoids
+duplicate checks, and the result shows stale or superseded evidence. Assess
+each new head commit separately.
 
 GitLab receives an **informational merge-request note** identifying the evaluated
-head and linking to its protected receipt. Accepted GitLab behavior includes
-exact-head publication, new-head supersession, idempotent retries, and protected
-links. It is not a GitLab CI status or merge gate. Its hosted acceptance used
-static receipts; it does not establish live HubSpot/BigQuery observation on GitLab.
+head and linking to its protected receipt. A new head supersedes the earlier
+result, and retries avoid duplicate notes. The note is informational and leaves
+GitLab CI and merge controls unchanged. GitLab's recorded hosted tests used
+static receipts; live HubSpot/BigQuery observations on this path remain unverified.
 
 Publication failure does not rewrite an immutable receipt. Inspect the workspace
 receipt if the provider result is unavailable, and have an authorized operator

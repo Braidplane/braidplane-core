@@ -446,8 +446,8 @@ Strings default empty.
 
 OAuth needs Picker and GIS origins, separate from login/BigQuery.
 Remove retired `google_workspace.enabled`, `GOOGLE_WORKSPACE_ENABLED` and
-`--google-workspace-enabled` settings. Dispatch does not prove Google approval or
-provider acceptance.
+`--google-workspace-enabled` settings. Complete Google's OAuth approval process
+for your provider app.
 [Setup](doc/data-sources/GOOGLE_WORKSPACE.md).
 
 ### Snowflake Workload Identity
@@ -665,9 +665,8 @@ does not start consumers. All values must be greater than zero.
 Adding worker replicas multiplies queue capacity approximately by the replica
 count. The sum of queue limits is the process's upper bound before database pool
 capacity, per-data-source connector concurrency, provider rate limits, or job
-mix impose a lower effective throughput. Tune these values from observed load;
-the defaults preserve the existing development limits and are not a production
-capacity target.
+mix impose a lower effective throughput. Tune these values from observed load,
+database capacity and provider quotas.
 
 ### Execution Backend Configuration
 

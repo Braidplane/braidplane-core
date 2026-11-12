@@ -10,20 +10,22 @@ Choose a task, then use its canonical recipe to set up, validate, deploy, run an
 | Project document inventory into relational reporting | MongoDB → MySQL | [Inventory projection](document-inventory-projection.md) |
 | Archive a file without changing its bytes | HTTP → S3 | [File archive](opaque-file-archive.md) |
 
-The [public examples repository](https://github.com/Braidplane/examples) owns the complete specifications, operations, binding templates, fixtures, expected results and qualification records. Its [manifest](https://github.com/Braidplane/examples/blob/main/manifest.json) is the entry point for automation. These pages explain which recipe to choose; they do not maintain another copy of its spec.
+The [public examples repository](https://github.com/Braidplane/examples) contains the pipeline definitions, operations, binding templates, sample data and expected results. Use its [manifest](https://github.com/Braidplane/examples/blob/main/manifest.json) to find inputs programmatically.
 
 ## Before you run
 
-Choose provider resources appropriate for your evaluation. Start with the repository's [shared setup and execution guide](https://github.com/Braidplane/examples/blob/main/GUIDE.md). It covers authentication, Git authoring, connections, saved operations, logical bindings, target validation, exact-version deployment, run inspection and cleanup. Provider permissions and destination effects are separate from Braidplane permissions.
+Start with the repository's [shared setup and execution guide](https://github.com/Braidplane/examples/blob/main/GUIDE.md). It covers authentication, Git authoring, connections, saved operations, bindings, deployment, run inspection and cleanup. Use dedicated test resources and grant the provider permissions listed in each recipe.
 
 Build the CLI from the same Core revision as your application. See [CLI installation](../getting-started/cli.md) and [pipeline specifications](../getting-started/pipeline-specifications.md) for setup.
 
-The recorded examples used public CLI v0.1.0-alpha.6 because alpha.5 lacked the required left-join support. That historical offline validation does not qualify alpha.6 against your current server.
+The original runs used the source revision recorded with each recipe. Separate offline checks used public CLI v0.1.0-alpha.6; alpha.5 lacked the required left-join support. Build a matching CLI for your application before running them.
 
-## What the evidence establishes
+## Test fixtures and results
 
-The initial five specs passed source-built CLI validation and controlled local execution with independent destination comparisons. The sixth, advanced Supplier Price Desk demo retains its separate historical local rehearsal and independent reporting-table reads; its spec passed fresh public alpha.6 offline validation. PostgreSQL, MongoDB, MySQL and S3-compatible storage used local containers. HTTP used a synthetic fixture; BigQuery and HubSpot used local protocol mocks. These records do not establish acceptance in Google Cloud or a HubSpot account, provider retries, or production readiness.
+The five recipes above were run locally and their destination output was compared with the expected results. PostgreSQL, MongoDB, MySQL and S3-compatible storage used local containers. HTTP used a synthetic fixture, while BigQuery and HubSpot used local protocol mocks. To run against Google Cloud or HubSpot, configure your own account and permissions.
 
-Each recipe keeps its exact executed version/run identity and complete step evidence. A new run requires its own evidence. Read the [coverage and friction ledger](https://github.com/Braidplane/examples/blob/main/COVERAGE.md), including the observed transform-contract failure and missing-binding rejection, before adapting a recipe.
+The examples repository also includes an advanced [settlement review](https://github.com/Braidplane/examples/blob/main/recipes/settlement-review/README.md) demo with local execution and reporting-table checks. Its specification passed offline validation with public CLI alpha.6.
 
-The earlier [PostgreSQL-to-S3 walkthrough](../getting-started/first-pipeline.md) remains a separate guided introduction. Its downloadable assets describe that tutorial; they are not alternative copies of this collection.
+Each recipe records its executed version, run and step results. The [coverage and friction ledger](https://github.com/Braidplane/examples/blob/main/COVERAGE.md) lists test scope and known failures, including a transform-contract mismatch and a missing binding.
+
+For a guided introduction with downloadable inputs, follow the [PostgreSQL-to-S3 walkthrough](../getting-started/first-pipeline.md).

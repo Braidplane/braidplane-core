@@ -110,9 +110,7 @@ braidplane query execute first-read --data-source '<data-source-slug>'
 ```
 
 Expect `success`. Compare the returned rows, documents, records, or file content
-with the connector guide's expected result and your source data. A
-connection test proves access; execution proves the saved read and its
-permissions work.
+with the connector guide's expected result and your source data.
 
 If execution fails, confirm the data-source slug, statement shape, parameters,
 and provider permissions, then test the saved connection and retry.
@@ -125,11 +123,10 @@ braidplane query execution summary
 ```
 
 `successful_execution` identifies the latest retained successful saved operation
-by source, query, execution, and timestamp. A null value means no retained success
-is recorded; it does not prove an operation never ran. Execution history is
-recorded on a best-effort basis and follows workspace retention. This summary
-does not prove pipeline deployment, a successful pipeline run, or read-only
-provider behavior.
+by source, query, execution and timestamp. Execution history follows workspace
+retention and is recorded on a best-effort basis, so a null value can also mean
+the record expired or was not saved. Inspect pipeline runs separately in their
+run history.
 
 ## 4. Repeat the read as a pipeline
 

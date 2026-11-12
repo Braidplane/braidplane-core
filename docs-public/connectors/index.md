@@ -6,10 +6,9 @@ do not need to provision any of these systems to explore the documentation.
 
 All connectors below support pipeline source and sink roles. Actual access
 depends on the configured connection, provider permissions, and operation.
-Support for a system does not imply support for every feature of that system.
-See [support levels and evidence](support-levels.md) for classifications,
-maintenance ownership, provider verification and planned connectors. Current
-types are preview, except experimental FTP; none is production-ready.
+Each guide lists the available operations and their limits. See
+[support levels and evidence](support-levels.md) for connector status,
+maintenance ownership and planned connectors.
 Inspect the installed CLI build with `braidplane data-source capabilities`.
 
 | Connector | Typical use |
@@ -38,7 +37,7 @@ state which provider resources must already exist.
 **Connection testing** checks access to the configured system. **Schema refresh**
 retrieves metadata, such as columns, CRM properties, file fields, or API
 operations. The type and completeness of that metadata depend on the connector.
-A successful connection test does not prove that every query or write will work.
+Queries and writes use the permissions required by their specific operation.
 
 An **operation** is the specific query, request, or file action a step performs.
 Its payload must match the next step. SQL transforms require row-normalized

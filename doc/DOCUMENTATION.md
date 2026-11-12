@@ -4,6 +4,16 @@ Run `task docs-check` from a checkout or the exact exported source bundle.
 CI calls the same `scripts/docs-check.sh` implementation. Python 3.12 and public
 locked wheels are required; Git metadata and private tooling are not.
 
+## Writing for users
+
+Lead with what Braidplane does and the task the reader wants to complete. Use
+direct instructions, concrete examples and expected results. Include warnings
+where they change an action, such as preserving encryption keys or checking a
+destination before retrying a write. Keep support and compatibility policies in
+their reference guides, and release qualification checklists in engineering
+guides. Avoid repeating those policies as disclaimers throughout the README and
+tutorials.
+
 ## Navigation and isolation
 
 `mkdocs.public.yml` serves only `docs-public/`. Every Markdown page there must

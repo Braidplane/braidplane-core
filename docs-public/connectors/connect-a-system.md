@@ -101,10 +101,9 @@ connector and operation:
 | HTTP | idempotent_with_key, deduplicated_by_ledger, unsafe |
 | HubSpot | idempotent_with_key |
 
-Support in this table permits a classification; it does not prove that your
-particular SQL, request, or file write satisfies it. For example, a plain SQL
-INSERT is not naturally idempotent. Check the destination independently after
-execution rather than treating validation as proof that data was written.
+Choose the retry policy for the write you authored. A plain SQL INSERT can
+create duplicates when repeated. After execution, check the destination before
+retrying a write with an uncertain outcome.
 
 ## Connector setup guides
 

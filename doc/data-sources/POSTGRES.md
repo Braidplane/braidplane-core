@@ -23,11 +23,11 @@ for the canonical cross-connector contract.
 
 | Field | Required | Type | Default | Notes |
 |---|:---:|---|---|---|
-| `host` | yes | string | — | Hostname or IP of the PostgreSQL server |
-| `port` | yes | integer | 5432 | 1–65535 |
-| `database` | yes | string | — | Database name |
+| `host` | yes | string | None | Hostname or IP of the PostgreSQL server |
+| `port` | yes | integer | 5432 | 1 to 65535 |
+| `database` | yes | string | None | Database name |
 | `ssl_mode` | no | string | `verify-full` | SSL mode; alternatives require the local development transport exception |
-| `connect_timeout` | no | integer | 5 | Connection timeout in seconds (1–300) |
+| `connect_timeout` | no | integer | 5 | Connection timeout in seconds (1 to 300) |
 | `allow_private_hosts` | no | boolean | `false` | Requires private host access to be enabled for the deployment; hosted/default deployments reject `true` |
 
 ## Private host access
@@ -81,10 +81,10 @@ Introspection can be refreshed at any time via the introspect endpoint. A failed
 Queries use standard SQL with `{{param_name}}` placeholders in Braidplane. Before execution, the PostgreSQL connector converts those markers to positional `$1, $2, ...` parameters and passes values as typed parameters.
 
 Query execution returns:
-- `column_names` — ordered list of column names from the result set
-- `rows` — array of objects (column name → value)
-- `row_count` — number of rows affected or returned
-- `last_insert_id` — not populated for PostgreSQL
+- `column_names`: ordered list of column names from the result set
+- `rows`: array of objects (column name → value)
+- `row_count`: number of rows affected or returned
+- `last_insert_id`: not populated for PostgreSQL
 
 For PostgreSQL, generated IDs are not exposed via `last_insert_id`. If an INSERT needs to return generated values, write the statement with `RETURNING` and read those values from the returned rows.
 
@@ -105,7 +105,7 @@ query should intentionally overlap reads for late-arriving rows.
 
 **As a sink**: the pipeline step uses `operation_type: sql`. Supported write operations: `insert`, `update`, `upsert`. The sink maps upstream row fields to target table columns using the sink input contract.
 
-SQL sink operations can use `FROM input` or `JOIN input` to reference the upstream payload directly as a native CTE relation — the connector materializes it as a `WITH input AS (SELECT * FROM jsonb_to_recordset(...))` block automatically. This works with all three upstream payload types:
+SQL sink operations can use `FROM input` or `JOIN input` to reference the upstream payload directly as a native CTE relation. The connector materializes it as a `WITH input AS (SELECT * FROM jsonb_to_recordset(...))` block automatically. This works with all three upstream payload types:
 
 - **Rows** (from SQL or transform steps): each row becomes a record in the relation.
 - **JSON** (from HTTP steps returning `application/json`): arrays produce one row per element; a single object produces one row. Scalars and null fall back to the public `{{input}}` binding.
@@ -117,7 +117,7 @@ Column types in the generated CTE are inferred from the Go value types: integers
 
 - Pagination is not supported. Queries return all matching rows in a single execution.
 
-See [connector support levels](../../docs-public/connectors/support-levels.md) for shipped connector scope, limitations and acceptance boundaries.
+See [connector support levels](../../docs-public/connectors/support-levels.md) for available operations, connector status and provider requirements.
 
 ## Exact decimal values
 

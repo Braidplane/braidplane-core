@@ -83,11 +83,11 @@ braidplane pipeline deployment get PIPELINE --org ORG --project PROJECT --enviro
 ```
 
 Replace the uppercase placeholders with exact identifiers. Connector
-declarations describe the CLI build; they do not prove that a provider,
-credential, binding or operation is usable. List responses can be paginated;
+declarations list what this CLI build can do. Configure credentials and bindings
+for the operations you intend to run. List responses can be paginated;
 inspect their pagination metadata and use the continuation flags shown by that
 command's help. For example, Google Workspace file discovery uses `--page-token`.
-Organization read access does not establish permission for every operation.
+Each operation checks its required organization permissions.
 When using a personal access token, `braidplane user profile get` identifies the
 user; organization API keys do not represent a user and cannot use that command.
 Do not infer an API key's owner or effective permissions from the organization

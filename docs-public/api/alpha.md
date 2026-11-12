@@ -2,9 +2,8 @@
 
 This contract applies to Community Alpha releases while the version is below
 `1.0.0`. Use the documentation and OpenAPI document from your installed release.
-The schema currently identifies itself as `0.0.1`; that value does not prove a
-release tag exists. The first public tag, release manifest and release notes are separate release
-deliverables.
+The schema's current version is `0.0.1`. Use the release notes for application
+and CLI version information.
 
 ## Alpha changes
 
@@ -13,10 +12,8 @@ Braidplane aims to follow semantic versioning on a best-effort basis before
 releases generally introduce substantial features or breaking changes.
 This convention does not guarantee backward compatibility during Alpha.
 
-There are no supported third-party clients yet. Alpha releases may change APIs,
-generated clients and CLI behavior without backward compatibility or a
-deprecation period. Revisit compatibility commitments before supporting external
-clients.
+Alpha releases may change APIs, generated clients and CLI behavior without a
+deprecation period. Third-party clients currently have no compatibility guarantee.
 
 The unversioned `/api` mount does not promise a stable v1 interface. On a
 self-hosted application, append `/api` to the application origin. A distribution

@@ -143,10 +143,7 @@ complete compatibility review, rights clearance or publication permission.
 
 This is Alpha Community source with local build/run instructions in
 [COMMUNITY_BUILD.md](../COMMUNITY_BUILD.md). Community use requires no commercial
-license key or vendor activation. Builds and local fixtures
-do not establish independently qualified production self-hosting, a supported
-release, a hosted service commitment or a publication date. Keep those claims
-tied to their actual distribution and acceptance evidence.
+license key or vendor activation.
 
 The source license includes no hosting or support agreement. See
 [SUPPORT.md](../SUPPORT.md) for maintenance and support.

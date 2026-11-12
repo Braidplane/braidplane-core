@@ -1,9 +1,8 @@
 # Get your first result in the UI
 
-Connect one supported system and run one harmless standalone
-read. The result can be rows, documents, records, or file content depending on
-the connector. This proves the saved connection and operation work together; it
-does not require the CLI, a Git repository, a pipeline, or a destination.
+Connect a system and run a saved read in the web interface. Depending on the
+connector, you will get rows, documents, records or file content. You can do this
+before setting up a pipeline or Git repository.
 
 Before starting, sign in to the deployment you intend to use and choose your system in the
 [connector directory](../connectors/index.md). Read its setup guide and use the
@@ -49,10 +48,8 @@ Open the saved query and select **Run query**. Expect **success**. Compare the
 returned rows, documents, records, or file content with the connector guide's
 expected result and your source data.
 
-A connection test proves access. This execution proves that the saved read and
-its provider permissions also work. If it fails, confirm the selected data
-source, statement fields, parameters, and permissions, then test the connection
-and retry.
+If the read fails, check the selected data source, statement fields, parameters
+and provider permissions, then test the connection and retry.
 
 The dashboard marks **Get a result** complete when a retained successful saved
 operation is recorded. Its query link returns to that operation. **Hide** keeps
@@ -60,8 +57,8 @@ the product available; **Resume setup** restores the guidance. Connection and
 query work do not require a project. Project and repository setup follows when
 you are ready to build a repeatable pipeline.
 
-Progress uses retained execution metadata, not result payloads. It does not
-certify read-only provider behavior or complete the pipeline-run milestone.
+Setup progress uses retained execution metadata without storing result payloads.
+It tracks standalone reads separately from pipeline runs.
 
 ## 4. Repeat the read as a pipeline
 
@@ -84,7 +81,7 @@ Keep the saved query and connection if you want to repeat this read.
    containing your saved query, then return and **Deploy this version**.
 6. Open the pipeline, then **Open Builder** for the same target. Select **Run**
    and inspect the resulting run's status, executed version and timeline.
-   Deployment alone does not mean a run succeeded.
+   Wait for the run to finish and check its result.
 
 To resume after leaving, open **Pipelines → Creation proposals** in the same
 project. A failed proposal can retry its recorded definition. A changed
