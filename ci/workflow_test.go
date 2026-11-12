@@ -12,6 +12,61 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
+func TestGoModuleCacheLifecycle(t *testing.T) {
+	data, err := os.ReadFile("../.github/workflows/ci.yml")
+	if err != nil {
+		t.Fatal(err)
+	}
+	var workflow struct {
+		Jobs map[string]struct {
+			Steps []struct {
+				ID   string         `yaml:"id"`
+				If   string         `yaml:"if"`
+				Name string         `yaml:"name"`
+				Uses string         `yaml:"uses"`
+				With map[string]any `yaml:"with"`
+			} `yaml:"steps"`
+		} `yaml:"jobs"`
+	}
+	if err := yaml.Unmarshal(data, &workflow); err != nil {
+		t.Fatal(err)
+	}
+	for _, job := range []string{"verify", "go-e2e", "browser"} {
+		t.Run(job, func(t *testing.T) {
+			steps := workflow.Jobs[job].Steps
+			restore, workload, save := -1, -1, -1
+			workloadNames := map[string]string{"verify": "Generate, test, lint and build without managed sources", "go-e2e": "Run every Go E2E package on disposable fixtures", "browser": "Run critical browser profile on disposable fixtures"}
+			for i, step := range steps {
+				switch {
+				case step.ID == "go-modules":
+					restore = i
+					key, _ := step.With["key"].(string)
+					if step.With["path"] != "~/go/pkg/mod" || !strings.Contains(key, "'go.mod', 'go.sum', 'tools/go.mod', 'tools/go.sum'") || strings.Contains(key, "github.sha") || !strings.Contains(step.If, "!inputs.cold_cache") {
+						t.Fatal("module cache must be dependency-keyed and disabled for cold runs")
+					}
+				case step.Name == workloadNames[job]:
+					workload = i
+				case step.With["key"] == "${{ steps.go-modules.outputs.cache-primary-key }}":
+					save = i
+					if step.With["path"] != "~/go/pkg/mod" || !strings.Contains(step.If, "!inputs.cold_cache") || !strings.Contains(step.If, "!cancelled()") || !strings.Contains(step.If, "cache-hit != 'true'") {
+						t.Fatal("module cache save must respect cold runs and save on failure")
+					}
+					if job == "go-e2e" && !strings.Contains(step.If, "matrix.shard == 0") {
+						t.Fatal("only one e2e shard should save the module cache")
+					}
+				case job == "go-e2e" && step.With["key"] == "${{ steps.cache-1.outputs.cache-primary-key }}":
+					if !strings.Contains(step.If, "matrix.shard == 0") {
+						t.Fatal("only one e2e shard should save the build cache")
+					}
+				}
+			}
+			if restore < 0 || workload <= restore || save <= workload {
+				t.Fatal("module cache must restore before the workload and save afterward")
+			}
+		})
+	}
+}
+
 // This is a regression contract, not a sandbox for candidate-controlled scripts.
 func TestCommunityWorkflowTrustBoundary(t *testing.T) {
 	files := map[string]string{}
