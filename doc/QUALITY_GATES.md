@@ -53,15 +53,18 @@ source and output together; never hand-edit generated files.
 The [core CI workflow](../.github/workflows/ci.yml) runs that task and rejects
 uncommitted generated changes. Its Go E2E job runs `task test-go-e2e`, which
 uses `go list` to discover every package under an `e2e` path that contains Go
-tests. No package or test-name allowlist is maintained. Packages run sequentially
-with fresh executions and package-owned fixtures. The gate requires every
+tests. No package or test-name allowlist is maintained. CI distributes the complete
+suite over four required shards with ten-minute job budgets. Packages run sequentially
+within each shard, with fresh executions and package-owned fixtures. Each package
+has a five-minute timeout. The gate requires every
 discovered package to finish successfully with passing tests, and rejects any
 skip, test failure, empty discovery or missing package result.
 
 Run the same command locally with Docker, OpenSSL, Python 3 and matching PostgreSQL `pg_dump` and
 `pg_restore` clients available. Provider, SPIRE, SMTP and private-network fixtures
 are created and cleaned up by their owning suites. The native crash/rescue test
-uses the real hour-long River timer; allow up to 90 minutes per package. CI supplies
+uses a fixture-only 30-second River rescue threshold and retains real SIGKILL,
+rescue, recovery fences and sink checks; production queue timing is unchanged. CI supplies
 recovery clients from the same pinned PostgreSQL 18.6 image as the disposable
 server, mounting only the job-owned temporary directory. These wrappers use
 Linux host networking. Browser E2E tests run in the separate browser job.

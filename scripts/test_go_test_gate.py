@@ -71,6 +71,36 @@ esac
                             self.assertNotEqual(result.returncode, 0, result.stderr)
                             self.assertEqual(marker.exists(), mode not in ("fail", "empty"))
 
+    def test_e2e_shards_are_deterministic_disjoint_and_exhaustive(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            (root / "scripts").mkdir()
+            shutil.copyfile(ROOT / "scripts/go-test-packages.sh", root / "scripts/go-test-packages.sh")
+            (root / "scripts/go-toolchain.sh").write_text(
+                '#!/bin/bash\nprintf "%s\\n" $TEST_PACKAGES\n')
+            packages = [f"example/package-{index:02}/e2e" for index in range(17)]
+            packages.append("example/nested/e2e/fixture")
+            def discover(index, count, discovered):
+                return subprocess.run(["bash", "scripts/go-test-packages.sh", "e2e"], cwd=root,
+                                      env=os.environ | {"GO_E2E_SHARD_INDEX": str(index),
+                                                        "GO_E2E_SHARD_COUNT": str(count),
+                                                        "TEST_PACKAGES": " ".join(discovered)},
+                                      capture_output=True, text=True)
+            shards = []
+            for index in range(4):
+                result = discover(index, 4, packages[::-1] + ["example/unit"])
+                self.assertEqual(result.returncode, 0, result.stderr)
+                selected = result.stdout.splitlines()
+                self.assertEqual(selected, sorted(packages)[index::4])
+                self.assertEqual(result.stdout, discover(index, 4, packages).stdout)
+                shards.extend(selected)
+            self.assertEqual(sorted(shards), sorted(packages))
+            self.assertEqual(len(shards), len(set(shards)))
+            for index, count in ((-1, 4), (4, 4), (0, 0), ("bad", 4), (0, "bad")):
+                result = discover(index, count, packages)
+                self.assertNotEqual(result.returncode, 0)
+                self.assertEqual(result.stdout, "")
+
     def test_container_build_failure_stops_the_task(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)

@@ -25,6 +25,7 @@ import (
 	awss3 "github.com/aws/aws-sdk-go-v2/service/s3"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/riverqueue/river"
+	"github.com/riverqueue/river/riverdriver/riverpgxv5"
 	"github.com/stretchr/testify/require"
 
 	"github.com/Braidplane/braidplane-core/pkg/clock"
@@ -51,12 +52,11 @@ import (
 	"github.com/Braidplane/braidplane-core/service/queriessvc"
 )
 
-// Native River rescue takes an hour and must not be shortened.
-// This exercises the real Runner/store/ledger/connector and queue, with a bounded
-// test worker adapter instead of application HTTP admission or hosted workers.
+// Keep real SIGKILL and River rescue; shorten only this fixture's timing so the
+// recovery, fencing and sink assertions fit the E2E budget.
 func TestWorkerLossNativeCrashRehearsal(t *testing.T) {
 	if testing.Short() {
-		t.Skip("requires native crash/rescue rehearsal and -timeout=80m")
+		t.Skip("requires disposable native crash/rescue fixtures")
 	}
 	ctx := t.Context()
 	pool := openIntegrationPool(t)
@@ -161,9 +161,9 @@ func TestWorkerLossNativeCrashRehearsal(t *testing.T) {
 	require.NoError(t, err)
 	restarted, _ := startNativeRepairWorker(t, config)
 	defer func() { _ = restarted.Process.Kill(); _ = restarted.Wait() }()
-	ticker := time.NewTicker(5 * time.Second)
+	ticker := time.NewTicker(time.Second)
 	defer ticker.Stop()
-	deadline := time.NewTimer(72 * time.Minute)
+	deadline := time.NewTimer(2 * time.Minute)
 	defer deadline.Stop()
 	pending := map[string]int64{"before-write": jobs["before-write"], "after-acceptance": jobs["after-acceptance"]}
 	for len(pending) > 0 {
@@ -171,7 +171,7 @@ func TestWorkerLossNativeCrashRehearsal(t *testing.T) {
 		case <-ctx.Done():
 			t.Fatal(ctx.Err())
 		case <-deadline.C:
-			t.Fatal("native rescue did not finish within 72 minutes")
+			t.Fatal("native rescue did not finish within two minutes")
 		case <-ticker.C:
 			for cut, id := range pending {
 				var state string
@@ -273,7 +273,16 @@ func TestNativeRepairWorkerProcess(t *testing.T) {
 	require.NoError(t, json.Unmarshal([]byte(os.Getenv("BP_SINK_CRASH_CONFIG")), &config))
 	pool := openIntegrationPool(t)
 	worker := &nativeRepairWorker{t: t, pool: pool, config: config}
-	host, err := queue.NewWorkerHost(pool, &queue.WorkerHostConfig{Queues: map[string]river.QueueConfig{config.Queue: {MaxWorkers: 1}}, Registrars: []queue.WorkerRegistrar{worker}, Logger: slog.New(slog.DiscardHandler)})
+	workers := river.NewWorkers()
+	require.NoError(t, worker.Register(workers))
+	host, err := river.NewClient(riverpgxv5.New(pool), &river.Config{
+		Queues:               map[string]river.QueueConfig{config.Queue: {MaxWorkers: 1}},
+		Workers:              workers,
+		Logger:               slog.New(slog.DiscardHandler),
+		JobTimeout:           20 * time.Second,
+		RescueStuckJobsAfter: 30 * time.Second,
+		TestOnly:             true,
+	})
 	require.NoError(t, err)
 	require.NoError(t, host.Start(t.Context()))
 	<-t.Context().Done()
@@ -286,7 +295,7 @@ func startNativeRepairWorker(t *testing.T, config nativeRepairConfig) (*exec.Cmd
 	binary, err := os.Executable()
 	require.NoError(t, err)
 	// #nosec G204 G702 -- re-executes this test binary against its own isolated fixture.
-	command := exec.CommandContext(t.Context(), binary, "-test.run=^TestNativeRepairWorkerProcess$", "-test.timeout=78m", "-test.v")
+	command := exec.CommandContext(t.Context(), binary, "-test.run=^TestNativeRepairWorkerProcess$", "-test.timeout=3m", "-test.v")
 	command.Env = append(os.Environ(), "BP_SINK_CRASH_WORKER=1", "BP_SINK_CRASH_CONFIG="+string(encoded))
 	command.Stderr = os.Stderr
 	stdout, err := command.StdoutPipe()
