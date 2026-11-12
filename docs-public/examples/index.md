@@ -18,13 +18,13 @@ Start with the repository's [shared setup and execution guide](https://github.co
 
 Build the CLI from the same Core revision as your application. See [CLI installation](../getting-started/cli.md) and [pipeline specifications](../getting-started/pipeline-specifications.md) for setup.
 
-The recorded examples used public CLI v0.1.0-alpha.6; alpha.5 lacked the required left-join support. Build a matching CLI for your application before running them.
+The original runs used the source revision recorded with each recipe. Separate offline checks used public CLI v0.1.0-alpha.6; alpha.5 lacked the required left-join support. Build a matching CLI for your application before running them.
 
 ## Test fixtures and results
 
 The five recipes above were run locally and their destination output was compared with the expected results. PostgreSQL, MongoDB, MySQL and S3-compatible storage used local containers. HTTP used a synthetic fixture, while BigQuery and HubSpot used local protocol mocks. To run against Google Cloud or HubSpot, configure your own account and permissions.
 
-The examples repository also includes an advanced Supplier Price Desk demo with local execution and reporting-table checks. Its specification passed offline validation with public CLI alpha.6.
+The examples repository also includes an advanced [settlement review](https://github.com/Braidplane/examples/blob/main/recipes/settlement-review/README.md) demo with local execution and reporting-table checks. Its specification passed offline validation with public CLI alpha.6.
 
 Each recipe records its executed version, run and step results. The [coverage and friction ledger](https://github.com/Braidplane/examples/blob/main/COVERAGE.md) lists test scope and known failures, including a transform-contract mismatch and a missing binding.
 

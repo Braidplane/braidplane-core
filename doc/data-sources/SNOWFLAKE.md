@@ -58,8 +58,9 @@ review collisions or conflicting existing trust with your Snowflake administrato
 Use a dedicated role: the script does not remove pre-existing or previously selected
 privileges. Verification requires the script's direct table grants, rather than accepting
 broader inherited privileges. It reads grant metadata and never inserts test rows.
-After verification, run your intended parameterized read or append operation
-to check its results and row-access policies.
+After verification, run your intended parameterized read to check its results
+and row-access policies. Test appends in a dedicated table with synthetic rows.
+Check the written rows, then remove the test data before running the pipeline.
 
 **Disable identity** requests revocation and prevents new logins. Disable the
 Snowflake service user and terminate its already-open sessions when immediate

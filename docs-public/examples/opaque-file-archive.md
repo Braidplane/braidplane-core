@@ -14,6 +14,6 @@ Connector setup: [HTTP](../connectors/http.md) and [S3](../connectors/s3.md). Ke
 
 Download the destination object and compare its size and SHA-256 digest with the fixture. Configure the logical binding before validation; a missing binding returns DATA_SOURCE_BINDING_NOT_FOUND.
 
-The write overwrites its explicit object key. Starting another run reads the source again; use retained-input recovery when you need the original payload.
+The write overwrites its explicit object key. Starting another run reads the source again and can replace the output object.
 
 Use the recipe's destination checks to compare your output, then follow its cleanup commands. See [all examples and compatibility requirements](index.md).
