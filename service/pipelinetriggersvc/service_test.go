@@ -285,6 +285,28 @@ func TestUpdatePipelineTriggerRejectsTypeChange(t *testing.T) {
 	require.ErrorContains(t, err, "pipeline trigger type is immutable")
 }
 
+func TestUpdatePipelineTriggerRejectsJitter(t *testing.T) {
+	t.Parallel()
+
+	trigger := validScheduleTriggerInput()
+	trigger.RetryPolicy = model.PipelineTriggerRetryPolicy{
+		MaxAttempts: 1, BackoffStrategy: model.PipelineTriggerBackoffStrategyExponential,
+		InitialDelaySeconds: 60, MaxDelaySeconds: 300, Jitter: true,
+	}
+	svc := newTestService(&fakeTriggerRepository{})
+	_, err := svc.UpdatePipelineTrigger(
+		context.Background(), must.Slug("acme"), must.Slug("backoffice"), must.Slug("prod"), must.Slug("nightly-users"),
+		model.UpdatePipelineTrigger{
+			Name: trigger.Name, Type: trigger.Type, PipelineSlug: trigger.PipelineSlug,
+			VersionPolicy: trigger.VersionPolicy, RetryPolicy: trigger.RetryPolicy, ScheduleConfig: trigger.ScheduleConfig,
+		},
+		model.SystemEventActor(),
+	)
+
+	require.True(t, xerror.Is(err, ErrInvalidPipelineTriggerInput))
+	require.ErrorContains(t, err, "retry jitter is unsupported; set jitter to false")
+}
+
 func TestPipelineTriggerReadListAndDelete(t *testing.T) {
 	t.Parallel()
 
@@ -652,6 +674,15 @@ func TestCreatePipelineTriggerRejectsInvalidDefinitions(t *testing.T) {
 			name: "PinnedPolicyRequiresHash",
 			mutate: func(trigger *model.NewPipelineTrigger) {
 				trigger.VersionPolicy.Mode = model.PipelineTriggerVersionPolicyModePinned
+			},
+		},
+		{
+			name: "UnsupportedRetryJitter",
+			mutate: func(trigger *model.NewPipelineTrigger) {
+				trigger.RetryPolicy.BackoffStrategy = model.PipelineTriggerBackoffStrategyFixed
+				trigger.RetryPolicy.InitialDelaySeconds = 60
+				trigger.RetryPolicy.MaxDelaySeconds = 60
+				trigger.RetryPolicy.Jitter = true
 			},
 		},
 		{

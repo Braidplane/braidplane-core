@@ -14460,6 +14460,7 @@
             "type": "integer"
           },
           "jitter": {
+            "deprecated": true,
             "description": "",
             "type": "boolean"
           },

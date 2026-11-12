@@ -30,6 +30,7 @@ const (
 
 // DataSourceCreateFormData stores sticky values for the datasource create form.
 type DataSourceCreateFormData struct {
+	ShowCreateForm              bool
 	SSLMode                     string
 	HTTPAuth                    HTTPAuthFormData
 	WorkspacePrivacyURL         string
@@ -290,6 +291,9 @@ func DataSourceProviderOAuthActionLabel(dataSource api.DataSource) string {
 
 // HasInput reports whether the create form has user-entered or feedback state that should keep it visible.
 func (f DataSourceCreateFormData) HasInput() bool {
+	if f.ShowCreateForm {
+		return true
+	}
 	return strings.TrimSpace(f.Name) != "" ||
 		strings.TrimSpace(f.Slug) != "" ||
 		strings.TrimSpace(f.Type) != "" ||

@@ -145,10 +145,11 @@ func (r *Router) handleDataSourcesPage(c fiber.Ctx) error {
 			orgSlug.String(),
 		)
 		formData := r.defaultDataSourceCreateFormData()
-		if c.Query("type") == string(api.DataSourceTypeBigquery) || c.Query("type") == string(api.DataSourceTypeS3) {
-			formData.Type = c.Query("type")
-			formData.Name = strings.TrimSpace(c.Query("name"))
-			formData.Slug = strings.TrimSpace(c.Query("slug"))
+		formData.ShowCreateForm = c.Query("create") == "true"
+		formData.Name = strings.TrimSpace(c.Query("name"))
+		formData.Slug = strings.TrimSpace(c.Query("slug"))
+		if dsType, ok := normalizeDataSourceType(c.Query("type")); ok {
+			formData.Type = string(dsType)
 		}
 		r.loadManagedGitRepositories(c, orgSlug.String(), &formData)
 		c.Status(status)
@@ -225,10 +226,11 @@ func (r *Router) handleDataSourcesPage(c fiber.Ctx) error {
 		orgSlug.String(),
 	)
 	formData := r.defaultDataSourceCreateFormData()
-	if c.Query("type") == string(api.DataSourceTypeBigquery) || c.Query("type") == string(api.DataSourceTypeS3) {
-		formData.Type = c.Query("type")
-		formData.Name = strings.TrimSpace(c.Query("name"))
-		formData.Slug = strings.TrimSpace(c.Query("slug"))
+	formData.ShowCreateForm = c.Query("create") == "true"
+	formData.Name = strings.TrimSpace(c.Query("name"))
+	formData.Slug = strings.TrimSpace(c.Query("slug"))
+	if dsType, ok := normalizeDataSourceType(c.Query("type")); ok {
+		formData.Type = string(dsType)
 	}
 	r.loadManagedGitRepositories(c, orgSlug.String(), &formData)
 
@@ -4049,8 +4051,7 @@ func (r *Router) applyPrivateHostPolicyToUpdateForm(formData *views.DataSourceUp
 	}
 }
 
-// applyPrivateHostPolicyToFormFields mutates standalone field state so URI and
-// type-switch partials cannot render private-host values when disabled.
+// applyPrivateHostPolicyToFormFields applies deployment policy to parsed URI fields.
 func (r *Router) applyPrivateHostPolicyToFormFields(fields *views.DataSourceFormFields) {
 	if fields == nil {
 		return
@@ -4136,95 +4137,19 @@ func dataSourceCreateFormDataFromRequest(c fiber.Ctx) views.DataSourceCreateForm
 	}
 }
 
-// handleDataSourceNewPage renders the "Add data source" page.
+// handleDataSourceNewPage preserves bookmarked creation URLs on the canonical form.
 func (r *Router) handleDataSourceNewPage(c fiber.Ctx) error {
-	orgSlug := c.Params("slug")
-	if _, err := slug.New(orgSlug); err != nil {
+	orgSlug, err := slug.New(c.Params("slug"))
+	if err != nil {
 		return c.Status(fiber.StatusBadRequest).SendString("invalid organization slug")
 	}
-	fields := r.defaultDataSourceFormFields()
-	fields.OrgSlug = orgSlug
-
-	return renderTempl(
-		c,
-		views.DataSourceNewPage(
-			"Add data source",
-			orgSlug,
-			fields,
-			"", "", "",
-		),
-	)
-}
-
-// defaultDataSourceFormFields returns standalone create fields with deployment policy applied.
-func (r *Router) defaultDataSourceFormFields() views.DataSourceFormFields {
-	fields := views.DataSourceFormFields{}
-	r.applyPrivateHostPolicyToFormFields(&fields)
-	return fields
-}
-
-// handleDataSourceFieldsPartial is an HTMX endpoint that returns the type-specific
-// fields partial when the type selector changes.
-func (r *Router) handleDataSourceFieldsPartial(c fiber.Ctx) error {
-	dsTypeStr := strings.TrimSpace(c.FormValue("type"))
-	dsType, ok := normalizeDataSourceType(dsTypeStr)
-	if !ok {
-		fields := r.defaultDataSourceFormFields()
-		fields.OrgSlug = c.Params("slug")
-		return renderTempl(c, views.DataSourceFields(fields, ""))
-	}
-	fields := views.DataSourceFormFields{DSType: dsType, OrgSlug: c.Params("slug")}
-	r.applyPrivateHostPolicyToFormFields(&fields)
-	return renderTempl(c, views.DataSourceFields(fields, ""))
-}
-
-// handleDataSourceParseURI parses URI values and returns the filled field partial.
-func (r *Router) handleDataSourceParseURI(c fiber.Ctx) error {
-	dsTypeStr := strings.TrimSpace(c.FormValue("type"))
-	uri := strings.TrimSpace(c.FormValue("uri"))
-
-	if uri == "" {
-		dsType, _ := normalizeDataSourceType(dsTypeStr)
-		fields := views.DataSourceFormFields{DSType: dsType, OrgSlug: c.Params("slug")}
-		r.applyPrivateHostPolicyToFormFields(&fields)
-		return renderTempl(
-			c,
-			views.DataSourceFields(
-				fields,
-				"Paste a URI to parse.",
-			),
-		)
-	}
-
-	fields, parsedType, inferred, parseErr := parseURIWithTypeFallback(dsTypeStr, uri)
-	if parseErr != nil {
-		msg := "Could not parse URI: " + parseErr.Error()
-		dsType, _ := normalizeDataSourceType(dsTypeStr)
-		if dsType == "" {
-			dsType = parsedType
+	query := url.Values{"create": {"true"}}
+	for _, key := range []string{"type", "name", "slug", "environment_slug"} {
+		if value := strings.TrimSpace(c.Query(key)); value != "" {
+			query.Set(key, value)
 		}
-		fields := views.DataSourceFormFields{DSType: dsType, OrgSlug: c.Params("slug")}
-		r.applyPrivateHostPolicyToFormFields(&fields)
-		return renderTempl(
-			c,
-			views.DataSourceFields(fields, msg),
-		)
 	}
-
-	msg := "URI parsed successfully - review the fields below."
-	if inferred {
-		msg = fmt.Sprintf(
-			"URI parsed successfully. Type inferred from URI scheme as %q.",
-			parsedType,
-		)
-	}
-
-	r.applyPrivateHostPolicyToFormFields(&fields)
-	fields.OrgSlug = c.Params("slug")
-	return renderTempl(
-		c,
-		views.DataSourceFields(fields, msg),
-	)
+	return redirectHTMXOrSeeOther(c, "/orgs/"+orgSlug.String()+"/data-sources?"+query.Encode()+"#create-data-source")
 }
 
 type dataSourceURIParseJSONResponse struct {
@@ -4403,239 +4328,7 @@ func portString(port int) string {
 	return strconv.Itoa(port)
 }
 
-// handleDataSourceCreateSubmit processes the new datasource creation form.
-func (r *Router) handleDataSourceCreateSubmit(c fiber.Ctx) error {
-	orgSlug := c.Params("slug")
-	if _, err := slug.New(orgSlug); err != nil {
-		return c.Status(fiber.StatusBadRequest).SendString("invalid organization slug")
-	}
-
-	name := strings.TrimSpace(c.FormValue("name"))
-	dsSlug := strings.TrimSpace(c.FormValue("slug"))
-	dsTypeStr := strings.TrimSpace(c.FormValue("type"))
-
-	if name == "" {
-		c.Status(fiber.StatusBadRequest)
-		return renderTempl(c, views.DataSourceNewPage(
-			"Add data source", orgSlug,
-			r.collectFormFields(c), "", "", "Name is required.",
-		))
-	}
-
-	dsType, ok := normalizeDataSourceType(dsTypeStr)
-	if !ok {
-		c.Status(fiber.StatusBadRequest)
-		return renderTempl(c, views.DataSourceNewPage(
-			"Add data source", orgSlug,
-			r.collectFormFields(c), "", "", "Select a datasource type.",
-		))
-	}
-	if dsType == api.DataSourceTypeBigquery || dsType == api.DataSourceTypeS3 {
-		query := url.Values{"type": {string(dsType)}, "name": {name}}
-		if dsSlug != "" {
-			query.Set("slug", dsSlug)
-		}
-		return redirectHTMXOrSeeOther(c, "/orgs/"+orgSlug+"/data-sources?"+query.Encode())
-	}
-	req, buildErr := buildCreateDataSourceRequest(
-		name,
-		dsSlug,
-		dsType,
-		c,
-		r.allowPrivateDataSourceHosts,
-	)
-	if buildErr != nil {
-		c.Status(fiber.StatusBadRequest)
-		return renderTempl(c, views.DataSourceNewPage(
-			"Add data source", orgSlug,
-			r.collectFormFields(c), "", "", buildErr.Error(),
-		))
-	}
-
-	created, status, errResp, err := r.createDataSourceViaAPI(
-		c.Context(),
-		c.Get(fiber.HeaderCookie),
-		orgSlug,
-		req,
-	)
-	if err != nil {
-		if status == fiber.StatusUnauthorized || status == fiber.StatusForbidden {
-			return redirectToLogin(c, c.OriginalURL())
-		}
-
-		if status < 400 || status >= 600 {
-			status = fiber.StatusInternalServerError
-		}
-
-		c.Status(status)
-		msg := messageFromErrorResponse(errResp)
-		if msg == "" {
-			msg = fmt.Sprintf("Failed to create data source (status %d).", status)
-		}
-		r.logRenderedBackendAPIFailure(c, "create data source", errResp, err, orgSlug, "")
-
-		return renderTempl(c, views.DataSourceNewPage(
-			"Add data source", orgSlug,
-			r.collectFormFields(c), "", "", msg,
-		))
-	}
-
-	if created != nil && views.UsesHTTPOAuth(*created) {
-		return redirectHTMXOrSeeOther(c, appendDataSourceReturnQuery(views.DataSourceDetailHref(orgSlug, dataSourceActiveEnvironmentSlug(c), created.Slug), "section", "settings"))
-	}
-	if created != nil {
-		return redirectHTMXOrSeeOther(c, views.DataSourceDetailHref(orgSlug, dataSourceActiveEnvironmentSlug(c), created.Slug))
-	}
-	return redirectHTMXOrSeeOther(c, "/dashboard")
-}
-
-// buildCreateDataSourceRequest builds the API create payload from form values.
-func buildCreateDataSourceRequest(
-	name, dsSlugStr string, dsType api.DataSourceType,
-	c fiber.Ctx,
-	allowPrivateDataSourceHosts bool,
-) (api.CreateDataSourceRequest, error) {
-	var req api.CreateDataSourceRequest
-	var apiSlugValue *api.Slug
-	if dsSlugStr != "" {
-		value := dsSlugStr
-		apiSlugValue = &value
-	}
-
-	switch dsType {
-	case api.DataSourceTypePostgres:
-		cfg, creds, errMsg := parseSQLFormWithPrivateHosts(c, 5432, allowPrivateDataSourceHosts)
-		if errMsg != "" {
-			return req, xerror.Unexpected().Detail(errMsg)
-		}
-		if err := req.FromCreatePostgresDataSourceRequest(api.CreatePostgresDataSourceRequest{
-			Name:        name,
-			Slug:        apiSlugValue,
-			Config:      cfg,
-			Credentials: creds,
-		}); err != nil {
-			return req, xerror.Unexpected().With(err)
-		}
-	case api.DataSourceTypeSnowflake:
-		cfg, creds, errMsg := parseSnowflakeForm(c)
-		if errMsg != "" {
-			return req, xerror.Unexpected().Detail(errMsg)
-		}
-		if err := req.FromCreateSnowflakeDataSourceRequest(api.CreateSnowflakeDataSourceRequest{
-			Name: name, Slug: apiSlugValue, Config: cfg, Credentials: creds, ReadOnly: snowflakeReadOnly(cfg),
-		}); err != nil {
-			return req, xerror.Unexpected().With(err)
-		}
-	case api.DataSourceTypeMysql:
-		cfg, creds, errMsg := parseMySQLFormWithPrivateHosts(c, 3306, allowPrivateDataSourceHosts)
-		if errMsg != "" {
-			return req, xerror.Unexpected().Detail(errMsg)
-		}
-		if err := req.FromCreateMySQLDataSourceRequest(api.CreateMySQLDataSourceRequest{
-			Name:        name,
-			Slug:        apiSlugValue,
-			Config:      cfg,
-			Credentials: creds,
-		}); err != nil {
-			return req, xerror.Unexpected().With(err)
-		}
-	case api.DataSourceTypeBigquery:
-		return req, xerror.InvalidInput(xerror.DataSource).Detail("BigQuery data sources must use Google OAuth.")
-	case api.DataSourceTypeMongodb:
-		cfg, creds, errMsg := parseMongoFormWithPrivateHosts(c, 27017, allowPrivateDataSourceHosts)
-		if errMsg != "" {
-			return req, xerror.Unexpected().Detail(errMsg)
-		}
-		if err := req.FromCreateMongoDBDataSourceRequest(api.CreateMongoDBDataSourceRequest{
-			Name:        name,
-			Slug:        apiSlugValue,
-			Config:      cfg,
-			Credentials: creds,
-		}); err != nil {
-			return req, xerror.Unexpected().With(err)
-		}
-	case api.DataSourceTypeHttp:
-		cfg, creds, errMsg := parseHTTPFormWithPrivateHosts(c, allowPrivateDataSourceHosts)
-		if errMsg != "" {
-			return req, xerror.Unexpected().Detail(errMsg)
-		}
-		if err := req.FromCreateHTTPDataSourceRequest(api.CreateHTTPDataSourceRequest{
-			Name:        name,
-			Slug:        apiSlugValue,
-			Config:      cfg,
-			Credentials: creds,
-		}); err != nil {
-			return req, xerror.Unexpected().With(err)
-		}
-	case api.DataSourceTypeHubspot:
-		cfg, creds, errMsg := parseHubSpotForm(c)
-		if errMsg != "" {
-			return req, xerror.Unexpected().Detail(errMsg)
-		}
-		readOnly := strings.TrimSpace(c.FormValue(hubSpotAccessModeField)) != hubSpotAccessModeWrite
-		if err := req.FromCreateHubSpotDataSourceRequest(api.CreateHubSpotDataSourceRequest{
-			Name:        name,
-			Slug:        apiSlugValue,
-			ReadOnly:    &readOnly,
-			Config:      cfg,
-			Credentials: creds,
-		}); err != nil {
-			return req, xerror.Unexpected().With(err)
-		}
-	case api.DataSourceTypeGit:
-		cfg, creds, errMsg := parseGitFormWithPrivateHosts(c, allowPrivateDataSourceHosts)
-		if errMsg != "" {
-			return req, xerror.Unexpected().Detail(errMsg)
-		}
-		if err := req.FromCreateGitDataSourceRequest(api.CreateGitDataSourceRequest{
-			Name:        name,
-			Slug:        apiSlugValue,
-			Config:      cfg,
-			Credentials: creds,
-		}); err != nil {
-			return req, xerror.Unexpected().With(err)
-		}
-	case api.DataSourceTypeGithub:
-		repositoryID := strings.TrimSpace(c.FormValue("github_repository_id"))
-		if repositoryID == "" {
-			return req, xerror.InvalidRequired(xerror.DataSource).Detail("select a GitHub repository")
-		}
-		cfg := api.GitHubRepositoryConfig{RepositoryId: repositoryID}
-		if basePath := strings.TrimSpace(c.FormValue("git_base_path")); basePath != "" {
-			cfg.BasePath = &basePath
-		}
-		readOnly := strings.TrimSpace(c.FormValue("github_access_mode")) != "write"
-		if err := req.FromCreateGitHubDataSourceRequest(api.CreateGitHubDataSourceRequest{
-			Name: name, Slug: apiSlugValue, Config: cfg, ReadOnly: &readOnly,
-		}); err != nil {
-			return req, xerror.Unexpected().With(err)
-		}
-	case api.DataSourceTypeGitlab:
-		projectID := strings.TrimSpace(c.FormValue("gitlab_project_id"))
-		if projectID == "" {
-			return req, xerror.InvalidRequired(xerror.DataSource).Detail("GitLab project ID is required")
-		}
-		cfg := api.GitLabRepositoryConfig{ProjectId: projectID}
-		if basePath := strings.TrimSpace(c.FormValue("git_base_path")); basePath != "" {
-			cfg.BasePath = &basePath
-		}
-		readOnly := strings.TrimSpace(c.FormValue(gitLabAccessModeField)) != gitLabAccessModeWrite
-		if err := req.FromCreateGitLabDataSourceRequest(api.CreateGitLabDataSourceRequest{
-			Name:     name,
-			Slug:     apiSlugValue,
-			Config:   cfg,
-			ReadOnly: &readOnly,
-		}); err != nil {
-			return req, xerror.Unexpected().With(err)
-		}
-	default:
-		return req, xerror.Unexpected().Detailf("unsupported datasource type: %q", dsType)
-	}
-
-	return req, nil
-}
-
-// normalizeDataSourceType normalizes user input to a canonical api.DataSourceType.
+// normalizeDataSourceType normalizes user input to a canonical API type.
 // Handles "postgresql" → "postgres" for URI scheme compatibility.
 func normalizeDataSourceType(t string) (api.DataSourceType, bool) {
 	t = strings.TrimSpace(t)
@@ -4646,7 +4339,7 @@ func normalizeDataSourceType(t string) (api.DataSourceType, bool) {
 	}
 
 	switch api.DataSourceType(t) {
-	case api.DataSourceTypeS3, api.DataSourceTypePostgres,
+	case api.DataSourceTypeS3, api.DataSourceTypeSnowflake, api.DataSourceTypePostgres,
 		api.DataSourceTypeMysql,
 		api.DataSourceTypeBigquery,
 		api.DataSourceTypeMongodb,
@@ -4679,62 +4372,6 @@ func inferDataSourceTypeFromURI(rawURI string) (api.DataSourceType, bool) {
 		return api.DataSourceTypeHttp, true
 	default:
 		return "", false
-	}
-}
-
-// collectFormFields keeps submitted standalone create fields with deployment policy applied.
-func (r *Router) collectFormFields(c fiber.Ctx) views.DataSourceFormFields {
-	fields := collectFormFields(c)
-	r.applyPrivateHostPolicyToFormFields(&fields)
-	return fields
-}
-
-func collectFormFields(c fiber.Ctx) views.DataSourceFormFields {
-	typeStr := strings.TrimSpace(c.FormValue("type"))
-	dsType, _ := normalizeDataSourceType(
-		typeStr,
-	) // Use normalized type, invalid types become empty string
-
-	return views.DataSourceFormFields{
-		HTTPAuth:                  httpAuthFormDataFromRequest(c),
-		Name:                      strings.TrimSpace(c.FormValue("name")),
-		Slug:                      strings.TrimSpace(c.FormValue("slug")),
-		DSType:                    dsType,
-		Host:                      strings.TrimSpace(c.FormValue("host")),
-		Port:                      strings.TrimSpace(c.FormValue("port")),
-		Database:                  strings.TrimSpace(c.FormValue("database")),
-		Account:                   strings.TrimSpace(c.FormValue("account")),
-		Warehouse:                 strings.TrimSpace(c.FormValue("warehouse")),
-		Schema:                    strings.TrimSpace(c.FormValue("schema")),
-		Role:                      strings.TrimSpace(c.FormValue("role")),
-		SnowflakeAuthType:         strings.TrimSpace(c.FormValue("snowflake_auth_type")),
-		SnowflakeSelectTables:     c.FormValue("snowflake_select_tables"),
-		SnowflakeInsertTables:     c.FormValue("snowflake_insert_tables"),
-		ProjectID:                 strings.TrimSpace(c.FormValue("project_id")),
-		Location:                  strings.TrimSpace(c.FormValue("location")),
-		DefaultDataset:            strings.TrimSpace(c.FormValue("default_dataset")),
-		MaximumBytesBilled:        strings.TrimSpace(c.FormValue("maximum_bytes_billed")),
-		Username:                  strings.TrimSpace(c.FormValue("username")),
-		Password:                  strings.TrimSpace(c.FormValue("password")),
-		SSLMode:                   strings.TrimSpace(c.FormValue("sslmode")),
-		AuthDatabase:              strings.TrimSpace(c.FormValue("auth_database")),
-		BaseURL:                   strings.TrimSpace(c.FormValue("base_url")),
-		HealthPath:                strings.TrimSpace(c.FormValue("health_path")),
-		OpenAPIURL:                strings.TrimSpace(c.FormValue("openapi_url")),
-		OpenAPIFetchTimeout:       strings.TrimSpace(c.FormValue("openapi_fetch_timeout_seconds")),
-		BearerToken:               strings.TrimSpace(c.FormValue("bearer_token")),
-		TimeoutSeconds:            strings.TrimSpace(c.FormValue("timeout_seconds")),
-		HTTPAllowPrivateHosts:     parseCheckbox(c.FormValue("http_allow_private_hosts")),
-		PrivateAppToken:           strings.TrimSpace(c.FormValue("private_app_token")),
-		HubSpotReadOnly:           strings.TrimSpace(c.FormValue(hubSpotAccessModeField)) != hubSpotAccessModeWrite,
-		GitRepoURL:                strings.TrimSpace(c.FormValue("git_repo_url")),
-		GitDefaultBranch:          strings.TrimSpace(c.FormValue("git_default_branch")),
-		GitBasePath:               strings.TrimSpace(c.FormValue("git_base_path")),
-		GitAuthType:               strings.TrimSpace(c.FormValue("git_auth_type")),
-		GitUsername:               strings.TrimSpace(c.FormValue("git_username")),
-		GitSSHKnownHosts:          strings.TrimSpace(c.FormValue("git_ssh_known_hosts")),
-		GitAllowPrivateHosts:      parseCheckbox(c.FormValue("git_allow_private_hosts")),
-		DatabaseAllowPrivateHosts: parseCheckbox(c.FormValue(databaseAllowPrivateHostsField)),
 	}
 }
 

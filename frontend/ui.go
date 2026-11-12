@@ -479,9 +479,6 @@ func (r *Router) RegisterRoutes(app *fiber.App, presentation RoutePresentation) 
 	protected.Post("/organizations", r.handleCreateOrganizationSubmit)
 
 	protected.Get("/organizations/:slug/datasources/new", r.handleDataSourceNewPage)
-	protected.Get("/organizations/:slug/datasources/new/fields", r.handleDataSourceFieldsPartial)
-	protected.Post("/organizations/:slug/datasources/new/parse-uri", r.handleDataSourceParseURI)
-	protected.Post("/organizations/:slug/datasources", r.handleDataSourceCreateSubmit)
 }
 
 func retiredPublicPathNotFound(c fiber.Ctx) error {

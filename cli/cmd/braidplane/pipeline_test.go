@@ -2854,7 +2854,6 @@ func TestRunWithArgsPipelineTriggerCommands(t *testing.T) {
 				"--retry-backoff", "fixed",
 				"--retry-initial-delay-seconds", "60",
 				"--retry-max-delay-seconds", "300",
-				"--retry-jitter",
 				"--retry-failure-kind", "platform",
 				"--retry-failure-kind", "data_source",
 				"--retry-max-elapsed-seconds", "3600",
@@ -2898,7 +2897,6 @@ func TestRunWithArgsPipelineTriggerCommands(t *testing.T) {
 				require.Equal(t, api.PipelineTriggerBackoffStrategyFixed, state.createBody.RetryPolicy.BackoffStrategy)
 				require.Equal(t, 60, state.createBody.RetryPolicy.InitialDelaySeconds)
 				require.Equal(t, 300, state.createBody.RetryPolicy.MaxDelaySeconds)
-				require.True(t, state.createBody.RetryPolicy.Jitter)
 				require.Equal(
 					t,
 					[]api.PipelineTriggerRetryFailureKind{
@@ -3283,6 +3281,15 @@ func TestRunWithArgsPipelineTriggerCreateRejectsInvalidInputsBeforeAPIRequest(t 
 				"--retry-failure-kind", "network",
 			},
 			errContains: "retry-failure-kind must be data_source or platform",
+		},
+		{
+			name: "UnsupportedRetryJitter",
+			extraArgs: []string{
+				"--disabled",
+				"--version-policy", "latest_deployed",
+				"--retry-jitter",
+			},
+			errContains: "retry jitter is unsupported; omit --retry-jitter",
 		},
 		{
 			name: "ScheduleRejectsWebhookMapping",

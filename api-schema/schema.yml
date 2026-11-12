@@ -18640,8 +18640,9 @@ components:
           example: 3600
         jitter:
           type: boolean
-          description: Whether retry dispatch should randomize retry delays.
-          example: true
+          deprecated: true
+          description: Unsupported. Must be false when creating or updating a trigger. Retained for reading legacy records; true does not randomize retry delays.
+          example: false
         retryable_failure_kinds:
           type: array
           uniqueItems: true

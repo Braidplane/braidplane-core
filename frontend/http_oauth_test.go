@@ -35,7 +35,7 @@ func TestHTTPOAuthFormParsesBothGrantsAndOmitsSecretsFromSSR(t *testing.T) {
 				require.Equal(t, mode, string(credentials.Oauth.GrantType))
 				require.Equal(t, " secret bytes ", *credentials.Oauth.ClientSecret)
 				require.Equal(t, []string{"records.read", "offline_access"}, *credentials.Oauth.Scopes)
-				fields := collectFormFields(c)
+				fields := dataSourceCreateFormDataFromRequest(c)
 				require.Equal(t, "customer-app", fields.HTTPAuth.ClientID)
 				var b bytes.Buffer
 				require.NoError(t, views.HTTPAuthenticationFields(fields.HTTPAuth, "draft-http").Render(c.Context(), &b))
