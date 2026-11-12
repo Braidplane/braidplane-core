@@ -7,6 +7,10 @@ The default file limit is 128 MiB; increase it only with available capacity.
 The S3 record below covers the simplified implementation. Earlier profile/admission
 measurements remain historical.
 
+The publication rebase changed only upstream README content. Recorded revision
+`e6e77eb` has identical runtime source at `911093b`; Git sample revision
+`67b837d` corresponds to `cbf991f`. Measurements retain their original IDs.
+
 ## Recorded process tests
 
 | Revision | Scope | Evidence |
