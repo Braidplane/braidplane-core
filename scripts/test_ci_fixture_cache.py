@@ -96,16 +96,21 @@ class HostedRunnerPreparation(unittest.TestCase):
             for name in ('sudo', 'df'):
                 executable = root / name
                 executable.write_text("#!/bin/bash\nprintf '%s\\n' \"$*\" >> \"$CALLS\"\n")
+                if name == 'df':
+                    with executable.open('a') as output:
+                        output.write('if [[ "$1" = -Pk ]]; then if [[ "$AVAILABLE_KIB" = error ]]; then exit 3; fi; printf "Filesystem 1024-blocks Used Available Capacity Mounted\\n/dev/root 150000000 60000000 %s 40%% /\\n" "$AVAILABLE_KIB"; fi\n')
                 executable.chmod(0o755)
-            for reclaim in ('true', 'false'):
-                with self.subTest(reclaim=reclaim):
+            for reclaim, available, deletes in (('true', '83886080', False), ('true', '83886079', True), ('true', 'unknown', True), ('true', 'error', True), ('false', '1000', False)):
+                with self.subTest(reclaim=reclaim, available=available):
                     calls.unlink(missing_ok=True)
                     result = subprocess.run(['bash', '-euo', 'pipefail', '-c', script],
-                                            env=os.environ | {'PATH': f'{root}:{os.environ["PATH"]}', 'CALLS': str(calls), 'RECLAIM_SDK_SPACE': reclaim},
+                                            env=os.environ | {'PATH': f'{root}:{os.environ["PATH"]}', 'CALLS': str(calls), 'RECLAIM_SDK_SPACE': reclaim, 'AVAILABLE_KIB': available},
                                             capture_output=True, text=True)
                     self.assertEqual(result.returncode, 0, result.stderr)
                     expected = ['-h /']
                     if reclaim == 'true':
+                        expected.append('-Pk /')
+                    if deletes:
                         expected.append('rm -rf /usr/local/lib/android /usr/share/dotnet /opt/ghc')
                     self.assertEqual(calls.read_text().splitlines(), expected + ['-h /'])
 

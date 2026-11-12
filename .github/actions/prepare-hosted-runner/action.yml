@@ -2,7 +2,7 @@ name: Prepare disposable hosted runner
 description: Reclaim unused SDK disk space before dependency and image caches are loaded.
 inputs:
   reclaim_sdk_space:
-    description: Remove unused SDKs before loading caches
+    description: Allow reclaiming unused SDKs when disk headroom is low
     default: 'true'
 runs:
   using: composite
@@ -16,7 +16,15 @@ runs:
         df -h /
         # Community uses pinned Go/Node and Python, not these preinstalled SDKs.
         if [ "$RECLAIM_SDK_SPACE" = true ]; then
-          sudo rm -rf /usr/local/lib/android /usr/share/dotnet /opt/ghc
+          if ! available_kib=$(df -Pk / | awk 'NR == 2 { print $4 }'); then
+            available_kib=
+          fi
+          # Cold no-cleanup qualification retained at least 73 GiB free; require 80 GiB at startup.
+          if [[ "$available_kib" =~ ^[0-9]+$ ]] && (( available_kib >= 80 * 1024 * 1024 )); then
+            echo "Skipping SDK cleanup: at least 80 GiB available"
+          else
+            sudo rm -rf /usr/local/lib/android /usr/share/dotnet /opt/ghc
+          fi
         fi
         df -h /
     - name: Start disk sampling
