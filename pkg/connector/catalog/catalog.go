@@ -149,7 +149,7 @@ var descriptors = []Descriptor{
 		Type: model.DataSourceTypePostgres,
 		Capabilities: model.ConnectorCapabilityDetails{
 			ReadOperations: []string{"authored_sql"}, WriteOperations: []string{"authored_sql"}, LoadModes: []string{"authored_sql"},
-			SourcePayloads: []model.ContractRepresentation{model.ContractRepresentationRows},
+			SourcePayloads: []model.ContractRepresentation{model.ContractRepresentationRows, model.ContractRepresentationFile},
 			SinkPayloads: []model.ConnectorSinkPayloadSupport{
 				{Representation: model.ContractRepresentationRows, Mode: model.ConnectorPayloadModeNative, Limitation: "Authored SQL must reference the input relation or bindings."},
 				{Representation: model.ContractRepresentationJSON, Mode: model.ConnectorPayloadModeRowNormalized, Limitation: "Object/array becomes input rows; scalars use explicit input binding."},
@@ -180,7 +180,7 @@ var descriptors = []Descriptor{
 		Type: model.DataSourceTypeMySQL,
 		Capabilities: model.ConnectorCapabilityDetails{
 			ReadOperations: []string{"authored_sql"}, WriteOperations: []string{"authored_sql"}, LoadModes: []string{"authored_sql"},
-			SourcePayloads: []model.ContractRepresentation{model.ContractRepresentationRows},
+			SourcePayloads: []model.ContractRepresentation{model.ContractRepresentationRows, model.ContractRepresentationFile},
 			SinkPayloads: []model.ConnectorSinkPayloadSupport{
 				{Representation: model.ContractRepresentationRows, Mode: model.ConnectorPayloadModeNative, Limitation: "Authored SQL must reference the input relation or bindings."},
 				{Representation: model.ContractRepresentationJSON, Mode: model.ConnectorPayloadModeRowNormalized, Limitation: "Object/array becomes input rows; scalars use explicit input binding."},
@@ -211,7 +211,7 @@ var descriptors = []Descriptor{
 		Type: model.DataSourceTypeBigQuery,
 		Capabilities: model.ConnectorCapabilityDetails{
 			ReadOperations: []string{"query"}, WriteOperations: []string{"insert_rows"}, LoadModes: []string{"append"},
-			SourcePayloads: []model.ContractRepresentation{model.ContractRepresentationRows},
+			SourcePayloads: []model.ContractRepresentation{model.ContractRepresentationRows, model.ContractRepresentationFile},
 			SinkPayloads: []model.ConnectorSinkPayloadSupport{
 				{Representation: model.ContractRepresentationRows, Mode: model.ConnectorPayloadModeNative, Limitation: "Append through insert_rows; target table must exist."},
 				{Representation: model.ContractRepresentationJSON, Mode: model.ConnectorPayloadModeRowNormalized, Limitation: "Only objects/arrays that normalize to rows."},
@@ -243,7 +243,7 @@ var descriptors = []Descriptor{
 		Type: model.DataSourceTypeSnowflake,
 		Capabilities: model.ConnectorCapabilityDetails{
 			ReadOperations: []string{"authored_sql"}, WriteOperations: []string{"INSERT"}, LoadModes: []string{"append"},
-			SourcePayloads: []model.ContractRepresentation{model.ContractRepresentationRows},
+			SourcePayloads: []model.ContractRepresentation{model.ContractRepresentationRows, model.ContractRepresentationFile},
 			SinkPayloads: []model.ConnectorSinkPayloadSupport{
 				{Representation: model.ContractRepresentationRows, Mode: model.ConnectorPayloadModeNative, Limitation: "Authored INSERT SELECT FROM input only."},
 				{Representation: model.ContractRepresentationJSON, Mode: model.ConnectorPayloadModeRowNormalized, Limitation: "Objects/arrays normalized into the SQL input relation."},

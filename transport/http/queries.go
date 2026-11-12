@@ -1102,11 +1102,13 @@ func storedExecutionResultToHTTP(raw json.RawMessage) (api.QueryExecutionResult,
 			ResultType: api.SQLExecutionResultResultTypeSql,
 			Type:       vendorType,
 			Payload: struct {
-				ColumnNames *[]string        `json:"column_names,omitempty"`
-				RowCount    int              `json:"row_count"`
-				Rows        []map[string]any `json:"rows"`
+				ColumnNames *[]string                `json:"column_names,omitempty"`
+				File        *api.FilePayloadMetadata `json:"file,omitempty"`
+				RowCount    int                      `json:"row_count"`
+				Rows        []map[string]any         `json:"rows"`
 			}{
 				Rows:        stored.SQL.Rows,
+				File:        filePayloadMetadataToAPI(stored.SQL.File),
 				RowCount:    stored.SQL.RowCount,
 				ColumnNames: &stored.SQL.ColumnNames,
 			},
@@ -1692,11 +1694,13 @@ func executionResultToHTTP(r *result.ExecutionResult) (api.QueryExecutionResult,
 			ResultType: api.SQLExecutionResultResultTypeSql,
 			Type:       r.VendorType(),
 			Payload: struct {
-				ColumnNames *[]string        `json:"column_names,omitempty"`
-				RowCount    int              `json:"row_count"`
-				Rows        []map[string]any `json:"rows"`
+				ColumnNames *[]string                `json:"column_names,omitempty"`
+				File        *api.FilePayloadMetadata `json:"file,omitempty"`
+				RowCount    int                      `json:"row_count"`
+				Rows        []map[string]any         `json:"rows"`
 			}{
 				Rows:        sqlData.Rows,
+				File:        filePayloadMetadataToAPI(sqlData.File),
 				RowCount:    sqlData.RowCount,
 				ColumnNames: &sqlData.ColumnNames,
 			},

@@ -1426,6 +1426,9 @@ func queryEditorFormDataFromRequest(c fiber.Ctx) views.QueryEditorFormData {
 	formData.WorkspaceColumns = c.FormValue("workspace_columns")
 	formData.WorkspaceRows = c.FormValue("workspace_rows")
 	formData.Statement = strings.TrimSpace(c.FormValue("statement"))
+	if value := c.FormValue("sql_format"); value != "" {
+		formData.SQLFormat = value
+	}
 	formData.HTTPMethod = strings.TrimSpace(c.FormValue("http_method"))
 	formData.HTTPPath = strings.TrimSpace(c.FormValue("http_path"))
 	formData.HTTPQueryParamRows = httpKeyValueRowsFromRequest(
@@ -1759,54 +1762,34 @@ func buildQueryStatementFromRequest(
 			return statement, "Invalid Workspace operation."
 		}
 
-	case api.DataSourceTypePostgres:
+	case api.DataSourceTypePostgres, api.DataSourceTypeMysql, api.DataSourceTypeBigquery, api.DataSourceTypeSnowflake:
 		statementText := strings.TrimSpace(c.FormValue("statement"))
 		if statementText == "" {
 			return api.QueryStatement{}, queryStatementRequiredMessage
 		}
-
-		if err := statement.FromPostgresStatement(api.PostgresStatement{
-			Type: api.PostgresStatementTypePostgres,
-			Sql:  statementText,
-		}); err != nil {
-			return api.QueryStatement{}, "Query statement could not be encoded for PostgreSQL."
+		format := api.SQLResultFormat(c.FormValue("sql_format"))
+		if format == "" {
+			format = api.SQLResultFormatRows
 		}
-	case api.DataSourceTypeMysql:
-		statementText := strings.TrimSpace(c.FormValue("statement"))
-		if statementText == "" {
-			return api.QueryStatement{}, queryStatementRequiredMessage
+		if !format.Valid() {
+			return api.QueryStatement{}, "Choose rows or a JSON file for the SQL result."
 		}
-
-		if err := statement.FromMySQLStatement(api.MySQLStatement{
-			Type: api.MySQLStatementTypeMysql,
-			Sql:  statementText,
-		}); err != nil {
-			return api.QueryStatement{}, "Query statement could not be encoded for MySQL."
+		var err error
+		switch dataSourceType {
+		case api.DataSourceTypePostgres:
+			err = statement.FromPostgresStatement(api.PostgresStatement{Type: api.PostgresStatementTypePostgres, Sql: statementText, Format: &format})
+		case api.DataSourceTypeMysql:
+			err = statement.FromMySQLStatement(api.MySQLStatement{Type: api.MySQLStatementTypeMysql, Sql: statementText, Format: &format})
+		case api.DataSourceTypeBigquery:
+			operation := api.BigQueryStatementOperationQuery
+			err = statement.FromBigQueryStatement(api.BigQueryStatement{Type: api.BigQueryStatementTypeBigquery, Operation: &operation, Sql: &statementText, Format: &format})
+		case api.DataSourceTypeSnowflake:
+			err = statement.FromSnowflakeStatement(api.SnowflakeStatement{Type: api.SnowflakeStatementTypeSnowflake, Sql: statementText, Format: &format})
+		default:
+			return api.QueryStatement{}, "Unsupported SQL data source."
 		}
-	case api.DataSourceTypeBigquery:
-		statementText := strings.TrimSpace(c.FormValue("statement"))
-		if statementText == "" {
-			return api.QueryStatement{}, queryStatementRequiredMessage
-		}
-
-		operation := api.BigQueryStatementOperationQuery
-		if err := statement.FromBigQueryStatement(api.BigQueryStatement{
-			Type:      api.BigQueryStatementTypeBigquery,
-			Operation: &operation,
-			Sql:       &statementText,
-		}); err != nil {
-			return api.QueryStatement{}, "Query statement could not be encoded for BigQuery."
-		}
-	case api.DataSourceTypeSnowflake:
-		statementText := strings.TrimSpace(c.FormValue("statement"))
-		if statementText == "" {
-			return api.QueryStatement{}, queryStatementRequiredMessage
-		}
-		if err := statement.FromSnowflakeStatement(api.SnowflakeStatement{
-			Type: api.SnowflakeStatementTypeSnowflake,
-			Sql:  statementText,
-		}); err != nil {
-			return api.QueryStatement{}, "Query statement could not be encoded for Snowflake."
+		if err != nil {
+			return api.QueryStatement{}, "Query statement could not be encoded for SQL."
 		}
 	case api.DataSourceTypeFtp:
 		ftpPath := strings.TrimSpace(c.FormValue("ftp_path"))
@@ -2776,6 +2759,24 @@ func queryExecutionResultToView(
 		switch resultType {
 		case api.ExecutionResultResultTypeSql:
 			if sqlResult, parseErr := result.AsSQLExecutionResult(); parseErr == nil {
+				if sqlResult.Payload.File != nil {
+					rawPayload := ""
+					if raw, err := json.MarshalIndent(sqlResult.Payload.File, "", "  "); err == nil {
+						rawPayload = string(raw)
+					}
+					errorMessage := ""
+					if sqlResult.Error != nil {
+						errorMessage = *sqlResult.Error
+					}
+					return &views.QueryExecutionResultView{
+						QuerySlug: querySlug, Type: sqlResult.Type, Success: sqlResult.Success,
+						DurationMs: sqlResult.DurationMs, Error: errorMessage, Raw: rawPayload,
+						Summary: []string{
+							fmt.Sprintf("Serialized row count: %d", sqlResult.Payload.RowCount),
+							fmt.Sprintf("Size: %d bytes", sqlResult.Payload.File.SizeBytes),
+						},
+					}
+				}
 				columns := []string{}
 				if sqlResult.Payload.ColumnNames != nil {
 					columns = append(columns, (*sqlResult.Payload.ColumnNames)...)

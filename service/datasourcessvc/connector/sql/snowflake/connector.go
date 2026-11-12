@@ -5,6 +5,7 @@ import (
 	"context"
 	stdsql "database/sql"
 	"encoding/json"
+	"io"
 	"regexp"
 	"sort"
 	"strings"
@@ -142,6 +143,30 @@ func (c *Connector) Execute(
 	queryStatement := isQueryStatement(stmt)
 	if _, hasPipelineInput := normalized[sinkbinding.InternalInputRows]; hasPipelineInput {
 		queryStatement = false
+	}
+	fileOutput, err := sqlconnector.FileOutputRequested(queryData)
+	if err != nil {
+		return sqlconnector.NewFailedExecutionResult("snowflake", start, err), nil
+	}
+	if fileOutput {
+		if !queryStatement {
+			return sqlconnector.NewFailedExecutionResult("snowflake", start, sqlconnector.ErrInvalidConfig.WithPublicDetail("SQL file output requires a source query, not a write operation.")), nil
+		}
+		if execLimits.ConnectorTimeout > 0 {
+			var cancel context.CancelFunc
+			ctx, cancel = context.WithTimeout(ctx, execLimits.ConnectorTimeout)
+			defer cancel()
+		}
+		output, err := sqlconnector.RetainQueryFile(ctx, execLimits, func(ctx context.Context, dst io.Writer) (sqlconnector.StreamResult, error) {
+			var output sqlconnector.StreamResult
+			_, err := c.client.Execute(ctx, stmt, args, true, func(rows *stdsql.Rows) (snowflakeclient.Result, error) {
+				var err error
+				output, err = sqlconnector.StreamRows(ctx, rows, execLimits, sqlconnector.BytesToStringValue, dst)
+				return snowflakeclient.Result{}, err
+			})
+			return output, err
+		})
+		return sqlconnector.NewExecutionResultData("snowflake", start, output, err), nil
 	}
 	providerResult, execErr := c.client.Execute(
 		ctx, stmt, args, queryStatement, func(rows *stdsql.Rows) (snowflakeclient.Result, error) {

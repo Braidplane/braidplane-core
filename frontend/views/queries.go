@@ -91,6 +91,7 @@ type QueryEditorFormData struct {
 
 	// Statement stores SQL text or the complete S3 operation JSON.
 	Statement string
+	SQLFormat string
 
 	// HTTP-specific fields (for http type)
 	HTTPMethod          string
@@ -173,6 +174,7 @@ type QueryExecutionResultView struct {
 func DefaultQueryEditorFormData() QueryEditorFormData {
 	return QueryEditorFormData{
 		RowLimit:             "100",
+		SQLFormat:            "rows",
 		WorkspaceWorksheetID: "0",
 		WorkspaceRange:       "A1:C10",
 		WorkspaceResource:    "spreadsheet", WorkspaceFormat: "json",
@@ -447,18 +449,30 @@ func QueryEditorFormDataFromQuery(query api.Query) QueryEditorFormData {
 		case queryStatementTypePostgres:
 			if stmt, parseErr := query.QueryStatement.AsPostgresStatement(); parseErr == nil {
 				result.Statement = stmt.Sql
+				if stmt.Format != nil {
+					result.SQLFormat = string(*stmt.Format)
+				}
 			}
 		case queryStatementTypeMySQL:
 			if stmt, parseErr := query.QueryStatement.AsMySQLStatement(); parseErr == nil {
 				result.Statement = stmt.Sql
+				if stmt.Format != nil {
+					result.SQLFormat = string(*stmt.Format)
+				}
 			}
 		case queryStatementTypeBigQuery:
 			if stmt, parseErr := query.QueryStatement.AsBigQueryStatement(); parseErr == nil && stmt.Sql != nil {
 				result.Statement = *stmt.Sql
+				if stmt.Format != nil {
+					result.SQLFormat = string(*stmt.Format)
+				}
 			}
 		case queryStatementTypeSnowflake:
 			if stmt, parseErr := query.QueryStatement.AsSnowflakeStatement(); parseErr == nil {
 				result.Statement = stmt.Sql
+				if stmt.Format != nil {
+					result.SQLFormat = string(*stmt.Format)
+				}
 			}
 		case queryStatementTypeFTP:
 			if stmt, parseErr := query.QueryStatement.AsFTPStatement(); parseErr == nil {

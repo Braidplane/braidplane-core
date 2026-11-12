@@ -1902,6 +1902,31 @@ func TestExecutionResultToHTTP_HTTP(t *testing.T) {
 	}
 }
 
+func TestSQLStreamHTTPMetadataAndReferencePrivacy(t *testing.T) {
+	t.Parallel()
+	metadata := filepayload.NewFilePayloadMetadata("query-result.json", "application/json", []byte("{}"))
+	execution := result.NewSQLResult("postgres", &result.SQLResult{Rows: []map[string]any{}, RowCount: 100, File: &metadata, Reference: &filepayload.Reference{ID: "private-retained-id"}}, 25, nil)
+	stored, err := json.Marshal(execution)
+	require.NoError(t, err)
+	for _, storedResult := range []bool{false, true} {
+		var mapped api.QueryExecutionResult
+		if storedResult {
+			mapped, err = storedExecutionResultToHTTP(stored)
+		} else {
+			mapped, err = executionResultToHTTP(execution)
+		}
+		require.NoError(t, err)
+		output, err := mapped.AsSQLExecutionResult()
+		require.NoError(t, err)
+		require.Equal(t, 100, output.Payload.RowCount)
+		require.NotNil(t, output.Payload.File)
+		require.EqualValues(t, 2, output.Payload.File.SizeBytes)
+		raw, err := json.Marshal(mapped)
+		require.NoError(t, err)
+		require.NotContains(t, string(raw), "private-retained-id")
+	}
+}
+
 func TestExecutionResultToHTTP_HTTPFileOmitsRawBody(t *testing.T) {
 	t.Parallel()
 

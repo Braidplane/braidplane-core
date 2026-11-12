@@ -245,12 +245,14 @@ func TestListColumnsRejectsTruncatedIntrospection(t *testing.T) {
 }
 
 type queryRecorder struct {
-	query        string
-	args         []driver.NamedValue
-	rowCount     int
-	closed       bool
-	iterationErr error
-	closeErr     error
+	query           string
+	args            []driver.NamedValue
+	rowCount        int
+	closed          bool
+	ctx             context.Context
+	canceledOnClose bool
+	iterationErr    error
+	closeErr        error
 }
 
 type queryConnector struct {
@@ -284,8 +286,9 @@ func (*queryConnection) Begin() (driver.Tx, error) {
 }
 
 func (c *queryConnection) QueryContext(
-	_ context.Context, query string, args []driver.NamedValue,
+	ctx context.Context, query string, args []driver.NamedValue,
 ) (driver.Rows, error) {
+	c.recorder.ctx = ctx
 	c.recorder.query = query
 	c.recorder.args = append([]driver.NamedValue(nil), args...)
 	rowCount := c.recorder.rowCount
@@ -306,6 +309,7 @@ func (*queryRows) Columns() []string {
 
 func (r *queryRows) Close() error {
 	r.recorder.closed = true
+	r.recorder.canceledOnClose = r.recorder.ctx.Err() != nil
 	return r.recorder.closeErr
 }
 
@@ -358,6 +362,7 @@ func TestExecuteRequiresScannerAndSanitizesItsErrors(t *testing.T) {
 		require.NotContains(t, err.Error(), "synthetic-provider-canary")
 		require.Empty(t, got.Rows)
 		require.True(t, recorder.closed)
+		require.True(t, recorder.canceledOnClose, "cancel before closing unread driver rows")
 		for _, limitErr := range []error{xerror.ExecutionResponseSizeExceeded(), xerror.ExecutionRowLimitExceeded()} {
 			if xerror.Is(cause, limitErr) {
 				require.ErrorIs(t, err, limitErr)

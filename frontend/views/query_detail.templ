@@ -361,6 +361,9 @@ templ QueryDetailPageContent(orgSlug string, dataSourceSlug string, query api.Qu
 							<div class="label py-1"><span class="label-text text-xs">Statement</span></div>
 							<textarea class="textarea textarea-bordered min-h-40 w-full font-mono text-sm" name="statement" data-param-source-input required>{ editFormData.Statement }</textarea>
 						</label>
+						if editFormData.StatementType == "postgres" || editFormData.StatementType == "mysql" || editFormData.StatementType == "bigquery" || editFormData.StatementType == "snowflake" {
+							@SQLResultFormatField(editFormData.SQLFormat)
+						}
 						if editFormData.StatementType == "s3" {
 							<p class="mt-2 text-xs text-base-content/70">S3 operation JSON. Review the object key, content and overwrite policy before running.</p>
 						}

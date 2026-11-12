@@ -5,6 +5,7 @@ import (
 	stdsql "database/sql"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net"
 	"regexp"
 	"sort"
@@ -169,6 +170,16 @@ func (c *Connector) Execute(
 		return sqlconnector.NewFailedExecutionResult("mysql", start, err), nil
 	}
 
+	fileOutput, err := sqlconnector.FileOutputRequested(queryData)
+	if err != nil {
+		return sqlconnector.NewFailedExecutionResult("mysql", start, err), nil
+	}
+	if fileOutput {
+		output, err := sqlconnector.RetainQueryFile(ctx, execLimits, func(ctx context.Context, dst io.Writer) (sqlconnector.StreamResult, error) {
+			return (sqlconnector.StatementExecutor{DB: c.db, IsQueryStatement: isQueryStatement, NormalizeValue: sqlconnector.BytesToStringValue}).QueryTo(ctx, stmt, args, execLimits, dst)
+		})
+		return sqlconnector.NewExecutionResultData("mysql", start, output, err), nil
+	}
 	sqlResult, execErr := executeStatementWithLimits(c, ctx, stmt, args, execLimits)
 
 	return sqlconnector.NewExecutionResult("mysql", start, sqlResult, execErr), nil

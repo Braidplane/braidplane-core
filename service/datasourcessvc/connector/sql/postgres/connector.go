@@ -5,6 +5,7 @@ import (
 	stdsql "database/sql"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net"
 	"net/url"
 	"regexp"
@@ -249,9 +250,33 @@ func (c *Connector) Execute(
 		return sqlconnector.NewFailedExecutionResult("postgres", start, err), nil
 	}
 	authoredStatement, _ = extractAndReplace(authoredStatement, 1)
+	fileOutput, err := sqlconnector.FileOutputRequested(queryData)
+	if err != nil {
+		return sqlconnector.NewFailedExecutionResult("postgres", start, err), nil
+	}
+	if fileOutput {
+		output, err := c.executeStream(ctx, stmt, args, execLimits, authoredStatement)
+		return sqlconnector.NewExecutionResultData("postgres", start, output, err), nil
+	}
 	sqlResult, execErr := executeStatementWithLimits(c, ctx, stmt, args, execLimits, authoredStatement)
 
 	return sqlconnector.NewExecutionResult("postgres", start, sqlResult, execErr), nil
+}
+
+func (c *Connector) executeStream(ctx context.Context, stmt string, args []any, limits types.ExecutionLimits, authored string) (*result.SQLResult, error) {
+	if c.authorize != nil {
+		var cancel context.CancelFunc
+		ctx, cancel = context.WithTimeout(ctx, 10*time.Second)
+		defer cancel()
+		if err := c.authorize(ctx); err != nil {
+			return nil, err
+		}
+	}
+	executor := sqlconnector.StatementExecutor{DB: c.db, IsQueryStatement: func(string) bool { return isQueryStatement(authored) }, NormalizeValue: sqlconnector.NumericBytesToStringValue}
+	return sqlconnector.RetainQueryFile(ctx, limits, func(ctx context.Context, dst io.Writer) (sqlconnector.StreamResult, error) {
+		output, err := executor.QueryTo(ctx, stmt, args, limits, dst)
+		return output, mapPostgresError(err)
+	})
 }
 
 // ExecuteStatement runs a parameterized SQL statement with ordered positional arguments.

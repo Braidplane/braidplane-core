@@ -80,6 +80,7 @@ type fakeRequestRepo struct {
 	dispatchCalls         int
 	request               requestrepo.Request
 	findErr               error
+	findHook              func(context.Context) error
 	created               requestrepo.Request
 	heartbeatCancelled    bool
 	heartbeatCalls        atomic.Int32
@@ -95,6 +96,7 @@ type fakeRequestRepo struct {
 	metrics               requestrepo.Metrics
 	cancelBeforeExecution bool
 	cancelErr             error
+	cancelCalls           atomic.Int32
 	boundUser             slug.Slug
 	boundSource           slug.Slug
 	bindErr               error
@@ -129,7 +131,10 @@ func (r *fakeRequestRepo) Metrics(context.Context, postgres.DBTX) (requestrepo.M
 	return r.metrics, nil
 }
 
-func (r *fakeRequestRepo) Find(context.Context, postgres.DBTX, uuid.UUID, string) (requestrepo.Request, error) {
+func (r *fakeRequestRepo) Find(ctx context.Context, _ postgres.DBTX, _ uuid.UUID, _ string) (requestrepo.Request, error) {
+	if r.findHook != nil {
+		return r.request, r.findHook(ctx)
+	}
 	return r.request, r.findErr
 }
 
@@ -180,6 +185,7 @@ func (r *fakeRequestRepo) Complete(
 }
 
 func (r *fakeRequestRepo) Cancel(context.Context, postgres.DBTX, uuid.UUID) (bool, error) {
+	r.cancelCalls.Add(1)
 	return r.cancelBeforeExecution, r.cancelErr
 }
 
@@ -937,6 +943,19 @@ func TestSubmitCancellationForSideEffectingWorkIsAmbiguous(t *testing.T) {
 	cancel()
 	_, err = b.submitAndWait(ctx, "acme", kindTransform, struct{}{})
 	require.ErrorIs(t, err, context.Canceled)
+}
+
+func TestPollingCancellationStillPersistsCancellation(t *testing.T) {
+	t.Parallel()
+	cipher, err := crypto.NewAES256(make([]byte, 32))
+	require.NoError(t, err)
+	ctx, cancel := context.WithCancel(t.Context())
+	defer cancel()
+	repo := &fakeRequestRepo{findHook: func(ctx context.Context) error { cancel(); return ctx.Err() }}
+	broker := &Broker{admission: testutil.FakeOperationAdmission{}, txm: fakeTXM{}, repo: repo, cipher: cipher, dispatcher: NewPollerDispatcher(), requestTimeout: testRequestTimeout}
+	_, err = broker.submitAndWait(ctx, "acme", kindQuery, queriessvc.ConnectorExecutionRequest{})
+	require.EqualValues(t, 1, repo.cancelCalls.Load(), "cancellation during response polling must reach the executor")
+	require.ErrorIs(t, err, ErrAmbiguousExecution, "started writes retain their uncertain-outcome classification")
 }
 
 func TestQueuedQueryCancellationIsNotAmbiguous(t *testing.T) {

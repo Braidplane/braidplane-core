@@ -1,0 +1,34 @@
+metadata:
+  slug: export-sql-file
+  name: Export finite SQL result
+steps:
+  - kind: query
+    slug: read-records
+    query:
+      data_source_ref: source-postgres
+      operation_type: sql
+      operation_inline:
+        type: postgres
+        sql: SELECT id, payload FROM export_records ORDER BY id
+        format: file
+      output_contract:
+        representation: file
+  - kind: sink
+    slug: write-object
+    sink:
+      input: read-records
+      input_contract:
+        representation: file
+      data_source_ref: archive-s3
+      operation_type: s3
+      operation_inline:
+        type: s3
+        operation: write
+        key: exports/records.json
+        format: file
+        content: "{{input}}"
+      config:
+        key: exports/records.json
+        format: file
+        overwrite: true
+      idempotency_class: unsafe

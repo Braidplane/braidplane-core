@@ -5,6 +5,7 @@ import (
 	"context"
 	"crypto/rand"
 	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -14,6 +15,7 @@ import (
 	"net/http/httputil"
 	"net/url"
 	"strconv"
+	"strings"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -40,6 +42,7 @@ import (
 	"github.com/Braidplane/braidplane-core/pkg/xerror"
 	"github.com/Braidplane/braidplane-core/postgres"
 	credentialsrepo "github.com/Braidplane/braidplane-core/postgres/credentials"
+	requestrepo "github.com/Braidplane/braidplane-core/postgres/executionrequests"
 	"github.com/Braidplane/braidplane-core/postgres/odcscontracts"
 	"github.com/Braidplane/braidplane-core/postgres/pipelineruns"
 	pipelinesrepo "github.com/Braidplane/braidplane-core/postgres/pipelines"
@@ -48,6 +51,7 @@ import (
 	"github.com/Braidplane/braidplane-core/service/datasourcessvc"
 	"github.com/Braidplane/braidplane-core/service/datasourcessvc/connector"
 	s3connector "github.com/Braidplane/braidplane-core/service/datasourcessvc/connector/s3"
+	pgconnector "github.com/Braidplane/braidplane-core/service/datasourcessvc/connector/sql/postgres"
 	"github.com/Braidplane/braidplane-core/service/executionbroker"
 	"github.com/Braidplane/braidplane-core/service/pipelineruntime"
 	"github.com/Braidplane/braidplane-core/service/pipelinesvc"
@@ -89,8 +93,15 @@ func TestNativeFileStreaming(t *testing.T) {
 	require.NoError(t, err)
 	_, err = pool.Exec(ctx, `WITH cred AS (INSERT INTO credentials(organization_id,slug,kind,credential_type,status,encrypted_payload) SELECT id,'fixture-credential','static_secret','s3','active',$2 FROM organizations WHERE slug=$1 RETURNING id,organization_id) INSERT INTO data_sources(organization_id,credential_id,name,slug,type,config,is_active,read_only) SELECT organization_id,id,'Native files','objects','s3',$3,true,false FROM cred`, org, encrypted, config)
 	require.NoError(t, err)
+	pgConfig := pool.Config().ConnConfig
+	// #nosec G117 -- fixture connection config leaves credentials empty; credentials use the encrypted test record below.
+	sqlConfig, err := json.Marshal(pgconnector.Config{Host: pgConfig.Host, Port: int(pgConfig.Port), Database: pgConfig.Database, SSLMode: "disable", AllowPrivateHosts: true})
+	require.NoError(t, err)
 	sources := &fakes.DataSourceService{FindBySlugFn: func(_ context.Context, o, ds slug.Slug) (*datasourcessvc.DataSource, error) {
 		require.Equal(t, org, o)
+		if ds == "sql-source" {
+			return &datasourcessvc.DataSource{Slug: ds, Type: model.DataSourceTypePostgres, Config: sqlConfig, IsActive: true, ReadOnly: true}, nil
+		}
 		require.Equal(t, slug.Slug("objects"), ds)
 		return &datasourcessvc.DataSource{Slug: ds, Type: model.DataSourceTypeS3, Config: config, IsActive: true}, nil
 	}}
@@ -175,6 +186,165 @@ func TestNativeFileStreaming(t *testing.T) {
 		require.Contains(t, xerror.PublicDetail(err), "Retained file bytes are unavailable")
 		require.NoError(t, pool.QueryRow(ctx, countRequests, org).Scan(&after))
 		require.Equal(t, before, after, "recovery must not reread the source or redispatch the sink")
+	})
+
+	t.Run("SQL snapshot crosses retained broker and S3 sink", func(t *testing.T) {
+		// #nosec G117 -- synthetic package-owned database credentials are sealed before persistence.
+		credentialData, err := json.Marshal(pgconnector.Credentials{Username: pgConfig.User, Password: pgConfig.Password})
+		require.NoError(t, err)
+		encryptedSQL, err := credentialCipher.Seal(crypto.CredentialScope{Tenant: org.String(), Resource: "sql-credential", Purpose: "static-secret", SchemaVersion: 1}, credentialData)
+		require.NoError(t, err)
+		_, err = pool.Exec(ctx, `WITH cred AS (INSERT INTO credentials(organization_id,slug,kind,credential_type,status,encrypted_payload) SELECT id,'sql-credential','static_secret','postgres','active',$2 FROM organizations WHERE slug=$1 RETURNING id,organization_id) INSERT INTO data_sources(organization_id,credential_id,name,slug,type,config,is_active,read_only) SELECT organization_id,id,'SQL export','sql-source','postgres',$3,true,true FROM cred`, org, encryptedSQL, sqlConfig)
+		require.NoError(t, err)
+		const rowCount = 100
+		sqlLimits := limits
+		sqlLimits.MaxResultRows = rowCount
+		sqlLimits.MaxFileBytes = 1 << 20
+		sqlQueries, err := queriessvc.NewWithExecutionLimits(txm, queriesrepo.New(), sources, broker, credentials, clock.New(), sqlLimits, eventtest.NewProducer(nil))
+		require.NoError(t, err)
+		sqlRunner, err := pipelineruntime.NewRunner(fileTransferQueryAdapter{sqlQueries}, clock.New(), runs, sources, pipelineruntime.NewSinkRuntime(sqlQueries, testSinkEffectLedger(t, txm)))
+		require.NoError(t, err)
+		key := prefix + "sql-result.json"
+		t.Cleanup(func() {
+			cleanupCtx, cleanupCancel := context.WithTimeout(context.WithoutCancel(ctx), 15*time.Second)
+			defer cleanupCancel()
+			_, err := independent.DeleteObject(cleanupCtx, &awss3.DeleteObjectInput{Bucket: aws.String("braidplane-fixtures"), Key: aws.String(key)})
+			require.NoError(t, err)
+		})
+		sqlPipeline := &pipelinespec.Pipeline{Metadata: pipelinespec.Metadata{Slug: "sql-transfer", Name: "SQL transfer"}, Steps: []pipelinespec.Step{
+			{Kind: "query", Slug: "read", Query: &pipelinespec.QueryRef{DataSourceSlug: "sql-source", OperationType: "sql", OperationInline: map[string]any{"type": "postgres", "sql": fmt.Sprintf("SELECT i::integer AS order_id, i %% 100000 AS amount_cents, repeat('x',32) AS payload FROM generate_series(1,%d) i ORDER BY i", rowCount), "format": "file"}, OutputContract: fileContract}},
+			{Kind: "sink", Slug: "write", Sink: &pipelinespec.SinkSpec{Input: &pipelinespec.StepInput{FromStep: "read"}, InputContract: fileContract, DataSourceSlug: "objects", OperationType: "s3", OperationInline: map[string]any{"type": "s3", "operation": "write", "key": key, "format": "file", "content": "{{input}}", "overwrite": true}, Config: map[string]any{"key": key, "format": "file", "overwrite": true}, IdempotencyClass: pipelinespec.SinkIdempotencyClassUnsafe}},
+		}}
+		materializePipelines(t, ctx, store, org, project, pipeline, sqlPipeline)
+		sqlSpec, err := store.FindSpec(ctx, org, project, sqlPipeline.Metadata.Slug)
+		require.NoError(t, err)
+		require.NotNil(t, sqlSpec.CurrentVersionID)
+		sqlRun, err := sqlRunner.Run(ctx, pipelineruntime.RunRequest{OrgSlug: org, ProjectSlug: project, EnvironmentSlug: environment, RunSlug: "sql-transfer", Pipeline: sqlPipeline, PipelineVersionID: *sqlSpec.CurrentVersionID})
+		require.NoError(t, err)
+		require.Equal(t, "succeeded", sqlRun.Timeline.Status)
+		object, err := independent.GetObject(ctx, &awss3.GetObjectInput{Bucket: aws.String("braidplane-fixtures"), Key: aws.String(key)})
+		require.NoError(t, err)
+		defer func() { require.NoError(t, object.Body.Close()) }()
+		verifiedBytes, verifiedDigest := checkSQLFile(t, object.Body, rowCount)
+		require.Equal(t, verifiedBytes, *object.ContentLength)
+		var retainedBytes int64
+		var retainedDigest string
+		var chunks int
+		require.NoError(t, pool.QueryRow(ctx, `SELECT f.size_bytes,f.sha256,f.chunk_count FROM retained_file_streams f JOIN execution_requests r ON r.id=f.request_id JOIN data_sources d ON d.id=r.data_source_id WHERE f.organization_id=(SELECT id FROM organizations WHERE slug=$1) AND d.slug='sql-source' AND f.sealed`, org).Scan(&retainedBytes, &retainedDigest, &chunks))
+		require.Equal(t, verifiedBytes, retainedBytes)
+		require.Equal(t, verifiedDigest, retainedDigest)
+		_, err = sqlQueries.ExecuteInline(ctx, org, "sql-source", map[string]any{"type": "postgres", "format": "file", "sql": "SELECT 1 AS duplicate, 2 AS duplicate"}, nil)
+		require.Error(t, err)
+		require.Contains(t, xerror.PublicDetail(err), "unique column names", "unsupported query shapes must retain a safe actionable diagnostic through the broker")
+
+		t.Run("SQL checkpoint recovery refuses reread and redispatch", func(t *testing.T) {
+			var before, after int
+			const countRequests = `SELECT count(*) FROM execution_requests WHERE organization_id=(SELECT id FROM organizations WHERE slug=$1)`
+			require.NoError(t, pool.QueryRow(ctx, countRequests, org).Scan(&before))
+			_, err := sqlRunner.Replay(ctx, pipelineruntime.ReplayRequest{OrgSlug: org, ProjectSlug: project, EnvironmentSlug: environment, SourceRunSlug: "sql-transfer", ReplayRunSlug: "sql-refused", FromStep: "read", PipelineVersionID: *sqlSpec.CurrentVersionID})
+			require.ErrorIs(t, err, pipelineruntime.ErrReplayUnsupportedMode)
+			require.NoError(t, pool.QueryRow(ctx, countRequests, org).Scan(&after))
+			require.Equal(t, before, after)
+		})
+		t.Run("SQL cancellation releases connector admission", func(t *testing.T) {
+			serialLimits := sqlLimits
+			serialLimits.ConnectorConcurrencyPerDataSource = 1
+			serialLimits.MaxResultRows = 5000
+			serialLimits.MaxFileBytes = 8 << 20 // Allow a persisted chunk before the source pauses.
+			serialQueries, err := queriessvc.NewWithExecutionLimits(txm, queriesrepo.New(), sources, broker, credentials, clock.New(), serialLimits, eventtest.NewProducer(nil))
+			require.NoError(t, err)
+			cancelCtx, cancelSource := context.WithCancel(ctx)
+			defer cancelSource()
+			cancelled := make(chan error, 1)
+			go func() {
+				_, err := serialQueries.ExecuteInline(cancelCtx, org, "sql-source", map[string]any{"type": "postgres", "format": "file", "sql": "SELECT i AS id, repeat('x',1024) AS payload, CASE WHEN i=2000 THEN pg_sleep(30) END AS paused FROM generate_series(1,4000) i"}, nil)
+				cancelled <- err
+			}()
+			require.Eventually(t, func() bool {
+				var chunks int
+				err := pool.QueryRow(ctx, `SELECT count(*) FROM retained_file_chunks c JOIN retained_file_streams f ON f.request_id=c.request_id WHERE f.organization_id=(SELECT id FROM organizations WHERE slug=$1) AND NOT f.sealed`, org).Scan(&chunks)
+				return err == nil && chunks > 0
+			}, 10*time.Second, 20*time.Millisecond)
+			cancelSource()
+			select {
+			case err := <-cancelled:
+				require.Error(t, err)
+			case <-time.After(10 * time.Second):
+				t.Fatal("SQL source did not acknowledge cancellation")
+			}
+			require.Eventually(t, func() bool {
+				var active int
+				err := pool.QueryRow(ctx, `SELECT count(*) FROM execution_requests r JOIN data_sources d ON d.id=r.data_source_id WHERE r.organization_id=(SELECT id FROM organizations WHERE slug=$1) AND d.slug='sql-source' AND r.state IN ('pending','running')`, org).Scan(&active)
+				return err == nil && active == 0
+			}, 10*time.Second, 20*time.Millisecond)
+			res, err := serialQueries.ExecuteInline(ctx, org, "sql-source", map[string]any{"type": "postgres", "format": "file", "sql": "SELECT 1 AS id"}, nil)
+			require.NoError(t, err)
+			require.NoError(t, res.Error())
+			// Cancellation invalidates the live claim, so partial input remains
+			// unreadable until maintenance expires it rather than weakening claim checks.
+			var stagedChunks int
+			require.NoError(t, pool.QueryRow(ctx, `SELECT count(*) FROM retained_file_chunks c JOIN retained_file_streams f ON f.request_id=c.request_id WHERE f.organization_id=(SELECT id FROM organizations WHERE slug=$1) AND NOT f.sealed`, org).Scan(&stagedChunks))
+			require.Positive(t, stagedChunks)
+			_, err = pool.Exec(ctx, `UPDATE retained_file_streams SET expires_at=clock_timestamp()-interval '1 second' WHERE organization_id=(SELECT id FROM organizations WHERE slug=$1) AND NOT sealed`, org)
+			require.NoError(t, err)
+			_, err = requestrepo.New().DeleteExpired(ctx, pool)
+			require.NoError(t, err)
+			var incomplete int
+			require.NoError(t, pool.QueryRow(ctx, `SELECT count(*) FROM retained_file_streams WHERE organization_id=(SELECT id FROM organizations WHERE slug=$1) AND NOT sealed`, org).Scan(&incomplete))
+			require.Zero(t, incomplete)
+		})
+
+		var smallObjectBytes int64
+		for _, limitKind := range []string{"rows", "bytes"} {
+			for offset := -1; offset <= 1; offset++ {
+				name := fmt.Sprintf("sql-%s-%d", limitKind, offset+1)
+				t.Run(name, func(t *testing.T) {
+					caseLimits := sqlLimits
+					caseLimits.MaxResultRows = 3
+					if limitKind == "rows" {
+						caseLimits.MaxResultRows += offset
+					} else {
+						caseLimits.MaxFileBytes = smallObjectBytes + int64(offset)
+					}
+					caseQueries, err := queriessvc.NewWithExecutionLimits(txm, queriesrepo.New(), sources, broker, credentials, clock.New(), caseLimits, eventtest.NewProducer(nil))
+					require.NoError(t, err)
+					caseRunner, err := pipelineruntime.NewRunner(fileTransferQueryAdapter{caseQueries}, clock.New(), runs, sources, pipelineruntime.NewSinkRuntime(caseQueries, testSinkEffectLedger(t, txm)))
+					require.NoError(t, err)
+					casePipeline := *sqlPipeline
+					casePipeline.Metadata.Slug = slug.Slug(name)
+					casePipeline.Steps = append([]pipelinespec.Step(nil), sqlPipeline.Steps...)
+					query := *sqlPipeline.Steps[0].Query
+					query.OperationInline = map[string]any{"type": "postgres", "format": "file", "sql": "SELECT i::integer AS order_id, i % 100000 AS amount_cents, repeat('x',32) AS payload FROM generate_series(1,3) i ORDER BY i"}
+					casePipeline.Steps[0].Query = &query
+					materializePipelines(t, ctx, store, org, project, pipeline, sqlPipeline, &casePipeline)
+					caseSpec, err := store.FindSpec(ctx, org, project, casePipeline.Metadata.Slug)
+					require.NoError(t, err)
+					prior, err := independent.HeadObject(ctx, &awss3.HeadObjectInput{Bucket: aws.String("braidplane-fixtures"), Key: aws.String(key)})
+					require.NoError(t, err)
+					_, runErr := caseRunner.Run(ctx, pipelineruntime.RunRequest{OrgSlug: org, ProjectSlug: project, EnvironmentSlug: environment, RunSlug: name, Pipeline: &casePipeline, PipelineVersionID: *caseSpec.CurrentVersionID})
+					if offset < 0 {
+						if limitKind == "rows" {
+							require.ErrorIs(t, runErr, xerror.ExecutionRowLimitExceeded())
+						} else {
+							require.ErrorIs(t, runErr, xerror.ExecutionResponseSizeExceeded())
+						}
+						after, err := independent.HeadObject(ctx, &awss3.HeadObjectInput{Bucket: aws.String("braidplane-fixtures"), Key: aws.String(key)})
+						require.NoError(t, err)
+						require.Equal(t, prior.ETag, after.ETag)
+						require.Equal(t, prior.ContentLength, after.ContentLength)
+						var incomplete int
+						require.NoError(t, pool.QueryRow(ctx, `SELECT count(*) FROM retained_file_streams WHERE organization_id=(SELECT id FROM organizations WHERE slug=$1) AND NOT sealed`, org).Scan(&incomplete))
+						require.Zero(t, incomplete)
+						return
+					}
+					require.NoError(t, runErr)
+					got, err := independent.GetObject(ctx, &awss3.GetObjectInput{Bucket: aws.String("braidplane-fixtures"), Key: aws.String(key)})
+					require.NoError(t, err)
+					smallObjectBytes, _ = checkSQLFile(t, got.Body, 3)
+					require.NoError(t, got.Body.Close())
+				})
+			}
+		}
 	})
 
 	t.Run("effective byte limits preserve prior good output", func(t *testing.T) {
@@ -300,7 +470,7 @@ func TestNativeFileStreaming(t *testing.T) {
 		_, err = pool.Exec(ctx, `UPDATE data_sources SET config=$2 WHERE organization_id=(SELECT id FROM organizations WHERE slug=$1) AND slug='objects'`, org, config)
 		require.NoError(t, err)
 		// At the standard sample sizes, the cut follows two persisted chunks.
-		// Keep fault payloads small independently of the capacity sample.
+		// Keep the multipart failure fixture bounded.
 		_, err = independent.PutObject(ctx, &awss3.PutObjectInput{Bucket: aws.String("braidplane-fixtures"), Key: aws.String(sourceKey), Body: io.NewSectionReader(seed, 0, faultSize), ContentLength: aws.Int64(faultSize)})
 		require.NoError(t, err)
 		priorGood := []byte("prior-good-after-interruption")
@@ -515,4 +685,30 @@ type fileTransferQueryAdapter struct{ queriessvc.Service }
 
 func (a fileTransferQueryAdapter) Execute(ctx context.Context, org, ds, query slug.Slug, params map[string]any) (*result.ExecutionResult, error) {
 	return a.Service.Execute(ctx, org, ds, query, model.SystemEventActor(), params, queriessvc.WithoutExecutionRecording())
+}
+
+func checkSQLFile(t *testing.T, body io.Reader, rows int) (int64, string) {
+	t.Helper()
+	raw, err := io.ReadAll(io.LimitReader(body, 1<<20))
+	require.NoError(t, err)
+	var output struct {
+		ColumnNames []string `json:"column_names"`
+		Rows        []struct {
+			OrderID int64  `json:"order_id"`
+			Amount  int64  `json:"amount_cents"`
+			Payload string `json:"payload"`
+		} `json:"rows"`
+		RowCount int `json:"row_count"`
+	}
+	require.NoError(t, json.Unmarshal(raw, &output))
+	require.Equal(t, []string{"order_id", "amount_cents", "payload"}, output.ColumnNames)
+	require.Equal(t, rows, output.RowCount)
+	require.Len(t, output.Rows, rows)
+	for i, row := range output.Rows {
+		require.EqualValues(t, i+1, row.OrderID)
+		require.EqualValues(t, (i+1)%100000, row.Amount)
+		require.Equal(t, strings.Repeat("x", 32), row.Payload)
+	}
+	digest := sha256.Sum256(raw)
+	return int64(len(raw)), hex.EncodeToString(digest[:])
 }

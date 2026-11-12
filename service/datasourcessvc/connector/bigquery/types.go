@@ -72,6 +72,7 @@ type providerClient interface {
 	ListTables(context.Context, ListTablesRequest) ([]Table, error)
 	GetTable(context.Context, GetTableRequest) (*TableMetadata, error)
 	Query(context.Context, QueryRequest) (*QueryResult, error)
+	QueryPages(context.Context, QueryRequest, func(*QueryResult) error) error
 	InsertRows(context.Context, InsertRowsRequest) (*InsertRowsResult, error)
 	Close() error
 }

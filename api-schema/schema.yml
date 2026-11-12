@@ -14911,6 +14911,11 @@ components:
         - type
         - files
 
+    SQLResultFormat:
+      type: string
+      enum: [rows, file]
+      description: Rows by default. File serializes one finite query result as a retained JSON object with column_names, rows and row_count; positive row and transfer limits are required.
+
     # Query Statement Schemas (Polymorphic)
     PostgresStatement:
       type: object
@@ -14927,6 +14932,8 @@ components:
           minLength: 1
           description: PostgreSQL SQL statement with {{paramName}} placeholders
           example: "SELECT * FROM users WHERE id = {{user_id}} LIMIT {{limit}}"
+        format:
+          $ref: '#/components/schemas/SQLResultFormat'
       required:
         - type
         - sql
@@ -14935,6 +14942,8 @@ components:
       type: object
       description: MySQL query statement with {{paramName}} placeholders
       properties:
+        format:
+          $ref: '#/components/schemas/SQLResultFormat'
         type:
           type: string
           enum: [mysql]
@@ -14953,6 +14962,8 @@ components:
       description: Braidplane BigQuery operation statement. Query operations use GoogleSQL with {{paramName}} placeholders that are converted to BigQuery named parameters. The insert_rows operation is BigQuery-specific and consumes Braidplane row payloads before sending BigQuery insertAll rows.
       additionalProperties: false
       properties:
+        format:
+          $ref: '#/components/schemas/SQLResultFormat'
         type:
           type: string
           enum: [bigquery]
@@ -15038,6 +15049,8 @@ components:
       description: Snowflake SQL statement with parameterized {{paramName}} placeholders
       additionalProperties: false
       properties:
+        format:
+          $ref: '#/components/schemas/SQLResultFormat'
         type:
           type: string
           enum: [snowflake]
@@ -22810,9 +22823,11 @@ components:
           type: object
           description: SQL-specific result data
           properties:
+            file:
+              $ref: '#/components/schemas/FilePayloadMetadata'
             rows:
               type: array
-              description: Result rows (each row is a key-value map)
+              description: Result rows (each row is a key-value map). Empty for file output; records are serialized in the retained file instead.
               items:
                 type: object
                 additionalProperties: true
@@ -22825,7 +22840,7 @@ components:
                   last_login_at: "2026-02-18T14:25:00Z"
             row_count:
               type: integer
-              description: Number of rows returned
+              description: Number of rows returned or serialized in the retained file
               example: 2
             column_names:
               type: array

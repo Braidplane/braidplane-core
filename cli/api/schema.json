@@ -1608,6 +1608,9 @@
             "minLength": 1,
             "type": "string"
           },
+          "format": {
+            "$ref": "#/components/schemas/SQLResultFormat"
+          },
           "insert_id_prefix": {
             "description": "",
             "type": "string"
@@ -6547,6 +6550,9 @@
       "MySQLStatement": {
         "description": "",
         "properties": {
+          "format": {
+            "$ref": "#/components/schemas/SQLResultFormat"
+          },
           "sql": {
             "description": "",
             "minLength": 1,
@@ -15318,6 +15324,9 @@
       "PostgresStatement": {
         "description": "",
         "properties": {
+          "format": {
+            "$ref": "#/components/schemas/SQLResultFormat"
+          },
           "sql": {
             "description": "",
             "minLength": 1,
@@ -17324,6 +17333,9 @@
                 },
                 "type": "array"
               },
+              "file": {
+                "$ref": "#/components/schemas/FilePayloadMetadata"
+              },
               "row_count": {
                 "description": "",
                 "type": "integer"
@@ -17374,6 +17386,14 @@
           "success"
         ],
         "type": "object"
+      },
+      "SQLResultFormat": {
+        "description": "",
+        "enum": [
+          "rows",
+          "file"
+        ],
+        "type": "string"
       },
       "SQLSchemaResponse": {
         "description": "",
@@ -17756,6 +17776,9 @@
         "additionalProperties": false,
         "description": "",
         "properties": {
+          "format": {
+            "$ref": "#/components/schemas/SQLResultFormat"
+          },
           "sql": {
             "description": "",
             "minLength": 1,
