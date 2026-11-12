@@ -88,7 +88,7 @@ class HostedRunnerPreparation(unittest.TestCase):
     def test_cleanup_is_hosted_only_and_limited_to_unused_sdks(self):
         action = (ROOT / '.github/actions/prepare-hosted-runner/action.yml').read_text()
         self.assertIn("if: runner.environment == 'github-hosted'", action)
-        block = action.split('      run: |\n', 1)[1]
+        block = action.split('      run: |\n', 1)[1].split('    - name:', 1)[0]
         script = '\n'.join(line[8:] for line in block.splitlines())
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
@@ -97,12 +97,17 @@ class HostedRunnerPreparation(unittest.TestCase):
                 executable = root / name
                 executable.write_text("#!/bin/bash\nprintf '%s\\n' \"$*\" >> \"$CALLS\"\n")
                 executable.chmod(0o755)
-            result = subprocess.run(['bash', '-euo', 'pipefail', '-c', script],
-                                    env=os.environ | {'PATH': f'{root}:{os.environ["PATH"]}', 'CALLS': str(calls)},
-                                    capture_output=True, text=True)
-            self.assertEqual(result.returncode, 0, result.stderr)
-            self.assertEqual(calls.read_text().splitlines(), [
-                '-h /', 'rm -rf /usr/local/lib/android /usr/share/dotnet /opt/ghc', '-h /'])
+            for reclaim in ('true', 'false'):
+                with self.subTest(reclaim=reclaim):
+                    calls.unlink(missing_ok=True)
+                    result = subprocess.run(['bash', '-euo', 'pipefail', '-c', script],
+                                            env=os.environ | {'PATH': f'{root}:{os.environ["PATH"]}', 'CALLS': str(calls), 'RECLAIM_SDK_SPACE': reclaim},
+                                            capture_output=True, text=True)
+                    self.assertEqual(result.returncode, 0, result.stderr)
+                    expected = ['-h /']
+                    if reclaim == 'true':
+                        expected.append('rm -rf /usr/local/lib/android /usr/share/dotnet /opt/ghc')
+                    self.assertEqual(calls.read_text().splitlines(), expected + ['-h /'])
 
 
 if __name__ == '__main__':
