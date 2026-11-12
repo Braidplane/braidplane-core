@@ -1496,3 +1496,22 @@ func TestCloneSinkInputRowsPreservesUnsupportedIntegerRanges(t *testing.T) {
 	require.Equal(t, json.Number("18446744073709551616"), rows[0]["overflow"])
 	require.Equal(t, json.Number("9007199254740993e0"), rows[0]["exponent"])
 }
+
+func TestBuildSinkPayloadBindingUsesRetainedFileReference(t *testing.T) {
+	t.Parallel()
+	metadata := filepayload.NewFilePayloadMetadata("fixture.bin", "application/octet-stream", []byte("fixture"))
+	ref := filepayload.Reference{ID: "ea946443-7b39-4f64-8faf-eb3fac36c17f", SizeBytes: metadata.SizeBytes, SHA256: metadata.Digest}
+	output := &result.FileResult{Format: "file", File: &metadata, Reference: &ref}
+	source := pipelinerun.NewStepResult(result.NewS3Result(output, 0, nil))
+	binding, err := buildSinkPayloadBinding(&SinkRuntimeInput{SourceResult: source})
+	require.NoError(t, err)
+	require.Equal(t, ref, binding.value)
+	require.Equal(t, &metadata, binding.file)
+	encoded, err := sinkEncodedPayloadBinding(&SinkRuntimeInput{SourceResult: source})
+	require.NoError(t, err)
+	require.Equal(t, ref, encoded.value)
+	ref.SizeBytes++
+	invalid := pipelinerun.NewStepResult(result.NewS3Result(output, 0, nil))
+	_, err = buildSinkPayloadBinding(&SinkRuntimeInput{SourceResult: invalid})
+	require.ErrorIs(t, err, errSinkNotConfigured)
+}

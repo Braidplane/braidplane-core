@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/Braidplane/braidplane-core/pkg/connector/result"
+	filepayload "github.com/Braidplane/braidplane-core/pkg/payload/file"
 	"github.com/Braidplane/braidplane-core/pkg/xerror"
 	"github.com/Braidplane/braidplane-core/service/datasourcessvc/connector/filedata"
 	"github.com/Braidplane/braidplane-core/service/datasourcessvc/connector/types"
@@ -75,7 +76,7 @@ func (adapter Adapter) ExecuteOperation(
 	case OperationRead:
 		return adapter.ExecuteRead(ctx, provider, target, stmt, limits)
 	case OperationWrite:
-		return adapter.ExecuteWrite(ctx, provider, target, stmt)
+		return adapter.ExecuteWrite(ctx, provider, target, stmt, limits)
 	default:
 		return nil, adapter.queryErrorf("unsupported %s operation %q", adapter.connectorName(), stmt.Operation)
 	}
@@ -89,6 +90,9 @@ func (adapter Adapter) ExecuteRead(
 	stmt Statement,
 	limits types.ExecutionLimits,
 ) (*result.FileResult, error) {
+	if limits.MaxFileBytes > 0 && stmt.Format == filedata.QueryFormatFile {
+		return adapter.executeStreamRead(ctx, provider, target, limits.MaxFileBytes)
+	}
 	readLimit := adapter.responseByteLimit(limits, adapter.LimitPolicy.UseHTTPFallbackForRead)
 	content, err := provider.ReadFile(ctx, target, readLimit)
 	if err != nil {
@@ -155,7 +159,12 @@ func (adapter Adapter) ExecuteWrite(
 	provider Provider,
 	target string,
 	stmt Statement,
+	limits ...types.ExecutionLimits,
 ) (*result.FileResult, error) {
+	if ref, ok := stmt.Content.(filepayload.Reference); ok {
+		return adapter.executeStreamWrite(ctx, provider, target, stmt, ref, types.ResolveExecutionLimits(limits...).MaxFileBytes)
+	}
+
 	if stmt.Content == nil && !stmt.ContentSet {
 		return nil, adapter.queryErrorf("%s write operation requires content", adapter.connectorName())
 	}
@@ -165,6 +174,10 @@ func (adapter Adapter) ExecuteWrite(
 		return nil, err
 	}
 
+	effective := types.ResolveExecutionLimits(limits...)
+	if format == filedata.QueryFormatFile && effective.MaxFileBytes > 0 && int64(len(serialized)) > effective.MaxFileBytes {
+		return nil, xerror.ExecutionResponseSizeExceeded()
+	}
 	overwrite := true
 	if stmt.Overwrite != nil {
 		overwrite = *stmt.Overwrite

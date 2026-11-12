@@ -2,8 +2,6 @@ package repostore
 
 import (
 	"context"
-	"os"
-	"os/exec"
 	"strings"
 )
 
@@ -34,15 +32,12 @@ func runGitOutput(ctx context.Context, repoPath string, args ...string) *string 
 	commandArgs := []string{"-C", repoPath}
 	commandArgs = append(commandArgs, args...)
 
-	cmd := exec.CommandContext(ctx, "git", commandArgs...)
-	cmd.Env = sanitizedGitEnv(os.Environ(), nil)
-
-	output, err := cmd.Output()
+	output, _, err := runGitCommandOutput(ctx, "", nil, commandArgs...)
 	if err != nil {
 		return nil
 	}
 
-	value := strings.TrimSpace(string(output))
+	value := strings.TrimSpace(output)
 	if value == "" {
 		return nil
 	}

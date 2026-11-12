@@ -400,6 +400,9 @@ Provider client code and Braidplane adapter code have different owners:
 | Query execution | Provider-native read/write calls, paging tokens, protocol request bodies, and provider response envelopes. | Statement decoding, `{{param_name}}` substitution, typed parameter normalization, read-only and source/sink role enforcement, runtime guardrails, and normalization into Braidplane execution results or pipeline payloads. |
 | Metadata | Provider constants that are part of the remote contract, such as supported object names or API versions. | Connector capability metadata, UI field metadata, OpenAPI schema contracts, docs capability matrices, operation type registration, and pipeline source/sink compatibility. |
 
+Native-file adapters share [encrypted retained storage](NATIVE_FILE_STREAMING.md)
+and use the existing execution limits. Git streaming requires a Linux executor.
+
 Remote file connectors use a shared Braidplane adapter for file-shaped
 behavior. FTP, Git, S3, and future SFTP-style connectors keep protocol
 mechanics in their provider boundary: authentication, connection setup,

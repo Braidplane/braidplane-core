@@ -911,6 +911,7 @@ func Run(cfg *backendconfig.Config, mode Mode, createDistribution DistributionFa
 		credentialsService,
 		clock.New(),
 		queriessvc.ExecutionLimits{
+			MaxFileBytes:                      cfg.ExecutionLimits.MaxFileBytes,
 			QueryTimeout:                      cfg.ExecutionLimits.QueryTimeout.TimeDuration(),
 			ConnectorTimeout:                  cfg.ExecutionLimits.ConnectorTimeout.TimeDuration(),
 			MaxResultRows:                     cfg.ExecutionLimits.MaxResultRows,

@@ -13,6 +13,7 @@ type ExecutionLimits struct {
 	ReadOnly             bool
 	ConnectorTimeout     time.Duration
 	MaxResultRows        int
+	MaxFileBytes         int64
 	MaxResponseBytes     int64
 	HTTPTimeout          time.Duration
 	HTTPMaxRedirects     int

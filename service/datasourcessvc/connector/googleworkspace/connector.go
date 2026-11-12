@@ -76,7 +76,7 @@ func (c *Connector) Execute(ctx context.Context, raw json.RawMessage, params map
 		}
 	}
 	if statement.IsNative() {
-		return c.executeNative(ctx, statement, params, pl, start)
+		return c.executeNative(ctx, statement, params, pl, start, lim.MaxFileBytes)
 	}
 	if statement.Resource == "file" {
 		return c.executeFile(ctx, statement, params, lim, pl, start)
@@ -158,6 +158,9 @@ func (c *Connector) Execute(ctx context.Context, raw json.RawMessage, params map
 
 func providerLimits(l types.ExecutionLimits) provider.Limits {
 	timeout := 30 * time.Second
+	if l.MaxFileBytes > 0 && l.ConnectorTimeout > 0 {
+		timeout = l.ConnectorTimeout
+	}
 	for _, value := range []time.Duration{l.ConnectorTimeout, l.HTTPTimeout} {
 		if value > 0 && value < timeout {
 			timeout = value
@@ -418,7 +421,7 @@ func (c *Connector) executeFile(ctx context.Context, s workspace.Statement, para
 				}
 			}
 		}
-		output, err = driveFileAdapter.ExecuteWrite(ctx, fileProvider, filename, remote)
+		output, err = driveFileAdapter.ExecuteWrite(ctx, fileProvider, filename, remote, limits)
 		if fileProvider.written != nil {
 			metadata = fileProvider.written
 		}

@@ -222,7 +222,11 @@ ORDER BY id FOR UPDATE;
 -- name: ExpireExecutionRequests :one
 -- Payload expiry must not erase an unresolved processing obligation. A lease
 -- can mark started work cancelled without acknowledgement from its executor.
-WITH scrubbed AS (
+WITH expired_files AS (
+    DELETE FROM retained_file_streams
+    WHERE expires_at <= clock_timestamp()
+    RETURNING request_id
+), scrubbed AS (
     UPDATE execution_requests
     SET request_ciphertext = ''::bytea, result_ciphertext = NULL,
         cancel_requested_at = COALESCE(cancel_requested_at, clock_timestamp()),
@@ -13408,3 +13412,33 @@ WITH static_rekey AS (
 SELECT (SELECT count(*) FROM static_rekey) + (SELECT count(*) FROM grant_rekey)
     + (SELECT count(*) FROM install_rekey) + (SELECT count(*) FROM app_rekey)
     + (SELECT count(*) FROM hook_rekey) + (SELECT count(*) FROM envelope_rekey) AS changed;
+
+-- name: BeginRetainedFile :one
+SELECT begin_retained_file(sqlc.arg('request_id')::uuid, sqlc.arg('claim_token')::uuid, sqlc.arg('org_slug')::text, sqlc.arg('max_bytes')::bigint, sqlc.arg('expires_at')::timestamptz)::boolean;
+
+-- name: AppendRetainedFileChunk :one
+SELECT append_retained_file_chunk(sqlc.arg('request_id')::uuid, sqlc.arg('claim_token')::uuid, sqlc.arg('org_slug')::text, sqlc.arg('sequence')::integer, sqlc.arg('plain_bytes')::integer, sqlc.arg('ciphertext')::bytea)::boolean;
+
+-- name: SealRetainedFile :one
+SELECT seal_retained_file(sqlc.arg('request_id')::uuid, sqlc.arg('claim_token')::uuid, sqlc.arg('org_slug')::text, sqlc.arg('size_bytes')::bigint, sqlc.arg('sha256')::text)::boolean;
+
+-- name: ReadRetainedFile :one
+SELECT size_bytes::bigint, chunk_count::integer, sha256::text, expires_at::timestamptz
+FROM read_retained_file(sqlc.arg('request_id')::uuid, sqlc.arg('claim_token')::uuid, sqlc.arg('org_slug')::text, sqlc.arg('source_request_id')::uuid);
+
+-- name: ReadRetainedFileChunk :one
+SELECT read_retained_file_chunk(sqlc.arg('request_id')::uuid, sqlc.arg('claim_token')::uuid, sqlc.arg('org_slug')::text, sqlc.arg('source_request_id')::uuid, sqlc.arg('sequence')::integer)::bytea;
+
+-- name: DiscardRetainedFile :one
+SELECT discard_retained_file(sqlc.arg('request_id')::uuid, sqlc.arg('claim_token')::uuid, sqlc.arg('org_slug')::text)::boolean;
+
+-- name: RetainedFileCapabilitiesReady :one
+SELECT COALESCE(
+    to_regclass('public.retained_file_streams') IS NOT NULL
+    AND to_regclass('public.retained_file_chunks') IS NOT NULL
+    AND has_function_privilege(current_user, to_regprocedure('public.begin_retained_file(uuid,uuid,text,bigint,timestamptz)'), 'EXECUTE')
+    AND has_function_privilege(current_user, to_regprocedure('public.append_retained_file_chunk(uuid,uuid,text,integer,integer,bytea)'), 'EXECUTE')
+    AND has_function_privilege(current_user, to_regprocedure('public.seal_retained_file(uuid,uuid,text,bigint,text)'), 'EXECUTE')
+    AND has_function_privilege(current_user, to_regprocedure('public.read_retained_file(uuid,uuid,text,uuid)'), 'EXECUTE')
+    AND has_function_privilege(current_user, to_regprocedure('public.read_retained_file_chunk(uuid,uuid,text,uuid,integer)'), 'EXECUTE')
+    AND has_function_privilege(current_user, to_regprocedure('public.discard_retained_file(uuid,uuid,text)'), 'EXECUTE'), FALSE)::boolean AS ready;

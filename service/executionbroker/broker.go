@@ -8,6 +8,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/Braidplane/braidplane-core/pkg/connector/filestream"
 	"github.com/Braidplane/braidplane-core/pkg/connector/result"
 	"github.com/Braidplane/braidplane-core/pkg/connector/writegate"
 	"github.com/Braidplane/braidplane-core/pkg/crypto"
@@ -18,6 +19,7 @@ import (
 	"github.com/Braidplane/braidplane-core/pkg/jsonvalue"
 	"github.com/Braidplane/braidplane-core/pkg/logging"
 	"github.com/Braidplane/braidplane-core/pkg/metrics"
+	filepayload "github.com/Braidplane/braidplane-core/pkg/payload/file"
 	pipepayload "github.com/Braidplane/braidplane-core/pkg/pipeline/payload"
 	runtimevars "github.com/Braidplane/braidplane-core/pkg/pipeline/runtime"
 	transformsql "github.com/Braidplane/braidplane-core/pkg/pipeline/transform/sql"
@@ -29,9 +31,11 @@ import (
 	"github.com/Braidplane/braidplane-core/pkg/xerror"
 	"github.com/Braidplane/braidplane-core/postgres"
 	requestrepo "github.com/Braidplane/braidplane-core/postgres/executionrequests"
+	"github.com/Braidplane/braidplane-core/postgres/retainedfiles"
 	"github.com/Braidplane/braidplane-core/service/datasourcessvc"
 	"github.com/Braidplane/braidplane-core/service/datasourcessvc/connector"
 	connectortypes "github.com/Braidplane/braidplane-core/service/datasourcessvc/connector/types"
+	"github.com/Braidplane/braidplane-core/service/filetransfersvc"
 	"github.com/Braidplane/braidplane-core/service/pipelinegit"
 	"github.com/Braidplane/braidplane-core/service/pipelineruntime"
 	"github.com/Braidplane/braidplane-core/service/proofevidencesvc"
@@ -218,24 +222,26 @@ func (b *Broker) ExecuteConnector(
 }
 
 type encryptedResponse struct {
-	WritePrepared         bool                           `json:"write_prepared,omitempty"`
-	Result                *result.ExecutionResult        `json:"result,omitempty"`
-	ResultRuntime         *executionResultRuntimePayload `json:"result_runtime,omitempty"`
-	resultRuntimeMaxBytes int64
-	SchemaJSON            []byte                                 `json:"schema_json,omitempty"`
-	TransformOutput       *pipepayload.Output                    `json:"transform_output,omitempty"`
-	ProposalResult        *pipelinegit.ProposalResult            `json:"proposal_result,omitempty"`
-	SourceSnapshot        *pipelinegit.RemoteSourceSnapshot      `json:"source_snapshot,omitempty"`
-	RepositoryResult      *pipelinegit.RepositoryBootstrapResult `json:"repository_result,omitempty"`
-	Branches              []datasourcessvc.DataSourceBranch      `json:"branches,omitempty"`
-	Proof                 *proofExecutionResponse                `json:"proof,omitempty"`
-	ErrorCode             string                                 `json:"error_code,omitempty"`
-	PublicDetail          string                                 `json:"public_detail,omitempty"`
+	WritePrepared             bool                           `json:"write_prepared,omitempty"`
+	Result                    *result.ExecutionResult        `json:"result,omitempty"`
+	ResultRuntime             *executionResultRuntimePayload `json:"result_runtime,omitempty"`
+	resultRuntimeMaxBytes     int64
+	resultRuntimeMaxFileBytes int64
+	SchemaJSON                []byte                                 `json:"schema_json,omitempty"`
+	TransformOutput           *pipepayload.Output                    `json:"transform_output,omitempty"`
+	ProposalResult            *pipelinegit.ProposalResult            `json:"proposal_result,omitempty"`
+	SourceSnapshot            *pipelinegit.RemoteSourceSnapshot      `json:"source_snapshot,omitempty"`
+	RepositoryResult          *pipelinegit.RepositoryBootstrapResult `json:"repository_result,omitempty"`
+	Branches                  []datasourcessvc.DataSourceBranch      `json:"branches,omitempty"`
+	Proof                     *proofExecutionResponse                `json:"proof,omitempty"`
+	ErrorCode                 string                                 `json:"error_code,omitempty"`
+	PublicDetail              string                                 `json:"public_detail,omitempty"`
 }
 
 type connectorExecutionRequestEnvelope struct {
 	queriessvc.ConnectorExecutionRequest
-	RuntimeParameterBytes map[string][]byte `json:"runtime_parameter_bytes,omitempty"`
+	RuntimeParameterBytes map[string][]byte                `json:"runtime_parameter_bytes,omitempty"`
+	RuntimeParameterFiles map[string]filepayload.Reference `json:"runtime_parameter_files,omitempty"`
 }
 
 // Runtime byte sidecars are an encrypted broker protocol. During its initial
@@ -249,8 +255,9 @@ type connectorExecutionRequestEnvelope struct {
 // JSON shape intentionally excludes them from durable query and run records and
 // from API responses.
 type executionResultRuntimePayload struct {
-	HTTPRawBody []byte `json:"http_raw_body,omitempty"`
-	FileContent []byte `json:"file_content,omitempty"`
+	HTTPRawBody   []byte                 `json:"http_raw_body,omitempty"`
+	FileContent   []byte                 `json:"file_content,omitempty"`
+	FileReference *filepayload.Reference `json:"file_reference,omitempty"`
 }
 
 func marshalRequestPlaintext(kind string, payload any) ([]byte, error) {
@@ -290,6 +297,16 @@ func marshalRequestPlaintext(kind string, payload any) ([]byte, error) {
 			envelope.RuntimeParameterBytes[name] = append([]byte(nil), value...)
 			parameter.Value = nil
 		}
+		if ref, ok := parameter.Value.(filepayload.Reference); ok {
+			if _, err := filestream.ParseReference(ref, request.Limits.MaxFileBytes); err != nil {
+				return nil, err
+			}
+			if envelope.RuntimeParameterFiles == nil {
+				envelope.RuntimeParameterFiles = make(map[string]filepayload.Reference)
+			}
+			envelope.RuntimeParameterFiles[name] = ref
+			parameter.Value = nil
+		}
 		envelope.Parameters[name] = parameter
 	}
 
@@ -323,6 +340,20 @@ func unmarshalConnectorExecutionRequest(
 	for name, value := range envelope.RuntimeParameterBytes {
 		parameter := envelope.Parameters[name]
 		parameter.Value = append([]byte(nil), value...)
+		envelope.Parameters[name] = parameter
+	}
+	for name, ref := range envelope.RuntimeParameterFiles {
+		parameter, ok := envelope.Parameters[name]
+		if !ok || parameter.Value != nil {
+			return queriessvc.ConnectorExecutionRequest{}, filestream.ErrUnavailable
+		}
+		if _, exists := envelope.RuntimeParameterBytes[name]; exists {
+			return queriessvc.ConnectorExecutionRequest{}, filestream.ErrUnavailable
+		}
+		if _, err := filestream.ParseReference(ref, envelope.Limits.MaxFileBytes); err != nil {
+			return queriessvc.ConnectorExecutionRequest{}, err
+		}
+		parameter.Value = ref
 		envelope.Parameters[name] = parameter
 	}
 	if parameter, ok := envelope.Parameters[sinkbinding.InternalInputRows]; ok {
@@ -374,6 +405,9 @@ func validateRuntimeParameterBytes(parameters map[string][]byte, maxBytes int64)
 
 func marshalResponsePlaintext(response encryptedResponse) ([]byte, error) {
 	if err := response.captureResultRuntimePayload(); err != nil {
+		return nil, err
+	}
+	if err := validateResultFileReference(response.ResultRuntime, response.resultRuntimeMaxFileBytes); err != nil {
 		return nil, err
 	}
 	if err := validateResultRuntimePayloadSize(
@@ -430,11 +464,13 @@ func (response *encryptedResponse) captureResultRuntimePayload() error {
 	runtimePayload := &executionResultRuntimePayload{}
 	if httpResult, ok := response.Result.HTTP(); ok && httpResult != nil {
 		runtimePayload.HTTPRawBody = httpResult.RawBody
+		runtimePayload.FileReference = filepayload.CloneReference(httpResult.Reference)
 	}
 	if fileResult, ok := response.Result.File(); ok && fileResult != nil {
 		runtimePayload.FileContent = fileResult.Content
+		runtimePayload.FileReference = filepayload.CloneReference(fileResult.Reference)
 	}
-	if len(runtimePayload.HTTPRawBody) == 0 && len(runtimePayload.FileContent) == 0 {
+	if len(runtimePayload.HTTPRawBody) == 0 && len(runtimePayload.FileContent) == 0 && runtimePayload.FileReference == nil {
 		return nil
 	}
 	if err := validateResultRuntimePayloadSize(
@@ -443,9 +479,13 @@ func (response *encryptedResponse) captureResultRuntimePayload() error {
 	); err != nil {
 		return err
 	}
+	if err := validateResultFileReference(runtimePayload, response.resultRuntimeMaxFileBytes); err != nil {
+		return err
+	}
 	response.ResultRuntime = &executionResultRuntimePayload{
-		HTTPRawBody: append([]byte(nil), runtimePayload.HTTPRawBody...),
-		FileContent: append([]byte(nil), runtimePayload.FileContent...),
+		HTTPRawBody:   append([]byte(nil), runtimePayload.HTTPRawBody...),
+		FileContent:   append([]byte(nil), runtimePayload.FileContent...),
+		FileReference: filepayload.CloneReference(runtimePayload.FileReference),
 	}
 	return nil
 }
@@ -460,6 +500,9 @@ func validateResultRuntimePayloadSize(
 	if maxBytes <= 0 {
 		return xerror.Unexpected().
 			Detail("execution runtime payload byte limit is required")
+	}
+	if payload.FileReference != nil && (len(payload.HTTPRawBody) != 0 || len(payload.FileContent) != 0) {
+		return filestream.ErrUnavailable
 	}
 	httpBytes := int64(len(payload.HTTPRawBody))
 	fileBytes := int64(len(payload.FileContent))
@@ -482,7 +525,7 @@ func (response *encryptedResponse) restoreResultRuntimePayload() error {
 	}
 
 	runtimePayload := response.ResultRuntime
-	if len(runtimePayload.HTTPRawBody) == 0 && len(runtimePayload.FileContent) == 0 {
+	if len(runtimePayload.HTTPRawBody) == 0 && len(runtimePayload.FileContent) == 0 && runtimePayload.FileReference == nil {
 		return xerror.Unexpected().Detail("execution runtime payload has no bytes to restore")
 	}
 
@@ -510,6 +553,22 @@ func (response *encryptedResponse) restoreResultRuntimePayload() error {
 	}
 	if fileResult != nil {
 		fileResult.Content = append([]byte(nil), runtimePayload.FileContent...)
+	}
+	if runtimePayload.FileReference != nil {
+		ref := runtimePayload.FileReference
+		var metadata *filepayload.FilePayloadMetadata
+		if output, ok := response.Result.File(); ok && output != nil {
+			metadata = output.File
+			output.Reference = filepayload.CloneReference(ref)
+		} else if output, ok := response.Result.HTTP(); ok && output != nil {
+			metadata = output.File
+			output.Reference = filepayload.CloneReference(ref)
+		} else {
+			return filestream.ErrUnavailable
+		}
+		if metadata == nil || metadata.SizeBytes != ref.SizeBytes || metadata.DigestAlgorithm != filepayload.FilePayloadDigestSHA256 || metadata.Digest != ref.SHA256 {
+			return filestream.ErrUnavailable
+		}
 	}
 	response.ResultRuntime = nil
 	return nil
@@ -1042,14 +1101,17 @@ func (b *Broker) readResponse(
 			return encryptedResponse{}, true, xerror.Wrapf("decode execution response: %w", err)
 		}
 		if response.ResultRuntime != nil {
-			resultRuntimeMaxBytes, err := b.resultRuntimeMaxBytes(request)
+			runtimeLimits, err := b.resultRuntimeLimits(request)
 			if err != nil {
 				return encryptedResponse{}, true, err
 			}
 			if err := validateResultRuntimePayloadSize(
 				response.ResultRuntime,
-				resultRuntimeMaxBytes,
+				runtimeLimits.MaxResponseBytes,
 			); err != nil {
+				return encryptedResponse{}, true, err
+			}
+			if err := validateResultFileReference(response.ResultRuntime, runtimeLimits.MaxFileBytes); err != nil {
 				return encryptedResponse{}, true, err
 			}
 			if err := response.restoreResultRuntimePayload(); err != nil {
@@ -1065,26 +1127,26 @@ func (b *Broker) readResponse(
 	}
 }
 
-func (b *Broker) resultRuntimeMaxBytes(request requestrepo.Request) (int64, error) {
+func (b *Broker) resultRuntimeLimits(request requestrepo.Request) (connectortypes.ExecutionLimits, error) {
 	if request.Kind != kindQuery {
-		return 0, nil
+		return connectortypes.ExecutionLimits{}, nil
 	}
 
 	plaintext, err := b.cipher.Decrypt(request.RequestCiphertext)
 	if err != nil {
-		return 0, xerror.Wrapf("decrypt execution request limits: %w", err)
+		return connectortypes.ExecutionLimits{}, xerror.Wrapf("decrypt execution request limits: %w", err)
 	}
 	var envelope struct {
 		Limits connectortypes.ExecutionLimits `json:"limits"`
 	}
 	if err := json.Unmarshal(plaintext, &envelope); err != nil {
-		return 0, xerror.Wrapf("decode execution request limits: %w", err)
+		return connectortypes.ExecutionLimits{}, xerror.Wrapf("decode execution request limits: %w", err)
 	}
 	if envelope.Limits.MaxResponseBytes <= 0 {
-		return 0, xerror.Unexpected().
+		return connectortypes.ExecutionLimits{}, xerror.Unexpected().
 			Detail("execution runtime payload byte limit must be positive")
 	}
-	return envelope.Limits.MaxResponseBytes, nil
+	return envelope.Limits, nil
 }
 
 func (b *Broker) responseError(response encryptedResponse) error {
@@ -1337,6 +1399,7 @@ func (b *Broker) processClaimed(ctx context.Context, request requestrepo.Request
 				break
 			}
 			response.resultRuntimeMaxBytes = payload.Limits.MaxResponseBytes
+			response.resultRuntimeMaxFileBytes = payload.Limits.MaxFileBytes
 			if b.runtimePool == nil {
 				response.ErrorCode, succeeded = errorCodeQueryFailed, false
 				break
@@ -1581,6 +1644,9 @@ func (b *Broker) executeConnector(
 	requestID, claimToken uuid.UUID,
 	payload queriessvc.ConnectorExecutionRequest,
 ) (*result.ExecutionResult, error) {
+	if payload.Limits.MaxFileBytes < 0 || payload.Limits.MaxFileBytes > filestream.MaxRetainedBytes {
+		return nil, filestream.ErrUnavailable
+	}
 	expected := requestrepo.DispatchAuthority{RequestID: requestID, ClaimToken: claimToken, Organization: payload.OrganizationSlug.String(), DataSource: payload.DataSourceSlug.String(), Type: payload.DataSourceType.String(), ReadOnly: payload.Limits.ReadOnly}
 	if payload.PinnedConfigDigest != "" {
 		current, err := connector.PublicConfigDigest(payload.DataSourceType, payload.ConfigJSON)
@@ -1639,6 +1705,17 @@ func (b *Broker) executeConnector(
 	metrics.RecordConnectorAdmission("acquired")
 	if payload.SinkExecution {
 		ctx = runtimevars.WithSinkExecution(ctx)
+	}
+	if payload.Limits.MaxFileBytes > 0 {
+		expires := time.Now().Add(requestRetention)
+		if deadline, ok := ctx.Deadline(); ok {
+			expires = deadline.Add(requestRetention)
+		}
+		store, err := filetransfersvc.NewRetainedStore(b.txm, b.cipher, retainedfiles.New(), filestream.Claim{RequestID: requestID, ClaimToken: claimToken, Organization: payload.OrganizationSlug}, expires)
+		if err != nil {
+			return nil, err
+		}
+		ctx = filestream.WithStore(ctx, store)
 	}
 	return connector.Execute(ctx, conn, payload.StatementJSON, payload.Parameters, payload.ResourceScope, payload.Limits)
 }

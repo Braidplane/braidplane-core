@@ -356,6 +356,7 @@ type HTTPResult struct {
 	Headers               map[string]string                `json:"headers"`
 	Body                  json.RawMessage                  `json:"body,omitempty"`
 	File                  *filepayload.FilePayloadMetadata `json:"file,omitempty"`
+	Reference             *filepayload.Reference           `json:"-"`
 	RawBody               []byte                           `json:"-"`
 	PaginationRecordCount *int                             `json:"-"`
 }
@@ -403,6 +404,7 @@ type FileResult struct {
 	Operation             string                           `json:"operation,omitempty"`
 	TargetPath            string                           `json:"target_path,omitempty"`
 	File                  *filepayload.FilePayloadMetadata `json:"file,omitempty"`
+	Reference             *filepayload.Reference           `json:"-"`
 	Content               []byte                           `json:"-"`
 	WrittenBytes          *int                             `json:"written_bytes,omitempty"`
 	WrittenRows           *int                             `json:"written_rows,omitempty"`

@@ -11,6 +11,7 @@ from .release import compose_inputs, read_manifest
 from .backup import seal
 
 APPS = ("edge", "frontend", "api", "worker", "executor")
+BUNDLE = Path(__file__).resolve().parent.parent.parent
 SNAPSHOT = ("release.json", "release.env", ".installed-release.json", "database.env", "migrator.env",
             "runtime.env", "executor.env", "init.sql", "config.toml", "executor.toml", "compose.json",
             "Caddyfile", "runtime-grants.sql", "execution-grants.sql")
@@ -24,6 +25,12 @@ def version_order(version):
 
 def upgrade(directory, current, values, release, backup_directory, compose, command, environment):
     candidate = read_manifest(release)
+    if candidate != read_manifest(BUNDLE / "release.json"):
+        raise ValueError("upgrade must use the tools bundle matching the candidate release")
+    grants = {
+        "runtime-grants.sql": (BUNDLE / "scripts/self-hosted-runtime-grants.sql").read_text(),
+        "execution-grants.sql": (BUNDLE / "scripts/installation/execution-grants.sql").read_text(),
+    }
     if candidate["platform"] != current["platform"] or candidate["images"]["postgres"] != current["images"]["postgres"]:
         raise ValueError("upgrade cannot change platform or PostgreSQL image; use the separate database upgrade procedure")
     if version_order(candidate["version"]) <= version_order(current["version"]):
@@ -47,7 +54,14 @@ def upgrade(directory, current, values, release, backup_directory, compose, comm
         stopped_at = datetime.now(timezone.utc).isoformat()
         write_backup(directory, current, files, backup, stopped_at, command, environment)
         compose("run", "--rm", "--no-deps", "-T", "migrate", release_env=next_env)
-        compose("run", "--rm", "--no-deps", "-T", "grants", release_env=next_env)
+        for name, content in grants.items():
+            staged = directory / (name + ".next")
+            private_file(staged, content)
+            os.replace(staged, directory / name)
+        # Read the candidate SQL from stdin, avoiding stale single-file mounts.
+        apply_grants = "export PGHOST=$DB_HOST PGPORT=$DB_PORT PGUSER=$DB_USER PGPASSWORD=$DB_PASSWORD PGDATABASE=$DB_DATABASE PGSSLMODE=$DB_SSL_MODE PGSSLROOTCERT=$DB_SSL_ROOT_CERT; exec psql -v ON_ERROR_STOP=1 -v runtime_role=braidplane_runtime -v migrator_role=braidplane_migrator -v executor_role=braidplane_executor -f -"
+        compose("run", "--rm", "--no-deps", "-T", "--entrypoint", "sh", "grants", "-ec", apply_grants,
+                release_env=next_env, input="\n".join(grants.values()))
         compose("up", "--detach", "--no-deps", "--wait", "--wait-timeout", "180", *apps, release_env=next_env)
         for name, content in (("release.json", json.dumps(candidate, indent=2) + "\n"),
                               ("release.env", next_env.read_text()),

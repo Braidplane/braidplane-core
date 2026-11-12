@@ -1,0 +1,35 @@
+metadata:
+  slug: archive-vendor-file
+  name: Archive vendor file
+steps:
+  - kind: query
+    slug: read-file
+    query:
+      data_source_ref: vendor-ftp
+      operation_type: ftp
+      operation_inline:
+        type: ftp
+        operation: read
+        path: incoming/large.zip
+        format: file
+      output_contract:
+        representation: file
+  - kind: sink
+    slug: archive-file
+    sink:
+      input: read-file
+      input_contract:
+        representation: file
+      data_source_ref: archive-s3
+      operation_type: s3
+      operation_inline:
+        type: s3
+        operation: write
+        key: "{{key}}"
+        format: file
+        content: "{{input}}"
+      config:
+        key: archive/large.zip
+        format: file
+        overwrite: true
+      idempotency_class: unsafe

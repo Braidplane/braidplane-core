@@ -17,11 +17,13 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
+	"sync/atomic"
 	"syscall"
 	"time"
 
 	"github.com/Braidplane/braidplane-core/pkg/connector/transportsecurity"
 
+	"github.com/Braidplane/braidplane-core/pkg/connector/filestream"
 	"github.com/Braidplane/braidplane-core/pkg/connector/result"
 	"github.com/Braidplane/braidplane-core/pkg/domain/model"
 	"github.com/Braidplane/braidplane-core/pkg/hostguard"
@@ -451,6 +453,7 @@ func (c *Connector) executeSingle(
 
 	// Build request body if the method supports it.
 	var bodyBytes []byte
+	var fileReference *filepayload.Reference
 	contentType := ""
 	forceContentType := false
 	requestedContentType := headerValueIgnoreCase(resolvedHeaders, "Content-Type")
@@ -460,6 +463,14 @@ func (c *Connector) executeSingle(
 		(qd.Method == http.MethodPost || qd.Method == http.MethodPut || qd.Method == http.MethodPatch) {
 		switch {
 		case isNativeFileInputBodyTemplate(qd.Body, normalized):
+			if ref, ok := resolvedBody.(filepayload.Reference); ok {
+				if _, err := filestream.ParseReference(ref, execLimits.MaxFileBytes); err != nil {
+					return result.NewHTTPResult(nil, time.Since(start).Milliseconds(), err), nil
+				}
+				fileReference = filepayload.CloneReference(&ref)
+				contentType = nativeFileInputContentType(normalized)
+				break
+			}
 			fileBody, ok := resolvedBody.([]byte)
 			if !ok {
 				durationMs := time.Since(start).Milliseconds()
@@ -584,10 +595,21 @@ func (c *Connector) executeSingle(
 	}
 
 	var reqBody io.Reader
+	var fileBody atomic.Pointer[streamRequestBody]
 	if bodyBytes != nil {
 		reqBody = bytes.NewReader(bodyBytes)
 	}
 
+	if fileReference != nil {
+		ctx = context.WithValue(ctx, streamRequestKey{}, true)
+		body, err := openStreamRequest(ctx, *fileReference, execLimits.MaxFileBytes)
+		if err != nil {
+			return result.NewHTTPResult(nil, time.Since(start).Milliseconds(), err), nil
+		}
+		defer func() { _ = body.Close() }()
+		fileBody.Store(body)
+		reqBody = body
+	}
 	if c.oauthDestination != "" {
 		if err := httpoauth.ValidateDestination(c.oauthDestination, targetURL); err != nil {
 			return result.NewHTTPResult(nil, time.Since(start).Milliseconds(), ErrInvalidConfig.With(err)), nil
@@ -603,6 +625,17 @@ func (c *Connector) executeSingle(
 		), nil
 	}
 
+	if fileReference != nil {
+		req.ContentLength = fileReference.SizeBytes
+		req.GetBody = func() (io.ReadCloser, error) {
+			body, err := openStreamRequest(ctx, *fileReference, execLimits.MaxFileBytes)
+			if err != nil {
+				return nil, err
+			}
+			fileBody.Store(body)
+			return body, nil
+		}
+	}
 	req.Header.Set("Accept", "application/json")
 
 	// Inject extra headers from queryData.
@@ -610,7 +643,7 @@ func (c *Connector) executeSingle(
 		req.Header.Set(k, fmt.Sprintf("%v", v))
 	}
 
-	if bodyBytes != nil && (req.Header.Get("Content-Type") == "" || forceContentType) {
+	if (bodyBytes != nil || fileReference != nil) && (req.Header.Get("Content-Type") == "" || forceContentType) {
 		req.Header.Set("Content-Type", contentType)
 	}
 
@@ -630,7 +663,7 @@ func (c *Connector) executeSingle(
 	}
 	resp, err := doWithLimits(c.client, ctx, req, execLimits, writeRetry)
 	if err != nil {
-		if (qd.Acknowledgement != nil || writeRetry) && !isIdempotentHTTPMethod(qd.Method) {
+		if (qd.Acknowledgement != nil || writeRetry || fileReference != nil) && !isIdempotentHTTPMethod(qd.Method) {
 			return result.NewHTTPResult(nil, time.Since(start).Milliseconds(), xerror.HTTPAcknowledgementUncertain().With(err).WithPublicDetail("HTTP write acknowledgement was not received. Verify remote state before retrying.")), nil
 		}
 		durationMs := time.Since(start).Milliseconds()
@@ -658,11 +691,26 @@ func (c *Connector) executeSingle(
 		cursor.targetURL = resp.Request.URL.String()
 	}
 
+	if fileReference != nil && (resp.StatusCode < 200 || resp.StatusCode >= 300) {
+		return result.NewHTTPResult(nil, time.Since(start).Milliseconds(), xerror.HTTPAcknowledgementRejected().WithPublicDetail("HTTP file write was rejected; inspect the destination before recovery.")), nil
+	}
+	if fileReference != nil {
+		body := fileBody.Load()
+		if body == nil || !body.complete.Load() {
+			return result.NewHTTPResult(nil, time.Since(start).Milliseconds(), xerror.HTTPAcknowledgementUncertain().WithPublicDetail("HTTP file write returned before complete input verification. Verify remote state before retrying.")), nil
+		}
+	}
+	if execLimits.MaxFileBytes > 0 && responseBodyIsNativeFile(httpResponseHeaders(resp.Header)) {
+		if qd.Acknowledgement != nil || cursor != nil {
+			return result.NewHTTPResult(nil, time.Since(start).Milliseconds(), xerror.InvalidInput(xerror.Query).WithPublicDetail("Streaming file responses do not support JSON acknowledgement checks or pagination.")), nil
+		}
+		return c.streamFileResponse(ctx, resp, qd.Method, execLimits, start)
+	}
 	maxResponseBytes := effectiveHTTPMaxResponseBytes(execLimits)
 	limitedBody := io.LimitReader(resp.Body, maxResponseBytes+1)
 	respBody, err := io.ReadAll(limitedBody)
 	if err != nil {
-		if (qd.Acknowledgement != nil || writeRetry) && !isIdempotentHTTPMethod(qd.Method) {
+		if (qd.Acknowledgement != nil || writeRetry || fileReference != nil) && !isIdempotentHTTPMethod(qd.Method) {
 			return result.NewHTTPResult(nil, time.Since(start).Milliseconds(), xerror.HTTPAcknowledgementUncertain().WithPublicDetail("HTTP write response was incomplete. Verify remote state before retrying.")), nil
 		}
 		durationMs := time.Since(start).Milliseconds()
@@ -777,6 +825,10 @@ func doWithLimits(
 	}
 	checkRedirect := client.CheckRedirect
 	client.CheckRedirect = func(req *http.Request, via []*http.Request) error {
+		stream, _ := req.Context().Value(streamRequestKey{}).(bool)
+		if stream {
+			return xerror.ExecutionRedirectLimitExceeded().WithPublicDetail("HTTP streaming file writes forbid redirects to preserve destination identity")
+		}
 		if writeRetry {
 			return xerror.InvalidInput(xerror.Query).WithPublicDetail("HTTP keyed write retries forbid redirects to preserve effect identity")
 		}

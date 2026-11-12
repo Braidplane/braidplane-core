@@ -646,6 +646,33 @@ func (q *Queries) AddPermissionToRole(ctx context.Context, arg AddPermissionToRo
 	return err
 }
 
+const appendRetainedFileChunk = `-- name: AppendRetainedFileChunk :one
+SELECT append_retained_file_chunk($1::uuid, $2::uuid, $3::text, $4::integer, $5::integer, $6::bytea)::boolean
+`
+
+type AppendRetainedFileChunkParams struct {
+	RequestID  pgtype.UUID
+	ClaimToken pgtype.UUID
+	OrgSlug    string
+	Sequence   int32
+	PlainBytes int32
+	Ciphertext []byte
+}
+
+func (q *Queries) AppendRetainedFileChunk(ctx context.Context, arg AppendRetainedFileChunkParams) (bool, error) {
+	row := q.db.QueryRow(ctx, appendRetainedFileChunk,
+		arg.RequestID,
+		arg.ClaimToken,
+		arg.OrgSlug,
+		arg.Sequence,
+		arg.PlainBytes,
+		arg.Ciphertext,
+	)
+	var column_1 bool
+	err := row.Scan(&column_1)
+	return column_1, err
+}
+
 const attachOrganizationGitLabConnection = `-- name: AttachOrganizationGitLabConnection :one
 WITH target AS (
     SELECT ds.id, ds.organization_id, ds.credential_id
@@ -893,6 +920,31 @@ func (q *Queries) BeginPipelineSinkEffect(ctx context.Context, arg BeginPipeline
 		&i.Claimed,
 	)
 	return i, err
+}
+
+const beginRetainedFile = `-- name: BeginRetainedFile :one
+SELECT begin_retained_file($1::uuid, $2::uuid, $3::text, $4::bigint, $5::timestamptz)::boolean
+`
+
+type BeginRetainedFileParams struct {
+	RequestID  pgtype.UUID
+	ClaimToken pgtype.UUID
+	OrgSlug    string
+	MaxBytes   int64
+	ExpiresAt  pgtype.Timestamptz
+}
+
+func (q *Queries) BeginRetainedFile(ctx context.Context, arg BeginRetainedFileParams) (bool, error) {
+	row := q.db.QueryRow(ctx, beginRetainedFile,
+		arg.RequestID,
+		arg.ClaimToken,
+		arg.OrgSlug,
+		arg.MaxBytes,
+		arg.ExpiresAt,
+	)
+	var column_1 bool
+	err := row.Scan(&column_1)
+	return column_1, err
 }
 
 const bindAlertPolicyDestination = `-- name: BindAlertPolicyDestination :one
@@ -9100,6 +9152,23 @@ func (q *Queries) DisableProofObservationPolicy(ctx context.Context, arg Disable
 	return err
 }
 
+const discardRetainedFile = `-- name: DiscardRetainedFile :one
+SELECT discard_retained_file($1::uuid, $2::uuid, $3::text)::boolean
+`
+
+type DiscardRetainedFileParams struct {
+	RequestID  pgtype.UUID
+	ClaimToken pgtype.UUID
+	OrgSlug    string
+}
+
+func (q *Queries) DiscardRetainedFile(ctx context.Context, arg DiscardRetainedFileParams) (bool, error) {
+	row := q.db.QueryRow(ctx, discardRetainedFile, arg.RequestID, arg.ClaimToken, arg.OrgSlug)
+	var column_1 bool
+	err := row.Scan(&column_1)
+	return column_1, err
+}
+
 const disconnectGitHubAppInstallation = `-- name: DisconnectGitHubAppInstallation :execrows
 UPDATE github_app_installations installation
 SET deleted_at = NOW(), updated_at = NOW()
@@ -9354,7 +9423,11 @@ func (q *Queries) EnsureIncrementalCheckpointCommitLock(ctx context.Context, arg
 }
 
 const expireExecutionRequests = `-- name: ExpireExecutionRequests :one
-WITH scrubbed AS (
+WITH expired_files AS (
+    DELETE FROM retained_file_streams
+    WHERE expires_at <= clock_timestamp()
+    RETURNING request_id
+), scrubbed AS (
     UPDATE execution_requests
     SET request_ciphertext = ''::bytea, result_ciphertext = NULL,
         cancel_requested_at = COALESCE(cancel_requested_at, clock_timestamp()),
@@ -27361,6 +27434,67 @@ func (q *Queries) QueuePipelineDraftPublish(ctx context.Context, arg QueuePipeli
 	)
 }
 
+const readRetainedFile = `-- name: ReadRetainedFile :one
+SELECT size_bytes::bigint, chunk_count::integer, sha256::text, expires_at::timestamptz
+FROM read_retained_file($1::uuid, $2::uuid, $3::text, $4::uuid)
+`
+
+type ReadRetainedFileParams struct {
+	RequestID       pgtype.UUID
+	ClaimToken      pgtype.UUID
+	OrgSlug         string
+	SourceRequestID pgtype.UUID
+}
+
+type ReadRetainedFileRow struct {
+	SizeBytes  int64
+	ChunkCount int32
+	Sha256     string
+	ExpiresAt  pgtype.Timestamptz
+}
+
+func (q *Queries) ReadRetainedFile(ctx context.Context, arg ReadRetainedFileParams) (ReadRetainedFileRow, error) {
+	row := q.db.QueryRow(ctx, readRetainedFile,
+		arg.RequestID,
+		arg.ClaimToken,
+		arg.OrgSlug,
+		arg.SourceRequestID,
+	)
+	var i ReadRetainedFileRow
+	err := row.Scan(
+		&i.SizeBytes,
+		&i.ChunkCount,
+		&i.Sha256,
+		&i.ExpiresAt,
+	)
+	return i, err
+}
+
+const readRetainedFileChunk = `-- name: ReadRetainedFileChunk :one
+SELECT read_retained_file_chunk($1::uuid, $2::uuid, $3::text, $4::uuid, $5::integer)::bytea
+`
+
+type ReadRetainedFileChunkParams struct {
+	RequestID       pgtype.UUID
+	ClaimToken      pgtype.UUID
+	OrgSlug         string
+	SourceRequestID pgtype.UUID
+	Sequence        int32
+}
+
+func (q *Queries) ReadRetainedFileChunk(ctx context.Context, arg ReadRetainedFileChunkParams) ([]byte, error) {
+	row := q.db.QueryRow(ctx, readRetainedFileChunk,
+		arg.RequestID,
+		arg.ClaimToken,
+		arg.OrgSlug,
+		arg.SourceRequestID,
+		arg.Sequence,
+	)
+	var column_1 []byte
+	err := row.Scan(&column_1)
+	return column_1, err
+}
+
 const reconcilePipelineRunFinalizationsForSystem = `-- name: ReconcilePipelineRunFinalizationsForSystem :exec
 WITH eligible AS (
     SELECT obligation.id, obligation.organization_id, obligation.project_environment_id, obligation.root_run_slug, obligation.attempt_run_slug, obligation.attempt_status, obligation.source_type, obligation.outcome_uncertain, obligation.excluded, obligation.exclusion_reason, obligation.resolved_at, obligation.created_at, obligation.next_evaluation_at, obligation.finalization_reason,
@@ -29266,6 +29400,25 @@ func (q *Queries) RestoreRole(ctx context.Context, arg RestoreRoleParams) (pgcon
 	return q.db.Exec(ctx, restoreRole, arg.OrgSlug, arg.RoleSlug)
 }
 
+const retainedFileCapabilitiesReady = `-- name: RetainedFileCapabilitiesReady :one
+SELECT COALESCE(
+    to_regclass('public.retained_file_streams') IS NOT NULL
+    AND to_regclass('public.retained_file_chunks') IS NOT NULL
+    AND has_function_privilege(current_user, to_regprocedure('public.begin_retained_file(uuid,uuid,text,bigint,timestamptz)'), 'EXECUTE')
+    AND has_function_privilege(current_user, to_regprocedure('public.append_retained_file_chunk(uuid,uuid,text,integer,integer,bytea)'), 'EXECUTE')
+    AND has_function_privilege(current_user, to_regprocedure('public.seal_retained_file(uuid,uuid,text,bigint,text)'), 'EXECUTE')
+    AND has_function_privilege(current_user, to_regprocedure('public.read_retained_file(uuid,uuid,text,uuid)'), 'EXECUTE')
+    AND has_function_privilege(current_user, to_regprocedure('public.read_retained_file_chunk(uuid,uuid,text,uuid,integer)'), 'EXECUTE')
+    AND has_function_privilege(current_user, to_regprocedure('public.discard_retained_file(uuid,uuid,text)'), 'EXECUTE'), FALSE)::boolean AS ready
+`
+
+func (q *Queries) RetainedFileCapabilitiesReady(ctx context.Context) (bool, error) {
+	row := q.db.QueryRow(ctx, retainedFileCapabilitiesReady)
+	var ready bool
+	err := row.Scan(&ready)
+	return ready, err
+}
+
 const retireDataSourceProofTargets = `-- name: RetireDataSourceProofTargets :exec
 UPDATE proof_change_candidate_mappings mapping SET disabled_at=CURRENT_TIMESTAMP
 FROM organizations organization, data_sources ds
@@ -29999,6 +30152,31 @@ func (q *Queries) SaveProofObservationPolicy(ctx context.Context, arg SaveProofO
 		&i.UpdatedAt,
 	)
 	return i, err
+}
+
+const sealRetainedFile = `-- name: SealRetainedFile :one
+SELECT seal_retained_file($1::uuid, $2::uuid, $3::text, $4::bigint, $5::text)::boolean
+`
+
+type SealRetainedFileParams struct {
+	RequestID  pgtype.UUID
+	ClaimToken pgtype.UUID
+	OrgSlug    string
+	SizeBytes  int64
+	Sha256     string
+}
+
+func (q *Queries) SealRetainedFile(ctx context.Context, arg SealRetainedFileParams) (bool, error) {
+	row := q.db.QueryRow(ctx, sealRetainedFile,
+		arg.RequestID,
+		arg.ClaimToken,
+		arg.OrgSlug,
+		arg.SizeBytes,
+		arg.Sha256,
+	)
+	var column_1 bool
+	err := row.Scan(&column_1)
+	return column_1, err
 }
 
 const setCurrentPipelineVersion = `-- name: SetCurrentPipelineVersion :execresult

@@ -16,6 +16,9 @@ CLI = PRIVATE
 
 # Filename, imports, expected rule names. Empty rules prove intentional edges.
 CASES = [
+    ("pkg/connector/filestream/allowed.go", [PRIVATE + "pkg/payload/file", PRIVATE + "pkg/slug", PRIVATE + "pkg/uuid", PRIVATE + "pkg/xerror"], set()),
+    ("pkg/connector/filestream/probe.go", [PRIVATE + "postgres/fixture"], {"neutral_internal_lower_layers"}),
+    ("frontend/native_transfer.go", [PRIVATE + "pkg/connector/filestream"], {"frontend_boundary"}),
     ("pkg/contractplan/allowed.go", [PRIVATE + "pkg/domain/model", PRIVATE + "pkg/odcs", CLI + "pkg/pipeline/payload"], set()),
     ("pkg/odcs/allowed.go", [PRIVATE + "pkg/domain/model", CLI + "pkg/pipeline/payload"], set()),
     ("pkg/contractplan/git.go", [PRIVATE + "pkg/gitprovider"], {"contract_compilation_boundary"}),

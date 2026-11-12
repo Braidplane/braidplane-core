@@ -181,6 +181,20 @@ A query defines a file operation:
 
 **Write** (`operation: write`): for pipeline sinks, serializes the runtime-provided `input` payload into `path`; direct (non-pipeline) saved queries may alternatively provide inline `content`. The write commits the change in a shallow clone and pushes to the configured remote repository. When reserved runtime `path` or `input` bindings are present they override the saved query's inline path/content values. Non-empty runtime `branch` and `message` overrides also replace the saved query values when provided; empty values fall back to the saved query or connector defaults. CSV-format writes preserve raw `input` bytes when the upstream payload is already CSV. JSON-format writes accept structured payloads only: row arrays and document payloads are written as JSON, while scalar and null content are rejected. Spreadsheet writes accept row-object arrays and write an Excel workbook with a stable header order. Native file writes use `format: file` and preserve raw bytes without CSV/JSON/spreadsheet parsing. In pipeline terms, that means CSV-to-JSON or CSV-to-spreadsheet requires an explicit transform instead of a hidden sink-side conversion.
 
+Explicit `format: file` operations preserve stored Git blob bytes through reads,
+commits and pushes. Their private checkout disables line-ending, ident,
+working-tree encoding and clean/smudge conversions, including required filters.
+Only the selected file is checked out; commits preserve other tracked files.
+With a positive native-file allowance, an oversized existing blob fails before
+checkout. Git metadata, directory and symbolic-link targets are refused.
+Git LFS pointer files are transferred as pointers; LFS object download is not
+part of this operation. Structured formats retain repository attribute behavior.
+See [native-file streaming](../NATIVE_FILE_STREAMING.md) for storage and resource
+limits. Retained streaming requires Linux workers with finite transfer deadlines
+and process resource limits. macOS workers refuse that path. Ordinary small-file
+operations keep their existing response limits. Large delta objects or repository
+metadata can exceed the Git process or allocation limits.
+
 When the Git, GitHub, or GitLab data source has `read_only: true`, Braidplane allows direct and pipeline `read` operations but blocks direct saved-query writes, direct inline writes, incremental direct writes, and pipeline sink writes before connector dispatch. Unknown Git file operations fail closed for read-only data sources.
 
 Supported operation fields include:

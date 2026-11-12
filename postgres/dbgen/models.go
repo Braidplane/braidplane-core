@@ -1430,6 +1430,23 @@ type QueryParameter struct {
 	CreatedAt    pgtype.Timestamptz
 }
 
+type RetainedFileChunk struct {
+	RequestID  pgtype.UUID
+	Sequence   int32
+	Ciphertext []byte
+}
+
+type RetainedFileStream struct {
+	RequestID      pgtype.UUID
+	OrganizationID int32
+	MaxBytes       int64
+	SizeBytes      int64
+	ChunkCount     int32
+	Sha256         pgtype.Text
+	Sealed         bool
+	ExpiresAt      pgtype.Timestamptz
+}
+
 type RiverClient struct {
 	ID        string
 	CreatedAt pgtype.Timestamptz

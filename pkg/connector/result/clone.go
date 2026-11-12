@@ -128,6 +128,7 @@ func cloneHTTPResult(input *HTTPResult) *HTTPResult {
 		Headers:               headers,
 		Body:                  append([]byte(nil), input.Body...),
 		File:                  cloneFilePayloadMetadata(input.File),
+		Reference:             filepayload.CloneReference(input.Reference),
 		RawBody:               append([]byte(nil), input.RawBody...),
 	}
 }
@@ -183,6 +184,7 @@ func cloneFileResult(input *FileResult) *FileResult {
 		Operation:             input.Operation,
 		TargetPath:            input.TargetPath,
 		File:                  cloneFilePayloadMetadata(input.File),
+		Reference:             filepayload.CloneReference(input.Reference),
 		Content:               append([]byte(nil), input.Content...),
 		WrittenBytes:          cloneIntPointer(input.WrittenBytes),
 		WrittenRows:           cloneIntPointer(input.WrittenRows),

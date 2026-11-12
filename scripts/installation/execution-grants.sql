@@ -44,6 +44,12 @@ GRANT EXECUTE ON FUNCTION
     public.execution_request_metrics(),
     public.connector_execution_admission_metrics(),
     public.check_connector_dispatch(uuid, uuid, text, text, text, jsonb, text, timestamptz, boolean),
-    public.snowflake_wif_ready(text, text, text, text)
+    public.snowflake_wif_ready(text, text, text, text),
+    public.begin_retained_file(uuid, uuid, text, bigint, timestamptz),
+    public.append_retained_file_chunk(uuid, uuid, text, integer, integer, bytea),
+    public.seal_retained_file(uuid, uuid, text, bigint, text),
+    public.read_retained_file(uuid, uuid, text, uuid),
+    public.read_retained_file_chunk(uuid, uuid, text, uuid, integer),
+    public.discard_retained_file(uuid, uuid, text)
 TO :"executor_role";
 COMMIT;

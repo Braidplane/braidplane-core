@@ -16,7 +16,7 @@ import (
 	"github.com/Braidplane/braidplane-core/service/datasourcessvc/connector/types"
 )
 
-func (c *Connector) executeNative(ctx context.Context, s workspace.Statement, params map[string]types.TypedParam, pl provider.Limits, start time.Time) (*result.ExecutionResult, error) {
+func (c *Connector) executeNative(ctx context.Context, s workspace.Statement, params map[string]types.TypedParam, pl provider.Limits, start time.Time, maxFileBytes int64) (*result.ExecutionResult, error) {
 	fail := func(err error) (*result.ExecutionResult, error) { return executionError(s, start, err), nil }
 	target := s.FileID
 	if s.Operation == "create" {
@@ -105,6 +105,9 @@ func (c *Connector) executeNative(ctx context.Context, s workspace.Statement, pa
 		row["occurrences_changed"] = changed
 		columns = append(columns, "occurrences_changed")
 	case "export":
+		if maxFileBytes > 0 {
+			return c.streamPDF(ctx, s, metadata, pl, maxFileBytes, start)
+		}
 		content, err := c.client.ExportPDF(ctx, s.FileID, pl)
 		if err != nil {
 			return fail(err)

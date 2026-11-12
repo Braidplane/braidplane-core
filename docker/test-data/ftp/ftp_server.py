@@ -116,7 +116,7 @@ def main() -> None:
     seed_spreadsheet_fixture(ftp_root)
 
     authorizer = DummyAuthorizer()
-    authorizer.add_user(user, password, ftp_root, perm="elrw")
+    authorizer.add_user(user, password, ftp_root, perm="elrwfd")
 
     handler = FTPHandler
     handler.authorizer = authorizer

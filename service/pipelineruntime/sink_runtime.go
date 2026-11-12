@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/Braidplane/braidplane-core/pkg/connector/catalog"
+	"github.com/Braidplane/braidplane-core/pkg/connector/filestream"
 	"github.com/Braidplane/braidplane-core/pkg/connector/result"
 	"github.com/Braidplane/braidplane-core/pkg/connector/writegate"
 	"github.com/Braidplane/braidplane-core/pkg/domain/model"
@@ -981,6 +982,15 @@ func buildSinkPayloadBinding(input *SinkRuntimeInput) (sinkPayloadBinding, error
 			return sinkPayloadBinding{}, errSinkNotConfigured.Detail(
 				"file payload metadata is required",
 			)
+		}
+		if ref := payload.FileReference; ref != nil {
+			if _, err := filestream.ParseReference(*ref, filestream.MaxRetainedBytes); err != nil {
+				return sinkPayloadBinding{}, err
+			}
+			if len(payload.FileBytes) != 0 || payload.File.SizeBytes != ref.SizeBytes || payload.File.DigestAlgorithm != filepayload.FilePayloadDigestSHA256 || payload.File.Digest != ref.SHA256 {
+				return sinkPayloadBinding{}, errSinkNotConfigured.Detail("retained file reference differs from file metadata")
+			}
+			return sinkPayloadBinding{name: sinkbinding.Input, value: *ref, representation: payload.Representation, file: filepayload.CloneFilePayloadMetadata(payload.File)}, nil
 		}
 		if payload.File.SizeBytes > 0 && len(payload.FileBytes) == 0 {
 			return sinkPayloadBinding{}, errSinkNotConfigured.Detail(

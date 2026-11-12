@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/Braidplane/braidplane-core/pkg/clock"
+	"github.com/Braidplane/braidplane-core/pkg/connector/filestream"
 	"github.com/Braidplane/braidplane-core/pkg/connector/result"
 	"github.com/Braidplane/braidplane-core/pkg/contractplan"
 	"github.com/Braidplane/braidplane-core/pkg/deploymentplan"
@@ -76,6 +77,7 @@ type ExecutionLimits struct {
 	QueryTimeout                      time.Duration
 	ConnectorTimeout                  time.Duration
 	MaxResultRows                     int
+	MaxFileBytes                      int64
 	MaxResponseBytes                  int64
 	ConnectorConcurrencyPerDataSource int
 	ConnectorConcurrencyQueueTimeout  time.Duration
@@ -92,6 +94,7 @@ func (l ExecutionLimits) connectorLimits() types.ExecutionLimits {
 	return types.ExecutionLimits{
 		ConnectorTimeout:     l.ConnectorTimeout,
 		MaxResultRows:        l.MaxResultRows,
+		MaxFileBytes:         l.MaxFileBytes,
 		MaxResponseBytes:     l.MaxResponseBytes,
 		HTTPTimeout:          l.HTTPTimeout,
 		HTTPMaxRedirects:     l.HTTPMaxRedirects,
@@ -454,6 +457,9 @@ func NewWithExecutionLimits(
 	if connectorExecutor == nil {
 		return nil, xerror.Unexpected().Detail("connector executor is required")
 	}
+	if limits.MaxFileBytes == 0 {
+		limits.MaxFileBytes = limits.MaxResponseBytes
+	}
 	if limits.ConnectorConcurrencyQueueTimeout == 0 {
 		limits.ConnectorConcurrencyQueueTimeout = defaultConcurrencyQueueTimeout
 	}
@@ -489,6 +495,9 @@ func validateExecutionLimits(limits ExecutionLimits) error {
 	}
 	if limits.MaxResponseBytes <= 0 {
 		return ErrInvalidInput.Detail("max response bytes must be greater than 0")
+	}
+	if limits.MaxFileBytes <= 0 || limits.MaxFileBytes > filestream.MaxRetainedBytes {
+		return ErrInvalidInput.Detail("max file bytes must be positive and within retained storage bounds")
 	}
 	if limits.ConnectorConcurrencyPerDataSource <= 0 {
 		return ErrInvalidInput.Detail("connector concurrency per data source must be greater than 0")

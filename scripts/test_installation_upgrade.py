@@ -29,6 +29,12 @@ class UpgradeTest(unittest.TestCase):
         self.candidate["version"] = "v0.1.0-alpha.2"
         self.release = self.root / "next.json"
         self.release.write_text(json.dumps(self.candidate))
+        self.bundle = self.root / "bundle"
+        (self.bundle / "scripts/installation").mkdir(parents=True)
+        (self.bundle / "release.json").write_text(json.dumps(self.candidate))
+        (self.bundle / "scripts/self-hosted-runtime-grants.sql").write_text("candidate runtime grants")
+        (self.bundle / "scripts/installation/execution-grants.sql").write_text("candidate execution grants")
+        self.enterContext(patch("scripts.installation.upgrade.BUNDLE", self.bundle))
         self.backup = self.root / "backup"
         self.values = {"BRAIDPLANE_HOST": "app.customer.test", "BRAIDPLANE_BIND_ADDRESS": "192.168.1.20", "BRAIDPLANE_PROJECT_NAME": "braidplane-123456abcdef"}
         self.calls = []
@@ -37,6 +43,11 @@ class UpgradeTest(unittest.TestCase):
             if args == ("run", "--rm", "--no-deps", "-T", "migrate"):
                 self.assertTrue((self.backup / "configuration.tar").exists())
                 self.assertEqual(verify(self.backup)["release"], self.current)
+                self.assertEqual((self.install / "execution-grants.sql").read_text(), "retained original execution-grants.sql")
+            if args[0] == "run" and "grants" in args:
+                self.assertEqual(kwargs["input"], "candidate runtime grants\ncandidate execution grants")
+                self.assertEqual((self.install / "execution-grants.sql").read_text(), "candidate execution grants")
+                self.assertEqual((self.install / "runtime-grants.sql").read_text(), "candidate runtime grants")
         self.compose = compose
         def run(*args, **kwargs):
             if hasattr(kwargs.get("stdout"), "write"):
@@ -53,6 +64,7 @@ class UpgradeTest(unittest.TestCase):
         self.assertEqual(sorted(ordered, key=version_order), ordered)
         self.candidate["version"] = "v0.0.9"
         self.release.write_text(json.dumps(self.candidate))
+        (self.bundle / "release.json").write_text(json.dumps(self.candidate))
         with self.assertRaisesRegex(ValueError, "newer release"):
             self.upgrade()
         self.assertFalse(self.backup.exists())
@@ -100,6 +112,7 @@ class UpgradeTest(unittest.TestCase):
         self.assertEqual(self.backup.stat().st_mode & 0o777, 0o700)
         with tarfile.open(self.backup / "configuration.tar") as archive:
             self.assertEqual(archive.extractfile("runtime.env").read(), b"retained original runtime.env")
+            self.assertEqual(archive.extractfile("execution-grants.sql").read(), b"retained original execution-grants.sql")
         self.assertIn("BRAIDPLANE_PROJECT_NAME=braidplane-123456abcdef", (self.install / "release.env").read_text())
 
     def test_api_only_upgrade_never_targets_frontend(self):
@@ -149,6 +162,21 @@ class UpgradeTest(unittest.TestCase):
         self.assertEqual(self.calls[-1][0], "stop")
         self.assertFalse(any(call[0] == "up" for call in self.calls))
 
+    def test_grant_failure_keeps_backup_and_stops_application(self):
+        original_compose = self.compose
+        def compose(*args, **kwargs):
+            original_compose(*args, **kwargs)
+            if args[0] == "run" and "grants" in args:
+                raise ValueError("grant failed")
+        self.compose = compose
+        with self.assertRaisesRegex(ValueError, "no automatic rollback"):
+            self.upgrade()
+        self.assertTrue((self.install / ".upgrade-in-progress.json").is_file())
+        with tarfile.open(self.backup / "configuration.tar") as archive:
+            self.assertEqual(archive.extractfile("execution-grants.sql").read(), b"retained original execution-grants.sql")
+        self.assertEqual(self.calls[-1][0], "stop")
+        self.assertFalse(any(call[0] == "up" for call in self.calls))
+
     def test_missing_snapshot_input_rejected_before_downtime(self):
         (self.install / "runtime.env").unlink()
         with self.assertRaisesRegex(ValueError, "regular files"):
@@ -157,6 +185,13 @@ class UpgradeTest(unittest.TestCase):
         self.run.assert_not_called()
         self.assertFalse(self.backup.exists())
         self.assertFalse((self.install / ".upgrade-in-progress.json").exists())
+
+    def test_mismatched_bundle_rejected_before_downtime(self):
+        (self.bundle / "release.json").write_text(json.dumps(self.current))
+        with self.assertRaisesRegex(ValueError, "bundle matching"):
+            self.upgrade()
+        self.assertEqual(self.calls, [])
+        self.assertFalse(self.backup.exists())
 
     def test_pull_failure_does_not_stop_application(self):
         def compose(*args, **kwargs):
@@ -171,11 +206,13 @@ class UpgradeTest(unittest.TestCase):
     def test_postgres_change_and_existing_backup_are_rejected(self):
         self.candidate["images"]["postgres"] = "other@sha256:" + "c" * 64
         self.release.write_text(json.dumps(self.candidate))
+        (self.bundle / "release.json").write_text(json.dumps(self.candidate))
         with self.assertRaisesRegex(ValueError, "PostgreSQL image"):
             self.upgrade()
         self.assertFalse(self.backup.exists())
         self.candidate["images"]["postgres"] = self.current["images"]["postgres"]
         self.release.write_text(json.dumps(self.candidate))
+        (self.bundle / "release.json").write_text(json.dumps(self.candidate))
         self.backup.mkdir()
         with self.assertRaises(FileExistsError):
             self.upgrade()

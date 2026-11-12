@@ -64,13 +64,13 @@ def operate(directory, action, release=None, backup_directory=None):
                        if key not in values and not key.startswith("COMPOSE_")}
         command = ["docker", "compose", "--project-name", values["BRAIDPLANE_PROJECT_NAME"],
                    "--env-file", str(directory / "release.env"), "-f", str(directory / "compose.json")]
-        def compose(*arguments, release_env=None):
+        def compose(*arguments, release_env=None, input=None):
             selected = list(command)
             if release_env is not None:
                 selected[selected.index("--env-file") + 1] = str(release_env)
             try:
                 return subprocess.run([*selected, *arguments], cwd=directory, env=environment,
-                                      check=True, capture_output=True, text=True).stdout
+                                      check=True, capture_output=True, text=True, input=input).stdout
             except subprocess.CalledProcessError as error:
                 raise ValueError(f"Compose {arguments[0]} failed; inspect this project's status and logs; data and keys were preserved") from error
         if action == "stop":

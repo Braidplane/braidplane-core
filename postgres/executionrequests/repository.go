@@ -13,6 +13,7 @@ import (
 	"github.com/Braidplane/braidplane-core/pkg/xerror"
 	"github.com/Braidplane/braidplane-core/postgres"
 	"github.com/Braidplane/braidplane-core/postgres/dbgen"
+	"github.com/Braidplane/braidplane-core/postgres/retainedfiles"
 )
 
 type State string
@@ -120,7 +121,7 @@ func (Repository) Preflight(ctx context.Context, db postgres.DBTX) error {
 	if !allowed {
 		return xerror.Unexpected().Detail("execution request capabilities are unavailable")
 	}
-	return nil
+	return retainedfiles.New().Preflight(ctx, db)
 }
 
 // PreflightDelivery verifies the app worker can claim one opaque River
@@ -147,7 +148,7 @@ func (Repository) PreflightDelivery(ctx context.Context, db postgres.DBTX) error
 	if !allowed {
 		return xerror.Unexpected().Detail("River execution delivery capabilities are unavailable")
 	}
-	return nil
+	return retainedfiles.New().Preflight(ctx, db)
 }
 
 // Metrics reads only fixed queue aggregates through the executor capability.

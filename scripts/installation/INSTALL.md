@@ -205,15 +205,17 @@ the source/output commits, spec hash and run identity with the acceptance record
 
 ## Compatible image-set upgrades under qualification
 
-Obtain and independently verify the approved newer manifest first. This command
-changes image identities using the current bundle's Compose/configuration
+Obtain and independently verify the approved newer tools bundle and its manifest.
+Run this command from that extracted bundle, with `--release` pointing to its
+`release.json`. The command checks that the bundle and candidate manifest match.
+It changes image identities using the installed Compose/configuration
 contract; it does not apply new topology or configuration formats. Confirm the
 release owner supports that transition. The platform and exact PostgreSQL image
 must stay unchanged. Downgrades and PostgreSQL upgrades are rejected.
 
 ```sh
 python3 -m scripts.installation.lifecycle upgrade /protected/braidplane \
-  --release /verified/new-release.json \
+  --release "$PWD/release.json" \
   --backup-directory /protected/backups/braidplane-before-upgrade
 ```
 
@@ -268,7 +270,8 @@ Successful output records elapsed seconds and schema version. This measures the
 database drill only; key recovery, frozen-oracle comparisons, external-effect
 reconciliation and full service RTO remain separate acceptance requirements.
 
-Only after backup completes does it run candidate migrations and grants and wait
+Only after backup completes does it run candidate migrations, replace the installed
+grant scripts with those from the candidate bundle, apply them and wait
 for application readiness. It then commits the candidate identity. It preserves
 the same database, keys and Compose project. A failed upgrade requests application
 shutdown and retains `.upgrade-in-progress.json`, the candidate inputs and backup.

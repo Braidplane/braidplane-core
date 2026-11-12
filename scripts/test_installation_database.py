@@ -30,10 +30,11 @@ class InstallationDatabaseTest(unittest.TestCase):
         else:
             self.fail("disposable PostgreSQL did not become ready")
         self.psql("CREATE ROLE braidplane_migrator; CREATE ROLE braidplane_runtime; CREATE ROLE braidplane_executor; CREATE ROLE fixture_inherited;")
-        catalog = (ROOT / "postgres/migrations/000001_core.up.sql").read_text()
         # The fixture grants the migration owner its real database/schema authority.
         self.psql("ALTER DATABASE braidplane OWNER TO braidplane_migrator; ALTER SCHEMA public OWNER TO braidplane_migrator;")
-        self.psql("SET ROLE braidplane_migrator;\n" + catalog)
+        migrations = sorted((ROOT / "postgres/migrations").glob("*.up.sql"))
+        for migration in migrations[:-1]:
+            self.psql("SET ROLE braidplane_migrator;\n" + migration.read_text())
         self.psql("SET ROLE braidplane_migrator; CREATE TABLE public.core_schema_migrations(version bigint, dirty boolean);")
         def grants(path):
             sql = path.read_text()
@@ -43,6 +44,12 @@ class InstallationDatabaseTest(unittest.TestCase):
         baseline = grants(ROOT / "scripts/self-hosted-runtime-grants.sql")
         execution = grants(ROOT / "scripts/installation/execution-grants.sql")
         self.psql(baseline)
+        old_execution = execution[:execution.index("    public.begin_retained_file(")].rstrip().removesuffix(",") + "\nTO :\"executor_role\";\nCOMMIT;\n"
+        old_execution = old_execution.replace(':"executor_role"', '"braidplane_executor"')
+        self.psql(old_execution)
+        self.psql("SET ROLE braidplane_migrator;\n" + migrations[-1].read_text())
+        before = self.psql("SELECT has_function_privilege('braidplane_executor', 'public.begin_retained_file(uuid,uuid,text,bigint,timestamptz)', 'EXECUTE');")
+        self.assertEqual(before.stdout.strip(), "f")
         self.psql(execution)
         self.psql(execution)
         print("PostgreSQL fixture:", self.psql("SHOW server_version;").stdout.strip())
@@ -52,6 +59,12 @@ class InstallationDatabaseTest(unittest.TestCase):
             "connector_execution_admission_metrics()",
             "check_connector_dispatch(uuid,uuid,text,text,text,jsonb,text,timestamptz,boolean)",
             "snowflake_wif_ready(text,text,text,text)",
+            "begin_retained_file(uuid,uuid,text,bigint,timestamptz)",
+            "append_retained_file_chunk(uuid,uuid,text,integer,integer,bytea)",
+            "seal_retained_file(uuid,uuid,text,bigint,text)",
+            "read_retained_file(uuid,uuid,text,uuid)",
+            "read_retained_file_chunk(uuid,uuid,text,uuid,integer)",
+            "discard_retained_file(uuid,uuid,text)",
         ):
             result = self.psql("SELECT has_function_privilege('braidplane_executor', 'public." + capability + "', 'EXECUTE');")
             self.assertEqual(result.stdout.strip(), "t", capability)
@@ -63,9 +76,13 @@ class InstallationDatabaseTest(unittest.TestCase):
         for call in ("claim_next_execution_request()", "execution_request_metrics()", "connector_execution_admission_metrics()"):
             self.psql("SET ROLE braidplane_executor; SELECT * FROM " + call)
         self.psql("SET ROLE braidplane_executor; SELECT * FROM core_schema_migrations;")
+        unclaimed = self.psql("SET ROLE braidplane_executor; SELECT public.begin_retained_file(NULL,NULL,'fixture',1,now() + interval '1 minute');")
+        self.assertEqual(unclaimed.stdout.strip().splitlines()[-1], "f")
         for sql in ("SELECT * FROM credentials", "SELECT * FROM user_sessions", "SELECT * FROM execution_requests",
                     "CREATE TABLE public.forbidden(id int)", "DELETE FROM core_schema_migrations",
-                    "SELECT * FROM claim_execution_request(gen_random_uuid())"):
+                    "SELECT * FROM claim_execution_request(gen_random_uuid())",
+                    "SELECT * FROM retained_file_streams", "SELECT * FROM retained_file_chunks",
+                    "SELECT retained_file_claim(NULL,NULL,NULL)"):
             with self.subTest(denied=sql):
                 result = self.psql("SET ROLE braidplane_executor; " + sql, check=False)
                 self.assertNotEqual(result.returncode, 0)

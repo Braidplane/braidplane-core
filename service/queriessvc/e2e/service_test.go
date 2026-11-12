@@ -3216,6 +3216,7 @@ func testExecutesHTTPPipelineRunWithRealHTTPSinkSuccessfully(t *testing.T, stack
 			}
 
 			requestBodies <- body
+			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(nethttp.StatusAccepted)
 			_, _ = w.Write([]byte(`{"accepted":true}`))
 		}),
@@ -3367,6 +3368,7 @@ func testExecutesHTTPPipelineRunWithNativeCSVBodySinkSuccessfully(t *testing.T, 
 				body:        string(bodyBytes),
 				contentType: r.Header.Get("Content-Type"),
 			}
+			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(nethttp.StatusAccepted)
 			_, _ = w.Write([]byte(`{"accepted":true}`))
 		}),
@@ -3554,6 +3556,7 @@ func testExecutesPostgresJoinPipelineRunWithTwoRealSinksSuccessfully(
 			}
 
 			requestBodies <- body
+			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(nethttp.StatusAccepted)
 			_, _ = w.Write([]byte(`{"accepted":true}`))
 		}),
@@ -3844,6 +3847,7 @@ func testExecutesHTTPJSONAndCSVRowNormalizedSQLTransformWithTwoRealSinksSuccessf
 				}
 
 				requestBodies <- body
+				w.Header().Set("Content-Type", "application/json")
 				w.WriteHeader(nethttp.StatusAccepted)
 				_, _ = w.Write([]byte(`{"accepted":true}`))
 			default:

@@ -2,6 +2,7 @@ package run
 
 import (
 	"bytes"
+	"encoding/json"
 	"mime/multipart"
 	"testing"
 
@@ -336,4 +337,35 @@ func TestRuntimePayloadFromTransformOutput_CSV(t *testing.T) {
 	require.Equal(t, model.ContractRootShapeUnknown, payload.RootShape)
 	require.Equal(t, pipepayload.ProvenanceTransformOutput, payload.Provenance)
 	require.Equal(t, "id\n1\n", payload.CSV)
+}
+
+func TestRetainedFileReferenceRemainsRuntimeOnly(t *testing.T) {
+	t.Parallel()
+	metadata := filepayload.NewFilePayloadMetadata("fixture.bin", "application/octet-stream", []byte("fixture"))
+	ref := filepayload.Reference{ID: "ea946443-7b39-4f64-8faf-eb3fac36c17f", SizeBytes: metadata.SizeBytes, SHA256: metadata.Digest}
+	file := &result.FileResult{Format: "file", File: &metadata, Reference: &ref}
+	for _, execution := range []*result.ExecutionResult{
+		result.NewFTPResult(file, 0, nil), result.NewGitResult(file, 0, nil),
+		result.NewS3Result(file, 0, nil), result.NewWorkspaceFileResult(file, 0, nil),
+		result.NewHTTPResult(&result.HTTPResult{Headers: map[string]string{"Content-Type": metadata.MIMEType}, File: &metadata, Reference: &ref}, 0, nil),
+	} {
+		t.Run(execution.VendorType(), func(t *testing.T) {
+			source := NewStepResult(execution)
+			payload, ok := source.Payload()
+			require.True(t, ok)
+			require.Equal(t, &ref, payload.FileReference)
+			require.Empty(t, payload.FileBytes)
+			clone := payload.Clone()
+			clone.FileReference.SizeBytes++
+			require.Equal(t, metadata.SizeBytes, payload.FileReference.SizeBytes)
+			stored, err := json.Marshal(source)
+			require.NoError(t, err)
+			require.NotContains(t, string(stored), ref.ID)
+			var restored StepResult
+			require.NoError(t, json.Unmarshal(stored, &restored))
+			restoredPayload, ok := restored.Payload()
+			require.True(t, ok)
+			require.Nil(t, restoredPayload.FileReference)
+		})
+	}
 }
