@@ -13,6 +13,7 @@ frontend/test-results
 frontend/e2e/.auth
 out
 *.log
+/logs
 config.local.toml
 config.*.local.toml
 
