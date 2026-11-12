@@ -1,8 +1,11 @@
 # Incremental Operator Controls
 
 Braidplane Alpha supports initial checkpoint bootstrap and one bounded historical
-backfill per request. The incremental execution model
-defines the underlying source and sink contract.
+backfill per request. The pipeline specification describes
+[incremental sources](../docs-public/getting-started/pipeline-specifications.md#incremental-query-sources)
+and [sink replay safety](../docs-public/getting-started/pipeline-specifications.md#sink-replay-safety).
+Committed source progress is separate from retained replay inputs used for sink
+recovery. A sink failure does not prove that earlier external writes were rolled back.
 
 ## Initial checkpoint bootstrap
 
@@ -52,7 +55,6 @@ request input values and raw cursor tokens stay out of audit metadata and user
 visible summaries. A required `backfill_requested` security-audit event is atomic
 with run acceptance. Backfill execution and retained-payload recovery never advance
 normal committed checkpoints. Automatic chunk scheduling, checkpoint reset, and
-backfill endpoint promotion remain deferred. The data model describes these
-broader defaults separately from the available Alpha controls. Numeric bounds
+backfill endpoint promotion remain deferred. Numeric bounds
 follow the pipeline numeric contract. UI, CLI, and API requests preserve exact
 numeric tokens when passing checkpoint values to connectors.

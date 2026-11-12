@@ -31,6 +31,8 @@ Public user guides live under `docs-public/` with separate MkDocs navigation.
 - [Self-hosted custody and network boundaries](SELF_HOSTED_CUSTODY.md)
 - [Package Boundaries](PACKAGE_BOUNDARIES.md)
 - [Pipeline proposal authority](PROPOSAL_AUTHORITY.md)
+- [Pipeline run progress](PIPELINE_RUN_PROGRESS.md)
+- [Pipeline sink recovery](PIPELINE_SINK_RECOVERY.md)
 - [Public entrypoint preparation review](PUBLIC_ENTRYPOINT_REVIEW.md)
 - [Community core validation](QUALITY_GATES.md)
 - [Community release rights and notice delivery](RELEASE_RIGHTS.md)
