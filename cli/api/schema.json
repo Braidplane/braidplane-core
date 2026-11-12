@@ -14459,11 +14459,6 @@
             "minimum": 0,
             "type": "integer"
           },
-          "jitter": {
-            "deprecated": true,
-            "description": "",
-            "type": "boolean"
-          },
           "max_attempts": {
             "description": "",
             "maximum": 10,
@@ -14497,7 +14492,6 @@
           "backoff_strategy",
           "initial_delay_seconds",
           "max_delay_seconds",
-          "jitter",
           "retryable_failure_kinds"
         ],
         "type": "object"

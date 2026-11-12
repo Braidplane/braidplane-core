@@ -11513,11 +11513,9 @@ type PipelineTriggerRetryFailureKind string
 
 // PipelineTriggerRetryPolicy defines model for PipelineTriggerRetryPolicy.
 type PipelineTriggerRetryPolicy struct {
-	BackoffStrategy     PipelineTriggerBackoffStrategy `json:"backoff_strategy"`
-	Enabled             bool                           `json:"enabled"`
-	InitialDelaySeconds int                            `json:"initial_delay_seconds"`
-	// Deprecated: this property has been marked as deprecated upstream, but no `x-deprecated-reason` was set
-	Jitter                bool                              `json:"jitter"`
+	BackoffStrategy       PipelineTriggerBackoffStrategy    `json:"backoff_strategy"`
+	Enabled               bool                              `json:"enabled"`
+	InitialDelaySeconds   int                               `json:"initial_delay_seconds"`
 	MaxAttempts           int                               `json:"max_attempts"`
 	MaxDelaySeconds       int                               `json:"max_delay_seconds"`
 	MaxElapsedSeconds     *int                              `json:"max_elapsed_seconds,omitempty"`

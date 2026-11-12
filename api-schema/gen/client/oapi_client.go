@@ -15871,12 +15871,6 @@ type PipelineTriggerRetryPolicy struct {
 	// Example: 60
 	InitialDelaySeconds int `json:"initial_delay_seconds"`
 
-	// Jitter Unsupported. Must be false when creating or updating a trigger. Retained for reading legacy records; true does not randomize retry delays.
-	//
-	// Example: false
-	// Deprecated: this property has been marked as deprecated upstream, but no `x-deprecated-reason` was set
-	Jitter bool `json:"jitter"`
-
 	// MaxAttempts Maximum attempts in a retry group, including the initial run.
 	//
 	// Example: 3

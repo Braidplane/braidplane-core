@@ -139,6 +139,21 @@ func TestRunWithArgsRejectsUnknownCommand(t *testing.T) {
 	require.Contains(t, stderr.String(), "unknown")
 }
 
+func TestRunWithArgsRejectsRemovedRetryJitterFlag(t *testing.T) {
+	t.Parallel()
+	for _, command := range []string{"create", "update"} {
+		t.Run(command, func(t *testing.T) {
+			t.Parallel()
+			var stdout, stderr bytes.Buffer
+			err := runWithArgs([]string{"braidplane", "pipeline", "trigger", command, "--retry-jitter"}, &stdout, &stderr)
+
+			require.ErrorContains(t, err, "unknown flag --retry-jitter")
+			require.Contains(t, stderr.String(), "unknown flag --retry-jitter")
+			require.Empty(t, stdout.String())
+		})
+	}
+}
+
 func TestRunWithArgsValidateRequiresFile(t *testing.T) {
 	t.Parallel()
 
@@ -3283,15 +3298,6 @@ func TestRunWithArgsPipelineTriggerCreateRejectsInvalidInputsBeforeAPIRequest(t 
 			errContains: "retry-failure-kind must be data_source or platform",
 		},
 		{
-			name: "UnsupportedRetryJitter",
-			extraArgs: []string{
-				"--disabled",
-				"--version-policy", "latest_deployed",
-				"--retry-jitter",
-			},
-			errContains: "retry jitter is unsupported; omit --retry-jitter",
-		},
-		{
 			name: "ScheduleRejectsWebhookMapping",
 			extraArgs: []string{
 				"--disabled",
@@ -4434,7 +4440,6 @@ func pipelineTriggerResponseJSON(slug string, enabled bool) string {
 			"backoff_strategy": "none",
 			"initial_delay_seconds": 0,
 			"max_delay_seconds": 0,
-			"jitter": false,
 			"retryable_failure_kinds": []
 		},
 		"schedule": {
@@ -4470,7 +4475,6 @@ func pipelineWebhookTriggerResponseJSON(slug string, enabled bool) string {
 			"backoff_strategy": "none",
 			"initial_delay_seconds": 0,
 			"max_delay_seconds": 0,
-			"jitter": false,
 			"retryable_failure_kinds": []
 		},
 		"webhook": {

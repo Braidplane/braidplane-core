@@ -1088,7 +1088,7 @@ func retryScheduledAt(
 	return baseAt.Add(delay)
 }
 
-// retryDelay computes the deterministic delay for an attempt without applying jitter.
+// retryDelay computes the deterministic delay for an attempt.
 func retryDelay(policy model.PipelineTriggerRetryPolicy, attemptNumber int) time.Duration {
 	switch policy.BackoffStrategy {
 	case model.PipelineTriggerBackoffStrategyFixed:

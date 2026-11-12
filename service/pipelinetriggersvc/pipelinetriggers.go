@@ -610,9 +610,6 @@ func validateVersionPolicy(policy model.PipelineTriggerVersionPolicy) error {
 }
 
 func validateRetryPolicy(policy model.PipelineTriggerRetryPolicy) error {
-	if policy.Jitter {
-		return ErrInvalidPipelineTriggerInput.Detail("retry jitter is unsupported; set jitter to false")
-	}
 	if !policy.BackoffStrategy.IsAPipelineTriggerBackoffStrategy() ||
 		policy.BackoffStrategy == model.PipelineTriggerBackoffStrategyUnknown {
 		return ErrInvalidPipelineTriggerInput.Detail("retry backoff_strategy is required")

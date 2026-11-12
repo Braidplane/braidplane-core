@@ -230,10 +230,3 @@ func TestTriggerHistoryLinksRetainScopeAndRestrictedReplay(t *testing.T) {
 	require.Contains(t, out.String(), reason)
 	require.NotContains(t, out.String(), "<form")
 }
-
-func TestScheduleRetryTimingLabelMarksLegacyJitterUnsupported(t *testing.T) {
-	t.Parallel()
-	require.Equal(t, "initial 2s / max 30s / jitter unsupported", scheduleRetryTimingLabel(api.PipelineTriggerRetryPolicy{
-		Enabled: true, InitialDelaySeconds: 2, MaxDelaySeconds: 30, Jitter: true,
-	}))
-}
