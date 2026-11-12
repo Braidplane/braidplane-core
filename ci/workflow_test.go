@@ -106,6 +106,12 @@ func TestCommunityWorkflowTrustBoundary(t *testing.T) {
 		{"release push trigger", ".github/workflows/core-release.yml", "  workflow_dispatch:", "  push:\n  workflow_dispatch:"},
 		{"release missing environment", ".github/workflows/core-release.yml", "    environment: core-release", "    environment: unprotected"},
 		{"release unguarded", ".github/workflows/core-release.yml", "vars.CORE_RELEASE_PUBLICATION_ENABLED == 'true'", "true"},
+		{"preparation unguarded", ".github/workflows/core-release.yml", "vars.CORE_RELEASE_PREPARATION_ENABLED == 'true'", "true"},
+		{"preparation write token", ".github/workflows/core-release.yml", "permissions:\n      contents: read", "permissions:\n      contents: write"},
+		{"preparation missing CI admission", ".github/workflows/core-release.yml", "name: Admit successful main CI", "name: Skip CI admission"},
+		{"preparation skipped CI admission", ".github/workflows/core-release.yml", "      - name: Admit successful main CI\n", "      - name: Admit successful main CI\n        if: false\n"},
+		{"preparation ignored CI failure", ".github/workflows/core-release.yml", "      - name: Admit successful main CI\n", "      - name: Admit successful main CI\n        continue-on-error: true\n"},
+		{"preparation build after failure", ".github/workflows/core-release.yml", "      - name: Prepare candidate OCI archives\n", "      - name: Prepare candidate OCI archives\n        if: always()\n"},
 		{"release prematurely enabled", ".github/workflows/core-release.yml", "false && github.ref", "true && github.ref"},
 		{"release checkout credential", ".github/workflows/core-release.yml", "persist-credentials: false", "persist-credentials: true"},
 		{"release wrong attestation", ".github/workflows/core-release.yml", "sboms/backend.spdx.json", "sboms/frontend.spdx.json"},
@@ -125,6 +131,20 @@ func TestCommunityWorkflowTrustBoundary(t *testing.T) {
 			}
 		})
 	}
+	t.Run("preparation before CI admission", func(t *testing.T) {
+		var release map[string]any
+		if err := yaml.Unmarshal([]byte(files[".github/workflows/core-release.yml"]), &release); err != nil {
+			t.Fatal(err)
+		}
+		steps := release["jobs"].(map[string]any)["prepare"].(map[string]any)["steps"].([]any)
+		if steps[1].(map[string]any)["name"] != "Admit successful main CI" || steps[2].(map[string]any)["name"] != "Prepare candidate OCI archives" {
+			t.Fatal("update the mutation for the reviewed preparation sequence")
+		}
+		steps[1], steps[2] = steps[2], steps[1]
+		if err := releaseBoundary(release); err == nil {
+			t.Fatal("candidate build before CI admission was accepted")
+		}
+	})
 }
 
 func communityBoundary(files map[string]string) error {
@@ -213,10 +233,14 @@ func releaseBoundary(document map[string]any) error {
 	}
 	for _, name := range []string{"prepare", "publish"} {
 		job, ok := jobs[name].(map[string]any)
+		condition := "${{ false && github.ref == 'refs/heads/main' && github.event.repository.visibility == 'public' && vars.CORE_RELEASE_PUBLICATION_ENABLED == 'true' }}"
+		if name == "prepare" {
+			condition = "${{ github.ref == 'refs/heads/main' && github.event.repository.visibility == 'public' && vars.CORE_RELEASE_PREPARATION_ENABLED == 'true' }}"
+		}
 		if !ok || job["uses"] != nil ||
 			job["runs-on"] != "${{ inputs.platform == 'linux/arm64' && 'ubuntu-24.04-arm' || 'ubuntu-24.04' }}" ||
-			job["if"] != "${{ false && github.ref == 'refs/heads/main' && github.event.repository.visibility == 'public' && vars.CORE_RELEASE_PUBLICATION_ENABLED == 'true' }}" {
-			return fmt.Errorf("release requires a disabled public-main job on a hosted runner")
+			job["if"] != condition {
+			return fmt.Errorf("release requires guarded public-main jobs on hosted runners; publication stays disabled")
 		}
 		if name == "prepare" {
 			if job["environment"] != nil || !reflect.DeepEqual(job["permissions"], map[string]any{"contents": "read"}) {
@@ -230,10 +254,27 @@ func releaseBoundary(document map[string]any) error {
 		if !ok {
 			return fmt.Errorf("release steps missing")
 		}
-		for _, item := range steps {
+		admission, build := -1, -1
+		for index, item := range steps {
 			step, ok := item.(map[string]any)
 			if !ok {
 				return fmt.Errorf("invalid release step")
+			}
+			if name == "prepare" {
+				switch step["name"] {
+				case "Admit successful main CI":
+					admission = index
+					if step["if"] != nil || step["continue-on-error"] != nil ||
+						!reflect.DeepEqual(step["env"], map[string]any{"GH_TOKEN": "${{ github.token }}", "CI_RUN_ID": "${{ inputs.ci_run_id }}", "CI_ATTEMPT": "${{ inputs.ci_attempt }}"}) ||
+						!strings.HasPrefix(fmt.Sprint(step["run"]), "python3 -m scripts.admit_core_ci ") {
+						return fmt.Errorf("preparation must admit exact main CI using the read-only token")
+					}
+				case "Prepare candidate OCI archives":
+					build = index
+					if step["if"] != nil {
+						return fmt.Errorf("preparation must stop after failed CI admission")
+					}
+				}
 			}
 			if step["name"] == "Retain signature bundles" && step["if"] != "${{ always() && steps.publish_candidate.outcome == 'success' }}" {
 				return fmt.Errorf("available signature bundles must be retained after signing failure")
@@ -271,6 +312,9 @@ func releaseBoundary(document map[string]any) error {
 					return fmt.Errorf("unreviewed release action: %s", uses)
 				}
 			}
+		}
+		if name == "prepare" && (admission < 0 || build <= admission) {
+			return fmt.Errorf("preparation must admit main CI before building")
 		}
 	}
 	if attestations != 10 || len(attestationInputs) != 0 {

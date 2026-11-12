@@ -38,11 +38,16 @@ a release job. Check setup actions for implicit caching, and check remote
 Buildx caches too. Cache prefixes alone do not control access; GitHub also
 scopes caches by repository and ref.
 
-The draft `core-release.yml` job is disabled. The build script prepares local
-OCI archives without publishing them. The draft shows the approval document and
-then passes its digest to a separate publisher. The publisher checks that digest
-and copies the archives by digest. Review and validate this sequence before
-enabling the workflow.
+The manual `core-release.yml` workflow prepares OCI archives when
+`CORE_RELEASE_PREPARATION_ENABLED` is `true`. Before enabling preparation, review
+the source, version, platform, external image digests and artifact exposure.
+Supply the successful main-push CI run and attempt for that exact source;
+preparation checks them before building with a read-only token. Review the CI
+admission, approval document and release record in the job summary.
+
+The publication job remains disabled by its literal false guard. The publisher
+checks the approved document digest and copies the archives by digest. Review
+and validate that sequence before enabling publication separately.
 Before approving publication, the owner must review the approval document and
 release record in the preparation job summary. Uploading the candidate to a
 public repository's Actions artifacts is also an exposure to review before

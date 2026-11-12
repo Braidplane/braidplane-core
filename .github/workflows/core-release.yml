@@ -38,7 +38,7 @@ concurrency:
 
 jobs:
   prepare:
-    if: ${{ false && github.ref == 'refs/heads/main' && github.event.repository.visibility == 'public' && vars.CORE_RELEASE_PUBLICATION_ENABLED == 'true' }}
+    if: ${{ github.ref == 'refs/heads/main' && github.event.repository.visibility == 'public' && vars.CORE_RELEASE_PREPARATION_ENABLED == 'true' }}
     runs-on: ${{ inputs.platform == 'linux/arm64' && 'ubuntu-24.04-arm' || 'ubuntu-24.04' }}
     timeout-minutes: 120
     permissions:
@@ -49,6 +49,15 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
+      - name: Admit successful main CI
+        env:
+          GH_TOKEN: ${{ github.token }}
+          CI_RUN_ID: ${{ inputs.ci_run_id }}
+          CI_ATTEMPT: ${{ inputs.ci_attempt }}
+        run: |
+          python3 -m scripts.admit_core_ci \
+            "$GITHUB_REPOSITORY" "$GITHUB_SHA" "$CI_RUN_ID" "$CI_ATTEMPT" \
+            "$RUNNER_TEMP/core-release-ci-admission.json"
       - name: Prepare candidate OCI archives
         env:
           RELEASE_VERSION: ${{ inputs.version }}
@@ -66,6 +75,9 @@ jobs:
           printf 'approval_sha256=%s\n' "$digest" >> "$GITHUB_OUTPUT"
           {
             printf '## Core release candidate\n\nApproval document SHA-256: %s\n\n' "$digest"
+            printf '%s\n' 'Main CI admission:' '~~~json'
+            cat "$RUNNER_TEMP/core-release-ci-admission.json"
+            printf '\n%s\n' '~~~'
             printf '%s\n' '~~~json'
             cat "$RUNNER_TEMP/core-release-candidate/approval.json"
             printf '\n%s\n' '~~~'
