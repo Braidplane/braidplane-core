@@ -1,6 +1,6 @@
 # Operator sink recovery
 
-Run details expose a delivery outcome for each attempted sink independently of
+Run details show a delivery outcome for each attempted sink, regardless of
 run success: `confirmed` (ledger completion), `failed` (pre-dispatch failure),
 `unknown` (an attempt may have reached the provider), or `no_op` (empty input
 skipped without dispatch). Old runs without this evidence show outcome
@@ -20,8 +20,8 @@ version, resolved datasource references, retained inputs, incremental source
 windows and effect identity are reused. Source query parameters supplied through
 `runtime.input` are not resolved again because their retained outputs replace
 source execution. Those request-local values remain unpersisted. Recovery does
-not read newer source rows or advance incremental checkpoints. Recovery of a recovery keeps the same
-original effect identity. Intent and terminal outcome are durable security audit
+not read newer source rows or advance incremental checkpoints. Recovery of a
+recovery keeps the same original effect identity. Intent and terminal outcome are durable security audit
 events linked to the original run and version; unavailable intent auditing
 prevents dispatch.
 
@@ -55,16 +55,17 @@ File metadata alone is not a retained file. When nonempty file bytes are
 unavailable, recovery refuses the request before creating another run or
 dispatching a sink. Reconcile the destination before a new evaluation, which
 reads the source again.
-Credential repair is allowed through the existing datasource lifecycle; changing the operation/target is a new evaluation,
-not recovery of the original effect. No cross-system transaction is promised.
+You can repair credentials through the existing datasource lifecycle. Changing
+the operation or target starts a new evaluation, not recovery of the original
+effect. No cross-system transaction is promised.
 
 Eligible source/transform outputs are checkpointed before sink dispatch, using
 the existing checkpoint store and organization retention policy. The complete
-serialized pre-dispatch checkpoint, including plans and intermediate outputs, is limited to
-10 MiB. Event-input runs, runs with resolved environment secrets and outputs
+serialized pre-dispatch checkpoint, including plans and intermediate outputs,
+is limited to 10 MiB. Event-input runs, runs with resolved environment secrets and outputs
 that cannot be serialized are excluded from pre-dispatch retention. Existing
-terminal checkpointing keeps its size behavior and value-based redaction; redacted outputs do
-not establish exact worker-loss repair inputs. A checkpoint-store failure stops
+terminal checkpointing keeps its size behavior and value-based redaction.
+Redacted outputs do not establish exact worker-loss repair inputs. A checkpoint-store failure stops
 eligible dispatch. Missing, excluded, oversized or expired repair inputs require
 provider reconciliation; a new evaluation reads sources again.
 
@@ -79,8 +80,8 @@ no arbitrary mid-graph resume, queue policy change or exactly-once guarantee.
 
 A row-input sink may set `empty_input_policy: skip` for an intentional
 zero-row/no-change result or `reject` for unexpected empty data. `skip` records
-`no_op`, creates no sink-effect claim, and makes no connector call. Input-contract validation still
-runs first. Omission preserves connector behavior: SQL sinks skip empty rows,
+`no_op`, creates no sink-effect claim, and makes no connector call. Input-contract
+validation still runs first. Omission preserves connector behavior: SQL sinks skip empty rows,
 while connector minimum-row checks remain in force elsewhere. Apply `reject`
 when a missing source dataset must fail rather than silently skip delivery.
 The policy applies to row payloads; a raw header-only CSV export remains an

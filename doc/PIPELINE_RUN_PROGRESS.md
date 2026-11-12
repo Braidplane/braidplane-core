@@ -1,8 +1,8 @@
 # Run execution progress
 
-Manual/API and completion starts retain their selected artifact at enqueue.
-Schedule and verified webhook intake (including retries) records a queued run
-and private queue job ownership in the same transaction as enqueue. When the
+Manual/API and completion starts retain the artifact selected at enqueue.
+Schedule and verified webhook intake, including retries, records a queued run
+and private queue job ownership in the enqueue transaction. When the
 version policy is resolved by the worker, authored version and deployment
 identity remain unavailable until the first runtime admission write binds them
 atomically. A queued timestamp never substitutes for the worker-start timestamp.
@@ -18,13 +18,12 @@ Source-owner logical finalization stays unresolved for uncertain effects.
 Synchronous execution without queue ownership reports stale observations but
 does not infer worker loss from a timeout.
 
-The runtime persists its sanitized timeline at admission, before each step,
-after each step, and at terminal finalization. This applies even when the
-pipeline has no structural checks. Step completion is committed before the
-next step starts. Retained replay outputs record `step_reused`; they do not
-invent a new provider execution. Existing queued and worker-started timestamps
-remain in the timeline when the runtime takes over. Synchronous paths without
-a queued phase do not synthesize queue events.
+The runtime persists a sanitized timeline at admission, before and after each
+step, and at terminal finalization, even when the pipeline has no structural
+checks. It commits each step's completion before starting the next. Retained
+replay outputs record `step_reused` without inventing a provider execution.
+The timeline retains queued and worker-started timestamps when the runtime
+takes over. Synchronous paths without a queued phase do not add queue events.
 
 An attempt-local timeline revision fences writes in the existing run record.
 Updates must advance it by one and retain every previously committed event as
@@ -41,15 +40,16 @@ running state remains authoritative. Repeating an admitted attempt cannot
 rerun its effects; recovery requires the existing recovery path or a new
 attempt identity. Earlier failure evidence survives pre-runtime refusals.
 
-Writes occur at boundaries and structural checks, never per row. This uses
-cumulative sanitized timeline snapshots in the existing run storage and its
-retention policy. Boundary timestamps describe durable execution observations;
+Writes occur at boundaries and structural checks, never per row. Cumulative,
+sanitized timeline snapshots use the existing run storage and retention policy.
+Boundary timestamps describe durable execution observations;
 a quiet step alone supplies no worker heartbeat or proof of worker loss.
 The admitted runtime records a worker observation every five seconds. The
 single latest timestamp is retained independently of boundary revisions;
 heartbeat writes neither append events nor erase a newer observation. Transient
-heartbeat failures are tolerated within the fifteen-second stale window. Continued reporting failure after that window cancels execution;
-a rejected running record cancels it immediately because ownership is lost.
+heartbeat failures are tolerated within the fifteen-second stale window. Continued
+reporting failure after that window cancels execution. A rejected running record
+cancels it immediately because ownership is lost.
 Reports within fifteen seconds are recent; older reports are stale, and future
 or absent reports leave liveness unavailable. A stale report does not prove
 worker death and never authorizes an effect replay. Terminal attempts reject
