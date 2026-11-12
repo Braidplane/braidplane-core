@@ -23,7 +23,8 @@ case "$1 $2" in
     if [[ "$MODE" = empty ]]; then exit 0; fi
     printf 'postgres:18.6@sha256:abc\\naxllent/mailpit:v1.30@sha256:def\\nmysql:26.7@sha256:ghi\\nfixture-local-build\\npostgres:18.6@sha256:abc\\n' ;;
   'pull postgres:18.6@sha256:abc')
-    if [[ "$MODE" = pull-failure ]]; then exit 43; fi ;;
+    if [[ "$MODE" = pull-failure || "$MODE" = corrupt-pull-failure ]]; then exit 43; fi ;;
+  'image load') if [[ "$MODE" = corrupt || "$MODE" = corrupt-pull-failure ]]; then exit 44; fi ;;
   'image save') touch "$4" ;;
 esac
 ''')
@@ -32,17 +33,17 @@ esac
             archive = root / 'images.tar'
             env = os.environ | {'PATH': f'{root}:{os.environ["PATH"]}',
                                 'IMAGE_ARCHIVE': str(archive), 'CALLS': str(calls)}
-            for mode in ('cold', 'disabled', 'hit', 'compose-failure', 'pull-failure', 'empty'):
+            for mode in ('cold', 'disabled', 'hit', 'corrupt', 'corrupt-pull-failure', 'compose-failure', 'pull-failure', 'empty'):
                 with self.subTest(mode=mode):
                     calls.unlink(missing_ok=True)
                     archive.unlink(missing_ok=True)
-                    if mode == 'hit':
+                    if mode in ('hit', 'corrupt', 'corrupt-pull-failure'):
                         archive.touch()
                     result = subprocess.run(['bash', '-euo', 'pipefail', '-c', script],
-                                            env=env | {'MODE': mode, 'CACHE_ENABLED': str(mode != 'disabled').lower(), 'CACHE_HIT': str(mode == 'hit').lower()},
+                                            env=env | {'MODE': mode, 'CACHE_ENABLED': str(mode != 'disabled').lower(), 'CACHE_HIT': str(mode in ('hit', 'corrupt', 'corrupt-pull-failure')).lower()},
                                             capture_output=True, text=True)
                     output = calls.read_text()
-                    if mode in ('cold', 'disabled', 'hit'):
+                    if mode in ('cold', 'disabled', 'hit', 'corrupt'):
                         self.assertEqual(result.returncode, 0, result.stderr)
                         self.assertIn('pull postgres:18.6@sha256:abc', output)
                         self.assertIn('pull axllent/mailpit:v1.30@sha256:def', output)
@@ -50,7 +51,9 @@ esac
                         self.assertEqual(output.count('pull postgres:18.6@sha256:abc'), 1)
                         self.assertNotIn('pull fixture-local-build', output)
                         self.assertIn('compose -f docker-compose.yml -f docker-compose.connectors.yml config --images', output)
-                        self.assertEqual('image load' in output, mode == 'hit')
+                        self.assertEqual('image load' in output, mode in ('hit', 'corrupt'))
+                        if mode == 'corrupt':
+                            self.assertIn('Fixture image cache could not be loaded', result.stdout)
                         self.assertEqual('image save' in output, mode == 'cold')
                         if mode == 'cold':
                             self.assertIn('axllent/mailpit:v1.30 mysql:26.7 postgres:18.6', output)
@@ -58,6 +61,10 @@ esac
                     else:
                         self.assertNotEqual(result.returncode, 0)
                         self.assertNotIn('image save', output)
+                        if mode == 'corrupt-pull-failure':
+                            self.assertEqual(result.returncode, 43)
+                            self.assertIn('Fixture image cache could not be loaded', result.stdout)
+                            self.assertIn('pull postgres:18.6@sha256:abc', output)
 
 
     def test_cold_dispatch_bypasses_all_ci_caches(self):

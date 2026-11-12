@@ -20,8 +20,8 @@ runs:
         CACHE_ENABLED: ${{ inputs.enabled }}
         CACHE_HIT: ${{ steps.images.outputs.cache-hit }}
       run: |
-        if [ -f "$IMAGE_ARCHIVE" ]; then
-          docker image load --input "$IMAGE_ARCHIVE"
+        if [ -f "$IMAGE_ARCHIVE" ] && ! docker image load --input "$IMAGE_ARCHIVE"; then
+          echo "::warning::Fixture image cache could not be loaded; pulling pinned images"
         fi
         image_list=$(docker compose -f docker-compose.yml -f docker-compose.connectors.yml config --images | awk '/@sha256:/ { print }' | LC_ALL=C sort -u)
         test -n "$image_list"

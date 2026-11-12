@@ -67,6 +67,26 @@ func TestGoModuleCacheLifecycle(t *testing.T) {
 	}
 }
 
+func TestCommunityConcurrency(t *testing.T) {
+	data, err := os.ReadFile("../.github/workflows/ci.yml")
+	if err != nil {
+		t.Fatal(err)
+	}
+	var workflow struct {
+		Concurrency map[string]any `yaml:"concurrency"`
+	}
+	if err := yaml.Unmarshal(data, &workflow); err != nil {
+		t.Fatal(err)
+	}
+	want := map[string]any{
+		"group":              "community-${{ github.workflow }}-${{ github.event_name }}-${{ github.event.pull_request.number || github.ref }}",
+		"cancel-in-progress": "${{ github.event_name == 'pull_request' }}",
+	}
+	if !reflect.DeepEqual(workflow.Concurrency, want) {
+		t.Fatalf("PRs should cancel stale runs; running main and dispatch should finish: %v", workflow.Concurrency)
+	}
+}
+
 // This is a regression contract, not a sandbox for candidate-controlled scripts.
 func TestCommunityWorkflowTrustBoundary(t *testing.T) {
 	files := map[string]string{}
