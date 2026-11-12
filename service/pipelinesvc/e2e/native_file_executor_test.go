@@ -5,7 +5,6 @@ package e2e
 import (
 	"bufio"
 	"context"
-	"encoding/json"
 	"fmt"
 	"log/slog"
 	"os"
@@ -15,7 +14,6 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"github.com/Braidplane/braidplane-core/pkg/connector/filestream"
 	"github.com/Braidplane/braidplane-core/pkg/connector/transportsecurity"
 	"github.com/Braidplane/braidplane-core/pkg/crypto"
 	"github.com/Braidplane/braidplane-core/pkg/domain/model"
@@ -29,14 +27,12 @@ func TestNativeFileExecutorWorker(t *testing.T) {
 	if os.Getenv("BP_NATIVE_FILE_EXECUTOR_WORKER") != "1" {
 		t.Skip("subprocess entrypoint")
 	}
-	var profile filestream.Profile
-	require.NoError(t, json.Unmarshal([]byte(os.Getenv("BP_NATIVE_FILE_EXECUTOR_PROFILE")), &profile))
 	encryption, err := crypto.NewAES256(make([]byte, 32))
 	require.NoError(t, err)
 	factory := func(ctx context.Context, kind model.DataSourceType, config, credentials []byte) (connector.Connector, error) {
 		return connector.NewConnector(transportsecurity.WithPlaintext(ctx), kind, config, credentials)
 	}
-	broker, err := executionbroker.New(postgres.NewTransactionManager(openE2EPool(t)), encryption, executionbroker.NewPollerDispatcher(), time.Second, factory, slog.New(slog.DiscardHandler), testutil.FakeOperationAdmission{}, profile)
+	broker, err := executionbroker.New(postgres.NewTransactionManager(openE2EPool(t)), encryption, executionbroker.NewPollerDispatcher(), 5*time.Minute, factory, slog.New(slog.DiscardHandler), testutil.FakeOperationAdmission{})
 	require.NoError(t, err)
 	defer func() { require.NoError(t, broker.Close()) }()
 	require.NoError(t, broker.Start(t.Context(), 2))
@@ -44,16 +40,14 @@ func TestNativeFileExecutorWorker(t *testing.T) {
 	<-t.Context().Done()
 }
 
-func startNativeFileExecutor(ctx context.Context, t *testing.T, profile filestream.Profile) *exec.Cmd {
+func startNativeFileExecutor(ctx context.Context, t *testing.T) *exec.Cmd {
 	t.Helper()
 	require.NotEmpty(t, os.Getenv("DATABASE_URL"), "child must inherit the package's isolated database")
-	encoded, err := json.Marshal(profile)
-	require.NoError(t, err)
 	binary, err := os.Executable()
 	require.NoError(t, err)
-	// #nosec G204 G702 -- re-executes this test binary against its own isolated database and synthetic profile.
+	// #nosec G204 G702 -- re-executes this test binary against its own isolated database and synthetic data.
 	command := exec.CommandContext(ctx, binary, "-test.run=^TestNativeFileExecutorWorker$", "-test.timeout=10m", "-test.v")
-	command.Env = append(os.Environ(), "BP_NATIVE_FILE_EXECUTOR_WORKER=1", "BP_NATIVE_FILE_EXECUTOR_PROFILE="+string(encoded))
+	command.Env = append(os.Environ(), "BP_NATIVE_FILE_EXECUTOR_WORKER=1")
 	command.Stderr = os.Stderr
 	stdout, err := command.StdoutPipe()
 	require.NoError(t, err)

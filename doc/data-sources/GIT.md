@@ -191,7 +191,7 @@ Git LFS pointer files are transferred as pointers; LFS object download is not
 part of this operation. Structured formats retain repository attribute behavior.
 The [native-file boundary](../NATIVE_FILE_STREAMING.md) documents retained
 streaming, Git resource settings and qualification scope.
-The explicit bounded-streaming profile requires Linux workers with finite
+Retained streaming requires Linux workers with finite
 transfer deadlines and process resource limits. macOS workers refuse that path;
 ordinary small-file operations keep their existing response limits. Large delta objects or
 repository metadata can be refused by the Git process/allocation limits.

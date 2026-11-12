@@ -10,7 +10,6 @@ import (
 	"github.com/riverqueue/river/rivertype"
 	"github.com/stretchr/testify/require"
 
-	"github.com/Braidplane/braidplane-core/pkg/connector/filestream"
 	"github.com/Braidplane/braidplane-core/pkg/crypto"
 	"github.com/Braidplane/braidplane-core/pkg/queue"
 	"github.com/Braidplane/braidplane-core/pkg/slug"
@@ -152,7 +151,7 @@ func TestRiverSubmissionCommitsEnvelopeAndJobAtomically(t *testing.T) { // Share
 
 	t.Run("commit exposes both envelope and job", func(t *testing.T) { // Shared transaction fixture.
 		dispatcher := &capturingExecutionDispatcher{delegate: riverDispatcher}
-		broker, brokerErr := executionbroker.New(postgres.NewTransactionManager(pool), cipher, dispatcher, brokerAtomicityRequestTimeout, nil, nil, testutil.FakeOperationAdmission{}, filestream.Profile{})
+		broker, brokerErr := executionbroker.New(postgres.NewTransactionManager(pool), cipher, dispatcher, brokerAtomicityRequestTimeout, nil, nil, testutil.FakeOperationAdmission{})
 		require.NoError(t, brokerErr)
 
 		err := broker.TestConnection(ctx, datasourcessvc.ConnectionTestRequest{OrganizationSlug: org})
@@ -167,7 +166,7 @@ func TestRiverSubmissionCommitsEnvelopeAndJobAtomically(t *testing.T) { // Share
 	t.Run("caller transaction cannot hide envelope and job", func(t *testing.T) { // Shared transaction fixture.
 		dispatcher := &capturingExecutionDispatcher{delegate: riverDispatcher}
 		txm := postgres.NewTransactionManager(pool)
-		broker, brokerErr := executionbroker.New(txm, cipher, dispatcher, brokerAtomicityRequestTimeout, nil, nil, testutil.FakeOperationAdmission{}, filestream.Profile{})
+		broker, brokerErr := executionbroker.New(txm, cipher, dispatcher, brokerAtomicityRequestTimeout, nil, nil, testutil.FakeOperationAdmission{})
 		require.NoError(t, brokerErr)
 
 		t.Cleanup(func() {
@@ -197,7 +196,7 @@ func TestRiverSubmissionCommitsEnvelopeAndJobAtomically(t *testing.T) { // Share
 			delegate:     riverDispatcher,
 			afterEnqueue: dispatchErr,
 		}
-		broker, brokerErr := executionbroker.New(postgres.NewTransactionManager(pool), cipher, dispatcher, brokerAtomicityRequestTimeout, nil, nil, testutil.FakeOperationAdmission{}, filestream.Profile{})
+		broker, brokerErr := executionbroker.New(postgres.NewTransactionManager(pool), cipher, dispatcher, brokerAtomicityRequestTimeout, nil, nil, testutil.FakeOperationAdmission{})
 		require.NoError(t, brokerErr)
 
 		err := broker.TestConnection(ctx, datasourcessvc.ConnectionTestRequest{OrganizationSlug: org})

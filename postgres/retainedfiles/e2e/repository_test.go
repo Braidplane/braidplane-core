@@ -194,7 +194,7 @@ func TestRetainedFileRestrictedExecutor(t *testing.T) {
 	require.NoError(t, repo.Seal(ctx, tx, claim, 1, strings.Repeat("a", 64)))
 	_, err = repo.Read(ctx, tx, claim, id)
 	require.NoError(t, err)
-	for _, query := range []string{"SELECT 1 FROM retained_file_streams", "SELECT 1 FROM file_transfer_scopes", "SELECT 1 FROM retained_file_chunks", "SELECT 1 FROM execution_requests", "SELECT retained_file_claim(NULL,NULL,NULL)"} {
+	for _, query := range []string{"SELECT 1 FROM retained_file_streams", "SELECT 1 FROM retained_file_chunks", "SELECT 1 FROM execution_requests", "SELECT retained_file_claim(NULL,NULL,NULL)"} {
 		_, err = tx.Exec(ctx, "SAVEPOINT boundary_probe")
 		require.NoError(t, err)
 		_, err = tx.Exec(ctx, query)

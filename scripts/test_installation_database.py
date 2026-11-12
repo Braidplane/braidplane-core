@@ -82,7 +82,7 @@ class InstallationDatabaseTest(unittest.TestCase):
                     "CREATE TABLE public.forbidden(id int)", "DELETE FROM core_schema_migrations",
                     "SELECT * FROM claim_execution_request(gen_random_uuid())",
                     "SELECT * FROM retained_file_streams", "SELECT * FROM retained_file_chunks",
-                    "SELECT * FROM file_transfer_scopes", "SELECT retained_file_claim(NULL,NULL,NULL)"):
+                    "SELECT retained_file_claim(NULL,NULL,NULL)"):
             with self.subTest(denied=sql):
                 result = self.psql("SET ROLE braidplane_executor; " + sql, check=False)
                 self.assertNotEqual(result.returncode, 0)

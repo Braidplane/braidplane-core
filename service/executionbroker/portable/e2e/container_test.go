@@ -33,7 +33,6 @@ import (
 	"github.com/testcontainers/testcontainers-go/network"
 	"github.com/testcontainers/testcontainers-go/wait"
 
-	"github.com/Braidplane/braidplane-core/pkg/connector/filestream"
 	"github.com/Braidplane/braidplane-core/pkg/crypto"
 	"github.com/Braidplane/braidplane-core/pkg/domain/model"
 	"github.com/Braidplane/braidplane-core/pkg/testutil"
@@ -227,7 +226,7 @@ ssl_mode="disable"
 	})
 	cipher, err := crypto.NewAES256(envelopeKey)
 	require.NoError(t, err)
-	broker, err := executionbroker.New(postgres.NewTransactionManager(pool), cipher, executionbroker.NewPollerDispatcher(), 90*time.Second, nil, nil, testutil.FakeOperationAdmission{}, filestream.Profile{})
+	broker, err := executionbroker.New(postgres.NewTransactionManager(pool), cipher, executionbroker.NewPollerDispatcher(), 90*time.Second, nil, nil, testutil.FakeOperationAdmission{})
 	require.NoError(t, err)
 	provider := startContainer(t, ctx, testcontainers.ContainerRequest{Image: backendImage, Networks: []string{netw.Name}, NetworkAliases: map[string][]string{netw.Name: {"provider"}}, Entrypoint: []string{"perl", "-MIO::Socket::INET", "-e"}, Cmd: []string{canaryHTTPServer}, ExposedPorts: []string{"8080/tcp"}, WaitingFor: wait.ForListeningPort("8080/tcp")})
 	verifyAuthenticatedRouting(t, ctx, pool, apiURL, provider, func(t *testing.T) { startContainer(t, ctx, runtime("worker")) })

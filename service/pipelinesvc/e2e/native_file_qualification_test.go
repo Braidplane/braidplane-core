@@ -118,17 +118,16 @@ func TestNativeFileQualification(t *testing.T) {
 	}}
 	credentials, err := credentialssvc.New(txm, credentialsrepo.New(), credentialCipher, credentialssvc.ProviderRegistry{}, clock.New(), true)
 	require.NoError(t, err)
-	profile := filestream.Profile{Organization: org, MaxBytes: size, Timeout: 5 * time.Minute, Transfers: 1, Connectors: 2}
 	factory := func(ctx context.Context, kind model.DataSourceType, config, credentials []byte) (connector.Connector, error) {
 		return connector.NewConnector(transportsecurity.WithPlaintext(ctx), kind, config, credentials)
 	}
-	broker, err := executionbroker.New(txm, encryption, executionbroker.NewPollerDispatcher(), time.Second, factory, slog.New(slog.DiscardHandler), testutil.FakeOperationAdmission{}, profile)
+	broker, err := executionbroker.New(txm, encryption, executionbroker.NewPollerDispatcher(), 5*time.Minute, factory, slog.New(slog.DiscardHandler), testutil.FakeOperationAdmission{})
 	require.NoError(t, err)
 	defer func() { require.NoError(t, broker.Close()) }()
 	workerCtx, stopWorker := context.WithCancel(ctx)
 	defer stopWorker()
 	require.NoError(t, broker.Start(workerCtx, 2))
-	limits := queriessvc.ExecutionLimits{NativeFiles: profile, QueryTimeout: time.Second, ConnectorTimeout: time.Second, MaxResultRows: 100, MaxResponseBytes: 1 << 20, ConnectorConcurrencyPerDataSource: 2, ConnectorConcurrencyQueueTimeout: time.Minute, ConnectorConcurrencyMaxQueued: 4, HTTPTimeout: time.Second, HTTPMaxRedirects: 3, HTTPMaxRequestBytes: 1 << 20, HTTPMaxResponseBytes: 1 << 20, HTTPRetryAttempts: 1}
+	limits := queriessvc.ExecutionLimits{MaxFileBytes: size, QueryTimeout: 5 * time.Minute, ConnectorTimeout: 5 * time.Minute, MaxResultRows: 100, MaxResponseBytes: 1 << 20, ConnectorConcurrencyPerDataSource: 2, ConnectorConcurrencyQueueTimeout: time.Minute, ConnectorConcurrencyMaxQueued: 4, HTTPTimeout: 5 * time.Minute, HTTPMaxRedirects: 3, HTTPMaxRequestBytes: 1 << 20, HTTPMaxResponseBytes: 1 << 20, HTTPRetryAttempts: 1}
 	queries, err := queriessvc.NewWithExecutionLimits(txm, queriesrepo.New(), sources, broker, credentials, clock.New(), limits, eventtest.NewProducer(nil))
 	require.NoError(t, err)
 
@@ -237,7 +236,7 @@ func TestNativeFileQualification(t *testing.T) {
 	if runtime.GOOS == "linux" {
 		peakRSS *= 1024
 	}
-	report := map[string]any{"revision": revision, "bytes": size, "sha256": hex.EncodeToString(destinationHash.Sum(nil)), "elapsed_seconds": elapsed.Seconds(), "heap_baseline_bytes": baseline.HeapAlloc, "heap_peak_sampled_bytes": peak.Load(), "process_peak_rss_bytes": peakRSS, "database_growth_bytes": databaseAfter - databaseBefore, "retained_relation_bytes": retainedRelationBytes, "seed_disk_bytes": size, "s3_object_logical_bytes": 2 * size, "retained_ciphertext_bytes": chunkBytes, "largest_chunk_bytes": maxChunk, "largest_broker_envelope_bytes": envelopeBytes, "checkpoint_bytes": len(checkpointJSON), "profile": profile, "components": "runner + real query/credential services + broker pollers in one Go process; PostgreSQL encrypted retained chunks/checkpoints/ledger; external SeaweedFS S3; independent SDK seed/readback; API/browser and process restart excluded"}
+	report := map[string]any{"revision": revision, "bytes": size, "sha256": hex.EncodeToString(destinationHash.Sum(nil)), "elapsed_seconds": elapsed.Seconds(), "heap_baseline_bytes": baseline.HeapAlloc, "heap_peak_sampled_bytes": peak.Load(), "process_peak_rss_bytes": peakRSS, "database_growth_bytes": databaseAfter - databaseBefore, "retained_relation_bytes": retainedRelationBytes, "seed_disk_bytes": size, "s3_object_logical_bytes": 2 * size, "retained_ciphertext_bytes": chunkBytes, "largest_chunk_bytes": maxChunk, "largest_broker_envelope_bytes": envelopeBytes, "checkpoint_bytes": len(checkpointJSON), "limits": limits, "components": "runner + real query/credential services + broker pollers in one Go process; PostgreSQL encrypted retained chunks/checkpoints/ledger; external SeaweedFS S3; independent SDK seed/readback; API/browser and process restart excluded"}
 	evidence, err := json.Marshal(report)
 	require.NoError(t, err)
 	t.Logf("NATIVE_FILE_EVIDENCE %s", evidence)
@@ -256,7 +255,7 @@ func TestNativeFileQualification(t *testing.T) {
 		// A request can choose a smaller allowance than the operator's ceiling.
 		// Keep these boundary cases tiny while exercising the same full pipeline.
 		boundedLimits := limits
-		boundedLimits.NativeFiles.MaxBytes = 16
+		boundedLimits.MaxFileBytes = 16
 		boundedQueries, err := queriessvc.NewWithExecutionLimits(txm, queriesrepo.New(), sources, broker, credentials, clock.New(), boundedLimits, eventtest.NewProducer(nil))
 		require.NoError(t, err)
 		boundedRunner, err := pipelineruntime.NewRunner(qualificationQueryAdapter{boundedQueries}, clock.New(), runs, sources, pipelineruntime.NewSinkRuntime(boundedQueries, testSinkEffectLedger(t, txm)))
@@ -312,8 +311,6 @@ func TestNativeFileQualification(t *testing.T) {
 		require.Zero(t, incomplete)
 		require.NoError(t, pool.QueryRow(ctx, `SELECT count(*) FROM execution_requests WHERE organization_id=(SELECT id FROM organizations WHERE slug=$1) AND state='running'`, org).Scan(&active))
 		require.Zero(t, active)
-		require.NoError(t, pool.QueryRow(ctx, `SELECT count(*) FROM file_transfer_scopes WHERE organization_id=(SELECT id FROM organizations WHERE slug=$1) AND claimed_at IS NOT NULL AND released_at IS NULL AND deadline_at>clock_timestamp()`, org).Scan(&active))
-		require.Zero(t, active, "completed pipeline attempts must release transfer admission")
 	})
 
 	t.Run("BrokenStreamsNeverImplySuccessfulDelivery", func(t *testing.T) {
@@ -456,9 +453,6 @@ func TestNativeFileQualification(t *testing.T) {
 		}
 		require.EqualValues(t, 1, completions.Load(), "backpressure must prevent publication")
 		require.Equal(t, priorParts+1, partRequests.Load(), "a blocked part must prevent dispatch of subsequent parts")
-		var activeScopes int
-		require.NoError(t, pool.QueryRow(ctx, `SELECT count(*) FROM file_transfer_scopes WHERE organization_id=(SELECT id FROM organizations WHERE slug=$1) AND claimed_at IS NOT NULL AND released_at IS NULL AND deadline_at>clock_timestamp()`, org).Scan(&activeScopes))
-		require.Equal(t, 1, activeScopes, "the blocked upload must retain its transfer slot")
 		cancelTransfer()
 		select {
 		case err := <-cancelled:
@@ -477,8 +471,6 @@ func TestNativeFileQualification(t *testing.T) {
 			assert.NoError(c, err)
 			assert.Zero(c, active)
 		}, 20*time.Second, 50*time.Millisecond)
-		require.NoError(t, pool.QueryRow(ctx, `SELECT count(*) FROM file_transfer_scopes WHERE organization_id=(SELECT id FROM organizations WHERE slug=$1) AND claimed_at IS NOT NULL AND released_at IS NULL AND deadline_at>clock_timestamp()`, org).Scan(&activeScopes))
-		require.Zero(t, activeScopes, "cancelled pipeline attempt must release admission")
 		require.EqualValues(t, 1, completions.Load(), "cancellation must not publish the blocked object")
 		readback, err = independent.GetObject(ctx, &awss3.GetObjectInput{Bucket: aws.String("braidplane-fixtures"), Key: aws.String(destinationKey)})
 		require.NoError(t, err)
@@ -492,7 +484,7 @@ func TestNativeFileQualification(t *testing.T) {
 		t.Run("ExecutorLossRefusesRedispatch", func(t *testing.T) {
 			// Stop in-process pollers so only the owned child can claim this write.
 			stopWorker()
-			worker := startNativeFileExecutor(ctx, t, profile)
+			worker := startNativeFileExecutor(ctx, t)
 			t.Cleanup(func() {
 				cleanupCtx, cleanupCancel := context.WithTimeout(context.WithoutCancel(ctx), 15*time.Second)
 				defer cleanupCancel()
@@ -523,14 +515,14 @@ func TestNativeFileQualification(t *testing.T) {
 			}
 			var requestID string
 			var leaseExpiry time.Time
-			require.NoError(t, pool.QueryRow(ctx, `SELECT id::text,lease_expires_at FROM execution_requests WHERE organization_id=(SELECT id FROM organizations WHERE slug=$1) AND state='running' AND file_transfer`, org).Scan(&requestID, &leaseExpiry))
+			require.NoError(t, pool.QueryRow(ctx, `SELECT id::text,lease_expires_at FROM execution_requests WHERE organization_id=(SELECT id FROM organizations WHERE slug=$1) AND state='running' AND kind='query'`, org).Scan(&requestID, &leaseExpiry))
 			require.Equal(t, readsBefore+1, sourceReads.Load())
 			require.Equal(t, partsBefore+crashPart, partRequests.Load())
 			require.NoError(t, worker.Process.Kill())
 			require.Error(t, worker.Wait(), "the owned executor must actually die")
 			_, err := independent.PutObject(ctx, &awss3.PutObjectInput{Bucket: aws.String("braidplane-fixtures"), Key: aws.String(sourceKey), Body: bytes.NewReader([]byte("changed-after-executor-loss"))})
 			require.NoError(t, err)
-			startNativeFileExecutor(ctx, t, profile)
+			startNativeFileExecutor(ctx, t)
 			restartedAt := time.Now()
 			// Keep the real thirty-second claim lease: a replacement must wait,
 			// then fence the uncertain query rather than redispatch its side effect.

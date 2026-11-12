@@ -44,7 +44,8 @@ class UpgradeTest(unittest.TestCase):
                 self.assertTrue((self.backup / "configuration.tar").exists())
                 self.assertEqual(verify(self.backup)["release"], self.current)
                 self.assertEqual((self.install / "execution-grants.sql").read_text(), "retained original execution-grants.sql")
-            if args == ("run", "--rm", "--no-deps", "-T", "grants"):
+            if args[0] == "run" and "grants" in args:
+                self.assertEqual(kwargs["input"], "candidate runtime grants\ncandidate execution grants")
                 self.assertEqual((self.install / "execution-grants.sql").read_text(), "candidate execution grants")
                 self.assertEqual((self.install / "runtime-grants.sql").read_text(), "candidate runtime grants")
         self.compose = compose
@@ -165,7 +166,7 @@ class UpgradeTest(unittest.TestCase):
         original_compose = self.compose
         def compose(*args, **kwargs):
             original_compose(*args, **kwargs)
-            if args == ("run", "--rm", "--no-deps", "-T", "grants"):
+            if args[0] == "run" and "grants" in args:
                 raise ValueError("grant failed")
         self.compose = compose
         with self.assertRaisesRegex(ValueError, "no automatic rollback"):

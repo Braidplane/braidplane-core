@@ -1002,66 +1002,6 @@ func (q *Queries) BindAlertPolicyDestination(ctx context.Context, arg BindAlertP
 	return i, err
 }
 
-const bindExecutionOrganizationLimits = `-- name: BindExecutionOrganizationLimits :execrows
-WITH target AS (
-    SELECT request.id, request.organization_id FROM execution_requests request
-    JOIN organizations organization ON organization.id = request.organization_id
-    WHERE request.id = $5::uuid AND organization.slug = $6
-        AND request.state = 'pending'
-        AND (NOT $3::boolean OR request.data_source_id IS NOT NULL)
-        AND (NOT $3::boolean OR request.deadline_at <= $7::timestamptz)
-        AND $1::integer > 0
-        AND $2::integer > 0
-), scope AS (
-    INSERT INTO file_transfer_scopes(scope_id, organization_id, concurrency_limit, deadline_at, expires_at)
-    SELECT $4::uuid, target.organization_id, $2::integer,
-        $7::timestamptz, $7::timestamptz + INTERVAL '15 minutes'
-    FROM target WHERE $3::boolean
-        AND $4::uuid IS NOT NULL
-        AND $7::timestamptz > clock_timestamp()
-    ON CONFLICT (scope_id) DO UPDATE
-    SET concurrency_limit = LEAST(file_transfer_scopes.concurrency_limit, EXCLUDED.concurrency_limit)
-    WHERE file_transfer_scopes.organization_id = EXCLUDED.organization_id
-        AND file_transfer_scopes.released_at IS NULL
-        AND file_transfer_scopes.deadline_at = EXCLUDED.deadline_at
-    RETURNING scope_id
-)
-UPDATE execution_requests request
-SET org_connector_limit = $1::integer,
-    org_file_limit = $2::integer,
-    file_transfer = $3::boolean,
-    file_transfer_scope_id = CASE WHEN $3::boolean THEN $4::uuid END
-FROM target
-WHERE request.id = target.id
-    AND (NOT $3::boolean OR EXISTS (SELECT 1 FROM scope))
-`
-
-type BindExecutionOrganizationLimitsParams struct {
-	ConnectorLimit   int32
-	FileLimit        int32
-	FileTransfer     bool
-	ScopeID          pgtype.UUID
-	RequestID        pgtype.UUID
-	OrgSlug          slug.Slug
-	TransferDeadline pgtype.Timestamptz
-}
-
-func (q *Queries) BindExecutionOrganizationLimits(ctx context.Context, arg BindExecutionOrganizationLimitsParams) (int64, error) {
-	result, err := q.db.Exec(ctx, bindExecutionOrganizationLimits,
-		arg.ConnectorLimit,
-		arg.FileLimit,
-		arg.FileTransfer,
-		arg.ScopeID,
-		arg.RequestID,
-		arg.OrgSlug,
-		arg.TransferDeadline,
-	)
-	if err != nil {
-		return 0, err
-	}
-	return result.RowsAffected(), nil
-}
-
 const bindExecutionRequestSource = `-- name: BindExecutionRequestSource :execrows
 UPDATE execution_requests r SET scope_data_source_id = d.id
 FROM organizations o, data_sources d
@@ -8507,15 +8447,6 @@ func (q *Queries) DeleteExpiredAbuseControlBuckets(ctx context.Context, cutoff p
 		return 0, err
 	}
 	return result.RowsAffected(), nil
-}
-
-const deleteExpiredFileTransferScopes = `-- name: DeleteExpiredFileTransferScopes :exec
-DELETE FROM file_transfer_scopes WHERE expires_at <= clock_timestamp()
-`
-
-func (q *Queries) DeleteExpiredFileTransferScopes(ctx context.Context) error {
-	_, err := q.db.Exec(ctx, deleteExpiredFileTransferScopes)
-	return err
 }
 
 const deleteExpiredOrganizationEvents = `-- name: DeleteExpiredOrganizationEvents :execrows
@@ -19599,41 +19530,6 @@ func (q *Queries) ListEventsByOrganization(ctx context.Context, arg ListEventsBy
 	return items, nil
 }
 
-const listFileTransferRequests = `-- name: ListFileTransferRequests :many
-SELECT request.id::uuid AS request_id
-FROM execution_requests request
-JOIN file_transfer_scopes scope ON scope.scope_id=request.file_transfer_scope_id AND scope.organization_id=request.organization_id
-JOIN organizations organization ON organization.id=scope.organization_id
-WHERE scope.scope_id=$1::uuid AND organization.slug=$2
-    AND scope.released_at IS NOT NULL AND request.state IN ('pending','running')
-ORDER BY request.id
-`
-
-type ListFileTransferRequestsParams struct {
-	ScopeID pgtype.UUID
-	OrgSlug slug.Slug
-}
-
-func (q *Queries) ListFileTransferRequests(ctx context.Context, arg ListFileTransferRequestsParams) ([]pgtype.UUID, error) {
-	rows, err := q.db.Query(ctx, listFileTransferRequests, arg.ScopeID, arg.OrgSlug)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	var items []pgtype.UUID
-	for rows.Next() {
-		var request_id pgtype.UUID
-		if err := rows.Scan(&request_id); err != nil {
-			return nil, err
-		}
-		items = append(items, request_id)
-	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-	return items, nil
-}
-
 const listGitHubAppRepositoriesByOrg = `-- name: ListGitHubAppRepositoriesByOrg :many
 SELECT repository.id, repository.organization_id, repository.installation_id, repository.repository_id, repository.full_name, repository.owner_login, repository.name, repository.removed_at, repository.created_at, repository.updated_at
 FROM github_app_repositories repository
@@ -28455,23 +28351,6 @@ func (q *Queries) RejectPipelineWebhookDelivery(ctx context.Context, arg RejectP
 	return i, err
 }
 
-const releaseFileTransferScope = `-- name: ReleaseFileTransferScope :exec
-UPDATE file_transfer_scopes scope SET released_at = COALESCE(scope.released_at, clock_timestamp())
-FROM organizations organization
-WHERE scope.scope_id = $1::uuid AND scope.organization_id = organization.id
-    AND organization.slug = $2
-`
-
-type ReleaseFileTransferScopeParams struct {
-	ScopeID pgtype.UUID
-	OrgSlug slug.Slug
-}
-
-func (q *Queries) ReleaseFileTransferScope(ctx context.Context, arg ReleaseFileTransferScopeParams) error {
-	_, err := q.db.Exec(ctx, releaseFileTransferScope, arg.ScopeID, arg.OrgSlug)
-	return err
-}
-
 const releaseHTTPOAuthRefresh = `-- name: ReleaseHTTPOAuthRefresh :exec
 UPDATE credential_http_oauth_apps app
 SET refresh_claim_id = NULL, refresh_claim_expires_at = NULL
@@ -29520,11 +29399,7 @@ func (q *Queries) RestoreRole(ctx context.Context, arg RestoreRoleParams) (pgcon
 const retainedFileCapabilitiesReady = `-- name: RetainedFileCapabilitiesReady :one
 SELECT COALESCE(
     to_regclass('public.retained_file_streams') IS NOT NULL
-    AND to_regclass('public.file_transfer_scopes') IS NOT NULL
-    AND EXISTS (SELECT 1 FROM pg_attribute WHERE attrelid = 'public.execution_requests'::regclass AND attname = 'file_transfer_scope_id' AND NOT attisdropped)
     AND to_regclass('public.retained_file_chunks') IS NOT NULL
-    AND EXISTS (SELECT 1 FROM pg_attribute WHERE attrelid = 'public.execution_requests'::regclass AND attname = 'org_connector_limit' AND NOT attisdropped)
-    AND EXISTS (SELECT 1 FROM pg_attribute WHERE attrelid = 'public.execution_requests'::regclass AND attname = 'org_file_limit' AND NOT attisdropped)
     AND has_function_privilege(current_user, to_regprocedure('public.begin_retained_file(uuid,uuid,text,bigint,timestamptz)'), 'EXECUTE')
     AND has_function_privilege(current_user, to_regprocedure('public.append_retained_file_chunk(uuid,uuid,text,integer,integer,bytea)'), 'EXECUTE')
     AND has_function_privilege(current_user, to_regprocedure('public.seal_retained_file(uuid,uuid,text,bigint,text)'), 'EXECUTE')

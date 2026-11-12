@@ -255,26 +255,12 @@ type ExecutionConfig struct {
 	CompletionTriggersEnabled bool            `toml:"completion_triggers_enabled" env:"EXECUTION_COMPLETION_TRIGGERS_ENABLED" flag:"execution-completion-triggers-enabled" desc:"Enable completion trigger resources and dispatch deployment-wide"`
 }
 
-// NativeFileProfileConfig is disabled unless all qualification allowances are explicit.
-type NativeFileProfileConfig struct {
-	Organization string          `toml:"organization" env:"NATIVE_FILE_PROFILE_ORGANIZATION" flag:"native-file-profile-organization" desc:"Organization slug explicitly allowed to qualify Custom native-file streaming; empty disables"`
-	MaxBytes     int64           `toml:"max_bytes" env:"NATIVE_FILE_PROFILE_MAX_BYTES" flag:"native-file-profile-max-bytes" desc:"Maximum bytes per native file operation"`
-	Timeout      config.Duration `toml:"timeout" env:"NATIVE_FILE_PROFILE_TIMEOUT" flag:"native-file-profile-timeout" desc:"Total native-file transfer allowance per pipeline attempt or standalone operation"`
-	Transfers    int             `toml:"transfers" env:"NATIVE_FILE_PROFILE_TRANSFERS" flag:"native-file-profile-transfers" desc:"Organization-wide native-file pipeline attempts or standalone operations across preparation, reads and writes"`
-	Connectors   int             `toml:"connectors" env:"NATIVE_FILE_PROFILE_CONNECTORS" flag:"native-file-profile-connectors" desc:"Organization-wide concurrent connector queries, connection tests and schema introspections"`
-}
-
-func (p NativeFileProfileConfig) Profile() filestream.Profile {
-	return filestream.Profile{Organization: slug.Slug(p.Organization), MaxBytes: p.MaxBytes, Timeout: p.Timeout.TimeDuration(), Transfers: p.Transfers, Connectors: p.Connectors}
-}
-
 // ExecutionLimitsConfig contains backend runtime guardrails for user-triggered execution.
 type ExecutionLimitsConfig struct {
-	NativeFiles NativeFileProfileConfig `toml:"native_files"`
-
 	QueryTimeout                      config.Duration `toml:"query_timeout"                         env:"EXECUTION_LIMITS_QUERY_TIMEOUT"                         flag:"execution-limits-query-timeout"                         desc:"Maximum saved or inline query execution duration (e.g., 30s, 1m)"`
 	ConnectorTimeout                  config.Duration `toml:"connector_timeout"                     env:"EXECUTION_LIMITS_CONNECTOR_TIMEOUT"                     flag:"execution-limits-connector-timeout"                     desc:"Maximum connector operation duration (e.g., 30s, 1m)"`
 	MaxResultRows                     int             `toml:"max_result_rows"                       env:"EXECUTION_LIMITS_MAX_RESULT_ROWS"                       flag:"execution-limits-max-result-rows"                       desc:"Maximum rows/documents returned by a query execution"`
+	MaxFileBytes                      int64           `toml:"max_file_bytes" env:"EXECUTION_LIMITS_MAX_FILE_BYTES" flag:"execution-limits-max-file-bytes" desc:"Maximum bytes per native file"`
 	MaxResponseBytes                  int64           `toml:"max_response_bytes"                    env:"EXECUTION_LIMITS_MAX_RESPONSE_BYTES"                    flag:"execution-limits-max-response-bytes"                    desc:"Maximum response payload size in bytes for query execution"`
 	ConnectorConcurrencyPerDataSource int             `toml:"connector_concurrency_per_data_source" env:"EXECUTION_LIMITS_CONNECTOR_CONCURRENCY_PER_DATA_SOURCE" flag:"execution-limits-connector-concurrency-per-data-source" desc:"Deployment-wide maximum concurrent connector executions per organization/data source"`
 	ConnectorConcurrencyQueueTimeout  config.Duration `toml:"connector_concurrency_queue_timeout"  env:"EXECUTION_LIMITS_CONNECTOR_CONCURRENCY_QUEUE_TIMEOUT"  flag:"execution-limits-connector-concurrency-queue-timeout"  desc:"Maximum time a connector execution may wait for its organization/data-source slot"`
@@ -435,9 +421,6 @@ func (c *Config) validateExecutor() error {
 }
 
 func (c *Config) validateExecutionLimits() error {
-	if err := c.ExecutionLimits.NativeFiles.Profile().Validate(); err != nil {
-		return err
-	}
 	checks := []struct {
 		invalid     bool
 		name        string
@@ -446,6 +429,7 @@ func (c *Config) validateExecutionLimits() error {
 		{c.ExecutionLimits.QueryTimeout <= 0, "query_timeout", "greater than 0"},
 		{c.ExecutionLimits.ConnectorTimeout <= 0, "connector_timeout", "greater than 0"},
 		{c.ExecutionLimits.MaxResultRows <= 0, "max_result_rows", "greater than 0"},
+		{c.ExecutionLimits.MaxFileBytes <= 0 || c.ExecutionLimits.MaxFileBytes > filestream.MaxRetainedBytes, "max_file_bytes", "positive and within retained storage bounds"},
 		{c.ExecutionLimits.MaxResponseBytes <= 0, "max_response_bytes", "greater than 0"},
 		{c.ExecutionLimits.ConnectorConcurrencyPerDataSource <= 0, "connector_concurrency_per_data_source", "greater than 0"},
 		{c.ExecutionLimits.ConnectorConcurrencyQueueTimeout <= 0, "connector_concurrency_queue_timeout", "greater than 0"},
@@ -544,6 +528,7 @@ func defaults() *Config {
 			QueryTimeout:                      config.NewDuration(30 * time.Second),
 			ConnectorTimeout:                  config.NewDuration(30 * time.Second),
 			MaxResultRows:                     1000,
+			MaxFileBytes:                      10 * 1024 * 1024,
 			MaxResponseBytes:                  10 * 1024 * 1024,
 			ConnectorConcurrencyPerDataSource: 4,
 			ConnectorConcurrencyQueueTimeout:  config.NewDuration(5 * time.Second),

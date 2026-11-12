@@ -112,7 +112,6 @@ type Broker struct {
 	cipher           crypto.AES256
 	dispatcher       Dispatcher
 	requestTimeout   time.Duration
-	nativeFiles      filestream.Profile
 	factory          connector.NewConnectorFunc
 	runtimePool      *connector.Manager
 	logger           *slog.Logger
@@ -129,10 +128,6 @@ type requestRepository interface {
 	Create(context.Context, postgres.DBTX, requestrepo.Request, time.Time) error
 	BindUser(context.Context, postgres.DBTX, uuid.UUID, string, slug.Slug) error
 	BindSource(context.Context, postgres.DBTX, uuid.UUID, string, slug.Slug) error
-	BindOrganizationLimits(context.Context, postgres.DBTX, uuid.UUID, string, int, int, bool, uuid.UUID, time.Time) error
-	ReleaseFileTransfer(context.Context, postgres.DBTX, uuid.UUID, string) error
-	ListFileTransferRequests(context.Context, postgres.DBTX, uuid.UUID, string) ([]uuid.UUID, error)
-	DeleteExpiredFileTransfers(context.Context, postgres.DBTX) error
 	Find(context.Context, postgres.DBTX, uuid.UUID, string) (requestrepo.Request, error)
 	Claim(context.Context, postgres.DBTX, uuid.UUID) (requestrepo.Request, bool, error)
 	FindForDelivery(context.Context, postgres.DBTX, uuid.UUID) (requestrepo.DeliverySnapshot, bool, error)
@@ -152,11 +147,7 @@ func New(
 	factory connector.NewConnectorFunc,
 	logger *slog.Logger,
 	admission operationAdmission,
-	nativeFiles filestream.Profile,
 ) (*Broker, error) {
-	if err := nativeFiles.Validate(); err != nil {
-		return nil, err
-	}
 	if txm == nil || cipher == nil || dispatcher == nil || admission == nil {
 		return nil, xerror.Unexpected().Detail("execution broker dependencies are required")
 	}
@@ -167,8 +158,8 @@ func New(
 		logger = slog.Default()
 	}
 	broker := &Broker{
-		admission: admission, nativeFiles: nativeFiles,
-		txm: txm, repo: requestrepo.New(), cipher: cipher,
+		admission: admission,
+		txm:       txm, repo: requestrepo.New(), cipher: cipher,
 		dispatcher: dispatcher, requestTimeout: requestTimeout,
 		factory: factory, logger: logger, heartbeatEvery: heartbeatInterval,
 		maintenanceEvery: maintenanceInterval,
@@ -179,12 +170,6 @@ func New(
 			return nil, xerror.Wrapf("initialize connector runtime pool: %w", err)
 		}
 		broker.runtimePool = runtimePool
-	}
-	if nativeFiles.Organization != "" {
-		logger.Info("native file qualification profile configured",
-			"organization", nativeFiles.Organization, "max_bytes", nativeFiles.MaxBytes,
-			"timeout", nativeFiles.Timeout, "transfers", nativeFiles.Transfers,
-			"connectors", nativeFiles.Connectors)
 	}
 	return broker, nil
 }
@@ -211,25 +196,6 @@ func (b *Broker) ExecuteConnector(
 	ctx context.Context,
 	request queriessvc.ConnectorExecutionRequest,
 ) (*result.ExecutionResult, error) {
-	if request.Limits.MaxFileBytes > 0 {
-		if !b.nativeFiles.Matches(request.OrganizationSlug) || request.Limits.MaxFileBytes > b.nativeFiles.MaxBytes {
-			return nil, filestream.ErrUnavailable
-		}
-		deadline := b.nativeFiles.Deadline(ctx, time.Now())
-		scopeID, ok := filestream.AttemptID(ctx)
-		if !ok {
-			scopeID = uuid.New()
-		}
-		ctx = context.WithValue(ctx, fileTransferScopeKey{}, fileTransferScope{id: scopeID, deadline: deadline})
-		organization := request.OrganizationSlug.String()
-		cleanup := func() { b.releaseFileTransfer(ctx, scopeID, organization) }
-		if !filestream.OnAttemptFinish(ctx, cleanup) {
-			defer cleanup()
-		}
-		var cancel context.CancelFunc
-		ctx, cancel = context.WithDeadline(ctx, deadline)
-		defer cancel()
-	}
 	if writegate.HasGuard(ctx) {
 		if request.DataSourceType != model.DataSourceTypeS3 || !request.SinkExecution {
 			return nil, writegate.ErrPreparationFailed
@@ -253,39 +219,6 @@ func (b *Broker) ExecuteConnector(
 		return nil, xerror.Unexpected().Detail("execution worker returned no query result")
 	}
 	return response.Result, nil
-}
-
-type (
-	fileTransferScopeKey struct{}
-	fileTransferScope    struct {
-		id       uuid.UUID
-		deadline time.Time
-	}
-)
-
-func (b *Broker) releaseFileTransfer(ctx context.Context, scopeID uuid.UUID, organization string) {
-	cleanupCtx, cancel := context.WithTimeout(postgres.WithoutTransaction(context.WithoutCancel(ctx)), 10*time.Second)
-	defer cancel()
-	if err := b.txm.RunRead(cleanupCtx, func(ctx context.Context, db postgres.DBTX) error {
-		// Commit admission closure first: later binds then fail, and cancelling
-		// the bounded request set cannot invert the claim path's row locks.
-		if err := b.repo.ReleaseFileTransfer(ctx, db, scopeID, organization); err != nil {
-			return err
-		}
-		requests, err := b.repo.ListFileTransferRequests(ctx, db, scopeID, organization)
-		if err != nil {
-			return err
-		}
-		for _, id := range requests {
-			if _, err := b.repo.Cancel(ctx, db, id); err != nil {
-				return err
-			}
-		}
-		b.logger.InfoContext(ctx, "native file transfer admission closed", "organization", organization, "remaining_requests", len(requests))
-		return nil
-	}); err != nil {
-		b.logger.ErrorContext(cleanupCtx, "release native file transfer admission; expiry will release it", "organization", organization, "error", err)
-	}
 }
 
 type encryptedResponse struct {
@@ -771,13 +704,7 @@ func (b *Broker) Start(ctx context.Context, concurrency int) error {
 		return xerror.Unexpected().Detail("execution concurrency must be positive")
 	}
 	if err := b.txm.RunRead(ctx, func(ctx context.Context, db postgres.DBTX) error {
-		if err := b.repo.Preflight(ctx, db); err != nil {
-			return err
-		}
-		if b.nativeFiles.Organization != "" {
-			return retainedfiles.New().Preflight(ctx, db)
-		}
-		return nil
+		return b.repo.Preflight(ctx, db)
 	}); err != nil {
 		return xerror.Wrapf("preflight execution request poller: %w", err)
 	}
@@ -816,13 +743,7 @@ func (b *Broker) PreflightProcessor(ctx context.Context) error {
 		return err
 	}
 	return b.txm.RunRead(ctx, func(ctx context.Context, db postgres.DBTX) error {
-		if err := b.repo.PreflightDelivery(ctx, db); err != nil {
-			return err
-		}
-		if b.nativeFiles.Organization != "" {
-			return retainedfiles.New().Preflight(ctx, db)
-		}
-		return nil
+		return b.repo.PreflightDelivery(ctx, db)
 	})
 }
 
@@ -946,10 +867,7 @@ type deliveryClaim struct {
 func (b *Broker) deleteExpired(ctx context.Context) error {
 	return b.txm.RunRead(ctx, func(ctx context.Context, db postgres.DBTX) error {
 		_, err := b.repo.DeleteExpired(ctx, db)
-		if err != nil {
-			return err
-		}
-		return b.repo.DeleteExpiredFileTransfers(ctx, db)
+		return err
 	})
 }
 
@@ -961,19 +879,7 @@ func (b *Broker) submitAndWait(
 ) (encryptedResponse, error) {
 	startedAt := time.Now()
 	ctx = postgres.WithoutTransaction(ctx)
-	transferScope, scoped := ctx.Value(fileTransferScopeKey{}).(fileTransferScope)
-	waitTimeout := b.requestTimeout
-	if request, ok := payload.(queriessvc.ConnectorExecutionRequest); ok && request.Limits.MaxFileBytes > 0 {
-		waitTimeout = b.nativeFiles.Timeout
-		if !scoped {
-			transferScope = fileTransferScope{id: uuid.New(), deadline: b.nativeFiles.Deadline(ctx, startedAt)}
-			defer b.releaseFileTransfer(ctx, transferScope.id, organizationSlug)
-			var cancel context.CancelFunc
-			ctx, cancel = context.WithDeadline(ctx, transferScope.deadline)
-			defer cancel()
-		}
-	}
-	waitCtx, cancelWait := context.WithTimeout(ctx, waitTimeout)
+	waitCtx, cancelWait := context.WithTimeout(ctx, b.requestTimeout)
 	defer cancelWait()
 
 	plaintext, err := marshalRequestPlaintext(kind, payload)
@@ -1051,19 +957,6 @@ func (b *Broker) submitAndWait(
 					return err
 				}
 			}
-		}
-		if b.nativeFiles.Matches(slug.Slug(organizationSlug)) && (kind == kindQuery || kind == kindPrepareS3Write || kind == kindConnectionTest || kind == kindSchema) {
-			file := false
-			if request, ok := payload.(queriessvc.ConnectorExecutionRequest); ok {
-				file = request.Limits.MaxFileBytes > 0
-			}
-			if err := b.repo.BindOrganizationLimits(ctx, tx, id, organizationSlug, b.nativeFiles.Connectors, b.nativeFiles.Transfers, file, transferScope.id, transferScope.deadline); err != nil {
-				return err
-			}
-			b.logger.InfoContext(ctx, "organization connector admission requested",
-				"organization", organizationSlug, "kind", kind, "file_transfer", file,
-				"connector_limit", b.nativeFiles.Connectors, "file_limit", b.nativeFiles.Transfers,
-				"deadline", deadline, "queue_deadline", queueDeadline)
 		}
 		return b.dispatcher.Dispatch(ctx, tx, id)
 	})
@@ -1751,7 +1644,7 @@ func (b *Broker) executeConnector(
 	requestID, claimToken uuid.UUID,
 	payload queriessvc.ConnectorExecutionRequest,
 ) (*result.ExecutionResult, error) {
-	if payload.Limits.MaxFileBytes > 0 && (!b.nativeFiles.Matches(payload.OrganizationSlug) || payload.Limits.MaxFileBytes > b.nativeFiles.MaxBytes) {
+	if payload.Limits.MaxFileBytes < 0 || payload.Limits.MaxFileBytes > filestream.MaxRetainedBytes {
 		return nil, filestream.ErrUnavailable
 	}
 	expected := requestrepo.DispatchAuthority{RequestID: requestID, ClaimToken: claimToken, Organization: payload.OrganizationSlug.String(), DataSource: payload.DataSourceSlug.String(), Type: payload.DataSourceType.String(), ReadOnly: payload.Limits.ReadOnly}

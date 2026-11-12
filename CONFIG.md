@@ -591,6 +591,7 @@ the updated duration applies to each newly opened budget window.
 | Query Timeout | `execution_limits.query_timeout` | `EXECUTION_LIMITS_QUERY_TIMEOUT` | `--execution-limits-query-timeout` | `30s` | duration | Maximum saved or inline query execution duration |
 | Connector Timeout | `execution_limits.connector_timeout` | `EXECUTION_LIMITS_CONNECTOR_TIMEOUT` | `--execution-limits-connector-timeout` | `30s` | duration | Maximum connector operation duration |
 | Max Result Rows | `execution_limits.max_result_rows` | `EXECUTION_LIMITS_MAX_RESULT_ROWS` | `--execution-limits-max-result-rows` | `1000` | int | Maximum rows or documents returned by one execution |
+| Max File Bytes | `execution_limits.max_file_bytes` | `EXECUTION_LIMITS_MAX_FILE_BYTES` | `--execution-limits-max-file-bytes` | `10485760` | int64 | Maximum bytes per native file; streaming uses ordinary execution deadlines and concurrency limits |
 | Max Response Bytes | `execution_limits.max_response_bytes` | `EXECUTION_LIMITS_MAX_RESPONSE_BYTES` | `--execution-limits-max-response-bytes` | `10485760` | int64 | Maximum normalized execution response payload size in bytes |
 | Connector Concurrency Per Data Source | `execution_limits.connector_concurrency_per_data_source` | `EXECUTION_LIMITS_CONNECTOR_CONCURRENCY_PER_DATA_SOURCE` | `--execution-limits-connector-concurrency-per-data-source` | `4` | int | Maximum concurrent connector executions per organization/data source across the broker-backed deployment |
 | Connector Concurrency Queue Timeout | `execution_limits.connector_concurrency_queue_timeout` | `EXECUTION_LIMITS_CONNECTOR_CONCURRENCY_QUEUE_TIMEOUT` | `--execution-limits-connector-concurrency-queue-timeout` | `5s` | duration | Maximum time an execution waits for its organization/data-source slot |
@@ -608,45 +609,6 @@ the updated duration applies to each newly opened budget window.
 | Transform Max Output Rows | `execution_limits.transform_max_output_rows` | `EXECUTION_LIMITS_TRANSFORM_MAX_OUTPUT_ROWS` | `--execution-limits-transform-max-output-rows` | `1000` | int | Maximum rows returned by one SQL transform |
 | Transform Max Output Bytes | `execution_limits.transform_max_output_bytes` | `EXECUTION_LIMITS_TRANSFORM_MAX_OUTPUT_BYTES` | `--execution-limits-transform-max-output-bytes` | `10485760` | int64 | Maximum serialized bytes returned by one SQL transform |
 | Transform Max Depth | `execution_limits.transform_max_depth` | `EXECUTION_LIMITS_TRANSFORM_MAX_DEPTH` | `--execution-limits-transform-max-depth` | `16` | int | Maximum nested SQL transform relation and expression depth |
-
-### Native file qualification profile
-
-This profile defaults to disabled and changes no billing state. Enabling it
-requires all five fields and an exact organization slug. Configure matching
-writers and execution workers, apply core migration 2 and reapply runtime role
-grants before restarting them. Executor preflight fails closed when retained
-file capabilities are missing. These allowances do not establish qualified
-capacity; see [native file transfers](doc/NATIVE_FILE_STREAMING.md).
-
-| TOML under `execution_limits.native_files` | Environment | Flag | Default | Type | Behavior |
-|---|---|---|---|---|---|
-| `organization` | `NATIVE_FILE_PROFILE_ORGANIZATION` | `--native-file-profile-organization` | empty | string | Only organization eligible for this profile |
-| `max_bytes` | `NATIVE_FILE_PROFILE_MAX_BYTES` | `--native-file-profile-max-bytes` | `0` | int64 | Maximum total bytes per native file, positive when enabled |
-| `timeout` | `NATIVE_FILE_PROFILE_TIMEOUT` | `--native-file-profile-timeout` | `0s` | duration | Native file deadline measured from pipeline attempt start, or standalone operation start; includes preparation, queues, reads and writes |
-| `transfers` | `NATIVE_FILE_PROFILE_TRANSFERS` | `--native-file-profile-transfers` | `0` | int | Maximum pipeline attempts using native files, or standalone file operations, held across preparation, reads and writes; positive |
-| `connectors` | `NATIVE_FILE_PROFILE_CONNECTORS` | `--native-file-profile-connectors` | `0` | int | Maximum active connector queries, saved-source connection tests and schema introspections across the organization; positive |
-
-The byte ceiling is 2,251,799,812,636,672 (2^31-1 chunks of 1 MiB), a storage
-representation bound, not a supported capacity claim. Providers impose lower
-limits. Explicit native file operations in this organization use the profile's
-time allowance in place of ordinary query, connector, HTTP and broker wait
-caps; saved query timeouts, caller deadlines and provider bounds can shorten
-it. Structured queries, other organizations, transforms and normalized metadata
-retain their ordinary limits. HTTP reserves a native-file slot conservatively
-because its response media type is unknown before dispatch.
-
-Admission is database coordinated across data sources and workers. Existing
-per-source FIFO, queue capacity and queue timeout limits still apply. The
-transfer budget counts a pipeline attempt once, even when it has several native
-file steps; its connector operations still obey the separate connector budget.
-A successful source read keeps transfer admission through destination delivery
-and attempt completion. Standalone operations release on return. Lost callers
-expire at the native-file deadline. Released scopes still count while cancelled
-or ambiguous provider work remains within its lease plus ten-second cleanup
-grace. Transfer and connector counts have independent positive bounds.
-Startup and admission logs record effective settings; persisted request fields
-and existing connector admission metrics support readback. See the diagnostics
-in [native file transfers](doc/NATIVE_FILE_STREAMING.md#allowances-and-acceptance).
 
 Production tuning:
 - Keep `query_timeout` and `connector_timeout` below the shortest upstream reverse-proxy or load-balancer timeout so users receive Braidplane safety errors instead of dropped connections.

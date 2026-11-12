@@ -8,7 +8,6 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"github.com/Braidplane/braidplane-core/pkg/connector/filestream"
 	"github.com/Braidplane/braidplane-core/pkg/connector/result"
 	"github.com/Braidplane/braidplane-core/pkg/domain/model"
 	"github.com/Braidplane/braidplane-core/pkg/eventtest"
@@ -24,17 +23,16 @@ func (f nativeFileExecutorFunc) ExecuteConnector(ctx context.Context, r queriess
 	return f(ctx, r)
 }
 
-func TestNativeFileProfileSelection(t *testing.T) {
+func TestFileExecutionUsesOrdinaryLimits(t *testing.T) {
 	t.Parallel()
 	for _, tc := range []struct {
 		name, org, format string
 		savedTimeout      int
-		native            bool
 	}{
-		{"native scoped file", "fixture", "file", 0, true},
-		{"saved timeout stays smaller", "fixture", "file", 1, true},
-		{"other tenant", "other", "file", 0, false},
-		{"structured file", "fixture", "csv", 0, false},
+		{"native file", "fixture", "file", 0},
+		{"saved timeout stays smaller", "fixture", "file", 1},
+		{"other tenant", "other", "file", 0},
+		{"structured file", "fixture", "csv", 0},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
@@ -50,35 +48,27 @@ func TestNativeFileProfileSelection(t *testing.T) {
 				return source, err
 			}
 			limits := testExecutionLimits()
-			limits.QueryTimeout = time.Second
-			limits.ConnectorTimeout = time.Second
-			limits.NativeFiles = filestream.Profile{Organization: "fixture", MaxBytes: 2 << 30, Timeout: time.Minute, Transfers: 1, Connectors: 2}
-			start := time.Now().Add(-20 * time.Second)
+			limits.QueryTimeout = 5 * time.Second
+			limits.ConnectorTimeout = 3 * time.Second
+			limits.MaxFileBytes = 2 << 30
 			called := false
 			executor := nativeFileExecutorFunc(func(ctx context.Context, request queriessvc.ConnectorExecutionRequest) (*result.ExecutionResult, error) {
 				called = true
 				deadline, ok := ctx.Deadline()
 				require.True(t, ok)
 				require.Equal(t, limits.MaxResponseBytes, request.Limits.MaxResponseBytes)
-				if tc.native {
-					require.Equal(t, limits.NativeFiles.MaxBytes, request.Limits.MaxFileBytes)
-					if tc.savedTimeout > 0 {
-						require.LessOrEqual(t, time.Until(deadline), time.Second)
-						require.Equal(t, time.Second, request.Limits.ConnectorTimeout)
-					} else {
-						require.Equal(t, start.Add(time.Minute), deadline)
-						require.Equal(t, time.Minute, request.Limits.ConnectorTimeout)
-					}
-				} else {
-					require.Zero(t, request.Limits.MaxFileBytes)
+				require.Equal(t, limits.MaxFileBytes, request.Limits.MaxFileBytes)
+				require.Equal(t, limits.ConnectorTimeout, request.Limits.ConnectorTimeout)
+				if tc.savedTimeout > 0 {
 					require.LessOrEqual(t, time.Until(deadline), time.Second)
+				} else {
+					require.InDelta(t, limits.ConnectorTimeout.Seconds(), time.Until(deadline).Seconds(), 0.5)
 				}
 				return result.NewFTPResult(&result.FileResult{Operation: "read", TargetPath: "fixture"}, 0, nil), nil
 			})
 			svc, err := queriessvc.NewWithExecutionLimits(&testutil.FakeTransactionManager{}, repo, sources, executor, newFakeCredentialService(), &testutil.FakeClock{}, limits, eventtest.NewProducer(&fakeQueryEventRecorder{}))
 			require.NoError(t, err)
-			ctx, finishFiles := filestream.BeginAttempt(t.Context(), start)
-			defer finishFiles()
+			ctx := t.Context()
 			_, err = svc.Execute(ctx, slug.Slug(tc.org), "postgres-main", "limited-query", model.SystemEventActor(), nil, queriessvc.WithoutExecutionRecording())
 			require.NoError(t, err)
 			require.True(t, called)

@@ -8,7 +8,6 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"github.com/Braidplane/braidplane-core/pkg/connector/filestream"
 	"github.com/Braidplane/braidplane-core/pkg/crypto"
 	"github.com/Braidplane/braidplane-core/pkg/domain/model"
 	"github.com/Braidplane/braidplane-core/pkg/executiondelivery"
@@ -58,7 +57,7 @@ func TestRiverDeliveryDistinguishesCompletedAndLiveLeaseRequests(t *testing.T) {
 		[]byte,
 	) (connector.Connector, error) {
 		return nil, xerror.Unexpected().Detail("connector creation should not be reached")
-	}, nil, testutil.FakeOperationAdmission{}, filestream.Profile{})
+	}, nil, testutil.FakeOperationAdmission{})
 	require.NoError(t, err)
 	t.Cleanup(func() { require.NoError(t, broker.Close()) })
 
@@ -108,11 +107,11 @@ func TestExecutionEntryPointsHonorCallerCancellation(t *testing.T) { // Shared r
 	pool := e2edb.OpenPostgresPool(t, "execution entry point cancellation")
 	cipher, err := crypto.NewAES256(make([]byte, 32))
 	require.NoError(t, err)
-	_, err = executionbroker.New(nil, cipher, executionbroker.NewPollerDispatcher(), atomicityRequestTimeout, nil, nil, testutil.FakeOperationAdmission{}, filestream.Profile{})
+	_, err = executionbroker.New(nil, cipher, executionbroker.NewPollerDispatcher(), atomicityRequestTimeout, nil, nil, testutil.FakeOperationAdmission{})
 	require.Error(t, err)
-	_, err = executionbroker.New(postgres.NewTransactionManager(pool), cipher, executionbroker.NewPollerDispatcher(), 0, nil, nil, testutil.FakeOperationAdmission{}, filestream.Profile{})
+	_, err = executionbroker.New(postgres.NewTransactionManager(pool), cipher, executionbroker.NewPollerDispatcher(), 0, nil, nil, testutil.FakeOperationAdmission{})
 	require.Error(t, err)
-	broker, err := executionbroker.New(postgres.NewTransactionManager(pool), cipher, executionbroker.NewPollerDispatcher(), atomicityRequestTimeout, nil, nil, testutil.FakeOperationAdmission{}, filestream.Profile{})
+	broker, err := executionbroker.New(postgres.NewTransactionManager(pool), cipher, executionbroker.NewPollerDispatcher(), atomicityRequestTimeout, nil, nil, testutil.FakeOperationAdmission{})
 	require.NoError(t, err)
 
 	require.Error(t, broker.Start(ctx, 1))
@@ -120,7 +119,7 @@ func TestExecutionEntryPointsHonorCallerCancellation(t *testing.T) { // Shared r
 	require.Error(t, broker.StartProcessorObservability(ctx, 0))
 	processorBroker, err := executionbroker.New(postgres.NewTransactionManager(pool), cipher, executionbroker.NewPollerDispatcher(), atomicityRequestTimeout, func(context.Context, model.DataSourceType, []byte, []byte) (connector.Connector, error) {
 		return nil, xerror.Unexpected().Detail("connector factory should not be called during preflight")
-	}, nil, testutil.FakeOperationAdmission{}, filestream.Profile{})
+	}, nil, testutil.FakeOperationAdmission{})
 	require.NoError(t, err)
 	require.NoError(t, processorBroker.PreflightProcessor(ctx))
 	require.Error(t, processorBroker.Start(ctx, 0))

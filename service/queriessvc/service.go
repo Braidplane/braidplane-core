@@ -77,7 +77,7 @@ type ExecutionLimits struct {
 	QueryTimeout                      time.Duration
 	ConnectorTimeout                  time.Duration
 	MaxResultRows                     int
-	NativeFiles                       filestream.Profile
+	MaxFileBytes                      int64
 	MaxResponseBytes                  int64
 	ConnectorConcurrencyPerDataSource int
 	ConnectorConcurrencyQueueTimeout  time.Duration
@@ -94,6 +94,7 @@ func (l ExecutionLimits) connectorLimits() types.ExecutionLimits {
 	return types.ExecutionLimits{
 		ConnectorTimeout:     l.ConnectorTimeout,
 		MaxResultRows:        l.MaxResultRows,
+		MaxFileBytes:         l.MaxFileBytes,
 		MaxResponseBytes:     l.MaxResponseBytes,
 		HTTPTimeout:          l.HTTPTimeout,
 		HTTPMaxRedirects:     l.HTTPMaxRedirects,
@@ -456,6 +457,9 @@ func NewWithExecutionLimits(
 	if connectorExecutor == nil {
 		return nil, xerror.Unexpected().Detail("connector executor is required")
 	}
+	if limits.MaxFileBytes == 0 {
+		limits.MaxFileBytes = limits.MaxResponseBytes
+	}
 	if limits.ConnectorConcurrencyQueueTimeout == 0 {
 		limits.ConnectorConcurrencyQueueTimeout = defaultConcurrencyQueueTimeout
 	}
@@ -480,9 +484,6 @@ func NewWithExecutionLimits(
 }
 
 func validateExecutionLimits(limits ExecutionLimits) error {
-	if err := limits.NativeFiles.Validate(); err != nil {
-		return ErrInvalidInput.With(err)
-	}
 	if limits.QueryTimeout <= 0 {
 		return ErrInvalidInput.Detail("query timeout must be greater than 0")
 	}
@@ -494,6 +495,9 @@ func validateExecutionLimits(limits ExecutionLimits) error {
 	}
 	if limits.MaxResponseBytes <= 0 {
 		return ErrInvalidInput.Detail("max response bytes must be greater than 0")
+	}
+	if limits.MaxFileBytes <= 0 || limits.MaxFileBytes > filestream.MaxRetainedBytes {
+		return ErrInvalidInput.Detail("max file bytes must be positive and within retained storage bounds")
 	}
 	if limits.ConnectorConcurrencyPerDataSource <= 0 {
 		return ErrInvalidInput.Detail("connector concurrency per data source must be greater than 0")
@@ -1227,18 +1231,6 @@ func (s *service) executePrepared(
 		return nil, err
 	}
 
-	native := s.limits.NativeFiles.Matches(orgSlug) && filestream.NativeOperation(ds.Type.String(), prepared.statementJSON)
-	timeout := s.effectiveTimeout(prepared)
-	if native {
-		timeout = s.limits.NativeFiles.Timeout
-		if prepared.timeoutSeconds > 0 {
-			timeout = min(timeout, time.Duration(prepared.timeoutSeconds)*time.Second)
-		}
-		var deadlineCancel context.CancelFunc
-		ctx, deadlineCancel = context.WithDeadline(ctx, s.limits.NativeFiles.Deadline(ctx, time.Now()))
-		defer deadlineCancel()
-	}
-
 	configJSON, credentialsJSON, configVersion, credentialVersion, credentialReference, err := s.resolveExecutionPayload(
 		ctx,
 		orgSlug,
@@ -1253,15 +1245,10 @@ func (s *service) executePrepared(
 		return nil, err
 	}
 
-	execCtx, cancel := context.WithTimeout(ctx, timeout)
+	execCtx, cancel := context.WithTimeout(ctx, s.effectiveTimeout(prepared))
 	defer cancel()
 
 	connectorLimits := s.effectiveConnectorLimits(prepared)
-	if native {
-		connectorLimits.MaxFileBytes = s.limits.NativeFiles.MaxBytes
-		connectorLimits.ConnectorTimeout = timeout
-		connectorLimits.HTTPTimeout = timeout
-	}
 	connectorLimits.ReadOnly = ds.ReadOnly
 	execResult, err := s.connectorExecutor.ExecuteConnector(execCtx, ConnectorExecutionRequest{
 		SinkExecution:           pipelineruntime.IsSinkExecution(ctx),

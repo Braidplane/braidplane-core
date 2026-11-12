@@ -14,7 +14,6 @@ import (
 	"github.com/riverqueue/river"
 	"github.com/stretchr/testify/require"
 
-	"github.com/Braidplane/braidplane-core/pkg/connector/filestream"
 	"github.com/Braidplane/braidplane-core/pkg/crypto"
 	"github.com/Braidplane/braidplane-core/pkg/domain/model"
 	"github.com/Braidplane/braidplane-core/pkg/queue"
@@ -76,7 +75,7 @@ func TestPortablePollerPipelineGitWorkerJobExecutes(t *testing.T) {
 		30*time.Second,
 		nil,
 		nil,
-		testutil.FakeOperationAdmission{}, filestream.Profile{},
+		testutil.FakeOperationAdmission{},
 	)
 	require.NoError(t, err)
 	executorBroker, err := executionbroker.New(
@@ -88,7 +87,7 @@ func TestPortablePollerPipelineGitWorkerJobExecutes(t *testing.T) {
 			return nil, xerror.Unexpected().Detail("connector factory is not used for Git execution")
 		},
 		nil,
-		testutil.FakeOperationAdmission{}, filestream.Profile{},
+		testutil.FakeOperationAdmission{},
 	)
 	require.NoError(t, err)
 	t.Cleanup(func() { require.NoError(t, executorBroker.Close()) })

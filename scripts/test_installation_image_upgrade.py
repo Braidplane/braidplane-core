@@ -29,6 +29,11 @@ class ImageUpgradeTest(unittest.TestCase):
         self.check_running_core_image_upgrade(fail_grants=True)
 
     def check_running_core_image_upgrade(self, fail_grants=False):
+        def failure_output(error):
+            while error.__cause__ is not None:
+                error = error.__cause__
+            return str(getattr(error, 'stderr', error))
+
         def docker(*args, **kwargs):
             result = subprocess.run(['docker', *args], capture_output=True, **kwargs)
             if result.returncode:
@@ -72,7 +77,8 @@ class ImageUpgradeTest(unittest.TestCase):
         first.write_text(json.dumps(release))
         second_images = dict(images, backend=publish('backend-new', new))
         if old_prefix != new_prefix:
-            second_images['migrate'] = publish('migrate-new', new_prefix + '-migrate:local')
+            second_images.update({name: publish(name + '-new', new_prefix + '-' + name + ':local')
+                                  for name in ('frontend', 'migrate', 'cli')})
         second_release = dict(release, version='v0.1.0-alpha.2', core_revision=new_revision, images=second_images)
         second = root / 'second.json'
         second.write_text(json.dumps(second_release))
@@ -126,8 +132,9 @@ class ImageUpgradeTest(unittest.TestCase):
         backup = root / 'before-upgrade'
         if fail_grants:
             with patch('scripts.installation.upgrade.BUNDLE', bundle):
-                with self.assertRaisesRegex(ValueError, 'upgrade failed'):
+                with self.assertRaisesRegex(ValueError, 'upgrade failed') as failed:
                     operate(installation, 'upgrade', release=second, backup_directory=backup)
+            self.assertIn('fixture_missing_grant_capability', failure_output(failed.exception))
             self.assertTrue((installation / '.upgrade-in-progress.json').is_file())
             self.assertEqual(json.loads((installation / 'release.json').read_text()), release)
             self.assertEqual(json.loads((installation / '.installed-release.json').read_text()), release)
@@ -164,7 +171,10 @@ class ImageUpgradeTest(unittest.TestCase):
                               'elapsed_seconds': round(time.monotonic() - started, 3)}, sort_keys=True))
             return
         with patch('scripts.installation.upgrade.BUNDLE', bundle):
-            operate(installation, 'upgrade', release=second, backup_directory=backup)
+            try:
+                operate(installation, 'upgrade', release=second, backup_directory=backup)
+            except ValueError as error:
+                self.fail(failure_output(error))
         upgrade_seconds = round(time.monotonic() - started, 3)
         self.assertEqual(api_image(), new_image)
         self.assertEqual(state(), 'recovery-owner')

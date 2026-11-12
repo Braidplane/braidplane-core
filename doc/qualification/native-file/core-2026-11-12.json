@@ -1,0 +1,25 @@
+{
+  "bytes": 1073741841,
+  "checkpoint_bytes": 1763,
+  "components": "runner + real query/credential services + broker pollers in one Go process; PostgreSQL encrypted retained chunks/checkpoints/ledger; external SeaweedFS S3; independent SDK seed/readback; API/browser and process restart excluded",
+  "database_growth_bytes": 1116214448,
+  "elapsed_seconds": 32.9344795,
+  "heap_baseline_bytes": 8266392,
+  "heap_peak_sampled_bytes": 61089296,
+  "largest_broker_envelope_bytes": 3929,
+  "largest_chunk_bytes": 1048678,
+  "process_peak_rss_bytes": 114458624,
+  "profile": {
+    "Connectors": 2,
+    "MaxBytes": 1073741841,
+    "Organization": "native-file-1794478327199653000",
+    "Timeout": 300000000000,
+    "Transfers": 1
+  },
+  "retained_ciphertext_bytes": 1073845281,
+  "retained_relation_bytes": 1115676672,
+  "revision": "67b837de7c60ee03f2bce2df235d41c34fb522c9",
+  "s3_object_logical_bytes": 2147483682,
+  "seed_disk_bytes": 1073741841,
+  "sha256": "42e0ba806f9eea358c4b32b3a25fc39f633849b5f60359194d4c746cae21b364"
+}
