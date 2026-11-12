@@ -155,6 +155,52 @@ func TestRetainedFileCapabilities(t *testing.T) {
 	require.Zero(t, count)
 }
 
+func TestExpiredFilesAreRemovedWithoutErasingUnresolvedRequests(t *testing.T) {
+	if testing.Short() {
+		t.Skip("requires isolated PostgreSQL")
+	}
+	pool := freshPool(t)
+	ctx := t.Context()
+	_, err := pool.Exec(ctx, `INSERT INTO organizations(slug,name) VALUES('cleanup','cleanup')`)
+	require.NoError(t, err)
+	requests, files := executionrequests.New(), retainedfiles.New()
+	retain := func() uuid.UUID {
+		t.Helper()
+		id := uuid.New()
+		require.NoError(t, requests.Create(ctx, pool, executionrequests.Request{ID: id, OrganizationSlug: "cleanup", Kind: "query", RequestCiphertext: []byte("synthetic envelope"), DeadlineAt: time.Now().Add(time.Minute)}, time.Now().Add(time.Hour)))
+		request, claimed, err := requests.Claim(ctx, pool, id)
+		require.NoError(t, err)
+		require.True(t, claimed)
+		claim := filestream.Claim{RequestID: id, ClaimToken: request.ClaimToken, Organization: "cleanup"}
+		require.NoError(t, files.Begin(ctx, pool, claim, 5, time.Now().Add(time.Hour)))
+		require.NoError(t, files.Append(ctx, pool, claim, 0, 5, bytes.Repeat([]byte{1}, 64)))
+		return id
+	}
+	live := retain()
+	for _, tc := range []struct {
+		state    string
+		metadata int
+	}{{"succeeded", 0}, {"failed", 0}, {"cancelled", 1}, {"ambiguous", 1}, {"running", 1}} {
+		t.Run(tc.state, func(t *testing.T) {
+			id := retain()
+			_, err := pool.Exec(ctx, `UPDATE execution_requests SET state=$2,expires_at=clock_timestamp()-interval '1 second' WHERE id=$1`, id, tc.state)
+			require.NoError(t, err)
+			_, err = pool.Exec(ctx, `UPDATE retained_file_streams SET expires_at=clock_timestamp()-interval '1 second' WHERE request_id=$1`, id)
+			require.NoError(t, err)
+			_, err = requests.DeleteExpired(ctx, pool)
+			require.NoError(t, err)
+			var metadata, manifests, chunks int
+			require.NoError(t, pool.QueryRow(ctx, `SELECT (SELECT count(*) FROM execution_requests WHERE id=$1),(SELECT count(*) FROM retained_file_streams WHERE request_id=$1),(SELECT count(*) FROM retained_file_chunks WHERE request_id=$1)`, id).Scan(&metadata, &manifests, &chunks))
+			require.Equal(t, tc.metadata, metadata)
+			require.Zero(t, manifests)
+			require.Zero(t, chunks)
+		})
+	}
+	var chunks int
+	require.NoError(t, pool.QueryRow(ctx, `SELECT count(*) FROM retained_file_chunks WHERE request_id=$1`, live).Scan(&chunks))
+	require.Equal(t, 1, chunks, "unexpired input must remain available")
+}
+
 func TestRetainedFileRestrictedExecutor(t *testing.T) {
 	if testing.Short() {
 		t.Skip("requires isolated PostgreSQL")

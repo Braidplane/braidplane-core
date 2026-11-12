@@ -1,10 +1,13 @@
 # Native-file qualification
 
 The implementation and provider limits are in [Native-file streaming](../../NATIVE_FILE_STREAMING.md).
-Raw JSON records retain exact revisions and settings. The S3 record below covers the simplified implementation. Earlier profile/admission
+Raw JSON records retain exact revisions and settings. The >1 GiB samples test
+the transfer process under explicit test limits, not default operating capacity.
+The default file limit is 128 MiB; increase it only with available capacity.
+The S3 record below covers the simplified implementation. Earlier profile/admission
 measurements remain historical.
 
-## Recorded capacity samples
+## Recorded process tests
 
 | Revision | Scope | Evidence |
 |---|---|---|
@@ -43,7 +46,7 @@ bash scripts/go-toolchain.sh test -tags nativefilequalification ./service/pipeli
 
 Default size is 1 GiB + 17 bytes; `BP_NATIVE_FILE_BYTES` selects a smaller sample.
 The harness configures ordinary file-byte and execution-time limits. Linux Git
-capacity is opt-in through `TestNativeGitLargeFileQualification`; it requires
+testing is opt-in through `TestNativeGitLargeFileQualification`; it requires
 `BP_NATIVE_GIT_QUALIFICATION=1`, a full `BP_NATIVE_FILE_REVISION`, private scratch
 and optionally `BP_NATIVE_GIT_BYTES`.
 

@@ -5,7 +5,7 @@ ordinary query, connector, broker and provider deadlines and the existing
 per-organization/data-source concurrency queue. No organization profile or
 separate transfer-admission system is required.
 
-Set `execution_limits.max_file_bytes` to bound each file (default: 10 MiB).
+Set `execution_limits.max_file_bytes` to bound each file (default: 128 MiB).
 `max_response_bytes` still limits result metadata and structured responses.
 Streaming does not turn CSV/JSON parsing or SQL row results into streaming work.
 
@@ -21,8 +21,10 @@ Opaque references travel inside encrypted broker messages and in-process file
 bindings; public JSON and replay checkpoints contain only safe file metadata.
 Cancelled, expired, incomplete or corrupt input cannot be used by a sink.
 
-The complete source is retained before the sink starts. Request expiry deletes
-its chunks. Size database storage for retained files, indexes, WAL and backups;
+The complete source is retained before the sink starts. Maintenance runs every
+minute and deletes expired retained files, including cancelled/ambiguous work.
+Retention lasts until 15 minutes after the request deadline. PostgreSQL reuses
+freed space; database files need not shrink. Size storage for files, indexes, WAL and backups;
 concurrency limits do not bound completed files waiting for expiry.
 
 ## Supported operations

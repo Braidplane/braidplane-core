@@ -528,7 +528,7 @@ func defaults() *Config {
 			QueryTimeout:                      config.NewDuration(30 * time.Second),
 			ConnectorTimeout:                  config.NewDuration(30 * time.Second),
 			MaxResultRows:                     1000,
-			MaxFileBytes:                      10 * 1024 * 1024,
+			MaxFileBytes:                      128 * 1024 * 1024,
 			MaxResponseBytes:                  10 * 1024 * 1024,
 			ConnectorConcurrencyPerDataSource: 4,
 			ConnectorConcurrencyQueueTimeout:  config.NewDuration(5 * time.Second),

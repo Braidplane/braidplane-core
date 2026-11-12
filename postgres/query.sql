@@ -222,7 +222,11 @@ ORDER BY id FOR UPDATE;
 -- name: ExpireExecutionRequests :one
 -- Payload expiry must not erase an unresolved processing obligation. A lease
 -- can mark started work cancelled without acknowledgement from its executor.
-WITH scrubbed AS (
+WITH expired_files AS (
+    DELETE FROM retained_file_streams
+    WHERE expires_at <= clock_timestamp()
+    RETURNING request_id
+), scrubbed AS (
     UPDATE execution_requests
     SET request_ciphertext = ''::bytea, result_ciphertext = NULL,
         cancel_requested_at = COALESCE(cancel_requested_at, clock_timestamp()),

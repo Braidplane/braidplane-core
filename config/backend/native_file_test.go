@@ -9,6 +9,7 @@ import (
 )
 
 func TestFileByteLimitConfiguration(t *testing.T) {
+	require.EqualValues(t, 128*1024*1024, defaults().ExecutionLimits.MaxFileBytes)
 	setTestGitHubAppEnv(t)
 	path := filepath.Join(t.TempDir(), "config.toml")
 	require.NoError(t, os.WriteFile(path, []byte(`[security]
