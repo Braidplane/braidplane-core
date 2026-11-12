@@ -79,30 +79,34 @@ func TestDriveConnectorStreamsAuthorizedFilesWithRetainedInput(t *testing.T) {
 }
 
 func TestNativePDFExportUsesRetainedStreaming(t *testing.T) {
-	const content = "%PDF-synthetic"
-	connector := testFileConnector(t, func(r *http.Request) (*http.Response, error) {
-		if strings.HasSuffix(r.URL.Path, "/export") {
-			output := response(content)
-			output.ContentLength = int64(len(content))
-			output.Header.Set("Content-Type", "application/pdf")
-			return output, nil
-		}
-		return response(`{"id":"native","name":"Report","mimeType":"application/vnd.google-apps.document","isAppAuthorized":true,"capabilities":{"canDownload":true}}`), nil
-	})
-	store := filestreamfixture.New()
-	ctx := filestream.WithStore(t.Context(), store)
-	output, err := connector.Execute(ctx, []byte(`{"type":"google_workspace","resource":"document","operation":"export","file_id":"native"}`), nil, types.ExecutionLimits{MaxFileBytes: 1024})
-	require.NoError(t, err)
-	require.NoError(t, output.Error())
-	file, ok := output.File()
-	require.True(t, ok)
-	require.NotNil(t, file.Reference)
-	require.Empty(t, file.Content)
-	require.Equal(t, "Report.pdf", file.File.Filename)
-	reader, err := store.Open(ctx, *file.Reference, 1024)
-	require.NoError(t, err)
-	defer func() { require.NoError(t, reader.Close()) }()
-	body, err := io.ReadAll(reader)
-	require.NoError(t, err)
-	require.Equal(t, content, string(body))
+	for _, resource := range []string{"document", "presentation"} {
+		t.Run(resource, func(t *testing.T) {
+			const content = "%PDF-synthetic"
+			connector := testFileConnector(t, func(r *http.Request) (*http.Response, error) {
+				if strings.HasSuffix(r.URL.Path, "/export") {
+					output := response(content)
+					output.ContentLength = int64(len(content))
+					output.Header.Set("Content-Type", "application/pdf")
+					return output, nil
+				}
+				return response(fmt.Sprintf(`{"id":"native","name":"Report","mimeType":"application/vnd.google-apps.%s","isAppAuthorized":true,"capabilities":{"canDownload":true}}`, resource)), nil
+			})
+			store := filestreamfixture.New()
+			ctx := filestream.WithStore(t.Context(), store)
+			output, err := connector.Execute(ctx, []byte(fmt.Sprintf(`{"type":"google_workspace","resource":"%s","operation":"export","file_id":"native"}`, resource)), nil, types.ExecutionLimits{MaxFileBytes: 1024})
+			require.NoError(t, err)
+			require.NoError(t, output.Error())
+			file, ok := output.File()
+			require.True(t, ok)
+			require.NotNil(t, file.Reference)
+			require.Empty(t, file.Content)
+			require.Equal(t, "Report.pdf", file.File.Filename)
+			reader, err := store.Open(ctx, *file.Reference, 1024)
+			require.NoError(t, err)
+			defer func() { require.NoError(t, reader.Close()) }()
+			body, err := io.ReadAll(reader)
+			require.NoError(t, err)
+			require.Equal(t, content, string(body))
+		})
+	}
 }

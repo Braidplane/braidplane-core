@@ -14,6 +14,8 @@ from unittest.mock import patch
 
 from scripts.installation.lifecycle import operate
 from scripts.installation.prepare import prepare
+from scripts.installation.restore import restore
+from scripts.installation.backup import verify
 from scripts import test_installation_preflight
 from scripts.test_installation_database import POSTGRES
 
@@ -21,6 +23,12 @@ from scripts.test_installation_database import POSTGRES
 @unittest.skipUnless(os.environ.get('BRAIDPLANE_INSTALL_IMAGE_TEST') == '1', 'requires locally built Core images and disposable Docker fixtures')
 class ImageUpgradeTest(unittest.TestCase):
     def test_running_core_image_upgrade(self):
+        self.check_running_core_image_upgrade()
+
+    def test_failed_upgrade_restores_prior_schema_under_recovery_hold(self):
+        self.check_running_core_image_upgrade(fail_grants=True)
+
+    def check_running_core_image_upgrade(self, fail_grants=False):
         def docker(*args, **kwargs):
             result = subprocess.run(['docker', *args], capture_output=True, **kwargs)
             if result.returncode:
@@ -56,14 +64,16 @@ class ImageUpgradeTest(unittest.TestCase):
         images = {name: publish(name, old_prefix + '-' + name + ':local') for name in ('frontend', 'migrate', 'cli')}
         images.update(backend=publish('backend-old', old), edge=publish('edge', 'caddy:2'), postgres=publish('postgres', POSTGRES))
         revision = subprocess.run(['git', 'rev-parse', 'HEAD'], check=True, capture_output=True, text=True).stdout.strip()
-        release = {'version': 'v0.1.0-alpha.1', 'core_revision': revision,
+        old_revision = docker('image', 'inspect', old, '--format', '{{index .Config.Labels "org.opencontainers.image.revision"}}') or revision
+        new_revision = docker('image', 'inspect', new, '--format', '{{index .Config.Labels "org.opencontainers.image.revision"}}') or revision
+        release = {'version': 'v0.1.0-alpha.1', 'core_revision': old_revision,
                    'platform': 'linux/arm64' if platform.machine() == 'arm64' else 'linux/amd64', 'images': images}
         first = root / 'first.json'
         first.write_text(json.dumps(release))
         second_images = dict(images, backend=publish('backend-new', new))
         if old_prefix != new_prefix:
             second_images['migrate'] = publish('migrate-new', new_prefix + '-migrate:local')
-        second_release = dict(release, version='v0.1.0-alpha.2', images=second_images)
+        second_release = dict(release, version='v0.1.0-alpha.2', core_revision=new_revision, images=second_images)
         second = root / 'second.json'
         second.write_text(json.dumps(second_release))
         bundle = root / 'candidate-bundle'
@@ -72,6 +82,9 @@ class ImageUpgradeTest(unittest.TestCase):
         source = Path(__file__).resolve().parent
         shutil.copyfile(source / 'self-hosted-runtime-grants.sql', bundle / 'scripts/self-hosted-runtime-grants.sql')
         shutil.copyfile(source / 'installation/execution-grants.sql', bundle / 'scripts/installation/execution-grants.sql')
+        if fail_grants:
+            with (bundle / 'scripts/installation/execution-grants.sql').open('a') as output:
+                output.write('\nSELECT fixture_missing_grant_capability();\n')
         tls = test_installation_preflight.TLSPreflightTest()
         tls.setUp()
         self.addCleanup(tls.doCleanups)
@@ -105,13 +118,53 @@ class ImageUpgradeTest(unittest.TestCase):
         self.assertNotEqual(old_image, new_image)
         self.assertEqual(api_image(), old_image)
         self.assertEqual(state(), 'recovery-owner')
+        previous_schema = compose('exec', '-T', 'database', 'psql', '-U', 'braidplane_operator', '-d', 'braidplane',
+                                  '-At', '-c', "SELECT version FROM core_schema_migrations; SELECT to_regprocedure('public.begin_retained_file(uuid,uuid,text,bigint,timestamptz)') IS NULL;").splitlines()
         if old_prefix != new_prefix:
-            version = compose('exec', '-T', 'database', 'psql', '-U', 'braidplane_operator', '-d', 'braidplane',
-                              '-At', '-c', 'SELECT version FROM core_schema_migrations')
-            self.assertEqual(version, '2')
+            self.assertEqual(previous_schema, ['2', 't'])
         started = time.monotonic()
+        backup = root / 'before-upgrade'
+        if fail_grants:
+            with patch('scripts.installation.upgrade.BUNDLE', bundle):
+                with self.assertRaisesRegex(ValueError, 'upgrade failed'):
+                    operate(installation, 'upgrade', release=second, backup_directory=backup)
+            self.assertTrue((installation / '.upgrade-in-progress.json').is_file())
+            self.assertEqual(json.loads((installation / 'release.json').read_text()), release)
+            self.assertEqual(json.loads((installation / '.installed-release.json').read_text()), release)
+            self.assertEqual((installation / 'runtime.env').read_bytes(), keys)
+            running = compose('ps', '--services', '--status', 'running').splitlines()
+            self.assertEqual(running, ['database'])
+            with self.assertRaisesRegex(ValueError, 'upgrade is incomplete'):
+                operate(installation, 'start')
+            self.assertEqual(verify(backup)['release'], release)
+            for name in ('database.dump', 'configuration.tar', 'backup.json'):
+                self.assertEqual((backup / name).stat().st_mode & 0o777, 0o600)
+            recovered = root / 'recovered'
+            def cleanup_recovered():
+                if (recovered / 'compose.json').exists():
+                    docker('compose', '--env-file', str(recovered / 'release.env'), '-f', str(recovered / 'compose.json'), 'down', '--volumes', cwd=recovered)
+            self.addCleanup(cleanup_recovered)
+            result = restore(backup, recovered)
+            self.assertEqual(result['state'], 'isolated-awaiting-reconciliation')
+            self.assertEqual((recovered / 'runtime.env').read_bytes(), keys)
+            restored = docker('compose', '--env-file', str(recovered / 'release.env'), '-f', str(recovered / 'compose.json'),
+                              'exec', '-T', 'database', 'psql', '-U', 'braidplane_operator', '-d', 'braidplane', '-At', '-c',
+                              "SELECT slug FROM users WHERE slug='recovery-owner'; SELECT version FROM core_schema_migrations; SELECT to_regprocedure('public.begin_retained_file(uuid,uuid,text,bigint,timestamptz)') IS NULL;",
+                              cwd=recovered).splitlines()
+            self.assertEqual(restored, ['recovery-owner', *previous_schema])
+            with self.assertRaisesRegex(ValueError, 'held for reconciliation'):
+                operate(recovered, 'start')
+            if old_prefix != new_prefix:
+                version = compose('exec', '-T', 'database', 'psql', '-U', 'braidplane_operator', '-d', 'braidplane',
+                                  '-At', '-c', 'SELECT version FROM core_schema_migrations')
+                self.assertEqual(version, '3', 'recovery must not roll back the failed source database')
+            print(json.dumps({'scenario': 'failed-grants-after-migration', 'old_revision': old_revision,
+                              'new_revision': new_revision, 'restored_schema': restored[1],
+                              'original_stopped': True, 'recovery_hold': True,
+                              'elapsed_seconds': round(time.monotonic() - started, 3)}, sort_keys=True))
+            return
         with patch('scripts.installation.upgrade.BUNDLE', bundle):
-            operate(installation, 'upgrade', release=second, backup_directory=root / 'before-upgrade')
+            operate(installation, 'upgrade', release=second, backup_directory=backup)
         upgrade_seconds = round(time.monotonic() - started, 3)
         self.assertEqual(api_image(), new_image)
         self.assertEqual(state(), 'recovery-owner')
@@ -127,4 +180,5 @@ class ImageUpgradeTest(unittest.TestCase):
         print('PASS: live Core API-only upgrade switched image IDs with retained administrator and keys')
         scope = 'schema-changing local fixture' if old_prefix != new_prefix else 'same-code/catalog local fixture'
         print(json.dumps({'old_backend': old_image, 'new_backend': new_image,
+                          'old_revision': old_revision, 'new_revision': new_revision,
                           'upgrade_seconds': upgrade_seconds, 'scope': scope}, sort_keys=True))
