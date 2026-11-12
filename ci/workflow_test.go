@@ -132,7 +132,7 @@ func TestCommunityWorkflowTrustBoundary(t *testing.T) {
 		{"preparation skipped CI admission", ".github/workflows/core-release.yml", "      - name: Admit successful main CI\n", "      - name: Admit successful main CI\n        if: false\n"},
 		{"preparation ignored CI failure", ".github/workflows/core-release.yml", "      - name: Admit successful main CI\n", "      - name: Admit successful main CI\n        continue-on-error: true\n"},
 		{"preparation build after failure", ".github/workflows/core-release.yml", "      - name: Prepare candidate OCI archives\n", "      - name: Prepare candidate OCI archives\n        if: always()\n"},
-		{"release prematurely enabled", ".github/workflows/core-release.yml", "false && github.ref", "true && github.ref"},
+		{"release unconditional", ".github/workflows/core-release.yml", "github.event.repository.visibility == 'public' && vars.CORE_RELEASE_PUBLICATION_ENABLED == 'true'", "true"},
 		{"release checkout credential", ".github/workflows/core-release.yml", "persist-credentials: false", "persist-credentials: true"},
 		{"release wrong attestation", ".github/workflows/core-release.yml", "sboms/backend.spdx.json", "sboms/frontend.spdx.json"},
 		{"release foreign artifact", ".github/workflows/core-release.yml", "name: core-release-candidate\n          path: ${{ runner.temp }}/core-release-candidate\n", "name: other-candidate\n          path: ${{ runner.temp }}/core-release-candidate\n"},
@@ -253,14 +253,14 @@ func releaseBoundary(document map[string]any) error {
 	}
 	for _, name := range []string{"prepare", "publish"} {
 		job, ok := jobs[name].(map[string]any)
-		condition := "${{ false && github.ref == 'refs/heads/main' && github.event.repository.visibility == 'public' && vars.CORE_RELEASE_PUBLICATION_ENABLED == 'true' }}"
+		condition := "${{ github.ref == 'refs/heads/main' && github.event.repository.visibility == 'public' && vars.CORE_RELEASE_PUBLICATION_ENABLED == 'true' }}"
 		if name == "prepare" {
 			condition = "${{ github.ref == 'refs/heads/main' && github.event.repository.visibility == 'public' && vars.CORE_RELEASE_PREPARATION_ENABLED == 'true' }}"
 		}
 		if !ok || job["uses"] != nil ||
 			job["runs-on"] != "${{ inputs.platform == 'linux/arm64' && 'ubuntu-24.04-arm' || 'ubuntu-24.04' }}" ||
 			job["if"] != condition {
-			return fmt.Errorf("release requires guarded public-main jobs on hosted runners; publication stays disabled")
+			return fmt.Errorf("release requires explicitly enabled public-main jobs on hosted runners")
 		}
 		if name == "prepare" {
 			if job["environment"] != nil || !reflect.DeepEqual(job["permissions"], map[string]any{"contents": "read"}) {
