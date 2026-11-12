@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"sort"
 	"strconv"
 	"strings"
@@ -131,9 +132,16 @@ func (c *Connector) Execute(
 		), nil
 	}
 
+	fileOutput, err := sqlconnector.FileOutputRequested(queryData)
+	if err != nil {
+		return bigQueryFailureResult(start, err), nil
+	}
+	if fileOutput && normalizedOperation(stmt.Operation) != operationQuery {
+		return bigQueryFailureResult(start, sqlconnector.ErrInvalidConfig.WithPublicDetail("SQL file output requires a query operation.")), nil
+	}
 	switch normalizedOperation(stmt.Operation) {
 	case operationQuery:
-		return c.executeQuery(ctx, start, stmt, params, execLimits), nil
+		return c.executeQuery(ctx, start, stmt, params, execLimits, fileOutput), nil
 	case operationInsertRows:
 		return c.executeInsertRows(ctx, start, stmt, normalizedParams, execLimits), nil
 	default:
@@ -150,13 +158,14 @@ func (c *Connector) executeQuery(
 	stmt statement,
 	params map[string]types.TypedParam,
 	limits types.ExecutionLimits,
+	fileOutput bool,
 ) *result.ExecutionResult {
 	boundSQL, queryParams, err := bindQueryParameters(stmt.SQL, params)
 	if err != nil {
 		return bigQueryFailureResult(start, err)
 	}
 
-	queryResult, err := c.client.Query(ctx, QueryRequest{
+	request := QueryRequest{
 		ProjectID:          c.config.ProjectID,
 		Location:           c.config.Location,
 		SQL:                boundSQL,
@@ -165,7 +174,40 @@ func (c *Connector) executeQuery(
 		MaximumBytesBilled: effectiveMaximumBytesBilled(c.config.MaximumBytesBilled, stmt.MaximumBytesBilled),
 		MaxResultRows:      providerRowLimit(limits.MaxResultRows),
 		MaxResponseBytes:   effectiveResponseBytes(limits),
-	})
+	}
+	if fileOutput {
+		request.MaxResultRows = limits.MaxResultRows
+		output, err := sqlconnector.RetainQueryFile(ctx, limits, func(ctx context.Context, dst io.Writer) (sqlconnector.StreamResult, error) {
+			var stream *sqlconnector.RowStream
+			err := c.client.QueryPages(ctx, request, func(page *QueryResult) error {
+				normalized, err := sqlResultFromQuery(page, limits.MaxResponseBytes)
+				if err != nil {
+					return err
+				}
+				if stream == nil {
+					stream, err = sqlconnector.NewRowStream(ctx, dst, normalized.ColumnNames, limits)
+					if err != nil {
+						return err
+					}
+				}
+				for _, row := range normalized.Rows {
+					if err := stream.WriteRow(row); err != nil {
+						return err
+					}
+				}
+				return nil
+			})
+			if err != nil {
+				return sqlconnector.StreamResult{}, err
+			}
+			if stream == nil {
+				return sqlconnector.StreamResult{}, sqlconnector.ErrInvalidConfig.WithPublicDetail("BigQuery did not return query result metadata.")
+			}
+			return stream.Finish()
+		})
+		return sqlconnector.NewExecutionResultData("bigquery", start, output, err)
+	}
+	queryResult, err := c.client.Query(ctx, request)
 	if err != nil {
 		return bigQueryFailureResult(start, err)
 	}

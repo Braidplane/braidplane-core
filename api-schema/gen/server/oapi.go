@@ -4770,24 +4770,6 @@ func (e PostgresConfigSslMode) Valid() bool {
 	}
 }
 
-// Defines values for PostgresStatementFormat.
-const (
-	PostgresStatementFormatFile PostgresStatementFormat = "file"
-	PostgresStatementFormatRows PostgresStatementFormat = "rows"
-)
-
-// Valid indicates whether the value is a known member of the PostgresStatementFormat enum.
-func (e PostgresStatementFormat) Valid() bool {
-	switch e {
-	case PostgresStatementFormatFile:
-		return true
-	case PostgresStatementFormatRows:
-		return true
-	default:
-		return false
-	}
-}
-
 // Defines values for PostgresStatementType.
 const (
 	PostgresStatementTypePostgres PostgresStatementType = "postgres"
@@ -5655,6 +5637,24 @@ func (e SQLExecutionResultResultType) Valid() bool {
 	case SQLExecutionResultResultTypeSql:
 		return true
 	case SQLExecutionResultResultTypeWorkspaceFile:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for SQLResultFormat.
+const (
+	SQLResultFormatFile SQLResultFormat = "file"
+	SQLResultFormatRows SQLResultFormat = "rows"
+)
+
+// Valid indicates whether the value is a known member of the SQLResultFormat enum.
+func (e SQLResultFormat) Valid() bool {
+	switch e {
+	case SQLResultFormatFile:
+		return true
+	case SQLResultFormatRows:
 		return true
 	default:
 		return false
@@ -8523,6 +8523,9 @@ type BigQueryStatement struct {
 	//
 	// Example: analytics
 	Dataset *string `json:"dataset,omitempty"`
+
+	// Format Rows by default. File serializes one finite query result as a retained JSON object with column_names, rows and row_count; positive row and transfer limits are required.
+	Format *SQLResultFormat `json:"format,omitempty"`
 
 	// InsertIdPrefix Optional prefix for BigQuery insertAll insertId values. insertId is BigQuery's best-effort duplicate suppression key for streaming inserts; omitted values send rows without insertIds. Supports safe runtime placeholders such as {{runtime.run.slug}}.
 	//
@@ -11444,6 +11447,9 @@ type MySQLCredentials struct {
 
 // MySQLStatement MySQL query statement with {{paramName}} placeholders
 type MySQLStatement struct {
+	// Format Rows by default. File serializes one finite query result as a retained JSON object with column_names, rows and row_count; positive row and transfer limits are required.
+	Format *SQLResultFormat `json:"format,omitempty"`
+
 	// Sql MySQL SQL statement with {{paramName}} placeholders
 	//
 	// Example: SELECT * FROM users WHERE id = {{user_id}} LIMIT {{limit}}
@@ -16316,8 +16322,8 @@ type PostgresCredentials struct {
 
 // PostgresStatement PostgreSQL query statement with {{paramName}} placeholders
 type PostgresStatement struct {
-	// Format Rows by default. File serializes one finite read-only snapshot as a retained JSON object with column_names, rows and row_count; it requires bounded row and transfer allowances.
-	Format *PostgresStatementFormat `json:"format,omitempty"`
+	// Format Rows by default. File serializes one finite query result as a retained JSON object with column_names, rows and row_count; positive row and transfer limits are required.
+	Format *SQLResultFormat `json:"format,omitempty"`
 
 	// Sql PostgreSQL SQL statement with {{paramName}} placeholders
 	//
@@ -16327,9 +16333,6 @@ type PostgresStatement struct {
 	// Type Data source type discriminator
 	Type PostgresStatementType `json:"type"`
 }
-
-// PostgresStatementFormat Rows by default. File serializes one finite read-only snapshot as a retained JSON object with column_names, rows and row_count; it requires bounded row and transfer allowances.
-type PostgresStatementFormat string
 
 // PostgresStatementType Data source type discriminator
 type PostgresStatementType string
@@ -17688,6 +17691,9 @@ type SQLExecutionResult struct {
 // SQLExecutionResultResultType defines model for SQLExecutionResult.ResultType.
 type SQLExecutionResultResultType string
 
+// SQLResultFormat Rows by default. File serializes one finite query result as a retained JSON object with column_names, rows and row_count; positive row and transfer limits are required.
+type SQLResultFormat string
+
 // SQLSchemaResponse SQL database schema introspection result (unified for PostgreSQL, MySQL, BigQuery, SQLite, etc.)
 type SQLSchemaResponse struct {
 	// SchemaType Schema category identifier
@@ -17899,6 +17905,9 @@ type SnowflakePasswordCredentialsAuthType string
 
 // SnowflakeStatement Snowflake SQL statement with parameterized {{paramName}} placeholders
 type SnowflakeStatement struct {
+	// Format Rows by default. File serializes one finite query result as a retained JSON object with column_names, rows and row_count; positive row and transfer limits are required.
+	Format *SQLResultFormat `json:"format,omitempty"`
+
 	// Sql Snowflake SQL text; values are bound through the driver and never interpolated
 	//
 	// Example: SELECT * FROM ANALYTICS.PUBLIC.ORDERS WHERE REGION = {{region}}
@@ -20447,6 +20456,13 @@ func (t BigQueryStatement) MarshalJSON() ([]byte, error) {
 		}
 	}
 
+	if t.Format != nil {
+		object["format"], err = json.Marshal(t.Format)
+		if err != nil {
+			return nil, fmt.Errorf("error marshaling 'format': %w", err)
+		}
+	}
+
 	if t.InsertIdPrefix != nil {
 		object["insert_id_prefix"], err = json.Marshal(t.InsertIdPrefix)
 		if err != nil {
@@ -20520,6 +20536,13 @@ func (t *BigQueryStatement) UnmarshalJSON(b []byte) error {
 		err = json.Unmarshal(raw, &t.Dataset)
 		if err != nil {
 			return fmt.Errorf("error reading 'dataset': %w", err)
+		}
+	}
+
+	if raw, found := object["format"]; found {
+		err = json.Unmarshal(raw, &t.Format)
+		if err != nil {
+			return fmt.Errorf("error reading 'format': %w", err)
 		}
 	}
 

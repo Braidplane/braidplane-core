@@ -4714,24 +4714,6 @@ func (e PostgresConfigSslMode) Valid() bool {
 	}
 }
 
-// Defines values for PostgresStatementFormat.
-const (
-	PostgresStatementFormatFile PostgresStatementFormat = "file"
-	PostgresStatementFormatRows PostgresStatementFormat = "rows"
-)
-
-// Valid indicates whether the value is a known member of the PostgresStatementFormat enum.
-func (e PostgresStatementFormat) Valid() bool {
-	switch e {
-	case PostgresStatementFormatFile:
-		return true
-	case PostgresStatementFormatRows:
-		return true
-	default:
-		return false
-	}
-}
-
 // Defines values for PostgresStatementType.
 const (
 	PostgresStatementTypePostgres PostgresStatementType = "postgres"
@@ -5308,6 +5290,24 @@ func (e SQLExecutionResultResultType) Valid() bool {
 	case SQLExecutionResultResultTypeSql:
 		return true
 	case SQLExecutionResultResultTypeWorkspaceFile:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for SQLResultFormat.
+const (
+	SQLResultFormatFile SQLResultFormat = "file"
+	SQLResultFormatRows SQLResultFormat = "rows"
+)
+
+// Valid indicates whether the value is a known member of the SQLResultFormat enum.
+func (e SQLResultFormat) Valid() bool {
+	switch e {
+	case SQLResultFormatFile:
+		return true
+	case SQLResultFormatRows:
 		return true
 	default:
 		return false
@@ -7803,6 +7803,7 @@ type BigQueryCredentials struct {
 // BigQueryStatement defines model for BigQueryStatement.
 type BigQueryStatement struct {
 	Dataset            *string                     `json:"dataset,omitempty"`
+	Format             *SQLResultFormat            `json:"format,omitempty"`
 	InsertIdPrefix     *string                     `json:"insert_id_prefix,omitempty"`
 	MaximumBytesBilled *int64                      `json:"maximum_bytes_billed,omitempty"`
 	Operation          *BigQueryStatementOperation `json:"operation,omitempty"`
@@ -9269,8 +9270,9 @@ type MySQLCredentials struct {
 
 // MySQLStatement defines model for MySQLStatement.
 type MySQLStatement struct {
-	Sql  string             `json:"sql"`
-	Type MySQLStatementType `json:"type"`
+	Format *SQLResultFormat   `json:"format,omitempty"`
+	Sql    string             `json:"sql"`
+	Type   MySQLStatementType `json:"type"`
 }
 
 // MySQLStatementType defines model for MySQLStatement.Type.
@@ -11766,13 +11768,10 @@ type PostgresCredentials struct {
 
 // PostgresStatement defines model for PostgresStatement.
 type PostgresStatement struct {
-	Format *PostgresStatementFormat `json:"format,omitempty"`
-	Sql    string                   `json:"sql"`
-	Type   PostgresStatementType    `json:"type"`
+	Format *SQLResultFormat      `json:"format,omitempty"`
+	Sql    string                `json:"sql"`
+	Type   PostgresStatementType `json:"type"`
 }
-
-// PostgresStatementFormat defines model for PostgresStatement.Format.
-type PostgresStatementFormat string
 
 // PostgresStatementType defines model for PostgresStatement.Type.
 type PostgresStatementType string
@@ -12309,6 +12308,9 @@ type SQLExecutionResult struct {
 // SQLExecutionResultResultType defines model for SQLExecutionResult.ResultType.
 type SQLExecutionResultResultType string
 
+// SQLResultFormat defines model for SQLResultFormat.
+type SQLResultFormat string
+
 // SQLSchemaResponse defines model for SQLSchemaResponse.
 type SQLSchemaResponse struct {
 	SchemaType SQLSchemaResponseSchemaType `json:"schema_type"`
@@ -12424,8 +12426,9 @@ type SnowflakePasswordCredentialsAuthType string
 
 // SnowflakeStatement defines model for SnowflakeStatement.
 type SnowflakeStatement struct {
-	Sql  string                 `json:"sql"`
-	Type SnowflakeStatementType `json:"type"`
+	Format *SQLResultFormat       `json:"format,omitempty"`
+	Sql    string                 `json:"sql"`
+	Type   SnowflakeStatementType `json:"type"`
 }
 
 // SnowflakeStatementType defines model for SnowflakeStatement.Type.
@@ -14027,6 +14030,13 @@ func (t BigQueryStatement) MarshalJSON() ([]byte, error) {
 		}
 	}
 
+	if t.Format != nil {
+		object["format"], err = json.Marshal(t.Format)
+		if err != nil {
+			return nil, fmt.Errorf("error marshaling 'format': %w", err)
+		}
+	}
+
 	if t.InsertIdPrefix != nil {
 		object["insert_id_prefix"], err = json.Marshal(t.InsertIdPrefix)
 		if err != nil {
@@ -14100,6 +14110,13 @@ func (t *BigQueryStatement) UnmarshalJSON(b []byte) error {
 		err = json.Unmarshal(raw, &t.Dataset)
 		if err != nil {
 			return fmt.Errorf("error reading 'dataset': %w", err)
+		}
+	}
+
+	if raw, found := object["format"]; found {
+		err = json.Unmarshal(raw, &t.Format)
+		if err != nil {
+			return fmt.Errorf("error reading 'format': %w", err)
 		}
 	}
 

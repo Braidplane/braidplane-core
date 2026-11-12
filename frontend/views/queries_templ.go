@@ -1494,7 +1494,7 @@ func QueriesPageContent(dataSources []api.DataSource, selectedDataSource string,
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
-					if selectedDataSourceType == "postgres" {
+					if selectedDataSourceType == "postgres" || selectedDataSourceType == "mysql" || selectedDataSourceType == "bigquery" || selectedDataSourceType == "snowflake" {
 						templ_7745c5c3_Err = SQLResultFormatField(createFormData.SQLFormat).Render(ctx, templ_7745c5c3_Buffer)
 						if templ_7745c5c3_Err != nil {
 							return templ_7745c5c3_Err

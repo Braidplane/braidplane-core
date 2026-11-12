@@ -21,6 +21,9 @@ import (
 )
 
 func TestPostgresRetainedSQLStream(t *testing.T) {
+	if testing.Short() {
+		t.Skip("requires disposable database fixture")
+	}
 	store := filestreamfixture.New()
 	ctx := filestream.WithStore(transportsecurity.WithPlaintext(t.Context()), store)
 	connector, err := postgres.New(ctx, getTestConfig())
@@ -102,6 +105,9 @@ func (w *snapshotGateWriter) Write(data []byte) (int, error) {
 }
 
 func TestPostgresStreamSnapshotAndCancellation(t *testing.T) {
+	if testing.Short() {
+		t.Skip("requires disposable database fixture")
+	}
 	ctx, cancel := context.WithTimeout(transportsecurity.WithPlaintext(t.Context()), 15*time.Second)
 	defer cancel()
 	connector, err := postgres.New(ctx, getTestConfig())

@@ -49,7 +49,7 @@ func SQLResultFormatField(value string) templ.Component {
 				return templ_7745c5c3_Err
 			}
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 5, ">JSON file</option></select><div class=\"label\"><span class=\"label-text-alt\">JSON file exports the complete read-only result. Connect it to a file destination using a file contract.</span></div></label>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 5, ">JSON file</option></select><div class=\"label\"><span class=\"label-text-alt\">JSON file exports the complete query result. Connect it to a file destination using a file contract.</span></div></label>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

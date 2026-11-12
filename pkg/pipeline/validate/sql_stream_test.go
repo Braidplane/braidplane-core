@@ -11,16 +11,18 @@ import (
 
 func TestSQLStreamOutputFacets(t *testing.T) {
 	t.Parallel()
-	query := &spec.QueryRef{OperationType: "sql", OperationInline: map[string]any{"type": "postgres", "format": "file", "sql": "SELECT 1"}}
-	representation, _ := queryOutputFacets(query)
-	require.Equal(t, model.ContractRepresentationFile, representation)
-	query.OperationInline["format"] = "rows"
-	representation, _ = queryOutputFacets(query)
-	require.Equal(t, model.ContractRepresentationRows, representation)
-	query.OperationInline = nil
-	query.OperationRef = "saved-query"
-	representation, _ = queryOutputFacets(query)
-	require.Equal(t, model.ContractRepresentationRows, representation)
+	for _, vendor := range []string{"sql", "postgres", "mysql", "bigquery", "snowflake"} {
+		query := &spec.QueryRef{OperationType: vendor, OperationInline: map[string]any{"type": vendor, "format": "file", "sql": "SELECT 1"}}
+		representation, _ := queryOutputFacets(query)
+		require.Equal(t, model.ContractRepresentationFile, representation)
+		query.OperationInline["format"] = "rows"
+		representation, _ = queryOutputFacets(query)
+		require.Equal(t, model.ContractRepresentationRows, representation)
+		query.OperationInline = nil
+		query.OperationRef = "saved-query"
+		representation, _ = queryOutputFacets(query)
+		require.Equal(t, model.ContractRepresentationRows, representation)
+	}
 }
 
 func TestSQLFileOutputRefusesRowTransforms(t *testing.T) {

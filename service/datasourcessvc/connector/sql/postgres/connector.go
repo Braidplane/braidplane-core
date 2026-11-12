@@ -19,12 +19,10 @@ import (
 	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/stdlib"
 
-	"github.com/Braidplane/braidplane-core/pkg/connector/filestream"
 	"github.com/Braidplane/braidplane-core/pkg/connector/result"
 	"github.com/Braidplane/braidplane-core/pkg/connector/schemaquota"
 	"github.com/Braidplane/braidplane-core/pkg/decimal"
 	"github.com/Braidplane/braidplane-core/pkg/hostguard"
-	filepayload "github.com/Braidplane/braidplane-core/pkg/payload/file"
 	"github.com/Braidplane/braidplane-core/pkg/sinkbinding"
 	"github.com/Braidplane/braidplane-core/pkg/xerror"
 	"github.com/Braidplane/braidplane-core/service/datasourcessvc/connector/param"
@@ -252,18 +250,13 @@ func (c *Connector) Execute(
 		return sqlconnector.NewFailedExecutionResult("postgres", start, err), nil
 	}
 	authoredStatement, _ = extractAndReplace(authoredStatement, 1)
-	var options struct {
-		Format string `json:"format"`
+	fileOutput, err := sqlconnector.FileOutputRequested(queryData)
+	if err != nil {
+		return sqlconnector.NewFailedExecutionResult("postgres", start, err), nil
 	}
-	if err := json.Unmarshal(queryData, &options); err != nil {
-		return sqlconnector.NewFailedExecutionResult("postgres", start, sqlconnector.ErrInvalidConfig.With(err)), nil
-	}
-	if options.Format == "file" {
+	if fileOutput {
 		output, err := c.executeStream(ctx, stmt, args, execLimits, authoredStatement)
 		return sqlconnector.NewExecutionResultData("postgres", start, output, err), nil
-	}
-	if options.Format != "" && options.Format != "rows" {
-		return sqlconnector.NewFailedExecutionResult("postgres", start, sqlconnector.ErrInvalidConfig.WithPublicDetail("PostgreSQL format must be rows or file.")), nil
 	}
 	sqlResult, execErr := executeStatementWithLimits(c, ctx, stmt, args, execLimits, authoredStatement)
 
@@ -271,10 +264,6 @@ func (c *Connector) Execute(
 }
 
 func (c *Connector) executeStream(ctx context.Context, stmt string, args []any, limits types.ExecutionLimits, authored string) (*result.SQLResult, error) {
-	store, ok := filestream.FromContext(ctx)
-	if !ok {
-		return nil, filestream.ErrUnavailable
-	}
 	if c.authorize != nil {
 		var cancel context.CancelFunc
 		ctx, cancel = context.WithTimeout(ctx, 10*time.Second)
@@ -284,23 +273,10 @@ func (c *Connector) executeStream(ctx context.Context, stmt string, args []any, 
 		}
 	}
 	executor := sqlconnector.StatementExecutor{DB: c.db, IsQueryStatement: func(string) bool { return isQueryStatement(authored) }, NormalizeValue: sqlconnector.NumericBytesToStringValue}
-	var output sqlconnector.StreamResult
-	ref, metadata, err := store.Retain(ctx, limits.MaxFileBytes, func(dst io.Writer) (*filestream.Metadata, error) {
-		var err error
-		output, err = executor.QueryTo(ctx, stmt, args, limits, dst)
-		return output.Metadata, mapPostgresError(err)
+	return sqlconnector.RetainQueryFile(ctx, limits, func(ctx context.Context, dst io.Writer) (sqlconnector.StreamResult, error) {
+		output, err := executor.QueryTo(ctx, stmt, args, limits, dst)
+		return output, mapPostgresError(err)
 	})
-	if err != nil {
-		return nil, err
-	}
-	return &result.SQLResult{
-		Rows: []map[string]any{}, ColumnNames: output.ColumnNames, RowCount: output.RowCount,
-		Reference: ref,
-		File: &filepayload.FilePayloadMetadata{
-			Filename: "query-result.json", MIMEType: "application/json", SizeBytes: metadata.SizeBytes,
-			DigestAlgorithm: filepayload.FilePayloadDigestSHA256, Digest: metadata.SHA256,
-		},
-	}, nil
 }
 
 // ExecuteStatement runs a parameterized SQL statement with ordered positional arguments.

@@ -1608,6 +1608,9 @@
             "minLength": 1,
             "type": "string"
           },
+          "format": {
+            "$ref": "#/components/schemas/SQLResultFormat"
+          },
           "insert_id_prefix": {
             "description": "",
             "type": "string"
@@ -6547,6 +6550,9 @@
       "MySQLStatement": {
         "description": "",
         "properties": {
+          "format": {
+            "$ref": "#/components/schemas/SQLResultFormat"
+          },
           "sql": {
             "description": "",
             "minLength": 1,
@@ -15319,12 +15325,7 @@
         "description": "",
         "properties": {
           "format": {
-            "description": "",
-            "enum": [
-              "rows",
-              "file"
-            ],
-            "type": "string"
+            "$ref": "#/components/schemas/SQLResultFormat"
           },
           "sql": {
             "description": "",
@@ -17386,6 +17387,14 @@
         ],
         "type": "object"
       },
+      "SQLResultFormat": {
+        "description": "",
+        "enum": [
+          "rows",
+          "file"
+        ],
+        "type": "string"
+      },
       "SQLSchemaResponse": {
         "description": "",
         "properties": {
@@ -17767,6 +17776,9 @@
         "additionalProperties": false,
         "description": "",
         "properties": {
+          "format": {
+            "$ref": "#/components/schemas/SQLResultFormat"
+          },
           "sql": {
             "description": "",
             "minLength": 1,

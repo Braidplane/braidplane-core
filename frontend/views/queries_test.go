@@ -19,16 +19,18 @@ func TestQuerySourceNameUsesSlugForUnnamedSource(t *testing.T) {
 	require.Equal(t, "warehouse", QuerySourceName(sources, "warehouse"))
 }
 
-func TestPostgresFileFormatSurvivesEditing(t *testing.T) {
+func TestSQLFileFormatSurvivesEditing(t *testing.T) {
 	t.Parallel()
-	var query api.Query
-	require.NoError(t, json.Unmarshal([]byte(`{"slug":"export-records","query_statement":{"type":"postgres","sql":"SELECT 1","format":"file"}}`), &query))
-	form := QueryEditorFormDataFromQuery(query)
-	require.Equal(t, "file", form.SQLFormat)
-	var out bytes.Buffer
-	require.NoError(t, SQLResultFormatField(form.SQLFormat).Render(t.Context(), &out))
-	require.Contains(t, out.String(), `value="file" selected`)
-	require.Contains(t, out.String(), `name="sql_format"`)
+	for _, vendor := range []string{"postgres", "mysql", "bigquery", "snowflake"} {
+		var query api.Query
+		require.NoError(t, json.Unmarshal([]byte(`{"slug":"export-records","query_statement":{"type":"`+vendor+`","sql":"SELECT 1","format":"file"}}`), &query))
+		form := QueryEditorFormDataFromQuery(query)
+		require.Equal(t, "file", form.SQLFormat)
+		var out bytes.Buffer
+		require.NoError(t, SQLResultFormatField(form.SQLFormat).Render(t.Context(), &out))
+		require.Contains(t, out.String(), `value="file" selected`)
+		require.Contains(t, out.String(), `name="sql_format"`)
+	}
 }
 
 func TestQueriesEmptyStateProvidesPermissionAwareFirstResultAction(t *testing.T) {

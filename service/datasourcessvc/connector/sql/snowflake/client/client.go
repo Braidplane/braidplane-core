@@ -259,6 +259,8 @@ func (c *Client) TestConnection(ctx context.Context) error {
 func (c *Client) Execute(
 	ctx context.Context, statement string, args []any, query bool, scanRows RowScanner,
 ) (Result, error) {
+	ctx, cancel := context.WithCancel(ctx)
+	defer cancel()
 	if !query {
 		execResult, err := c.db.ExecContext(ctx, statement, args...)
 		if err != nil {
@@ -276,6 +278,9 @@ func (c *Client) Execute(
 	}
 	defer func() { _ = rows.Close() }()
 	providerResult, err := scanRows(rows)
+	if err != nil {
+		cancel()
+	}
 	if err == nil {
 		err = rows.Err()
 	}

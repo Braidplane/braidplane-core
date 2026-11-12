@@ -153,3 +153,17 @@ func TestQueryToInvalidatesOutputOnWriteFailureOrCancellation(t *testing.T) {
 		require.NoError(t, db.Close())
 	}
 }
+
+func TestRowStreamMetadataByteBoundary(t *testing.T) {
+	for _, limit := range []int64{5, 6} {
+		limits := streamTestLimits()
+		limits.MaxResponseBytes = limit
+		stream, err := NewRowStream(t.Context(), io.Discard, []string{"id"}, limits)
+		if limit < 6 {
+			require.ErrorIs(t, err, xerror.ExecutionResponseSizeExceeded())
+			require.Nil(t, stream)
+		} else {
+			require.NoError(t, err)
+		}
+	}
+}

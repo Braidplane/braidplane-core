@@ -335,17 +335,19 @@ in the fields documented by their connector guide. A missing required value or
 a value that cannot be converted to its declared type stops the operation with
 a validation or execution error.
 
-## Finite PostgreSQL file exports
+## Finite SQL file exports
 
-A PostgreSQL query operation can set `format: file` to export one complete JSON
-object containing `column_names`, `rows`, and `row_count`. Use a file output
+PostgreSQL, MySQL, BigQuery and Snowflake query operations can set `format: file`
+to export one complete JSON object containing `column_names`, `rows`, and `row_count`. Use a file output
 contract and connect it directly to a native-file destination with `format: file`.
-The query runs in a read-only repeatable-read snapshot. Duplicate column names
-and multiple result sets are refused. Row transforms cannot consume this file.
+PostgreSQL and MySQL use a read-only repeatable-read transaction. BigQuery reads
+bounded pages from one SELECT job. Snowflake reads one driver result under the
+source account's grants; use a read-only role. Duplicate column names and multiple
+result sets are refused. Row transforms cannot consume this file.
 
 The operator must configure positive total row, transfer-byte and response-byte
-limits. The response allowance bounds each row and result metadata; the transfer
-allowance bounds the entire serialized object. Results are staged in encrypted
+limits. The response allowance bounds each row, metadata and BigQuery page; the
+transfer allowance bounds the entire serialized object. Results are staged in encrypted
 database chunks before destination writing, so storage grows with result size.
 Cancellation or failure never publishes a partial result as successful, and an
 uncertain destination write requires inspection before retrying. This operation

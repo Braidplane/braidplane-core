@@ -2794,38 +2794,43 @@ func TestQueryExecutionResultToView_SQLPreservesNullAndZero(t *testing.T) {
 func TestSQLFileResultViewShowsMetadataWithoutEmptyRows(t *testing.T) {
 	t.Parallel()
 	var result api.QueryExecutionResult
-	require.NoError(t, json.Unmarshal([]byte(`{"result_type":"sql","type":"postgres","success":true,"duration_ms":1,"payload":{"row_count":1000000,"column_names":["order_id"],"rows":[],"file":{"mime_type":"application/json","size_bytes":1078777880,"digest_algorithm":"sha256","digest":"synthetic-digest"}}}`), &result))
+	require.NoError(t, json.Unmarshal([]byte(`{"result_type":"sql","type":"postgres","success":true,"duration_ms":1,"payload":{"row_count":100,"column_names":["order_id"],"rows":[],"file":{"mime_type":"application/json","size_bytes":10788,"digest_algorithm":"sha256","digest":"synthetic-digest"}}}`), &result))
 	view := queryExecutionResultToView("export-records", result)
 	require.Empty(t, view.Columns)
 	require.Empty(t, view.Rows)
-	require.Contains(t, view.Summary, "Serialized row count: 1000000")
+	require.Contains(t, view.Summary, "Serialized row count: 100")
 	require.Contains(t, view.Raw, "synthetic-digest")
 }
 
-func TestPostgresQueryFormPreservesAndValidatesFormat(t *testing.T) {
-	for _, format := range []string{"rows", "file", "invalid"} {
-		t.Run(format, func(t *testing.T) {
-			app := fiber.New()
-			app.Post("/", func(c fiber.Ctx) error {
-				statement, diagnostic := buildQueryStatementFromRequest(c, api.DataSourceTypePostgres)
-				if format == "invalid" {
-					require.NotEmpty(t, diagnostic)
-					return c.SendStatus(http.StatusBadRequest)
-				}
-				require.Empty(t, diagnostic)
-				postgres, err := statement.AsPostgresStatement()
+func TestSQLQueryFormPreservesAndValidatesFormat(t *testing.T) {
+	for _, vendor := range []api.DataSourceType{api.DataSourceTypePostgres, api.DataSourceTypeMysql, api.DataSourceTypeBigquery, api.DataSourceTypeSnowflake} {
+		for _, format := range []string{"rows", "file", "invalid"} {
+			t.Run(string(vendor)+"/"+format, func(t *testing.T) {
+				app := fiber.New()
+				app.Post("/", func(c fiber.Ctx) error {
+					statement, diagnostic := buildQueryStatementFromRequest(c, vendor)
+					if format == "invalid" {
+						require.NotEmpty(t, diagnostic)
+						return c.SendStatus(http.StatusBadRequest)
+					}
+					require.Empty(t, diagnostic)
+					raw, err := json.Marshal(statement)
+					require.NoError(t, err)
+					var saved struct {
+						Format string `json:"format"`
+					}
+					require.NoError(t, json.Unmarshal(raw, &saved))
+					require.Equal(t, format, saved.Format)
+					return c.SendStatus(http.StatusOK)
+				})
+				values := url.Values{"statement": {"SELECT 1"}, "sql_format": {format}}
+				request := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/", strings.NewReader(values.Encode()))
+				request.Header.Set("Content-Type", fiber.MIMEApplicationForm)
+				response, err := app.Test(request)
 				require.NoError(t, err)
-				require.NotNil(t, postgres.Format)
-				require.Equal(t, format, string(*postgres.Format))
-				return c.SendStatus(http.StatusOK)
+				require.NoError(t, response.Body.Close())
 			})
-			values := url.Values{"statement": {"SELECT 1"}, "sql_format": {format}}
-			request := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/", strings.NewReader(values.Encode()))
-			request.Header.Set("Content-Type", fiber.MIMEApplicationForm)
-			response, err := app.Test(request)
-			require.NoError(t, err)
-			require.NoError(t, response.Body.Close())
-		})
+		}
 	}
 }
 

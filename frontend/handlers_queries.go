@@ -1762,62 +1762,34 @@ func buildQueryStatementFromRequest(
 			return statement, "Invalid Workspace operation."
 		}
 
-	case api.DataSourceTypePostgres:
+	case api.DataSourceTypePostgres, api.DataSourceTypeMysql, api.DataSourceTypeBigquery, api.DataSourceTypeSnowflake:
 		statementText := strings.TrimSpace(c.FormValue("statement"))
 		if statementText == "" {
 			return api.QueryStatement{}, queryStatementRequiredMessage
 		}
-		format := api.PostgresStatementFormat(c.FormValue("sql_format"))
+		format := api.SQLResultFormat(c.FormValue("sql_format"))
 		if format == "" {
-			format = api.PostgresStatementFormatRows
+			format = api.SQLResultFormatRows
 		}
 		if !format.Valid() {
-			return api.QueryStatement{}, "Choose rows or a JSON file for the PostgreSQL result."
+			return api.QueryStatement{}, "Choose rows or a JSON file for the SQL result."
 		}
-
-		if err := statement.FromPostgresStatement(api.PostgresStatement{
-			Type:   api.PostgresStatementTypePostgres,
-			Sql:    statementText,
-			Format: &format,
-		}); err != nil {
-			return api.QueryStatement{}, "Query statement could not be encoded for PostgreSQL."
+		var err error
+		switch dataSourceType {
+		case api.DataSourceTypePostgres:
+			err = statement.FromPostgresStatement(api.PostgresStatement{Type: api.PostgresStatementTypePostgres, Sql: statementText, Format: &format})
+		case api.DataSourceTypeMysql:
+			err = statement.FromMySQLStatement(api.MySQLStatement{Type: api.MySQLStatementTypeMysql, Sql: statementText, Format: &format})
+		case api.DataSourceTypeBigquery:
+			operation := api.BigQueryStatementOperationQuery
+			err = statement.FromBigQueryStatement(api.BigQueryStatement{Type: api.BigQueryStatementTypeBigquery, Operation: &operation, Sql: &statementText, Format: &format})
+		case api.DataSourceTypeSnowflake:
+			err = statement.FromSnowflakeStatement(api.SnowflakeStatement{Type: api.SnowflakeStatementTypeSnowflake, Sql: statementText, Format: &format})
+		default:
+			return api.QueryStatement{}, "Unsupported SQL data source."
 		}
-	case api.DataSourceTypeMysql:
-		statementText := strings.TrimSpace(c.FormValue("statement"))
-		if statementText == "" {
-			return api.QueryStatement{}, queryStatementRequiredMessage
-		}
-
-		if err := statement.FromMySQLStatement(api.MySQLStatement{
-			Type: api.MySQLStatementTypeMysql,
-			Sql:  statementText,
-		}); err != nil {
-			return api.QueryStatement{}, "Query statement could not be encoded for MySQL."
-		}
-	case api.DataSourceTypeBigquery:
-		statementText := strings.TrimSpace(c.FormValue("statement"))
-		if statementText == "" {
-			return api.QueryStatement{}, queryStatementRequiredMessage
-		}
-
-		operation := api.BigQueryStatementOperationQuery
-		if err := statement.FromBigQueryStatement(api.BigQueryStatement{
-			Type:      api.BigQueryStatementTypeBigquery,
-			Operation: &operation,
-			Sql:       &statementText,
-		}); err != nil {
-			return api.QueryStatement{}, "Query statement could not be encoded for BigQuery."
-		}
-	case api.DataSourceTypeSnowflake:
-		statementText := strings.TrimSpace(c.FormValue("statement"))
-		if statementText == "" {
-			return api.QueryStatement{}, queryStatementRequiredMessage
-		}
-		if err := statement.FromSnowflakeStatement(api.SnowflakeStatement{
-			Type: api.SnowflakeStatementTypeSnowflake,
-			Sql:  statementText,
-		}); err != nil {
-			return api.QueryStatement{}, "Query statement could not be encoded for Snowflake."
+		if err != nil {
+			return api.QueryStatement{}, "Query statement could not be encoded for SQL."
 		}
 	case api.DataSourceTypeFtp:
 		ftpPath := strings.TrimSpace(c.FormValue("ftp_path"))

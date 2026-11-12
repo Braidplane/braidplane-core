@@ -1352,7 +1352,7 @@ func QueryDetailPageContent(orgSlug string, dataSourceSlug string, query api.Que
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				if editFormData.StatementType == "postgres" {
+				if editFormData.StatementType == "postgres" || editFormData.StatementType == "mysql" || editFormData.StatementType == "bigquery" || editFormData.StatementType == "snowflake" {
 					templ_7745c5c3_Err = SQLResultFormatField(editFormData.SQLFormat).Render(ctx, templ_7745c5c3_Buffer)
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err

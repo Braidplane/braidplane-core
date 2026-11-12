@@ -20,6 +20,7 @@ type stubProvider struct {
 	listTablesFunc     func(context.Context, ListTablesRequest) ([]Table, error)
 	getTableFunc       func(context.Context, GetTableRequest) (*TableMetadata, error)
 	queryFunc          func(context.Context, QueryRequest) (*QueryResult, error)
+	queryPagesFunc     func(context.Context, QueryRequest, func(*QueryResult) error) error
 	insertRowsFunc     func(context.Context, InsertRowsRequest) (*InsertRowsResult, error)
 	closeFunc          func() error
 }
@@ -57,6 +58,13 @@ func (s *stubProvider) Query(ctx context.Context, req QueryRequest) (*QueryResul
 		return nil, assert.AnError
 	}
 	return s.queryFunc(ctx, req)
+}
+
+func (s *stubProvider) QueryPages(ctx context.Context, req QueryRequest, consume func(*QueryResult) error) error {
+	if s.queryPagesFunc == nil {
+		return assert.AnError
+	}
+	return s.queryPagesFunc(ctx, req, consume)
 }
 
 func (s *stubProvider) InsertRows(ctx context.Context, req InsertRowsRequest) (*InsertRowsResult, error) {

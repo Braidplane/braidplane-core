@@ -11,6 +11,8 @@ import (
 
 	"github.com/stretchr/testify/require"
 
+	"github.com/Braidplane/braidplane-core/pkg/connector/filestream"
+	"github.com/Braidplane/braidplane-core/pkg/testutil/filestreamfixture"
 	"github.com/Braidplane/braidplane-core/pkg/xerror"
 	sqlconnector "github.com/Braidplane/braidplane-core/service/datasourcessvc/connector/sql"
 	snowflakeclient "github.com/Braidplane/braidplane-core/service/datasourcessvc/connector/sql/snowflake/client"
@@ -173,4 +175,32 @@ func (r *budgetRows) Next(values []driver.Value) error {
 	copy(values, r.values[0])
 	r.values = r.values[1:]
 	return nil
+}
+
+func TestFileQueryStreamsDriverRowsAndDiscardsOverflow(t *testing.T) {
+	for _, limit := range []int{1, 2} {
+		fixture := &budgetRows{columns: []string{"id", "amount", "nullable"}, values: [][]driver.Value{{int64(9007199254740993), []byte("123456789.123456789"), nil}, {int64(2), []byte("2.000000001"), nil}}}
+		connector := newScanningConnector(t, fixture)
+		store := filestreamfixture.New()
+		ctx := filestream.WithStore(t.Context(), store)
+		got, err := connector.Execute(ctx, json.RawMessage(`{"sql":"SELECT id,amount,nullable","format":"file"}`), nil, types.ExecutionLimits{MaxResultRows: limit, MaxResponseBytes: 1024, MaxFileBytes: 4096})
+		require.NoError(t, err)
+		require.True(t, fixture.closed)
+		output, _ := got.SQL()
+		if limit == 1 {
+			require.ErrorIs(t, got.Error(), xerror.ExecutionRowLimitExceeded())
+			require.Nil(t, output)
+			continue
+		}
+		require.NoError(t, got.Error())
+		require.Empty(t, output.Rows)
+		require.Equal(t, 2, output.RowCount)
+		body, err := store.Open(ctx, *output.Reference, 4096)
+		require.NoError(t, err)
+		raw, err := io.ReadAll(body)
+		require.NoError(t, err)
+		require.NoError(t, body.Close())
+		require.Contains(t, string(raw), `"id":9007199254740993`)
+		require.JSONEq(t, `{"column_names":["id","amount","nullable"],"rows":[{"id":9007199254740993,"amount":"123456789.123456789","nullable":null},{"id":2,"amount":"2.000000001","nullable":null}],"row_count":2}`, string(raw))
+	}
 }
