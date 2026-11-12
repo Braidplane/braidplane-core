@@ -462,6 +462,9 @@ func (response *encryptedResponse) captureResultRuntimePayload() error {
 	}
 
 	runtimePayload := &executionResultRuntimePayload{}
+	if sqlResult, ok := response.Result.SQL(); ok && sqlResult != nil {
+		runtimePayload.FileReference = filepayload.CloneReference(sqlResult.Reference)
+	}
 	if httpResult, ok := response.Result.HTTP(); ok && httpResult != nil {
 		runtimePayload.HTTPRawBody = httpResult.RawBody
 		runtimePayload.FileReference = filepayload.CloneReference(httpResult.Reference)
@@ -561,6 +564,9 @@ func (response *encryptedResponse) restoreResultRuntimePayload() error {
 			metadata = output.File
 			output.Reference = filepayload.CloneReference(ref)
 		} else if output, ok := response.Result.HTTP(); ok && output != nil {
+			metadata = output.File
+			output.Reference = filepayload.CloneReference(ref)
+		} else if output, ok := response.Result.SQL(); ok && output != nil && len(output.Rows) == 0 {
 			metadata = output.File
 			output.Reference = filepayload.CloneReference(ref)
 		} else {
@@ -1001,6 +1007,11 @@ func (b *Broker) submitAndWait(
 		case <-ticker.C:
 			response, done, readErr := b.readResponse(waitCtx, id, organizationSlug)
 			if readErr != nil {
+				if waitCtx.Err() != nil {
+					// Polling can race with cancellation; persist it through the
+					// cancellation branch before returning an uncertain outcome.
+					continue
+				}
 				if kind == kindQuery &&
 					xerror.Is(readErr, xerror.ExecutionConcurrencyLimitExceeded()) {
 					metrics.RecordConnectorAdmission("timeout")

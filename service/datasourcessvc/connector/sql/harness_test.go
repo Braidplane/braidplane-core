@@ -33,6 +33,7 @@ type harnessDriverState struct {
 	pingErr         error
 	pingHadDeadline bool
 	queryRows       [][]driver.Value
+	queryNextRows   [][]driver.Value
 	queryColumns    []string
 	queryErr        error
 	queryCount      int
@@ -42,6 +43,7 @@ type harnessDriverState struct {
 	beginErr        error
 	beginCount      int
 	beginReadOnly   bool
+	beginIsolation  driver.IsolationLevel
 	commitCount     int
 	rollbackErr     error
 	rollbackCount   int
@@ -54,9 +56,10 @@ type harnessConn struct {
 }
 
 type harnessRows struct {
-	columns []string
-	values  [][]driver.Value
-	index   int
+	columns  []string
+	values   [][]driver.Value
+	index    int
+	nextRows [][]driver.Value
 }
 
 type harnessExecResult struct {
@@ -603,6 +606,7 @@ func (c *harnessConn) Begin() (driver.Tx, error) {
 func (c *harnessConn) BeginTx(_ context.Context, opts driver.TxOptions) (driver.Tx, error) {
 	c.state.beginCount++
 	c.state.beginReadOnly = opts.ReadOnly
+	c.state.beginIsolation = opts.Isolation
 	if c.state.beginErr != nil {
 		return nil, c.state.beginErr
 	}
@@ -631,8 +635,9 @@ func (c *harnessConn) QueryContext(
 		columns = []string{"id", "name"}
 	}
 	return &harnessRows{
-		columns: columns,
-		values:  c.state.queryRows,
+		columns:  columns,
+		values:   c.state.queryRows,
+		nextRows: c.state.queryNextRows,
 	}, nil
 }
 
@@ -656,6 +661,16 @@ func (r *harnessRows) Columns() []string {
 }
 
 func (r *harnessRows) Close() error {
+	return nil
+}
+
+func (r *harnessRows) HasNextResultSet() bool { return r.nextRows != nil }
+
+func (r *harnessRows) NextResultSet() error {
+	if r.nextRows == nil {
+		return io.EOF
+	}
+	r.values, r.nextRows, r.index = r.nextRows, nil, 0
 	return nil
 }
 

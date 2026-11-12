@@ -149,7 +149,7 @@ var descriptors = []Descriptor{
 		Type: model.DataSourceTypePostgres,
 		Capabilities: model.ConnectorCapabilityDetails{
 			ReadOperations: []string{"authored_sql"}, WriteOperations: []string{"authored_sql"}, LoadModes: []string{"authored_sql"},
-			SourcePayloads: []model.ContractRepresentation{model.ContractRepresentationRows},
+			SourcePayloads: []model.ContractRepresentation{model.ContractRepresentationRows, model.ContractRepresentationFile},
 			SinkPayloads: []model.ConnectorSinkPayloadSupport{
 				{Representation: model.ContractRepresentationRows, Mode: model.ConnectorPayloadModeNative, Limitation: "Authored SQL must reference the input relation or bindings."},
 				{Representation: model.ContractRepresentationJSON, Mode: model.ConnectorPayloadModeRowNormalized, Limitation: "Object/array becomes input rows; scalars use explicit input binding."},

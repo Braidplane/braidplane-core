@@ -64,6 +64,8 @@ func cloneSQLResult(input *SQLResult) *SQLResult {
 		ColumnNames:  append([]string(nil), input.ColumnNames...),
 		RowCount:     input.RowCount,
 		LastInsertID: lastInsertID,
+		File:         cloneFilePayloadMetadata(input.File),
+		Reference:    filepayload.CloneReference(input.Reference),
 	}
 }
 

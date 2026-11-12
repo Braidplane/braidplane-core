@@ -2791,6 +2791,44 @@ func TestQueryExecutionResultToView_SQLPreservesNullAndZero(t *testing.T) {
 	require.Equal(t, []map[string]string{{"missing": "NULL", "zero": "0", "empty": "", "text": "<nil>"}}, view.Rows)
 }
 
+func TestSQLFileResultViewShowsMetadataWithoutEmptyRows(t *testing.T) {
+	t.Parallel()
+	var result api.QueryExecutionResult
+	require.NoError(t, json.Unmarshal([]byte(`{"result_type":"sql","type":"postgres","success":true,"duration_ms":1,"payload":{"row_count":1000000,"column_names":["order_id"],"rows":[],"file":{"mime_type":"application/json","size_bytes":1078777880,"digest_algorithm":"sha256","digest":"synthetic-digest"}}}`), &result))
+	view := queryExecutionResultToView("export-records", result)
+	require.Empty(t, view.Columns)
+	require.Empty(t, view.Rows)
+	require.Contains(t, view.Summary, "Serialized row count: 1000000")
+	require.Contains(t, view.Raw, "synthetic-digest")
+}
+
+func TestPostgresQueryFormPreservesAndValidatesFormat(t *testing.T) {
+	for _, format := range []string{"rows", "file", "invalid"} {
+		t.Run(format, func(t *testing.T) {
+			app := fiber.New()
+			app.Post("/", func(c fiber.Ctx) error {
+				statement, diagnostic := buildQueryStatementFromRequest(c, api.DataSourceTypePostgres)
+				if format == "invalid" {
+					require.NotEmpty(t, diagnostic)
+					return c.SendStatus(http.StatusBadRequest)
+				}
+				require.Empty(t, diagnostic)
+				postgres, err := statement.AsPostgresStatement()
+				require.NoError(t, err)
+				require.NotNil(t, postgres.Format)
+				require.Equal(t, format, string(*postgres.Format))
+				return c.SendStatus(http.StatusOK)
+			})
+			values := url.Values{"statement": {"SELECT 1"}, "sql_format": {format}}
+			request := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/", strings.NewReader(values.Encode()))
+			request.Header.Set("Content-Type", fiber.MIMEApplicationForm)
+			response, err := app.Test(request)
+			require.NoError(t, err)
+			require.NoError(t, response.Body.Close())
+		})
+	}
+}
+
 func TestBuildHTTPStatementPreservesAcknowledgementNumber(t *testing.T) {
 	app := fiber.New()
 	app.Post("/", func(c fiber.Ctx) error {

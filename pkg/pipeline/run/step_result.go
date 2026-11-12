@@ -351,6 +351,7 @@ func redactSQLResult(sqlResult *result.SQLResult, redact func(string) string) {
 	}
 	redactRows(sqlResult.Rows, redact)
 	redaction.StringSlice(sqlResult.ColumnNames, redact)
+	redactFileMetadata(sqlResult.File, redact)
 }
 
 // redactMongoDBResult mutates MongoDB result metadata and documents that may contain secrets.

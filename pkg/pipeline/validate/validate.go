@@ -1579,7 +1579,18 @@ func queryOutputFacets(
 		return model.ContractRepresentationUnknown, model.ContractRootShapeUnknown
 	}
 	switch strings.ToLower(strings.TrimSpace(query.OperationType)) {
-	case "", "sql", "postgres", "mysql", "hubspot":
+	case "sql", "postgres":
+		if query.OperationRef != "" {
+			if query.OutputContract != nil && query.OutputContract.Representation == model.ContractRepresentationFile {
+				return model.ContractRepresentationFile, model.ContractRootShapeUnknown
+			}
+			return model.ContractRepresentationRows, model.ContractRootShapeUnknown
+		}
+		if queryInlineFormat(query) == model.ContractRepresentationFile.String() && (query.OperationType == "postgres" || query.OperationInline["type"] == "postgres") {
+			return model.ContractRepresentationFile, model.ContractRootShapeUnknown
+		}
+		return model.ContractRepresentationRows, model.ContractRootShapeUnknown
+	case "", "mysql", "hubspot":
 		return model.ContractRepresentationRows, model.ContractRootShapeUnknown
 	case "google_workspace":
 		if query.OperationRef != "" {

@@ -4750,6 +4750,10 @@ func snapshotOutput(stepResult *pipelinerun.StepResult) *pipelinerun.StepOutputS
 			Kind:     pipelinerun.StepOutputDetailKindRows,
 			RowCount: &rowCount,
 		}
+		if sqlResult.File != nil {
+			output.Details.Kind = pipelinerun.StepOutputDetailKindFileRead
+			output.Details.File = filepayload.CloneFilePayloadMetadata(sqlResult.File)
+		}
 		if len(sqlResult.ColumnNames) > 0 {
 			output.Details.ColumnNames = append([]string(nil), sqlResult.ColumnNames...)
 		}

@@ -15,6 +15,21 @@ import (
 	pipepayload "github.com/Braidplane/braidplane-core/pkg/pipeline/payload"
 )
 
+func TestRuntimePayloadFromExecutionResult_SQLFile(t *testing.T) {
+	t.Parallel()
+	metadata := filepayload.NewFilePayloadMetadata("query-result.json", "application/json", []byte("{}"))
+	ref := &filepayload.Reference{ID: "private-id", SizeBytes: metadata.SizeBytes, SHA256: metadata.Digest}
+	step := NewStepResult(result.NewSQLResult("postgres", &result.SQLResult{File: &metadata, Reference: ref, RowCount: 5}, 0, nil))
+	payload, ok := step.Payload()
+	require.True(t, ok)
+	require.Equal(t, model.ContractRepresentationFile, payload.Representation)
+	require.Equal(t, ref, payload.FileReference)
+	require.Empty(t, payload.Rows)
+	raw, err := json.Marshal(step)
+	require.NoError(t, err)
+	require.NotContains(t, string(raw), "private-id")
+}
+
 func TestRuntimePayloadFromExecutionResult_SQLRows(t *testing.T) {
 	t.Parallel()
 

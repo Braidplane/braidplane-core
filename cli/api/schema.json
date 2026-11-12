@@ -15318,6 +15318,14 @@
       "PostgresStatement": {
         "description": "",
         "properties": {
+          "format": {
+            "description": "",
+            "enum": [
+              "rows",
+              "file"
+            ],
+            "type": "string"
+          },
           "sql": {
             "description": "",
             "minLength": 1,
@@ -17323,6 +17331,9 @@
                   "type": "string"
                 },
                 "type": "array"
+              },
+              "file": {
+                "$ref": "#/components/schemas/FilePayloadMetadata"
               },
               "row_count": {
                 "description": "",

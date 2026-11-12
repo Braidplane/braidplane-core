@@ -51,10 +51,12 @@ func TestRetainedFileRequestRoundTrip(t *testing.T) {
 func TestRetainedFileResponseRoundTripAndPrivacy(t *testing.T) {
 	t.Parallel()
 	ref := referenceFixture()
-	for _, kind := range []string{"ftp", "git", "s3", "google_workspace", "http"} {
+	for _, kind := range []string{"ftp", "git", "s3", "google_workspace", "http", "postgres"} {
 		t.Run(kind, func(t *testing.T) {
 			var execution *result.ExecutionResult
 			switch kind {
+			case "postgres":
+				execution = result.NewSQLResult("postgres", &result.SQLResult{File: referenceMetadata(ref), Reference: &ref}, 0, nil)
 			case "http":
 				execution = result.NewHTTPResult(&result.HTTPResult{File: referenceMetadata(ref), Reference: &ref}, 0, nil)
 			case "ftp":
@@ -74,12 +76,18 @@ func TestRetainedFileResponseRoundTripAndPrivacy(t *testing.T) {
 			require.Less(t, len(raw), 4096)
 			restored, err := unmarshalResponsePlaintext(raw, 4096)
 			require.NoError(t, err)
-			if kind == "http" {
+			switch kind {
+			case "postgres":
+				output, ok := restored.Result.SQL()
+				require.True(t, ok)
+				require.Equal(t, &ref, output.Reference)
+				require.Empty(t, output.Rows)
+			case "http":
 				output, ok := restored.Result.HTTP()
 				require.True(t, ok)
 				require.Equal(t, &ref, output.Reference)
 				require.Empty(t, output.RawBody)
-			} else {
+			default:
 				output, ok := restored.Result.File()
 				require.True(t, ok)
 				require.Equal(t, &ref, output.Reference)
@@ -88,10 +96,14 @@ func TestRetainedFileResponseRoundTripAndPrivacy(t *testing.T) {
 			_, err = marshalResponsePlaintext(encryptedResponse{Result: execution, resultRuntimeMaxBytes: 4096, resultRuntimeMaxFileBytes: ref.SizeBytes - 1})
 			require.ErrorIs(t, err, xerror.ExecutionResponseSizeExceeded())
 			clone := execution.Clone()
-			if kind == "http" {
+			switch kind {
+			case "postgres":
+				output, _ := clone.SQL()
+				output.Reference.SizeBytes--
+			case "http":
 				output, _ := clone.HTTP()
 				output.Reference.SizeBytes--
-			} else {
+			default:
 				output, _ := clone.File()
 				output.Reference.SizeBytes--
 			}

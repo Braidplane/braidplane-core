@@ -14927,6 +14927,10 @@ components:
           minLength: 1
           description: PostgreSQL SQL statement with {{paramName}} placeholders
           example: "SELECT * FROM users WHERE id = {{user_id}} LIMIT {{limit}}"
+        format:
+          type: string
+          enum: [rows, file]
+          description: Rows by default. File serializes one finite read-only snapshot as a retained JSON object with column_names, rows and row_count; it requires bounded row and transfer allowances.
       required:
         - type
         - sql
@@ -22810,9 +22814,11 @@ components:
           type: object
           description: SQL-specific result data
           properties:
+            file:
+              $ref: '#/components/schemas/FilePayloadMetadata'
             rows:
               type: array
-              description: Result rows (each row is a key-value map)
+              description: Result rows (each row is a key-value map). Empty for file output; records are serialized in the retained file instead.
               items:
                 type: object
                 additionalProperties: true
@@ -22825,7 +22831,7 @@ components:
                   last_login_at: "2026-02-18T14:25:00Z"
             row_count:
               type: integer
-              description: Number of rows returned
+              description: Number of rows returned or serialized in the retained file
               example: 2
             column_names:
               type: array

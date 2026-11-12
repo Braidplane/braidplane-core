@@ -4714,6 +4714,24 @@ func (e PostgresConfigSslMode) Valid() bool {
 	}
 }
 
+// Defines values for PostgresStatementFormat.
+const (
+	PostgresStatementFormatFile PostgresStatementFormat = "file"
+	PostgresStatementFormatRows PostgresStatementFormat = "rows"
+)
+
+// Valid indicates whether the value is a known member of the PostgresStatementFormat enum.
+func (e PostgresStatementFormat) Valid() bool {
+	switch e {
+	case PostgresStatementFormatFile:
+		return true
+	case PostgresStatementFormatRows:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for PostgresStatementType.
 const (
 	PostgresStatementTypePostgres PostgresStatementType = "postgres"
@@ -11748,9 +11766,13 @@ type PostgresCredentials struct {
 
 // PostgresStatement defines model for PostgresStatement.
 type PostgresStatement struct {
-	Sql  string                `json:"sql"`
-	Type PostgresStatementType `json:"type"`
+	Format *PostgresStatementFormat `json:"format,omitempty"`
+	Sql    string                   `json:"sql"`
+	Type   PostgresStatementType    `json:"type"`
 }
+
+// PostgresStatementFormat defines model for PostgresStatement.Format.
+type PostgresStatementFormat string
 
 // PostgresStatementType defines model for PostgresStatement.Type.
 type PostgresStatementType string
@@ -12275,6 +12297,7 @@ type SQLExecutionResult struct {
 	Error      *string `json:"error,omitempty"`
 	Payload    struct {
 		ColumnNames *[]string                `json:"column_names,omitempty"`
+		File        *FilePayloadMetadata     `json:"file,omitempty"`
 		RowCount    int                      `json:"row_count"`
 		Rows        []map[string]interface{} `json:"rows"`
 	} `json:"payload"`

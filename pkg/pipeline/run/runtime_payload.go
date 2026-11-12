@@ -18,6 +18,9 @@ func runtimePayloadFromExecutionResult(execution *result.ExecutionResult) *pipep
 	}
 
 	if sqlResult, ok := execution.SQL(); ok && sqlResult != nil {
+		if sqlResult.File != nil {
+			return runtimeFilePayload(sqlResult.File, nil, sqlResult.Reference, pipepayload.ProvenanceExecutionResult)
+		}
 		return runtimeRowsPayload(
 			sqlResult.ColumnNames,
 			sqlResult.RowCount,

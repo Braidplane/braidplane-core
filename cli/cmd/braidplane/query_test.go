@@ -141,6 +141,15 @@ func TestRunWithArgsQueryMutationCommandsUseExpectedRequests(t *testing.T) {
 			statusCode: http.StatusNoContent,
 		},
 		{
+			name:       "QueryExecuteFile",
+			args:       []string{"braidplane", "query", "execute", "export-records", "--data-source", "acme-postgres", "--parameters-json", `{}`},
+			method:     http.MethodPost,
+			target:     "/api/organizations/acme/data-sources/acme-postgres/queries/export-records/execute",
+			statusCode: http.StatusOK,
+			response:   `{"result_type":"sql","type":"postgres","payload":{"rows":[],"row_count":1000000,"column_names":["order_id","amount_cents","payload"],"file":{"mime_type":"application/json","size_bytes":1078777880,"digest_algorithm":"sha256","digest":"synthetic-digest"}},"duration_ms":12,"success":true}`,
+			wantBody:   `{"parameters":{}}`,
+		},
+		{
 			name:       "QueryRestore",
 			args:       []string{"braidplane", "query", "restore", "list-active-users", "--data-source", "acme-postgres"},
 			method:     http.MethodPost,
@@ -193,6 +202,9 @@ func TestRunWithArgsQueryMutationCommandsUseExpectedRequests(t *testing.T) {
 			if tt.wantBody != "" {
 				require.JSONEq(t, tt.wantBody, string(gotBody))
 				require.NotEmpty(t, stdout)
+				if tt.name == "QueryExecuteFile" {
+					require.JSONEq(t, tt.response, stdout)
+				}
 			} else {
 				require.Empty(t, string(gotBody))
 				require.Empty(t, stdout)

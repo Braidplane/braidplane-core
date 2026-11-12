@@ -1426,6 +1426,9 @@ func queryEditorFormDataFromRequest(c fiber.Ctx) views.QueryEditorFormData {
 	formData.WorkspaceColumns = c.FormValue("workspace_columns")
 	formData.WorkspaceRows = c.FormValue("workspace_rows")
 	formData.Statement = strings.TrimSpace(c.FormValue("statement"))
+	if value := c.FormValue("sql_format"); value != "" {
+		formData.SQLFormat = value
+	}
 	formData.HTTPMethod = strings.TrimSpace(c.FormValue("http_method"))
 	formData.HTTPPath = strings.TrimSpace(c.FormValue("http_path"))
 	formData.HTTPQueryParamRows = httpKeyValueRowsFromRequest(
@@ -1764,10 +1767,18 @@ func buildQueryStatementFromRequest(
 		if statementText == "" {
 			return api.QueryStatement{}, queryStatementRequiredMessage
 		}
+		format := api.PostgresStatementFormat(c.FormValue("sql_format"))
+		if format == "" {
+			format = api.PostgresStatementFormatRows
+		}
+		if !format.Valid() {
+			return api.QueryStatement{}, "Choose rows or a JSON file for the PostgreSQL result."
+		}
 
 		if err := statement.FromPostgresStatement(api.PostgresStatement{
-			Type: api.PostgresStatementTypePostgres,
-			Sql:  statementText,
+			Type:   api.PostgresStatementTypePostgres,
+			Sql:    statementText,
+			Format: &format,
 		}); err != nil {
 			return api.QueryStatement{}, "Query statement could not be encoded for PostgreSQL."
 		}
@@ -2776,6 +2787,24 @@ func queryExecutionResultToView(
 		switch resultType {
 		case api.ExecutionResultResultTypeSql:
 			if sqlResult, parseErr := result.AsSQLExecutionResult(); parseErr == nil {
+				if sqlResult.Payload.File != nil {
+					rawPayload := ""
+					if raw, err := json.MarshalIndent(sqlResult.Payload.File, "", "  "); err == nil {
+						rawPayload = string(raw)
+					}
+					errorMessage := ""
+					if sqlResult.Error != nil {
+						errorMessage = *sqlResult.Error
+					}
+					return &views.QueryExecutionResultView{
+						QuerySlug: querySlug, Type: sqlResult.Type, Success: sqlResult.Success,
+						DurationMs: sqlResult.DurationMs, Error: errorMessage, Raw: rawPayload,
+						Summary: []string{
+							fmt.Sprintf("Serialized row count: %d", sqlResult.Payload.RowCount),
+							fmt.Sprintf("Size: %d bytes", sqlResult.Payload.File.SizeBytes),
+						},
+					}
+				}
 				columns := []string{}
 				if sqlResult.Payload.ColumnNames != nil {
 					columns = append(columns, (*sqlResult.Payload.ColumnNames)...)

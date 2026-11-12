@@ -4771,6 +4771,24 @@ func (e PostgresConfigSslMode) Valid() bool {
 	}
 }
 
+// Defines values for PostgresStatementFormat.
+const (
+	PostgresStatementFormatFile PostgresStatementFormat = "file"
+	PostgresStatementFormatRows PostgresStatementFormat = "rows"
+)
+
+// Valid indicates whether the value is a known member of the PostgresStatementFormat enum.
+func (e PostgresStatementFormat) Valid() bool {
+	switch e {
+	case PostgresStatementFormatFile:
+		return true
+	case PostgresStatementFormatRows:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for PostgresStatementType.
 const (
 	PostgresStatementTypePostgres PostgresStatementType = "postgres"
@@ -16299,6 +16317,9 @@ type PostgresCredentials struct {
 
 // PostgresStatement PostgreSQL query statement with {{paramName}} placeholders
 type PostgresStatement struct {
+	// Format Rows by default. File serializes one finite read-only snapshot as a retained JSON object with column_names, rows and row_count; it requires bounded row and transfer allowances.
+	Format *PostgresStatementFormat `json:"format,omitempty"`
+
 	// Sql PostgreSQL SQL statement with {{paramName}} placeholders
 	//
 	// Example: SELECT * FROM users WHERE id = {{user_id}} LIMIT {{limit}}
@@ -16307,6 +16328,9 @@ type PostgresStatement struct {
 	// Type Data source type discriminator
 	Type PostgresStatementType `json:"type"`
 }
+
+// PostgresStatementFormat Rows by default. File serializes one finite read-only snapshot as a retained JSON object with column_names, rows and row_count; it requires bounded row and transfer allowances.
+type PostgresStatementFormat string
 
 // PostgresStatementType Data source type discriminator
 type PostgresStatementType string
@@ -17632,12 +17656,15 @@ type SQLExecutionResult struct {
 		// Example: ["id","email","last_login_at"]
 		ColumnNames *[]string `json:"column_names,omitempty"`
 
-		// RowCount Number of rows returned
+		// File Safe metadata for native file/blob payloads. Raw bytes are never included in API responses, run metadata, or diagnostics.
+		File *FilePayloadMetadata `json:"file,omitempty"`
+
+		// RowCount Number of rows returned or serialized in the retained file
 		//
 		// Example: 2
 		RowCount int `json:"row_count"`
 
-		// Rows Result rows (each row is a key-value map)
+		// Rows Result rows (each row is a key-value map). Empty for file output; records are serialized in the retained file instead.
 		//
 		// Example: [{"email":"user1@example.com","id":1,"last_login_at":"2026-02-15T10:30:00Z"},{"email":"user2@example.com","id":2,"last_login_at":"2026-02-18T14:25:00Z"}]
 		Rows []map[string]interface{} `json:"rows"`

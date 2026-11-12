@@ -327,10 +327,12 @@ func storageFileEnvelope(
 
 // SQLResult contains data from SQL query execution.
 type SQLResult struct {
-	Rows         []map[string]any `json:"rows"`
-	ColumnNames  []string         `json:"column_names"`
-	RowCount     int              `json:"row_count"`
-	LastInsertID *int64           `json:"last_insert_id,omitempty"`
+	Rows         []map[string]any                 `json:"rows"`
+	ColumnNames  []string                         `json:"column_names"`
+	RowCount     int                              `json:"row_count"`
+	LastInsertID *int64                           `json:"last_insert_id,omitempty"`
+	File         *filepayload.FilePayloadMetadata `json:"file,omitempty"`
+	Reference    *filepayload.Reference           `json:"-"`
 }
 
 // MongoDBResult contains data from MongoDB operation execution.

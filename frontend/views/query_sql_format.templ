@@ -1,0 +1,12 @@
+package views
+
+templ SQLResultFormatField(value string) {
+	<label class="form-control w-full">
+		<div class="label py-1"><span class="label-text text-xs">Result format</span></div>
+		<select class="select select-bordered select-sm w-full" name="sql_format">
+			<option value="rows" selected?={ value != "file" }>Rows</option>
+			<option value="file" selected?={ value == "file" }>JSON file</option>
+		</select>
+		<div class="label"><span class="label-text-alt">JSON file exports the complete read-only result. Connect it to a file destination using a file contract.</span></div>
+	</label>
+}

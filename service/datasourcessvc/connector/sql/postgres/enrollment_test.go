@@ -5,6 +5,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/Braidplane/braidplane-core/pkg/connector/filestream"
+	"github.com/Braidplane/braidplane-core/pkg/testutil/filestreamfixture"
 	"github.com/Braidplane/braidplane-core/pkg/xerror"
 	"github.com/stretchr/testify/require"
 )
@@ -24,6 +26,9 @@ func TestCachedDemoConnectorChecksAuthorizationBeforeIO(t *testing.T) {
 	_, err = connector.ExecuteStatement(t.Context(), "SELECT 1", nil)
 	require.ErrorIs(t, err, revoked)
 	result, err := connector.Execute(t.Context(), []byte(`{"type":"postgres","sql":"SELECT 1"}`), nil)
+	require.NoError(t, err)
+	require.ErrorIs(t, result.Error(), revoked)
+	result, err = connector.Execute(filestream.WithStore(t.Context(), filestreamfixture.New()), []byte(`{"type":"postgres","format":"file","sql":"SELECT 1"}`), nil)
 	require.NoError(t, err)
 	require.ErrorIs(t, result.Error(), revoked)
 }
