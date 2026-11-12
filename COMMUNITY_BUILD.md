@@ -44,7 +44,7 @@ must be available. Suites own their provider, SPIRE, SMTP and private-network
 fixtures. The native crash/rescue rehearsal uses fixture-only River timing while
 retaining real worker crashes, rescue, recovery fences and sink checks. Production
 queue timing is unchanged. Each package has a five-minute timeout. CI partitions
-the complete discovered suite across four required shards, each capped at ten
+the complete discovered suite across four required shards, each capped at fifteen
 minutes. Missing, skipped or failed packages fail the task.
 Run a partition locally with zero-based `GO_E2E_SHARD_INDEX` and
 `GO_E2E_SHARD_COUNT`; omitting both runs the complete suite sequentially.
