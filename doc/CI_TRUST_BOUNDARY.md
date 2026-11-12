@@ -45,15 +45,19 @@ Supply the successful main-push CI run and attempt for that exact source;
 preparation checks them before building with a read-only token. Review the CI
 admission, approval document and release record in the job summary.
 
-The publication job remains disabled by its literal false guard. The publisher
-checks the approved document digest and copies the archives by digest. Review
-and validate that sequence before enabling publication separately.
-Before approving publication, the owner must review the approval document and
-release record in the preparation job summary. Uploading the candidate to a
-public repository's Actions artifacts is also an exposure to review before
-running preparation. Naming the `core-release` environment does not establish
-an approval rule. Verify that rule before publication. The workflow guard and
-local tests do not authorize publication.
+Publication requires `CORE_RELEASE_PUBLICATION_ENABLED=true` and approval in the
+`core-release` environment. Configure that environment before enabling the flag:
+require the release owner's review, restrict deployments to `main`, and disable
+administrator bypass. Before approving the waiting job, review the exact approval
+document and release record in the preparation summary. The publisher checks the
+approved document digest, exact source and main CI, then copies archives by digest.
+
+Each run builds and publishes its own candidate. A completed preparation-only run
+cannot be promoted later by enabling the flag; prepare a fresh candidate from the
+reviewed publication workflow. Uploading candidate files to public Actions is also
+an exposure to approve before starting a run. Clear both enablement flags after
+the approved run. Repository variables and the environment name alone do not
+establish the required review rule.
 
 A private distribution validates and releases its own build from a reviewed
 Core source revision. Public PR jobs must never receive its reader, updater,
@@ -71,7 +75,7 @@ bash scripts/go-toolchain.sh test -short ./ci
 `task test-go` also runs this package. The test checks which workflows and local
 composite actions exist, their triggers and token permissions, runner selection,
 checkout credentials, secret references, cache paths and namespaces, action
-pins, and local-only image builds. It also checks the disabled release
+pins, and local-only image builds. It also checks the manual release
 workflow's trigger, guard, environment name, runners, permissions and action
 pins. It applies synthetic unsafe changes and checks that each one fails.
 Review workflow and action changes for their execution and access boundaries.

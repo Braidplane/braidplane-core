@@ -59,9 +59,14 @@ and CI run before copying the archives by digest with a pinned ORAS image. It
 then checks the registry images and creates SBOMs. The manual workflow uses
 `CORE_RELEASE_PREPARATION_ENABLED` to allow candidate-only builds after exact
 main-push CI admission. Its read-only preparation job shows the approval document
-and release record for review. Publication remains disabled by a literal false
-guard. Before enabling publication, protect its environment and validate
-the review process and publisher with real artifacts. Review the Buildx and
+and release record for review. Publication requires
+`CORE_RELEASE_PUBLICATION_ENABLED=true` and the release owner's approval in the
+`core-release` environment. Require that review, allow only `main`, and disable
+administrator bypass before enabling publication. Review the exact approval
+document and release record before approving the waiting job. Each workflow run
+publishes its own freshly prepared candidate; a completed preparation-only run
+cannot be promoted by changing a flag afterward. Clear both enablement flags
+after the approved run. Review the Buildx and
 GitHub CLI identities used by the hosted runner as well. The current candidate
 contains four Core images, two external image references and an installation
 archive; it does not prepare standalone CLI archives or an archive SBOM. Agree
@@ -161,9 +166,9 @@ qualification remain separate. The registry platform check still needs testing
 against actual release images.
 `scripts.core_release_record` prepares the record from a clean candidate
 checkout and matching archive; it does not qualify image bytes. The release
-workflow's publication job stays disabled until its approval and publication
-steps are reviewed and validated. The record and verification path have not been
-exercised with real artifacts.
+workflow's publication job requires explicit enablement and protected review.
+Retain the exact candidate's publication and verification receipts before
+claiming release acceptance.
 
 ## Database and runtime boundaries
 
