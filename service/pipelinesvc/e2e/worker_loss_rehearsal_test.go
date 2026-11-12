@@ -3,6 +3,7 @@ package e2e
 import (
 	"bufio"
 	"context"
+	"crypto/rand"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -25,12 +26,11 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/riverqueue/river"
 	"github.com/stretchr/testify/require"
-	"github.com/testcontainers/testcontainers-go"
-	"github.com/testcontainers/testcontainers-go/wait"
 
 	"github.com/Braidplane/braidplane-core/pkg/clock"
 	"github.com/Braidplane/braidplane-core/pkg/connector/result"
 	"github.com/Braidplane/braidplane-core/pkg/connector/transportsecurity"
+	"github.com/Braidplane/braidplane-core/pkg/depsports"
 	"github.com/Braidplane/braidplane-core/pkg/domain/model"
 	"github.com/Braidplane/braidplane-core/pkg/pipeline/payload"
 	pipelinerun "github.com/Braidplane/braidplane-core/pkg/pipeline/run"
@@ -60,17 +60,10 @@ func TestWorkerLossNativeCrashRehearsal(t *testing.T) {
 	}
 	ctx := t.Context()
 	pool := openIntegrationPool(t)
-	minio, err := testcontainers.GenericContainer(ctx, testcontainers.GenericContainerRequest{ContainerRequest: testcontainers.ContainerRequest{
-		Image: "minio/minio:RELEASE.2025-04-22T22-12-26Z", ExposedPorts: []string{"9000/tcp"},
-		Env: map[string]string{"MINIO_ROOT_USER": "fixture-access", "MINIO_ROOT_PASSWORD": "fixture-secret-for-local-tests"},
-		Cmd: []string{"server", "/data"}, WaitingFor: wait.ForHTTP("/minio/health/ready").WithPort("9000/tcp"),
-	}, Started: true})
-	require.NoError(t, err)
-	t.Cleanup(func() { require.NoError(t, minio.Terminate(context.Background())) })
-	endpoint, err := minio.Endpoint(ctx, "http")
-	require.NoError(t, err)
-	oracle := awss3.NewFromConfig(aws.Config{Region: "us-east-1", Credentials: awscredentials.NewStaticCredentialsProvider("fixture-access", "fixture-secret-for-local-tests", "")}, func(o *awss3.Options) { o.BaseEndpoint = &endpoint; o.UsePathStyle = true })
-	_, err = oracle.CreateBucket(ctx, &awss3.CreateBucketInput{Bucket: aws.String("repair-fixture")})
+	endpoint := depsports.S3ConnectorEndpoint()
+	bucket := "repair-" + strings.ToLower(rand.Text())
+	oracle := awss3.NewFromConfig(aws.Config{Region: "us-east-1", Credentials: awscredentials.NewStaticCredentialsProvider("braidplane", "braidplanepass", "")}, func(o *awss3.Options) { o.BaseEndpoint = &endpoint; o.UsePathStyle = true })
+	_, err := oracle.CreateBucket(ctx, &awss3.CreateBucketInput{Bucket: &bucket})
 	require.NoError(t, err)
 	accepted := make(chan struct{}, 1)
 	release := make(chan struct{})
@@ -117,7 +110,7 @@ func TestWorkerLossNativeCrashRehearsal(t *testing.T) {
 	require.NotNil(t, meta.CurrentVersionID)
 	client, err := queue.NewEnqueueOnly(pool)
 	require.NoError(t, err)
-	config := nativeRepairConfig{Endpoint: observer.URL, Queue: "native-sink-repair"}
+	config := nativeRepairConfig{Endpoint: observer.URL, Bucket: bucket, Queue: "native-sink-repair"}
 	jobs := map[string]int64{}
 	crashedAt := map[string]time.Time{}
 	for _, cut := range []string{"before-write", "after-acceptance"} {
@@ -145,9 +138,9 @@ func TestWorkerLossNativeCrashRehearsal(t *testing.T) {
 			select {
 			case <-accepted:
 			case <-time.After(20 * time.Second):
-				t.Fatal("MinIO did not accept the object before crash")
+				t.Fatal("Object store did not accept the object before crash")
 			}
-			assertNativeRepairObject(t, oracle, cut)
+			assertNativeRepairObject(t, oracle, bucket, cut)
 		}
 		runStore := pipelineruntime.NewRunStore(txm, pool, clock.New(), testutil.FakeRunSucceededNotifier{}, pipelineruns.New())
 		checkpoint, err := runStore.GetCheckpoint(ctx, org, project, environment, cut)
@@ -211,7 +204,7 @@ func TestWorkerLossNativeCrashRehearsal(t *testing.T) {
 			if index == 1 {
 				require.Equal(t, "skip_ledger_succeeded", outcome.Timeline.Snapshots[1].Input.SinkReplayDecision)
 			}
-			assertNativeRepairObject(t, oracle, cut)
+			assertNativeRepairObject(t, oracle, bucket, cut)
 		}
 		retained, err := runStore.Get(ctx, org, project, environment, cut)
 		require.NoError(t, err)
@@ -220,26 +213,26 @@ func TestWorkerLossNativeCrashRehearsal(t *testing.T) {
 		require.NoError(t, pool.QueryRow(ctx, `SELECT reads FROM worker_loss_rehearsal_reads WHERE run_slug=$1`, cut).Scan(&reads))
 		require.Equal(t, 1, reads, "native redelivery and repair must not reread changed source rows")
 	}
-	objects, err := oracle.ListObjectsV2(ctx, &awss3.ListObjectsV2Input{Bucket: aws.String("repair-fixture")})
+	objects, err := oracle.ListObjectsV2(ctx, &awss3.ListObjectsV2Input{Bucket: &bucket})
 	require.NoError(t, err)
 	require.Len(t, objects.Contents, 2, "one deterministic object per original effect identity")
-	uploads, err := oracle.ListMultipartUploads(ctx, &awss3.ListMultipartUploadsInput{Bucket: aws.String("repair-fixture")})
+	uploads, err := oracle.ListMultipartUploads(ctx, &awss3.ListMultipartUploadsInput{Bucket: &bucket})
 	require.NoError(t, err)
 	require.Empty(t, uploads.Uploads)
 }
 
-func assertNativeRepairObject(t *testing.T, oracle *awss3.Client, cut string) {
+func assertNativeRepairObject(t *testing.T, oracle *awss3.Client, bucket, cut string) {
 	t.Helper()
-	object, err := oracle.GetObject(t.Context(), &awss3.GetObjectInput{Bucket: aws.String("repair-fixture"), Key: aws.String(cut + ".json")})
+	object, err := oracle.GetObject(t.Context(), &awss3.GetObjectInput{Bucket: &bucket, Key: aws.String(cut + ".json")})
 	require.NoError(t, err)
 	defer func() { require.NoError(t, object.Body.Close()) }()
 	body, err := io.ReadAll(object.Body)
 	require.NoError(t, err)
-	require.JSONEq(t, `[{"id":1,"label":"original"}]`, string(body), "independent direct MinIO readback must retain original data")
+	require.JSONEq(t, `[{"id":1,"label":"original"}]`, string(body), "independent direct object-store readback must retain original data")
 }
 
 type (
-	nativeRepairConfig struct{ Endpoint, Queue string }
+	nativeRepairConfig struct{ Endpoint, Bucket, Queue string }
 	nativeRepairArgs   struct {
 		Run     string
 		Version int64
@@ -364,7 +357,7 @@ func (l nativeRepairGateLedger) BeginOrGet(ctx context.Context, org, project, en
 func newNativeRepairRunner(ctx context.Context, t *testing.T, pool *pgxpool.Pool, config nativeRepairConfig, run string, hold bool) *pipelineruntime.Runner {
 	t.Helper()
 	txm := postgres.NewTransactionManager(pool)
-	connector, err := s3connector.New(transportsecurity.WithPlaintext(ctx), s3connector.Config{Endpoint: config.Endpoint, Region: "us-east-1", Bucket: "repair-fixture", ForcePathStyle: true, AllowPrivateHosts: true}, s3connector.Credentials{AccessKeyID: "fixture-access", SecretAccessKey: "fixture-secret-for-local-tests"})
+	connector, err := s3connector.New(transportsecurity.WithPlaintext(ctx), s3connector.Config{Endpoint: config.Endpoint, Region: "us-east-1", Bucket: config.Bucket, ForcePathStyle: true, AllowPrivateHosts: true}, s3connector.Credentials{AccessKeyID: "braidplane", SecretAccessKey: "braidplanepass"})
 	require.NoError(t, err)
 	t.Cleanup(func() { require.NoError(t, connector.Close()) })
 	sink := pipelineruntime.NewSinkRuntime(nativeRepairSink{connector}, nativeRepairGateLedger{testSinkEffectLedger(t, txm), hold})

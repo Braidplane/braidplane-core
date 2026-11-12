@@ -251,6 +251,7 @@ func newCancellationFTP(t *testing.T, setupCtx context.Context, stall string) (*
 				if err != nil {
 					return
 				}
+				stopData := context.AfterFunc(ctx, func() { _ = data.Close() })
 				_ = data.SetDeadline(time.Now().Add(10 * time.Second))
 				if tcp, ok := data.(*net.TCPConn); ok {
 					_ = tcp.SetReadBuffer(1024)
@@ -273,6 +274,7 @@ func newCancellationFTP(t *testing.T, setupCtx context.Context, stall string) (*
 					}
 				}
 				_ = data.Close()
+				stopData()
 				wait(command + "-final")
 				if stall == command+"-error" {
 					_, _ = io.WriteString(control, "426 transfer failed\r\n226 data complete\r\n")
