@@ -584,25 +584,10 @@ func TestHubSpotDataSourceAccessModeForms(t *testing.T) {
 				require.Empty(t, errMsg)
 				require.Equal(t, tt.wantRead, decodePayload(t, updatePayload)["read_only"])
 
-				createPayload, err := buildCreateDataSourceRequest(
-					"HubSpot CRM",
-					"hubspot-crm",
-					api.DataSourceTypeHubspot,
-					c,
-					false,
-				)
-				require.NoError(t, err)
+				createPayload, message := buildCreateDataSourcePayloadWithPrivateHosts(c, false)
+				require.Empty(t, message)
 				require.Equal(t, tt.wantRead, decodePayload(t, createPayload)["read_only"])
-				fields := collectFormFields(c)
-				require.Equal(t, tt.wantRead, fields.HubSpotReadOnly)
-
-				var out strings.Builder
-				require.NoError(t, views.DataSourceFields(fields, "").Render(context.Background(), &out))
-				selectedValue := "write"
-				if tt.wantRead {
-					selectedValue = "read"
-				}
-				require.Contains(t, out.String(), `<option value="`+selectedValue+`" selected>`)
+				require.Equal(t, tt.wantRead, dataSourceCreateFormDataFromRequest(c).HubSpotReadOnly)
 			})
 		})
 	}
@@ -672,9 +657,8 @@ func TestPostgresSSLModePayloads(t *testing.T) {
 				require.Equal(t, mode, dataSourceCreateFormDataFromRequest(c).SSLMode)
 				draftTest, err := toTestDataSourceConnectionPayload(create)
 				require.NoError(t, err)
-				standalone, err := buildCreateDataSourceRequest("Database", "database", api.DataSourceTypePostgres, c, true)
-				require.NoError(t, err)
-				for _, payload := range []any{create, draftTest, update, standalone} {
+
+				for _, payload := range []any{create, draftTest, update} {
 					body, err := json.Marshal(payload)
 					require.NoError(t, err)
 					var decoded struct {
@@ -821,23 +805,6 @@ func TestPrivateHostControlsRespectDeploymentPolicy(t *testing.T) {
 		return out.String()
 	}
 
-	renderStandaloneFields := func(t *testing.T, dsType api.DataSourceType, enabled bool) string {
-		t.Helper()
-
-		fields := views.DataSourceFormFields{
-			DSType:                      dsType,
-			HTTPAllowPrivateHosts:       true,
-			GitAllowPrivateHosts:        true,
-			DatabaseAllowPrivateHosts:   true,
-			AllowPrivateDataSourceHosts: enabled,
-		}
-
-		var out strings.Builder
-		err := views.DataSourceFields(fields, "").Render(context.Background(), &out)
-		require.NoError(t, err)
-		return out.String()
-	}
-
 	renderDetailForm := func(t *testing.T, dsType api.DataSourceType, formData views.DataSourceUpdateFormData, enabled bool) string {
 		t.Helper()
 
@@ -913,92 +880,6 @@ func TestPrivateHostControlsRespectDeploymentPolicy(t *testing.T) {
 			for _, unwanted := range tt.notContains {
 				require.NotContains(t, body, unwanted)
 			}
-		})
-	}
-
-	standaloneFieldCases := []struct {
-		name        string
-		dsType      api.DataSourceType
-		enabled     bool
-		fieldName   string
-		wantPresent bool
-	}{
-		{
-			name:      "StandaloneFieldsHTTPPolicyDisabled",
-			dsType:    api.DataSourceTypeHttp,
-			enabled:   false,
-			fieldName: `name="http_allow_private_hosts"`,
-		},
-		{
-			name:        "StandaloneFieldsHTTPPolicyEnabled",
-			dsType:      api.DataSourceTypeHttp,
-			enabled:     true,
-			fieldName:   `name="http_allow_private_hosts"`,
-			wantPresent: true,
-		},
-		{
-			name:      "StandaloneFieldsGitPolicyDisabled",
-			dsType:    api.DataSourceTypeGit,
-			enabled:   false,
-			fieldName: `name="git_allow_private_hosts"`,
-		},
-		{
-			name:        "StandaloneFieldsGitPolicyEnabled",
-			dsType:      api.DataSourceTypeGit,
-			enabled:     true,
-			fieldName:   `name="git_allow_private_hosts"`,
-			wantPresent: true,
-		},
-		{
-			name:      "StandaloneFieldsPostgresPolicyDisabled",
-			dsType:    api.DataSourceTypePostgres,
-			enabled:   false,
-			fieldName: `name="database_allow_private_hosts"`,
-		},
-		{
-			name:        "StandaloneFieldsPostgresPolicyEnabled",
-			dsType:      api.DataSourceTypePostgres,
-			enabled:     true,
-			fieldName:   `name="database_allow_private_hosts"`,
-			wantPresent: true,
-		},
-		{
-			name:      "StandaloneFieldsMySQLPolicyDisabled",
-			dsType:    api.DataSourceTypeMysql,
-			enabled:   false,
-			fieldName: `name="database_allow_private_hosts"`,
-		},
-		{
-			name:        "StandaloneFieldsMySQLPolicyEnabled",
-			dsType:      api.DataSourceTypeMysql,
-			enabled:     true,
-			fieldName:   `name="database_allow_private_hosts"`,
-			wantPresent: true,
-		},
-		{
-			name:      "StandaloneFieldsMongoDBPolicyDisabled",
-			dsType:    api.DataSourceTypeMongodb,
-			enabled:   false,
-			fieldName: `name="database_allow_private_hosts"`,
-		},
-		{
-			name:        "StandaloneFieldsMongoDBPolicyEnabled",
-			dsType:      api.DataSourceTypeMongodb,
-			enabled:     true,
-			fieldName:   `name="database_allow_private_hosts"`,
-			wantPresent: true,
-		},
-	}
-	for _, tt := range standaloneFieldCases {
-		t.Run(tt.name, func(t *testing.T) {
-			t.Parallel()
-
-			body := renderStandaloneFields(t, tt.dsType, tt.enabled)
-			if tt.wantPresent {
-				require.Contains(t, body, tt.fieldName)
-				return
-			}
-			require.NotContains(t, body, tt.fieldName)
 		})
 	}
 
@@ -1193,7 +1074,7 @@ func TestCollectFormFieldsPreservesHTTPPrivateHostState(t *testing.T) {
 	form.Set("http_allow_private_hosts", "true")
 
 	withDatasourceFormContext(t, form, func(c fiber.Ctx) {
-		fields := collectFormFields(c)
+		fields := dataSourceCreateFormDataFromRequest(c)
 		require.True(t, fields.HTTPAllowPrivateHosts)
 	})
 }
@@ -1207,7 +1088,7 @@ func TestCollectFormFieldsPreservesDatabasePrivateHostState(t *testing.T) {
 	form.Set(databaseAllowPrivateHostsField, "true")
 
 	withDatasourceFormContext(t, form, func(c fiber.Ctx) {
-		fields := collectFormFields(c)
+		fields := dataSourceCreateFormDataFromRequest(c)
 		require.True(t, fields.DatabaseAllowPrivateHosts)
 	})
 }
@@ -1389,66 +1270,6 @@ func TestGitDataSourceFormsDoNotEchoCredentials(t *testing.T) {
 					require.Empty(t, formData.GitPassphrase)
 					require.NotEmpty(t, formData.GitKnownHosts)
 				})
-			},
-		},
-		{
-			name: "FieldStickyStateDropsGitSecrets",
-			run: func(t *testing.T) {
-				withDatasourceFormContext(t, gitDataSourceFormValues(), func(c fiber.Ctx) {
-					formData := collectFormFields(c)
-					require.Empty(t, formData.GitToken)
-					require.Empty(t, formData.GitSSHPrivateKey)
-					require.Empty(t, formData.GitSSHPassphrase)
-					require.NotEmpty(t, formData.GitSSHKnownHosts)
-				})
-			},
-		},
-		{
-			name: "RenderedFieldsDoNotEchoGitSecrets",
-			run: func(t *testing.T) {
-				fields := views.DataSourceFormFields{
-					DSType:           api.DataSourceTypeGit,
-					GitAuthType:      gitAuthTypeSSH,
-					GitRepoURL:       "git@github.com:acme/automation.git",
-					GitToken:         gitToken,
-					GitSSHPrivateKey: gitPrivateKey,
-					GitSSHKnownHosts: "github.com ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIexample",
-					GitSSHPassphrase: gitPassphrase,
-				}
-
-				var out strings.Builder
-				err := views.DataSourceFields(fields, "Validation: repository URL is required.").
-					Render(context.Background(), &out)
-				require.NoError(t, err)
-
-				assertNoGitSecrets(t, out.String())
-			},
-		},
-		{
-			name: "RenderedCreatePageDoNotEchoGitSecrets",
-			run: func(t *testing.T) {
-				fields := views.DataSourceFormFields{
-					DSType:           api.DataSourceTypeGit,
-					GitAuthType:      gitAuthTypeSSH,
-					GitRepoURL:       "git@github.com:acme/automation.git",
-					GitToken:         gitToken,
-					GitSSHPrivateKey: gitPrivateKey,
-					GitSSHKnownHosts: "github.com ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIexample",
-					GitSSHPassphrase: gitPassphrase,
-				}
-
-				var out strings.Builder
-				err := views.DataSourceNewPage(
-					"Add data source",
-					"acme",
-					fields,
-					"",
-					"",
-					"",
-				).Render(context.Background(), &out)
-				require.NoError(t, err)
-
-				assertNoGitSecrets(t, out.String())
 			},
 		},
 		{
@@ -1831,6 +1652,27 @@ func TestRouter_HandleDataSourcesPage_RendersList(t *testing.T) {
 	require.Contains(t, string(body), `option selected value="/orgs/acme-hq/data-sources?environment_slug=dev&amp;selected=prod-db"`)
 	require.NotContains(t, string(body), ">No runtime<")
 	require.Equal(t, int32(0), schemaCalls.Load())
+	for _, query := range []string{"create=true", "create=true&type=github&name=Team+Repository&slug=team-repo", "create=true&type=postgresql&name=Team+Repository&slug=team-repo"} {
+		createReq := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/orgs/acme-hq/data-sources?environment_slug=dev&"+query, nil)
+		createReq.Header.Set("Cookie", authCookie)
+		createResp, err := app.Test(createReq)
+		require.NoError(t, err)
+		html, err := io.ReadAll(createResp.Body)
+		_ = createResp.Body.Close()
+		require.NoError(t, err)
+		require.Equal(t, http.StatusOK, createResp.StatusCode)
+		require.Contains(t, string(html), `aria-controls="create-data-source" aria-expanded="true"`)
+		require.Contains(t, string(html), `name="environment_slug" value="dev"`)
+		if strings.Contains(query, "type=") {
+			require.Contains(t, string(html), `name="name" value="Team Repository"`)
+			require.Contains(t, string(html), `name="slug" value="team-repo"`)
+			if strings.Contains(query, "type=postgresql") {
+				require.Contains(t, string(html), `value="postgres" selected`)
+			} else {
+				require.Contains(t, string(html), `value="github" selected`)
+			}
+		}
+	}
 }
 
 func TestRouter_HandleDataSourcesPage_FiltersQueryCoverage(t *testing.T) {
@@ -4947,314 +4789,6 @@ func TestRouter_HandleDataSourceNewPage_RequiresAuth(t *testing.T) {
 	require.Contains(t, resp.Header.Get("Location"), "/auth/login")
 }
 
-func TestRouter_HandleDataSourceNewPage_RendersForm(t *testing.T) {
-	t.Parallel()
-
-	apiServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(http.StatusNotFound)
-	}))
-	defer apiServer.Close()
-
-	store := session.NewStore()
-	router, err := NewRouter(apiServer.URL, slog.New(slog.DiscardHandler), store)
-	require.NoError(t, err)
-
-	app := fiber.New()
-	registerTestSessionRoute(app, store)
-	router.RegisterRoutes(app, CommunityPresentation{})
-
-	authCookie := getAuthenticatedSessionCookie(t, app)
-	setActiveOrganizationSlugInSession(t, app, authCookie, "acme")
-
-	req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/organizations/acme/datasources/new", nil)
-	req.Header.Set("Cookie", authCookie)
-	addCSRFToken(t, app, req)
-
-	resp, err := app.Test(req)
-	require.NoError(t, err)
-	defer func() { _ = resp.Body.Close() }()
-
-	body, err := io.ReadAll(resp.Body)
-	require.NoError(t, err)
-
-	require.Equal(t, http.StatusOK, resp.StatusCode)
-	require.Contains(t, string(body), "Add data source")
-	require.Contains(t, string(body), "Import a connection URI")
-	require.Contains(t, string(body), "parse-uri")
-	require.Contains(t, string(body), `hx-select="#ds-fields"`)
-	require.Contains(t, string(body), `hx-swap="outerHTML"`)
-	require.Contains(t, string(body), "[name='database_allow_private_hosts']")
-	require.Contains(t, string(body), "[name='http_allow_private_hosts']")
-	require.Contains(t, string(body), "[name='git_allow_private_hosts']")
-	require.Contains(t, string(body), `value="git"`)
-	require.NotContains(t, string(body), `value="github"`)
-	require.NotContains(t, string(body), `value="gitlab"`)
-}
-
-func TestRouter_HandleDataSourceCreateSubmit_BigQueryRedirectPreservesIdentity(t *testing.T) {
-	t.Parallel()
-
-	apiServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(http.StatusNotFound)
-	}))
-	defer apiServer.Close()
-
-	store := session.NewStore()
-	router, err := NewRouter(apiServer.URL, slog.New(slog.DiscardHandler), store)
-	require.NoError(t, err)
-
-	app := fiber.New()
-	registerTestSessionRoute(app, store)
-	router.RegisterRoutes(app, CommunityPresentation{})
-	authCookie := getAuthenticatedSessionCookie(t, app)
-	setActiveOrganizationSlugInSession(t, app, authCookie, "acme")
-
-	form := url.Values{"name": {"Analytics Warehouse"}, "slug": {"analytics-warehouse"}, "type": {"bigquery"}}
-	req := httptest.NewRequestWithContext(context.Background(), http.MethodPost, "/organizations/acme/datasources", strings.NewReader(form.Encode()))
-	req.Header.Set("Content-Type", fiber.MIMEApplicationForm)
-	req.Header.Set("Cookie", authCookie)
-	addCSRFToken(t, app, req)
-
-	resp, err := app.Test(req)
-	require.NoError(t, err)
-	defer func() { _ = resp.Body.Close() }()
-
-	require.Equal(t, http.StatusSeeOther, resp.StatusCode)
-	require.Equal(t, "/orgs/acme/data-sources?name=Analytics+Warehouse&slug=analytics-warehouse&type=bigquery", resp.Header.Get("Location"))
-}
-
-func TestRouter_HandleDataSourceParseURI_Postgres(t *testing.T) {
-	t.Parallel()
-
-	tests := []struct {
-		name       string
-		formType   string
-		formURI    string
-		contains   []string
-		wantStatus int
-	}{
-		{
-			name:     "ParsesPostgresURI",
-			formType: "postgres",
-			formURI:  "postgres://app_user:s3cr3t@db.example.com:5432/production?sslmode=verify-ca",
-			contains: []string{
-				`value="db.example.com"`,
-				`value="5432"`,
-				`value="production"`,
-				`value="app_user"`,
-				`value="verify-ca" selected`,
-				"URI parsed successfully",
-			},
-			wantStatus: http.StatusOK,
-		},
-		{
-			name:     "ParsesMySQLURI",
-			formType: "mysql",
-			formURI:  "mysql://analytics:pass@mysql.local:3306/metrics",
-			contains: []string{
-				`value="mysql.local"`,
-				`value="3306"`,
-				`value="metrics"`,
-				`value="analytics"`,
-				"URI parsed successfully",
-			},
-			wantStatus: http.StatusOK,
-		},
-		{
-			name:     "ParsesMongoDBURIWithAuthSource",
-			formType: "mongodb",
-			formURI:  "mongodb://user:pw@mongo.local:27017/appdb?authSource=admin",
-			contains: []string{
-				`value="mongo.local"`,
-				`value="27017"`,
-				`value="appdb"`,
-				`value="user"`,
-				`value="admin"`,
-				"URI parsed successfully",
-			},
-			wantStatus: http.StatusOK,
-		},
-		{
-			name:     "ParsesHTTPURI",
-			formType: "http",
-			formURI:  "https://api.example.com:8443/health",
-			contains: []string{
-				`value="https://api.example.com:8443"`,
-				`value="/health"`,
-				"URI parsed successfully",
-			},
-			wantStatus: http.StatusOK,
-		},
-		{
-			name:     "MissingType_InferredFromURI",
-			formType: "",
-			formURI:  "postgres://user:pass@host/db",
-			contains: []string{
-				`value="host"`,
-				`value="db"`,
-				`value="user"`,
-				"URI parsed successfully",
-			},
-			wantStatus: http.StatusOK,
-		},
-		{
-			name:       "EmptyURI_ReturnsPrompt",
-			formType:   "postgres",
-			formURI:    "",
-			contains:   []string{"Paste a URI to parse"},
-			wantStatus: http.StatusOK,
-		},
-		{
-			name:     "WrongScheme_AutoDetectsType",
-			formType: "postgres",
-			formURI:  "mysql://user:pass@host/db",
-			contains: []string{
-				`value="host"`,
-				`value="db"`,
-				`value="user"`,
-				`value="3306"`,
-				"Type inferred from URI scheme as",
-				"mysql",
-			},
-			wantStatus: http.StatusOK,
-		},
-		{
-			name:       "MalformedURI_ReturnsError",
-			formType:   "postgres",
-			formURI:    "not-a-valid-uri-at-all://[broken",
-			contains:   []string{"Could not parse URI"},
-			wantStatus: http.StatusOK,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			t.Parallel()
-			app, authCookie := setupAuthenticatedDatasourceTestApp(t)
-
-			form := url.Values{}
-			form.Set("type", tt.formType)
-			form.Set("uri", tt.formURI)
-
-			req := httptest.NewRequestWithContext(context.Background(),
-				http.MethodPost,
-				"/organizations/acme/datasources/new/parse-uri",
-				strings.NewReader(form.Encode()))
-
-			req.Header.Set("Cookie", authCookie)
-			addCSRFToken(t, app, req)
-			req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
-
-			resp, err := app.Test(req)
-			require.NoError(t, err)
-			defer func() { _ = resp.Body.Close() }()
-
-			body, err := io.ReadAll(resp.Body)
-			require.NoError(t, err)
-
-			require.Equal(t, tt.wantStatus, resp.StatusCode)
-			for _, want := range tt.contains {
-				require.Contains(t, string(body), want)
-			}
-		})
-	}
-}
-
-func TestRouter_HandleDataSourceFieldsPartial(t *testing.T) {
-	t.Parallel()
-
-	tests := []struct {
-		name     string
-		dsType   string
-		contains []string
-	}{
-		{
-			name:   "PostgresFields",
-			dsType: "postgres",
-			contains: []string{
-				`name="host"`,
-				`name="port"`,
-				`name="database"`,
-				`name="username"`,
-				`name="password"`,
-			},
-		},
-		{
-			name:     "MySQLFields",
-			dsType:   "mysql",
-			contains: []string{`name="host"`, `name="port"`, `name="database"`},
-		},
-		{
-			name:     "MongoDBFields",
-			dsType:   "mongodb",
-			contains: []string{`name="host"`, `name="auth_database"`},
-		},
-		{
-			name:   "HTTPFields",
-			dsType: "http",
-			contains: []string{
-				`name="base_url"`,
-				`name="health_path"`,
-				`name="openapi_url"`,
-				`name="openapi_fetch_timeout_seconds"`,
-				`name="bearer_token"`,
-			},
-		},
-		{
-			name:   "GitFields",
-			dsType: "git",
-			contains: []string{
-				`name="git_repo_url"`,
-				`name="git_auth_type"`,
-				`name="git_token"`,
-				`name="git_ssh_known_hosts"`,
-			},
-		},
-		{
-			name:   "GitHubFields",
-			dsType: "github",
-			contains: []string{
-				"Use the managed provider flow on the data sources page.",
-			},
-		},
-		{
-			name:   "GitLabFields",
-			dsType: "gitlab",
-			contains: []string{
-				"Use the managed provider flow on the data sources page.",
-			},
-		},
-		{name: "EmptyType_ShowsPrompt", dsType: "", contains: []string{"Select a datasource type"}},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			t.Parallel()
-			app, authCookie := setupAuthenticatedDatasourceTestApp(t)
-
-			req := httptest.NewRequestWithContext(context.Background(),
-				http.MethodGet,
-				"/organizations/acme/datasources/new/fields?type="+tt.dsType,
-				nil)
-
-			req.Header.Set("Cookie", authCookie)
-			addCSRFToken(t, app, req)
-
-			resp, err := app.Test(req)
-			require.NoError(t, err)
-			defer func() { _ = resp.Body.Close() }()
-
-			body, err := io.ReadAll(resp.Body)
-			require.NoError(t, err)
-
-			require.Equal(t, http.StatusOK, resp.StatusCode)
-			for _, want := range tt.contains {
-				require.Contains(t, string(body), want)
-			}
-		})
-	}
-}
-
 func TestParseGitCredentialsForm_SSHRequiresKnownHosts(t *testing.T) {
 	t.Parallel()
 
@@ -5754,385 +5288,6 @@ func TestRouter_HandleCreateDataSourceParseURI_JSON_TypeMismatchFallsBackToURI(t
 	require.Contains(t, string(body), `"password":"D1fficultP@ssw0rd"`)
 }
 
-func TestRouter_HandleDataSourceCreateSubmit_RedirectsOnSuccess(t *testing.T) {
-	t.Parallel()
-
-	apiServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		assert.Equal(t, http.MethodPost, r.Method)
-		assert.Equal(t, "/api/organizations/acme/data-sources", r.URL.Path)
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusCreated)
-		ds := map[string]any{
-			"name": "Prod DB",
-			"slug": "prod-db",
-			"type": "postgres",
-			"config": map[string]any{
-				"host":     "db.example.com",
-				"port":     5432,
-				"database": "prod",
-			},
-			"is_active":     false,
-			"created_at":    "2026-03-01T00:00:00Z",
-			"updated_at":    "2026-03-01T00:00:00Z",
-			"schema_status": "not_imported",
-			"schema": map[string]any{
-				"schema_type": "sql",
-				"type":        "postgres",
-				"tables":      []any{},
-			},
-			"last_tested_at": nil,
-			"test_error":     nil,
-		}
-		_ = json.NewEncoder(w).Encode(ds)
-	}))
-	defer apiServer.Close()
-
-	store := session.NewStore()
-	router, err := NewRouter(apiServer.URL, slog.New(slog.DiscardHandler), store)
-	require.NoError(t, err)
-
-	app := fiber.New()
-	registerTestSessionRoute(app, store)
-	router.RegisterRoutes(app, CommunityPresentation{})
-
-	authCookie := getAuthenticatedSessionCookie(t, app)
-
-	form := url.Values{}
-	form.Set("name", "Prod DB")
-	form.Set("type", "postgres")
-	form.Set("host", "db.example.com")
-	form.Set("port", "5432")
-	form.Set("database", "prod")
-	form.Set("username", "app_user")
-	form.Set("password", "secret")
-
-	req := httptest.NewRequestWithContext(context.Background(),
-		http.MethodPost,
-		"/organizations/acme/datasources",
-		strings.NewReader(form.Encode()))
-
-	req.Header.Set("Cookie", authCookie)
-	addCSRFToken(t, app, req)
-	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
-
-	resp, err := app.Test(req)
-	require.NoError(t, err)
-	defer func() { _ = resp.Body.Close() }()
-
-	require.Equal(t, http.StatusSeeOther, resp.StatusCode)
-	require.Equal(t, "/orgs/acme/data-sources/prod-db", resp.Header.Get("Location"))
-}
-
-func TestRouter_HandleDataSourceCreateSubmit_HTTPSendsOpenAPIImportConfig(t *testing.T) {
-	t.Parallel()
-
-	var captured map[string]any
-	handlerErrs := make(chan error, 1)
-	apiServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.Method != http.MethodPost {
-			handlerErrs <- fmt.Errorf("method = %s, want %s", r.Method, http.MethodPost)
-			w.WriteHeader(http.StatusMethodNotAllowed)
-			return
-		}
-		if r.URL.Path != "/api/organizations/acme/data-sources" {
-			handlerErrs <- fmt.Errorf("path = %s, want /api/organizations/acme/data-sources", r.URL.Path)
-			w.WriteHeader(http.StatusNotFound)
-			return
-		}
-		w.Header().Set("Content-Type", "application/json")
-
-		defer func() { _ = r.Body.Close() }()
-		if err := json.NewDecoder(r.Body).Decode(&captured); err != nil {
-			handlerErrs <- fmt.Errorf("decode create data source payload: %w", err)
-			w.WriteHeader(http.StatusBadRequest)
-			return
-		}
-
-		w.WriteHeader(http.StatusCreated)
-		_ = json.NewEncoder(w).Encode(map[string]any{
-			"name": "Customer API",
-			"slug": "customer-api",
-			"type": "http",
-			"config": map[string]any{
-				"base_url":                      "https://api.example.com",
-				"health_path":                   "/health",
-				"openapi_url":                   "https://api.example.com/openapi.yaml",
-				"openapi_fetch_timeout_seconds": 20,
-			},
-			"is_active":      true,
-			"created_at":     "2026-03-01T00:00:00Z",
-			"updated_at":     "2026-03-01T00:00:00Z",
-			"last_tested_at": nil,
-			"test_error":     nil,
-		})
-	}))
-	defer apiServer.Close()
-
-	store := session.NewStore()
-	router, err := NewRouter(apiServer.URL, slog.New(slog.DiscardHandler), store)
-	require.NoError(t, err)
-
-	app := fiber.New()
-	registerTestSessionRoute(app, store)
-	router.RegisterRoutes(app, CommunityPresentation{})
-
-	authCookie := getAuthenticatedSessionCookie(t, app)
-
-	form := url.Values{}
-	form.Set("name", "Customer API")
-	form.Set("type", "http")
-	form.Set("base_url", "https://api.example.com")
-	form.Set("health_path", "/health")
-	form.Set("openapi_url", "https://api.example.com/openapi.yaml")
-	form.Set("openapi_fetch_timeout_seconds", "20")
-	form.Set("bearer_token", "test-token")
-
-	req := httptest.NewRequestWithContext(context.Background(),
-		http.MethodPost,
-		"/organizations/acme/datasources",
-		strings.NewReader(form.Encode()))
-
-	req.Header.Set("Cookie", authCookie)
-	addCSRFToken(t, app, req)
-	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
-
-	resp, err := app.Test(req)
-	require.NoError(t, err)
-	defer func() { _ = resp.Body.Close() }()
-
-	select {
-	case handlerErr := <-handlerErrs:
-		require.NoError(t, handlerErr)
-	default:
-	}
-	require.Equal(t, http.StatusSeeOther, resp.StatusCode)
-	require.Equal(t, "/orgs/acme/data-sources/customer-api", resp.Header.Get("Location"))
-	require.Equal(t, "Customer API", captured["name"])
-	require.Equal(t, "http", captured["type"])
-
-	config, ok := captured["config"].(map[string]any)
-	require.True(t, ok)
-	require.Equal(t, "https://api.example.com", config["base_url"])
-	require.Equal(t, "/health", config["health_path"])
-	require.Equal(t, "https://api.example.com/openapi.yaml", config["openapi_url"])
-	require.InDelta(t, 20, config["openapi_fetch_timeout_seconds"], 0.000001)
-
-	credentials, ok := captured["credentials"].(map[string]any)
-	require.True(t, ok)
-	require.Equal(t, "test-token", credentials["bearer_token"])
-}
-
-func TestRouter_HandleDataSourceCreateSubmit_HTMXRedirectHeader(t *testing.T) {
-	t.Parallel()
-
-	apiServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		assert.Equal(t, http.MethodPost, r.Method)
-		assert.Equal(t, "/api/organizations/acme/data-sources", r.URL.Path)
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusCreated)
-		ds := map[string]any{
-			"name": "Prod DB",
-			"slug": "prod-db",
-			"type": "postgres",
-			"config": map[string]any{
-				"host":     "db.example.com",
-				"port":     5432,
-				"database": "prod",
-			},
-			"is_active":     false,
-			"created_at":    "2026-03-01T00:00:00Z",
-			"updated_at":    "2026-03-01T00:00:00Z",
-			"schema_status": "not_imported",
-			"schema": map[string]any{
-				"schema_type": "sql",
-				"type":        "postgres",
-				"tables":      []any{},
-			},
-			"last_tested_at": nil,
-			"test_error":     nil,
-		}
-		_ = json.NewEncoder(w).Encode(ds)
-	}))
-	defer apiServer.Close()
-
-	store := session.NewStore()
-	router, err := NewRouter(apiServer.URL, slog.New(slog.DiscardHandler), store)
-	require.NoError(t, err)
-
-	app := fiber.New()
-	registerTestSessionRoute(app, store)
-	router.RegisterRoutes(app, CommunityPresentation{})
-
-	authCookie := getAuthenticatedSessionCookie(t, app)
-
-	form := url.Values{}
-	form.Set("name", "Prod DB")
-	form.Set("type", "postgres")
-	form.Set("host", "db.example.com")
-	form.Set("port", "5432")
-	form.Set("database", "prod")
-	form.Set("username", "app_user")
-	form.Set("password", "secret")
-
-	req := httptest.NewRequestWithContext(context.Background(),
-		http.MethodPost,
-		"/organizations/acme/datasources",
-		strings.NewReader(form.Encode()))
-
-	req.Header.Set("Cookie", authCookie)
-	addCSRFToken(t, app, req)
-	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
-	req.Header.Set("HX-Request", "true")
-
-	resp, err := app.Test(req)
-	require.NoError(t, err)
-	defer func() { _ = resp.Body.Close() }()
-
-	require.Equal(t, http.StatusOK, resp.StatusCode)
-	require.Equal(t, "/orgs/acme/data-sources/prod-db", resp.Header.Get("HX-Redirect"))
-	require.Empty(t, resp.Header.Get("Location"))
-}
-
-func TestRouter_HandleDataSourceCreateSubmit_ShowsErrorOnMissingName(t *testing.T) {
-	t.Parallel()
-
-	apiServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(http.StatusNotFound)
-	}))
-	defer apiServer.Close()
-
-	store := session.NewStore()
-	router, err := NewRouter(apiServer.URL, slog.New(slog.DiscardHandler), store)
-	require.NoError(t, err)
-
-	app := fiber.New()
-	registerTestSessionRoute(app, store)
-	router.RegisterRoutes(app, CommunityPresentation{})
-
-	authCookie := getAuthenticatedSessionCookie(t, app)
-
-	form := url.Values{}
-	form.Set("name", "")
-	form.Set("type", "postgres")
-
-	req := httptest.NewRequestWithContext(context.Background(),
-		http.MethodPost,
-		"/organizations/acme/datasources",
-		strings.NewReader(form.Encode()))
-
-	req.Header.Set("Cookie", authCookie)
-	addCSRFToken(t, app, req)
-	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
-
-	resp, err := app.Test(req)
-	require.NoError(t, err)
-	defer func() { _ = resp.Body.Close() }()
-
-	body, err := io.ReadAll(resp.Body)
-	require.NoError(t, err)
-
-	require.Equal(t, http.StatusBadRequest, resp.StatusCode)
-	require.Contains(t, string(body), "Name is required")
-}
-
-func TestRouter_HandleDataSourceCreateSubmit_ShowsErrorOnMissingType(t *testing.T) {
-	t.Parallel()
-
-	apiServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(http.StatusNotFound)
-	}))
-	defer apiServer.Close()
-
-	store := session.NewStore()
-	router, err := NewRouter(apiServer.URL, slog.New(slog.DiscardHandler), store)
-	require.NoError(t, err)
-
-	app := fiber.New()
-	registerTestSessionRoute(app, store)
-	router.RegisterRoutes(app, CommunityPresentation{})
-
-	authCookie := getAuthenticatedSessionCookie(t, app)
-
-	form := url.Values{}
-	form.Set("name", "My DS")
-	form.Set("type", "")
-
-	req := httptest.NewRequestWithContext(context.Background(),
-		http.MethodPost,
-		"/organizations/acme/datasources",
-		strings.NewReader(form.Encode()))
-
-	req.Header.Set("Cookie", authCookie)
-	addCSRFToken(t, app, req)
-	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
-
-	resp, err := app.Test(req)
-	require.NoError(t, err)
-	defer func() { _ = resp.Body.Close() }()
-
-	body, err := io.ReadAll(resp.Body)
-	require.NoError(t, err)
-
-	require.Equal(t, http.StatusBadRequest, resp.StatusCode)
-	require.Contains(t, string(body), "Select a datasource type")
-}
-
-func TestRouter_HandleDataSourceCreateSubmit_ShowsErrorOnAPIFailure(t *testing.T) {
-	t.Parallel()
-
-	apiServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusUnprocessableEntity)
-		_, _ = w.Write(
-			[]byte(`{"error":{"message":"connection test failed","code":"connection_failed"}}`),
-		)
-	}))
-	defer apiServer.Close()
-
-	store := session.NewStore()
-	router, err := NewRouter(apiServer.URL, slog.New(slog.DiscardHandler), store)
-	require.NoError(t, err)
-
-	app := fiber.New()
-	registerTestSessionRoute(app, store)
-	router.RegisterRoutes(app, CommunityPresentation{})
-
-	authCookie := getAuthenticatedSessionCookie(t, app)
-
-	form := url.Values{}
-	form.Set("name", "Prod DB")
-	form.Set("slug", "saved-source")
-	form.Set("type", "postgres")
-	form.Set("host", "db.example.com")
-	form.Set("port", "5432")
-	form.Set("database", "prod")
-	form.Set("username", "app_user")
-	form.Set("password", "secret")
-
-	req := httptest.NewRequestWithContext(context.Background(),
-		http.MethodPost,
-		"/organizations/acme/datasources",
-		strings.NewReader(form.Encode()))
-
-	req.Header.Set("Cookie", authCookie)
-	addCSRFToken(t, app, req)
-	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
-
-	resp, err := app.Test(req)
-	require.NoError(t, err)
-	defer func() { _ = resp.Body.Close() }()
-
-	body, err := io.ReadAll(resp.Body)
-	require.NoError(t, err)
-
-	require.Equal(t, http.StatusUnprocessableEntity, resp.StatusCode)
-	require.Contains(t, string(body), "connection test failed")
-	require.Contains(t, string(body), `name="name"`)
-	require.Contains(t, string(body), `value="Prod DB"`)
-	require.Contains(t, string(body), `value="saved-source"`)
-	require.NotContains(t, string(body), `value="secret"`)
-}
-
 func TestValidateGitRepoURLForFormRejectsEmbeddedCredentials(t *testing.T) {
 	t.Parallel()
 
@@ -6575,17 +5730,28 @@ func TestS3DataSourceCreateAndTestPayloadsKeepCredentialsWriteOnly(t *testing.T)
 	}
 }
 
-func TestRouterLegacyS3CreateRedirectsToCanonicalConnectionForm(t *testing.T) {
+func TestRouter_HandleDataSourceNewPage_RedirectsToCanonicalCreateForm(t *testing.T) {
 	t.Parallel()
-	app, cookie := setupAuthenticatedDatasourceTestApp(t)
-	form := url.Values{"name": {"Settlement Files"}, "slug": {"settlement-files"}, "type": {"s3"}}
-	req := httptest.NewRequestWithContext(context.Background(), http.MethodPost, "/organizations/acme/datasources", strings.NewReader(form.Encode()))
-	req.Header.Set("Content-Type", fiber.MIMEApplicationForm)
-	req.Header.Set("Cookie", cookie)
-	addCSRFToken(t, app, req)
-	resp, err := app.Test(req)
-	require.NoError(t, err)
-	defer func() { _ = resp.Body.Close() }()
-	require.Equal(t, http.StatusSeeOther, resp.StatusCode)
-	require.Equal(t, "/orgs/acme/data-sources?name=Settlement+Files&slug=settlement-files&type=s3", resp.Header.Get("Location"))
+	for _, htmx := range []bool{false, true} {
+		t.Run(fmt.Sprintf("HTMX=%t", htmx), func(t *testing.T) {
+			t.Parallel()
+			app, cookie := setupAuthenticatedDatasourceTestApp(t)
+			req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/organizations/acme/datasources/new?type=github&name=Team+Repository&slug=team-repo&environment_slug=dev&password=discard-me&redirect=https://example.com", nil)
+			req.Header.Set("Cookie", cookie)
+			if htmx {
+				req.Header.Set("HX-Request", "true")
+			}
+			resp, err := app.Test(req)
+			require.NoError(t, err)
+			defer func() { _ = resp.Body.Close() }()
+			want := "/orgs/acme/data-sources?create=true&environment_slug=dev&name=Team+Repository&slug=team-repo&type=github#create-data-source"
+			if htmx {
+				require.Equal(t, http.StatusOK, resp.StatusCode)
+				require.Equal(t, want, resp.Header.Get("HX-Redirect"))
+			} else {
+				require.Equal(t, http.StatusSeeOther, resp.StatusCode)
+				require.Equal(t, want, resp.Header.Get("Location"))
+			}
+		})
+	}
 }

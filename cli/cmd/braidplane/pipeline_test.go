@@ -139,6 +139,21 @@ func TestRunWithArgsRejectsUnknownCommand(t *testing.T) {
 	require.Contains(t, stderr.String(), "unknown")
 }
 
+func TestRunWithArgsRejectsRemovedRetryJitterFlag(t *testing.T) {
+	t.Parallel()
+	for _, command := range []string{"create", "update"} {
+		t.Run(command, func(t *testing.T) {
+			t.Parallel()
+			var stdout, stderr bytes.Buffer
+			err := runWithArgs([]string{"braidplane", "pipeline", "trigger", command, "--retry-jitter"}, &stdout, &stderr)
+
+			require.ErrorContains(t, err, "unknown flag --retry-jitter")
+			require.Contains(t, stderr.String(), "unknown flag --retry-jitter")
+			require.Empty(t, stdout.String())
+		})
+	}
+}
+
 func TestRunWithArgsValidateRequiresFile(t *testing.T) {
 	t.Parallel()
 
@@ -2854,7 +2869,6 @@ func TestRunWithArgsPipelineTriggerCommands(t *testing.T) {
 				"--retry-backoff", "fixed",
 				"--retry-initial-delay-seconds", "60",
 				"--retry-max-delay-seconds", "300",
-				"--retry-jitter",
 				"--retry-failure-kind", "platform",
 				"--retry-failure-kind", "data_source",
 				"--retry-max-elapsed-seconds", "3600",
@@ -2898,7 +2912,6 @@ func TestRunWithArgsPipelineTriggerCommands(t *testing.T) {
 				require.Equal(t, api.PipelineTriggerBackoffStrategyFixed, state.createBody.RetryPolicy.BackoffStrategy)
 				require.Equal(t, 60, state.createBody.RetryPolicy.InitialDelaySeconds)
 				require.Equal(t, 300, state.createBody.RetryPolicy.MaxDelaySeconds)
-				require.True(t, state.createBody.RetryPolicy.Jitter)
 				require.Equal(
 					t,
 					[]api.PipelineTriggerRetryFailureKind{
@@ -4427,7 +4440,6 @@ func pipelineTriggerResponseJSON(slug string, enabled bool) string {
 			"backoff_strategy": "none",
 			"initial_delay_seconds": 0,
 			"max_delay_seconds": 0,
-			"jitter": false,
 			"retryable_failure_kinds": []
 		},
 		"schedule": {
@@ -4463,7 +4475,6 @@ func pipelineWebhookTriggerResponseJSON(slug string, enabled bool) string {
 			"backoff_strategy": "none",
 			"initial_delay_seconds": 0,
 			"max_delay_seconds": 0,
-			"jitter": false,
 			"retryable_failure_kinds": []
 		},
 		"webhook": {

@@ -225,7 +225,6 @@ type pipelineTriggerPayloadFlags struct {
 	RetryBackoff             string   `help:"Retry backoff strategy: none, fixed, or exponential." enum:"none,fixed,exponential" name:"retry-backoff" default:"none"`
 	RetryInitialDelaySeconds int      `help:"Delay before the first retry attempt." name:"retry-initial-delay-seconds"`
 	RetryMaxDelaySeconds     int      `help:"Upper bound for fixed or exponential retry delay." name:"retry-max-delay-seconds"`
-	RetryJitter              bool     `help:"Randomize retry delay dispatch for fixed or exponential backoff." name:"retry-jitter"`
 	RetryFailureKind         []string `help:"Retryable failure kind. Repeat for data_source and platform." name:"retry-failure-kind"`
 	RetryMaxElapsedSeconds   int      `help:"Optional cap from first attempt to final retry in seconds." name:"retry-max-elapsed-seconds"`
 }
@@ -539,7 +538,6 @@ func pipelineTriggerRetryPolicy(f pipelineTriggerPayloadFlags) (api.PipelineTrig
 		BackoffStrategy:       backoff,
 		InitialDelaySeconds:   f.RetryInitialDelaySeconds,
 		MaxDelaySeconds:       f.RetryMaxDelaySeconds,
-		Jitter:                f.RetryJitter,
 		RetryableFailureKinds: failureKinds,
 	}
 	if f.RetryMaxElapsedSeconds > 0 {

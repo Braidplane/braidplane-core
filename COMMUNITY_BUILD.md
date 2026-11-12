@@ -38,11 +38,16 @@ API, worker and executor roles. The standalone frontend uses Community routes.
 
 Tests use synthetic fixtures. `test-go` excludes dependency-backed `e2e` packages;
 `task test-go-e2e` discovers and runs all Go E2E packages without a package or
-test-name allowlist. Packages run sequentially on their disposable fixtures;
+test-name allowlist. Packages run sequentially within each shard on disposable fixtures;
 Docker, OpenSSL, Python 3 and matching PostgreSQL recovery clients
 must be available. Suites own their provider, SPIRE, SMTP and private-network
-fixtures. The native crash/rescue rehearsal takes about an hour; the command
-allows 90 minutes per package. Missing, skipped or failed packages fail the task.
+fixtures. The native crash/rescue rehearsal uses fixture-only River timing while
+retaining real worker crashes, rescue, recovery fences and sink checks. Production
+queue timing is unchanged. Each package has a five-minute timeout. CI partitions
+the complete discovered suite across four required shards, each capped at fifteen
+minutes. Missing, skipped or failed packages fail the task.
+Run a partition locally with zero-based `GO_E2E_SHARD_INDEX` and
+`GO_E2E_SHARD_COUNT`; omitting both runs the complete suite sequentially.
 `test-cli` and `test-js` cover the public CLI and browser-side logic. Browser
 journeys use `task test-e2e` and its documented runtime fixtures.
 `test-go` prepares the pinned CUE tool before running tests so tool compilation

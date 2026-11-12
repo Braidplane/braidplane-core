@@ -103,7 +103,7 @@ tasks:
         set -euo pipefail
         packages=$(bash scripts/go-test-packages.sh e2e)
         test -n "$packages"
-        bash scripts/go-toolchain.sh test -json -count=1 -timeout=90m -p 1 $packages | python3 -u scripts/require-go-tests.py --packages $packages
+        bash scripts/go-toolchain.sh test -json -count=1 -timeout=5m -p 1 $packages | python3 -u scripts/require-go-tests.py --packages $packages
   test-cli:
     cmds:
       - bash scripts/go-toolchain.sh test -short ./cli/...

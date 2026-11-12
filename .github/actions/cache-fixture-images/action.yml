@@ -12,7 +12,7 @@ runs:
       id: images
       with:
         path: ${{ runner.temp }}/community-fixture-images.tar
-        key: community-fixture-images-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('docker-compose.yml', '.github/actions/cache-fixture-images/action.yml') }}
+        key: community-fixture-images-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('docker-compose.yml', 'docker-compose.connectors.yml', '.github/actions/cache-fixture-images/action.yml') }}
     - name: Load or pull pinned fixture images
       shell: bash
       env:
@@ -23,7 +23,7 @@ runs:
         if [ -f "$IMAGE_ARCHIVE" ]; then
           docker image load --input "$IMAGE_ARCHIVE"
         fi
-        image_list=$(docker compose config --images)
+        image_list=$(docker compose -f docker-compose.yml -f docker-compose.connectors.yml config --images | awk '/@sha256:/ { print }' | LC_ALL=C sort -u)
         test -n "$image_list"
         images=()
         while IFS= read -r image; do

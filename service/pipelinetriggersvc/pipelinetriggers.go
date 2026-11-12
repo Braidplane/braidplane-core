@@ -621,8 +621,8 @@ func validateRetryPolicy(policy model.PipelineTriggerRetryPolicy) error {
 		return ErrInvalidPipelineTriggerInput.Detail("retry delays must be non-negative")
 	}
 	if policy.BackoffStrategy == model.PipelineTriggerBackoffStrategyNone {
-		if policy.InitialDelaySeconds != 0 || policy.MaxDelaySeconds != 0 || policy.Jitter {
-			return ErrInvalidPipelineTriggerInput.Detail("retry delays and jitter require fixed or exponential backoff")
+		if policy.InitialDelaySeconds != 0 || policy.MaxDelaySeconds != 0 {
+			return ErrInvalidPipelineTriggerInput.Detail("retry delays require fixed or exponential backoff")
 		}
 	}
 	if policy.BackoffStrategy == model.PipelineTriggerBackoffStrategyFixed ||

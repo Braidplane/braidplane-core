@@ -36,3 +36,13 @@ func TestProofConfigurationSummaryAndFailedEditor(t *testing.T) {
 	require.NoError(t, ProofDataSourceForm("acme", "repo", configuration, true, false).Render(t.Context(), &normal))
 	require.NotContains(t, normal.String(), " open")
 }
+
+func TestProofEmptyStatesLinkToCanonicalCreateForm(t *testing.T) {
+	t.Parallel()
+	var forms, summary bytes.Buffer
+	require.NoError(t, ProofConfigurationForms("acme", "", nil, true, false).Render(t.Context(), &forms))
+	require.NoError(t, ProofConfigurationSummaries("acme", nil).Render(t.Context(), &summary))
+	for _, html := range []string{forms.String(), summary.String()} {
+		require.Contains(t, html, `href="/orgs/acme/data-sources?create=true#create-data-source"`)
+	}
+}

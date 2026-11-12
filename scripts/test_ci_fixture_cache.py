@@ -18,10 +18,10 @@ class FixtureImageCache(unittest.TestCase):
             docker.write_text('''#!/bin/bash
 printf '%s\\n' "$*" >> "$CALLS"
 case "$1 $2" in
-  'compose config')
+  'compose -f')
     if [[ "$MODE" = compose-failure ]]; then exit 42; fi
     if [[ "$MODE" = empty ]]; then exit 0; fi
-    printf 'postgres:18.6@sha256:abc\\naxllent/mailpit:v1.30@sha256:def\\n' ;;
+    printf 'postgres:18.6@sha256:abc\\naxllent/mailpit:v1.30@sha256:def\\nmysql:26.7@sha256:ghi\\nfixture-local-build\\npostgres:18.6@sha256:abc\\n' ;;
   'pull postgres:18.6@sha256:abc')
     if [[ "$MODE" = pull-failure ]]; then exit 43; fi ;;
   'image save') touch "$4" ;;
@@ -46,10 +46,14 @@ esac
                         self.assertEqual(result.returncode, 0, result.stderr)
                         self.assertIn('pull postgres:18.6@sha256:abc', output)
                         self.assertIn('pull axllent/mailpit:v1.30@sha256:def', output)
+                        self.assertIn('pull mysql:26.7@sha256:ghi', output)
+                        self.assertEqual(output.count('pull postgres:18.6@sha256:abc'), 1)
+                        self.assertNotIn('pull fixture-local-build', output)
+                        self.assertIn('compose -f docker-compose.yml -f docker-compose.connectors.yml config --images', output)
                         self.assertEqual('image load' in output, mode == 'hit')
                         self.assertEqual('image save' in output, mode == 'cold')
                         if mode == 'cold':
-                            self.assertIn('postgres:18.6 axllent/mailpit:v1.30', output)
+                            self.assertIn('axllent/mailpit:v1.30 mysql:26.7 postgres:18.6', output)
                             self.assertNotIn('sha256:', output.split('image save')[1])
                     else:
                         self.assertNotEqual(result.returncode, 0)

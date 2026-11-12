@@ -120,11 +120,10 @@ type PipelineTriggerVersionPolicy struct {
 // PipelineTriggerRetryPolicy is the persisted automatic retry policy for a trigger.
 type PipelineTriggerRetryPolicy struct {
 	Enabled               bool
-	MaxAttempts           int                            `validate:"min=1,max=10"`
-	BackoffStrategy       PipelineTriggerBackoffStrategy `validate:"required"`
-	InitialDelaySeconds   int                            `validate:"min=0,max=86400"`
-	MaxDelaySeconds       int                            `validate:"min=0,max=604800"`
-	Jitter                bool
+	MaxAttempts           int                               `validate:"min=1,max=10"`
+	BackoffStrategy       PipelineTriggerBackoffStrategy    `validate:"required"`
+	InitialDelaySeconds   int                               `validate:"min=0,max=86400"`
+	MaxDelaySeconds       int                               `validate:"min=0,max=604800"`
 	RetryableFailureKinds []PipelineTriggerRetryFailureKind `validate:"dive,required"`
 	MaxElapsedSeconds     *int                              `validate:"omitempty,min=1,max=2592000"`
 }

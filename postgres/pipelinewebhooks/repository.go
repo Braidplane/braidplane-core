@@ -36,7 +36,7 @@ func (r *repository) ResolveReceiver(ctx context.Context, db postgres.DBTX, rece
 	if err := json.Unmarshal(row.WebhookInputMappings, &mappings); err != nil {
 		return Receiver{}, xerror.Unexpected().With(err)
 	}
-	retryPolicy, err := pipelineRetryPolicy(row.RetryEnabled, row.RetryMaxAttempts, row.RetryBackoffStrategy, row.RetryInitialDelaySeconds, row.RetryMaxDelaySeconds, row.RetryJitter, row.RetryableFailureKinds, row.RetryMaxElapsedSeconds)
+	retryPolicy, err := pipelineRetryPolicy(row.RetryEnabled, row.RetryMaxAttempts, row.RetryBackoffStrategy, row.RetryInitialDelaySeconds, row.RetryMaxDelaySeconds, row.RetryableFailureKinds, row.RetryMaxElapsedSeconds)
 	if err != nil {
 		return Receiver{}, err
 	}
@@ -66,7 +66,6 @@ func (r *repository) Accept(ctx context.Context, tx postgres.DBTX, params Accept
 		RetryBackoffStrategy:     params.Receiver.RetryPolicy.BackoffStrategy.String(),
 		RetryInitialDelaySeconds: int32(params.Receiver.RetryPolicy.InitialDelaySeconds), //nolint:gosec
 		RetryMaxDelaySeconds:     int32(params.Receiver.RetryPolicy.MaxDelaySeconds),     //nolint:gosec // trigger validation bounds this value
-		RetryJitter:              params.Receiver.RetryPolicy.Jitter,
 		RetryableFailureKinds:    retryFailureKindStrings(params.Receiver.RetryPolicy.RetryableFailureKinds),
 		RetryMaxElapsedSeconds:   optionalInt4(params.Receiver.RetryPolicy.MaxElapsedSeconds), RunSlug: params.RunSlug.String(),
 		EncryptedEnvelope: params.EncryptedEnvelope, EnvelopeExpiresAt: postgres.ToTimestamptz(params.EnvelopeExpiresAt),
@@ -107,7 +106,6 @@ func (r *repository) Reject(ctx context.Context, tx postgres.DBTX, params Reject
 		RetryBackoffStrategy:     params.Receiver.RetryPolicy.BackoffStrategy.String(),
 		RetryInitialDelaySeconds: int32(params.Receiver.RetryPolicy.InitialDelaySeconds), //nolint:gosec // trigger validation bounds this value
 		RetryMaxDelaySeconds:     int32(params.Receiver.RetryPolicy.MaxDelaySeconds),     //nolint:gosec // trigger validation bounds this value
-		RetryJitter:              params.Receiver.RetryPolicy.Jitter,
 		RetryableFailureKinds:    retryFailureKindStrings(params.Receiver.RetryPolicy.RetryableFailureKinds),
 		RetryMaxElapsedSeconds:   optionalInt4(params.Receiver.RetryPolicy.MaxElapsedSeconds),
 		RunSlug:                  params.RunSlug.String(), DecisionReason: optionalText(params.DecisionReason), ReceivedAt: postgres.ToTimestamptz(params.ReceivedAt),
@@ -136,7 +134,7 @@ func (r *repository) Load(ctx context.Context, db postgres.DBTX, receiverID, del
 	if err != nil {
 		return Delivery{}, err
 	}
-	retryPolicy, err := pipelineRetryPolicy(row.RetryEnabled, row.RetryMaxAttempts, row.RetryBackoffStrategy, row.RetryInitialDelaySeconds, row.RetryMaxDelaySeconds, row.RetryJitter, row.RetryableFailureKinds, row.RetryMaxElapsedSeconds)
+	retryPolicy, err := pipelineRetryPolicy(row.RetryEnabled, row.RetryMaxAttempts, row.RetryBackoffStrategy, row.RetryInitialDelaySeconds, row.RetryMaxDelaySeconds, row.RetryableFailureKinds, row.RetryMaxElapsedSeconds)
 	if err != nil {
 		return Delivery{}, err
 	}
@@ -310,7 +308,7 @@ func versionPolicy(mode string, pinned pgtype.Text) (model.PipelineTriggerVersio
 	return result, nil
 }
 
-func pipelineRetryPolicy(enabled bool, maxAttempts int32, strategy string, initialDelay, maxDelay int32, jitter bool, failureKinds []string, maxElapsed pgtype.Int4) (model.PipelineTriggerRetryPolicy, error) {
+func pipelineRetryPolicy(enabled bool, maxAttempts int32, strategy string, initialDelay, maxDelay int32, failureKinds []string, maxElapsed pgtype.Int4) (model.PipelineTriggerRetryPolicy, error) {
 	parsedStrategy, err := model.PipelineTriggerBackoffStrategyString(strategy)
 	if err != nil {
 		return model.PipelineTriggerRetryPolicy{}, xerror.Unexpected().With(err)
@@ -322,7 +320,7 @@ func pipelineRetryPolicy(enabled bool, maxAttempts int32, strategy string, initi
 			return model.PipelineTriggerRetryPolicy{}, xerror.Unexpected().With(err)
 		}
 	}
-	policy := model.PipelineTriggerRetryPolicy{Enabled: enabled, MaxAttempts: int(maxAttempts), BackoffStrategy: parsedStrategy, InitialDelaySeconds: int(initialDelay), MaxDelaySeconds: int(maxDelay), Jitter: jitter, RetryableFailureKinds: parsedKinds}
+	policy := model.PipelineTriggerRetryPolicy{Enabled: enabled, MaxAttempts: int(maxAttempts), BackoffStrategy: parsedStrategy, InitialDelaySeconds: int(initialDelay), MaxDelaySeconds: int(maxDelay), RetryableFailureKinds: parsedKinds}
 	if maxElapsed.Valid {
 		value := int(maxElapsed.Int32)
 		policy.MaxElapsedSeconds = &value

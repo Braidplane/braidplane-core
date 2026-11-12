@@ -39,7 +39,7 @@ templ ProofConfigurationForms(org, selected string, configurations []api.DataSou
 	if len(configurations)==0 {
 		<div class="rounded-xl border border-base-300 bg-base-100 p-5">
 			<p class="text-sm">Create a managed GitHub or GitLab data source to configure Proof.</p>
-			<a class="btn btn-primary btn-sm mt-3" href={ templ.URL("/organizations/" + org + "/datasources/new") }>Add data source</a>
+			<a class="btn btn-primary btn-sm mt-3" href={ templ.URL("/orgs/" + org + "/data-sources?create=true#create-data-source") }>Add data source</a>
 		</div>
 	}
 	for _,configuration:=range configurations {
@@ -133,7 +133,7 @@ templ ProofConfigurationReadiness(configuration api.DataSourceProofConfiguration
 templ ProofConfigurationSummaries(org string, configurations []api.DataSourceProofConfiguration) {
 	if len(configurations) == 0 {
 		<p class="text-sm">Create a managed GitHub or GitLab data source to configure Proof.</p>
-		<a class="btn btn-primary btn-sm" href={ templ.URL("/organizations/" + org + "/datasources/new") }>Add data source</a>
+		<a class="btn btn-primary btn-sm" href={ templ.URL("/orgs/" + org + "/data-sources?create=true#create-data-source") }>Add data source</a>
 	}
 	<ul class="divide-y divide-base-300" aria-label="Repository Proof configuration">
 		for _, configuration := range configurations {

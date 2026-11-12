@@ -130,7 +130,6 @@ func (r *repository) CreatePipelineTrigger(
 		RetryBackoffStrategy:        params.RetryPolicy.BackoffStrategy.String(),
 		RetryInitialDelaySeconds:    retryInitialDelay,
 		RetryMaxDelaySeconds:        retryMaxDelay,
-		RetryJitter:                 params.RetryPolicy.Jitter,
 		RetryableFailureKinds:       retryFailureKindStrings(params.RetryPolicy.RetryableFailureKinds),
 		RetryMaxElapsedSeconds:      retryMaxElapsed,
 		ScheduleCron:                scheduleCron(params.ScheduleConfig),
@@ -249,7 +248,6 @@ func (r *repository) UpdatePipelineTrigger(
 		RetryBackoffStrategy:        params.RetryPolicy.BackoffStrategy.String(),
 		RetryInitialDelaySeconds:    retryInitialDelay,
 		RetryMaxDelaySeconds:        retryMaxDelay,
-		RetryJitter:                 params.RetryPolicy.Jitter,
 		RetryableFailureKinds:       retryFailureKindStrings(params.RetryPolicy.RetryableFailureKinds),
 		RetryMaxElapsedSeconds:      retryMaxElapsed,
 		ScheduleCron:                scheduleCron(params.ScheduleConfig),
@@ -311,7 +309,6 @@ func triggerFromCreateRow(row dbgen.CreatePipelineTriggerRow) (*PipelineTrigger,
 		RetryBackoffStrategy:        row.RetryBackoffStrategy,
 		RetryInitialDelaySeconds:    row.RetryInitialDelaySeconds,
 		RetryMaxDelaySeconds:        row.RetryMaxDelaySeconds,
-		RetryJitter:                 row.RetryJitter,
 		RetryableFailureKinds:       row.RetryableFailureKinds,
 		RetryMaxElapsedSeconds:      row.RetryMaxElapsedSeconds,
 		ScheduleCron:                row.ScheduleCron,
@@ -351,7 +348,6 @@ func triggerFromFindRow(row dbgen.FindPipelineTriggerBySlugRow) (*PipelineTrigge
 		RetryBackoffStrategy:        row.RetryBackoffStrategy,
 		RetryInitialDelaySeconds:    row.RetryInitialDelaySeconds,
 		RetryMaxDelaySeconds:        row.RetryMaxDelaySeconds,
-		RetryJitter:                 row.RetryJitter,
 		RetryableFailureKinds:       row.RetryableFailureKinds,
 		RetryMaxElapsedSeconds:      row.RetryMaxElapsedSeconds,
 		ScheduleCron:                row.ScheduleCron,
@@ -391,7 +387,6 @@ func triggerFromListRow(row dbgen.ListPipelineTriggersRow) (*PipelineTrigger, er
 		RetryBackoffStrategy:        row.RetryBackoffStrategy,
 		RetryInitialDelaySeconds:    row.RetryInitialDelaySeconds,
 		RetryMaxDelaySeconds:        row.RetryMaxDelaySeconds,
-		RetryJitter:                 row.RetryJitter,
 		RetryableFailureKinds:       row.RetryableFailureKinds,
 		RetryMaxElapsedSeconds:      row.RetryMaxElapsedSeconds,
 		ScheduleCron:                row.ScheduleCron,
@@ -431,7 +426,6 @@ func triggerFromUpdateRow(row dbgen.UpdatePipelineTriggerRow) (*PipelineTrigger,
 		RetryBackoffStrategy:        row.RetryBackoffStrategy,
 		RetryInitialDelaySeconds:    row.RetryInitialDelaySeconds,
 		RetryMaxDelaySeconds:        row.RetryMaxDelaySeconds,
-		RetryJitter:                 row.RetryJitter,
 		RetryableFailureKinds:       row.RetryableFailureKinds,
 		RetryMaxElapsedSeconds:      row.RetryMaxElapsedSeconds,
 		ScheduleCron:                row.ScheduleCron,
@@ -468,7 +462,6 @@ type triggerFields struct {
 	RetryBackoffStrategy        string
 	RetryInitialDelaySeconds    int32
 	RetryMaxDelaySeconds        int32
-	RetryJitter                 bool
 	RetryableFailureKinds       []string
 	RetryMaxElapsedSeconds      pgtype.Int4
 	ScheduleCron                pgtype.Text
@@ -535,7 +528,6 @@ func triggerFromFields(fields triggerFields) (*PipelineTrigger, error) {
 			BackoffStrategy:       backoffStrategy,
 			InitialDelaySeconds:   int(fields.RetryInitialDelaySeconds),
 			MaxDelaySeconds:       int(fields.RetryMaxDelaySeconds),
-			Jitter:                fields.RetryJitter,
 			RetryableFailureKinds: retryableKinds,
 			MaxElapsedSeconds:     optionalIntValue(fields.RetryMaxElapsedSeconds),
 		},

@@ -373,25 +373,6 @@ func TestDataSourceConnectionUpdateFormsRenderConnectorSpecificControls(t *testi
 	}
 }
 
-func TestLegacySnowflakeCreateFormRendersAuthVisibilityContract(t *testing.T) {
-	t.Parallel()
-
-	var out bytes.Buffer
-	require.NoError(t, DataSourceNewPage(
-		"Add data source", "acme", DataSourceFormFields{
-			DSType: api.DataSourceTypeSnowflake, SnowflakeAuthType: "password",
-		}, "", "", "",
-	).Render(context.Background(), &out))
-
-	html := out.String()
-	require.Contains(t, html, `data-snowflake-auth-form`)
-	require.Contains(t, html, `name="snowflake_auth_type" data-snowflake-auth-select`)
-	require.Contains(t, html, `value="password" selected`)
-	require.Contains(t, html, `data-snowflake-auth-fields="workload_identity"`)
-	require.Equal(t, 2, strings.Count(html, `data-snowflake-auth-fields="password"`))
-	require.Equal(t, 2, strings.Count(html, `data-required-for="snowflake"`))
-}
-
 func TestDataSourceOperationalHelpers(t *testing.T) {
 	t.Parallel()
 

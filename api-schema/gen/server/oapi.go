@@ -15870,11 +15870,6 @@ type PipelineTriggerRetryPolicy struct {
 	// Example: 60
 	InitialDelaySeconds int `json:"initial_delay_seconds"`
 
-	// Jitter Whether retry dispatch should randomize retry delays.
-	//
-	// Example: true
-	Jitter bool `json:"jitter"`
-
 	// MaxAttempts Maximum attempts in a retry group, including the initial run.
 	//
 	// Example: 3

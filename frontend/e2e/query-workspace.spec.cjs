@@ -301,9 +301,9 @@ test("sets up three secret HTTP headers and reads every numbered page", async ({
     const sourceAPI = `/api/organizations/${e2eOrgSlug}/data-sources/${source}`;
     try {
         await page.goto(`/orgs/${e2eOrgSlug}/data-sources?type=http`);
-        await page.getByRole("button", { name: "Add Data Source", exact: true }).click();
         const create = page.locator("#create-data-source");
-        await create.locator('select[name="type"]').selectOption("http");
+        await expect(create).toBeVisible();
+        await expect(create.locator('select[name="type"]')).toHaveValue("http");
         await expect(create.locator("[data-connector-support]")).toHaveCount(0);
         await expect(create.locator('input[name="secret_header_value_0"]')).toHaveAttribute("type", "password");
         for (const viewport of [

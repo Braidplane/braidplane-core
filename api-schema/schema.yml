@@ -18638,10 +18638,6 @@ components:
           maximum: 604800
           description: Upper bound for retry delays when backoff is fixed or exponential. For backoff_strategy=none, both delay fields must be 0.
           example: 3600
-        jitter:
-          type: boolean
-          description: Whether retry dispatch should randomize retry delays.
-          example: true
         retryable_failure_kinds:
           type: array
           uniqueItems: true
@@ -18660,7 +18656,6 @@ components:
         - backoff_strategy
         - initial_delay_seconds
         - max_delay_seconds
-        - jitter
         - retryable_failure_kinds
 
     PipelineTriggerScheduleMisfirePolicy:
