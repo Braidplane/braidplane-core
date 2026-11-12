@@ -62,9 +62,9 @@ test("keeps OAuth validation visible and focuses the invalid field before redire
 test("sets up HTTP OAuth and reconnects after replacing the app grant type", async ({ page }, testInfo) => {
     expect((await page.request.get(`${fixture.url}/_test/session`)).ok()).toBe(true);
     await page.goto(`${fixture.url}/orgs/acme/data-sources?type=http`);
-    await page.getByRole("button", { name: "Add Data Source", exact: true }).click();
     const create = page.locator("#create-data-source");
-    await create.locator('[name="type"]').selectOption("http");
+    await expect(create).toBeVisible();
+    await expect(create.locator('[name="type"]')).toHaveValue("http");
     await create.locator('[name="name"]').fill("HTTP OAuth app");
     await create.getByText("Customize identifier", { exact: true }).click();
     await create.locator('[name="slug"]').fill("http-app");
