@@ -50,17 +50,21 @@ jobs:
       - uses: ./.github/actions/prepare-hosted-runner
       - if: ${{ !inputs.cold_cache }}
         uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        id: go-modules
+        with:
+          path: ~/go/pkg/mod
+          key: community-go-modules-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('ci/toolchain/versions.env') }}-${{ hashFiles('go.mod', 'go.sum', 'tools/go.mod', 'tools/go.sum') }}
+          restore-keys: community-go-modules-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('ci/toolchain/versions.env') }}-
+      - if: ${{ !inputs.cold_cache }}
+        uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
         id: cache-1
         with:
           path: |
-            ~/go/pkg/mod
             ~/.cache/braidplane/go
             ${{ runner.temp }}/bin
-          key: community-go-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('ci/toolchain/versions.env') }}-${{ hashFiles('go.sum', 'tools/go.sum') }}-${{ github.sha }}-${{ github.job }}
+          key: community-go-build-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('ci/toolchain/versions.env') }}-${{ hashFiles('go.sum', 'tools/go.sum') }}-${{ github.sha }}-${{ github.job }}
           restore-keys: |
-            community-go-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('ci/toolchain/versions.env') }}-${{ hashFiles('go.sum', 'tools/go.sum') }}-
-            community-go-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('ci/toolchain/versions.env') }}-
-            community-go-browser-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('ci/toolchain/versions.env') }}-
+            community-go-build-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('ci/toolchain/versions.env') }}-${{ hashFiles('go.sum', 'tools/go.sum') }}-
       - if: ${{ !inputs.cold_cache }}
         uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
         id: cache-2
@@ -92,6 +96,11 @@ jobs:
           trap 'kill "$sampler_pid" 2>/dev/null || true; wait "$sampler_pid" 2>/dev/null || true; free -h; df -h .' EXIT
           /usr/bin/time -v task ci
           df -h .
+      - uses: actions/cache/save@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        if: ${{ !inputs.cold_cache && !cancelled() && steps.go-modules.outputs.cache-hit != 'true' }}
+        with:
+          path: ~/go/pkg/mod
+          key: ${{ steps.go-modules.outputs.cache-primary-key }}
       - name: Verify generated files are committed
         run: |
           git diff --exit-code
@@ -100,7 +109,6 @@ jobs:
         if: ${{ !inputs.cold_cache && !cancelled() && steps.cache-1.outputs.cache-hit != 'true' }}
         with:
           path: |
-            ~/go/pkg/mod
             ~/.cache/braidplane/go
             ${{ runner.temp }}/bin
           key: ${{ steps.cache-1.outputs.cache-primary-key }}
@@ -131,6 +139,13 @@ jobs:
         with:
           persist-credentials: false
       - uses: ./.github/actions/prepare-hosted-runner
+      - if: ${{ !inputs.cold_cache }}
+        uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        id: go-modules
+        with:
+          path: ~/go/pkg/mod
+          key: community-go-modules-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('ci/toolchain/versions.env') }}-${{ hashFiles('go.mod', 'go.sum', 'tools/go.mod', 'tools/go.sum') }}
+          restore-keys: community-go-modules-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('ci/toolchain/versions.env') }}-
       - uses: ./.github/actions/cache-fixture-images
         with:
           enabled: ${{ !inputs.cold_cache }}
@@ -139,14 +154,19 @@ jobs:
         id: cache-1
         with:
           path: |
-            ~/go/pkg/mod
             ~/.cache/braidplane/go
             ${{ runner.temp }}/bin
-          key: community-go-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('ci/toolchain/versions.env') }}-${{ hashFiles('go.sum', 'tools/go.sum') }}-${{ github.sha }}-${{ github.job }}-${{ matrix.shard }}
+          key: community-go-build-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('ci/toolchain/versions.env') }}-${{ hashFiles('go.sum', 'tools/go.sum') }}-${{ github.sha }}-${{ github.job }}-${{ matrix.shard }}
           restore-keys: |
-            community-go-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('ci/toolchain/versions.env') }}-${{ hashFiles('go.sum', 'tools/go.sum') }}-
-            community-go-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('ci/toolchain/versions.env') }}-
-            community-go-browser-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('ci/toolchain/versions.env') }}-
+            community-go-build-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('ci/toolchain/versions.env') }}-${{ hashFiles('go.sum', 'tools/go.sum') }}-
+      - if: ${{ !inputs.cold_cache }}
+        uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        id: node-cache
+        with:
+          path: |
+            ~/.cache/braidplane/node
+            ~/.cache/braidplane/npm
+          key: community-node-verify-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('ci/toolchain/versions.env', 'frontend/package-lock.json') }}
       - name: Prepare matching PostgreSQL recovery clients
         env:
           TMPDIR: ${{ runner.temp }}/go-e2e
@@ -178,10 +198,21 @@ jobs:
           export PATH="$RUNNER_TEMP/bin:$PATH"
           task test-go-e2e
       - uses: actions/cache/save@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
-        if: ${{ !inputs.cold_cache && !cancelled() && steps.cache-1.outputs.cache-hit != 'true' }}
+        if: ${{ !inputs.cold_cache && !cancelled() && matrix.shard == 0 && steps.go-modules.outputs.cache-hit != 'true' }}
+        with:
+          path: ~/go/pkg/mod
+          key: ${{ steps.go-modules.outputs.cache-primary-key }}
+      - uses: actions/cache/save@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        if: ${{ !inputs.cold_cache && !cancelled() && matrix.shard == 0 && steps.node-cache.outputs.cache-hit != 'true' }}
         with:
           path: |
-            ~/go/pkg/mod
+            ~/.cache/braidplane/node
+            ~/.cache/braidplane/npm
+          key: ${{ steps.node-cache.outputs.cache-primary-key }}
+      - uses: actions/cache/save@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        if: ${{ !inputs.cold_cache && !cancelled() && matrix.shard == 0 && steps.cache-1.outputs.cache-hit != 'true' }}
+        with:
+          path: |
             ~/.cache/braidplane/go
             ${{ runner.temp }}/bin
           key: ${{ steps.cache-1.outputs.cache-primary-key }}
@@ -213,6 +244,13 @@ jobs:
         with:
           persist-credentials: false
       - uses: ./.github/actions/prepare-hosted-runner
+      - if: ${{ !inputs.cold_cache }}
+        uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        id: go-modules
+        with:
+          path: ~/go/pkg/mod
+          key: community-go-modules-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('ci/toolchain/versions.env') }}-${{ hashFiles('go.mod', 'go.sum', 'tools/go.mod', 'tools/go.sum') }}
+          restore-keys: community-go-modules-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('ci/toolchain/versions.env') }}-
       - uses: ./.github/actions/cache-fixture-images
         with:
           enabled: ${{ !inputs.cold_cache }}
@@ -221,14 +259,11 @@ jobs:
         id: cache-1
         with:
           path: |
-            ~/go/pkg/mod
             ~/.cache/braidplane/go
             ${{ runner.temp }}/bin
-          key: community-go-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('ci/toolchain/versions.env') }}-${{ hashFiles('go.sum', 'tools/go.sum') }}-${{ github.sha }}-${{ github.job }}
+          key: community-go-build-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('ci/toolchain/versions.env') }}-${{ hashFiles('go.sum', 'tools/go.sum') }}-${{ github.sha }}-${{ github.job }}
           restore-keys: |
-            community-go-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('ci/toolchain/versions.env') }}-${{ hashFiles('go.sum', 'tools/go.sum') }}-
-            community-go-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('ci/toolchain/versions.env') }}-
-            community-go-browser-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('ci/toolchain/versions.env') }}-
+            community-go-build-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('ci/toolchain/versions.env') }}-${{ hashFiles('go.sum', 'tools/go.sum') }}-
       - if: ${{ !inputs.cold_cache }}
         uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
         id: cache-2
@@ -274,10 +309,14 @@ jobs:
           /usr/bin/time -v bash scripts/ci-browser.sh
           df -h .
       - uses: actions/cache/save@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        if: ${{ !inputs.cold_cache && !cancelled() && steps.go-modules.outputs.cache-hit != 'true' }}
+        with:
+          path: ~/go/pkg/mod
+          key: ${{ steps.go-modules.outputs.cache-primary-key }}
+      - uses: actions/cache/save@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
         if: ${{ !inputs.cold_cache && !cancelled() && steps.cache-1.outputs.cache-hit != 'true' }}
         with:
           path: |
-            ~/go/pkg/mod
             ~/.cache/braidplane/go
             ${{ runner.temp }}/bin
           key: ${{ steps.cache-1.outputs.cache-primary-key }}
