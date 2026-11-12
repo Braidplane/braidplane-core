@@ -6,8 +6,10 @@ ENV GOWORK=off
 COPY go.mod go.sum ./
 RUN --mount=type=cache,id=braidplane-core-go-mod,target=/go/pkg/mod go mod download
 COPY . ./
+# Imported layers do not guarantee that the module cache mount is populated.
 RUN --mount=type=cache,id=braidplane-core-go-mod,target=/go/pkg/mod \
-    go mod verify \
+    go mod download \
+    && go mod verify \
     && cd "$(go env GOMODCACHE)/cache/download" \
     && sha256sum --check /src/MPL_SOURCES.sha256 \
     && while read -r checksum archive; do \

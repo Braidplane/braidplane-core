@@ -108,7 +108,8 @@ func newScanningConnector(t *testing.T, fixture *budgetRows) *Connector {
 	t.Helper()
 	db := stdsql.OpenDB(budgetDriverConnector{rows: fixture})
 	t.Cleanup(func() { require.NoError(t, db.Close()) })
-	rows, err := db.QueryContext(t.Context(), "SELECT fixture")
+	// Cleanup checks Rows.Err after the test context has been canceled.
+	rows, err := db.QueryContext(context.WithoutCancel(t.Context()), "SELECT fixture")
 	require.NoError(t, err)
 	t.Cleanup(func() {
 		_ = rows.Close()
