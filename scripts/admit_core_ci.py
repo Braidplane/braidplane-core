@@ -7,7 +7,8 @@ import subprocess
 from pathlib import Path
 
 
-REQUIRED = {"verify", "go-e2e", "docs", "browser", "community-gate",
+REQUIRED = {"verify", "go-e2e (0)", "go-e2e (1)", "go-e2e (2)", "go-e2e (3)",
+            "docs", "browser", "community-gate",
             "containers (backend)", "containers (frontend)", "containers (migrate)", "containers (cli)"}
 
 
