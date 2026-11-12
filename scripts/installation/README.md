@@ -56,9 +56,11 @@ image digests and OCI archive hashes for review. It does not publish images.
 The candidate validator checks those files against an independently supplied
 approval digest. `scripts.publish_core_candidate` checks that digest, the source
 and CI run before copying the archives by digest with a pinned ORAS image. It
-then checks the registry images and creates SBOMs. The disabled draft workflow
-shows the approval document before its publication job and signs the outputs
-afterward. Before enabling it, protect the publication environment and validate
+then checks the registry images and creates SBOMs. The manual workflow uses
+`CORE_RELEASE_PREPARATION_ENABLED` to allow candidate-only builds after exact
+main-push CI admission. Its read-only preparation job shows the approval document
+and release record for review. Publication remains disabled by a literal false
+guard. Before enabling publication, protect its environment and validate
 the review process and publisher with real artifacts. Review the Buildx and
 GitHub CLI identities used by the hosted runner as well. The current candidate
 contains four Core images, two external image references and an installation
@@ -159,9 +161,9 @@ qualification remain separate. The registry platform check still needs testing
 against actual release images.
 `scripts.core_release_record` prepares the record from a clean candidate
 checkout and matching archive; it does not qualify image bytes. The release
-workflow is disabled until its approval and publication steps are reviewed and
-validated. The record and verification path have not been exercised with real
-artifacts.
+workflow's publication job stays disabled until its approval and publication
+steps are reviewed and validated. The record and verification path have not been
+exercised with real artifacts.
 
 ## Database and runtime boundaries
 
