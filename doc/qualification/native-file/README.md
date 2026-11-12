@@ -1,15 +1,16 @@
 # Native-file qualification
 
 The implementation and provider limits are in [Native-file streaming](../../NATIVE_FILE_STREAMING.md).
-Raw JSON records retain exact revisions and settings. Earlier profile/admission
-measurements are historical and do not qualify the simplified implementation.
+Raw JSON records retain exact revisions and settings. The S3 record below covers the simplified implementation. Earlier profile/admission
+measurements remain historical.
 
 ## Recorded capacity samples
 
 | Revision | Scope | Evidence |
 |---|---|---|
-| `67b837de7c60ee03f2bce2df235d41c34fb522c9` | 1,073,741,841-byte S3 → encrypted PostgreSQL chunks → S3; independent length/SHA-256; 32.93 s runner time, 61,089,296-byte sampled heap peak, 114,458,624-byte process RSS | [S3](core-2026-11-12.json), [20 MiB executor-loss sample](executor-loss-2026-11-12.json) |
+| `e6e77ebd086766231bb9805e507059ff46e0c9d3` | Simplified S3 → encrypted PostgreSQL chunks → S3; 1,073,741,841 bytes, independent length/SHA-256, 24.13 s | [S3](core-2026-11-12.json), [20 MiB executor-loss sample](executor-loss-2026-11-12.json) |
 | `67b837de7c60ee03f2bce2df235d41c34fb522c9` | Separate Linux Git clone/read/write/push of 1,073,741,841 bytes; independent full readback; 111.92 s client time, 20,226,048-byte process RSS | [Git](git-2026-11-12.json) |
+| `e6e77ebd086766231bb9805e507059ff46e0c9d3` | Schema 2 → 3 image upgrade; post-migration grant failure and isolated recovery | [Upgrade/recovery](upgrade-2026-11-12.json) |
 | Earlier Core revisions | Previous S3 and Git samples | [S3](core-current.json), [Git](git-core-current.json), [rebased S3](core-rebased.json) |
 | Historical implementation | Original capacity and fault samples | [S3](over-1gib.json), [faults](fault-qualified-over-1gib.json), [executor loss](executor-loss.json), [Git](git-over-1gib.json) |
 
@@ -18,6 +19,9 @@ sink ledger and encrypted chunks. It checks below/at/above byte limits, broken
 source bodies, lost completion responses, slow uploads, cancellation, prior-good
 output and executor replacement. Independent SDK reads verify length and digest.
 The Git fixture uses a separate loopback TLS CGI provider and kernel process limits.
+
+Local `task ci`, focused service race tests, retained-storage/admission/FTP E2E
+suites, and the documentation gate passed for this candidate.
 
 ## Focused checks
 

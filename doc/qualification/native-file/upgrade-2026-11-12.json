@@ -1,0 +1,20 @@
+{
+  "failure_recovery": {
+    "elapsed_seconds": 12.006,
+    "new_revision": "e6e77ebd086766231bb9805e507059ff46e0c9d3",
+    "old_revision": "deaac13a33db3c0274158d332410346119188025",
+    "original_stopped": true,
+    "recovery_hold": true,
+    "restored_schema": "2",
+    "scenario": "failed-grants-after-migration"
+  },
+  "scope": "local API-only schema 2 to 3 upgrade using exact-revision images and matching candidate tools; synthetic administrator and keys; failure after migration restores schema 2 into isolated held recovery database; no automatic source rollback",
+  "success": {
+    "new_backend": "sha256:6424c4758cdbd962bef2a82376c8492284019cd2610a4e2034dfe57a2700d6ee",
+    "new_revision": "e6e77ebd086766231bb9805e507059ff46e0c9d3",
+    "old_backend": "sha256:8e3dddeafcd4c12271966904c6455300d6c0df015884bc45607e2bbf1d134528",
+    "old_revision": "deaac13a33db3c0274158d332410346119188025",
+    "scope": "schema-changing local fixture",
+    "upgrade_seconds": 10.035
+  }
+}
