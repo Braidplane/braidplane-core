@@ -75,7 +75,7 @@ esac
         self.assertEqual(workflow.count('uses: actions/cache/save@'),
                          workflow.count('!inputs.cold_cache && !cancelled()'))
         self.assertEqual(workflow.count('uses: ./.github/actions/cache-fixture-images'),
-                         workflow.count('enabled: ${{ !inputs.cold_cache && !inputs.skip_fixture_image_cache }}'))
+                         workflow.count('enabled: ${{ !inputs.cold_cache && inputs.use_fixture_image_cache == true }}'))
         self.assertEqual(workflow.count('cache-from:'), workflow.count('cache-from: ${{ !inputs.cold_cache'))
         self.assertEqual(workflow.count('cache-to:'), workflow.count('cache-to: ${{ !inputs.cold_cache'))
         self.assertEqual(workflow.count('uses: docker/build-push-action@'),
