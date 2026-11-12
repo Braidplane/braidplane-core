@@ -27,7 +27,6 @@ Public user guides live under `docs-public/` with separate MkDocs navigation.
 - [Community product design](DESIGN_SYSTEM.md)
 - [Incremental Operator Controls](INCREMENTAL_OPERATIONS.md)
 - [Native file streaming](NATIVE_FILE_STREAMING.md)
-  - [Qualification evidence](qualification/native-file/README.md)
 - [Local instance administrator provisioning](INSTANCE_ADMIN.md)
 - [Credential encryption operations](CREDENTIAL_ENCRYPTION.md)
 - [Self-hosted custody and network boundaries](SELF_HOSTED_CUSTODY.md)

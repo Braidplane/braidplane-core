@@ -611,6 +611,7 @@ the updated duration applies to each newly opened budget window.
 | Transform Max Depth | `execution_limits.transform_max_depth` | `EXECUTION_LIMITS_TRANSFORM_MAX_DEPTH` | `--execution-limits-transform-max-depth` | `16` | int | Maximum nested SQL transform relation and expression depth |
 
 Production tuning:
+
 - Keep `query_timeout` and `connector_timeout` below the shortest upstream reverse-proxy or load-balancer timeout so users receive Braidplane safety errors instead of dropped connections.
 - Start with low `connector_concurrency_per_data_source` values for shared production targets, then raise them only after observing database pool usage and provider rate-limit behavior.
 - Queues are FIFO within one organization/data source. Independent data sources make progress independently. A full queue is rejected immediately; cancellation or the shorter of the queue and query deadlines removes pending work without consuming a slot.

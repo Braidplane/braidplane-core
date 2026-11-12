@@ -1,28 +1,20 @@
-//go:build nativefilequalification
-
 package e2e
 
 import (
 	"bytes"
 	"context"
-	"crypto/aes"
-	"crypto/cipher"
+	"crypto/rand"
 	"crypto/sha256"
-	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"io"
 	"log/slog"
-	"net"
 	"net/http"
 	"net/http/httptest"
 	"net/http/httputil"
 	"net/url"
-	"os"
-	"runtime"
 	"strconv"
 	"sync/atomic"
-	"syscall"
 	"testing"
 	"time"
 
@@ -37,6 +29,7 @@ import (
 	"github.com/Braidplane/braidplane-core/pkg/connector/result"
 	"github.com/Braidplane/braidplane-core/pkg/connector/transportsecurity"
 	"github.com/Braidplane/braidplane-core/pkg/crypto"
+	"github.com/Braidplane/braidplane-core/pkg/depsports"
 	"github.com/Braidplane/braidplane-core/pkg/domain/model"
 	"github.com/Braidplane/braidplane-core/pkg/eventtest"
 	"github.com/Braidplane/braidplane-core/pkg/pipeline/payload"
@@ -61,35 +54,20 @@ import (
 	"github.com/Braidplane/braidplane-core/service/queriessvc"
 )
 
-// Qualification is explicit because its default object exceeds 1 GiB and uses
-// an operator-started, isolated local S3 fixture in addition to the package DB.
-func TestNativeFileQualification(t *testing.T) {
-	endpoint := os.Getenv("BP_NATIVE_FILE_S3_ENDPOINT")
-	if testing.Short() || endpoint == "" {
-		t.Skip("set BP_NATIVE_FILE_S3_ENDPOINT for isolated native-file qualification")
+func TestNativeFileStreaming(t *testing.T) {
+	if testing.Short() {
+		t.Skip("requires PostgreSQL and S3 fixtures")
 	}
+	endpoint := depsports.S3ConnectorEndpoint()
 	fixtureURL, err := url.Parse(endpoint)
 	require.NoError(t, err)
-	require.Equal(t, "http", fixtureURL.Scheme)
-	require.True(t, fixtureURL.Hostname() == "localhost" || net.ParseIP(fixtureURL.Hostname()).IsLoopback(), "qualification must use an isolated loopback S3 fixture")
-	size := int64(1<<30) + 17
-	if raw := os.Getenv("BP_NATIVE_FILE_BYTES"); raw != "" {
-		var err error
-		size, err = strconv.ParseInt(raw, 10, 64)
-		require.NoError(t, err)
-		require.Positive(t, size)
-	}
-	require.GreaterOrEqual(t, size, int64(17), "qualification also checks a 16-byte effective request allowance")
-	revision := os.Getenv("BP_NATIVE_FILE_REVISION")
-	rawRevision, err := hex.DecodeString(revision)
-	require.NoError(t, err)
-	require.Len(t, rawRevision, 20, "record the exact application revision")
-	ctx, cancel := context.WithTimeout(transportsecurity.WithPlaintext(t.Context()), 10*time.Minute)
+	const size = int64(9<<20) + 17
+	ctx, cancel := context.WithTimeout(transportsecurity.WithPlaintext(t.Context()), 3*time.Minute)
 	defer cancel()
 	pool := openE2EPool(t)
 	org := slug.Slug(fmt.Sprintf("native-file-%d", time.Now().UnixNano()))
 	project, environment := defaultProjectSlug, slug.Slug("prod")
-	seedOrganization(t, pool, org, "Isolated native file qualification")
+	seedOrganization(t, pool, org, "Native file transfer")
 	seedPipelineDeploymentEnvironment(t, pool, org, project, environment)
 	t.Cleanup(func() {
 		_, err := pool.Exec(context.Background(), `DELETE FROM execution_requests WHERE organization_id=(SELECT id FROM organizations WHERE slug=$1)`, org)
@@ -131,20 +109,11 @@ func TestNativeFileQualification(t *testing.T) {
 	queries, err := queriessvc.NewWithExecutionLimits(txm, queriesrepo.New(), sources, broker, credentials, clock.New(), limits, eventtest.NewProducer(nil))
 	require.NoError(t, err)
 
-	// Seed independently through the SDK using a seekable disk file. AES-CTR
-	// avoids a short repeating pattern that could hide reordered retained chunks.
-	seed, err := os.CreateTemp(t.TempDir(), "source-*.bin")
+	content := make([]byte, size)
+	_, err = rand.Read(content)
 	require.NoError(t, err)
-	defer func() { require.NoError(t, seed.Close()) }()
-	block, err := aes.NewCipher(make([]byte, 32))
-	require.NoError(t, err)
-	content := &cipher.StreamReader{S: cipher.NewCTR(block, make([]byte, aes.BlockSize)), R: qualificationZeroReader{}}
-	sourceHash := sha256.New()
-	n, err := io.CopyBuffer(io.MultiWriter(seed, sourceHash), io.LimitReader(content, size), make([]byte, 64<<10))
-	require.NoError(t, err)
-	require.Equal(t, size, n)
-	_, err = seed.Seek(0, io.SeekStart)
-	require.NoError(t, err)
+	seed := bytes.NewReader(content)
+	sourceHash := sha256.Sum256(content)
 	independent := awss3.New(awss3.Options{Region: "us-east-1", BaseEndpoint: aws.String(endpoint), UsePathStyle: true, Credentials: awscredentials.NewStaticCredentialsProvider("braidplane", "braidplanepass", "")})
 	prefix := org.String() + "/"
 	sourceKey, destinationKey := prefix+"source.bin", prefix+"destination.bin"
@@ -159,7 +128,7 @@ func TestNativeFileQualification(t *testing.T) {
 	_, err = independent.PutObject(ctx, &awss3.PutObjectInput{Bucket: aws.String("braidplane-fixtures"), Key: aws.String(sourceKey), Body: seed, ContentLength: aws.Int64(size)})
 	require.NoError(t, err)
 	fileContract := &payload.Contract{Name: "native-file", Representation: model.ContractRepresentationFile}
-	pipeline := &pipelinespec.Pipeline{Metadata: pipelinespec.Metadata{Slug: "native-transfer", Name: "Native file qualification"}, Steps: []pipelinespec.Step{
+	pipeline := &pipelinespec.Pipeline{Metadata: pipelinespec.Metadata{Slug: "native-transfer", Name: "Native file transfer"}, Steps: []pipelinespec.Step{
 		{Kind: "query", Slug: "read", Query: &pipelinespec.QueryRef{DataSourceSlug: "objects", OperationType: "s3", OperationInline: map[string]any{"type": "s3", "operation": "read", "key": sourceKey, "format": "file"}, OutputContract: fileContract}},
 		{Kind: "sink", Slug: "write", Sink: &pipelinespec.SinkSpec{Input: &pipelinespec.StepInput{FromStep: "read"}, InputContract: fileContract, DataSourceSlug: "objects", OperationType: "s3", OperationInline: map[string]any{"type": "s3", "operation": "write", "key": destinationKey, "format": "file", "content": "{{input}}", "overwrite": true}, Config: map[string]any{"key": destinationKey, "format": "file", "overwrite": true}, IdempotencyClass: pipelinespec.SinkIdempotencyClassNaturallyIdempotent}},
 	}}
@@ -170,41 +139,9 @@ func TestNativeFileQualification(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, spec.CurrentVersionID)
 	runs := pipelineruntime.NewRunStore(txm, pool, clock.New(), testutil.FakeRunSucceededNotifier{}, pipelineruns.New())
-	runner, err := pipelineruntime.NewRunner(qualificationQueryAdapter{queries}, clock.New(), runs, sources, pipelineruntime.NewSinkRuntime(queries, testSinkEffectLedger(t, txm)))
+	runner, err := pipelineruntime.NewRunner(fileTransferQueryAdapter{queries}, clock.New(), runs, sources, pipelineruntime.NewSinkRuntime(queries, testSinkEffectLedger(t, txm)))
 	require.NoError(t, err)
-	var databaseBefore int64
-	require.NoError(t, pool.QueryRow(ctx, `SELECT pg_database_size(current_database())`).Scan(&databaseBefore))
-	runtime.GC()
-	var baseline runtime.MemStats
-	runtime.ReadMemStats(&baseline)
-	var peak atomic.Uint64
-	peak.Store(baseline.HeapAlloc)
-	sampled, stopSampling := context.WithCancel(ctx)
-	samplingDone := make(chan struct{})
-	go func() {
-		defer close(samplingDone)
-		ticker := time.NewTicker(10 * time.Millisecond)
-		defer ticker.Stop()
-		for {
-			select {
-			case <-sampled.Done():
-				return
-			case <-ticker.C:
-				var m runtime.MemStats
-				runtime.ReadMemStats(&m)
-				for old := peak.Load(); m.HeapAlloc > old; old = peak.Load() {
-					if peak.CompareAndSwap(old, m.HeapAlloc) {
-						break
-					}
-				}
-			}
-		}
-	}()
-	started := time.Now()
-	run, err := runner.Run(ctx, pipelineruntime.RunRequest{OrgSlug: org, ProjectSlug: project, EnvironmentSlug: environment, RunSlug: "qualified", Pipeline: pipeline, PipelineVersionID: *spec.CurrentVersionID})
-	elapsed := time.Since(started)
-	stopSampling()
-	<-samplingDone
+	run, err := runner.Run(ctx, pipelineruntime.RunRequest{OrgSlug: org, ProjectSlug: project, EnvironmentSlug: environment, RunSlug: "file-transfer", Pipeline: pipeline, PipelineVersionID: *spec.CurrentVersionID})
 	require.NoError(t, err)
 	require.NotNil(t, run)
 	require.Equal(t, "succeeded", run.Timeline.Status)
@@ -215,36 +152,25 @@ func TestNativeFileQualification(t *testing.T) {
 	require.NoError(t, err)
 	require.NoError(t, got.Body.Close())
 	require.Equal(t, size, readBytes)
-	require.Equal(t, sourceHash.Sum(nil), destinationHash.Sum(nil))
-	var chunkBytes, maxChunk, envelopeBytes, plainBytes, chunks, databaseAfter, retainedRelationBytes int64
-	require.NoError(t, pool.QueryRow(ctx, `SELECT COALESCE(sum(octet_length(chunk.ciphertext)),0),COALESCE(max(octet_length(chunk.ciphertext)),0) FROM retained_file_streams stream JOIN retained_file_chunks chunk ON chunk.request_id=stream.request_id WHERE stream.organization_id=(SELECT id FROM organizations WHERE slug=$1)`, org).Scan(&chunkBytes, &maxChunk))
+	require.Equal(t, sourceHash[:], destinationHash.Sum(nil))
+	var maxChunk, envelopeBytes, plainBytes, chunks int64
+	require.NoError(t, pool.QueryRow(ctx, `SELECT COALESCE(max(octet_length(chunk.ciphertext)),0) FROM retained_file_streams stream JOIN retained_file_chunks chunk ON chunk.request_id=stream.request_id WHERE stream.organization_id=(SELECT id FROM organizations WHERE slug=$1)`, org).Scan(&maxChunk))
 	require.NoError(t, pool.QueryRow(ctx, `SELECT COALESCE(sum(size_bytes),0),COALESCE(sum(chunk_count),0) FROM retained_file_streams WHERE organization_id=(SELECT id FROM organizations WHERE slug=$1) AND sealed`, org).Scan(&plainBytes, &chunks))
 	require.Equal(t, size, plainBytes)
 	require.Equal(t, (size+filestream.ChunkBytes-1)/filestream.ChunkBytes, chunks)
-	require.NoError(t, pool.QueryRow(ctx, `SELECT pg_database_size(current_database()),pg_total_relation_size('retained_file_chunks')`).Scan(&databaseAfter, &retainedRelationBytes))
 	require.NoError(t, pool.QueryRow(ctx, `SELECT COALESCE(max(octet_length(request_ciphertext)+COALESCE(octet_length(result_ciphertext),0)),0) FROM execution_requests WHERE organization_id=(SELECT id FROM organizations WHERE slug=$1)`, org).Scan(&envelopeBytes))
 	require.LessOrEqual(t, maxChunk, int64(filestream.ChunkBytes+1024))
 	require.Less(t, envelopeBytes, int64(1<<20))
-	checkpoint, err := runs.GetCheckpoint(ctx, org, project, environment, "qualified")
+	checkpoint, err := runs.GetCheckpoint(ctx, org, project, environment, "file-transfer")
 	require.NoError(t, err)
 	checkpointJSON, err := json.Marshal(checkpoint)
 	require.NoError(t, err)
 	require.Less(t, len(checkpointJSON), 1<<20)
-	var usage syscall.Rusage
-	require.NoError(t, syscall.Getrusage(syscall.RUSAGE_SELF, &usage))
-	peakRSS := usage.Maxrss
-	if runtime.GOOS == "linux" {
-		peakRSS *= 1024
-	}
-	report := map[string]any{"revision": revision, "bytes": size, "sha256": hex.EncodeToString(destinationHash.Sum(nil)), "elapsed_seconds": elapsed.Seconds(), "heap_baseline_bytes": baseline.HeapAlloc, "heap_peak_sampled_bytes": peak.Load(), "process_peak_rss_bytes": peakRSS, "database_growth_bytes": databaseAfter - databaseBefore, "retained_relation_bytes": retainedRelationBytes, "seed_disk_bytes": size, "s3_object_logical_bytes": 2 * size, "retained_ciphertext_bytes": chunkBytes, "largest_chunk_bytes": maxChunk, "largest_broker_envelope_bytes": envelopeBytes, "checkpoint_bytes": len(checkpointJSON), "limits": limits, "components": "runner + real query/credential services + broker pollers in one Go process; PostgreSQL encrypted retained chunks/checkpoints/ledger; external SeaweedFS S3; independent SDK seed/readback; API/browser and process restart excluded"}
-	evidence, err := json.Marshal(report)
-	require.NoError(t, err)
-	t.Logf("NATIVE_FILE_EVIDENCE %s", evidence)
 	t.Run("checkpoint recovery refuses missing retained file input", func(t *testing.T) {
 		var before, after int
 		const countRequests = `SELECT count(*) FROM execution_requests WHERE organization_id=(SELECT id FROM organizations WHERE slug=$1)`
 		require.NoError(t, pool.QueryRow(ctx, countRequests, org).Scan(&before))
-		_, err := runner.Replay(ctx, pipelineruntime.ReplayRequest{OrgSlug: org, ProjectSlug: project, EnvironmentSlug: environment, SourceRunSlug: "qualified", ReplayRunSlug: "refused", FromStep: "read", PipelineVersionID: *spec.CurrentVersionID})
+		_, err := runner.Replay(ctx, pipelineruntime.ReplayRequest{OrgSlug: org, ProjectSlug: project, EnvironmentSlug: environment, SourceRunSlug: "file-transfer", ReplayRunSlug: "refused", FromStep: "read", PipelineVersionID: *spec.CurrentVersionID})
 		require.ErrorIs(t, err, pipelineruntime.ErrReplayUnsupportedMode)
 		require.Contains(t, xerror.PublicDetail(err), "Retained file bytes are unavailable")
 		require.NoError(t, pool.QueryRow(ctx, countRequests, org).Scan(&after))
@@ -258,7 +184,7 @@ func TestNativeFileQualification(t *testing.T) {
 		boundedLimits.MaxFileBytes = 16
 		boundedQueries, err := queriessvc.NewWithExecutionLimits(txm, queriesrepo.New(), sources, broker, credentials, clock.New(), boundedLimits, eventtest.NewProducer(nil))
 		require.NoError(t, err)
-		boundedRunner, err := pipelineruntime.NewRunner(qualificationQueryAdapter{boundedQueries}, clock.New(), runs, sources, pipelineruntime.NewSinkRuntime(boundedQueries, testSinkEffectLedger(t, txm)))
+		boundedRunner, err := pipelineruntime.NewRunner(fileTransferQueryAdapter{boundedQueries}, clock.New(), runs, sources, pipelineruntime.NewSinkRuntime(boundedQueries, testSinkEffectLedger(t, txm)))
 		require.NoError(t, err)
 		for _, tc := range []struct {
 			name string
@@ -314,7 +240,7 @@ func TestNativeFileQualification(t *testing.T) {
 	})
 
 	t.Run("BrokenStreamsNeverImplySuccessfulDelivery", func(t *testing.T) {
-		faultSize := min(size, int64(20<<20))
+		faultSize := size
 		var cutRead, loseCompletion, holdPart atomic.Bool
 		var sourceReads, completions, partRequests atomic.Int32
 		var holdPartNumber atomic.Int32
@@ -326,7 +252,7 @@ func TestNativeFileQualification(t *testing.T) {
 				sourceReads.Add(1)
 				if cutRead.Load() {
 					// Keep the declared full length while cutting the actual socket body.
-					response.Body = &qualificationCutBody{Reader: io.LimitReader(response.Body, min(int64(2<<20), faultSize/2)), Closer: response.Body}
+					response.Body = &cutFileResponseBody{Reader: io.LimitReader(response.Body, min(int64(2<<20), faultSize/2)), Closer: response.Body}
 				}
 			}
 			if response.Request.Method == http.MethodPost && response.Request.URL.Query().Has("uploadId") && response.StatusCode == http.StatusOK {
@@ -523,7 +449,6 @@ func TestNativeFileQualification(t *testing.T) {
 			_, err := independent.PutObject(ctx, &awss3.PutObjectInput{Bucket: aws.String("braidplane-fixtures"), Key: aws.String(sourceKey), Body: bytes.NewReader([]byte("changed-after-executor-loss"))})
 			require.NoError(t, err)
 			startNativeFileExecutor(ctx, t)
-			restartedAt := time.Now()
 			// Keep the real thirty-second claim lease: a replacement must wait,
 			// then fence the uncertain query rather than redispatch its side effect.
 			select {
@@ -577,35 +502,17 @@ func TestNativeFileQualification(t *testing.T) {
 			uploads, err = independent.ListMultipartUploads(ctx, &awss3.ListMultipartUploadsInput{Bucket: aws.String("braidplane-fixtures"), Prefix: aws.String(prefix)})
 			require.NoError(t, err)
 			require.Empty(t, uploads.Uploads)
-			evidence, err := json.Marshal(map[string]any{
-				"revision": revision, "fault_bytes": faultSize, "original_lease_expires_at": leaseExpiry,
-				"restart_ready_to_assertions_seconds": time.Since(restartedAt).Seconds(),
-				"request_state":                       "ambiguous", "sink_effect_state": "in_progress",
-				"pipeline_run_state":  timeline.Status,
-				"source_reads_before": readsBefore, "source_reads_after": sourceReads.Load(),
-				"part_requests_before": partsBefore, "part_requests_after": partRequests.Load(),
-				"incomplete_uploads_after_death": 1, "incomplete_uploads_after_cleanup": len(uploads.Uploads),
-				"uploaded_part_bytes_after_death": uploadedPartBytes,
-				"prior_destination_bytes":         n, "prior_destination_sha256": hex.EncodeToString(actualHash.Sum(nil)),
-				"components": "real broker executor SIGKILL and replacement process; original lease; source changed after kill; checkpoint replay refused; independent S3 readback and explicit multipart cleanup; API/browser and executor memory excluded",
-			})
-			require.NoError(t, err)
-			t.Logf("NATIVE_FILE_EXECUTOR_LOSS_EVIDENCE %s", evidence)
 		})
 	})
 }
 
-type qualificationCutBody struct {
+type cutFileResponseBody struct {
 	io.Reader
 	io.Closer
 }
 
-type qualificationZeroReader struct{}
+type fileTransferQueryAdapter struct{ queriessvc.Service }
 
-func (qualificationZeroReader) Read(p []byte) (int, error) { clear(p); return len(p), nil }
-
-type qualificationQueryAdapter struct{ queriessvc.Service }
-
-func (a qualificationQueryAdapter) Execute(ctx context.Context, org, ds, query slug.Slug, params map[string]any) (*result.ExecutionResult, error) {
+func (a fileTransferQueryAdapter) Execute(ctx context.Context, org, ds, query slug.Slug, params map[string]any) (*result.ExecutionResult, error) {
 	return a.Service.Execute(ctx, org, ds, query, model.SystemEventActor(), params, queriessvc.WithoutExecutionRecording())
 }

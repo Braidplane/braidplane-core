@@ -1,5 +1,3 @@
-//go:build nativefilequalification
-
 package e2e
 
 import (
@@ -25,7 +23,7 @@ import (
 
 func TestNativeFileExecutorWorker(t *testing.T) {
 	if os.Getenv("BP_NATIVE_FILE_EXECUTOR_WORKER") != "1" {
-		t.Skip("subprocess entrypoint")
+		return
 	}
 	encryption, err := crypto.NewAES256(make([]byte, 32))
 	require.NoError(t, err)

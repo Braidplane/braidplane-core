@@ -1,31 +1,28 @@
 # Native-file streaming
 
-Native file operations stream through encrypted retained storage. They use the
-ordinary query, connector, broker and provider deadlines and the existing
-per-organization/data-source concurrency queue. No organization profile or
-separate transfer-admission system is required.
+Native file operations retain encrypted bytes in PostgreSQL before sending them
+to a destination. They use the existing execution deadlines and concurrency queue.
+Set `execution_limits.max_file_bytes` to limit each file; the default is 128 MiB.
+`max_response_bytes` still limits metadata and structured responses. CSV/JSON
+parsing and SQL row results keep their existing limits.
 
-Set `execution_limits.max_file_bytes` to bound each file (default: 128 MiB).
-`max_response_bytes` still limits result metadata and structured responses.
-Streaming does not turn CSV/JSON parsing or SQL row results into streaming work.
+## Storage and cleanup
 
-## Data path
+The source uses a 64 KiB copy buffer and encrypted chunks of at most 1 MiB.
+A file becomes readable after its full length and SHA-256 digest are verified.
+The sink reads those retained bytes with backpressure. It cannot reread a changed
+source to recover missing input.
 
-The source writes through a 64 KiB copy buffer into encrypted PostgreSQL chunks
-of at most 1 MiB. A manifest becomes readable only after full length and SHA-256
-verification. The sink consumes the retained bytes with backpressure. It never
-rereads a changing source to recover missing input.
+Retained reads and writes require the organization and a live execution claim.
+File references stay inside encrypted broker messages and in-process bindings.
+Public JSON and replay checkpoints contain file metadata. Sinks reject cancelled,
+expired, incomplete or corrupt input.
 
-Every retained read/write requires the organization and a live execution claim.
-Opaque references travel inside encrypted broker messages and in-process file
-bindings; public JSON and replay checkpoints contain only safe file metadata.
-Cancelled, expired, incomplete or corrupt input cannot be used by a sink.
-
-The complete source is retained before the sink starts. Maintenance runs every
-minute and deletes expired retained files, including cancelled/ambiguous work.
-Retention lasts until 15 minutes after the request deadline. PostgreSQL reuses
-freed space; database files need not shrink. Size storage for files, indexes, WAL and backups;
-concurrency limits do not bound completed files waiting for expiry.
+Maintenance runs every minute and deletes expired retained files, including
+cancelled or ambiguous work. Files expire 15 minutes after the request deadline.
+PostgreSQL can reuse the freed space, but its database files may not shrink.
+Allow storage for completed files awaiting expiry, indexes, WAL and backups;
+active-request concurrency limits do not bound that storage.
 
 ## Supported operations
 
@@ -33,34 +30,29 @@ concurrency limits do not bound completed files waiting for expiry.
 |---|---|---|
 | S3 | `read`, `write` with `format: file` | Sequential 8 MiB multipart parts; at most 10,000 parts (78.125 GiB). Completion requires exact length/digest. Conditional no-overwrite requires provider support. |
 | FTP | `read`, `write` with `format: file` | Writes verify a temporary file before rename. Atomic no-overwrite is refused. Host loss can leave temporary files. |
-| Git, GitHub, GitLab | `read`, `write` with `format: file` | Retained streaming requires Linux. Only the selected raw blob is checked out; repository filters/line-ending conversion are disabled. LFS pointers remain pointers. |
+| Git, GitHub, GitLab | `read`, `write` with `format: file` | Retained streaming requires Linux. Only the selected raw blob is checked out; repository filters and line-ending conversion are disabled. LFS pointers remain pointers. |
 | HTTP | File responses and retained file request bodies | Existing content-type, network and idempotency rules apply. Success requires complete consumption of the current verified request body. |
 | Google Workspace | Drive file read/create/update; Docs/Slides PDF export | Existing selected-file/folder authorization applies. Upload success requires matching target/length and full input consumption. |
 
-Git helpers inherit a 512 MiB process address-space cap, a 16 MiB allocation
-cap and a per-file write cap of twice the file allowance plus 64 MiB. These
-are per-process/file bounds, not aggregate memory or scratch quotas. Unsupported
-workers refuse retained Git operations before opening input.
+Git helpers inherit a 512 MiB process address-space cap, a 16 MiB allocation cap
+and a per-file write cap of twice the file allowance plus 64 MiB. These limits
+apply per process or file; they do not cap aggregate memory or scratch space.
+Unsupported workers refuse retained Git operations before opening input.
+Provider limits and shorter saved-query or caller deadlines also apply.
 
-Provider limits and shorter saved-query/caller deadlines still apply. Streaming
-uses one file-size allowance; it does not raise HTTP metadata, parsing or
-structured-result limits. Finite byte producers, including future SQL serializers,
-can reuse the same retained-store and destination interfaces.
+## Failed writes and upgrades
 
-## Failures and installation
+Consuming the source does not prove delivery. Partial or uncertain writes fail
+and cannot authorize automatic replay. S3 aborts multipart uploads on ordinary
+failure or cancellation. FTP attempts cleanup through a fresh connection.
+Lost completion, rename or push responses require independent destination
+inspection. Host loss requires provider cleanup procedures or lifecycle rules.
 
-A consumed source does not prove destination delivery. Providers verify input
-before publication; partial or uncertain writes never become success or authorize
-blind replay. S3 aborts multipart state on ordinary failure/cancellation. FTP uses
-bounded cleanup through a fresh connection. Lost completion/rename/push responses
-require independent destination inspection. Host loss additionally requires
-provider cleanup procedures or lifecycle rules.
+Use matching binaries, Core migration 3 and refreshed runtime/executor grants.
+The installer backs up the previous database and configuration before migration
+and applies grants from the candidate tools bundle. Upgrade both sides of the
+encrypted broker contract together.
 
-Matching binaries, Core migration 3 and refreshed runtime/executor grants are
-required. The installer backs up the previous database/configuration before
-migration and applies grants from the matching candidate tools bundle. Never
-roll only one side of the encrypted broker contract.
-
-[Qualification evidence](qualification/native-file/README.md) records exact
-revisions, tests, measurements and exclusions. Local results do not establish
-hosted provider capacity or authorize deployment.
+A local S3-to-S3 process test transferred 1 GiB plus 17 bytes and verified the
+checksum independently. That test showed the path can handle larger files;
+capacity planning is still required before raising the 128 MiB default.

@@ -189,12 +189,11 @@ With a positive native-file allowance, an oversized existing blob fails before
 checkout. Git metadata, directory and symbolic-link targets are refused.
 Git LFS pointer files are transferred as pointers; LFS object download is not
 part of this operation. Structured formats retain repository attribute behavior.
-The [native-file boundary](../NATIVE_FILE_STREAMING.md) documents retained
-streaming, Git resource settings and qualification scope.
-Retained streaming requires Linux workers with finite
-transfer deadlines and process resource limits. macOS workers refuse that path;
-ordinary small-file operations keep their existing response limits. Large delta objects or
-repository metadata can be refused by the Git process/allocation limits.
+See [native-file streaming](../NATIVE_FILE_STREAMING.md) for storage and resource
+limits. Retained streaming requires Linux workers with finite transfer deadlines
+and process resource limits. macOS workers refuse that path. Ordinary small-file
+operations keep their existing response limits. Large delta objects or repository
+metadata can exceed the Git process or allocation limits.
 
 When the Git, GitHub, or GitLab data source has `read_only: true`, Braidplane allows direct and pipeline `read` operations but blocks direct saved-query writes, direct inline writes, incremental direct writes, and pipeline sink writes before connector dispatch. Unknown Git file operations fail closed for read-only data sources.
 

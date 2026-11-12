@@ -7,7 +7,6 @@ import secrets
 import shutil
 import subprocess
 import tempfile
-import time
 import unittest
 import uuid
 from unittest.mock import patch
@@ -128,7 +127,6 @@ class ImageUpgradeTest(unittest.TestCase):
                                   '-At', '-c', "SELECT version FROM core_schema_migrations; SELECT to_regprocedure('public.begin_retained_file(uuid,uuid,text,bigint,timestamptz)') IS NULL;").splitlines()
         if old_prefix != new_prefix:
             self.assertEqual(previous_schema, ['2', 't'])
-        started = time.monotonic()
         backup = root / 'before-upgrade'
         if fail_grants:
             with patch('scripts.installation.upgrade.BUNDLE', bundle):
@@ -165,17 +163,12 @@ class ImageUpgradeTest(unittest.TestCase):
                 version = compose('exec', '-T', 'database', 'psql', '-U', 'braidplane_operator', '-d', 'braidplane',
                                   '-At', '-c', 'SELECT version FROM core_schema_migrations')
                 self.assertEqual(version, '3', 'recovery must not roll back the failed source database')
-            print(json.dumps({'scenario': 'failed-grants-after-migration', 'old_revision': old_revision,
-                              'new_revision': new_revision, 'restored_schema': restored[1],
-                              'original_stopped': True, 'recovery_hold': True,
-                              'elapsed_seconds': round(time.monotonic() - started, 3)}, sort_keys=True))
             return
         with patch('scripts.installation.upgrade.BUNDLE', bundle):
             try:
                 operate(installation, 'upgrade', release=second, backup_directory=backup)
             except ValueError as error:
                 self.fail(failure_output(error))
-        upgrade_seconds = round(time.monotonic() - started, 3)
         self.assertEqual(api_image(), new_image)
         self.assertEqual(state(), 'recovery-owner')
         self.assertEqual((installation / 'runtime.env').read_bytes(), keys)
@@ -187,8 +180,3 @@ class ImageUpgradeTest(unittest.TestCase):
             capability = compose('exec', '-T', 'database', 'psql', '-U', 'braidplane_operator', '-d', 'braidplane',
                                  '-At', '-c', "SELECT has_function_privilege('braidplane_executor', 'public.begin_retained_file(uuid,uuid,text,bigint,timestamptz)', 'EXECUTE')")
             self.assertEqual(capability, 't')
-        print('PASS: live Core API-only upgrade switched image IDs with retained administrator and keys')
-        scope = 'schema-changing local fixture' if old_prefix != new_prefix else 'same-code/catalog local fixture'
-        print(json.dumps({'old_backend': old_image, 'new_backend': new_image,
-                          'old_revision': old_revision, 'new_revision': new_revision,
-                          'upgrade_seconds': upgrade_seconds, 'scope': scope}, sort_keys=True))
