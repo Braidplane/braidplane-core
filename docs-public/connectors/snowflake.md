@@ -116,8 +116,8 @@ and return the configured field, including handling an empty first checkpoint.
   A workload-identity error may require coordinated deployment setup.
 - Execution failure: check warehouse availability, role privileges, identifier
   casing, table existence, and upstream column types.
-- Operations are bounded by execution time, rows, and payload size. A successful
-  connection test does not prove an INSERT will succeed.
+- Execution time, row and payload limits apply to each operation. INSERT sinks
+  require write privileges on the selected table.
 
 See [operation and pipeline basics](connect-a-system.md#use-the-examples) for
 where to use these statements, parameters, environment bindings, and replay

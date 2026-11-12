@@ -23,7 +23,7 @@ partially consumed query results remain follow-up work.
 
 Append-style `insert_rows` uses BigQuery streaming inserts and requires billing
 to be enabled for the Google Cloud project. A successful connection test verifies
-dataset access; it does not establish permission or billing readiness for writes.
+dataset access. Configure write permissions and billing before appending rows.
 [BigQuery sandbox](https://docs.cloud.google.com/bigquery/docs/sandbox) does not
 support streaming data. Braidplane exposes a billing remediation message when
 Google returns that restriction.
@@ -99,9 +99,8 @@ Workload identity federation is not implemented.
 Proof resolves only the admitted credential version and never refreshes within
 an observation. Refresh or reconnect changes that version, so old evidence cannot
 be reused for the new credential; immutable observation history is retained.
-BigQuery Proof reads table metadata only and does not prove append permission or
-write success. No query job, row read, insert, or pipeline execution is part of
-that acceptance check.
+BigQuery Proof reads table metadata. Check append permissions in the provider
+and inspect the destination after executing a write.
 
 ## Operation modes and least privilege
 
@@ -385,7 +384,7 @@ text is never used as an error detail.
 
 - Google OAuth requires deployment-owned application configuration and provider consent.
   Domain-wide delegation and workload identity federation are not implemented.
-- Hosted OAuth Proof requires separate acceptance; local provider tests do not establish deployed acceptance.
+- Check OAuth Proof availability and policy with your deployment operator.
 - Query result pagination is provider-internal only. Public continuation tokens
   and resumable partial query reads remain future work.
 - Nested `RECORD` schema flattening is not implemented.
@@ -395,7 +394,7 @@ text is never used as an error detail.
   by the fake provider boundary.
 - Live BigQuery tests are not automated in local or CI validation.
 
-See [connector support levels](../../docs-public/connectors/support-levels.md) for shipped connector scope, limitations and acceptance boundaries.
+See [connector support levels](../../docs-public/connectors/support-levels.md) for available operations, connector status and provider requirements.
 
 ## Decimal metadata and pipeline conversion
 

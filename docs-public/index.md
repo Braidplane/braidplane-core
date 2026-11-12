@@ -1,8 +1,8 @@
 # Braidplane documentation
 
-Braidplane connects systems through pipelines: what to read, how to transform
-it, and where to write the result. You can review each definition, deploy a
-version, and see what happened in every run.
+Braidplane is a declarative, contract-based data integration platform. Define
+ETL pipelines in Git, connect databases, APIs and file stores, and inspect each
+run's version and results.
 
 ## Explore the platform
 
@@ -21,13 +21,12 @@ When you are ready to connect a system, follow
 [Connect a system](connectors/connect-a-system.md).
 
 Choose a complete synthetic workflow from [Pipeline examples](examples/index.md).
-The collection links canonical specs, fixtures, bindings, expected results and
-separate validation/execution evidence. Check its CLI compatibility status first.
+Each recipe includes a pipeline definition, sample data, connection bindings,
+expected results and setup commands.
 
 ## Common workflow patterns
 
-These are starting points for planning a workflow. They describe supported
-connector and pipeline shapes; choose systems and data appropriate for your evaluation.
+Use these patterns to plan how data moves between your systems.
 
 - **Database orders → mapped HubSpot properties:** read order or customer
   records from a database such as [MongoDB](connectors/mongodb.md), normalize
@@ -49,25 +48,13 @@ connector and pipeline shapes; choose systems and data appropriate for your eval
   contract row-shaped, and write CSV to a dedicated S3 key. The [S3 guide](connectors/s3.md)
   documents structured row output and the explicit write format.
 
-Each pattern still needs its own provider connection, permissions, bindings,
-deployment, and destination check. The [pipeline specification reference](getting-started/pipeline-specifications.md)
-explains those shared steps.
+The [pipeline specification reference](getting-started/pipeline-specifications.md)
+explains how to define steps, bind connections and deploy a pipeline.
 
 See the [Core issue tracker](https://github.com/Braidplane/braidplane-core/issues)
-for planned work and proposals. Open issues are not delivery commitments.
+for planned work and proposals.
 
 The [API reference](api/index.md) describes the API available in this environment.
-
-## Before you connect anything
-
-Use appropriate provider permissions, keep your source data and verify outputs.
-
-Read the [pipeline specification reference](getting-started/pipeline-specifications.md)
-before writing your own pipeline. The
-[PostgreSQL-to-S3 example](getting-started/first-pipeline.md) is a separate,
-complete walkthrough.
-
-Community has no hosted-plan or trial restrictions.
 
 ## Help and contributions
 

@@ -219,8 +219,8 @@ establish network isolation. The release workflow remains disabled and needs
 separate qualification and authorization. Release jobs must verify reviewed
 source and artifacts without restoring Community caches.
 
-Local checks, hosted CI, public-fork acceptance and artifact publication have
-separate receipts. Builds and local startup do not qualify a distribution.
+For release procedures and runner isolation requirements, see
+[CI trust boundary](doc/CI_TRUST_BOUNDARY.md).
 
 ## Documentation
 
@@ -236,5 +236,5 @@ builds `mkdocs.public.yml` with `--strict` into `out/docs`. It uses reserved
 staging URLs and runs directly from this checkout.
 See [documentation policy](doc/DOCUMENTATION.md) for navigation and exclusions.
 
-For customer-owned secrets, network paths and remaining self-hosted qualification,
+For customer-owned secrets and self-hosted network configuration,
 see [custody and network boundaries](doc/SELF_HOSTED_CUSTODY.md).

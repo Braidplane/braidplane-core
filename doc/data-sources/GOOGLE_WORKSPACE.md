@@ -2,9 +2,8 @@
 
 Google Workspace uses normal connector dispatch without a deployment-wide
 rollout flag. Configure its deployment-owned OAuth client and Picker settings
-for onboarding. Historical synthetic selected-file provider acceptance and
-cleanup do not establish acceptance for the current deployment. Public Google
-OAuth publication and applicable verification require separate approval. Removing the rollout flag does not establish public Google approval.
+for onboarding. Complete Google's OAuth publication and verification process
+for your deployment's provider app.
 
 ## Connection and consent
 

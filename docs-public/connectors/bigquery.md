@@ -49,7 +49,7 @@ Keep those credentials out of operation statements and source control.
 
 The connection test reads metadata for the selected dataset. Refresh discovers
 its tables and fields, naming tables as `dataset.table`. A successful metadata
-read does not establish write permission. Use the correct dataset location for
+read uses metadata permissions; appends need write permissions. Use the correct dataset location for
 both discovery and query jobs.
 
 ## Read example
@@ -90,7 +90,7 @@ without an appropriate replay policy can duplicate rows.
 | `type` | `bigquery` |
 | `operation` | `query` or `insert_rows`; set it explicitly |
 | `sql` | GoogleSQL for `query` |
-| `timeout_seconds` | Optional narrower timeout, 1–300 seconds |
+| `timeout_seconds` | Optional narrower timeout, 1 to 300 seconds |
 | `maximum_bytes_billed` | Optional narrower provider bytes-processed cost cap |
 | `dataset` | Write dataset, or the configured default dataset |
 | `table` | Existing write target table |

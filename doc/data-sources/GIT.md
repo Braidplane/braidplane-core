@@ -19,9 +19,9 @@ native Braidplane onboarding flow.
 
 | Field | Required | Type | Default | Notes |
 |---|:---:|---|---|---|
-| `repo_url` | yes | string | — | Git repository URL over HTTPS or SSH; plain HTTP is unsupported |
-| `default_branch` | no | string | — | Branch used when operation-level branch is omitted |
-| `base_path` | no | string | — | Base directory for listing files and resolving relative query paths |
+| `repo_url` | yes | string | None | Git repository URL over HTTPS or SSH; plain HTTP is unsupported |
+| `default_branch` | no | string | None | Branch used when operation-level branch is omitted |
+| `base_path` | no | string | None | Base directory for listing files and resolving relative query paths |
 | `allow_private_hosts` | no | boolean | `false` | Requires private host access to be enabled for the deployment; hosted/default deployments reject `true` |
 
 ### Generic Git credentials
@@ -135,9 +135,9 @@ A managed GitHub pipeline backend requires the App installation's `Contents:
 read/write` grant for the selected repository, including when importing an
 existing repository. Validation uses the permissions of its freshly minted
 installation token and checks the selected branch without writing to it.
-A connection test can pass with a read-only grant; that does not establish
-backend write access. Repository selection and branch rules still constrain
-subsequent writes. Metadata-only Proof can use a read-only Contents grant.
+A connection test can pass with a read-only grant. Pipeline backend writes
+require read/write access and must follow repository selection and branch rules.
+Metadata-only Proof can use a read-only Contents grant.
 
 The created repository contains only a template-version marker and a README in
 the selected pipeline directory. Connector credentials, environment bindings,
@@ -223,11 +223,11 @@ Spreadsheet behavior:
 Pipeline sinks supply write payload content through the reserved runtime `input` binding. Direct write queries may still provide inline `content`, but runtime sink bindings override inline content when present.
 
 Execution returns:
-- `column_names` — derived from CSV/spreadsheet headers or JSON object keys
-- `rows` — array of objects (field name -> value)
-- `row_count` — number of rows read
+- `column_names`: derived from CSV/spreadsheet headers or JSON object keys
+- `rows`: array of objects (field name -> value)
+- `row_count`: number of rows read
 - `written_rows` and `written_bytes` for writes when the connector can report them
-- `file` — safe metadata for native file reads/writes; raw bytes are omitted from API responses and persisted run diagnostics
+- `file`: safe metadata for native file reads/writes; raw bytes are omitted from API responses and persisted run diagnostics
 
 ## Pipeline relevance
 
@@ -261,4 +261,4 @@ Slash and backslash separators follow the same validation rules.
 - Introspection recursively lists regular files under the configured base path;
   opaque files remain without fields, and failed samples include warnings.
 
-See [connector support levels](../../docs-public/connectors/support-levels.md) for shipped connector scope, limitations and acceptance boundaries.
+See [connector support levels](../../docs-public/connectors/support-levels.md) for available operations, connector status and provider requirements.

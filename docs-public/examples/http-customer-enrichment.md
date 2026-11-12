@@ -6,14 +6,14 @@ Use this when a lookup should enrich records without dropping unmatched source r
 
 ## Set up and execute
 
-Open the [canonical recipe](https://github.com/Braidplane/examples/blob/main/recipes/http-customer-enrichment/README.md) for provider prerequisites and copyable commands. It links the full spec, operations, logical binding template, synthetic fixtures and expected output. Follow its shared guide to validate the selected environment, deploy the exact version, start an explicit run and inspect that run's own step timeline.
+Open the [recipe](https://github.com/Braidplane/examples/blob/main/recipes/http-customer-enrichment/README.md) for setup commands, the pipeline definition, connection bindings and sample data. Validate your environment, deploy the pipeline and inspect the run's step timeline.
 
 Connector setup: [HTTP](../connectors/http.md), [PostgreSQL](../connectors/postgresql.md) and [S3](../connectors/s3.md). Keep connection credentials outside Git and use only the isolated resources you created for this exercise.
 
-## Qualification and limits
+## Check the result
 
-The comparison checked both exported rows independently in S3-compatible storage. A deliberately invalid amount failed at the enrich-orders transform boundary with transform_contract_mismatch; the sink did not start. This does not prove source-boundary contract enforcement.
+Compare both exported rows in S3 with the expected output. The recipe also includes an invalid amount that produces transform_contract_mismatch at the enrich-orders transform, before the sink starts.
 
 The object write overwrites its explicit key. Inspect the destination after an unknown write outcome before starting another run.
 
-The canonical recipe includes independent destination checks and cleanup commands. Run them for your own resources; the checked-in receipt describes the dated qualification run, not your new execution. See [all examples and compatibility requirements](index.md).
+Use the recipe's destination checks to compare your output, then follow its cleanup commands. See [all examples and compatibility requirements](index.md).

@@ -168,7 +168,7 @@ braidplane query execute golden-path-customers --data-source "$TUTORIAL_CUSTOMER
 
 With the supplied sample data, expect successful SQL results with
 `payload.row_count` of **3** and **4**
-respectively. A successful connection test alone does not prove this data exists.
+respectively. Compare these counts with the sample data you loaded.
 Do not execute the saved S3 write operation directly: its input comes from the
 pipeline transform.
 
@@ -231,10 +231,9 @@ Open **Resolve selected version bindings** to see missing or invalid references
 for that environment before the full expert matrix. Binding controls edit current
 configuration explicitly; protected targets still require confirmation. Choose
 **Return to selected pipeline** to review the same full version hash and environment
-before retrying deployment. A bound reference does not prove runtime health, and
-validation for another version is stale. Sync and deployment have separate results;
-neither action starts a run. Existing pipeline details also
-provide a targeted **Sync from Git** action.
+before retrying deployment. Validate that selected version and start a run after
+deployment to check its behavior. Existing pipeline details also provide a
+targeted **Sync from Git** action.
 
 ## 3. Apply, bind, validate, and deploy
 

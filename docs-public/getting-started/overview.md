@@ -40,9 +40,8 @@ specifies how to combine or reshape compatible inputs. A sink operation
 specifies the write to perform. For example, an SQL transform can join
 row-shaped order and customer inputs by customer ID.
 
-The definition includes the data shapes expected between steps. A connector
-being available does not mean every output format can enter every transform;
-file bytes, JSON documents, and rows have different capabilities.
+Data contracts define the shapes expected between steps. Choose operations
+that produce the input your next step needs: file bytes, JSON documents or rows.
 
 Pipeline definitions are versioned through Git. Credentials belong to the
 configured connections, outside the pipeline definition.
@@ -60,9 +59,8 @@ connections differ.
 
 ## 4. Validate and deploy a version
 
-**Validation** checks the pipeline structure, bindings, and available cached
-metadata. It does not move data, refresh live schemas, or prove that a remote
-system will accept a write.
+Validation checks the pipeline structure, bindings and cached metadata before
+execution. Refresh schemas separately when a connected system changes.
 
 A **deployment** selects an immutable pipeline version for a project
 environment. This makes the version and connection bindings explicit before
@@ -75,9 +73,8 @@ failure diagnostics to understand what completed and where execution stopped.
 If a step fails, inspect its diagnostics before deciding whether to retry;
 write and replay behavior depends on the connector and operation.
 
-For our example, a successful run means the configured reads, join, and write
-completed. Confirming that the destination contains the intended records is a
-separate check against that system.
+For our example, inspect the reads, join and write in the run timeline, then
+compare the destination records with the expected result.
 
 ## Where to go next
 
@@ -89,7 +86,5 @@ separate check against that system.
 - [Connect a system](../connectors/connect-a-system.md): learn the shared setup flow.
 - [API reference](../api/index.md): explore the API contract.
 
-An optional [PostgreSQL-to-S3 walkthrough](first-pipeline.md) illustrates a full
-execution with reader-owned infrastructure and an available CLI. It is a
-worked example for teams with those prerequisites, rather than a prerequisite
-for learning Braidplane.
+The [PostgreSQL-to-S3 walkthrough](first-pipeline.md) includes sample data and a
+complete pipeline for teams with a database, bucket and Git repository.

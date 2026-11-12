@@ -20,11 +20,11 @@ for the canonical cross-connector contract.
 
 | Field | Required | Type | Default | Notes |
 |---|:---:|---|---|---|
-| `host` | yes | string | — | Hostname or IP of the MongoDB server |
-| `port` | yes | integer | 27017 | 1–65535 |
-| `database` | yes | string | — | Database name |
+| `host` | yes | string | None | Hostname or IP of the MongoDB server |
+| `port` | yes | integer | 27017 | 1 to 65535 |
+| `database` | yes | string | None | Database name |
 | `auth_database` | no | string | `admin` | Authentication database |
-| `connect_timeout` | no | integer | 5 | Connection timeout in seconds (1–300) |
+| `connect_timeout` | no | integer | 5 | Connection timeout in seconds (1 to 300) |
 | `allow_private_hosts` | no | boolean | `false` | Requires private host access to be enabled for the deployment; hosted/default deployments reject `true` |
 
 ## Private host access
@@ -56,9 +56,9 @@ Sampling is best-effort: collections or documents that cannot be read are skippe
 Queries can be expressed as MongoDB aggregation pipelines or find operations. Parameters use `{{param_name}}` template syntax. Exact whole-field placeholders resolve before statement unmarshaling, so saved operations can bind native objects or arrays directly into fields such as `documents`, `document`, `filter`, `update`, or `pipeline` instead of relying on raw JSON string injection. Structured fields in those positions must resolve to non-null object or array values; `null` is rejected before execution.
 
 Execution returns:
-- `column_names` — keys from the top-level fields of returned documents
-- `rows` — array of document objects (field name → value)
-- `row_count` — number of documents returned
+- `column_names`: keys from the top-level fields of returned documents
+- `rows`: array of document objects (field name → value)
+- `row_count`: number of documents returned
 
 Nested documents and arrays are returned as-is in the row values.
 
@@ -91,4 +91,4 @@ query should intentionally overlap reads for late-arriving documents.
   latency against the execution timeout. See [runtime safety limits](../DATA_SOURCES.md#runtime-safety-limits)
   for encoding differences and driver-buffer limits.
 
-See [connector support levels](../../docs-public/connectors/support-levels.md) for shipped connector scope, limitations and acceptance boundaries.
+See [connector support levels](../../docs-public/connectors/support-levels.md) for available operations, connector status and provider requirements.

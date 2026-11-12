@@ -28,32 +28,26 @@ row counts. Click the image for a full-size view.*
 
 ## What you can do
 
-- **Connect your systems.** Configure connections to PostgreSQL, MySQL, MongoDB,
-  HTTP, HubSpot, S3 and other supported systems.
-- **Review pipeline changes in Git.** Keep definitions versioned, with credentials
-  stored separately in configured connections.
-- **Use different connections per environment.** Bind a definition's logical
+- Connect PostgreSQL, MySQL, MongoDB, HTTP APIs, HubSpot, S3 and other
+  available systems.
+- Review pipeline changes in Git, with credentials stored separately in
+  configured connections.
+- Use different connections per environment. Bind a definition's logical
   connection names to a project's saved data sources.
-- **Validate, deploy and inspect.** Check the definition, deploy an immutable
-  version, then inspect run status, step timelines and failure diagnostics.
-- **Assess changes with Proof.** Inspect claims and evidence for an exact Git
+- Validate the definition, deploy an immutable version, then inspect run status,
+  step timelines and failure diagnostics.
+- Assess changes with Proof. Inspect claims and evidence for an exact Git
   change and target before deciding whether to apply it.
 
-Braidplane and its connectors are **Alpha**. Use synthetic test data; connector
-operations and limits vary. See the [connector guide](docs-public/connectors/index.md)
-for capabilities and support levels.
+See the [connector guide](docs-public/connectors/index.md) for available operations,
+connection settings and examples.
 
 ## Community edition
 
-This repository contains the Community backend, frontend, CLI, API schema and
-core migrations.
-Read [how Braidplane works](docs-public/getting-started/overview.md) for a tour,
-or explore [pipeline examples](docs-public/examples/index.md).
-
-Community includes Proof and the existing authentication, authorization and
-diagnostics. It has no pipeline-count, usage or trial restrictions.
-Technical resource safeguards still apply; operators configure them through
-[CONFIG.md](CONFIG.md).
+Community includes the backend, web interface, CLI, API schema, core migrations,
+Proof, authentication, authorization and run diagnostics. There are no
+pipeline-count, usage or trial restrictions. Configure runtime resource limits
+through [CONFIG.md](CONFIG.md).
 
 ## Run locally
 
@@ -76,14 +70,9 @@ the original keys. See [local setup](COMMUNITY_BUILD.md#run-locally) for ports,
 stopping containers and running multiple instances. To grant administrator
 access, follow [instance administrators](doc/INSTANCE_ADMIN.md).
 
-This is a developer setup, not a qualified production installation. No supported
-release/platform matrix is declared yet. Follow [support and maintenance](SUPPORT.md)
-for current limits and [Alpha compatibility](docs-public/api/alpha.md) before upgrades.
-
-For a complete synthetic workflow, follow [PostgreSQL to S3](docs-public/getting-started/first-pipeline.md).
-It lists the separate database, bucket and Git prerequisites, downloadable inputs,
-expected results and cleanup. Runtime qualification of the selected distribution
-remains required; local startup alone does not prove that workflow.
+Build your first pipeline with the [PostgreSQL to S3 walkthrough](docs-public/getting-started/first-pipeline.md).
+It includes sample data, a pipeline definition, expected results and cleanup
+commands. You will need a database, an S3 bucket and a Git repository.
 
 ## Common questions
 
@@ -119,5 +108,5 @@ cover runtime settings and code ownership.
 
 First-party code and technical documentation use [Apache-2.0](LICENSE).
 Third-party files retain their own licenses; see [NOTICE](NOTICE).
-The [release rights inventory](doc/RELEASE_RIGHTS.md) describes the covered
-material, notice delivery and remaining distribution checks.
+See the [release rights inventory](doc/RELEASE_RIGHTS.md) for third-party components
+and notice requirements.

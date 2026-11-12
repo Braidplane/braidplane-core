@@ -20,11 +20,11 @@ for the canonical cross-connector contract.
 
 | Field | Required | Type | Default | Notes |
 |---|:---:|---|---|---|
-| `base_url` | yes | string (URI) | — | Base URL of the HTTP service; must be `http` or `https` |
+| `base_url` | yes | string (URI) | None | Base URL of the HTTP service; must be `http` or `https` |
 | `health_path` | no | string | `/` | Relative path used for the connection test (GET request) |
-| `timeout_seconds` | no | integer | 5 | Request timeout in seconds (1–300) |
-| `openapi_url` | no | string (URI) | — | OpenAPI document URL used for schema import and query draft authoring |
-| `openapi_fetch_timeout_seconds` | no | integer | 10 | OpenAPI document fetch timeout in seconds (1–60) |
+| `timeout_seconds` | no | integer | 5 | Request timeout in seconds (1 to 300) |
+| `openapi_url` | no | string (URI) | None | OpenAPI document URL used for schema import and query draft authoring |
+| `openapi_fetch_timeout_seconds` | no | integer | 10 | OpenAPI document fetch timeout in seconds (1 to 60) |
 | `allow_private_hosts` | no | boolean | `false` | Requires private host access to be enabled for the deployment; hosted/default deployments reject `true` |
 
 ## Credentials
@@ -32,7 +32,7 @@ for the canonical cross-connector contract.
 | Field | Required | Notes |
 |---|:---:|---|
 | `oauth` | no | Write-only customer OAuth app; mutually exclusive with API key, bearer and basic auth |
-| `secret_headers` | no | Map of 1–8 named secret headers; names up to 128 bytes, values up to 4096 bytes each; encrypted and write-only |
+| `secret_headers` | no | Map of 1 to 8 named secret headers; names up to 128 bytes, values up to 4096 bytes each; encrypted and write-only |
 | `api_key` | no | Write-only API key; requires `api_key_header` |
 | `api_key_header` | no | `X-Api-Key` sends the key directly; `Authorization` sends `ApiKey <key>` |
 | `bearer_token` | no | Added as `Authorization: Bearer <token>` header |
@@ -211,7 +211,7 @@ API and CLI operation JSON use the same contract shown above. All checks apply
 to each response, including every page of a paginated GET. Existing operations without this object retain their
 status-and-body behavior; HTTP sinks still require a 2xx status.
 
-`status_codes` requires 1–16 distinct 2xx codes. `success` requires 1–8 checks.
+`status_codes` requires 1 to 16 distinct 2xx codes. `success` requires 1 to 8 checks.
 Each path traverses JSON objects only, with at most 16 dot-separated segments
 and 256 bytes; arrays, wildcards and templates are unsupported. `equals` is a
 non-null string, boolean or number. Types must match. Numbers require the same
@@ -274,8 +274,8 @@ page bodies share one byte budget: the lower of the HTTP response limit and the
 execution response limit. The combined envelope must also fit that budget.
 Retry responses remain bounded per attempt by the request runtime.
 
-`max_pages` is required (1–1000); reaching it with another cursor fails.
-`timeout_seconds` is required (1–300) and bounds the whole drain, response reads,
+`max_pages` is required (1 to 1000); reaching it with another cursor fails.
+`timeout_seconds` is required (1 to 300) and bounds the whole drain, response reads,
 retries, and backoff. Earlier execution deadlines win. Cancellation stops the
 drain, including response selection and aggregation. The existing retry policy
 applies to each GET: one attempt by default;
@@ -318,7 +318,7 @@ Use the same GET-only `pagination` object with page-number fields instead of
 ```
 
 Traversal starts at page 1 and increments by 1. The connector owns both traversal
-query parameters, overriding authored values. `page_size` is required (1–10000).
+query parameters, overriding authored values. `page_size` is required (1 to 10000).
 `total_pages_path` must select a nonnegative integer on every response; it is the
 explicit termination signal. Zero is accepted only for an empty first page.
 `page_number_path` must select an integer equal to the requested page. A repeated,
@@ -419,8 +419,7 @@ universal no-loss behavior. Timestamp observation uses only a completed drain,
 independently of cursor, numbered or next-link traversal.
 
 See the [local synthetic recipe](../examples/http-timestamp-watermark/README.md)
-for repeatable ingestion into an idempotent target. Local fixture acceptance does
-not establish hosted or real-provider acceptance.
+for repeatable ingestion into an idempotent target using local synthetic data.
 
 ## Pipeline relevance
 
@@ -528,7 +527,7 @@ retain the same destination, method, headers and encoded payload bytes. Transien
 transport errors, `429` and `5xx` share the read attempt/backoff machinery.
 Application/key conflicts and acknowledgement rejection are not retried.
 
-`retention_seconds` is the verified minimum provider retention (1–604800 seconds),
+`retention_seconds` is the verified minimum provider retention (1 to 604800 seconds),
 measured from the original durable claim, including on operator recovery. An
 expired claim refuses dispatch. Retention caps the operation deadline; recovery
 cannot refresh it. The pipeline recovery contract preserves input, immutable
@@ -540,7 +539,8 @@ Unconfirmed delivery leaves the ledger in progress and blocks dependent source
 checkpoints; only confirmed success marks it succeeded. Unsafe or ledger-only
 unknown effects remain blocked by the existing recovery policy. No status polling
 or provider reconciliation is added. An exhausted retry budget never proves the
-provider write failed. Local fixtures do not establish a real provider guarantee.
+provider write failed. Check the destination and your provider's idempotency
+contract before repeating an uncertain write.
 
 API and CLI statements use these same fields. Query create/edit forms expose
 pagination and write policy JSON under **Pagination and write retries**. Generic
@@ -554,4 +554,4 @@ inline HTTP sink support.
 - Explicit GET cursor, page-number and JSON next-link pagination are supported. Link-header parsing, short-page-only termination and asynchronous job polling are not supported.
 - Spreadsheet-specific parsing and workbook export remain future work. Use FTP or Git spreadsheet mode when the workflow needs sheet and range semantics.
 
-See [connector support levels](../../docs-public/connectors/support-levels.md) for shipped connector scope, limitations and acceptance boundaries.
+See [connector support levels](../../docs-public/connectors/support-levels.md) for available operations, connector status and provider requirements.
