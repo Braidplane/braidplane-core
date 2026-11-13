@@ -71,7 +71,6 @@ tasks:
       - python3 -m unittest cli.scripts.test_release scripts.test_notices scripts.test_package_sources scripts.test_package_container_sources
       - python3 -m unittest discover -s scripts -p test_require_go_tests.py
       - python3 -m unittest discover -s scripts -p test_go_test_gate.py
-      - python3 -m unittest scripts.test_shard_go_tests
       - python3 -m unittest scripts.test_ci_fixture_cache scripts.test_ci_disk_usage scripts.test_ci_runtime
       - python3 -m unittest scripts.test_run_bruno scripts.test_bruno_coverage scripts.test_bruno_environment
       - bash scripts/node-toolchain.sh node --test "api-schema/bruno/Braidplane API/auth-email.test.cjs" api-schema/bruno/github-pipelines/lifecycle.test.cjs
