@@ -79,27 +79,38 @@ class VerifyAttestationTest(unittest.TestCase):
         statement["predicateType"] = PROVENANCE
         url = "https://github.com/Example/core/.github/workflows/release.yml"
         statement["predicate"] = {
-            "buildDefinition": {"buildType": url + "@v1",
-                                "externalParameters": {"repository": REPOSITORY, "commit": "b" * 40,
-                                                       "version": "v1.0.0", "platform": "linux/amd64"},
+            "buildDefinition": {"buildType": "https://actions.github.io/buildtypes/workflow/v1",
+                                "externalParameters": {"workflow": {"repository": "https://github.com/" + REPOSITORY,
+                                                                     "path": ".github/workflows/release.yml", "ref": "refs/heads/main"}},
+                                "internalParameters": {"github": {"event_name": "workflow_dispatch", "repository_id": "456",
+                                                                  "repository_owner_id": "789", "runner_environment": "github-hosted"},
+                                                       "release": {"version": "v1.0.0", "platform": "linux/amd64"}},
                                 "resolvedDependencies": [{"uri": "git+https://github.com/Example/core@refs/heads/main",
                                                           "digest": {"gitCommit": "b" * 40}}]},
-            "runDetails": {"builder": {"id": url + "@" + "c" * 40},
+            "runDetails": {"builder": {"id": url + "@refs/heads/main"},
                            "metadata": {"invocationId": "https://github.com/Example/core/actions/runs/123/attempts/1"}}}
         with patch("scripts.verify_core_attestation.subprocess.check_output", return_value=json.dumps(value).encode()):
             verify(*ARGS[:8], PROVENANCE, *ARGS[9:])
-        for field, bad in (("commit", "d" * 40), ("version", "v2.0.0"), ("platform", "linux/arm64")):
+        for field, bad in (("version", "v2.0.0"), ("platform", "linux/arm64")):
             changed = copy.deepcopy(value)
-            changed[0]["verificationResult"]["statement"]["predicate"]["buildDefinition"]["externalParameters"][field] = bad
+            changed[0]["verificationResult"]["statement"]["predicate"]["buildDefinition"]["internalParameters"]["release"][field] = bad
             with self.subTest(field=field), patch("scripts.verify_core_attestation.subprocess.check_output", return_value=json.dumps(changed).encode()):
                 with self.assertRaises(ValueError):
                     verify(*ARGS[:8], PROVENANCE, *ARGS[9:])
         for path in (("buildDefinition", "buildType"), ("buildDefinition", "resolvedDependencies"),
+                     ("buildDefinition", "externalParameters"), ("buildDefinition", "internalParameters"),
                      ("runDetails", "builder"), ("runDetails", "metadata")):
             changed = copy.deepcopy(value)
             claim = changed[0]["verificationResult"]["statement"]["predicate"]
             claim[path[0]][path[1]] = {}
             with self.subTest(path=path), patch("scripts.verify_core_attestation.subprocess.check_output", return_value=json.dumps(changed).encode()):
+                with self.assertRaises(ValueError):
+                    verify(*ARGS[:8], PROVENANCE, *ARGS[9:])
+        for field, bad in (("event_name", "pull_request"), ("runner_environment", "self-hosted"),
+                           ("repository_id", "0"), ("repository_owner_id", "invalid")):
+            changed = copy.deepcopy(value)
+            changed[0]["verificationResult"]["statement"]["predicate"]["buildDefinition"]["internalParameters"]["github"][field] = bad
+            with self.subTest(field=field), patch("scripts.verify_core_attestation.subprocess.check_output", return_value=json.dumps(changed).encode()):
                 with self.assertRaises(ValueError):
                     verify(*ARGS[:8], PROVENANCE, *ARGS[9:])
 

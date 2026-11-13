@@ -20,23 +20,29 @@ def predicate(release, env, event):
     workflow = workflow_ref[len(prefix):-len(suffix)]
     sha = env["GITHUB_WORKFLOW_SHA"]
     run_id, attempt = env["GITHUB_RUN_ID"], env["GITHUB_RUN_ATTEMPT"]
+    repository_id, owner_id = env["GITHUB_REPOSITORY_ID"], env["GITHUB_REPOSITORY_OWNER_ID"]
     if (not re.fullmatch(r"\.github/workflows/[A-Za-z0-9_.-]+\.ya?ml", workflow) or
             not re.fullmatch(r"[0-9a-f]{40}", sha) or env["GITHUB_SHA"] != sha or
             release["core_revision"] != sha or env["GITHUB_REF"] != "refs/heads/main" or
             env["GITHUB_EVENT_NAME"] != "workflow_dispatch" or
+            env["RUNNER_ENVIRONMENT"] != "github-hosted" or
+            not re.fullmatch(r"[1-9][0-9]*", repository_id) or not re.fullmatch(r"[1-9][0-9]*", owner_id) or
             not re.fullmatch(r"[1-9][0-9]*", run_id) or not re.fullmatch(r"[1-9][0-9]*", attempt) or
             event["repository"]["full_name"] != repository or event["repository"]["visibility"] != "public"):
         raise ValueError("release requires the reviewed public main workflow and source revision")
     url = f"https://github.com/{repository}/{workflow}"
     return {
         "buildDefinition": {
-            "buildType": url + "@v1",
-            "externalParameters": {"repository": repository, "commit": sha,
-                                   "version": release["version"], "platform": release["platform"]},
+            "buildType": "https://actions.github.io/buildtypes/workflow/v1",
+            "externalParameters": {"workflow": {"repository": "https://github.com/" + repository,
+                                                "path": workflow, "ref": "refs/heads/main"}},
+            "internalParameters": {"github": {"event_name": "workflow_dispatch", "repository_id": repository_id,
+                                              "repository_owner_id": owner_id, "runner_environment": "github-hosted"},
+                                   "release": {"version": release["version"], "platform": release["platform"]}},
             "resolvedDependencies": [{"uri": f"git+https://github.com/{repository}@refs/heads/main",
                                       "digest": {"gitCommit": sha}}],
         },
-        "runDetails": {"builder": {"id": url + "@" + sha},
+        "runDetails": {"builder": {"id": url + "@refs/heads/main"},
                        "metadata": {"invocationId": f"https://github.com/{repository}/actions/runs/{run_id}/attempts/{attempt}"}},
     }
 

@@ -43,7 +43,7 @@ class PublishCoreCandidateTest(ValidateCoreCandidateTest):
             self.assertNotIn(":", command[-1])
         entries = [json.loads(line) for line in (self.output / "publication.jsonl").read_text().splitlines()]
         self.assertEqual([entry["status"] for entry in entries], ["attempted", "verified"] * 4)
-        self.assertEqual(json.loads((self.output / "provenance.json").read_text())["buildDefinition"]["externalParameters"]["commit"], "a" * 40)
+        self.assertEqual(json.loads((self.output / "provenance.json").read_text())["buildDefinition"]["resolvedDependencies"][0]["digest"]["gitCommit"], "a" * 40)
         self.assertFalse(Path(calls[0][1]["env"]["DOCKER_CONFIG"]).exists())
 
     def test_bad_approval_stops_before_registry_actions(self):

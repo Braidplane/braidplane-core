@@ -124,8 +124,11 @@ script checks the verified subject, public signer certificate, run and
 transparency timestamp. An SPDX predicate must contain a nonempty inventory.
 The signed provenance predicate must identify the repository, commit, version,
 platform, source dependency, workflow revision and run invocation. The release
-workflow must generate this predicate; GitHub's default predicate does not meet
-the policy. `scripts.core_release_provenance` prepares it in a public, manually
+workflow uses GitHub's supported
+[`workflow/v1` build type](https://github.com/actions/buildtypes/blob/main/workflow/v1/README.md),
+with the version and platform recorded under `internalParameters.release`.
+GitHub's default predicate omits those release identities.
+`scripts.core_release_provenance` prepares it in a public, manually
 dispatched main workflow whose source and workflow SHA match the manifest.
 Before signing, a trusted workflow must build and qualify the actual bytes.
 The predicate alone does not prove that happened. The verifier writes the raw
