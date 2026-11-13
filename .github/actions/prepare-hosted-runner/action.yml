@@ -1,13 +1,34 @@
 name: Prepare disposable hosted runner
 description: Reclaim unused SDK disk space before dependency and image caches are loaded.
+inputs:
+  reclaim_sdk_space:
+    description: Allow reclaiming unused SDKs when disk headroom is low
+    default: 'true'
 runs:
   using: composite
   steps:
     - name: Reclaim unused hosted SDKs
       if: runner.environment == 'github-hosted'
       shell: bash
+      env:
+        RECLAIM_SDK_SPACE: ${{ inputs.reclaim_sdk_space }}
       run: |
         df -h /
         # Community uses pinned Go/Node and Python, not these preinstalled SDKs.
-        sudo rm -rf /usr/local/lib/android /usr/share/dotnet /opt/ghc
+        if [ "$RECLAIM_SDK_SPACE" = true ]; then
+          if ! available_kib=$(df -Pk / | awk 'NR == 2 { print $4 }'); then
+            available_kib=
+          fi
+          # Cold no-cleanup qualification retained at least 73 GiB free; require 80 GiB at startup.
+          if [[ "$available_kib" =~ ^[0-9]+$ ]] && (( available_kib >= 80 * 1024 * 1024 )); then
+            echo "Skipping SDK cleanup: at least 80 GiB available"
+          else
+            sudo rm -rf /usr/local/lib/android /usr/share/dotnet /opt/ghc
+          fi
+        fi
         df -h /
+    - name: Start disk sampling
+      if: runner.environment == 'github-hosted'
+      shell: bash
+      run: |
+        python3 scripts/ci_disk_usage.py sample "$RUNNER_TEMP/community-disk" </dev/null >"$RUNNER_TEMP/community-disk-sampler.log" 2>&1 &

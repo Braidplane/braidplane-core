@@ -16,6 +16,11 @@ on:
         type: boolean
         default: false
 
+      skip_sdk_cleanup:
+        description: Measure disk headroom without removing hosted SDKs
+        type: boolean
+        default: false
+
 permissions:
   contents: read
 
@@ -53,6 +58,8 @@ jobs:
         with:
           persist-credentials: false
       - uses: ./.github/actions/prepare-hosted-runner
+        with:
+          reclaim_sdk_space: ${{ !inputs.skip_sdk_cleanup }}
       - if: ${{ !inputs.cold_cache }}
         uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
         id: go-modules
@@ -129,6 +136,10 @@ jobs:
         with:
           path: ~/.cache/braidplane/golangci-lint
           key: ${{ steps.lint-cache.outputs.cache-primary-key }}
+      - name: Report sampled disk headroom
+        if: ${{ always() }}
+        continue-on-error: true
+        run: python3 scripts/ci_disk_usage.py report "$RUNNER_TEMP/community-disk" | tee -a "$GITHUB_STEP_SUMMARY"
   go-e2e:
     runs-on: ubuntu-24.04
     timeout-minutes: 15
@@ -144,6 +155,8 @@ jobs:
         with:
           persist-credentials: false
       - uses: ./.github/actions/prepare-hosted-runner
+        with:
+          reclaim_sdk_space: ${{ !inputs.skip_sdk_cleanup }}
       - if: ${{ !inputs.cold_cache }}
         uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
         id: go-modules
@@ -221,6 +234,10 @@ jobs:
             ~/.cache/braidplane/go
             ${{ runner.temp }}/bin
           key: ${{ steps.cache-1.outputs.cache-primary-key }}
+      - name: Report sampled disk headroom
+        if: ${{ always() }}
+        continue-on-error: true
+        run: python3 scripts/ci_disk_usage.py report "$RUNNER_TEMP/community-disk" | tee -a "$GITHUB_STEP_SUMMARY"
   docs:
     runs-on: ubuntu-24.04
     timeout-minutes: 15
@@ -249,6 +266,8 @@ jobs:
         with:
           persist-credentials: false
       - uses: ./.github/actions/prepare-hosted-runner
+        with:
+          reclaim_sdk_space: ${{ !inputs.skip_sdk_cleanup }}
       - if: ${{ !inputs.cold_cache }}
         uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
         id: go-modules
@@ -333,6 +352,10 @@ jobs:
             ~/.cache/braidplane/npm
             ~/.cache/ms-playwright
           key: ${{ steps.cache-2.outputs.cache-primary-key }}
+      - name: Report sampled disk headroom
+        if: ${{ always() }}
+        continue-on-error: true
+        run: python3 scripts/ci_disk_usage.py report "$RUNNER_TEMP/community-disk" | tee -a "$GITHUB_STEP_SUMMARY"
   containers:
     runs-on: ubuntu-24.04
     timeout-minutes: 30
@@ -346,6 +369,8 @@ jobs:
         with:
           persist-credentials: false
       - uses: ./.github/actions/prepare-hosted-runner
+        with:
+          reclaim_sdk_space: ${{ !inputs.skip_sdk_cleanup }}
       - uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3
       - name: Build cached container target
         uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6
@@ -366,6 +391,10 @@ jobs:
             docker run --rm --network none --read-only --entrypoint /braidplane-admin \
               braidplane-core-backend:ci "$command" --help
           done
+      - name: Report sampled disk headroom
+        if: ${{ always() }}
+        continue-on-error: true
+        run: python3 scripts/ci_disk_usage.py report "$RUNNER_TEMP/community-disk" | tee -a "$GITHUB_STEP_SUMMARY"
   community-gate:
     if: ${{ always() }}
     needs: [verify, go-e2e, docs, browser, containers]
