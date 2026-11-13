@@ -70,7 +70,8 @@ recovery clients from the same pinned PostgreSQL 18.6 image as the disposable
 server, mounting only the job-owned temporary directory. These wrappers use
 Linux host networking. Browser E2E tests run in the separate browser job.
 
-Its separate container matrix builds backend, frontend, CLI and migrator, and
+Independent runtime jobs run Playwright and Bruno on separate disposable fixtures.
+The container job builds backend, frontend, CLI and migrator with one shared builder, and
 checks all four administrator subcommands' help in the backend image without
 network access. Local execution is distinct from hosted CI results.
 

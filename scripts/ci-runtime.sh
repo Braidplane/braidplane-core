@@ -2,10 +2,13 @@
 # Run only in a disposable checkout: all identities and services are synthetic.
 set -euo pipefail
 
-test "${CI:-}" = true || { echo 'ci-browser requires CI=true' >&2; exit 1; }
-test ! -e .worktree/community || { echo 'ci-browser requires a fresh checkout' >&2; exit 1; }
+suite="${1:?usage: scripts/ci-runtime.sh browser|bruno}"
+case "$suite" in browser|bruno) ;; *) echo "unknown runtime suite: $suite" >&2; exit 2 ;; esac
 
-export COMPOSE_PROJECT_NAME="bp835-${GITHUB_RUN_ID:-local}-$$"
+test "${CI:-}" = true || { echo 'ci-runtime requires CI=true' >&2; exit 1; }
+test ! -e .worktree/community || { echo 'ci-runtime requires a fresh checkout' >&2; exit 1; }
+
+export COMPOSE_PROJECT_NAME="community-${suite}-${GITHUB_RUN_ID:-local}-$$"
 export DB_PORT=35432 MAILPIT_SMTP_PORT=31025 MAILPIT_WEB_PORT=38025
 export SERVER_PORT=3001 FRONTEND_SERVER_PORT=3002 COMMUNITY_WORKER_PORT=3003
 export POSTGRES_CONNECTOR_PORT=35433 GIT_SSH_PORT=32223 GIT_HTTP_PORT=32080
@@ -45,10 +48,14 @@ fi
 git_id=$(docker run -d --rm -p "127.0.0.1:$GIT_SSH_PORT:23231" -p "127.0.0.1:$GIT_HTTP_PORT:23232" \
     -e SOFT_SERVE_INITIAL_ADMIN_KEYS="$GIT_TEST_SSH_PUBLIC_KEY" -e SOFT_SERVE_DATA_PATH=/soft-serve \
     -e 'SOFT_SERVE_DB_DATA_SOURCE=soft-serve.db?_pragma=busy_timeout(5000)&_pragma=foreign_keys(1)&_txlock=immediate' "$git_image")
-docker compose -f docker-compose.yml -f docker-compose.connectors.yml up -d --build --wait \
-    postgres-connector-test mysql-connector-test mongo-connector-test \
-    http-connector-test openapi-server hubspot-connector-test bigquery-connector-test \
-    ftp-connector-test s3-connector-test-setup
+if [ "$suite" = bruno ]; then
+    docker compose -f docker-compose.yml -f docker-compose.connectors.yml up -d --build --wait \
+        postgres-connector-test mysql-connector-test mongo-connector-test \
+        http-connector-test openapi-server hubspot-connector-test bigquery-connector-test \
+        ftp-connector-test s3-connector-test-setup
+else
+    docker compose -f docker-compose.yml -f docker-compose.connectors.yml up -d --wait postgres-connector-test
+fi
 python3 scripts/dev.py > .worktree/ci-browser-start.log 2>&1 &
 app_pid=$!
 for attempt in {1..900}; do
@@ -66,14 +73,17 @@ done
 source .worktree/community/keys.env
 export ENCRYPTION_KEY_HEX EXECUTION_REQUEST_KEY_HEX
 export BRUNO_BASE_URL="http://127.0.0.1:$SERVER_PORT/api"
-task test-bruno
-task bruno-ci
-# Compile cold fixture dependencies before Playwright's bounded journey budget.
-bash scripts/go-toolchain.sh build -o .worktree/ci-browser-bin/ \
-    ./cmd/fake ./frontend/e2e/support/http-oauth-fixture \
-    ./frontend/e2e/support/proof-receipt-fixture ./frontend/e2e/support/pipeline-git-fixture
-bash scripts/go-toolchain.sh test -c -o .worktree/ci-browser-bin/google-signup-fixture \
-    ./transport/http/e2e/google-signup-fixture
-bash scripts/node-toolchain.sh node scripts/check-browser-inventory.cjs
-task test-e2e -- --workers=1
-bash scripts/node-toolchain.sh node scripts/browser-measurements.cjs product .worktree/playwright/product.json
+if [ "$suite" = bruno ]; then
+    task test-bruno
+    task bruno-ci
+else
+    # Compile cold fixture dependencies before Playwright's bounded journey budget.
+    bash scripts/go-toolchain.sh build -o .worktree/ci-browser-bin/ \
+        ./cmd/fake ./frontend/e2e/support/http-oauth-fixture \
+        ./frontend/e2e/support/proof-receipt-fixture ./frontend/e2e/support/pipeline-git-fixture
+    bash scripts/go-toolchain.sh test -c -o .worktree/ci-browser-bin/google-signup-fixture \
+        ./transport/http/e2e/google-signup-fixture
+    bash scripts/node-toolchain.sh node scripts/check-browser-inventory.cjs
+    task test-e2e -- --workers=1
+    bash scripts/node-toolchain.sh node scripts/browser-measurements.cjs product .worktree/playwright/product.json
+fi

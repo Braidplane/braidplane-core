@@ -86,7 +86,8 @@ Failed requests and assertions fail the task.
 The existing API collections live in [`api-schema/bruno`](api-schema/bruno/README.md).
 `task bruno-ci` runs all candidate-local requests with an execution-inventory
 check. It requires the owned connector and Git fixtures in addition to the
-application runtime. The required browser CI job runs both suites.
+application runtime. The required Bruno CI job runs both API suites independently
+of the Playwright job.
 
 Start an owned local runtime with `task dev`. In a separate shell, set the same
 `DB_*` configuration and load that runtime's keys before running the tests:
@@ -202,9 +203,10 @@ cache rules and release safeguards.
 read-only repository tokens and synthetic fixtures. It regenerates, tests,
 lints and builds Core and the CLI, builds the docs strictly, runs every Go E2E
 package through `task test-go-e2e`, runs the critical browser profile, and builds
-all four container targets. The browser job also runs the locked Bruno API
-collection against its disposable runtime; any failed request or assertion fails
-the required job. The Go E2E packages run sequentially on fixtures they
+all four container targets. Independent browser and Bruno jobs each own a disposable
+runtime; any failed request or assertion fails its required job. The image targets
+share one Buildx builder so compilation can be reused within the job. The Go E2E
+packages run sequentially on fixtures they
 own; skipped or missing tests fail the check.
 
 The `community-gate` job has no token permissions or checkout. It fails if any
