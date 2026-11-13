@@ -56,3 +56,12 @@ with the `BRAIDPLANE_GITHUB_E2E_*` configuration and credentials required by
 mutating local API data or the Git fixture. `scripts/run-bruno-github-pipelines.sh --cleanup` uses the
 ownership journal to clean up interrupted provider work; it does not grant
 authority to mutate an unrelated repository. Ordinary CI has no live credentials.
+
+## Locked CLI dependencies
+
+The CLI remains pinned to 3.5.3. Its isolated `bruno/package.json` overrides six
+transitive packages to patched releases because the upstream CLI still pins
+vulnerable versions. The CLI tasks run focused injection, prototype, bounds and
+hang regressions plus ordinary API compatibility controls after `npm ci`.
+Remove an override when the upstream CLI resolves a safe compatible version;
+retain the locked install and regression checks.

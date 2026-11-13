@@ -158,17 +158,20 @@ tasks:
     desc: Seed synthetic API identities and run Bruno against an owned runtime (BRUNO_BASE_URL and DB_* required)
     cmds:
       - bash scripts/node-toolchain.sh npm --prefix bruno ci --ignore-scripts
+      - bash scripts/node-toolchain.sh node --test bruno/dependency-security.test.cjs
       - python3 scripts/run_bruno.py
   bruno-ci:
     desc: Run every Core candidate-local Bruno request and reject missing execution
     cmds:
       - bash scripts/node-toolchain.sh npm --prefix bruno ci --ignore-scripts
+      - bash scripts/node-toolchain.sh node --test bruno/dependency-security.test.cjs
       - bash scripts/gen-bruno-env.sh
       - bash scripts/run-bruno-all.sh --ci
   bruno-all:
     desc: Run Core Bruno collections including explicitly authorized live GitHub acceptance
     cmds:
       - bash scripts/node-toolchain.sh npm --prefix bruno ci --ignore-scripts
+      - bash scripts/node-toolchain.sh node --test bruno/dependency-security.test.cjs
       - bash scripts/gen-bruno-env.sh
       - bash scripts/run-bruno-all.sh
   git-seed-state:
