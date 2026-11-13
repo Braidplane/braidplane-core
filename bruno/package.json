@@ -1,0 +1,7 @@
+{
+  "name": "braidplane-api-tests",
+  "private": true,
+  "devDependencies": {
+    "@usebruno/cli": "3.5.3"
+  }
+}

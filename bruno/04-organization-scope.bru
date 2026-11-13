@@ -1,0 +1,19 @@
+meta {
+  name: Reject an API key from another organization
+  type: http
+  seq: 4
+}
+
+get {
+  url: {{baseUrl}}/organizations/{{otherOrganization}}/projects
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{apiKey}}
+}
+
+assert {
+  res.status: eq 403
+}

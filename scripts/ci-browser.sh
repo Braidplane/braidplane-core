@@ -55,6 +55,8 @@ done
 # shellcheck disable=SC1091
 source .worktree/community/keys.env
 export ENCRYPTION_KEY_HEX EXECUTION_REQUEST_KEY_HEX
+export BRUNO_BASE_URL="http://127.0.0.1:$SERVER_PORT/api"
+task test-bruno
 # Compile cold fixture dependencies before Playwright's bounded journey budget.
 bash scripts/go-toolchain.sh build -o .worktree/ci-browser-bin/ \
     ./cmd/fake ./frontend/e2e/support/http-oauth-fixture \

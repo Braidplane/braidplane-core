@@ -75,6 +75,29 @@ No existing network or daemon configuration is changed. Package-owned fixture
 ports bind to loopback; FTP retains its explicit passive-port mapping.
 
 
+## Bruno API tests
+
+`task test-bruno` installs the locked Bruno CLI, seeds synthetic users,
+organizations, an API key and a project through `cmd/fake --core-only`, then runs
+the collection in `bruno/`. It checks authenticated organization/project reads,
+missing authentication and rejection of access to another existing organization.
+Failed requests and assertions fail the task.
+
+Start an owned local runtime with `task dev`. In a separate shell, set the same
+`DB_*` configuration and load that runtime's keys before running the tests:
+
+```sh
+source .worktree/community/keys.env
+export DB_HOST=127.0.0.1 DB_PORT=35432 DB_USER=postgres
+export DB_PASSWORD=postgres DB_DATABASE=braidplane DB_SSL_MODE=disable
+export BRUNO_BASE_URL=http://127.0.0.1:3001/api
+task test-bruno
+```
+
+The seeder writes to the selected database. Use disposable synthetic data and
+match the URL, database and keys to the same runtime. Seed credentials stay in
+the runner process; CI does not upload request/response reports.
+
 ## Code generation and database validation
 
 Prepare a disposable core-only PostgreSQL database. Set `DB_HOST`, `DB_PORT`,
@@ -174,7 +197,9 @@ cache rules and release safeguards.
 read-only repository tokens and synthetic fixtures. It regenerates, tests,
 lints and builds Core and the CLI, builds the docs strictly, runs every Go E2E
 package through `task test-go-e2e`, runs the critical browser profile, and builds
-all four container targets. The Go E2E packages run sequentially on fixtures they
+all four container targets. The browser job also runs the locked Bruno API
+collection against its disposable runtime; any failed request or assertion fails
+the required job. The Go E2E packages run sequentially on fixtures they
 own; skipped or missing tests fail the check.
 
 The `community-gate` job has no token permissions or checkout. It fails if any
