@@ -215,9 +215,9 @@ controlled fork rehearsal:
    owner. Keep ordinary outside-fork runs unapproved if any required check fails.
 
 Hosted runners have Internet access. Read-only tokens and absent secrets do not
-establish network isolation. The release workflow remains disabled and needs
-separate qualification and authorization. Release jobs must verify reviewed
-source and artifacts without restoring Community caches.
+establish network isolation. Release preparation and publication need separate
+qualification and maintainer approval through the protected workflow. Release
+jobs must verify reviewed source and artifacts without restoring Community caches.
 
 For release procedures and runner isolation requirements, see
 [CI trust boundary](doc/CI_TRUST_BOUNDARY.md).
