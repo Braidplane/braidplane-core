@@ -1,0 +1,20 @@
+meta {
+  name: List the seeded project
+  type: http
+  seq: 2
+}
+
+get {
+  url: {{baseUrl}}/organizations/{{organization}}/projects
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{apiKey}}
+}
+
+assert {
+  res.status: eq 200
+  res.body.projects[0].slug: eq {{project}}
+}

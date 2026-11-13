@@ -296,7 +296,7 @@ jobs:
             ~/.cache/braidplane/node
             ~/.cache/braidplane/npm
             ~/.cache/ms-playwright
-          key: community-node-browser-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('ci/toolchain/versions.env', 'frontend/package-lock.json') }}
+          key: community-node-browser-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('ci/toolchain/versions.env', 'frontend/package-lock.json', 'bruno/package-lock.json') }}
       - uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3
       - name: Build cached Git fixture image
         uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6
@@ -320,7 +320,7 @@ jobs:
           echo "$RUNNER_TEMP/bin" >> "$GITHUB_PATH"
           bash scripts/node-toolchain.sh npm --prefix frontend ci
           bash scripts/node-toolchain.sh npm --prefix frontend exec -- playwright install --with-deps chromium firefox webkit
-      - name: Run critical browser profile on disposable fixtures
+      - name: Run Bruno and critical browser profile on disposable fixtures
         env:
           CI_GIT_IMAGE: braidplane-ci-git:ci
         run: |

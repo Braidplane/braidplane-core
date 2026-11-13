@@ -1,0 +1,20 @@
+meta {
+  name: Read the seeded organization
+  type: http
+  seq: 1
+}
+
+get {
+  url: {{baseUrl}}/organizations/{{organization}}
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{apiKey}}
+}
+
+assert {
+  res.status: eq 200
+  res.body.slug: eq {{organization}}
+}

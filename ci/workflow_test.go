@@ -35,7 +35,7 @@ func TestGoModuleCacheLifecycle(t *testing.T) {
 		t.Run(job, func(t *testing.T) {
 			steps := workflow.Jobs[job].Steps
 			restore, workload, save := -1, -1, -1
-			workloadNames := map[string]string{"verify": "Generate, test, lint and build without managed sources", "go-e2e": "Run every Go E2E package on disposable fixtures", "browser": "Run critical browser profile on disposable fixtures"}
+			workloadNames := map[string]string{"verify": "Generate, test, lint and build without managed sources", "go-e2e": "Run every Go E2E package on disposable fixtures", "browser": "Run Bruno and critical browser profile on disposable fixtures"}
 			for i, step := range steps {
 				switch {
 				case step.ID == "go-modules":
