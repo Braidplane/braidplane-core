@@ -58,12 +58,17 @@ def verify(subject, digest, repository, workflow, source_sha, signer_sha, run_id
                 workflow_url = f"https://github.com/{repository}/{workflow}"
                 definition = claim["buildDefinition"]
                 details = claim["runDetails"]
-                if (definition["buildType"] != workflow_url + "@v1" or
-                        definition["externalParameters"] != {"repository": repository, "commit": source_sha,
-                                                              "version": version, "platform": platform} or
+                github = definition["internalParameters"]["github"]
+                if (definition["buildType"] != "https://actions.github.io/buildtypes/workflow/v1" or
+                        definition["externalParameters"] != {"workflow": {"repository": "https://github.com/" + repository,
+                                                                          "path": workflow, "ref": "refs/heads/main"}} or
+                        definition["internalParameters"]["release"] != {"version": version, "platform": platform} or
+                        github["event_name"] != "workflow_dispatch" or github["runner_environment"] != "github-hosted" or
+                        not re.fullmatch(r"[1-9][0-9]*", github["repository_id"]) or
+                        not re.fullmatch(r"[1-9][0-9]*", github["repository_owner_id"]) or
                         definition["resolvedDependencies"] != [{"uri": f"git+https://github.com/{repository}@refs/heads/main",
                                                                 "digest": {"gitCommit": source_sha}}] or
-                        details["builder"]["id"] != workflow_url + "@" + signer_sha or
+                        details["builder"]["id"] != workflow_url + "@refs/heads/main" or
                         details["metadata"]["invocationId"] != invocation):
                     continue
             return output
