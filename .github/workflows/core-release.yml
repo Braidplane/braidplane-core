@@ -120,7 +120,8 @@ jobs:
         id: prepare_paths
         run: |
           {
-            printf 'DOCKER_CONFIG=%s\n' "$RUNNER_TEMP/core-release-signing-docker"
+            # The pinned attestation resolver reads only $HOME/.docker/config.json.
+            printf 'DOCKER_CONFIG=%s\n' "$HOME/.docker"
             printf 'RELEASE_OUTPUT=%s\n' "$RUNNER_TEMP/core-release-output"
             printf 'CANDIDATE_DIR=%s\n' "$RUNNER_TEMP/core-release-candidate"
           } >> "$GITHUB_ENV"
@@ -137,7 +138,7 @@ jobs:
       - name: Prepare signing credentials and coordinates
         id: images
         run: |
-          mkdir -m 700 "$DOCKER_CONFIG"
+          mkdir -p -m 700 "$DOCKER_CONFIG"
           printf '%s' "$GITHUB_TOKEN" | docker login ghcr.io --username "$GITHUB_ACTOR" --password-stdin
           python3 - <<'PY'
           import json, os
@@ -248,7 +249,7 @@ jobs:
         run: |
           mkdir "$RELEASE_OUTPUT/signatures"
           for variable in BACKEND_PROVENANCE BACKEND_SBOM FRONTEND_PROVENANCE FRONTEND_SBOM MIGRATE_PROVENANCE MIGRATE_SBOM CLI_PROVENANCE CLI_SBOM RECORD_PROVENANCE ARCHIVE_PROVENANCE; do
-            if [[ -z "${!variable}" ]]; then
+            if [[ -z "${!variable}" || ! -f "${!variable}" ]]; then
               if [[ "$ALL_SIGNED" == true ]]; then exit 1; fi
               continue
             fi
@@ -272,4 +273,4 @@ jobs:
           if-no-files-found: error
       - name: Remove signing credentials
         if: ${{ always() && steps.prepare_paths.outcome == 'success' }}
-        run: rm -rf "$DOCKER_CONFIG"
+        run: docker logout ghcr.io

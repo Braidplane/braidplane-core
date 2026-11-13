@@ -3,6 +3,7 @@ package ci_test
 import (
 	"fmt"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"reflect"
 	"regexp"
@@ -84,6 +85,78 @@ func TestCommunityConcurrency(t *testing.T) {
 	}
 	if !reflect.DeepEqual(workflow.Concurrency, want) {
 		t.Fatalf("PRs should cancel stale runs; running main and dispatch should finish: %v", workflow.Concurrency)
+	}
+}
+
+func TestReleaseSigningCredentialLifecycle(t *testing.T) {
+	data, err := os.ReadFile("../.github/workflows/core-release.yml")
+	if err != nil {
+		t.Fatal(err)
+	}
+	var workflow struct {
+		Jobs map[string]struct {
+			Steps []struct{ Name, Run, If string }
+		}
+	}
+	if err := yaml.Unmarshal(data, &workflow); err != nil {
+		t.Fatal(err)
+	}
+	steps := map[string]string{}
+	for _, step := range workflow.Jobs["publish"].Steps {
+		steps[step.Name] = step.Run
+		if step.Name == "Remove signing credentials" && step.If != "${{ always() && steps.prepare_paths.outcome == 'success' }}" {
+			t.Fatal("signing credentials must be removed after failure")
+		}
+	}
+	t.Run("Docker and pinned attestation resolver share credentials", func(t *testing.T) {
+		dir := t.TempDir()
+		envFile := filepath.Join(dir, "env")
+		cmd := exec.Command("bash", "-e", "-c", steps["Set temporary paths"])
+		cmd.Env = []string{"PATH=" + os.Getenv("PATH"), "HOME=" + os.Getenv("HOME"), "RUNNER_TEMP=" + dir, "GITHUB_ENV=" + envFile}
+		if output, err := cmd.CombinedOutput(); err != nil {
+			t.Fatalf("prepare paths: %v: %s", err, output)
+		}
+		contents, err := os.ReadFile(envFile)
+		if err != nil {
+			t.Fatal(err)
+		}
+		home, err := os.UserHomeDir()
+		if err != nil {
+			t.Fatal(err)
+		}
+		if !strings.Contains(string(contents), "DOCKER_CONFIG="+filepath.Join(home, ".docker")+"\n") {
+			t.Fatal("pinned actions/attest resolves credentials only from the default Docker config")
+		}
+		if strings.TrimSpace(steps["Remove signing credentials"]) != "docker logout ghcr.io" {
+			t.Fatal("cleanup must remove GHCR credentials while preserving other registry entries")
+		}
+	})
+	for _, allSigned := range []bool{false, true} {
+		t.Run(fmt.Sprintf("missing bundle, all signed=%t", allSigned), func(t *testing.T) {
+			dir := t.TempDir()
+			available := filepath.Join(dir, "available.json")
+			payload := []byte(`{"synthetic":true}`)
+			if err := os.WriteFile(available, payload, 0o600); err != nil {
+				t.Fatal(err)
+			}
+			cmd := exec.Command("bash", "-e", "-c", steps["Retain signature bundles"])
+			cmd.Env = []string{"PATH=" + os.Getenv("PATH"), "RELEASE_OUTPUT=" + dir,
+				fmt.Sprintf("ALL_SIGNED=%t", allSigned), "BACKEND_PROVENANCE=" + filepath.Join(dir, "missing.json"), "BACKEND_SBOM=" + available}
+			output, err := cmd.CombinedOutput()
+			if allSigned {
+				if err == nil {
+					t.Fatal("a claimed complete signature set must reject a missing file")
+				}
+				return
+			}
+			if err != nil {
+				t.Fatalf("retain partial evidence: %v: %s", err, output)
+			}
+			retained, err := os.ReadFile(filepath.Join(dir, "signatures/BACKEND_SBOM.sigstore.json"))
+			if err != nil || string(retained) != string(payload) {
+				t.Fatalf("available bundle was not retained: %v", err)
+			}
+		})
 	}
 }
 
