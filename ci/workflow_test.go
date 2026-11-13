@@ -111,7 +111,7 @@ func TestReleaseSigningCredentialLifecycle(t *testing.T) {
 	t.Run("Docker and pinned attestation resolver share credentials", func(t *testing.T) {
 		dir := t.TempDir()
 		envFile := filepath.Join(dir, "env")
-		cmd := exec.Command("bash", "-e", "-c", steps["Set temporary paths"])
+		cmd := exec.CommandContext(t.Context(), "bash", "-e", "-c", steps["Set temporary paths"])
 		cmd.Env = []string{"PATH=" + os.Getenv("PATH"), "HOME=" + os.Getenv("HOME"), "RUNNER_TEMP=" + dir, "GITHUB_ENV=" + envFile}
 		if output, err := cmd.CombinedOutput(); err != nil {
 			t.Fatalf("prepare paths: %v: %s", err, output)
@@ -139,9 +139,11 @@ func TestReleaseSigningCredentialLifecycle(t *testing.T) {
 			if err := os.WriteFile(available, payload, 0o600); err != nil {
 				t.Fatal(err)
 			}
-			cmd := exec.Command("bash", "-e", "-c", steps["Retain signature bundles"])
-			cmd.Env = []string{"PATH=" + os.Getenv("PATH"), "RELEASE_OUTPUT=" + dir,
-				fmt.Sprintf("ALL_SIGNED=%t", allSigned), "BACKEND_PROVENANCE=" + filepath.Join(dir, "missing.json"), "BACKEND_SBOM=" + available}
+			cmd := exec.CommandContext(t.Context(), "bash", "-e", "-c", steps["Retain signature bundles"])
+			cmd.Env = []string{
+				"PATH=" + os.Getenv("PATH"), "RELEASE_OUTPUT=" + dir,
+				fmt.Sprintf("ALL_SIGNED=%t", allSigned), "BACKEND_PROVENANCE=" + filepath.Join(dir, "missing.json"), "BACKEND_SBOM=" + available,
+			}
 			output, err := cmd.CombinedOutput()
 			if allSigned {
 				if err == nil {
