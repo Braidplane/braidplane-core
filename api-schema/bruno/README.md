@@ -21,10 +21,10 @@ notifications, account removal and pipeline contracts belong to Core.
 
 ## Candidate CI
 
-`task bruno-ci` runs all 357 candidate-local request files. The required browser
+`task bruno-ci` runs all 357 candidate-local request files. The required Bruno
 CI job provisions the connector services from `docker-compose.connectors.yml`,
 starts Core with `task dev`, and runs both the four-request `task test-bruno`
-smoke suite and these collections before Playwright.
+smoke suite and these collections. Playwright runs independently on separate fixtures.
 
 The runner preserves lifecycle ordering, uses separate disposable identities
 for account changes/removal, and restores the owned Git fixture after pipeline
@@ -33,7 +33,7 @@ with every checked-in request and fails for missing, skipped or failed requests.
 Reports omit request/response headers and bodies and are removed after the check.
 
 For local runs, provision the same owned connector services and Git fixture as
-[`scripts/ci-browser.sh`](../../scripts/ci-browser.sh), start `task dev`, and export
+[`scripts/ci-runtime.sh bruno`](../../scripts/ci-runtime.sh), start `task dev`, and export
 the matching database, encryption keys, application URLs and connector ports.
 Then run `task bruno-ci`. The tasks write to the selected database and mutate the
 local Git fixture; use only disposable synthetic data. They never start or select

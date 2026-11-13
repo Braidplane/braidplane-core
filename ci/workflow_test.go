@@ -35,7 +35,7 @@ func TestGoModuleCacheLifecycle(t *testing.T) {
 		t.Run(job, func(t *testing.T) {
 			steps := workflow.Jobs[job].Steps
 			restore, workload, save := -1, -1, -1
-			workloadNames := map[string]string{"verify": "Generate, test, lint and build without managed sources", "go-e2e": "Run every Go E2E package on disposable fixtures", "browser": "Run Bruno and critical browser profile on disposable fixtures"}
+			workloadNames := map[string]string{"verify": "Generate, test, lint and build without managed sources", "go-e2e": "Run every Go E2E package on disposable fixtures", "browser": "Run the selected runtime suite on disposable fixtures"}
 			for i, step := range steps {
 				switch {
 				case step.ID == "go-modules":
@@ -64,6 +64,51 @@ func TestGoModuleCacheLifecycle(t *testing.T) {
 				t.Fatal("module cache must restore before the workload and save afterward")
 			}
 		})
+	}
+}
+
+func TestRuntimeAndContainerCoverage(t *testing.T) {
+	data, err := os.ReadFile("../.github/workflows/ci.yml")
+	if err != nil {
+		t.Fatal(err)
+	}
+	var workflow struct {
+		Jobs map[string]struct {
+			Name     string
+			Needs    []string
+			Strategy struct{ Matrix map[string][]string }
+			Steps    []struct {
+				Uses            string
+				If              any
+				ContinueOnError bool `yaml:"continue-on-error"`
+				With            map[string]any
+			}
+		}
+	}
+	if err := yaml.Unmarshal(data, &workflow); err != nil {
+		t.Fatal(err)
+	}
+	runtime := workflow.Jobs["browser"]
+	if runtime.Name != "${{ matrix.suite }}" || !reflect.DeepEqual(runtime.Strategy.Matrix["suite"], []string{"browser", "bruno"}) {
+		t.Fatal("browser and Bruno must run as independent required jobs")
+	}
+	builders, targets := 0, []string{}
+	for _, step := range workflow.Jobs["containers"].Steps {
+		if strings.HasPrefix(step.Uses, "docker/setup-buildx-action@") {
+			builders++
+		}
+		if strings.HasPrefix(step.Uses, "docker/build-push-action@") {
+			if builders != 1 || step.If != nil || step.ContinueOnError || step.With["load"] != true || step.With["push"] != nil {
+				t.Fatal("all image targets must build locally on one shared builder without skipped failures")
+			}
+			targets = append(targets, fmt.Sprint(step.With["target"]))
+		}
+	}
+	if builders != 1 || !reflect.DeepEqual(targets, []string{"backend", "frontend", "migrate", "cli"}) {
+		t.Fatal("every image target must build using the same builder")
+	}
+	if !reflect.DeepEqual(workflow.Jobs["community-gate"].Needs, []string{"verify", "go-e2e", "docs", "browser", "containers"}) {
+		t.Fatal("the required gate must include both runtime matrix results and every container build")
 	}
 }
 

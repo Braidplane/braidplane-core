@@ -55,7 +55,9 @@ The [core CI workflow](../.github/workflows/ci.yml) runs that task and rejects
 uncommitted generated changes. Its Go E2E job runs `task test-go-e2e`, which
 uses `go list` to discover every package under an `e2e` path that contains Go
 tests. No package or test-name allowlist is maintained. CI distributes the complete
-suite over four required shards with fifteen-minute job budgets. Packages run sequentially
+suite over four required shards using recorded package durations, with fifteen-minute
+job budgets. New packages remain included with a one-second estimate; refresh
+`ci/go-e2e-durations.json` when measured shard times diverge. Packages run sequentially
 within each shard, with fresh executions and package-owned fixtures. Each package
 has a five-minute timeout. The gate requires every
 discovered package to finish successfully with passing tests, and rejects any
@@ -70,7 +72,8 @@ recovery clients from the same pinned PostgreSQL 18.6 image as the disposable
 server, mounting only the job-owned temporary directory. These wrappers use
 Linux host networking. Browser E2E tests run in the separate browser job.
 
-Its separate container matrix builds backend, frontend, CLI and migrator, and
+Independent runtime jobs run Playwright and Bruno on separate disposable fixtures.
+The container job builds backend, frontend, CLI and migrator with one shared builder, and
 checks all four administrator subcommands' help in the backend image without
 network access. Local execution is distinct from hosted CI results.
 

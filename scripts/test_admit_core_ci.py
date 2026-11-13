@@ -12,9 +12,9 @@ def fixture():
     run = {"id": 123, "run_attempt": 1, "path": ".github/workflows/ci.yml", "event": "push",
            "head_branch": "main", "head_sha": "a" * 40, "head_repository": {"full_name": "Example/core"},
            "status": "completed", "conclusion": "success", "html_url": "https://github.com/Example/core/actions/runs/123"}
-    names = {"verify", "docs", "browser", "community-gate",
+    names = {"verify", "docs", "browser", "bruno", "community-gate", "containers",
              "go-e2e (0)", "go-e2e (1)", "go-e2e (2)", "go-e2e (3)",
-             "containers (backend)", "containers (frontend)", "containers (migrate)", "containers (cli)"}
+}
     jobs = {"total_count": len(names), "jobs": [{"name": name, "status": "completed", "conclusion": "success",
              "labels": ["ubuntu-24.04"], "runner_group_name": "GitHub Actions"} for name in sorted(names)]}
     return run, jobs
@@ -63,6 +63,14 @@ class AdmitCoreCITest(unittest.TestCase):
         legacy["total_count"] = len(legacy["jobs"])
         with self.assertRaises(ValueError):
             self.execute(run, legacy)
+
+    def test_both_runtime_suites_and_all_image_builds_are_required(self):
+        for name in ("browser", "bruno", "containers"):
+            for status in ("failure", "skipped", "cancelled"):
+                run, jobs = fixture()
+                next(job for job in jobs["jobs"] if job["name"] == name)["conclusion"] = status
+                with self.subTest(name=name, status=status), self.assertRaises(ValueError):
+                    self.execute(run, jobs)
 
     def test_wrong_source_event_attempt_or_status_fails(self):
         run, jobs = fixture()

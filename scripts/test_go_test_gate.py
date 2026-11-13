@@ -16,7 +16,8 @@ class GoTestGate(unittest.TestCase):
             for name in ("scripts", "ci/toolchain", "bin"):
                 (root / name).mkdir(parents=True)
             for name in ("Taskfile.yml", "scripts/go-toolchain.sh", "scripts/go-test-packages.sh",
-                         "scripts/cache-dir.sh", "scripts/require-go-tests.py", "ci/toolchain/versions.env"):
+                         "scripts/cache-dir.sh", "scripts/require-go-tests.py", "scripts/shard-go-tests.py",
+                         "ci/toolchain/versions.env", "ci/go-e2e-durations.json"):
                 shutil.copyfile(ROOT / name, root / name)
             (root / "scripts/node-toolchain.sh").write_text("#!/bin/bash\nexit 0\n")
             go = root / "bin/go"
@@ -76,6 +77,9 @@ esac
             root = Path(directory)
             (root / "scripts").mkdir()
             shutil.copyfile(ROOT / "scripts/go-test-packages.sh", root / "scripts/go-test-packages.sh")
+            shutil.copyfile(ROOT / "scripts/shard-go-tests.py", root / "scripts/shard-go-tests.py")
+            (root / "ci").mkdir()
+            (root / "ci/go-e2e-durations.json").write_text('{"seconds": {}}')
             (root / "scripts/go-toolchain.sh").write_text(
                 '#!/bin/bash\nprintf "%s\\n" $TEST_PACKAGES\n')
             packages = [f"example/package-{index:02}/e2e" for index in range(17)]

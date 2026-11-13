@@ -8,6 +8,8 @@
 .cache
 node_modules
 **/node_modules
+bruno
+api-schema/bruno
 frontend/playwright-report
 frontend/test-results
 frontend/e2e/.auth

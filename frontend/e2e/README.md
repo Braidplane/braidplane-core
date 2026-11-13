@@ -45,7 +45,7 @@ before `task test-e2e`. The task defaults to the retained critical profile; set
 startup and fixture provisioning require isolated local resources.
 Do not treat successful discovery or parser tests as browser acceptance.
 
-`scripts/ci-browser.sh` provisions disposable PostgreSQL, Git and Mailpit
+`scripts/ci-runtime.sh browser` provisions disposable PostgreSQL, Git and Mailpit
 fixtures in a fresh CI checkout, runs the critical profile and rejects an
 incomplete report. It permits plaintext connectors and trusts forwarded client
 addresses only within that loopback test environment. The hosted workflow is

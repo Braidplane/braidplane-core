@@ -19,7 +19,7 @@ case "$mode" in
     # Browser support executables are not Go test suites. Sort before partitioning.
     bash scripts/go-toolchain.sh list -f '{{if or .TestGoFiles .XTestGoFiles}}{{.ImportPath}}{{end}}' ./... |
       awk '$0 ~ /\/e2e($|\/)/ { print }' | LC_ALL=C sort |
-      awk -v shard="$index" -v count="$count" '(NR - 1) % count == shard'
+      python3 scripts/shard-go-tests.py "$index" "$count"
     ;;
   *)
     echo "usage: scripts/go-test-packages.sh unit|e2e" >&2

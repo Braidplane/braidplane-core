@@ -61,14 +61,14 @@ jobs:
         with:
           reclaim_sdk_space: ${{ !inputs.skip_sdk_cleanup }}
       - if: ${{ !inputs.cold_cache }}
-        uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         id: go-modules
         with:
           path: ~/go/pkg/mod
           key: community-go-modules-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('ci/toolchain/versions.env') }}-${{ hashFiles('go.mod', 'go.sum', 'tools/go.mod', 'tools/go.sum') }}
           restore-keys: community-go-modules-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('ci/toolchain/versions.env') }}-
       - if: ${{ !inputs.cold_cache }}
-        uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         id: cache-1
         with:
           path: |
@@ -78,7 +78,7 @@ jobs:
           restore-keys: |
             community-go-build-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('ci/toolchain/versions.env') }}-${{ hashFiles('go.sum', 'tools/go.sum') }}-
       - if: ${{ !inputs.cold_cache }}
-        uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         id: cache-2
         with:
           path: |
@@ -86,7 +86,7 @@ jobs:
             ~/.cache/braidplane/npm
           key: community-node-verify-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('ci/toolchain/versions.env', 'frontend/package-lock.json') }}
       - if: ${{ !inputs.cold_cache }}
-        uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         id: lint-cache
         with:
           path: ~/.cache/braidplane/golangci-lint
@@ -108,7 +108,7 @@ jobs:
           trap 'kill "$sampler_pid" 2>/dev/null || true; wait "$sampler_pid" 2>/dev/null || true; free -h; df -h .' EXIT
           /usr/bin/time -v task ci
           df -h .
-      - uses: actions/cache/save@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+      - uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         if: ${{ !inputs.cold_cache && !cancelled() && steps.go-modules.outputs.cache-hit != 'true' }}
         with:
           path: ~/go/pkg/mod
@@ -117,21 +117,21 @@ jobs:
         run: |
           git diff --exit-code
           test -z "$(git ls-files --others --exclude-standard)"
-      - uses: actions/cache/save@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+      - uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         if: ${{ !inputs.cold_cache && !cancelled() && steps.cache-1.outputs.cache-hit != 'true' }}
         with:
           path: |
             ~/.cache/braidplane/go
             ${{ runner.temp }}/bin
           key: ${{ steps.cache-1.outputs.cache-primary-key }}
-      - uses: actions/cache/save@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+      - uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         if: ${{ !inputs.cold_cache && !cancelled() && steps.cache-2.outputs.cache-hit != 'true' }}
         with:
           path: |
             ~/.cache/braidplane/node
             ~/.cache/braidplane/npm
           key: ${{ steps.cache-2.outputs.cache-primary-key }}
-      - uses: actions/cache/save@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+      - uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         if: ${{ !inputs.cold_cache && !cancelled() && steps.lint-cache.outputs.cache-hit != 'true' }}
         with:
           path: ~/.cache/braidplane/golangci-lint
@@ -158,7 +158,7 @@ jobs:
         with:
           reclaim_sdk_space: ${{ !inputs.skip_sdk_cleanup }}
       - if: ${{ !inputs.cold_cache }}
-        uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         id: go-modules
         with:
           path: ~/go/pkg/mod
@@ -168,7 +168,7 @@ jobs:
         with:
           enabled: ${{ !inputs.cold_cache && inputs.use_fixture_image_cache == true }}
       - if: ${{ !inputs.cold_cache }}
-        uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         id: cache-1
         with:
           path: |
@@ -178,7 +178,7 @@ jobs:
           restore-keys: |
             community-go-build-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('ci/toolchain/versions.env') }}-${{ hashFiles('go.sum', 'tools/go.sum') }}-
       - if: ${{ !inputs.cold_cache }}
-        uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         id: node-cache
         with:
           path: |
@@ -215,19 +215,19 @@ jobs:
           fi
           export PATH="$RUNNER_TEMP/bin:$PATH"
           task test-go-e2e
-      - uses: actions/cache/save@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+      - uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         if: ${{ !inputs.cold_cache && !cancelled() && matrix.shard == 0 && steps.go-modules.outputs.cache-hit != 'true' }}
         with:
           path: ~/go/pkg/mod
           key: ${{ steps.go-modules.outputs.cache-primary-key }}
-      - uses: actions/cache/save@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+      - uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         if: ${{ !inputs.cold_cache && !cancelled() && matrix.shard == 0 && steps.node-cache.outputs.cache-hit != 'true' }}
         with:
           path: |
             ~/.cache/braidplane/node
             ~/.cache/braidplane/npm
           key: ${{ steps.node-cache.outputs.cache-primary-key }}
-      - uses: actions/cache/save@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+      - uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         if: ${{ !inputs.cold_cache && !cancelled() && matrix.shard == 0 && steps.cache-1.outputs.cache-hit != 'true' }}
         with:
           path: |
@@ -246,19 +246,24 @@ jobs:
         with:
           persist-credentials: false
       - if: ${{ !inputs.cold_cache }}
-        uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         id: cache-1
         with:
           path: ~/.cache/pip
           key: community-docs-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('requirements-docs.lock.txt') }}
       - name: Validate documentation contract
         run: bash scripts/docs-check.sh
-      - uses: actions/cache/save@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+      - uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         if: ${{ !inputs.cold_cache && !cancelled() && steps.cache-1.outputs.cache-hit != 'true' }}
         with:
           path: ~/.cache/pip
           key: ${{ steps.cache-1.outputs.cache-primary-key }}
   browser:
+    name: ${{ matrix.suite }}
+    strategy:
+      fail-fast: false
+      matrix:
+        suite: [browser, bruno]
     runs-on: ubuntu-24.04
     timeout-minutes: 30
     steps:
@@ -269,7 +274,7 @@ jobs:
         with:
           reclaim_sdk_space: ${{ !inputs.skip_sdk_cleanup }}
       - if: ${{ !inputs.cold_cache }}
-        uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         id: go-modules
         with:
           path: ~/go/pkg/mod
@@ -279,27 +284,27 @@ jobs:
         with:
           enabled: ${{ !inputs.cold_cache && inputs.use_fixture_image_cache == true }}
       - if: ${{ !inputs.cold_cache }}
-        uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         id: cache-1
         with:
           path: |
             ~/.cache/braidplane/go
             ${{ runner.temp }}/bin
-          key: community-go-build-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('ci/toolchain/versions.env') }}-${{ hashFiles('go.sum', 'tools/go.sum') }}-${{ github.sha }}-${{ github.job }}
+          key: community-go-build-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('ci/toolchain/versions.env') }}-${{ hashFiles('go.sum', 'tools/go.sum') }}-${{ github.sha }}-${{ github.job }}-${{ matrix.suite }}
           restore-keys: |
             community-go-build-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('ci/toolchain/versions.env') }}-${{ hashFiles('go.sum', 'tools/go.sum') }}-
       - if: ${{ !inputs.cold_cache }}
-        uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         id: cache-2
         with:
           path: |
             ~/.cache/braidplane/node
             ~/.cache/braidplane/npm
             ~/.cache/ms-playwright
-          key: community-node-browser-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('ci/toolchain/versions.env', 'frontend/package-lock.json', 'bruno/package-lock.json') }}
-      - uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3
+          key: community-node-${{ matrix.suite }}-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('ci/toolchain/versions.env', 'frontend/package-lock.json', 'bruno/package-lock.json') }}
+      - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
       - name: Build cached Git fixture image
-        uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
         env:
           DOCKER_BUILD_RECORD_UPLOAD: 'false'
         with:
@@ -310,7 +315,9 @@ jobs:
           tags: braidplane-ci-git:ci
           cache-from: ${{ !inputs.cold_cache && 'type=gha,scope=community-git-fixture' || '' }}
           cache-to: ${{ !inputs.cold_cache && 'type=gha,mode=max,scope=community-git-fixture' || '' }}
-      - name: Install pinned task and browsers
+      - name: Install pinned task and frontend tooling
+        env:
+          RUNTIME_SUITE: ${{ matrix.suite }}
         run: |
           source ci/toolchain/versions.env
           mkdir -p "$RUNNER_TEMP/bin"
@@ -319,10 +326,13 @@ jobs:
           fi
           echo "$RUNNER_TEMP/bin" >> "$GITHUB_PATH"
           bash scripts/node-toolchain.sh npm --prefix frontend ci
-          bash scripts/node-toolchain.sh npm --prefix frontend exec -- playwright install --with-deps chromium firefox webkit
-      - name: Run Bruno and critical browser profile on disposable fixtures
+          if [ "$RUNTIME_SUITE" = browser ]; then
+            bash scripts/node-toolchain.sh npm --prefix frontend exec -- playwright install --with-deps chromium firefox webkit
+          fi
+      - name: Run the selected runtime suite on disposable fixtures
         env:
           CI_GIT_IMAGE: braidplane-ci-git:ci
+          RUNTIME_SUITE: ${{ matrix.suite }}
         run: |
           nproc
           free -h
@@ -330,21 +340,21 @@ jobs:
           vmstat -w 15 &
           sampler_pid=$!
           trap 'kill "$sampler_pid" 2>/dev/null || true; wait "$sampler_pid" 2>/dev/null || true; free -h; df -h .' EXIT
-          /usr/bin/time -v bash scripts/ci-browser.sh
+          /usr/bin/time -v bash scripts/ci-runtime.sh "$RUNTIME_SUITE"
           df -h .
-      - uses: actions/cache/save@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+      - uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         if: ${{ !inputs.cold_cache && !cancelled() && steps.go-modules.outputs.cache-hit != 'true' }}
         with:
           path: ~/go/pkg/mod
           key: ${{ steps.go-modules.outputs.cache-primary-key }}
-      - uses: actions/cache/save@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+      - uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         if: ${{ !inputs.cold_cache && !cancelled() && steps.cache-1.outputs.cache-hit != 'true' }}
         with:
           path: |
             ~/.cache/braidplane/go
             ${{ runner.temp }}/bin
           key: ${{ steps.cache-1.outputs.cache-primary-key }}
-      - uses: actions/cache/save@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+      - uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         if: ${{ !inputs.cold_cache && !cancelled() && steps.cache-2.outputs.cache-hit != 'true' }}
         with:
           path: |
@@ -359,11 +369,6 @@ jobs:
   containers:
     runs-on: ubuntu-24.04
     timeout-minutes: 30
-    strategy:
-      fail-fast: false
-      max-parallel: 2
-      matrix:
-        target: [backend, frontend, migrate, cli]
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -371,21 +376,56 @@ jobs:
       - uses: ./.github/actions/prepare-hosted-runner
         with:
           reclaim_sdk_space: ${{ !inputs.skip_sdk_cleanup }}
-      - uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3
-      - name: Build cached container target
-        uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6
+      - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+      - name: Build cached backend container
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
         env:
           DOCKER_BUILD_RECORD_UPLOAD: 'false'
         with:
           context: .
-          target: ${{ matrix.target }}
+          target: backend
           load: true
           no-cache: ${{ inputs.cold_cache == true }}
-          tags: braidplane-core-${{ matrix.target }}:ci
-          cache-from: ${{ !inputs.cold_cache && format('type=gha,scope=community-{0}', matrix.target) || '' }}
-          cache-to: ${{ !inputs.cold_cache && format('type=gha,mode=max,scope=community-{0}', matrix.target) || '' }}
+          tags: braidplane-core-backend:ci
+          cache-from: ${{ !inputs.cold_cache && 'type=gha,scope=community-backend' || '' }}
+          cache-to: ${{ !inputs.cold_cache && 'type=gha,mode=max,scope=community-backend' || '' }}
+      - name: Build cached frontend container
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
+        env:
+          DOCKER_BUILD_RECORD_UPLOAD: 'false'
+        with:
+          context: .
+          target: frontend
+          load: true
+          no-cache: ${{ inputs.cold_cache == true }}
+          tags: braidplane-core-frontend:ci
+          cache-from: ${{ !inputs.cold_cache && 'type=gha,scope=community-frontend' || '' }}
+          cache-to: ${{ !inputs.cold_cache && 'type=gha,mode=max,scope=community-frontend' || '' }}
+      - name: Build cached migrate container
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
+        env:
+          DOCKER_BUILD_RECORD_UPLOAD: 'false'
+        with:
+          context: .
+          target: migrate
+          load: true
+          no-cache: ${{ inputs.cold_cache == true }}
+          tags: braidplane-core-migrate:ci
+          cache-from: ${{ !inputs.cold_cache && 'type=gha,scope=community-migrate' || '' }}
+          cache-to: ${{ !inputs.cold_cache && 'type=gha,mode=max,scope=community-migrate' || '' }}
+      - name: Build cached cli container
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
+        env:
+          DOCKER_BUILD_RECORD_UPLOAD: 'false'
+        with:
+          context: .
+          target: cli
+          load: true
+          no-cache: ${{ inputs.cold_cache == true }}
+          tags: braidplane-core-cli:ci
+          cache-from: ${{ !inputs.cold_cache && 'type=gha,scope=community-cli' || '' }}
+          cache-to: ${{ !inputs.cold_cache && 'type=gha,mode=max,scope=community-cli' || '' }}
       - name: Smoke-test packaged administrator commands
-        if: matrix.target == 'backend'
         run: |
           for command in bootstrap grant revoke credential-rekey; do
             docker run --rm --network none --read-only --entrypoint /braidplane-admin \

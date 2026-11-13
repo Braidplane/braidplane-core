@@ -71,7 +71,8 @@ tasks:
       - python3 -m unittest cli.scripts.test_release scripts.test_notices scripts.test_package_sources scripts.test_package_container_sources
       - python3 -m unittest discover -s scripts -p test_require_go_tests.py
       - python3 -m unittest discover -s scripts -p test_go_test_gate.py
-      - python3 -m unittest scripts.test_ci_fixture_cache scripts.test_ci_disk_usage
+      - python3 -m unittest scripts.test_shard_go_tests
+      - python3 -m unittest scripts.test_ci_fixture_cache scripts.test_ci_disk_usage scripts.test_ci_runtime
       - python3 -m unittest scripts.test_run_bruno scripts.test_bruno_coverage scripts.test_bruno_environment
       - bash scripts/node-toolchain.sh node --test "api-schema/bruno/Braidplane API/auth-email.test.cjs" api-schema/bruno/github-pipelines/lifecycle.test.cjs
       - python3 -m unittest scripts.test_publish_core_candidate scripts.test_validate_core_candidate scripts.test_verify_core_oci scripts.test_build_core_candidate scripts.test_core_release_candidate scripts.test_admit_core_ci scripts.test_verify_core_release scripts.test_core_release_provenance scripts.test_verify_core_attestation scripts.test_core_release_sbom scripts.test_qualify_core_images scripts.test_self_hosted_acceptance scripts.test_installation_release scripts.test_installation_compose scripts.test_installation_prepare scripts.test_installation_preflight scripts.test_installation_lifecycle scripts.test_installation_package scripts.test_installation_upgrade scripts.test_installation_runtime
