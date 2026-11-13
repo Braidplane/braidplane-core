@@ -634,6 +634,26 @@ func TestDataSourceIconUnknownFallbackMatchesShellGlyph(t *testing.T) {
 	require.Contains(t, html, `cx="20" cy="21" r="1.5"`)
 }
 
+func TestDataSourceIconReservesArtworkAspectRatio(t *testing.T) {
+	t.Parallel()
+
+	for _, tc := range []struct {
+		connector string
+		dims      string
+	}{
+		{connector: "postgres", dims: `width="24" height="24"`},
+		{connector: "google_workspace", dims: `width="128" height="128"`},
+		{connector: "mongodb", dims: `width="242" height="516"`},
+	} {
+		t.Run(tc.connector, func(t *testing.T) {
+			var out bytes.Buffer
+			require.NoError(t, DataSourceIcon(tc.connector, "sm").Render(t.Context(), &out))
+			requireDataSourceIconMarker(t, out.String(), tc.connector)
+			require.Contains(t, out.String(), tc.dims)
+		})
+	}
+}
+
 func TestGitLabDataSourceIconUsesGenericFallback(t *testing.T) {
 	t.Parallel()
 

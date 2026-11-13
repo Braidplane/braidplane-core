@@ -792,11 +792,23 @@ func DataSourceIconClass(dataSourceType, size string) string {
 func DataSourceIconImageClass(size string) string {
 	switch strings.TrimSpace(size) {
 	case "sm":
-		return "h-4 max-w-5 object-contain"
+		return "h-4 w-auto max-w-5 object-contain"
 	case "lg":
-		return "h-6 max-w-7 object-contain"
+		return "h-6 w-auto max-w-7 object-contain"
 	default:
-		return "h-5 max-w-6 object-contain"
+		return "h-5 w-auto max-w-6 object-contain"
+	}
+}
+
+func dataSourceIconIntrinsicSize(dataSourceType string) (width, height string) {
+	switch DataSourceIconType(dataSourceType) {
+	case string(api.DataSourceTypeGoogleWorkspace):
+		return "128", "128"
+	case string(api.DataSourceTypeMongodb):
+		return "242", "516"
+	default:
+		// The approved SVG marks all have square view boxes.
+		return "24", "24"
 	}
 }
 
