@@ -1,0 +1,47 @@
+name: Isolated job rerun condition test
+
+on:
+  push:
+    branches: [diagnostic/job-rerun-condition-20261113]
+
+permissions: {}
+
+jobs:
+  prepare:
+    if: ${{ github.ref == 'refs/heads/diagnostic/job-rerun-condition-20261113' && github.event.repository.visibility == 'public' && vars.DIAG_20261113_PREPARE_ENABLED == 'true' }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 2
+    outputs:
+      marker: ${{ steps.fixture.outputs.marker }}
+    steps:
+      - name: Produce synthetic preparation output
+        id: fixture
+        env:
+          PREPARE_FLAG: ${{ vars.DIAG_20261113_PREPARE_ENABLED }}
+          PUBLISH_FLAG: ${{ vars.DIAG_20261113_PUBLISH_ENABLED }}
+        run: |
+          printf 'prepare_flag=%s publish_flag=%s\n' "$PREPARE_FLAG" "$PUBLISH_FLAG"
+          printf 'marker=synthetic-prepared\n' >> "$GITHUB_OUTPUT"
+  publish:
+    needs: [prepare]
+    if: ${{ github.ref == 'refs/heads/diagnostic/job-rerun-condition-20261113' && github.event.repository.visibility == 'public' && vars.DIAG_20261113_PUBLISH_ENABLED == 'true' }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 2
+    steps:
+      - name: Inspect retained dependency and intentionally fail initial attempt
+        env:
+          PREPARE_FLAG: ${{ vars.DIAG_20261113_PREPARE_ENABLED }}
+          PUBLISH_FLAG: ${{ vars.DIAG_20261113_PUBLISH_ENABLED }}
+          PREPARE_RESULT: ${{ needs.prepare.result }}
+          PREPARE_MARKER: ${{ needs.prepare.outputs.marker }}
+          REPOSITORY_VISIBILITY: ${{ github.event.repository.visibility }}
+        run: |
+          printf 'attempt=%s ref=%s visibility=%s\n' "$GITHUB_RUN_ATTEMPT" "$GITHUB_REF" "$REPOSITORY_VISIBILITY"
+          printf 'prepare_flag=%s publish_flag=%s result=%s marker=%s\n' "$PREPARE_FLAG" "$PUBLISH_FLAG" "$PREPARE_RESULT" "$PREPARE_MARKER"
+          test "$PREPARE_RESULT" = success
+          test "$PREPARE_MARKER" = synthetic-prepared
+          if [ "$GITHUB_RUN_ATTEMPT" = 1 ]; then
+            printf 'Intentional baseline failure; no signing or publishing operations.\n'
+            exit 1
+          fi
+          printf 'Harmless publisher rerun completed.\n'
