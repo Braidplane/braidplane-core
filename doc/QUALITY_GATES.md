@@ -55,9 +55,7 @@ The [core CI workflow](../.github/workflows/ci.yml) runs that task and rejects
 uncommitted generated changes. Its Go E2E job runs `task test-go-e2e`, which
 uses `go list` to discover every package under an `e2e` path that contains Go
 tests. No package or test-name allowlist is maintained. CI distributes the complete
-suite over four required shards using recorded package durations, with fifteen-minute
-job budgets. New packages remain included with a one-second estimate; refresh
-`ci/go-e2e-durations.json` when measured shard times diverge. Packages run sequentially
+suite over four required shards with fifteen-minute job budgets. Packages run sequentially
 within each shard, with fresh executions and package-owned fixtures. Each package
 has a five-minute timeout. The gate requires every
 discovered package to finish successfully with passing tests, and rejects any
