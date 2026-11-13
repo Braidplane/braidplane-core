@@ -1,0 +1,45 @@
+meta {
+  name: 04f Create FTP Spreadsheet Source Query
+  type: http
+  seq: 30.91
+}
+
+post {
+  url: {{baseUrl}}/organizations/{{orgSlug}}/data-sources/{{ftpDataSourceSlug}}/queries
+  body: json
+  auth: inherit
+}
+
+body:json {
+  {
+    "name": "Test FTP Spreadsheet Source Query",
+    "slug": "{{ftpSpreadsheetSourceQuerySlug}}",
+    "query_statement": {
+      "type": "ftp",
+      "operation": "read",
+      "path": "users.xlsx",
+      "format": "spreadsheet",
+      "sheet": "Orders",
+      "range": "B2:D4",
+      "has_header": true
+    },
+    "parameters": [],
+    "row_limit": 1000,
+    "timeout_seconds": 30
+  }
+}
+
+script:pre-request {
+  const timestamp = Date.now();
+  bru.setVar("ftpSpreadsheetSourceQuerySlug", `test-ftp-spreadsheet-source-${timestamp}`);
+
+  if (!bru.getVar("ftpDataSourceSlug")) {
+    throw new Error("ftpDataSourceSlug not set");
+  }
+}
+
+tests {
+  test("should return 201 Created", function() {
+    expect(res.status).to.equal(201);
+  });
+}

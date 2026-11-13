@@ -1,0 +1,86 @@
+meta {
+  name: Verify session MFA
+  type: http
+  seq: 8
+}
+
+post {
+  url: {{baseUrl}}/sessions/mfa/verify
+  body: json
+  auth: inherit
+}
+
+body:json {
+  {
+    "challenge_token": "{{mfaChallengeToken}}",
+    "code": "{{mfaCode}}"
+  }
+}
+
+script:pre-request {
+  const axios = require('axios');
+
+  const userEmail = bru.getVar("userEmail");
+  const challengeToken = bru.getVar("mfaChallengeToken");
+  if (!userEmail) {
+    throw new Error("userEmail not found. Run 'Create a user' first.");
+  }
+  if (!challengeToken) {
+    throw new Error("mfaChallengeToken not found. Run 'Create MFA session challenge' first.");
+  }
+  const csrfToken = bru.getVar("csrfToken") || bru.getEnvVar("csrfToken");
+  if (csrfToken) {
+    req.setHeader("X-CSRF-Token", csrfToken);
+  }
+
+  const {emailText, resetToken} = require('./auth-email.cjs');
+  const content = await emailText(axios, bru.getEnvVar("mailpitUrl"), userEmail, /\b([0-9]{6})\b/);
+  bru.setVar("mfaCode", content.match(/\b([0-9]{6})\b/)[1]);
+}
+
+script:post-response {
+  if (res.status !== 200) {
+    return;
+  }
+
+  const setCookie = res.headers["set-cookie"] || res.headers["Set-Cookie"];
+  if (!setCookie) {
+    return;
+  }
+  const cookies = Array.isArray(setCookie) ? setCookie : [setCookie];
+  const sessionEntry = [...cookies].reverse().find(c => /session/i.test(c.split(";")[0]) && !/Max-Age=0/i.test(c) && c.split(";")[0].split("=").slice(1).join("=") !== "");
+  if (!sessionEntry) {
+    return;
+  }
+
+  const csrfResponse = await bru.sendRequest({
+    method: "GET",
+    url: `${bru.getEnvVar("baseUrl")}/users/profile`,
+    headers: {
+      Cookie: sessionEntry.split(";")[0]
+    }
+  });
+  const csrfToken = csrfResponse.headers["x-csrf-token"] || csrfResponse.headers["X-CSRF-Token"];
+  if (csrfToken) {
+    bru.setVar("csrfToken", csrfToken);
+  }
+}
+
+tests {
+  test("should return 200 OK", function() {
+    expect(res.status).to.equal(200);
+  });
+
+  test("should set session cookie", function() {
+    const setCookie = res.headers['set-cookie'];
+    expect(setCookie).to.exist;
+    expect(setCookie).to.match(/session/i);
+  });
+
+  test("should return authenticated user data", function() {
+    expect(res.body).to.have.property('slug');
+    expect(res.body).to.have.property('email');
+    expect(res.body.email).to.equal(bru.getVar("userEmail"));
+    expect(res.body).to.not.have.property('password');
+  });
+}

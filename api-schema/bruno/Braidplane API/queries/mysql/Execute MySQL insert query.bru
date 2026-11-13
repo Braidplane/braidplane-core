@@ -1,0 +1,56 @@
+meta {
+  name: Execute MySQL insert query
+  type: http
+  seq: 4
+}
+
+post {
+  url: {{baseUrl}}/organizations/:slug/data-sources/:ds_slug/queries/:query_slug/execute
+  body: json
+  auth: inherit
+}
+
+params:path {
+  slug: {{orgSlug}}
+  ds_slug: {{mysqlDataSourceSlug}}
+  query_slug: {{mysqlInsertQuerySlug}}
+}
+
+body:json {
+  {
+    "parameters": {
+      "email": "new.mysql.user.{{timestamp}}@example.com",
+      "full_name": "Inserted MySQL User",
+      "age": 29,
+      "is_active": true
+    }
+  }
+}
+
+script:pre-request {
+  if (!bru.getVar("orgSlug")) {
+    throw new Error("orgSlug not set - run 'Create an organization' first");
+  }
+
+  if (!bru.getVar("mysqlDataSourceSlug")) {
+    throw new Error("mysqlDataSourceSlug not set - run a data source create request first");
+  }
+
+  if (!bru.getVar("mysqlInsertQuerySlug")) {
+    throw new Error("mysqlInsertQuerySlug not set - run 'Create MySQL insert query' first");
+  }
+
+  bru.setVar("timestamp", Date.now());
+}
+
+tests {
+  test("should return 200 OK", function() {
+    expect(res.status).to.equal(200);
+  });
+
+  test("should return SQL execution result", function() {
+    expect(res.body).to.have.property("result_type", "sql");
+    expect(res.body).to.have.property("type", "mysql");
+    expect(res.body).to.have.property("success", true);
+  });
+}

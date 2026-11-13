@@ -1,0 +1,58 @@
+meta {
+  name: Create HTTP data source
+  type: http
+  seq: 5
+}
+
+post {
+  url: {{baseUrl}}/organizations/:slug/data-sources
+  body: json
+  auth: inherit
+}
+
+params:path {
+  slug: {{httpOrgSlug}}
+}
+
+body:json {
+  {
+    "name": "Test HTTP API",
+    "slug": "test-http-api",
+    "type": "http",
+    "config": {
+      "base_url": "{{httpcrudUrl}}",
+      "health_path": "/health",
+      "timeout_seconds": 5,
+      "allow_private_hosts": true
+    },
+    "credentials": {
+      "bearer_token": "test-token"
+    }
+  }
+}
+
+script:pre-request {
+  if (!bru.getVar("httpOrgSlug")) {
+    throw new Error("httpOrgSlug not set - run 'Create an organization' first");
+  }
+}
+
+script:post-response {
+  if (res.status === 201) {
+    bru.setVar("httpDataSourceSlug", res.body.slug);
+  }
+}
+
+tests {
+  test("should return 201 Created", function() {
+    expect(res.status, res.body.error ? `${res.body.error.code}: ${res.body.error.message}` : "HTTP source created").to.equal(201);
+  });
+
+  test("should return JSON", function() {
+    expect(res.headers['content-type']).to.include('application/json');
+  });
+
+  test("should have http type", function() {
+    expect(res.body.type).to.equal('http');
+  });
+}

@@ -1,0 +1,28 @@
+meta {
+  name: 04 Get Pipeline
+  type: http
+  seq: 4
+}
+
+get {
+  url: {{baseUrl}}/organizations/{{orgSlug}}/projects/{{projectSlug}}/pipelines/{{pipelineSlug}}
+  auth: inherit
+}
+
+script:post-response {
+	bru.setVar("pipelineSpecHash", res.body.current_version_spec_hash);
+	bru.setVar("pipelineCommit", bru.getEnvVar("expectedGitCommitSHA"));
+	bru.setVar("csrfToken", res.headers['x-csrf-token'] || res.headers['X-CSRF-Token']);
+}
+
+tests {
+  test("returns exact Git provenance", function() {
+    expect(res.status).to.equal(200);
+    expect(res.body.slug).to.equal(bru.getVar("pipelineSlug"));
+    expect(res.body.sync_status).to.equal("synced");
+    expect(res.body.source_path).to.equal("pipelines/acme-users-sync.pipeline.yaml");
+    expect(res.body.source_ref).to.equal("refs/heads/main");
+    expect(res.body.last_applied_commit).to.equal(bru.getEnvVar("expectedGitCommitSHA"));
+    expect(res.body.current_version_spec_hash).to.match(/^[0-9a-f]{64}$/);
+  });
+}

@@ -1,0 +1,44 @@
+meta {
+  name: 03 Create HubSpot Query
+  type: http
+  seq: 17.4
+}
+
+post {
+  url: {{baseUrl}}/organizations/{{orgSlug}}/data-sources/{{hubspotDataSourceSlug}}/queries
+  body: json
+  auth: inherit
+}
+
+body:json {
+  {
+    "name": "Test HubSpot Query",
+    "slug": "test-hubspot-query-{{timestamp}}",
+    "query_statement": {
+      "type": "hubspot",
+      "object_type": "contacts",
+      "operation": "list",
+      "properties": ["email", "firstname", "lastname"],
+      "limit": 100
+    },
+    "parameters": [],
+    "row_limit": 1000,
+    "timeout_seconds": 30
+  }
+}
+
+script:pre-request {
+  bru.setVar("timestamp", Date.now());
+}
+
+script:post-response {
+  if (res.status === 201) {
+    bru.setVar("hubspotQuerySlug", res.body.slug);
+  }
+}
+
+tests {
+  test("should return 201 Created", function() {
+    expect(res.status).to.equal(201);
+  });
+}

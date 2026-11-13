@@ -1,0 +1,39 @@
+meta {
+  name: 01 Create API key
+  type: http
+  seq: 1
+}
+
+post {
+  url: {{baseUrl}}/organizations/:slug/api-keys
+  body: json
+  auth: inherit
+}
+
+params:path {
+  slug: {{orgSlug}}
+}
+
+body:json {
+  {
+    "name": "Workflow automation",
+    "role": "viewer"
+  }
+}
+
+tests {
+  test("should return 201 Created", function() {
+    expect(res.status).to.equal(201);
+  });
+
+  test("should return raw token once and safe metadata", function() {
+    expect(res.body).to.have.property("slug");
+    expect(res.body).to.have.property("token");
+    expect(res.body.token).to.be.a("string").and.not.be.empty;
+    expect(res.body).to.have.property("token_prefix");
+    expect(res.body).to.have.property("expires_at", null);
+    expect(res.body).to.not.have.property("token_hash");
+    bru.setVar("apiKeySlug", res.body.slug);
+    bru.setVar("apiKeyToken", res.body.token);
+  });
+}

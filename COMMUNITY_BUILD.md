@@ -83,6 +83,11 @@ the collection in `bruno/`. It checks authenticated organization/project reads,
 missing authentication and rejection of access to another existing organization.
 Failed requests and assertions fail the task.
 
+The existing API collections live in [`api-schema/bruno`](api-schema/bruno/README.md).
+`task bruno-ci` runs all candidate-local requests with an execution-inventory
+check. It requires the owned connector and Git fixtures in addition to the
+application runtime. The required browser CI job runs both suites.
+
 Start an owned local runtime with `task dev`. In a separate shell, set the same
 `DB_*` configuration and load that runtime's keys before running the tests:
 

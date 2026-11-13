@@ -1,0 +1,22 @@
+meta {
+  name: 09 Delete alert policy
+  type: http
+  seq: 9
+}
+
+delete {
+  url: {{baseUrl}}/organizations/:slug/alert-policies/:alert_policy_slug
+  body: none
+  auth: inherit
+}
+
+params:path {
+  slug: {{orgSlug}}
+  alert_policy_slug: {{alertPolicySlug}}
+}
+
+tests {
+  test("should return 204 No Content", function() {
+    expect(res.status).to.equal(204);
+  });
+}

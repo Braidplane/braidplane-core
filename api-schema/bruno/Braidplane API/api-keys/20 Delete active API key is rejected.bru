@@ -1,0 +1,28 @@
+meta {
+  name: 20 Delete active API key is rejected
+  type: http
+  seq: 20
+}
+
+post {
+  url: {{baseUrl}}/organizations/:slug/api-keys/:api_key_slug/delete
+  body: none
+  auth: inherit
+}
+
+params:path {
+  slug: {{orgSlug}}
+  api_key_slug: {{apiKeyHardDeleteSlug}}
+}
+
+tests {
+  test("active API key hard delete should return 400 Bad Request", function() {
+    expect(res.status).to.equal(400);
+  });
+
+  test("active API key hard delete should require revocation first", function() {
+    expect(res.body.error.code).to.equal("API_KEY_INVALID_INPUT");
+    expect(res.body.error.message).to.equal("api key invalid input");
+    expect(res.body.error.detailed_error).to.equal("API key must be revoked before deletion.");
+  });
+}

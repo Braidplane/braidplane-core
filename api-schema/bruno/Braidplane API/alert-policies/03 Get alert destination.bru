@@ -1,0 +1,27 @@
+meta {
+  name: 03 Get alert destination
+  type: http
+  seq: 3
+}
+
+get {
+  url: {{baseUrl}}/organizations/:slug/alert-destinations/:alert_destination_slug
+  body: none
+  auth: inherit
+}
+
+params:path {
+  slug: {{orgSlug}}
+  alert_destination_slug: {{alertDestinationSlug}}
+}
+
+tests {
+  test("should return 200 OK", function() {
+    expect(res.status).to.equal(200);
+  });
+
+  test("should return the created destination", function() {
+    expect(res.body.slug).to.equal(bru.getVar("alertDestinationSlug"));
+    expect(res.body.non_secret_config.recipients).to.deep.equal([bru.getVar("alertDestinationRecipient")]);
+  });
+}

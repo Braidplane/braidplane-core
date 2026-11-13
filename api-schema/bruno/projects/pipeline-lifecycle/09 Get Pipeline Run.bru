@@ -1,0 +1,40 @@
+meta {
+  name: 09 Get Pipeline Run
+  type: http
+  seq: 9
+}
+
+get {
+  url: {{baseUrl}}/organizations/{{orgSlug}}/projects/{{projectSlug}}/environments/{{environmentSlug}}/runs/{{pipelineRunSlug}}
+  auth: inherit
+}
+
+script:pre-request {
+  if (Number(bru.getVar("pipelineRunPollAttempts") || "0") > 0) {
+    await new Promise(resolve => setTimeout(resolve, 500));
+  }
+}
+
+script:post-response {
+  const status = res.body?.metadata?.status || "";
+  const attempts = Number(bru.getVar("pipelineRunPollAttempts") || "0");
+  if ((status === "queued" || status === "running") && attempts < 30) {
+    bru.setVar("pipelineRunPollAttempts", String(attempts + 1));
+    bru.runner.setNextRequest("09 Get Pipeline Run");
+  }
+}
+
+tests {
+  test("returns a successful persisted run", function() {
+    expect(res.status).to.equal(200);
+    const status = res.body.metadata.status;
+    const attempts = Number(bru.getVar("pipelineRunPollAttempts") || "0");
+    if (status === "queued" || status === "running") {
+      if (attempts >= 30) throw new Error(`run remained ${status}`);
+      return;
+    }
+    expect(status).to.equal("succeeded");
+    expect(res.body.metadata.pipeline_slug).to.equal(bru.getVar("pipelineSlug"));
+    expect(res.body.timeline.events).to.be.an("array").and.not.empty;
+  });
+}

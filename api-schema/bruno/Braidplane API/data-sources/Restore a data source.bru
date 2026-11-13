@@ -1,0 +1,36 @@
+meta {
+  name: Restore a data source
+  type: http
+  seq: 12
+}
+
+post {
+  url: {{baseUrl}}/organizations/:slug/data-sources/:ds_slug/restore
+  auth: inherit
+}
+
+params:path {
+  slug: {{orgSlug}}
+  ds_slug: {{dataSourceSlug}}
+}
+
+script:pre-request {
+  const orgSlug = bru.getVar("orgSlug") || bru.getEnvVar("orgSlug");
+  const dataSourceSlug = bru.getVar("dataSourceSlug") || bru.getEnvVar("dataSourceSlug");
+  if (!orgSlug) {
+    throw new Error("orgSlug not set - run 'Create an organization' first");
+  }
+
+  if (!dataSourceSlug) {
+    throw new Error("dataSourceSlug not set - run a data source create request first");
+  }
+
+  bru.setVar("orgSlug", orgSlug);
+  bru.setVar("dataSourceSlug", dataSourceSlug);
+}
+
+tests {
+  test("should return 204 No Content", function() {
+    expect(res.status).to.equal(204);
+  });
+}

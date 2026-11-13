@@ -1,0 +1,36 @@
+meta {
+  name: 08 Replay HubSpot OAuth Callback Is Safe
+  type: http
+  seq: 9
+}
+
+get {
+  url: {{baseUrl}}/provider-connectors/hubspot/callback?code=hubspot-local-authorization-code&state={{hubspotOAuthState}}
+  body: none
+  auth: inherit
+}
+
+settings {
+  followRedirects: false
+}
+
+script:pre-request {
+  if (!bru.getVar("hubspotOAuthDataSourceSlug") || !bru.getVar("hubspotOAuthState")) {
+    throw new Error("HubSpot OAuth data source or state not set - run the completed install first");
+  }
+}
+
+tests {
+  test("should reject replay with a safe product redirect", function() {
+    expect(res.status).to.equal(302);
+    const location = res.headers.location || res.headers.Location || "";
+    expect(location).to.contain("provider_oauth=error");
+    expect(location).to.contain(`selected=${bru.getVar("hubspotOAuthDataSourceSlug")}`);
+  });
+
+  test("should not echo replayed callback material", function() {
+    const output = JSON.stringify(res.body) + (res.headers.location || res.headers.Location || "");
+    expect(output).to.not.contain("hubspot-local-authorization-code");
+    expect(output).to.not.contain(bru.getVar("hubspotOAuthState"));
+  });
+}

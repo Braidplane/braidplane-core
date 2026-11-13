@@ -1,0 +1,45 @@
+meta {
+  name: 04c Create PostgreSQL Timeout Query
+  type: http
+  seq: 8
+}
+
+post {
+  url: {{baseUrl}}/organizations/{{orgSlug}}/data-sources/{{postgresDataSourceSlug}}/queries
+  body: json
+  auth: inherit
+}
+
+body:json {
+  {
+    "name": "Test PostgreSQL Timeout Query",
+    "slug": "test-postgres-timeout-{{timestamp}}",
+    "description": "Timeout behavior test",
+    "query_statement": {
+      "type": "postgres",
+      "sql": "SELECT pg_sleep(2)"
+    },
+    "parameters": [],
+    "row_limit": 1000,
+    "timeout_seconds": 1
+  }
+}
+
+script:pre-request {
+  bru.setVar("timestamp", Date.now());
+  if (!bru.getVar("postgresDataSourceSlug")) {
+    throw new Error("postgresDataSourceSlug not set");
+  }
+}
+
+script:post-response {
+  if (res.status === 201) {
+    bru.setVar("postgresTimeoutQuerySlug", res.body.slug);
+  }
+}
+
+tests {
+  test("should return 201 Created", function() {
+    expect(res.status).to.equal(201);
+  });
+}

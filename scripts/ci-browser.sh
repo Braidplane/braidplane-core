@@ -9,8 +9,18 @@ export COMPOSE_PROJECT_NAME="bp835-${GITHUB_RUN_ID:-local}-$$"
 export DB_PORT=35432 MAILPIT_SMTP_PORT=31025 MAILPIT_WEB_PORT=38025
 export SERVER_PORT=3001 FRONTEND_SERVER_PORT=3002 COMMUNITY_WORKER_PORT=3003
 export POSTGRES_CONNECTOR_PORT=35433 GIT_SSH_PORT=32223 GIT_HTTP_PORT=32080
+export HTTP_CONNECTOR_PORT=38080 OPENAPI_SERVER_PORT=38081
+export MYSQL_CONNECTOR_PORT=33307 MONGO_CONNECTOR_PORT=37017 FTP_CONNECTOR_PORT=32121
+export HUBSPOT_MOCK_PORT=38082 BIGQUERY_MOCK_PORT=38084 S3_CONNECTOR_PORT=39000
+export HUBSPOT_BASE_URL="http://127.0.0.1:$HUBSPOT_MOCK_PORT" HUBSPOT_ALLOW_PRIVATE_HOSTS=true
+export BIGQUERY_BASE_URL="http://127.0.0.1:$BIGQUERY_MOCK_PORT" BIGQUERY_ALLOW_PRIVATE_HOSTS=true
+export BIGQUERY_TOKEN_URL="$BIGQUERY_BASE_URL/token"
 export DB_HOST=127.0.0.1 DB_USER=postgres DB_PASSWORD=postgres DB_DATABASE=braidplane DB_SSL_MODE=disable
 export FRONTEND_URL="http://127.0.0.1:$FRONTEND_SERVER_PORT"
+export HUBSPOT_OAUTH_CLIENT_ID=braidplane-local-oauth-client
+export HUBSPOT_OAUTH_CLIENT_SECRET=braidplane-local-oauth-secret
+export HUBSPOT_OAUTH_BASE_URL="http://localhost:$HUBSPOT_MOCK_PORT"
+export HUBSPOT_OAUTH_REDIRECT_URI="$FRONTEND_URL/provider-connectors/hubspot/callback"
 export E2E_BASE_URL="$FRONTEND_URL"
 export MAILPIT_URL="http://127.0.0.1:$MAILPIT_WEB_PORT" GOWORK=off BRAIDPLANE_BROWSER_PROFILE=critical
 export ALLOW_PLAINTEXT_CONNECTORS=true
@@ -19,12 +29,12 @@ export FRONTEND_SERVER_PROXY_HEADER=X-Forwarded-For FRONTEND_SERVER_TRUSTED_PROX
 mkdir -p .worktree
 export GIT_TEST_SSH_KEY_PATH="$PWD/.worktree/ci-git-key"
 ssh-keygen -q -t ed25519 -N '' -f "$GIT_TEST_SSH_KEY_PATH"
-app_pid='' git_id='' connector_id=''
+export GIT_TEST_SSH_PUBLIC_KEY="$(cat "$GIT_TEST_SSH_KEY_PATH.pub")"
+app_pid='' git_id=''
 cleanup() {
     if [[ -n "$app_pid" ]]; then kill -TERM "$app_pid" 2>/dev/null || true; wait "$app_pid" 2>/dev/null || true; fi
     if [[ -n "$git_id" ]]; then docker stop "$git_id" >/dev/null || true; fi
-    if [[ -n "$connector_id" ]]; then docker stop "$connector_id" >/dev/null || true; fi
-    docker compose -p "$COMPOSE_PROJECT_NAME" down --volumes --remove-orphans >/dev/null || true
+    docker compose -f docker-compose.yml -f docker-compose.connectors.yml -p "$COMPOSE_PROJECT_NAME" down --volumes --remove-orphans >/dev/null || true
 }
 trap cleanup EXIT
 
@@ -33,11 +43,12 @@ if [[ -z "$git_image" ]]; then
     git_image=$(docker build -q -f docker/Dockerfile.soft-serve docker)
 fi
 git_id=$(docker run -d --rm -p "127.0.0.1:$GIT_SSH_PORT:23231" -p "127.0.0.1:$GIT_HTTP_PORT:23232" \
-    -e SOFT_SERVE_INITIAL_ADMIN_KEYS="$(cat "$GIT_TEST_SSH_KEY_PATH.pub")" -e SOFT_SERVE_DATA_PATH=/soft-serve \
+    -e SOFT_SERVE_INITIAL_ADMIN_KEYS="$GIT_TEST_SSH_PUBLIC_KEY" -e SOFT_SERVE_DATA_PATH=/soft-serve \
     -e 'SOFT_SERVE_DB_DATA_SOURCE=soft-serve.db?_pragma=busy_timeout(5000)&_pragma=foreign_keys(1)&_txlock=immediate' "$git_image")
-connector_id=$(docker run -d --rm -p "127.0.0.1:$POSTGRES_CONNECTOR_PORT:5432" \
-    -e POSTGRES_PASSWORD=postgres -e POSTGRES_DB=braidplane \
-    postgres:18.6@sha256:edb0c08dc33befd0262ab3b5cf1c4f3f8cfd8b09e88c05b45adee29d6761ddb6)
+docker compose -f docker-compose.yml -f docker-compose.connectors.yml up -d --build --wait \
+    postgres-connector-test mysql-connector-test mongo-connector-test \
+    http-connector-test openapi-server hubspot-connector-test bigquery-connector-test \
+    ftp-connector-test s3-connector-test-setup
 python3 scripts/dev.py > .worktree/ci-browser-start.log 2>&1 &
 app_pid=$!
 for attempt in {1..900}; do
@@ -45,7 +56,6 @@ for attempt in {1..900}; do
     if curl -fsS "$FRONTEND_URL/auth/login" >/dev/null 2>&1 &&
        curl -fsS "http://127.0.0.1:$SERVER_PORT/readyz" >/dev/null 2>&1 &&
        curl -fsS "http://127.0.0.1:$COMMUNITY_WORKER_PORT/readyz" >/dev/null 2>&1 &&
-       docker exec "$connector_id" pg_isready -U postgres -d braidplane >/dev/null 2>&1 &&
        ssh-keyscan -p "$GIT_SSH_PORT" 127.0.0.1 >/dev/null 2>&1; then break; fi
     if [[ "$attempt" = 900 ]]; then cat .worktree/ci-browser-start.log >&2; exit 1; fi
     sleep 1
@@ -57,6 +67,7 @@ source .worktree/community/keys.env
 export ENCRYPTION_KEY_HEX EXECUTION_REQUEST_KEY_HEX
 export BRUNO_BASE_URL="http://127.0.0.1:$SERVER_PORT/api"
 task test-bruno
+task bruno-ci
 # Compile cold fixture dependencies before Playwright's bounded journey budget.
 bash scripts/go-toolchain.sh build -o .worktree/ci-browser-bin/ \
     ./cmd/fake ./frontend/e2e/support/http-oauth-fixture \

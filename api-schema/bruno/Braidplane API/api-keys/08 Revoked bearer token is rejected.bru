@@ -1,0 +1,26 @@
+meta {
+  name: 08 Revoked bearer token is rejected
+  type: http
+  seq: 13
+}
+
+get {
+  url: {{baseUrl}}/organizations/:slug/data-sources
+  body: none
+  auth: inherit
+}
+
+params:path {
+  slug: {{orgSlug}}
+}
+
+script:pre-request {
+  req.setHeader("Authorization", `Bearer ${bru.getVar("apiKeyToken")}`);
+  req.setHeader("Cookie", "");
+}
+
+tests {
+  test("revoked API key bearer token should return 401 Unauthorized", function() {
+    expect(res.status).to.equal(401);
+  });
+}

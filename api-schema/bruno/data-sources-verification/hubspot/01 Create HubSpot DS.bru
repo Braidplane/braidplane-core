@@ -1,0 +1,48 @@
+meta {
+  name: 01 Create HubSpot DS
+  type: http
+  seq: 17.2
+}
+
+post {
+  url: {{baseUrl}}/organizations/{{orgSlug}}/data-sources
+  body: json
+  auth: inherit
+}
+
+body:json {
+  {
+    "name": "Test HubSpot CRM",
+    "slug": "test-hubspot-{{timestamp}}",
+    "type": "hubspot",
+    "config": {
+      "timeout_seconds": 30
+    },
+    "credentials": {
+      "private_app_token": "pat-na1-test-token"
+    },
+    "read_only": true
+  }
+}
+
+script:pre-request {
+  bru.setVar("timestamp", Date.now());
+}
+
+script:post-response {
+  if (res.status === 201) {
+    bru.setVar("hubspotDataSourceSlug", res.body.slug);
+  }
+}
+
+tests {
+  test("should return 201 Created", function() {
+    expect(res.status).to.equal(201);
+  });
+
+  test("should create a read-only hubspot data source without returning credentials", function() {
+    expect(res.body.type).to.equal('hubspot');
+    expect(res.body.read_only).to.equal(true);
+    expect(res.body.credentials === undefined).to.equal(true);
+  });
+}

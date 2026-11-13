@@ -104,6 +104,7 @@ bin/
 
 # Node.js
 node_modules/
+api-schema/bruno/**/environments/Worktree.bru
 frontend/playwright-report/
 frontend/test-results/
 frontend/e2e/.auth/

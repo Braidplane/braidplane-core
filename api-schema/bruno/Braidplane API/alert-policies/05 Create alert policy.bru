@@ -1,0 +1,49 @@
+meta {
+  name: 05 Create alert policy
+  type: http
+  seq: 5
+}
+
+post {
+  url: {{baseUrl}}/organizations/:slug/alert-policies
+  body: json
+  auth: inherit
+}
+
+params:path {
+  slug: {{orgSlug}}
+}
+
+body:json {
+  {
+    "slug": "{{alertPolicySlug}}",
+    "name": "{{alertPolicyName}}",
+    "scope": "organization",
+    "lifecycle_state": "open",
+    "source_kind": "project",
+    "source_action": "create",
+    "source_ref": "{{alertPolicySourceRef}}",
+    "destination_slugs": [
+      "{{alertDestinationSlug}}"
+    ]
+  }
+}
+
+tests {
+  test("should return 201 Created", function() {
+    expect(res.status).to.equal(201);
+  });
+
+  test("should bind the destination", function() {
+    expect(res.body.slug).to.equal(bru.getVar("alertPolicySlug"));
+    expect(res.body.scope).to.equal("organization");
+    expect(res.body.notification_type).to.equal(null);
+    expect(res.body.severity).to.equal(null);
+    expect(res.body.lifecycle_state).to.equal("open");
+    expect(res.body.source_kind).to.equal("project");
+    expect(res.body.source_action).to.equal("create");
+    expect(res.body.source_ref).to.equal(bru.getVar("alertPolicySourceRef"));
+    expect(res.body.destination_slugs).to.deep.equal([bru.getVar("alertDestinationSlug")]);
+    expect(res.body.enabled).to.equal(true);
+  });
+}

@@ -1,0 +1,27 @@
+meta {
+  name: 24 Deleted API key metadata is gone
+  type: http
+  seq: 24
+}
+
+get {
+  url: {{baseUrl}}/organizations/:slug/api-keys/:api_key_slug
+  body: none
+  auth: inherit
+}
+
+params:path {
+  slug: {{orgSlug}}
+  api_key_slug: {{apiKeyHardDeleteSlug}}
+}
+
+tests {
+  test("deleted API key metadata should return 404 Not Found", function() {
+    expect(res.status).to.equal(404);
+  });
+
+  test("deleted API key metadata should not be retrievable", function() {
+    expect(res.body.error.code).to.equal("API_KEY_NOT_FOUND");
+    expect(res.body.error.message).to.equal("api key not found");
+  });
+}

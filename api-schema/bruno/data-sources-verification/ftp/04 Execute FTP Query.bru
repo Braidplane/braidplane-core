@@ -1,0 +1,36 @@
+meta {
+  name: 04 Execute FTP Query
+  type: http
+  seq: 28
+}
+
+post {
+  url: {{baseUrl}}/organizations/{{orgSlug}}/data-sources/{{ftpDataSourceSlug}}/queries/{{ftpQuerySlug}}/execute
+  body: json
+  auth: inherit
+}
+
+body:json {
+  {
+    "parameters": {}
+  }
+}
+
+tests {
+  test("should return 200 OK", function() {
+    expect(res.status).to.equal(200);
+  });
+
+  test("should return successful ftp execution payload", function() {
+    expect(res.body.result_type).to.equal('ftp');
+    expect(res.body.type).to.equal('ftp');
+    expect(res.body.success).to.equal(true);
+    expect(res.body.duration_ms).to.be.at.least(0);
+
+    expect(res.body.payload).to.exist;
+    expect(res.body.payload.format).to.equal('csv');
+    expect(res.body.payload.rows).to.be.an('array').and.not.empty;
+    expect(res.body.payload.row_count).to.equal(res.body.payload.rows.length);
+    expect(res.body.payload.column_names).to.include.members(['id', 'email', 'full_name', 'is_active']);
+  });
+}

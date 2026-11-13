@@ -1,0 +1,29 @@
+meta {
+  name: 02 List alert destinations
+  type: http
+  seq: 2
+}
+
+get {
+  url: {{baseUrl}}/organizations/:slug/alert-destinations
+  body: none
+  auth: inherit
+}
+
+params:path {
+  slug: {{orgSlug}}
+}
+
+tests {
+  test("should return 200 OK", function() {
+    expect(res.status).to.equal(200);
+  });
+
+  test("should include the created destination", function() {
+    expect(res.body.alert_destinations).to.be.an("array");
+    const destination = res.body.alert_destinations.find(d => d.slug === bru.getVar("alertDestinationSlug"));
+    expect(destination).to.exist;
+    expect(destination.type).to.equal("email");
+    expect(destination.non_secret_config.recipients).to.deep.equal([bru.getVar("alertDestinationRecipient")]);
+  });
+}

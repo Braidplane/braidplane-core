@@ -1,0 +1,45 @@
+meta {
+  name: 19 Create API key for hard deletion
+  type: http
+  seq: 19
+}
+
+post {
+  url: {{baseUrl}}/organizations/:slug/api-keys
+  body: json
+  auth: inherit
+}
+
+params:path {
+  slug: {{orgSlug}}
+}
+
+body:json {
+  {
+    "name": "Hard delete automation {{apiKeyHardDeleteTimestamp}}",
+    "slug": "{{apiKeyHardDeleteSlug}}",
+    "role": "viewer"
+  }
+}
+
+script:pre-request {
+  const timestamp = Date.now();
+  bru.setVar("apiKeyHardDeleteTimestamp", timestamp);
+  bru.setVar("apiKeyHardDeleteSlug", `hard-delete-api-key-${timestamp}`);
+}
+
+tests {
+  test("should return 201 Created", function() {
+    expect(res.status).to.equal(201);
+  });
+
+  test("should return raw token once and safe metadata", function() {
+    expect(res.body).to.have.property("slug", bru.getVar("apiKeyHardDeleteSlug"));
+    expect(res.body).to.have.property("token");
+    expect(res.body.token).to.be.a("string").and.not.be.empty;
+    expect(res.body).to.have.property("token_prefix");
+    expect(res.body).to.have.property("expires_at", null);
+    expect(res.body).to.not.have.property("token_hash");
+    bru.setVar("apiKeyHardDeleteToken", res.body.token);
+  });
+}

@@ -1,0 +1,26 @@
+meta {
+  name: 08 Old bearer token is rejected
+  type: http
+  seq: 8
+}
+
+get {
+  url: {{baseUrl}}/organizations/:slug/data-sources
+  body: none
+  auth: inherit
+}
+
+params:path {
+  slug: {{orgSlug}}
+}
+
+script:pre-request {
+  req.setHeader("Authorization", `Bearer ${bru.getVar("apiKeyTokenOriginal")}`);
+  req.setHeader("Cookie", "");
+}
+
+tests {
+  test("old bearer token should return 401 Unauthorized", function() {
+    expect(res.status).to.equal(401);
+  });
+}

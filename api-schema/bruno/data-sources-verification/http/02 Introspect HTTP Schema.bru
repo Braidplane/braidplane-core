@@ -1,0 +1,24 @@
+meta {
+  name: 02 Get Cold HTTP Schema Cache
+  type: http
+  seq: 19
+}
+
+get {
+  url: {{baseUrl}}/organizations/{{orgSlug}}/data-sources/{{httpDataSourceSlug}}/schema
+  auth: inherit
+}
+
+tests {
+  test("should return 200 OK", function() {
+    expect(res.status).to.equal(200);
+  });
+
+  test("should return an empty cached HTTP schema before refresh", function() {
+    expect(res.body).to.exist;
+    expect(res.body.schema_type).to.equal('http');
+
+    const operations = res.body.operations || [];
+    expect(operations).to.be.an('array').and.empty;
+  });
+}

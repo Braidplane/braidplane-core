@@ -1,0 +1,31 @@
+meta {
+  name: 02 List API keys
+  type: http
+  seq: 2
+}
+
+get {
+  url: {{baseUrl}}/organizations/:slug/api-keys
+  body: none
+  auth: inherit
+}
+
+params:path {
+  slug: {{orgSlug}}
+}
+
+tests {
+  test("should return 200 OK", function() {
+    expect(res.status).to.equal(200);
+  });
+
+  test("list should not expose raw tokens or hashes", function() {
+    expect(res.body.api_keys).to.be.an("array");
+    const key = res.body.api_keys.find(k => k.slug === bru.getVar("apiKeySlug"));
+    expect(key).to.exist;
+    expect(key).to.have.property("token_prefix");
+    expect(key).to.have.property("expires_at");
+    expect(key).to.not.have.property("token");
+    expect(key).to.not.have.property("token_hash");
+  });
+}

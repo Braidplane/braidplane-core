@@ -1,0 +1,37 @@
+meta {
+  name: 08 Reject invalid environment color
+  type: http
+  seq: 8
+}
+
+post {
+  url: {{baseUrl}}/organizations/{{orgSlug}}/environments
+  body: json
+  auth: inherit
+}
+
+body:json {
+  {
+    "name": "Invalid Color Environment",
+    "slug": "invalid-color-{{runtimeEnvironmentInvalidSuffix}}",
+    "description": "Invalid color should be rejected",
+    "color": "teal",
+    "protected": false
+  }
+}
+
+script:pre-request {
+  bru.setVar("runtimeEnvironmentInvalidSuffix", `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`.toLowerCase());
+}
+
+tests {
+  test("should return 400 Bad Request", function() {
+    expect(res.status).to.equal(400);
+  });
+
+  test("should reject unsupported environment color", function() {
+    expect(res.body.error).to.exist;
+    expect(res.body.error.code).to.equal("VALIDATION_FAILED");
+    expect(res.body.error.message).to.be.a("string").and.not.empty;
+  });
+}

@@ -1,0 +1,16 @@
+meta {
+  name: 04 Get Deleted Pipeline
+  type: http
+  seq: 4
+}
+
+get {
+  url: {{baseUrl}}/organizations/{{orgSlug}}/projects/{{projectSlug}}/pipelines/{{pipelineSlug}}
+  auth: inherit
+}
+
+tests {
+  test("removes the deleted Git definition from active reads", function() {
+    expect(res.status).to.equal(404);
+  });
+}

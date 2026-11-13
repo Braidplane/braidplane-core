@@ -1,0 +1,59 @@
+meta {
+  name: Get a data source
+  type: http
+  seq: 7
+}
+
+get {
+  url: {{baseUrl}}/organizations/:slug/data-sources/:ds_slug
+  body: none
+  auth: inherit
+}
+
+params:path {
+  slug: {{orgSlug}}
+  ds_slug: {{dataSourceSlug}}
+}
+
+script:pre-request {
+  // Ensure we have orgSlug and dataSourceSlug from previous requests
+  if (!bru.getVar("orgSlug")) {
+    throw new Error("orgSlug not set - run 'Create an organization' first");
+  }
+  if (!bru.getVar("dataSourceSlug")) {
+    throw new Error("dataSourceSlug not set - run 'Create a data source' first");
+  }
+}
+
+tests {
+  test("should return 200 OK", function() {
+    expect(res.status).to.equal(200);
+  });
+
+  test("should return JSON", function() {
+    expect(res.headers['content-type']).to.include('application/json');
+  });
+
+  test("should return data source with correct structure", function() {
+    expect(res.body).to.be.an('object');
+    expect(res.body).to.have.property('slug');
+    expect(res.body).to.have.property('name');
+    expect(res.body).to.have.property('type');
+    expect(res.body).to.have.property('config');
+    expect(res.body).to.have.property('is_active');
+    expect(res.body).to.have.property('created_at');
+    expect(res.body).to.have.property('updated_at');
+    // Schema may be present if introspected, or null if not
+    expect(res.body).to.have.property('schema');
+  });
+
+  test("should have correct slug", function() {
+    expect(res.body.slug).to.equal(bru.getVar("dataSourceSlug"));
+  });
+
+  test("should not return credentials", function() {
+    expect(res.body).to.not.have.property('credentials');
+    expect(res.body.config).to.not.have.property('username');
+    expect(res.body.config).to.not.have.property('password');
+  });
+}

@@ -1,0 +1,32 @@
+meta {
+  name: 08 Get PostgreSQL Query Execution
+  type: http
+  seq: 12
+}
+
+get {
+  url: {{baseUrl}}/organizations/{{orgSlug}}/data-sources/{{postgresDataSourceSlug}}/queries/{{postgresQuerySlug}}/executions/{{postgresExecutionSlug}}
+  auth: inherit
+}
+
+script:pre-request {
+  if (!bru.getVar("postgresExecutionSlug")) {
+    throw new Error("postgresExecutionSlug not set");
+  }
+}
+
+tests {
+  test("should return 200 OK", function() {
+    expect(res.status).to.equal(200);
+  });
+
+  test("should return the requested execution", function() {
+    expect(res.body).to.exist;
+    expect(res.body.slug).to.equal(bru.getVar("postgresExecutionSlug"));
+    expect(res.body.status).to.be.a('string').and.not.empty;
+    expect(res.body.executed_at).to.be.a('string').and.not.empty;
+    expect(res.body.result).to.exist;
+    expect(res.body.result.result_type).to.equal('sql');
+    expect(res.body.result.type).to.equal('postgres');
+  });
+}

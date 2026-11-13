@@ -1,0 +1,22 @@
+meta {
+  name: 11 Delete alert destination
+  type: http
+  seq: 11
+}
+
+delete {
+  url: {{baseUrl}}/organizations/:slug/alert-destinations/:alert_destination_slug
+  body: none
+  auth: inherit
+}
+
+params:path {
+  slug: {{orgSlug}}
+  alert_destination_slug: {{alertDestinationSlug}}
+}
+
+tests {
+  test("should return 204 No Content", function() {
+    expect(res.status).to.equal(204);
+  });
+}

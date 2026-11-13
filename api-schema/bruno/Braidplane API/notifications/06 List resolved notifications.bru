@@ -1,0 +1,29 @@
+meta {
+  name: 06 List resolved notifications
+  type: http
+  seq: 6
+}
+
+get {
+  url: {{baseUrl}}/organizations/:slug/notifications?lifecycle_state=resolved&limit=10
+  body: none
+  auth: inherit
+}
+
+params:path {
+  slug: {{orgSlug}}
+}
+
+tests {
+  test("should return 200 OK", function() {
+    expect(res.status).to.equal(200);
+  });
+
+  test("should include the resolved seeded notification", function() {
+    expect(res.body.notifications).to.be.an("array");
+    const notification = res.body.notifications.find(item => item.slug === bru.getVar("notificationRecordSlug"));
+    expect(notification).to.exist;
+    expect(notification.lifecycle_state).to.equal("resolved");
+    expect(notification.resolved_at).to.be.a("string").that.is.not.empty;
+  });
+}

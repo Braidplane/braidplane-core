@@ -1,0 +1,103 @@
+meta {
+  name: Verify email address
+  type: http
+  seq: 4
+}
+
+post {
+  url: {{baseUrl}}/auth/email/verify
+  body: json
+  auth: inherit
+}
+
+body:json {
+  {
+    "token": "{{verificationToken}}"
+  }
+}
+
+script:pre-request {
+  const axios = require('axios');
+
+  // Get the user email that was captured when creating the user
+  const userEmail = bru.getVar("userEmail");
+
+  if (!userEmail) {
+    throw new Error("userEmail not found. Make sure to run 'Create a user' first.");
+  }
+
+  // Fetch the latest email from Mailpit for this recipient
+  const {emailText} = require('./auth-email.cjs');
+  const content = await emailText(axios, bru.getEnvVar("mailpitUrl"), userEmail, /token=([a-f0-9]{64})/, bru.getVar('originalVerificationEmail'));
+  bru.setVar("verificationToken", content.match(/token=([a-f0-9]{64})/)[1]);
+}
+
+tests {
+  test("should return 204 No Content", function() {
+    expect(res.status).to.equal(204);
+  });
+
+  test("should have empty body", function() {
+    expect(res.body).to.be.empty;
+  });
+}
+
+example {
+  name: 204 Response
+  description: Email successfully verified
+
+  request: {
+    url: {{baseUrl}}/auth/email/verify
+    method: POST
+    mode: json
+    body:json: {
+      {
+        "token": "abc123-secure-token-xyz789"
+      }
+    }
+  }
+
+  response: {
+    status: {
+      code: 204
+      text: No Content
+    }
+
+    body: {
+      type: text
+      content: '''
+
+      '''
+    }
+  }
+}
+
+example {
+  name: 400 Response
+  description: Invalid or expired token
+
+  request: {
+    url: {{baseUrl}}/auth/email/verify
+    method: POST
+    mode: json
+    body:json: {
+      {
+        "token": "abc123-secure-token-xyz789"
+      }
+    }
+  }
+
+  response: {
+    status: {
+      code: 400
+      text: Bad Request
+    }
+
+    body: {
+      type: text
+      content: '''
+
+      '''
+    }
+  }
+}

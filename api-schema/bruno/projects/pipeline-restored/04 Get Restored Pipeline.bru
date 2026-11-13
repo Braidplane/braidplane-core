@@ -1,0 +1,20 @@
+meta {
+  name: 04 Get Restored Pipeline
+  type: http
+  seq: 4
+}
+
+get {
+  url: {{baseUrl}}/organizations/{{orgSlug}}/projects/{{projectSlug}}/pipelines/{{pipelineSlug}}
+  auth: inherit
+}
+
+tests {
+  test("restores the active definition with exact commit provenance", function() {
+    expect(res.status).to.equal(200);
+    expect(res.body.slug).to.equal(bru.getVar("pipelineSlug"));
+    expect(res.body.sync_status).to.equal("synced");
+    expect(res.body.last_applied_commit).to.equal(bru.getEnvVar("expectedGitCommitSHA"));
+    expect(res.body.source_path).to.equal("pipelines/acme-users-sync.pipeline.yaml");
+  });
+}

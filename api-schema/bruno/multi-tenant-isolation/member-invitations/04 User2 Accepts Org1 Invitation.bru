@@ -1,0 +1,129 @@
+meta {
+  name: 04 User2 Accepts Org1 Invitation
+  type: http
+  seq: 4
+}
+
+post {
+  url: {{baseUrl}}/member-invitations/accept
+  body: json
+  auth: inherit
+}
+
+body:json {
+  {
+    "token": "{{existingUserInvitationToken}}"
+  }
+}
+
+script:pre-request {
+  const axios = require("axios");
+  const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+  function recipientAddress(recipient) {
+    if (!recipient) {
+      return "";
+    }
+    if (typeof recipient === "string") {
+      return recipient;
+    }
+    return recipient.Address || recipient.address || recipient.Email || recipient.email || "";
+  }
+
+  function messageMatchesRecipient(message, email) {
+    const target = email.toLowerCase();
+    for (const field of [message.To, message.to]) {
+      const recipients = Array.isArray(field) ? field : field ? [field] : [];
+      for (const recipient of recipients) {
+        if (recipientAddress(recipient).toLowerCase() === target) {
+          return true;
+        }
+      }
+    }
+    return false;
+  }
+
+  function looksLikeInvitation(message) {
+    const text = [message.Subject, message.subject, message.Snippet, message.snippet]
+      .filter(Boolean)
+      .join("\n")
+      .toLowerCase();
+    return text.includes("invited") || text.includes("invitation");
+  }
+
+  async function fetchMessageContent(mailpitUrl, message) {
+    const id = message.ID || message.Id || message.id;
+    if (!id) {
+      return [message.Subject, message.subject, message.Snippet, message.snippet].filter(Boolean).join("\n");
+    }
+
+    const response = await axios.get(`${mailpitUrl}/api/v1/message/${id}`);
+    const payload = response?.data ?? response?.body ?? response;
+    return [
+      message.Subject,
+      message.subject,
+      message.Snippet,
+      message.snippet,
+      payload.Subject,
+      payload.subject,
+      payload.Text,
+      payload.text,
+      payload.HTML,
+      payload.html,
+    ].filter(Boolean).join("\n");
+  }
+
+  async function fetchInvitationEmail(mailpitUrl, email) {
+    const searchUrl = `${mailpitUrl}/api/v1/messages?search=to:${encodeURIComponent(email)}`;
+    for (let attempt = 1; attempt <= 20; attempt += 1) {
+      const response = await axios.get(searchUrl);
+      const payload = response?.data ?? response?.body ?? response;
+      const messages = payload?.messages || [];
+      const emailMessage = messages.find((message) => messageMatchesRecipient(message, email) && looksLikeInvitation(message));
+      if (emailMessage) {
+        return emailMessage;
+      }
+      await sleep(500);
+    }
+    throw new Error(`No invitation email found for ${email}`);
+  }
+
+  const userEmail = bru.getVar("user2Email");
+  if (!userEmail) {
+    throw new Error("user2Email not set - run setup first");
+  }
+  if (!bru.getVar("user2CookieName") || !bru.getVar("user2CookieValue")) {
+    throw new Error("user2 session not set - run setup first");
+  }
+
+  const mailpitUrl = bru.getEnvVar("mailpitUrl") || bru.getEnvVar("mailpit_url");
+  if (!mailpitUrl) {
+    throw new Error("mailpitUrl/mailpit_url not set in active environment");
+  }
+
+  const latestEmail = await fetchInvitationEmail(mailpitUrl, userEmail);
+  const content = await fetchMessageContent(mailpitUrl, latestEmail);
+  const tokenMatch = content.match(/member-invitations\/accept\?token=([a-f0-9]{64})/) || content.match(/token=([a-f0-9]{64})/);
+  if (!tokenMatch || !tokenMatch[1]) {
+    throw new Error("Could not extract member invitation token");
+  }
+
+  bru.setVar("existingUserInvitationToken", tokenMatch[1]);
+  req.setHeader("Cookie", `${bru.getVar("user2CookieName")}=${bru.getVar("user2CookieValue")}`);
+  req.setHeader("X-CSRF-Token", bru.getVar("user2CSRFToken"));
+}
+
+tests {
+  test("should accept existing user's invitation", function() {
+    expect(res.status).to.equal(200);
+    expect(res.body.invitation.slug).to.equal(bru.getVar("existingUserInvitationSlug"));
+    expect(res.body.invitation.status).to.equal("accepted");
+    expect(res.body.member.user_slug).to.equal(bru.getVar("user2Slug"));
+    expect(res.body.member.role).to.equal("viewer");
+  });
+
+  test("should not expose accepted token material", function() {
+    expect(res.body.invitation).to.not.have.property("token");
+    expect(res.body.invitation).to.not.have.property("token_hash");
+  });
+}

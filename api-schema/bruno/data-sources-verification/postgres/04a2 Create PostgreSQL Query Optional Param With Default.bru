@@ -1,0 +1,60 @@
+meta {
+  name: 04a2 Create PostgreSQL Query Optional Param With Default
+  type: http
+  seq: 6.5
+}
+
+post {
+  url: {{baseUrl}}/organizations/{{orgSlug}}/data-sources/{{postgresDataSourceSlug}}/queries
+  body: json
+  auth: inherit
+}
+
+body:json {
+  {
+    "name": "Test PostgreSQL Query Optional Param Default",
+    "slug": "test-postgres-optional-default-{{timestamp}}",
+    "description": "Optional parameter with default value test",
+    "query_statement": {
+      "type": "postgres",
+      "sql": "SELECT {{user_id}}::int as user_id"
+    },
+    "parameters": [
+      {
+        "name": "user_id",
+        "data_type": "integer",
+        "is_required": false,
+        "default_value": "42"
+      }
+    ],
+    "row_limit": 1000,
+    "timeout_seconds": 30
+  }
+}
+
+script:pre-request {
+  bru.setVar("timestamp", Date.now());
+  if (!bru.getVar("postgresDataSourceSlug")) {
+    throw new Error("postgresDataSourceSlug not set");
+  }
+}
+
+script:post-response {
+  if (res.status === 201) {
+    bru.setVar("postgresOptionalDefaultQuerySlug", res.body.slug);
+  }
+}
+
+tests {
+  test("should return 201 Created", function() {
+    expect(res.status).to.equal(201);
+  });
+
+  test("should have optional parameter with default", function() {
+    expect(res.body.parameters).to.be.an('array').with.lengthOf(1);
+    const param = res.body.parameters[0];
+    expect(param.name).to.equal("user_id");
+    expect(param.is_required).to.equal(false);
+    expect(param.default_value).to.equal("42");
+  });
+}

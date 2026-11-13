@@ -1,0 +1,32 @@
+meta {
+  name: 09 Verify HubSpot OAuth Data Source After Replay
+  type: http
+  seq: 10
+}
+
+get {
+  url: {{baseUrl}}/organizations/{{orgSlug}}/data-sources/{{hubspotOAuthDataSourceSlug}}
+  body: none
+  auth: inherit
+}
+
+script:pre-request {
+  if (!bru.getVar("hubspotOAuthDataSourceSlug")) {
+    throw new Error("hubspotOAuthDataSourceSlug not set - run the HubSpot OAuth lifecycle first");
+  }
+  if (!bru.getVar("hubspotOAuthCredentialBeforeReplay")) {
+    throw new Error("hubspotOAuthCredentialBeforeReplay not set - run the active HubSpot OAuth data source request first");
+  }
+}
+
+tests {
+  test("should keep the active OAuth credential unchanged after replay", function() {
+    const credentialBeforeReplay = JSON.parse(bru.getVar("hubspotOAuthCredentialBeforeReplay"));
+
+    expect(res.status).to.equal(200);
+    expect(res.body.slug).to.equal(bru.getVar("hubspotOAuthDataSourceSlug"));
+    expect(res.body.is_active).to.equal(true);
+    expect(res.body.credential.status).to.equal("active");
+    expect(res.body.credential).to.deep.equal(credentialBeforeReplay);
+  });
+}

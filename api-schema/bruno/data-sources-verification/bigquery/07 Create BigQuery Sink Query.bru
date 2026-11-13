@@ -1,0 +1,47 @@
+meta {
+  name: 07 Create BigQuery Sink Query
+  type: http
+  seq: 18.7
+}
+
+post {
+  url: {{baseUrl}}/organizations/{{orgSlug}}/data-sources/{{bigQueryDataSourceSlug}}/queries
+  body: json
+  auth: inherit
+}
+
+body:json {
+  {
+    "name": "Test BigQuery Sink Query",
+    "slug": "test-bigquery-sink-{{timestamp}}",
+    "query_statement": {
+      "type": "bigquery",
+      "operation": "insert_rows",
+      "dataset": "analytics",
+      "table": "order_exports",
+      "rows": "{{input}}",
+      "insert_id_prefix": "{{runtime.run.slug}}"
+    },
+    "parameters": [],
+    "row_limit": 1000,
+    "timeout_seconds": 30
+  }
+}
+
+script:pre-request {
+  bru.setVar("timestamp", Date.now());
+  if (!bru.getVar("bigQueryDataSourceSlug")) {
+    throw new Error("bigQueryDataSourceSlug not set");
+  }
+}
+
+tests {
+  test("should return 201 Created", function() {
+    expect(res.status).to.equal(201);
+  });
+
+  test("should persist bigquery insert_rows sink statement", function() {
+    expect(res.body.query_statement.type).to.equal('bigquery');
+    expect(res.body.query_statement.operation).to.equal('insert_rows');
+  });
+}

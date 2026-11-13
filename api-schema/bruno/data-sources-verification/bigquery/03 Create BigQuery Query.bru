@@ -1,0 +1,58 @@
+meta {
+  name: 03 Create BigQuery Query
+  type: http
+  seq: 18.3
+}
+
+post {
+  url: {{baseUrl}}/organizations/{{orgSlug}}/data-sources/{{bigQueryDataSourceSlug}}/queries
+  body: json
+  auth: inherit
+}
+
+body:json {
+  {
+    "name": "Test BigQuery Query",
+    "slug": "test-bigquery-query-{{timestamp}}",
+    "query_statement": {
+      "type": "bigquery",
+      "operation": "query",
+      "sql": "SELECT order_id, region, total_amount, active, item_count, metadata FROM `analytics.orders` WHERE region = {{region}}",
+      "timeout_seconds": 5,
+      "maximum_bytes_billed": 1000000
+    },
+    "parameters": [
+      {
+        "name": "region",
+        "data_type": "text",
+        "required": true
+      }
+    ],
+    "row_limit": 1000,
+    "timeout_seconds": 30
+  }
+}
+
+script:pre-request {
+  bru.setVar("timestamp", Date.now());
+  if (!bru.getVar("bigQueryDataSourceSlug")) {
+    throw new Error("bigQueryDataSourceSlug not set");
+  }
+}
+
+script:post-response {
+  if (res.status === 201) {
+    bru.setVar("bigQueryQuerySlug", res.body.slug);
+  }
+}
+
+tests {
+  test("should return 201 Created", function() {
+    expect(res.status).to.equal(201);
+  });
+
+  test("should persist bigquery query statement", function() {
+    expect(res.body.query_statement.type).to.equal('bigquery');
+    expect(res.body.query_statement.operation).to.equal('query');
+  });
+}

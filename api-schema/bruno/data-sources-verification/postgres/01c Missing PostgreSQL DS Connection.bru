@@ -1,0 +1,23 @@
+meta {
+  name: 01c Missing PostgreSQL DS Connection
+  type: http
+  seq: 3.6
+}
+
+post {
+  url: {{baseUrl}}/organizations/{{orgSlug}}/data-sources/missing-postgres-source/test-connection
+  body: none
+  auth: inherit
+}
+
+script:pre-request {
+  if (!bru.getVar("orgSlug")) {
+    throw new Error("orgSlug not set");
+  }
+}
+
+tests {
+  test("should return 404 Not Found", function() {
+    expect(res.status).to.equal(404);
+  });
+}

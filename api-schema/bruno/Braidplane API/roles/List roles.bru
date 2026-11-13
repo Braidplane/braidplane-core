@@ -1,0 +1,129 @@
+meta {
+  name: List roles
+  type: http
+  seq: 2
+}
+
+get {
+  url: {{baseUrl}}/organizations/:slug/roles
+  body: none
+  auth: inherit
+}
+
+params:path {
+  slug: {{orgSlug}}
+}
+
+script:pre-request {
+  if (!bru.getVar("orgSlug")) {
+    throw new Error("orgSlug not set - run 'Create an organization' first");
+  }
+}
+
+tests {
+  test("should return 200 OK", function() {
+    expect(res.status).to.equal(200);
+  });
+
+  test("should return JSON", function() {
+    expect(res.headers['content-type']).to.include('application/json');
+  });
+
+  test("should return array of roles", function() {
+    expect(res.body.roles).to.be.an('array');
+    expect(res.body.has_more).to.equal(false);
+  });
+
+  test("roles should have correct structure", function() {
+    if (res.body.roles.length > 0) {
+      const role = res.body.roles[0];
+      expect(role).to.have.property('slug');
+      expect(role).to.have.property('name');
+      expect(role).to.have.property('is_default');
+      expect(role).to.have.property('permissions');
+      expect(role).to.have.property('created_at');
+      expect(role).to.have.property('updated_at');
+    }
+  });
+
+  test("should include default admin and viewer roles", function() {
+    const adminRole = res.body.roles.find(r => r.slug === 'admin');
+    const viewerRole = res.body.roles.find(r => r.slug === 'viewer');
+
+    expect(adminRole).to.exist;
+    expect(adminRole.is_default).to.be.true;
+    expect(viewerRole).to.exist;
+    expect(viewerRole.is_default).to.be.true;
+  });
+
+  test("admin role should have wildcard permission", function() {
+    const adminRole = res.body.roles.find(r => r.slug === 'admin');
+    if (adminRole) {
+      const wildcardPerm = adminRole.permissions.find(p => p.resource === '*' && p.action === '*');
+      expect(wildcardPerm).to.exist;
+    }
+  });
+
+  test("should have at least 2 roles (admin + viewer)", function() {
+    expect(res.body.roles.length).to.be.greaterThanOrEqual(2);
+  });
+}
+
+example {
+  name: 200 Response
+  description: List of roles
+
+  request: {
+    url: {{baseUrl}}/organizations/:slug/roles
+    method: GET
+    mode: none
+    params:path: {
+      slug:
+    }
+  }
+
+  response: {
+    headers: {
+      Content-Type: application/json
+    }
+
+    status: {
+      code: 200
+      text: OK
+    }
+
+    body: {
+      type: json
+      content: '''
+        [
+          {
+            "slug": "admin",
+            "name": "Admin",
+            "is_default": true,
+            "permissions": [
+              {
+                "resource": "*",
+                "action": "*"
+              }
+            ],
+            "created_at": "2025-10-04T10:30:00Z",
+            "updated_at": "2025-10-04T10:30:00Z"
+          },
+          {
+            "slug": "viewer",
+            "name": "Viewer",
+            "is_default": true,
+            "permissions": [
+              {
+                "resource": "members",
+                "action": "read"
+              }
+            ],
+            "created_at": "2025-10-04T10:30:00Z",
+            "updated_at": "2025-10-04T10:30:00Z"
+          }
+        ]
+      '''
+    }
+  }
+}

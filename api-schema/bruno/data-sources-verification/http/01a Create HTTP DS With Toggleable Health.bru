@@ -1,0 +1,53 @@
+meta {
+  name: 01a Create HTTP DS With Toggleable Health
+  type: http
+  seq: 18.1
+}
+
+post {
+  url: {{baseUrl}}/organizations/{{orgSlug}}/data-sources
+  body: json
+  auth: inherit
+}
+
+body:json {
+  {
+    "name": "HTTP Toggleable Health",
+    "slug": "test-http-toggleable-health-{{timestamp}}",
+    "type": "http",
+    "config": {
+      "base_url": "{{httpcrudUrl}}",
+      "health_path": "/unstable-health",
+      "timeout_seconds": 5,
+      "allow_private_hosts": true
+    },
+    "credentials": {}
+  }
+}
+
+script:pre-request {
+  bru.setVar("timestamp", Date.now());
+  if (!bru.getEnvVar("orgSlug") && !bru.getVar("orgSlug")) {
+    throw new Error("orgSlug not set");
+  }
+  if (!bru.getEnvVar("httpcrudUrl") && !bru.getVar("httpcrudUrl")) {
+    throw new Error("httpcrudUrl not set");
+  }
+}
+
+script:post-response {
+  if (res.status === 201) {
+    bru.setVar("httpToggleableHealthDataSourceSlug", res.body.slug);
+  }
+}
+
+tests {
+  test("should return 201 Created", function() {
+    expect(res.status).to.equal(201);
+  });
+
+  test("should save the toggleable health data source", function() {
+    expect(res.body.slug).to.equal(bru.getVar("httpToggleableHealthDataSourceSlug"));
+    expect(res.body.config.health_path).to.equal("/unstable-health");
+  });
+}

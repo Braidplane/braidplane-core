@@ -1,0 +1,35 @@
+meta {
+  name: 02 List Git Branches
+  type: http
+  seq: 2
+}
+
+get {
+  url: {{baseUrl}}/organizations/{{orgSlug}}/data-sources/{{gitDataSourceSlug}}/branches
+  body: none
+  auth: inherit
+}
+
+script:pre-request {
+  if (!bru.getEnvVar("orgSlug") && !bru.getVar("orgSlug")) {
+    throw new Error("orgSlug not set");
+  }
+  if (!bru.getVar("gitDataSourceSlug")) {
+    throw new Error("gitDataSourceSlug not set");
+  }
+}
+
+tests {
+  test("should return 200 OK", function() {
+    expect(res.status).to.equal(200);
+  });
+
+  test("should include the seeded main branch", function() {
+    expect(res.body.branches).to.be.an("array");
+    const main = res.body.branches.find(function(branch) {
+      return branch.name === "main";
+    });
+    expect(main).to.exist;
+    expect(main.is_default).to.equal(true);
+  });
+}

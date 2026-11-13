@@ -1,0 +1,53 @@
+meta {
+  name: 01 Create MongoDB DS
+  type: http
+  seq: 13
+}
+
+post {
+  url: {{baseUrl}}/organizations/{{orgSlug}}/data-sources
+  body: json
+  auth: inherit
+}
+
+body:json {
+  {
+    "name": "Test MongoDB",
+    "slug": "test-mongodb-{{timestamp}}",
+    "type": "mongodb",
+    "config": {
+      "host": "localhost",
+      "port": {{mongoPort}},
+      "database": "braidplane",
+      "auth_database": "admin",
+      "allow_private_hosts": true
+    },
+    "credentials": {
+      "username": "root",
+      "password": "rootpass"
+    }
+  }
+}
+
+script:pre-request {
+  bru.setVar("timestamp", Date.now());
+  if (!bru.getEnvVar("mongoPort") && !bru.getVar("mongoPort")) {
+    throw new Error("mongoPort not set");
+  }
+}
+
+script:post-response {
+  if (res.status === 201) {
+    bru.setVar("mongodbDataSourceSlug", res.body.slug);
+  }
+}
+
+tests {
+  test("should return 201 Created", function() {
+    expect(res.status).to.equal(201);
+  });
+
+  test("should have type mongodb", function() {
+    expect(res.body.type).to.equal('mongodb');
+  });
+}

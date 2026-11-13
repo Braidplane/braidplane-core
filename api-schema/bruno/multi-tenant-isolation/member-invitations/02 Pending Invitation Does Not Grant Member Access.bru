@@ -1,0 +1,29 @@
+meta {
+  name: 02 Pending Invitation Does Not Grant Member Access
+  type: http
+  seq: 2
+}
+
+get {
+  url: {{baseUrl}}/organizations/{{orgSlug1}}/members
+  body: none
+  auth: inherit
+}
+
+script:pre-request {
+  if (!bru.getVar("existingUserInvitationSlug")) {
+    throw new Error("existingUserInvitationSlug not set - run previous invitation request first");
+  }
+  if (!bru.getVar("user2CookieName") || !bru.getVar("user2CookieValue")) {
+    throw new Error("user2 session not set - run setup first");
+  }
+
+  req.setHeader("Cookie", `${bru.getVar("user2CookieName")}=${bru.getVar("user2CookieValue")}`);
+}
+
+tests {
+  test("should reject pending invitee member access", function() {
+    expect(res.status).to.equal(403);
+    expect(res.body).to.have.property("error");
+  });
+}

@@ -1,0 +1,16 @@
+meta {
+  name: 07 Delete MongoDB DS
+  type: http
+  seq: 19
+}
+
+delete {
+  url: {{baseUrl}}/organizations/{{orgSlug}}/data-sources/{{mongodbDataSourceSlug}}
+  auth: inherit
+}
+
+tests {
+  test("should return 204 No Content", function() {
+    expect(res.status).to.equal(204);
+  });
+}

@@ -1,0 +1,196 @@
+meta {
+  name: Create a role
+  type: http
+  seq: 1
+}
+
+post {
+  url: {{baseUrl}}/organizations/:slug/roles
+  body: json
+  auth: inherit
+}
+
+params:path {
+  slug: {{orgSlug}}
+}
+
+body:json {
+  {
+    "name": "Editor",
+    "slug": "editor",
+    "permissions": [
+      {
+        "resource": "members",
+        "action": "read"
+      },
+      {
+        "resource": "organizations",
+        "action": "read"
+      }
+    ]
+  }
+}
+
+script:pre-request {
+  // Ensure we have orgSlug from previous request
+  if (!bru.getVar("orgSlug")) {
+    throw new Error("orgSlug not set - run 'Create an organization' first");
+  }
+}
+
+tests {
+  test("should return 201 Created", function() {
+    expect(res.status).to.equal(201);
+  });
+
+  test("should return JSON", function() {
+    expect(res.headers['content-type']).to.include('application/json');
+  });
+
+  test("should return role with correct structure", function() {
+    const body = res.body;
+    expect(body).to.have.property('slug');
+    expect(body).to.have.property('name');
+    expect(body).to.have.property('is_default');
+    expect(body).to.have.property('permissions');
+    expect(body).to.have.property('created_at');
+    expect(body).to.have.property('updated_at');
+  });
+
+  test("should return correct role data", function() {
+    expect(res.body.name).to.equal("Editor");
+    expect(res.body.slug).to.equal("editor");
+    expect(res.body.is_default).to.be.false;
+  });
+
+  test("should have assigned permissions", function() {
+    expect(res.body.permissions).to.be.an('array');
+    expect(res.body.permissions.length).to.be.greaterThan(0);
+
+    const perm = res.body.permissions[0];
+    expect(perm).to.have.property('resource');
+    expect(perm).to.have.property('action');
+  });
+
+  test("permissions should match request", function() {
+    expect(res.body.permissions.length).to.equal(2);
+  });
+
+  bru.setVar("roleSlug", res.body.slug);
+}
+
+example {
+  name: 201 Response
+  description: Role created
+
+  request: {
+    url: {{baseUrl}}/organizations/:slug/roles
+    method: POST
+    mode: json
+    params:path: {
+      slug:
+    }
+
+    body:json: {
+      {
+        "name": "Editor",
+        "slug": "editor",
+        "permissions": [
+          {
+            "resource": "members",
+            "action": "read"
+          }
+        ]
+      }
+    }
+  }
+
+  response: {
+    headers: {
+      Content-Type: application/json
+    }
+
+    status: {
+      code: 201
+      text: Created
+    }
+
+    body: {
+      type: json
+      content: '''
+        {
+          "slug": "editor",
+          "name": "Editor",
+          "is_default": false,
+          "permissions": [
+            {
+              "resource": "members",
+              "action": "read"
+            }
+          ],
+          "created_at": "2025-10-04T10:30:00Z",
+          "updated_at": "2025-10-04T10:30:00Z"
+        }
+      '''
+    }
+  }
+}
+
+example {
+  name: 409 Response
+  description: Role already exists
+
+  request: {
+    url: {{baseUrl}}/organizations/:slug/roles
+    method: POST
+    mode: json
+    params:path: {
+      slug:
+    }
+
+    body:json: {
+      {
+        "name": "Editor",
+        "slug": "editor",
+        "permissions": [
+          {
+            "resource": "members",
+            "action": "read"
+          }
+        ]
+      }
+    }
+  }
+
+  response: {
+    headers: {
+      Content-Type: application/json
+    }
+
+    status: {
+      code: 409
+      text: Conflict
+    }
+
+    body: {
+      type: json
+      content: '''
+        {
+          "error": {
+            "code": "",
+            "message": "",
+            "validation_errors": [
+              {
+                "field": "",
+                "code": "",
+                "message": "",
+                "details": {}
+              }
+            ],
+            "request_id": ""
+          }
+        }
+      '''
+    }
+  }
+}

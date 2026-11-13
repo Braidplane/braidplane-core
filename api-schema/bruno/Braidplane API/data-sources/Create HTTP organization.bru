@@ -1,0 +1,34 @@
+meta {
+  name: Create HTTP fixture organization
+  type: http
+  seq: 4
+}
+
+post {
+  url: {{baseUrl}}/organizations
+  body: json
+  auth: inherit
+}
+
+body:json {
+  {
+    "name": "HTTP Fixture {{httpOrgTimestamp}}",
+    "slug": "http-fixture-{{httpOrgTimestamp}}"
+  }
+}
+
+script:pre-request {
+  // A free organization allows three sources; HTTP uses its own fixture organization.
+  bru.setVar("httpOrgTimestamp", Date.now());
+}
+
+script:post-response {
+  if (res.status === 201) bru.setVar("httpOrgSlug", res.body.slug);
+}
+
+tests {
+  test("creates a separate organization for the fourth connector fixture", function() {
+    expect(res.status).to.equal(201);
+    expect(res.body.slug).to.equal(`http-fixture-${bru.getVar("httpOrgTimestamp")}`);
+  });
+}

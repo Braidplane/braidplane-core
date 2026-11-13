@@ -1,0 +1,40 @@
+meta {
+  name: 08 Execute S3 Direct Write Query
+  type: http
+  seq: 47
+}
+
+post {
+  url: {{baseUrl}}/organizations/{{orgSlug}}/data-sources/{{s3DataSourceSlug}}/queries/{{s3DirectWriteQuerySlug}}/execute
+  body: json
+  auth: inherit
+}
+
+body:json {
+  {
+    "parameters": {}
+  }
+}
+
+script:pre-request {
+  if (!bru.getVar("s3DirectWriteQuerySlug")) {
+    throw new Error("s3DirectWriteQuerySlug not set");
+  }
+}
+
+tests {
+  test("should return 200 OK", function() {
+    expect(res.status).to.equal(200);
+  });
+
+  test("should return successful s3 write result", function() {
+    expect(res.body.result_type).to.equal('s3');
+    expect(res.body.type).to.equal('s3');
+    expect(res.body.success).to.equal(true);
+    expect(res.body.payload.operation).to.equal('write');
+    expect(res.body.payload.format).to.equal('json');
+    expect(res.body.payload.target_path).to.equal(`fixtures/${bru.getVar("s3DirectWriteKey")}`);
+    expect(res.body.payload.written_rows).to.equal(1);
+    expect(res.body.payload.written_bytes).to.be.a('number').and.greaterThan(0);
+  });
+}

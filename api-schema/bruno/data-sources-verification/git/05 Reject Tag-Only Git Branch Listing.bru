@@ -1,0 +1,30 @@
+meta {
+  name: 05 Reject Tag-Only Git Branch Listing
+  type: http
+  seq: 5
+}
+
+get {
+  url: {{baseUrl}}/organizations/{{orgSlug}}/data-sources/{{gitTagOnlyDataSourceSlug}}/branches
+  body: none
+  auth: inherit
+}
+
+script:pre-request {
+  if (!bru.getEnvVar("orgSlug") && !bru.getVar("orgSlug")) {
+    throw new Error("orgSlug not set");
+  }
+  if (!bru.getVar("gitTagOnlyDataSourceSlug")) {
+    throw new Error("gitTagOnlyDataSourceSlug not set - run 04 first");
+  }
+}
+
+tests {
+  test("should return 422 Unprocessable Entity", function() {
+    expect(res.status).to.equal(422);
+  });
+
+  test("should identify branch listing connection failure", function() {
+    expect(res.body.error.code).to.equal("DATA_SOURCE_CONNECTION_FAILED");
+  });
+}

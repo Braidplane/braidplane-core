@@ -1,0 +1,22 @@
+meta {
+  name: 23 Delete revoked API key
+  type: http
+  seq: 23
+}
+
+post {
+  url: {{baseUrl}}/organizations/:slug/api-keys/:api_key_slug/delete
+  body: none
+  auth: inherit
+}
+
+params:path {
+  slug: {{orgSlug}}
+  api_key_slug: {{apiKeyHardDeleteSlug}}
+}
+
+tests {
+  test("revoked API key hard delete should return 204 No Content", function() {
+    expect(res.status).to.equal(204);
+  });
+}

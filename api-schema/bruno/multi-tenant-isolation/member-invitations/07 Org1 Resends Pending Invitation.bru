@@ -1,0 +1,33 @@
+meta {
+  name: 07 Org1 Resends Pending Invitation
+  type: http
+  seq: 7
+}
+
+post {
+  url: {{baseUrl}}/organizations/{{orgSlug1}}/member-invitations/{{resendRevokeInvitationSlug}}/resend
+  body: none
+  auth: inherit
+}
+
+script:pre-request {
+  if (!bru.getVar("resendRevokeInvitationSlug")) {
+    throw new Error("resendRevokeInvitationSlug not set - create resend/revoke invitation first");
+  }
+  req.setHeader("Cookie", `${bru.getVar("user1CookieName")}=${bru.getVar("user1CookieValue")}`);
+  req.setHeader("X-CSRF-Token", bru.getVar("user1CSRFToken"));
+}
+
+tests {
+  test("should resend a pending invitation", function() {
+    expect(res.status).to.equal(200);
+    expect(res.body.slug).to.equal(bru.getVar("resendRevokeInvitationSlug"));
+    expect(res.body.email).to.equal(bru.getVar("resendRevokeInvitationEmail"));
+    expect(res.body.status).to.equal("pending");
+  });
+
+  test("should not expose rotated token material", function() {
+    expect(res.body).to.not.have.property("token");
+    expect(res.body).to.not.have.property("token_hash");
+  });
+}

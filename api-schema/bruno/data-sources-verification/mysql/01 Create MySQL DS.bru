@@ -1,0 +1,55 @@
+meta {
+  name: 01 Create MySQL DS
+  type: http
+  seq: 8
+}
+
+post {
+  url: {{baseUrl}}/organizations/{{orgSlug}}/data-sources
+  body: json
+  auth: inherit
+}
+
+body:json {
+  {
+    "name": "Test MySQL DB",
+    "slug": "test-mysql-{{timestamp}}",
+    "type": "mysql",
+    "config": {
+      "host": "localhost",
+      "port": {{mysqlPort}},
+      "database": "braidplane",
+      "allow_private_hosts": true
+    },
+    "credentials": {
+      "username": "braidplane",
+      "password": "braidplanepass"
+    }
+  }
+}
+
+script:pre-request {
+  bru.setVar("timestamp", Date.now());
+  if (!bru.getVar("orgSlug")) {
+    throw new Error("orgSlug not set");
+  }
+  if (!bru.getEnvVar("mysqlPort") && !bru.getVar("mysqlPort")) {
+    throw new Error("mysqlPort not set");
+  }
+}
+
+script:post-response {
+  if (res.status === 201) {
+    bru.setVar("mysqlDataSourceSlug", res.body.slug);
+  }
+}
+
+tests {
+  test("should return 201 Created", function() {
+    expect(res.status).to.equal(201);
+  });
+
+  test("should have type mysql", function() {
+    expect(res.body.type).to.equal('mysql');
+  });
+}

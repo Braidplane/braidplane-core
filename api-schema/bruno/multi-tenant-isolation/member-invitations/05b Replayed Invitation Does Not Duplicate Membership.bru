@@ -1,0 +1,28 @@
+meta {
+  name: 05b Replayed Invitation Does Not Duplicate Membership
+  type: http
+  seq: 5.2
+}
+
+get {
+  url: {{baseUrl}}/organizations/{{orgSlug1}}/members
+  body: none
+  auth: inherit
+}
+
+script:pre-request {
+  if (!bru.getVar("existingUserInvitationToken")) {
+    throw new Error("existingUserInvitationToken not set - replay invitation first");
+  }
+  req.setHeader("Cookie", `${bru.getVar("user2CookieName")}=${bru.getVar("user2CookieValue")}`);
+}
+
+tests {
+  test("should keep exactly one membership for the accepted user", function() {
+    expect(res.status).to.equal(200);
+    expect(res.body).to.have.property("members");
+    const memberships = res.body.members.filter((member) => member.user_slug === bru.getVar("user2Slug"));
+    expect(memberships).to.have.lengthOf(1);
+    expect(memberships[0].role).to.equal("viewer");
+  });
+}

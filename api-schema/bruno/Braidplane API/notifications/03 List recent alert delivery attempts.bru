@@ -1,0 +1,36 @@
+meta {
+  name: 03 List recent alert delivery attempts
+  type: http
+  seq: 3
+}
+
+get {
+  url: {{baseUrl}}/organizations/:slug/alert-delivery-attempts?notification_slugs={{notificationRecordSlug}}&limit_per_notification=5
+  body: none
+  auth: inherit
+}
+
+params:path {
+  slug: {{orgSlug}}
+}
+
+tests {
+  test("should return 200 OK", function() {
+    expect(res.status).to.equal(200);
+  });
+
+  test("should include capped delivery attempts for requested notifications", function() {
+    expect(res.body.alert_delivery_attempts).to.be.an("array").that.is.not.empty;
+    const attempt = res.body.alert_delivery_attempts[0];
+    expect(attempt.notification_record_slug).to.equal(bru.getVar("notificationRecordSlug"));
+    expect(attempt.destination_name).to.equal("Seeded operations email");
+    expect(attempt.status).to.equal("queued");
+  });
+
+  test("should not expose worker queue fields", function() {
+    const attempt = res.body.alert_delivery_attempts[0];
+    expect(attempt).to.not.have.property("job_kind");
+    expect(attempt).to.not.have.property("job_queue");
+    expect(attempt).to.not.have.property("job_state");
+  });
+}

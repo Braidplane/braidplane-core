@@ -1,0 +1,24 @@
+meta {
+  name: 01b Force HTTP Toggleable Health Failure
+  type: http
+  seq: 18.2
+}
+
+post {
+  url: {{httpcrudUrl}}/unstable-health/fail
+  body: none
+  auth: none
+}
+
+script:pre-request {
+  if (!bru.getEnvVar("httpcrudUrl") && !bru.getVar("httpcrudUrl")) {
+    throw new Error("httpcrudUrl not set");
+  }
+}
+
+tests {
+  test("should force the fixture health endpoint down", function() {
+    expect(res.status).to.equal(200);
+    expect(res.body.unstable_health).to.equal("failed");
+  });
+}

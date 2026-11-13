@@ -1,0 +1,49 @@
+meta {
+  name: Enable Prod Project Environment
+  type: http
+  seq: 7
+}
+
+put {
+  url: {{baseUrl}}/organizations/{{orgSlug}}/projects/{{pipelineProjectSlug}}/environments/{{prodEnvironmentSlug}}
+  body: json
+  auth: inherit
+}
+
+body:json {
+  {
+    "is_default": true,
+    "protected_environment_confirmation": "{{prodEnvironmentSlug}}"
+  }
+}
+
+script:pre-request {
+  req.setHeader("X-CSRF-Token", bru.getVar("csrfToken"));
+  if (!bru.getVar("orgSlug")) {
+    throw new Error("orgSlug not set");
+  }
+  if (!bru.getVar("prodEnvironmentSlug")) {
+    bru.setVar("prodEnvironmentSlug", "prod");
+  }
+  if (!bru.getEnvVar("pipelineProjectSlug") && !bru.getVar("pipelineProjectSlug")) {
+    throw new Error("pipelineProjectSlug not set");
+  }
+}
+
+script:post-response {
+  if (res.status !== 200) {
+    bru.runner.stopExecution();
+    throw new Error(`Enable Prod Project Environment failed with status ${res.status}`);
+  }
+}
+
+tests {
+  test("should return 200 OK", function() {
+    expect(res.status).to.equal(200);
+  });
+
+  test("should enable prod for the pipeline project", function() {
+    expect(res.body.environment_slug).to.equal("prod");
+    expect(res.body.is_default).to.equal(true);
+  });
+}

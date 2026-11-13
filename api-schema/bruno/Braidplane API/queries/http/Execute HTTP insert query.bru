@@ -1,0 +1,59 @@
+meta {
+  name: Execute HTTP insert query
+  type: http
+  seq: 2
+}
+
+post {
+  url: {{baseUrl}}/organizations/:slug/data-sources/:ds_slug/queries/:query_slug/execute
+  body: json
+  auth: inherit
+}
+
+params:path {
+  slug: {{httpOrgSlug}}
+  ds_slug: {{httpDataSourceSlug}}
+  query_slug: {{httpInsertQuerySlug}}
+}
+
+body:json {
+  {
+    "parameters": {
+      "item_name": "{{httpFixtureName}}",
+      "item_status": "{{httpFixtureStatus}}"
+    }
+  }
+}
+
+script:pre-request {
+  if (!bru.getVar("httpOrgSlug")) {
+    throw new Error("httpOrgSlug not set - run 'Create an organization' first");
+  }
+
+  if (!bru.getVar("httpDataSourceSlug")) {
+    throw new Error("httpDataSourceSlug not set - run a data source create request first");
+  }
+
+  if (!bru.getVar("httpInsertQuerySlug")) {
+    throw new Error("httpInsertQuerySlug not set - run 'Create HTTP insert query' first");
+  }
+
+  const fixtureID = `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+  bru.setVar("httpFixtureStatus", `bruno-${fixtureID}`);
+  bru.setVar("httpFixtureName", `Inserted HTTP Item ${fixtureID}`);
+}
+
+tests {
+  test("should return 200 OK", function() {
+    expect(res.status).to.equal(200);
+  });
+
+  test("should return HTTP execution result", function() {
+    expect(res.body).to.have.property("result_type", "http");
+    expect(res.body).to.have.property("type", "http");
+    expect(res.body).to.have.property("success", true);
+    expect(res.body.payload.status_code).to.equal(201);
+    expect(res.body.payload.body.name).to.equal(bru.getVar("httpFixtureName"));
+    expect(res.body.payload.body.status).to.equal(bru.getVar("httpFixtureStatus"));
+  });
+}

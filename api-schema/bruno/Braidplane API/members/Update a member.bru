@@ -1,0 +1,116 @@
+meta {
+  name: Update a member
+  type: http
+  seq: 3
+}
+
+put {
+  url: {{baseUrl}}/organizations/:slug/members/:user_slug
+  body: json
+  auth: inherit
+}
+
+params:path {
+  slug: {{orgSlug}}
+  user_slug: {{memberUserSlug}}
+}
+
+body:json {
+  {
+    "role": "admin"
+  }
+}
+
+tests {
+  test("should return 204 No Content", function() {
+    expect(res.status).to.equal(204);
+  });
+}
+
+example {
+  name: 204 Response
+  description: Member updated
+
+  request: {
+    url: {{baseUrl}}/organizations/:slug/members/:user_slug
+    method: PUT
+    mode: json
+    params:path: {
+      slug:
+      user_slug:
+    }
+
+    body:json: {
+      {
+        "role": "admin"
+      }
+    }
+  }
+
+  response: {
+    status: {
+      code: 204
+      text: No Content
+    }
+
+    body: {
+      type: text
+      content: '''
+
+      '''
+    }
+  }
+}
+
+example {
+  name: 404 Response
+  description: Member not found
+
+  request: {
+    url: {{baseUrl}}/organizations/:slug/members/:user_slug
+    method: PUT
+    mode: json
+    params:path: {
+      slug:
+      user_slug:
+    }
+
+    body:json: {
+      {
+        "role": "admin"
+      }
+    }
+  }
+
+  response: {
+    headers: {
+      Content-Type: application/json
+    }
+
+    status: {
+      code: 404
+      text: Not Found
+    }
+
+    body: {
+      type: json
+      content: '''
+        {
+          "error": {
+            "code": "",
+            "message": "",
+            "validation_errors": [
+              {
+                "field": "",
+                "code": "",
+                "message": "",
+                "details": {}
+              }
+            ],
+            "request_id": ""
+          }
+        }
+      '''
+    }
+  }
+}

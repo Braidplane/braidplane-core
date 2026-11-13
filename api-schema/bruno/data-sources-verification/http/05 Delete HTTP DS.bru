@@ -1,0 +1,16 @@
+meta {
+  name: 07 Delete HTTP DS
+  type: http
+  seq: 24
+}
+
+delete {
+  url: {{baseUrl}}/organizations/{{orgSlug}}/data-sources/{{httpDataSourceSlug}}
+  auth: inherit
+}
+
+tests {
+  test("should return 204 No Content", function() {
+    expect(res.status).to.equal(204);
+  });
+}

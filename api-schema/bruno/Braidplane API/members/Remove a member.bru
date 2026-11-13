@@ -1,0 +1,98 @@
+meta {
+  name: Remove a member
+  type: http
+  seq: 4
+}
+
+delete {
+  url: {{baseUrl}}/organizations/:slug/members/:user_slug
+  body: none
+  auth: inherit
+}
+
+params:path {
+  slug: {{orgSlug}}
+  user_slug: {{memberUserSlug}}
+}
+
+tests {
+  test("should return 204 No Content", function() {
+    expect(res.status).to.equal(204);
+  });
+}
+
+example {
+  name: 204 Response
+  description: Member removed
+
+  request: {
+    url: {{baseUrl}}/organizations/:slug/members/:user_slug
+    method: DELETE
+    mode: none
+    params:path: {
+      slug:
+      user_slug:
+    }
+  }
+
+  response: {
+    status: {
+      code: 204
+      text: No Content
+    }
+
+    body: {
+      type: text
+      content: '''
+
+      '''
+    }
+  }
+}
+
+example {
+  name: 404 Response
+  description: Member not found
+
+  request: {
+    url: {{baseUrl}}/organizations/:slug/members/:user_slug
+    method: DELETE
+    mode: none
+    params:path: {
+      slug:
+      user_slug:
+    }
+  }
+
+  response: {
+    headers: {
+      Content-Type: application/json
+    }
+
+    status: {
+      code: 404
+      text: Not Found
+    }
+
+    body: {
+      type: json
+      content: '''
+        {
+          "error": {
+            "code": "",
+            "message": "",
+            "validation_errors": [
+              {
+                "field": "",
+                "code": "",
+                "message": "",
+                "details": {}
+              }
+            ],
+            "request_id": ""
+          }
+        }
+      '''
+    }
+  }
+}

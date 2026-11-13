@@ -12,6 +12,8 @@
     "build"
   ],
   "contextual_markdown": {
+    "api-schema/bruno/README.md": "Core API test ownership, fixture setup and acceptance boundaries beside its owning collections. Local links and anchors remain checked.",
+    "api-schema/bruno/TEST_GUIDE.md": "Imported API test execution and assertion reference beside the owning collections. Local links and anchors remain checked.",
     ".github/PULL_REQUEST_TEMPLATE.md": "GitHub contribution template, consumed in the public PR flow. Local links and anchors remain checked.",
     "AGENTS.md": "Contributor/agent instructions beside the owning source; not site content. Local links and anchors remain checked.",
     "CHANGELOG.md": "Repository entrypoint or operator policy read directly from the selected source revision. Local links and anchors remain checked.",

@@ -1,0 +1,20 @@
+meta {
+  name: 05 List Pipeline Versions
+  type: http
+  seq: 5
+}
+
+get {
+  url: {{baseUrl}}/organizations/{{orgSlug}}/projects/{{projectSlug}}/pipelines/{{pipelineSlug}}/versions
+  auth: inherit
+}
+
+tests {
+  test("lists the immutable Git version", function() {
+    expect(res.status).to.equal(200);
+    const version = res.body.versions.find(v => v.spec_hash === bru.getVar("pipelineSpecHash"));
+    expect(version).to.exist;
+    expect(version.pipeline_slug).to.equal(bru.getVar("pipelineSlug"));
+    expect(version.git_commit_sha).to.equal(bru.getVar("pipelineCommit"));
+  });
+}

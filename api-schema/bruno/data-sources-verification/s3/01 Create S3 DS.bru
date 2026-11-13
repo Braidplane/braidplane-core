@@ -1,0 +1,58 @@
+meta {
+  name: 01 Create S3 DS
+  type: http
+  seq: 40
+}
+
+post {
+  url: {{baseUrl}}/organizations/{{orgSlug}}/data-sources
+  body: json
+  auth: inherit
+}
+
+body:json {
+  {
+    "name": "Test S3 Service",
+    "slug": "test-s3-{{timestamp}}",
+    "type": "s3",
+    "config": {
+      "endpoint": "{{s3ConnectorUrl}}",
+      "region": "us-east-1",
+      "bucket": "braidplane-fixtures",
+      "prefix": "fixtures",
+      "force_path_style": true,
+      "timeout_seconds": 5,
+      "allow_private_hosts": true
+    },
+    "credentials": {
+      "access_key_id": "braidplane",
+      "secret_access_key": "braidplanepass"
+    }
+  }
+}
+
+script:pre-request {
+  bru.setVar("timestamp", Date.now());
+  if (!bru.getEnvVar("s3ConnectorUrl") && !bru.getVar("s3ConnectorUrl")) {
+    throw new Error("s3ConnectorUrl not set");
+  }
+}
+
+script:post-response {
+  if (res.status === 201) {
+    bru.setVar("s3DataSourceSlug", res.body.slug);
+  }
+}
+
+tests {
+  test("should return 201 Created", function() {
+    expect(res.status).to.equal(201);
+  });
+
+  test("should create s3 data source without returning credentials", function() {
+    expect(res.body.type).to.equal('s3');
+    expect(res.body.config.bucket).to.equal('braidplane-fixtures');
+    expect(res.body.config.prefix).to.equal('fixtures');
+    expect(res.body.credentials === null || res.body.credentials === undefined).to.equal(true);
+  });
+}

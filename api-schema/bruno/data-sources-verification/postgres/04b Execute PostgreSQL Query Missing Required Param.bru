@@ -1,0 +1,35 @@
+meta {
+  name: 04b Execute PostgreSQL Query Missing Required Param
+  type: http
+  seq: 7
+}
+
+post {
+  url: {{baseUrl}}/organizations/{{orgSlug}}/data-sources/{{postgresDataSourceSlug}}/queries/{{postgresRequiredQuerySlug}}/execute
+  body: json
+  auth: inherit
+}
+
+body:json {
+  {
+    "parameters": {}
+  }
+}
+
+script:pre-request {
+  if (!bru.getVar("postgresRequiredQuerySlug")) {
+    throw new Error("postgresRequiredQuerySlug not set");
+  }
+}
+
+tests {
+  test("should return 400 Bad Request", function() {
+    expect(res.status).to.equal(400);
+  });
+
+  test("should return validation error code", function() {
+    expect(res.body).to.exist;
+    expect(res.body.error).to.exist;
+    expect(res.body.error.code).to.equal('VALIDATION_FAILED');
+  });
+}

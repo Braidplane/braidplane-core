@@ -1,0 +1,60 @@
+meta {
+  name: Execute HTTP query
+  type: http
+  seq: 4
+}
+
+post {
+  url: {{baseUrl}}/organizations/:slug/data-sources/:ds_slug/queries/:query_slug/execute
+  body: json
+  auth: inherit
+}
+
+params:path {
+  slug: {{httpOrgSlug}}
+  ds_slug: {{httpDataSourceSlug}}
+  query_slug: {{httpSearchQuerySlug}}
+}
+
+body:json {
+  {
+    "parameters": {
+      "status": "{{httpFixtureStatus}}"
+    }
+  }
+}
+
+script:pre-request {
+  if (!bru.getVar("httpOrgSlug")) {
+    throw new Error("httpOrgSlug not set - run 'Create an organization' first");
+  }
+
+  if (!bru.getVar("httpDataSourceSlug")) {
+    throw new Error("httpDataSourceSlug not set - run a data source create request first");
+  }
+
+  if (!bru.getVar("httpSearchQuerySlug")) {
+    throw new Error("httpSearchQuerySlug not set - run 'Create HTTP query' first");
+  }
+}
+
+tests {
+  test("should return 200 OK", function() {
+    expect(res.status).to.equal(200);
+  });
+
+  test("should return HTTP execution result", function() {
+    expect(res.body).to.have.property("result_type", "http");
+    expect(res.body).to.have.property("type", "http");
+    expect(res.body).to.have.property("payload");
+    expect(res.body.payload).to.have.property("status_code");
+    expect(res.body.payload).to.have.property("body");
+    expect(res.body).to.have.property("success", true);
+  });
+
+  test("should return items array from http-crud service", function() {
+    expect(res.body.payload.body).to.be.an("array").with.lengthOf(1);
+    expect(res.body.payload.body[0].name).to.equal(bru.getVar("httpFixtureName"));
+    expect(res.body.payload.body[0].status).to.equal(bru.getVar("httpFixtureStatus"));
+  });
+}

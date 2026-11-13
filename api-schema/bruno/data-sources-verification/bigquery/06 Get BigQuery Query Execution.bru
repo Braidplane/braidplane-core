@@ -1,0 +1,28 @@
+meta {
+  name: 06 Get BigQuery Query Execution
+  type: http
+  seq: 18.6
+}
+
+get {
+  url: {{baseUrl}}/organizations/{{orgSlug}}/data-sources/{{bigQueryDataSourceSlug}}/queries/{{bigQueryQuerySlug}}/executions/{{bigQueryExecutionSlug}}
+  auth: inherit
+}
+
+script:pre-request {
+  if (!bru.getVar("bigQueryExecutionSlug")) {
+    throw new Error("bigQueryExecutionSlug not set");
+  }
+}
+
+tests {
+  test("should return 200 OK", function() {
+    expect(res.status).to.equal(200);
+  });
+
+  test("should return the requested bigquery execution", function() {
+    expect(res.body.slug).to.equal(bru.getVar("bigQueryExecutionSlug"));
+    expect(res.body.result.result_type).to.equal('sql');
+    expect(res.body.result.type).to.equal('bigquery');
+  });
+}

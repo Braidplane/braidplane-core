@@ -1,0 +1,44 @@
+meta {
+  name: 02 Org2 List DSs Shows Only Org2
+  type: http
+  seq: 2
+}
+
+get {
+  url: {{baseUrl}}/organizations/{{orgSlug2}}/data-sources
+  auth: inherit
+}
+
+script:pre-request {
+  const jar = bru.cookies.jar();
+  jar.clear();
+  const cookieName = bru.getVar("user2CookieName");
+  const cookieValue = bru.getVar("user2CookieValue");
+  req.setHeader("Cookie", `${cookieName}=${cookieValue}`);
+  if (!bru.getVar("orgSlug2")) {
+    throw new Error("orgSlug2 not set - run setup first");
+  }
+  if (!bru.getVar("org2DSSlug")) {
+    throw new Error("org2DSSlug not set - run org2 data source create first");
+  }
+}
+
+tests {
+  test("should return 200 OK", function() {
+    expect(res.status).to.equal(200);
+  });
+
+  test("should only contain org2 data sources", function() {
+    expect(res.body.data_sources).to.be.an("array");
+    const dataSources = res.body.data_sources;
+    const org2Slug = bru.getVar("org2DSSlug");
+    const org1Slug = bru.getVar("org1DSSlug");
+    const dsInList = dataSources.some(ds => ds.slug === org2Slug);
+    expect(dsInList).to.be.true;
+
+    if (org1Slug) {
+      const org1DsInList = dataSources.some(ds => ds.slug === org1Slug);
+      expect(org1DsInList).to.be.false;
+    }
+  });
+}

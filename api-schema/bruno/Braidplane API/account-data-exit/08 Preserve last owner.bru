@@ -1,0 +1,23 @@
+meta {
+  name: Preserve last owner
+  type: http
+  seq: 8
+}
+
+post {
+  url: {{baseUrl}}/users/profile/deletion
+  body: json
+  auth: inherit
+}
+
+body:json {
+  {"confirmation":"DELETE MY ACCOUNT"}
+}
+
+tests {
+  test("returns 409", function() { expect(res.status).to.equal(409); });
+  test("requires ownership transfer without revoking access", function() {
+    expect(res.body.state).to.equal("ownership_required");
+    expect(res.body.ownership_required).to.include(bru.getEnvVar("seededOrgSlug"));
+  });
+}

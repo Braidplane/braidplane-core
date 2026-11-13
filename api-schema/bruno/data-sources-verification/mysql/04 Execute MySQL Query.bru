@@ -1,0 +1,44 @@
+meta {
+  name: 04 Execute MySQL Query
+  type: http
+  seq: 11
+}
+
+post {
+  url: {{baseUrl}}/organizations/{{orgSlug}}/data-sources/{{mysqlDataSourceSlug}}/queries/{{mysqlQuerySlug}}/execute
+  body: json
+  auth: inherit
+}
+
+body:json {
+  {
+    "parameters": {}
+  }
+}
+
+tests {
+  test("should return 200 OK", function() {
+    expect(res.status).to.equal(200);
+  });
+
+  test("should return successful mysql SQL execution", function() {
+    expect(res.body.result_type).to.equal('sql');
+    expect(res.body.type).to.equal('mysql');
+    expect(res.body.success).to.equal(true);
+    expect(res.body.duration_ms).to.be.at.least(0);
+  });
+
+  test("should return deterministic SELECT 1 result", function() {
+    expect(res.body.payload).to.exist;
+    expect(res.body.payload.row_count).to.equal(1);
+    expect(res.body.payload.rows).to.be.an('array').with.lengthOf(1);
+
+    const row = res.body.payload.rows[0];
+    expect(row).to.have.property('test_column');
+    expect(Number(row.test_column)).to.equal(1);
+
+    if (res.body.payload.column_names) {
+      expect(res.body.payload.column_names).to.include('test_column');
+    }
+  });
+}

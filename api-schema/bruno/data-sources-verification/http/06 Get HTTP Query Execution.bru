@@ -1,0 +1,32 @@
+meta {
+  name: 06 Get HTTP Query Execution
+  type: http
+  seq: 23
+}
+
+get {
+  url: {{baseUrl}}/organizations/{{orgSlug}}/data-sources/{{httpDataSourceSlug}}/queries/{{httpQuerySlug}}/executions/{{httpExecutionSlug}}
+  auth: inherit
+}
+
+script:pre-request {
+  if (!bru.getVar("httpExecutionSlug")) {
+    throw new Error("httpExecutionSlug not set");
+  }
+}
+
+tests {
+  test("should return 200 OK", function() {
+    expect(res.status).to.equal(200);
+  });
+
+  test("should return the requested execution", function() {
+    expect(res.body).to.exist;
+    expect(res.body.slug).to.equal(bru.getVar("httpExecutionSlug"));
+    expect(res.body.status).to.be.a('string').and.not.empty;
+    expect(res.body.executed_at).to.be.a('string').and.not.empty;
+    expect(res.body.result).to.exist;
+    expect(res.body.result.result_type).to.equal('http');
+    expect(res.body.result.type).to.equal('http');
+  });
+}

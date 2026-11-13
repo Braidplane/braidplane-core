@@ -1,0 +1,30 @@
+meta {
+  name: 06a Org2 User Cannot Execute Org1 Pipeline
+  type: http
+  seq: 6.5
+}
+
+post {
+  url: {{baseUrl}}/organizations/{{orgSlug1}}/projects/{{pipelineProjectSlug}}/environments/prod/pipelines/cross-org-pipeline:execute
+  body: json
+  auth: inherit
+}
+
+body:json {
+  {
+    "run_slug": "cross-org-run"
+  }
+}
+
+script:pre-request {
+  req.setHeader("X-CSRF-Token", bru.getVar("user2CSRFToken"));
+  bru.cookies.jar().clear();
+  req.setHeader("Cookie", `${bru.getVar("user2CookieName")}=${bru.getVar("user2CookieValue")}`);
+}
+
+tests {
+  test("rejects cross-organization pipeline execution", function() {
+    expect(res.status).to.equal(403);
+    expect(res.body.error.code).to.equal("AUTH_FORBIDDEN");
+  });
+}

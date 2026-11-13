@@ -1,0 +1,52 @@
+meta {
+  name: 00a Create MySQL DS
+  type: http
+  seq: 1.5
+}
+
+post {
+  url: {{baseUrl}}/organizations/{{orgSlug}}/data-sources
+  body: json
+  auth: inherit
+}
+
+body:json {
+  {
+    "name": "Cross-Source MySQL DB",
+    "slug": "cs-mysql-{{csTimestamp}}",
+    "type": "mysql",
+    "config": {
+      "host": "localhost",
+      "port": {{mysqlPort}},
+      "database": "braidplane",
+      "allow_private_hosts": true
+    },
+    "credentials": {
+      "username": "braidplane",
+      "password": "braidplanepass"
+    }
+  }
+}
+
+script:pre-request {
+  if (!bru.getVar("csTimestamp")) {
+    throw new Error("csTimestamp not set — run file 00 first");
+  }
+}
+
+script:post-response {
+  if (res.status === 201) {
+    bru.setVar("csMySQLDSSlug", res.body.slug);
+  }
+}
+
+tests {
+  test("should return 201 Created", function() {
+    expect(res.status).to.equal(201);
+  });
+
+  test("should return the created datasource slug", function() {
+    expect(res.body.slug).to.be.a('string').and.not.empty;
+    expect(res.body.type).to.equal('mysql');
+  });
+}

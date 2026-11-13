@@ -1,0 +1,24 @@
+meta {
+  name: 13 Email Verification Does Not Auto Accept Invitation
+  type: http
+  seq: 13
+}
+
+get {
+  url: {{baseUrl}}/organizations/{{orgSlug1}}/members
+  body: none
+  auth: inherit
+}
+
+script:pre-request {
+  if (!bru.getVar("user3CookieName") || !bru.getVar("user3CookieValue")) {
+    throw new Error("user3 session not set - create user3 session first");
+  }
+  req.setHeader("Cookie", `${bru.getVar("user3CookieName")}=${bru.getVar("user3CookieValue")}`);
+}
+
+tests {
+  test("should require explicit invitation acceptance after email verification", function() {
+    expect(res.status).to.equal(403);
+  });
+}

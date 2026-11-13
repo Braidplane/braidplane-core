@@ -1,0 +1,39 @@
+meta {
+  name: 04a Upsert HTTP Path Runtime Variable
+  type: http
+  seq: 4.1
+}
+
+put {
+  url: {{baseUrl}}/organizations/{{orgSlug}}/environments/{{prodEnvironmentSlug}}/runtime-variables/health_path
+  body: json
+  auth: inherit
+}
+
+body:json {
+  {
+    "value_type": "text",
+    "value": "/health",
+    "description": "HTTP path used by the runtime variable pipeline",
+    "protected_environment_confirmation": "{{prodEnvironmentSlug}}"
+  }
+}
+
+script:pre-request {
+  if (!bru.getVar("prodEnvironmentSlug")) {
+    bru.setVar("prodEnvironmentSlug", "prod");
+  }
+}
+
+tests {
+  test("should return 200 OK", function() {
+    expect(res.status).to.equal(200);
+  });
+
+  test("should upsert HTTP path runtime variable", function() {
+    expect(res.body.environment_slug).to.equal("prod");
+    expect(res.body.key).to.equal("health_path");
+    expect(res.body.value_type).to.equal("text");
+    expect(res.body.value).to.equal("/health");
+  });
+}

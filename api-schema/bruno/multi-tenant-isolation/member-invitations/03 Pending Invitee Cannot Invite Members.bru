@@ -1,0 +1,38 @@
+meta {
+  name: 03 Pending Invitee Cannot Invite Members
+  type: http
+  seq: 3
+}
+
+post {
+  url: {{baseUrl}}/organizations/{{orgSlug1}}/member-invitations
+  body: json
+  auth: inherit
+}
+
+body:json {
+  {
+    "email": "unauthorized-invite-{{timestamp}}@example.com",
+    "role": "viewer"
+  }
+}
+
+script:pre-request {
+  if (!bru.getVar("existingUserInvitationSlug")) {
+    throw new Error("existingUserInvitationSlug not set - run previous invitation request first");
+  }
+  if (!bru.getVar("user2CookieName") || !bru.getVar("user2CookieValue")) {
+    throw new Error("user2 session not set - run setup first");
+  }
+
+  bru.setVar("timestamp", Date.now());
+  req.setHeader("Cookie", `${bru.getVar("user2CookieName")}=${bru.getVar("user2CookieValue")}`);
+  req.setHeader("X-CSRF-Token", bru.getVar("user2CSRFToken"));
+}
+
+tests {
+  test("should reject pending invitee invitation management", function() {
+    expect(res.status).to.equal(403);
+    expect(res.body).to.have.property("error");
+  });
+}

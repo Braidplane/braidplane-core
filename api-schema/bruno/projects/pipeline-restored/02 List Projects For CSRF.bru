@@ -1,0 +1,22 @@
+meta {
+  name: 02 List Projects For CSRF
+  type: http
+  seq: 2
+}
+
+get {
+  url: {{baseUrl}}/organizations/{{orgSlug}}/projects
+  auth: inherit
+}
+
+script:post-response {
+  const csrfToken = res.headers['x-csrf-token'] || res.headers['X-CSRF-Token'];
+  bru.setVar("csrfToken", csrfToken);
+}
+
+tests {
+  test("obtains a CSRF token", function() {
+    expect(res.status).to.equal(200);
+    expect(bru.getVar("csrfToken")).to.be.a("string").and.not.empty;
+  });
+}

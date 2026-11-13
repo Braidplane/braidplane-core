@@ -1,0 +1,35 @@
+meta {
+  name: 07 Rotate API key
+  type: http
+  seq: 7
+}
+
+post {
+  url: {{baseUrl}}/organizations/:slug/api-keys/:api_key_slug/rotate
+  body: none
+  auth: inherit
+}
+
+params:path {
+  slug: {{orgSlug}}
+  api_key_slug: {{apiKeySlug}}
+}
+
+tests {
+  test("should return 200 OK", function() {
+    expect(res.status).to.equal(200);
+  });
+
+  test("should return a new raw token once and safe metadata", function() {
+    expect(res.body).to.have.property("slug", bru.getVar("apiKeySlug"));
+    expect(res.body).to.have.property("token");
+    expect(res.body.token).to.be.a("string").and.not.be.empty;
+    expect(res.body.token).to.not.equal(bru.getVar("apiKeyToken"));
+    expect(res.body).to.have.property("token_prefix");
+    expect(res.body).to.have.property("expires_at", null);
+    expect(res.body).to.not.have.property("token_hash");
+    bru.setVar("apiKeyTokenOriginal", bru.getVar("apiKeyToken"));
+    bru.setVar("apiKeyTokenRotated", res.body.token);
+    bru.setVar("apiKeyToken", res.body.token);
+  });
+}

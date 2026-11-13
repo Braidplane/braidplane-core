@@ -1,0 +1,22 @@
+meta {
+  name: 07 Revoke API key
+  type: http
+  seq: 12
+}
+
+delete {
+  url: {{baseUrl}}/organizations/:slug/api-keys/:api_key_slug
+  body: none
+  auth: inherit
+}
+
+params:path {
+  slug: {{orgSlug}}
+  api_key_slug: {{apiKeySlug}}
+}
+
+tests {
+  test("should return 204 No Content", function() {
+    expect(res.status).to.equal(204);
+  });
+}

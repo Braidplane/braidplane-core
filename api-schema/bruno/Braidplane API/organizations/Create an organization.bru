@@ -1,0 +1,147 @@
+meta {
+  name: Create an organization
+  type: http
+  seq: 2
+}
+
+post {
+  url: {{baseUrl}}/organizations
+  body: json
+  auth: inherit
+}
+
+body:json {
+  {
+    "name": "Test Org {{timestamp}}",
+    "slug": "test-org-{{timestamp}}"
+  }
+}
+
+script:pre-request {
+  bru.setVar("timestamp", Date.now());
+}
+
+tests {
+  test("should return 201 Created", function() {
+    expect(res.status).to.equal(201);
+  });
+
+  test("should return JSON", function() {
+    expect(res.headers['content-type']).to.include('application/json');
+  });
+
+  test("should return organization with correct structure", function() {
+    const body = res.body;
+    expect(body).to.have.property('name');
+    expect(body).to.have.property('slug');
+    expect(body).to.have.property('created_at');
+    expect(body).to.have.property('updated_at');
+  });
+
+  test("should return correct organization data", function() {
+    expect(res.body.name).to.include("Test Org");
+    expect(res.body.slug).to.include("test-org");
+  });
+
+  test("slug should be valid format", function() {
+    expect(res.body.slug).to.match(/^[a-z0-9-]+$/);
+  });
+
+  test("should have timestamps", function() {
+    expect(res.body.created_at).to.match(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/);
+    expect(res.body.updated_at).to.match(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/);
+  });
+
+  // Capture org slug for subsequent requests
+  bru.setVar("orgSlug", res.body.slug);
+  bru.setVar("orgName", res.body.name);
+}
+
+example {
+  name: 201 Response
+  description: Organization created
+
+  request: {
+    url: {{baseUrl}}/organizations
+    method: POST
+    mode: json
+    body:json: {
+      {
+        "name": "Acme Corp",
+        "slug": "acme-corp"
+      }
+    }
+  }
+
+  response: {
+    headers: {
+      Content-Type: application/json
+    }
+
+    status: {
+      code: 201
+      text: Created
+    }
+
+    body: {
+      type: json
+      content: '''
+        {
+          "name": "Acme Corp",
+          "slug": "acme-corp",
+          "created_at": "2025-10-04T10:30:00Z",
+          "updated_at": "2025-10-04T10:30:00Z"
+        }
+      '''
+    }
+  }
+}
+
+example {
+  name: 409 Response
+  description: Organization already exists
+
+  request: {
+    url: {{baseUrl}}/organizations
+    method: POST
+    mode: json
+    body:json: {
+      {
+        "name": "Acme Corp",
+        "slug": "acme-corp"
+      }
+    }
+  }
+
+  response: {
+    headers: {
+      Content-Type: application/json
+    }
+
+    status: {
+      code: 409
+      text: Conflict
+    }
+
+    body: {
+      type: json
+      content: '''
+        {
+          "error": {
+            "code": "",
+            "message": "",
+            "validation_errors": [
+              {
+                "field": "",
+                "code": "",
+                "message": "",
+                "details": {}
+              }
+            ],
+            "request_id": ""
+          }
+        }
+      '''
+    }
+  }
+}

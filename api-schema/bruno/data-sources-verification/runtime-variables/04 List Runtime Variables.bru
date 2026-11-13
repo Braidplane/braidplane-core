@@ -1,0 +1,47 @@
+meta {
+  name: 04 List Runtime Variables
+  type: http
+  seq: 4
+}
+
+get {
+  url: {{baseUrl}}/organizations/{{orgSlug}}/environments/{{prodEnvironmentSlug}}/runtime-variables?limit=10
+  body: none
+  auth: inherit
+}
+
+script:pre-request {
+  if (!bru.getVar("orgSlug")) {
+    throw new Error("orgSlug is required for runtime variable tests");
+  }
+  if (!bru.getVar("prodEnvironmentSlug")) {
+    bru.setVar("prodEnvironmentSlug", "prod");
+  }
+}
+
+tests {
+  test("should return 200 OK", function() {
+    expect(res.status).to.equal(200);
+  });
+
+  test("should list environment scoped runtime variables", function() {
+    expect(res.body.runtime_variables).to.be.an("array");
+
+    const s3Prefix = res.body.runtime_variables.find(function(item) {
+      return item.key === "s3_prefix";
+    });
+    const batchSize = res.body.runtime_variables.find(function(item) {
+      return item.key === "batch_size";
+    });
+
+    expect(s3Prefix).to.exist;
+    expect(s3Prefix.environment_slug).to.equal("prod");
+    expect(s3Prefix.value_type).to.equal("text");
+    expect(s3Prefix.value).to.equal("prd/dir");
+
+    expect(batchSize).to.exist;
+    expect(batchSize.environment_slug).to.equal("prod");
+    expect(batchSize.value_type).to.equal("integer");
+    expect(batchSize.value).to.equal("1000");
+  });
+}

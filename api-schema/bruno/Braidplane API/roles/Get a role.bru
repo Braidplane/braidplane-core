@@ -1,0 +1,146 @@
+meta {
+  name: Get a role
+  type: http
+  seq: 3
+}
+
+get {
+  url: {{baseUrl}}/organizations/:slug/roles/:role_slug
+  body: none
+  auth: inherit
+}
+
+params:path {
+  slug: {{orgSlug}}
+  role_slug: {{roleSlug}}
+}
+
+script:pre-request {
+  if (!bru.getVar("orgSlug")) {
+    throw new Error("orgSlug not set");
+  }
+  // Use roleSlug if set, otherwise default to 'admin'
+  if (!bru.getVar("roleSlug")) {
+    bru.setVar("roleSlug", "admin");
+  }
+}
+
+tests {
+  test("should return 200 OK", function() {
+    expect(res.status).to.equal(200);
+  });
+
+  test("should return JSON", function() {
+    expect(res.headers['content-type']).to.include('application/json');
+  });
+
+  test("should return role with correct structure", function() {
+    const body = res.body;
+    expect(body).to.have.property('slug');
+    expect(body).to.have.property('name');
+    expect(body).to.have.property('is_default');
+    expect(body).to.have.property('permissions');
+    expect(body).to.have.property('created_at');
+    expect(body).to.have.property('updated_at');
+  });
+
+  test("should return requested role", function() {
+    expect(res.body.slug).to.equal(bru.getVar("roleSlug"));
+  });
+
+  test("permissions should be an array", function() {
+    expect(res.body.permissions).to.be.an('array');
+  });
+}
+
+example {
+  name: 200 Response
+  description: Role details
+
+  request: {
+    url: {{baseUrl}}/organizations/:slug/roles/:role_slug
+    method: GET
+    mode: none
+    params:path: {
+      slug:
+      role_slug:
+    }
+  }
+
+  response: {
+    headers: {
+      Content-Type: application/json
+    }
+
+    status: {
+      code: 200
+      text: OK
+    }
+
+    body: {
+      type: json
+      content: '''
+        {
+          "slug": "editor",
+          "name": "Editor",
+          "is_default": false,
+          "permissions": [
+            {
+              "resource": "members",
+              "action": "read"
+            }
+          ],
+          "created_at": "2025-10-04T10:30:00Z",
+          "updated_at": "2025-10-04T10:30:00Z"
+        }
+      '''
+    }
+  }
+}
+
+example {
+  name: 404 Response
+  description: Role not found
+
+  request: {
+    url: {{baseUrl}}/organizations/:slug/roles/:role_slug
+    method: GET
+    mode: none
+    params:path: {
+      slug:
+      role_slug:
+    }
+  }
+
+  response: {
+    headers: {
+      Content-Type: application/json
+    }
+
+    status: {
+      code: 404
+      text: Not Found
+    }
+
+    body: {
+      type: json
+      content: '''
+        {
+          "error": {
+            "code": "",
+            "message": "",
+            "validation_errors": [
+              {
+                "field": "",
+                "code": "",
+                "message": "",
+                "details": {}
+              }
+            ],
+            "request_id": ""
+          }
+        }
+      '''
+    }
+  }
+}

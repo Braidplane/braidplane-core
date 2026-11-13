@@ -1,0 +1,40 @@
+meta {
+  name: 00a Seed HubSpot Mock Contacts
+  type: http
+  seq: 17.1
+}
+
+post {
+  url: {{hubspotMockUrl}}/seed
+  body: json
+  auth: none
+}
+
+body:json {
+  {
+    "contacts": [
+      {
+        "id": "301",
+        "properties": {
+          "email": "alice@example.com",
+          "firstname": "Alice",
+          "lastname": "Able"
+        }
+      },
+      {
+        "id": "302",
+        "properties": {
+          "email": "bob@example.com",
+          "firstname": "Bob",
+          "lastname": "Baker"
+        }
+      }
+    ]
+  }
+}
+
+tests {
+  test("should return 200 OK", function() {
+    expect(res.status).to.equal(200);
+  });
+}

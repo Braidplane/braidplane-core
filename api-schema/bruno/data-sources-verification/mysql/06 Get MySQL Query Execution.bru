@@ -1,0 +1,32 @@
+meta {
+  name: 06 Get MySQL Query Execution
+  type: http
+  seq: 13
+}
+
+get {
+  url: {{baseUrl}}/organizations/{{orgSlug}}/data-sources/{{mysqlDataSourceSlug}}/queries/{{mysqlQuerySlug}}/executions/{{mysqlExecutionSlug}}
+  auth: inherit
+}
+
+script:pre-request {
+  if (!bru.getVar("mysqlExecutionSlug")) {
+    throw new Error("mysqlExecutionSlug not set");
+  }
+}
+
+tests {
+  test("should return 200 OK", function() {
+    expect(res.status).to.equal(200);
+  });
+
+  test("should return the requested execution", function() {
+    expect(res.body).to.exist;
+    expect(res.body.slug).to.equal(bru.getVar("mysqlExecutionSlug"));
+    expect(res.body.status).to.be.a('string').and.not.empty;
+    expect(res.body.executed_at).to.be.a('string').and.not.empty;
+    expect(res.body.result).to.exist;
+    expect(res.body.result.result_type).to.equal('sql');
+    expect(res.body.result.type).to.equal('mysql');
+  });
+}

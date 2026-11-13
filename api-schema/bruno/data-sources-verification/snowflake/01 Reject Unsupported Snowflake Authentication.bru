@@ -1,0 +1,45 @@
+meta {
+  name: 01 Reject Unsupported Snowflake Authentication
+  type: http
+  seq: 2
+}
+
+post {
+  url: {{baseUrl}}/organizations/{{orgSlug}}/data-sources
+  body: json
+  auth: inherit
+}
+
+body:json {
+  {
+    "name": "Invalid Snowflake Authentication",
+    "slug": "invalid-snowflake-auth-{{snowflakeValidationTimestamp}}",
+    "type": "snowflake",
+    "config": {
+      "account": "acme",
+      "warehouse": "BRAIDPLANE_WH",
+      "database": "ANALYTICS",
+      "schema": "PUBLIC"
+    },
+    "credentials": {
+      "auth_type": "oauth2",
+      "username": "complete-shape",
+      "password": "complete-shape"
+    }
+  }
+}
+
+script:pre-request {
+  bru.setVar("snowflakeValidationTimestamp", Date.now());
+}
+
+tests {
+  test("should reject unsupported Snowflake authentication", function() {
+    expect(res.status).to.equal(400);
+  });
+
+  test("should identify the unsupported authentication selector", function() {
+    expect(res.body.error.code).to.equal("VALIDATION_FAILED");
+    expect(res.body.error.message).to.contain("auth_type");
+  });
+}

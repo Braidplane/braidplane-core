@@ -1,0 +1,44 @@
+meta {
+  name: List retention maintenance runs
+  type: http
+  seq: 6
+}
+
+get {
+  url: {{baseUrl}}/organizations/:slug/retention/runs
+  body: none
+  auth: inherit
+}
+
+params:path {
+  slug: {{orgSlug}}
+}
+
+tests {
+  test("should return a sanitized retention maintenance payload", function() {
+    expect(res.status).to.equal(200);
+    expect(Object.keys(res.body).sort()).to.deep.equal(["runs", "schedule"]);
+    expect(Object.keys(res.body.schedule).sort()).to.deep.equal(["cadence", "next_run_at", "timezone"]);
+    expect(res.body.schedule.cadence).to.equal("daily");
+    expect(res.body.schedule.timezone).to.equal("UTC");
+    expect(res.body.schedule.next_run_at).to.match(/^\d{4}-\d{2}-\d{2}T00:00:00/);
+    expect(res.body.runs).to.be.an("array");
+  });
+
+  test("should not expose maintenance implementation details", function() {
+    const payload = JSON.stringify(res.body).toLowerCase();
+    for (const forbidden of [
+      "source_job",
+      "queue",
+      "sql",
+      "schema",
+      "table",
+      "credential",
+      "connector",
+      "request_id",
+      "trace_id"
+    ]) {
+      expect(payload).not.to.include(forbidden);
+    }
+  });
+}

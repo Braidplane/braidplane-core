@@ -1,0 +1,35 @@
+meta {
+  name: 04 Execute HTTP Query
+  type: http
+  seq: 21
+}
+
+post {
+  url: {{baseUrl}}/organizations/{{orgSlug}}/data-sources/{{httpDataSourceSlug}}/queries/{{httpQuerySlug}}/execute
+  body: json
+  auth: inherit
+}
+
+body:json {
+  {
+    "parameters": {}
+  }
+}
+
+tests {
+  test("should return 200 OK", function() {
+    expect(res.status).to.equal(200);
+  });
+
+  test("should return successful HTTP execution payload", function() {
+    expect(res.body.result_type).to.equal('http');
+    expect(res.body.type).to.equal('http');
+    expect(res.body.success).to.equal(true);
+    expect(res.body.duration_ms).to.be.at.least(0);
+
+    expect(res.body.payload).to.exist;
+    expect(res.body.payload.status_code).to.equal(200);
+    expect(res.body.payload.body).to.exist;
+    expect(res.body.payload.body.status).to.equal('ok');
+  });
+}

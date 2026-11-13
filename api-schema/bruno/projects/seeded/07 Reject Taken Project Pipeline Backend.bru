@@ -1,0 +1,49 @@
+meta {
+  name: 07 Reject Taken Project Pipeline Backend
+  type: http
+  seq: 7
+}
+
+put {
+  url: {{baseUrl}}/organizations/{{orgSlug}}/projects/{{projectSlug}}/pipeline-backend
+  body: json
+  auth: inherit
+}
+
+body:json {
+  {
+    "data_source_slug": "{{gitDataSourceSlug}}",
+    "tracked_branch": "main",
+    "pipeline_dir": "pipelines",
+    "mode": "adopt_existing"
+  }
+}
+
+script:pre-request {
+  const jar = bru.cookies.jar();
+  jar.clear();
+  req.setHeader("Cookie", `${bru.getVar("sessionCookieName")}=${bru.getVar("sessionCookieValue")}`);
+
+  if (!bru.getVar("projectSlug")) {
+    bru.runner.stopExecution();
+    throw new Error("projectSlug not set - run '03 Create Project' first");
+  }
+  const gitDataSourceSlug = bru.getVar("gitDataSourceSlug") || bru.getEnvVar("gitDataSourceSlug");
+  if (!gitDataSourceSlug) {
+    bru.runner.stopExecution();
+    throw new Error("gitDataSourceSlug not set - run task bruno-projects");
+  }
+  bru.setVar("gitDataSourceSlug", gitDataSourceSlug);
+}
+
+tests {
+  test("should return 409 Conflict", function() {
+    expect(res.status).to.equal(409);
+  });
+
+  test("should reject a pipeline backend already owned by another project", function() {
+    expect(res.body.error).to.exist;
+    expect(res.body.error.code).to.equal("PROJECT_ALREADY_EXISTS");
+    expect(res.body.error.message).to.be.a("string").and.not.empty;
+  });
+}

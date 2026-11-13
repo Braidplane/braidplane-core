@@ -1,0 +1,31 @@
+meta {
+  name: Project Bootstrap
+  type: http
+  seq: 5
+}
+
+post {
+  url: {{baseUrl}}/organizations/{{orgSlug}}/projects
+  body: json
+  auth: inherit
+}
+
+body:json {
+  {
+    "name": "Pipeline workspace",
+    "slug": "pipeline-workspace"
+  }
+}
+
+script:post-response {
+  if (res.status !== 201) {
+    bru.runner.stopExecution();
+    throw new Error(`Project Bootstrap failed with status ${res.status}`);
+  }
+}
+
+tests {
+  test("should return 201 Created", function() {
+    expect(res.status).to.equal(201);
+  });
+}

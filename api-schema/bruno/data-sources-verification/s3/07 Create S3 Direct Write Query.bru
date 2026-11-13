@@ -1,0 +1,67 @@
+meta {
+  name: 07 Create S3 Direct Write Query
+  type: http
+  seq: 46
+}
+
+post {
+  url: {{baseUrl}}/organizations/{{orgSlug}}/data-sources/{{s3DataSourceSlug}}/queries
+  body: json
+  auth: inherit
+}
+
+body:json {
+  {
+    "name": "Test S3 Direct Write Query",
+    "slug": "{{s3DirectWriteQuerySlug}}",
+    "query_statement": {
+      "type": "s3",
+      "operation": "write",
+      "key": "{{s3DirectWriteKey}}",
+      "format": "json",
+      "content": [
+        {
+          "id": "3",
+          "name": "Katherine Johnson",
+          "email": "katherine@example.com"
+        }
+      ],
+      "content_type": "application/json",
+      "metadata": {
+        "source": "bruno"
+      },
+      "overwrite": true
+    },
+    "parameters": [],
+    "row_limit": 1000,
+    "timeout_seconds": 30
+  }
+}
+
+script:pre-request {
+  const timestamp = Date.now();
+  bru.setVar("s3DirectWriteKey", `exports/direct-${timestamp}.json`);
+  bru.setVar("s3DirectWriteQuerySlug", `test-s3-direct-write-${timestamp}`);
+
+  if (!bru.getVar("s3DataSourceSlug")) {
+    throw new Error("s3DataSourceSlug not set");
+  }
+}
+
+script:post-response {
+  if (res.status === 201) {
+    bru.setVar("s3DirectWriteQuerySlug", res.body.slug);
+  }
+}
+
+tests {
+  test("should return 201 Created", function() {
+    expect(res.status).to.equal(201);
+  });
+
+  test("should persist s3 write statement", function() {
+    expect(res.body.query_statement.type).to.equal('s3');
+    expect(res.body.query_statement.operation).to.equal('write');
+    expect(res.body.query_statement.key).to.equal(bru.getVar("s3DirectWriteKey"));
+  });
+}

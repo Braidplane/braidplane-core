@@ -1,0 +1,40 @@
+meta {
+  name: 02 List personal access tokens
+  type: http
+  seq: 2
+}
+
+get {
+  url: {{baseUrl}}/users/profile/personal-access-tokens
+  body: none
+  auth: inherit
+}
+
+script:pre-request {
+  const patSlug = bru.getVar("patHardDeleteSlug");
+  if (!patSlug) {
+    throw new Error("patHardDeleteSlug not set - run 01 Create personal access token first");
+  }
+}
+
+tests {
+  test("should return 200 OK", function() {
+    expect(res.status).to.equal(200);
+  });
+
+  test("list should not expose raw tokens or hashes", function() {
+    const tokens = res.body.personal_access_tokens;
+    expect(tokens).to.be.an("array");
+    tokens.forEach((token, index) => {
+      expect(token, `personal_access_tokens[${index}]`).to.be.an("object");
+      expect(token).to.have.property("token_prefix");
+      expect(token).to.have.property("expires_at");
+      expect(token).to.not.have.property("token");
+      expect(token).to.not.have.property("token_hash");
+    });
+    const patSlug = bru.getVar("patHardDeleteSlug");
+    expect(patSlug, "patHardDeleteSlug should be set by create step").to.exist;
+    const token = tokens.find(t => t.slug === patSlug);
+    expect(token, `personal_access_tokens should include ${patSlug}`).to.exist;
+  });
+}

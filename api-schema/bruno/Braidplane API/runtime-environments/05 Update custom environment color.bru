@@ -1,0 +1,48 @@
+meta {
+  name: 05 Update custom environment color
+  type: http
+  seq: 5
+}
+
+put {
+  url: {{baseUrl}}/organizations/{{orgSlug}}/environments/{{runtimeEnvironmentSlug}}
+  body: json
+  auth: inherit
+}
+
+body:json {
+  {
+    "name": "{{runtimeEnvironmentUpdatedName}}",
+    "description": "{{runtimeEnvironmentUpdatedDescription}}",
+    "color": "purple",
+    "protected": true
+  }
+}
+
+script:pre-request {
+  if (!bru.getVar("runtimeEnvironmentSlug")) {
+    bru.runner.stopExecution();
+    throw new Error("runtimeEnvironmentSlug not set - run '02 Create custom environment with color' first");
+  }
+}
+
+script:post-response {
+  if (res.status !== 200) {
+    bru.runner.stopExecution();
+    throw new Error(`Update environment failed with status ${res.status}`);
+  }
+}
+
+tests {
+  test("should return 200 OK", function() {
+    expect(res.status).to.equal(200);
+  });
+
+  test("should update mutable fields without changing slug", function() {
+    expect(res.body.slug).to.equal(bru.getVar("runtimeEnvironmentSlug"));
+    expect(res.body.name).to.equal(bru.getVar("runtimeEnvironmentUpdatedName"));
+    expect(res.body.description).to.equal(bru.getVar("runtimeEnvironmentUpdatedDescription"));
+    expect(res.body.color).to.equal("purple");
+    expect(res.body.protected).to.equal(true);
+  });
+}

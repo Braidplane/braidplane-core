@@ -1,0 +1,45 @@
+meta {
+  name: 01 Create User 1
+  type: http
+  seq: 1
+}
+
+post {
+  url: {{baseUrl}}/users
+  body: json
+  auth: inherit
+}
+
+body:json {
+  {
+    "full_name": "User One",
+    "email": "user-one-{{timestamp}}@example.com",
+    "password": "SecurePass123!"
+  }
+}
+
+script:pre-request {
+  bru.deleteVar("user1Email");
+  bru.setVar("timestamp", Date.now());
+}
+
+script:post-response {
+  if (res.status !== 201) {
+    bru.runner.stopExecution();
+    throw new Error(`01 Create User 1 failed with status ${res.status}`);
+  }
+
+  if (!res.body?.slug || !res.body?.email) {
+    bru.runner.stopExecution();
+    throw new Error("01 Create User 1 did not return slug and email");
+  }
+
+  bru.setVar("user1Email", res.body.email);
+}
+
+tests {
+  test("should create user 1 successfully", function() {
+    expect(res.status).to.equal(201);
+    expect(res.body).to.have.property('slug');
+  });
+}

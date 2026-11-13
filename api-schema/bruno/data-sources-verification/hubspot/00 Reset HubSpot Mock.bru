@@ -1,0 +1,22 @@
+meta {
+  name: 00 Reset HubSpot Mock
+  type: http
+  seq: 17
+}
+
+post {
+  url: {{hubspotMockUrl}}/reset
+  auth: none
+}
+
+script:pre-request {
+  if (!bru.getEnvVar("hubspotMockUrl") && !bru.getVar("hubspotMockUrl")) {
+    throw new Error("hubspotMockUrl not set");
+  }
+}
+
+tests {
+  test("should return 200 OK", function() {
+    expect(res.status).to.equal(200);
+  });
+}

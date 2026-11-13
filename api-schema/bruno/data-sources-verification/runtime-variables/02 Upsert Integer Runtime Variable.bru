@@ -1,0 +1,42 @@
+meta {
+  name: 02 Upsert Integer Runtime Variable
+  type: http
+  seq: 2
+}
+
+put {
+  url: {{baseUrl}}/organizations/{{orgSlug}}/environments/{{prodEnvironmentSlug}}/runtime-variables/batch_size
+  body: json
+  auth: inherit
+}
+
+body:json {
+  {
+    "value_type": "integer",
+    "value": "1000",
+    "description": "Batch size used by production pipeline runs",
+    "protected_environment_confirmation": "{{prodEnvironmentSlug}}"
+  }
+}
+
+script:pre-request {
+  if (!bru.getVar("orgSlug")) {
+    throw new Error("orgSlug not set");
+  }
+  if (!bru.getVar("prodEnvironmentSlug")) {
+    bru.setVar("prodEnvironmentSlug", "prod");
+  }
+}
+
+tests {
+  test("should return 200 OK", function() {
+    expect(res.status).to.equal(200);
+  });
+
+  test("should upsert integer runtime variable", function() {
+    expect(res.body.environment_slug).to.equal("prod");
+    expect(res.body.key).to.equal("batch_size");
+    expect(res.body.value_type).to.equal("integer");
+    expect(res.body.value).to.equal("1000");
+  });
+}

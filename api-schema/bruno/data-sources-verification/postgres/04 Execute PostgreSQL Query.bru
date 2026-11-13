@@ -1,0 +1,50 @@
+meta {
+  name: 06 Execute PostgreSQL Query
+  type: http
+  seq: 10
+}
+
+post {
+  url: {{baseUrl}}/organizations/{{orgSlug}}/data-sources/{{postgresDataSourceSlug}}/queries/{{postgresQuerySlug}}/execute
+  body: json
+  auth: inherit
+}
+
+body:json {
+  {
+    "parameters": {}
+  }
+}
+
+script:pre-request {
+  if (!bru.getVar("postgresQuerySlug")) {
+    throw new Error("postgresQuerySlug not set");
+  }
+}
+
+tests {
+  test("should return 200 OK", function() {
+    expect(res.status).to.equal(200);
+  });
+
+  test("should return successful postgres SQL execution", function() {
+    expect(res.body.result_type).to.equal('sql');
+    expect(res.body.type).to.equal('postgres');
+    expect(res.body.success).to.equal(true);
+    expect(res.body.duration_ms).to.be.at.least(0);
+  });
+
+  test("should return deterministic parameterized result", function() {
+    expect(res.body.payload).to.exist;
+    expect(res.body.payload.row_count).to.equal(1);
+    expect(res.body.payload.rows).to.be.an('array').with.lengthOf(1);
+
+    const row = res.body.payload.rows[0];
+    expect(row).to.have.property('user_id');
+    expect(Number(row.user_id)).to.equal(42);
+
+    if (res.body.payload.column_names) {
+      expect(res.body.payload.column_names).to.include('user_id');
+    }
+  });
+}

@@ -1,0 +1,36 @@
+meta {
+  name: 04 Org2 User Cannot Get Org1 Query
+  type: http
+  seq: 4
+}
+
+get {
+  url: {{baseUrl}}/organizations/{{orgSlug1}}/data-sources/{{org1DSSlug}}/queries/{{org1QuerySlug}}
+  auth: inherit
+}
+
+script:pre-request {
+  const jar = bru.cookies.jar();
+  jar.clear();
+  const cookieName = bru.getVar("user2CookieName");
+  const cookieValue = bru.getVar("user2CookieValue");
+  req.setHeader("Cookie", `${cookieName}=${cookieValue}`);
+
+  if (!bru.getVar("org1DSSlug")) {
+    throw new Error("org1DSSlug not set - run org1 folder first");
+  }
+  if (!bru.getVar("org1QuerySlug")) {
+    throw new Error("org1QuerySlug not set - run org1 query create first");
+  }
+}
+
+tests {
+  test("should return 403 Forbidden", function() {
+    expect(res.status).to.equal(403);
+  });
+
+  test("should return authorization error", function() {
+    expect(res.body).to.have.property('error');
+    expect(res.body.error.code).to.equal('AUTH_FORBIDDEN');
+  });
+}

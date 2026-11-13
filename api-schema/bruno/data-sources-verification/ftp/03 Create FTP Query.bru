@@ -1,0 +1,43 @@
+meta {
+  name: 03 Create FTP Query
+  type: http
+  seq: 27
+}
+
+post {
+  url: {{baseUrl}}/organizations/{{orgSlug}}/data-sources/{{ftpDataSourceSlug}}/queries
+  body: json
+  auth: inherit
+}
+
+body:json {
+  {
+    "name": "Test FTP Query",
+    "slug": "test-ftp-query-{{timestamp}}",
+    "query_statement": {
+      "type": "ftp",
+      "path": "users.csv",
+      "format": "csv",
+      "has_header": true
+    },
+    "parameters": [],
+    "row_limit": 1000,
+    "timeout_seconds": 30
+  }
+}
+
+script:pre-request {
+  bru.setVar("timestamp", Date.now());
+}
+
+script:post-response {
+  if (res.status === 201) {
+    bru.setVar("ftpQuerySlug", res.body.slug);
+  }
+}
+
+tests {
+  test("should return 201 Created", function() {
+    expect(res.status).to.equal(201);
+  });
+}

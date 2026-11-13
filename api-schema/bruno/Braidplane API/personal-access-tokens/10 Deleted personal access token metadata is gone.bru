@@ -1,0 +1,26 @@
+meta {
+  name: 10 Deleted personal access token metadata is gone
+  type: http
+  seq: 10
+}
+
+get {
+  url: {{baseUrl}}/users/profile/personal-access-tokens/:pat_slug
+  body: none
+  auth: inherit
+}
+
+params:path {
+  pat_slug: {{patHardDeleteSlug}}
+}
+
+tests {
+  test("deleted PAT metadata should return 404 Not Found", function() {
+    expect(res.status).to.equal(404);
+  });
+
+  test("deleted PAT metadata should not be retrievable", function() {
+    expect(res.body.error.code).to.equal("PERSONAL_ACCESS_TOKEN_NOT_FOUND");
+    expect(res.body.error.message).to.equal("personal access token not found");
+  });
+}

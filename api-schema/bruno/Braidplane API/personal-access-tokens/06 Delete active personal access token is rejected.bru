@@ -1,0 +1,27 @@
+meta {
+  name: 06 Delete active personal access token is rejected
+  type: http
+  seq: 6
+}
+
+post {
+  url: {{baseUrl}}/users/profile/personal-access-tokens/:pat_slug/delete
+  body: none
+  auth: inherit
+}
+
+params:path {
+  pat_slug: {{patHardDeleteSlug}}
+}
+
+tests {
+  test("active PAT hard delete should return 400 Bad Request", function() {
+    expect(res.status).to.equal(400);
+  });
+
+  test("active PAT hard delete should require revocation first", function() {
+    expect(res.body.error.code).to.equal("PERSONAL_ACCESS_TOKEN_INVALID_INPUT");
+    expect(res.body.error.message).to.equal("personal access token invalid input");
+    expect(res.body.error.detailed_error).to.equal("Personal access token must be revoked before deletion.");
+  });
+}

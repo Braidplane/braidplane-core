@@ -1,0 +1,14 @@
+meta {
+  name: org2
+  seq: 3
+}
+
+script:pre-request {
+  const unsafeMethods = ["POST", "PUT", "PATCH", "DELETE"];
+  const method = String(req.method || "").toUpperCase();
+  const csrfToken = bru.getVar("user2CSRFToken");
+
+  if (unsafeMethods.includes(method) && csrfToken) {
+    req.setHeader("X-CSRF-Token", csrfToken);
+  }
+}

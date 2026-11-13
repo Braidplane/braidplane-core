@@ -1,0 +1,41 @@
+meta {
+  name: 04 Update alert destination
+  type: http
+  seq: 4
+}
+
+put {
+  url: {{baseUrl}}/organizations/:slug/alert-destinations/:alert_destination_slug
+  body: json
+  auth: inherit
+}
+
+params:path {
+  slug: {{orgSlug}}
+  alert_destination_slug: {{alertDestinationSlug}}
+}
+
+body:json {
+  {
+    "name": "{{alertDestinationName}} Updated",
+    "type": "email",
+    "non_secret_config": {
+      "recipients": [
+        "{{updatedAlertDestinationRecipient}}"
+      ]
+    },
+    "enabled": true
+  }
+}
+
+tests {
+  test("should return 200 OK", function() {
+    expect(res.status).to.equal(200);
+  });
+
+  test("should persist typed email config", function() {
+    expect(res.body.slug).to.equal(bru.getVar("alertDestinationSlug"));
+    expect(res.body.name).to.equal(`${bru.getVar("alertDestinationName")} Updated`);
+    expect(res.body.non_secret_config.recipients).to.deep.equal([bru.getVar("updatedAlertDestinationRecipient")]);
+  });
+}

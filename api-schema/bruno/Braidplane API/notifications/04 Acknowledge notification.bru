@@ -1,0 +1,29 @@
+meta {
+  name: 04 Acknowledge notification
+  type: http
+  seq: 4
+}
+
+post {
+  url: {{baseUrl}}/organizations/:slug/notifications/:notification_slug/acknowledge
+  body: none
+  auth: inherit
+}
+
+params:path {
+  slug: {{orgSlug}}
+  notification_slug: {{notificationRecordSlug}}
+}
+
+tests {
+  test("should return 200 OK", function() {
+    expect(res.status).to.equal(200);
+  });
+
+  test("should mark the seeded notification acknowledged", function() {
+    expect(res.body.slug).to.equal(bru.getVar("notificationRecordSlug"));
+    expect(res.body.lifecycle_state).to.equal("acknowledged");
+    expect(res.body.acknowledged_at).to.be.a("string").that.is.not.empty;
+    expect(res.body.resolved_at).to.equal(null);
+  });
+}

@@ -1,0 +1,32 @@
+meta {
+  name: 07 Get alert policy
+  type: http
+  seq: 7
+}
+
+get {
+  url: {{baseUrl}}/organizations/:slug/alert-policies/:alert_policy_slug
+  body: none
+  auth: inherit
+}
+
+params:path {
+  slug: {{orgSlug}}
+  alert_policy_slug: {{alertPolicySlug}}
+}
+
+tests {
+  test("should return 200 OK", function() {
+    expect(res.status).to.equal(200);
+  });
+
+  test("should return the created alert policy", function() {
+    expect(res.body.slug).to.equal(bru.getVar("alertPolicySlug"));
+    expect(res.body.notification_type).to.equal(null);
+    expect(res.body.severity).to.equal(null);
+    expect(res.body.source_kind).to.equal("project");
+    expect(res.body.source_action).to.equal("create");
+    expect(res.body.source_ref).to.equal(bru.getVar("alertPolicySourceRef"));
+    expect(res.body.destination_slugs).to.deep.equal([bru.getVar("alertDestinationSlug")]);
+  });
+}

@@ -1,0 +1,22 @@
+meta {
+  name: 15 Delete BigQuery DS
+  type: http
+  seq: 18.96
+}
+
+delete {
+  url: {{baseUrl}}/organizations/{{orgSlug}}/data-sources/{{bigQueryDataSourceSlug}}
+  auth: inherit
+}
+
+script:pre-request {
+  if (!bru.getVar("bigQueryDataSourceSlug")) {
+    throw new Error("bigQueryDataSourceSlug not set");
+  }
+}
+
+tests {
+  test("should return 204 No Content", function() {
+    expect(res.status).to.equal(204);
+  });
+}

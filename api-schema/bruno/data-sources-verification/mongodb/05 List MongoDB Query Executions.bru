@@ -1,0 +1,41 @@
+meta {
+  name: 05 List MongoDB Query Executions
+  type: http
+  seq: 17
+}
+
+get {
+  url: {{baseUrl}}/organizations/{{orgSlug}}/data-sources/{{mongodbDataSourceSlug}}/queries/{{mongodbQuerySlug}}/executions
+  auth: inherit
+}
+
+script:pre-request {
+  if (!bru.getVar("mongodbQuerySlug")) {
+    throw new Error("mongodbQuerySlug not set");
+  }
+}
+
+script:post-response {
+  if (res.status === 200 && res.body.executions && res.body.executions.length > 0) {
+    bru.setVar("mongodbExecutionSlug", res.body.executions[0].slug);
+  }
+}
+
+tests {
+  test("should return 200 OK", function() {
+    expect(res.status).to.equal(200);
+  });
+
+  test("should return at least one execution record", function() {
+    expect(res.body).to.exist;
+    expect(res.body.executions).to.be.an('array').and.not.empty;
+
+    const execution = res.body.executions[0];
+    expect(execution.slug).to.be.a('string').and.not.empty;
+    expect(execution.status).to.be.a('string').and.not.empty;
+    expect(execution.executed_at).to.be.a('string').and.not.empty;
+    expect(execution.result).to.exist;
+    expect(execution.result.result_type).to.equal('mongodb');
+    expect(execution.result.type).to.equal('mongodb');
+  });
+}

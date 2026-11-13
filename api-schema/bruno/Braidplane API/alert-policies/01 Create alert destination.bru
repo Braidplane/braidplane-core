@@ -1,0 +1,61 @@
+meta {
+  name: 01 Create alert destination
+  type: http
+  seq: 1
+}
+
+post {
+  url: {{baseUrl}}/organizations/:slug/alert-destinations
+  body: json
+  auth: inherit
+}
+
+params:path {
+  slug: {{orgSlug}}
+}
+
+body:json {
+  {
+    "slug": "{{alertDestinationSlug}}",
+    "name": "{{alertDestinationName}}",
+    "type": "email",
+    "non_secret_config": {
+      "recipients": [
+        "{{alertDestinationRecipient}}"
+      ]
+    }
+  }
+}
+
+script:pre-request {
+  const suffix = `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
+  const destinationSlug = `e2e-alert-destination-${suffix}`.toLowerCase();
+  bru.setVar("alertDestinationSlug", destinationSlug);
+  bru.setVar("alertDestinationName", `E2E Alert Destination ${suffix}`);
+  bru.setVar("alertDestinationRecipient", `alerts-${suffix}@example.com`);
+  bru.setVar("updatedAlertDestinationRecipient", `alerts-updated-${suffix}@example.com`);
+  bru.setVar("alertPolicySlug", `e2e-alert-policy-${suffix}`.toLowerCase());
+  bru.setVar("alertPolicyName", `E2E Alert Policy ${suffix}`);
+  const sourceRef = bru.getVar("projectSlug") || bru.getEnvVar("projectSlug");
+  if (!sourceRef) {
+    bru.runner.stopExecution();
+    throw new Error("projectSlug not set - run task bruno-alert-policies");
+  }
+  bru.setVar("alertPolicySourceRef", sourceRef);
+}
+
+tests {
+  test("should return 201 Created", function() {
+    expect(res.status).to.equal(201);
+  });
+
+  test("should return safe destination metadata", function() {
+    expect(res.body.slug).to.equal(bru.getVar("alertDestinationSlug"));
+    expect(res.body.name).to.equal(bru.getVar("alertDestinationName"));
+    expect(res.body.type).to.equal("email");
+    expect(res.body).to.not.have.property("credential_slug");
+    expect(res.body.non_secret_config.recipients).to.deep.equal([bru.getVar("alertDestinationRecipient")]);
+    expect(res.body.enabled).to.equal(true);
+    expect(res.body).to.not.have.property("secret_config");
+  });
+}

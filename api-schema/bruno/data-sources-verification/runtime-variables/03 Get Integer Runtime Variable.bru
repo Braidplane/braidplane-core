@@ -1,0 +1,34 @@
+meta {
+  name: 03 Get Integer Runtime Variable
+  type: http
+  seq: 3
+}
+
+get {
+  url: {{baseUrl}}/organizations/{{orgSlug}}/environments/{{prodEnvironmentSlug}}/runtime-variables/batch_size
+  body: none
+  auth: inherit
+}
+
+script:pre-request {
+  if (!bru.getVar("orgSlug")) {
+    throw new Error("orgSlug is required for runtime variable tests");
+  }
+
+  if (!bru.getVar("prodEnvironmentSlug")) {
+    bru.setVar("prodEnvironmentSlug", "prod");
+  }
+}
+
+tests {
+  test("should return 200 OK", function() {
+    expect(res.status).to.equal(200);
+  });
+
+  test("should return requested runtime variable", function() {
+    expect(res.body.environment_slug).to.equal("prod");
+    expect(res.body.key).to.equal("batch_size");
+    expect(res.body.value_type).to.equal("integer");
+    expect(res.body.value).to.equal("1000");
+  });
+}

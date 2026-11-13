@@ -1,0 +1,28 @@
+meta {
+  name: 05 List BigQuery Query Executions
+  type: http
+  seq: 18.5
+}
+
+get {
+  url: {{baseUrl}}/organizations/{{orgSlug}}/data-sources/{{bigQueryDataSourceSlug}}/queries/{{bigQueryQuerySlug}}/executions
+  auth: inherit
+}
+
+script:post-response {
+  if (res.status === 200 && res.body.executions && res.body.executions.length > 0) {
+    bru.setVar("bigQueryExecutionSlug", res.body.executions[0].slug);
+  }
+}
+
+tests {
+  test("should return 200 OK", function() {
+    expect(res.status).to.equal(200);
+  });
+
+  test("should return at least one bigquery execution record", function() {
+    expect(res.body.executions).to.be.an('array').and.not.empty;
+    expect(res.body.executions[0].result.result_type).to.equal('sql');
+    expect(res.body.executions[0].result.type).to.equal('bigquery');
+  });
+}

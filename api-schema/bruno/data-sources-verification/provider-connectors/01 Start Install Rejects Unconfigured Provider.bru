@@ -1,0 +1,32 @@
+meta {
+  name: 01 Start Install Rejects Unconfigured Provider
+  type: http
+  seq: 2
+}
+
+post {
+  url: {{baseUrl}}/organizations/{{orgSlug}}/provider-connectors/fakecrm/installs
+  body: json
+  auth: inherit
+}
+
+body:json {
+  {
+    "data_source_slug": "{{providerGrantDataSourceSlug}}",
+    "intent": "create_grant",
+    "requested_scopes": ["contacts.read"]
+  }
+}
+
+script:pre-request {
+  if (!bru.getVar("providerGrantDataSourceSlug")) {
+    throw new Error("providerGrantDataSourceSlug not set - run provider connector backing DS request first");
+  }
+}
+
+tests {
+  test("should reject unconfigured provider safely", function() {
+    expect(res.status).to.equal(400);
+    expect(JSON.stringify(res.body)).to.not.contain("contacts.read");
+  });
+}

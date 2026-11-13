@@ -1,0 +1,26 @@
+meta {
+  name: 01a Test Existing PostgreSQL DS Connection
+  type: http
+  seq: 3.2
+}
+
+post {
+  url: {{baseUrl}}/organizations/{{orgSlug}}/data-sources/{{postgresDataSourceSlug}}/test-connection
+  body: none
+  auth: inherit
+}
+
+script:pre-request {
+  if (!bru.getVar("orgSlug")) {
+    throw new Error("orgSlug not set");
+  }
+  if (!bru.getVar("postgresDataSourceSlug")) {
+    throw new Error("postgresDataSourceSlug not set");
+  }
+}
+
+tests {
+  test("should return 204 No Content", function() {
+    expect(res.status).to.equal(204);
+  });
+}

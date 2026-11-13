@@ -1,0 +1,33 @@
+meta {
+  name: Create organization for pagination
+  type: http
+  seq: 30
+}
+
+post {
+  url: {{baseUrl}}/organizations
+  body: json
+  auth: inherit
+}
+
+body:json {
+  {
+    "name": "Pagination Org {{paginationTs}}",
+    "slug": "pagination-org-{{paginationTs}}"
+  }
+}
+
+script:pre-request {
+  bru.setVar("paginationTs", Date.now());
+}
+
+tests {
+  test("should return 201 Created", function() {
+    expect(res.status).to.equal(201);
+  });
+
+  test("should create pagination organization", function() {
+    expect(res.body).to.have.property("slug");
+    expect(res.body.slug).to.include("pagination-org-");
+  });
+}

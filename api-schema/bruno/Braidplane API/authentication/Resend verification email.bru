@@ -1,0 +1,69 @@
+meta {
+  name: Resend verification email
+  type: http
+  seq: 3
+}
+
+post {
+  url: {{baseUrl}}/auth/email/resend-verification
+  body: json
+  auth: inherit
+}
+
+body:json {
+  {
+    "email": "{{userEmail}}"
+  }
+}
+
+script:pre-request {
+  const userEmail = bru.getVar("userEmail");
+
+  if (!userEmail) {
+    throw new Error("userEmail not found. Run 'Create a user' first.");
+  }
+  // Wait for the original email so the later resend cannot race its delivery.
+  const {emailText} = require('./auth-email.cjs');
+  bru.setVar('originalVerificationEmail', await emailText(require('axios'), bru.getEnvVar('mailpitUrl'), userEmail, /token=([a-f0-9]{64})/));
+
+}
+
+tests {
+  test("should return 204 No Content", function() {
+    expect(res.status).to.equal(204);
+  });
+
+  test("should have empty body", function() {
+    expect(res.body).to.be.empty;
+  });
+}
+
+example {
+  name: 204 Response
+  description: Verification resend request accepted
+
+  request: {
+    url: {{baseUrl}}/auth/email/resend-verification
+    method: POST
+    mode: json
+    body:json: {
+      {
+        "email": "john.doe@example.com"
+      }
+    }
+  }
+
+  response: {
+    status: {
+      code: 204
+      text: No Content
+    }
+
+    body: {
+      type: text
+      content: '''
+
+      '''
+    }
+  }
+}

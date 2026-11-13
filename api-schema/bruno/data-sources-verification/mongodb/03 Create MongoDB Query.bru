@@ -1,0 +1,44 @@
+meta {
+  name: 03 Create MongoDB Query
+  type: http
+  seq: 15
+}
+
+post {
+  url: {{baseUrl}}/organizations/{{orgSlug}}/data-sources/{{mongodbDataSourceSlug}}/queries
+  body: json
+  auth: inherit
+}
+
+body:json {
+  {
+    "name": "Test MongoDB Query",
+    "slug": "test-mongodb-query-{{timestamp}}",
+    "query_statement": {
+      "type": "mongodb",
+      "collection": "test_collection",
+      "operation": "find",
+      "filter": {},
+      "limit_value": 10
+    },
+    "parameters": [],
+    "row_limit": 1000,
+    "timeout_seconds": 30
+  }
+}
+
+script:pre-request {
+  bru.setVar("timestamp", Date.now());
+}
+
+script:post-response {
+  if (res.status === 201) {
+    bru.setVar("mongodbQuerySlug", res.body.slug);
+  }
+}
+
+tests {
+  test("should return 201 Created", function() {
+    expect(res.status).to.equal(201);
+  });
+}

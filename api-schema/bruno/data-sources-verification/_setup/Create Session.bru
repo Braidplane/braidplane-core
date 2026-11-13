@@ -1,0 +1,77 @@
+meta {
+  name: Create Session
+  type: http
+  seq: 3
+}
+
+post {
+  url: {{baseUrl}}/sessions
+  body: json
+  auth: inherit
+}
+
+body:json {
+  {
+    "email": "{{userEmail}}",
+    "password": "{{userPasswordJSON}}"
+  }
+}
+
+script:pre-request {
+  const userEmail = bru.getVar("userEmail") || bru.getEnvVar("userEmail");
+  const userPasswordValue = bru.getVar("userPassword") || bru.getEnvVar("userPassword");
+  if (!userEmail) {
+    bru.runner.stopExecution();
+    throw new Error("userEmail not set - run 'User Onboarding' first");
+  }
+  if (!userPasswordValue) {
+    bru.runner.stopExecution();
+    throw new Error("userPassword not set");
+  }
+  const userPassword = JSON.parse(userPasswordValue);
+  bru.setVar("userEmail", userEmail);
+  bru.setVar("userPassword", userPassword);
+  bru.setVar("userPasswordJSON", JSON.stringify(userPassword).slice(1, -1));
+  bru.setVar("orgSlug", bru.getEnvVar("orgSlug"));
+  bru.setVar("pipelineProjectSlug", bru.getEnvVar("pipelineProjectSlug"));
+}
+
+script:post-response {
+  if (res.status !== 200) {
+    bru.runner.stopExecution();
+    throw new Error(`Create Session failed with status ${res.status}`);
+  }
+
+  const setCookie = res.headers['set-cookie'] || res.headers['Set-Cookie'];
+  if (!setCookie) {
+    bru.runner.stopExecution();
+    throw new Error("set-cookie header not found - session creation may have failed");
+  }
+  const cookies = Array.isArray(setCookie) ? setCookie : [setCookie];
+  const sessionEntry = [...cookies].reverse().find(c => /session/i.test(c.split(';')[0]) && !/Max-Age=0/i.test(c) && c.split(';')[0].split('=').slice(1).join('=') !== "");
+  if (!sessionEntry) {
+    bru.runner.stopExecution();
+    throw new Error(`session cookie not found in set-cookie: ${JSON.stringify(cookies)}`);
+  }
+  const cookiePart = sessionEntry.split(';')[0];
+
+  const csrfResponse = await bru.sendRequest({
+    method: "GET",
+    url: `${bru.getEnvVar("baseUrl")}/organizations`,
+    headers: {
+      Cookie: cookiePart
+    }
+  });
+  const csrfToken = csrfResponse.headers['x-csrf-token'] || csrfResponse.headers['X-CSRF-Token'];
+  if (!csrfToken) {
+    bru.runner.stopExecution();
+    throw new Error("CSRF token not found");
+  }
+  bru.setVar("csrfToken", csrfToken);
+}
+
+tests {
+  test("should return 200 OK", function() {
+    expect(res.status).to.equal(200);
+  });
+}

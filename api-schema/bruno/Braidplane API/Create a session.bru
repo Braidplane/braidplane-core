@@ -1,0 +1,133 @@
+meta {
+  name: Create a session
+  type: http
+  seq: 3
+}
+
+post {
+  url: {{baseUrl}}/sessions
+  body: json
+  auth: inherit
+}
+
+body:json {
+  {
+    "email": "{{userEmail}}",
+    "password": "{{userPassword}}"
+  }
+}
+
+script:pre-request {
+  const userEmail = bru.getVar("userEmail") || bru.getEnvVar("userEmail");
+  const userPassword = bru.getVar("userPassword") || bru.getEnvVar("userPassword");
+  if (!userEmail || !userPassword) throw new Error("Create a user or provide isolated test credentials first");
+  bru.setVar("userEmail", userEmail);
+  bru.setVar("userPassword", userPassword);
+}
+
+script:post-response {
+  if (res.status !== 200) {
+    return;
+  }
+
+  const setCookie = res.headers["set-cookie"] || res.headers["Set-Cookie"];
+  if (!setCookie) {
+    return;
+  }
+  const cookies = Array.isArray(setCookie) ? setCookie : [setCookie];
+  const sessionEntry = [...cookies].reverse().find(c => /session/i.test(c.split(";")[0]) && !/Max-Age=0/i.test(c) && c.split(";")[0].split("=").slice(1).join("=") !== "");
+  if (!sessionEntry) {
+    return;
+  }
+
+  const csrfResponse = await bru.sendRequest({
+    method: "GET",
+    url: `${bru.getEnvVar("baseUrl")}/users/profile`,
+    headers: {
+      Cookie: sessionEntry.split(";")[0]
+    }
+  });
+  const csrfToken = csrfResponse.headers["x-csrf-token"] || csrfResponse.headers["X-CSRF-Token"];
+  if (csrfToken) {
+    bru.setVar("csrfToken", csrfToken);
+  }
+}
+
+tests {
+  test("should return 200 OK", function() {
+    expect(res.status).to.equal(200);
+  });
+
+  test("should return JSON", function() {
+    expect(res.headers['content-type']).to.include('application/json');
+  });
+
+  test("should set session cookie", function() {
+    const setCookie = res.headers['set-cookie'];
+    expect(setCookie).to.exist;
+    // Check if cookie contains session identifier
+    expect(setCookie).to.match(/session/i);
+  });
+
+  test("should return authenticated user data", function() {
+    const body = res.body;
+    expect(body).to.have.property('slug');
+    expect(body).to.have.property('full_name');
+    expect(body).to.have.property('email');
+    expect(body).to.have.property('role');
+    expect(body).to.have.property('has_local_password');
+    expect(body.email).to.equal(req.body.email);
+    expect(body.has_local_password).to.equal(true);
+  });
+
+  test("should not return password", function() {
+    expect(res.body).to.not.have.property('password');
+  });
+
+  // Save authenticated user slug
+  bru.setVar("authenticatedUserSlug", res.body.slug);
+}
+
+example {
+  name: 200 Response
+  description: Session has been set in the cookie
+
+  request: {
+    url: {{baseUrl}}/sessions
+    method: POST
+    mode: json
+    body:json: {
+      {
+        "email": "john.doe@example.com",
+        "password": "SecurePass123!"
+      }
+    }
+  }
+
+  response: {
+    headers: {
+      Content-Type: application/json
+    }
+
+    status: {
+      code: 200
+      text: OK
+    }
+
+    body: {
+      type: json
+      content: '''
+        {
+          "slug": "johndoe",
+          "full_name": "John Doe",
+          "email": "john.doe@example.com",
+          "role": "user",
+          "locale": "en-US",
+          "has_local_password": true,
+          "created_at": "2025-10-04T10:30:00Z",
+          "updated_at": "2025-10-04T10:30:00Z"
+        }
+      '''
+    }
+  }
+}

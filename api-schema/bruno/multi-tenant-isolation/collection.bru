@@ -1,0 +1,17 @@
+meta {
+  name: multi-tenant-isolation
+}
+
+auth {
+  mode: none
+}
+
+script:pre-request {
+  const unsafeMethods = ["POST", "PUT", "PATCH", "DELETE"];
+  const method = String(req.method || "").toUpperCase();
+  const csrfToken = bru.getVar("user1CSRFToken");
+
+  if (unsafeMethods.includes(method) && csrfToken) {
+    req.setHeader("X-CSRF-Token", csrfToken);
+  }
+}

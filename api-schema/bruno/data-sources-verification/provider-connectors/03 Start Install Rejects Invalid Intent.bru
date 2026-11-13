@@ -1,0 +1,31 @@
+meta {
+  name: 03 Start Install Rejects Invalid Intent
+  type: http
+  seq: 4
+}
+
+post {
+  url: {{baseUrl}}/organizations/{{orgSlug}}/provider-connectors/fakecrm/installs
+  body: json
+  auth: inherit
+}
+
+body:json {
+  {
+    "data_source_slug": "{{providerGrantDataSourceSlug}}",
+    "intent": "create_data_source",
+    "requested_scopes": ["contacts.read"]
+  }
+}
+
+script:pre-request {
+  if (!bru.getVar("providerGrantDataSourceSlug")) {
+    throw new Error("providerGrantDataSourceSlug not set - run provider connector backing DS request first");
+  }
+}
+
+tests {
+  test("should reject old provider install intent", function() {
+    expect(res.status).to.equal(400);
+  });
+}

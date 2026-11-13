@@ -1,0 +1,35 @@
+meta {
+  name: 09 Disable project environment with color
+  type: http
+  seq: 9
+}
+
+delete {
+  url: {{baseUrl}}/organizations/{{orgSlug}}/projects/{{projectSlug}}/environments/{{runtimeEnvironmentSlug}}?protected_environment_confirmation={{runtimeEnvironmentSlug}}
+  body: none
+  auth: inherit
+}
+
+script:pre-request {
+  if (!bru.getVar("runtimeEnvironmentSlug")) {
+    bru.runner.stopExecution();
+    throw new Error("runtimeEnvironmentSlug not set - run '02 Create custom environment with color' first");
+  }
+  if (!bru.getVar("projectSlug")) {
+    bru.runner.stopExecution();
+    throw new Error("projectSlug not set - run task bruno-environments");
+  }
+}
+
+script:post-response {
+  if (res.status !== 204) {
+    bru.runner.stopExecution();
+    throw new Error(`Disable project environment failed with status ${res.status}`);
+  }
+}
+
+tests {
+  test("should return 204 No Content", function() {
+    expect(res.status).to.equal(204);
+  });
+}

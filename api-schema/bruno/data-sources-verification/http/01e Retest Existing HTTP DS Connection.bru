@@ -1,0 +1,26 @@
+meta {
+  name: 01e Retest Existing HTTP DS Connection
+  type: http
+  seq: 18.5
+}
+
+post {
+  url: {{baseUrl}}/organizations/{{orgSlug}}/data-sources/{{httpToggleableHealthDataSourceSlug}}/test-connection
+  body: none
+  auth: inherit
+}
+
+script:pre-request {
+  if (!bru.getEnvVar("orgSlug") && !bru.getVar("orgSlug")) {
+    throw new Error("orgSlug not set");
+  }
+  if (!bru.getVar("httpToggleableHealthDataSourceSlug")) {
+    throw new Error("httpToggleableHealthDataSourceSlug not set - run 01a first");
+  }
+}
+
+tests {
+  test("should return 204 No Content", function() {
+    expect(res.status).to.equal(204);
+  });
+}

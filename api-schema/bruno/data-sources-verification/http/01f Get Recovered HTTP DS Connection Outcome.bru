@@ -1,0 +1,40 @@
+meta {
+  name: 01f Get Recovered HTTP DS Connection Outcome
+  type: http
+  seq: 18.6
+}
+
+get {
+  url: {{baseUrl}}/organizations/{{orgSlug}}/data-sources/{{httpToggleableHealthDataSourceSlug}}
+  body: none
+  auth: inherit
+}
+
+script:pre-request {
+  if (!bru.getEnvVar("orgSlug") && !bru.getVar("orgSlug")) {
+    throw new Error("orgSlug not set");
+  }
+  if (!bru.getVar("httpToggleableHealthDataSourceSlug")) {
+    throw new Error("httpToggleableHealthDataSourceSlug not set - run 01a first");
+  }
+}
+
+tests {
+  test("should return the persisted data source", function() {
+    expect(res.status).to.equal(200);
+    expect(res.body.slug).to.equal(bru.getVar("httpToggleableHealthDataSourceSlug"));
+  });
+
+  test("should persist the recovered connection outcome", function() {
+    expect(res.body.is_active).to.equal(true);
+    expect(res.body.last_tested_at).to.be.a("string");
+    expect(Number.isNaN(Date.parse(res.body.last_tested_at))).to.equal(false);
+    expect(res.body.test_error == null).to.equal(true);
+  });
+
+  test("should not expose credentials", function() {
+    expect(res.body).to.not.have.property("credentials");
+    expect(res.body.config).to.not.have.property("bearer_token");
+    expect(res.body.config).to.not.have.property("password");
+  });
+}

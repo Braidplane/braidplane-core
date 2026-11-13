@@ -1,0 +1,31 @@
+meta {
+  name: 01c Test Existing HTTP DS Connection Failure
+  type: http
+  seq: 18.3
+}
+
+post {
+  url: {{baseUrl}}/organizations/{{orgSlug}}/data-sources/{{httpToggleableHealthDataSourceSlug}}/test-connection
+  body: none
+  auth: inherit
+}
+
+script:pre-request {
+  if (!bru.getEnvVar("orgSlug") && !bru.getVar("orgSlug")) {
+    throw new Error("orgSlug not set");
+  }
+  if (!bru.getVar("httpToggleableHealthDataSourceSlug")) {
+    throw new Error("httpToggleableHealthDataSourceSlug not set - run 01a first");
+  }
+}
+
+tests {
+  test("should return 422 Unprocessable Entity", function() {
+    expect(res.status).to.equal(422);
+  });
+
+  test("should return data source connection failure", function() {
+    expect(res.body.error.code).to.equal("DATA_SOURCE_CONNECTION_FAILED");
+    expect(res.body.error.message).to.equal("data source connection failed");
+  });
+}

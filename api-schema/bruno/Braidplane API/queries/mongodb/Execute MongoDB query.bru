@@ -1,0 +1,54 @@
+meta {
+  name: Execute MongoDB query
+  type: http
+  seq: 2
+}
+
+post {
+  url: {{baseUrl}}/organizations/:slug/data-sources/:ds_slug/queries/:query_slug/execute
+  body: json
+  auth: inherit
+}
+
+params:path {
+  slug: {{orgSlug}}
+  ds_slug: {{mongoDataSourceSlug}}
+  query_slug: {{mongodbSearchQuerySlug}}
+}
+
+body:json {
+  {
+    "parameters": {
+      "email": "alice@example.com"
+    }
+  }
+}
+
+script:pre-request {
+  if (!bru.getVar("orgSlug")) {
+    throw new Error("orgSlug not set - run 'Create an organization' first");
+  }
+
+  if (!bru.getVar("mongoDataSourceSlug")) {
+    throw new Error("mongoDataSourceSlug not set - run a data source create request first");
+  }
+
+  if (!bru.getVar("mongodbSearchQuerySlug")) {
+    throw new Error("mongodbSearchQuerySlug not set - run 'Create MongoDB query' first");
+  }
+}
+
+tests {
+  test("should return 200 OK", function() {
+    expect(res.status).to.equal(200);
+  });
+
+  test("should return MongoDB execution result", function() {
+    expect(res.body).to.have.property("result_type", "mongodb");
+    expect(res.body).to.have.property("type", "mongodb");
+    expect(res.body).to.have.property("payload");
+    expect(res.body.payload).to.have.property("operation_type", "find");
+    expect(res.body.payload).to.have.property("documents");
+    expect(res.body).to.have.property("success", true);
+  });
+}

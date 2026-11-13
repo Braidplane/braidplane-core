@@ -1,0 +1,75 @@
+meta {
+  name: Create MongoDB insert query
+  type: http
+  seq: 3
+}
+
+post {
+  url: {{baseUrl}}/organizations/:slug/data-sources/:ds_slug/queries
+  body: json
+  auth: inherit
+}
+
+params:path {
+  slug: {{orgSlug}}
+  ds_slug: {{mongoDataSourceSlug}}
+}
+
+body:json {
+  {
+    "name": "Insert user into MongoDB",
+    "slug": "insert-mongo-user-{{timestamp}}",
+    "description": "MongoDB insert_one operation with parameterized fields",
+    "query_statement": {
+      "type": "mongodb",
+      "collection": "users",
+      "operation": "insert_one",
+      "document": {
+        "email": "{{email}}",
+        "fullName": "{{full_name}}",
+        "isActive": true
+      }
+    },
+    "parameters": [
+      {
+        "slug": "email",
+        "name": "email",
+        "data_type": "text",
+        "is_required": true
+      },
+      {
+        "slug": "full-name",
+        "name": "full_name",
+        "data_type": "text",
+        "is_required": true
+      }
+    ],
+    "row_limit": 1,
+    "timeout_seconds": 30
+  }
+}
+
+script:pre-request {
+  if (!bru.getVar("orgSlug")) {
+    throw new Error("orgSlug not set - run 'Create an organization' first");
+  }
+
+  if (!bru.getVar("mongoDataSourceSlug")) {
+    throw new Error("mongoDataSourceSlug not set - run a data source create request first");
+  }
+
+  bru.setVar("timestamp", Date.now());
+}
+
+script:post-response {
+  if (res.status === 201) {
+    bru.setVar("mongodbInsertQuerySlug", res.body.slug);
+    bru.setVar("querySlug", res.body.slug);
+  }
+}
+
+tests {
+  test("should return 201 Created", function() {
+    expect(res.status).to.equal(201);
+  });
+}

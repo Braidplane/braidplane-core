@@ -1,0 +1,39 @@
+meta {
+  name: 04 Update personal access token
+  type: http
+  seq: 4
+}
+
+put {
+  url: {{baseUrl}}/users/profile/personal-access-tokens/:pat_slug
+  body: json
+  auth: inherit
+}
+
+params:path {
+  pat_slug: {{patHardDeleteSlug}}
+}
+
+body:json {
+  {
+    "name": "Updated hard delete PAT",
+    "description": "Updated safe PAT metadata",
+    "expires_at": null
+  }
+}
+
+tests {
+  test("should return 200 OK", function() {
+    expect(res.status).to.equal(200);
+  });
+
+  test("update should return safe PAT metadata only", function() {
+    expect(res.body.slug).to.equal(bru.getVar("patHardDeleteSlug"));
+    expect(res.body.name).to.equal("Updated hard delete PAT");
+    expect(res.body.description).to.equal("Updated safe PAT metadata");
+    expect(res.body.expires_at).to.equal(null);
+    expect(res.body).to.have.property("token_prefix");
+    expect(res.body).to.not.have.property("token");
+    expect(res.body).to.not.have.property("token_hash");
+  });
+}

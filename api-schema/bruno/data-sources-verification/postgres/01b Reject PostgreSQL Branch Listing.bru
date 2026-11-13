@@ -1,0 +1,30 @@
+meta {
+  name: 01b Reject PostgreSQL Branch Listing
+  type: http
+  seq: 3.4
+}
+
+get {
+  url: {{baseUrl}}/organizations/{{orgSlug}}/data-sources/{{postgresDataSourceSlug}}/branches
+  body: none
+  auth: inherit
+}
+
+script:pre-request {
+  if (!bru.getVar("orgSlug")) {
+    throw new Error("orgSlug not set");
+  }
+  if (!bru.getVar("postgresDataSourceSlug")) {
+    throw new Error("postgresDataSourceSlug not set");
+  }
+}
+
+tests {
+  test("should return 400 Bad Request", function() {
+    expect(res.status).to.equal(400);
+  });
+
+  test("should identify unsupported branch listing", function() {
+    expect(res.body.error.code).to.equal("DATA_SOURCE_INVALID_INPUT");
+  });
+}

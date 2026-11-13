@@ -1,0 +1,26 @@
+meta {
+  name: 06 Invalid bearer token is rejected
+  type: http
+  seq: 6
+}
+
+get {
+  url: {{baseUrl}}/organizations/:slug/data-sources
+  body: none
+  auth: inherit
+}
+
+params:path {
+  slug: {{orgSlug}}
+}
+
+script:pre-request {
+  req.setHeader("Authorization", "Bearer xto_invalid_token");
+  req.setHeader("Cookie", "");
+}
+
+tests {
+  test("should return 401 Unauthorized", function() {
+    expect(res.status).to.equal(401);
+  });
+}

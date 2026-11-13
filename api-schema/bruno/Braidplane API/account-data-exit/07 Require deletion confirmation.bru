@@ -1,0 +1,19 @@
+meta {
+  name: Require deletion confirmation
+  type: http
+  seq: 7
+}
+
+post {
+  url: {{baseUrl}}/users/profile/deletion
+  body: json
+  auth: inherit
+}
+
+body:json {
+  {"confirmation":"wrong"}
+}
+
+tests {
+  test("returns 400", function() { expect(res.status).to.equal(400); });
+}

@@ -1,0 +1,26 @@
+meta {
+  name: 05 Bearer token cannot manage API keys
+  type: http
+  seq: 5
+}
+
+get {
+  url: {{baseUrl}}/organizations/:slug/api-keys
+  body: none
+  auth: inherit
+}
+
+params:path {
+  slug: {{orgSlug}}
+}
+
+script:pre-request {
+  req.setHeader("Authorization", `Bearer ${bru.getVar("apiKeyToken")}`);
+  req.setHeader("Cookie", "");
+}
+
+tests {
+  test("management-disabled API key is forbidden", function() {
+    expect(res.status).to.equal(403);
+  });
+}

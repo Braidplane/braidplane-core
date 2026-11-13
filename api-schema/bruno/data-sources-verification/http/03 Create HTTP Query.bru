@@ -1,0 +1,45 @@
+meta {
+  name: 03 Create HTTP Query
+  type: http
+  seq: 20
+}
+
+post {
+  url: {{baseUrl}}/organizations/{{orgSlug}}/data-sources/{{httpDataSourceSlug}}/queries
+  body: json
+  auth: inherit
+}
+
+body:json {
+  {
+    "name": "Test HTTP Query",
+    "slug": "test-http-query-{{timestamp}}",
+    "query_statement": {
+      "type": "http",
+      "method": "GET",
+      "path": "/health",
+      "query_params": {},
+      "headers": {},
+      "body": {}
+    },
+    "parameters": [],
+    "row_limit": 1000,
+    "timeout_seconds": 30
+  }
+}
+
+script:pre-request {
+  bru.setVar("timestamp", Date.now());
+}
+
+script:post-response {
+  if (res.status === 201) {
+    bru.setVar("httpQuerySlug", res.body.slug);
+  }
+}
+
+tests {
+  test("should return 201 Created", function() {
+    expect(res.status).to.equal(201);
+  });
+}

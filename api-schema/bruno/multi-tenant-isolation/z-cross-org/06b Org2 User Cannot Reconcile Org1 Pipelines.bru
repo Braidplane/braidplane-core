@@ -1,0 +1,41 @@
+meta {
+  name: 06b Org2 User Cannot Reconcile Org1 Pipelines
+  type: http
+  seq: 6.6
+}
+
+post {
+  url: {{baseUrl}}/organizations/{{orgSlug1}}/projects/{{pipelineProjectSlug}}/pipelines:reconcile
+  body: json
+  auth: inherit
+}
+
+body:json {
+  {
+    "dry_run": true
+  }
+}
+
+script:pre-request {
+  req.setHeader("X-CSRF-Token", bru.getVar("user2CSRFToken"));
+  const jar = bru.cookies.jar();
+  jar.clear();
+  const cookieName = bru.getVar("user2CookieName");
+  const cookieValue = bru.getVar("user2CookieValue");
+  req.setHeader("Cookie", `${cookieName}=${cookieValue}`);
+
+  if (!bru.getVar("orgSlug1")) {
+    throw new Error("orgSlug1 not set - run setup first");
+  }
+}
+
+tests {
+  test("should return 403 Forbidden", function() {
+    expect(res.status).to.equal(403);
+  });
+
+  test("should return authorization error", function() {
+    expect(res.body).to.have.property('error');
+    expect(res.body.error.code).to.equal('AUTH_FORBIDDEN');
+  });
+}

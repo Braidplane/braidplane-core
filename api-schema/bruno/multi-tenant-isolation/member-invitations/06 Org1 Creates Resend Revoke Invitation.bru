@@ -1,0 +1,47 @@
+meta {
+  name: 06 Org1 Creates Resend Revoke Invitation
+  type: http
+  seq: 6
+}
+
+post {
+  url: {{baseUrl}}/organizations/{{orgSlug1}}/member-invitations
+  body: json
+  auth: inherit
+}
+
+body:json {
+  {
+    "email": "{{resendRevokeInvitationEmail}}",
+    "role": "viewer"
+  }
+}
+
+script:pre-request {
+  const email = `resend-revoke-${Date.now()}@example.com`;
+  bru.setVar("resendRevokeInvitationEmail", email);
+  bru.deleteVar("resendRevokeInvitationSlug");
+  req.setHeader("Cookie", `${bru.getVar("user1CookieName")}=${bru.getVar("user1CookieValue")}`);
+  req.setHeader("X-CSRF-Token", bru.getVar("user1CSRFToken"));
+}
+
+script:post-response {
+  if (res.status !== 201) {
+    bru.runner.stopExecution();
+    throw new Error(`06 Org1 Creates Resend Revoke Invitation failed with status ${res.status}`);
+  }
+  bru.setVar("resendRevokeInvitationSlug", res.body.slug);
+}
+
+tests {
+  test("should create resend/revoke fixture invitation", function() {
+    expect(res.status).to.equal(201);
+    expect(res.body.email).to.equal(bru.getVar("resendRevokeInvitationEmail"));
+    expect(res.body.status).to.equal("pending");
+  });
+
+  test("should not expose token material", function() {
+    expect(res.body).to.not.have.property("token");
+    expect(res.body).to.not.have.property("token_hash");
+  });
+}
