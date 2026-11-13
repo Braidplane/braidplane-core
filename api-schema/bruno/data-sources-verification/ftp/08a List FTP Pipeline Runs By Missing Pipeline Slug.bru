@@ -1,0 +1,27 @@
+meta {
+  name: 08a List FTP Pipeline Runs By Missing Pipeline Slug
+  type: http
+  seq: 33
+}
+
+get {
+  url: {{baseUrl}}/organizations/{{orgSlug}}/projects/{{pipelineProjectSlug}}/environments/{{prodEnvironmentSlug}}/runs?sort_by=run_created_at&pipeline_slug={{missingPipelineSlug}}
+  auth: inherit
+}
+
+script:pre-request {
+  bru.setVar("missingPipelineSlug", `pipeline-missing-${Date.now()}`);
+}
+
+tests {
+  test("should return 200 OK", function() {
+    expect(res.status).to.equal(200);
+  });
+
+  test("should return empty runs for missing pipeline filter", function() {
+    expect(res.body).to.exist;
+    expect(res.body.runs).to.be.an('array');
+    expect(res.body.runs.length).to.equal(0);
+    expect(res.body.has_more).to.equal(false);
+  });
+}

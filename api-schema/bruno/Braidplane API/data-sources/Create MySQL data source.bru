@@ -1,0 +1,91 @@
+meta {
+  name: Create MySQL data source
+  type: http
+  seq: 1
+}
+
+post {
+  url: {{baseUrl}}/organizations/:slug/data-sources
+  body: json
+  auth: inherit
+}
+
+params:path {
+  slug: {{orgSlug}}
+}
+
+body:json {
+  {
+    "name": "Test MySQL Database",
+    "slug": "test-mysql-db",
+    "type": "mysql",
+    "config": {
+      "host": "localhost",
+      "port": {{mysqlPort}},
+      "database": "braidplane",
+      "allow_private_hosts": true
+    },
+    "credentials": {
+      "username": "braidplane",
+      "password": "braidplanepass"
+    }
+  }
+}
+
+script:pre-request {
+  // Ensure we have orgSlug from previous request
+  if (!bru.getVar("orgSlug")) {
+    throw new Error("orgSlug not set - run 'Create an organization' first");
+  }
+}
+
+script:post-response {
+  if (res.status === 201) {
+    bru.setVar("mysqlDataSourceSlug", res.body.slug);
+  }
+}
+
+tests {
+  test("should return 201 Created", function() {
+    expect(res.status).to.equal(201);
+  });
+
+  test("should return JSON", function() {
+    expect(res.headers['content-type']).to.include('application/json');
+  });
+
+  test("should return data source with correct structure", function() {
+    expect(res.body).to.be.an('object');
+    expect(res.body).to.have.property('slug');
+    expect(res.body).to.have.property('name');
+    expect(res.body).to.have.property('type');
+    expect(res.body).to.have.property('config');
+    expect(res.body).to.have.property('is_active');
+    expect(res.body).to.have.property('created_at');
+    expect(res.body).to.have.property('updated_at');
+    // Newly created sources return an empty typed schema until import.
+    expect(res.body.schema.schema_type).to.equal("sql");
+    expect(res.body.schema.tables).to.deep.equal([]);
+    expect(res.body.schema_status).to.equal('not_imported');
+  });
+
+  test("should have correct type", function() {
+    expect(res.body.type).to.equal('mysql');
+  });
+
+  test("should have correct name", function() {
+    expect(res.body.name).to.equal('Test MySQL Database');
+  });
+
+  test("should not return credentials", function() {
+    expect(res.body).to.not.have.property('credentials');
+    expect(res.body.config).to.not.have.property('username');
+    expect(res.body.config).to.not.have.property('password');
+  });
+
+  test("should generate slug if not provided or use provided slug", function() {
+    expect(res.body.slug).to.be.a('string');
+    expect(res.body.slug.length).to.be.greaterThan(0);
+  });
+
+}

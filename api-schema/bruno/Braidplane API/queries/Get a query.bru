@@ -1,0 +1,41 @@
+meta {
+  name: Get a query
+  type: http
+  seq: 21
+}
+
+get {
+  url: {{baseUrl}}/organizations/:slug/data-sources/:ds_slug/queries/:query_slug
+  auth: inherit
+}
+
+params:path {
+  slug: {{orgSlug}}
+  ds_slug: {{dataSourceSlug}}
+  query_slug: {{querySlug}}
+}
+
+script:pre-request {
+  if (!bru.getVar("orgSlug")) {
+    throw new Error("orgSlug not set - run 'Create an organization' first");
+  }
+
+  if (!bru.getVar("dataSourceSlug")) {
+    throw new Error("dataSourceSlug not set - run a data source create request first");
+  }
+
+  if (!bru.getVar("querySlug")) {
+    throw new Error("querySlug not set - run a query create request first");
+  }
+}
+
+tests {
+  test("should return 200 OK", function() {
+    expect(res.status).to.equal(200);
+  });
+
+  test("should return a query", function() {
+    expect(res.body).to.have.property("slug");
+    expect(res.body).to.have.property("query_statement");
+  });
+}

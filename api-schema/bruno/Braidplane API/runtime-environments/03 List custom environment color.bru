@@ -1,0 +1,33 @@
+meta {
+  name: 03 List custom environment color
+  type: http
+  seq: 3
+}
+
+get {
+  url: {{baseUrl}}/organizations/{{orgSlug}}/environments?limit=50&order=desc
+  auth: inherit
+}
+
+script:pre-request {
+  if (!bru.getVar("runtimeEnvironmentSlug")) {
+    bru.runner.stopExecution();
+    throw new Error("runtimeEnvironmentSlug not set - run '02 Create custom environment with color' first");
+  }
+}
+
+tests {
+  test("should return 200 OK", function() {
+    expect(res.status).to.equal(200);
+  });
+
+  test("should list the custom environment color", function() {
+    expect(res.body.environments).to.be.an("array");
+    const environment = res.body.environments.find((item) => item.slug === bru.getVar("runtimeEnvironmentSlug"));
+    expect(environment).to.exist;
+    expect(environment.name).to.equal(bru.getVar("runtimeEnvironmentName"));
+    expect(environment.description).to.equal(bru.getVar("runtimeEnvironmentDescription"));
+    expect(environment.color).to.equal("green");
+    expect(environment.protected).to.equal(false);
+  });
+}

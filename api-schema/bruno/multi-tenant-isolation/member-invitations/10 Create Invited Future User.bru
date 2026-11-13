@@ -1,0 +1,43 @@
+meta {
+  name: 10 Create Invited Future User
+  type: http
+  seq: 10
+}
+
+post {
+  url: {{baseUrl}}/users
+  body: json
+  auth: inherit
+}
+
+body:json {
+  {
+    "full_name": "Auto Accept User",
+    "email": "{{autoAcceptInvitationEmail}}",
+    "password": "SecurePass123!"
+  }
+}
+
+script:pre-request {
+  if (!bru.getVar("autoAcceptInvitationEmail")) {
+    throw new Error("autoAcceptInvitationEmail not set - create future-user invitation first");
+  }
+  bru.cookies.jar().clear();
+}
+
+script:post-response {
+  if (res.status !== 201) {
+    bru.runner.stopExecution();
+    throw new Error(`10 Create Invited Future User failed with status ${res.status}`);
+  }
+  bru.setVar("user3Slug", res.body.slug);
+  bru.setVar("user3Email", res.body.email);
+}
+
+tests {
+  test("should create future invitee account", function() {
+    expect(res.status).to.equal(201);
+    expect(res.body.email).to.equal(bru.getVar("autoAcceptInvitationEmail"));
+    expect(res.body).to.have.property("slug");
+  });
+}

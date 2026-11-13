@@ -1,0 +1,22 @@
+meta {
+  name: 09 Delete PostgreSQL DS
+  type: http
+  seq: 13
+}
+
+delete {
+  url: {{baseUrl}}/organizations/{{orgSlug}}/data-sources/{{postgresDataSourceSlug}}
+  auth: inherit
+}
+
+script:pre-request {
+  if (!bru.getVar("postgresDataSourceSlug")) {
+    throw new Error("postgresDataSourceSlug not set");
+  }
+}
+
+tests {
+  test("should return 204 No Content", function() {
+    expect(res.status).to.equal(204);
+  });
+}

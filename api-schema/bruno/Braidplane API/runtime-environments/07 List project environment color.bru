@@ -1,0 +1,34 @@
+meta {
+  name: 07 List project environment color
+  type: http
+  seq: 7
+}
+
+get {
+  url: {{baseUrl}}/organizations/{{orgSlug}}/projects/{{projectSlug}}/environments?limit=50&order=desc
+  auth: inherit
+}
+
+script:pre-request {
+  if (!bru.getVar("runtimeEnvironmentSlug")) {
+    bru.runner.stopExecution();
+    throw new Error("runtimeEnvironmentSlug not set - run '02 Create custom environment with color' first");
+  }
+}
+
+tests {
+  test("should return 200 OK", function() {
+    expect(res.status).to.equal(200);
+  });
+
+  test("should list project environment color", function() {
+    expect(res.body.project_environments).to.be.an("array");
+    const projectEnvironment = res.body.project_environments.find((item) => item.environment_slug === bru.getVar("runtimeEnvironmentSlug"));
+    expect(projectEnvironment).to.exist;
+    expect(projectEnvironment.environment_name).to.equal(bru.getVar("runtimeEnvironmentUpdatedName"));
+    expect(projectEnvironment.environment_description).to.equal(bru.getVar("runtimeEnvironmentUpdatedDescription"));
+    expect(projectEnvironment.environment_color).to.equal("purple");
+    expect(projectEnvironment.environment_protected).to.equal(true);
+    expect(projectEnvironment.is_default).to.equal(false);
+  });
+}

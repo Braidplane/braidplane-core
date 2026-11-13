@@ -1,0 +1,27 @@
+meta {
+  name: 10 Deleted alert policy is absent
+  type: http
+  seq: 10
+}
+
+get {
+  url: {{baseUrl}}/organizations/:slug/alert-policies/:alert_policy_slug
+  body: none
+  auth: inherit
+}
+
+params:path {
+  slug: {{orgSlug}}
+  alert_policy_slug: {{alertPolicySlug}}
+}
+
+tests {
+  test("deleted alert policy should return 404 Not Found", function() {
+    expect(res.status).to.equal(404);
+  });
+
+  test("deleted alert policy should not be retrievable", function() {
+    expect(res.body.error.code).to.equal("ALERT_POLICY_NOT_FOUND");
+    expect(res.body.error.message).to.equal("alert policy not found");
+  });
+}

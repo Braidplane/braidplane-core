@@ -1,0 +1,35 @@
+meta {
+  name: 04d Execute PostgreSQL Query Timeout
+  type: http
+  seq: 9
+}
+
+post {
+  url: {{baseUrl}}/organizations/{{orgSlug}}/data-sources/{{postgresDataSourceSlug}}/queries/{{postgresTimeoutQuerySlug}}/execute
+  body: json
+  auth: inherit
+}
+
+body:json {
+  {
+    "parameters": {}
+  }
+}
+
+script:pre-request {
+  if (!bru.getVar("postgresTimeoutQuerySlug")) {
+    throw new Error("postgresTimeoutQuerySlug not set");
+  }
+}
+
+tests {
+  test("should return 408 Request Timeout", function() {
+    expect(res.status).to.equal(408);
+  });
+
+  test("should return timeout error code", function() {
+    expect(res.body).to.exist;
+    expect(res.body.error).to.exist;
+    expect(res.body.error.code).to.equal('QUERY_TIMEOUT');
+  });
+}

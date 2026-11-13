@@ -1,0 +1,26 @@
+meta {
+  name: 04 Get Org2 Own DS
+  type: http
+  seq: 11
+}
+
+get {
+  url: {{baseUrl}}/organizations/{{orgSlug2}}/data-sources/{{org2DSSlug}}
+  auth: inherit
+}
+
+script:pre-request {
+  if (!bru.getVar("org2DSSlug")) {
+    throw new Error("org2DSSlug not set - run org2 data source create first");
+  }
+}
+
+tests {
+  test("should return 200 OK", function() {
+    expect(res.status).to.equal(200);
+  });
+
+  test("should return correct data source", function() {
+    expect(res.body.slug).to.equal(bru.getVar("org2DSSlug"));
+  });
+}

@@ -1,0 +1,37 @@
+meta {
+  name: 13 List alert policy source metadata
+  type: http
+  seq: 13
+}
+
+get {
+  url: {{baseUrl}}/organizations/:slug/alert-policy-source-metadata?scope=project&project_slug={{projectSlug}}&source_kind=project&source_action=create
+  body: none
+  auth: inherit
+}
+
+params:path {
+  slug: {{orgSlug}}
+}
+
+tests {
+  test("should return 200 OK", function() {
+    expect(res.status).to.equal(200);
+  });
+
+  test("should expose API-backed entity/action metadata", function() {
+    expect(res.body.sources).to.be.an("array").that.is.not.empty;
+    const projectSource = res.body.sources.find(source => source.source_kind === "project");
+    expect(projectSource).to.exist;
+    expect(projectSource.source_actions).to.include("create");
+    expect(projectSource.source_actions).to.include("update");
+    expect(projectSource.source_actions).to.include("delete");
+  });
+
+  test("should return scoped source refs for the selected entity and action", function() {
+    expect(res.body.source_refs).to.be.an("array").that.is.not.empty;
+    const projectRef = res.body.source_refs.find(ref => ref.value === bru.getVar("projectSlug"));
+    expect(projectRef).to.exist;
+    expect(projectRef.label).to.be.a("string").that.is.not.empty;
+  });
+}

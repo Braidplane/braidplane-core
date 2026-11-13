@@ -1,0 +1,44 @@
+meta {
+  name: 04 Create Query
+  type: http
+  seq: 6
+}
+
+post {
+  url: {{baseUrl}}/organizations/{{orgSlug1}}/data-sources/{{org1DSSlug}}/queries
+  body: json
+  auth: inherit
+}
+
+body:json {
+  {
+    "name": "Org1 Test Query",
+    "slug": "org1-query-{{timestamp}}",
+    "query_statement": {
+      "type": "postgres",
+      "sql": "SELECT 1 as test"
+    },
+    "parameters": [],
+    "row_limit": 1000,
+    "timeout_seconds": 30
+  }
+}
+
+script:pre-request {
+  bru.setVar("timestamp", Date.now());
+  if (!bru.getVar("org1DSSlug")) {
+    throw new Error("org1DSSlug not set - run org1 data source create first");
+  }
+}
+
+script:post-response {
+  if (res.status === 201) {
+    bru.setVar("org1QuerySlug", res.body.slug);
+  }
+}
+
+tests {
+  test("should create query", function() {
+    expect(res.status).to.equal(201);
+  });
+}

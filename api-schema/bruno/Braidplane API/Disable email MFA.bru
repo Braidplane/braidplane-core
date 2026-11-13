@@ -1,0 +1,36 @@
+meta {
+  name: Disable email MFA
+  type: http
+  seq: 9
+}
+
+patch {
+  url: {{baseUrl}}/users/profile
+  body: json
+  auth: inherit
+}
+
+body:json {
+  {
+    "mfa_email_enabled": false
+  }
+}
+
+script:pre-request {
+  const csrfToken = bru.getVar("csrfToken") || bru.getEnvVar("csrfToken");
+  if (!csrfToken) {
+    throw new Error("csrfToken not set - run 'Verify session MFA' first.");
+  }
+  req.setHeader("X-CSRF-Token", csrfToken);
+}
+
+tests {
+  test("should return 200 OK", function() {
+    expect(res.status).to.equal(200);
+  });
+
+  test("should disable email MFA", function() {
+    expect(res.body).to.have.property('mfa_email_enabled');
+    expect(res.body.mfa_email_enabled).to.equal(false);
+  });
+}

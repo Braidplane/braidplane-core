@@ -1,0 +1,39 @@
+meta {
+  name: Create MFA session challenge
+  type: http
+  seq: 7
+}
+
+post {
+  url: {{baseUrl}}/sessions
+  body: json
+  auth: inherit
+}
+
+body:json {
+  {
+    "email": "{{userEmail}}",
+    "password": "{{userPassword}}"
+  }
+}
+
+script:pre-request {
+  const csrfToken = bru.getVar("csrfToken") || bru.getEnvVar("csrfToken");
+  if (csrfToken) {
+    req.setHeader("X-CSRF-Token", csrfToken);
+  }
+}
+
+tests {
+  test("should return 202 Accepted", function() {
+    expect(res.status).to.equal(202);
+  });
+
+  test("should return MFA challenge", function() {
+    expect(res.body).to.have.property('challenge_token');
+    expect(res.body.challenge_token).to.be.a('string').and.not.empty;
+    expect(res.body).to.have.property('expires_at');
+  });
+
+  bru.setVar("mfaChallengeToken", res.body.challenge_token);
+}

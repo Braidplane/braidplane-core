@@ -1,0 +1,42 @@
+meta {
+  name: 09 Org1 Invites Future User
+  type: http
+  seq: 9
+}
+
+post {
+  url: {{baseUrl}}/organizations/{{orgSlug1}}/member-invitations
+  body: json
+  auth: inherit
+}
+
+body:json {
+  {
+    "email": "{{autoAcceptInvitationEmail}}",
+    "role": "viewer"
+  }
+}
+
+script:pre-request {
+  const email = `auto-accept-${Date.now()}@example.com`;
+  bru.setVar("autoAcceptInvitationEmail", email);
+  bru.deleteVar("user3Slug");
+  req.setHeader("Cookie", `${bru.getVar("user1CookieName")}=${bru.getVar("user1CookieValue")}`);
+  req.setHeader("X-CSRF-Token", bru.getVar("user1CSRFToken"));
+}
+
+script:post-response {
+  if (res.status !== 201) {
+    bru.runner.stopExecution();
+    throw new Error(`09 Org1 Invites Future User failed with status ${res.status}`);
+  }
+}
+
+tests {
+  test("should create a pending invitation before account verification", function() {
+    expect(res.status).to.equal(201);
+    expect(res.body.email).to.equal(bru.getVar("autoAcceptInvitationEmail"));
+    expect(res.body.status).to.equal("pending");
+    expect(res.body.accepted_user_slug).to.equal(null);
+  });
+}

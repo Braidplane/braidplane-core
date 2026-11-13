@@ -1,0 +1,46 @@
+meta {
+  name: 04 Execute S3 Read Query
+  type: http
+  seq: 43
+}
+
+post {
+  url: {{baseUrl}}/organizations/{{orgSlug}}/data-sources/{{s3DataSourceSlug}}/queries/{{s3ReadQuerySlug}}/execute
+  body: json
+  auth: inherit
+}
+
+body:json {
+  {
+    "parameters": {}
+  }
+}
+
+script:pre-request {
+  if (!bru.getVar("s3ReadQuerySlug")) {
+    throw new Error("s3ReadQuerySlug not set");
+  }
+}
+
+tests {
+  test("should return 200 OK", function() {
+    expect(res.status).to.equal(200);
+  });
+
+  test("should return successful s3 csv rows", function() {
+    expect(res.body.result_type).to.equal('s3');
+    expect(res.body.type).to.equal('s3');
+    expect(res.body.success).to.equal(true);
+    expect(res.body.duration_ms).to.be.at.least(0);
+
+    expect(res.body.payload).to.exist;
+    expect(res.body.payload.operation).to.equal('read');
+    expect(res.body.payload.target_path).to.equal('fixtures/customers.csv');
+    expect(res.body.payload.format).to.equal('csv');
+    expect(res.body.payload.row_count).to.equal(2);
+    expect(res.body.payload.column_names).to.include.members(['id', 'name', 'email']);
+
+    const names = res.body.payload.rows.map(function(row) { return row.name; });
+    expect(names).to.include.members(['Ada Lovelace', 'Grace Hopper']);
+  });
+}

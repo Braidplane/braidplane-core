@@ -1,0 +1,28 @@
+meta {
+  name: 04 Callback Provider Error Is Safe
+  type: http
+  seq: 5
+}
+
+get {
+  url: {{baseUrl}}/provider-connectors/fakecrm/callback?error=access_denied&error_description=contains-secret-token
+  body: none
+  auth: none
+}
+
+settings {
+  followRedirects: false
+}
+
+tests {
+  test("should return a safe error response for provider callback errors", function() {
+    expect(res.status).to.equal(302);
+  });
+
+  test("should not echo raw provider error description", function() {
+    const location = res.headers.location || res.headers.Location || "";
+    expect(location).to.contain("provider_oauth=error");
+    expect(location).to.not.contain("contains-secret-token");
+    expect(JSON.stringify(res.body)).to.not.contain("contains-secret-token");
+  });
+}

@@ -1,0 +1,27 @@
+meta {
+  name: 05 Attempt Access Org1 DS 403
+  type: http
+  seq: 12
+}
+
+get {
+  url: {{baseUrl}}/organizations/{{orgSlug2}}/data-sources/{{org1DSSlug}}
+  auth: inherit
+}
+
+script:pre-request {
+  if (!bru.getVar("org1DSSlug")) {
+    bru.setVar("org1DSSlug", "nonexistent-cross-org-ds");
+  }
+}
+
+tests {
+  test("should return 404 Not Found", function() {
+    expect(res.status).to.equal(404);
+  });
+
+  test("should return data source not found error", function() {
+    expect(res.body).to.have.property('error');
+    expect(res.body.error.code).to.equal('DATA_SOURCE_NOT_FOUND');
+  });
+}

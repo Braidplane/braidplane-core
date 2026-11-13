@@ -1,0 +1,19 @@
+meta {
+  name: 06 Get Pipeline Version
+  type: http
+  seq: 6
+}
+
+get {
+  url: {{baseUrl}}/organizations/{{orgSlug}}/projects/{{projectSlug}}/pipelines/{{pipelineSlug}}/versions/{{pipelineSpecHash}}
+  auth: inherit
+}
+
+tests {
+  test("retrieves the immutable version by exact hash", function() {
+    expect(res.status).to.equal(200);
+    expect(res.body.spec_hash).to.equal(bru.getVar("pipelineSpecHash"));
+    expect(res.body.git_commit_sha).to.equal(bru.getVar("pipelineCommit"));
+    expect(res.body.spec.metadata.slug).to.equal(bru.getVar("pipelineSlug"));
+  });
+}

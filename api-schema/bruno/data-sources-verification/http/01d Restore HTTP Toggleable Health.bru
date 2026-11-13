@@ -1,0 +1,24 @@
+meta {
+  name: 01d Restore HTTP Toggleable Health
+  type: http
+  seq: 18.4
+}
+
+post {
+  url: {{httpcrudUrl}}/unstable-health/ok
+  body: none
+  auth: none
+}
+
+script:pre-request {
+  if (!bru.getEnvVar("httpcrudUrl") && !bru.getVar("httpcrudUrl")) {
+    throw new Error("httpcrudUrl not set");
+  }
+}
+
+tests {
+  test("should restore the fixture health endpoint", function() {
+    expect(res.status).to.equal(200);
+    expect(res.body.unstable_health).to.equal("ok");
+  });
+}

@@ -1,0 +1,27 @@
+meta {
+  name: 25 Deleted API key is absent from list
+  type: http
+  seq: 25
+}
+
+get {
+  url: {{baseUrl}}/organizations/:slug/api-keys
+  body: none
+  auth: inherit
+}
+
+params:path {
+  slug: {{orgSlug}}
+}
+
+tests {
+  test("should return 200 OK", function() {
+    expect(res.status).to.equal(200);
+  });
+
+  test("deleted API key metadata should be removed from list", function() {
+    expect(res.body.api_keys).to.be.an("array");
+    const key = res.body.api_keys.find(k => k.slug === bru.getVar("apiKeyHardDeleteSlug"));
+    expect(key).to.not.exist;
+  });
+}

@@ -1,0 +1,69 @@
+meta {
+  name: 01 Create PostgreSQL DS
+  type: http
+  seq: 3
+}
+
+post {
+  url: {{baseUrl}}/organizations/{{orgSlug}}/data-sources
+  body: json
+  auth: inherit
+}
+
+body:json {
+  {
+    "name": "Test PostgreSQL DB",
+    "slug": "test-postgres-{{timestamp}}",
+    "type": "postgres",
+    "config": {
+      "host": "localhost",
+      "port": {{postgresPort}},
+      "database": "braidplane",
+      "ssl_mode": "disable",
+      "allow_private_hosts": true
+    },
+    "credentials": {
+      "username": "postgres",
+      "password": "postgres"
+    }
+  }
+}
+
+script:pre-request {
+  bru.setVar("timestamp", Date.now());
+  if (!bru.getVar("orgSlug")) {
+    throw new Error("orgSlug not set");
+  }
+  if (!bru.getEnvVar("postgresPort") && !bru.getVar("postgresPort")) {
+    throw new Error("postgresPort not set");
+  }
+}
+
+script:post-response {
+  if (res.status === 201) {
+    bru.setVar("postgresDataSourceSlug", res.body.slug);
+  }
+}
+
+tests {
+  test("should return 201 Created", function() {
+    expect(res.status).to.equal(201);
+  });
+
+  test("should have slug", function() {
+    expect(res.body).to.have.property('slug');
+  });
+
+  test("should have type postgres", function() {
+    expect(res.body.type).to.equal('postgres');
+  });
+
+  test("should not return credentials", function() {
+    expect(res.body).to.not.have.property('credentials');
+  });
+
+  test("should have timestamps", function() {
+    expect(res.body.created_at).to.exist;
+    expect(res.body.updated_at).to.exist;
+  });
+}

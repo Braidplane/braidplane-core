@@ -1,0 +1,23 @@
+meta {
+  name: 07 Delete Text Runtime Variable
+  type: http
+  seq: 7
+}
+
+delete {
+  url: {{baseUrl}}/organizations/{{orgSlug}}/environments/{{prodEnvironmentSlug}}/runtime-variables/s3_prefix?protected_environment_confirmation={{prodEnvironmentSlug}}
+  body: none
+  auth: inherit
+}
+
+script:pre-request {
+  if (!bru.getVar("prodEnvironmentSlug")) {
+    bru.setVar("prodEnvironmentSlug", "prod");
+  }
+}
+
+tests {
+  test("should return 204 No Content", function() {
+    expect(res.status).to.equal(204);
+  });
+}

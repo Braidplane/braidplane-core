@@ -1,0 +1,35 @@
+meta {
+  name: 09 Org2 User Cannot Refresh Org1 DS Schema
+  type: http
+  seq: 9
+}
+
+post {
+  url: {{baseUrl}}/organizations/{{orgSlug1}}/data-sources/{{org1DSSlug}}/schema
+  body: none
+  auth: inherit
+}
+
+script:pre-request {
+  const jar = bru.cookies.jar();
+  jar.clear();
+  const cookieName = bru.getVar("user2CookieName");
+  const cookieValue = bru.getVar("user2CookieValue");
+  req.setHeader("Cookie", `${cookieName}=${cookieValue}`);
+  req.setHeader("X-CSRF-Token", bru.getVar("user2CSRFToken"));
+
+  if (!bru.getVar("org1DSSlug")) {
+    throw new Error("org1DSSlug not set - run org1 folder first");
+  }
+}
+
+tests {
+  test("should return 403 Forbidden", function() {
+    expect(res.status).to.equal(403);
+  });
+
+  test("should return authorization error", function() {
+    expect(res.body).to.have.property("error");
+    expect(res.body.error.code).to.equal("AUTH_FORBIDDEN");
+  });
+}

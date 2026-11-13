@@ -1,0 +1,43 @@
+meta {
+  name: 05a User2 Replays Accepted Invitation Idempotently
+  type: http
+  seq: 5.1
+}
+
+post {
+  url: {{baseUrl}}/member-invitations/accept
+  body: json
+  auth: inherit
+}
+
+body:json {
+  {
+    "token": "{{existingUserInvitationToken}}"
+  }
+}
+
+script:pre-request {
+  if (!bru.getVar("existingUserInvitationToken")) {
+    throw new Error("existingUserInvitationToken not set - accept invitation first");
+  }
+  if (!bru.getVar("user2CookieName") || !bru.getVar("user2CookieValue")) {
+    throw new Error("user2 session not set - run setup first");
+  }
+  req.setHeader("Cookie", `${bru.getVar("user2CookieName")}=${bru.getVar("user2CookieValue")}`);
+  req.setHeader("X-CSRF-Token", bru.getVar("user2CSRFToken"));
+}
+
+tests {
+  test("should return the original accepted invitation and membership", function() {
+    expect(res.status).to.equal(200);
+    expect(res.body.invitation.slug).to.equal(bru.getVar("existingUserInvitationSlug"));
+    expect(res.body.invitation.status).to.equal("accepted");
+    expect(res.body.member.user_slug).to.equal(bru.getVar("user2Slug"));
+    expect(res.body.member.role).to.equal("viewer");
+  });
+
+  test("should not expose token material on replay", function() {
+    expect(res.body.invitation).to.not.have.property("token");
+    expect(res.body.invitation).to.not.have.property("token_hash");
+  });
+}

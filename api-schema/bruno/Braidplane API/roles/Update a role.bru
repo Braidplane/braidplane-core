@@ -1,0 +1,146 @@
+meta {
+  name: Update a role
+  type: http
+  seq: 4
+}
+
+put {
+  url: {{baseUrl}}/organizations/:slug/roles/:role_slug
+  body: json
+  auth: inherit
+}
+
+params:path {
+  slug: {{orgSlug}}
+  role_slug: {{roleSlug}}
+}
+
+body:json {
+  {
+    "name": "Editor",
+    "permissions": [
+      {
+        "resource": "members",
+        "action": "read"
+      },
+      {
+        "resource": "organizations",
+        "action": "read"
+      }
+    ]
+  }
+}
+
+tests {
+  test("should return 204 No Content", function() {
+    expect(res.status).to.equal(204);
+  });
+}
+
+example {
+  name: 204 Response
+  description: Role updated
+
+  request: {
+    url: {{baseUrl}}/organizations/:slug/roles/:role_slug
+    method: PUT
+    mode: json
+    params:path: {
+      slug:
+      role_slug:
+    }
+
+    body:json: {
+      {
+        "name": "Senior Editor",
+        "permissions": [
+          {
+            "resource": "members",
+            "action": "read"
+          },
+          {
+            "resource": "members",
+            "action": "update"
+          }
+        ]
+      }
+    }
+  }
+
+  response: {
+    status: {
+      code: 204
+      text: No Content
+    }
+
+    body: {
+      type: text
+      content: '''
+
+      '''
+    }
+  }
+}
+
+example {
+  name: 404 Response
+  description: Role not found
+
+  request: {
+    url: {{baseUrl}}/organizations/:slug/roles/:role_slug
+    method: PUT
+    mode: json
+    params:path: {
+      slug:
+      role_slug:
+    }
+
+    body:json: {
+      {
+        "name": "Senior Editor",
+        "permissions": [
+          {
+            "resource": "members",
+            "action": "read"
+          },
+          {
+            "resource": "members",
+            "action": "update"
+          }
+        ]
+      }
+    }
+  }
+
+  response: {
+    headers: {
+      Content-Type: application/json
+    }
+
+    status: {
+      code: 404
+      text: Not Found
+    }
+
+    body: {
+      type: json
+      content: '''
+        {
+          "error": {
+            "code": "",
+            "message": "",
+            "validation_errors": [
+              {
+                "field": "",
+                "code": "",
+                "message": "",
+                "details": {}
+              }
+            ],
+            "request_id": ""
+          }
+        }
+      '''
+    }
+  }
+}

@@ -1,0 +1,23 @@
+meta {
+  name: 11 Deleted personal access token is absent from list
+  type: http
+  seq: 11
+}
+
+get {
+  url: {{baseUrl}}/users/profile/personal-access-tokens
+  body: none
+  auth: inherit
+}
+
+tests {
+  test("should return 200 OK", function() {
+    expect(res.status).to.equal(200);
+  });
+
+  test("deleted PAT metadata should be removed from list", function() {
+    expect(res.body.personal_access_tokens).to.be.an("array");
+    const token = res.body.personal_access_tokens.find(t => t.slug === bru.getVar("patHardDeleteSlug"));
+    expect(token).to.not.exist;
+  });
+}

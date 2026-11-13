@@ -1,0 +1,115 @@
+meta {
+  name: Create a user
+  type: http
+  seq: 1
+}
+
+post {
+  url: {{baseUrl}}/users
+  body: json
+  auth: inherit
+}
+
+body:json {
+  {
+    "full_name": "Test User",
+    "email": "test.user+{{timestamp}}@example.com",
+    "password": "SecurePass123!"
+  }
+}
+
+script:pre-request {
+  // Generate unique timestamp for this request
+  bru.setVar("timestamp", Date.now());
+}
+
+tests {
+  test("should return 201 Created", function() {
+    expect(res.status).to.equal(201);
+  });
+
+  test("should return JSON", function() {
+    expect(res.headers['content-type']).to.include('application/json');
+  });
+
+  test("should return user with correct structure", function() {
+    const body = res.body;
+    expect(body).to.have.property('slug');
+    expect(body.slug).to.match(/^user-[a-z0-9]{32}$/);
+    expect(body).to.have.property('full_name');
+    expect(body).to.have.property('email');
+    expect(body).to.have.property('role');
+    expect(body).to.have.property('locale');
+    expect(body).to.have.property('has_local_password');
+    expect(body).to.have.property('created_at');
+    expect(body).to.have.property('updated_at');
+    expect(body).to.not.have.property('password');
+  });
+
+  test("should return correct user data", function() {
+    const body = res.body;
+    expect(body.full_name).to.equal("Test User");
+    expect(body.email).to.include("test.user");
+    expect(body.role).to.equal("user");
+    expect(body.has_local_password).to.equal(true);
+  });
+
+  test("should set default locale", function() {
+    expect(res.body.locale).to.be.a('string');
+  });
+
+  test("should have timestamps", function() {
+    expect(res.body.created_at).to.match(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/);
+    expect(res.body.updated_at).to.match(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/);
+  });
+
+  // Capture user slug for subsequent requests
+  bru.setVar("userSlug", res.body.slug);
+  bru.setVar("userEmail", res.body.email);
+  bru.setVar("userPassword", "SecurePass123!");
+}
+
+example {
+  name: 200 Response
+  description: An user
+
+  request: {
+    url: {{baseUrl}}/users
+    method: POST
+    mode: json
+    body:json: {
+      {
+        "full_name": "John Doe",
+        "email": "john.doe@example.com",
+        "password": "SecurePass123!"
+      }
+    }
+  }
+
+  response: {
+    headers: {
+      Content-Type: application/json
+    }
+
+    status: {
+      code: 200
+      text: OK
+    }
+
+    body: {
+      type: json
+      content: '''
+        {
+          "slug": "johndoe",
+          "full_name": "John Doe",
+          "email": "john.doe@example.com",
+          "role": "user",
+          "locale": "en-US",
+          "has_local_password": true,
+          "created_at": "2025-10-04T10:30:00Z",
+          "updated_at": "2025-10-04T10:30:00Z"
+        }
+      '''
+    }
+  }
+}

@@ -1,0 +1,59 @@
+meta {
+  name: List data sources
+  type: http
+  seq: 6
+}
+
+get {
+  url: {{baseUrl}}/organizations/:slug/data-sources
+  body: none
+  auth: inherit
+}
+
+params:path {
+  slug: {{orgSlug}}
+}
+
+script:pre-request {
+  // Ensure we have orgSlug from previous request
+  if (!bru.getVar("orgSlug")) {
+    throw new Error("orgSlug not set - run 'Create an organization' first");
+  }
+}
+
+tests {
+  test("should return 200 OK", function() {
+    expect(res.status).to.equal(200);
+  });
+
+  test("should return JSON", function() {
+    expect(res.headers['content-type']).to.include('application/json');
+  });
+
+  test("should return an array", function() {
+    expect(res.body.data_sources).to.be.an('array');
+    expect(res.body.has_more).to.equal(false);
+  });
+
+  test("should contain at least one data source (from previous create)", function() {
+    expect(res.body.data_sources.length).to.be.greaterThan(0);
+  });
+
+  test("each data source should have correct structure", function() {
+    res.body.data_sources.forEach(function(ds) {
+      expect(ds).to.have.property('slug');
+      expect(ds).to.have.property('name');
+      expect(ds).to.have.property('type');
+      expect(ds).to.have.property('config');
+      expect(ds).to.have.property('is_active');
+      expect(ds).to.have.property('created_at');
+      expect(ds).to.have.property('updated_at');
+    });
+  });
+
+  test("data sources should not contain credentials", function() {
+    res.body.data_sources.forEach(function(ds) {
+      expect(ds).to.not.have.property('credentials');
+    });
+  });
+}

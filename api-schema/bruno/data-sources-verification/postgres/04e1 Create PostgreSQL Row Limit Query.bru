@@ -1,0 +1,45 @@
+meta {
+  name: 04e1 Create PostgreSQL Row Limit Query
+  type: http
+  seq: 10.6
+}
+
+post {
+  url: {{baseUrl}}/organizations/{{orgSlug}}/data-sources/{{postgresDataSourceSlug}}/queries
+  body: json
+  auth: inherit
+}
+
+body:json {
+  {
+    "name": "Test PostgreSQL Row Limit Query",
+    "slug": "test-postgres-row-limit-{{timestamp}}",
+    "description": "Row limit safety behavior test",
+    "query_statement": {
+      "type": "postgres",
+      "sql": "SELECT * FROM (VALUES (1), (2)) AS safety_limit_rows(id)"
+    },
+    "parameters": [],
+    "row_limit": 1,
+    "timeout_seconds": 30
+  }
+}
+
+script:pre-request {
+  bru.setVar("timestamp", Date.now());
+  if (!bru.getVar("postgresDataSourceSlug")) {
+    throw new Error("postgresDataSourceSlug not set");
+  }
+}
+
+script:post-response {
+  if (res.status === 201) {
+    bru.setVar("postgresRowLimitQuerySlug", res.body.slug);
+  }
+}
+
+tests {
+  test("should return 201 Created", function() {
+    expect(res.status).to.equal(201);
+  });
+}

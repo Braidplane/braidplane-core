@@ -1,0 +1,56 @@
+meta {
+  name: 00 Create Postgres DS
+  type: http
+  seq: 1
+}
+
+post {
+  url: {{baseUrl}}/organizations/{{orgSlug}}/data-sources
+  body: json
+  auth: inherit
+}
+
+body:json {
+  {
+    "name": "Cross-Source Postgres DB",
+    "slug": "cs-postgres-{{csTimestamp}}",
+    "type": "postgres",
+    "config": {
+      "host": "localhost",
+      "port": {{postgresPort}},
+      "database": "braidplane",
+      "ssl_mode": "disable",
+      "allow_private_hosts": true
+    },
+    "credentials": {
+      "username": "postgres",
+      "password": "postgres"
+    }
+  }
+}
+
+script:pre-request {
+  const ts = Date.now();
+  bru.setVar("csTimestamp", ts);
+
+  if (!bru.getVar("orgSlug")) {
+    throw new Error("orgSlug not set");
+  }
+}
+
+script:post-response {
+  if (res.status === 201) {
+    bru.setVar("csPostgresDSSlug", res.body.slug);
+  }
+}
+
+tests {
+  test("should return 201 Created", function() {
+    expect(res.status).to.equal(201);
+  });
+
+  test("should return the created datasource slug", function() {
+    expect(res.body.slug).to.be.a('string').and.not.empty;
+    expect(res.body.type).to.equal('postgres');
+  });
+}

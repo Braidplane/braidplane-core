@@ -1,0 +1,26 @@
+meta {
+  name: 10 Rotated bearer token cannot access another org
+  type: http
+  seq: 10
+}
+
+get {
+  url: {{baseUrl}}/organizations/:slug/data-sources
+  body: none
+  auth: inherit
+}
+
+params:path {
+  slug: another-org
+}
+
+script:pre-request {
+  req.setHeader("Authorization", `Bearer ${bru.getVar("apiKeyTokenRotated")}`);
+  req.setHeader("Cookie", "");
+}
+
+tests {
+  test("rotated bearer token should not authorize cross-org access", function() {
+    expect(res.status).to.equal(403);
+  });
+}

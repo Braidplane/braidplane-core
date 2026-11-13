@@ -1,0 +1,35 @@
+meta {
+  name: 04a Create Org 1 Project
+  type: http
+  seq: 5
+}
+
+post {
+  url: {{baseUrl}}/organizations/{{orgSlug1}}/projects
+  body: json
+  auth: inherit
+}
+
+body:json {
+  {
+    "name": "Pipeline workspace",
+    "slug": "pipeline-workspace"
+  }
+}
+
+script:pre-request {
+  req.setHeader("Cookie", `${bru.getVar("user1CookieName")}=${bru.getVar("user1CookieValue")}`);
+}
+
+script:post-response {
+  if (res.status !== 201) {
+    bru.runner.stopExecution();
+    throw new Error(`04a Create Org 1 Project failed with status ${res.status}`);
+  }
+}
+
+tests {
+  test("should create org 1 project successfully", function() {
+    expect(res.status).to.equal(201);
+  });
+}

@@ -1,0 +1,50 @@
+meta {
+  name: 02 List Seeded Projects
+  type: http
+  seq: 2
+}
+
+get {
+  url: {{baseUrl}}/organizations/{{orgSlug}}/projects
+  auth: inherit
+}
+
+script:pre-request {
+  const jar = bru.cookies.jar();
+  jar.clear();
+  req.setHeader("Cookie", `${bru.getVar("sessionCookieName")}=${bru.getVar("sessionCookieValue")}`);
+}
+
+script:post-response {
+  const csrfToken = res.headers['x-csrf-token'] || res.headers['X-CSRF-Token'];
+  if (!csrfToken) {
+    bru.runner.stopExecution();
+    throw new Error("x-csrf-token header not found");
+  }
+  bru.setVar("csrfToken", csrfToken);
+}
+
+tests {
+  test("should return 200 OK", function() {
+    expect(res.status).to.equal(200);
+  });
+
+  test("should include seeded project", function() {
+    expect(res.body.projects).to.be.an("array");
+    const seededProject = res.body.projects.find((project) => project.slug === "data-pipelines");
+    expect(seededProject).to.exist;
+    expect(seededProject.name).to.equal("Data pipelines");
+    expect(seededProject).to.have.property("pipeline_backend");
+    expect(seededProject.pipeline_backend).to.exist;
+    expect(seededProject.pipeline_backend.data_source_slug).to.equal("acme-git");
+    expect(seededProject.pipeline_backend.tracked_branch).to.equal("main");
+    expect(seededProject.pipeline_backend.pipeline_dir).to.equal("pipelines");
+    expect(seededProject.pipeline_backend.first_commit_sha).to.be.a("string").and.not.empty;
+    expect(seededProject.pipeline_backend.repo).to.be.a("string").and.not.empty;
+  });
+
+  test("should return CSRF token", function() {
+    const csrfToken = res.headers['x-csrf-token'] || res.headers['X-CSRF-Token'];
+    expect(csrfToken).to.be.a("string").and.not.empty;
+  });
+}

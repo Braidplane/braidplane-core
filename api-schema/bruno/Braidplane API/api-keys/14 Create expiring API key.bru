@@ -1,0 +1,40 @@
+meta {
+  name: 14 Create expiring API key
+  type: http
+  seq: 14
+}
+
+post {
+  url: {{baseUrl}}/organizations/:slug/api-keys
+  body: json
+  auth: inherit
+}
+
+params:path {
+  slug: {{orgSlug}}
+}
+
+body:json {
+  {
+    "name": "Future expiring automation",
+    "role": "viewer",
+    "expires_at": "{{futureAPIKeyExpiresAt}}"
+  }
+}
+
+script:pre-request {
+  bru.setVar("futureAPIKeyExpiresAt", new Date(Date.now() + 60 * 60 * 1000).toISOString());
+}
+
+tests {
+  test("should return 201 Created", function() {
+    expect(res.status).to.equal(201);
+  });
+
+  test("should return the requested expiration metadata", function() {
+    expect(res.body).to.have.property("token");
+    bru.setVar("expiringAPIKeySlug", res.body.slug);
+    bru.setVar("expiringAPIKeyToken", res.body.token);
+    expect(new Date(res.body.expires_at).toISOString()).to.equal(bru.getVar("futureAPIKeyExpiresAt"));
+  });
+}

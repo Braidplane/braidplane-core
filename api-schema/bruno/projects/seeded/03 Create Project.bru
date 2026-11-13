@@ -1,0 +1,48 @@
+meta {
+  name: 03 Create Project
+  type: http
+  seq: 3
+}
+
+post {
+  url: {{baseUrl}}/organizations/{{orgSlug}}/projects
+  body: json
+  auth: inherit
+}
+
+body:json {
+  {
+    "name": "Operations Workspace",
+    "slug": "ops-workspace-{{timestamp}}"
+  }
+}
+
+script:pre-request {
+  const jar = bru.cookies.jar();
+  jar.clear();
+  req.setHeader("Cookie", `${bru.getVar("sessionCookieName")}=${bru.getVar("sessionCookieValue")}`);
+  bru.setVar("timestamp", Date.now());
+
+}
+
+script:post-response {
+  if (res.status !== 201) {
+    bru.runner.stopExecution();
+    throw new Error(`Create project failed with status ${res.status}`);
+  }
+
+  bru.setVar("projectSlug", res.body.slug);
+}
+
+tests {
+  test("should return 201 Created", function() {
+    expect(res.status).to.equal(201);
+  });
+
+  test("should return project with slug", function() {
+    expect(res.body).to.have.property("slug");
+    expect(res.body.name).to.equal("Operations Workspace");
+    expect(res.body).to.have.property("pipeline_backend");
+    expect(res.body.pipeline_backend).to.equal(null);
+  });
+}

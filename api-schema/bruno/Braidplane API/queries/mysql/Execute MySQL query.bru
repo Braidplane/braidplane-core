@@ -1,0 +1,54 @@
+meta {
+  name: Execute MySQL query
+  type: http
+  seq: 2
+}
+
+post {
+  url: {{baseUrl}}/organizations/:slug/data-sources/:ds_slug/queries/:query_slug/execute
+  body: json
+  auth: inherit
+}
+
+params:path {
+  slug: {{orgSlug}}
+  ds_slug: {{mysqlDataSourceSlug}}
+  query_slug: {{mysqlSearchQuerySlug}}
+}
+
+body:json {
+  {
+    "parameters": {
+      "since_date": "2026-02-01",
+      "limit": 50
+    }
+  }
+}
+
+script:pre-request {
+  if (!bru.getVar("orgSlug")) {
+    throw new Error("orgSlug not set - run 'Create an organization' first");
+  }
+
+  if (!bru.getVar("mysqlDataSourceSlug")) {
+    throw new Error("mysqlDataSourceSlug not set - run a data source create request first");
+  }
+
+  if (!bru.getVar("mysqlSearchQuerySlug")) {
+    throw new Error("mysqlSearchQuerySlug not set - run 'Create MySQL query' first");
+  }
+}
+
+tests {
+  test("should return 200 OK", function() {
+    expect(res.status).to.equal(200);
+  });
+
+  test("should return SQL execution result", function() {
+    expect(res.body).to.have.property("result_type", "sql");
+    expect(res.body).to.have.property("type", "mysql");
+    expect(res.body).to.have.property("payload");
+    expect(res.body.payload).to.have.property("rows");
+    expect(res.body).to.have.property("success", true);
+  });
+}

@@ -1,0 +1,39 @@
+meta {
+  name: 06 Complete HubSpot OAuth Data Source Install
+  type: http
+  seq: 7
+}
+
+get {
+  url: {{baseUrl}}/provider-connectors/hubspot/callback?code=hubspot-local-authorization-code&state={{hubspotOAuthState}}
+  body: none
+  auth: inherit
+}
+
+settings {
+  followRedirects: false
+}
+
+script:pre-request {
+  if (!bru.getVar("hubspotOAuthDataSourceSlug") || !bru.getVar("hubspotOAuthState")) {
+    throw new Error("HubSpot OAuth data source or state not set - run the install request first");
+  }
+}
+
+tests {
+  test("should complete OAuth and redirect to the selected data source", function() {
+    expect(res.status).to.equal(302);
+    const location = res.headers.location || res.headers.Location || "";
+    expect(location).to.contain(`/orgs/${bru.getVar("orgSlug")}/data-sources`);
+    expect(location).to.contain("provider_oauth=success");
+    expect(location).to.contain(`selected=${bru.getVar("hubspotOAuthDataSourceSlug")}`);
+  });
+
+  test("should not echo callback or credential material", function() {
+    const output = JSON.stringify(res.body) + (res.headers.location || res.headers.Location || "");
+    expect(output).to.not.contain("hubspot-local-authorization-code");
+    expect(output).to.not.contain(bru.getVar("hubspotOAuthState"));
+    expect(output).to.not.contain("pat-na1-test-token");
+    expect(output).to.not.contain("hubspot-local-refresh-token");
+  });
+}

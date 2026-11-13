@@ -1,0 +1,22 @@
+meta {
+  name: 06 Get HubSpot Query Execution
+  type: http
+  seq: 17.9
+}
+
+get {
+  url: {{baseUrl}}/organizations/{{orgSlug}}/data-sources/{{hubspotDataSourceSlug}}/queries/{{hubspotQuerySlug}}/executions/{{hubspotExecutionSlug}}
+  auth: inherit
+}
+
+tests {
+  test("should return 200 OK", function() {
+    expect(res.status).to.equal(200);
+  });
+
+  test("should return the requested hubspot execution", function() {
+    expect(res.body.slug).to.equal(bru.getVar("hubspotExecutionSlug"));
+    expect(res.body.result.result_type).to.equal('object_rows');
+    expect(res.body.result.type).to.equal('hubspot');
+  });
+}

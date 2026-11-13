@@ -1,0 +1,28 @@
+meta {
+  name: 05 List HubSpot Query Executions
+  type: http
+  seq: 17.8
+}
+
+get {
+  url: {{baseUrl}}/organizations/{{orgSlug}}/data-sources/{{hubspotDataSourceSlug}}/queries/{{hubspotQuerySlug}}/executions
+  auth: inherit
+}
+
+script:post-response {
+  if (res.status === 200 && res.body.executions && res.body.executions.length > 0) {
+    bru.setVar("hubspotExecutionSlug", res.body.executions[0].slug);
+  }
+}
+
+tests {
+  test("should return 200 OK", function() {
+    expect(res.status).to.equal(200);
+  });
+
+  test("should return at least one hubspot execution record", function() {
+    expect(res.body.executions).to.be.an('array').and.not.empty;
+    expect(res.body.executions[0].result.result_type).to.equal('object_rows');
+    expect(res.body.executions[0].result.type).to.equal('hubspot');
+  });
+}

@@ -1,0 +1,77 @@
+meta {
+  name: Create MySQL query
+  type: http
+  seq: 1
+}
+
+post {
+  url: {{baseUrl}}/organizations/:slug/data-sources/:ds_slug/queries
+  body: json
+  auth: inherit
+}
+
+params:path {
+  slug: {{orgSlug}}
+  ds_slug: {{mysqlDataSourceSlug}}
+}
+
+body:json {
+  {
+    "name": "Get recent orders from MySQL",
+    "slug": "get-recent-orders-mysql-{{timestamp}}",
+    "description": "MySQL query with date range and limit parameters",
+    "query_statement": {
+      "type": "mysql",
+      "sql": "SELECT id, user_id, total_amount, created_at FROM orders WHERE created_at > {{since_date}} ORDER BY created_at DESC LIMIT {{limit}}"
+    },
+    "parameters": [
+      {
+        "slug": "since-date",
+        "name": "since_date",
+        "data_type": "date",
+        "is_required": true,
+        "default_value": "2026-01-01"
+      },
+      {
+        "slug": "limit",
+        "name": "limit",
+        "data_type": "integer",
+        "is_required": false,
+        "default_value": "100"
+      }
+    ],
+    "row_limit": 1000,
+    "timeout_seconds": 30
+  }
+}
+
+script:pre-request {
+  if (!bru.getVar("orgSlug")) {
+    throw new Error("orgSlug not set - run 'Create an organization' first");
+  }
+
+  if (!bru.getVar("mysqlDataSourceSlug")) {
+    throw new Error("mysqlDataSourceSlug not set - run a data source create request first");
+  }
+
+  bru.setVar("timestamp", Date.now());
+}
+
+script:post-response {
+  if (res.status === 201) {
+    bru.setVar("mysqlSearchQuerySlug", res.body.slug);
+    bru.setVar("querySlug", res.body.slug);
+  }
+}
+
+tests {
+  test("should return 201 Created", function() {
+    expect(res.status).to.equal(201);
+  });
+
+  test("should return query with parameters", function() {
+    expect(res.body).to.have.property("parameters");
+    expect(res.body.parameters).to.be.an("array");
+    expect(res.body.parameters).to.have.lengthOf(2);
+  });
+}

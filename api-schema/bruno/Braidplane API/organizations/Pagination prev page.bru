@@ -1,0 +1,38 @@
+meta {
+  name: Pagination prev page
+  type: http
+  seq: 33
+}
+
+get {
+  url: {{baseUrl}}/organizations?limit=1&sort_by=organization_created_at&order=desc&direction=prev&cursor={{organizationsPage2PrevCursor}}
+  body: none
+  auth: inherit
+}
+
+script:pre-request {
+  if (!bru.getVar("organizationsPage2PrevCursor")) {
+    throw new Error("organizationsPage2PrevCursor not set - run 'Pagination page 2' first");
+  }
+
+  if (!bru.getVar("organizationsPage1FirstSlug")) {
+    throw new Error("organizationsPage1FirstSlug not set - run 'Pagination page 1' first");
+  }
+}
+
+tests {
+  test("should return 200 OK", function() {
+    expect(res.status).to.equal(200);
+  });
+
+  test("should return previous window", function() {
+    expect(res.body).to.have.property("organizations");
+    expect(res.body.organizations).to.be.an("array");
+    expect(res.body.organizations.length).to.equal(1);
+  });
+
+  test("should return the original first page when navigating backward", function() {
+    expect(res.body.organizations.length).to.be.greaterThan(0);
+    expect(res.body.organizations[0].slug).to.equal(bru.getVar("organizationsPage1FirstSlug"));
+  });
+}

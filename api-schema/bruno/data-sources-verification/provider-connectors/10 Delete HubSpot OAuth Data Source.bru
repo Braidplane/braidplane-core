@@ -1,0 +1,23 @@
+meta {
+  name: 10 Delete HubSpot OAuth Data Source
+  type: http
+  seq: 11
+}
+
+delete {
+  url: {{baseUrl}}/organizations/{{orgSlug}}/data-sources/{{hubspotOAuthDataSourceSlug}}
+  body: none
+  auth: inherit
+}
+
+script:pre-request {
+  if (!bru.getVar("hubspotOAuthDataSourceSlug")) {
+    throw new Error("hubspotOAuthDataSourceSlug not set - run the HubSpot OAuth lifecycle first");
+  }
+}
+
+tests {
+  test("should remove the OAuth acceptance data source", function() {
+    expect(res.status).to.equal(204);
+  });
+}

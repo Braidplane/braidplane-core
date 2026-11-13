@@ -1,0 +1,38 @@
+meta {
+  name: 04 Execute MongoDB Query
+  type: http
+  seq: 16
+}
+
+post {
+  url: {{baseUrl}}/organizations/{{orgSlug}}/data-sources/{{mongodbDataSourceSlug}}/queries/{{mongodbQuerySlug}}/execute
+  body: json
+  auth: inherit
+}
+
+body:json {
+  {
+    "parameters": {}
+  }
+}
+
+tests {
+  test("should return 200 OK", function() {
+    expect(res.status).to.equal(200);
+  });
+
+  test("should return successful mongodb execution payload", function() {
+    expect(res.body.result_type).to.equal('mongodb');
+    expect(res.body.type).to.equal('mongodb');
+    expect(res.body.success).to.equal(true);
+    expect(res.body.duration_ms).to.be.at.least(0);
+
+    expect(res.body.payload).to.exist;
+    expect(res.body.payload.operation_type).to.equal('find');
+    expect(res.body.payload.documents).to.be.an('array');
+
+    if (res.body.payload.document_count !== undefined) {
+      expect(res.body.payload.document_count).to.equal(res.body.payload.documents.length);
+    }
+  });
+}

@@ -1,0 +1,26 @@
+meta {
+  name: Remove disposable member
+  type: http
+  seq: 13
+}
+
+post {
+  url: {{baseUrl}}/users/profile/deletion
+  body: json
+  auth: inherit
+}
+
+body:json {
+  {"confirmation":"DELETE MY ACCOUNT"}
+}
+
+tests {
+  test("accepts deletion", function() { expect([200, 202]).to.include(res.status); });
+  test("distinguishes completed from pending deletion", function() {
+    expect(res.body.state).to.equal(res.status === 200 ? "completed" : "pending");
+    expect(res.body.slug).to.match(/^delete-/);
+    if (res.status === 200) expect(res.body.completed_at).to.be.a("string");
+    else expect(res.body.completed_at).to.be.undefined;
+    expect(res.body.ownership_required.length).to.equal(0);
+  });
+}

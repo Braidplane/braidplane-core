@@ -1,0 +1,63 @@
+meta {
+  name: Initiate Google OAuth flow
+  type: http
+  seq: 1
+}
+
+get {
+  url: {{baseUrl}}/auth/google
+  body: none
+  auth: inherit
+}
+
+settings {
+  followRedirects: false
+}
+
+script:pre-request {
+  const methods = await require('axios').get(`${bru.getEnvVar('baseUrl')}/auth/methods`);
+  if (typeof methods.data.google_sign_in_enabled !== 'boolean') {
+    throw new Error('Authentication methods must report Google sign-in configuration');
+  }
+  bru.setVar('googleSignInEnabled', methods.data.google_sign_in_enabled);
+}
+
+tests {
+  test("validates the configured Google sign-in contract", function() {
+    if (bru.getVar('googleSignInEnabled')) {
+      expect(res.status).to.equal(302);
+      const redirect = new URL(res.headers.location);
+      expect(redirect.origin).to.equal('https://accounts.google.com');
+      expect(redirect.searchParams.get('state')).to.be.a('string').and.not.empty;
+    } else {
+      expect(res.status).to.equal(503);
+      expect(res.body.error.code).to.equal('GOOGLE_AUTH_UNAVAILABLE');
+      expect(res.headers.location).to.be.undefined;
+    }
+  });
+}
+
+example {
+  name: 302 Response
+  description: Redirect to Google OAuth consent screen
+
+  request: {
+    url: {{baseUrl}}/auth/google
+    method: GET
+    mode: none
+  }
+
+  response: {
+    status: {
+      code: 302
+      text: Found
+    }
+
+    body: {
+      type: text
+      content: '''
+
+      '''
+    }
+  }
+}

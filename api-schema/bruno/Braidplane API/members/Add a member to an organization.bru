@@ -1,0 +1,157 @@
+meta {
+  name: Directly add an existing member
+  type: http
+  seq: 1
+}
+
+post {
+  url: {{baseUrl}}/organizations/:slug/members
+  body: json
+  auth: inherit
+}
+
+params:path {
+  slug: {{orgSlug}}
+}
+
+body:json {
+  {
+    "user_slug": "{{memberUserSlug}}",
+    "role": "viewer"
+  }
+}
+
+script:pre-request {
+  if (!bru.getVar("orgSlug")) {
+    throw new Error("orgSlug not set - run 'Create an organization' first");
+  }
+  if (!bru.getVar("memberUserSlug")) {
+    throw new Error("memberUserSlug not set - run 'Create a user' first");
+  }
+}
+
+tests {
+  test("should return 201 Created", function() {
+    expect(res.status).to.equal(201);
+  });
+
+  test("should return JSON", function() {
+    expect(res.headers['content-type']).to.include('application/json');
+  });
+
+  test("should return member with correct structure", function() {
+    const body = res.body;
+    expect(body).to.have.property('user_slug');
+    expect(body).to.have.property('email');
+    expect(body).to.have.property('role');
+    expect(body).to.have.property('created_at');
+    expect(body).to.have.property('updated_at');
+  });
+
+  test("should have assigned role", function() {
+    expect(res.body.role).to.equal("viewer");
+  });
+
+  test("should match requested user", function() {
+    expect(res.body.user_slug).to.equal(bru.getVar("memberUserSlug"));
+  });
+
+}
+
+example {
+  name: 201 Response
+  description: Member added
+
+  request: {
+    url: {{baseUrl}}/organizations/:slug/members
+    method: POST
+    mode: json
+    params:path: {
+      slug:
+    }
+
+    body:json: {
+      {
+        "user_slug": "johndoe",
+        "role": "viewer"
+      }
+    }
+  }
+
+  response: {
+    headers: {
+      Content-Type: application/json
+    }
+
+    status: {
+      code: 201
+      text: Created
+    }
+
+    body: {
+      type: json
+      content: '''
+        {
+          "user_slug": "johndoe",
+          "email": "john.doe@example.com",
+          "role": "viewer",
+          "created_at": "2025-10-04T10:30:00Z",
+          "updated_at": "2025-10-04T10:30:00Z"
+        }
+      '''
+    }
+  }
+}
+
+example {
+  name: 409 Response
+  description: User is already a member
+
+  request: {
+    url: {{baseUrl}}/organizations/:slug/members
+    method: POST
+    mode: json
+    params:path: {
+      slug:
+    }
+
+    body:json: {
+      {
+        "user_slug": "johndoe",
+        "role": "viewer"
+      }
+    }
+  }
+
+  response: {
+    headers: {
+      Content-Type: application/json
+    }
+
+    status: {
+      code: 409
+      text: Conflict
+    }
+
+    body: {
+      type: json
+      content: '''
+        {
+          "error": {
+            "code": "",
+            "message": "",
+            "validation_errors": [
+              {
+                "field": "",
+                "code": "",
+                "message": "",
+                "details": {}
+              }
+            ],
+            "request_id": ""
+          }
+        }
+      '''
+    }
+  }
+}

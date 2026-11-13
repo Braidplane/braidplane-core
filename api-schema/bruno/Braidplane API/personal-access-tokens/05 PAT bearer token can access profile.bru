@@ -1,0 +1,31 @@
+meta {
+  name: 05 PAT bearer token can access profile
+  type: http
+  seq: 5
+}
+
+get {
+  url: {{baseUrl}}/users/profile
+  body: none
+  auth: inherit
+}
+
+script:pre-request {
+  const token = bru.getVar("patHardDeleteToken");
+  if (!token) {
+    throw new Error("patHardDeleteToken not set - run 01 Create personal access token first");
+  }
+  req.setHeader("Authorization", `Bearer ${token}`);
+  req.setHeader("Cookie", "");
+}
+
+tests {
+  test("should authorize active PAT bearer token", function() {
+    expect(res.status).to.equal(200);
+  });
+
+  test("profile response should not expose PAT material", function() {
+    expect(res.body).to.not.have.property("token");
+    expect(res.body).to.not.have.property("token_hash");
+  });
+}

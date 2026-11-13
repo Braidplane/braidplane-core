@@ -1,0 +1,115 @@
+meta {
+  name: 11 Verify Future User Email Without Auto Acceptance
+  type: http
+  seq: 11
+}
+
+post {
+  url: {{baseUrl}}/auth/email/verify
+  body: json
+  auth: inherit
+}
+
+body:json {
+  {
+    "token": "{{user3VerificationToken}}"
+  }
+}
+
+script:pre-request {
+  const axios = require("axios");
+  const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+  function recipientAddress(recipient) {
+    if (!recipient) {
+      return "";
+    }
+    if (typeof recipient === "string") {
+      return recipient;
+    }
+    return recipient.Address || recipient.address || recipient.Email || recipient.email || "";
+  }
+
+  function messageMatchesRecipient(message, email) {
+    const target = email.toLowerCase();
+    for (const field of [message.To, message.to]) {
+      const recipients = Array.isArray(field) ? field : field ? [field] : [];
+      for (const recipient of recipients) {
+        if (recipientAddress(recipient).toLowerCase() === target) {
+          return true;
+        }
+      }
+    }
+    return false;
+  }
+
+  function looksLikeVerification(message) {
+    const text = [message.Subject, message.subject, message.Snippet, message.snippet]
+      .filter(Boolean)
+      .join("\n")
+      .toLowerCase();
+    return text.includes("verify your email") || text.includes("verification");
+  }
+
+  async function fetchMessageContent(mailpitUrl, message) {
+    const id = message.ID || message.Id || message.id;
+    if (!id) {
+      return [message.Subject, message.subject, message.Snippet, message.snippet].filter(Boolean).join("\n");
+    }
+
+    const response = await axios.get(`${mailpitUrl}/api/v1/message/${id}`);
+    const payload = response?.data ?? response?.body ?? response;
+    return [
+      message.Subject,
+      message.subject,
+      message.Snippet,
+      message.snippet,
+      payload.Subject,
+      payload.subject,
+      payload.Text,
+      payload.text,
+      payload.HTML,
+      payload.html,
+    ].filter(Boolean).join("\n");
+  }
+
+  async function fetchVerificationEmail(mailpitUrl, email) {
+    const searchUrl = `${mailpitUrl}/api/v1/messages?search=to:${encodeURIComponent(email)}`;
+    for (let attempt = 1; attempt <= 20; attempt += 1) {
+      const response = await axios.get(searchUrl);
+      const payload = response?.data ?? response?.body ?? response;
+      const messages = payload?.messages || [];
+      const emailMessage = messages.find((message) => messageMatchesRecipient(message, email) && looksLikeVerification(message));
+      if (emailMessage) {
+        return emailMessage;
+      }
+      await sleep(500);
+    }
+    throw new Error(`No verification email found for ${email}`);
+  }
+
+  const userEmail = bru.getVar("user3Email");
+  if (!userEmail) {
+    throw new Error("user3Email not set - create future invitee first");
+  }
+
+  const mailpitUrl = bru.getEnvVar("mailpitUrl") || bru.getEnvVar("mailpit_url");
+  if (!mailpitUrl) {
+    throw new Error("mailpitUrl/mailpit_url not set in active environment");
+  }
+
+  const latestEmail = await fetchVerificationEmail(mailpitUrl, userEmail);
+  const content = await fetchMessageContent(mailpitUrl, latestEmail);
+  const tokenMatch = content.match(/token=([a-f0-9]{64})/);
+  if (!tokenMatch || !tokenMatch[1]) {
+    throw new Error("Could not extract verification token");
+  }
+
+  bru.setVar("user3VerificationToken", tokenMatch[1]);
+}
+
+tests {
+  test("should verify future invitee email", function() {
+    expect(res.status).to.equal(204);
+  });
+}

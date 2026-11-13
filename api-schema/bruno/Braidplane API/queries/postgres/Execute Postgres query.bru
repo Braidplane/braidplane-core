@@ -1,0 +1,54 @@
+meta {
+  name: Execute Postgres query
+  type: http
+  seq: 2
+}
+
+post {
+  url: {{baseUrl}}/organizations/:slug/data-sources/:ds_slug/queries/:query_slug/execute
+  body: json
+  auth: inherit
+}
+
+params:path {
+  slug: {{orgSlug}}
+  ds_slug: {{postgresDataSourceSlug}}
+  query_slug: {{postgresSearchQuerySlug}}
+}
+
+body:json {
+  {
+    "parameters": {
+      "is_active": true,
+      "limit": 50
+    }
+  }
+}
+
+script:pre-request {
+  if (!bru.getVar("orgSlug")) {
+    throw new Error("orgSlug not set - run 'Create an organization' first");
+  }
+
+  if (!bru.getVar("postgresDataSourceSlug")) {
+    throw new Error("postgresDataSourceSlug not set - run a data source create request first");
+  }
+
+  if (!bru.getVar("postgresSearchQuerySlug")) {
+    throw new Error("postgresSearchQuerySlug not set - run 'Create Postgres query' first");
+  }
+}
+
+tests {
+  test("should return 200 OK", function() {
+    expect(res.status).to.equal(200);
+  });
+
+  test("should return SQL execution result", function() {
+    expect(res.body).to.have.property("result_type", "sql");
+    expect(res.body).to.have.property("type", "postgres");
+    expect(res.body).to.have.property("payload");
+    expect(res.body.payload).to.have.property("rows");
+    expect(res.body).to.have.property("success", true);
+  });
+}

@@ -1,0 +1,44 @@
+meta {
+  name: 02 Create MySQL Sink Query
+  type: http
+  seq: 3
+}
+
+post {
+  url: {{baseUrl}}/organizations/{{orgSlug}}/data-sources/{{csMySQLDSSlug}}/queries
+  body: json
+  auth: inherit
+}
+
+body:json {
+  {
+    "name": "Cross-Source MySQL Sink Query",
+    "slug": "cross-source-mysql-sink-{{csTimestamp}}",
+    "query_statement": {
+      "type": "mysql",
+      "sql": "INSERT IGNORE INTO users (id, email, full_name) SELECT id, email, full_name FROM input"
+    },
+    "parameters": [],
+    "row_limit": 1000,
+    "timeout_seconds": 30
+  }
+}
+
+script:pre-request {
+  if (!bru.getVar("csMySQLDSSlug")) {
+    throw new Error("csMySQLDSSlug not set — run file 00a first");
+  }
+  if (!bru.getVar("csTimestamp")) {
+    throw new Error("csTimestamp not set — run file 01 first");
+  }
+}
+
+tests {
+  test("should return 201 Created", function() {
+    expect(res.status).to.equal(201);
+  });
+
+  test("should return the created sink query slug", function() {
+    expect(res.body.slug).to.be.a('string').and.not.empty;
+  });
+}

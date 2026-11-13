@@ -1,0 +1,50 @@
+meta {
+  name: 10 List Project Events
+  type: http
+  seq: 10
+}
+
+get {
+  url: {{baseUrl}}/organizations/{{orgSlug}}/events?limit=20&entity_type=project&action=create
+  body: none
+  auth: inherit
+}
+
+script:pre-request {
+  const jar = bru.cookies.jar();
+  jar.clear();
+  req.setHeader("Cookie", `${bru.getVar("sessionCookieName")}=${bru.getVar("sessionCookieValue")}`);
+
+  if (!bru.getVar("projectSlug")) {
+    bru.runner.stopExecution();
+    throw new Error("projectSlug not set - run '03 Create Project' first");
+  }
+}
+
+tests {
+  test("should return 200 OK", function() {
+    expect(res.status).to.equal(200);
+  });
+
+  test("should return project create events", function() {
+    expect(res.body.events).to.be.an("array").and.not.empty;
+    expect(res.body.has_more).to.be.a("boolean");
+
+    for (const event of res.body.events) {
+      expect(event.entity_type).to.equal("project");
+      expect(event.action).to.equal("create");
+      expect(event.occurred_at).to.be.a("string").and.not.empty;
+      expect(event.created_at).to.be.a("string").and.not.empty;
+      expect(event.metadata).to.be.an("object");
+    }
+  });
+
+  test("should include project created during this collection run", function() {
+    const projectSlug = bru.getVar("projectSlug");
+    const event = res.body.events.find((item) => item.entity_slug === projectSlug);
+
+    expect(event).to.exist;
+    expect(event.actor_type).to.equal("user");
+    expect(event.slug).to.match(/^evt-project-create/);
+  });
+}

@@ -1,0 +1,77 @@
+meta {
+  name: Create Postgres query
+  type: http
+  seq: 1
+}
+
+post {
+  url: {{baseUrl}}/organizations/:slug/data-sources/:ds_slug/queries
+  body: json
+  auth: inherit
+}
+
+params:path {
+  slug: {{orgSlug}}
+  ds_slug: {{postgresDataSourceSlug}}
+}
+
+body:json {
+  {
+    "name": "Get active users from Postgres",
+    "slug": "get-active-users-pg-{{timestamp}}",
+    "description": "PostgreSQL query with parameterized filters",
+    "query_statement": {
+      "type": "postgres",
+      "sql": "SELECT id, email, created_at FROM users WHERE is_active = {{is_active}} LIMIT {{limit}}"
+    },
+    "parameters": [
+      {
+        "slug": "is-active",
+        "name": "is_active",
+        "data_type": "boolean",
+        "is_required": true,
+        "default_value": "true"
+      },
+      {
+        "slug": "limit",
+        "name": "limit",
+        "data_type": "integer",
+        "is_required": false,
+        "default_value": "10"
+      }
+    ],
+    "row_limit": 1000,
+    "timeout_seconds": 30
+  }
+}
+
+script:pre-request {
+  if (!bru.getVar("orgSlug")) {
+    throw new Error("orgSlug not set - run 'Create an organization' first");
+  }
+
+  if (!bru.getVar("postgresDataSourceSlug")) {
+    throw new Error("postgresDataSourceSlug not set - run a data source create request first");
+  }
+
+  bru.setVar("timestamp", Date.now());
+}
+
+script:post-response {
+  if (res.status === 201) {
+    bru.setVar("postgresSearchQuerySlug", res.body.slug);
+    bru.setVar("querySlug", res.body.slug);
+  }
+}
+
+tests {
+  test("should return 201 Created", function() {
+    expect(res.status).to.equal(201);
+  });
+
+  test("should return query with parameters", function() {
+    expect(res.body).to.have.property("parameters");
+    expect(res.body.parameters).to.be.an("array");
+    expect(res.body.parameters).to.have.lengthOf(2);
+  });
+}

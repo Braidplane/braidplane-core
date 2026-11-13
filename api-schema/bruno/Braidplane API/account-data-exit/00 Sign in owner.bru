@@ -1,0 +1,42 @@
+meta {
+  name: Sign in owner
+  type: http
+  seq: 0
+}
+
+post {
+  url: {{baseUrl}}/sessions
+  body: json
+  auth: inherit
+}
+
+body:json {
+  {"email":"{{exitEmail}}","password":"{{userPassword}}"}
+}
+
+script:pre-request {
+  bru.cookies.jar().clear();
+  req.setHeader("Cookie", "");
+  const email = bru.getEnvVar("userEmail");
+  if (!email || !bru.getEnvVar("userPassword")) throw new Error("dedicated seed credentials required");
+  bru.setVar("exitEmail", email);
+}
+
+script:post-response {
+  if (res.status !== 200) { bru.runner.stopExecution(); throw new Error("account data-exit sign-in failed"); }
+  const cookies = res.headers["set-cookie"] || [];
+  const cookie = (Array.isArray(cookies) ? cookies : [cookies]).reverse().find(value => /session/i.test(value.split(";")[0]) && !/Max-Age=0/i.test(value));
+  if (!cookie) throw new Error("account data-exit session cookie missing");
+  const session = cookie.split(";")[0];
+  bru.setVar("exitCookie", session);
+  bru.setVar("exitOwnerCookie", session);
+  bru.setVar("exitKey", `exit-${Date.now()}`);
+  const profile = await bru.sendRequest({method:"GET", url:bru.getEnvVar("baseUrl")+"/users/profile", headers:{Cookie:session}});
+  const csrf = profile.headers["x-csrf-token"] || profile.headers["X-CSRF-Token"];
+  if (profile.status !== 200 || !csrf) throw new Error("account data-exit profile/CSRF setup failed");
+  bru.setVar("csrfToken", csrf);
+}
+
+tests {
+  test("returns 200", function() { expect(res.status).to.equal(200); });
+}

@@ -1,0 +1,36 @@
+meta {
+  name: Delete a data source
+  type: http
+  seq: 11
+}
+
+delete {
+  url: {{baseUrl}}/organizations/:slug/data-sources/:ds_slug
+  body: none
+  auth: inherit
+}
+
+params:path {
+  slug: {{orgSlug}}
+  ds_slug: {{dataSourceSlug}}
+}
+
+script:pre-request {
+  // Ensure we have orgSlug and dataSourceSlug from previous requests
+  if (!bru.getVar("orgSlug")) {
+    throw new Error("orgSlug not set - run 'Create an organization' first");
+  }
+  if (!bru.getVar("dataSourceSlug")) {
+    throw new Error("dataSourceSlug not set - run 'Create a data source' first");
+  }
+}
+
+tests {
+  test("should return 204 No Content", function() {
+    expect(res.status).to.equal(204);
+  });
+
+  test("should not return a body", function() {
+    expect(res.body).to.be.oneOf([null, undefined, '']);
+  });
+}

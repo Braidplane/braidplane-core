@@ -1,0 +1,34 @@
+meta {
+  name: 16 Clear API key expiration
+  type: http
+  seq: 16
+}
+
+put {
+  url: {{baseUrl}}/organizations/:slug/api-keys/:api_key_slug
+  body: json
+  auth: inherit
+}
+
+params:path {
+  slug: {{orgSlug}}
+  api_key_slug: {{expiringAPIKeySlug}}
+}
+
+body:json {
+  {
+    "name": "Future expiring automation",
+    "expires_at": null
+  }
+}
+
+tests {
+  test("should return 200 OK", function() {
+    expect(res.status).to.equal(200);
+  });
+
+  test("should clear expiration metadata", function() {
+    expect(res.body.slug).to.equal(bru.getVar("expiringAPIKeySlug"));
+    expect(res.body).to.have.property("expires_at", null);
+  });
+}

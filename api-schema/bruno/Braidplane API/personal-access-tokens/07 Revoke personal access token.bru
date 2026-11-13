@@ -1,0 +1,21 @@
+meta {
+  name: 07 Revoke personal access token
+  type: http
+  seq: 7
+}
+
+delete {
+  url: {{baseUrl}}/users/profile/personal-access-tokens/:pat_slug
+  body: none
+  auth: inherit
+}
+
+params:path {
+  pat_slug: {{patHardDeleteSlug}}
+}
+
+tests {
+  test("should return 204 No Content", function() {
+    expect(res.status).to.equal(204);
+  });
+}

@@ -1,0 +1,113 @@
+meta {
+  name: Update an organization
+  type: http
+  seq: 5
+}
+
+put {
+  url: {{baseUrl}}/organizations/:slug
+  body: json
+  auth: inherit
+}
+
+params:path {
+  slug: {{orgSlug}}
+}
+
+body:json {
+  {
+    "name": "Test Org {{timestamp}}"
+  }
+}
+
+tests {
+  test("should return 204 No Content", function() {
+    expect(res.status).to.equal(204);
+  });
+}
+
+example {
+  name: 204 Response
+  description: Organization updated
+
+  request: {
+    url: {{baseUrl}}/organizations/:slug
+    method: PUT
+    mode: json
+    params:path: {
+      slug:
+    }
+
+    body:json: {
+      {
+        "name": "Acme Corporation"
+      }
+    }
+  }
+
+  response: {
+    status: {
+      code: 204
+      text: No Content
+    }
+
+    body: {
+      type: text
+      content: '''
+
+      '''
+    }
+  }
+}
+
+example {
+  name: 404 Response
+  description: Organization not found
+
+  request: {
+    url: {{baseUrl}}/organizations/:slug
+    method: PUT
+    mode: json
+    params:path: {
+      slug:
+    }
+
+    body:json: {
+      {
+        "name": "Acme Corporation"
+      }
+    }
+  }
+
+  response: {
+    headers: {
+      Content-Type: application/json
+    }
+
+    status: {
+      code: 404
+      text: Not Found
+    }
+
+    body: {
+      type: json
+      content: '''
+        {
+          "error": {
+            "code": "",
+            "message": "",
+            "validation_errors": [
+              {
+                "field": "",
+                "code": "",
+                "message": "",
+                "details": {}
+              }
+            ],
+            "request_id": ""
+          }
+        }
+      '''
+    }
+  }
+}

@@ -1,0 +1,28 @@
+meta {
+  name: 05 User2 Can List Org1 Members After Acceptance
+  type: http
+  seq: 5
+}
+
+get {
+  url: {{baseUrl}}/organizations/{{orgSlug1}}/members
+  body: none
+  auth: inherit
+}
+
+script:pre-request {
+  if (!bru.getVar("existingUserInvitationToken")) {
+    throw new Error("existingUserInvitationToken not set - accept invitation first");
+  }
+  req.setHeader("Cookie", `${bru.getVar("user2CookieName")}=${bru.getVar("user2CookieValue")}`);
+}
+
+tests {
+  test("should allow accepted invitee to read org1 members", function() {
+    expect(res.status).to.equal(200);
+    expect(res.body).to.have.property("members");
+    const accepted = res.body.members.find((member) => member.user_slug === bru.getVar("user2Slug"));
+    expect(accepted).to.exist;
+    expect(accepted.role).to.equal("viewer");
+  });
+}

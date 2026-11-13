@@ -1,0 +1,28 @@
+meta {
+  name: 08 Delete Project
+  type: http
+  seq: 8
+}
+
+delete {
+  url: {{baseUrl}}/organizations/{{orgSlug}}/projects/{{projectSlug}}
+  body: none
+  auth: inherit
+}
+
+script:pre-request {
+  const jar = bru.cookies.jar();
+  jar.clear();
+  req.setHeader("Cookie", `${bru.getVar("sessionCookieName")}=${bru.getVar("sessionCookieValue")}`);
+
+  if (!bru.getVar("projectSlug")) {
+    bru.runner.stopExecution();
+    throw new Error("projectSlug not set - run '03 Create Project' first");
+  }
+}
+
+tests {
+  test("should return 204 No Content", function() {
+    expect(res.status).to.equal(204);
+  });
+}

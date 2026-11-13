@@ -1,0 +1,51 @@
+meta {
+  name: 08 Update alert policy
+  type: http
+  seq: 8
+}
+
+put {
+  url: {{baseUrl}}/organizations/:slug/alert-policies/:alert_policy_slug
+  body: json
+  auth: inherit
+}
+
+params:path {
+  slug: {{orgSlug}}
+  alert_policy_slug: {{alertPolicySlug}}
+}
+
+body:json {
+  {
+    "name": "{{alertPolicyName}} Updated",
+    "scope": "organization",
+    "notification_type": "pipeline.retry_exhausted",
+    "severity": "warning",
+    "lifecycle_state": "acknowledged",
+    "source_kind": null,
+    "source_action": null,
+    "source_ref": null,
+    "destination_slugs": [
+      "{{alertDestinationSlug}}"
+    ],
+    "enabled": false
+  }
+}
+
+tests {
+  test("should return 200 OK", function() {
+    expect(res.status).to.equal(200);
+  });
+
+  test("should persist policy selector updates", function() {
+    expect(res.body.slug).to.equal(bru.getVar("alertPolicySlug"));
+    expect(res.body.name).to.equal(`${bru.getVar("alertPolicyName")} Updated`);
+    expect(res.body.severity).to.equal("warning");
+    expect(res.body.lifecycle_state).to.equal("acknowledged");
+    expect(res.body.source_kind).to.equal(null);
+    expect(res.body.source_action).to.equal(null);
+    expect(res.body.source_ref).to.equal(null);
+    expect(res.body.destination_slugs).to.deep.equal([bru.getVar("alertDestinationSlug")]);
+    expect(res.body.enabled).to.equal(false);
+  });
+}

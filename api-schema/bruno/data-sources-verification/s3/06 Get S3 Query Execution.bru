@@ -1,0 +1,31 @@
+meta {
+  name: 06 Get S3 Query Execution
+  type: http
+  seq: 45
+}
+
+get {
+  url: {{baseUrl}}/organizations/{{orgSlug}}/data-sources/{{s3DataSourceSlug}}/queries/{{s3ReadQuerySlug}}/executions/{{s3ExecutionSlug}}
+  auth: inherit
+}
+
+script:pre-request {
+  if (!bru.getVar("s3ExecutionSlug")) {
+    throw new Error("s3ExecutionSlug not set");
+  }
+}
+
+tests {
+  test("should return 200 OK", function() {
+    expect(res.status).to.equal(200);
+  });
+
+  test("should return the requested s3 execution", function() {
+    expect(res.body.slug).to.equal(bru.getVar("s3ExecutionSlug"));
+    expect(res.body.status).to.be.a('string').and.not.empty;
+    expect(res.body.executed_at).to.be.a('string').and.not.empty;
+    expect(res.body.result).to.exist;
+    expect(res.body.result.result_type).to.equal('s3');
+    expect(res.body.result.type).to.equal('s3');
+  });
+}

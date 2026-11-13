@@ -1,0 +1,21 @@
+meta {
+  name: 09 Delete revoked personal access token
+  type: http
+  seq: 9
+}
+
+post {
+  url: {{baseUrl}}/users/profile/personal-access-tokens/:pat_slug/delete
+  body: none
+  auth: inherit
+}
+
+params:path {
+  pat_slug: {{patHardDeleteSlug}}
+}
+
+tests {
+  test("revoked PAT hard delete should return 204 No Content", function() {
+    expect(res.status).to.equal(204);
+  });
+}

@@ -1,0 +1,52 @@
+meta {
+  name: 02 Create PostgreSQL DS in Org1
+  type: http
+  seq: 4
+}
+
+post {
+  url: {{baseUrl}}/organizations/{{orgSlug1}}/data-sources
+  body: json
+  auth: inherit
+}
+
+body:json {
+  {
+    "name": "Org1 PostgreSQL",
+    "slug": "org1-postgres-{{timestamp}}",
+    "type": "postgres",
+    "config": {
+      "host": "localhost",
+      "port": {{postgresPort}},
+      "database": "braidplane",
+      "ssl_mode": "disable",
+      "allow_private_hosts": true
+    },
+    "credentials": {
+      "username": "postgres",
+      "password": "postgres"
+    }
+  }
+}
+
+script:pre-request {
+  bru.setVar("timestamp", Date.now());
+  if (!bru.getVar("orgSlug1")) {
+    throw new Error("orgSlug1 not set - run setup first");
+  }
+  if (!bru.getEnvVar("postgresPort") && !bru.getVar("postgresPort")) {
+    throw new Error("postgresPort not set");
+  }
+}
+
+script:post-response {
+  if (res.status === 201) {
+    bru.setVar("org1DSSlug", res.body.slug);
+  }
+}
+
+tests {
+  test("should return 201 Created", function() {
+    expect(res.status).to.equal(201);
+  });
+}

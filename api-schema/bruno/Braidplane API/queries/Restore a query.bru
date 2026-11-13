@@ -1,0 +1,43 @@
+meta {
+  name: Restore a query
+  type: http
+  seq: 24
+}
+
+post {
+  url: {{baseUrl}}/organizations/:slug/data-sources/:ds_slug/queries/:query_slug/restore
+  auth: inherit
+}
+
+params:path {
+  slug: {{orgSlug}}
+  ds_slug: {{dataSourceSlug}}
+  query_slug: {{querySlug}}
+}
+
+script:pre-request {
+  const orgSlug = bru.getVar("orgSlug") || bru.getEnvVar("orgSlug");
+  const dataSourceSlug = bru.getVar("dataSourceSlug") || bru.getEnvVar("dataSourceSlug");
+  const querySlug = bru.getVar("querySlug") || bru.getEnvVar("querySlug");
+  if (!orgSlug) {
+    throw new Error("orgSlug not set - run 'Create an organization' first");
+  }
+
+  if (!dataSourceSlug) {
+    throw new Error("dataSourceSlug not set - run a data source create request first");
+  }
+
+  if (!querySlug) {
+    throw new Error("querySlug not set - run a query create request first");
+  }
+
+  bru.setVar("orgSlug", orgSlug);
+  bru.setVar("dataSourceSlug", dataSourceSlug);
+  bru.setVar("querySlug", querySlug);
+}
+
+tests {
+  test("should return 204 No Content", function() {
+    expect(res.status).to.equal(204);
+  });
+}

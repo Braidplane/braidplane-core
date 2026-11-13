@@ -1,0 +1,41 @@
+meta {
+  name: 07 List PostgreSQL Query Executions
+  type: http
+  seq: 11
+}
+
+get {
+  url: {{baseUrl}}/organizations/{{orgSlug}}/data-sources/{{postgresDataSourceSlug}}/queries/{{postgresQuerySlug}}/executions
+  auth: inherit
+}
+
+script:pre-request {
+  if (!bru.getVar("postgresQuerySlug")) {
+    throw new Error("postgresQuerySlug not set");
+  }
+}
+
+script:post-response {
+  if (res.status === 200 && res.body.executions && res.body.executions.length > 0) {
+    bru.setVar("postgresExecutionSlug", res.body.executions[0].slug);
+  }
+}
+
+tests {
+  test("should return 200 OK", function() {
+    expect(res.status).to.equal(200);
+  });
+
+  test("should return at least one execution record", function() {
+    expect(res.body).to.exist;
+    expect(res.body.executions).to.be.an('array').and.not.empty;
+
+    const execution = res.body.executions[0];
+    expect(execution.slug).to.be.a('string').and.not.empty;
+    expect(execution.status).to.be.a('string').and.not.empty;
+    expect(execution.executed_at).to.be.a('string').and.not.empty;
+    expect(execution.result).to.exist;
+    expect(execution.result.result_type).to.equal('sql');
+    expect(execution.result.type).to.equal('postgres');
+  });
+}

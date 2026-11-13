@@ -1,0 +1,39 @@
+meta {
+  name: 02 Refresh PostgreSQL Schema
+  type: http
+  seq: 4
+}
+
+post {
+  url: {{baseUrl}}/organizations/{{orgSlug}}/data-sources/{{postgresDataSourceSlug}}/schema
+  body: none
+  auth: inherit
+}
+
+script:pre-request {
+  if (!bru.getVar("postgresDataSourceSlug")) {
+    throw new Error("postgresDataSourceSlug not set");
+  }
+}
+
+tests {
+  test("should return 202 Accepted", function() {
+    expect(res.status).to.equal(202);
+  });
+
+  test("should return schema import state", function() {
+    expect(res.body).to.be.an("object");
+    expect(res.body.data_source_slug).to.equal(bru.getVar("postgresDataSourceSlug"));
+    expect(res.body.schema_status).to.equal("importing");
+    expect(res.body.enqueued).to.be.a("boolean");
+
+    if (res.body.enqueued) {
+      expect(res.body.job).to.be.an("object");
+      expect(res.body.job.kind).to.equal("data_source_schema_import");
+      expect(res.body.job.queue).to.equal("data_source_schema_import");
+      expect(res.body.job.state).to.equal("queued");
+    } else {
+      expect(res.body.job).to.not.exist;
+    }
+  });
+}

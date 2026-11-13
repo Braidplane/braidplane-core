@@ -1,0 +1,47 @@
+meta {
+  name: 02d Create HTTP DS With Unreachable OpenAPI
+  type: http
+  seq: 19
+}
+
+post {
+  url: {{baseUrl}}/organizations/{{orgSlug}}/data-sources
+  body: json
+  auth: inherit
+}
+
+body:json {
+  {
+    "name": "HTTP Unreachable Import",
+    "slug": "http-unreachable-import-{{timestamp}}",
+    "type": "http",
+    "config": {
+      "base_url": "{{httpcrudUrl}}",
+      "openapi_url": "http://localhost:39999/schema.yml",
+      "openapi_fetch_timeout_seconds": 1,
+      "health_path": "/health",
+      "timeout_seconds": 10,
+      "allow_private_hosts": true
+    },
+    "credentials": {}
+  }
+}
+
+script:pre-request {
+  bru.setVar("timestamp", Date.now());
+  if (!bru.getEnvVar("httpcrudUrl") && !bru.getVar("httpcrudUrl")) {
+    throw new Error("httpcrudUrl not set");
+  }
+}
+
+script:post-response {
+  if (res.status === 201) {
+    bru.setVar("httpUnreachableDataSourceSlug", res.body.slug);
+  }
+}
+
+tests {
+  test("should create data source before unreachable import refresh fails", function() {
+    expect(res.status).to.equal(201);
+  });
+}

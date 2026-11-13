@@ -1,0 +1,43 @@
+meta {
+  name: 04g Create FTP Spreadsheet Sink Query
+  type: http
+  seq: 30.92
+}
+
+post {
+  url: {{baseUrl}}/organizations/{{orgSlug}}/data-sources/{{ftpDataSourceSlug}}/queries
+  body: json
+  auth: inherit
+}
+
+body:json {
+  {
+    "name": "Test FTP Spreadsheet Sink Query",
+    "slug": "{{ftpSpreadsheetSinkQuerySlug}}",
+    "query_statement": {
+      "type": "ftp",
+      "operation": "write",
+      "path": "spreadsheet-sink-placeholder.xlsx",
+      "format": "spreadsheet",
+      "overwrite": true
+    },
+    "parameters": [],
+    "row_limit": 1000,
+    "timeout_seconds": 30
+  }
+}
+
+script:pre-request {
+  const timestamp = Date.now();
+  bru.setVar("ftpSpreadsheetSinkQuerySlug", `test-ftp-spreadsheet-sink-${timestamp}`);
+
+  if (!bru.getVar("ftpDataSourceSlug")) {
+    throw new Error("ftpDataSourceSlug not set");
+  }
+}
+
+tests {
+  test("should return 201 Created", function() {
+    expect(res.status).to.equal(201);
+  });
+}

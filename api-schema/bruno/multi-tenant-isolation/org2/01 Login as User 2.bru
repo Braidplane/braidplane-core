@@ -1,0 +1,65 @@
+meta {
+  name: 01 Login as User 2
+  type: http
+  seq: 1
+}
+
+post {
+  url: {{baseUrl}}/sessions
+  body: json
+  auth: inherit
+}
+
+body:json {
+  {
+    "email": "{{user2Email}}",
+    "password": "SecurePass123!"
+  }
+}
+
+script:pre-request {
+  bru.cookies.jar().clear();
+  if (!bru.getVar("user2Email")) {
+    throw new Error("user2Email not set - run setup first");
+  }
+}
+
+script:post-response {
+  if (res.status === 200) {
+    const setCookie = res.headers['set-cookie'] || res.headers['Set-Cookie'];
+    if (!setCookie) {
+      throw new Error("set-cookie header not found");
+    }
+    const cookies = Array.isArray(setCookie) ? setCookie : [setCookie];
+    const sessionEntry = [...cookies].reverse().find(c => /session/i.test(c.split(';')[0]) && !/Max-Age=0/i.test(c) && c.split(';')[0].split('=').slice(1).join('=') !== "");
+    if (!sessionEntry) {
+      throw new Error(`session cookie not found in set-cookie: ${JSON.stringify(cookies)}`);
+    }
+    const cookiePart = sessionEntry.split(';')[0];
+    const eqIdx = cookiePart.indexOf('=');
+    const name = cookiePart.substring(0, eqIdx);
+    const value = cookiePart.substring(eqIdx + 1);
+    bru.setVar("user2CookieName", name);
+    bru.setVar("user2CookieValue", value);
+
+    const csrfResponse = await bru.sendRequest({
+      method: "GET",
+      url: `${bru.getEnvVar("baseUrl")}/organizations`,
+      headers: {
+        Cookie: `${name}=${value}`
+      }
+    });
+    const csrfToken = csrfResponse.headers['x-csrf-token'] || csrfResponse.headers['X-CSRF-Token'];
+    if (!csrfToken) {
+      bru.runner.stopExecution();
+      throw new Error("user2 CSRF token not found");
+    }
+    bru.setVar("user2CSRFToken", csrfToken);
+  }
+}
+
+tests {
+  test("should return 200 OK", function() {
+    expect(res.status).to.equal(200);
+  });
+}

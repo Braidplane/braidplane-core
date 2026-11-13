@@ -1,0 +1,31 @@
+meta {
+  name: 05 Reject Invalid Integer Runtime Variable
+  type: http
+  seq: 5
+}
+
+put {
+  url: {{baseUrl}}/organizations/{{orgSlug}}/environments/{{prodEnvironmentSlug}}/runtime-variables/invalid_batch_size
+  body: json
+  auth: inherit
+}
+
+body:json {
+  {
+    "value_type": "integer",
+    "value": "not-a-number",
+    "protected_environment_confirmation": "{{prodEnvironmentSlug}}"
+  }
+}
+
+script:pre-request {
+  if (!bru.getVar("prodEnvironmentSlug")) {
+    bru.setVar("prodEnvironmentSlug", "prod");
+  }
+}
+
+tests {
+  test("should return 400 Bad Request", function() {
+    expect(res.status).to.equal(400);
+  });
+}

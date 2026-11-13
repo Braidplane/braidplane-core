@@ -1,0 +1,22 @@
+meta {
+  name: 18 Delete S3 DS
+  type: http
+  seq: 57
+}
+
+delete {
+  url: {{baseUrl}}/organizations/{{orgSlug}}/data-sources/{{s3DataSourceSlug}}
+  auth: inherit
+}
+
+script:pre-request {
+  if (!bru.getVar("s3DataSourceSlug")) {
+    throw new Error("s3DataSourceSlug not set");
+  }
+}
+
+tests {
+  test("should return 204 No Content", function() {
+    expect(res.status).to.equal(204);
+  });
+}

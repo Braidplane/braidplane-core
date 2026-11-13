@@ -1,0 +1,19 @@
+meta {
+  name: 07 List Pipeline Deployments
+  type: http
+  seq: 7
+}
+
+get {
+  url: {{baseUrl}}/organizations/{{orgSlug}}/projects/{{projectSlug}}/environments/{{environmentSlug}}/pipeline-deployments
+  auth: inherit
+}
+
+tests {
+  test("deploys the reconciled immutable version", function() {
+    expect(res.status).to.equal(200);
+    const deployment = res.body.deployments.find(d => d.pipeline_slug === bru.getVar("pipelineSlug"));
+    expect(deployment).to.exist;
+    expect(deployment.current_version_spec_hash).to.equal(bru.getVar("pipelineSpecHash"));
+  });
+}

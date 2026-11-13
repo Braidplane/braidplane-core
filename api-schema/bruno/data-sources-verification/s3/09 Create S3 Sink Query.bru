@@ -1,0 +1,53 @@
+meta {
+  name: 09 Create S3 Sink Query
+  type: http
+  seq: 48
+}
+
+post {
+  url: {{baseUrl}}/organizations/{{orgSlug}}/data-sources/{{s3DataSourceSlug}}/queries
+  body: json
+  auth: inherit
+}
+
+body:json {
+  {
+    "name": "Test S3 Sink Query",
+    "slug": "{{s3SinkQuerySlug}}",
+    "query_statement": {
+      "type": "s3",
+      "operation": "write",
+      "key": "pipeline-placeholder.json",
+      "format": "json",
+      "content": "{{input}}",
+      "content_type": "application/json",
+      "metadata": {
+        "source": "bruno-pipeline"
+      },
+      "overwrite": true
+    },
+    "parameters": [],
+    "row_limit": 1000,
+    "timeout_seconds": 30
+  }
+}
+
+script:pre-request {
+  const timestamp = Date.now();
+  bru.setVar("s3SinkQuerySlug", `test-s3-sink-${timestamp}`);
+
+  if (!bru.getVar("s3DataSourceSlug")) {
+    throw new Error("s3DataSourceSlug not set");
+  }
+}
+
+tests {
+  test("should return 201 Created", function() {
+    expect(res.status).to.equal(201);
+  });
+
+  test("should persist s3 sink statement", function() {
+    expect(res.body.query_statement.type).to.equal('s3');
+    expect(res.body.query_statement.operation).to.equal('write');
+  });
+}

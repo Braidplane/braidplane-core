@@ -1,0 +1,21 @@
+meta {
+  name: Preserve other account access
+  type: http
+  seq: 16
+}
+
+get {
+  url: {{baseUrl}}/users/profile
+  body: none
+  auth: inherit
+}
+
+script:pre-request {
+  bru.cookies.jar().clear();
+  req.setHeader("Cookie", bru.getVar("exitOwnerCookie"));
+}
+
+tests {
+  test("returns 200", function() { expect(res.status).to.equal(200); });
+  test("owner remains active", function() { expect(res.body.email).to.equal(bru.getEnvVar("userEmail")); });
+}

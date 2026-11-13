@@ -1,0 +1,26 @@
+meta {
+  name: 11 Bearer token cannot rotate API key
+  type: http
+  seq: 11
+}
+
+post {
+  url: {{baseUrl}}/organizations/:slug/api-keys/:api_key_slug/rotate
+  body: none
+  auth: inherit
+}
+
+params:path {
+  slug: {{orgSlug}}
+  api_key_slug: {{apiKeySlug}}
+}
+
+script:pre-request {
+  req.setHeader("Authorization", `Bearer ${bru.getVar("apiKeyTokenRotated")}`);
+}
+
+tests {
+  test("management-disabled API key cannot rotate keys", function() {
+    expect(res.status).to.equal(403);
+  });
+}

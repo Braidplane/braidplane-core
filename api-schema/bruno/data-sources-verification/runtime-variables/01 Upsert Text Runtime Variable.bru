@@ -1,0 +1,45 @@
+meta {
+  name: 01 Upsert Text Runtime Variable
+  type: http
+  seq: 1
+}
+
+put {
+  url: {{baseUrl}}/organizations/{{orgSlug}}/environments/{{prodEnvironmentSlug}}/runtime-variables/s3_prefix
+  body: json
+  auth: inherit
+}
+
+body:json {
+  {
+    "value_type": "text",
+    "value": "prd/dir",
+    "description": "Prefix used by production file reads",
+    "protected_environment_confirmation": "{{prodEnvironmentSlug}}"
+  }
+}
+
+script:pre-request {
+  if (!bru.getVar("orgSlug")) {
+    throw new Error("orgSlug not set");
+  }
+  if (!bru.getVar("prodEnvironmentSlug")) {
+    bru.setVar("prodEnvironmentSlug", "prod");
+  }
+}
+
+tests {
+  test("should return 200 OK", function() {
+    expect(res.status).to.equal(200);
+  });
+
+  test("should upsert text runtime variable", function() {
+    expect(res.body.environment_slug).to.equal("prod");
+    expect(res.body.key).to.equal("s3_prefix");
+    expect(res.body.value_type).to.equal("text");
+    expect(res.body.value).to.equal("prd/dir");
+    expect(res.body.description).to.equal("Prefix used by production file reads");
+    expect(res.body).to.have.property("created_at");
+    expect(res.body).to.have.property("updated_at");
+  });
+}

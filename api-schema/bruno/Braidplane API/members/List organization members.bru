@@ -1,0 +1,102 @@
+meta {
+  name: List organization members
+  type: http
+  seq: 2
+}
+
+get {
+  url: {{baseUrl}}/organizations/:slug/members
+  body: none
+  auth: inherit
+}
+
+params:path {
+  slug: {{orgSlug}}
+}
+
+script:pre-request {
+  if (!bru.getVar("orgSlug")) {
+    throw new Error("orgSlug not set - run 'Create an organization' first");
+  }
+}
+
+tests {
+  test("should return 200 OK", function() {
+    expect(res.status).to.equal(200);
+  });
+
+  test("should return JSON", function() {
+    expect(res.headers['content-type']).to.include('application/json');
+  });
+
+  test("should return paginated member list", function() {
+    expect(res.body).to.have.property('members');
+    expect(res.body.members).to.be.an('array');
+    expect(res.body).to.have.property('has_more');
+  });
+
+  test("members should have correct structure", function() {
+    if (res.body.members.length > 0) {
+      const member = res.body.members[0];
+      expect(member).to.have.property('user_slug');
+      expect(member).to.have.property('email');
+      expect(member).to.have.property('role');
+      expect(member).to.have.property('created_at');
+      expect(member).to.have.property('updated_at');
+    }
+  });
+
+  test("should include organization creator as admin", function() {
+    const adminMember = res.body.members.find(m => m.role === 'admin');
+    expect(adminMember).to.exist;
+  });
+
+  test("should have at least one member", function() {
+    expect(res.body.members.length).to.be.greaterThan(0);
+  });
+}
+
+example {
+  name: 200 Response
+  description: List of members
+
+  request: {
+    url: {{baseUrl}}/organizations/:slug/members
+    method: GET
+    mode: none
+    params:path: {
+      slug:
+    }
+  }
+
+  response: {
+    headers: {
+      Content-Type: application/json
+    }
+
+    status: {
+      code: 200
+      text: OK
+    }
+
+    body: {
+      type: json
+      content: '''
+        {
+          "members": [
+            {
+              "user_slug": "johndoe",
+              "email": "john.doe@example.com",
+              "role": "admin",
+              "created_at": "2025-10-04T10:30:00Z",
+              "updated_at": "2025-10-04T10:30:00Z"
+            }
+          ],
+          "has_more": false,
+          "next_cursor": null,
+          "prev_cursor": null
+        }
+      '''
+    }
+  }
+}

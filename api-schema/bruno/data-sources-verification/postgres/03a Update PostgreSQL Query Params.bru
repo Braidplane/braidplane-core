@@ -1,0 +1,53 @@
+meta {
+  name: 03a Update PostgreSQL Query Params
+  type: http
+  seq: 5
+}
+
+put {
+  url: {{baseUrl}}/organizations/{{orgSlug}}/data-sources/{{postgresDataSourceSlug}}/queries/{{postgresQuerySlug}}
+  body: json
+  auth: inherit
+}
+
+body:json {
+  {
+    "name": "Test PostgreSQL Query",
+    "description": "Test query for PostgreSQL",
+    "query_statement": {
+      "type": "postgres",
+      "sql": "SELECT {{user_id}}::int AS user_id"
+    },
+    "parameters": [
+      {
+        "name": "user_id",
+        "data_type": "integer",
+        "is_required": false,
+        "default_value": "42"
+      }
+    ],
+    "row_limit": 1000,
+    "timeout_seconds": 30
+  }
+}
+
+script:pre-request {
+  if (!bru.getVar("postgresQuerySlug")) {
+    throw new Error("postgresQuerySlug not set - run '03 Create PostgreSQL Query' first");
+  }
+}
+
+tests {
+  test("should return 200 OK", function() {
+    expect(res.status).to.equal(200);
+  });
+
+  test("should persist parameter with integer data_type", function() {
+    expect(res.body.parameters).to.be.an('array').with.lengthOf(1);
+    const param = res.body.parameters[0];
+    expect(param.name).to.equal("user_id");
+    expect(param.data_type).to.equal("integer");
+    expect(param.is_required).to.equal(false);
+    expect(param.default_value).to.equal("42");
+  });
+}

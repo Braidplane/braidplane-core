@@ -1,0 +1,24 @@
+meta {
+  name: 02 Start Install Requires Data Source Slug
+  type: http
+  seq: 3
+}
+
+post {
+  url: {{baseUrl}}/organizations/{{orgSlug}}/provider-connectors/fakecrm/installs
+  body: json
+  auth: inherit
+}
+
+body:json {
+  {
+    "intent": "create_grant",
+    "requested_scopes": ["contacts.read"]
+  }
+}
+
+tests {
+  test("should reject missing data_source_slug", function() {
+    expect(res.status).to.equal(400);
+  });
+}

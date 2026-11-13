@@ -1,0 +1,95 @@
+meta {
+  name: List user's organizations
+  type: http
+  seq: 3
+}
+
+get {
+  url: {{baseUrl}}/organizations
+  body: none
+  auth: inherit
+}
+
+tests {
+  test("should return 200 OK", function() {
+    expect(res.status).to.equal(200);
+  });
+
+  test("should return JSON", function() {
+    expect(res.headers['content-type']).to.include('application/json');
+  });
+
+  test("should return paginated organizations payload", function() {
+    expect(res.body).to.have.property('organizations');
+    expect(res.body.organizations).to.be.an('array');
+    expect(res.body).to.have.property('has_more');
+    if (res.body.has_more) {
+      expect(res.body.next_cursor).to.be.a('string').and.not.empty;
+    }
+    if (res.body.prev_cursor !== undefined) {
+      expect(res.body.prev_cursor).to.be.a('string').and.not.empty;
+    }
+  });
+
+  test("organizations should have correct structure", function() {
+    if (res.body.organizations.length > 0) {
+      const org = res.body.organizations[0];
+      expect(org).to.have.property('name');
+      expect(org).to.have.property('slug');
+      expect(org).to.have.property('member_role');
+      expect(org).to.have.property('created_at');
+      expect(org).to.have.property('updated_at');
+    }
+  });
+
+  test("should include recently created organization", function() {
+    const orgSlug = bru.getVar("orgSlug");
+    if (orgSlug) {
+      const org = res.body.organizations.find(o => o.slug === orgSlug);
+      expect(org).to.exist;
+      expect(org.member_role).to.equal('admin');
+    }
+  });
+}
+
+example {
+  name: 200 Response
+  description: List of organizations
+
+  request: {
+    url: {{baseUrl}}/organizations
+    method: GET
+    mode: none
+  }
+
+  response: {
+    headers: {
+      Content-Type: application/json
+    }
+
+    status: {
+      code: 200
+      text: OK
+    }
+
+    body: {
+      type: json
+      content: '''
+        {
+          "organizations": [
+            {
+              "name": "Acme Corp",
+              "slug": "acme-corp",
+              "member_role": "admin",
+              "created_at": "2025-10-04T10:30:00Z",
+              "updated_at": "2025-10-04T10:30:00Z"
+            }
+          ],
+          "has_more": false,
+          "next_cursor": null,
+          "prev_cursor": null
+        }
+      '''
+    }
+  }
+}

@@ -1,0 +1,26 @@
+meta {
+  name: 03 Get Own DS
+  type: http
+  seq: 5
+}
+
+get {
+  url: {{baseUrl}}/organizations/{{orgSlug1}}/data-sources/{{org1DSSlug}}
+  auth: inherit
+}
+
+script:pre-request {
+  if (!bru.getVar("org1DSSlug")) {
+    throw new Error("org1DSSlug not set - run org1 data source create first");
+  }
+}
+
+tests {
+  test("should return 200 OK", function() {
+    expect(res.status).to.equal(200);
+  });
+
+  test("should return correct data source", function() {
+    expect(res.body.slug).to.equal(bru.getVar("org1DSSlug"));
+  });
+}

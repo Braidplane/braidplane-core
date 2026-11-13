@@ -1,0 +1,48 @@
+meta {
+  name: 07 Get Active HubSpot OAuth Data Source
+  type: http
+  seq: 8
+}
+
+get {
+  url: {{baseUrl}}/organizations/{{orgSlug}}/data-sources/{{hubspotOAuthDataSourceSlug}}
+  body: none
+  auth: inherit
+}
+
+script:pre-request {
+  if (!bru.getVar("hubspotOAuthDataSourceSlug")) {
+    throw new Error("hubspotOAuthDataSourceSlug not set - run the HubSpot OAuth install request first");
+  }
+}
+
+script:post-response {
+  if (res.status === 200 && res.body?.credential) {
+    bru.setVar("hubspotOAuthCredentialBeforeReplay", JSON.stringify(res.body.credential));
+  }
+}
+
+tests {
+  test("should expose only safe active OAuth metadata", function() {
+    expect(res.status).to.equal(200);
+    expect(res.body.slug).to.equal(bru.getVar("hubspotOAuthDataSourceSlug"));
+    expect(res.body.is_active).to.equal(true);
+    expect(res.body.read_only).to.equal(true);
+    expect(res.body.credential.kind).to.equal("oauth2_grant");
+    expect(res.body.credential.status).to.equal("active");
+    expect(res.body.credential.oauth.provider).to.equal("hubspot");
+    expect(res.body.credential.oauth.account.id).to.equal("12345");
+    expect(res.body.credential.oauth.scopes).to.include("crm.objects.contacts.read");
+  });
+
+  test("should not return token or encrypted grant material", function() {
+    const response = JSON.stringify(res.body);
+    expect(response).to.not.contain('"access_token":');
+    expect(response).to.not.contain('"refresh_token":');
+    expect(response).to.not.contain("client_secret");
+    expect(response).to.not.contain("encrypted_payload");
+    expect(response).to.not.contain("token_hash");
+    expect(response).to.not.contain("pat-na1-test-token");
+    expect(response).to.not.contain("hubspot-local-refresh-token");
+  });
+}

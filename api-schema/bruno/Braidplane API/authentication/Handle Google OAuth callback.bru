@@ -1,0 +1,57 @@
+meta {
+  name: Handle Google OAuth callback
+  type: http
+  seq: 2
+}
+
+get {
+  url: {{baseUrl}}/auth/google/callback?code=unused-local-code&error=access_denied
+  body: none
+  auth: inherit
+}
+
+
+
+settings {
+  followRedirects: false
+}
+
+tests {
+  test("rejects an OAuth callback without verified state", function() {
+    expect(res.status).to.equal(302);
+    const redirect = new URL(res.headers.location);
+    expect(redirect.origin).to.equal(new URL(bru.getEnvVar('frontendUrl')).origin);
+    expect(redirect.pathname).to.equal('/auth/error');
+    expect(redirect.searchParams.get('error')).to.equal('invalid_state');
+  });
+}
+
+example {
+  name: 302 Response
+  description: Redirect to frontend (success or error)
+
+  request: {
+    url: {{baseUrl}}/auth/google/callback
+    method: GET
+    mode: none
+    params:query: {
+      code:
+      ~state:
+      ~error:
+    }
+  }
+
+  response: {
+    status: {
+      code: 302
+      text: Found
+    }
+
+    body: {
+      type: text
+      content: '''
+
+      '''
+    }
+  }
+}

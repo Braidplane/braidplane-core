@@ -1,0 +1,13 @@
+meta {
+  name: account-data-exit
+  seq: 20
+}
+
+auth {
+  mode: inherit
+}
+
+script:pre-request {
+  const cookie = bru.getVar("exitCookie");
+  if (cookie) req.setHeader("Cookie", cookie);
+}

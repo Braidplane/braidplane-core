@@ -1,0 +1,44 @@
+meta {
+  name: 04 Create Org 1
+  type: http
+  seq: 4
+}
+
+post {
+  url: {{baseUrl}}/organizations
+  body: json
+  auth: inherit
+}
+
+body:json {
+  {
+    "name": "Organization One",
+    "slug": "org-one-{{timestamp}}"
+  }
+}
+
+script:pre-request {
+  bru.deleteVar("orgSlug1");
+  req.setHeader("Cookie", `${bru.getVar("user1CookieName")}=${bru.getVar("user1CookieValue")}`);
+  bru.setVar("timestamp", Date.now());
+}
+
+script:post-response {
+  if (res.status !== 201) {
+    bru.runner.stopExecution();
+    throw new Error(`04 Create Org 1 failed with status ${res.status}`);
+  }
+
+  if (!res.body?.slug) {
+    bru.runner.stopExecution();
+    throw new Error("04 Create Org 1 did not return slug");
+  }
+
+  bru.setVar("orgSlug1", res.body.slug);
+}
+
+tests {
+  test("should create org 1 successfully", function() {
+    expect(res.status).to.equal(201);
+  });
+}

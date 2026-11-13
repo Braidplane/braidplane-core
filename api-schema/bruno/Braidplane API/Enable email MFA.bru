@@ -1,0 +1,36 @@
+meta {
+  name: Enable email MFA
+  type: http
+  seq: 6
+}
+
+patch {
+  url: {{baseUrl}}/users/profile
+  body: json
+  auth: inherit
+}
+
+body:json {
+  {
+    "mfa_email_enabled": true
+  }
+}
+
+script:pre-request {
+  const csrfToken = bru.getVar("csrfToken") || bru.getEnvVar("csrfToken");
+  if (!csrfToken) {
+    throw new Error("csrfToken not set - run 'Create a session' first.");
+  }
+  req.setHeader("X-CSRF-Token", csrfToken);
+}
+
+tests {
+  test("should return 200 OK", function() {
+    expect(res.status).to.equal(200);
+  });
+
+  test("should enable email MFA", function() {
+    expect(res.body).to.have.property('mfa_email_enabled');
+    expect(res.body.mfa_email_enabled).to.equal(true);
+  });
+}

@@ -1,0 +1,65 @@
+meta {
+  name: 04 Create Tag-Only Git DS
+  type: http
+  seq: 4
+}
+
+post {
+  url: {{baseUrl}}/organizations/{{orgSlug}}/data-sources
+  body: json
+  auth: inherit
+}
+
+body:json {
+  {
+    "name": "Tag-Only Git Repo",
+    "slug": "tag-only-git-{{timestamp}}",
+    "type": "git",
+    "config": {
+      "repo_url": "ssh://admin@127.0.0.1:{{gitSSHPort}}/tag-only-datasource-repo",
+      "default_branch": "main",
+      "allow_private_hosts": true
+    },
+    "credentials": {
+      "auth_type": "ssh",
+      "ssh_private_key": "{{gitPrivateKey}}",
+      "ssh_known_hosts": "{{gitSSHKnownHosts}}"
+    }
+  }
+}
+
+script:pre-request {
+  bru.setVar("timestamp", Date.now());
+  if (!bru.getEnvVar("orgSlug") && !bru.getVar("orgSlug")) {
+    throw new Error("orgSlug not set");
+  }
+  if (!bru.getEnvVar("gitSSHPort") && !bru.getVar("gitSSHPort")) {
+    throw new Error("gitSSHPort not set");
+  }
+  if (!bru.getEnvVar("gitPrivateKey") && !bru.getVar("gitPrivateKey")) {
+    throw new Error("gitPrivateKey not set");
+  }
+  if (!bru.getEnvVar("gitSSHKnownHosts") && !bru.getVar("gitSSHKnownHosts")) {
+    throw new Error("gitSSHKnownHosts not set");
+  }
+}
+
+script:post-response {
+  if (res.status === 201) {
+    bru.setVar("gitTagOnlyDataSourceSlug", res.body.slug);
+  }
+}
+
+tests {
+  test("should return 201 Created", function() {
+    expect(res.status).to.equal(201);
+  });
+
+  test("should have type git", function() {
+    expect(res.body.type).to.equal("git");
+  });
+
+  test("should not return credentials", function() {
+    expect(res.body).to.not.have.property("credentials");
+  });
+}

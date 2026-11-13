@@ -1,0 +1,41 @@
+meta {
+  name: 03 Org1 User Cannot Create Query on Org2 DS
+  type: http
+  seq: 3
+}
+
+post {
+  url: {{baseUrl}}/organizations/{{orgSlug1}}/data-sources/{{org2DSSlug}}/queries
+  body: json
+  auth: inherit
+}
+
+body:json {
+  {
+    "name": "Attempted Query",
+    "query_statement": {
+      "type": "postgres",
+      "sql": "SELECT 1"
+    },
+    "parameters": [],
+    "row_limit": 100,
+    "timeout_seconds": 30
+  }
+}
+
+script:pre-request {
+  const jar = bru.cookies.jar();
+  jar.clear();
+  const cookieName = bru.getVar("user1CookieName");
+  const cookieValue = bru.getVar("user1CookieValue");
+  req.setHeader("Cookie", `${cookieName}=${cookieValue}`);
+  if (!bru.getVar("org2DSSlug")) {
+    throw new Error("org2DSSlug not set - run org2 data source create first");
+  }
+}
+
+tests {
+  test("should return 404 Not Found", function() {
+    expect(res.status).to.equal(404);
+  });
+}

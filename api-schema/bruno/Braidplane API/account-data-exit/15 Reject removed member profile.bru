@@ -1,0 +1,15 @@
+meta {
+  name: Reject removed member profile
+  type: http
+  seq: 15
+}
+
+get {
+  url: {{baseUrl}}/users/profile
+  body: none
+  auth: inherit
+}
+
+tests {
+  test("denies the removed account", function() { expect(res.status).to.equal(401); });
+}

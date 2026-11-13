@@ -1,0 +1,6 @@
+{
+  "version": 1,
+  "name": "GitHub pipeline lifecycle (optional provider gate)",
+  "type": "collection",
+  "ignore": []
+}

@@ -1,0 +1,55 @@
+meta {
+  name: 02 Create custom environment with color
+  type: http
+  seq: 2
+}
+
+post {
+  url: {{baseUrl}}/organizations/{{orgSlug}}/environments
+  body: json
+  auth: inherit
+}
+
+body:json {
+  {
+    "name": "{{runtimeEnvironmentName}}",
+    "slug": "{{runtimeEnvironmentSlug}}",
+    "description": "{{runtimeEnvironmentDescription}}",
+    "color": "green",
+    "protected": false
+  }
+}
+
+script:pre-request {
+  const suffix = `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
+  const environmentSlug = `bruno-color-${suffix}`.toLowerCase();
+
+  bru.setVar("runtimeEnvironmentSlug", environmentSlug);
+  bru.setVar("runtimeEnvironmentName", `Bruno Color Environment ${suffix}`);
+  bru.setVar("runtimeEnvironmentDescription", `Bruno color lifecycle fixture ${suffix}`);
+  bru.setVar("runtimeEnvironmentUpdatedName", `Bruno Color Environment Updated ${suffix}`);
+  bru.setVar("runtimeEnvironmentUpdatedDescription", `Updated Bruno color lifecycle fixture ${suffix}`);
+}
+
+script:post-response {
+  if (res.status !== 201) {
+    bru.runner.stopExecution();
+    throw new Error(`Create environment failed with status ${res.status}`);
+  }
+}
+
+tests {
+  test("should return 201 Created", function() {
+    expect(res.status).to.equal(201);
+  });
+
+  test("should return custom environment with green color", function() {
+    expect(res.body.slug).to.equal(bru.getVar("runtimeEnvironmentSlug"));
+    expect(res.body.name).to.equal(bru.getVar("runtimeEnvironmentName"));
+    expect(res.body.description).to.equal(bru.getVar("runtimeEnvironmentDescription"));
+    expect(res.body.color).to.equal("green");
+    expect(res.body.protected).to.equal(false);
+    expect(res.body.deleted_at).to.equal(null);
+    expect(res.body.delete_reason).to.equal(null);
+  });
+}

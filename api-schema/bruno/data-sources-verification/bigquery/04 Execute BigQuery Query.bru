@@ -1,0 +1,68 @@
+meta {
+  name: 04 Execute BigQuery Query
+  type: http
+  seq: 18.4
+}
+
+post {
+  url: {{baseUrl}}/organizations/{{orgSlug}}/data-sources/{{bigQueryDataSourceSlug}}/queries/{{bigQueryQuerySlug}}/execute
+  body: json
+  auth: inherit
+}
+
+body:json {
+  {
+    "parameters": {
+      "region": "emea"
+    }
+  }
+}
+
+script:pre-request {
+  if (!bru.getVar("bigQueryQuerySlug")) {
+    throw new Error("bigQueryQuerySlug not set");
+  }
+}
+
+script:post-response {
+  if (res.status === 200 && res.body.slug) {
+    bru.setVar("bigQueryExecutionSlug", res.body.slug);
+  }
+}
+
+tests {
+  test("should return 200 OK", function() {
+    expect(res.status).to.equal(200);
+  });
+
+  test("should return successful bigquery SQL execution", function() {
+    expect(res.body.result_type).to.equal('sql');
+    expect(res.body.type).to.equal('bigquery');
+    expect(res.body.success).to.equal(true);
+    expect(res.body.duration_ms).to.be.at.least(0);
+  });
+
+  test("should return normalized BigQuery rows", function() {
+    expect(res.body.payload).to.exist;
+    expect(res.body.payload.row_count).to.equal(2);
+    expect(res.body.payload.rows).to.be.an('array').with.lengthOf(2);
+
+    const first = res.body.payload.rows[0];
+    expect(first.order_id).to.equal('o-100');
+    expect(first.region).to.equal('emea');
+    expect(first.total_amount).to.equal('123.45');
+    expect(first.active).to.equal(true);
+    expect(Number(first.item_count)).to.equal(2);
+    expect(first.metadata).to.be.an('object');
+    expect(first.metadata.source).to.equal('fixture');
+
+    expect(res.body.payload.column_names).to.include.members([
+      'order_id',
+      'region',
+      'total_amount',
+      'active',
+      'item_count',
+      'metadata'
+    ]);
+  });
+}

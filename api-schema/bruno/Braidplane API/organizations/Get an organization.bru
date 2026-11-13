@@ -1,0 +1,114 @@
+meta {
+  name: Get an organization
+  type: http
+  seq: 4
+}
+
+get {
+  url: {{baseUrl}}/organizations/:slug
+  body: none
+  auth: inherit
+}
+
+params:path {
+  slug: {{orgSlug}}
+}
+
+tests {
+  test("should return 200 OK", function() {
+    expect(res.status).to.equal(200);
+  });
+
+  test("should return JSON", function() {
+    expect(res.headers['content-type']).to.include('application/json');
+  });
+
+  test("should have organization properties", function() {
+    expect(res.body).to.have.property('name');
+    expect(res.body).to.have.property('slug');
+    expect(res.body).to.have.property('created_at');
+  });
+}
+
+example {
+  name: 200 Response
+  description: Organization details
+
+  request: {
+    url: {{baseUrl}}/organizations/:slug
+    method: GET
+    mode: none
+    params:path: {
+      slug:
+    }
+  }
+
+  response: {
+    headers: {
+      Content-Type: application/json
+    }
+
+    status: {
+      code: 200
+      text: OK
+    }
+
+    body: {
+      type: json
+      content: '''
+        {
+          "name": "Acme Corp",
+          "slug": "acme-corp",
+          "created_at": "2025-10-04T10:30:00Z",
+          "updated_at": "2025-10-04T10:30:00Z"
+        }
+      '''
+    }
+  }
+}
+
+example {
+  name: 404 Response
+  description: Organization not found
+
+  request: {
+    url: {{baseUrl}}/organizations/:slug
+    method: GET
+    mode: none
+    params:path: {
+      slug:
+    }
+  }
+
+  response: {
+    headers: {
+      Content-Type: application/json
+    }
+
+    status: {
+      code: 404
+      text: Not Found
+    }
+
+    body: {
+      type: json
+      content: '''
+        {
+          "error": {
+            "code": "",
+            "message": "",
+            "validation_errors": [
+              {
+                "field": "",
+                "code": "",
+                "message": "",
+                "details": {}
+              }
+            ],
+            "request_id": ""
+          }
+        }
+      '''
+    }
+  }
+}

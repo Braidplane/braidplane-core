@@ -1,0 +1,28 @@
+meta {
+  name: 05 Resolve notification
+  type: http
+  seq: 5
+}
+
+post {
+  url: {{baseUrl}}/organizations/:slug/notifications/:notification_slug/resolve
+  body: none
+  auth: inherit
+}
+
+params:path {
+  slug: {{orgSlug}}
+  notification_slug: {{notificationRecordSlug}}
+}
+
+tests {
+  test("should return 200 OK", function() {
+    expect(res.status).to.equal(200);
+  });
+
+  test("should mark the seeded notification resolved", function() {
+    expect(res.body.slug).to.equal(bru.getVar("notificationRecordSlug"));
+    expect(res.body.lifecycle_state).to.equal("resolved");
+    expect(res.body.resolved_at).to.be.a("string").that.is.not.empty;
+  });
+}

@@ -1,0 +1,40 @@
+meta {
+  name: GitHub proposal and exact-commit lifecycle
+  type: http
+  seq: 1
+}
+
+get {
+  url: https://api.github.com
+  auth: none
+}
+
+settings {
+  timeout: 30000
+  followRedirects: false
+}
+
+script:pre-request {
+  const lifecycle = require('./lifecycle.cjs');
+  const cfg = lifecycle.config(key => bru.getProcessEnv(key));
+  req.setUrl(`https://api.github.com/repos/${cfg.repository}/installation`);
+  req.setHeader('Authorization', `Bearer ${cfg.app_jwt}`);
+  req.setHeader('Accept', 'application/vnd.github+json');
+}
+
+tests {
+  const lifecycle = require('./lifecycle.cjs');
+  const cfg = lifecycle.config(key => bru.getProcessEnv(key));
+  const request = async options => {
+    try {
+      const response = await bru.sendRequest(options);
+      return {status: response.status, data: response.data};
+    } catch (error) {
+      if (error.response) return {status: error.response.status, data: error.response.data};
+      throw new Error('provider_or_network_unavailable');
+    }
+  };
+  await test('isolated proposal, informational Proof, merge, exact reconciliation and cleanup', async function() {
+    await lifecycle.run(cfg, request, {status: res.status, data: res.body});
+  });
+}

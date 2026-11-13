@@ -1,0 +1,22 @@
+meta {
+  name: 21 Revoke API key for hard deletion
+  type: http
+  seq: 21
+}
+
+delete {
+  url: {{baseUrl}}/organizations/:slug/api-keys/:api_key_slug
+  body: none
+  auth: inherit
+}
+
+params:path {
+  slug: {{orgSlug}}
+  api_key_slug: {{apiKeyHardDeleteSlug}}
+}
+
+tests {
+  test("should return 204 No Content", function() {
+    expect(res.status).to.equal(204);
+  });
+}

@@ -1,0 +1,22 @@
+meta {
+  name: 00 Reset BigQuery Mock
+  type: http
+  seq: 18
+}
+
+post {
+  url: {{bigqueryMockUrl}}/reset
+  auth: none
+}
+
+script:pre-request {
+  if (!bru.getEnvVar("bigqueryMockUrl") && !bru.getVar("bigqueryMockUrl")) {
+    throw new Error("bigqueryMockUrl not set");
+  }
+}
+
+tests {
+  test("should return 200 OK", function() {
+    expect(res.status).to.equal(200);
+  });
+}

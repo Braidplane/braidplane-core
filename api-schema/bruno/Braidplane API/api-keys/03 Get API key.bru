@@ -1,0 +1,30 @@
+meta {
+  name: 03 Get API key
+  type: http
+  seq: 3
+}
+
+get {
+  url: {{baseUrl}}/organizations/:slug/api-keys/:api_key_slug
+  body: none
+  auth: inherit
+}
+
+params:path {
+  slug: {{orgSlug}}
+  api_key_slug: {{apiKeySlug}}
+}
+
+tests {
+  test("should return 200 OK", function() {
+    expect(res.status).to.equal(200);
+  });
+
+  test("get should return safe API key metadata only", function() {
+    expect(res.body.slug).to.equal(bru.getVar("apiKeySlug"));
+    expect(res.body).to.have.property("token_prefix");
+    expect(res.body).to.have.property("expires_at", null);
+    expect(res.body).to.not.have.property("token");
+    expect(res.body).to.not.have.property("token_hash");
+  });
+}

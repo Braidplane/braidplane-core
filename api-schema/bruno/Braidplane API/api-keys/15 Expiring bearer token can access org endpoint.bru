@@ -1,0 +1,26 @@
+meta {
+  name: 15 Expiring bearer token can access org endpoint
+  type: http
+  seq: 15
+}
+
+get {
+  url: {{baseUrl}}/organizations/:slug/data-sources
+  body: none
+  auth: inherit
+}
+
+params:path {
+  slug: {{orgSlug}}
+}
+
+script:pre-request {
+  req.setHeader("Authorization", `Bearer ${bru.getVar("expiringAPIKeyToken")}`);
+  req.setHeader("Cookie", "");
+}
+
+tests {
+  test("non-expired API key bearer token should return 200 OK", function() {
+    expect(res.status).to.equal(200);
+  });
+}

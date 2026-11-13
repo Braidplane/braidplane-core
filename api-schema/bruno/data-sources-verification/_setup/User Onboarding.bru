@@ -1,0 +1,51 @@
+meta {
+  name: User Onboarding
+  type: http
+  seq: 1
+}
+
+post {
+  url: {{baseUrl}}/users
+  body: json
+  auth: inherit
+}
+
+body:json {
+  {
+    "full_name": "Test User",
+    "email": "testuser+{{timestamp}}@example.com",
+    "password": "SecurePass123!"
+  }
+}
+
+script:pre-request {
+  bru.deleteVar("userSlug");
+  bru.deleteVar("userEmail");
+  bru.setVar("timestamp", Date.now());
+}
+
+script:post-response {
+  if (res.status !== 201) {
+    bru.runner.stopExecution();
+    throw new Error(`User Onboarding failed with status ${res.status}`);
+  }
+
+  if (!res.body?.slug || !res.body?.email) {
+    bru.runner.stopExecution();
+    throw new Error("User Onboarding did not return slug and email");
+  }
+
+  bru.setVar("userSlug", res.body.slug);
+  bru.setVar("userEmail", res.body.email);
+  bru.setVar("userPassword", JSON.stringify("SecurePass123!"));
+}
+
+tests {
+  test("should return 201 Created", function() {
+    expect(res.status).to.equal(201);
+  });
+
+  test("should return user with slug", function() {
+    expect(res.body).to.have.property('slug');
+  });
+}

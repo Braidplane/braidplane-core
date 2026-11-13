@@ -1,0 +1,31 @@
+meta {
+  name: 10 Delete custom environment with color
+  type: http
+  seq: 10
+}
+
+delete {
+  url: {{baseUrl}}/organizations/{{orgSlug}}/environments/{{runtimeEnvironmentSlug}}?protected_environment_confirmation={{runtimeEnvironmentSlug}}&delete_reason=bruno-color-lifecycle-cleanup
+  body: none
+  auth: inherit
+}
+
+script:pre-request {
+  if (!bru.getVar("runtimeEnvironmentSlug")) {
+    bru.runner.stopExecution();
+    throw new Error("runtimeEnvironmentSlug not set - run '02 Create custom environment with color' first");
+  }
+}
+
+script:post-response {
+  if (res.status !== 204) {
+    bru.runner.stopExecution();
+    throw new Error(`Delete environment failed with status ${res.status}`);
+  }
+}
+
+tests {
+  test("should return 204 No Content", function() {
+    expect(res.status).to.equal(204);
+  });
+}

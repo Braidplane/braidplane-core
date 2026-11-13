@@ -1,0 +1,37 @@
+meta {
+  name: 01 List notifications
+  type: http
+  seq: 1
+}
+
+get {
+  url: {{baseUrl}}/organizations/:slug/notifications?limit=10
+  body: none
+  auth: inherit
+}
+
+params:path {
+  slug: {{orgSlug}}
+}
+
+tests {
+  test("should return 200 OK", function() {
+    expect(res.status).to.equal(200);
+  });
+
+  test("should include the seeded notification", function() {
+    expect(res.body.notifications).to.be.an("array");
+    const notification = res.body.notifications.find(item => item.slug === bru.getVar("notificationRecordSlug"));
+    expect(notification).to.exist;
+    expect(notification.summary).to.equal("Seeded pipeline retry exhausted needs attention");
+    expect(notification.dispatch_statuses).to.be.an("array").that.is.not.empty;
+  });
+
+  test("should not expose worker queue fields in dispatch summaries", function() {
+    const notification = res.body.notifications.find(item => item.slug === bru.getVar("notificationRecordSlug"));
+    const dispatch = notification.dispatch_statuses[0];
+    expect(dispatch).to.not.have.property("job_kind");
+    expect(dispatch).to.not.have.property("job_queue");
+    expect(dispatch).to.not.have.property("job_state");
+  });
+}

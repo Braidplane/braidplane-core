@@ -1,0 +1,108 @@
+meta {
+  name: 06 Verify User 2 Email
+  type: http
+  seq: 6
+}
+
+post {
+  url: {{baseUrl}}/auth/email/verify
+  body: json
+  auth: inherit
+}
+
+body:json {
+  {
+    "token": "{{verificationTokenUser2}}"
+  }
+}
+
+script:pre-request {
+  const axios = require('axios');
+  const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+  function recipientAddress(recipient) {
+    if (!recipient) {
+      return "";
+    }
+    if (typeof recipient === "string") {
+      return recipient;
+    }
+    return recipient.Address || recipient.address || recipient.Email || recipient.email || "";
+  }
+
+  function messageMatchesRecipient(message, email) {
+    const target = email.toLowerCase();
+    for (const field of [message.To, message.to]) {
+      const recipients = Array.isArray(field) ? field : field ? [field] : [];
+      for (const recipient of recipients) {
+        if (recipientAddress(recipient).toLowerCase() === target) {
+          return true;
+        }
+      }
+    }
+    return false;
+  }
+
+  async function fetchVerificationEmail(mailpitUrl, userEmail) {
+    const searchUrl = `${mailpitUrl}/api/v1/messages?search=to:${encodeURIComponent(userEmail)}`;
+    let lastMessageCount = 0;
+
+    for (let attempt = 1; attempt <= 20; attempt += 1) {
+      const mailpitResponse = await axios.get(searchUrl);
+      const payload = mailpitResponse?.data ?? mailpitResponse?.body ?? mailpitResponse;
+      const messages = payload?.messages;
+
+      if (!messages) {
+        const preview = typeof payload === 'string'
+          ? payload.slice(0, 200)
+          : JSON.stringify(payload);
+        bru.runner.stopExecution();
+        throw new Error(`Unexpected Mailpit response: ${preview}`);
+      }
+
+      lastMessageCount = messages.length;
+      const email = messages.find((message) => message.Subject === "Please verify your email address" && messageMatchesRecipient(message, userEmail));
+      if (email) {
+        return email;
+      }
+
+      await sleep(500);
+    }
+
+    bru.runner.stopExecution();
+    throw new Error(`No verification email found for ${userEmail} after waiting. Last Mailpit result count: ${lastMessageCount}.`);
+  }
+
+  const userEmail = bru.getVar("user2Email");
+  if (!userEmail) {
+    bru.runner.stopExecution();
+    throw new Error("user2Email not set - run '05 Create User 2' first");
+  }
+  bru.deleteVar("verificationToken");
+
+  const mailpitUrl = bru.getEnvVar("mailpitUrl") || bru.getEnvVar("mailpit_url");
+  if (!mailpitUrl) {
+    bru.runner.stopExecution();
+    throw new Error("mailpitUrl/mailpit_url not set in active environment");
+  }
+
+  const latestEmail = await fetchVerificationEmail(mailpitUrl, userEmail);
+  // Mailpit snippets may truncate the verification or reset link.
+  const message = await axios.get(`${mailpitUrl}/api/v1/message/${latestEmail.ID}`);
+  const content = message.data.Text;
+  const tokenMatch = content.match(/token=([a-f0-9]{64})/);
+  if (!tokenMatch || !tokenMatch[1]) {
+    bru.runner.stopExecution();
+    throw new Error("Could not extract verification token from email");
+  }
+
+  const verificationToken = tokenMatch[1];
+  bru.setVar("verificationTokenUser2", verificationToken);
+  req.setBody({ token: verificationToken });
+}
+
+tests {
+  test("should return 204 No Content", function() {
+    expect(res.status).to.equal(204);
+  });
+}

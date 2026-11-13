@@ -1,0 +1,61 @@
+meta {
+  name: 01 Create BigQuery DS
+  type: http
+  seq: 18.1
+}
+
+post {
+  url: {{baseUrl}}/organizations/{{orgSlug}}/data-sources
+  body: json
+  auth: inherit
+}
+
+body:json {
+  {
+    "name": "Test BigQuery Warehouse",
+    "slug": "test-bigquery-{{timestamp}}",
+    "type": "bigquery",
+    "config": {
+      "project_id": "analytics-prod",
+      "location": "US",
+      "default_dataset": "analytics",
+      "timeout_seconds": 5,
+      "maximum_bytes_billed": 1000000
+    },
+    "credentials": {
+      "service_account_json": "{{bigqueryServiceAccount}}"
+    }
+  }
+}
+
+script:pre-request {
+  bru.setVar("timestamp", Date.now());
+  if (!bru.getVar("orgSlug")) {
+    throw new Error("orgSlug not set");
+  }
+  if (!bru.getEnvVar("bigqueryMockUrl") && !bru.getVar("bigqueryMockUrl")) {
+    throw new Error("bigqueryMockUrl not set");
+  }
+}
+
+script:post-response {
+  if (res.status === 201) {
+    bru.setVar("bigQueryDataSourceSlug", res.body.slug);
+  }
+}
+
+tests {
+  test("should return 201 Created", function() {
+    expect(res.status).to.equal(201);
+  });
+
+  test("should create bigquery data source without returning credentials", function() {
+    expect(res.body.type).to.equal('bigquery');
+    expect(res.body.credentials === undefined).to.equal(true);
+
+    const bodyText = JSON.stringify(res.body);
+    expect(bodyText).to.not.include('service_account_json');
+    expect(bodyText).to.not.include('PRIVATE KEY');
+    expect(bodyText).to.not.include('fake');
+  });
+}

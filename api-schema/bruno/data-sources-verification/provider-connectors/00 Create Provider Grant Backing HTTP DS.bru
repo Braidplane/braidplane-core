@@ -1,0 +1,57 @@
+meta {
+  name: 00 Create Provider Grant Backing HTTP DS
+  type: http
+  seq: 1
+}
+
+post {
+  url: {{baseUrl}}/organizations/{{orgSlug}}/data-sources
+  body: json
+  auth: inherit
+}
+
+body:json {
+  {
+    "name": "Provider Grant Backing HTTP DS",
+    "slug": "provider-grant-http-{{timestamp}}",
+    "type": "http",
+    "config": {
+      "base_url": "{{httpcrudUrl}}",
+      "openapi_url": "{{openapiServerUrl}}",
+      "openapi_fetch_timeout_seconds": 12,
+      "health_path": "/health",
+      "timeout_seconds": 30,
+      "allow_private_hosts": true
+    },
+    "credentials": {
+      "bearer_token": "provider-grant-contract-token"
+    }
+  }
+}
+
+script:pre-request {
+  bru.setVar("timestamp", Date.now());
+  if (!bru.getEnvVar("httpcrudUrl") && !bru.getVar("httpcrudUrl")) {
+    throw new Error("httpcrudUrl not set");
+  }
+  if (!bru.getEnvVar("openapiServerUrl") && !bru.getVar("openapiServerUrl")) {
+    throw new Error("openapiServerUrl not set");
+  }
+}
+
+script:post-response {
+  if (res.status === 201) {
+    bru.setVar("providerGrantDataSourceSlug", res.body.slug);
+  }
+}
+
+tests {
+  test("should create backing data source", function() {
+    expect(res.status).to.equal(201);
+  });
+
+  test("should not return credentials", function() {
+    expect(res.body).to.not.have.property("credentials");
+    expect(JSON.stringify(res.body)).to.not.contain("provider-grant-contract-token");
+  });
+}

@@ -1,0 +1,110 @@
+meta {
+  name: Introspect schema
+  type: http
+  seq: 10
+}
+
+get {
+  url: {{baseUrl}}/organizations/:slug/data-sources/:ds_slug/schema
+  body: none
+  auth: inherit
+}
+
+params:path {
+  slug: {{orgSlug}}
+  ds_slug: {{dataSourceSlug}}
+}
+
+script:pre-request {
+  const url = `${bru.getEnvVar("baseUrl")}/organizations/${bru.getVar("orgSlug")}/data-sources/${bru.getVar("dataSourceSlug")}`;
+  let ready = false;
+  for (let attempt = 0; attempt < 30; attempt++) {
+    const response = await bru.sendRequest({method: "GET", url, headers: {Cookie: bru.getVar("legacySessionCookie")}});
+    if (response.status !== 200) throw new Error(`Schema readiness read failed: ${response.status}`);
+    if (response.data.schema_status === "ready") { ready = true; break; }
+    if (response.data.schema_status === "failed") throw new Error("Schema import failed");
+    await new Promise(resolve => setTimeout(resolve, 1000));
+  }
+  if (!ready) throw new Error("Schema import did not finish within 30 seconds");
+  // Ensure we have orgSlug and dataSourceSlug from previous requests
+  if (!bru.getVar("orgSlug")) {
+    throw new Error("orgSlug not set - run 'Create an organization' first");
+  }
+  if (!bru.getVar("dataSourceSlug")) {
+    throw new Error("dataSourceSlug not set - run 'Create a data source' first");
+  }
+}
+
+tests {
+  test("should return 200 OK", function() {
+    expect(res.status).to.equal(200);
+  });
+
+  test("should return JSON", function() {
+    expect(res.headers['content-type']).to.include('application/json');
+  });
+
+  test("should return schema with schema_type", function() {
+    expect(res.body).to.be.an('object');
+    expect(res.body).to.have.property('schema_type');
+  });
+
+  test("should return concrete schema shape for the reported schema type", function() {
+    const schemaType = res.body.schema_type;
+
+    if (schemaType === 'sql') {
+      expect(res.body).to.have.property('tables');
+      expect(res.body.tables).to.be.an('array').and.not.empty;
+      res.body.tables.forEach(function(table) {
+        expect(table.name).to.be.a('string').and.not.empty;
+        expect(table.columns).to.be.an('array').and.not.empty;
+        table.columns.forEach(function(column) {
+          expect(column.name).to.be.a('string').and.not.empty;
+          expect(column.type).to.be.a('string').and.not.empty;
+        });
+      });
+      return;
+    }
+
+    if (schemaType === 'http') {
+      expect(res.body).to.have.property('operations');
+      expect(res.body.operations).to.be.an('array').and.not.empty;
+      res.body.operations.forEach(function(op) {
+        expect(op.id).to.be.a('string').and.not.empty;
+        expect(op.path).to.be.a('string').and.not.empty;
+        expect(op.method).to.be.a('string').and.not.empty;
+      });
+      return;
+    }
+
+    if (schemaType === 'document') {
+      expect(res.body).to.have.property('collections');
+      expect(res.body.collections).to.be.an('array').and.not.empty;
+      res.body.collections.forEach(function(collection) {
+        expect(collection.name).to.be.a('string').and.not.empty;
+        expect(collection.fields).to.be.an('array').and.not.empty;
+        collection.fields.forEach(function(field) {
+          expect(field.name).to.be.a('string').and.not.empty;
+          expect(field.type).to.be.a('string').and.not.empty;
+        });
+      });
+      return;
+    }
+
+    if (schemaType === 'file') {
+      expect(res.body).to.have.property('files');
+      expect(res.body.files).to.be.an('array');
+      res.body.files.forEach(function(file) {
+        expect(file.name).to.be.a('string').and.not.empty;
+        expect(file.fields).to.be.an('array');
+        file.fields.forEach(function(field) {
+          expect(field.name).to.be.a('string').and.not.empty;
+          expect(field.type).to.be.a('string').and.not.empty;
+        });
+      });
+      return;
+    }
+
+    throw new Error('unexpected schema_type: ' + schemaType);
+  });
+}

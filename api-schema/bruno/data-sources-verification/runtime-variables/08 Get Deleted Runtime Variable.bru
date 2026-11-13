@@ -1,0 +1,23 @@
+meta {
+  name: 08 Get Deleted Runtime Variable
+  type: http
+  seq: 8
+}
+
+get {
+  url: {{baseUrl}}/organizations/{{orgSlug}}/environments/{{prodEnvironmentSlug}}/runtime-variables/s3_prefix
+  body: none
+  auth: inherit
+}
+
+script:pre-request {
+  if (!bru.getVar("prodEnvironmentSlug")) {
+    bru.setVar("prodEnvironmentSlug", "prod");
+  }
+}
+
+tests {
+  test("should return 404 Not Found", function() {
+    expect(res.status).to.equal(404);
+  });
+}

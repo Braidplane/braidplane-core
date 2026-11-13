@@ -1,0 +1,16 @@
+meta {
+  name: 10 Delete HubSpot DS
+  type: http
+  seq: 18.3
+}
+
+delete {
+  url: {{baseUrl}}/organizations/{{orgSlug}}/data-sources/{{hubspotDataSourceSlug}}
+  auth: inherit
+}
+
+tests {
+  test("should return 204 No Content", function() {
+    expect(res.status).to.equal(204);
+  });
+}

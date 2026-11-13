@@ -1,0 +1,26 @@
+meta {
+  name: 04 Bearer token can access org endpoint
+  type: http
+  seq: 4
+}
+
+get {
+  url: {{baseUrl}}/organizations/:slug/data-sources
+  body: none
+  auth: inherit
+}
+
+params:path {
+  slug: {{orgSlug}}
+}
+
+script:pre-request {
+  req.setHeader("Authorization", `Bearer ${bru.getVar("apiKeyToken")}`);
+  req.setHeader("Cookie", "");
+}
+
+tests {
+  test("should authorize bearer token with API key role permissions", function() {
+    expect(res.status).to.equal(200);
+  });
+}

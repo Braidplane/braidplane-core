@@ -1,0 +1,37 @@
+meta {
+  name: Create disposable member
+  type: http
+  seq: 0
+}
+
+post {
+  url: {{baseUrl}}/users
+  body: json
+  auth: inherit
+}
+
+body:json {
+  {
+    "full_name": "Bruno Disposable Member",
+    "email": "bruno-member-{{memberTimestamp}}@example.com",
+    "password": "SecurePass123!"
+  }
+}
+
+script:pre-request {
+  bru.setVar("memberTimestamp", Date.now());
+}
+
+script:post-response {
+  if (res.status === 201) {
+    bru.setVar("memberUserSlug", res.body.slug);
+  }
+}
+
+tests {
+  test("creates an isolated member without changing the owner", function() {
+    expect(res.status).to.equal(201);
+    expect(res.body.slug).to.be.a("string").and.not.empty;
+    expect(res.body.slug).not.to.equal(bru.getVar("authenticatedUserSlug"));
+  });
+}
