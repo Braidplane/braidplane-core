@@ -3,10 +3,13 @@
 The normal flow is:
 
 **Merge reviewed, labeled change → successful main CI → version and notes →
-built candidate → protected artifact approval → publication and verification.**
+built candidate → verified GitHub prerelease → explicit stable promotion.**
 
 There is no release-plan PR or version-only source commit. Generated metadata
-stays outside the clean checkout and is reviewed with the exact candidate.
+stays outside the clean checkout and is bound to the exact candidate. All
+eligible `v0` candidates publish automatically as prereleases. An explicit
+promotion dispatch authorizes each stable release.
+Only pre-v1 versions are supported by the current version-selection policy.
 
 ## Reviewer labels and automatic candidates
 
@@ -16,13 +19,16 @@ Before merging a product PR, the reviewer selects exactly one label:
 |---|---|
 | `release:patch` | Compatible bug or performance fix; next patch |
 | `release:minor` | New feature; next minor, patch reset to zero |
-| `release:breaking` | Incompatible change; explicit minor before v1 |
+| `release:breaking` | Incompatible change; minor bump and explicit breaking-change notes |
 | `release:none` | Docs, tests, CI or tooling without a distributed behavior change |
 
 Add `release:security` only for a disclosure-approved expedited security release.
 It marks the notes and records the preceding version as superseded. Review
 compatibility across API, CLI, configuration, connectors and installation/migration
-contracts. Labels declare that review; the tool does not infer compatibility.
+contracts. Breaking changes are normal during v0 development and are marked
+**Breaking change** in release notes; they follow the same candidate and
+promotion path as other changes. Labels declare compatibility review; the tool does not
+infer it.
 Missing, conflicting or unsupported labels stop preparation until corrected.
 After fixing labels, rerun the failed automatic preparation run; there is no
 need to rerun successful product CI just to select a release.
@@ -36,30 +42,28 @@ dispatch the existing `core-release.yml`; it cannot write source, create PRs,
 sign, publish packages, use deployment environments or restore contribution
 artifacts/caches.
 
-Eligible merged changes since the latest completed release are batched into the
-candidate. The initial cursor is the reviewed source in `ci/core-release-start.json`.
-Direct main commits without a merged PR stop preparation for operator
-reconciliation. Pure `release:none` batches produce no candidate. Reserved
-versions determine the next version; a reservation alone does not advance the
-completed-release source cursor. Changes from an abandoned reservation therefore
-remain included in the next candidate, with the reserved version superseded.
+Eligible merged changes since the latest completed stable release are batched into
+one candidate. The initial cursor is the reviewed source in `ci/core-release-start.json`.
+Direct main commits without a merged PR stop preparation for operator reconciliation.
+A `release:none`-only addition does not create a duplicate candidate. Reserved RC
+numbers are never reused, even after an abandoned run. A feature or breaking change
+selects the next minor target; its RC sequence starts independently. Only a completed
+stable release advances the cursor.
 
 The reviewed [release configuration](../ci/core-release.json) pins the selected
-platform and external image digests. Initial pins reuse the self-hosted fixture
-images; this does not independently qualify their distribution or hardware support.
-Change this source configuration through normal review. The automated path uses
-the highest stable pre-v1 reservation, starting from `v0.0.0` when none exists.
+platform and external image digests. Change this configuration through normal review.
+These pins do not independently qualify distribution or hardware support.
 
 The dispatcher submits the source configuration and exact main CI run/attempt
 to `core-release.yml`. That workflow checks CI again, selects the version when
 its job starts and refuses changed configuration or source. This accounts for
 an earlier queued candidate being published first; already-published or
-`release:none` work cleanly skips artifact approval. A main advance or
+`release:none` work cleanly skips publication. A main advance or
 label/version race can safely stop an old dispatch; use the run for the current
 successful main revision. Duplicate completion events do not start another
 candidate for the same source.
 
-## Review and enablement
+## Authorization and enablement
 
 `CORE_RELEASE_PREPARATION_ENABLED=true` enables automatic dispatch and public
 candidate preparation. Review the merged source/configuration and exposure of
@@ -74,15 +78,17 @@ The installation archive contains those same metadata bytes. Its digest in the
 signed record and archive provenance authenticates the notes and receipt without
 another signing workflow or an additional source commit.
 
-`CORE_RELEASE_PUBLICATION_ENABLED=true` allows the prepared candidate to reach
-the protected `core-release` environment. Keep required release-owner approval,
-main-only deployment policy and disabled admin bypass. Before approving, review
-the exact approval digest, source/workflow, generated version/changelog/input
-receipt, image/archive identities, migration catalog and CI admission shown in
-the summary. Approval authorizes these artifact bytes, not a later rebuild.
-The flags can remain enabled for this approved flow; each publication still
-requires its own protected artifact approval. Disable preparation/publication
-when its provider controls or release qualification are not ready.
+`CORE_RELEASE_PUBLICATION_ENABLED=true` enables automatic RC publication. The `core-release` environment must allow only `main`, have
+no required reviewers or wait timer, and keep administrator bypass disabled.
+Keep the immutable tag rules below active. Candidate validation enforces the
+pre-v1 selection and exact source/configuration before registry or signing work.
+
+The existing `approval.json` filename identifies the candidate's immutable
+identity manifest; it does not imply a human approval step. The publisher checks
+its digest, generated metadata, image/archive bytes, migration catalog and exact
+main CI admission automatically. The flags can remain enabled for normal v0
+development. Disable preparation/publication if qualification or provider
+controls are unavailable; do not weaken checks or broaden permissions to recover.
 
 ## Immutable identities and publication
 
@@ -93,8 +99,8 @@ prevent an administrator from changing rules outside this workflow.
 
 Publication first reserves:
 
-- `v0.X.Y`: exact source revision shared by the release identity.
-- `core-candidate/v0.X.Y/linux-amd64` (or `linux-arm64`): exact approval digest,
+- `v0.X.Y-rc.N`: exact source revision shared by the candidate identity.
+- `core-candidate/v0.X.Y-rc.N/linux-amd64` (or `linux-arm64`): exact approval digest,
   full artifact/migration record, source/workflow identity, candidate metadata
   hashes and hashes of the reviewed configuration, workflow and toolchain file.
 
@@ -107,15 +113,34 @@ and signing steps; contribution output is never promoted.
 After signing, verification requires the expected public repository, workflow,
 source/signer revision, hosted runner and current run/attempt for all ten subjects:
 record and archive provenance, plus provenance and SBOM for each of four images.
-Only then is `core-published/v0.X.Y/linux-amd64` created. A candidate tag or an
+Only then is `core-published/v0.X.Y-rc.N/linux-amd64` created and the GitHub prerelease published. A candidate tag or an
 uploaded Actions artifact alone is not a completed release.
 
-Downstream consumers resolve the published tag and pin source, migration and
-OCI digests. Retain verification receipts, signature bundles, archive and identity
-JSON from `core-release-evidence-*` in the approved evidence store before Actions
-retention expires. Tags retain identity, not downloadable archive bytes or
-run-specific verification receipts. A download page or GitHub Release remains a
-separate publication operation.
+## Promote a candidate
+
+Dispatch promotion from `main` with the candidate and platform:
+
+```sh
+gh workflow run core-release-promote.yml --repo Braidplane/braidplane-core --ref main -f candidate=v0.1.0-rc.2 -f platform=linux/amd64
+```
+
+The workflow selects the latest completed RC, checks its original successful run,
+and verifies all ten signatures again. It does not rebuild. It creates the stable
+version tag and GitHub Release with cumulative notes, then creates the stable
+`core-published` tag after the release assets. RC publication and promotion share
+a concurrency group with `queue: max`, so up to 100 pending runs wait without
+replacing one another. Promotion selects the newest candidate source on main;
+completion time breaks ties for the same source. The main-only `core-release` environment has no required
+reviewers or wait timer, and administrator bypass is disabled.
+
+The stable assets are identical to the candidate assets. The signed archive and
+record retain the RC version; `promotion.json` binds the stable alias to the exact
+RC identity. Stable release notes use the stable heading. Existing `v0.0.1`
+remains available.
+
+Downstream consumers pin source, migration and OCI digests. Retain verification
+receipts, signature bundles, archive and identity JSON before Actions retention
+expires. Tags retain identity, not downloadable archive bytes or run receipts.
 
 ## Interrupted and retried runs
 
@@ -123,10 +148,10 @@ separate publication operation.
    `core-published/` means incomplete, even when registry images exist.
 2. Preserve the candidate, approval digest, partial signatures and logs. Rerun a
    failed publication job in the same run while its original candidate is
-   available, then reapprove those same bytes. Digest copies can be repeated;
+   available. It validates those same bytes automatically. Digest copies can be repeated;
    verification requires the new attempt's signatures before completion.
 3. A new build may produce different bytes. Never replace a reserved identity,
-   delete tags or weaken checks. If an approved candidate was lost, prepare a
+   delete tags or weaken checks. If the candidate was lost, prepare a
    newly reviewed version from the latest successful main source; the old
    reservation remains audit history and does not consume its pending changes.
 4. For a terminal preparation failure before reservation, inspect the failure
@@ -135,9 +160,8 @@ separate publication operation.
    dispatch remains available with the source configuration and exact successful
    main CI run/attempt. An optional expected version can refuse an unexpected
    selection. Incorrect values fail admission.
-5. If source advances while a candidate awaits approval, its original artifact
-   identity remains unchanged. Approve only the candidate intended for release;
-   newer main CI can queue a later candidate. An older candidate cannot reuse a
+5. If source advances while a candidate is building or queued, its original
+   artifact identity remains unchanged; newer main CI can queue a later candidate. An older candidate cannot reuse a
    version reserved for different source or bytes.
 
 Superseding/security releases get new identities. Prior completed releases remain
@@ -147,10 +171,10 @@ governs whether rollback is safe.
 Local checks:
 
 ```sh
-python3 -m unittest scripts.test_prepare_core_release scripts.test_core_release_version scripts.test_core_release_identity
+python3 -m unittest scripts.test_prepare_core_release scripts.test_core_release_version scripts.test_core_release_identity scripts.test_publish_core_release scripts.test_promote_core_release
 bash scripts/go-toolchain.sh test -short ./ci
 ```
 
-Local checks do not prove provider review controls, tag enforcement, live
-publication or signer acceptance. Those require a separately approved
-exact-artifact rehearsal. See [CI trust boundary](CI_TRUST_BOUNDARY.md).
+Local checks do not prove provider branch restrictions, tag enforcement, live
+publication or signer acceptance. Record those results from the actual automatic
+release run; a passing build or queued job alone is insufficient. See [CI trust boundary](CI_TRUST_BOUNDARY.md).

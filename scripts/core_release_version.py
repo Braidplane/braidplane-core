@@ -1,6 +1,5 @@
-"""Select a pre-v1 version and validate the candidate notes reviewed at approval."""
+"""Select pre-v1 versions and bind their generated release notes to candidates."""
 import re
-
 
 
 def select(previous, bump, changes):
@@ -25,14 +24,15 @@ def validate_plan(plan, changelog, version):
     if not isinstance(plan, dict) or set(plan) != {"previous", "bump", "changes", "version", "security", "supersedes"}:
         raise ValueError("invalid reviewed release plan")
     selected = select(plan["previous"], plan["bump"], plan["changes"])
-    if selected is None or selected != version or plan["version"] != version:
+    if (selected is None or not isinstance(version, str) or
+            not re.fullmatch(re.escape(selected) + r"(?:-rc\.[1-9][0-9]*)?", version) or plan["version"] != version):
         raise ValueError("release version differs from reviewed selection")
     if type(plan["security"]) is not bool or not isinstance(plan["supersedes"], list):
         raise ValueError("invalid release relationship")
     for old in plan["supersedes"]:
         if not isinstance(old, str) or not re.fullmatch(r"v0\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)", old):
             raise ValueError("invalid superseded version")
-        if tuple(map(int, old[1:].split('.'))) >= tuple(map(int, version[1:].split('.'))):
+        if tuple(map(int, old[1:].split('.'))) >= tuple(map(int, selected[1:].split('.'))):
             raise ValueError("superseded version must be older")
     section = notes(plan)
     actual = changelog.split(f"## {version}\n", 1)[-1].split("\n## ", 1)[0]
@@ -47,8 +47,10 @@ def notes(plan):
         lines += ["Expedited security release.", ""]
     if plan["supersedes"]:
         lines += ["Supersedes: " + ", ".join(plan["supersedes"]) + ".", ""]
-    return "\n".join(lines + [f"- {c['summary']}" for c in plan["changes"]]) + "\n"
-
+    for change in plan["changes"]:
+        marker = "**Breaking change:** " if change["kind"] == "breaking" else ""
+        lines.append(f"- {marker}{change['summary']}")
+    return "\n".join(lines) + "\n"
 
 
 def with_notes(changelog, plan):

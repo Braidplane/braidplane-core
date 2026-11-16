@@ -3,14 +3,16 @@
 This contract applies to Community Alpha releases while the version is below
 `1.0.0`. Use the documentation and OpenAPI document from your installed release.
 The schema's current version is `0.0.1`. Use the release notes for application
-and CLI version information.
+and CLI version information. RC prereleases collect changes since the latest
+stable release; stable releases require explicit promotion of a completed RC.
 
 ## Alpha changes
 
 Braidplane aims to follow semantic versioning on a best-effort basis before
 `1.0.0`: patch releases contain compatible bug and performance fixes; new
 features and breaking changes require an explicitly selected minor release.
-This convention does not guarantee backward compatibility during Alpha.
+Breaking changes are expected during Alpha and are marked explicitly in the
+release notes.
 
 Alpha releases may change APIs, generated clients and CLI behavior without a
 deprecation period. Third-party clients currently have no compatibility guarantee.

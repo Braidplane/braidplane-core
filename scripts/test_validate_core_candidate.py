@@ -25,7 +25,7 @@ class ValidateCoreCandidateTest(unittest.TestCase):
         (self.root / "build").mkdir()
         (self.root / "build" / "baseline").write_bytes(b"synthetic build evidence")
         self.release = manifest()
-        self.release["version"] = "v0.1.0"
+        self.release["version"] = "v0.1.0-rc.1"
         images = {}
         for name in BINARIES:
             path = self.root / "oci" / f"{name}.tar"
@@ -33,6 +33,7 @@ class ValidateCoreCandidateTest(unittest.TestCase):
             self.release["images"][name] = f"ghcr.io/example/core-{name}@{digest}"
             images[name] = {"manifest_digest": digest, "oci_archive_sha256": file_hash(path)}
         plan = release_plan("v0.0.0", [dict(number=1, title="Synthetic feature", labels=[dict(name="release:minor")])])
+        plan["version"] = self.release["version"]
         self.metadata = {"release-plan.json": json.dumps(plan).encode(), "release-inputs.json": json.dumps(dict(through_sha="a" * 40)).encode(), "CHANGELOG.md": notes(plan).encode()}
         for name, contents in self.metadata.items():
             (self.root / name).write_bytes(contents)

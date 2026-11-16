@@ -248,8 +248,9 @@ controlled fork rehearsal:
 
 Hosted runners have Internet access. Read-only tokens and absent secrets do not
 establish network isolation. Release preparation and publication need separate
-qualification and maintainer approval through the protected workflow. Release
-jobs must verify reviewed source and artifacts without restoring Community caches.
+qualification through the main-only release workflow. Maintainer-reviewed labels
+authorize automatic v0 prereleases, including breaking changes marked in the
+notes. Stable publication requires an explicit promotion dispatch. Release jobs must verify reviewed source and artifacts without restoring Community caches.
 
 For release procedures and runner isolation requirements, see
 [CI trust boundary](doc/CI_TRUST_BOUNDARY.md). Reviewers classify merged changes

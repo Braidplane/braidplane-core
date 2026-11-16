@@ -61,16 +61,18 @@ class ReleaseIdentityTest(unittest.TestCase):
             self.assertEqual(bind_mock.call_args.args[1], 'core-published/v0.1.0/linux-amd64')
             self.assertEqual(verify.call_args.args[2]['attempt'], '2')
 
-    def test_baseline_requires_existing_latest_reservation_in_line(self):
+    def test_baseline_requires_rc_and_current_stable_reservation(self):
         def refs(*versions):
             return [dict(ref="refs/tags/" + version) for version in versions]
-        plan = dict(previous="v0.2.3", version="v0.2.4")
-        with patch('scripts.core_release_identity.api', return_value=refs("v0.2.3", "v0.2.4", "v0.3.0")):
+        plan = dict(previous="v0.2.3", version="v0.2.4-rc.2")
+        with patch('scripts.core_release_identity.api', return_value=refs("v0.2.3", "v0.2.4-rc.1")):
             baseline("Example/core", plan)
         for history in (refs(), refs("v0.2.3", "v0.2.5")):
             with patch('scripts.core_release_identity.api', return_value=history), self.assertRaises(ValueError):
                 baseline("Example/core", plan)
         with patch('scripts.core_release_identity.api', return_value=[]):
+            baseline("Example/core", dict(previous="v0.0.0", version="v0.0.1-rc.1"))
+        with patch('scripts.core_release_identity.api', return_value=[]), self.assertRaisesRegex(ValueError, 'requires a pre-v1 RC'):
             baseline("Example/core", dict(previous="v0.0.0", version="v0.0.1"))
 
     def test_ref_inventory_reads_all_pages(self):
@@ -91,7 +93,7 @@ class ReleaseIdentityTest(unittest.TestCase):
                 path.parent.mkdir(parents=True, exist_ok=True)
                 path.write_text(contents)
             env = dict(GITHUB_REPOSITORY="Example/core", GITHUB_SHA="a" * 40, GITHUB_WORKFLOW_SHA="a" * 40,
-                       GITHUB_WORKFLOW_REF="Example/core/.github/workflows/core-release.yml@refs/heads/main")
+                       GITHUB_WORKFLOW_REF="Example/core/.github/workflows/core-release.yml@refs/heads/main", GITHUB_RUN_ID="123")
             record = dict(release=dict(version="v0.1.1"))
             with patch('scripts.core_release_identity.validate_candidate', return_value=record), \
                  patch('scripts.core_release_identity.subprocess.check_output', side_effect=["a" * 40, b""]):

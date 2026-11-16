@@ -41,7 +41,7 @@ A skipped integration test does not prove runtime behavior.
 For release versioning or publication changes, also run the release/installation
 Python regression suite listed in `test` in `Taskfile.yml` and `task docs-check`.
 See [release versioning and recovery](CORE_RELEASE_AUTOMATION.md) for the operator
-contract. Provider tag rules, protected approvals and live signing require a
+contract. Provider tag rules, protected environments and live signing require a
 separately authorized release rehearsal.
 
 ## Full core verification

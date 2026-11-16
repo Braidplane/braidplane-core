@@ -244,6 +244,13 @@ func TestCommunityWorkflowTrustBoundary(t *testing.T) {
 		{"composite secret", ".github/actions/cache-fixture-images/action.yml", "        CACHE_ENABLED:", "        TOKEN: ${{ secrets.RELEASE_TOKEN }}\n        CACHE_ENABLED:"},
 		{"composite release cache", ".github/actions/cache-fixture-images/action.yml", "key: community-fixture-", "key: release-fixture-"},
 		{"release missing source history", ".github/workflows/core-release.yml", "          fetch-depth: 0\n", "          fetch-depth: 1\n"},
+		{"release lossy queue", ".github/workflows/core-release.yml", "queue: max", "queue: single"},
+		{"planner lossy queue", ".github/workflows/core-release-plan.yml", "queue: max", "queue: single"},
+		{"promotion lossy queue", ".github/workflows/core-release-promote.yml", "queue: max", "queue: single"},
+		{"promotion automatic trigger", ".github/workflows/core-release-promote.yml", "  workflow_dispatch:", "  push:\n  workflow_dispatch:"},
+		{"promotion signing authority", ".github/workflows/core-release-promote.yml", "      packages: read", "      packages: read\n      id-token: write"},
+		{"promotion no environment", ".github/workflows/core-release-promote.yml", "    environment: core-release", "    environment: unprotected"},
+		{"promotion skipped verification", ".github/workflows/core-release-promote.yml", "      - name: Verify RC and publish stable release\n", "      - name: Verify RC and publish stable release\n        if: false\n"},
 		{"release plan fork event", ".github/workflows/core-release-plan.yml", "  workflow_run:", "  pull_request_target:\n  workflow_run:"},
 		{"release plan untrusted CI", ".github/workflows/core-release-plan.yml", "github.event.workflow_run.event == 'push'", "true"},
 		{"release plan stale CI", ".github/workflows/core-release-plan.yml", "github.event.workflow_run.head_sha == github.sha", "true"},
@@ -307,6 +314,7 @@ func communityBoundary(files map[string]string) error {
 		".github/workflows/ci.yml":                         true,
 		".github/workflows/core-release.yml":               true,
 		".github/workflows/core-release-plan.yml":          true,
+		".github/workflows/core-release-promote.yml":       true,
 		".github/actions/cache-fixture-images/action.yml":  true,
 		".github/actions/prepare-hosted-runner/action.yml": true,
 	}
@@ -329,6 +337,12 @@ func communityBoundary(files map[string]string) error {
 		}
 		if path == ".github/workflows/core-release.yml" {
 			if err := releaseBoundary(document); err != nil {
+				return fmt.Errorf("%s: %w", path, err)
+			}
+			continue
+		}
+		if path == ".github/workflows/core-release-promote.yml" {
+			if err := promotionBoundary(document); err != nil {
 				return fmt.Errorf("%s: %w", path, err)
 			}
 			continue
@@ -366,7 +380,7 @@ func communityBoundary(files map[string]string) error {
 func releasePlanBoundary(document map[string]any) error {
 	if !reflect.DeepEqual(document["on"], map[string]any{"workflow_run": map[string]any{"workflows": []any{"Community core"}, "types": []any{"completed"}}}) ||
 		!reflect.DeepEqual(document["permissions"], map[string]any{"contents": "read"}) ||
-		!reflect.DeepEqual(document["concurrency"], map[string]any{"group": "core-release-plan", "cancel-in-progress": false}) {
+		!reflect.DeepEqual(document["concurrency"], map[string]any{"group": "core-release-plan", "cancel-in-progress": false, "queue": "max"}) {
 		return fmt.Errorf("candidate automation requires serialized main CI completion events")
 	}
 	jobs, ok := document["jobs"].(map[string]any)
@@ -389,7 +403,45 @@ func releasePlanBoundary(document map[string]any) error {
 	return nil
 }
 
+func promotionBoundary(document map[string]any) error {
+	events, _ := document["on"].(map[string]any)
+	if len(events) != 1 || events["workflow_dispatch"] == nil ||
+		!reflect.DeepEqual(document["permissions"], map[string]any{"contents": "read"}) ||
+		!reflect.DeepEqual(document["concurrency"], map[string]any{"group": "core-release-candidate", "cancel-in-progress": false, "queue": "max"}) {
+		return fmt.Errorf("stable promotion requires manual dispatch and shared release serialization")
+	}
+	jobs, _ := document["jobs"].(map[string]any)
+	job, _ := jobs["promote"].(map[string]any)
+	if len(jobs) != 1 || job["uses"] != nil || job["runs-on"] != "ubuntu-24.04" || job["environment"] != "core-release" ||
+		job["if"] != "${{ github.ref == 'refs/heads/main' && github.event.repository.visibility == 'public' && vars.CORE_RELEASE_PUBLICATION_ENABLED == 'true' }}" ||
+		!reflect.DeepEqual(job["permissions"], map[string]any{"contents": "write", "actions": "read", "packages": "read"}) ||
+		!reflect.DeepEqual(job["env"], map[string]any{"GH_TOKEN": "${{ github.token }}", "DOCKER_CONFIG": "${{ runner.temp }}/core-promotion-docker"}) {
+		return fmt.Errorf("promotion must use public main, the named environment and no signing authority")
+	}
+	steps, _ := job["steps"].([]any)
+	if len(steps) != 4 {
+		return fmt.Errorf("promotion step inventory changed")
+	}
+	checkout, _ := steps[0].(map[string]any)
+	verify, _ := steps[1].(map[string]any)
+	evidence, _ := steps[2].(map[string]any)
+	cleanup, _ := steps[3].(map[string]any)
+	if checkout["uses"] != "actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1" ||
+		!reflect.DeepEqual(checkout["with"], map[string]any{"persist-credentials": false, "fetch-depth": 0}) ||
+		verify["if"] != nil || verify["continue-on-error"] != nil ||
+		!strings.Contains(fmt.Sprint(verify["run"]), `python3 -m scripts.promote_core_release "$RELEASE_CANDIDATE" "$RELEASE_PLATFORM"`) ||
+		!reflect.DeepEqual(verify["env"], map[string]any{"CORE_RELEASE_PUBLICATION_AUTHORIZED": "yes", "RELEASE_CANDIDATE": "${{ inputs.candidate }}", "RELEASE_PLATFORM": "${{ inputs.platform }}"}) ||
+		evidence["uses"] != "actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9" || evidence["if"] != "${{ always() }}" ||
+		cleanup["if"] != "${{ always() }}" || cleanup["run"] != "docker logout ghcr.io" {
+		return fmt.Errorf("promotion must verify immutable RC assets, retain evidence and remove credentials")
+	}
+	return nil
+}
+
 func releaseBoundary(document map[string]any) error {
+	if !reflect.DeepEqual(document["concurrency"], map[string]any{"group": "core-release-candidate", "cancel-in-progress": false, "queue": "max"}) {
+		return fmt.Errorf("RC publication must serialize with promotion without replacing pending runs")
+	}
 	events, ok := document["on"].(map[string]any)
 	if !ok || len(events) != 1 || events["workflow_dispatch"] == nil {
 		return fmt.Errorf("release must be manually dispatched")
@@ -445,7 +497,7 @@ func releaseBoundary(document map[string]any) error {
 			return fmt.Errorf("release steps missing")
 		}
 		admission, build := -1, -1
-		reservation, publication, verification, lastSignature := -1, -1, -1, -1
+		reservation, publication, verification, lastSignature, prerelease := -1, -1, -1, -1, -1
 		for index, item := range steps {
 			step, ok := item.(map[string]any)
 			if !ok {
@@ -459,6 +511,11 @@ func releaseBoundary(document map[string]any) error {
 					publication = index
 				case "Verify every subject and complete release identity":
 					verification = index
+				case "Publish verified RC prerelease":
+					prerelease = index
+					if step["if"] != nil || step["continue-on-error"] != nil || step["run"] != "python3 -m scripts.publish_core_release \"$CANDIDATE_DIR\" \"$RUNNER_TEMP/core-release-identity\"\n" {
+						return fmt.Errorf("RC release must follow successful verification")
+					}
 				}
 				if step["name"] == "Reserve immutable release identity" || step["name"] == "Verify every subject and complete release identity" {
 					phase := "reserve"
@@ -489,8 +546,8 @@ func releaseBoundary(document map[string]any) error {
 					}
 				}
 			}
-			if name == "prepare" && (step["name"] == "Show the candidate for approval" || step["name"] == "Retain the candidate for review") && step["if"] != "${{ steps.candidate.outputs.ready == 'true' }}" {
-				return fmt.Errorf("no-release changes must not create an artifact approval")
+			if name == "prepare" && (step["name"] == "Show candidate identity" || step["name"] == "Retain candidate artifacts") && step["if"] != "${{ steps.candidate.outputs.ready == 'true' }}" {
+				return fmt.Errorf("no-release changes must not retain or publish a candidate")
 			}
 			if step["name"] == "Retain signature bundles" && step["if"] != "${{ always() && steps.publish_candidate.outcome == 'success' }}" {
 				return fmt.Errorf("available signature bundles must be retained after signing failure")
@@ -530,7 +587,7 @@ func releaseBoundary(document map[string]any) error {
 				}
 			}
 		}
-		if name == "publish" && (reservation < 0 || publication <= reservation || verification <= lastSignature || lastSignature <= publication) {
+		if name == "publish" && (reservation < 0 || publication <= reservation || verification <= lastSignature || lastSignature <= publication || prerelease <= verification) {
 			return fmt.Errorf("publication must reserve identity before copying and verify after signing")
 		}
 		if name == "prepare" && (admission < 0 || build <= admission) {

@@ -11,6 +11,7 @@ permissions:
 concurrency:
   group: core-release-plan
   cancel-in-progress: false
+  queue: max
 
 jobs:
   prepare-plan:

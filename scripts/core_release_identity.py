@@ -51,17 +51,19 @@ def baseline(repository, plan):
     versions = {item["ref"].removeprefix("refs/tags/") for item in refs
                 if re.fullmatch(r"refs/tags/v0\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)", item["ref"])}
     previous, version = plan["previous"], plan["version"]
+    if not re.fullmatch(r"v0\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)-rc\.[1-9][0-9]*", version):
+        raise ValueError("automatic publication requires a pre-v1 RC")
+    reserved = {item["ref"].removeprefix("refs/tags/") for item in refs}
     # Existing target is allowed only for exact-identity retries, checked by bind().
-    if version in versions:
+    if version in reserved:
         return
     if previous == "v0.0.0":
         if versions:
             raise ValueError("initial release baseline requires no prior version reservations")
     elif previous not in versions:
         raise ValueError("previous version has no release reservation")
-    line = previous.rsplit('.', 1)[0] + '.'
-    if any(v.startswith(line) and int(v.rsplit('.', 1)[1]) > int(previous.rsplit('.', 1)[1]) for v in versions):
-        raise ValueError("previous version is stale within its release line")
+    if any(tuple(map(int, v[1:].split('.'))) > tuple(map(int, previous[1:].split('.'))) for v in versions):
+        raise ValueError("previous stable version is stale")
 
 
 def identity(directory, approved, checkout, env):
@@ -79,6 +81,7 @@ def identity(directory, approved, checkout, env):
                  ("ci/core-release.json", "ci/toolchain/versions.env", ".github/workflows/core-release.yml")}
     materials.update({name: file_hash(directory / name) for name in ("release-plan.json", "release-inputs.json", "CHANGELOG.md")})
     return {"repository": repository, "source": source, "workflow_sha": source,
+            "run_id": env["GITHUB_RUN_ID"],
             "materials": materials, "plan": plan, "inputs": read_json(directory / "release-inputs.json"),
             "approval_sha256": approved, "record": record}
 

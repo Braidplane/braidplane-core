@@ -1,4 +1,5 @@
 import json
+import subprocess
 import tempfile
 import unittest
 from pathlib import Path
@@ -49,23 +50,91 @@ class PrepareCoreReleaseTest(unittest.TestCase):
         with patch('scripts.prepare_core_release.api', side_effect=[[], []]), \
              patch('scripts.prepare_core_release.collect', return_value=[pull(), pull(2, 'release:none')]):
             metadata = release_metadata(self.root, 'Example/core', 'b' * 40)
-        self.assertEqual(json.loads(metadata['release-plan.json'])['version'], 'v0.0.1')
+        self.assertEqual(json.loads(metadata['release-plan.json'])['version'], 'v0.0.1-rc.1')
         self.assertEqual(json.loads(metadata['release-inputs.json'])['through_sha'], 'b' * 40)
         self.assertEqual(len(json.loads(metadata['release-inputs.json'])['pull_requests']), 2)
         self.assertFalse((self.root / 'release-plan.json').exists())
 
-    def test_published_cursor_and_abandoned_version_preserve_unreleased_changes(self):
+    def test_promotion_cursor_and_reserved_candidate_gaps(self):
         tag = dict(object=dict(type='commit', sha='c' * 40), message=json.dumps(dict(repository='Example/core', source='c' * 40,
-                   record=dict(release=dict(version='v0.1.0', core_revision='c' * 40)))))
-        refs = [dict(ref='refs/tags/v0.1.1')]
+                   promotion=dict(version='v0.1.0', candidate='v0.1.0-rc.2'),
+                   record=dict(release=dict(version='v0.1.0-rc.2', core_revision='c' * 40)))))
+        refs = [dict(ref='refs/tags/v0.1.1-rc.1'), dict(ref='refs/tags/v0.1.1-rc.3')]
         completed = [dict(ref='refs/tags/core-published/v0.1.0/linux-amd64', object=dict(type='tag', sha='tag'))]
         with patch('scripts.prepare_core_release.api', side_effect=[refs, completed, tag]), \
              patch('scripts.prepare_core_release.collect', return_value=[pull()]) as collect_mock:
             metadata = release_metadata(self.root, 'Example/core', 'b' * 40)
         self.assertEqual(collect_mock.call_args.args[2], 'c' * 40)
         plan = json.loads(metadata['release-plan.json'])
-        self.assertEqual(plan['version'], 'v0.1.2')
-        self.assertEqual(plan['supersedes'], ['v0.1.1'])
+        self.assertEqual(plan['version'], 'v0.1.1-rc.4')
+        self.assertEqual(plan['previous'], 'v0.1.0')
+        self.assertEqual(plan['supersedes'], [])
+
+    def test_completed_rc_deduplicates_docs_and_aggregates_changes(self):
+        first = pull()
+        saved = dict(number=1, title=first['title'], merge_sha=first['merge_commit_sha'], labels=['release:patch'])
+        tag = dict(object=dict(type='commit', sha='b' * 40), message=json.dumps(dict(repository='Example/core', source='b' * 40,
+                   inputs=dict(since_sha='a' * 40, pull_requests=[saved]),
+                   record=dict(release=dict(version='v0.0.1-rc.1', core_revision='b' * 40)))))
+        refs = [dict(ref='refs/tags/v0.0.1-rc.1')]
+        completed = [dict(ref='refs/tags/core-published/v0.0.1-rc.1/linux-amd64', object=dict(type='tag', sha='tag'))]
+        with patch('scripts.prepare_core_release.api', side_effect=[refs, completed, tag]), \
+             patch('scripts.prepare_core_release.collect', return_value=[first, pull(2, 'release:none')]), \
+             patch('scripts.prepare_core_release.git', return_value='d' * 40 + '\n' + 'b' * 40):
+            self.assertIsNone(release_metadata(self.root, 'Example/core', 'd' * 40))
+        with patch('scripts.prepare_core_release.api', side_effect=[refs, completed]), \
+             patch('scripts.prepare_core_release.collect', return_value=[first, pull(2, 'release:minor'), pull(3, 'release:breaking')]):
+            metadata = release_metadata(self.root, 'Example/core', 'd' * 40)
+        plan = json.loads(metadata['release-plan.json'])
+        self.assertEqual(plan['version'], 'v0.1.0-rc.1')
+        self.assertEqual([change['kind'] for change in plan['changes']], ['fix', 'feature', 'breaking'])
+
+    def test_legacy_stable_cursor_and_new_patch_candidate(self):
+        stable = dict(ref='refs/tags/core-published/v0.1.0/linux-amd64', object=dict(type='tag', sha='stable'))
+        candidate = dict(ref='refs/tags/core-published/v0.1.1-rc.1/linux-amd64', object=dict(type='tag', sha='candidate'))
+        stable_tag = dict(object=dict(type='commit', sha='c' * 40), message=json.dumps(dict(repository='Example/core', source='c' * 40,
+                          record=dict(release=dict(version='v0.1.0', core_revision='c' * 40)))))
+        first = pull()
+        saved = dict(number=1, title=first['title'], merge_sha=first['merge_commit_sha'], labels=['release:patch'])
+        rc_tag = dict(object=dict(type='commit', sha='b' * 40), message=json.dumps(dict(repository='Example/core', source='b' * 40,
+                      inputs=dict(since_sha='c' * 40, pull_requests=[saved]),
+                      record=dict(release=dict(version='v0.1.1-rc.1', core_revision='b' * 40)))))
+        with patch('scripts.prepare_core_release.api', side_effect=[[dict(ref='refs/tags/v0.1.1-rc.1')], [stable, candidate], stable_tag, rc_tag]), \
+             patch('scripts.prepare_core_release.collect', return_value=[first, pull(2)]) as collect_mock, \
+             patch('scripts.prepare_core_release.git', return_value='d' * 40 + '\n' + 'b' * 40):
+            metadata = release_metadata(self.root, 'Example/core', 'd' * 40)
+        self.assertEqual(collect_mock.call_args.args[2], 'c' * 40)
+        plan = json.loads(metadata['release-plan.json'])
+        self.assertEqual(plan['version'], 'v0.1.1-rc.2')
+        self.assertEqual(len(plan['changes']), 2)
+
+    def test_out_of_order_candidates_and_older_queued_source(self):
+        first, second = pull(), pull(2)
+        saved = lambda p: dict(number=p['number'], title=p['title'], merge_sha=p['merge_commit_sha'], labels=['release:patch'])
+        def candidate(version, source, pulls):
+            return dict(object=dict(type='commit', sha=source), message=json.dumps(dict(
+                repository='Example/core', source=source, inputs=dict(since_sha='a' * 40, pull_requests=[saved(p) for p in pulls]),
+                record=dict(release=dict(version=version, core_revision=source)))))
+        refs = [dict(ref='refs/tags/v0.0.1-rc.1'), dict(ref='refs/tags/v0.0.1-rc.2')]
+        completed = [dict(ref=f'refs/tags/core-published/v0.0.1-rc.{n}/linux-amd64', object=dict(type='tag', sha=str(n))) for n in (1, 2)]
+        newer = candidate('v0.0.1-rc.1', 'c' * 40, [first, second])
+        older = candidate('v0.0.1-rc.2', 'b' * 40, [first])
+        with patch('scripts.prepare_core_release.api', side_effect=[refs, completed, newer, older]), \
+             patch('scripts.prepare_core_release.collect', return_value=[first, second, pull(3, 'release:none')]), \
+             patch('scripts.prepare_core_release.git', return_value='d' * 40 + '\n' + 'c' * 40 + '\n' + 'b' * 40):
+            self.assertIsNone(release_metadata(self.root, 'Example/core', 'd' * 40))
+        with patch('scripts.prepare_core_release.api', side_effect=[refs, completed, newer]), \
+             patch('scripts.prepare_core_release.collect', return_value=[first]), \
+             patch('scripts.prepare_core_release.git', return_value='b' * 40), \
+             patch('scripts.prepare_core_release.subprocess.run') as run:
+            self.assertIsNone(release_metadata(self.root, 'Example/core', 'b' * 40))
+            self.assertEqual(run.call_args.args[0][-2:], ['b' * 40, 'c' * 40])
+        with patch('scripts.prepare_core_release.api', side_effect=[refs, completed, newer]), \
+             patch('scripts.prepare_core_release.collect', return_value=[first]), \
+             patch('scripts.prepare_core_release.git', return_value='b' * 40), \
+             patch('scripts.prepare_core_release.subprocess.run', side_effect=subprocess.CalledProcessError(1, 'git')):
+            with self.assertRaisesRegex(ValueError, 'outside candidate history'):
+                release_metadata(self.root, 'Example/core', 'b' * 40)
 
     def test_collect_deduplicates_rebased_commits_and_refuses_direct_commits(self):
         with patch('scripts.prepare_core_release.subprocess.run'), \
