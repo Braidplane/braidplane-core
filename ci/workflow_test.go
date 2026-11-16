@@ -243,6 +243,8 @@ func TestCommunityWorkflowTrustBoundary(t *testing.T) {
 		{"release build cache", ".github/workflows/ci.yml", "scope=community-", "scope=release-"},
 		{"composite secret", ".github/actions/cache-fixture-images/action.yml", "        CACHE_ENABLED:", "        TOKEN: ${{ secrets.RELEASE_TOKEN }}\n        CACHE_ENABLED:"},
 		{"composite release cache", ".github/actions/cache-fixture-images/action.yml", "key: community-fixture-", "key: release-fixture-"},
+		{"release verification skipped", ".github/workflows/core-release.yml", "      - name: Verify every subject and complete release identity\n", "      - name: Verify every subject and complete release identity\n        if: false\n"},
+		{"release reservation ignored", ".github/workflows/core-release.yml", "      - name: Reserve immutable release identity\n", "      - name: Reserve immutable release identity\n        continue-on-error: true\n"},
 		{"release push trigger", ".github/workflows/core-release.yml", "  workflow_dispatch:", "  push:\n  workflow_dispatch:"},
 		{"release missing environment", ".github/workflows/core-release.yml", "    environment: core-release", "    environment: unprotected"},
 		{"release unguarded", ".github/workflows/core-release.yml", "vars.CORE_RELEASE_PUBLICATION_ENABLED == 'true'", "true"},
@@ -387,7 +389,7 @@ func releaseBoundary(document map[string]any) error {
 				return fmt.Errorf("preparation must not receive publication permissions")
 			}
 		} else if job["environment"] != "core-release" || !reflect.DeepEqual(job["needs"], []any{"prepare"}) ||
-			!reflect.DeepEqual(job["permissions"], map[string]any{"contents": "read", "packages": "write", "id-token": "write", "attestations": "write", "artifact-metadata": "write"}) {
+			!reflect.DeepEqual(job["permissions"], map[string]any{"contents": "write", "packages": "write", "id-token": "write", "attestations": "write", "artifact-metadata": "write"}) {
 			return fmt.Errorf("publication must follow preparation in the named environment")
 		}
 		steps, ok := job["steps"].([]any)
@@ -395,10 +397,32 @@ func releaseBoundary(document map[string]any) error {
 			return fmt.Errorf("release steps missing")
 		}
 		admission, build := -1, -1
+		reservation, publication, verification, lastSignature := -1, -1, -1, -1
 		for index, item := range steps {
 			step, ok := item.(map[string]any)
 			if !ok {
 				return fmt.Errorf("invalid release step")
+			}
+			if name == "publish" {
+				switch step["name"] {
+				case "Reserve immutable release identity":
+					reservation = index
+				case "Publish the approved candidate by digest":
+					publication = index
+				case "Verify every subject and complete release identity":
+					verification = index
+				}
+				if step["name"] == "Reserve immutable release identity" || step["name"] == "Verify every subject and complete release identity" {
+					phase := "reserve"
+					if step["name"] == "Verify every subject and complete release identity" {
+						phase = "complete"
+					}
+					if step["if"] != nil || step["continue-on-error"] != nil ||
+						!strings.HasPrefix(fmt.Sprint(step["run"]), "python3 -m scripts.core_release_identity "+phase+" ") ||
+						!reflect.DeepEqual(step["env"], map[string]any{"CORE_RELEASE_PUBLICATION_AUTHORIZED": "yes", "APPROVED_SHA256": "${{ needs.prepare.outputs.approval_sha256 }}"}) {
+						return fmt.Errorf("release identity must bind the approved candidate and verify all signatures")
+					}
+				}
 			}
 			if name == "prepare" {
 				switch step["name"] {
@@ -437,6 +461,7 @@ func releaseBoundary(document map[string]any) error {
 					}
 					delete(attestationInputs, id)
 					attestations++
+					lastSignature = index
 				case "actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9":
 					if name == "publish" && step["if"] != "${{ always() && steps.prepare_paths.outcome == 'success' }}" {
 						return fmt.Errorf("publication evidence must be retained after failure")
@@ -452,6 +477,9 @@ func releaseBoundary(document map[string]any) error {
 					return fmt.Errorf("unreviewed release action: %s", uses)
 				}
 			}
+		}
+		if name == "publish" && (reservation < 0 || publication <= reservation || verification <= lastSignature || lastSignature <= publication) {
+			return fmt.Errorf("publication must reserve identity before copying and verify after signing")
 		}
 		if name == "prepare" && (admission < 0 || build <= admission) {
 			return fmt.Errorf("preparation must admit main CI before building")

@@ -18,6 +18,9 @@ class BuildCoreCandidateTest(unittest.TestCase):
         self.args = Namespace(version=release["version"], platform=release["platform"], edge=release["images"]["edge"],
                               postgres=release["images"]["postgres"], checkout=Path(__file__).resolve().parents[1],
                               output=Path(self.tmp.name) / "candidate")
+        mock_review = patch("scripts.build_core_candidate.reviewed")
+        mock_review.start()
+        self.addCleanup(mock_review.stop)
         self.env = context()
         self.event = {"repository": {"full_name": self.env["GITHUB_REPOSITORY"], "visibility": "private"}}
 
@@ -25,6 +28,15 @@ class BuildCoreCandidateTest(unittest.TestCase):
         self.env["GITHUB_REF"] = "refs/heads/other"
         with patch("scripts.build_core_candidate.subprocess.run") as run:
             with self.assertRaisesRegex(ValueError, "reviewed main"):
+                build(self.args, self.env, self.event)
+            run.assert_not_called()
+            self.assertFalse(self.args.output.exists())
+
+    def test_missing_reviewed_plan_stops_before_building(self):
+        with patch("scripts.build_core_candidate.subprocess.check_output", side_effect=["a" * 40 + "\n", b""]), \
+             patch("scripts.build_core_candidate.reviewed", side_effect=ValueError("missing plan")), \
+             patch("scripts.build_core_candidate.subprocess.run") as run:
+            with self.assertRaisesRegex(ValueError, "missing plan"):
                 build(self.args, self.env, self.event)
             run.assert_not_called()
             self.assertFalse(self.args.output.exists())

@@ -11,6 +11,7 @@ from pathlib import Path
 
 from scripts.core_release_candidate import candidate
 from scripts.core_release_record import record
+from scripts.core_release_version import reviewed
 from scripts.installation.package import package
 from scripts.qualify_core_images import BINARIES, hashes
 from scripts.verify_core_oci import verify_archive
@@ -36,6 +37,7 @@ def build(args, env, event):
     dirty = subprocess.check_output(["git", "-C", str(checkout), "status", "--porcelain=v1", "--untracked-files=all"])
     if head != revision or dirty:
         raise ValueError("checkout must be clean and match the approved revision")
+    reviewed(checkout, args.version)
     output.mkdir(parents=False, exist_ok=False)
     metadata_dir = output / "metadata"
     metadata_dir.mkdir()

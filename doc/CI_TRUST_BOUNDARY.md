@@ -85,6 +85,12 @@ malicious scripts. Review changes to workflows, actions, tests and toolchains
 before approving execution. Protect those files with the repository's required
 review policy.
 
+Version selection, immutable source/artifact tags and interrupted-run recovery
+are documented in [Core release automation](CORE_RELEASE_AUTOMATION.md). Configure
+and verify its tag rules before granting the protected publisher contents-write
+permission. Publication verifies every expected subject and signer before marking
+the identity complete.
+
 ## Checks after publication
 
 Local tests check the files in the repository. After authorized source
