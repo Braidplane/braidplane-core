@@ -249,6 +249,7 @@ func TestCommunityWorkflowTrustBoundary(t *testing.T) {
 		{"promotion lossy queue", ".github/workflows/core-release-promote.yml", "queue: max", "queue: single"},
 		{"promotion automatic trigger", ".github/workflows/core-release-promote.yml", "  workflow_dispatch:", "  push:\n  workflow_dispatch:"},
 		{"promotion signing authority", ".github/workflows/core-release-promote.yml", "      packages: read", "      packages: read\n      id-token: write"},
+		{"promotion unavailable job context", ".github/workflows/core-release-promote.yml", "    env:\n      GH_TOKEN: ${{ github.token }}", "    env:\n      DOCKER_CONFIG: ${{ runner.temp }}/core-promotion-docker\n      GH_TOKEN: ${{ github.token }}"},
 		{"promotion no environment", ".github/workflows/core-release-promote.yml", "    environment: core-release", "    environment: unprotected"},
 		{"promotion skipped verification", ".github/workflows/core-release-promote.yml", "      - name: Verify RC and publish stable release\n", "      - name: Verify RC and publish stable release\n        if: false\n"},
 		{"release plan fork event", ".github/workflows/core-release-plan.yml", "  workflow_run:", "  pull_request_target:\n  workflow_run:"},
@@ -415,7 +416,7 @@ func promotionBoundary(document map[string]any) error {
 	if len(jobs) != 1 || job["uses"] != nil || job["runs-on"] != "ubuntu-24.04" || job["environment"] != "core-release" ||
 		job["if"] != "${{ github.ref == 'refs/heads/main' && github.event.repository.visibility == 'public' && vars.CORE_RELEASE_PUBLICATION_ENABLED == 'true' }}" ||
 		!reflect.DeepEqual(job["permissions"], map[string]any{"contents": "write", "actions": "read", "packages": "read"}) ||
-		!reflect.DeepEqual(job["env"], map[string]any{"GH_TOKEN": "${{ github.token }}", "DOCKER_CONFIG": "${{ runner.temp }}/core-promotion-docker"}) {
+		!reflect.DeepEqual(job["env"], map[string]any{"GH_TOKEN": "${{ github.token }}"}) {
 		return fmt.Errorf("promotion must use public main, the named environment and no signing authority")
 	}
 	steps, _ := job["steps"].([]any)

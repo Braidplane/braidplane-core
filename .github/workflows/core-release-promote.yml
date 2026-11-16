@@ -34,7 +34,6 @@ jobs:
       packages: read
     env:
       GH_TOKEN: ${{ github.token }}
-      DOCKER_CONFIG: ${{ runner.temp }}/core-promotion-docker
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -46,7 +45,9 @@ jobs:
           RELEASE_CANDIDATE: ${{ inputs.candidate }}
           RELEASE_PLATFORM: ${{ inputs.platform }}
         run: |
-          mkdir -p -m 700 "$DOCKER_CONFIG"
+          export DOCKER_CONFIG="$RUNNER_TEMP/core-promotion-docker"
+          printf 'DOCKER_CONFIG=%s\n' "$DOCKER_CONFIG" >> "$GITHUB_ENV"
+          mkdir -m 700 "$DOCKER_CONFIG"
           printf '%s' "$GH_TOKEN" | docker login ghcr.io --username "$GITHUB_ACTOR" --password-stdin
           python3 -m scripts.promote_core_release "$RELEASE_CANDIDATE" "$RELEASE_PLATFORM" \
             "$GITHUB_WORKSPACE" "$RUNNER_TEMP/core-stable-release"
