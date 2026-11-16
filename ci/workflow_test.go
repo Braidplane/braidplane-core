@@ -55,16 +55,55 @@ func TestGoModuleCacheLifecycle(t *testing.T) {
 					if job == "go-e2e" && !strings.Contains(step.If, "matrix.shard == 0") {
 						t.Fatal("only one e2e shard should save the module cache")
 					}
-				case job == "go-e2e" && step.With["key"] == "${{ steps.cache-1.outputs.cache-primary-key }}":
-					if !strings.Contains(step.If, "matrix.shard == 0") {
-						t.Fatal("only one e2e shard should save the build cache")
-					}
 				}
 			}
 			if restore < 0 || workload <= restore || save <= workload {
 				t.Fatal("module cache must restore before the workload and save afterward")
 			}
 		})
+	}
+}
+
+func TestGoBuildAndLintCacheWriters(t *testing.T) {
+	data, err := os.ReadFile("../.github/workflows/ci.yml")
+	if err != nil {
+		t.Fatal(err)
+	}
+	var workflow struct {
+		Jobs map[string]struct {
+			Steps []struct {
+				ID, If, Uses string
+				With         map[string]any
+			}
+		}
+	}
+	if err := yaml.Unmarshal(data, &workflow); err != nil {
+		t.Fatal(err)
+	}
+	writers := map[string]int{}
+	for name, job := range workflow.Jobs {
+		for _, step := range job.Steps {
+			if step.ID == "cache-1" && (name == "verify" || name == "go-e2e" || name == "browser") {
+				if !strings.HasPrefix(step.Uses, "actions/cache/restore@") || !strings.Contains(step.If, "!inputs.cold_cache") || step.With["restore-keys"] == nil {
+					t.Fatalf("%s must retain warm restores and a cold-cache bypass", name)
+				}
+			}
+			if !strings.HasPrefix(step.Uses, "actions/cache/save@") {
+				continue
+			}
+			path := fmt.Sprint(step.With["path"])
+			if !strings.Contains(path, "~/.cache/braidplane/go\n") && path != "~/.cache/braidplane/golangci-lint" {
+				continue
+			}
+			if name != "verify" || !strings.Contains(step.If, "github.ref == 'refs/heads/main'") ||
+				!strings.Contains(step.If, "!inputs.cold_cache") || !strings.Contains(step.If, "!cancelled()") || !strings.Contains(step.If, "cache-hit != 'true'") {
+				t.Fatalf("%s: build/lint caches must have one main writer respecting cold, canceled and exact-hit runs", name)
+			}
+			writers[fmt.Sprint(step.With["key"])]++
+		}
+	}
+	if !reflect.DeepEqual(writers, map[string]int{"${{ steps.cache-1.outputs.cache-primary-key }}": 1, "${{ steps.lint-cache.outputs.cache-primary-key }}": 1}) {
+		t.Fatalf("expected one Go build writer and one lint writer: %v", writers)
 	}
 }
 

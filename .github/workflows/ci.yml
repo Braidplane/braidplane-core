@@ -118,7 +118,7 @@ jobs:
           git diff --exit-code
           test -z "$(git ls-files --others --exclude-standard)"
       - uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
-        if: ${{ !inputs.cold_cache && !cancelled() && steps.cache-1.outputs.cache-hit != 'true' }}
+        if: ${{ github.ref == 'refs/heads/main' && !inputs.cold_cache && !cancelled() && steps.cache-1.outputs.cache-hit != 'true' }}
         with:
           path: |
             ~/.cache/braidplane/go
@@ -132,7 +132,7 @@ jobs:
             ~/.cache/braidplane/npm
           key: ${{ steps.cache-2.outputs.cache-primary-key }}
       - uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
-        if: ${{ !inputs.cold_cache && !cancelled() && steps.lint-cache.outputs.cache-hit != 'true' }}
+        if: ${{ github.ref == 'refs/heads/main' && !inputs.cold_cache && !cancelled() && steps.lint-cache.outputs.cache-hit != 'true' }}
         with:
           path: ~/.cache/braidplane/golangci-lint
           key: ${{ steps.lint-cache.outputs.cache-primary-key }}
@@ -227,13 +227,6 @@ jobs:
             ~/.cache/braidplane/node
             ~/.cache/braidplane/npm
           key: ${{ steps.node-cache.outputs.cache-primary-key }}
-      - uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
-        if: ${{ !inputs.cold_cache && !cancelled() && matrix.shard == 0 && steps.cache-1.outputs.cache-hit != 'true' }}
-        with:
-          path: |
-            ~/.cache/braidplane/go
-            ${{ runner.temp }}/bin
-          key: ${{ steps.cache-1.outputs.cache-primary-key }}
       - name: Report sampled disk headroom
         if: ${{ always() }}
         continue-on-error: true
@@ -347,13 +340,6 @@ jobs:
         with:
           path: ~/go/pkg/mod
           key: ${{ steps.go-modules.outputs.cache-primary-key }}
-      - uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
-        if: ${{ !inputs.cold_cache && !cancelled() && steps.cache-1.outputs.cache-hit != 'true' }}
-        with:
-          path: |
-            ~/.cache/braidplane/go
-            ${{ runner.temp }}/bin
-          key: ${{ steps.cache-1.outputs.cache-primary-key }}
       - uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         if: ${{ !inputs.cold_cache && !cancelled() && steps.cache-2.outputs.cache-hit != 'true' }}
         with:
