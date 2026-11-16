@@ -3,7 +3,9 @@
 ## Unreleased
 
 - Prepare release candidates automatically after successful main CI, with
-  label-selected versions and generated notes reviewed at artifact approval.
+  label-selected versions and generated notes bound to the exact artifacts.
+- Publish v0 releases automatically, including breaking changes explicitly marked
+  in their release notes.
 - Automate reviewed pre-v1 release selection and changelog preparation, bind
   immutable source/artifact identities, and verify every signed release subject
   before marking publication complete.

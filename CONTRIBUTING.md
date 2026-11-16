@@ -25,8 +25,9 @@ rights and relevant test evidence. Review capacity is limited; there is no
 promised review or merge date. Respond to feedback on the same PR.
 Before merge, the reviewer selects exactly one `release:patch`, `release:minor`,
 `release:breaking` or `release:none` label. After successful main CI, eligible
-labels prepare a candidate with generated version and notes; they do not authorize
-publication. The release owner reviews those notes with the exact artifacts. See [release versioning](doc/CORE_RELEASE_AUTOMATION.md).
+labels authorize automatic v0 publication after required CI and artifact checks.
+Breaking changes follow the same path, use a minor bump and are marked explicitly
+in the generated release notes. See [release versioning](doc/CORE_RELEASE_AUTOMATION.md).
 Maintainers may request a smaller scope or close a proposal with a reason. Maintainers
 handle any internal planning synchronization; GitHub remains the public thread.
 Contribution CI remains subject to the public-control qualification described

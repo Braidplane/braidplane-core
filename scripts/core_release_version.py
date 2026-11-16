@@ -1,6 +1,5 @@
-"""Select a pre-v1 version and validate the candidate notes reviewed at approval."""
+"""Select pre-v1 versions and bind their generated release notes to candidates."""
 import re
-
 
 
 def select(previous, bump, changes):
@@ -47,8 +46,10 @@ def notes(plan):
         lines += ["Expedited security release.", ""]
     if plan["supersedes"]:
         lines += ["Supersedes: " + ", ".join(plan["supersedes"]) + ".", ""]
-    return "\n".join(lines + [f"- {c['summary']}" for c in plan["changes"]]) + "\n"
-
+    for change in plan["changes"]:
+        marker = "**Breaking change:** " if change["kind"] == "breaking" else ""
+        lines.append(f"- {marker}{change['summary']}")
+    return "\n".join(lines) + "\n"
 
 
 def with_notes(changelog, plan):

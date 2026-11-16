@@ -489,8 +489,8 @@ func releaseBoundary(document map[string]any) error {
 					}
 				}
 			}
-			if name == "prepare" && (step["name"] == "Show the candidate for approval" || step["name"] == "Retain the candidate for review") && step["if"] != "${{ steps.candidate.outputs.ready == 'true' }}" {
-				return fmt.Errorf("no-release changes must not create an artifact approval")
+			if name == "prepare" && (step["name"] == "Show candidate identity" || step["name"] == "Retain candidate artifacts") && step["if"] != "${{ steps.candidate.outputs.ready == 'true' }}" {
+				return fmt.Errorf("no-release changes must not retain or publish a candidate")
 			}
 			if step["name"] == "Retain signature bundles" && step["if"] != "${{ always() && steps.publish_candidate.outcome == 'success' }}" {
 				return fmt.Errorf("available signature bundles must be retained after signing failure")

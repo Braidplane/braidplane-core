@@ -3,10 +3,14 @@
 The normal flow is:
 
 **Merge reviewed, labeled change → successful main CI → version and notes →
-built candidate → protected artifact approval → publication and verification.**
+built candidate → automatic publication and verification.**
 
 There is no release-plan PR or version-only source commit. Generated metadata
-stays outside the clean checkout and is reviewed with the exact candidate.
+stays outside the clean checkout and is bound to the exact candidate. All
+supported `v0` releases publish automatically, including breaking changes.
+Maintainer review of the labeled source and the enabled release workflow provide
+standing publication authorization; there is no per-release human approval.
+Only pre-v1 versions are supported by the current version-selection policy.
 
 ## Reviewer labels and automatic candidates
 
@@ -16,13 +20,16 @@ Before merging a product PR, the reviewer selects exactly one label:
 |---|---|
 | `release:patch` | Compatible bug or performance fix; next patch |
 | `release:minor` | New feature; next minor, patch reset to zero |
-| `release:breaking` | Incompatible change; explicit minor before v1 |
+| `release:breaking` | Incompatible change; minor bump and explicit breaking-change notes |
 | `release:none` | Docs, tests, CI or tooling without a distributed behavior change |
 
 Add `release:security` only for a disclosure-approved expedited security release.
 It marks the notes and records the preceding version as superseded. Review
 compatibility across API, CLI, configuration, connectors and installation/migration
-contracts. Labels declare that review; the tool does not infer compatibility.
+contracts. Breaking changes are normal during v0 development and are marked
+**Breaking change** in release notes; they follow the same automatic publication
+path as other changes. Labels declare compatibility review; the tool does not
+infer it.
 Missing, conflicting or unsupported labels stop preparation until corrected.
 After fixing labels, rerun the failed automatic preparation run; there is no
 need to rerun successful product CI just to select a release.
@@ -54,12 +61,12 @@ The dispatcher submits the source configuration and exact main CI run/attempt
 to `core-release.yml`. That workflow checks CI again, selects the version when
 its job starts and refuses changed configuration or source. This accounts for
 an earlier queued candidate being published first; already-published or
-`release:none` work cleanly skips artifact approval. A main advance or
+`release:none` work cleanly skips publication. A main advance or
 label/version race can safely stop an old dispatch; use the run for the current
 successful main revision. Duplicate completion events do not start another
 candidate for the same source.
 
-## Review and enablement
+## Authorization and enablement
 
 `CORE_RELEASE_PREPARATION_ENABLED=true` enables automatic dispatch and public
 candidate preparation. Review the merged source/configuration and exposure of
@@ -74,15 +81,18 @@ The installation archive contains those same metadata bytes. Its digest in the
 signed record and archive provenance authenticates the notes and receipt without
 another signing workflow or an additional source commit.
 
-`CORE_RELEASE_PUBLICATION_ENABLED=true` allows the prepared candidate to reach
-the protected `core-release` environment. Keep required release-owner approval,
-main-only deployment policy and disabled admin bypass. Before approving, review
-the exact approval digest, source/workflow, generated version/changelog/input
-receipt, image/archive identities, migration catalog and CI admission shown in
-the summary. Approval authorizes these artifact bytes, not a later rebuild.
-The flags can remain enabled for this approved flow; each publication still
-requires its own protected artifact approval. Disable preparation/publication
-when its provider controls or release qualification are not ready.
+`CORE_RELEASE_PUBLICATION_ENABLED=true` enables automatic publication under the
+v0 standing policy. The `core-release` environment must allow only `main`, have
+no required reviewers or wait timer, and keep administrator bypass disabled.
+Keep the immutable tag rules below active. Candidate validation enforces the
+pre-v1 selection and exact source/configuration before registry or signing work.
+
+The existing `approval.json` filename identifies the candidate's immutable
+identity manifest; it does not imply a human approval step. The publisher checks
+its digest, generated metadata, image/archive bytes, migration catalog and exact
+main CI admission automatically. The flags can remain enabled for normal v0
+development. Disable preparation/publication if qualification or provider
+controls are unavailable; do not weaken checks or broaden permissions to recover.
 
 ## Immutable identities and publication
 
@@ -123,10 +133,10 @@ separate publication operation.
    `core-published/` means incomplete, even when registry images exist.
 2. Preserve the candidate, approval digest, partial signatures and logs. Rerun a
    failed publication job in the same run while its original candidate is
-   available, then reapprove those same bytes. Digest copies can be repeated;
+   available. It validates those same bytes automatically. Digest copies can be repeated;
    verification requires the new attempt's signatures before completion.
 3. A new build may produce different bytes. Never replace a reserved identity,
-   delete tags or weaken checks. If an approved candidate was lost, prepare a
+   delete tags or weaken checks. If the candidate was lost, prepare a
    newly reviewed version from the latest successful main source; the old
    reservation remains audit history and does not consume its pending changes.
 4. For a terminal preparation failure before reservation, inspect the failure
@@ -135,9 +145,8 @@ separate publication operation.
    dispatch remains available with the source configuration and exact successful
    main CI run/attempt. An optional expected version can refuse an unexpected
    selection. Incorrect values fail admission.
-5. If source advances while a candidate awaits approval, its original artifact
-   identity remains unchanged. Approve only the candidate intended for release;
-   newer main CI can queue a later candidate. An older candidate cannot reuse a
+5. If source advances while a candidate is building or queued, its original
+   artifact identity remains unchanged; newer main CI can queue a later candidate. An older candidate cannot reuse a
    version reserved for different source or bytes.
 
 Superseding/security releases get new identities. Prior completed releases remain
@@ -151,6 +160,6 @@ python3 -m unittest scripts.test_prepare_core_release scripts.test_core_release_
 bash scripts/go-toolchain.sh test -short ./ci
 ```
 
-Local checks do not prove provider review controls, tag enforcement, live
-publication or signer acceptance. Those require a separately approved
-exact-artifact rehearsal. See [CI trust boundary](CI_TRUST_BOUNDARY.md).
+Local checks do not prove provider branch restrictions, tag enforcement, live
+publication or signer acceptance. Record those results from the actual automatic
+release run; a passing build or queued job alone is insufficient. See [CI trust boundary](CI_TRUST_BOUNDARY.md).

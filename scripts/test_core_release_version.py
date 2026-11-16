@@ -21,6 +21,17 @@ class ReleaseVersionTest(unittest.TestCase):
             with self.assertRaises(ValueError):
                 select(previous, "patch", [dict(kind="fix", summary="Fix")])
 
+    def test_breaking_changes_use_normal_minor_selection_and_explicit_notes(self):
+        plan = self.plan()
+        plan.update(bump="minor", version="v0.3.0", changes=[
+            dict(kind="breaking", summary="Remove the old option."),
+            dict(kind="feature", summary="Add the new option."),
+        ])
+        changelog = notes(plan)
+        self.assertIn("- **Breaking change:** Remove the old option.", changelog)
+        self.assertIn("- Add the new option.", changelog)
+        validate_plan(plan, changelog, "v0.3.0")
+
     def test_plan_requires_exact_reviewed_notes_and_relationship(self):
         plan = self.plan()
         plan.update(security=True, supersedes=["v0.2.3"])

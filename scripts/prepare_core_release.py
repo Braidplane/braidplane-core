@@ -136,7 +136,7 @@ def prepare(checkout, env, event):
     plan = json.loads(metadata["release-plan.json"])
     inputs = dict(config, ci_run_id=str(run["id"]), ci_attempt=str(run["run_attempt"]))
     api(f"repos/{repository}/actions/workflows/core-release.yml/dispatches", {"ref": "main", "inputs": inputs})
-    print(f"Dispatched {plan['version']} candidate for {source}; publication still requires artifact approval.")
+    print(f"Dispatched {plan['version']} candidate for {source}; publication follows the automatic v0 policy.")
 
 
 def main():

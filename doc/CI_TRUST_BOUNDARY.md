@@ -55,21 +55,21 @@ admission, generated plan/changelog/input receipt, approval document and release
 record in the job summary. The generated metadata lives in the candidate and
 installation archive; the source checkout remains clean.
 
-Publication requires `CORE_RELEASE_PUBLICATION_ENABLED=true` and approval in the
-`core-release` environment. Configure that environment before enabling the flag:
-require the release owner's review, restrict deployments to `main`, and disable
-administrator bypass. Before approving the waiting job, review the exact approval
-document and release record in the preparation summary. The publisher checks the
-approved document digest, exact source and main CI, then copies archives by digest.
+Publication requires `CORE_RELEASE_PUBLICATION_ENABLED=true` and the main-only
+`core-release` environment. Under the v0 standing policy, that environment has
+no required reviewers or wait timer; administrator bypass stays disabled.
+Reviewed source and release labels authorize automatic v0 publication, including
+breaking changes marked in the notes. The publisher validates the exact identity
+document digest, candidate bytes, source and successful main CI before copying
+archives by digest. Only the protected main publication job has signing/package
+authority; contribution jobs cannot acquire it.
 
-Each run builds and publishes its own candidate. A completed preparation-only run
-cannot be promoted later by enabling the flag; prepare a fresh candidate from the
-reviewed publication workflow. Uploading candidate files to public Actions is also
-an exposure to approve before starting a run. Disable
-preparation/publication when qualification or controls are unavailable. Each
-publication still requires its own artifact approval. Repository variables and
-the environment name alone do not
-establish the required review rule.
+Each run publishes its own candidate. A preparation-only completed run cannot be
+promoted later just by enabling a flag; prepare a fresh candidate from the
+reviewed workflow. Public artifact exposure is part of enabling this flow.
+Disable preparation/publication when qualification or provider controls are
+unavailable. Repository variables and the environment name alone do not enforce
+main-only source, immutable identity or complete subject verification.
 
 A private distribution validates and releases its own build from a reviewed
 Core source revision. Public PR jobs must never receive its reader, updater,

@@ -73,7 +73,7 @@ jobs:
           python3 -m scripts.build_core_candidate \
             "$RELEASE_VERSION" "$RELEASE_PLATFORM" "$RELEASE_EDGE" "$RELEASE_POSTGRES" \
             "$GITHUB_WORKSPACE" "$RUNNER_TEMP/core-release-candidate"
-      - name: Show the candidate for approval
+      - name: Show candidate identity
         if: ${{ steps.candidate.outputs.ready == 'true' }}
         id: review
         run: |
@@ -100,7 +100,7 @@ jobs:
             cat "$RUNNER_TEMP/core-release-candidate/record.json"
             printf '\n%s\n' '~~~'
           } >> "$GITHUB_STEP_SUMMARY"
-      - name: Retain the candidate for review
+      - name: Retain candidate artifacts
         if: ${{ steps.candidate.outputs.ready == 'true' }}
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:

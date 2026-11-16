@@ -12,7 +12,8 @@ expected JSON output; the operator guide covers authoring, deployment and readba
 ## Release inputs
 
 Reviewer release labels and successful exact main CI drive automatic candidate
-preparation. Review the generated version/changelog with the artifact bytes. The label policy and manual recovery are in
+preparation and publication under the v0 standing policy. Generated version,
+notes and input identities are bound to the artifact bytes. The label policy and manual recovery are in
 [Core release versioning and recovery](../../doc/CORE_RELEASE_AUTOMATION.md).
 That guide defines eligible changes, patch/minor selection, release cadence,
 superseding/security releases, tag rules and interrupted-run recovery.
@@ -70,10 +71,10 @@ then checks the registry images and creates SBOMs. The manual workflow uses
 `CORE_RELEASE_PREPARATION_ENABLED` to allow candidate-only builds after exact
 main-push CI admission. Its read-only preparation job shows the approval document
 generated release plan/changelog/input receipt and release record for review. Publication requires
-`CORE_RELEASE_PUBLICATION_ENABLED=true` and the release owner's approval in the
-`core-release` environment. Require that review, allow only `main`, and disable
-administrator bypass before enabling publication. Review the exact approval
-document, release plan and release record before approving the waiting job.
+`CORE_RELEASE_PUBLICATION_ENABLED=true` and a main-only `core-release` environment
+with no required reviewers or wait timer and administrator bypass disabled.
+The identity document, plan, notes, inputs and release record are validated
+automatically; v0 breaking changes use the same path and are marked in the notes.
 The protected publisher reserves create-only source and artifact tags, requiring
 contents-write permission and separately configured tag protection. It marks a
 `core-published/<version>/<platform>` identity complete only after verifying all
@@ -187,7 +188,8 @@ qualification remain separate. The registry platform check still needs testing
 against actual release images.
 `scripts.core_release_record` prepares the record from a clean candidate
 checkout and matching archive; it does not qualify image bytes. The release
-workflow's publication job requires explicit enablement and protected review.
+workflow's publication job requires enablement and main-only source; v0
+publication is automatic after required validation.
 Retain the exact candidate's publication and verification receipts before
 claiming release acceptance.
 

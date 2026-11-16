@@ -10,7 +10,8 @@ and CLI version information.
 Braidplane aims to follow semantic versioning on a best-effort basis before
 `1.0.0`: patch releases contain compatible bug and performance fixes; new
 features and breaking changes require an explicitly selected minor release.
-This convention does not guarantee backward compatibility during Alpha.
+Breaking changes are expected during Alpha and are marked explicitly in the
+release notes.
 
 Alpha releases may change APIs, generated clients and CLI behavior without a
 deprecation period. Third-party clients currently have no compatibility guarantee.
