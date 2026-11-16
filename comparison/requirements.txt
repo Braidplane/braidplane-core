@@ -1,0 +1,2 @@
+# Existing streaming verifier dependency; no services or provider libraries.
+ijson==3.6.0

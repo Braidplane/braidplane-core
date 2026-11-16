@@ -1,6 +1,6 @@
 {
   "since_sha": "6a6e369d580f8973119b086703ae5680a27912c1",
-  "through_sha": "34eb994149e816d4435da775fd7f9d14bf5b8be7",
+  "through_sha": "3315c4eb3e7c95ebdf8e20827a348507d0711cbe",
   "pull_requests": [
     {
       "number": 136,
@@ -16,6 +16,14 @@
       "merge_sha": "34eb994149e816d4435da775fd7f9d14bf5b8be7",
       "labels": [
         "release:patch"
+      ]
+    },
+    {
+      "number": 137,
+      "title": "Support SQL envelopes in standalone comparison verifier",
+      "merge_sha": "3315c4eb3e7c95ebdf8e20827a348507d0711cbe",
+      "labels": [
+        "release:none"
       ]
     }
   ]
