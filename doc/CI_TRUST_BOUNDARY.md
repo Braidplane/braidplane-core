@@ -37,6 +37,12 @@ dependency partitions and cross-commit restore fallback. Cold runs bypass both
 restore and save. Dependency, browser and container caches keep their existing
 policies. Cache eviction can still cause a cold build; all checks remain required.
 
+Go E2E and the Playwright/Bruno matrix wait for successful `verify`, then run in
+parallel. This avoids starting the expensive runtime suites when verification
+fails and lets main's cache save finish before downstream restores. CLI unit
+tests run inside `verify`. Docs and container jobs remain independent. The final
+required gate still rejects any failed, canceled or skipped required job.
+
 Validation builds images locally and uploads no artifacts. Release jobs must
 use fresh VMs and an immutable source revision explicitly approved for release.
 Give them separate identities with only the permissions each job needs. Never

@@ -116,6 +116,7 @@ func TestRuntimeAndContainerCoverage(t *testing.T) {
 		Jobs map[string]struct {
 			Name     string
 			Needs    []string
+			If       any
 			Strategy struct{ Matrix map[string][]string }
 			Steps    []struct {
 				Uses            string
@@ -131,6 +132,17 @@ func TestRuntimeAndContainerCoverage(t *testing.T) {
 	runtime := workflow.Jobs["browser"]
 	if runtime.Name != "${{ matrix.suite }}" || !reflect.DeepEqual(runtime.Strategy.Matrix["suite"], []string{"browser", "bruno"}) {
 		t.Fatal("browser and Bruno must run as independent required jobs")
+	}
+	for _, name := range []string{"go-e2e", "browser"} {
+		job := workflow.Jobs[name]
+		if !reflect.DeepEqual(job.Needs, []string{"verify"}) || job.If != nil {
+			t.Fatalf("%s must wait for successful verify before starting runtime checks", name)
+		}
+	}
+	for _, name := range []string{"docs", "containers"} {
+		if len(workflow.Jobs[name].Needs) != 0 {
+			t.Fatalf("%s must remain independent of verify", name)
+		}
 	}
 	builders, targets := 0, []string{}
 	for _, step := range workflow.Jobs["containers"].Steps {
