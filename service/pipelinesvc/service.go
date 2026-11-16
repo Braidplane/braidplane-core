@@ -3684,6 +3684,9 @@ func (s *service) executeResolvedVersion(
 
 	var runOutcome *pipelineruntime.RunOutcome
 	runErr := s.admission.WithPipelineExecution(ctx, orgSlug, deployment == nil, func(ctx context.Context) error {
+		if err := CheckExecutionStartDeadline(ctx); err != nil {
+			return err
+		}
 		runtimeStarted = true
 		var err error
 		runOutcome, err = s.runtime.Execute(ctx, runReq)

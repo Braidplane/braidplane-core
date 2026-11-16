@@ -10421,6 +10421,7 @@ WHERE ptra.project_environment_id = pe.id
 UPDATE pipeline_trigger_retry_attempts ptra
 SET
     status = sqlc.arg('status'),
+    decision_reason = CASE WHEN sqlc.arg('status') = 'exhausted' THEN 'max_elapsed_exhausted' ELSE ptra.decision_reason END,
     source_event_slug = COALESCE(sqlc.narg('source_event_slug'), ptra.source_event_slug),
     error_summary = sqlc.narg('error_summary'),
     completed_at = NOW(),

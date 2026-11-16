@@ -579,9 +579,10 @@ func (f *fakePipelineExecutor) GetRun(context.Context, slug.Slug, slug.Slug, slu
 }
 
 type retryingPipelineExecutor struct {
-	executions   int
-	executionErr error
-	run          *pipelinesvc.PipelineRunDetail
+	unadmittedFailures []slug.Slug
+	executions         int
+	executionErr       error
+	run                *pipelinesvc.PipelineRunDetail
 }
 
 func (f *retryingPipelineExecutor) ExecuteVerifiedEvent(
@@ -591,6 +592,9 @@ func (f *retryingPipelineExecutor) ExecuteVerifiedEvent(
 	f.executions++
 	if f.executionErr != nil {
 		return nil, f.executionErr
+	}
+	if f.run != nil && f.run.Metadata.Status == "succeeded" {
+		return f.run, nil
 	}
 	return f.run, xerror.Unexpected().Detail("pipeline failed")
 }
@@ -602,6 +606,9 @@ func (f *retryingPipelineExecutor) ExecuteVerifiedEventVersion(
 	f.executions++
 	if f.executionErr != nil {
 		return nil, f.executionErr
+	}
+	if f.run != nil && f.run.Metadata.Status == "succeeded" {
+		return f.run, nil
 	}
 	return f.run, xerror.Unexpected().Detail("pipeline failed")
 }
@@ -717,6 +724,70 @@ func (*fakePipelineExecutor) FailUnadmittedRun(context.Context, slug.Slug, slug.
 	return nil
 }
 
-func (*retryingPipelineExecutor) FailUnadmittedRun(context.Context, slug.Slug, slug.Slug, slug.Slug, slug.Slug) error {
+func (e *retryingPipelineExecutor) FailUnadmittedRun(_ context.Context, _, _, _, run slug.Slug) error {
+	e.unadmittedFailures = append(e.unadmittedFailures, run)
 	return nil
+}
+
+func TestWebhookRetryExecutionElapsedDeadline(t *testing.T) {
+	t.Parallel()
+	rootAt := time.Date(2026, 11, 16, 8, 0, 0, 0, time.UTC)
+	for _, tc := range []struct {
+		name             string
+		elapsed          time.Duration
+		resuming         bool
+		exhausted        bool
+		admissionExpired bool
+		attempt          int
+	}{
+		{name: "inside", elapsed: 119 * time.Second, attempt: 2},
+		{name: "at", elapsed: 120 * time.Second, attempt: 2},
+		{name: "after", elapsed: 120*time.Second + time.Nanosecond, exhausted: true, attempt: 2},
+		{name: "queue_delay", elapsed: time.Hour, exhausted: true, attempt: 2},
+		{name: "admission_delay", elapsed: time.Minute, exhausted: true, admissionExpired: true, attempt: 2},
+		{name: "finalize_executed", elapsed: time.Hour, resuming: true, attempt: 2},
+		{name: "initial_attempt", elapsed: time.Hour, attempt: 1},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			maxElapsed := 120
+			receiver := webhookReceiver()
+			receiver.RetryPolicy.MaxElapsedSeconds = &maxElapsed
+			delivery := pipelinewebhooks.Delivery{
+				Receiver: receiver, ReceiverID: "receiver-opaque", DeliveryID: "delivery-1", RunSlug: "webhook-root",
+				ReceivedAt: rootAt, EnvelopeExpiresAt: rootAt.Add(24 * time.Hour), Resuming: tc.resuming,
+				PipelineVersionSpecHash: "captured-version",
+			}
+			repo := &fakeWebhookRepository{delivery: delivery}
+			executor := &retryingPipelineExecutor{run: &pipelinesvc.PipelineRunDetail{Metadata: pipelinesvc.PipelineRunMetadata{Status: "succeeded"}}}
+			if tc.admissionExpired {
+				executor.run = nil
+				executor.executionErr = pipelinesvc.ErrRetryElapsed
+			}
+			producer := &fakeWebhookProducer{}
+			svc := newWebhookService(t, rootAt.Add(tc.elapsed), repo, fakeSecretResolver{}, producer, executor)
+			encrypted, err := svc.cipher.Seal(envelopeScope(receiver.OrgSlug, delivery.ReceiverID, delivery.DeliveryID), []byte(`{"event_input":{"id":"synthetic"},"runtime_input":{}}`))
+			require.NoError(t, err)
+			repo.delivery.EncryptedEnvelope = encrypted
+			require.NoError(t, svc.ExecuteDelivery(t.Context(), jobs.PipelineWebhookDeliveryArgs{ReceiverID: delivery.ReceiverID, DeliveryID: delivery.DeliveryID, RunAttempt: tc.attempt, ScheduledAt: rootAt.Add(time.Minute), FinalizeOnly: tc.resuming}))
+			if tc.exhausted {
+				require.Equal(t, "max_elapsed_exhausted", repo.completed.DecisionReason)
+				require.Equal(t, "failed", repo.completed.Status)
+				require.Len(t, producer.jobs, 1)
+				require.True(t, producer.jobs[0].Cleanup)
+				require.Equal(t, delivery.EnvelopeExpiresAt, producer.jobs[0].ScheduledAt)
+				require.Equal(t, []slug.Slug{"webhook-root-retry-2"}, executor.unadmittedFailures)
+				if !tc.admissionExpired {
+					require.Zero(t, executor.executions)
+				}
+			} else {
+				require.Equal(t, "succeeded", repo.completed.Status)
+				if tc.resuming {
+					require.Zero(t, executor.executions)
+				} else {
+					require.Equal(t, 1, executor.executions)
+				}
+			}
+			require.Zero(t, repo.retryAttempt)
+		})
+	}
 }

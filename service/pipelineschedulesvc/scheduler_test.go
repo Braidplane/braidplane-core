@@ -1749,10 +1749,11 @@ func (p *recordingNotificationProducer) EnqueueCandidate(
 }
 
 type recordingPipelineExecutor struct {
-	reconcileErr error
-	calls        []pipelineExecuteCall
-	versionCalls []pipelineExecuteVersionCall
-	responses    []pipelineExecuteResult
+	unadmittedFailures []slug.Slug
+	reconcileErr       error
+	calls              []pipelineExecuteCall
+	versionCalls       []pipelineExecuteVersionCall
+	responses          []pipelineExecuteResult
 }
 
 type pipelineExecuteCall struct {
@@ -1984,7 +1985,8 @@ func (e *recordingPipelineExecutor) ReconcileInterruptedRuns(context.Context, ti
 	return e.reconcileErr
 }
 
-func (*recordingPipelineExecutor) FailUnadmittedRun(context.Context, slug.Slug, slug.Slug, slug.Slug, slug.Slug) error {
+func (e *recordingPipelineExecutor) FailUnadmittedRun(_ context.Context, _, _, _, run slug.Slug) error {
+	e.unadmittedFailures = append(e.unadmittedFailures, run)
 	return nil
 }
 
@@ -1998,4 +2000,65 @@ func TestReconciliationFailureDoesNotBlockScheduleDispatch(t *testing.T) {
 	require.ErrorIs(t, err, failure)
 	require.Equal(t, DispatchResult{Scanned: 1, Claimed: 1, Enqueued: 1}, result)
 	require.Len(t, repo.claims, 1)
+}
+
+func TestRetryExecutionElapsedDeadline(t *testing.T) {
+	t.Parallel()
+	rootAt := time.Date(2026, 11, 16, 8, 0, 0, 0, time.UTC)
+	for _, tc := range []struct {
+		name             string
+		elapsed          time.Duration
+		resuming         bool
+		admissionExpired bool
+		exhausted        bool
+	}{
+		{name: "inside", elapsed: 119 * time.Second},
+		{name: "at", elapsed: 120 * time.Second},
+		{name: "after", elapsed: 120*time.Second + time.Nanosecond, exhausted: true},
+		{name: "queue_delay", elapsed: time.Hour, exhausted: true},
+		{name: "admission_delay", elapsed: time.Minute, admissionExpired: true, exhausted: true},
+		{name: "finalize_executed", elapsed: time.Hour, resuming: true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			maxElapsed := 120
+			attempt := TriggerRetryAttempt{
+				OrgSlug: "acme", ProjectSlug: "ops", EnvironmentSlug: "prod", PipelineSlug: "sync", TriggerSlug: "daily",
+				AttemptSlug: "retry-2", RunSlug: "root-retry-2", RootRunSlug: "root", RetryOfRunSlug: "root", AttemptNumber: 2,
+				PipelineVersionSpecHash: "captured-version", Status: model.PipelineTriggerRetryAttemptStatusQueued,
+				ScheduledAt: rootAt.Add(time.Minute),
+				RetryPolicy: model.PipelineTriggerRetryPolicy{MaxElapsedSeconds: &maxElapsed},
+				Source:      pipelinerun.RunSourceSummary{Schedule: &pipelinerun.RunSourceScheduleSummary{ActualFireAt: rootAt}},
+			}
+			if tc.resuming {
+				attempt.Status = model.PipelineTriggerRetryAttemptStatusRunning
+			}
+			repo := &recordingScheduleRepository{loadedRetryAttempts: []TriggerRetryAttempt{attempt}}
+			executor := &recordingPipelineExecutor{}
+			if tc.resuming {
+				executor.responses = []pipelineExecuteResult{{run: &pipelinesvc.PipelineRunDetail{Metadata: pipelinesvc.PipelineRunMetadata{Status: "succeeded"}}}}
+			}
+			if tc.admissionExpired {
+				executor.responses = []pipelineExecuteResult{{err: pipelinesvc.ErrRetryElapsed}}
+			}
+			svc := New(testutil.FakeTransactionManager{}, repo, executor, &recordingScheduleFireProducer{}, nil)
+			svc.clock = testutil.FakeClock{NowFn: func() time.Time { return rootAt.Add(tc.elapsed) }}
+			require.NoError(t, svc.ExecuteTriggerRetryAttempt(t.Context(), jobs.PipelineTriggerRetryExecutionArgs{RetryAttemptSlug: attempt.AttemptSlug, ScheduledAt: attempt.ScheduledAt, FinalizeOnly: tc.resuming}))
+			require.Len(t, repo.completedRetryAttempts, 1)
+			if tc.exhausted {
+				if !tc.admissionExpired {
+					require.Empty(t, executor.versionCalls)
+				}
+				require.Equal(t, model.PipelineTriggerRetryAttemptStatusExhausted, repo.completedRetryAttempts[0].status)
+				require.Equal(t, []slug.Slug{attempt.RunSlug}, executor.unadmittedFailures)
+			} else {
+				require.Equal(t, model.PipelineTriggerRetryAttemptStatusSucceeded, repo.completedRetryAttempts[0].status)
+				if tc.resuming {
+					require.Empty(t, executor.versionCalls)
+				} else {
+					require.Len(t, executor.versionCalls, 1)
+				}
+			}
+			require.Empty(t, repo.retryAttempts)
+		})
+	}
 }

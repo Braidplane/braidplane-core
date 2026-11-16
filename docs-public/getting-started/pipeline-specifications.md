@@ -46,6 +46,12 @@ deployed or pinned versions must pass the rule at their next deployment or run,
 including replay and recovery. Stored versions, run history and retained
 artifacts remain unchanged; remediation requires new reviewed definitions.
 
+Schedule and webhook retries use the retry policy captured for the original
+execution. When `max_elapsed_seconds` is set, queue time, downtime and admission
+wait count toward that budget. A new attempt may start at the deadline, but an
+attempt starting after it is refused with `max_elapsed_exhausted`. Attempts that
+already executed can still finish recording their result after the deadline.
+
 ## Step kinds
 
 | Kind | Purpose | Required block |

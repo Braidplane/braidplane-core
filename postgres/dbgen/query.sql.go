@@ -2519,6 +2519,7 @@ const completeTriggerRetryAttempt = `-- name: CompleteTriggerRetryAttempt :execr
 UPDATE pipeline_trigger_retry_attempts ptra
 SET
     status = $1,
+    decision_reason = CASE WHEN $1 = 'exhausted' THEN 'max_elapsed_exhausted' ELSE ptra.decision_reason END,
     source_event_slug = COALESCE($2, ptra.source_event_slug),
     error_summary = $3,
     completed_at = NOW(),
