@@ -57,8 +57,10 @@ regenerates API/CLI/Templ/enums/wrappers/SQLC, tests, lints and builds. Set both
 for these commands. Review generation diffs and commit
 source and output together; never hand-edit generated files.
 
-The [core CI workflow](../.github/workflows/ci.yml) runs that task and rejects
-uncommitted generated changes. Its Go E2E job runs `task test-go-e2e`, which
+The [core CI workflow](../.github/workflows/ci.yml) runs the same checks with
+separate lint and test jobs, each rejecting uncommitted generated changes. The
+test job also builds the executables. Runtime suites wait for both jobs to pass.
+Its Go E2E job runs `task test-go-e2e`, which
 uses `go list` to discover every package under an `e2e` path that contains Go
 tests. No package or test-name allowlist is maintained. CI distributes the complete
 suite over four required shards with fifteen-minute job budgets. Packages run sequentially
