@@ -1,0 +1,22 @@
+{
+  "since_sha": "6a6e369d580f8973119b086703ae5680a27912c1",
+  "through_sha": "34eb994149e816d4435da775fd7f9d14bf5b8be7",
+  "pull_requests": [
+    {
+      "number": 136,
+      "title": "Automate Core release PRs and immutable publication identities",
+      "merge_sha": "af720b74f36e8aa6852431b9e640200980471444",
+      "labels": [
+        "release:none"
+      ]
+    },
+    {
+      "number": 138,
+      "title": "fix: enforce retry elapsed caps when queued work starts",
+      "merge_sha": "34eb994149e816d4435da775fd7f9d14bf5b8be7",
+      "labels": [
+        "release:patch"
+      ]
+    }
+  ]
+}

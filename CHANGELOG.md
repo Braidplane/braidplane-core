@@ -30,3 +30,7 @@
 - Publish the [Alpha API contract](docs-public/api/alpha.md),
   including matching application/CLI versions, migration limits and execution retries.
 - Remove private tracker references from source, documentation and synthetic fixture names.
+
+## v0.0.1
+
+- fix: enforce retry elapsed caps when queued work starts (#138)
