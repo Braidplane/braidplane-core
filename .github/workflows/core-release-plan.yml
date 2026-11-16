@@ -1,0 +1,32 @@
+name: Prepare Core release PR
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: core-release-plan
+  cancel-in-progress: false
+
+jobs:
+  prepare-plan:
+    if: ${{ github.ref == 'refs/heads/main' && github.event.repository.visibility == 'public' && vars.CORE_RELEASE_PLAN_ENABLED != 'false' }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: write
+      pull-requests: write
+      actions: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+      - name: Prepare reviewed version and changelog PR
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: python3 -m scripts.prepare_core_release "$GITHUB_WORKSPACE"

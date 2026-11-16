@@ -2,6 +2,13 @@
 
 Describe the concrete problem and resulting behavior.
 
+Before merge, the reviewer selects exactly one release label: `release:patch`
+for compatible fixes, `release:minor` for features, `release:breaking` for
+incompatible changes (a minor bump before v1), or `release:none` for changes
+without a distributed behavior change. Add `release:security` only for an
+approved public security release. Labels prepare a reviewed release PR;
+publication requires separate exact-artifact approval.
+
 ## AI assistance
 
 If AI helped substantially with this contribution, name the tool and describe

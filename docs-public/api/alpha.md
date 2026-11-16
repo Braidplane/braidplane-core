@@ -8,8 +8,8 @@ and CLI version information.
 ## Alpha changes
 
 Braidplane aims to follow semantic versioning on a best-effort basis before
-`1.0.0`: patch releases generally contain fixes and small improvements; minor
-releases generally introduce substantial features or breaking changes.
+`1.0.0`: patch releases contain compatible bug and performance fixes; new
+features and breaking changes require an explicitly selected minor release.
 This convention does not guarantee backward compatibility during Alpha.
 
 Alpha releases may change APIs, generated clients and CLI behavior without a

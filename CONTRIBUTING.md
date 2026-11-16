@@ -22,8 +22,11 @@ behavior and validation, including any checks you could not run.
 kerak19 maintains Community core and decides review priority, acceptance
 and releases. Review covers correctness, tenant boundaries, compatibility,
 rights and relevant test evidence. Review capacity is limited; there is no
-promised review or merge date. Respond to feedback on the same PR. Maintainers
-may request a smaller scope or close a proposal with a reason. Maintainers
+promised review or merge date. Respond to feedback on the same PR.
+Before merge, the reviewer selects exactly one `release:patch`, `release:minor`,
+`release:breaking` or `release:none` label. These labels prepare a reviewed release
+PR; they do not authorize publication. See [release versioning](doc/CORE_RELEASE_AUTOMATION.md).
+Maintainers may request a smaller scope or close a proposal with a reason. Maintainers
 handle any internal planning synchronization; GitHub remains the public thread.
 Contribution CI remains subject to the public-control qualification described
 in COMMUNITY_BUILD.md; a submitted PR is not a promise of automated execution.

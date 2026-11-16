@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+- Prepare reviewed pre-v1 version/changelog PRs from reviewer release labels.
+- Automate reviewed pre-v1 release selection and changelog preparation, bind
+  immutable source/artifact identities, and verify every signed release subject
+  before marking publication complete.
+
 - Bound spreadsheet expansion during reads and schema inference, including
   sparse worksheets and repeated shared-string copies.
 - Bound OpenAPI reference expansion, schema summaries and generated query drafts

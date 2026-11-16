@@ -38,6 +38,12 @@ need explicitly provisioned disposable fixtures. Keep normal Go caching;
 `-count=1` is appropriate when a fresh external fixture requires a new execution.
 A skipped integration test does not prove runtime behavior.
 
+For release versioning or publication changes, also run the release/installation
+Python regression suite listed in `test` in `Taskfile.yml` and `task docs-check`.
+See [release versioning and recovery](CORE_RELEASE_AUTOMATION.md) for the operator
+contract. Provider tag rules, protected approvals and live signing require a
+separately authorized release rehearsal.
+
 ## Full core verification
 
 `task test` runs core and CLI hermetic tests, JavaScript tests and Mailpit fixture

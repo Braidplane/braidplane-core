@@ -252,7 +252,10 @@ qualification and maintainer approval through the protected workflow. Release
 jobs must verify reviewed source and artifacts without restoring Community caches.
 
 For release procedures and runner isolation requirements, see
-[CI trust boundary](doc/CI_TRUST_BOUNDARY.md).
+[CI trust boundary](doc/CI_TRUST_BOUNDARY.md). Reviewers classify merged changes
+with release labels; the main-only workflow opens or refreshes a version/changelog
+PR as described in [Core release versioning and recovery](doc/CORE_RELEASE_AUTOMATION.md),
+which also covers exact-artifact tags, downstream identities and retry recovery.
 
 ## Documentation
 

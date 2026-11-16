@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: Approved release version
+        description: Version from the reviewed release-plan.json
         required: true
         type: string
       platform:
@@ -49,6 +49,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
+          fetch-depth: 0
       - name: Admit successful main CI
         env:
           GH_TOKEN: ${{ github.token }}
@@ -75,6 +76,9 @@ jobs:
           printf 'approval_sha256=%s\n' "$digest" >> "$GITHUB_OUTPUT"
           {
             printf '## Core release candidate\n\nApproval document SHA-256: %s\n\n' "$digest"
+            printf '%s\n' 'Reviewed release plan:' '~~~json'
+            cat release-plan.json
+            printf '\n%s\n' '~~~'
             printf '%s\n' 'Main CI admission:' '~~~json'
             cat "$RUNNER_TEMP/core-release-ci-admission.json"
             printf '\n%s\n' '~~~'
@@ -99,7 +103,7 @@ jobs:
     runs-on: ${{ inputs.platform == 'linux/arm64' && 'ubuntu-24.04-arm' || 'ubuntu-24.04' }}
     timeout-minutes: 120
     permissions:
-      contents: read
+      contents: write
       packages: write
       id-token: write
       attestations: write
@@ -111,6 +115,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
+          fetch-depth: 0
       - name: Download the reviewed candidate
         uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8
         with:
@@ -125,6 +130,13 @@ jobs:
             printf 'RELEASE_OUTPUT=%s\n' "$RUNNER_TEMP/core-release-output"
             printf 'CANDIDATE_DIR=%s\n' "$RUNNER_TEMP/core-release-candidate"
           } >> "$GITHUB_ENV"
+      - name: Reserve immutable release identity
+        env:
+          CORE_RELEASE_PUBLICATION_AUTHORIZED: 'yes'
+          APPROVED_SHA256: ${{ needs.prepare.outputs.approval_sha256 }}
+        run: |
+          python3 -m scripts.core_release_identity reserve "$CANDIDATE_DIR" "$APPROVED_SHA256" \
+            "$GITHUB_WORKSPACE" "$RUNNER_TEMP/core-release-identity"
       - name: Publish the approved candidate by digest
         id: publish_candidate
         env:
@@ -232,6 +244,13 @@ jobs:
           subject-path: ${{ runner.temp }}/core-release-candidate/installation.tar.gz
           predicate-type: https://slsa.dev/provenance/v1
           predicate-path: ${{ runner.temp }}/core-release-output/provenance.json
+      - name: Verify every subject and complete release identity
+        env:
+          CORE_RELEASE_PUBLICATION_AUTHORIZED: 'yes'
+          APPROVED_SHA256: ${{ needs.prepare.outputs.approval_sha256 }}
+        run: |
+          python3 -m scripts.core_release_identity complete "$CANDIDATE_DIR" "$APPROVED_SHA256" \
+            "$GITHUB_WORKSPACE" "$RUNNER_TEMP/core-release-identity"
       - name: Retain signature bundles
         if: ${{ always() && steps.publish_candidate.outcome == 'success' }}
         env:
@@ -265,6 +284,7 @@ jobs:
             ${{ runner.temp }}/core-release-candidate/record.json
             ${{ runner.temp }}/core-release-candidate/installation.tar.gz
             ${{ runner.temp }}/core-release-candidate/approval.json
+            ${{ runner.temp }}/core-release-identity/
             ${{ runner.temp }}/core-release-output/provenance.json
             ${{ runner.temp }}/core-release-output/ci-admission.json
             ${{ runner.temp }}/core-release-output/publication.jsonl

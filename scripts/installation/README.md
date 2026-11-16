@@ -11,6 +11,12 @@ expected JSON output; the operator guide covers authoring, deployment and readba
 
 ## Release inputs
 
+Reviewer release labels drive an automatic version/changelog PR; review and
+merge it before artifact preparation. The label policy and manual recovery are in
+[Core release versioning and recovery](../../doc/CORE_RELEASE_AUTOMATION.md).
+That guide defines eligible changes, patch/minor selection, release cadence,
+superseding/security releases, tag rules and interrupted-run recovery.
+
 The release owner supplies a JSON manifest with exactly `version`,
 `core_revision`, `platform` and `images`. The revision is a full lowercase Git
 commit ID. Platform is `linux/amd64` or `linux/arm64`. Images contains exactly
@@ -51,6 +57,9 @@ verify the build metadata and qualify the published images.
 `scripts.build_core_candidate` builds local OCI archives with a fresh builder
 and a pinned BuildKit image. It checks each archive against its image digest and
 platform, then prepares the installation manifest, archive and release record.
+It requires a matching reviewed `release-plan.json` and changelog section.
+For automatically prepared plans, it also refuses source changes after the
+recorded input snapshot other than the three release-plan files.
 It writes `approval.json` with the source, version, platform, record digest,
 image digests and OCI archive hashes for review. It does not publish images.
 The candidate validator checks those files against an independently supplied
@@ -59,13 +68,19 @@ and CI run before copying the archives by digest with a pinned ORAS image. It
 then checks the registry images and creates SBOMs. The manual workflow uses
 `CORE_RELEASE_PREPARATION_ENABLED` to allow candidate-only builds after exact
 main-push CI admission. Its read-only preparation job shows the approval document
-and release record for review. Publication requires
+reviewed release plan and release record for review. Publication requires
 `CORE_RELEASE_PUBLICATION_ENABLED=true` and the release owner's approval in the
 `core-release` environment. Require that review, allow only `main`, and disable
 administrator bypass before enabling publication. Review the exact approval
-document and release record before approving the waiting job. Each workflow run
-publishes its own freshly prepared candidate; a completed preparation-only run
-cannot be promoted by changing a flag afterward. Clear both enablement flags
+document, release plan and release record before approving the waiting job.
+The protected publisher reserves create-only source and artifact tags, requiring
+contents-write permission and separately configured tag protection. It marks a
+`core-published/<version>/<platform>` identity complete only after verifying all
+ten signed subjects against the expected source, workflow and current run/attempt.
+Each new workflow run publishes its own freshly prepared candidate; a completed preparation-only run
+cannot be promoted by changing a flag afterward. Rerun a failed publication job
+against its retained candidate; if those bytes are lost, use a new reviewed
+version. Changed bytes cannot replace a reservation. Clear both enablement flags
 after the approved run. Review the Buildx and
 GitHub CLI identities used by the hosted runner as well. The current candidate
 contains four Core images, two external image references and an installation
@@ -139,6 +154,8 @@ and publish the signed record.
 workflow, release and migration identities. It verifies provenance for the
 record, archive and each Core image, verifies the image SBOMs, and checks the
 archive's installation manifest. It writes a receipt only if every check passes.
+The publication workflow runs this verifier before creating its completed-release
+identity; an uploaded candidate or reserved tag alone does not establish success.
 To run it, obtain `record.json` and `installation.tar.gz` from the release
 evidence. Prepare an expectations JSON object from the approved release
 and independently checked workflow run. It must contain exactly these fields:
