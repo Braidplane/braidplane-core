@@ -11,14 +11,15 @@ from scripts.validate_core_candidate import file_hash, validate_candidate
 from scripts.verify_core_release import verify_release
 
 
-def api(path, payload=None):
+def api(path, payload=None, method="POST"):
     command = ["gh", "api", path]
     paginated = payload is None and "/git/matching-refs/" in path
     if paginated:
         command += ["--paginate", "--slurp"]
     if payload is not None:
-        command += ["--method", "POST", "--input", "-"]
-    result = json.loads(subprocess.check_output(command, input=None if payload is None else json.dumps(payload).encode()))
+        command += ["--method", method, "--input", "-"]
+    raw = subprocess.check_output(command, input=None if payload is None else json.dumps(payload).encode())
+    result = json.loads(raw) if raw.strip() else None
     return [item for page in result for item in page] if paginated else result
 
 
@@ -76,6 +77,8 @@ def identity(directory, approved, checkout, env):
     plan = reviewed(checkout, release["version"])
     materials = {name: file_hash(checkout / name) for name in
                  ("release-plan.json", "CHANGELOG.md", "ci/toolchain/versions.env", ".github/workflows/core-release.yml")}
+    if (checkout / "release-inputs.json").exists():
+        materials["release-inputs.json"] = file_hash(checkout / "release-inputs.json")
     return {"repository": repository, "source": source, "workflow_sha": source,
             "materials": materials, "plan": plan, "approval_sha256": approved, "record": record}
 

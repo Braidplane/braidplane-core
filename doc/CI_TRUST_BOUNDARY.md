@@ -38,6 +38,15 @@ a release job. Check setup actions for implicit caching, and check remote
 Buildx caches too. Cache prefixes alone do not control access; GitHub also
 scopes caches by repository and ref.
 
+`core-release-plan.yml` runs only on main pushes or manual main dispatches on
+fresh hosted runners. It reads merged PR labels and creates or refreshes a
+reviewed version/changelog PR. Its contents/PR write token cannot sign or publish
+packages. Actions write is used only to dispatch the existing read-only Core CI
+for the generated head, since token-created PRs do not trigger ordinary PR CI.
+It uses no contribution checkout, cache, artifact, deployment environment or
+secret. Its exact job, token and step inventory is checked independently from
+contribution CI. See [release preparation](CORE_RELEASE_AUTOMATION.md#reviewer-labels-and-automatic-release-prs).
+
 The manual `core-release.yml` workflow prepares OCI archives when
 `CORE_RELEASE_PREPARATION_ENABLED` is `true`. Before enabling preparation, review
 the source, version, platform, external image digests and artifact exposure.

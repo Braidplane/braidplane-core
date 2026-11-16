@@ -4,23 +4,63 @@ Release preparation and publication remain separate, explicitly authorized
 operations. This automation does not enable either flag, change provider
 settings, or grant approval. See [CI trust boundary](CI_TRUST_BOUNDARY.md).
 
-## Review the version and notes
+## Reviewer labels and automatic release PRs
 
-Batch eligible merges by default. A maintainer can select a single merge for an
-expedited security release. Neither merging nor a PR label publishes anything.
-Use `v0.0.0` as the baseline for the first release; thereafter supply the last
-reserved version in the selected release line, including abandoned reservations.
-Publication checks that this baseline exists and is current within that line.
-Check `core-published/` separately to distinguish completed releases. Backports may use an older maintained minor
-line. Never reuse a reserved version for another source or artifact.
+Before merging a product PR, the reviewer selects exactly one label:
 
-Compatible bug fixes and performance fixes select the next patch automatically.
-Features and incompatible changes require `--bump minor`; before v1, this resets
-the patch number to zero. Review compatibility for the API, CLI, configuration,
-connectors and installation/migration contracts. The tool checks the declared
-classification; the maintainer reviews whether it is accurate. Pure docs, tests
-and CI changes produce no release. Changes that affect distributed behavior,
-including dependency repairs, must be classified by their user-visible effect.
+| Label | Version choice |
+|---|---|
+| `release:patch` | Compatible bug or performance fix; next patch |
+| `release:minor` | New feature; next minor, patch reset to zero |
+| `release:breaking` | Incompatible change; explicit minor before v1 |
+| `release:none` | Docs, tests, CI or tooling without a distributed behavior change |
+
+`release:security` is an additional label for a disclosure-approved expedited
+security release. It marks the notes and records the previous release as
+superseded. Review compatibility across API, CLI, configuration, connectors and
+installation/migration contracts; labels declare that review, not proof of it.
+Missing, conflicting or unsupported release labels stop preparation. Fix the
+merged PR's labels and dispatch preparation again; no changes are silently lost.
+
+On each main push, `core-release-plan.yml` uses trusted main code and merged PR
+metadata to create or refresh one `automation/core-release/` PR. Its only changed
+files are `release-plan.json`, `release-inputs.json` and `CHANGELOG.md`. Notes use
+PR titles and numbers. The input receipt records the source snapshot, PRs and
+labels. Pure `release:none` batches create no release PR. PR #136 is classified
+`release:none`; the next eligible product change starts the first release PR.
+
+The default cadence batches pending merges into that release PR. A later feature
+merge upgrades a pending patch to a minor release. Refreshes need review again;
+configure the main review policy to dismiss stale approvals and require an
+up-to-date branch. The bot refuses to overwrite reviewer edits or force-update
+its branch. Before building artifacts, a source check requires that the reviewed
+plan merge is the only change after its recorded source snapshot and changes
+only those three files. An intervening code merge therefore requires a refreshed
+plan, even if the release PR was merged before the refresh ran. Use merge or
+squash merge for refreshed release PRs, whose history includes merge commits.
+
+The reviewed bootstrap source in `ci/core-release-start.json` excludes history
+before this automation. Subsequent plans resume from `release-inputs.json`.
+Direct main commits without a merged PR stop preparation for operator
+reconciliation. Generated release-plan PRs are excluded only when they change
+exactly the three allowed files. The automatic path selects the highest reserved
+stable pre-v1 version, or `v0.0.0` initially. Maintenance-line backports use the
+manual path below. Never reuse a reserved version for different source/artifacts.
+
+The repository must allow GitHub Actions to create pull requests and contain the
+reviewer labels above. The main-only job has contents/PR write access, plus
+Actions write access solely to dispatch the existing read-only `ci.yml` for its
+new head: events created with `GITHUB_TOKEN` do not ordinarily start PR CI.
+It has no signing, package, deployment or secret authority, and never checks out
+contribution code or restores contribution caches. Set
+`CORE_RELEASE_PLAN_ENABLED=false` to disable automatic preparation. Neither a
+label nor merging the generated PR publishes artifacts.
+
+After the plan merges, dispatch the existing `core-release.yml` on that main
+revision, with the plan's version, platform, external image digests and successful
+main-push CI run/attempt. It still requires the separate artifact approval below.
+
+## Manual selection and exceptional recovery
 
 Create a synthetic-format changes file outside the checkout, for example:
 
@@ -57,8 +97,9 @@ Verify those provider controls separately. Local code uses create-only API calls
 and refuses an existing tag with a different source or annotation; it cannot
 prevent an administrator from changing tags outside this workflow.
 
-The protected publication job receives contents-write permission only to create
-these identities. Preparation and contribution CI retain read-only permissions.
+The protected publication job receives contents-write permission to create
+these identities. OCI candidate preparation and contribution CI remain read-only;
+the separate main-only release-PR job has the metadata permissions described above.
 The protected environment approval covers the exact `approval.json` digest,
 source revision, workflow, plan, image and archive bytes shown in the summary.
 
@@ -67,7 +108,7 @@ Publication first reserves:
 - `v0.X.Y`: reviewed source revision shared by all platforms.
 - `core-candidate/v0.X.Y/linux-amd64` (or `linux-arm64`): exact approval digest,
   full artifact/migration record, source/workflow revision, and hashes of the
-  reviewed plan, changelog, workflow and pinned toolchain file.
+  reviewed plan, input receipt (when present), changelog, workflow and pinned toolchain file.
 
 These annotated tags contain JSON and point directly at the source commit.
 The approval digest binds the record, image archives and compiled baseline.
@@ -93,6 +134,32 @@ of a download page or GitHub Release is a separate operation.
 
 ## Interrupted and retried runs
 
+For release-PR preparation, rerun the workflow on current main:
+
+```sh
+gh workflow run core-release-plan.yml --ref main
+```
+
+An interrupted run reuses an identical branch for the same source and notes.
+If main advanced before a PR was created, it prepares a fresh branch; the unused
+branch remains untouched. A pending PR is refreshed with fast-forward commits.
+Concurrent or custom reviewer edits cause refusal. Preserve those edits and
+reconcile the plan, notes and input receipt manually against current main before
+merging. Do not change the generated checksum to bypass the edit check.
+
+If a stale plan already merged but has no artifact reservation, preparation
+creates a repair PR covering its original inputs and intervening merges. Once a
+version is reserved, publication retries must keep its original candidate bytes.
+For an abandoned reserved version, prepare a new reviewed version using the
+manual command above, including the abandoned changes and `--supersedes` version.
+When `release-inputs.json` exists, retain its input records and update
+`through_sha` to the main revision used to prepare that recovery PR; review the
+receipt with the notes. The recovery PR must change only the same three files
+and merge directly after that source snapshot. This is an exceptional operator
+recovery, not an automatic abandonment or tag rewrite.
+
+For artifact publication:
+
 1. Inspect the exact run/attempt and retained publication journal. Missing
    `core-published/` means incomplete, even when some registry images exist.
 2. Preserve the candidate artifact, approval digest, signature bundles and logs.
@@ -116,7 +183,7 @@ of a download page or GitHub Release is a separate operation.
 Local regression checks:
 
 ```sh
-python3 -m unittest scripts.test_core_release_version scripts.test_core_release_identity
+python3 -m unittest scripts.test_prepare_core_release scripts.test_core_release_version scripts.test_core_release_identity
 bash scripts/go-toolchain.sh test -short ./ci
 ```
 

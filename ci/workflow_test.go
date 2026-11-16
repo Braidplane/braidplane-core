@@ -243,6 +243,13 @@ func TestCommunityWorkflowTrustBoundary(t *testing.T) {
 		{"release build cache", ".github/workflows/ci.yml", "scope=community-", "scope=release-"},
 		{"composite secret", ".github/actions/cache-fixture-images/action.yml", "        CACHE_ENABLED:", "        TOKEN: ${{ secrets.RELEASE_TOKEN }}\n        CACHE_ENABLED:"},
 		{"composite release cache", ".github/actions/cache-fixture-images/action.yml", "key: community-fixture-", "key: release-fixture-"},
+		{"release missing source history", ".github/workflows/core-release.yml", "          fetch-depth: 0\n", "          fetch-depth: 1\n"},
+		{"release plan fork event", ".github/workflows/core-release-plan.yml", "  push:", "  pull_request_target:\n  push:"},
+		{"release plan credential", ".github/workflows/core-release-plan.yml", "persist-credentials: false", "persist-credentials: true"},
+		{"release plan candidate checkout", ".github/workflows/core-release-plan.yml", "fetch-depth: 0", "fetch-depth: 0\n          ref: ${{ github.event.pull_request.head.sha }}"},
+		{"release plan signing", ".github/workflows/core-release-plan.yml", "      actions: write", "      actions: write\n      id-token: write"},
+		{"release plan package access", ".github/workflows/core-release-plan.yml", "      actions: write", "      actions: write\n      packages: write"},
+		{"release plan cache", ".github/workflows/core-release-plan.yml", "    steps:", "    steps:\n      - uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9"},
 		{"release verification skipped", ".github/workflows/core-release.yml", "      - name: Verify every subject and complete release identity\n", "      - name: Verify every subject and complete release identity\n        if: false\n"},
 		{"release reservation ignored", ".github/workflows/core-release.yml", "      - name: Reserve immutable release identity\n", "      - name: Reserve immutable release identity\n        continue-on-error: true\n"},
 		{"release push trigger", ".github/workflows/core-release.yml", "  workflow_dispatch:", "  push:\n  workflow_dispatch:"},
@@ -293,6 +300,7 @@ func communityBoundary(files map[string]string) error {
 	allowedFiles := map[string]bool{
 		".github/workflows/ci.yml":                         true,
 		".github/workflows/core-release.yml":               true,
+		".github/workflows/core-release-plan.yml":          true,
 		".github/actions/cache-fixture-images/action.yml":  true,
 		".github/actions/prepare-hosted-runner/action.yml": true,
 	}
@@ -306,6 +314,12 @@ func communityBoundary(files map[string]string) error {
 		var document map[string]any
 		if err := yaml.Unmarshal([]byte(source), &document); err != nil {
 			return fmt.Errorf("%s: %w", path, err)
+		}
+		if path == ".github/workflows/core-release-plan.yml" {
+			if err := releasePlanBoundary(document); err != nil {
+				return fmt.Errorf("%s: %w", path, err)
+			}
+			continue
 		}
 		if path == ".github/workflows/core-release.yml" {
 			if err := releaseBoundary(document); err != nil {
@@ -337,6 +351,34 @@ func communityBoundary(files map[string]string) error {
 		if err := checkCommunityNode(document); err != nil {
 			return fmt.Errorf("%s: %w", path, err)
 		}
+	}
+	return nil
+}
+
+// Release preparation may write reviewable metadata and dispatch read-only CI,
+// but must never execute a contribution checkout or acquire signing authority.
+func releasePlanBoundary(document map[string]any) error {
+	if !reflect.DeepEqual(document["on"], map[string]any{"push": map[string]any{"branches": []any{"main"}}, "workflow_dispatch": nil}) ||
+		!reflect.DeepEqual(document["permissions"], map[string]any{"contents": "read"}) ||
+		!reflect.DeepEqual(document["concurrency"], map[string]any{"group": "core-release-plan", "cancel-in-progress": false}) {
+		return fmt.Errorf("release PR preparation requires serialized trusted main events")
+	}
+	jobs, ok := document["jobs"].(map[string]any)
+	if !ok || len(jobs) != 1 {
+		return fmt.Errorf("release preparation job inventory changed")
+	}
+	job, ok := jobs["prepare-plan"].(map[string]any)
+	expected := map[string]any{
+		"if":      "${{ github.ref == 'refs/heads/main' && github.event.repository.visibility == 'public' && vars.CORE_RELEASE_PLAN_ENABLED != 'false' }}",
+		"runs-on": "ubuntu-24.04", "timeout-minutes": 10,
+		"permissions": map[string]any{"contents": "write", "pull-requests": "write", "actions": "write"},
+		"steps": []any{
+			map[string]any{"uses": "actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1", "with": map[string]any{"persist-credentials": false, "fetch-depth": 0}},
+			map[string]any{"name": "Prepare reviewed version and changelog PR", "env": map[string]any{"GH_TOKEN": "${{ github.token }}"}, "run": `python3 -m scripts.prepare_core_release "$GITHUB_WORKSPACE"`},
+		},
+	}
+	if !ok || !reflect.DeepEqual(job, expected) {
+		return fmt.Errorf("release preparation must use trusted main code without signing, publication, secrets or caches")
 	}
 	return nil
 }
@@ -447,8 +489,8 @@ func releaseBoundary(document map[string]any) error {
 				switch uses {
 				case "actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1":
 					with, _ := step["with"].(map[string]any)
-					if len(with) != 1 || with["persist-credentials"] != false {
-						return fmt.Errorf("release checkout must discard its credential")
+					if !reflect.DeepEqual(with, map[string]any{"persist-credentials": false, "fetch-depth": 0}) {
+						return fmt.Errorf("release checkout must retain source history and discard its credential")
 					}
 				case "actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6":
 					if name != "publish" {

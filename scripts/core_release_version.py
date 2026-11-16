@@ -2,6 +2,7 @@
 import argparse
 import json
 import re
+import subprocess
 from pathlib import Path
 
 from scripts.verify_core_release import read_json
@@ -55,7 +56,30 @@ def notes(plan):
 
 
 def reviewed(checkout, version):
+    inputs = checkout / "release-inputs.json"
+    if inputs.exists():
+        through = read_json(inputs)["through_sha"]
+        if not isinstance(through, str) or not re.fullmatch(r"[0-9a-f]{40}", through):
+            raise ValueError("invalid release source snapshot")
+        subprocess.run(["git", "-C", str(checkout), "merge-base", "--is-ancestor", through, "HEAD"], check=True)
+        commits = subprocess.check_output(["git", "-C", str(checkout), "rev-list", "--first-parent", f"{through}..HEAD"], text=True).splitlines()
+        changed = subprocess.check_output(["git", "-C", str(checkout), "diff", "--name-only", through, "HEAD"], text=True).splitlines()
+        if len(commits) != 1 or set(changed) != {"CHANGELOG.md", "release-plan.json", "release-inputs.json"}:
+            raise ValueError("release plan is stale: refresh and review it against current main before building")
     return validate_plan(read_json(checkout / "release-plan.json"), (checkout / "CHANGELOG.md").read_text(), version)
+
+
+def with_notes(changelog, plan):
+    version = plan["version"]
+    if f"## {version}\n" in changelog or changelog.count("## Unreleased\n") != 1:
+        raise ValueError("changelog needs one Unreleased heading and no existing selected version")
+    before, _, pending = changelog.partition("## Unreleased\n")
+    unreleased, next_heading, older = pending.partition("\n## ")
+    updated = before + "## Unreleased\n" + unreleased.rstrip() + "\n\n" + notes(plan)
+    if next_heading:
+        updated += "\n## " + older
+    validate_plan(plan, updated, version)
+    return updated
 
 
 def main():
@@ -76,14 +100,7 @@ def main():
                     security=args.security, supersedes=args.supersedes)
         path = Path("CHANGELOG.md")
         changelog = path.read_text()
-        if f"## {version}\n" in changelog or changelog.count("## Unreleased\n") != 1:
-            raise ValueError("changelog needs one Unreleased heading and no existing selected version")
-        before, separator, after = changelog.partition("\n## ")
-        unreleased, next_heading, older = after.partition("\n## ")
-        updated = before + separator + unreleased.rstrip() + "\n\n" + notes(plan)
-        if next_heading:
-            updated += "\n" + next_heading.lstrip("\n") + older
-        validate_plan(plan, updated, version)
+        updated = with_notes(changelog, plan)
         Path("release-plan.json").write_text(json.dumps(plan, indent=2) + "\n")
         path.write_text(updated)
         print(version)

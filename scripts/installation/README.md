@@ -11,7 +11,8 @@ expected JSON output; the operator guide covers authoring, deployment and readba
 
 ## Release inputs
 
-Prepare and review the version and changelog using
+Reviewer release labels drive an automatic version/changelog PR; review and
+merge it before artifact preparation. The label policy and manual recovery are in
 [Core release versioning and recovery](../../doc/CORE_RELEASE_AUTOMATION.md).
 That guide defines eligible changes, patch/minor selection, release cadence,
 superseding/security releases, tag rules and interrupted-run recovery.
@@ -57,6 +58,8 @@ verify the build metadata and qualify the published images.
 and a pinned BuildKit image. It checks each archive against its image digest and
 platform, then prepares the installation manifest, archive and release record.
 It requires a matching reviewed `release-plan.json` and changelog section.
+For automatically prepared plans, it also refuses source changes after the
+recorded input snapshot other than the three release-plan files.
 It writes `approval.json` with the source, version, platform, record digest,
 image digests and OCI archive hashes for review. It does not publish images.
 The candidate validator checks those files against an independently supplied
