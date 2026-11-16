@@ -49,3 +49,8 @@ a resumable snapshot. Uncertain sink writes require destination inspection.
 | Source worker is lost | No offset resume or continuation of the lost snapshot is supported. Claim fencing and expiry apply to incomplete input. |
 | Destination write is partial or its acknowledgement is lost | Native-file sink guards apply. Missing acknowledgement is not success and cannot authorize automatic replay. Inspect the destination and clean provider remnants before recovery. |
 | A checkpoint is replayed | Public checkpoints retain metadata, not a reusable private file reference. SQL file replay is refused before source reread or sink dispatch. |
+
+## Independent destination verification
+
+See the [comparison verifier guide](../comparison/README.md) for standalone
+setup, destination-object verification and synthetic regression checks.
