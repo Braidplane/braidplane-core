@@ -71,7 +71,8 @@ esac
         workflow = (ROOT / '.github/workflows/ci.yml').read_text()
         self.assertIn('type: boolean\n        default: false', workflow)
         self.assertEqual(workflow.count('uses: actions/cache/restore@'),
-                         workflow.count('if: ${{ !inputs.cold_cache }}'))
+                         workflow.count('if: ${{ !inputs.cold_cache }}') +
+                         workflow.count("if: ${{ !inputs.cold_cache && matrix.check == 'lint' }}"))
         self.assertEqual(workflow.count('uses: actions/cache/save@'),
                          workflow.count('!inputs.cold_cache && !cancelled()'))
         self.assertEqual(workflow.count('uses: ./.github/actions/cache-fixture-images'),
