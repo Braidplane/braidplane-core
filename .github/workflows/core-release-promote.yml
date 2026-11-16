@@ -1,0 +1,62 @@
+name: Promote Core RC to stable
+
+on:
+  workflow_dispatch:
+    inputs:
+      candidate:
+        description: Completed RC to promote (for example v0.1.0-rc.2)
+        required: true
+        type: string
+      platform:
+        description: Published RC platform
+        required: true
+        type: choice
+        options: [linux/amd64, linux/arm64]
+
+permissions:
+  contents: read
+
+# Serialize promotion with RC publication so their stable cursor cannot race.
+concurrency:
+  group: core-release-candidate
+  cancel-in-progress: false
+  queue: max
+
+jobs:
+  promote:
+    if: ${{ github.ref == 'refs/heads/main' && github.event.repository.visibility == 'public' && vars.CORE_RELEASE_PUBLICATION_ENABLED == 'true' }}
+    environment: core-release
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    permissions:
+      contents: write
+      actions: read
+      packages: read
+    env:
+      GH_TOKEN: ${{ github.token }}
+      DOCKER_CONFIG: ${{ runner.temp }}/core-promotion-docker
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+      - name: Verify RC and publish stable release
+        env:
+          CORE_RELEASE_PUBLICATION_AUTHORIZED: 'yes'
+          RELEASE_CANDIDATE: ${{ inputs.candidate }}
+          RELEASE_PLATFORM: ${{ inputs.platform }}
+        run: |
+          mkdir -p -m 700 "$DOCKER_CONFIG"
+          printf '%s' "$GH_TOKEN" | docker login ghcr.io --username "$GITHUB_ACTOR" --password-stdin
+          python3 -m scripts.promote_core_release "$RELEASE_CANDIDATE" "$RELEASE_PLATFORM" \
+            "$GITHUB_WORKSPACE" "$RUNNER_TEMP/core-stable-release"
+      - name: Retain promotion evidence
+        if: ${{ always() }}
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: core-stable-promotion
+          path: ${{ runner.temp }}/core-stable-release/
+          if-no-files-found: ignore
+      - name: Remove registry credentials
+        if: ${{ always() }}
+        run: docker logout ghcr.io

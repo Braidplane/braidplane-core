@@ -3,13 +3,12 @@
 The normal flow is:
 
 **Merge reviewed, labeled change → successful main CI → version and notes →
-built candidate → automatic publication and verification.**
+built candidate → verified GitHub prerelease → explicit stable promotion.**
 
 There is no release-plan PR or version-only source commit. Generated metadata
 stays outside the clean checkout and is bound to the exact candidate. All
-supported `v0` releases publish automatically, including breaking changes.
-Maintainer review of the labeled source and the enabled release workflow provide
-standing publication authorization; there is no per-release human approval.
+eligible `v0` candidates publish automatically as prereleases. An explicit
+promotion dispatch authorizes each stable release.
 Only pre-v1 versions are supported by the current version-selection policy.
 
 ## Reviewer labels and automatic candidates
@@ -27,8 +26,8 @@ Add `release:security` only for a disclosure-approved expedited security release
 It marks the notes and records the preceding version as superseded. Review
 compatibility across API, CLI, configuration, connectors and installation/migration
 contracts. Breaking changes are normal during v0 development and are marked
-**Breaking change** in release notes; they follow the same automatic publication
-path as other changes. Labels declare compatibility review; the tool does not
+**Breaking change** in release notes; they follow the same candidate and
+promotion path as other changes. Labels declare compatibility review; the tool does not
 infer it.
 Missing, conflicting or unsupported labels stop preparation until corrected.
 After fixing labels, rerun the failed automatic preparation run; there is no
@@ -43,19 +42,17 @@ dispatch the existing `core-release.yml`; it cannot write source, create PRs,
 sign, publish packages, use deployment environments or restore contribution
 artifacts/caches.
 
-Eligible merged changes since the latest completed release are batched into the
-candidate. The initial cursor is the reviewed source in `ci/core-release-start.json`.
-Direct main commits without a merged PR stop preparation for operator
-reconciliation. Pure `release:none` batches produce no candidate. Reserved
-versions determine the next version; a reservation alone does not advance the
-completed-release source cursor. Changes from an abandoned reservation therefore
-remain included in the next candidate, with the reserved version superseded.
+Eligible merged changes since the latest completed stable release are batched into
+one candidate. The initial cursor is the reviewed source in `ci/core-release-start.json`.
+Direct main commits without a merged PR stop preparation for operator reconciliation.
+A `release:none`-only addition does not create a duplicate candidate. Reserved RC
+numbers are never reused, even after an abandoned run. A feature or breaking change
+selects the next minor target; its RC sequence starts independently. Only a completed
+stable release advances the cursor.
 
 The reviewed [release configuration](../ci/core-release.json) pins the selected
-platform and external image digests. Initial pins reuse the self-hosted fixture
-images; this does not independently qualify their distribution or hardware support.
-Change this source configuration through normal review. The automated path uses
-the highest stable pre-v1 reservation, starting from `v0.0.0` when none exists.
+platform and external image digests. Change this configuration through normal review.
+These pins do not independently qualify distribution or hardware support.
 
 The dispatcher submits the source configuration and exact main CI run/attempt
 to `core-release.yml`. That workflow checks CI again, selects the version when
@@ -81,8 +78,7 @@ The installation archive contains those same metadata bytes. Its digest in the
 signed record and archive provenance authenticates the notes and receipt without
 another signing workflow or an additional source commit.
 
-`CORE_RELEASE_PUBLICATION_ENABLED=true` enables automatic publication under the
-v0 standing policy. The `core-release` environment must allow only `main`, have
+`CORE_RELEASE_PUBLICATION_ENABLED=true` enables automatic RC publication. The `core-release` environment must allow only `main`, have
 no required reviewers or wait timer, and keep administrator bypass disabled.
 Keep the immutable tag rules below active. Candidate validation enforces the
 pre-v1 selection and exact source/configuration before registry or signing work.
@@ -103,8 +99,8 @@ prevent an administrator from changing rules outside this workflow.
 
 Publication first reserves:
 
-- `v0.X.Y`: exact source revision shared by the release identity.
-- `core-candidate/v0.X.Y/linux-amd64` (or `linux-arm64`): exact approval digest,
+- `v0.X.Y-rc.N`: exact source revision shared by the candidate identity.
+- `core-candidate/v0.X.Y-rc.N/linux-amd64` (or `linux-arm64`): exact approval digest,
   full artifact/migration record, source/workflow identity, candidate metadata
   hashes and hashes of the reviewed configuration, workflow and toolchain file.
 
@@ -117,15 +113,34 @@ and signing steps; contribution output is never promoted.
 After signing, verification requires the expected public repository, workflow,
 source/signer revision, hosted runner and current run/attempt for all ten subjects:
 record and archive provenance, plus provenance and SBOM for each of four images.
-Only then is `core-published/v0.X.Y/linux-amd64` created. A candidate tag or an
+Only then is `core-published/v0.X.Y-rc.N/linux-amd64` created and the GitHub prerelease published. A candidate tag or an
 uploaded Actions artifact alone is not a completed release.
 
-Downstream consumers resolve the published tag and pin source, migration and
-OCI digests. Retain verification receipts, signature bundles, archive and identity
-JSON from `core-release-evidence-*` in the approved evidence store before Actions
-retention expires. Tags retain identity, not downloadable archive bytes or
-run-specific verification receipts. A download page or GitHub Release remains a
-separate publication operation.
+## Promote a candidate
+
+Dispatch promotion from `main` with the candidate and platform:
+
+```sh
+gh workflow run core-release-promote.yml --repo Braidplane/braidplane-core --ref main -f candidate=v0.1.0-rc.2 -f platform=linux/amd64
+```
+
+The workflow selects the latest completed RC, checks its original successful run,
+and verifies all ten signatures again. It does not rebuild. It creates the stable
+version tag and GitHub Release with cumulative notes, then creates the stable
+`core-published` tag after the release assets. RC publication and promotion share
+a concurrency group with `queue: max`, so up to 100 pending runs wait without
+replacing one another. Promotion selects the newest candidate source on main;
+completion time breaks ties for the same source. The main-only `core-release` environment has no required
+reviewers or wait timer, and administrator bypass is disabled.
+
+The stable assets are identical to the candidate assets. The signed archive and
+record retain the RC version; `promotion.json` binds the stable alias to the exact
+RC identity. Stable release notes use the stable heading. Existing `v0.0.1`
+remains available.
+
+Downstream consumers pin source, migration and OCI digests. Retain verification
+receipts, signature bundles, archive and identity JSON before Actions retention
+expires. Tags retain identity, not downloadable archive bytes or run receipts.
 
 ## Interrupted and retried runs
 
@@ -156,7 +171,7 @@ governs whether rollback is safe.
 Local checks:
 
 ```sh
-python3 -m unittest scripts.test_prepare_core_release scripts.test_core_release_version scripts.test_core_release_identity
+python3 -m unittest scripts.test_prepare_core_release scripts.test_core_release_version scripts.test_core_release_identity scripts.test_publish_core_release scripts.test_promote_core_release
 bash scripts/go-toolchain.sh test -short ./ci
 ```
 

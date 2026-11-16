@@ -35,6 +35,7 @@ permissions:
 concurrency:
   group: core-release-candidate
   cancel-in-progress: false
+  queue: max
 
 jobs:
   prepare:
@@ -264,6 +265,9 @@ jobs:
         run: |
           python3 -m scripts.core_release_identity complete "$CANDIDATE_DIR" "$APPROVED_SHA256" \
             "$GITHUB_WORKSPACE" "$RUNNER_TEMP/core-release-identity"
+      - name: Publish verified RC prerelease
+        run: |
+          python3 -m scripts.publish_core_release "$CANDIDATE_DIR" "$RUNNER_TEMP/core-release-identity"
       - name: Retain signature bundles
         if: ${{ always() && steps.publish_candidate.outcome == 'success' }}
         env:

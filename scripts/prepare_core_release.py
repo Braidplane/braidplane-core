@@ -74,34 +74,64 @@ def collect(repository, checkout, start, source):
 
 
 def release_metadata(checkout, repository, source):
-    versions = api(f"repos/{repository}/git/matching-refs/tags/v")
-    versions = [ref["ref"].removeprefix("refs/tags/") for ref in versions
-                if re.fullmatch(r"refs/tags/v0\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)", ref["ref"])]
-    previous = max(versions, key=lambda v: tuple(map(int, v[1:].split('.')))) if versions else "v0.0.0"
+    refs = api(f"repos/{repository}/git/matching-refs/tags/v")
+    versions = [ref["ref"].removeprefix("refs/tags/") for ref in refs]
     completed = api(f"repos/{repository}/git/matching-refs/tags/core-published/")
-    completed = [ref for ref in completed if re.fullmatch(r"refs/tags/core-published/v0\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)/linux-(amd64|arm64)", ref["ref"])]
+    pattern = r"refs/tags/core-published/(v0\.(?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*)(?:-rc\.[1-9][0-9]*)?)/linux-(?:amd64|arm64)"
+    completed = [(ref, match.group(1)) for ref in completed if (match := re.fullmatch(pattern, ref["ref"]))]
     start = read_json(checkout / "ci/core-release-start.json")["source"]
-    published_version = "v0.0.0"
-    if completed:
-        latest = max(completed, key=lambda ref: tuple(map(int, ref["ref"].split('/')[-2][1:].split('.'))))
-        if latest["object"]["type"] != "tag":
+    previous = "v0.0.0"
+
+    def identity(ref, version):
+        if ref["object"]["type"] != "tag":
             raise ValueError("published release cursor must be an annotated identity tag")
-        tag = api(f"repos/{repository}/git/tags/{latest['object']['sha']}")
-        identity = json.loads(tag["message"])
-        start, published_version = identity["source"], identity["record"]["release"]["version"]
-        if (tag["object"]["type"] != "commit" or tag["object"]["sha"] != start or identity["repository"] != repository or
-                identity["record"]["release"]["core_revision"] != start or published_version != latest["ref"].split('/')[-2]):
+        tag = api(f"repos/{repository}/git/tags/{ref['object']['sha']}")
+        value = json.loads(tag["message"])
+        source_sha = value["source"]
+        release_version = value["record"]["release"]["version"]
+        promotion = value.get("promotion")
+        valid_version = (release_version == version if promotion is None else
+                         promotion == {"version": version, "candidate": release_version} and
+                         re.fullmatch(re.escape(version) + r"-rc\.[1-9][0-9]*", release_version))
+        if (tag["object"]["type"] != "commit" or tag["object"]["sha"] != source_sha or value["repository"] != repository or
+                value["record"]["release"]["core_revision"] != source_sha or not valid_version):
             raise ValueError("published release identity differs from its source")
+        return value
+
+    stable = [(ref, version) for ref, version in completed if "-rc." not in version]
+    if stable:
+        ref, previous = max(stable, key=lambda item: tuple(map(int, item[1][1:].split('.'))))
+        start = identity(ref, previous)["source"]
     if not isinstance(start, str) or not re.fullmatch(r"[0-9a-f]{40}", start):
         raise ValueError("invalid published release source cursor")
     pulls = collect(repository, checkout, start, source)
     plan = release_plan(previous, pulls)
     if plan is None:
         return None
-    if previous != published_version and previous != "v0.0.0":
-        plan["supersedes"] = sorted(set(plan["supersedes"] + [previous]))
     inputs = dict(since_sha=start, through_sha=source, pull_requests=[dict(number=p["number"], title=p["title"], merge_sha=p["merge_commit_sha"],
                     labels=sorted(label["name"] for label in p["labels"] if label["name"].startswith("release:"))) for p in pulls])
+    target = plan["version"]
+    candidates = [(ref, version) for ref, version in completed if re.fullmatch(re.escape(target) + r"-rc\.[1-9][0-9]*", version)]
+    if candidates:
+        history = {sha: index for index, sha in enumerate(git(checkout, "rev-list", "--first-parent", source).splitlines())}
+        ranked = []
+        for ref, version in candidates:
+            value = identity(ref, version)
+            prior_source = value["source"]
+            if prior_source not in history:
+                try:
+                    subprocess.run(["git", "-C", str(checkout), "merge-base", "--is-ancestor", source, prior_source], check=True)
+                except subprocess.CalledProcessError as error:
+                    raise ValueError("completed RC source is outside candidate history") from error
+                return None
+            ranked.append((-history[prior_source], int(version.split('-rc.')[1]), value))
+        prior = max(ranked, key=lambda item: item[:2])[2]["inputs"]
+        eligible = lambda items: sorted((item for item in items if "release:none" not in item["labels"]), key=lambda item: item["number"])
+        if prior["since_sha"] == start and eligible(prior["pull_requests"]) == eligible(inputs["pull_requests"]):
+            return None
+    numbers = [int(match.group(1)) for version in versions
+               if (match := re.fullmatch(re.escape(target) + r"-rc\.([1-9][0-9]*)", version))]
+    plan["version"] = f"{target}-rc.{max(numbers, default=0) + 1}"
     return {"release-plan.json": json.dumps(plan, indent=2) + "\n",
             "release-inputs.json": json.dumps(inputs, indent=2) + "\n",
             "CHANGELOG.md": with_notes((checkout / "CHANGELOG.md").read_text(), plan)}

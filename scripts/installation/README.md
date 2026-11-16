@@ -1,8 +1,7 @@
 # Community installation tooling
 
 Core owns the Community single-host bundle, including its generic Compose and
-Caddy assets. This candidate is still being tested. It has no approved public release or supported
-platforms yet. See [the operator guide](INSTALL.md) for preparation,
+Caddy assets. Platform and installation qualification remain separate from release publication. See [the operator guide](INSTALL.md) for preparation,
 startup, administrator bootstrap, shutdown and compatible image-set upgrades.
 Preparation supports `--api-only` to omit the frontend and route TLS directly to
 the API; lifecycle and upgrade commands preserve the selected layout.
@@ -12,7 +11,7 @@ expected JSON output; the operator guide covers authoring, deployment and readba
 ## Release inputs
 
 Reviewer release labels and successful exact main CI drive automatic candidate
-preparation and publication under the v0 standing policy. Generated version,
+preparation and RC prerelease publication. Stable releases require an explicit promotion dispatch. Generated version,
 notes and input identities are bound to the artifact bytes. The label policy and manual recovery are in
 [Core release versioning and recovery](../../doc/CORE_RELEASE_AUTOMATION.md).
 That guide defines eligible changes, patch/minor selection, release cadence,
@@ -82,13 +81,12 @@ ten signed subjects against the expected source, workflow and current run/attemp
 Each new workflow run publishes its own freshly prepared candidate; a completed preparation-only run
 cannot be promoted by changing a flag afterward. Rerun a failed publication job
 against its retained candidate; if those bytes are lost, use a new reviewed
-version. Changed bytes cannot replace a reservation. Clear both enablement flags
-after the approved run. Review the Buildx and
+version. Changed bytes cannot replace a reservation. Review the Buildx and
 GitHub CLI identities used by the hosted runner as well. The current candidate
 contains four Core images, two external image references and an installation
 archive; it does not prepare standalone CLI archives or an archive SBOM. Agree
 the complete release asset set before relying on this workflow. Public CI and
-release acceptance remain separate checks after Core is public.
+release acceptance remain separate checks.
 
 Before building a release, `scripts.admit_core_ci` can check a specified GitHub
 Actions run and attempt against the candidate revision. The run must be a

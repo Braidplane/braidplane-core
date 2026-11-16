@@ -58,11 +58,15 @@ installation archive; the source checkout remains clean.
 Publication requires `CORE_RELEASE_PUBLICATION_ENABLED=true` and the main-only
 `core-release` environment. Under the v0 standing policy, that environment has
 no required reviewers or wait timer; administrator bypass stays disabled.
-Reviewed source and release labels authorize automatic v0 publication, including
+Reviewed source and release labels authorize automatic v0 RC publication, including
 breaking changes marked in the notes. The publisher validates the exact identity
 document digest, candidate bytes, source and successful main CI before copying
 archives by digest. Only the protected main publication job has signing/package
 authority; contribution jobs cannot acquire it.
+
+Stable publication requires an explicit main-branch promotion dispatch. It verifies
+the original run and all ten signed subjects again, and reuses candidate bytes.
+RC publication and promotion share a concurrency group.
 
 Each run publishes its own candidate. A preparation-only completed run cannot be
 promoted later just by enabling a flag; prepare a fresh candidate from the

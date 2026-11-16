@@ -3,7 +3,8 @@
 This contract applies to Community Alpha releases while the version is below
 `1.0.0`. Use the documentation and OpenAPI document from your installed release.
 The schema's current version is `0.0.1`. Use the release notes for application
-and CLI version information.
+and CLI version information. RC prereleases collect changes since the latest
+stable release; stable releases require explicit promotion of a completed RC.
 
 ## Alpha changes
 

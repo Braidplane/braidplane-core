@@ -7,7 +7,8 @@ for compatible fixes, `release:minor` for features, `release:breaking` for
 incompatible changes (a minor bump before v1), or `release:none` for changes
 without a distributed behavior change. Add `release:security` only for an
 approved public security release. After successful main CI, labels prepare a
-v0 candidate and publish it automatically after CI and artifact checks. Breaking
+v0 RC prerelease and publish it automatically after CI and artifact checks.
+Stable releases require an explicit promotion dispatch. Breaking
 changes follow the same path and are marked explicitly in the release notes.
 
 ## AI assistance

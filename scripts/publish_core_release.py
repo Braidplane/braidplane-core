@@ -1,0 +1,68 @@
+"""Publish candidate assets without replacing an existing release or asset."""
+import argparse
+import json
+import os
+import re
+import subprocess
+from pathlib import Path
+
+from scripts.core_release_identity import api
+from scripts.core_release_version import notes
+from scripts.validate_core_candidate import file_hash
+from scripts.verify_core_release import read_json
+
+
+ASSETS = ("record.json", "installation.tar.gz", "release.json", "release-plan.json",
+          "release-inputs.json", "CHANGELOG.md", "approval.json")
+
+
+def publish_release(repository, version, source, body, assets, prerelease):
+    releases = json.loads(subprocess.check_output(["gh", "api", f"repos/{repository}/releases?per_page=100", "--paginate", "--slurp"]))
+    matches = [r for page in releases for r in page if r["tag_name"] == version]
+    release = matches[0] if matches else api(f"repos/{repository}/releases", dict(
+        tag_name=version, target_commitish=source, name=version, body=body, draft=True, prerelease=prerelease))
+    if release["body"] != body or release["prerelease"] != prerelease:
+        raise ValueError("existing release metadata differs; never replace it")
+    existing = {asset["name"]: asset for asset in api(f"repos/{repository}/releases/{release['id']}/assets?per_page=100")}
+    for path in assets:
+        if path.name in existing:
+            if existing[path.name].get("digest") != "sha256:" + file_hash(path):
+                raise ValueError("existing release asset differs; never replace it")
+        elif release["draft"]:
+            subprocess.run(["gh", "release", "upload", version, str(path), "--repo", repository], check=True)
+        else:
+            raise ValueError("published release is missing a required asset")
+    if release["draft"]:
+        api(f"repos/{repository}/releases/{release['id']}", dict(draft=False, make_latest="false" if prerelease else "true"), method="PATCH")
+
+
+def publish_candidate(directory, identity_dir, env):
+    value = read_json(identity_dir / "identity.json")
+    release = value["record"]["release"]
+    version = release["version"]
+    if (not re.fullmatch(r"v0\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)-rc\.[1-9][0-9]*", version) or
+            value["source"] != env["GITHUB_SHA"] or value["repository"] != env["GITHUB_REPOSITORY"]):
+        raise ValueError("prerelease requires this run's verified v0 RC")
+    # The completion tag exists only after all ten subjects passed verification.
+    ref = f"core-published/{version}/{release['platform'].replace('/', '-')}"
+    tag_ref = api(f"repos/{value['repository']}/git/ref/tags/{ref}")
+    tag = api(f"repos/{value['repository']}/git/tags/{tag_ref['object']['sha']}")
+    if json.loads(tag["message"]) != value:
+        raise ValueError("RC completion identity differs")
+    publish_release(value["repository"], version, value["source"], notes(value["plan"]),
+                    [directory / name for name in ASSETS] + [identity_dir / "identity.json"], True)
+
+
+def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("candidate", type=Path)
+    parser.add_argument("identity", type=Path)
+    args = parser.parse_args()
+    try:
+        publish_candidate(args.candidate, args.identity, os.environ)
+    except (OSError, ValueError, KeyError, TypeError, subprocess.CalledProcessError) as error:
+        parser.exit(1, f"RC release publication failed: {error}\n")
+
+
+if __name__ == "__main__":
+    main()
