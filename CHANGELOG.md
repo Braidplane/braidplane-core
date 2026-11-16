@@ -2,7 +2,8 @@
 
 ## Unreleased
 
-- Prepare reviewed pre-v1 version/changelog PRs from reviewer release labels.
+- Prepare release candidates automatically after successful main CI, with
+  label-selected versions and generated notes reviewed at artifact approval.
 - Automate reviewed pre-v1 release selection and changelog preparation, bind
   immutable source/artifact identities, and verify every signed release subject
   before marking publication complete.

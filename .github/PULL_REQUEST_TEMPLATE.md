@@ -6,8 +6,9 @@ Before merge, the reviewer selects exactly one release label: `release:patch`
 for compatible fixes, `release:minor` for features, `release:breaking` for
 incompatible changes (a minor bump before v1), or `release:none` for changes
 without a distributed behavior change. Add `release:security` only for an
-approved public security release. Labels prepare a reviewed release PR;
-publication requires separate exact-artifact approval.
+approved public security release. After successful main CI, labels prepare a
+release candidate; its generated version/notes and artifact bytes require separate
+approval before publication.
 
 ## AI assistance
 

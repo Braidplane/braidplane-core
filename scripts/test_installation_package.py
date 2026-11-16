@@ -13,6 +13,20 @@ from scripts.test_installation_release import manifest
 
 
 class InstallationPackageTest(unittest.TestCase):
+    def test_release_notes_and_input_receipt_are_part_of_the_archive_identity(self):
+        from scripts.verify_core_release import check_archive_manifest
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            release = root / "release.json"
+            release.write_text(json.dumps(manifest()))
+            metadata = {"release-plan.json": b"{}", "release-inputs.json": b"{}", "CHANGELOG.md": b"Synthetic notes"}
+            first, second = root / "first.tar.gz", root / "second.tar.gz"
+            self.assertEqual(package(release, first, metadata), package(release, second, metadata))
+            check_archive_manifest(first, manifest(), metadata)
+            metadata["CHANGELOG.md"] += b" changed"
+            with self.assertRaisesRegex(ValueError, "archive metadata"):
+                check_archive_manifest(first, manifest(), metadata)
+
     def test_deterministic_archive_checksums_and_checkout_independent_preparation(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)

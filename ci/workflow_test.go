@@ -244,12 +244,18 @@ func TestCommunityWorkflowTrustBoundary(t *testing.T) {
 		{"composite secret", ".github/actions/cache-fixture-images/action.yml", "        CACHE_ENABLED:", "        TOKEN: ${{ secrets.RELEASE_TOKEN }}\n        CACHE_ENABLED:"},
 		{"composite release cache", ".github/actions/cache-fixture-images/action.yml", "key: community-fixture-", "key: release-fixture-"},
 		{"release missing source history", ".github/workflows/core-release.yml", "          fetch-depth: 0\n", "          fetch-depth: 1\n"},
-		{"release plan fork event", ".github/workflows/core-release-plan.yml", "  push:", "  pull_request_target:\n  push:"},
+		{"release plan fork event", ".github/workflows/core-release-plan.yml", "  workflow_run:", "  pull_request_target:\n  workflow_run:"},
+		{"release plan untrusted CI", ".github/workflows/core-release-plan.yml", "github.event.workflow_run.event == 'push'", "true"},
+		{"release plan stale CI", ".github/workflows/core-release-plan.yml", "github.event.workflow_run.head_sha == github.sha", "true"},
+		{"release plan source write", ".github/workflows/core-release-plan.yml", "    permissions:\n      contents: read", "    permissions:\n      contents: write"},
 		{"release plan credential", ".github/workflows/core-release-plan.yml", "persist-credentials: false", "persist-credentials: true"},
 		{"release plan candidate checkout", ".github/workflows/core-release-plan.yml", "fetch-depth: 0", "fetch-depth: 0\n          ref: ${{ github.event.pull_request.head.sha }}"},
 		{"release plan signing", ".github/workflows/core-release-plan.yml", "      actions: write", "      actions: write\n      id-token: write"},
 		{"release plan package access", ".github/workflows/core-release-plan.yml", "      actions: write", "      actions: write\n      packages: write"},
 		{"release plan cache", ".github/workflows/core-release-plan.yml", "    steps:", "    steps:\n      - uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9"},
+		{"release metadata missing token", ".github/workflows/core-release.yml", "        id: candidate\n        env:\n          GH_TOKEN: ${{ github.token }}\n", "        id: candidate\n        env:\n"},
+		{"release empty approval", ".github/workflows/core-release.yml", "needs.prepare.outputs.approval_sha256 != '' && ", ""},
+		{"release no-candidate upload", ".github/workflows/core-release.yml", "        if: ${{ steps.candidate.outputs.ready == 'true' }}", "        if: always()"},
 		{"release verification skipped", ".github/workflows/core-release.yml", "      - name: Verify every subject and complete release identity\n", "      - name: Verify every subject and complete release identity\n        if: false\n"},
 		{"release reservation ignored", ".github/workflows/core-release.yml", "      - name: Reserve immutable release identity\n", "      - name: Reserve immutable release identity\n        continue-on-error: true\n"},
 		{"release push trigger", ".github/workflows/core-release.yml", "  workflow_dispatch:", "  push:\n  workflow_dispatch:"},
@@ -355,13 +361,13 @@ func communityBoundary(files map[string]string) error {
 	return nil
 }
 
-// Release preparation may write reviewable metadata and dispatch read-only CI,
-// but must never execute a contribution checkout or acquire signing authority.
+// Automatic preparation may dispatch candidates only after exact main CI;
+// it must never execute a contribution checkout or acquire signing authority.
 func releasePlanBoundary(document map[string]any) error {
-	if !reflect.DeepEqual(document["on"], map[string]any{"push": map[string]any{"branches": []any{"main"}}, "workflow_dispatch": nil}) ||
+	if !reflect.DeepEqual(document["on"], map[string]any{"workflow_run": map[string]any{"workflows": []any{"Community core"}, "types": []any{"completed"}}}) ||
 		!reflect.DeepEqual(document["permissions"], map[string]any{"contents": "read"}) ||
 		!reflect.DeepEqual(document["concurrency"], map[string]any{"group": "core-release-plan", "cancel-in-progress": false}) {
-		return fmt.Errorf("release PR preparation requires serialized trusted main events")
+		return fmt.Errorf("candidate automation requires serialized main CI completion events")
 	}
 	jobs, ok := document["jobs"].(map[string]any)
 	if !ok || len(jobs) != 1 {
@@ -369,12 +375,12 @@ func releasePlanBoundary(document map[string]any) error {
 	}
 	job, ok := jobs["prepare-plan"].(map[string]any)
 	expected := map[string]any{
-		"if":      "${{ github.ref == 'refs/heads/main' && github.event.repository.visibility == 'public' && vars.CORE_RELEASE_PLAN_ENABLED != 'false' }}",
+		"if":      "${{ github.ref == 'refs/heads/main' && github.event.repository.visibility == 'public' && github.event.workflow_run.event == 'push' && github.event.workflow_run.head_branch == 'main' && github.event.workflow_run.head_repository.full_name == github.repository && github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.head_sha == github.sha && vars.CORE_RELEASE_PREPARATION_ENABLED == 'true' }}",
 		"runs-on": "ubuntu-24.04", "timeout-minutes": 10,
-		"permissions": map[string]any{"contents": "write", "pull-requests": "write", "actions": "write"},
+		"permissions": map[string]any{"contents": "read", "pull-requests": "read", "actions": "write"},
 		"steps": []any{
 			map[string]any{"uses": "actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1", "with": map[string]any{"persist-credentials": false, "fetch-depth": 0}},
-			map[string]any{"name": "Prepare reviewed version and changelog PR", "env": map[string]any{"GH_TOKEN": "${{ github.token }}"}, "run": `python3 -m scripts.prepare_core_release "$GITHUB_WORKSPACE"`},
+			map[string]any{"name": "Prepare candidate after successful main CI", "env": map[string]any{"GH_TOKEN": "${{ github.token }}"}, "run": `python3 -m scripts.prepare_core_release "$GITHUB_WORKSPACE"`},
 		},
 	}
 	if !ok || !reflect.DeepEqual(job, expected) {
@@ -417,7 +423,7 @@ func releaseBoundary(document map[string]any) error {
 	}
 	for _, name := range []string{"prepare", "publish"} {
 		job, ok := jobs[name].(map[string]any)
-		condition := "${{ github.ref == 'refs/heads/main' && github.event.repository.visibility == 'public' && vars.CORE_RELEASE_PUBLICATION_ENABLED == 'true' }}"
+		condition := "${{ needs.prepare.outputs.approval_sha256 != '' && github.ref == 'refs/heads/main' && github.event.repository.visibility == 'public' && vars.CORE_RELEASE_PUBLICATION_ENABLED == 'true' }}"
 		if name == "prepare" {
 			condition = "${{ github.ref == 'refs/heads/main' && github.event.repository.visibility == 'public' && vars.CORE_RELEASE_PREPARATION_ENABLED == 'true' }}"
 		}
@@ -427,11 +433,11 @@ func releaseBoundary(document map[string]any) error {
 			return fmt.Errorf("release requires explicitly enabled public-main jobs on hosted runners")
 		}
 		if name == "prepare" {
-			if job["environment"] != nil || !reflect.DeepEqual(job["permissions"], map[string]any{"contents": "read"}) {
+			if job["environment"] != nil || !reflect.DeepEqual(job["permissions"], map[string]any{"contents": "read", "pull-requests": "read", "actions": "read"}) {
 				return fmt.Errorf("preparation must not receive publication permissions")
 			}
 		} else if job["environment"] != "core-release" || !reflect.DeepEqual(job["needs"], []any{"prepare"}) ||
-			!reflect.DeepEqual(job["permissions"], map[string]any{"contents": "write", "packages": "write", "id-token": "write", "attestations": "write", "artifact-metadata": "write"}) {
+			!reflect.DeepEqual(job["permissions"], map[string]any{"contents": "write", "actions": "read", "packages": "write", "id-token": "write", "attestations": "write", "artifact-metadata": "write"}) {
 			return fmt.Errorf("publication must follow preparation in the named environment")
 		}
 		steps, ok := job["steps"].([]any)
@@ -477,10 +483,14 @@ func releaseBoundary(document map[string]any) error {
 					}
 				case "Prepare candidate OCI archives":
 					build = index
-					if step["if"] != nil {
-						return fmt.Errorf("preparation must stop after failed CI admission")
+					if step["if"] != nil || step["id"] != "candidate" ||
+						!reflect.DeepEqual(step["env"], map[string]any{"GH_TOKEN": "${{ github.token }}", "RELEASE_VERSION": "${{ inputs.version }}", "RELEASE_PLATFORM": "${{ inputs.platform }}", "RELEASE_EDGE": "${{ inputs.edge }}", "RELEASE_POSTGRES": "${{ inputs.postgres }}"}) {
+						return fmt.Errorf("preparation must stop after failed CI admission and authenticate metadata reads")
 					}
 				}
+			}
+			if name == "prepare" && (step["name"] == "Show the candidate for approval" || step["name"] == "Retain the candidate for review") && step["if"] != "${{ steps.candidate.outputs.ready == 'true' }}" {
+				return fmt.Errorf("no-release changes must not create an artifact approval")
 			}
 			if step["name"] == "Retain signature bundles" && step["if"] != "${{ always() && steps.publish_candidate.outcome == 'success' }}" {
 				return fmt.Errorf("available signature bundles must be retained after signing failure")

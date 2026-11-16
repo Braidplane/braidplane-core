@@ -38,21 +38,22 @@ a release job. Check setup actions for implicit caching, and check remote
 Buildx caches too. Cache prefixes alone do not control access; GitHub also
 scopes caches by repository and ref.
 
-`core-release-plan.yml` runs only on main pushes or manual main dispatches on
-fresh hosted runners. It reads merged PR labels and creates or refreshes a
-reviewed version/changelog PR. Its contents/PR write token cannot sign or publish
-packages. Actions write is used only to dispatch the existing read-only Core CI
-for the generated head, since token-created PRs do not trigger ordinary PR CI.
-It uses no contribution checkout, cache, artifact, deployment environment or
-secret. Its exact job, token and step inventory is checked independently from
-contribution CI. See [release preparation](CORE_RELEASE_AUTOMATION.md#reviewer-labels-and-automatic-release-prs).
+`core-release-plan.yml` accepts only completed, successful push-to-main Core CI
+for its exact current main source. It checks required jobs again, computes a
+version from merged reviewer labels and dispatches `core-release.yml` using the
+reviewed source configuration. Its token can read source/PR metadata and dispatch Actions workflows, but cannot
+write source/PRs, sign, publish packages or use deployment environments/secrets. It checks out trusted main code with no contribution cache or artifact
+restore. PR CI, branch dispatches and stale main runs cannot dispatch candidates.
+See [automatic candidates](CORE_RELEASE_AUTOMATION.md#reviewer-labels-and-automatic-candidates).
 
-The manual `core-release.yml` workflow prepares OCI archives when
+The dispatched `core-release.yml` workflow prepares OCI archives when
 `CORE_RELEASE_PREPARATION_ENABLED` is `true`. Before enabling preparation, review
 the source, version, platform, external image digests and artifact exposure.
 Supply the successful main-push CI run and attempt for that exact source;
 preparation checks them before building with a read-only token. Review the CI
-admission, approval document and release record in the job summary.
+admission, generated plan/changelog/input receipt, approval document and release
+record in the job summary. The generated metadata lives in the candidate and
+installation archive; the source checkout remains clean.
 
 Publication requires `CORE_RELEASE_PUBLICATION_ENABLED=true` and approval in the
 `core-release` environment. Configure that environment before enabling the flag:
@@ -64,8 +65,10 @@ approved document digest, exact source and main CI, then copies archives by dige
 Each run builds and publishes its own candidate. A completed preparation-only run
 cannot be promoted later by enabling the flag; prepare a fresh candidate from the
 reviewed publication workflow. Uploading candidate files to public Actions is also
-an exposure to approve before starting a run. Clear both enablement flags after
-the approved run. Repository variables and the environment name alone do not
+an exposure to approve before starting a run. Disable
+preparation/publication when qualification or controls are unavailable. Each
+publication still requires its own artifact approval. Repository variables and
+the environment name alone do not
 establish the required review rule.
 
 A private distribution validates and releases its own build from a reviewed

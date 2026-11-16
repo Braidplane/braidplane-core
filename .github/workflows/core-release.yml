@@ -4,8 +4,8 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: Version from the reviewed release-plan.json
-        required: true
+        description: Optional expected version; normally selected when the candidate starts
+        required: false
         type: string
       platform:
         description: Target platform
@@ -43,6 +43,8 @@ jobs:
     timeout-minutes: 120
     permissions:
       contents: read
+      pull-requests: read
+      actions: read
     outputs:
       approval_sha256: ${{ steps.review.outputs.approval_sha256 }}
     steps:
@@ -60,7 +62,9 @@ jobs:
             "$GITHUB_REPOSITORY" "$GITHUB_SHA" "$CI_RUN_ID" "$CI_ATTEMPT" \
             "$RUNNER_TEMP/core-release-ci-admission.json"
       - name: Prepare candidate OCI archives
+        id: candidate
         env:
+          GH_TOKEN: ${{ github.token }}
           RELEASE_VERSION: ${{ inputs.version }}
           RELEASE_PLATFORM: ${{ inputs.platform }}
           RELEASE_EDGE: ${{ inputs.edge }}
@@ -70,6 +74,7 @@ jobs:
             "$RELEASE_VERSION" "$RELEASE_PLATFORM" "$RELEASE_EDGE" "$RELEASE_POSTGRES" \
             "$GITHUB_WORKSPACE" "$RUNNER_TEMP/core-release-candidate"
       - name: Show the candidate for approval
+        if: ${{ steps.candidate.outputs.ready == 'true' }}
         id: review
         run: |
           digest=$(sha256sum "$RUNNER_TEMP/core-release-candidate/approval.json" | cut -d ' ' -f 1)
@@ -77,7 +82,13 @@ jobs:
           {
             printf '## Core release candidate\n\nApproval document SHA-256: %s\n\n' "$digest"
             printf '%s\n' 'Reviewed release plan:' '~~~json'
-            cat release-plan.json
+            cat "$RUNNER_TEMP/core-release-candidate/release-plan.json"
+            printf '\n%s\n' '~~~'
+            printf '%s\n' 'Candidate changelog:' '~~~markdown'
+            cat "$RUNNER_TEMP/core-release-candidate/CHANGELOG.md"
+            printf '\n%s\n' '~~~'
+            printf '%s\n' 'Candidate inputs:' '~~~json'
+            cat "$RUNNER_TEMP/core-release-candidate/release-inputs.json"
             printf '\n%s\n' '~~~'
             printf '%s\n' 'Main CI admission:' '~~~json'
             cat "$RUNNER_TEMP/core-release-ci-admission.json"
@@ -90,6 +101,7 @@ jobs:
             printf '\n%s\n' '~~~'
           } >> "$GITHUB_STEP_SUMMARY"
       - name: Retain the candidate for review
+        if: ${{ steps.candidate.outputs.ready == 'true' }}
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: core-release-candidate
@@ -98,12 +110,13 @@ jobs:
 
   publish:
     needs: [prepare]
-    if: ${{ github.ref == 'refs/heads/main' && github.event.repository.visibility == 'public' && vars.CORE_RELEASE_PUBLICATION_ENABLED == 'true' }}
+    if: ${{ needs.prepare.outputs.approval_sha256 != '' && github.ref == 'refs/heads/main' && github.event.repository.visibility == 'public' && vars.CORE_RELEASE_PUBLICATION_ENABLED == 'true' }}
     environment: core-release
     runs-on: ${{ inputs.platform == 'linux/arm64' && 'ubuntu-24.04-arm' || 'ubuntu-24.04' }}
     timeout-minutes: 120
     permissions:
       contents: write
+      actions: read
       packages: write
       id-token: write
       attestations: write
@@ -280,6 +293,9 @@ jobs:
         with:
           name: core-release-evidence-${{ inputs.platform == 'linux/arm64' && 'arm64' || 'amd64' }}
           path: |
+            ${{ runner.temp }}/core-release-candidate/release-plan.json
+            ${{ runner.temp }}/core-release-candidate/release-inputs.json
+            ${{ runner.temp }}/core-release-candidate/CHANGELOG.md
             ${{ runner.temp }}/core-release-candidate/release.json
             ${{ runner.temp }}/core-release-candidate/record.json
             ${{ runner.temp }}/core-release-candidate/installation.tar.gz

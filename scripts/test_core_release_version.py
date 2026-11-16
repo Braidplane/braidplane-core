@@ -1,11 +1,6 @@
-import json
-import subprocess
-import tempfile
 import unittest
-from pathlib import Path
-from unittest.mock import patch
 
-from scripts.core_release_version import main, notes, reviewed, select, validate_plan
+from scripts.core_release_version import notes, select, validate_plan, with_notes
 
 
 class ReleaseVersionTest(unittest.TestCase):
@@ -37,69 +32,10 @@ class ReleaseVersionTest(unittest.TestCase):
         with self.assertRaises(ValueError):
             validate_plan(plan, notes(plan), "v0.2.4")
 
-    def test_prepare_preserves_unreleased_and_older_notes(self):
-        with tempfile.TemporaryDirectory() as tmp:
-            root = Path(tmp)
-            changelog = root / "CHANGELOG.md"
-            changelog.write_text("# Changelog\n\n## Unreleased\n\n- Pending\n\n## v0.2.3\n\n- Older\n")
-            changes = root / "changes.json"
-            changes.write_text(json.dumps(self.plan()["changes"]))
-            with patch("scripts.core_release_version.Path", side_effect=lambda p: root / p), \
-                 patch("sys.argv", ["release", "v0.2.3", str(changes)]):
-                main()
-            plan = json.loads((root / "release-plan.json").read_text())
-            validate_plan(plan, changelog.read_text(), "v0.2.4")
-            self.assertIn("## Unreleased\n\n- Pending", changelog.read_text())
-            self.assertIn("## v0.2.3\n\n- Older", changelog.read_text())
-
-    def test_publication_refuses_a_stale_source_snapshot(self):
-        with tempfile.TemporaryDirectory() as tmp:
-            root = Path(tmp)
-            plan = self.plan()
-            (root / 'release-inputs.json').write_text(json.dumps(dict(through_sha='a' * 40)))
-            (root / 'release-plan.json').write_text(json.dumps(plan))
-            (root / 'CHANGELOG.md').write_text(notes(plan))
-            changed = 'CHANGELOG.md\nrelease-plan.json\nrelease-inputs.json\n'
-            with patch('scripts.core_release_version.subprocess.run'), \
-                 patch('scripts.core_release_version.subprocess.check_output', side_effect=['b' * 40 + '\n', changed]):
-                self.assertEqual(reviewed(root, plan['version']), plan)
-            for commits, files in [('b\nc\n', changed), ('b\n', changed + 'runtime.go\n')]:
-                with patch('scripts.core_release_version.subprocess.run'), \
-                     patch('scripts.core_release_version.subprocess.check_output', side_effect=[commits, files]):
-                    with self.assertRaisesRegex(ValueError, 'stale'):
-                        reviewed(root, plan['version'])
-
-    def test_real_git_intervening_feature_cannot_ship_under_patch_plan(self):
-        with tempfile.TemporaryDirectory() as tmp:
-            root = Path(tmp)
-            def git(*args):
-                return subprocess.check_output(['git', '-C', str(root), *args], text=True).strip()
-            git('init', '-q')
-            git('config', 'commit.gpgsign', 'false')
-            git('config', 'user.name', 'Synthetic')
-            git('config', 'user.email', 'synthetic@example.test')
-            (root / 'runtime.txt').write_text('compatible fix')
-            (root / 'CHANGELOG.md').write_text('# Changelog\n\n## Unreleased\n')
-            git('add', '.')
-            git('commit', '-qm', 'patch snapshot')
-            snapshot = git('rev-parse', 'HEAD')
-            (root / 'runtime.txt').write_text('intervening feature')
-            git('add', '.')
-            git('commit', '-qm', 'feature before release plan merge')
-            plan = self.plan()
-            (root / 'release-plan.json').write_text(json.dumps(plan))
-            (root / 'release-inputs.json').write_text(json.dumps(dict(through_sha=snapshot)))
-            (root / 'CHANGELOG.md').write_text('# Changelog\n\n## Unreleased\n\n' + notes(plan))
-            git('add', '.')
-            git('commit', '-qm', 'stale patch plan')
-            with self.assertRaisesRegex(ValueError, 'stale'):
-                reviewed(root, plan['version'])
-            # A refreshed plan binds the immediate prior source and passes the same guard.
-            snapshot = git('rev-parse', 'HEAD')
-            plan = dict(plan, bump='minor', version='v0.3.0')
-            (root / 'release-plan.json').write_text(json.dumps(plan))
-            (root / 'release-inputs.json').write_text(json.dumps(dict(through_sha=snapshot)))
-            (root / 'CHANGELOG.md').write_text('# Changelog\n\n## Unreleased\n\n' + notes(plan))
-            git('add', '.')
-            git('commit', '-qm', 'reviewed refreshed minor plan')
-            self.assertEqual(reviewed(root, plan['version']), plan)
+    def test_candidate_notes_preserve_source_unreleased_and_older_releases(self):
+        plan = self.plan()
+        source = "# Changelog\n\n## Unreleased\n\n- Pending\n\n## v0.2.3\n\n- Older\n"
+        candidate = with_notes(source, plan)
+        validate_plan(plan, candidate, "v0.2.4")
+        self.assertIn("## Unreleased\n\n- Pending", candidate)
+        self.assertIn("## v0.2.3\n\n- Older", candidate)
