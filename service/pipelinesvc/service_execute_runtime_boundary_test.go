@@ -187,6 +187,7 @@ func TestService_ExecuteDelegatesToRuntimeBoundary(t *testing.T) {
 	}
 
 	actor := model.UserEventActor(must.Slug("alice"))
+	ctx = WithExecutionStartDeadline(ctx, startedAt, testutil.FakeClock{NowFn: func() time.Time { return startedAt }})
 	run, err := svc.Execute(
 		ctx,
 		orgSlug,
@@ -215,6 +216,21 @@ func TestService_ExecuteDelegatesToRuntimeBoundary(t *testing.T) {
 	require.Equal(t, 1, pipelineStore.findDeploymentCalls)
 	require.Equal(t, 1, pipelineStore.findVersionBySpecHashCalls)
 	require.Zero(t, pipelineStore.getCalls)
+
+	// Admission can consume the remaining retry budget after the worker checks it.
+	deadline := startedAt.Add(time.Minute)
+	now := deadline
+	ctx = WithExecutionStartDeadline(ctx, deadline, testutil.FakeClock{NowFn: func() time.Time { return now }})
+	require.NoError(t, CheckExecutionStartDeadline(ctx))
+	admission.WithPipelineExecutionFn = func(ctx context.Context, _ slug.Slug, _ bool, execute func(context.Context) error) error {
+		now = deadline.Add(time.Nanosecond)
+		return execute(ctx)
+	}
+	run, err = svc.Execute(ctx, orgSlug, defaultProjectSlug, environmentSlug, pipelineSlug, &runSlug, nil, actor, testRunSource(actor), nil)
+	require.ErrorIs(t, err, ErrRetryElapsed)
+	require.ErrorIs(t, err, ErrPipelineExecutionNotStarted)
+	require.Nil(t, run)
+	require.Equal(t, 1, runtime.executeCalls, "expired retry must not reach runtime after admission")
 }
 
 func TestService_StartRunPersistsQueuedRunAndEnqueuesExecution(t *testing.T) {

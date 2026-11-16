@@ -342,7 +342,7 @@ func TestRetryAttemptCompletionStatus(t *testing.T) {
 		{
 			name:   "Exhausted",
 			status: model.PipelineTriggerRetryAttemptStatusExhausted,
-			want:   false,
+			want:   true,
 		},
 		{
 			name:   "Running",

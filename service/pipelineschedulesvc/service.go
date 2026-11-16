@@ -9,6 +9,7 @@ import (
 
 	"github.com/robfig/cron/v3"
 
+	"github.com/Braidplane/braidplane-core/pkg/clock"
 	"github.com/Braidplane/braidplane-core/pkg/domain/model"
 	pipelinerun "github.com/Braidplane/braidplane-core/pkg/pipeline/run"
 	"github.com/Braidplane/braidplane-core/pkg/queue"
@@ -158,6 +159,7 @@ type PipelineExecutor interface {
 
 // Service dispatches persisted schedule triggers into pipeline runs.
 type Service struct {
+	clock         clock.Clock
 	txm           postgres.TransactionManager
 	repo          Repository
 	executor      PipelineExecutor
@@ -198,7 +200,7 @@ func New(
 	retryProducer PipelineRetryProducer,
 	opts ...Option,
 ) *Service {
-	s := &Service{txm: txm, repo: repo, executor: executor, producer: producer, retryProducer: retryProducer}
+	s := &Service{clock: clock.New(), txm: txm, repo: repo, executor: executor, producer: producer, retryProducer: retryProducer}
 	for _, opt := range opts {
 		opt(s)
 	}
@@ -412,7 +414,7 @@ func (s *Service) ExecuteTriggerRetryAttempt(
 			if err != nil {
 				return err
 			}
-			return s.executor.StartQueuedRun(ctx, attempt.OrgSlug, attempt.ProjectSlug, attempt.EnvironmentSlug, attempt.RunSlug, time.Now().UTC())
+			return s.executor.StartQueuedRun(ctx, attempt.OrgSlug, attempt.ProjectSlug, attempt.EnvironmentSlug, attempt.RunSlug, s.clock.Now().UTC())
 		}); err != nil {
 			if xerror.Is(err, pipelinetriggers.ErrPipelineTriggerNotFound) {
 				return nil
@@ -428,11 +430,23 @@ func (s *Service) ExecuteTriggerRetryAttempt(
 			return runErr
 		}
 	} else {
-		run, runErr = s.executeRetryAttempt(ctx, attempt)
+		if attempt.RetryPolicy.MaxElapsedSeconds != nil && attempt.Source.Schedule != nil {
+			ctx = pipelinesvc.WithExecutionStartDeadline(ctx, attempt.Source.Schedule.ActualFireAt.Add(time.Duration(*attempt.RetryPolicy.MaxElapsedSeconds)*time.Second), s.clock)
+		}
+		runErr = pipelinesvc.CheckExecutionStartDeadline(ctx)
+		if runErr == nil {
+			run, runErr = s.executeRetryAttempt(ctx, attempt)
+		}
 	}
 	var retryNotification notificationsvc.CreateCandidateParams
 	var shouldNotifyRetry bool
 	if err := s.txm.RunInTx(ctx, func(ctx context.Context, tx postgres.DBTX) error {
+		if xerror.Is(runErr, pipelinesvc.ErrRetryElapsed) && run == nil {
+			if err := s.repo.CompleteTriggerRetryAttempt(ctx, tx, attempt.OrgSlug, attempt.ProjectSlug, attempt.EnvironmentSlug, attempt.AttemptSlug, model.PipelineTriggerRetryAttemptStatusExhausted, nil, nil); err != nil {
+				return err
+			}
+			return s.executor.FailUnadmittedRun(ctx, attempt.OrgSlug, attempt.ProjectSlug, attempt.EnvironmentSlug, attempt.RunSlug)
+		}
 		if err := s.completeRetryAttemptTx(ctx, tx, attempt, run, runErr); err != nil {
 			return err
 		}
@@ -450,6 +464,9 @@ func (s *Service) ExecuteTriggerRetryAttempt(
 		return err
 	}
 	s.createRetryDecisionNotification(ctx, retryNotification, shouldNotifyRetry)
+	if xerror.Is(runErr, pipelinesvc.ErrRetryElapsed) {
+		return nil
+	}
 	if runErr != nil && run == nil {
 		return runErr
 	}

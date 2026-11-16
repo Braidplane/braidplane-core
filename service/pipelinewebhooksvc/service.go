@@ -402,6 +402,12 @@ func (s *Service) ExecuteDelivery(ctx context.Context, args jobs.PipelineWebhook
 			return xerror.Unexpected().Detail("webhook finalization is awaiting a terminal attempt")
 		}
 	} else {
+		if args.RunAttempt > 1 && delivery.Receiver.RetryPolicy.MaxElapsedSeconds != nil {
+			ctx = pipelinesvc.WithExecutionStartDeadline(ctx, delivery.ReceivedAt.Add(time.Duration(*delivery.Receiver.RetryPolicy.MaxElapsedSeconds)*time.Second), s.clock)
+		}
+		if err := pipelinesvc.CheckExecutionStartDeadline(ctx); err != nil {
+			return s.complete(ctx, args, "failed", "", "max_elapsed_exhausted", s.clock.Now().UTC(), delivery.EnvelopeExpiresAt)
+		}
 		plaintext, decryptErr := s.cipher.Open(envelopeScope(delivery.Receiver.OrgSlug, delivery.ReceiverID, delivery.DeliveryID), delivery.EncryptedEnvelope)
 		if decryptErr != nil {
 			return s.complete(ctx, args, "failed", "platform", "envelope_decryption_failed", now, delivery.EnvelopeExpiresAt)
@@ -444,6 +450,9 @@ func (s *Service) ExecuteDelivery(ctx context.Context, args jobs.PipelineWebhook
 
 	}
 	if err != nil && run == nil {
+		if xerror.Is(err, pipelinesvc.ErrRetryElapsed) {
+			return s.complete(ctx, args, "failed", "", "max_elapsed_exhausted", s.clock.Now().UTC(), delivery.EnvelopeExpiresAt)
+		}
 		if permanentExecutionError(err) {
 			return s.complete(ctx, args, "failed", "platform", "execution_rejected", s.clock.Now().UTC(), delivery.EnvelopeExpiresAt)
 		}

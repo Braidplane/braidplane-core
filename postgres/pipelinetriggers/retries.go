@@ -185,7 +185,7 @@ func (r *repository) CompleteTriggerRetryAttempt(
 ) error {
 	if !retryAttemptCompletionStatus(status) {
 		return xerror.InvalidInput(xerror.PipelineTrigger).
-			Detail("pipeline trigger retry attempt completion status must be succeeded or failed")
+			Detail("pipeline trigger retry attempt completion status must be succeeded, failed or exhausted")
 	}
 	rowsAffected, err := dbgen.New(tx).CompleteTriggerRetryAttempt(
 		ctx,
@@ -211,7 +211,8 @@ func (r *repository) CompleteTriggerRetryAttempt(
 // retryAttemptCompletionStatus reports whether status can close a running retry attempt.
 func retryAttemptCompletionStatus(status model.PipelineTriggerRetryAttemptStatus) bool {
 	return status == model.PipelineTriggerRetryAttemptStatusSucceeded ||
-		status == model.PipelineTriggerRetryAttemptStatusFailed
+		status == model.PipelineTriggerRetryAttemptStatusFailed ||
+		status == model.PipelineTriggerRetryAttemptStatusExhausted
 }
 
 // AttemptSlug returns a bounded deterministic slug for the persisted retry decision.
