@@ -5,6 +5,7 @@ import re
 from pathlib import Path
 
 from scripts.installation.release import validate
+from scripts.core_release_version import validate_plan
 from scripts.qualify_core_images import BINARIES, hashes
 from scripts.verify_core_oci import verify_archive
 from scripts.verify_core_release import check_archive_manifest, read_json
@@ -28,7 +29,7 @@ def validate_candidate(directory, approved_sha256, repository, source_sha):
     if file_hash(approval_path) != approved_sha256:
         raise ValueError("approval document differs from the approved digest")
     approval = read_json(approval_path)
-    if not isinstance(approval, dict) or set(approval) != {"core_revision", "version", "platform", "record_sha256", "baseline_sha256", "images"}:
+    if not isinstance(approval, dict) or set(approval) != {"core_revision", "version", "platform", "record_sha256", "baseline_sha256", "images", "metadata_sha256"}:
         raise ValueError("invalid candidate approval document")
     if approval["core_revision"] != source_sha:
         raise ValueError("candidate source differs from the approved revision")
@@ -56,7 +57,16 @@ def validate_candidate(directory, approved_sha256, repository, source_sha):
     archive = directory / "installation.tar.gz"
     if file_hash(archive) != record["archive_sha256"]:
         raise ValueError("installation archive differs from the candidate record")
-    check_archive_manifest(archive, release)
+    metadata_hashes = approval["metadata_sha256"]
+    if not isinstance(metadata_hashes, dict) or set(metadata_hashes) != {"release-plan.json", "release-inputs.json", "CHANGELOG.md"}:
+        raise ValueError("incomplete candidate release metadata")
+    for name, digest in metadata_hashes.items():
+        if file_hash(directory / name) != digest:
+            raise ValueError("candidate release metadata differs from the approved digest")
+    validate_plan(read_json(directory / "release-plan.json"), (directory / "CHANGELOG.md").read_text(), release["version"])
+    if read_json(directory / "release-inputs.json")["through_sha"] != source_sha:
+        raise ValueError("candidate release inputs differ from the approved source")
+    check_archive_manifest(archive, release, {name: (directory / name).read_bytes() for name in metadata_hashes})
     images = approval["images"]
     if not isinstance(images, dict) or set(images) != set(BINARIES):
         raise ValueError("candidate image set is incomplete")

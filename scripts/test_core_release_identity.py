@@ -84,6 +84,7 @@ class ReleaseIdentityTest(unittest.TestCase):
             plan = dict(previous="v0.1.0", version="v0.1.1", bump="patch", security=True,
                         supersedes=["v0.1.0"], changes=[dict(kind="fix", summary="Repair retries.")])
             files = {"release-plan.json": json.dumps(plan), "CHANGELOG.md": notes(plan),
+                     "release-inputs.json": json.dumps(dict(through_sha="a" * 40)), "ci/core-release.json": "synthetic configuration",
                      "ci/toolchain/versions.env": "GO_VERSION=synthetic", ".github/workflows/core-release.yml": "synthetic workflow"}
             for name, contents in files.items():
                 path = root / name

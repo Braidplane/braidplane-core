@@ -16,7 +16,7 @@ ROOT = SOURCE.parent.parent
 TOOLS = ("release.py", "prepare.py", "preflight.py", "lifecycle.py", "upgrade.py", "backup.py", "restore_probe.py", "restore.py", "compose.json", "Caddyfile", "execution-grants.sql")
 
 
-def package(manifest_path, output):
+def package(manifest_path, output, release_metadata=None):
     manifest = read_manifest(manifest_path)
     prefix = f"braidplane-{manifest['version']}-{manifest['platform'].replace('/', '-')}"
     files = {f"scripts/installation/{name}": (SOURCE / name).read_bytes() for name in TOOLS}
@@ -28,6 +28,10 @@ def package(manifest_path, output):
         "RECOVERY.md": (SOURCE / "RECOVERY.md").read_bytes(),
         "LICENSE": (ROOT / "LICENSE").read_bytes(), "NOTICE": (ROOT / "NOTICE").read_bytes(),
     })
+    if release_metadata is not None:
+        if set(release_metadata) != {"release-plan.json", "release-inputs.json", "CHANGELOG.md"}:
+            raise ValueError("incomplete candidate release metadata")
+        files.update(release_metadata)
     for name in ("first-result.pipeline.json", "input.json", "expected.json", "write-operation.json"):
         files[f"first-result/{name}"] = (SOURCE / "first-result" / name).read_bytes()
     files["SHA256SUMS"] = "".join(f"{hashlib.sha256(data).hexdigest()}  {name}\n" for name, data in sorted(files.items())).encode()

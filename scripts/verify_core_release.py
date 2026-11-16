@@ -27,7 +27,7 @@ def read_json(path):
     return json.loads(path.read_bytes(), object_pairs_hook=unique_keys)
 
 
-def check_archive_manifest(archive, release):
+def check_archive_manifest(archive, release, metadata=None):
     prefix = f"braidplane-{release['version']}-{release['platform'].replace('/', '-')}"
     with tarfile.open(archive, "r:gz") as bundle:
         members = [member for member in bundle if member.name == prefix + "/release.json"]
@@ -36,6 +36,10 @@ def check_archive_manifest(archive, release):
         contents = bundle.extractfile(members[0]).read()
         if json.loads(contents, object_pairs_hook=unique_keys) != release:
             raise ValueError("installation archive manifest differs from the signed release record")
+        for name, expected in (metadata or {}).items():
+            files = [member for member in bundle if member.name == prefix + "/" + name]
+            if len(files) != 1 or not files[0].isfile() or files[0].size != len(expected) or bundle.extractfile(files[0]).read() != expected:
+                raise ValueError("installation archive metadata differs from the approved candidate")
 
 
 def verify_release(record_path, archive, expected, output, docker_config):

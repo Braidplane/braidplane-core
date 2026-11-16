@@ -6,7 +6,7 @@ import re
 import subprocess
 from pathlib import Path
 
-from scripts.core_release_version import reviewed
+from scripts.verify_core_release import read_json
 from scripts.validate_core_candidate import file_hash, validate_candidate
 from scripts.verify_core_release import verify_release
 
@@ -74,13 +74,13 @@ def identity(directory, approved, checkout, env):
     dirty = subprocess.check_output(["git", "-C", str(checkout), "status", "--porcelain=v1", "--untracked-files=all"])
     if head != source or dirty:
         raise ValueError("release identity requires clean exact source")
-    plan = reviewed(checkout, release["version"])
+    plan = read_json(directory / "release-plan.json")
     materials = {name: file_hash(checkout / name) for name in
-                 ("release-plan.json", "CHANGELOG.md", "ci/toolchain/versions.env", ".github/workflows/core-release.yml")}
-    if (checkout / "release-inputs.json").exists():
-        materials["release-inputs.json"] = file_hash(checkout / "release-inputs.json")
+                 ("ci/core-release.json", "ci/toolchain/versions.env", ".github/workflows/core-release.yml")}
+    materials.update({name: file_hash(directory / name) for name in ("release-plan.json", "release-inputs.json", "CHANGELOG.md")})
     return {"repository": repository, "source": source, "workflow_sha": source,
-            "materials": materials, "plan": plan, "approval_sha256": approved, "record": record}
+            "materials": materials, "plan": plan, "inputs": read_json(directory / "release-inputs.json"),
+            "approval_sha256": approved, "record": record}
 
 
 def execute(phase, directory, approved, checkout, output, env):

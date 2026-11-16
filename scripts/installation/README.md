@@ -11,8 +11,8 @@ expected JSON output; the operator guide covers authoring, deployment and readba
 
 ## Release inputs
 
-Reviewer release labels drive an automatic version/changelog PR; review and
-merge it before artifact preparation. The label policy and manual recovery are in
+Reviewer release labels and successful exact main CI drive automatic candidate
+preparation. Review the generated version/changelog with the artifact bytes. The label policy and manual recovery are in
 [Core release versioning and recovery](../../doc/CORE_RELEASE_AUTOMATION.md).
 That guide defines eligible changes, patch/minor selection, release cadence,
 superseding/security releases, tag rules and interrupted-run recovery.
@@ -57,9 +57,10 @@ verify the build metadata and qualify the published images.
 `scripts.build_core_candidate` builds local OCI archives with a fresh builder
 and a pinned BuildKit image. It checks each archive against its image digest and
 platform, then prepares the installation manifest, archive and release record.
-It requires a matching reviewed `release-plan.json` and changelog section.
-For automatically prepared plans, it also refuses source changes after the
-recorded input snapshot other than the three release-plan files.
+It generates `release-plan.json`, `release-inputs.json` and `CHANGELOG.md` outside
+the clean checkout from eligible merged PRs and the exact source snapshot. These
+files are included in the installation archive and approval document; the signed
+archive digest binds their bytes. No release-plan PR or source commit is needed.
 It writes `approval.json` with the source, version, platform, record digest,
 image digests and OCI archive hashes for review. It does not publish images.
 The candidate validator checks those files against an independently supplied
@@ -68,7 +69,7 @@ and CI run before copying the archives by digest with a pinned ORAS image. It
 then checks the registry images and creates SBOMs. The manual workflow uses
 `CORE_RELEASE_PREPARATION_ENABLED` to allow candidate-only builds after exact
 main-push CI admission. Its read-only preparation job shows the approval document
-reviewed release plan and release record for review. Publication requires
+generated release plan/changelog/input receipt and release record for review. Publication requires
 `CORE_RELEASE_PUBLICATION_ENABLED=true` and the release owner's approval in the
 `core-release` environment. Require that review, allow only `main`, and disable
 administrator bypass before enabling publication. Review the exact approval

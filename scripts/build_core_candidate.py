@@ -11,7 +11,7 @@ from pathlib import Path
 
 from scripts.core_release_candidate import candidate
 from scripts.core_release_record import record
-from scripts.core_release_version import reviewed
+from scripts.prepare_core_release import release_metadata
 from scripts.installation.package import package
 from scripts.qualify_core_images import BINARIES, hashes
 from scripts.verify_core_oci import verify_archive
@@ -23,7 +23,7 @@ def build(args, env, event):
     repository = env["GITHUB_REPOSITORY"]
     revision = env["GITHUB_SHA"]
     placeholders = {name: {"containerimage.digest": "sha256:" + "0" * 64} for name in BINARIES}
-    candidate(repository.lower(), revision, args.version, args.platform, args.edge, args.postgres, placeholders)
+    candidate(repository.lower(), revision, args.version or "v0.0.1", args.platform, args.edge, args.postgres, placeholders)
     if (env["GITHUB_REF"] != "refs/heads/main" or env["GITHUB_EVENT_NAME"] != "workflow_dispatch" or
             env["GITHUB_WORKFLOW_SHA"] != revision or event["repository"]["full_name"] != repository):
         raise ValueError("candidate requires the reviewed main workflow and source revision")
@@ -37,8 +37,19 @@ def build(args, env, event):
     dirty = subprocess.check_output(["git", "-C", str(checkout), "status", "--porcelain=v1", "--untracked-files=all"])
     if head != revision or dirty:
         raise ValueError("checkout must be clean and match the approved revision")
-    reviewed(checkout, args.version)
+    release_files = release_metadata(checkout, repository, revision)
+    if release_files is None:
+        print("No release: pending changes were already published or are release:none.")
+        return False
+    version = json.loads(release_files["release-plan.json"])["version"]
+    if args.version and version != args.version:
+        raise ValueError("candidate version differs from eligible merged changes")
+    config = json.loads((checkout / "ci/core-release.json").read_text())
+    if config != dict(platform=args.platform, edge=args.edge, postgres=args.postgres):
+        raise ValueError("candidate configuration differs from reviewed source")
     output.mkdir(parents=False, exist_ok=False)
+    for name, contents in release_files.items():
+        (output / name).write_text(contents)
     metadata_dir = output / "metadata"
     metadata_dir.mkdir()
     images_dir = output / "oci"
@@ -61,13 +72,13 @@ def build(args, env, event):
                                 f"type=oci,dest={images_dir / (name + '.tar')}", str(checkout)],
                                env=docker_env, check=True)
             metadata = {name: json.loads((metadata_dir / f"{name}.json").read_text()) for name in BINARIES}
-            release = candidate(repository.lower(), revision, args.version, args.platform, args.edge, args.postgres, metadata)
+            release = candidate(repository.lower(), revision, version, args.platform, args.edge, args.postgres, metadata)
             for name in BINARIES:
                 verify_archive(images_dir / f"{name}.tar", metadata[name]["containerimage.digest"], args.platform)
             manifest = output / "release.json"
             manifest.write_text(json.dumps(release, indent=2, sort_keys=True) + "\n")
             archive = output / "installation.tar.gz"
-            package(manifest, archive)
+            package(manifest, archive, {name: (output / name).read_bytes() for name in release_files})
             record_path = output / "record.json"
             record_path.write_text(json.dumps(record(release, archive, checkout), indent=2, sort_keys=True) + "\n")
             images = {}
@@ -76,13 +87,16 @@ def build(args, env, event):
                     images[name] = {"manifest_digest": metadata[name]["containerimage.digest"],
                                     "oci_archive_sha256": hashlib.file_digest(image, "sha256").hexdigest()}
             baseline = hashlib.sha256(json.dumps(hashes(output / "build"), sort_keys=True, separators=(",", ":")).encode()).hexdigest()
-            approval = {"core_revision": revision, "version": args.version, "platform": args.platform,
+            approval = {"core_revision": revision, "version": version, "platform": args.platform,
                         "baseline_sha256": baseline,
-                        "record_sha256": hashlib.sha256(record_path.read_bytes()).hexdigest(), "images": images}
+                        "record_sha256": hashlib.sha256(record_path.read_bytes()).hexdigest(), "images": images,
+                        "metadata_sha256": {name: hashlib.sha256((output / name).read_bytes()).hexdigest() for name in release_files}}
             (output / "approval.json").write_text(json.dumps(approval, indent=2, sort_keys=True) + "\n")
         finally:
             if created:
                 subprocess.run(["docker", "buildx", "rm", builder], env=docker_env, check=True)
+
+    return True
 
 
 def main():
@@ -94,7 +108,10 @@ def main():
     args = parser.parse_args()
     try:
         event = json.loads(Path(os.environ["GITHUB_EVENT_PATH"]).read_text())
-        build(args, os.environ, event)
+        ready = build(args, os.environ, event)
+        if "GITHUB_OUTPUT" in os.environ:
+            with open(os.environ["GITHUB_OUTPUT"], "a") as output:
+                print("ready=" + str(ready).lower(), file=output)
     except (OSError, ValueError, KeyError, TypeError, subprocess.CalledProcessError) as error:
         parser.exit(1, f"Core candidate build failed: {error}\n")
 

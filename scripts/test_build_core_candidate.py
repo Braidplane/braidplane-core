@@ -8,6 +8,8 @@ from unittest.mock import patch
 from scripts.build_core_candidate import build
 from scripts.test_core_release_provenance import context
 from scripts.test_installation_release import manifest
+from scripts.core_release_version import notes
+from scripts.prepare_core_release import release_plan
 
 
 class BuildCoreCandidateTest(unittest.TestCase):
@@ -18,7 +20,12 @@ class BuildCoreCandidateTest(unittest.TestCase):
         self.args = Namespace(version=release["version"], platform=release["platform"], edge=release["images"]["edge"],
                               postgres=release["images"]["postgres"], checkout=Path(__file__).resolve().parents[1],
                               output=Path(self.tmp.name) / "candidate")
-        mock_review = patch("scripts.build_core_candidate.reviewed")
+        config = json.loads((self.args.checkout / "ci/core-release.json").read_text())
+        self.args.edge, self.args.postgres = config["edge"], config["postgres"]
+        self.args.version = "v0.1.0"
+        plan = release_plan("v0.0.0", [dict(number=1, title="Synthetic feature", labels=[dict(name="release:minor")])])
+        metadata = {"release-plan.json": json.dumps(plan), "release-inputs.json": json.dumps(dict(through_sha="a" * 40)), "CHANGELOG.md": notes(plan)}
+        mock_review = patch("scripts.build_core_candidate.release_metadata", return_value=metadata)
         mock_review.start()
         self.addCleanup(mock_review.stop)
         self.env = context()
@@ -32,12 +39,21 @@ class BuildCoreCandidateTest(unittest.TestCase):
             run.assert_not_called()
             self.assertFalse(self.args.output.exists())
 
-    def test_missing_reviewed_plan_stops_before_building(self):
+    def test_missing_candidate_metadata_stops_before_building(self):
         with patch("scripts.build_core_candidate.subprocess.check_output", side_effect=["a" * 40 + "\n", b""]), \
-             patch("scripts.build_core_candidate.reviewed", side_effect=ValueError("missing plan")), \
+             patch("scripts.build_core_candidate.release_metadata", side_effect=ValueError("missing plan")), \
              patch("scripts.build_core_candidate.subprocess.run") as run:
             with self.assertRaisesRegex(ValueError, "missing plan"):
                 build(self.args, self.env, self.event)
+            run.assert_not_called()
+            self.assertFalse(self.args.output.exists())
+
+    def test_already_published_changes_skip_without_building(self):
+        self.args.version = ""
+        with patch("scripts.build_core_candidate.subprocess.check_output", side_effect=["a" * 40 + "\n", b""]), \
+             patch("scripts.build_core_candidate.release_metadata", return_value=None), \
+             patch("scripts.build_core_candidate.subprocess.run") as run:
+            self.assertFalse(build(self.args, self.env, self.event))
             run.assert_not_called()
             self.assertFalse(self.args.output.exists())
 
@@ -64,6 +80,7 @@ class BuildCoreCandidateTest(unittest.TestCase):
             self.assertEqual(run.call_count, 1)
 
     def test_exports_local_archives_without_registry_writes(self):
+        self.args.version = ""
         calls = []
 
         def run(command, **kwargs):
@@ -94,6 +111,7 @@ class BuildCoreCandidateTest(unittest.TestCase):
         self.assertFalse(any("login" in cmd for cmd in calls))
         self.assertTrue((self.args.output / "record.json").is_file())
         approval = json.loads((self.args.output / "approval.json").read_text())
+        self.assertEqual(approval["version"], "v0.1.0")
         self.assertEqual(set(approval["images"]), {"backend", "frontend", "migrate", "cli"})
         self.assertEqual(approval["images"]["backend"]["manifest_digest"], "sha256:" + "c" * 64)
 
