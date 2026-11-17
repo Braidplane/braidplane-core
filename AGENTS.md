@@ -12,6 +12,14 @@ fixtures. Never commit credentials or runtime data.
 The Go module is github.com/Braidplane/braidplane-core. Shared packages live
 under pkg/.
 
+Every new Core issue must have Braidplane's native GitHub Priority field set
+and read back after creation. Use Medium for normal work, High for significant
+correctness/security problems or current delivery prerequisites, Low for
+optional or deferred work, and Urgent for an immediate incident. Preserve an
+existing explicit priority decision. Do not duplicate priority with labels or
+project fields. Use Projects for planning views and milestones for delivery
+checkpoints.
+
 When creating or updating a Core PR, apply exactly one release classification:
 `release:patch` for compatible fixes, `release:minor` for features,
 `release:breaking` for incompatible changes, or `release:none` for changes
