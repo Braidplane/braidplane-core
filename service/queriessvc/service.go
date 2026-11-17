@@ -24,6 +24,7 @@ import (
 	pipelineruntime "github.com/Braidplane/braidplane-core/pkg/pipeline/runtime"
 	pipelinevalidate "github.com/Braidplane/braidplane-core/pkg/pipeline/validate"
 	"github.com/Braidplane/braidplane-core/pkg/resourcescope"
+	"github.com/Braidplane/braidplane-core/pkg/sinkbinding"
 	"github.com/Braidplane/braidplane-core/pkg/slug"
 	"github.com/Braidplane/braidplane-core/pkg/validate"
 	"github.com/Braidplane/braidplane-core/pkg/xerror"
@@ -439,7 +440,7 @@ func (e localConnectorExecutor) ExecuteConnector(
 	}
 	defer func() { _ = release() }()
 	if request.SinkExecution {
-		ctx = pipelineruntime.WithSinkExecution(ctx)
+		ctx = sinkbinding.WithSinkExecution(ctx)
 	}
 	return connector.Execute(ctx, conn, request.StatementJSON, request.Parameters, request.ResourceScope, request.Limits)
 }
@@ -1259,7 +1260,7 @@ func (s *service) executePrepared(
 	connectorLimits := s.effectiveConnectorLimits(prepared)
 	connectorLimits.ReadOnly = ds.ReadOnly
 	execResult, err := s.connectorExecutor.ExecuteConnector(execCtx, ConnectorExecutionRequest{
-		SinkExecution:           pipelineruntime.IsSinkExecution(ctx),
+		SinkExecution:           sinkbinding.IsSinkExecution(ctx),
 		PinnedConfigDigest:      pinnedConfig,
 		CredentialReference:     credentialReference,
 		ResourceScope:           prepared.resourceScope,

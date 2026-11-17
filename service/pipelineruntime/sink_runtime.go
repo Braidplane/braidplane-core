@@ -112,7 +112,7 @@ func (s *sinkRuntime) Execute(ctx context.Context, input *SinkRuntimeInput) erro
 	if input.ExclusiveEffectClaim && strings.TrimSpace(input.RunSlug) == "" {
 		return xerror.InvalidInput(xerror.PipelineRun).Detail("sink dispatch requires an owning run")
 	}
-	ctx = pipelineruntimevars.WithSinkExecution(ctx)
+	ctx = sinkbinding.WithSinkExecution(ctx)
 
 	if err := validateReservedSinkConfigBindings(input.SinkConfig); err != nil {
 		return err

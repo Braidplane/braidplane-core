@@ -14,7 +14,6 @@ import (
 
 	"github.com/Braidplane/braidplane-core/pkg/connector/filestream"
 	"github.com/Braidplane/braidplane-core/pkg/connector/transportsecurity"
-	runtimevars "github.com/Braidplane/braidplane-core/pkg/pipeline/runtime"
 	"github.com/Braidplane/braidplane-core/pkg/sinkbinding"
 	"github.com/Braidplane/braidplane-core/pkg/testutil/filestreamfixture"
 	"github.com/Braidplane/braidplane-core/pkg/xerror"
@@ -62,7 +61,7 @@ func TestHTTPStreamsNativeFilesAndReopensRetainedInputForKeyedRetry(t *testing.T
 	params[sinkbinding.Input] = types.TypedParam{Value: *file.Reference}
 	params[sinkbinding.InternalInputRepresentation] = types.TypedParam{Value: "file"}
 	params[sinkbinding.InternalInputFileMIMEType] = types.TypedParam{Value: "application/octet-stream"}
-	delivered, err := connector.Execute(runtimevars.WithSinkExecution(ctx), []byte(writeRetryOperation), params, limits)
+	delivered, err := connector.Execute(sinkbinding.WithSinkExecution(ctx), []byte(writeRetryOperation), params, limits)
 	require.NoError(t, err)
 	require.NoError(t, delivered.Error())
 	require.Equal(t, int32(2), uploads.Load())

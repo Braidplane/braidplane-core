@@ -21,7 +21,6 @@ import (
 	"github.com/Braidplane/braidplane-core/pkg/metrics"
 	filepayload "github.com/Braidplane/braidplane-core/pkg/payload/file"
 	pipepayload "github.com/Braidplane/braidplane-core/pkg/pipeline/payload"
-	runtimevars "github.com/Braidplane/braidplane-core/pkg/pipeline/runtime"
 	transformsql "github.com/Braidplane/braidplane-core/pkg/pipeline/transform/sql"
 	"github.com/Braidplane/braidplane-core/pkg/repostore"
 	"github.com/Braidplane/braidplane-core/pkg/resourcescope"
@@ -1750,7 +1749,7 @@ func (b *Broker) executeConnector(
 
 	metrics.RecordConnectorAdmission("acquired")
 	if payload.SinkExecution {
-		ctx = runtimevars.WithSinkExecution(ctx)
+		ctx = sinkbinding.WithSinkExecution(ctx)
 	}
 	if payload.Limits.MaxFileBytes > 0 {
 		expires := time.Now().Add(requestRetention)

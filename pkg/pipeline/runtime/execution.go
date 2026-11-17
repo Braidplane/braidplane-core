@@ -26,21 +26,11 @@ type SuccessfulRun struct {
 
 type (
 	executionContextKey     struct{}
-	sinkExecutionKey        struct{}
 	incrementalExecutionKey struct{}
 )
 
-func WithSinkExecution(ctx context.Context) context.Context {
-	return context.WithValue(ctx, sinkExecutionKey{}, true)
-}
-
 func WithIncrementalExecution(ctx context.Context) context.Context {
 	return context.WithValue(ctx, incrementalExecutionKey{}, true)
-}
-
-func IsSinkExecution(ctx context.Context) bool {
-	value, _ := ctx.Value(sinkExecutionKey{}).(bool)
-	return value
 }
 
 func IsIncrementalExecution(ctx context.Context) bool {

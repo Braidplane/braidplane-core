@@ -25,9 +25,9 @@ import (
 
 	"github.com/Braidplane/braidplane-core/pkg/connector/filestream"
 	"github.com/Braidplane/braidplane-core/pkg/connector/result"
-	"github.com/Braidplane/braidplane-core/pkg/domain/model"
 	"github.com/Braidplane/braidplane-core/pkg/hostguard"
 	"github.com/Braidplane/braidplane-core/pkg/httpoauth"
+	"github.com/Braidplane/braidplane-core/pkg/model"
 	filepayload "github.com/Braidplane/braidplane-core/pkg/payload/file"
 	formpayload "github.com/Braidplane/braidplane-core/pkg/payload/form"
 	"github.com/Braidplane/braidplane-core/pkg/sinkbinding"

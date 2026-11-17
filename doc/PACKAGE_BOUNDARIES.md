@@ -119,7 +119,7 @@ Forbidden direction:
 | `frontend` | `service/*`, `postgres/*`, `transport/http`, `config/backend`, backend-specific shared packages | Frontend calls the backend API instead of in-process service, repository, transport, connector, queue, or backend storage packages |
 | `postgres` | `service/*`, `transport/http`, `frontend`, `api-schema/gen/*` | Persistence must not depend on business services or transport concerns |
 | `transport/http` | `postgres/*`, `frontend`, `api-schema/gen/client` | HTTP handlers go through services, use generated server stubs, and must not render frontend SSR packages |
-| Connectors | `postgres/*`, `transport/http`, `frontend`, `api-schema/gen/*` | Connectors are reusable service-layer adapters and provider clients, not persistence, transport, frontend, or generated API DTO mapping code |
+| Connectors | Application services outside the connector subtree, `backend`, `config`, `postgres`, `transport`, `frontend`, `api-schema/gen`, `pkg/pipeline` | Adapters perform provider I/O from resolved inputs. Core services and composition own application orchestration. |
 | Shared packages | `transport/http`, `frontend` | Shared helpers must not depend on application adapter packages |
 | `pkg/pipeline/*` | `service/*`, `postgres/*`, `transport/http`, `frontend`, `api-schema/gen/*` | Pipeline spec, graph, validation, payload, run-state, and transform packages are runtime-neutral packages. Service-layer execution belongs in `service/pipelineruntime`. |
 | `config/backend` | `config/frontend`, `frontend`, `api-schema/gen/client` | Backend configuration must remain owned by the backend runtime |
@@ -180,36 +180,40 @@ maintaining another editable copy of the public schema.
 
 ## Connector Boundary
 
-Provider clients stay inside their connector or neutral provider package.
-Services own orchestration and credential selection; transport handlers own
-request authorization. Shared SQL/remote-file helpers cannot import business
-services or generated API clients. Preserve the import graph and test both
-allowed and forbidden edges with the compile-valid boundary fixtures.
+Provider clients live inside their connector or in a neutral provider package.
+Adapters own provider I/O, operation validation, parameter binding, payload
+normalization, optional schema discovery and fixed selected-resource Proof reads.
+They accept resolved runtime credentials and enforce operation budgets and trusted
+transport policy. Neutral contracts carry payload representations, results,
+sink bindings, write guards, schema quotas and Proof metadata. The connector
+factory and registry are Core assembly within the subtree. They map data-source
+types and decoded inputs to existing provider constructors. Core services own
+application-model conversion, persistence, credential lifecycle and orchestration.
+HTTP handlers own request authorization. See the
+[connector inventory](CONNECTOR_PACKAGE_INVENTORY.md) and
+[decision to keep connectors in Core](ADR_CONNECTORS_IN_CORE.md).
 
 ## Current Exceptions
 
 | Exception | Current users | Handling |
 |---|---|---|
 | `pkg/fake`, `pkg/testutil`, `pkg/eventtest` span layers | Tests/fake wiring | Excluded from shared package production rules; production `pkg/eventtest` importers must be named composition packages. |
-| `service/**/*_test.go`, `transport/http/**/*_test.go` span HTTP/services/persistence | Unit/E2E composition | Only test files excluded from service/HTTP rules; connector/provider/pipeline rules still apply in tests. |
+| `service/**/*_test.go`, `transport/http/**/*_test.go` span HTTP/services/persistence | Unit/E2E composition | The service and HTTP rules exclude tests. Connector, provider and pipeline rules apply to tests. |
+| `pkg/pipeline/run` | `connector/googleworkspace/native_test.go` | Exact import in this file for pipeline payload compatibility. |
+| `pkg/pipeline/payload`, `pkg/pipeline/transform/sql` | `connector/ftp/e2e/sql_transform_test.go` | Exact imports in this file for FTP-to-SQL transform coverage. |
 | `pkg/queue` imports `postgres`, `postgres/executionrequests` | River transactions/execution requests | Exact ports in a lax rule; services/other repositories forbidden. |
 | Frontend imports `pkg/sinkbinding`, `pkg/connector/googleworkspace` | Query binding names/Workspace contracts | Exact neutral packages; subpackages/other connectors forbidden. |
 
-Exceptions are not precedent; narrow remaining couplings in focused follow-ups.
-
 ## Enforcement
 
-Private `.golangci.yml` selectors anchor to `${base-path}`: the shared root config
-directory (`run.relative-path-mode: cfg`). Positive/negative selectors match
-absolute paths without confusing nested names, e.g. the PostgreSQL connector
-with persistence. CLI selectors use `**/cli/` for separate module-root lint.
-
-`task lint-boundaries` compiles disposable main/CLI modules and invokes the real
-pinned linter with the unaltered shared root config, including from the CLI module.
-Allowed edges must produce no diagnostic; each forbidden edge must report its
-rule. Fixtures cover direct/nested paths, test exclusions, exact queue ports,
-strict Proof rules and providers. `task lint` runs these after main/CLI lint;
-CI `task lint-ci` applies runner resource limits.
+`.golangci.yml` selectors anchor to `${base-path}`, the root config directory
+(`run.relative-path-mode: cfg`). Absolute selectors distinguish the PostgreSQL
+connector from the top-level persistence packages. `task lint` runs
+`python3 scripts/test_package_boundaries.py`, which compiles disposable fixture
+packages and runs the real pinned linter with the checked-in config. Allowed
+edges must produce no diagnostic and forbidden edges must report the expected
+rule. Fixtures cover direct and nested paths, test exceptions, queue ports,
+Proof and providers.
 
 When changing the package graph:
 

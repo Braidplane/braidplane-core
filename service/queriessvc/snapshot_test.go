@@ -13,6 +13,7 @@ import (
 	"github.com/Braidplane/braidplane-core/pkg/eventtest"
 	runtimevars "github.com/Braidplane/braidplane-core/pkg/pipeline/runtime"
 	"github.com/Braidplane/braidplane-core/pkg/resourcescope"
+	"github.com/Braidplane/braidplane-core/pkg/sinkbinding"
 	"github.com/Braidplane/braidplane-core/pkg/slug"
 	"github.com/Braidplane/braidplane-core/pkg/testutil"
 	"github.com/Braidplane/braidplane-core/pkg/testutil/fakes"
@@ -78,7 +79,7 @@ func TestSnapshotExecutionUsesCapturedDefaultsAndBudgetsWithoutSavedLookup(t *te
 	require.Positive(t, executor.remaining)
 	require.LessOrEqual(t, executor.remaining, 2*time.Second)
 	require.False(t, executor.captured.SinkExecution)
-	_, _, err = svc.ExecuteSnapshot(runtimevars.WithSinkExecution(t.Context()), "acme", "db", snapshot, nil, nil)
+	_, _, err = svc.ExecuteSnapshot(sinkbinding.WithSinkExecution(t.Context()), "acme", "db", snapshot, nil, nil)
 	require.NoError(t, err)
 	require.True(t, executor.captured.SinkExecution)
 }
