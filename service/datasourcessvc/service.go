@@ -525,13 +525,14 @@ type ConnectionTestExecutor interface {
 // live connector schema read. Remote implementations must encrypt it before
 // persistence and must not place credentials in queue arguments.
 type SchemaIntrospectionRequest struct {
-	OrganizationSlug slug.Slug            `json:"organization_slug"`
-	DataSourceSlug   slug.Slug            `json:"data_source_slug"`
-	DataSourceType   model.DataSourceType `json:"data_source_type"`
-	ConfigJSON       []byte               `json:"config_json"`
-	CredentialsJSON  []byte               `json:"credentials_json"`
-	MaxResultBytes   int                  `json:"max_result_bytes"`
-	MaxResultItems   int                  `json:"max_result_items"`
+	CredentialReference string               `json:"credential_reference,omitempty"`
+	OrganizationSlug    slug.Slug            `json:"organization_slug"`
+	DataSourceSlug      slug.Slug            `json:"data_source_slug"`
+	DataSourceType      model.DataSourceType `json:"data_source_type"`
+	ConfigJSON          []byte               `json:"config_json"`
+	CredentialsJSON     []byte               `json:"credentials_json"`
+	MaxResultBytes      int                  `json:"max_result_bytes"`
+	MaxResultItems      int                  `json:"max_result_items"`
 }
 
 // SchemaIntrospectionExecutor crosses the connector-capable execution boundary.
@@ -2818,19 +2819,20 @@ func (s *service) introspectSchema(
 	orgSlug slug.Slug,
 	ds *repods.DataSource,
 ) (SchemaResult, error) {
-	runtimeConfig, decryptedCreds, _, _, err := s.resolveRuntimeConnectorPayload(ctx, orgSlug, ds)
+	runtimeConfig, decryptedCreds, reference, _, err := s.resolveRuntimeConnectorPayload(ctx, orgSlug, ds)
 	if err != nil {
 		return nil, err
 	}
 
 	encoded, err := s.schemaIntrospector.IntrospectSchema(ctx, SchemaIntrospectionRequest{
-		OrganizationSlug: orgSlug,
-		DataSourceSlug:   ds.Slug,
-		DataSourceType:   ds.Type,
-		ConfigJSON:       runtimeConfig,
-		CredentialsJSON:  decryptedCreds,
-		MaxResultBytes:   s.schemaMaxBytes,
-		MaxResultItems:   s.schemaMaxItems,
+		OrganizationSlug:    orgSlug,
+		DataSourceSlug:      ds.Slug,
+		DataSourceType:      ds.Type,
+		ConfigJSON:          runtimeConfig,
+		CredentialsJSON:     decryptedCreds,
+		CredentialReference: reference,
+		MaxResultBytes:      s.schemaMaxBytes,
+		MaxResultItems:      s.schemaMaxItems,
 	})
 	if err != nil {
 		if isSchemaDiagnosticError(err) {

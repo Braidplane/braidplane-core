@@ -193,6 +193,7 @@ func (r *fakeRequestRepo) Cancel(context.Context, postgres.DBTX, uuid.UUID) (boo
 }
 
 func configureTestProcessor(t *testing.T, broker *Broker) {
+	broker.audit = testCredentialHandoffRecorder{}
 	t.Helper()
 	if broker.logger == nil {
 		broker.logger = slog.New(slog.DiscardHandler)

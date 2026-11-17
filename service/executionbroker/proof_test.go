@@ -137,7 +137,7 @@ func TestProofDeliveryBoundsRetentionAndRejectsUntrustedCompletion(t *testing.T)
 			require.NoError(t, err)
 			repo := &proofRetentionRepo{}
 			calls := 0
-			broker := &Broker{admission: testutil.FakeOperationAdmission{}, txm: fakeTXM{}, repo: repo, cipher: cipher, requestTimeout: time.Minute}
+			broker := &Broker{admission: testutil.FakeOperationAdmission{}, txm: fakeTXM{}, repo: repo, cipher: cipher, requestTimeout: time.Minute, audit: testCredentialHandoffRecorder{}}
 			broker.dispatcher = proofReplyDispatcher(func(_ context.Context, _ postgres.DBTX, id uuid.UUID) error {
 				calls++
 				snapshot := &proofevidencesvc.Snapshot{TargetFingerprint: r.Request.TargetFingerprint, Metadata: json.RawMessage(`{"fields":["private-field"]}`)}

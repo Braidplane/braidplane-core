@@ -22,6 +22,8 @@ Ordinary persisted credential resolution and admitted Proof credential resolutio
 
 A release requires a durable record before the resolver returns plaintext. An audit failure discards the plaintext and fails the operation. An already denied request remains denied when the recorder cannot write the denial. A rejected pre-tenant request cannot produce organization history.
 
+The execution broker records `enveloped` for a versioned query, S3 preparation, schema, Git or Proof handoff. The audit row, encrypted execution request and queue handoff share a transaction. A broker record proves entry into the encrypted envelope. The executor still checks dispatch authority before connector work, and its retries reuse the same envelope. Draft connection tests with transient credentials lack a stored revision.
+
 ## Retention and privileged access
 
 Security audit rows follow the organization's event retention policy, which defaults to 30 days and supports 1 to 30 days. CSV export reads retained rows. Database owners, migration operators and administrators with equivalent access can alter or delete those rows. Organization deletion also removes its audit history.
