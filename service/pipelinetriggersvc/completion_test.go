@@ -126,6 +126,7 @@ func TestCompletionSnapshotChecksClosureAndCurrentAuthorityWithoutCancelingAccep
 		closure, current    bool
 		depth               int
 		wantError, refused  bool
+		wantSummary         string
 	}{
 		{name: "admission", state: "pending", closure: true, current: true, depth: 1},
 		{name: "capacity recovery", state: "pending", closure: true, current: true, depth: 1, reason: "capacity_waiting"},
@@ -133,7 +134,9 @@ func TestCompletionSnapshotChecksClosureAndCurrentAuthorityWithoutCancelingAccep
 		{name: "execution", state: "accepted", closure: true, current: true, depth: 8},
 		{name: "closure had no authority", state: "pending", current: true, depth: 1, wantError: true, refused: true},
 		{name: "revoked before admission", state: "pending", closure: true, depth: 1, wantError: true, refused: true},
-		{name: "revoked before execution", state: "accepted", closure: true, depth: 1, wantError: true},
+		{name: "revoked before execution", state: "accepted", closure: true, depth: 1, wantError: true, wantSummary: "validation failed: authority_revoked"},
+		{name: "retired environment", state: "accepted", reason: "environment_missing", depth: 1, wantError: true, wantSummary: "validation failed: environment_missing"},
+		{name: "unknown stored reason", state: "accepted", reason: "opaque-fixture-canary", depth: 1, wantError: true, wantSummary: "validation failed"},
 		{name: "changed revision", state: "pending", closure: true, current: true, depth: 1, reason: "trigger_changed", wantError: true, refused: true},
 		{name: "ninth edge", state: "pending", closure: true, current: true, depth: 9, wantError: true, refused: true},
 	} {
@@ -149,7 +152,12 @@ func TestCompletionSnapshotChecksClosureAndCurrentAuthorityWithoutCancelingAccep
 			svc := &service{completionTriggersEnabled: true, txm: testutil.FakeTransactionManager{}, repo: repo, completionValidator: fakeCompletionValidator{}}
 			got, err := svc.CheckCompletionSnapshot(t.Context(), "org", "project", "env", 1)
 			if tt.wantError {
-				require.Error(t, err)
+				require.ErrorIs(t, err, ErrInvalidPipelineTriggerInput)
+				if tt.wantSummary != "" {
+					var typed *xerror.Error
+					require.ErrorAs(t, err, &typed)
+					require.Equal(t, tt.wantSummary, typed.Message())
+				}
 			} else {
 				require.NoError(t, err)
 			}

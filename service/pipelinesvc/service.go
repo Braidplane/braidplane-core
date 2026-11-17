@@ -2605,7 +2605,7 @@ func (s *service) executeQueuedPipelineRun(ctx context.Context, args jobs.Pipeli
 					return err
 				}
 				if startedAt.After(root.StartedAt.Add(time.Duration(*snapshot.RetryPolicy.MaxElapsedSeconds) * time.Second)) {
-					refusal = xerror.InvalidInput(xerror.PipelineRun).Detail("completion retry elapsed-time cap exceeded")
+					refusal = ErrRetryElapsed
 				}
 			}
 		}

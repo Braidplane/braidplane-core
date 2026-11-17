@@ -124,6 +124,15 @@ func (s *service) CheckCompletionSnapshot(ctx context.Context, org, project, env
 		if reason != "" {
 			snapshot.DecisionReason = reason
 			refusal = ErrInvalidPipelineTriggerInput.Detail(reason)
+			switch reason {
+			case "ancestor_context_missing", "ancestor_pipeline_repeated", "authority_revoked",
+				"causal_depth_exceeded", "completion_already_resolved", "dispatch_failed",
+				"environment_missing", "execution_context_missing", "execution_context_unavailable",
+				"grant_revoked", "pipeline_missing", "protected_environment", "selected_deployment_missing",
+				"selected_version_missing", "trigger_changed", "trigger_deleted", "trigger_disabled":
+				// Keep Core's fixed decision codes when run summaries discard wrapped details.
+				refusal = xerror.New(ErrInvalidPipelineTriggerInput.Kind(), ErrInvalidPipelineTriggerInput.Code(), ErrInvalidPipelineTriggerInput.Message()+": "+reason)
+			}
 			if snapshot.State == "pending" {
 				if err := s.repo.RefuseCompletionSnapshot(ctx, db, org, id, reason); err != nil {
 					return err
