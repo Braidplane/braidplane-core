@@ -33,6 +33,7 @@ Public user guides live under `docs-public/` with separate MkDocs navigation.
 - [Local instance administrator provisioning](INSTANCE_ADMIN.md)
 - [Credential encryption operations](CREDENTIAL_ENCRYPTION.md)
 - [Self-hosted custody and network boundaries](SELF_HOSTED_CUSTODY.md)
+- [OpenTelemetry collector export](OPENTELEMETRY.md)
 - [Package Boundaries](PACKAGE_BOUNDARIES.md)
 - [Pipeline proposal authority](PROPOSAL_AUTHORITY.md)
 - [Pipeline run progress](PIPELINE_RUN_PROGRESS.md)

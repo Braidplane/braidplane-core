@@ -1,0 +1,22 @@
+receivers:
+  otlp:
+    protocols:
+      http:
+        endpoint: 0.0.0.0:4318
+exporters:
+  file/traces:
+    path: /tmp/traces.json
+    flush_interval: 100ms
+  file/logs:
+    path: /tmp/logs.json
+    flush_interval: 100ms
+  debug:
+    verbosity: detailed
+service:
+  pipelines:
+    traces:
+      receivers: [otlp]
+      exporters: [file/traces, debug]
+    logs:
+      receivers: [otlp]
+      exporters: [file/logs, debug]
