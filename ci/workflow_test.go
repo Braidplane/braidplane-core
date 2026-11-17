@@ -536,7 +536,7 @@ func TestReleaseLabelsCheck(t *testing.T) {
 				objects[i] = fmt.Sprintf(`{"name":%q}`, label)
 			}
 			payload := fmt.Sprintf(`{"number":1,"title":"Synthetic fix","labels":[%s]}`, strings.Join(objects, ","))
-			cmd := exec.Command("bash", "-eo", "pipefail", "-c", steps[1].Run)
+			cmd := exec.CommandContext(t.Context(), "bash", "-eo", "pipefail", "-c", steps[1].Run)
 			cmd.Dir = ".."
 			exit := "0"
 			if tc.apiFailure {
