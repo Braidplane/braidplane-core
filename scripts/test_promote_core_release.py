@@ -10,12 +10,14 @@ from unittest.mock import patch
 
 from scripts.core_release_version import notes
 from scripts.promote_core_release import promote
-from scripts.publish_core_release import ASSETS
+from scripts.publish_core_release import ASSETS, release_tag
 from scripts.test_installation_release import manifest
 from scripts.validate_core_candidate import file_hash
 
 
 class PromoteCoreReleaseTest(unittest.TestCase):
+    platform = 'linux/amd64'
+
     def setUp(self):
         self.tmp = tempfile.TemporaryDirectory()
         self.addCleanup(self.tmp.cleanup)
@@ -32,7 +34,7 @@ class PromoteCoreReleaseTest(unittest.TestCase):
                         CORE_RELEASE_PUBLICATION_AUTHORIZED='yes', DOCKER_CONFIG=str(self.root))
         self.plan = dict(previous='v0.0.0', version=self.rc, bump='minor', security=False, supersedes=[], changes=[
             dict(kind='fix', summary='Repair retries (#1)'), dict(kind='breaking', summary='Change the option (#2)')])
-        release = dict(manifest(), version=self.rc, core_revision=self.source)
+        release = dict(manifest(), version=self.rc, core_revision=self.source, platform=self.platform)
         self.write('release.json', release)
         self.write('release-plan.json', self.plan)
         inputs = dict(since_sha='c' * 40, through_sha=self.source, pull_requests=[])
@@ -41,7 +43,7 @@ class PromoteCoreReleaseTest(unittest.TestCase):
         metadata = {name: (self.fixture / name).read_bytes() for name in ('release-plan.json', 'release-inputs.json', 'CHANGELOG.md')}
         with tarfile.open(self.fixture / 'installation.tar.gz', 'w:gz') as archive:
             for name, data in dict(metadata, **{'release.json': json.dumps(release).encode()}).items():
-                info = tarfile.TarInfo(f'braidplane-{self.rc}-linux-amd64/{name}')
+                info = tarfile.TarInfo(f"braidplane-{self.rc}-{self.platform.replace('/', '-')}/{name}")
                 info.size = len(data)
                 archive.addfile(info, io.BytesIO(data))
         record = dict(release=release, migration=dict(version=3, digest='d' * 64), archive_sha256=file_hash(self.fixture / 'installation.tar.gz'))
@@ -76,13 +78,14 @@ class PromoteCoreReleaseTest(unittest.TestCase):
         if '/git/tags/' in path:
             return self.tags[path.rsplit('/', 1)[-1]]
         if '/matching-refs/' in path:
-            return [dict(ref=f'refs/tags/core-published/{version}/linux-amd64', object=dict(type='tag', sha=version)) for version in self.versions]
+            return [dict(ref=f"refs/tags/core-published/{version}/{self.platform.replace('/', '-')}", object=dict(type='tag', sha=version)) for version in self.versions]
         if '/actions/runs/' in path:
             return self.run
         raise AssertionError(path)
 
     def download(self, command, **kwargs):
         if command[:3] == ['gh', 'release', 'download']:
+            self.assertEqual(command[3], release_tag(self.rc, self.platform))
             name = command[command.index('--pattern') + 1]
             shutil.copyfile(self.fixture / name, self.output / name)
         elif command[0] != 'git':
@@ -92,7 +95,7 @@ class PromoteCoreReleaseTest(unittest.TestCase):
         with patch('scripts.promote_core_release.api', side_effect=self.api), \
              patch('scripts.promote_core_release.subprocess.check_output', side_effect=[self.env['GITHUB_SHA'], '', '\n'.join(self.history)]), \
              patch('scripts.promote_core_release.subprocess.run', side_effect=self.download):
-            promote(self.rc, 'linux/amd64', self.checkout, self.output, self.env)
+            promote(self.rc, self.platform, self.checkout, self.output, self.env)
 
     def test_promotes_combined_notes_and_unchanged_verified_assets(self):
         with patch('scripts.promote_core_release.verify_release') as verify, \
@@ -106,7 +109,8 @@ class PromoteCoreReleaseTest(unittest.TestCase):
         self.assertIn('Repair retries (#1)', body)
         self.assertIn('**Breaking change:** Change the option (#2)', body)
         self.assertFalse(publish.call_args.args[5])
-        self.assertEqual(bind.call_args.args[1], 'core-published/v0.1.0/linux-amd64')
+        self.assertEqual(publish.call_args.args[1], release_tag('v0.1.0', self.platform))
+        self.assertEqual(bind.call_args.args[1], 'core-published/v0.1.0/' + self.platform.replace('/', '-'))
         for name in ASSETS:
             self.assertEqual((self.output / name).read_bytes(), (self.fixture / name).read_bytes())
 
@@ -177,3 +181,7 @@ class PromoteCoreReleaseTest(unittest.TestCase):
                 with self.assertRaises(ValueError):
                     promote(candidate, 'linux/amd64', self.checkout, self.output, dict(self.env, GITHUB_EVENT_NAME=event))
                 api.assert_not_called()
+
+
+class PromoteArm64CoreReleaseTest(PromoteCoreReleaseTest):
+    platform = 'linux/arm64'

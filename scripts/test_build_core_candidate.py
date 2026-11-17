@@ -13,11 +13,13 @@ from scripts.prepare_core_release import release_plan
 
 
 class BuildCoreCandidateTest(unittest.TestCase):
+    platform = 'linux/amd64'
+
     def setUp(self):
         self.tmp = tempfile.TemporaryDirectory()
         self.addCleanup(self.tmp.cleanup)
         release = manifest()
-        self.args = Namespace(version=release["version"], platform=release["platform"], edge=release["images"]["edge"],
+        self.args = Namespace(version=release["version"], platform=self.platform, edge=release["images"]["edge"],
                               postgres=release["images"]["postgres"], checkout=Path(__file__).resolve().parents[1],
                               output=Path(self.tmp.name) / "candidate")
         config = json.loads((self.args.checkout / "ci/core-release.json").read_text())
@@ -28,6 +30,9 @@ class BuildCoreCandidateTest(unittest.TestCase):
         mock_review = patch("scripts.build_core_candidate.release_metadata", return_value=metadata)
         mock_review.start()
         self.addCleanup(mock_review.stop)
+        mock_dependencies = patch("scripts.build_core_candidate.require_platform_image")
+        mock_dependencies.start()
+        self.addCleanup(mock_dependencies.stop)
         self.env = context()
         self.event = {"repository": {"full_name": self.env["GITHUB_REPOSITORY"], "visibility": "private"}}
 
@@ -38,6 +43,14 @@ class BuildCoreCandidateTest(unittest.TestCase):
                 build(self.args, self.env, self.event)
             run.assert_not_called()
             self.assertFalse(self.args.output.exists())
+
+    def test_missing_native_dependency_stops_before_builder_creation(self):
+        with patch("scripts.build_core_candidate.subprocess.check_output", side_effect=["a" * 40 + "\n", b""]), \
+             patch("scripts.build_core_candidate.require_platform_image", side_effect=ValueError("missing native image")), \
+             patch("scripts.build_core_candidate.subprocess.run") as run:
+            with self.assertRaisesRegex(ValueError, "missing native image"):
+                build(self.args, self.env, self.event)
+            run.assert_not_called()
 
     def test_missing_candidate_metadata_stops_before_building(self):
         with patch("scripts.build_core_candidate.subprocess.check_output", side_effect=["a" * 40 + "\n", b""]), \
@@ -114,6 +127,10 @@ class BuildCoreCandidateTest(unittest.TestCase):
         self.assertEqual(approval["version"], "v0.1.0")
         self.assertEqual(set(approval["images"]), {"backend", "frontend", "migrate", "cli"})
         self.assertEqual(approval["images"]["backend"]["manifest_digest"], "sha256:" + "c" * 64)
+
+
+class BuildArm64CoreCandidateTest(BuildCoreCandidateTest):
+    platform = 'linux/arm64'
 
 
 if __name__ == "__main__":

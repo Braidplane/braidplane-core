@@ -4,6 +4,7 @@ import argparse
 import hashlib
 import json
 import os
+import re
 import subprocess
 from pathlib import Path
 
@@ -14,6 +15,26 @@ from scripts.qualify_core_images import BINARIES
 SYFT = "docker.io/anchore/syft@sha256:4cc92b64ca74ffca4c94d4c8fcc01f217731375300be14d0b6eeb2e82eaa110a"
 IMAGE_MANIFESTS = {"application/vnd.oci.image.manifest.v1+json", "application/vnd.docker.distribution.manifest.v2+json"}
 IMAGE_CONFIGS = {"application/vnd.oci.image.config.v1+json", "application/vnd.docker.container.image.v1+json"}
+IMAGE_INDEXES = {"application/vnd.oci.image.index.v1+json", "application/vnd.docker.distribution.manifest.list.v2+json"}
+
+
+def require_platform_image(image, config, platform):
+    """Resolve a pinned dependency index, then verify its native image manifest."""
+    raw = subprocess.check_output(["docker", "buildx", "imagetools", "inspect", "--raw", image],
+                                  env=dict(os.environ, DOCKER_CONFIG=str(config)))
+    if hashlib.sha256(raw).hexdigest() != image.rsplit("@sha256:", 1)[1]:
+        raise ValueError("registry manifest bytes do not match the requested image digest")
+    document = json.loads(raw)
+    if document.get("mediaType") in IMAGE_INDEXES:
+        matches = [item for item in document["manifests"]
+                   if f"{item.get('platform', {}).get('os')}/{item.get('platform', {}).get('architecture')}" == platform]
+        if len(matches) != 1:
+            raise ValueError("dependency must provide exactly one image for the release platform")
+        digest = matches[0]["digest"]
+        if not re.fullmatch(r"sha256:[0-9a-f]{64}", digest):
+            raise ValueError("invalid dependency image digest")
+        image = image.split("@")[0] + "@" + digest
+    require_image_manifest(image, config, platform)
 
 
 def require_image_manifest(image, config, platform):

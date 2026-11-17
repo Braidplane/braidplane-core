@@ -3,6 +3,14 @@
 This bundle is still being tested and is not yet a supported public release.
 `release.json` records its version, source revision, image digests and target
 platform.
+
+Select the download for your Docker daemon's architecture. Check it with
+`docker info --format '{{.OSType}}/{{.Architecture}}'`: `aarch64` and `arm64`
+use the ARM64 release; `x86_64` and `amd64` use AMD64. AMD64 GitHub Releases
+use the version tag (for example `v0.1.1`); ARM64 uses the version followed by
+`-linux-arm64` (for example `v0.1.1-linux-arm64`). Download the record, manifest,
+identity and installation archive from that same release. Preflight rejects a
+manifest for the other platform. Keep the manifest's signed platform unchanged.
 Creating the archive does not authorize image publication or customer deployment.
 
 ## Prerequisites

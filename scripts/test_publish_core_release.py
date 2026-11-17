@@ -5,11 +5,18 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
-from scripts.publish_core_release import publish_candidate, publish_release
+from scripts.publish_core_release import publish_candidate, publish_release, release_tag
 from scripts.validate_core_candidate import file_hash
 
 
 class PublishCoreReleaseTest(unittest.TestCase):
+    def test_platform_release_tags_preserve_amd64_downloads(self):
+        for version in ('v0.1.0-rc.1', 'v0.1.0'):
+            self.assertEqual(release_tag(version, 'linux/amd64'), version)
+            self.assertEqual(release_tag(version, 'linux/arm64'), version + '-linux-arm64')
+        with self.assertRaises(ValueError):
+            release_tag('v0.1.0', 'linux/386')
+
     def test_candidate_requires_exact_completed_rc_identity(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)

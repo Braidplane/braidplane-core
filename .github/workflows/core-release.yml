@@ -1,4 +1,5 @@
 name: Core release candidate
+run-name: Core release candidate (${{ inputs.platform }})
 
 on:
   workflow_dispatch:
