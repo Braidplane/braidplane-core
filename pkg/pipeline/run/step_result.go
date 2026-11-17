@@ -431,6 +431,7 @@ func redactPayload(payload *pipepayload.Payload, redact func(string) string) {
 	payload.Document = redactRawJSON(payload.Document, redact)
 	payload.CSV = redact(payload.CSV)
 	redactFileMetadata(payload.File, redact)
+	payload.FileReference = nil
 	payload.FileBytes = []byte(redact(string(payload.FileBytes)))
 	redactFormData(payload.Form, redact)
 }

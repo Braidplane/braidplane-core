@@ -219,27 +219,47 @@ WHERE state NOT IN ('cancelled', 'completed', 'discarded')
         OR (kind = 'email_send' AND args->'user'->>'slug' = sqlc.arg('user_slug')::text)))
 ORDER BY id FOR UPDATE;
 
+-- name: LockExpiredExecutionInputs :one
+-- Lock parent requests first; a later statement must recheck committed pins.
+-- A fixed database cutoff excludes inputs that expire after this lock scan.
+WITH cutoff AS MATERIALIZED (SELECT clock_timestamp() AS at),
+locked AS MATERIALIZED (
+    SELECT request.id
+    FROM execution_requests request
+    LEFT JOIN retained_file_streams stream ON stream.request_id=request.id
+    CROSS JOIN cutoff
+    WHERE request.expires_at <= cutoff.at OR stream.expires_at <= cutoff.at
+    ORDER BY request.id
+    FOR UPDATE OF request
+)
+SELECT cutoff.at AS cutoff, count(locked.id)::bigint AS locked_count
+FROM cutoff LEFT JOIN locked ON TRUE
+WHERE current_setting('transaction_isolation')='read committed'
+GROUP BY cutoff.at;
+
 -- name: ExpireExecutionRequests :one
 -- Payload expiry must not erase an unresolved processing obligation. A lease
 -- can mark started work cancelled without acknowledgement from its executor.
 WITH expired_files AS (
     DELETE FROM retained_file_streams
-    WHERE expires_at <= clock_timestamp()
+    WHERE expires_at <= sqlc.arg('cutoff')::timestamptz
+        AND NOT EXISTS (SELECT 1 FROM pipeline_checkpoint_files pin WHERE pin.request_id=retained_file_streams.request_id AND pin.expires_at > clock_timestamp())
     RETURNING request_id
 ), scrubbed AS (
     UPDATE execution_requests
     SET request_ciphertext = ''::bytea, result_ciphertext = NULL,
         cancel_requested_at = COALESCE(cancel_requested_at, clock_timestamp()),
         updated_at = clock_timestamp()
-    WHERE expires_at <= clock_timestamp()
+    WHERE expires_at <= sqlc.arg('cutoff')::timestamptz
         AND state NOT IN ('pending', 'succeeded', 'failed')
         AND (state <> 'cancelled' OR started_at IS NOT NULL)
         AND (octet_length(request_ciphertext) > 0 OR result_ciphertext IS NOT NULL OR cancel_requested_at IS NULL)
     RETURNING id
 ), deleted AS (
     DELETE FROM execution_requests
-    WHERE expires_at <= clock_timestamp()
+    WHERE expires_at <= sqlc.arg('cutoff')::timestamptz
         AND (state IN ('pending', 'succeeded', 'failed') OR (state = 'cancelled' AND started_at IS NULL))
+        AND NOT EXISTS (SELECT 1 FROM pipeline_checkpoint_files pin WHERE pin.request_id=execution_requests.id AND pin.expires_at > clock_timestamp())
     RETURNING id
 )
 SELECT count(*) FROM deleted;
@@ -13446,9 +13466,58 @@ SELECT discard_retained_file(sqlc.arg('request_id')::uuid, sqlc.arg('claim_token
 SELECT COALESCE(
     to_regclass('public.retained_file_streams') IS NOT NULL
     AND to_regclass('public.retained_file_chunks') IS NOT NULL
+    AND to_regclass('public.pipeline_checkpoint_files') IS NOT NULL
     AND has_function_privilege(current_user, to_regprocedure('public.begin_retained_file(uuid,uuid,text,bigint,timestamptz)'), 'EXECUTE')
     AND has_function_privilege(current_user, to_regprocedure('public.append_retained_file_chunk(uuid,uuid,text,integer,integer,bytea)'), 'EXECUTE')
     AND has_function_privilege(current_user, to_regprocedure('public.seal_retained_file(uuid,uuid,text,bigint,text)'), 'EXECUTE')
     AND has_function_privilege(current_user, to_regprocedure('public.read_retained_file(uuid,uuid,text,uuid)'), 'EXECUTE')
     AND has_function_privilege(current_user, to_regprocedure('public.read_retained_file_chunk(uuid,uuid,text,uuid,integer)'), 'EXECUTE')
     AND has_function_privilege(current_user, to_regprocedure('public.discard_retained_file(uuid,uuid,text)'), 'EXECUTE'), FALSE)::boolean AS ready;
+
+-- name: PinCheckpointFile :execrows
+WITH source_request AS MATERIALIZED (
+    SELECT request.id FROM execution_requests request
+    JOIN organizations organization ON organization.id=request.organization_id
+    WHERE request.id=sqlc.arg('request_id') AND organization.slug=sqlc.arg('org_slug')
+    FOR KEY SHARE OF request
+)
+INSERT INTO pipeline_checkpoint_files(checkpoint_id, step_slug, request_id, expires_at)
+SELECT pc.id, sqlc.arg('step_slug'), f.request_id,
+    pc.created_at + make_interval(days => COALESCE((o.settings->'retention'->>'replay_checkpoint_retention_days')::integer, 7))
+FROM pipeline_checkpoint pc
+JOIN project_environments pe ON pe.id=pc.project_environment_id
+JOIN projects p ON p.id=pe.project_id
+JOIN organizations o ON o.id=p.organization_id
+JOIN environments e ON e.id=pe.environment_id
+JOIN retained_file_streams f ON f.organization_id=o.id
+JOIN execution_requests r ON r.id=f.request_id AND r.state='succeeded'
+JOIN source_request locked ON locked.id=r.id
+WHERE o.slug=sqlc.arg('org_slug') AND p.slug=sqlc.arg('project_slug')
+    AND e.slug=sqlc.arg('environment_slug') AND pc.run_slug=sqlc.arg('run_slug')
+    AND f.request_id=sqlc.arg('request_id') AND f.sealed
+    AND f.size_bytes=sqlc.arg('size_bytes') AND f.sha256=sqlc.arg('sha256')
+    AND (f.expires_at > clock_timestamp() OR EXISTS (
+        SELECT 1 FROM pipeline_checkpoint_files pin WHERE pin.request_id=f.request_id AND pin.expires_at > clock_timestamp()))
+ON CONFLICT(checkpoint_id, step_slug) DO UPDATE SET request_id=EXCLUDED.request_id, expires_at=EXCLUDED.expires_at;
+
+-- name: ListCheckpointFiles :many
+SELECT pin.step_slug, f.request_id, f.size_bytes, f.sha256
+FROM pipeline_checkpoint_files pin
+JOIN pipeline_checkpoint pc ON pc.id=pin.checkpoint_id
+JOIN project_environments pe ON pe.id=pc.project_environment_id
+JOIN projects p ON p.id=pe.project_id
+JOIN organizations o ON o.id=p.organization_id
+JOIN environments e ON e.id=pe.environment_id
+JOIN retained_file_streams f ON f.request_id=pin.request_id AND f.organization_id=o.id
+WHERE o.slug=sqlc.arg('org_slug') AND p.slug=sqlc.arg('project_slug')
+    AND e.slug=sqlc.arg('environment_slug') AND pc.run_slug=sqlc.arg('run_slug')
+    AND pin.expires_at > clock_timestamp() AND f.sealed;
+
+-- name: DeleteUnusedCheckpointFiles :exec
+DELETE FROM pipeline_checkpoint_files pin
+USING pipeline_checkpoint pc, project_environments pe, projects p, organizations o, environments e
+WHERE pin.checkpoint_id=pc.id AND pc.project_environment_id=pe.id
+    AND pe.project_id=p.id AND p.organization_id=o.id AND pe.environment_id=e.id
+    AND o.slug=sqlc.arg('org_slug') AND p.slug=sqlc.arg('project_slug')
+    AND e.slug=sqlc.arg('environment_slug') AND pc.run_slug=sqlc.arg('run_slug')
+    AND NOT (pin.step_slug = ANY(sqlc.arg('steps')::text[]));

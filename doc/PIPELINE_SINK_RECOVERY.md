@@ -51,9 +51,18 @@ contract. Source/transform failures, missing or pruned checkpoints, event-input
 runs without payload checkpoints, and sink runtime-input substitutions not
 retained in the checkpoint are unsupported. Recovery refuses a missing sink
 input rather than accepting new values or guessing a provider destination.
-File metadata alone is not a retained file. When nonempty file bytes are
-unavailable, recovery refuses the request before creating another run or
-dispatching a sink. Reconcile the destination before a new evaluation, which
+Pipeline file checkpoints privately pin complete encrypted input for the
+organization's replay-checkpoint retention window, measured from checkpoint
+creation (seven days by default). A new live sink claim reads those original
+bytes after recovery; a lost source claim is never revived. The association is
+scoped to the original organization, project, environment and run, and stays out
+of public JSON. Missing, expired or mismatched input is refused before creating
+another run or dispatching a sink. File metadata alone grants no read authority. Existing metadata-only file
+checkpoints cannot acquire recovery bytes through an upgrade; reconcile the
+destination before starting a new evaluation.
+Deleting or expiring the last referring checkpoint releases its file to ordinary
+minute maintenance. Plan retained storage for every pinned input, including
+completed runs; these bytes sit outside the 10 MiB checkpoint JSON allowance. Reconcile the destination before a new evaluation, which
 reads the source again.
 You can repair credentials through the existing datasource lifecycle. Changing
 the operation or target starts a new evaluation, not recovery of the original

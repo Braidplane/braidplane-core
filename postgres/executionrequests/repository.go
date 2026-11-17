@@ -427,11 +427,21 @@ func (Repository) Cancel(ctx context.Context, db postgres.DBTX, id uuid.UUID) (b
 	return cancelledBeforeExecution, nil
 }
 
+// LockExpired serializes expiry against new checkpoint pins. The caller must
+// keep this transaction open through DeleteExpired's fresh-snapshot recheck.
+func (Repository) LockExpired(ctx context.Context, db postgres.DBTX) (time.Time, error) {
+	row, err := dbgen.New(db).LockExpiredExecutionInputs(ctx)
+	if err != nil {
+		return time.Time{}, xerror.Unexpected().With(err).Detail("expiry requires a read-committed transaction")
+	}
+	return row.Cutoff.Time, nil
+}
+
 // DeleteExpired expires encrypted envelopes while retaining unresolved processing
 // metadata. Its count includes only deleted rows, not scrubbed payloads. It runs
 // on the control-plane connection; executors have no table DELETE privilege.
-func (Repository) DeleteExpired(ctx context.Context, db postgres.DBTX) (int64, error) {
-	count, err := dbgen.New(db).ExpireExecutionRequests(ctx)
+func (Repository) DeleteExpired(ctx context.Context, db postgres.DBTX, cutoff time.Time) (int64, error) {
+	count, err := dbgen.New(db).ExpireExecutionRequests(ctx, pgtype.Timestamptz{Time: cutoff, Valid: true})
 	if err != nil {
 		return 0, xerror.Unexpected().With(err).Detail("expire execution request payloads")
 	}

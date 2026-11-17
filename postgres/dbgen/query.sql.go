@@ -9095,6 +9095,35 @@ func (q *Queries) DeleteSchemaMetadataByDataSourceSlug(ctx context.Context, arg 
 	return err
 }
 
+const deleteUnusedCheckpointFiles = `-- name: DeleteUnusedCheckpointFiles :exec
+DELETE FROM pipeline_checkpoint_files pin
+USING pipeline_checkpoint pc, project_environments pe, projects p, organizations o, environments e
+WHERE pin.checkpoint_id=pc.id AND pc.project_environment_id=pe.id
+    AND pe.project_id=p.id AND p.organization_id=o.id AND pe.environment_id=e.id
+    AND o.slug=$1 AND p.slug=$2
+    AND e.slug=$3 AND pc.run_slug=$4
+    AND NOT (pin.step_slug = ANY($5::text[]))
+`
+
+type DeleteUnusedCheckpointFilesParams struct {
+	OrgSlug         slug.Slug
+	ProjectSlug     slug.Slug
+	EnvironmentSlug slug.Slug
+	RunSlug         string
+	Steps           []string
+}
+
+func (q *Queries) DeleteUnusedCheckpointFiles(ctx context.Context, arg DeleteUnusedCheckpointFilesParams) error {
+	_, err := q.db.Exec(ctx, deleteUnusedCheckpointFiles,
+		arg.OrgSlug,
+		arg.ProjectSlug,
+		arg.EnvironmentSlug,
+		arg.RunSlug,
+		arg.Steps,
+	)
+	return err
+}
+
 const deleteUnusedProofEvidence = `-- name: DeleteUnusedProofEvidence :exec
 DELETE FROM proof_evidence evidence USING organizations organization
 WHERE evidence.organization_id = organization.id AND organization.slug = $1
@@ -9437,22 +9466,24 @@ func (q *Queries) EnsureIncrementalCheckpointCommitLock(ctx context.Context, arg
 const expireExecutionRequests = `-- name: ExpireExecutionRequests :one
 WITH expired_files AS (
     DELETE FROM retained_file_streams
-    WHERE expires_at <= clock_timestamp()
+    WHERE expires_at <= $1::timestamptz
+        AND NOT EXISTS (SELECT 1 FROM pipeline_checkpoint_files pin WHERE pin.request_id=retained_file_streams.request_id AND pin.expires_at > clock_timestamp())
     RETURNING request_id
 ), scrubbed AS (
     UPDATE execution_requests
     SET request_ciphertext = ''::bytea, result_ciphertext = NULL,
         cancel_requested_at = COALESCE(cancel_requested_at, clock_timestamp()),
         updated_at = clock_timestamp()
-    WHERE expires_at <= clock_timestamp()
+    WHERE expires_at <= $1::timestamptz
         AND state NOT IN ('pending', 'succeeded', 'failed')
         AND (state <> 'cancelled' OR started_at IS NOT NULL)
         AND (octet_length(request_ciphertext) > 0 OR result_ciphertext IS NOT NULL OR cancel_requested_at IS NULL)
     RETURNING id
 ), deleted AS (
     DELETE FROM execution_requests
-    WHERE expires_at <= clock_timestamp()
+    WHERE expires_at <= $1::timestamptz
         AND (state IN ('pending', 'succeeded', 'failed') OR (state = 'cancelled' AND started_at IS NULL))
+        AND NOT EXISTS (SELECT 1 FROM pipeline_checkpoint_files pin WHERE pin.request_id=execution_requests.id AND pin.expires_at > clock_timestamp())
     RETURNING id
 )
 SELECT count(*) FROM deleted
@@ -9460,8 +9491,8 @@ SELECT count(*) FROM deleted
 
 // Payload expiry must not erase an unresolved processing obligation. A lease
 // can mark started work cancelled without acknowledgement from its executor.
-func (q *Queries) ExpireExecutionRequests(ctx context.Context) (int64, error) {
-	row := q.db.QueryRow(ctx, expireExecutionRequests)
+func (q *Queries) ExpireExecutionRequests(ctx context.Context, cutoff pgtype.Timestamptz) (int64, error) {
+	row := q.db.QueryRow(ctx, expireExecutionRequests, cutoff)
 	var count int64
 	err := row.Scan(&count)
 	return count, err
@@ -17769,6 +17800,64 @@ func (q *Queries) ListAllRuntimeVariables(ctx context.Context, arg ListAllRuntim
 	return items, nil
 }
 
+const listCheckpointFiles = `-- name: ListCheckpointFiles :many
+SELECT pin.step_slug, f.request_id, f.size_bytes, f.sha256
+FROM pipeline_checkpoint_files pin
+JOIN pipeline_checkpoint pc ON pc.id=pin.checkpoint_id
+JOIN project_environments pe ON pe.id=pc.project_environment_id
+JOIN projects p ON p.id=pe.project_id
+JOIN organizations o ON o.id=p.organization_id
+JOIN environments e ON e.id=pe.environment_id
+JOIN retained_file_streams f ON f.request_id=pin.request_id AND f.organization_id=o.id
+WHERE o.slug=$1 AND p.slug=$2
+    AND e.slug=$3 AND pc.run_slug=$4
+    AND pin.expires_at > clock_timestamp() AND f.sealed
+`
+
+type ListCheckpointFilesParams struct {
+	OrgSlug         slug.Slug
+	ProjectSlug     slug.Slug
+	EnvironmentSlug slug.Slug
+	RunSlug         string
+}
+
+type ListCheckpointFilesRow struct {
+	StepSlug  string
+	RequestID pgtype.UUID
+	SizeBytes int64
+	Sha256    pgtype.Text
+}
+
+func (q *Queries) ListCheckpointFiles(ctx context.Context, arg ListCheckpointFilesParams) ([]ListCheckpointFilesRow, error) {
+	rows, err := q.db.Query(ctx, listCheckpointFiles,
+		arg.OrgSlug,
+		arg.ProjectSlug,
+		arg.EnvironmentSlug,
+		arg.RunSlug,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ListCheckpointFilesRow
+	for rows.Next() {
+		var i ListCheckpointFilesRow
+		if err := rows.Scan(
+			&i.StepSlug,
+			&i.RequestID,
+			&i.SizeBytes,
+			&i.Sha256,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listCompletionRunFinalizationsForSystem = `-- name: ListCompletionRunFinalizationsForSystem :many
 SELECT snapshot.id, o.slug AS org_slug, p.slug AS project_slug, e.slug AS environment_slug,
     obligation.attempt_run_slug AS failed_run_slug
@@ -25173,6 +25262,37 @@ func (q *Queries) LockExecutionInitiatingAccount(ctx context.Context, userSlug s
 	return exists, err
 }
 
+const lockExpiredExecutionInputs = `-- name: LockExpiredExecutionInputs :one
+WITH cutoff AS MATERIALIZED (SELECT clock_timestamp() AS at),
+locked AS MATERIALIZED (
+    SELECT request.id
+    FROM execution_requests request
+    LEFT JOIN retained_file_streams stream ON stream.request_id=request.id
+    CROSS JOIN cutoff
+    WHERE request.expires_at <= cutoff.at OR stream.expires_at <= cutoff.at
+    ORDER BY request.id
+    FOR UPDATE OF request
+)
+SELECT cutoff.at AS cutoff, count(locked.id)::bigint AS locked_count
+FROM cutoff LEFT JOIN locked ON TRUE
+WHERE current_setting('transaction_isolation')='read committed'
+GROUP BY cutoff.at
+`
+
+type LockExpiredExecutionInputsRow struct {
+	Cutoff      pgtype.Timestamptz
+	LockedCount int64
+}
+
+// Lock parent requests first; a later statement must recheck committed pins.
+// A fixed database cutoff excludes inputs that expire after this lock scan.
+func (q *Queries) LockExpiredExecutionInputs(ctx context.Context) (LockExpiredExecutionInputsRow, error) {
+	row := q.db.QueryRow(ctx, lockExpiredExecutionInputs)
+	var i LockExpiredExecutionInputsRow
+	err := row.Scan(&i.Cutoff, &i.LockedCount)
+	return i, err
+}
+
 const lockIncrementalCheckpointCommit = `-- name: LockIncrementalCheckpointCommit :one
 SELECT lock_row.id
 FROM pipeline_incremental_checkpoint_locks lock_row
@@ -26881,6 +27001,61 @@ func (q *Queries) OrganizationDeletionBlocked(ctx context.Context, orgSlug slug.
 	var blocked pgtype.Bool
 	err := row.Scan(&blocked)
 	return blocked, err
+}
+
+const pinCheckpointFile = `-- name: PinCheckpointFile :execrows
+WITH source_request AS MATERIALIZED (
+    SELECT request.id FROM execution_requests request
+    JOIN organizations organization ON organization.id=request.organization_id
+    WHERE request.id=$6 AND organization.slug=$2
+    FOR KEY SHARE OF request
+)
+INSERT INTO pipeline_checkpoint_files(checkpoint_id, step_slug, request_id, expires_at)
+SELECT pc.id, $1, f.request_id,
+    pc.created_at + make_interval(days => COALESCE((o.settings->'retention'->>'replay_checkpoint_retention_days')::integer, 7))
+FROM pipeline_checkpoint pc
+JOIN project_environments pe ON pe.id=pc.project_environment_id
+JOIN projects p ON p.id=pe.project_id
+JOIN organizations o ON o.id=p.organization_id
+JOIN environments e ON e.id=pe.environment_id
+JOIN retained_file_streams f ON f.organization_id=o.id
+JOIN execution_requests r ON r.id=f.request_id AND r.state='succeeded'
+JOIN source_request locked ON locked.id=r.id
+WHERE o.slug=$2 AND p.slug=$3
+    AND e.slug=$4 AND pc.run_slug=$5
+    AND f.request_id=$6 AND f.sealed
+    AND f.size_bytes=$7 AND f.sha256=$8
+    AND (f.expires_at > clock_timestamp() OR EXISTS (
+        SELECT 1 FROM pipeline_checkpoint_files pin WHERE pin.request_id=f.request_id AND pin.expires_at > clock_timestamp()))
+ON CONFLICT(checkpoint_id, step_slug) DO UPDATE SET request_id=EXCLUDED.request_id, expires_at=EXCLUDED.expires_at
+`
+
+type PinCheckpointFileParams struct {
+	StepSlug        string
+	OrgSlug         slug.Slug
+	ProjectSlug     slug.Slug
+	EnvironmentSlug slug.Slug
+	RunSlug         string
+	RequestID       pgtype.UUID
+	SizeBytes       int64
+	Sha256          pgtype.Text
+}
+
+func (q *Queries) PinCheckpointFile(ctx context.Context, arg PinCheckpointFileParams) (int64, error) {
+	result, err := q.db.Exec(ctx, pinCheckpointFile,
+		arg.StepSlug,
+		arg.OrgSlug,
+		arg.ProjectSlug,
+		arg.EnvironmentSlug,
+		arg.RunSlug,
+		arg.RequestID,
+		arg.SizeBytes,
+		arg.Sha256,
+	)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
 }
 
 const pipelineTriggerDeploymentExists = `-- name: PipelineTriggerDeploymentExists :one
@@ -29416,6 +29591,7 @@ const retainedFileCapabilitiesReady = `-- name: RetainedFileCapabilitiesReady :o
 SELECT COALESCE(
     to_regclass('public.retained_file_streams') IS NOT NULL
     AND to_regclass('public.retained_file_chunks') IS NOT NULL
+    AND to_regclass('public.pipeline_checkpoint_files') IS NOT NULL
     AND has_function_privilege(current_user, to_regprocedure('public.begin_retained_file(uuid,uuid,text,bigint,timestamptz)'), 'EXECUTE')
     AND has_function_privilege(current_user, to_regprocedure('public.append_retained_file_chunk(uuid,uuid,text,integer,integer,bytea)'), 'EXECUTE')
     AND has_function_privilege(current_user, to_regprocedure('public.seal_retained_file(uuid,uuid,text,bigint,text)'), 'EXECUTE')

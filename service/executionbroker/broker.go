@@ -135,7 +135,8 @@ type requestRepository interface {
 	Heartbeat(context.Context, postgres.DBTX, uuid.UUID, uuid.UUID) (bool, error)
 	Complete(context.Context, postgres.DBTX, uuid.UUID, uuid.UUID, []byte, bool) error
 	Cancel(context.Context, postgres.DBTX, uuid.UUID) (bool, error)
-	DeleteExpired(context.Context, postgres.DBTX) (int64, error)
+	LockExpired(context.Context, postgres.DBTX) (time.Time, error)
+	DeleteExpired(context.Context, postgres.DBTX, time.Time) (int64, error)
 	Metrics(context.Context, postgres.DBTX) (requestrepo.Metrics, error)
 }
 
@@ -883,8 +884,12 @@ type deliveryClaim struct {
 }
 
 func (b *Broker) deleteExpired(ctx context.Context) error {
-	return b.txm.RunRead(ctx, func(ctx context.Context, db postgres.DBTX) error {
-		_, err := b.repo.DeleteExpired(ctx, db)
+	return b.txm.RunInTx(ctx, func(ctx context.Context, db postgres.DBTX) error {
+		cutoff, err := b.repo.LockExpired(ctx, db)
+		if err != nil {
+			return err
+		}
+		_, err = b.repo.DeleteExpired(ctx, db, cutoff)
 		return err
 	})
 }

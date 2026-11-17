@@ -12,16 +12,20 @@ cd comparison
 python3 -m venv ../.worktree/comparison-venv
 ../.worktree/comparison-venv/bin/python -m pip install -r requirements.txt
 ../.worktree/comparison-venv/bin/python verify_large_output.py \
-  --encoding sql-envelope --rows 500 --payload-bytes 1024 destination.json
+  --encoding sql-object-envelope --rows 500 --payload-bytes 1024 destination.json
 ```
 
-The SQL envelope has this shape (the abbreviated payload below is illustrative):
+At the current Core revision, SQL file rows are objects. Use the explicit
+`sql-object-envelope` mode for that output. The `sql-envelope` mode preserves
+verification of positional-row envelopes from earlier comparison fixtures.
+For example, the positional envelope has this shape (the abbreviated payload below is illustrative):
 
 ```json
 {"column_names":["order_id","amount_cents","payload"],"rows":[[1,1,"..."]],"row_count":1}
 ```
 
-Column order determines each positional value's field. Member and record order
+Column order determines each positional value's field. Object rows must instead
+have exactly the named columns, with no duplicate JSON members. Member and record order
 may vary. The verifier requires exactly these three unique column names, matching
 row widths, and a nonnegative integer `row_count` matching each object's parsed
 rows. It rejects missing or duplicate members, unexpected members, malformed or
@@ -62,3 +66,6 @@ Core `task test` does not run these tests. These checks start no services and lo
 no SQL fixtures. They establish verifier behavior, not transfer throughput, capacity
 or comparison readiness. Comparison execution and dataset loading need their
 own authorization.
+
+For disposable million-row execution, fault boundaries and measurement scope,
+see [large SQL qualification](../doc/LARGE_SQL_RECOVERY_QUALIFICATION.md).

@@ -29,6 +29,7 @@ Public user guides live under `docs-public/` with separate MkDocs navigation.
 - [Incremental Operator Controls](INCREMENTAL_OPERATIONS.md)
 - [Native file streaming](NATIVE_FILE_STREAMING.md)
 - [SQL result streaming](SQL_RESULT_STREAMING.md)
+- [Large SQL transfer and recovery qualification](LARGE_SQL_RECOVERY_QUALIFICATION.md)
 - [Local instance administrator provisioning](INSTANCE_ADMIN.md)
 - [Credential encryption operations](CREDENTIAL_ENCRYPTION.md)
 - [Self-hosted custody and network boundaries](SELF_HOSTED_CUSTODY.md)

@@ -14,6 +14,7 @@ import (
 	"net/http/httptest"
 	"net/http/httputil"
 	"net/url"
+	"os"
 	"strconv"
 	"strings"
 	"sync/atomic"
@@ -35,6 +36,7 @@ import (
 	"github.com/Braidplane/braidplane-core/pkg/domain/model"
 	"github.com/Braidplane/braidplane-core/pkg/eventtest"
 	"github.com/Braidplane/braidplane-core/pkg/pipeline/payload"
+	pipelinerun "github.com/Braidplane/braidplane-core/pkg/pipeline/run"
 	pipelinespec "github.com/Braidplane/braidplane-core/pkg/pipeline/spec"
 	"github.com/Braidplane/braidplane-core/pkg/slug"
 	"github.com/Braidplane/braidplane-core/pkg/testutil"
@@ -42,7 +44,6 @@ import (
 	"github.com/Braidplane/braidplane-core/pkg/xerror"
 	"github.com/Braidplane/braidplane-core/postgres"
 	credentialsrepo "github.com/Braidplane/braidplane-core/postgres/credentials"
-	requestrepo "github.com/Braidplane/braidplane-core/postgres/executionrequests"
 	"github.com/Braidplane/braidplane-core/postgres/odcscontracts"
 	"github.com/Braidplane/braidplane-core/postgres/pipelineruns"
 	pipelinesrepo "github.com/Braidplane/braidplane-core/postgres/pipelines"
@@ -66,13 +67,20 @@ func TestNativeFileStreaming(t *testing.T) {
 	fixtureURL, err := url.Parse(endpoint)
 	require.NoError(t, err)
 	const size = int64(9<<20) + 17
-	ctx, cancel := context.WithTimeout(transportsecurity.WithPlaintext(t.Context()), 3*time.Minute)
+	budget := 3 * time.Minute
+	if os.Getenv("BP_SQL_QUALIFICATION_OUTPUT") != "" {
+		budget = 30 * time.Minute
+	}
+	ctx, cancel := context.WithTimeout(transportsecurity.WithPlaintext(t.Context()), budget)
 	defer cancel()
 	pool := openE2EPool(t)
 	org := slug.Slug(fmt.Sprintf("native-file-%d", time.Now().UnixNano()))
 	project, environment := defaultProjectSlug, slug.Slug("prod")
 	seedOrganization(t, pool, org, "Native file transfer")
 	seedPipelineDeploymentEnvironment(t, pool, org, project, environment)
+	otherOrg := slug.Slug(org.String() + "-other")
+	seedOrganization(t, pool, otherOrg, "Foreign file scope")
+	seedPipelineDeploymentEnvironment(t, pool, otherOrg, project, environment)
 	t.Cleanup(func() {
 		_, err := pool.Exec(context.Background(), `DELETE FROM execution_requests WHERE organization_id=(SELECT id FROM organizations WHERE slug=$1)`, org)
 		require.NoError(t, err)
@@ -114,7 +122,7 @@ func TestNativeFileStreaming(t *testing.T) {
 	require.NoError(t, err)
 	defer func() { require.NoError(t, broker.Close()) }()
 	workerCtx, stopWorker := context.WithCancel(ctx)
-	defer stopWorker()
+	defer func() { stopWorker() }()
 	require.NoError(t, broker.Start(workerCtx, 2))
 	limits := queriessvc.ExecutionLimits{MaxFileBytes: size, QueryTimeout: 5 * time.Minute, ConnectorTimeout: 5 * time.Minute, MaxResultRows: 100, MaxResponseBytes: 1 << 20, ConnectorConcurrencyPerDataSource: 2, ConnectorConcurrencyQueueTimeout: time.Minute, ConnectorConcurrencyMaxQueued: 4, HTTPTimeout: 5 * time.Minute, HTTPMaxRedirects: 3, HTTPMaxRequestBytes: 1 << 20, HTTPMaxResponseBytes: 1 << 20, HTTPRetryAttempts: 1}
 	queries, err := queriessvc.NewWithExecutionLimits(txm, queriesrepo.New(), sources, broker, credentials, clock.New(), limits, eventtest.NewProducer(nil))
@@ -178,10 +186,12 @@ func TestNativeFileStreaming(t *testing.T) {
 	require.NoError(t, err)
 	require.Less(t, len(checkpointJSON), 1<<20)
 	t.Run("checkpoint recovery refuses missing retained file input", func(t *testing.T) {
+		_, err := pool.Exec(ctx, `DELETE FROM pipeline_checkpoint_files pin USING pipeline_checkpoint pc WHERE pin.checkpoint_id=pc.id AND pc.run_slug='file-transfer' AND pc.project_environment_id=(SELECT pe.id FROM project_environments pe JOIN projects p ON p.id=pe.project_id JOIN organizations o ON o.id=p.organization_id JOIN environments e ON e.id=pe.environment_id WHERE o.slug=$1 AND p.slug=$2 AND e.slug=$3)`, org, project, environment)
+		require.NoError(t, err)
 		var before, after int
 		const countRequests = `SELECT count(*) FROM execution_requests WHERE organization_id=(SELECT id FROM organizations WHERE slug=$1)`
 		require.NoError(t, pool.QueryRow(ctx, countRequests, org).Scan(&before))
-		_, err := runner.Replay(ctx, pipelineruntime.ReplayRequest{OrgSlug: org, ProjectSlug: project, EnvironmentSlug: environment, SourceRunSlug: "file-transfer", ReplayRunSlug: "refused", FromStep: "read", PipelineVersionID: *spec.CurrentVersionID})
+		_, err = runner.Replay(ctx, pipelineruntime.ReplayRequest{OrgSlug: org, ProjectSlug: project, EnvironmentSlug: environment, SourceRunSlug: "file-transfer", ReplayRunSlug: "refused", FromStep: "read", PipelineVersionID: *spec.CurrentVersionID})
 		require.ErrorIs(t, err, pipelineruntime.ErrReplayUnsupportedMode)
 		require.Contains(t, xerror.PublicDetail(err), "Retained file bytes are unavailable")
 		require.NoError(t, pool.QueryRow(ctx, countRequests, org).Scan(&after))
@@ -197,12 +207,18 @@ func TestNativeFileStreaming(t *testing.T) {
 		_, err = pool.Exec(ctx, `WITH cred AS (INSERT INTO credentials(organization_id,slug,kind,credential_type,status,encrypted_payload) SELECT id,'sql-credential','static_secret','postgres','active',$2 FROM organizations WHERE slug=$1 RETURNING id,organization_id) INSERT INTO data_sources(organization_id,credential_id,name,slug,type,config,is_active,read_only) SELECT organization_id,id,'SQL export','sql-source','postgres',$3,true,true FROM cred`, org, encryptedSQL, sqlConfig)
 		require.NoError(t, err)
 		const rowCount = 1_000_000
+		qualificationOutput := os.Getenv("BP_SQL_QUALIFICATION_OUTPUT")
 		sqlLimits := limits
 		sqlLimits.MaxResultRows = 1000
 		sqlLimits.StreamMaxRows = 0
 		sqlLimits.MaxFileBytes = 128 << 20
 		sqlLimits.QueryTimeout = 30 * time.Second
 		sqlLimits.ConnectorTimeout = 30 * time.Second
+		if qualificationOutput != "" {
+			sqlLimits.MaxFileBytes = 2 << 30
+			sqlLimits.QueryTimeout = limits.QueryTimeout
+			sqlLimits.ConnectorTimeout = limits.ConnectorTimeout
+		}
 		t.Logf("million-row SQL-to-S3: stream_max_rows=%d max_result_rows=%d max_file_bytes=%d query_timeout=%s connector_timeout=%s broker_request_timeout=5m; S3 timeout=300s", sqlLimits.StreamMaxRows, sqlLimits.MaxResultRows, sqlLimits.MaxFileBytes, sqlLimits.QueryTimeout, sqlLimits.ConnectorTimeout)
 		sqlQueries, err := queriessvc.NewWithExecutionLimits(txm, queriesrepo.New(), sources, broker, credentials, clock.New(), sqlLimits, eventtest.NewProducer(nil))
 		require.NoError(t, err)
@@ -219,7 +235,19 @@ func TestNativeFileStreaming(t *testing.T) {
 			{Kind: "query", Slug: "read", Query: &pipelinespec.QueryRef{DataSourceSlug: "sql-source", OperationType: "sql", OperationInline: map[string]any{"type": "postgres", "sql": fmt.Sprintf("SELECT i::integer AS order_id, i %% 100000 AS amount_cents, repeat('x',32) AS payload FROM generate_series(1,%d) i ORDER BY i", rowCount), "format": "file"}, OutputContract: fileContract}},
 			{Kind: "sink", Slug: "write", Sink: &pipelinespec.SinkSpec{Input: &pipelinespec.StepInput{FromStep: "read"}, InputContract: fileContract, DataSourceSlug: "objects", OperationType: "s3", OperationInline: map[string]any{"type": "s3", "operation": "write", "key": key, "format": "file", "content": "{{input}}", "overwrite": true}, Config: map[string]any{"key": key, "format": "file", "overwrite": true}, IdempotencyClass: pipelinespec.SinkIdempotencyClassUnsafe}},
 		}}
+		if qualificationOutput != "" {
+			sqlPipeline.Steps[1].Sink.IdempotencyClass = pipelinespec.SinkIdempotencyClassNaturallyIdempotent
+			_, err = pool.Exec(ctx, `CREATE TABLE large_recovery_source(changed boolean NOT NULL); INSERT INTO large_recovery_source VALUES(false)`)
+			require.NoError(t, err)
+			t.Cleanup(func() {
+				_, err := pool.Exec(context.WithoutCancel(ctx), `DROP TABLE large_recovery_source`)
+				require.NoError(t, err)
+			})
+			sqlPipeline.Steps[0].Query.OperationInline["sql"] = "SELECT i::integer AS order_id, i % 100000 AS amount_cents, CASE WHEN changed THEN repeat('changed',146) ELSE repeat(md5(i::text),32) END AS payload FROM generate_series(1,1000000) i CROSS JOIN large_recovery_source ORDER BY i"
+			t.Logf("large SQL profile rows=%d limits=%+v broker_workers=2 broker_deadline=5m outer_budget=%s", rowCount, sqlLimits, budget)
+		}
 		materializePipelines(t, ctx, store, org, project, pipeline, sqlPipeline)
+		started := time.Now()
 		sqlSpec, err := store.FindSpec(ctx, org, project, sqlPipeline.Metadata.Slug)
 		require.NoError(t, err)
 		require.NotNil(t, sqlSpec.CurrentVersionID)
@@ -229,7 +257,21 @@ func TestNativeFileStreaming(t *testing.T) {
 		object, err := independent.GetObject(ctx, &awss3.GetObjectInput{Bucket: aws.String("braidplane-fixtures"), Key: aws.String(key)})
 		require.NoError(t, err)
 		defer func() { require.NoError(t, object.Body.Close()) }()
-		verifiedBytes, verifiedDigest := checkSQLFile(t, object.Body, rowCount)
+		var verifiedBytes int64
+		var verifiedDigest string
+		if qualificationOutput == "" {
+			verifiedBytes, verifiedDigest = checkSQLFile(t, object.Body, rowCount)
+		} else {
+			// #nosec G703 -- operator-selected synthetic evidence path, not request input.
+			output, err := os.Create(qualificationOutput)
+			require.NoError(t, err)
+			digest := sha256.New()
+			verifiedBytes, err = io.Copy(io.MultiWriter(output, digest), object.Body)
+			require.NoError(t, err)
+			require.NoError(t, output.Close())
+			verifiedDigest = hex.EncodeToString(digest.Sum(nil))
+			t.Logf("large SQL transfer+download elapsed=%s bytes=%d sha256=%s output=%s", time.Since(started), verifiedBytes, verifiedDigest, qualificationOutput)
+		}
 		require.Equal(t, verifiedBytes, *object.ContentLength)
 		var retainedBytes int64
 		var retainedDigest string
@@ -238,15 +280,55 @@ func TestNativeFileStreaming(t *testing.T) {
 		require.Equal(t, verifiedBytes, retainedBytes)
 		require.Equal(t, verifiedDigest, retainedDigest)
 		t.Logf("independent destination verification: rows=%d bytes=%d sha256=%s retained_chunks=%d", rowCount, verifiedBytes, verifiedDigest, chunks)
+		t.Logf("SQL retained plaintext_bytes=%d chunks=%d", retainedBytes, chunks)
+		t.Run("private file checkpoint scope and atomicity", func(t *testing.T) {
+			checkpoint, err := runs.GetCheckpoint(ctx, org, project, environment, "sql-transfer")
+			require.NoError(t, err)
+			content, ok := checkpoint.Results["read"].Payload()
+			require.True(t, ok)
+			require.NotNil(t, content.FileReference)
+			encoded, err := json.Marshal(checkpoint)
+			require.NoError(t, err)
+			require.NotContains(t, string(encoded), content.FileReference.ID, "public checkpoint JSON must omit file capabilities")
+			changed := *checkpoint
+			changed.Results = map[slug.Slug]*pipelinerun.StepResult{"read": checkpoint.Results["read"].Clone()}
+			changedContent, _ := changed.Results["read"].Payload()
+			changedContent.FileReference.SizeBytes++
+			require.ErrorIs(t, runs.SaveCheckpoint(ctx, org, project, environment, "sql-transfer", changed), filestream.ErrUnavailable)
+			preserved, err := runs.GetCheckpoint(ctx, org, project, environment, "sql-transfer")
+			require.NoError(t, err)
+			preservedContent, _ := preserved.Results["read"].Payload()
+			require.Equal(t, content.FileReference, preservedContent.FileReference)
+			materializePipelines(t, ctx, store, otherOrg, project, sqlPipeline)
+			otherSpec, err := store.FindSpec(ctx, otherOrg, project, sqlPipeline.Metadata.Slug)
+			require.NoError(t, err)
+			_, err = pipelineruns.New().CreateRun(ctx, pool, otherOrg, project, environment, &pipelineruns.CreateRunParams{PipelineVersionID: *otherSpec.CurrentVersionID, PipelineSlug: sqlPipeline.Metadata.Slug.String(), RunSlug: "sql-transfer", Status: "running", StartedAt: time.Now(), Timeline: []byte(`{"events":[]}`)})
+			require.NoError(t, err)
+			require.ErrorIs(t, runs.SaveCheckpoint(ctx, otherOrg, project, environment, "sql-transfer", *checkpoint), filestream.ErrUnavailable)
+			_, err = runs.GetCheckpoint(ctx, otherOrg, project, environment, "sql-transfer")
+			require.ErrorIs(t, err, pipelinerun.ErrReplayCheckpointNotFound, "a rejected foreign file must roll back the checkpoint write")
+		})
+		t.Run("concurrent checkpoint pin and expiry", func(t *testing.T) {
+			checkCheckpointExpiryRace(t, ctx, pool, txm, runs, org, project, environment)
+		})
+		if qualificationOutput != "" {
+			t.Run("large SQL failure boundaries", func(t *testing.T) {
+				qualifyLargeSQLFaults(t, ctx, pool, org, project, environment, sqlPipeline, *sqlSpec.CurrentVersionID, sqlRunner, runs, independent, key, &config, stopWorker, verifiedBytes, verifiedDigest, qualificationOutput)
+			})
+			workerCtx, stopWorker = context.WithCancel(ctx)
+			require.NoError(t, broker.Start(workerCtx, 2))
+		}
 		_, err = sqlQueries.ExecuteInline(ctx, org, "sql-source", map[string]any{"type": "postgres", "format": "file", "sql": "SELECT 1 AS duplicate, 2 AS duplicate"}, nil)
 		require.Error(t, err)
 		require.Contains(t, xerror.PublicDetail(err), "unique column names", "unsupported query shapes must retain a safe actionable diagnostic through the broker")
 
 		t.Run("SQL checkpoint recovery refuses reread and redispatch", func(t *testing.T) {
+			_, err := pool.Exec(ctx, `DELETE FROM pipeline_checkpoint_files pin USING pipeline_checkpoint pc WHERE pin.checkpoint_id=pc.id AND pc.run_slug='sql-transfer' AND pc.project_environment_id=(SELECT pe.id FROM project_environments pe JOIN projects p ON p.id=pe.project_id JOIN organizations o ON o.id=p.organization_id JOIN environments e ON e.id=pe.environment_id WHERE o.slug=$1 AND p.slug=$2 AND e.slug=$3)`, org, project, environment)
+			require.NoError(t, err)
 			var before, after int
 			const countRequests = `SELECT count(*) FROM execution_requests WHERE organization_id=(SELECT id FROM organizations WHERE slug=$1)`
 			require.NoError(t, pool.QueryRow(ctx, countRequests, org).Scan(&before))
-			_, err := sqlRunner.Replay(ctx, pipelineruntime.ReplayRequest{OrgSlug: org, ProjectSlug: project, EnvironmentSlug: environment, SourceRunSlug: "sql-transfer", ReplayRunSlug: "sql-refused", FromStep: "read", PipelineVersionID: *sqlSpec.CurrentVersionID})
+			_, err = sqlRunner.Replay(ctx, pipelineruntime.ReplayRequest{OrgSlug: org, ProjectSlug: project, EnvironmentSlug: environment, SourceRunSlug: "sql-transfer", ReplayRunSlug: "sql-refused", FromStep: "read", PipelineVersionID: *sqlSpec.CurrentVersionID})
 			require.ErrorIs(t, err, pipelineruntime.ErrReplayUnsupportedMode)
 			require.NoError(t, pool.QueryRow(ctx, countRequests, org).Scan(&after))
 			require.Equal(t, before, after)
@@ -292,7 +374,7 @@ func TestNativeFileStreaming(t *testing.T) {
 			require.Positive(t, stagedChunks)
 			_, err = pool.Exec(ctx, `UPDATE retained_file_streams SET expires_at=clock_timestamp()-interval '1 second' WHERE organization_id=(SELECT id FROM organizations WHERE slug=$1) AND NOT sealed`, org)
 			require.NoError(t, err)
-			_, err = requestrepo.New().DeleteExpired(ctx, pool)
+			err = expireFileInputs(ctx, txm)
 			require.NoError(t, err)
 			var incomplete int
 			require.NoError(t, pool.QueryRow(ctx, `SELECT count(*) FROM retained_file_streams WHERE organization_id=(SELECT id FROM organizations WHERE slug=$1) AND NOT sealed`, org).Scan(&incomplete))
@@ -529,6 +611,8 @@ func TestNativeFileStreaming(t *testing.T) {
 		uploads, err := independent.ListMultipartUploads(ctx, &awss3.ListMultipartUploadsInput{Bucket: aws.String("braidplane-fixtures"), Prefix: aws.String(prefix)})
 		require.NoError(t, err)
 		require.Empty(t, uploads.Uploads, "a committed object must not leave an open multipart upload")
+		_, err = pool.Exec(ctx, `DELETE FROM pipeline_checkpoint_files pin USING pipeline_checkpoint pc WHERE pin.checkpoint_id=pc.id AND pc.run_slug='lost-completion' AND pc.project_environment_id=(SELECT pe.id FROM project_environments pe JOIN projects p ON p.id=pe.project_id JOIN organizations o ON o.id=p.organization_id JOIN environments e ON e.id=pe.environment_id WHERE o.slug=$1 AND p.slug=$2 AND e.slug=$3)`, org, project, environment)
+		require.NoError(t, err)
 		_, err = runner.Replay(ctx, pipelineruntime.ReplayRequest{OrgSlug: org, ProjectSlug: project, EnvironmentSlug: environment, SourceRunSlug: "lost-completion", ReplayRunSlug: "lost-completion-replay", FromStep: "read", PipelineVersionID: *version.CurrentVersionID})
 		require.ErrorIs(t, err, pipelineruntime.ErrReplayUnsupportedMode)
 		require.EqualValues(t, 2, sourceReads.Load(), "refused recovery must not reread a potentially changed source")
@@ -648,6 +732,8 @@ func TestNativeFileStreaming(t *testing.T) {
 			require.Equal(t, readsBefore+1, sourceReads.Load(), "replacement must not reread the source")
 			require.Equal(t, partsBefore+crashPart, partRequests.Load(), "replacement must not upload another part")
 			require.EqualValues(t, 1, completions.Load(), "replacement must not publish the interrupted write")
+			_, err = pool.Exec(ctx, `DELETE FROM pipeline_checkpoint_files pin USING pipeline_checkpoint pc WHERE pin.checkpoint_id=pc.id AND pc.run_slug='executor-lost' AND pc.project_environment_id=(SELECT pe.id FROM project_environments pe JOIN projects p ON p.id=pe.project_id JOIN organizations o ON o.id=p.organization_id JOIN environments e ON e.id=pe.environment_id WHERE o.slug=$1 AND p.slug=$2 AND e.slug=$3)`, org, project, environment)
+			require.NoError(t, err)
 			_, err = runner.Replay(ctx, pipelineruntime.ReplayRequest{OrgSlug: org, ProjectSlug: project, EnvironmentSlug: environment, SourceRunSlug: "executor-lost", ReplayRunSlug: "executor-lost-replay", FromStep: "read", PipelineVersionID: *version.CurrentVersionID})
 			require.ErrorIs(t, err, pipelineruntime.ErrReplayUnsupportedMode)
 			require.Equal(t, readsBefore+1, sourceReads.Load())

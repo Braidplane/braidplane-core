@@ -370,6 +370,9 @@ func TestRetainedFileReferenceRemainsRuntimeOnly(t *testing.T) {
 			require.True(t, ok)
 			require.Equal(t, &ref, payload.FileReference)
 			require.Empty(t, payload.FileBytes)
+			redacted, ok := source.RedactedClone(func(value string) string { return value }).Payload()
+			require.True(t, ok)
+			require.Nil(t, redacted.FileReference, "secret-redacted checkpoints must not recover original file bytes")
 			clone := payload.Clone()
 			clone.FileReference.SizeBytes++
 			require.Equal(t, metadata.SizeBytes, payload.FileReference.SizeBytes)

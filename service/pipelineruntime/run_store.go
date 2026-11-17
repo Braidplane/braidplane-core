@@ -9,6 +9,9 @@ import (
 	pipelineruntime "github.com/Braidplane/braidplane-core/pkg/pipeline/runtime"
 
 	"github.com/Braidplane/braidplane-core/pkg/clock"
+	"github.com/Braidplane/braidplane-core/pkg/connector/filestream"
+	"github.com/Braidplane/braidplane-core/pkg/domain/model"
+	filepayload "github.com/Braidplane/braidplane-core/pkg/payload/file"
 	pipelinerun "github.com/Braidplane/braidplane-core/pkg/pipeline/run"
 	pipelinespec "github.com/Braidplane/braidplane-core/pkg/pipeline/spec"
 	"github.com/Braidplane/braidplane-core/pkg/reqctx"
@@ -18,6 +21,7 @@ import (
 	"github.com/Braidplane/braidplane-core/postgres/checkpoints"
 	"github.com/Braidplane/braidplane-core/postgres/incrementalcheckpoints"
 	"github.com/Braidplane/braidplane-core/postgres/pipelineruns"
+	"github.com/Braidplane/braidplane-core/postgres/retainedfiles"
 	"github.com/Braidplane/braidplane-core/service/notificationsvc"
 )
 
@@ -30,6 +34,7 @@ type runWriter struct {
 }
 
 type runStore struct {
+	txm                     postgres.TransactionManager
 	dbtx                    postgres.DBTX
 	runWriter               pipelinerun.RunPersister
 	timelineStore           pipelinerun.TimelineStore
@@ -53,6 +58,7 @@ func NewRunStore(
 
 	incrementalCheckpointDB := incrementalcheckpoints.New()
 	return &runStore{
+		txm:                     txm,
 		dbtx:                    dbtx,
 		runWriter:               newRunWriter(txm, clk, incrementalCheckpointDB, notifier, runs),
 		timelineStore:           checkpoints.New(dbtx),
@@ -113,7 +119,26 @@ func (s *runStore) SaveCheckpoint(
 	runSlug string,
 	checkpoint pipelinerun.ReplayCheckpoint,
 ) error {
-	return s.timelineStore.SaveCheckpoint(ctx, orgSlug, projectSlug, environmentSlug, runSlug, checkpoint)
+	return s.txm.RunInTx(ctx, func(ctx context.Context, db postgres.DBTX) error {
+		if err := checkpoints.New(db).SaveCheckpoint(ctx, orgSlug, projectSlug, environmentSlug, runSlug, checkpoint); err != nil {
+			return err
+		}
+		steps := make([]string, 0, len(checkpoint.Results))
+		for step, result := range checkpoint.Results {
+			content, ok := result.Payload()
+			if !ok || content.FileReference == nil {
+				continue
+			}
+			if content.File == nil || content.File.DigestAlgorithm != filepayload.FilePayloadDigestSHA256 || content.File.SizeBytes != content.FileReference.SizeBytes || content.File.Digest != content.FileReference.SHA256 {
+				return filestream.ErrUnavailable
+			}
+			steps = append(steps, step.String())
+			if err := retainedfiles.New().PinCheckpointFile(ctx, db, orgSlug, projectSlug, environmentSlug, runSlug, step, *content.FileReference); err != nil {
+				return err
+			}
+		}
+		return retainedfiles.New().DeleteUnusedCheckpointFiles(ctx, db, orgSlug, projectSlug, environmentSlug, runSlug, steps)
+	})
 }
 
 func (s *runStore) GetCheckpoint(
@@ -121,7 +146,22 @@ func (s *runStore) GetCheckpoint(
 	orgSlug, projectSlug, environmentSlug slug.Slug,
 	runSlug string,
 ) (*pipelinerun.ReplayCheckpoint, error) {
-	return s.timelineStore.GetCheckpoint(ctx, orgSlug, projectSlug, environmentSlug, runSlug)
+	checkpoint, err := s.timelineStore.GetCheckpoint(ctx, orgSlug, projectSlug, environmentSlug, runSlug)
+	if err != nil {
+		return nil, err
+	}
+	files, err := retainedfiles.New().ListCheckpointFiles(ctx, s.dbtx, orgSlug, projectSlug, environmentSlug, runSlug)
+	if err != nil {
+		return nil, err
+	}
+	for _, file := range files {
+		content, ok := checkpoint.Results[file.Step].Payload()
+		if !ok || content.Representation != model.ContractRepresentationFile || content.File == nil || content.File.DigestAlgorithm != filepayload.FilePayloadDigestSHA256 || content.File.SizeBytes != file.Reference.SizeBytes || content.File.Digest != file.Reference.SHA256 {
+			return nil, filestream.ErrUnavailable
+		}
+		content.FileReference = filepayload.CloneReference(&file.Reference)
+	}
+	return checkpoint, nil
 }
 
 func (s *runStore) GetCurrentIncrementalCheckpoint(

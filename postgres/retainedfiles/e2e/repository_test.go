@@ -14,6 +14,7 @@ import (
 	"github.com/Braidplane/braidplane-core/pkg/slug"
 	"github.com/Braidplane/braidplane-core/pkg/testutil/e2edb"
 	"github.com/Braidplane/braidplane-core/pkg/uuid"
+	"github.com/Braidplane/braidplane-core/postgres"
 	"github.com/Braidplane/braidplane-core/postgres/executionrequests"
 	"github.com/Braidplane/braidplane-core/postgres/retainedfiles"
 	"github.com/jackc/pgx/v5"
@@ -187,7 +188,14 @@ func TestExpiredFilesAreRemovedWithoutErasingUnresolvedRequests(t *testing.T) {
 			require.NoError(t, err)
 			_, err = pool.Exec(ctx, `UPDATE retained_file_streams SET expires_at=clock_timestamp()-interval '1 second' WHERE request_id=$1`, id)
 			require.NoError(t, err)
-			_, err = requests.DeleteExpired(ctx, pool)
+			err = postgres.NewTransactionManager(pool).RunInTx(ctx, func(ctx context.Context, db postgres.DBTX) error {
+				cutoff, err := requests.LockExpired(ctx, db)
+				if err != nil {
+					return err
+				}
+				_, err = requests.DeleteExpired(ctx, db, cutoff)
+				return err
+			})
 			require.NoError(t, err)
 			var metadata, manifests, chunks int
 			require.NoError(t, pool.QueryRow(ctx, `SELECT (SELECT count(*) FROM execution_requests WHERE id=$1),(SELECT count(*) FROM retained_file_streams WHERE request_id=$1),(SELECT count(*) FROM retained_file_chunks WHERE request_id=$1)`, id).Scan(&metadata, &manifests, &chunks))
@@ -251,4 +259,17 @@ func TestRetainedFileRestrictedExecutor(t *testing.T) {
 		require.NoError(t, err)
 	}
 	require.NoError(t, repo.Discard(ctx, tx, claim))
+}
+
+func TestExpiryRejectsRepeatableRead(t *testing.T) {
+	if testing.Short() {
+		t.Skip("requires isolated PostgreSQL")
+	}
+	pool := freshPool(t)
+	ctx := t.Context()
+	tx, err := pool.BeginTx(ctx, pgx.TxOptions{IsoLevel: pgx.RepeatableRead})
+	require.NoError(t, err)
+	defer func() { _ = tx.Rollback(context.WithoutCancel(ctx)) }()
+	_, err = executionrequests.New().LockExpired(ctx, tx)
+	require.ErrorContains(t, err, "read-committed")
 }

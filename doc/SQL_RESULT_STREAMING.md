@@ -1,7 +1,7 @@
 # SQL result streaming
 
 PostgreSQL, MySQL, BigQuery and Snowflake statements can select `format: file`
-to serialize one finite query as a retained JSON object containing `column_names`, `rows` and `row_count`.
+to serialize one finite query as a retained JSON object containing `column_names`, object-valued `rows` and `row_count`.
 The default `rows` format retains its existing behavior. File output passes
 through the native-file broker and sink path; it does not expose retained
 references in public JSON or replay checkpoints.
@@ -69,7 +69,7 @@ for defaults, precedence and preserving an existing row quota.
 | SQL execution is cancelled | Database rows and connector slots are released; BigQuery job cancellation is attempted. Cancellation invalidates the storage claim; partial chunks can remain unreadable until expiry and maintenance cleanup. |
 | Source worker is lost | No offset resume or continuation of the lost snapshot is supported. Claim fencing and expiry apply to incomplete input. |
 | Destination write is partial or its acknowledgement is lost | Native-file sink guards apply. Missing acknowledgement is not success and cannot authorize automatic replay. Inspect the destination and clean provider remnants before recovery. |
-| A checkpoint is replayed | Public checkpoints retain metadata, not a reusable private file reference. SQL file replay is refused before source reread or sink dispatch. |
+| A checkpoint is replayed | A private checkpoint association restores complete sealed file input within its retention window. A new live sink claim reads the original bytes. Missing or expired input is refused before source reread or sink dispatch; public checkpoints expose metadata only. |
 
 ## Independent destination verification
 
@@ -101,3 +101,6 @@ The same suite passed configured row/byte boundaries, prior-output preservation,
 SQL cancellation and admission release, multipart cancellation, lost completion
 acknowledgement and executor-loss fencing. This is local synthetic acceptance;
 it does not establish hosted CI, publication, deployment or live provider capacity.
+
+For the large synthetic transfer procedure and its recovery and refusal checks, see
+[large SQL qualification](LARGE_SQL_RECOVERY_QUALIFICATION.md).

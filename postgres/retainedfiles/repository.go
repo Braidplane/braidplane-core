@@ -5,6 +5,8 @@ import (
 	"time"
 
 	"github.com/Braidplane/braidplane-core/pkg/connector/filestream"
+	filepayload "github.com/Braidplane/braidplane-core/pkg/payload/file"
+	"github.com/Braidplane/braidplane-core/pkg/slug"
 	"github.com/Braidplane/braidplane-core/pkg/uuid"
 	"github.com/Braidplane/braidplane-core/pkg/xerror"
 	"github.com/Braidplane/braidplane-core/postgres"
@@ -77,6 +79,54 @@ func (Repository) Preflight(ctx context.Context, db postgres.DBTX) error {
 	}
 	if !ready {
 		return filestream.ErrUnavailable.WithPublicDetail("Native-file execution capabilities are unavailable; restart matching roles after applying migrations and grants.")
+	}
+	return nil
+}
+
+// PinCheckpointFile stores a private association only after checking tenant,
+// sealed source identity and complete length/digest under the checkpoint transaction.
+func (Repository) PinCheckpointFile(ctx context.Context, db postgres.DBTX, org, project, environment slug.Slug, run string, step slug.Slug, ref filepayload.Reference) error {
+	id, err := filestream.ParseReference(ref, filestream.MaxRetainedBytes)
+	if err != nil {
+		return err
+	}
+	count, err := internalpg.New(db).PinCheckpointFile(ctx, internalpg.PinCheckpointFileParams{
+		OrgSlug: org, ProjectSlug: project, EnvironmentSlug: environment, RunSlug: run, StepSlug: step.String(),
+		RequestID: pgUUID(id), SizeBytes: ref.SizeBytes, Sha256: pgtype.Text{String: ref.SHA256, Valid: true},
+	})
+	if err != nil {
+		return xerror.Unexpected().With(err)
+	}
+	if count != 1 {
+		return filestream.ErrUnavailable
+	}
+	return nil
+}
+
+type CheckpointFile struct {
+	Step      slug.Slug
+	Reference filepayload.Reference
+}
+
+func (Repository) ListCheckpointFiles(ctx context.Context, db postgres.DBTX, org, project, environment slug.Slug, run string) ([]CheckpointFile, error) {
+	rows, err := internalpg.New(db).ListCheckpointFiles(ctx, internalpg.ListCheckpointFilesParams{OrgSlug: org, ProjectSlug: project, EnvironmentSlug: environment, RunSlug: run})
+	if err != nil {
+		return nil, xerror.Unexpected().With(err)
+	}
+	files := make([]CheckpointFile, 0, len(rows))
+	for _, row := range rows {
+		step, err := slug.New(row.StepSlug)
+		if err != nil {
+			return nil, xerror.Unexpected().With(err)
+		}
+		files = append(files, CheckpointFile{Step: step, Reference: filepayload.Reference{ID: (uuid.UUID{UUID: row.RequestID.Bytes}).String(), SizeBytes: row.SizeBytes, SHA256: row.Sha256.String}})
+	}
+	return files, nil
+}
+
+func (Repository) DeleteUnusedCheckpointFiles(ctx context.Context, db postgres.DBTX, org, project, environment slug.Slug, run string, steps []string) error {
+	if err := internalpg.New(db).DeleteUnusedCheckpointFiles(ctx, internalpg.DeleteUnusedCheckpointFilesParams{OrgSlug: org, ProjectSlug: project, EnvironmentSlug: environment, RunSlug: run, Steps: steps}); err != nil {
+		return xerror.Unexpected().With(err)
 	}
 	return nil
 }
