@@ -2815,7 +2815,7 @@ func toAPIPipelineDraftConflictResponse(err error) (api.PipelineDraftConflictRes
 		ExpectedSpecHash: conflict.ExpectedSpecHash,
 		PipelineSlug:     conflict.PipelineSlug.String(),
 	}
-	if detailedError := xerror.PublicDetail(err); detailedError != "" {
+	if detailedError := xerror.PublicDetail(conflict); detailedError != "" {
 		response.Error.DetailedError = &detailedError
 	}
 

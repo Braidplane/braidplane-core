@@ -1331,11 +1331,24 @@ func TestExecuteQuery(t *testing.T) {
 			wantErr:    apierror.New(422, "QUERY_EXECUTION_FAILED", "Query execution failed."),
 		},
 		{
+			name: "UsesPrimaryErrorWhenQueryExecutionFailureIsASibling",
+			body: api.ExecuteQueryRequest{},
+			executeFn: func(_ context.Context, _, _, _ slug.Slug, _ model.EventActor, _ map[string]any) (*result.ExecutionResult, error) {
+				return nil, xerror.Join(
+					queriessvc.ErrDataSourceUnavailable,
+					queriessvc.ErrQueryExecutionFailed.WithPublicDetail("unrelated query failure"),
+				)
+			},
+			wantStatus: http.StatusUnprocessableEntity,
+			wantErr:    apierror.New(422, "DATA_SOURCE_UNAVAILABLE", "data source unavailable"),
+		},
+		{
 			name: "ReturnsSafeWorksheetHeaderDiagnosticFromIsolatedWorker",
 			body: api.ExecuteQueryRequest{},
 			executeFn: func(_ context.Context, _, _, _ slug.Slug, _ model.EventActor, _ map[string]any) (*result.ExecutionResult, error) {
-				return nil, xerror.Wrapf("%w: connector execution failed: %w", queriessvc.ErrDataSourceUnavailable,
-					xerror.ExecutionUnavailable().WithPublicDetail("Headers must be nonblank unique strings"))
+				return nil, queriessvc.ErrDataSourceUnavailable.With(
+					xerror.ExecutionUnavailable().WithPublicDetail("Headers must be nonblank unique strings"),
+				).Detail("connector execution failed")
 			},
 			wantStatus: http.StatusUnprocessableEntity,
 			wantErr: apierror.New(422, "DATA_SOURCE_UNAVAILABLE", "data source unavailable").

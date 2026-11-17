@@ -456,6 +456,19 @@ func TestErrorIs_FmtErrorfWrapped(t *testing.T) {
 	wrapped := fmt.Errorf("service layer: %w", sentinel)
 
 	require.ErrorIs(t, wrapped, sentinel)
+	require.NotErrorIs(t, sentinel, wrapped)
+	require.NotErrorIs(t, sentinel, xerror.Join(sentinel, xerror.ValidationFailed()))
+}
+
+func TestErrorIs_TypedNil(t *testing.T) {
+	t.Parallel()
+
+	var empty *xerror.Error
+	sentinel := xerror.NotFound(xerror.User)
+
+	require.NotErrorIs(t, sentinel, empty)
+	require.NotErrorIs(t, empty, sentinel)
+	assert.Empty(t, xerror.PublicDetail(empty))
 }
 
 // ---------------------------------------------------------------------------
@@ -543,6 +556,18 @@ func TestKind_HTTPStatus(t *testing.T) {
 			assert.Equal(t, tt.status, tt.kind.HTTPStatus())
 		})
 	}
+}
+
+func TestKindValuesReturnsCopy(t *testing.T) {
+	t.Parallel()
+
+	kinds := xerror.KindValues()
+	first := kinds[0]
+	kinds[0] = xerror.Kind(0)
+
+	assert.Equal(t, first, xerror.KindValues()[0])
+	assert.True(t, first.IsAKind())
+	assert.False(t, xerror.Kind(0).IsAKind())
 }
 
 // ---------------------------------------------------------------------------

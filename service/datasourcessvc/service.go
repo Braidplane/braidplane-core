@@ -567,7 +567,7 @@ func ExecuteGitBranchList(ctx context.Context, request GitBranchRequest) ([]Data
 	defer auth.Cleanup()
 	branches, err := repostore.ListRemoteBranches(ctx, auth.RepoURL, auth.Env)
 	if err != nil {
-		return nil, xerror.Wrapf("%w: %w", ErrConnectionFailed, err)
+		return nil, ErrConnectionFailed.With(err)
 	}
 	if len(branches) == 0 {
 		return nil, ErrConnectionFailed.WithPublicDetail("git ls-remote failed: no branch heads returned").Detail("remote returned no branch heads")
@@ -604,11 +604,11 @@ func (e localConnectionTestExecutor) TestConnection(ctx context.Context, request
 	ctx = connector.WithDataSourceIdentity(ctx, request.OrganizationSlug, request.DataSourceSlug)
 	conn, err := e.factory(ctx, request.DataSourceType, request.ConfigJSON, request.CredentialsJSON)
 	if err != nil {
-		return xerror.Wrapf("%w: failed to create connector: %w", ErrConnectionFailed, err)
+		return ErrConnectionFailed.With(err).Detail("failed to create connector")
 	}
 	defer func() { _ = conn.Close() }()
 	if err := conn.TestConnection(ctx); err != nil {
-		return xerror.Wrapf("%w: %w", ErrConnectionFailed, err)
+		return ErrConnectionFailed.With(err)
 	}
 	return nil
 }
@@ -2829,7 +2829,7 @@ func (s *service) introspectSchema(
 		if isSchemaDiagnosticError(err) {
 			return nil, err
 		}
-		return nil, xerror.Wrapf("%w: %w", ErrConnectionFailed, err)
+		return nil, ErrConnectionFailed.With(err)
 	}
 	result, err := decodeSchemaJSON(encoded)
 	if err != nil {
@@ -2860,7 +2860,7 @@ func ExecuteSchemaIntrospection(
 	}
 	conn, err := factory(ctx, request.DataSourceType, request.ConfigJSON, request.CredentialsJSON)
 	if err != nil {
-		return nil, xerror.Wrapf("%w: %w", ErrConnectionFailed, err)
+		return nil, ErrConnectionFailed.With(err)
 	}
 	defer func() { _ = conn.Close() }()
 	result, err := adapter.introspect(ctx, conn, request.DataSourceType)

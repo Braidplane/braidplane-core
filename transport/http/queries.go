@@ -455,11 +455,12 @@ func (s *server) ExecuteQuery(
 		paramValues,
 	)
 	if err != nil {
-		if xerror.Is(err, queriessvc.ErrQueryExecutionFailed) {
+		var xe *xerror.Error
+		if xerror.As(err, &xe) && xe.Is(queriessvc.ErrQueryExecutionFailed) {
 			return apierror.New(
 				fiber.StatusUnprocessableEntity,
 				"QUERY_EXECUTION_FAILED",
-				queryExecutionFailureMessage(err),
+				queryExecutionFailureMessage(xe),
 			)
 		}
 		return mapServiceError(err)
@@ -474,11 +475,7 @@ func (s *server) ExecuteQuery(
 	return c.JSON(httpResult)
 }
 
-func queryExecutionFailureMessage(err error) string {
-	if err == nil {
-		return "Query execution failed."
-	}
-
+func queryExecutionFailureMessage(err *xerror.Error) string {
 	if detail := xerror.PublicDetail(err); detail != "" {
 		return detail
 	}

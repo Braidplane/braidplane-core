@@ -2,8 +2,10 @@ package xerror
 
 import "strings"
 
+// Copy the values slice so callers cannot change the generated IsAKind lookup.
 //go:generate -command enumer go tool -modfile=../../tools/go.mod enumer
 //go:generate enumer -type=Kind -transform=snake -output=kind_string.go -text -linecomment
+//go:generate sh -c "sed 's/return _KindValues$/return append([]Kind(nil), _KindValues...)/' kind_string.go > kind_string.go.tmp && mv kind_string.go.tmp kind_string.go"
 
 // Kind classifies an error into a domain-agnostic category.
 type Kind int

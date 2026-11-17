@@ -109,6 +109,9 @@ func (e *Error) Error() string {
 
 // Unwrap returns the wrapped cause, if any.
 func (e *Error) Unwrap() error {
+	if e == nil {
+		return nil
+	}
 	return e.err
 }
 
@@ -124,7 +127,8 @@ func (e *Error) With(err error) *Error {
 	return &clone
 }
 
-// WithPublicDetail returns a copy of the error with sanitized client-facing detail attached.
+// WithPublicDetail returns a copy of the error with client-facing detail attached.
+// The caller must sanitize the detail before passing it here.
 func (e *Error) WithPublicDetail(detail string) *Error {
 	if e == nil {
 		return nil
@@ -169,15 +173,11 @@ func Wrapf(format string, args ...any) error {
 	return fmt.Errorf(format, args...)
 }
 
-// Is supports errors.Is by matching on kind and code when comparing two
-// xerror.Error values. This allows sentinel errors (which have no wrapped
-// cause) to match wrapped instances of the same logical error.
+// Is compares kind and code with another *Error. The standard errors.Is
+// function walks the source error tree to find a match.
 func (e *Error) Is(target error) bool {
-	var t *Error
-	if !errors.As(target, &t) {
-		return false
-	}
-	return e.kind == t.kind && e.code == t.code
+	t, ok := target.(*Error)
+	return ok && e != nil && t != nil && e.kind == t.kind && e.code == t.code
 }
 
 func Is(err, target error) bool {

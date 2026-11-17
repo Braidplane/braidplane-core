@@ -3710,12 +3710,12 @@ func (s *service) executeResolvedVersion(
 			canonicalPipeline,
 			runErr,
 		)
-		return nil, xerror.Wrapf("%w: %w", ErrPipelineExecutionFailed, runErr)
+		return nil, ErrPipelineExecutionFailed.With(runErr)
 	}
 
 	run, err := runDetailFromOutcome(ctx, s.executionClock, runOutcome, version.SpecHash)
 	if err != nil {
-		return nil, xerror.Wrapf("%w: build run detail: %w", ErrPipelineExecutionFailed, err)
+		return nil, ErrPipelineExecutionFailed.With(err).Detail("build run detail")
 	}
 
 	run.ProofLink = toProofLifecycleLink(proofLink, version.SpecHash, "", s.executionClock.Now())
@@ -3724,7 +3724,7 @@ func (s *service) executeResolvedVersion(
 		// Run was persisted but the pipeline itself failed (e.g. data source error).
 		// Return the run detail alongside the error so the caller can surface full
 		// failure context (kind, side, data_source_slug, action_hint) to the user.
-		wrappedRunErr := xerror.Wrapf("%w: %w", ErrPipelineExecutionFailed, runErr)
+		wrappedRunErr := ErrPipelineExecutionFailed.With(runErr)
 		_ = s.recordPipelineRunEventInTx(ctx, orgSlug, projectSlug, actor, run, protected)
 		return run, wrappedRunErr
 	}
@@ -4194,7 +4194,7 @@ func New(
 		runnerOptions...,
 	)
 	if err != nil {
-		return nil, xerror.Wrapf("%w: initialize runner: %w", ErrPipelineExecutionFailed, err)
+		return nil, ErrPipelineExecutionFailed.With(err).Detail("initialize runner")
 	}
 
 	return &service{
