@@ -22,9 +22,12 @@ import (
 	"github.com/Braidplane/braidplane-core/pkg/slug"
 	"github.com/Braidplane/braidplane-core/pkg/xerror"
 	"github.com/Braidplane/braidplane-core/postgres"
+	repoevents "github.com/Braidplane/braidplane-core/postgres/events"
 	"github.com/Braidplane/braidplane-core/postgres/pipelineruns"
 	"github.com/Braidplane/braidplane-core/postgres/pipelinewebhooks"
 	"github.com/Braidplane/braidplane-core/service/credentialssvc"
+	"github.com/Braidplane/braidplane-core/service/eventrecorder"
+	"github.com/Braidplane/braidplane-core/service/eventssvc"
 	"github.com/Braidplane/braidplane-core/service/notificationsvc"
 	"github.com/Braidplane/braidplane-core/service/pipelinesvc"
 	"github.com/Braidplane/braidplane-core/service/worker/jobs"
@@ -61,6 +64,7 @@ type PipelineExecutor interface {
 }
 
 type Service struct {
+	audit    eventrecorder.Recorder
 	notifier notificationsvc.CandidateProducer
 	txm      postgres.TransactionManager
 	repo     pipelinewebhooks.Repository
@@ -112,7 +116,7 @@ func New(
 	if txm == nil || repo == nil || secrets == nil || producer == nil || executor == nil || cipher == nil || clk == nil || notifier == nil {
 		return nil, xerror.Unexpected().Detail("pipeline webhook service dependencies are required")
 	}
-	return &Service{txm: txm, repo: repo, secrets: secrets, producer: producer, executor: executor, cipher: cipher, clock: clk, notifier: notifier}, nil
+	return &Service{audit: eventrecorder.New(eventssvc.New(txm, repoevents.New(), clk)), txm: txm, repo: repo, secrets: secrets, producer: producer, executor: executor, cipher: cipher, clock: clk, notifier: notifier}, nil
 }
 
 func (s *Service) Accept(ctx context.Context, request AcceptRequest) (Acceptance, error) {
@@ -188,6 +192,9 @@ func (s *Service) Accept(ctx context.Context, request AcceptRequest) (Acceptance
 		if !accepted.Inserted {
 			return nil
 		}
+		if err := s.recordWebhookKeyUse(ctx, receiver, runSlug, keyVersion); err != nil {
+			return err
+		}
 		queued, err := s.producer.EnqueuePipelineWebhookDelivery(ctx, tx, jobs.PipelineWebhookDeliveryArgs{
 			ReceiverID: request.ReceiverID, DeliveryID: request.DeliveryID, RunAttempt: 1,
 		})
@@ -204,11 +211,16 @@ func (s *Service) Accept(ctx context.Context, request AcceptRequest) (Acceptance
 
 func (s *Service) rejectVerified(ctx context.Context, request AcceptRequest, receiver pipelinewebhooks.Receiver, keyVersion int, digest string, receivedAt time.Time, reason string, rejection error) error {
 	result, err := postgres.InTx(ctx, s.txm, func(ctx context.Context, tx postgres.DBTX) (pipelinewebhooks.AcceptResult, error) {
-		return s.repo.Reject(ctx, tx, pipelinewebhooks.RejectParams{
+		operation := deliveryRunSlug(request.ReceiverID, request.DeliveryID)
+		rejected, err := s.repo.Reject(ctx, tx, pipelinewebhooks.RejectParams{
 			ReceiverID: request.ReceiverID, DeliveryID: request.DeliveryID, PayloadDigest: digest,
 			PayloadSizeBytes: int64(len(request.Body)), KeyVersion: keyVersion, Receiver: receiver,
-			RunSlug: deliveryRunSlug(request.ReceiverID, request.DeliveryID), DecisionReason: reason, ReceivedAt: receivedAt,
+			RunSlug: operation, DecisionReason: reason, ReceivedAt: receivedAt,
 		})
+		if err != nil || !rejected.Inserted {
+			return rejected, err
+		}
+		return rejected, s.recordWebhookKeyUse(ctx, receiver, operation, keyVersion)
 	})
 	if err != nil {
 		return err

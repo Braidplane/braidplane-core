@@ -24,6 +24,8 @@ A release requires a durable record before the resolver returns plaintext. An au
 
 The execution broker records `enveloped` for a versioned query, S3 preparation, schema, Git or Proof handoff. The audit row, encrypted execution request and queue handoff share a transaction. A broker record proves entry into the encrypted envelope. The executor still checks dispatch authority before connector work, and its retries reuse the same envelope. Draft connection tests with transient credentials lack a stored revision.
 
+A webhook records the signing-key version once when a verified delivery is first committed. The audit shares the delivery transaction, including when a valid signature accompanies a rejected payload. Invalid signatures never establish a tenant audit identity.
+
 ## Retention and privileged access
 
 Security audit rows follow the organization's event retention policy, which defaults to 30 days and supports 1 to 30 days. CSV export reads retained rows. Database owners, migration operators and administrators with equivalent access can alter or delete those rows. Organization deletion also removes its audit history.

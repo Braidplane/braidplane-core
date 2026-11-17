@@ -1,6 +1,7 @@
 package e2e
 
 import (
+	"fmt"
 	"testing"
 	"time"
 
@@ -9,6 +10,8 @@ import (
 	"github.com/Braidplane/braidplane-core/pkg/domain/model"
 	"github.com/Braidplane/braidplane-core/pkg/reqctx"
 	"github.com/Braidplane/braidplane-core/pkg/testutil/e2edb"
+	"github.com/Braidplane/braidplane-core/postgres"
+	repoevents "github.com/Braidplane/braidplane-core/postgres/events"
 	"github.com/Braidplane/braidplane-core/service/credentialssvc"
 	"github.com/Braidplane/braidplane-core/service/eventssvc"
 )
@@ -50,19 +53,25 @@ func TestStaticCredentialLifecycleRequiresTenantAudit(t *testing.T) {
 	_, err = svc.CreateStaticSecret(ctx, params)
 	require.NoError(t, err)
 
-	var version, metadata, correlation string
-	require.NoError(t, pool.QueryRow(ctx, `SELECT e.metadata->>'version', e.metadata::text, e.request_id
-        FROM events e JOIN organizations o ON o.id = e.organization_id
-        WHERE o.slug = $1 AND e.actor_type = 'user' AND e.actor_slug = $2
-          AND e.entity_type = 'data_source' AND e.entity_slug = $3
-          AND e.event_class = 'security_audit' AND e.action = 'rotate'`, org, actor, source).Scan(&version, &metadata, &correlation))
-	require.Len(t, version, 64)
-	require.NotContains(t, metadata, marker)
-	require.Len(t, correlation, 64)
-	require.NotContains(t, correlation, marker)
-	var unrelated int
-	require.NoError(t, pool.QueryRow(ctx, `SELECT count(*) FROM events e
-        JOIN organizations o ON o.id = e.organization_id WHERE o.slug = $1 AND e.entity_slug = $2
-          AND e.slug LIKE 'evt-credential-lifecycle-%'`, other, source).Scan(&unrelated))
-	require.Zero(t, unrelated)
+	auditClass := model.EventClassSecurityAudit
+	action := model.EventActionRotate
+	eventService := eventssvc.New(postgres.NewTransactionManager(pool), repoevents.New(), nil)
+	filters := eventssvc.ListEventsFilters{EventClass: &auditClass, EntitySlug: &source, Action: &action}
+	own, err := eventService.ListEvents(ctx, org, filters, model.ListRequest{})
+	require.NoError(t, err)
+	require.Len(t, own.Items, 1)
+	event := own.Items[0]
+	require.Equal(t, model.EventActorTypeUser, event.ActorType)
+	require.Equal(t, actor, *event.ActorSlug)
+	require.Equal(t, model.EventEntityTypeDataSource, event.EntityType)
+	require.Equal(t, source, *event.EntitySlug)
+	require.IsType(t, "", event.Metadata["version"])
+	require.Len(t, event.Metadata["version"], 64)
+	require.NotContains(t, fmt.Sprint(event.Metadata), marker)
+	require.NotNil(t, event.RequestID)
+	require.Len(t, *event.RequestID, 64)
+	require.NotContains(t, *event.RequestID, marker)
+	peer, err := eventService.ListEvents(ctx, other, filters, model.ListRequest{})
+	require.NoError(t, err)
+	require.Empty(t, peer.Items)
 }

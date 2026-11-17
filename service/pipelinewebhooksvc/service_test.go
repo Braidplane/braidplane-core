@@ -22,6 +22,8 @@ import (
 	"github.com/Braidplane/braidplane-core/postgres"
 	"github.com/Braidplane/braidplane-core/postgres/pipelinewebhooks"
 	"github.com/Braidplane/braidplane-core/service/credentialssvc"
+	"github.com/Braidplane/braidplane-core/service/eventrecorder"
+	"github.com/Braidplane/braidplane-core/service/eventssvc"
 	"github.com/Braidplane/braidplane-core/service/pipelinesvc"
 	"github.com/Braidplane/braidplane-core/service/worker/jobs"
 )
@@ -36,6 +38,23 @@ func TestAcceptVerifiesBeforeMappingAndDeduplicates(t *testing.T) {
 	var resolved credentialssvc.ResolvePipelineWebhookSecretParams
 	executor := &fakePipelineExecutor{}
 	svc := newWebhookService(t, now, repo, fakeSecretResolver{secret: secret, resolved: &resolved}, producer, executor)
+	var eventCount int
+	svc.audit = eventrecorder.New(webhookAuditFunc(func(_ context.Context, params eventssvc.CreateEventParams) (*model.Event, error) {
+		require.Equal(t, model.EventActorTypeExternal, params.ActorType)
+		require.Equal(t, slug.Slug("acme"), params.OrgSlug)
+		require.Equal(t, model.EventClassSecurityAudit, params.EventClass)
+		require.Equal(t, model.EventActionRead, params.Action)
+		require.Equal(t, 1, params.Metadata["version"])
+		require.Equal(t, "verified", params.Metadata["outcome"])
+		serialized, err := json.Marshal(params)
+		require.NoError(t, err)
+		require.NotContains(t, string(serialized), string(secret))
+		require.NotContains(t, string(serialized), "receiver-opaque")
+		require.NotContains(t, string(serialized), "delivery-1")
+		require.NotContains(t, string(serialized), "c-17")
+		eventCount++
+		return nil, nil
+	}))
 
 	request := signedRequest(now, secret, []byte(`{"event":{"customer_id":"c-17"}}`))
 	accepted, err := svc.Accept(t.Context(), request)
@@ -94,6 +113,7 @@ func TestAcceptVerifiesBeforeMappingAndDeduplicates(t *testing.T) {
 	_, err = svc.Accept(t.Context(), stale)
 	require.ErrorIs(t, err, ErrVerificationFailed)
 	require.Equal(t, 1, repo.acceptCalls)
+	require.Equal(t, 1, eventCount)
 }
 
 func TestValidateDeliveryRequestRejectsNonCanonicalHeaders(t *testing.T) {
@@ -134,6 +154,23 @@ func TestAcceptFailsWhenDurableHandoffFails(t *testing.T) {
 	_, err := svc.Accept(t.Context(), signedRequest(now, []byte("secret"), []byte(`{"event":{"customer_id":"c-17"}}`)))
 	require.ErrorIs(t, err, handoffErr)
 	require.Equal(t, 1, producer.calls)
+}
+
+func TestAcceptFailsBeforeQueueingWhenKeyAuditFails(t *testing.T) {
+	t.Parallel()
+
+	now := time.Date(2026, 8, 21, 12, 0, 0, 0, time.UTC)
+	secret := []byte("synthetic-webhook-key")
+	repo := &fakeWebhookRepository{receiver: webhookReceiver(), inserted: true}
+	producer := &fakeWebhookProducer{}
+	svc := newWebhookService(t, now, repo, fakeSecretResolver{secret: secret}, producer, &fakePipelineExecutor{})
+	auditErr := xerror.Unexpected().Detail("audit write failed")
+	svc.audit = eventrecorder.New(webhookAuditFunc(func(context.Context, eventssvc.CreateEventParams) (*model.Event, error) {
+		return nil, auditErr
+	}))
+	_, err := svc.Accept(t.Context(), signedRequest(now, secret, []byte(`{"event":{"customer_id":"test"}}`)))
+	require.ErrorIs(t, err, auditErr)
+	require.Zero(t, producer.calls)
 }
 
 func TestAcceptPersistsVerifiedSafeRejection(t *testing.T) {
@@ -388,7 +425,16 @@ func newWebhookService(
 	require.NoError(t, err)
 	svc, err := New(testutil.FakeTransactionManager{}, repo, secrets, producer, executor, cipher, testutil.FakeClock{NowFn: func() time.Time { return now }}, testutil.FakeRunSucceededNotifier{})
 	require.NoError(t, err)
+	svc.audit = eventrecorder.New(webhookAuditFunc(func(context.Context, eventssvc.CreateEventParams) (*model.Event, error) {
+		return nil, nil
+	}))
 	return svc
+}
+
+type webhookAuditFunc func(context.Context, eventssvc.CreateEventParams) (*model.Event, error)
+
+func (f webhookAuditFunc) CreateEvent(ctx context.Context, params eventssvc.CreateEventParams) (*model.Event, error) {
+	return f(ctx, params)
 }
 
 func webhookReceiver() pipelinewebhooks.Receiver {
