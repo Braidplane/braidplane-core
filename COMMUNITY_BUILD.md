@@ -209,6 +209,11 @@ share one Buildx builder so compilation can be reused within the job. The Go E2E
 packages run sequentially on fixtures they
 own; skipped or missing tests fail the check.
 
+`verify (lint)` and `verify (test)` run separately. Both regenerate and check
+generated files; the test job also builds the executables. Go E2E, Playwright and
+Bruno start only after both checks pass, then run in parallel. Docs and container
+builds start independently.
+
 The `community-gate` job has no token permissions or checkout. It fails if any
 required validation job fails, is cancelled or is skipped. Protect changes to
 workflows and checks with required review: a PR can change its own check code.

@@ -12,7 +12,7 @@ def fixture():
     run = {"id": 123, "run_attempt": 1, "path": ".github/workflows/ci.yml", "event": "push",
            "head_branch": "main", "head_sha": "a" * 40, "head_repository": {"full_name": "Example/core"},
            "status": "completed", "conclusion": "success", "html_url": "https://github.com/Example/core/actions/runs/123"}
-    names = {"verify", "docs", "browser", "bruno", "community-gate", "containers",
+    names = {"verify (lint)", "verify (test)", "docs", "browser", "bruno", "community-gate", "containers",
              "go-e2e (0)", "go-e2e (1)", "go-e2e (2)", "go-e2e (3)",
 }
     jobs = {"total_count": len(names), "jobs": [{"name": name, "status": "completed", "conclusion": "success",
@@ -65,12 +65,21 @@ class AdmitCoreCITest(unittest.TestCase):
             self.execute(run, legacy)
 
     def test_both_runtime_suites_and_all_image_builds_are_required(self):
-        for name in ("browser", "bruno", "containers"):
+        for name in ("verify (lint)", "verify (test)", "browser", "bruno", "containers"):
             for status in ("failure", "skipped", "cancelled"):
                 run, jobs = fixture()
                 next(job for job in jobs["jobs"] if job["name"] == name)["conclusion"] = status
                 with self.subTest(name=name, status=status), self.assertRaises(ValueError):
                     self.execute(run, jobs)
+
+    def test_both_verification_results_are_required(self):
+        run, jobs = fixture()
+        for name in ("verify (lint)", "verify (test)"):
+            changed = copy.deepcopy(jobs)
+            changed["jobs"] = [job for job in changed["jobs"] if job["name"] != name]
+            changed["total_count"] = len(changed["jobs"])
+            with self.subTest(name=name), self.assertRaises(ValueError):
+                self.execute(run, changed)
 
     def test_wrong_source_event_attempt_or_status_fails(self):
         run, jobs = fixture()

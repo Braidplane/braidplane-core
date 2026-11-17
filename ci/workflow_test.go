@@ -36,7 +36,7 @@ func TestGoModuleCacheLifecycle(t *testing.T) {
 		t.Run(job, func(t *testing.T) {
 			steps := workflow.Jobs[job].Steps
 			restore, workload, save := -1, -1, -1
-			workloadNames := map[string]string{"verify": "Generate, test, lint and build without managed sources", "go-e2e": "Run every Go E2E package on disposable fixtures", "browser": "Run the selected runtime suite on disposable fixtures"}
+			workloadNames := map[string]string{"verify": "Generate and run the selected verification check", "go-e2e": "Run every Go E2E package on disposable fixtures", "browser": "Run the selected runtime suite on disposable fixtures"}
 			for i, step := range steps {
 				switch {
 				case step.ID == "go-modules":
@@ -55,16 +55,62 @@ func TestGoModuleCacheLifecycle(t *testing.T) {
 					if job == "go-e2e" && !strings.Contains(step.If, "matrix.shard == 0") {
 						t.Fatal("only one e2e shard should save the module cache")
 					}
-				case job == "go-e2e" && step.With["key"] == "${{ steps.cache-1.outputs.cache-primary-key }}":
-					if !strings.Contains(step.If, "matrix.shard == 0") {
-						t.Fatal("only one e2e shard should save the build cache")
-					}
 				}
 			}
 			if restore < 0 || workload <= restore || save <= workload {
 				t.Fatal("module cache must restore before the workload and save afterward")
 			}
 		})
+	}
+}
+
+func TestGoBuildAndLintCacheWriters(t *testing.T) {
+	data, err := os.ReadFile("../.github/workflows/ci.yml")
+	if err != nil {
+		t.Fatal(err)
+	}
+	var workflow struct {
+		Jobs map[string]struct {
+			Steps []struct {
+				ID, If, Uses string
+				With         map[string]any
+			}
+		}
+	}
+	if err := yaml.Unmarshal(data, &workflow); err != nil {
+		t.Fatal(err)
+	}
+	writers := map[string]int{}
+	for name, job := range workflow.Jobs {
+		for _, step := range job.Steps {
+			if step.ID == "cache-1" && (name == "verify" || name == "go-e2e" || name == "browser") {
+				if !strings.HasPrefix(step.Uses, "actions/cache/restore@") || !strings.Contains(step.If, "!inputs.cold_cache") || step.With["restore-keys"] == nil {
+					t.Fatalf("%s must retain warm restores and a cold-cache bypass", name)
+				}
+			}
+			if !strings.HasPrefix(step.Uses, "actions/cache/save@") {
+				continue
+			}
+			path := fmt.Sprint(step.With["path"])
+			if !strings.Contains(path, "~/.cache/braidplane/go\n") && path != "~/.cache/braidplane/golangci-lint" {
+				continue
+			}
+			if name != "verify" || !strings.Contains(step.If, "github.ref == 'refs/heads/main'") ||
+				!strings.Contains(step.If, "!inputs.cold_cache") || !strings.Contains(step.If, "!cancelled()") || !strings.Contains(step.If, "cache-hit != 'true'") {
+				t.Fatalf("%s: build/lint caches must have one main writer respecting cold, canceled and exact-hit runs", name)
+			}
+			check := "test"
+			if path == "~/.cache/braidplane/golangci-lint" {
+				check = "lint"
+			}
+			if !strings.Contains(step.If, "matrix.check == '"+check+"'") {
+				t.Fatalf("%s cache must have only the %s matrix writer", path, check)
+			}
+			writers[fmt.Sprint(step.With["key"])]++
+		}
+	}
+	if !reflect.DeepEqual(writers, map[string]int{"${{ steps.cache-1.outputs.cache-primary-key }}": 1, "${{ steps.lint-cache.outputs.cache-primary-key }}": 1}) {
+		t.Fatalf("expected one Go build writer and one lint writer: %v", writers)
 	}
 }
 
@@ -77,8 +123,11 @@ func TestRuntimeAndContainerCoverage(t *testing.T) {
 		Jobs map[string]struct {
 			Name     string
 			Needs    []string
+			If       any
 			Strategy struct{ Matrix map[string][]string }
+			Env      map[string]string
 			Steps    []struct {
+				Name, Run       string
 				Uses            string
 				If              any
 				ContinueOnError bool `yaml:"continue-on-error"`
@@ -89,9 +138,37 @@ func TestRuntimeAndContainerCoverage(t *testing.T) {
 	if err := yaml.Unmarshal(data, &workflow); err != nil {
 		t.Fatal(err)
 	}
+	verify := workflow.Jobs["verify"]
+	if !reflect.DeepEqual(verify.Strategy.Matrix["check"], []string{"lint", "test"}) || verify.Env["VERIFY_CHECK"] != "${{ matrix.check }}" {
+		t.Fatal("verification must split lint and tests with separate matrix results")
+	}
+	workload := false
+	for _, step := range verify.Steps {
+		if step.Name == "Generate and run the selected verification check" {
+			workload = true
+			if step.If != nil || step.ContinueOnError || !strings.Contains(step.Run, `task migrate-run generate build-css "$VERIFY_CHECK"`) ||
+				!strings.Contains(step.Run, `if [ "$VERIFY_CHECK" = test ]; then`) || !strings.Contains(step.Run, "task build-go") || strings.Contains(step.Run, "task ci") {
+				t.Fatal("each check must generate, run its selected task and retain executable builds in the test job")
+			}
+		}
+	}
+	if !workload {
+		t.Fatal("verification workload is missing")
+	}
 	runtime := workflow.Jobs["browser"]
 	if runtime.Name != "${{ matrix.suite }}" || !reflect.DeepEqual(runtime.Strategy.Matrix["suite"], []string{"browser", "bruno"}) {
 		t.Fatal("browser and Bruno must run as independent required jobs")
+	}
+	for _, name := range []string{"go-e2e", "browser"} {
+		job := workflow.Jobs[name]
+		if !reflect.DeepEqual(job.Needs, []string{"verify"}) || job.If != nil {
+			t.Fatalf("%s must wait for successful verify before starting runtime checks", name)
+		}
+	}
+	for _, name := range []string{"docs", "containers"} {
+		if len(workflow.Jobs[name].Needs) != 0 {
+			t.Fatalf("%s must remain independent of verify", name)
+		}
 	}
 	builders, targets := 0, []string{}
 	for _, step := range workflow.Jobs["containers"].Steps {

@@ -30,6 +30,22 @@ keys and Docker daemon state out of them. A cache miss must rebuild and run the
 same required suites. PR code can alter restored files. A cache hit or an output
 digest alone cannot prove that those files came from a trusted build.
 
+Only `verify (test)` on `main` saves the Go build cache; `verify (lint)` saves
+the lint cache. PR and runtime
+matrix jobs restore those caches but do not save separate large copies that
+compete for the repository's cache allowance. Keys retain their toolchain and
+dependency partitions and cross-commit restore fallback. Cold runs bypass both
+restore and save. Dependency, browser and container caches keep their existing
+policies. Cache eviction can still cause a cold build; all checks remain required.
+
+The `verify` matrix runs lint and tests independently, with generation and a
+generated-file check in each job. The test job also builds all executables.
+Go E2E and the Playwright/Bruno matrix wait for both verification checks to pass,
+then run in parallel. This avoids starting expensive runtime suites when either
+check fails and lets main's cache saves finish before downstream restores. CLI unit
+tests run inside `verify (test)`. Docs and container jobs remain independent. The final
+required gate still rejects any failed, canceled or skipped required job.
+
 Validation builds images locally and uploads no artifacts. Release jobs must
 use fresh VMs and an immutable source revision explicitly approved for release.
 Give them separate identities with only the permissions each job needs. Never
