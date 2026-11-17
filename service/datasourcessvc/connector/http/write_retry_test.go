@@ -12,7 +12,6 @@ import (
 	"time"
 
 	"github.com/Braidplane/braidplane-core/pkg/connector/transportsecurity"
-	runtimevars "github.com/Braidplane/braidplane-core/pkg/pipeline/runtime"
 	"github.com/Braidplane/braidplane-core/pkg/sinkbinding"
 	"github.com/Braidplane/braidplane-core/pkg/xerror"
 	"github.com/Braidplane/braidplane-core/service/datasourcessvc/connector/types"
@@ -79,7 +78,7 @@ func TestKeyedWriteRetryPreservesEffect(t *testing.T) {
 				_, _ = fmt.Fprint(w, `{"ok":true}`)
 			}))
 			defer server.Close()
-			ctx := runtimevars.WithSinkExecution(transportsecurity.WithPlaintext(context.Background()))
+			ctx := sinkbinding.WithSinkExecution(transportsecurity.WithPlaintext(context.Background()))
 			connector, err := New(ctx, Config{BaseURL: server.URL, AllowPrivateHosts: true}, Credentials{})
 			require.NoError(t, err)
 			connector.client.Timeout = 30 * time.Millisecond
@@ -103,7 +102,7 @@ func TestWriteRetryRefusesUnverifiedEffects(t *testing.T) {
 				http.Redirect(w, r, "/elsewhere", http.StatusTemporaryRedirect)
 			}))
 			defer server.Close()
-			ctx := runtimevars.WithSinkExecution(transportsecurity.WithPlaintext(context.Background()))
+			ctx := sinkbinding.WithSinkExecution(transportsecurity.WithPlaintext(context.Background()))
 			connector, err := New(ctx, Config{BaseURL: server.URL, AllowPrivateHosts: true}, Credentials{})
 			require.NoError(t, err)
 			params := writeRetryParams()
@@ -157,7 +156,7 @@ func TestWriteRetryExhaustionAndConflict(t *testing.T) {
 				w.WriteHeader(status)
 			}))
 			defer server.Close()
-			ctx := runtimevars.WithSinkExecution(transportsecurity.WithPlaintext(t.Context()))
+			ctx := sinkbinding.WithSinkExecution(transportsecurity.WithPlaintext(t.Context()))
 			connector, err := New(ctx, Config{BaseURL: server.URL, AllowPrivateHosts: true}, Credentials{})
 			require.NoError(t, err)
 			execution, err := connector.Execute(ctx, []byte(writeRetryOperation), writeRetryParams(), types.ExecutionLimits{HTTPRetryAttempts: 3})
@@ -185,7 +184,7 @@ func TestKeyedMultipartRecoveryPreservesWirePayload(t *testing.T) {
 		_, _ = fmt.Fprint(w, `{}`)
 	}))
 	defer server.Close()
-	ctx := runtimevars.WithSinkExecution(transportsecurity.WithPlaintext(t.Context()))
+	ctx := sinkbinding.WithSinkExecution(transportsecurity.WithPlaintext(t.Context()))
 	connector, err := New(ctx, Config{BaseURL: server.URL, AllowPrivateHosts: true}, Credentials{})
 	require.NoError(t, err)
 	var operation map[string]any

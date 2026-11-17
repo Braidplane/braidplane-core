@@ -18,7 +18,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"github.com/Braidplane/braidplane-core/pkg/domain/model"
+	"github.com/Braidplane/braidplane-core/pkg/model"
 	filepayload "github.com/Braidplane/braidplane-core/pkg/payload/file"
 	formpayload "github.com/Braidplane/braidplane-core/pkg/payload/form"
 	"github.com/Braidplane/braidplane-core/pkg/sinkbinding"

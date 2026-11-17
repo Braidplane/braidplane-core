@@ -82,6 +82,22 @@ CASES = [
     ("service/proofconfigsvc/probe_test.go", [PRIVATE + "pkg/ptr"], set()),
     ("service/datasourcessvc/connector/probe.go", [PRIVATE + "postgres/fixture"], {"connector_boundary"}),
     ("service/datasourcessvc/connector/sql/postgres/allowed.go", [PRIVATE + "service/datasourcessvc/connector/param"], set()),
+    ("service/datasourcessvc/connector/assembly.go", [PRIVATE + "service/datasourcessvc/connector/sql/postgres"], set()),
+    ("service/datasourcessvc/connector/sql/postgres/service.go", [PRIVATE + "service/datasourcessvc"], {"connector_boundary"}),
+    ("service/datasourcessvc/connector/sql/postgres/sibling.go", [PRIVATE + "service/datasourcessvc/connectorextra"], {"connector_boundary"}),
+    ("service/datasourcessvc/connector/service.go", [PRIVATE + "service"], {"connector_boundary"}),
+    ("service/datasourcessvc/connector/http/config.go", [PRIVATE + "config/backend"], {"connector_boundary"}),
+    ("service/datasourcessvc/connector/http/shared_config.go", [PRIVATE + "config"], {"connector_boundary"}),
+    ("service/datasourcessvc/connector/http/transport_test.go", [PRIVATE + "transport/fixture"], {"connector_boundary"}),
+    ("service/datasourcessvc/connector/http/generated.go", [PRIVATE + "api-schema/gen/client"], {"connector_boundary", "service_boundary"}),
+    ("service/datasourcessvc/connector/http/sink.go", [PRIVATE + "pkg/sinkbinding", PRIVATE + "pkg/model"], set()),
+    ("service/datasourcessvc/connector/http/runtime.go", [PRIVATE + "pkg/pipeline/runtime"], {"connector_pipeline_boundary"}),
+    ("service/datasourcessvc/connector/googleworkspace/other_test.go", [PRIVATE + "pkg/pipeline/run"], {"connector_pipeline_boundary"}),
+    ("service/datasourcessvc/connector/ftp/e2e/other_test.go", [PRIVATE + "pkg/pipeline/payload"], {"connector_pipeline_boundary"}),
+    ("service/datasourcessvc/connector/googleworkspace/native_test.go", [PRIVATE + "pkg/pipeline/run", PRIVATE + "pkg/pipeline/run/nested"], {"connector_workspace_payload_test_boundary"}),
+    ("service/datasourcessvc/connector/ftp/e2e/sql_transform_test.go", [PRIVATE + "pkg/pipeline/payload", PRIVATE + "pkg/pipeline/transform/sql", PRIVATE + "pkg/pipeline/run"], {"connector_ftp_transform_test_boundary"}),
+    ("service/datasourcessvc/connector/example/client/allowed.go", ["net/http", PRIVATE + "pkg/xerror"], set()),
+    ("service/datasourcessvc/connector/example/client/composition.go", [PRIVATE + "backend"], {"connector_boundary"}),
     ("service/datasourcessvc/connector/example/client/probe.go", [PRIVATE + "pkg/connector/result"], {"connector_provider_client_boundary"}),
     ("pkg/gitprovider/probe.go", [PRIVATE + "pkg/connector/result"], {"connector_provider_client_boundary"}),
     ("pkg/hubspot/crm/probe.go", [CLI + "pkg/pipeline/spec"], {"connector_provider_client_boundary"}),
@@ -174,6 +190,8 @@ class PackageBoundaryTest(unittest.TestCase):
             shutil.copyfile(ROOT / ".golangci.yml", root / ".golangci.yml")
             for _, imports, _ in CASES:
                 for imported in imports:
+                    if not imported.startswith(PRIVATE):
+                        continue
                     destination = root / imported.removeprefix(PRIVATE)
                     destination.mkdir(parents=True, exist_ok=True)
                     (destination / "stub.go").write_text("package fixture\n")
@@ -198,6 +216,12 @@ class PackageBoundaryTest(unittest.TestCase):
                     filename = name.relative_to(root).as_posix()
                     rule = re.search(r"from list '([^']+)'", issue["Text"])
                     self.assertIsNotNone(rule, issue)
+                    if rule.group(1) in {
+                        "connector_workspace_payload_test_boundary", "connector_ftp_transform_test_boundary"
+                    }:
+                        # The final import in each exception fixture must be its only violation.
+                        imports = next(imports for path, imports, _ in CASES if path == filename)
+                        self.assertEqual(issue["Pos"]["Line"], 2 + len(imports), issue)
                     observed.setdefault(filename, set()).add(rule.group(1))
                 expected = {filename: rules for filename, _, rules in CASES if rules}
                 self.assertEqual(observed, expected)

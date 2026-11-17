@@ -10,7 +10,6 @@ import (
 	"strings"
 	"time"
 
-	runtimevars "github.com/Braidplane/braidplane-core/pkg/pipeline/runtime"
 	"github.com/Braidplane/braidplane-core/pkg/sinkbinding"
 	"github.com/Braidplane/braidplane-core/pkg/xerror"
 	"github.com/Braidplane/braidplane-core/service/datasourcessvc/connector/param"
@@ -49,7 +48,7 @@ func validateWriteRetry(ctx context.Context, raw json.RawMessage, definition htt
 	contract, err := url.Parse(policy.ProviderContractURL)
 	if err != nil || contract.Scheme != "https" || contract.Hostname() == "" || contract.User != nil ||
 		!policy.Verified || policy.PayloadConflict != "reject" || policy.RetentionSeconds < 1 || policy.RetentionSeconds > 604800 ||
-		!runtimevars.IsSinkExecution(ctx) || fmt.Sprint(params[sinkbinding.InternalIdempotencyClass]) != "idempotent_with_key" ||
+		!sinkbinding.IsSinkExecution(ctx) || fmt.Sprint(params[sinkbinding.InternalIdempotencyClass]) != "idempotent_with_key" ||
 		isIdempotentHTTPMethod(req.Method) || (req.Body != nil && req.GetBody == nil) {
 		return time.Time{}, writeRetryRefused()
 	}

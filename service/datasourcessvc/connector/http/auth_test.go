@@ -17,9 +17,11 @@ import (
 
 const authSpec = `{"openapi":"3.0.3","info":{"title":"Fixture","version":"1"},"paths":{"/items":{"get":{"operationId":"items","responses":{"200":{"description":"OK"}}}}}}`
 
+// TestAPIKeyHealthExecutionAndSameOriginSchema is a standalone connector example.
 func TestAPIKeyHealthExecutionAndSameOriginSchema(t *testing.T) {
 	for _, header := range []string{"X-Api-Key", "Authorization"} {
 		t.Run(header, func(t *testing.T) {
+			// The loopback server owns the health, operation and OpenAPI endpoints.
 			calls := 0
 			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				want := "synthetic-key"
@@ -39,14 +41,19 @@ func TestAPIKeyHealthExecutionAndSameOriginSchema(t *testing.T) {
 				w.Header().Set("Content-Type", "application/json")
 				_, _ = fmt.Fprint(w, `{"ok":true}`)
 			}))
-			defer server.Close()
-			connector, err := New(transportsecurity.WithPlaintext(context.Background()), Config{BaseURL: server.URL, OpenAPIURL: server.URL + "/openapi.json", AllowPrivateHosts: true}, Credentials{APIKey: "synthetic-key", APIKeyHeader: header})
+			t.Cleanup(server.Close)
+			ctx := transportsecurity.WithPlaintext(t.Context())
+			// Supply the resolved API key directly at construction.
+			connector, err := New(ctx, Config{BaseURL: server.URL, OpenAPIURL: server.URL + "/openapi.json", AllowPrivateHosts: true}, Credentials{APIKey: "synthetic-key", APIKeyHeader: header})
 			require.NoError(t, err)
-			require.NoError(t, connector.TestConnection(transportsecurity.WithPlaintext(context.Background())))
-			execution, err := connector.Execute(transportsecurity.WithPlaintext(context.Background()), []byte(`{"method":"GET","path":"/items","headers":{"X-Api-Key":"authored-value","Authorization":"authored-value"}}`), nil)
+			// Close the connector before shutting down the fixture.
+			t.Cleanup(func() { assert.NoError(t, connector.Close()) })
+			// Test connectivity, execute an authenticated GET and discover its schema.
+			require.NoError(t, connector.TestConnection(ctx))
+			execution, err := connector.Execute(ctx, []byte(`{"method":"GET","path":"/items","headers":{"X-Api-Key":"authored-value","Authorization":"authored-value"}}`), nil)
 			require.NoError(t, err)
 			require.NoError(t, execution.Error())
-			schema, err := connector.IntrospectSchema(transportsecurity.WithPlaintext(context.Background()))
+			schema, err := connector.IntrospectSchema(ctx)
 			require.NoError(t, err)
 			require.Len(t, schema.Operations, 1)
 			require.Equal(t, 4, calls)

@@ -7,6 +7,7 @@ import (
 
 	"github.com/Braidplane/braidplane-core/pkg/domain/model"
 	runtimevars "github.com/Braidplane/braidplane-core/pkg/pipeline/runtime"
+	"github.com/Braidplane/braidplane-core/pkg/sinkbinding"
 	"github.com/Braidplane/braidplane-core/service/datasourcessvc/connector/types"
 	"github.com/stretchr/testify/require"
 )
@@ -28,7 +29,7 @@ func TestRuntimeQueryValidation(t *testing.T) {
 	}
 	for _, name := range []string{"runtime.env.customer", "runtime.input.customer", "runtime.secrets.API_TOKEN", "runtime.incremental.lower_bound.provider_field", "runtime.run.slug", "runtime.run.date"} {
 		inline := map[string]any{"path": "{{" + name + "}}"}
-		ctx := runtimevars.WithExecutionContext(runtimevars.WithSinkExecution(runtimevars.WithIncrementalExecution(t.Context())), runtimevars.ExecutionContext{RunSlug: "run-one"})
+		ctx := runtimevars.WithExecutionContext(sinkbinding.WithSinkExecution(runtimevars.WithIncrementalExecution(t.Context())), runtimevars.ExecutionContext{RunSlug: "run-one"})
 		prepared, err := prepareInlineExecution(ctx, inline)
 		require.NoError(t, err)
 		require.NoError(t, validateRuntimeQueryData(prepared.statementJSON))

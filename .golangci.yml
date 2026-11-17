@@ -288,22 +288,52 @@ linters:
             - pkg: github.com/Braidplane/braidplane-core/transport/http
               desc: provider clients must not depend on HTTP transport handlers
         connector_boundary:
+          list-mode: lax
           files:
             - "${base-path}/service/datasourcessvc/connector/*.go"
             - "${base-path}/service/datasourcessvc/connector/**/*.go"
+          allow:
+            - github.com/Braidplane/braidplane-core/service/datasourcessvc/connector$
+            - github.com/Braidplane/braidplane-core/service/datasourcessvc/connector/
           deny:
             - pkg: github.com/Braidplane/braidplane-core/api-schema/gen
               desc: connectors must not depend on generated API DTOs or transport contracts
+            - pkg: github.com/Braidplane/braidplane-core/backend
+              desc: connectors receive runtime dependencies from backend composition
+            - pkg: github.com/Braidplane/braidplane-core/config
+              desc: connectors receive typed configuration from the caller
             - pkg: github.com/Braidplane/braidplane-core/frontend
               desc: connectors must not depend on SSR frontend packages
             - pkg: github.com/Braidplane/braidplane-core/postgres
               desc: connectors must not depend on Braidplane persistence repositories
-            - pkg: github.com/Braidplane/braidplane-core/service/credentialssvc
-              desc: connectors must not depend on credential lifecycle services
-            - pkg: github.com/Braidplane/braidplane-core/service/credentialssvc/provider/hubspot
-              desc: connectors must not depend on the HubSpot credential-lifecycle adapter
-            - pkg: github.com/Braidplane/braidplane-core/transport/http
-              desc: connectors must not depend on HTTP transport handlers
+            - pkg: github.com/Braidplane/braidplane-core/service
+              desc: connectors must not depend on application services outside the connector subtree
+            - pkg: github.com/Braidplane/braidplane-core/transport
+              desc: connectors must not depend on application transport handlers
+        connector_pipeline_boundary:
+          files:
+            - "${base-path}/service/datasourcessvc/connector/*.go"
+            - "${base-path}/service/datasourcessvc/connector/**/*.go"
+            - "!${base-path}/service/datasourcessvc/connector/googleworkspace/native_test.go"
+            - "!${base-path}/service/datasourcessvc/connector/ftp/e2e/sql_transform_test.go"
+          deny: &connector_pipeline_denials
+            - pkg: github.com/Braidplane/braidplane-core/pkg/pipeline
+              desc: connectors use neutral contracts instead of pipeline implementation
+        connector_workspace_payload_test_boundary:
+          list-mode: lax
+          files:
+            - "${base-path}/service/datasourcessvc/connector/googleworkspace/native_test.go"
+          allow:
+            - github.com/Braidplane/braidplane-core/pkg/pipeline/run$
+          deny: *connector_pipeline_denials
+        connector_ftp_transform_test_boundary:
+          list-mode: lax
+          files:
+            - "${base-path}/service/datasourcessvc/connector/ftp/e2e/sql_transform_test.go"
+          allow:
+            - github.com/Braidplane/braidplane-core/pkg/pipeline/payload$
+            - github.com/Braidplane/braidplane-core/pkg/pipeline/transform/sql$
+          deny: *connector_pipeline_denials
         bigquery_execution_auth_boundary:
           files:
             - "${base-path}/service/datasourcessvc/connector/bigquery/*.go"

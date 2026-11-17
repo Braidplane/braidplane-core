@@ -46,6 +46,7 @@
     "scripts/installation/README.md": "Community installation tooling and qualification guidance beside its owning source. Local links and anchors remain checked.",
     "scripts/self_hosted_acceptance/README.md": "Package, fixture or acceptance guidance beside its owning source. Local links and anchors remain checked.",
     "service/AGENTS.md": "Contributor/agent instructions beside the owning source; not site content. Local links and anchors remain checked.",
+    "service/datasourcessvc/connector/AGENTS.md": "Connector contributor guidance beside the owning source. Local links and anchors remain checked.",
     "service/datasourcessvc/connector/git/e2e/testdata/README.md": "Package, fixture or acceptance guidance beside its owning source. Local links and anchors remain checked.",
     "transport/http/AGENTS.md": "Contributor/agent instructions beside the owning source; not site content. Local links and anchors remain checked."
   }

@@ -8,6 +8,8 @@ Public user guides live under `docs-public/` with separate MkDocs navigation.
 - [Documentation contract](DOCUMENTATION.md)
 - [CI trust boundary](CI_TRUST_BOUNDARY.md)
 - [Core release versioning and recovery](CORE_RELEASE_AUTOMATION.md)
+- [Connector package inventory](CONNECTOR_PACKAGE_INVENTORY.md)
+- [ADR: Keep connector adapters in Core](ADR_CONNECTORS_IN_CORE.md)
 - [Connector support evidence](CONNECTOR_SUPPORT_EVIDENCE.md)
 - [Data sources](DATA_SOURCES.md)
   - [BigQuery data source](data-sources/BIGQUERY.md)

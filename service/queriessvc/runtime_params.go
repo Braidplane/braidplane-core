@@ -7,6 +7,7 @@ import (
 	"time"
 
 	pipelineruntime "github.com/Braidplane/braidplane-core/pkg/pipeline/runtime"
+	"github.com/Braidplane/braidplane-core/pkg/sinkbinding"
 	"github.com/Braidplane/braidplane-core/service/datasourcessvc/connector/types"
 )
 
@@ -17,7 +18,7 @@ func validateRuntimeExecutionData(ctx context.Context, data json.RawMessage, inl
 			text = strings.ReplaceAll(text, "{{"+name+"}}", "bound literal")
 		}
 	}
-	if err := validateRuntimeQueryContext(json.RawMessage(text), pipelineruntime.IsSinkExecution(ctx), pipelineruntime.IsIncrementalExecution(ctx)); err != nil {
+	if err := validateRuntimeQueryContext(json.RawMessage(text), sinkbinding.IsSinkExecution(ctx), pipelineruntime.IsIncrementalExecution(ctx)); err != nil {
 		return err
 	}
 	var value any

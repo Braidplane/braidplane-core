@@ -26,7 +26,6 @@ import (
 	"github.com/Braidplane/braidplane-core/pkg/metrics"
 	filepayload "github.com/Braidplane/braidplane-core/pkg/payload/file"
 	pipepayload "github.com/Braidplane/braidplane-core/pkg/pipeline/payload"
-	runtimevars "github.com/Braidplane/braidplane-core/pkg/pipeline/runtime"
 	transformsql "github.com/Braidplane/braidplane-core/pkg/pipeline/transform/sql"
 	"github.com/Braidplane/braidplane-core/pkg/reqctx"
 	"github.com/Braidplane/braidplane-core/pkg/resourcescope"
@@ -280,7 +279,7 @@ func (c *recordingQueryConnector) Execute(
 ) (*result.ExecutionResult, error) {
 	c.limits = connectortypes.ResolveExecutionLimits(limits...)
 	c.parameters = parameters
-	c.sinkExecution = runtimevars.IsSinkExecution(ctx)
+	c.sinkExecution = sinkbinding.IsSinkExecution(ctx)
 	return result.NewSQLResult(
 		"postgres",
 		&result.SQLResult{Rows: []map[string]any{}, ColumnNames: []string{}},
