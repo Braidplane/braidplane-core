@@ -86,7 +86,7 @@ func TestRunnerPinsMetadataBeforeDispatchAndThroughRetryAndRecovery(t *testing.T
 	pipeline := incrementalCheckpointPipeline()
 	pipeline.Steps[0].Query.Incremental = nil
 	pipeline.Steps[0].Query.Parameters = map[string]any{"since": "{{runtime.run.datetime | offset:-24h}}", "previous": "{{runtime.previous_success.run_slug}}", "attempt": "{{runtime.run.slug}}"}
-	pipeline.Steps[1].Sink.Config = map[string]any{"as_of": "{{runtime.run.date}}", "attempt": "{{runtime.run.slug}}"}
+	pipeline.Steps[1].Sink.Config = map[string]any{"as_of": "{{runtime.run.date}}"}
 	sourceCalls, sinkCalls := 0, 0
 	executor := &testutil.FakeQueryExecutor{ExecuteFn: func(ctx context.Context, _, _, _ slug.Slug, params map[string]any) (*result.ExecutionResult, error) {
 		sourceCalls++
@@ -105,7 +105,6 @@ func TestRunnerPinsMetadataBeforeDispatchAndThroughRetryAndRecovery(t *testing.T
 	runner, err := NewRunner(adaptTestQueryExecutor(executor), &testutil.FakeClock{NowFn: func() time.Time { return now }}, store, incrementalCheckpointDataSourceService{}, &fakeSinkRuntime{executeFn: func(ctx context.Context, input *SinkRuntimeInput) error {
 		sinkCalls++
 		expectedAttempt := []string{"original", "retry", "recovered"}[sinkCalls-1]
-		require.Equal(t, expectedAttempt, input.SinkConfig["attempt"])
 		snapshot, ok := executionruntime.ExecutionContextFrom(ctx)
 		require.True(t, ok)
 		require.Equal(t, at, snapshot.At)

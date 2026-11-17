@@ -295,3 +295,28 @@ func newTestQueuePool(t *testing.T) *pgxpool.Pool {
 
 	return pool
 }
+
+func TestQueueRecoveryTiming(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		name            string
+		timeout, rescue time.Duration
+		invalid         bool
+	}{
+		{name: "defaults"},
+		{name: "long job", timeout: 10 * time.Minute, rescue: 11 * time.Minute},
+		{name: "no timeout", timeout: -1, invalid: true},
+		{name: "no cancellation grace", timeout: time.Minute, rescue: time.Minute, invalid: true},
+		{name: "rescue before timeout", timeout: 3 * time.Minute, rescue: 2 * time.Minute, invalid: true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			_, err := New(newTestQueuePool(t), &Config{JobTimeout: tc.timeout, RescueStuckJobsAfter: tc.rescue})
+			if tc.invalid {
+				require.ErrorContains(t, err, "at least one minute")
+				return
+			}
+			require.NoError(t, err)
+		})
+	}
+}

@@ -18,13 +18,20 @@ import (
 	"github.com/Braidplane/braidplane-core/postgres/executionrequests"
 )
 
+const (
+	DefaultJobTimeout           = time.Minute
+	DefaultRescueStuckJobsAfter = 2 * time.Minute
+)
+
 // Config configures the internal River-backed queue client.
 type Config struct {
-	Queues       map[string]river.QueueConfig
-	PeriodicJobs []*river.PeriodicJob
-	Workers      *river.Workers
-	Logger       *slog.Logger
-	RetryPolicy  river.ClientRetryPolicy
+	JobTimeout           time.Duration
+	RescueStuckJobsAfter time.Duration
+	Queues               map[string]river.QueueConfig
+	PeriodicJobs         []*river.PeriodicJob
+	Workers              *river.Workers
+	Logger               *slog.Logger
+	RetryPolicy          river.ClientRetryPolicy
 }
 
 // WorkerRegistrar registers one or more River workers on a shared bundle.
@@ -42,11 +49,13 @@ type periodicJobProvider interface {
 
 // WorkerHostConfig configures a worker-capable River client.
 type WorkerHostConfig struct {
-	Queues       map[string]river.QueueConfig
-	PeriodicJobs []*river.PeriodicJob
-	Registrars   []WorkerRegistrar
-	Logger       *slog.Logger
-	RetryPolicy  river.ClientRetryPolicy
+	JobTimeout           time.Duration
+	RescueStuckJobsAfter time.Duration
+	Queues               map[string]river.QueueConfig
+	PeriodicJobs         []*river.PeriodicJob
+	Registrars           []WorkerRegistrar
+	Logger               *slog.Logger
+	RetryPolicy          river.ClientRetryPolicy
 }
 
 // Client wraps River so callers can enqueue jobs on the shared Postgres
@@ -74,13 +83,22 @@ func New(pool *pgxpool.Pool, config *Config) (*Client, error) {
 		return nil, xerror.Unexpected().Detail("queue database pool is required")
 	}
 
-	riverConfig := &river.Config{}
+	riverConfig := &river.Config{JobTimeout: DefaultJobTimeout, RescueStuckJobsAfter: DefaultRescueStuckJobsAfter}
 	if config != nil {
+		if config.JobTimeout != 0 {
+			riverConfig.JobTimeout = config.JobTimeout
+		}
+		if config.RescueStuckJobsAfter != 0 {
+			riverConfig.RescueStuckJobsAfter = config.RescueStuckJobsAfter
+		}
 		riverConfig.Queues = config.Queues
 		riverConfig.PeriodicJobs = config.PeriodicJobs
 		riverConfig.Workers = config.Workers
 		riverConfig.Logger = config.Logger
 		riverConfig.RetryPolicy = config.RetryPolicy
+	}
+	if riverConfig.JobTimeout <= 0 || riverConfig.RescueStuckJobsAfter-riverConfig.JobTimeout < time.Minute {
+		return nil, xerror.Unexpected().Detail("queue rescue delay must exceed a positive job timeout by at least one minute")
 	}
 	riverConfig.Middleware = []rivertype.Middleware{newTelemetryMiddleware(riverConfig.Logger)}
 
@@ -116,8 +134,10 @@ func NewWorkerHost(pool *pgxpool.Pool, config *WorkerHostConfig) (*Client, error
 	}
 
 	clientConfig := &Config{
-		Logger:      config.Logger,
-		RetryPolicy: config.RetryPolicy,
+		JobTimeout:           config.JobTimeout,
+		RescueStuckJobsAfter: config.RescueStuckJobsAfter,
+		Logger:               config.Logger,
+		RetryPolicy:          config.RetryPolicy,
 	}
 	clientConfig.PeriodicJobs, err = workerPeriodicJobs(config.PeriodicJobs, config.Registrars)
 	if err != nil {

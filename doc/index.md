@@ -41,3 +41,5 @@ Public user guides live under `docs-public/` with separate MkDocs navigation.
 - [Community release rights and notice delivery](RELEASE_RIGHTS.md)
 - [Pinned resource scopes and dynamic selectors](RESOURCE_SCOPES.md)
 - [Local HTTP timestamp ingestion](examples/http-timestamp-watermark/README.md)
+
+- [Pipeline worker recovery](PIPELINE_WORKER_RECOVERY.md)

@@ -17,6 +17,7 @@ import (
 	"strings"
 	"sync"
 	"sync/atomic"
+	"syscall"
 	"testing"
 	"time"
 
@@ -25,7 +26,6 @@ import (
 	awss3 "github.com/aws/aws-sdk-go-v2/service/s3"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/riverqueue/river"
-	"github.com/riverqueue/river/riverdriver/riverpgxv5"
 	"github.com/stretchr/testify/require"
 
 	"github.com/Braidplane/braidplane-core/pkg/clock"
@@ -52,8 +52,7 @@ import (
 	"github.com/Braidplane/braidplane-core/service/queriessvc"
 )
 
-// Keep real SIGKILL and River rescue; shorten only this fixture's timing so the
-// recovery, fencing and sink assertions fit the E2E budget.
+// Exercise production queue timing with bounded synthetic SIGKILL and retained-input recovery.
 func TestWorkerLossNativeCrashRehearsal(t *testing.T) {
 	if testing.Short() {
 		t.Skip("requires disposable native crash/rescue fixtures")
@@ -83,7 +82,16 @@ func TestWorkerLossNativeCrashRehearsal(t *testing.T) {
 		}
 		return nil
 	}
-	observer := httptest.NewServer(proxy)
+	var writesMu sync.Mutex
+	writes := map[string]int{}
+	observer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, request *http.Request) {
+		if request.Method == http.MethodPut {
+			writesMu.Lock()
+			writes[request.URL.Path]++
+			writesMu.Unlock()
+		}
+		proxy.ServeHTTP(w, request)
+	}))
 	defer observer.Close()
 	org, project, environment := slug.Slug("native-repair"), defaultProjectSlug, slug.Slug("prod")
 	seedOrganization(t, pool, org, "Native repair fixture")
@@ -113,7 +121,15 @@ func TestWorkerLossNativeCrashRehearsal(t *testing.T) {
 	config := nativeRepairConfig{Endpoint: observer.URL, Bucket: bucket, Queue: "native-sink-repair"}
 	jobs := map[string]int64{}
 	crashedAt := map[string]time.Time{}
-	for _, cut := range []string{"before-write", "after-acceptance"} {
+	var suspended *exec.Cmd
+	var returned <-chan struct{}
+	defer func() {
+		if suspended != nil {
+			_ = suspended.Process.Kill()
+			_ = suspended.Wait()
+		}
+	}()
+	for _, cut := range []string{"before-write", "after-acceptance", "returning-worker"} {
 		args := nativeRepairArgs{Run: cut, Version: *meta.CurrentVersionID}
 		require.NoError(t, txm.RunInTx(ctx, func(ctx context.Context, db postgres.DBTX) error {
 			job, err := queue.NewEnqueuer(client).EnqueueTx(ctx, db, queue.EnqueueRequest{Args: args, Queue: config.Queue})
@@ -125,7 +141,7 @@ func TestWorkerLossNativeCrashRehearsal(t *testing.T) {
 			return err
 		}))
 		command, gate := startNativeRepairWorker(t, config)
-		if cut == "before-write" {
+		if cut != "after-acceptance" {
 			select {
 			case <-gate:
 			case <-time.After(20 * time.Second):
@@ -151,9 +167,15 @@ func TestWorkerLossNativeCrashRehearsal(t *testing.T) {
 		require.Equal(t, "running", timeline.Status, "crash gate must precede terminal timeout")
 		require.ErrorIs(t, pipelineruns.New().LockRecoveryFence(ctx, pool, org, project, environment, cut), pipelineruns.ErrRunNotFound)
 		crashedAt[cut] = time.Now().UTC()
-		require.NoError(t, command.Process.Kill())
-		require.Error(t, command.Wait(), "verified child worker must die at the held gate")
-		t.Logf("SIGKILL cut=%s at=%s pid=%d; retained inputs present, original run running", cut, crashedAt[cut].Format(time.RFC3339Nano), command.Process.Pid)
+		if cut == "returning-worker" {
+			require.NoError(t, command.Process.Signal(syscall.SIGSTOP))
+			suspended, returned = command, gate
+			t.Logf("SIGSTOP cut=%s at=%s pid=%d", cut, crashedAt[cut].Format(time.RFC3339Nano), command.Process.Pid)
+		} else {
+			require.NoError(t, command.Process.Kill())
+			require.Error(t, command.Wait(), "verified child worker must die at the held gate")
+			t.Logf("SIGKILL cut=%s at=%s pid=%d; retained inputs present, original run running", cut, crashedAt[cut].Format(time.RFC3339Nano), command.Process.Pid)
+		}
 	}
 	// The held acknowledgement belongs to a dead worker, so later retries can proceed.
 	releaseOnce.Do(func() { close(release) })
@@ -163,24 +185,29 @@ func TestWorkerLossNativeCrashRehearsal(t *testing.T) {
 	defer func() { _ = restarted.Process.Kill(); _ = restarted.Wait() }()
 	ticker := time.NewTicker(time.Second)
 	defer ticker.Stop()
-	deadline := time.NewTimer(2 * time.Minute)
+	deadline := time.NewTimer(3 * time.Minute)
 	defer deadline.Stop()
-	pending := map[string]int64{"before-write": jobs["before-write"], "after-acceptance": jobs["after-acceptance"]}
+	pending := map[string]int64{"before-write": jobs["before-write"], "after-acceptance": jobs["after-acceptance"], "returning-worker": jobs["returning-worker"]}
 	for len(pending) > 0 {
 		select {
 		case <-ctx.Done():
 			t.Fatal(ctx.Err())
 		case <-deadline.C:
-			t.Fatal("native rescue did not finish within two minutes")
+			t.Fatal("native rescue did not finish within the three-minute target")
 		case <-ticker.C:
 			for cut, id := range pending {
 				var state string
 				var attempt int
-				require.NoError(t, pool.QueryRow(ctx, `SELECT state::text,attempt FROM river_job WHERE id=$1`, id).Scan(&state, &attempt))
+				var detectedAt *time.Time
+				require.NoError(t, pool.QueryRow(ctx, `SELECT state::text,attempt,(errors[1]->>'at')::timestamptz FROM river_job WHERE id=$1`, id).Scan(&state, &attempt, &detectedAt))
 				if state != "completed" {
 					continue
 				}
 				require.Equal(t, 2, attempt)
+				require.NotNil(t, detectedAt)
+				require.Less(t, detectedAt.Sub(crashedAt[cut]), 3*time.Minute)
+				t.Logf("native rescue detected cut=%s at=%s elapsed_since_loss=%s", cut, detectedAt.Format(time.RFC3339Nano), detectedAt.Sub(crashedAt[cut]))
+				require.Less(t, time.Since(crashedAt[cut]), 3*time.Minute)
 				t.Logf("native rescue cut=%s observed=%s elapsed_since_kill=%s attempt=%d state=%s", cut, time.Now().UTC().Format(time.RFC3339Nano), time.Since(crashedAt[cut]), attempt, state)
 				delete(pending, cut)
 			}
@@ -193,13 +220,18 @@ func TestWorkerLossNativeCrashRehearsal(t *testing.T) {
 		require.NoError(t, err)
 		require.Equal(t, "failed", original.Status)
 		require.Equal(t, pipelinerun.FailureReasonCodeWorkerOwnershipLost, original.Failure.ReasonCode)
+		require.Less(t, original.Failure.At.Sub(crashedAt[cut]), 3*time.Minute)
+		t.Logf("ownership fenced cut=%s at=%s elapsed_since_loss=%s", cut, original.Failure.At.Format(time.RFC3339Nano), original.Failure.At.Sub(crashedAt[cut]))
 		require.NoError(t, txm.RunInTx(ctx, func(ctx context.Context, db postgres.DBTX) error {
 			return pipelineruns.New().LockRecoveryFence(ctx, db, org, project, environment, cut)
 		}))
 		for index := range 2 {
+			recoveryStarted := time.Now()
 			outcome, err := runner.Recover(ctx, pipelineruntime.ReplayRequest{OrgSlug: org, ProjectSlug: project, EnvironmentSlug: environment, SourceRunSlug: cut, ReplayRunSlug: fmt.Sprintf("%s-repair-%d", cut, index), PipelineVersionID: *meta.CurrentVersionID})
 			require.NoError(t, err)
 			require.Equal(t, "succeeded", outcome.Metadata.Status)
+			require.Less(t, time.Since(recoveryStarted), 30*time.Second)
+			t.Logf("supported recovery cut=%s iteration=%d elapsed=%s", cut, index, time.Since(recoveryStarted))
 			require.Equal(t, cut, *outcome.Metadata.ReplayOfRunSlug)
 			if index == 1 {
 				require.Equal(t, "skip_ledger_succeeded", outcome.Timeline.Snapshots[1].Input.SinkReplayDecision)
@@ -213,9 +245,29 @@ func TestWorkerLossNativeCrashRehearsal(t *testing.T) {
 		require.NoError(t, pool.QueryRow(ctx, `SELECT reads FROM worker_loss_rehearsal_reads WHERE run_slug=$1`, cut).Scan(&reads))
 		require.Equal(t, 1, reads, "native redelivery and repair must not reread changed source rows")
 	}
+	var totalReads, sourceRuns int
+	require.NoError(t, pool.QueryRow(ctx, `SELECT sum(reads),count(*) FROM worker_loss_rehearsal_reads`).Scan(&totalReads, &sourceRuns))
+	require.Equal(t, len(jobs), totalReads, "all recovery attempts must reuse retained input")
+	require.Equal(t, len(jobs), sourceRuns)
 	objects, err := oracle.ListObjectsV2(ctx, &awss3.ListObjectsV2Input{Bucket: &bucket})
 	require.NoError(t, err)
-	require.Len(t, objects.Contents, 2, "one deterministic object per original effect identity")
+	require.NoError(t, suspended.Process.Signal(syscall.SIGCONT))
+	select {
+	case <-returned:
+	case <-time.After(10 * time.Second):
+		t.Fatal("returning worker did not settle after replacement")
+	}
+	writesMu.Lock()
+	observedWrites := make(map[string]int, len(writes))
+	for target, count := range writes {
+		observedWrites[target] = count
+	}
+	writesMu.Unlock()
+	require.Len(t, observedWrites, 3)
+	for target, count := range observedWrites {
+		require.Equal(t, 1, count, "exactly one provider writer for %s", target)
+	}
+	require.Len(t, objects.Contents, 3, "one deterministic object per original effect identity")
 	uploads, err := oracle.ListMultipartUploads(ctx, &awss3.ListMultipartUploadsInput{Bucket: &bucket})
 	require.NoError(t, err)
 	require.Empty(t, uploads.Uploads)
@@ -255,7 +307,7 @@ func (w *nativeRepairWorker) Register(workers *river.Workers) error {
 
 func (w *nativeRepairWorker) Work(ctx context.Context, job *river.Job[nativeRepairArgs]) error {
 	w.t.Logf("working run=%s attempt=%d", job.Args.Run, job.Attempt)
-	runner := newNativeRepairRunner(ctx, w.t, w.pool, w.config, job.Args.Run, job.Attempt == 1 && job.Args.Run == "before-write")
+	runner := newNativeRepairRunner(ctx, w.t, w.pool, w.config, job.Args.Run, job.Attempt == 1 && job.Args.Run != "after-acceptance")
 	_, err := runner.Run(ctx, pipelineruntime.RunRequest{OrgSlug: "native-repair", ProjectSlug: defaultProjectSlug, EnvironmentSlug: "prod", RunSlug: job.Args.Run, PipelineVersionID: job.Args.Version, Pipeline: nativeRepairPipeline()})
 	w.t.Logf("run=%s returned error=%v", job.Args.Run, err)
 	var appErr *xerror.Error
@@ -273,15 +325,10 @@ func TestNativeRepairWorkerProcess(t *testing.T) {
 	require.NoError(t, json.Unmarshal([]byte(os.Getenv("BP_SINK_CRASH_CONFIG")), &config))
 	pool := openIntegrationPool(t)
 	worker := &nativeRepairWorker{t: t, pool: pool, config: config}
-	workers := river.NewWorkers()
-	require.NoError(t, worker.Register(workers))
-	host, err := river.NewClient(riverpgxv5.New(pool), &river.Config{
-		Queues:               map[string]river.QueueConfig{config.Queue: {MaxWorkers: 1}},
-		Workers:              workers,
-		Logger:               slog.New(slog.DiscardHandler),
-		JobTimeout:           20 * time.Second,
-		RescueStuckJobsAfter: 30 * time.Second,
-		TestOnly:             true,
+	host, err := queue.NewWorkerHost(pool, &queue.WorkerHostConfig{
+		Queues:     map[string]river.QueueConfig{config.Queue: {MaxWorkers: 1}},
+		Registrars: []queue.WorkerRegistrar{worker},
+		Logger:     slog.New(slog.DiscardHandler),
 	})
 	require.NoError(t, err)
 	require.NoError(t, host.Start(t.Context()))
@@ -307,8 +354,11 @@ func startNativeRepairWorker(t *testing.T, config nativeRepairConfig) (*exec.Cmd
 		scanner := bufio.NewScanner(stdout)
 		for scanner.Scan() {
 			t.Logf("owned worker: %s", scanner.Text())
-			if scanner.Text() == "BP_SINK_BEFORE_WRITE" {
-				gate <- struct{}{}
+			if scanner.Text() == "BP_SINK_BEFORE_WRITE" || strings.Contains(scanner.Text(), "run=returning-worker returned error=") {
+				select {
+				case gate <- struct{}{}:
+				default:
+				}
 			}
 		}
 	}()
@@ -354,13 +404,12 @@ type nativeRepairGateLedger struct {
 }
 
 func (l nativeRepairGateLedger) BeginOrGet(ctx context.Context, org, project, environment slug.Slug, attempt pipelinerun.SinkEffectAttempt) (*pipelinerun.SinkEffect, error) {
-	effect, err := l.SinkEffectLedger.BeginOrGet(ctx, org, project, environment, attempt)
-	if err == nil && l.hold {
+	if l.hold {
 		fmt.Println("BP_SINK_BEFORE_WRITE")
 		<-ctx.Done()
 		return nil, xerror.Unexpected().With(ctx.Err())
 	}
-	return effect, err
+	return l.SinkEffectLedger.BeginOrGet(ctx, org, project, environment, attempt)
 }
 
 func newNativeRepairRunner(ctx context.Context, t *testing.T, pool *pgxpool.Pool, config nativeRepairConfig, run string, hold bool) *pipelineruntime.Runner {

@@ -1447,25 +1447,6 @@ type RetainedFileStream struct {
 	ExpiresAt      pgtype.Timestamptz
 }
 
-type RiverClient struct {
-	ID        string
-	CreatedAt pgtype.Timestamptz
-	Metadata  []byte
-	PausedAt  pgtype.Timestamptz
-	UpdatedAt pgtype.Timestamptz
-}
-
-type RiverClientQueue struct {
-	RiverClientID    string
-	Name             string
-	CreatedAt        pgtype.Timestamptz
-	MaxWorkers       int64
-	Metadata         []byte
-	NumJobsCompleted int64
-	NumJobsRunning   int64
-	UpdatedAt        pgtype.Timestamptz
-}
-
 type RiverJob struct {
 	ID           int
 	State        RiverJobState
@@ -1498,6 +1479,13 @@ type RiverMigration struct {
 	Line      string
 	Version   int64
 	CreatedAt pgtype.Timestamptz
+}
+
+type RiverNotification struct {
+	ID        int
+	CreatedAt pgtype.Timestamptz
+	Payload   string
+	Topic     string
 }
 
 type RiverQueue struct {

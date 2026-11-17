@@ -102,7 +102,7 @@ func TestSecretBearingRunDoesNotRetainPreDispatchRepairInputs(t *testing.T) {
 }
 
 func TestWorkerLossRecoveryRejectsUnsafeOrIncompleteInputs(t *testing.T) {
-	for _, mode := range []string{"unsafe", "unknown", "attempt-target", "s3-no-overwrite", "missing-output", "missing-transform", "missing-checkpoint"} {
+	for _, mode := range []string{"unsafe", "unknown", "attempt-target", "ordinary-attempt-target", "s3-no-overwrite", "missing-output", "missing-transform", "missing-checkpoint"} {
 		t.Run(mode, func(t *testing.T) {
 			store := &fakeRunStore{}
 			req := progressTestRequest(t)
@@ -119,7 +119,11 @@ func TestWorkerLossRecoveryRejectsUnsafeOrIncompleteInputs(t *testing.T) {
 				checkpoint.Pipeline.Steps[1].Sink.IdempotencyClass = pipelinespec.SinkIdempotencyClassUnsafe
 			case "unknown":
 				checkpoint.Pipeline.Steps[1].Sink.IdempotencyClass = pipelinespec.SinkIdempotencyClassUnknown
-			case "attempt-target":
+			case "attempt-target", "ordinary-attempt-target":
+				if mode == "ordinary-attempt-target" {
+					timeline.Failure = &pipelinerun.FailureContext{Side: "sink"}
+					store.timelines[req.RunSlug] = timeline
+				}
 				checkpoint.Pipeline.Steps[1].Sink.Config = map[string]any{"target": "{{runtime.run.slug}}"}
 			case "s3-no-overwrite":
 				checkpoint.Pipeline.Steps[1].Sink.OperationType = "s3"
@@ -142,7 +146,7 @@ func TestWorkerLossRecoveryRejectsUnsafeOrIncompleteInputs(t *testing.T) {
 			_, err = runner.Recover(t.Context(), ReplayRequest{OrgSlug: req.OrgSlug, ProjectSlug: req.ProjectSlug, EnvironmentSlug: req.EnvironmentSlug, SourceRunSlug: req.RunSlug, ReplayRunSlug: "repair"})
 			require.NotEmpty(t, xerror.PublicDetail(err), "operator refusal must explain how to proceed without re-reading sources")
 			switch mode {
-			case "unsafe", "unknown", "attempt-target", "s3-no-overwrite":
+			case "unsafe", "unknown", "attempt-target", "ordinary-attempt-target", "s3-no-overwrite":
 				require.ErrorIs(t, err, ErrReplayUnsafe)
 			case "missing-transform":
 				require.ErrorIs(t, err, ErrReplayUnsupportedMode)

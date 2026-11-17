@@ -41,9 +41,9 @@ Tests use synthetic fixtures. `test-go` excludes dependency-backed `e2e` package
 test-name allowlist. Packages run sequentially within each shard on disposable fixtures;
 Docker, OpenSSL, Python 3 and matching PostgreSQL recovery clients
 must be available. Suites own their provider, SPIRE, SMTP and private-network
-fixtures. The native crash/rescue rehearsal uses fixture-only River timing while
-retaining real worker crashes, rescue, recovery fences and sink checks. Production
-queue timing is unchanged. Each package has a five-minute timeout. CI partitions
+fixtures. The native crash/rescue rehearsal uses production River timing, real worker
+crashes and a paused worker returning after replacement. It checks durable write
+claims, retained-input recovery and provider readback. Each package has a five-minute timeout. CI partitions
 the complete discovered suite across four required shards, each capped at fifteen
 minutes. Missing, skipped or failed packages fail the task.
 Run a partition locally with zero-based `GO_E2E_SHARD_INDEX` and
@@ -124,6 +124,11 @@ tests, lints and builds. CI checks the generated tree remains clean.
 
 Community installs use the core catalog. Never apply a fresh baseline over
 existing application tables.
+
+River v0.51.2 requires core migration 4. It applies River main migrations 7 and
+8 forward, retaining queued and running jobs while removing River's unused
+client tables. Apply the pending core catalog before starting the upgraded
+application. Keep the original baseline unchanged on existing installations.
 
 ## Containers
 

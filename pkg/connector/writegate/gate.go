@@ -10,6 +10,12 @@ import (
 // ErrSkipped stops provider dispatch when a completed effect is reused.
 var ErrSkipped = xerror.New(xerror.KindUnavailable, "CONNECTOR_WRITE_SKIPPED", "connector write skipped")
 
+// ErrReconcileOnly requests readback of a claimed effect without provider dispatch.
+var ErrReconcileOnly = xerror.New(xerror.KindUnavailable, "CONNECTOR_WRITE_RECONCILE_ONLY", "claimed write requires readback")
+
+// ErrOutcomeUnknown refuses to replace a writer whose effect remains unresolved.
+var ErrOutcomeUnknown = xerror.ReplayUnsafe().WithPublicDetail("The existing write claim has no confirmed outcome. Recovery cannot dispatch another writer; reconcile the provider effect first.")
+
 // ErrPreparationFailed preserves a safe local failure across execution-worker transport.
 var ErrPreparationFailed = xerror.New(xerror.KindInvalidInput, "SINK_CONFIGURATION_INVALID", "sink configuration is invalid")
 
@@ -29,6 +35,9 @@ func WithBeforeWrite(ctx context.Context, guard func(context.Context) error) con
 // BeforeWrite runs after local preparation and immediately before provider dispatch.
 // Standalone connector executions have no runtime effect guard.
 func BeforeWrite(ctx context.Context) error {
+	if err := ctx.Err(); err != nil {
+		return xerror.Unexpected().With(err)
+	}
 	guard, ok := ctx.Value(contextKey{}).(func(context.Context) error)
 	if !ok {
 		return nil

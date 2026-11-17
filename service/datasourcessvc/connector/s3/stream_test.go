@@ -26,7 +26,7 @@ func TestS3ConnectorStreamsRetainedFileThroughSDKAndWriteGuard(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch {
 		case r.Method == http.MethodGet:
-			assert.Equal(t, "/fixture/scoped/input.bin", r.URL.Path)
+			assert.Contains(t, []string{"/fixture/scoped/input.bin", "/fixture/scoped/output.bin"}, r.URL.Path)
 			w.Header().Set("Content-Type", "application/octet-stream")
 			_, _ = w.Write(content)
 		case r.Method == http.MethodPost && r.URL.Query().Has("uploads"):
@@ -74,4 +74,11 @@ func TestS3ConnectorStreamsRetainedFileThroughSDKAndWriteGuard(t *testing.T) {
 	require.True(t, ok)
 	require.Equal(t, len(content), *written.WrittenBytes)
 	require.Empty(t, written.Content)
+	reconciled, err := connector.Execute(writegate.WithBeforeWrite(ctx, func(context.Context) error { return writegate.ErrReconcileOnly }), operation, params, limits)
+	require.NoError(t, err)
+	require.NoError(t, reconciled.Error())
+	confirmed, ok := reconciled.File()
+	require.True(t, ok)
+	require.Equal(t, len(content), *confirmed.WrittenBytes)
+	require.Equal(t, 1, uploads, "readback must not initiate another multipart write")
 }

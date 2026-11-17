@@ -281,8 +281,11 @@ type ExecutionLimitsConfig struct {
 	TransformMaxDepth                 int             `toml:"transform_max_depth"                   env:"EXECUTION_LIMITS_TRANSFORM_MAX_DEPTH"                   flag:"execution-limits-transform-max-depth"                   desc:"Maximum nested SQL transform relation and expression depth"`
 }
 
-// WorkerConfig contains per-process River queue concurrency limits.
+// WorkerConfig contains River timing and per-process queue concurrency limits.
 type WorkerConfig struct {
+	JobTimeout           config.Duration `toml:"job_timeout" env:"WORKER_JOB_TIMEOUT" flag:"worker-job-timeout" desc:"Maximum River job execution time before cancellation"`
+	RescueStuckJobsAfter config.Duration `toml:"rescue_stuck_jobs_after" env:"WORKER_RESCUE_STUCK_JOBS_AFTER" flag:"worker-rescue-stuck-jobs-after" desc:"Attempt age before River rescue; at least one minute longer than job timeout"`
+
 	PipelineGitMaxWorkers            int `toml:"pipeline_git_max_workers"              env:"WORKER_PIPELINE_GIT_MAX_WORKERS"              flag:"worker-pipeline-git-max-workers"              desc:"Maximum concurrent pipeline Git jobs in this worker process"`
 	EmailMaxWorkers                  int `toml:"email_max_workers"                     env:"WORKER_EMAIL_MAX_WORKERS"                     flag:"worker-email-max-workers"                     desc:"Maximum concurrent email jobs in this worker process"`
 	NotificationDeliveryMaxWorkers   int `toml:"notification_delivery_max_workers"     env:"WORKER_NOTIFICATION_DELIVERY_MAX_WORKERS"     flag:"worker-notification-delivery-max-workers"     desc:"Maximum concurrent notification delivery jobs in this worker process"`
@@ -550,6 +553,8 @@ func defaults() *Config {
 			TransformMaxDepth:                 16,
 		},
 		Worker: WorkerConfig{
+			JobTimeout:                       config.NewDuration(time.Minute),
+			RescueStuckJobsAfter:             config.NewDuration(2 * time.Minute),
 			PipelineGitMaxWorkers:            1,
 			EmailMaxWorkers:                  1,
 			NotificationDeliveryMaxWorkers:   1,
@@ -925,6 +930,13 @@ func (c *ExecutionConfig) validate() error {
 
 // validate rejects disabled River queues because each registered queue must have positive capacity.
 func (c WorkerConfig) validate() error {
+	if c.JobTimeout.TimeDuration() <= 0 {
+		return xerror.Unexpected().Detail("worker.job_timeout must be greater than 0")
+	}
+	if c.RescueStuckJobsAfter.TimeDuration()-c.JobTimeout.TimeDuration() < time.Minute {
+		return xerror.Unexpected().Detail("worker.rescue_stuck_jobs_after must exceed worker.job_timeout by at least one minute")
+	}
+
 	limits := []struct {
 		name  string
 		value int

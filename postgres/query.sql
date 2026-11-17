@@ -7074,6 +7074,13 @@ WITH scoped_environment AS (
         AND e.deleted_at IS NULL
         AND pe.deleted_at IS NULL
 ),
+running_owner AS MATERIALIZED (
+    SELECT pr.id
+    FROM pipeline_runs pr
+    JOIN scoped_environment se ON se.project_environment_id = pr.project_environment_id
+    WHERE pr.run_slug = sqlc.arg('owner_run_slug')::text AND pr.status = 'running'
+    FOR SHARE OF pr
+),
 inserted AS (
     INSERT INTO pipeline_sink_effects AS pse (
         project_environment_id,
@@ -7097,6 +7104,8 @@ inserted AS (
         sqlc.narg('diagnostic_code'),
         sqlc.narg('diagnostic_summary')
     FROM scoped_environment
+    -- Empty owner is retained for standalone ledger consumers. Runtime workers always bind their run.
+    WHERE sqlc.arg('owner_run_slug')::text = '' OR EXISTS (SELECT 1 FROM running_owner)
     ON CONFLICT (project_environment_id, run_slug, sink_step_slug, idempotency_key)
     DO UPDATE SET updated_at = pse.updated_at
     RETURNING pse.*, (xmax = 0) AS claimed

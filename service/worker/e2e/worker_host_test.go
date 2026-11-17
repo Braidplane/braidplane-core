@@ -89,6 +89,8 @@ func TestWorkerHostRiverSchemaMigrationVersionsPresent(t *testing.T) { // Real R
 		{line: "main", version: 4},
 		{line: "main", version: 5},
 		{line: "main", version: 6},
+		{line: "main", version: 7},
+		{line: "main", version: 8},
 	}, versions)
 }
 

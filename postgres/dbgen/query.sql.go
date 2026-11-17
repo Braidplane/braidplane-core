@@ -820,6 +820,13 @@ WITH scoped_environment AS (
         AND e.deleted_at IS NULL
         AND pe.deleted_at IS NULL
 ),
+running_owner AS MATERIALIZED (
+    SELECT pr.id
+    FROM pipeline_runs pr
+    JOIN scoped_environment se ON se.project_environment_id = pr.project_environment_id
+    WHERE pr.run_slug = $4::text AND pr.status = 'running'
+    FOR SHARE OF pr
+),
 inserted AS (
     INSERT INTO pipeline_sink_effects AS pse (
         project_environment_id,
@@ -834,15 +841,17 @@ inserted AS (
     )
     SELECT
         project_environment_id,
-        $4,
         $5,
         $6,
         $7,
         $8,
         $9,
         $10,
-        $11
+        $11,
+        $12
     FROM scoped_environment
+    -- Empty owner is retained for standalone ledger consumers. Runtime workers always bind their run.
+    WHERE $4::text = '' OR EXISTS (SELECT 1 FROM running_owner)
     ON CONFLICT (project_environment_id, run_slug, sink_step_slug, idempotency_key)
     DO UPDATE SET updated_at = pse.updated_at
     RETURNING pse.id, pse.project_environment_id, pse.run_slug, pse.sink_step_slug, pse.idempotency_key, pse.idempotency_class, pse.replay_method, pse.replay_decision, pse.state, pse.diagnostic_code, pse.diagnostic_summary, pse.started_at, pse.succeeded_at, pse.created_at, pse.updated_at, (xmax = 0) AS claimed
@@ -854,6 +863,7 @@ type BeginPipelineSinkEffectParams struct {
 	OrgSlug           slug.Slug
 	ProjectSlug       slug.Slug
 	EnvironmentSlug   slug.Slug
+	OwnerRunSlug      string
 	ReplayIdentity    string
 	SinkStepSlug      string
 	IdempotencyKey    string
@@ -891,6 +901,7 @@ func (q *Queries) BeginPipelineSinkEffect(ctx context.Context, arg BeginPipeline
 		arg.OrgSlug,
 		arg.ProjectSlug,
 		arg.EnvironmentSlug,
+		arg.OwnerRunSlug,
 		arg.ReplayIdentity,
 		arg.SinkStepSlug,
 		arg.IdempotencyKey,

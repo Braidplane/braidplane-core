@@ -214,18 +214,51 @@ are available in incremental query parameters and source connector bindings only
 Runtime bindings are unavailable in transform SQL, data-source identities, and
 pipeline metadata.
 
+### Retained-input recovery
+
 Retained-input recovery can repair terminal sink failures and explicit worker-loss
 attempts after queue ownership is fenced. It reuses the recorded version, source
 and transform outputs, and effect identity. Worker-loss recovery requires complete
-retained inputs and repeat-safe sinks; it refuses targets or inputs that change
-with `runtime.run.slug`. Use `runtime.sink.replay_identity` for a deterministic
+retained inputs and repeat-safe sinks. Recovery refuses targets or inputs that
+change with `runtime.run.slug`. Use `runtime.sink.replay_identity` for a deterministic
 S3 key with `overwrite: true`.
 
 Bounded eligible checkpoints are saved before sink dispatch, with a 10 MiB total
 limit and the organization's retention policy.
 Event payloads and runs with resolved environment secrets are excluded from this
 early retention. Missing inputs, unknown ledger-only attempts and unsafe effects
-remain refused; an unknown S3 write can converge through deterministic overwrite.
+remain refused. Deterministic S3 output can be confirmed through readback as
+described below.
+Worker-loss detection and fencing are automatic. With the default one-minute job
+timeout and two-minute rescue threshold, the target is three minutes after worker
+loss when PostgreSQL and worker capacity are available. Rescue uses attempt age;
+worker observations diagnose stale activity but do not establish ownership.
+Longer job settings, queue backlog or a database outage extend this delay.
+
+Each runtime sink write claims its effect durably before dispatch. A slow worker
+or a lost database connection leaves that claim in place. Recovery can write an
+unclaimed effect and skips a confirmed effect. It never starts another writer for
+an unresolved claim. A returning worker cannot claim new effects after its run
+has been fenced.
+
+For deterministic S3 overwrite, an unresolved claim can be confirmed automatically
+by reading the object and matching the complete prepared bytes, content type and
+user metadata. This requires object read permission as well as write permission.
+Matching readback records confirmation without another PUT. A missing or different
+object, failed read, unavailable retained input or an unsupported readback path
+keeps recovery blocked. No declaration of idempotency overrides an unresolved
+writer. An accepted request may still settle later at the provider; recovery does
+not promise general exactly-once delivery.
+
+After worker loss, monitor the run until native rescue records a terminal
+worker-ownership failure. Use the existing recovery action below; no stopped-worker
+confirmation is required. Recovery uses the retained version and source/transform
+outputs, even if source data has changed. Repeating recovery skips confirmed
+writes. If recovery is refused, inspect provider effects and the retained-input
+explanation before starting a new evaluation, which reads sources again. Configure
+long-running jobs through the deployment's `worker.job_timeout` and
+`worker.rescue_stuck_jobs_after` settings, keeping at least a minute between them.
+
 The UI recovery action, API and `pipeline run recover` CLI share these checks;
 a new evaluation reads current sources again.
 

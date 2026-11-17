@@ -72,8 +72,9 @@ skip, test failure, empty discovery or missing package result.
 Run the same command locally with Docker, OpenSSL, Python 3 and matching PostgreSQL `pg_dump` and
 `pg_restore` clients available. Provider, SPIRE, SMTP and private-network fixtures
 are created and cleaned up by their owning suites. The native crash/rescue test
-uses a fixture-only 30-second River rescue threshold and retains real SIGKILL,
-rescue, recovery fences and sink checks; production queue timing is unchanged. CI supplies
+uses the production two-minute River rescue threshold and a three-minute
+detection/fencing target. It checks SIGKILL, a returning paused worker, recovery
+fences and exact provider write counts. CI supplies
 recovery clients from the same pinned PostgreSQL 18.6 image as the disposable
 server, mounting only the job-owned temporary directory. These wrappers use
 Linux host networking. Browser E2E tests run in the separate browser job.

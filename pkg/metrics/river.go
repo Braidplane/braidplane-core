@@ -443,7 +443,7 @@ GROUP BY queue, state
 }
 
 // queryWorkers reads River queue heartbeats as liveness signals. River OSS
-// updates these rows every ten minutes but does not populate river_client_queue.
+// refreshes these rows every ten minutes; this does not prove ownership of a job.
 func (p riverPostgresHealthProvider) queryWorkers(ctx context.Context) ([]RiverWorkerMetric, error) {
 	now := p.now()
 	rows, err := p.pool.Query(ctx, `

@@ -176,12 +176,15 @@ func newBackendQueueClient(
 	logger *slog.Logger,
 	registrars []queue.WorkerRegistrar,
 	queues map[string]river.QueueConfig,
+	timing backendconfig.WorkerConfig,
 ) (*queue.Client, error) {
 	return queue.NewWorkerHost(pool, &queue.WorkerHostConfig{
-		Logger:      logger,
-		Queues:      queues,
-		RetryPolicy: &river.DefaultClientRetryPolicy{},
-		Registrars:  registrars,
+		JobTimeout:           timing.JobTimeout.TimeDuration(),
+		RescueStuckJobsAfter: timing.RescueStuckJobsAfter.TimeDuration(),
+		Logger:               logger,
+		Queues:               queues,
+		RetryPolicy:          &river.DefaultClientRetryPolicy{},
+		Registrars:           registrars,
 	})
 }
 
@@ -1305,6 +1308,7 @@ func Run(cfg *backendconfig.Config, mode Mode, createDistribution DistributionFa
 				backendLogger,
 				workerRegistrars,
 				workerQueues,
+				cfg.Worker,
 			)
 			if err != nil {
 				return nil, xerror.Wrapf("failed to initialize River queue client: %w", err)
