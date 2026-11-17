@@ -59,8 +59,11 @@ numbers are never reused, even after an abandoned run. A feature or breaking cha
 selects the next minor target; its RC sequence starts independently. Only a completed
 stable release advances the cursor.
 
-The reviewed [release configuration](../ci/core-release.json) pins the selected
-platform and external image digests. Change this configuration through normal review.
+The reviewed [release configuration](../ci/core-release.json) pins both supported
+platforms, `linux/amd64` and `linux/arm64`, and external image digests. Automatic
+preparation dispatches one native hosted-runner job per platform. Candidate builds
+verify that the pinned edge and PostgreSQL dependencies contain a native image.
+Change this configuration through normal review.
 These pins do not independently qualify distribution or hardware support.
 
 The dispatcher submits the source configuration and exact main CI run/attempt
@@ -124,6 +127,23 @@ source/signer revision, hosted runner and current run/attempt for all ten subjec
 record and archive provenance, plus provenance and SBOM for each of four images.
 Only then is `core-published/v0.X.Y-rc.N/linux-amd64` created and the GitHub prerelease published. A candidate tag or an
 uploaded Actions artifact alone is not a completed release.
+
+Each platform has its own GitHub Release and unchanged asset filenames. AMD64
+retains the version tag, such as `v0.1.1-rc.1`; ARM64 uses
+`v0.1.1-rc.1-linux-arm64`. Stable ARM64 releases use `v0.1.1-linux-arm64`.
+The manifest and signed record retain the common version without this download
+tag suffix. This keeps each published asset set immutable.
+
+Select the release matching the Docker daemon, which can differ from the host:
+
+```sh
+docker info --format '{{.OSType}}/{{.Architecture}}'
+gh release download v0.1.1-linux-arm64 --repo Braidplane/braidplane-core --dir arm64-release
+```
+
+For AMD64 use `v0.1.1`. Verify the downloaded record and archive before following
+the bundled installation guide. The installer rejects a mismatched manifest;
+changing its platform field cannot convert images to a different architecture.
 
 ## Promote a candidate
 

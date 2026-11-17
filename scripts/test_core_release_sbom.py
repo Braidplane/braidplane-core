@@ -6,7 +6,7 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
-from scripts.core_release_sbom import BINARIES, SYFT, generate, require_image_manifest, validate_sbom
+from scripts.core_release_sbom import BINARIES, SYFT, generate, require_image_manifest, require_platform_image, validate_sbom
 from scripts.test_installation_release import manifest
 
 
@@ -34,6 +34,25 @@ def release_manifest(raw):
 
 
 class CoreReleaseSBOMTest(unittest.TestCase):
+    def test_dependency_index_requires_verified_native_child(self):
+        child = image_manifest()
+        digest = "sha256:" + hashlib.sha256(child).hexdigest()
+        for architecture in ("amd64", "arm64"):
+            entry = dict(digest=digest, platform=dict(os="linux", architecture=architecture))
+            for entries, valid in (([entry], True), ([], False), ([entry, entry], False)):
+                raw = json.dumps(dict(schemaVersion=2, mediaType="application/vnd.oci.image.index.v1+json",
+                                      manifests=entries)).encode()
+                image = release_manifest(raw)["images"]["edge"]
+                with self.subTest(architecture=architecture, entries=len(entries)), \
+                     patch("scripts.core_release_sbom.subprocess.check_output", side_effect=[
+                         raw, child, json.dumps(dict(os="linux", architecture=architecture)).encode()]) as inspect:
+                    if valid:
+                        require_platform_image(image, Path("/tmp"), "linux/" + architecture)
+                        self.assertEqual(inspect.call_args_list[1].args[0][-1], image.split("@")[0] + "@" + digest)
+                    else:
+                        with self.assertRaisesRegex(ValueError, "exactly one"):
+                            require_platform_image(image, Path("/tmp"), "linux/" + architecture)
+
     def test_rejects_empty_or_unrelated_inventory(self):
         validate_sbom(spdx())
         for key, value in (("packages", []), ("relationships", []), ("documentNamespace", ""),

@@ -6,7 +6,7 @@ import re
 import subprocess
 from pathlib import Path
 
-from scripts.core_release_identity import api
+from scripts.core_release_identity import api, bind
 from scripts.core_release_version import notes
 from scripts.validate_core_candidate import file_hash
 from scripts.verify_core_release import read_json
@@ -14,6 +14,12 @@ from scripts.verify_core_release import read_json
 
 ASSETS = ("record.json", "installation.tar.gz", "release.json", "release-plan.json",
           "release-inputs.json", "CHANGELOG.md", "approval.json")
+
+
+def release_tag(version, platform):
+    if platform not in ("linux/amd64", "linux/arm64"):
+        raise ValueError("unsupported release platform")
+    return version if platform == "linux/amd64" else version + "-linux-arm64"
 
 
 def publish_release(repository, version, source, body, assets, prerelease):
@@ -49,7 +55,10 @@ def publish_candidate(directory, identity_dir, env):
     tag = api(f"repos/{value['repository']}/git/tags/{tag_ref['object']['sha']}")
     if json.loads(tag["message"]) != value:
         raise ValueError("RC completion identity differs")
-    publish_release(value["repository"], version, value["source"], notes(value["plan"]),
+    if release["platform"] == "linux/arm64":
+        bind(value["repository"], release_tag(version, release["platform"]), value["source"],
+             json.dumps(dict(source=value["source"], version=version), sort_keys=True))
+    publish_release(value["repository"], release_tag(version, release["platform"]), value["source"], notes(value["plan"]),
                     [directory / name for name in ASSETS] + [identity_dir / "identity.json"], True)
 
 

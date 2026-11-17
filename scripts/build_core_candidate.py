@@ -15,6 +15,7 @@ from scripts.prepare_core_release import release_metadata
 from scripts.installation.package import package
 from scripts.qualify_core_images import BINARIES, hashes
 from scripts.verify_core_oci import verify_archive
+from scripts.core_release_sbom import require_platform_image
 
 BUILDKIT_IMAGE = "docker.io/moby/buildkit@sha256:93da6a53287490dd3b35952f73a109654ed9f260f2e6434db925125fa3ac6b2a"
 
@@ -37,7 +38,7 @@ def build(args, env, event):
     dirty = subprocess.check_output(["git", "-C", str(checkout), "status", "--porcelain=v1", "--untracked-files=all"])
     if head != revision or dirty:
         raise ValueError("checkout must be clean and match the approved revision")
-    release_files = release_metadata(checkout, repository, revision)
+    release_files = release_metadata(checkout, repository, revision, args.platform)
     if release_files is None:
         print("No release: pending changes were already published or are release:none.")
         return False
@@ -45,7 +46,8 @@ def build(args, env, event):
     if args.version and version != args.version:
         raise ValueError("candidate version differs from eligible merged changes")
     config = json.loads((checkout / "ci/core-release.json").read_text())
-    if config != dict(platform=args.platform, edge=args.edge, postgres=args.postgres):
+    if (args.platform not in config["platforms"] or
+            args.edge != config["edge"] or args.postgres != config["postgres"]):
         raise ValueError("candidate configuration differs from reviewed source")
     output.mkdir(parents=False, exist_ok=False)
     for name, contents in release_files.items():
@@ -57,6 +59,8 @@ def build(args, env, event):
     builder = "core-release-" + uuid.uuid4().hex
     with tempfile.TemporaryDirectory(prefix="core-release-docker-") as docker_dir:
         docker_env = dict(env, DOCKER_CONFIG=docker_dir)
+        for image in (args.edge, args.postgres):
+            require_platform_image(image, Path(docker_dir), args.platform)
         created = False
         try:
             subprocess.run(["docker", "buildx", "create", "--name", builder, "--driver", "docker-container",

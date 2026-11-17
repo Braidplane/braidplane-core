@@ -8,12 +8,22 @@ from scripts.test_installation_release import manifest
 
 
 class RuntimePreflightTest(unittest.TestCase):
-    def run_check(self, info=None, flags="--wait --wait-timeout"):
+    def run_check(self, info=None, flags="--wait --wait-timeout", platform="linux/amd64"):
         if info is None:
             info = {"OSType": "linux", "Architecture": "x86_64", "ServerVersion": "fixture", "NCPU": 2, "MemTotal": 1024}
         results = [json.dumps(info), "fixture-compose\n", flags]
         with patch("scripts.installation.preflight.subprocess.run", side_effect=[subprocess.CompletedProcess([], 0, stdout=value) for value in results]):
-            return check_runtime(manifest())
+            return check_runtime(dict(manifest(), platform=platform))
+
+    def test_both_platforms_accept_native_aliases_and_reject_the_other_manifest(self):
+        for architecture, platform in (("aarch64", "linux/arm64"), ("arm64", "linux/arm64"),
+                                       ("x86_64", "linux/amd64"), ("amd64", "linux/amd64")):
+            info = dict(OSType="linux", Architecture=architecture)
+            with self.subTest(architecture=architecture):
+                self.assertEqual(self.run_check(info, platform=platform)["platform"], platform)
+                other = "linux/amd64" if platform == "linux/arm64" else "linux/arm64"
+                with self.assertRaisesRegex(ValueError, "does not match"):
+                    self.run_check(info, platform=other)
 
     def test_native_daemon_and_compose_features(self):
         receipt = self.run_check()

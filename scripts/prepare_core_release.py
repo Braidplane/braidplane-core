@@ -73,7 +73,7 @@ def collect(repository, checkout, start, source):
     return list(pulls.values())
 
 
-def release_metadata(checkout, repository, source):
+def release_metadata(checkout, repository, source, platform=None):
     refs = api(f"repos/{repository}/git/matching-refs/tags/v")
     versions = [ref["ref"].removeprefix("refs/tags/") for ref in refs]
     completed = api(f"repos/{repository}/git/matching-refs/tags/core-published/")
@@ -125,13 +125,33 @@ def release_metadata(checkout, repository, source):
                     raise ValueError("completed RC source is outside candidate history") from error
                 return None
             ranked.append((-history[prior_source], int(version.split('-rc.')[1]), value))
-        prior = max(ranked, key=lambda item: item[:2])[2]["inputs"]
+        prior_value = max(ranked, key=lambda item: item[:2])[2]
+        prior = prior_value["inputs"]
         eligible = lambda items: sorted((item for item in items if "release:none" not in item["labels"]), key=lambda item: item["number"])
         if prior["since_sha"] == start and eligible(prior["pull_requests"]) == eligible(inputs["pull_requests"]):
-            return None
+            if platform is None or any(value["record"]["release"].get("platform") == platform
+                                       and value["source"] == prior_value["source"]
+                                       and value["record"]["release"]["version"] == prior_value["record"]["release"]["version"]
+                                       for _, _, value in ranked):
+                return None
+            if prior_value["source"] != source:
+                raise ValueError("missing platform requires the exact sibling candidate source")
+            plan = prior_value["plan"]
+            return {"release-plan.json": json.dumps(plan, indent=2) + "\n",
+                    "release-inputs.json": json.dumps(prior, indent=2) + "\n",
+                    "CHANGELOG.md": with_notes((checkout / "CHANGELOG.md").read_text(), plan)}
     numbers = [int(match.group(1)) for version in versions
                if (match := re.fullmatch(re.escape(target) + r"-rc\.([1-9][0-9]*)", version))]
     plan["version"] = f"{target}-rc.{max(numbers, default=0) + 1}"
+    completed_versions = {version for _, version in completed}
+    for ref in refs:
+        version = ref["ref"].removeprefix("refs/tags/")
+        if version in completed_versions or not re.fullmatch(re.escape(target) + r"-rc\.[1-9][0-9]*", version) or "object" not in ref:
+            continue
+        tag = api(f"repos/{repository}/git/tags/{ref['object']['sha']}")
+        if (tag["object"]["type"] == "commit" and tag["object"]["sha"] == source and
+                json.loads(tag["message"]) == dict(source=source, version=version)):
+            plan["version"] = version
     return {"release-plan.json": json.dumps(plan, indent=2) + "\n",
             "release-inputs.json": json.dumps(inputs, indent=2) + "\n",
             "CHANGELOG.md": with_notes((checkout / "CHANGELOG.md").read_text(), plan)}
@@ -151,22 +171,29 @@ def prepare(checkout, env, event):
     if git(checkout, "rev-parse", "HEAD") != source or git(checkout, "status", "--porcelain=v1", "--untracked-files=all"):
         raise ValueError("automatic preparation requires clean exact source")
     config = read_json(checkout / "ci/core-release.json")
-    if set(config) != {"platform", "edge", "postgres"}:
+    if (set(config) != {"platform", "platforms", "edge", "postgres"} or
+            config["platforms"] != ["linux/amd64", "linux/arm64"] or config["platform"] not in config["platforms"]):
         raise ValueError("invalid reviewed release configuration")
     placeholders = {name: {"containerimage.digest": "sha256:" + "0" * 64} for name in BINARIES}
     candidate(repository.lower(), source, "v0.0.1", config["platform"], config["edge"], config["postgres"], placeholders)
-    metadata = release_metadata(checkout, repository, source)
-    if metadata is None:
+    metadata = {platform: release_metadata(checkout, repository, source, platform) for platform in config["platforms"]}
+    if all(value is None for value in metadata.values()):
         print("No release: no eligible merged changes.")
         return
     runs = api(f"repos/{repository}/actions/workflows/core-release.yml/runs?head_sha={source}&event=workflow_dispatch")
-    if any(item["head_sha"] == source for item in runs["workflow_runs"]):
-        print("Candidate run already exists for this source; inspect or retry that run.")
-        return
-    plan = json.loads(metadata["release-plan.json"])
-    inputs = dict(config, ci_run_id=str(run["id"]), ci_attempt=str(run["run_attempt"]))
-    api(f"repos/{repository}/actions/workflows/core-release.yml/dispatches", {"ref": "main", "inputs": inputs})
-    print(f"Dispatched {plan['version']} candidate for {source}; publication follows the automatic v0 policy.")
+    inputs = {key: config[key] for key in ("platform", "edge", "postgres")}
+    inputs.update(ci_run_id=str(run["id"]), ci_attempt=str(run["run_attempt"]))
+    for platform in config["platforms"]:
+        if metadata[platform] is None:
+            continue
+        if any(item["head_sha"] == source and item.get("display_title", "Core release candidate") ==
+               f"Core release candidate ({platform})" for item in runs["workflow_runs"]):
+            print(f"Candidate run already exists for {platform}; inspect or retry that run.")
+            continue
+        api(f"repos/{repository}/actions/workflows/core-release.yml/dispatches",
+            {"ref": "main", "inputs": dict(inputs, platform=platform)})
+        plan = json.loads(metadata[platform]["release-plan.json"])
+        print(f"Dispatched {plan['version']} candidate for {source} on {platform}; publication follows the automatic v0 policy.")
 
 
 def main():

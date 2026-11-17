@@ -9,7 +9,7 @@ from pathlib import Path
 
 from scripts.core_release_identity import api, bind
 from scripts.core_release_version import notes, validate_plan
-from scripts.publish_core_release import ASSETS, publish_release
+from scripts.publish_core_release import ASSETS, publish_release, release_tag
 from scripts.validate_core_candidate import file_hash
 from scripts.verify_core_release import check_archive_manifest, read_json, verify_release
 
@@ -97,7 +97,7 @@ def promote(candidate, platform, checkout, output, env):
         raise ValueError("promotion output must be outside the checkout")
     output.mkdir(parents=False, exist_ok=False)
     for name in (*ASSETS, "identity.json"):
-        subprocess.run(["gh", "release", "download", candidate, "--repo", repository,
+        subprocess.run(["gh", "release", "download", release_tag(candidate, platform), "--repo", repository,
                         "--pattern", name, "--dir", str(output)], check=True)
     approval = read_json(output / "approval.json")
     if (file_hash(output / "approval.json") != value["approval_sha256"] or
@@ -120,8 +120,11 @@ def promote(candidate, platform, checkout, output, env):
     promoted = dict(value, promotion=dict(version=version, candidate=candidate))
     (output / "promotion.json").write_text(json.dumps(promoted, indent=2, sort_keys=True) + "\n")
     bind(repository, version, source, json.dumps(dict(source=source, version=version, candidate=candidate), sort_keys=True))
+    if platform == "linux/arm64":
+        bind(repository, release_tag(version, platform), source,
+             json.dumps(dict(source=source, version=version, candidate=candidate), sort_keys=True))
     body = notes(dict(value["plan"], version=version)) + f"\nPromoted from `{candidate}`. Artifacts retain their signed RC identity and unchanged digests.\n"
-    publish_release(repository, version, source, body, [output / name for name in (*ASSETS, "identity.json", "promotion.json")], False)
+    publish_release(repository, release_tag(version, platform), source, body, [output / name for name in (*ASSETS, "identity.json", "promotion.json")], False)
     bind(repository, f"core-published/{version}/{suffix}", source, json.dumps(promoted, sort_keys=True, separators=(",", ":")))
 
 
