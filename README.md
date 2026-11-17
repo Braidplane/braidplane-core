@@ -4,6 +4,9 @@
 
 # Braidplane Community core
 
+[![License: Apache-2.0](https://img.shields.io/badge/license-Apache--2.0-blue)](LICENSE)
+[![Documentation: getting started](https://img.shields.io/badge/docs-getting%20started-blue)](docs-public/getting-started/overview.md)
+
 **Braidplane is a declarative, contract-based data integration platform.**
 
 Define ETL pipelines in Git, specify data contracts between steps, and inspect
