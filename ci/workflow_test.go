@@ -306,6 +306,11 @@ func TestCommunityWorkflowTrustBoundary(t *testing.T) {
 
 	for _, change := range []struct{ name, path, from, to string }{
 		{"privileged event", ".github/workflows/ci.yml", "  pull_request:", "  pull_request_target:"},
+		{"labels privileged event", ".github/workflows/release-labels.yml", "  pull_request:", "  pull_request_target:"},
+		{"labels missing removal event", ".github/workflows/release-labels.yml", ", unlabeled", ""},
+		{"labels write token", ".github/workflows/release-labels.yml", "pull-requests: read", "pull-requests: write"},
+		{"labels persistent runner", ".github/workflows/release-labels.yml", "runs-on: ubuntu-24.04", "runs-on: self-hosted"},
+		{"labels ignored failure", ".github/workflows/release-labels.yml", "    timeout-minutes: 2", "    continue-on-error: true\n    timeout-minutes: 2"},
 		{"persistent runner", ".github/workflows/ci.yml", "runs-on: ubuntu-24.04", "runs-on: [self-hosted, braidplane-ci]"},
 		{"job write token", ".github/workflows/ci.yml", "    timeout-minutes: 30", "    permissions: {contents: write}\n    timeout-minutes: 30"},
 		{"OIDC token", ".github/workflows/ci.yml", "  contents: read", "  contents: read\n  id-token: write"},
@@ -393,6 +398,7 @@ func communityBoundary(files map[string]string) error {
 		".github/workflows/core-release.yml":               true,
 		".github/workflows/core-release-plan.yml":          true,
 		".github/workflows/core-release-promote.yml":       true,
+		".github/workflows/release-labels.yml":             true,
 		".github/actions/cache-fixture-images/action.yml":  true,
 		".github/actions/prepare-hosted-runner/action.yml": true,
 	}
@@ -406,6 +412,12 @@ func communityBoundary(files map[string]string) error {
 		var document map[string]any
 		if err := yaml.Unmarshal([]byte(source), &document); err != nil {
 			return fmt.Errorf("%s: %w", path, err)
+		}
+		if path == ".github/workflows/release-labels.yml" {
+			if err := releaseLabelsBoundary(document); err != nil {
+				return fmt.Errorf("%s: %w", path, err)
+			}
+			continue
 		}
 		if path == ".github/workflows/core-release-plan.yml" {
 			if err := releasePlanBoundary(document); err != nil {
@@ -451,6 +463,94 @@ func communityBoundary(files map[string]string) error {
 		}
 	}
 	return nil
+}
+
+func releaseLabelsBoundary(document map[string]any) error {
+	if !reflect.DeepEqual(document["on"], map[string]any{"pull_request": map[string]any{
+		"types": []any{"opened", "reopened", "synchronize", "labeled", "unlabeled"},
+	}}) || !reflect.DeepEqual(document["permissions"], map[string]any{"contents": "read", "pull-requests": "read"}) {
+		return fmt.Errorf("release labels must use PR events and read-only contents/PR access")
+	}
+	jobs, _ := document["jobs"].(map[string]any)
+	job, _ := jobs["release-labels"].(map[string]any)
+	if len(jobs) != 1 || job["name"] != "Release labels" || job["runs-on"] != "ubuntu-24.04" ||
+		job["timeout-minutes"] != 2 || job["if"] != nil || job["continue-on-error"] != nil ||
+		job["uses"] != nil || job["environment"] != nil || job["permissions"] != nil {
+		return fmt.Errorf("release labels must run as one required hosted check without deployment access")
+	}
+	// Only this workflow may read PR metadata in addition to repository contents.
+	for key, value := range document {
+		if key == "permissions" {
+			continue
+		}
+		if err := checkCommunityNode(value); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func TestReleaseLabelsCheck(t *testing.T) {
+	data, err := os.ReadFile("../.github/workflows/release-labels.yml")
+	if err != nil {
+		t.Fatal(err)
+	}
+	var workflow struct {
+		Jobs map[string]struct{ Steps []struct{ Run, Shell string } }
+	}
+	if err := yaml.Unmarshal(data, &workflow); err != nil {
+		t.Fatal(err)
+	}
+	steps := workflow.Jobs["release-labels"].Steps
+	if len(steps) != 2 || steps[1].Run == "" || steps[1].Shell != "bash" {
+		t.Fatal("expected checkout followed by label validation with bash pipefail")
+	}
+	bin := t.TempDir()
+	if err := os.WriteFile(filepath.Join(bin, "gh"), []byte("#!/bin/sh\nprintf '%s' \"$SYNTHETIC_PR\"\nexit \"$SYNTHETIC_API_EXIT\"\n"), 0o700); err != nil {
+		t.Fatal(err)
+	}
+	for _, tc := range []struct {
+		name, labels      string
+		apiFailure, valid bool
+	}{
+		{"patch", `["release:patch"]`, false, true},
+		{"minor", `["release:minor", "enhancement"]`, false, true},
+		{"breaking", `["release:breaking"]`, false, true},
+		{"none", `["release:none"]`, false, true},
+		{"security", `["release:patch", "release:security"]`, false, true},
+		{"missing", `[]`, false, false},
+		{"conflicting", `["release:patch", "release:minor"]`, false, false},
+		{"unknown", `["release:patch", "release:major"]`, false, false},
+		{"security only", `["release:security"]`, false, false},
+		{"security none", `["release:none", "release:security"]`, false, false},
+		{"API failure", `["release:patch"]`, true, false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			// Execute the workflow command with synthetic metadata and no network.
+			var labels []string
+			if err := yaml.Unmarshal([]byte(tc.labels), &labels); err != nil {
+				t.Fatal(err)
+			}
+			objects := make([]string, len(labels))
+			for i, label := range labels {
+				objects[i] = fmt.Sprintf(`{"name":%q}`, label)
+			}
+			payload := fmt.Sprintf(`{"number":1,"title":"Synthetic fix","labels":[%s]}`, strings.Join(objects, ","))
+			cmd := exec.Command("bash", "-eo", "pipefail", "-c", steps[1].Run)
+			cmd.Dir = ".."
+			exit := "0"
+			if tc.apiFailure {
+				exit = "1"
+			}
+			cmd.Env = append(os.Environ(), "PATH="+bin+string(os.PathListSeparator)+os.Getenv("PATH"),
+				"GITHUB_REPOSITORY=synthetic/core", "PR_NUMBER=1", "GH_TOKEN=synthetic",
+				"SYNTHETIC_PR="+payload, "SYNTHETIC_API_EXIT="+exit)
+			output, err := cmd.CombinedOutput()
+			if (err == nil) != tc.valid {
+				t.Fatalf("valid=%v, error=%v: %s", tc.valid, err, output)
+			}
+		})
+	}
 }
 
 // Automatic preparation may dispatch candidates only after exact main CI;

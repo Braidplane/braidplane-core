@@ -46,6 +46,12 @@ separately authorized release rehearsal.
 
 ## Full core verification
 
+The separate `Release labels` PR check validates current release classification
+on PR creation, commits, reopening and label changes. Run its synthetic regression
+coverage with `bash scripts/go-toolchain.sh test -short ./ci`. See
+[release labels](CORE_RELEASE_AUTOMATION.md#reviewer-labels-and-automatic-candidates)
+for classification and the required branch ruleset setting.
+
 `task test` runs core and CLI hermetic tests, JavaScript tests and Mailpit fixture
 checks. `task lint` runs the pinned core/CLI Go linters, JavaScript lint and
 package-boundary tests. `task build` builds CSS and all five executables.

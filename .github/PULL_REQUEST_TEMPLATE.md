@@ -2,10 +2,13 @@
 
 Describe the concrete problem and resulting behavior.
 
-Before merge, the reviewer selects exactly one release label: `release:patch`
+When opening or updating this PR, apply and verify exactly one release label: `release:patch`
 for compatible fixes, `release:minor` for features, `release:breaking` for
 incompatible changes (a minor bump before v1), or `release:none` for changes
-without a distributed behavior change. Add `release:security` only for an
+without a distributed behavior change. If you lack label permissions, state the
+required classification here for a maintainer to apply. Preserve an existing
+reviewed choice; the reviewer confirms classification before merge.
+Add `release:security` only for an
 approved public security release. After successful main CI, labels prepare a
 v0 RC prerelease and publish it automatically after CI and artifact checks.
 Stable releases require an explicit promotion dispatch. Breaking

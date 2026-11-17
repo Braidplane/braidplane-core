@@ -13,7 +13,10 @@ Only pre-v1 versions are supported by the current version-selection policy.
 
 ## Reviewer labels and automatic candidates
 
-Before merging a product PR, the reviewer selects exactly one label:
+When opening or updating a PR, apply exactly one classification label and read
+it back from GitHub before handoff. Contributors without label permissions state
+the required classification for a maintainer to apply. Preserve an existing
+reviewed choice; the reviewer confirms classification before merge.
 
 | Label | Version choice |
 |---|---|
@@ -30,6 +33,12 @@ contracts. Breaking changes are normal during v0 development and are marked
 promotion path as other changes. Labels declare compatibility review; the tool does not
 infer it.
 Missing, conflicting or unsupported labels stop preparation until corrected.
+The separate `PR release classification` workflow checks current GitHub labels
+when a PR opens, reopens, receives commits, or gains or loses a label. It reuses
+the release planner's classification rules without rerunning product CI on label
+edits. Configure its `Release labels` check as required in the main branch
+ruleset to block merges with invalid classifications. This workflow does not
+verify disclosure approval for `release:security`; that remains a reviewer decision.
 After fixing labels, rerun the failed automatic preparation run; there is no
 need to rerun successful product CI just to select a release.
 
