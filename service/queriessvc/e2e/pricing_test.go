@@ -27,6 +27,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/Braidplane/braidplane-core/pkg/clock"
+	"github.com/Braidplane/braidplane-core/pkg/connector/writegate"
 	"github.com/Braidplane/braidplane-core/pkg/depsports"
 	"github.com/Braidplane/braidplane-core/pkg/domain/model"
 	"github.com/Braidplane/braidplane-core/pkg/must"
@@ -341,19 +342,34 @@ func testPricingPatchAndDeterministicExport(t *testing.T, stack *testStack) {
 					SourceRunSlug: originalSlug, ReplayRunSlug: fmt.Sprintf("pricing-recovered-%d", time.Now().UnixNano()),
 					InputMode: pipelineruntime.ReplayInputModePinned, PipelineVersionID: request.PipelineVersionID,
 				})
-				require.NoError(t, recoverErr)
-				require.Equal(t, "succeeded", recovered.Metadata.Status)
+				if fault.mode == 1 {
+					require.ErrorIs(t, recoverErr, writegate.ErrOutcomeUnknown)
+				} else {
+					require.NoError(t, recoverErr)
+				}
+				require.NotNil(t, recovered)
 				require.Equal(t, request.PipelineVersionID, recovered.Metadata.PipelineVersionID)
 				require.Equal(t, originalSlug, *recovered.Metadata.ReplayOfRunSlug)
 				require.Equal(t, "skip_ledger_succeeded", recovered.Timeline.Snapshots[2].Input.SinkReplayDecision)
-				if attempt == 1 {
+				if fault.mode == 1 {
+					require.Equal(t, "failed", recovered.Metadata.Status)
+					require.Equal(t, "in_progress", recovered.Timeline.Snapshots[3].Input.SinkEffectState.String())
+					_, readErr := provider.GetObject(ctx, &awss3.GetObjectInput{Bucket: aws.String(bucket), Key: aws.String(secondKey)})
+					var missing *awss3types.NoSuchKey
+					require.ErrorAs(t, readErr, &missing)
+				} else {
+					require.Equal(t, "succeeded", recovered.Metadata.Status)
+					require.Equal(t, want, read(secondKey))
+				}
+				if fault.mode == 2 && attempt == 1 {
 					require.Equal(t, "skip_ledger_succeeded", recovered.Timeline.Snapshots[3].Input.SinkReplayDecision)
+				} else {
+					require.Equal(t, "reconcile_provider_effect", recovered.Timeline.Snapshots[3].Input.SinkReplayDecision)
 				}
 				require.Equal(t, firstRecord, completedRecord(), "completed sibling's entire ledger record remains unchanged")
 				require.Equal(t, want, read(firstKey))
-				require.Equal(t, want, read(secondKey))
 				require.Equal(t, int64(1), puts(firstKey))
-				require.Equal(t, secondPuts+1, puts(secondKey), "only the unknown effect is replayed, once")
+				require.Equal(t, secondPuts, puts(secondKey), "recovery must not dispatch another writer for the existing claim")
 			}
 		})
 	}

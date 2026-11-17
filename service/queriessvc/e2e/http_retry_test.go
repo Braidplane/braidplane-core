@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/Braidplane/braidplane-core/pkg/clock"
+	"github.com/Braidplane/braidplane-core/pkg/connector/writegate"
 	climodel "github.com/Braidplane/braidplane-core/pkg/model"
 	"github.com/Braidplane/braidplane-core/pkg/must"
 	"github.com/Braidplane/braidplane-core/pkg/pipeline/payload"
@@ -141,17 +142,20 @@ func TestHTTPNextLinkRetryLedgerAndCheckpoint(t *testing.T) {
 	mu.Lock()
 	failWrites = false
 	beforeRecoverySourceCalls := sourceCalls
+	beforeRecoveryWriteCalls := writeCalls
 	beforeRecoveryEffects := logicalEffects
 	mu.Unlock()
 	recovered, err := runner.Recover(ctx, pipelineruntime.ReplayRequest{OrgSlug: org, ProjectSlug: defaultProjectSlug, EnvironmentSlug: must.Slug("prod"), SourceRunSlug: failedRequest.RunSlug, ReplayRunSlug: "retry-recovery", InputMode: pipelineruntime.ReplayInputModePinned, PipelineVersionID: failedRequest.PipelineVersionID})
-	require.NoError(t, err)
-	require.Equal(t, "succeeded", recovered.Metadata.Status)
+	require.ErrorIs(t, err, writegate.ErrOutcomeUnknown)
+	require.NotNil(t, recovered)
+	require.Equal(t, "failed", recovered.Metadata.Status)
 	var afterStarted time.Time
 	require.NoError(t, stack.pool.QueryRow(ctx, `SELECT state,started_at FROM pipeline_sink_effects WHERE run_slug=$1`, failedRequest.RunSlug).Scan(&state, &afterStarted))
-	require.Equal(t, "succeeded", state)
+	require.Equal(t, "in_progress", state)
 	require.Equal(t, started, afterStarted)
 	mu.Lock()
 	require.Equal(t, beforeRecoverySourceCalls, sourceCalls)
+	require.Equal(t, beforeRecoveryWriteCalls, writeCalls)
 	require.Equal(t, beforeRecoveryEffects, logicalEffects)
 	mu.Unlock()
 }
