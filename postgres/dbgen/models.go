@@ -624,6 +624,19 @@ type PipelineCheckpoint struct {
 	DeploymentResolutionDigest pgtype.Text
 }
 
+type PipelineCheckpointFile struct {
+	CheckpointID int64
+	StepSlug     string
+	RequestID    pgtype.UUID
+}
+
+type PipelineCheckpointFileRetention struct {
+	CheckpointID int64
+	StepSlug     string
+	RequestID    pgtype.UUID
+	ExpiresAt    int32
+}
+
 type PipelineCompiledPlan struct {
 	ID               int
 	ProjectID        int64

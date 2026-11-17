@@ -21,8 +21,15 @@ File references stay inside encrypted broker messages and in-process bindings.
 Public JSON and replay checkpoints contain file metadata. Sinks reject cancelled,
 expired, incomplete or corrupt input.
 
-Maintenance runs every minute and deletes expired retained files, including
-cancelled or ambiguous work. Files expire 15 minutes after the request deadline.
+Maintenance runs every minute and deletes expired unpinned retained files,
+including cancelled or ambiguous work. Standalone files expire 15 minutes after
+the request deadline. Eligible pipeline checkpoints privately pin complete inputs
+for the organization's replay-checkpoint retention window (seven days by default).
+Deleting or expiring every referring checkpoint releases the original bytes to
+normal expiry. Recovery uses a new live sink claim; it never revives a dead claim.
+Keep `EXECUTION_REQUEST_KEY_HEX` with the database and retained backups; replacing
+it makes existing chunks unreadable even while their pins remain live.
+Public JSON still contains metadata only. See [file recovery qualification](LARGE_SQL_RECOVERY_QUALIFICATION.md).
 PostgreSQL can reuse the freed space, but its database files may not shrink.
 Allow storage for completed files awaiting expiry, indexes, WAL and backups;
 active-request concurrency limits do not bound that storage.
@@ -51,7 +58,9 @@ failure or cancellation. FTP attempts cleanup through a fresh connection.
 Lost completion, rename or push responses require independent destination
 inspection. Host loss requires provider cleanup procedures or lifecycle rules.
 
-Use matching binaries, Core migration 3 and refreshed runtime/executor grants.
+Use matching binaries, Core migration 5 and refreshed runtime/executor grants.
+Stop old maintenance workers before enabling file checkpoints; their previous
+expiry queries can delete pinned inputs.
 The installer backs up the previous database and configuration before migration
 and applies grants from the candidate tools bundle. Upgrade both sides of the
 encrypted broker contract together.

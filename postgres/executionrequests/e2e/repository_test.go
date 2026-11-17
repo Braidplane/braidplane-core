@@ -16,6 +16,7 @@ import (
 	"github.com/Braidplane/braidplane-core/pkg/testutil/e2edb"
 	"github.com/Braidplane/braidplane-core/pkg/uuid"
 	"github.com/Braidplane/braidplane-core/pkg/xerror"
+	"github.com/Braidplane/braidplane-core/postgres"
 	"github.com/Braidplane/braidplane-core/postgres/executionrequests"
 )
 
@@ -412,7 +413,12 @@ func TestExecutionRequestDeleteExpiredEnvelopes(t *testing.T) { // Shared real d
 		}, testCase.expiresAt))
 	}
 
-	deleted, err := repo.DeleteExpired(ctx, pool)
+	var deleted int64
+	err = postgres.NewTransactionManager(pool).RunInTx(ctx, func(ctx context.Context, db postgres.DBTX) error {
+		var err error
+		deleted, err = deleteExpired(ctx, db)
+		return err
+	})
 	require.NoError(t, err)
 	// Maintenance also expires rows left by other fixtures in this shared database.
 	require.GreaterOrEqual(t, deleted, int64(1))
@@ -464,7 +470,7 @@ func TestExecutionExpiryPreservesUnresolvedAccountProcessing(t *testing.T) { // 
 			lease_expires_at = clock_timestamp() + INTERVAL '30 seconds',
 			result_ciphertext = 'result'::bytea WHERE id = $1`, id, tc.state, tc.started)
 		require.NoError(t, err)
-		_, err = repo.DeleteExpired(ctx, tx)
+		_, err = deleteExpired(ctx, tx)
 		require.NoError(t, err)
 		var exists bool
 		require.NoError(t, tx.QueryRow(ctx, `SELECT EXISTS (SELECT 1 FROM execution_requests WHERE id = $1)`, id).Scan(&exists))
@@ -485,7 +491,7 @@ func TestExecutionExpiryPreservesUnresolvedAccountProcessing(t *testing.T) { // 
 		require.True(t, payloadCleared)
 		require.True(t, attributed)
 		require.True(t, cancellationRequested)
-		_, err = repo.DeleteExpired(ctx, tx)
+		_, err = deleteExpired(ctx, tx)
 		require.NoError(t, err)
 		var retriedAt time.Time
 		require.NoError(t, tx.QueryRow(ctx, `SELECT updated_at FROM execution_requests WHERE id = $1`, id).Scan(&retriedAt))
@@ -497,7 +503,7 @@ func TestExecutionExpiryPreservesUnresolvedAccountProcessing(t *testing.T) { // 
 			require.NoError(t, err)
 			require.True(t, found)
 			require.Equal(t, executionrequests.StateCancelled, claimed.State, "expired payload must never be replayed")
-			_, err = repo.DeleteExpired(ctx, tx)
+			_, err = deleteExpired(ctx, tx)
 			require.NoError(t, err)
 			require.NoError(t, tx.QueryRow(ctx, `SELECT EXISTS (SELECT 1 FROM execution_requests WHERE id = $1)`, id).Scan(&exists))
 			require.True(t, exists, "lease cancellation is not executor acknowledgement")
@@ -507,7 +513,7 @@ func TestExecutionExpiryPreservesUnresolvedAccountProcessing(t *testing.T) { // 
 			require.NoError(t, repo.Complete(ctx, tx, id, claimToken, []byte("late result"), true))
 			require.NoError(t, tx.QueryRow(ctx, `SELECT result_ciphertext IS NULL FROM execution_requests WHERE id = $1`, id).Scan(&payloadCleared))
 			require.True(t, payloadCleared, "late completion must not restore expired results before the next retention sweep")
-			_, err = repo.DeleteExpired(ctx, tx)
+			_, err = deleteExpired(ctx, tx)
 			require.NoError(t, err)
 			require.NoError(t, tx.QueryRow(ctx, `SELECT EXISTS (SELECT 1 FROM execution_requests WHERE id = $1)`, id).Scan(&exists))
 			require.False(t, exists, "acknowledged completion can expire")
@@ -1104,4 +1110,14 @@ func TestDispatchAuthorityRejectsRevocationAndDrift(t *testing.T) {
 	_, err = pool.Exec(ctx, `UPDATE execution_requests SET cancel_requested_at=NOW() WHERE id=$1`, id)
 	require.NoError(t, err)
 	check(false)
+}
+
+// The owning service uses the same lock/recheck ordering within one transaction.
+func deleteExpired(ctx context.Context, db postgres.DBTX) (int64, error) {
+	repo := executionrequests.New()
+	cutoff, err := repo.LockExpired(ctx, db)
+	if err != nil {
+		return 0, err
+	}
+	return repo.DeleteExpired(ctx, db, cutoff)
 }

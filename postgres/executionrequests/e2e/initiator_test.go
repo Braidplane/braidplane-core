@@ -105,7 +105,7 @@ func TestOrganizationDeletionRequiresExecutionDisposition(t *testing.T) { // Sha
 			if state == "running" || state == "ambiguous" || state == "cancelled" {
 				_, err = tx.Exec(ctx, `UPDATE execution_requests SET expires_at = NOW() - INTERVAL '1 second' WHERE id = $1`, id)
 				require.NoError(t, err)
-				_, err = repo.DeleteExpired(ctx, tx)
+				_, err = deleteExpired(ctx, tx)
 				require.NoError(t, err)
 				var bytes int
 				require.NoError(t, tx.QueryRow(ctx, `SELECT octet_length(request_ciphertext) FROM execution_requests WHERE id = $1`, id).Scan(&bytes))

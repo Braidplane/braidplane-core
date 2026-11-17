@@ -64,6 +64,27 @@ class LargeOracleTest(unittest.TestCase):
                                              "sha256": hashlib.sha256(raw).hexdigest()}])
         self.assertEqual(self.path.read_bytes(), raw)
 
+    def test_actual_core_object_envelope(self):
+        envelope = self.envelope() | {"rows": list(reversed(self.rows))}
+        raw = json.dumps(envelope)
+        self.path.write_text(raw)
+        result = verify([self.path], "sql-object-envelope", 2, 32)
+        self.assertEqual(result["records"], 2)
+        self.assertEqual(result["objects"][0]["sha256"], hashlib.sha256(raw.encode()).hexdigest())
+        invalid = [raw.replace('"order_id": 1', '"order_id": 1, "order_id": 1'),
+                   raw[:-1], raw + " {}"]
+        for rows in ([self.rows[0]], [self.rows[0], self.rows[0]],
+                     [self.rows[0] | {"extra": 1}, self.rows[1]],
+                     [self.rows[0] | {"amount_cents": True}, self.rows[1]],
+                     [self.rows[0] | {"payload": "changed"}, self.rows[1]],
+                     self.envelope()["rows"]):
+            invalid.append(json.dumps(envelope | {"rows": rows}))
+        for value in invalid:
+            with self.subTest(value=value):
+                self.path.write_text(value)
+                with self.assertRaises((ValueError, ijson.JSONError)):
+                    verify([self.path], "sql-object-envelope", 2, 32)
+
     def test_sql_invalid_structure(self):
         invalid = []
         for key in self.envelope():
@@ -155,12 +176,15 @@ class LargeOracleTest(unittest.TestCase):
         envelope = self.envelope()
         envelope["rows"] *= 3000
         envelope["row_count"] = 6000
-        raw = json.dumps(envelope).encode()
-        stream = BoundedInput(raw)
-        rows = sql_records(stream)
-        self.assertEqual(next(rows)["order_id"], 1)
-        self.assertLess(stream.tell(), len(raw))
-        self.assertEqual(1 + sum(1 for _ in rows), 6000)
+        for object_rows in (False, True):
+            if object_rows:
+                envelope["rows"] = self.rows * 3000
+            raw = json.dumps(envelope).encode()
+            stream = BoundedInput(raw)
+            rows = sql_records(stream, object_rows=object_rows)
+            self.assertEqual(next(rows)["order_id"], 1)
+            self.assertLess(stream.tell(), len(raw))
+            self.assertEqual(1 + sum(1 for _ in rows), 6000)
 
     def test_cli_failure_is_nonzero(self):
         self.path.write_text("{}")

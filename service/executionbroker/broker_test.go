@@ -122,7 +122,11 @@ func (r *fakeRequestRepo) Create(_ context.Context, _ postgres.DBTX, request req
 	return nil
 }
 
-func (r *fakeRequestRepo) DeleteExpired(context.Context, postgres.DBTX) (int64, error) {
+func (r *fakeRequestRepo) LockExpired(context.Context, postgres.DBTX) (time.Time, error) {
+	return time.Now(), nil
+}
+
+func (r *fakeRequestRepo) DeleteExpired(context.Context, postgres.DBTX, time.Time) (int64, error) {
 	r.deleteExpiredCalls.Add(1)
 	return 0, nil
 }

@@ -224,7 +224,11 @@ change with `runtime.run.slug`. Use `runtime.sink.replay_identity` for a determi
 S3 key with `overwrite: true`.
 
 Bounded eligible checkpoints are saved before sink dispatch, with a 10 MiB total
-limit and the organization's retention policy.
+limit and the organization's retention policy. Complete file inputs remain
+encrypted outside that JSON allowance and follow replay-checkpoint retention
+(seven days by default). Recovery streams the original retained bytes under a new
+live execution claim. Public run/checkpoint JSON exposes file metadata only;
+missing or expired file inputs are refused without rereading the source.
 Event payloads and runs with resolved environment secrets are excluded from this
 early retention. Missing inputs, unknown ledger-only attempts and unsafe effects
 remain refused. Deterministic S3 output can be confirmed through readback as

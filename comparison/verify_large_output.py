@@ -64,7 +64,14 @@ def sql_metadata(stream):
                     raise ValueError("SQL columns differ from the frozen dataset")
             else:
                 depth = 1
-                for _, event, _ in events:
+                row_keys = set()
+                for prefix, event, value in events:
+                    if prefix == "rows.item" and event == "start_map":
+                        row_keys = set()
+                    if prefix == "rows.item" and event == "map_key":
+                        if value in row_keys:
+                            raise ValueError("Duplicate SQL row member: " + value)
+                        row_keys.add(value)
                     depth += (event in {"start_array", "start_map"}) - (event in {"end_array", "end_map"})
                     if depth == 0:
                         break
@@ -77,16 +84,22 @@ def sql_metadata(stream):
     return columns, count
 
 
-def sql_records(stream):
+def sql_records(stream, *, object_rows=False):
     columns, expected_count = sql_metadata(stream)
     # A metadata pass permits rows before column_names without buffering the result.
     stream.seek(0)
     count = 0
     for values in ijson.items(stream, "rows.item", map_type=UniqueObject):
-        if not isinstance(values, list) or len(values) != len(columns):
-            raise ValueError("SQL row width differs from column_names")
+        if object_rows:
+            if not isinstance(values, dict) or set(values) != set(columns):
+                raise ValueError("SQL row fields differ from column_names")
+            row = values
+        else:
+            if not isinstance(values, list) or len(values) != len(columns):
+                raise ValueError("SQL row width differs from column_names")
+            row = dict(zip(columns, values))
         count += 1
-        yield dict(zip(columns, values))
+        yield row
     if count != expected_count:
         raise ValueError("SQL row_count differs from parsed rows")
 
@@ -98,8 +111,8 @@ def records(path, encoding):
             if next(events, None) != ("", "start_array", None):
                 raise ValueError("Expected one JSON array")
             yield from ijson.items(events, "item", map_type=UniqueObject)
-        elif encoding == "sql-envelope":
-            yield from sql_records(stream)
+        elif encoding in {"sql-envelope", "sql-object-envelope"}:
+            yield from sql_records(stream, object_rows=encoding == "sql-object-envelope")
         elif encoding == "airbyte-jsonl":
             for line in stream:
                 if line.strip():
@@ -149,7 +162,7 @@ def verify(paths, encoding, rows, payload_bytes):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--encoding", choices=["json", "airbyte-jsonl", "sql-envelope"], required=True)
+    parser.add_argument("--encoding", choices=["json", "airbyte-jsonl", "sql-envelope", "sql-object-envelope"], required=True)
     parser.add_argument("--rows", type=int, required=True)
     parser.add_argument("--payload-bytes", type=int, required=True)
     parser.add_argument("objects", type=Path, nargs="+")

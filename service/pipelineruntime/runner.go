@@ -1107,8 +1107,13 @@ func (r *Runner) Replay(
 			return nil, ErrReplayUnsupportedMode.Detail("sink recovery requires retained outputs for every source and transform").WithPublicDetail("Recovery requires complete retained outputs for every source and transform. These inputs are incomplete; reconcile provider effects before a new evaluation, which reads sources again.")
 		}
 		storedPayload, ok := retained.Payload()
-		if ok && storedPayload.Representation == model.ContractRepresentationFile && (storedPayload.File == nil || int64(len(storedPayload.FileBytes)) != storedPayload.File.SizeBytes) {
+		if ok && storedPayload.Representation == model.ContractRepresentationFile && (storedPayload.File == nil || (storedPayload.FileReference == nil && int64(len(storedPayload.FileBytes)) != storedPayload.File.SizeBytes)) {
 			return nil, ErrReplayUnsupportedMode.WithPublicDetail("Retained file bytes are unavailable or incomplete. File metadata does not provide repair inputs; reconcile provider effects before starting a new evaluation, which reads sources again.")
+		}
+		if ok && storedPayload.Representation == model.ContractRepresentationFile && storedPayload.FileReference != nil {
+			if _, err := buildSinkPayloadBinding(&SinkRuntimeInput{SourceResult: retained}); err != nil {
+				return nil, ErrReplayUnsupportedMode.With(err)
+			}
 		}
 	}
 	if req.EnvironmentSlug == "" {

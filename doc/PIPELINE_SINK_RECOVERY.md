@@ -39,8 +39,9 @@ This endpoint is synchronous. A persisted failed recovery is returned as a run
 record with its failure diagnostics. After a response timeout, inspect run
 history and provider state before another attempt. Confirmed repeat-safe effects
 are skipped with `skip_ledger_succeeded`; their completed ledger records stay
-immutable. An unknown S3 write can converge through the same deterministic
-object overwrite. Unknown `deduplicated_by_ledger` attempts and attempted `unsafe`
+immutable. An unknown deterministic S3 overwrite can be confirmed by complete object
+readback matching the prepared bytes, content type and user metadata. It cannot
+start another writer; missing or different output keeps recovery blocked. Unknown `deduplicated_by_ledger` attempts and attempted `unsafe`
 operations remain refused; there is no force-retry or manual success-marking API.
 
 The initial representative workflow uses row input and S3 JSON export with
@@ -51,9 +52,18 @@ contract. Source/transform failures, missing or pruned checkpoints, event-input
 runs without payload checkpoints, and sink runtime-input substitutions not
 retained in the checkpoint are unsupported. Recovery refuses a missing sink
 input rather than accepting new values or guessing a provider destination.
-File metadata alone is not a retained file. When nonempty file bytes are
-unavailable, recovery refuses the request before creating another run or
-dispatching a sink. Reconcile the destination before a new evaluation, which
+Pipeline file checkpoints privately pin complete encrypted input for the
+organization's replay-checkpoint retention window, measured from checkpoint
+creation (seven days by default); existing pins follow policy changes. For an unclaimed effect, a new live sink claim reads those original
+bytes after recovery; a lost source claim is never revived. The association is
+scoped to the original organization, project, environment and run, and stays out
+of public JSON. Missing, expired or mismatched input is refused before creating
+another run or dispatching a sink. File metadata alone grants no read authority. Existing metadata-only file
+checkpoints cannot acquire recovery bytes through an upgrade; reconcile the
+destination before starting a new evaluation.
+Deleting or expiring the last referring checkpoint releases its file to ordinary
+minute maintenance. Plan retained storage for every pinned input, including
+completed runs; these bytes sit outside the 10 MiB checkpoint JSON allowance. Reconcile the destination before a new evaluation, which
 reads the source again.
 You can repair credentials through the existing datasource lifecycle. Changing
 the operation or target starts a new evaluation, not recovery of the original
