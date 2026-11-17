@@ -109,6 +109,9 @@ func (s *sinkRuntime) Execute(ctx context.Context, input *SinkRuntimeInput) erro
 	if input == nil {
 		return errSinkNotConfigured.Detail("runtime input is required")
 	}
+	if input.ExclusiveEffectClaim && strings.TrimSpace(input.RunSlug) == "" {
+		return xerror.InvalidInput(xerror.PipelineRun).Detail("sink dispatch requires an owning run")
+	}
 	ctx = pipelineruntimevars.WithSinkExecution(ctx)
 
 	if err := validateReservedSinkConfigBindings(input.SinkConfig); err != nil {
@@ -170,6 +173,12 @@ func (s *sinkRuntime) Execute(ctx context.Context, input *SinkRuntimeInput) erro
 		ctx = writegate.WithBeforeWrite(ctx, func(ctx context.Context) error {
 			reachedWrite = true
 			skipWrite, claimErr = s.beginEffect(ctx, input)
+			if xerror.Is(claimErr, writegate.ErrReconcileOnly) {
+				claimErr = nil
+				input.ReplayDecision = "reconcile_provider_effect"
+				input.DeliveryOutcome = "unknown"
+				return writegate.ErrReconcileOnly
+			}
 			if claimErr != nil {
 				return claimErr
 			}
@@ -210,6 +219,9 @@ func (s *sinkRuntime) Execute(ctx context.Context, input *SinkRuntimeInput) erro
 			return nil
 		}
 		if !reachedWrite {
+			if ctx.Err() != nil {
+				return xerror.Unexpected().With(ctx.Err())
+			}
 			// Keep established credential, scope and connection causes; local preparation has no delivery claim.
 			if execErr != nil && sourceFailureReasonCode(execErr) != pipelinerun.FailureReasonCodeSourceQueryFailed {
 				return execErr
@@ -264,6 +276,13 @@ func (s *sinkRuntime) beginEffect(ctx context.Context, input *SinkRuntimeInput) 
 		return false, nil
 	}
 
+	if input.ExclusiveEffectClaim {
+		input.ReplayDecision = "blocked_active_or_unknown_effect"
+		if input.SinkBackend == model.SinkBackendS3 && input.IdempotencyClass == pipelinespec.SinkIdempotencyClassNaturallyIdempotent && input.SinkConfig["overwrite"] == true {
+			return false, writegate.ErrReconcileOnly
+		}
+		return false, writegate.ErrOutcomeUnknown
+	}
 	switch input.IdempotencyClass {
 	case pipelinespec.SinkIdempotencyClassNaturallyIdempotent:
 		input.ReplayDecision = "execute_naturally_idempotent_replay"
@@ -317,7 +336,12 @@ func (s *sinkRuntime) markEffectSucceeded(ctx context.Context, input *SinkRuntim
 
 // sinkEffectAttempt maps runtime-only fields into the safe durable ledger shape.
 func sinkEffectAttempt(input *SinkRuntimeInput) pipelinerun.SinkEffectAttempt {
+	owner := ""
+	if input.ExclusiveEffectClaim {
+		owner = input.RunSlug
+	}
 	return pipelinerun.SinkEffectAttempt{
+		OwnerRunSlug:      owner,
 		ReplayIdentity:    input.ReplayIdentity,
 		SinkStepSlug:      input.SinkStepSlug,
 		IdempotencyKey:    input.IdempotencyKey,
@@ -789,6 +813,12 @@ func (s *sinkRuntime) executeS3Sink(ctx context.Context, input *SinkRuntimeInput
 		execResult, err = s.queryExecutor.Execute(ctx, input.OrgSlug, input.SinkDataSourceSlug, input.SinkOperationRef, model.SystemEventActor(), params)
 	}
 	captureSinkExecutionResult(input, execResult)
+	if err == nil && execResult != nil {
+		err = execResult.Error()
+	}
+	if err == nil && execResult == nil {
+		err = xerror.Unexpected().Detail("S3 sink returned no execution result")
+	}
 	if err != nil {
 		return xerror.Wrapf("execute s3 sink query: %w", err)
 	}

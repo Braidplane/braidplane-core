@@ -190,6 +190,8 @@ type service struct {
 // ConnectorExecutionRequest is the complete connector payload executed by a
 // worker. Remote implementations must encrypt it before persistence.
 type ConnectorExecutionRequest struct {
+	// ReconcileOnly is an encrypted executor protocol flag, valid only for S3 preparation requests.
+	ReconcileOnly           bool                        `json:"reconcile_only,omitempty"`
 	SinkExecution           bool                        `json:"sink_execution,omitempty"`
 	PinnedConfigDigest      string                      `json:"pinned_config_digest,omitempty"`
 	ResourceScope           *resourcescope.Scope        `json:"resource_scope,omitempty"`
@@ -1514,7 +1516,8 @@ func resultWithError(execResult *result.ExecutionResult, err error) *result.Exec
 }
 
 func isPreservedExecutionError(err error) bool {
-	return xerror.Is(err, xerror.ExecutionRowLimitExceeded()) ||
+	return xerror.Is(err, xerror.ReplayUnsafe()) ||
+		xerror.Is(err, xerror.ExecutionRowLimitExceeded()) ||
 		xerror.Is(err, xerror.ExecutionResponseSizeExceeded()) ||
 		xerror.Is(err, xerror.ExecutionRequestSizeExceeded()) ||
 		xerror.Is(err, xerror.ExecutionRedirectLimitExceeded()) ||

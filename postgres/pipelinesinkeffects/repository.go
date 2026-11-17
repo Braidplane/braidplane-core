@@ -49,6 +49,7 @@ func (r *repository) BeginOrGet(
 	attempt pipelinerun.SinkEffectAttempt,
 ) (*pipelinerun.SinkEffect, error) {
 	row, err := internalpg.New(tx).BeginPipelineSinkEffect(ctx, internalpg.BeginPipelineSinkEffectParams{
+		OwnerRunSlug:      attempt.OwnerRunSlug,
 		OrgSlug:           orgSlug,
 		ProjectSlug:       projectSlug,
 		EnvironmentSlug:   environmentSlug,
@@ -63,6 +64,9 @@ func (r *repository) BeginOrGet(
 	})
 	if err != nil {
 		if xerror.Is(err, sql.ErrNoRows) {
+			if attempt.OwnerRunSlug != "" {
+				return nil, xerror.ReplayUnsafe().WithPublicDetail("The run no longer owns sink dispatch. Recovery must use a new attempt with retained inputs.")
+			}
 			return nil, ErrProjectEnvironmentNotFound.With(err)
 		}
 		return nil, xerror.Unexpected().With(err)

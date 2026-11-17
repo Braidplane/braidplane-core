@@ -159,6 +159,7 @@ type SinkRuntime interface {
 
 // SinkRuntimeInput contains the resolved output passed to sink runtime.
 type SinkRuntimeInput struct {
+	ExclusiveEffectClaim   bool
 	OperationSnapshot      *contractplan.OperationContent
 	OrgSlug                slug.Slug
 	ProjectSlug            slug.Slug
@@ -1126,7 +1127,8 @@ func (r *Runner) Replay(
 	if timeline == nil || timeline.ExecutionContext == nil {
 		return nil, ErrReplayUnsupportedMode.Detail("recovery requires retained execution context; legacy runs cannot recalculate it")
 	}
-	if timeline.Failure != nil && timeline.Failure.ReasonCode == pipelinerun.FailureReasonCodeWorkerOwnershipLost {
+	workerLoss := timeline.Failure != nil && timeline.Failure.ReasonCode == pipelinerun.FailureReasonCodeWorkerOwnershipLost
+	{
 		recoveryContext := *timeline.ExecutionContext
 		recoveryContext.RunSlug = replayRunSlug
 		stableExecutionValue := func(value any) error {
@@ -1139,7 +1141,7 @@ func (r *Runner) Replay(
 				return err
 			}
 			if !reflect.DeepEqual(original, recovered) {
-				return ErrReplayUnsafe.WithPublicDetail("Worker-loss recovery cannot change sink targets or inputs derived from runtime.run.slug. Use runtime.sink.replay_identity for repeat-safe effect identity.")
+				return ErrReplayUnsafe.WithPublicDetail("Recovery cannot change sink targets or inputs derived from runtime.run.slug. Use runtime.sink.replay_identity for repeat-safe effect identity.")
 			}
 			return nil
 		}
@@ -1147,10 +1149,10 @@ func (r *Runner) Replay(
 			if step.Sink == nil {
 				continue
 			}
-			if !sinkIdempotencyClassForStep(step).IsReplaySafe() {
+			if workerLoss && !sinkIdempotencyClassForStep(step).IsReplaySafe() {
 				return nil, ErrReplayUnsafe.WithPublicDetail("Worker-loss recovery requires a repeat-safe strategy for every sink. Reconcile unknown or unsafe provider effects first.")
 			}
-			if sinkBackendForStep(step) == model.SinkBackendS3 && sinkIdempotencyClassForStep(step) == pipelinespec.SinkIdempotencyClassNaturallyIdempotent && step.Sink.Config["overwrite"] != true {
+			if workerLoss && sinkBackendForStep(step) == model.SinkBackendS3 && sinkIdempotencyClassForStep(step) == pipelinespec.SinkIdempotencyClassNaturallyIdempotent && step.Sink.Config["overwrite"] != true {
 				return nil, ErrReplayUnsafe.WithPublicDetail("Worker-loss recovery of a naturally idempotent S3 sink requires deterministic overwrite with overwrite: true.")
 			}
 			for _, value := range []any{step.Sink.Config, step.Sink.OperationInline} {
@@ -2160,6 +2162,7 @@ func (r *Runner) Run(
 					}
 					if execErr == nil {
 						sinkRuntimeInput = &SinkRuntimeInput{
+							ExclusiveEffectClaim:   true,
 							OperationSnapshot:      operationSnapshot,
 							OrgSlug:                req.OrgSlug,
 							ProjectSlug:            req.ProjectSlug,

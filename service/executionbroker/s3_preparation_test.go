@@ -41,10 +41,20 @@ func (d *preparationDispatcher) Dispatch(_ context.Context, _ postgres.DBTX, _ u
 }
 
 func TestS3PreparationCrossesEncryptedWorkerBoundary(t *testing.T) {
-	for _, mode := range []string{"malformed", "serialization", "read", "valid", "native", "skip", "old_worker"} {
+	for _, mode := range []string{"malformed", "serialization", "read", "valid", "native", "skip", "old_worker", "reconcile", "reconcile_missing", "old_reconciler"} {
 		t.Run(mode, func(t *testing.T) {
 			var writes, claims atomic.Int32
 			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				if r.Method == http.MethodGet {
+					if mode == "reconcile_missing" {
+						w.WriteHeader(http.StatusNotFound)
+						return
+					}
+					w.Header().Set("Content-Type", "application/json")
+					_, err := io.WriteString(w, `[{"id":1}]`)
+					assert.NoError(t, err)
+					return
+				}
 				writes.Add(1)
 				assert.EqualValues(t, 1, claims.Load(), "ledger admission must precede provider write")
 				body, err := io.ReadAll(r.Body)
@@ -71,6 +81,9 @@ func TestS3PreparationCrossesEncryptedWorkerBoundary(t *testing.T) {
 				if mode == "old_worker" && request.Kind == kindPrepareS3Write {
 					return broker.finish(workerCtx, request.ID, request.ClaimToken, encryptedResponse{ErrorCode: errorCodeInvalidRequest}, false)
 				}
+				if mode == "old_reconciler" && claims.Load() > 0 {
+					return broker.finish(workerCtx, request.ID, request.ClaimToken, encryptedResponse{WritePrepared: true}, true)
+				}
 				return broker.processClaimed(workerCtx, request)
 			}}
 			broker.dispatcher = dispatcher
@@ -90,6 +103,9 @@ func TestS3PreparationCrossesEncryptedWorkerBoundary(t *testing.T) {
 			request := queriessvc.ConnectorExecutionRequest{ConcurrencyLimit: 1, ConcurrencyQueueLimit: 1, ConcurrencyQueueTimeout: time.Second, SinkExecution: true, OrganizationSlug: "acme", DataSourceSlug: "objects", DataSourceType: model.DataSourceTypeS3, ConfigVersion: "config-v1", CredentialVersion: "credential-v1", CredentialReference: "secret/2026-10-18T10:00:00Z", ConfigJSON: []byte(`{}`), CredentialsJSON: []byte(`{}`), StatementJSON: statement, Parameters: params, Limits: connectortypes.ExecutionLimits{MaxResponseBytes: 1024}}
 			ctx := writegate.WithBeforeWrite(t.Context(), func(context.Context) error {
 				claims.Add(1)
+				if mode == "reconcile" || mode == "reconcile_missing" || mode == "old_reconciler" {
+					return writegate.ErrReconcileOnly
+				}
 				if mode == "skip" {
 					return writegate.ErrSkipped
 				}
@@ -97,6 +113,15 @@ func TestS3PreparationCrossesEncryptedWorkerBoundary(t *testing.T) {
 			})
 			output, err := broker.ExecuteConnector(ctx, request)
 			switch mode {
+			case "reconcile":
+				require.NoError(t, err)
+				require.NotNil(t, output)
+				require.Zero(t, writes.Load())
+				require.Equal(t, []string{kindPrepareS3Write, kindPrepareS3Write}, dispatcher.kinds)
+			case "reconcile_missing", "old_reconciler":
+				require.ErrorIs(t, err, writegate.ErrOutcomeUnknown)
+				require.Zero(t, writes.Load())
+				require.Equal(t, []string{kindPrepareS3Write, kindPrepareS3Write}, dispatcher.kinds)
 			case "malformed", "serialization", "read":
 				require.ErrorIs(t, err, writegate.ErrPreparationFailed)
 				require.Zero(t, claims.Load())

@@ -353,7 +353,13 @@ func (provider s3ObjectProvider) WriteFile(
 	req remotefile.WriteRequest,
 ) (*remotefile.WriteResult, error) {
 	if err := writegate.BeforeWrite(ctx); err != nil {
-		return nil, err
+		if !xerror.Is(err, writegate.ErrReconcileOnly) {
+			return nil, err
+		}
+		if err := provider.reconcile(ctx, s3client.MatchObjectRequest{Bucket: provider.bucket, Key: req.Target, SizeBytes: int64(len(req.Content)), SHA256: s3client.ContentDigest(req.Content), ContentType: req.ContentType, Metadata: req.Metadata}); err != nil {
+			return nil, err
+		}
+		return &remotefile.WriteResult{WrittenBytes: 0}, nil
 	}
 	writeResult, err := provider.client.PutObject(ctx, s3client.PutObjectRequest{
 		Bucket:      provider.bucket,
@@ -429,4 +435,22 @@ func firstNonEmpty(values ...string) string {
 		}
 	}
 	return ""
+}
+
+// reconcile never writes: an unresolved claim is not permission for a replacement writer.
+func (provider s3ObjectProvider) reconcile(ctx context.Context, req s3client.MatchObjectRequest) error {
+	matcher, ok := provider.client.(interface {
+		MatchesObject(context.Context, s3client.MatchObjectRequest) (bool, error)
+	})
+	if !ok {
+		return writegate.ErrOutcomeUnknown
+	}
+	matched, err := matcher.MatchesObject(ctx, req)
+	if err != nil {
+		return writegate.ErrOutcomeUnknown.With(err)
+	}
+	if !matched {
+		return writegate.ErrOutcomeUnknown
+	}
+	return nil
 }

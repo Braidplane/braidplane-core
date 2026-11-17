@@ -208,7 +208,18 @@ func (b *Broker) ExecuteConnector(
 			return nil, writegate.ErrPreparationFailed
 		}
 		if err := writegate.BeforeWrite(ctx); err != nil {
-			return nil, err
+			if !xerror.Is(err, writegate.ErrReconcileOnly) {
+				return nil, err
+			}
+			request.ReconcileOnly = true
+			reconciled, err := b.submitAndWait(ctx, request.OrganizationSlug.String(), kindPrepareS3Write, request)
+			if err != nil {
+				return nil, err
+			}
+			if !reconciled.WriteReconciled || reconciled.Result == nil {
+				return nil, writegate.ErrOutcomeUnknown
+			}
+			return reconciled.Result, nil
 		}
 	}
 	response, err := b.submitAndWait(ctx, request.OrganizationSlug.String(), kindQuery, request)
@@ -222,6 +233,7 @@ func (b *Broker) ExecuteConnector(
 }
 
 type encryptedResponse struct {
+	WriteReconciled           bool                           `json:"write_reconciled,omitempty"`
 	WritePrepared             bool                           `json:"write_prepared,omitempty"`
 	Result                    *result.ExecutionResult        `json:"result,omitempty"`
 	ResultRuntime             *executionResultRuntimePayload `json:"result_runtime,omitempty"`
@@ -1178,6 +1190,8 @@ func responseError(response encryptedResponse) error {
 		return nil
 	}
 	switch response.ErrorCode {
+	case "sink_effect_unknown":
+		return writegate.ErrOutcomeUnknown
 	case "sink_preparation_failed":
 		return writegate.ErrPreparationFailed.WithPublicDetail(response.PublicDetail)
 	case "connection_failed":
@@ -1411,6 +1425,10 @@ func (b *Broker) processClaimed(ctx context.Context, request requestrepo.Request
 				break
 			}
 
+			if payload.ReconcileOnly && request.Kind != kindPrepareS3Write {
+				response.ErrorCode, succeeded = errorCodeInvalidRequest, false
+				break
+			}
 			if payload.Limits.MaxResponseBytes <= 0 {
 				response.ErrorCode, succeeded = errorCodeInvalidRequest, false
 				break
@@ -1429,14 +1447,18 @@ func (b *Broker) processClaimed(ctx context.Context, request requestrepo.Request
 				}
 				execCtx = writegate.WithBeforeWrite(execCtx, func(context.Context) error {
 					prepared = true
+					if payload.ReconcileOnly {
+						return writegate.ErrReconcileOnly
+					}
 					return writegate.ErrSkipped
 				})
 			}
 			response.Result, err = b.executeConnector(execCtx, id, claimToken, payload)
-			if request.Kind == kindPrepareS3Write && prepared {
+			if request.Kind == kindPrepareS3Write && prepared && !payload.ReconcileOnly {
 				response = encryptedResponse{WritePrepared: true}
 				break
 			}
+			response.WriteReconciled = payload.ReconcileOnly && prepared && err == nil && response.Result != nil && response.Result.Error() == nil
 			if err != nil {
 				response.ErrorCode, succeeded = safeQueryErrorCode(err), false
 				response.PublicDetail = xerror.PublicDetail(err)
@@ -1454,7 +1476,7 @@ func (b *Broker) processClaimed(ctx context.Context, request requestrepo.Request
 			if response.ErrorCode == errorCodeResourceScope {
 				response = encryptedResponse{ErrorCode: errorCodeResourceScope}
 			}
-			if request.Kind == kindPrepareS3Write && (response.ErrorCode == "" || response.ErrorCode == errorCodeQueryFailed) {
+			if request.Kind == kindPrepareS3Write && !payload.ReconcileOnly && (response.ErrorCode == "" || response.ErrorCode == errorCodeQueryFailed) {
 				response = encryptedResponse{ErrorCode: "sink_preparation_failed", PublicDetail: "S3 sink preparation failed before provider dispatch. Review the selected operation fields and payload format."}
 				succeeded = false
 			}
@@ -1612,6 +1634,8 @@ func (b *Broker) processClaimed(ctx context.Context, request requestrepo.Request
 
 func safeQueryErrorCode(err error) string {
 	switch {
+	case xerror.Is(err, writegate.ErrOutcomeUnknown):
+		return "sink_effect_unknown"
 	case xerror.Is(err, xerror.DestinationConstraintViolation()):
 		return errorCodeDestinationConstraint
 	case xerror.Is(err, xerror.SourceQueryInvalid()):

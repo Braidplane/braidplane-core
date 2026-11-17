@@ -60,6 +60,8 @@ type fakeRows struct {
 
 func (r *fakeRows) Close() {}
 
+func (r *fakeRows) TypeMap() *pgtype.Map { return pgtype.NewMap() }
+
 func (r *fakeRows) Err() error {
 	return r.err
 }

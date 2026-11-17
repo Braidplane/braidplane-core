@@ -696,10 +696,27 @@ shared deployment limit. SQL pool series are process-local and may be summed.
 ### Worker Queue Configuration
 
 Each value controls one River queue in one `worker` process. The `api` command
-does not start consumers. All values must be greater than zero.
+does not start consumers. Concurrency limits must be greater than zero.
+
+The default job timeout remains one minute. Rescue now considers attempts after
+two minutes, followed by River's roughly 30-second maintenance scan and retry
+scheduling. The detection/fencing target is three minutes after worker loss with
+an available database and worker capacity. A lost connection alone never releases
+a durable sink write claim. See [pipeline recovery](docs-public/getting-started/pipeline-specifications.md#retained-input-recovery)
+for eligibility and operator actions.
+
+For legitimate longer jobs, raise both timing settings on every worker before
+starting that work. Rescue must exceed the positive job timeout by at least one
+minute; unbounded timeouts are rejected. Worker-specific longer timeouts can delay
+rescue further. Increasing the limits also increases the recovery target by the
+same duration. Queue backlog, database outages and unavailable workers can extend
+that delay. Drain and replace old worker/executor versions before enabling the
+shorter timing; old binaries do not enforce the durable claim and readback rules.
 
 | Variable | TOML | Environment | Flag | Default | Type | Description |
 |----------|------|-------------|------|---------|------|-------------|
+| Job Timeout | `worker.job_timeout` | `WORKER_JOB_TIMEOUT` | `--worker-job-timeout` | `1m` | duration | Time allowed before River cancels a job's context |
+| Rescue Stuck Jobs After | `worker.rescue_stuck_jobs_after` | `WORKER_RESCUE_STUCK_JOBS_AFTER` | `--worker-rescue-stuck-jobs-after` | `2m` | duration | Attempt age before rescue; at least one minute longer than the job timeout |
 | Pipeline Git Max Workers | `worker.pipeline_git_max_workers` | `WORKER_PIPELINE_GIT_MAX_WORKERS` | `--worker-pipeline-git-max-workers` | `1` | int | Maximum concurrent pipeline Git jobs per process |
 | Email Max Workers | `worker.email_max_workers` | `WORKER_EMAIL_MAX_WORKERS` | `--worker-email-max-workers` | `1` | int | Maximum concurrent email jobs per process |
 | Notification Delivery Max Workers | `worker.notification_delivery_max_workers` | `WORKER_NOTIFICATION_DELIVERY_MAX_WORKERS` | `--worker-notification-delivery-max-workers` | `1` | int | Maximum concurrent notification delivery jobs per process |

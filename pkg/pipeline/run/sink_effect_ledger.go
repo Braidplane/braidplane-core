@@ -23,6 +23,7 @@ const (
 // deliberately excludes payload values, credentials, and the idempotency key
 // from run diagnostics; the key is used only as the repository identity.
 type SinkEffectAttempt struct {
+	OwnerRunSlug      string
 	ReplayIdentity    string
 	SinkStepSlug      slug.Slug
 	IdempotencyKey    string

@@ -159,7 +159,10 @@ func testRunnerRecoveryPreservesEffect(t *testing.T, source pipelinerun.RunSourc
 	sourceValue := 1
 	providerCalls := map[string]int{}
 	providerObjects := map[string]any{}
-	sink := NewSinkRuntime(&fakeSinkQueryExecutor{executeFn: func(_ context.Context, _, _, operation slug.Slug, _ model.EventActor, params map[string]any, _ ...queriessvc.ExecuteOption) (*result.ExecutionResult, error) {
+	sink := NewSinkRuntime(&fakeSinkQueryExecutor{reconcileFn: func(operation slug.Slug, params map[string]any) (*result.ExecutionResult, error) {
+		require.Equal(t, providerObjects[operation.String()], params["input"], "readback must compare the retained output")
+		return result.NewS3Result(&result.FileResult{Operation: "write"}, 0, nil), nil
+	}, executeFn: func(_ context.Context, _, _, operation slug.Slug, _ model.EventActor, params map[string]any, _ ...queriessvc.ExecuteOption) (*result.ExecutionResult, error) {
 		providerCalls[operation.String()]++
 		providerObjects[operation.String()] = params["input"]
 		return result.NewS3Result(&result.FileResult{Operation: "write"}, 0, nil), nil
@@ -206,7 +209,7 @@ func testRunnerRecoveryPreservesEffect(t *testing.T, source pipelinerun.RunSourc
 		require.Equal(t, "skip_ledger_succeeded", outcome.Timeline.Snapshots[1].Input.SinkReplayDecision)
 	}
 	require.Equal(t, 1, sourceCalls, "recovery must not reread current source data")
-	require.Equal(t, map[string]int{"save-a": 1, "save-b": 2}, providerCalls)
+	require.Equal(t, map[string]int{"save-a": 1, "save-b": 1}, providerCalls)
 	require.Equal(t, originalObjects, providerObjects, "unknown effect recovery converges on the same payload")
 	require.Equal(t, ledger.attempts[0].IdempotencyKey, ledger.attempts[2].IdempotencyKey)
 	require.Equal(t, ledger.attempts[1].IdempotencyKey, ledger.attempts[3].IdempotencyKey)

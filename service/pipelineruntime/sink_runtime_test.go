@@ -19,11 +19,13 @@ import (
 	pipelinespec "github.com/Braidplane/braidplane-core/pkg/pipeline/spec"
 	"github.com/Braidplane/braidplane-core/pkg/sinkbinding"
 	"github.com/Braidplane/braidplane-core/pkg/slug"
+	"github.com/Braidplane/braidplane-core/pkg/xerror"
 	"github.com/Braidplane/braidplane-core/service/queriessvc"
 )
 
 type fakeSinkQueryExecutor struct {
-	executeFn func(
+	reconcileFn func(slug.Slug, map[string]any) (*result.ExecutionResult, error)
+	executeFn   func(
 		ctx context.Context,
 		orgSlug, dsSlug, querySlug slug.Slug,
 		actor model.EventActor,
@@ -89,6 +91,9 @@ func (f *fakeSinkQueryExecutor) Execute(
 	opts ...queriessvc.ExecuteOption,
 ) (*result.ExecutionResult, error) {
 	if err := writegate.BeforeWrite(ctx); err != nil {
+		if xerror.Is(err, writegate.ErrReconcileOnly) && f.reconcileFn != nil {
+			return f.reconcileFn(querySlug, paramValues)
+		}
 		return nil, err
 	}
 	if f.executeFn != nil {
@@ -1514,4 +1519,16 @@ func TestBuildSinkPayloadBindingUsesRetainedFileReference(t *testing.T) {
 	invalid := pipelinerun.NewStepResult(result.NewS3Result(output, 0, nil))
 	_, err = buildSinkPayloadBinding(&SinkRuntimeInput{SourceResult: invalid})
 	require.ErrorIs(t, err, errSinkNotConfigured)
+}
+
+func TestSinkRuntimeDoesNotConfirmFailedReadback(t *testing.T) {
+	t.Parallel()
+	ledger := &fakeSinkEffectLedger{effect: pipelinerun.SinkEffect{State: pipelinerun.SinkEffectStateInProgress}}
+	runtime := NewSinkRuntime(&fakeSinkQueryExecutor{reconcileFn: func(slug.Slug, map[string]any) (*result.ExecutionResult, error) {
+		return result.NewS3Result(&result.FileResult{Operation: "write"}, 0, writegate.ErrOutcomeUnknown), nil
+	}}, ledger)
+	input := &SinkRuntimeInput{ExclusiveEffectClaim: true, RunSlug: "recovery", ReplayIdentity: "original", SinkStepSlug: "write", SinkBackend: model.SinkBackendS3, SinkDataSourceSlug: "objects", SinkOperationRef: "write", IdempotencyClass: pipelinespec.SinkIdempotencyClassNaturallyIdempotent, SinkConfig: map[string]any{"key": "out.json", "format": "json", "overwrite": true}, SourceResult: pipelinerun.NewStepResult(successfulSQLResult(1))}
+	require.ErrorIs(t, runtime.Execute(t.Context(), input), writegate.ErrOutcomeUnknown)
+	require.Zero(t, ledger.markCalls)
+	require.Equal(t, "unknown", input.DeliveryOutcome)
 }

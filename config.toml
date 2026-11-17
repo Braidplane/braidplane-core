@@ -161,6 +161,8 @@ transform_max_output_bytes = 10485760
 transform_max_depth = 16
 
 [worker]
+job_timeout = "1m"
+rescue_stuck_jobs_after = "2m"
 pipeline_git_max_workers = 1
 email_max_workers = 1
 notification_delivery_max_workers = 1

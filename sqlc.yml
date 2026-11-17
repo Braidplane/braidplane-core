@@ -11,9 +11,6 @@ sql:
         out: "postgres/dbgen"
         sql_package: "pgx/v5"
         overrides:
-          - column: "river_client.id" # River client IDs are text identifiers from River
-            go_type:
-              type: "string"
           - column: "proof_change_candidate_mappings.id"
             go_type:
               type: "int64"

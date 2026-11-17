@@ -178,18 +178,24 @@ func TestBackendConfigWorkerConcurrencyPrecedence(t *testing.T) {
 encryption_key_hex = "0202020202020202020202020202020202020202020202020202020202020202"
 
 [worker]
+job_timeout = "2m"
+rescue_stuck_jobs_after = "6m"
 pipeline_run_max_workers = 2
 email_max_workers = 3
 execution_max_workers = 4
 `), 0o600))
+	t.Setenv("WORKER_JOB_TIMEOUT", "3m")
 	t.Setenv("WORKER_PIPELINE_RUN_MAX_WORKERS", "6")
 	t.Setenv("WORKER_EXECUTION_MAX_WORKERS", "7")
 
 	cfg, err := LoadWithArgs(configPath, []string{
+		"--worker-job-timeout=4m",
 		"--worker-pipeline-run-max-workers=9",
 		"--worker-execution-max-workers=10",
 	})
 	require.NoError(t, err)
+	require.Equal(t, 4*time.Minute, cfg.Worker.JobTimeout.TimeDuration())
+	require.Equal(t, 6*time.Minute, cfg.Worker.RescueStuckJobsAfter.TimeDuration())
 	require.Equal(t, 9, cfg.Worker.PipelineRunMaxWorkers)
 	require.Equal(t, 3, cfg.Worker.EmailMaxWorkers)
 	require.Equal(t, 10, cfg.Worker.ExecutionMaxWorkers)
@@ -307,6 +313,8 @@ func clearWorkerConfigEnv(t *testing.T) {
 	t.Helper()
 
 	for _, name := range []string{
+		"WORKER_JOB_TIMEOUT",
+		"WORKER_RESCUE_STUCK_JOBS_AFTER",
 		"WORKER_PIPELINE_GIT_MAX_WORKERS",
 		"WORKER_EMAIL_MAX_WORKERS",
 		"WORKER_NOTIFICATION_DELIVERY_MAX_WORKERS",
@@ -1282,4 +1290,34 @@ func TestExecutorRejectsBroadPrivateDestinationBypass(t *testing.T) {
 	cfg.Deployment.Profile = config.DeploymentProfileSelfHosted
 	cfg.Security.AllowPrivateDataSourceHosts = true
 	require.ErrorContains(t, cfg.validateExecutor(), "explicit private destinations")
+}
+
+func TestWorkerRecoveryTimingValidation(t *testing.T) {
+	t.Parallel()
+	require.Equal(t, time.Minute, validBackendConfig().Worker.JobTimeout.TimeDuration())
+	require.Equal(t, 2*time.Minute, validBackendConfig().Worker.RescueStuckJobsAfter.TimeDuration())
+	for _, tc := range []struct {
+		name            string
+		timeout, rescue time.Duration
+		invalid         bool
+	}{
+		{name: "default", timeout: time.Minute, rescue: 2 * time.Minute},
+		{name: "long job", timeout: 10 * time.Minute, rescue: 11 * time.Minute},
+		{name: "zero timeout", rescue: 2 * time.Minute, invalid: true},
+		{name: "unbounded timeout", timeout: -1, rescue: 2 * time.Minute, invalid: true},
+		{name: "early rescue", timeout: time.Minute, rescue: 90 * time.Second, invalid: true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			cfg := validBackendConfig()
+			cfg.Worker.JobTimeout = config.NewDuration(tc.timeout)
+			cfg.Worker.RescueStuckJobsAfter = config.NewDuration(tc.rescue)
+			err := cfg.validate()
+			if tc.invalid {
+				require.ErrorContains(t, err, "worker.")
+				return
+			}
+			require.NoError(t, err)
+		})
+	}
 }
