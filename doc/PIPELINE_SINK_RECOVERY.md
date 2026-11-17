@@ -54,7 +54,7 @@ retained in the checkpoint are unsupported. Recovery refuses a missing sink
 input rather than accepting new values or guessing a provider destination.
 Pipeline file checkpoints privately pin complete encrypted input for the
 organization's replay-checkpoint retention window, measured from checkpoint
-creation (seven days by default). For an unclaimed effect, a new live sink claim reads those original
+creation (seven days by default); existing pins follow policy changes. For an unclaimed effect, a new live sink claim reads those original
 bytes after recovery; a lost source claim is never revived. The association is
 scoped to the original organization, project, environment and run, and stays out
 of public JSON. Missing, expired or mismatched input is refused before creating

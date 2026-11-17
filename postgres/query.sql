@@ -243,7 +243,7 @@ GROUP BY cutoff.at;
 WITH expired_files AS (
     DELETE FROM retained_file_streams
     WHERE expires_at <= sqlc.arg('cutoff')::timestamptz
-        AND NOT EXISTS (SELECT 1 FROM pipeline_checkpoint_files pin WHERE pin.request_id=retained_file_streams.request_id AND pin.expires_at > clock_timestamp())
+        AND NOT EXISTS (SELECT 1 FROM pipeline_checkpoint_file_retention pin WHERE pin.request_id=retained_file_streams.request_id AND pin.expires_at > clock_timestamp())
     RETURNING request_id
 ), scrubbed AS (
     UPDATE execution_requests
@@ -259,7 +259,7 @@ WITH expired_files AS (
     DELETE FROM execution_requests
     WHERE expires_at <= sqlc.arg('cutoff')::timestamptz
         AND (state IN ('pending', 'succeeded', 'failed') OR (state = 'cancelled' AND started_at IS NULL))
-        AND NOT EXISTS (SELECT 1 FROM pipeline_checkpoint_files pin WHERE pin.request_id=execution_requests.id AND pin.expires_at > clock_timestamp())
+        AND NOT EXISTS (SELECT 1 FROM pipeline_checkpoint_file_retention pin WHERE pin.request_id=execution_requests.id AND pin.expires_at > clock_timestamp())
     RETURNING id
 )
 SELECT count(*) FROM deleted;
@@ -13481,9 +13481,8 @@ WITH source_request AS MATERIALIZED (
     WHERE request.id=sqlc.arg('request_id') AND organization.slug=sqlc.arg('org_slug')
     FOR KEY SHARE OF request
 )
-INSERT INTO pipeline_checkpoint_files(checkpoint_id, step_slug, request_id, expires_at)
-SELECT pc.id, sqlc.arg('step_slug'), f.request_id,
-    pc.created_at + make_interval(days => COALESCE((o.settings->'retention'->>'replay_checkpoint_retention_days')::integer, 7))
+INSERT INTO pipeline_checkpoint_files(checkpoint_id, step_slug, request_id)
+SELECT pc.id, sqlc.arg('step_slug'), f.request_id
 FROM pipeline_checkpoint pc
 JOIN project_environments pe ON pe.id=pc.project_environment_id
 JOIN projects p ON p.id=pe.project_id
@@ -13497,12 +13496,12 @@ WHERE o.slug=sqlc.arg('org_slug') AND p.slug=sqlc.arg('project_slug')
     AND f.request_id=sqlc.arg('request_id') AND f.sealed
     AND f.size_bytes=sqlc.arg('size_bytes') AND f.sha256=sqlc.arg('sha256')
     AND (f.expires_at > clock_timestamp() OR EXISTS (
-        SELECT 1 FROM pipeline_checkpoint_files pin WHERE pin.request_id=f.request_id AND pin.expires_at > clock_timestamp()))
-ON CONFLICT(checkpoint_id, step_slug) DO UPDATE SET request_id=EXCLUDED.request_id, expires_at=EXCLUDED.expires_at;
+        SELECT 1 FROM pipeline_checkpoint_file_retention pin WHERE pin.request_id=f.request_id AND pin.expires_at > clock_timestamp()))
+ON CONFLICT(checkpoint_id, step_slug) DO UPDATE SET request_id=EXCLUDED.request_id;
 
 -- name: ListCheckpointFiles :many
 SELECT pin.step_slug, f.request_id, f.size_bytes, f.sha256
-FROM pipeline_checkpoint_files pin
+FROM pipeline_checkpoint_file_retention pin
 JOIN pipeline_checkpoint pc ON pc.id=pin.checkpoint_id
 JOIN project_environments pe ON pe.id=pc.project_environment_id
 JOIN projects p ON p.id=pe.project_id

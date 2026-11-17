@@ -628,7 +628,13 @@ type PipelineCheckpointFile struct {
 	CheckpointID int64
 	StepSlug     string
 	RequestID    pgtype.UUID
-	ExpiresAt    pgtype.Timestamptz
+}
+
+type PipelineCheckpointFileRetention struct {
+	CheckpointID int64
+	StepSlug     string
+	RequestID    pgtype.UUID
+	ExpiresAt    int32
 }
 
 type PipelineCompiledPlan struct {

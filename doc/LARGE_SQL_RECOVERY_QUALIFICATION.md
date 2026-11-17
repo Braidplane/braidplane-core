@@ -17,17 +17,17 @@ check every record in the complete original downloaded object.
 
 On the recorded shared M3 Pro host, one million 1,024-byte synthetic payloads
 produced a 1,078,777,880-byte object. Transfer plus complete download/hash took
-30.752 seconds. After a pre-dispatch failure and source mutation, retained-byte
-recovery plus a confirmed repeat took 15.452 seconds. After SIGKILL, the broker
-lease fence completed in 29.973 seconds; reconciliation plus a confirmed repeat
-and full digest readbacks took 6.519 seconds, without another provider write.
+35.810 seconds. After a pre-dispatch failure and source mutation, retained-byte
+recovery plus a confirmed repeat took 13.970 seconds. After SIGKILL, the broker
+lease fence completed in 29.949 seconds; reconciliation plus a confirmed repeat
+and full digest readbacks took 2.115 seconds, without another provider write.
 All three outputs have SHA-256
 `14a16998b6126c78a14fb1f56cafa1bf44bc5e9b9ce299682a93b31c1e19d77e`.
 
-The sampled application RSS sum peaked at 210,384 KiB (205.45 MiB). At the crash
+The sampled application RSS sum peaked at 218,864 KiB (213.73 MiB). At the crash
 boundary, retained input occupied 4,324,548,721 logical plaintext bytes and
 4,324,965,103 ciphertext bytes; the chunk relation, including indexes and TOAST,
-occupied 4,495,507,456 bytes. The whole rehearsal took 236.51 seconds, including
+occupied 4,495,491,072 bytes. The whole rehearsal took 217.94 seconds, including
 fixture startup, fault cases, lease waits and cleanup. These figures describe
 one local run stacked on [PR #151](https://github.com/Braidplane/braidplane-core/pull/151)
 (revision `a129d76de12598a8bb6659f90071bf2e7381f420`) under the explicit profile below; they establish no throughput
@@ -44,7 +44,7 @@ are skipped. Recovery does not revive a dead source claim or reread changed SQL.
 JSON continue to contain metadata only.
 
 The pin lasts for the organization's replay-checkpoint retention window, measured
-from checkpoint creation (seven days by default). Ordinary query/file expiry can
+from checkpoint creation (seven days by default). Existing pins follow changes to the current policy; increasing it cannot restore bytes already removed by maintenance. Ordinary query/file expiry can
 pass while the pin remains live. Deleting or expiring the checkpoint releases
 the pin; normal minute maintenance can then delete the source request and chunks.
 Each recovered attempt has its own checkpoint and retention window. File bytes
@@ -191,7 +191,7 @@ several complete retained inputs accumulate before the explicit expiry check.
 This boundary measurement is not a continuous peak of all database storage.
 
 Upgrade through forward-only migration 5 (`000005_checkpoint_file_inputs.up.sql`)
-and apply the normal runtime grants for its new private table. Executor function
+and apply the normal runtime grants for its new private table and retention view. Executor function
 signatures and the encrypted file-reference protocol are unchanged. Upgrade all
 processes that run maintenance before enabling file recovery: older maintenance
 queries can delete pinned inputs using the previous request-expiry rules.

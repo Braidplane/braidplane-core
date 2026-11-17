@@ -311,6 +311,9 @@ func TestNativeFileStreaming(t *testing.T) {
 		t.Run("concurrent checkpoint pin and expiry", func(t *testing.T) {
 			checkCheckpointExpiryRace(t, ctx, pool, txm, runs, org, project, environment)
 		})
+		t.Run("checkpoint retention follows current policy", func(t *testing.T) {
+			checkCheckpointRetentionPolicy(t, ctx, pool, txm, runs, org, project, environment)
+		})
 		if qualificationOutput != "" {
 			t.Run("large SQL failure boundaries", func(t *testing.T) {
 				qualifyLargeSQLFaults(t, ctx, pool, org, project, environment, sqlPipeline, *sqlSpec.CurrentVersionID, sqlRunner, runs, independent, key, &config, stopWorker, verifiedBytes, verifiedDigest, qualificationOutput)

@@ -5,10 +5,13 @@ import (
 	"testing"
 	"time"
 
+	"github.com/Braidplane/braidplane-core/pkg/connector/filestream"
 	pipelinerun "github.com/Braidplane/braidplane-core/pkg/pipeline/run"
 	"github.com/Braidplane/braidplane-core/pkg/slug"
+	"github.com/Braidplane/braidplane-core/pkg/uuid"
 	"github.com/Braidplane/braidplane-core/postgres"
 	requestrepo "github.com/Braidplane/braidplane-core/postgres/executionrequests"
+	"github.com/Braidplane/braidplane-core/postgres/retainedfiles"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/stretchr/testify/require"
 )
@@ -106,4 +109,60 @@ func checkCheckpointExpiryRace(t *testing.T, parent context.Context, pool *pgxpo
 	require.NoError(t, err)
 	restoredContent, _ := restored.Results["read"].Payload()
 	require.Equal(t, content.FileReference, restoredContent.FileReference)
+}
+
+func checkCheckpointRetentionPolicy(t *testing.T, ctx context.Context, pool *pgxpool.Pool, txm postgres.TransactionManager, runs pipelinerun.RunStore, org, project, environment slug.Slug) {
+	t.Helper()
+	checkpoint, err := runs.GetCheckpoint(ctx, org, project, environment, "sql-transfer")
+	require.NoError(t, err)
+	content, _ := checkpoint.Results["read"].Payload()
+	require.NotNil(t, content.FileReference)
+	source := content.FileReference.ID
+	_, err = pool.Exec(ctx, `UPDATE pipeline_checkpoint SET created_at=clock_timestamp()-interval '10 days' WHERE id IN (SELECT checkpoint_id FROM pipeline_checkpoint_files WHERE request_id=$1)`, source)
+	require.NoError(t, err)
+	defer func() {
+		_, err := pool.Exec(context.WithoutCancel(ctx), `UPDATE organizations SET settings=settings-'retention' WHERE slug=$1`, org)
+		require.NoError(t, err)
+		_, err = pool.Exec(context.WithoutCancel(ctx), `UPDATE pipeline_checkpoint SET created_at=clock_timestamp() WHERE id IN (SELECT checkpoint_id FROM pipeline_checkpoint_files WHERE request_id=$1)`, source)
+		require.NoError(t, err)
+	}()
+	for _, days := range []int{30, 3, 30} {
+		_, err = pool.Exec(ctx, `UPDATE organizations SET settings=jsonb_set(settings,'{retention}',jsonb_build_object('replay_checkpoint_retention_days',$2::integer)) WHERE slug=$1`, org, days)
+		require.NoError(t, err)
+		restored, err := runs.GetCheckpoint(ctx, org, project, environment, "sql-transfer")
+		require.NoError(t, err)
+		payload, _ := restored.Results["read"].Payload()
+		if days == 3 {
+			require.Nil(t, payload.FileReference)
+		} else {
+			require.Equal(t, content.FileReference, payload.FileReference)
+		}
+	}
+	require.NoError(t, expireFileInputs(ctx, txm))
+	requests := requestrepo.New()
+	id := uuid.New()
+	require.NoError(t, requests.Create(ctx, pool, requestrepo.Request{ID: id, OrganizationSlug: org.String(), Kind: "prepare_s3_write", RequestCiphertext: []byte("synthetic policy reader"), DeadlineAt: time.Now().Add(time.Minute)}, time.Now().Add(time.Hour)))
+	defer func() {
+		_, err := pool.Exec(context.WithoutCancel(ctx), `DELETE FROM execution_requests WHERE id=$1`, id)
+		require.NoError(t, err)
+	}()
+	reader, claimed, err := requests.Claim(ctx, pool, id)
+	require.NoError(t, err)
+	require.True(t, claimed)
+	claim := filestream.Claim{RequestID: id, ClaimToken: reader.ClaimToken, Organization: org}
+	files := retainedfiles.New()
+	sourceID, err := uuid.FromString(source)
+	require.NoError(t, err)
+	manifest, err := files.Read(ctx, pool, claim, sourceID)
+	require.NoError(t, err)
+	require.Equal(t, content.FileReference.SizeBytes, manifest.SizeBytes)
+	body, err := files.ReadChunk(ctx, pool, claim, sourceID, 0)
+	require.NoError(t, err)
+	require.NotEmpty(t, body)
+	_, err = pool.Exec(ctx, `UPDATE organizations SET settings=jsonb_set(settings,'{retention}',jsonb_build_object('replay_checkpoint_retention_days',3)) WHERE slug=$1`, org)
+	require.NoError(t, err)
+	_, err = files.Read(ctx, pool, claim, sourceID)
+	require.ErrorIs(t, err, filestream.ErrUnavailable)
+	_, err = files.ReadChunk(ctx, pool, claim, sourceID, 0)
+	require.ErrorIs(t, err, filestream.ErrUnavailable)
 }
