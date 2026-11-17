@@ -53,6 +53,11 @@ func TestProofCredentialRequiresExactActiveTenantVersion(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, runtime.Version, resolved.Version)
 	require.JSONEq(t, string(params.PlaintextJSON), string(resolved.PlaintextJSON))
+	clear(resolved.PlaintextJSON)
+	require.NoError(t, svc.CheckProofCredential(ctx, grant))
+	resolved, err = svc.ResolveProofCredential(ctx, grant)
+	require.NoError(t, err)
+	clear(resolved.PlaintextJSON)
 	for _, scenario := range []string{"OtherTenant", "OtherVersion"} {
 		t.Run(scenario, func(t *testing.T) {
 			request := r
@@ -77,6 +82,18 @@ func TestProofCredentialRequiresExactActiveTenantVersion(t *testing.T) {
 	denied, err := svc.ResolveProofCredential(ctx, grant)
 	require.ErrorIs(t, err, proofevidence.ErrAuthorizationDenied)
 	require.Empty(t, denied.PlaintextJSON)
+
+	var releases, denials, unsafe int
+	require.NoError(t, pool.QueryRow(ctx, `SELECT
+        count(*) FILTER (WHERE e.metadata->>'outcome' = 'released'),
+        count(*) FILTER (WHERE e.metadata->>'outcome' = 'denied'),
+        count(*) FILTER (WHERE e.metadata::text LIKE '%proof-fixture%' OR length(e.metadata->>'version') <> 64)
+        FROM events e JOIN organizations o ON o.id = e.organization_id
+        WHERE o.slug = $1 AND e.entity_slug = $2 AND e.action = 'read'
+          AND e.event_class = 'security_audit' AND e.metadata->>'operation_id' = $3`, org, ds, r.JobID).Scan(&releases, &denials, &unsafe))
+	require.Equal(t, 1, releases, "release retries and authority rechecks must not add events")
+	require.Equal(t, 2, denials, "each denied version in the resolved tenant must be attributable")
+	require.Zero(t, unsafe)
 }
 
 func TestOAuthRefreshInvalidatesAdmittedProofCredential(t *testing.T) {

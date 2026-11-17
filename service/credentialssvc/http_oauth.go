@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"time"
 
+	"github.com/Braidplane/braidplane-core/pkg/domain/model"
 	"github.com/Braidplane/braidplane-core/pkg/httpoauth"
 	"github.com/Braidplane/braidplane-core/pkg/oauthflow"
 	"github.com/Braidplane/braidplane-core/pkg/xerror"
@@ -163,9 +164,12 @@ func (s *service) ConnectHTTPOAuthClientCredentials(ctx context.Context, params 
 			return err
 		}
 		result = metadataFromGrant(fromRepoCredentialGrant(stored))
-		return nil
+		return s.recordOAuthLifecycle(ctx, prepared, params.Actor, result, "active")
 	})
-	return result, err
+	if err != nil {
+		return CredentialMetadata{}, err
+	}
+	return result, nil
 }
 
 type httpOAuthProvider struct {
@@ -250,9 +254,9 @@ func grantRuntimeCredential(grant CredentialGrant, tokens OAuthTokenSet) (Runtim
 }
 
 // HTTP providers may rotate refresh tokens, so only one worker may exchange a stored token at a time.
-func (s *service) refreshGrant(ctx context.Context, grant CredentialGrant, now time.Time) (CredentialGrant, error) {
+func (s *service) refreshGrant(ctx context.Context, grant CredentialGrant, now time.Time, actor model.EventActor) (CredentialGrant, error) {
 	if grant.Provider != "http" {
-		return s.refreshGrantUnlocked(ctx, grant, now)
+		return s.refreshGrantUnlocked(ctx, grant, now, actor)
 	}
 	ctx, cancel := context.WithTimeout(postgres.WithoutTransaction(ctx), 65*time.Second)
 	defer cancel()
@@ -289,7 +293,7 @@ func (s *service) refreshGrant(ctx context.Context, grant CredentialGrant, now t
 			if current.Slug != grant.Slug || !current.GrantUpdatedAt.Equal(grant.GrantUpdatedAt) || current.Status != CredentialStatusActive.String() {
 				return CredentialGrant{}, ErrOAuthGrantConflict
 			}
-			return s.refreshGrantUnlocked(ctx, grant, s.now())
+			return s.refreshGrantUnlocked(ctx, grant, s.now(), actor)
 		}
 		current, err := postgres.InRead(ctx, s.txm, func(ctx context.Context, db postgres.DBTX) (repocredentials.CredentialGrant, error) {
 			return s.repo.FindOAuthGrant(ctx, db, owner)
@@ -317,7 +321,7 @@ func (s *service) ConnectHTTPOAuth(ctx context.Context, params StartOAuthInstall
 		return nil, err
 	}
 	if provider.app.Config.GrantType == "client_credentials" {
-		_, err := s.ConnectHTTPOAuthClientCredentials(ctx, ResolveRuntimeCredentialParams{Owner: params.Owner})
+		_, err := s.ConnectHTTPOAuthClientCredentials(ctx, ResolveRuntimeCredentialParams{Owner: params.Owner, Actor: params.Actor})
 		return nil, err
 	}
 	params.Provider = "http"

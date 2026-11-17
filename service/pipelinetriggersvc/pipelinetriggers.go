@@ -587,10 +587,18 @@ func (s *service) RotatePipelineWebhookSecret(ctx context.Context, orgSlug, proj
 		if err != nil {
 			return err
 		}
+		audited := toModelTrigger(trigger)
+		audited.WebhookConfig = &model.PipelineTriggerWebhookConfig{EnabledKeyVersions: []int{issued.KeyVersion}}
+		if err := s.recordPipelineTriggerEvent(ctx, tx, orgSlug, projectSlug, environmentSlug, actor, audited, model.EventActionRotate); err != nil {
+			return err
+		}
 		result = model.PipelineWebhookSecret{KeyVersion: issued.KeyVersion, Value: issued.Value}
 		return nil
 	})
-	return result, err
+	if err != nil {
+		return model.PipelineWebhookSecret{}, err
+	}
+	return result, nil
 }
 
 func validateVersionPolicy(policy model.PipelineTriggerVersionPolicy) error {

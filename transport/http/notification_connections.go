@@ -55,7 +55,7 @@ func (s *server) CreateNotificationConnection(c fiber.Ctx, rawOrg api.SlugParam)
 	if err != nil {
 		return apierror.ValidationFailed("Invalid connection slug")
 	}
-	connection, err := s.credentialsService.CreateNotificationConnection(c.Context(), credentialssvc.CreateNotificationConnectionParams{OrgSlug: org, Slug: connectionSlug, Name: req.Name, Provider: string(req.Provider)})
+	connection, err := s.credentialsService.CreateNotificationConnection(c.Context(), credentialssvc.CreateNotificationConnectionParams{Actor: s.eventActor(c), OrgSlug: org, Slug: connectionSlug, Name: req.Name, Provider: string(req.Provider)})
 	if err != nil {
 		return mapServiceError(err)
 	}

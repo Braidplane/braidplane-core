@@ -785,7 +785,7 @@ func TestRotatePipelineWebhookSecret(t *testing.T) {
 	t.Parallel()
 	org, project, environment, trigger := must.Slug("acme"), must.Slug("ops"), must.Slug("prod"), must.Slug("incoming")
 	actor := model.UserEventActor(must.Slug("alice"))
-	repo := &fakeTriggerRepository{existing: &pipelinetriggers.PipelineTrigger{Type: model.PipelineTriggerTypeWebhook}}
+	repo := &fakeTriggerRepository{existing: &pipelinetriggers.PipelineTrigger{Slug: trigger, Type: model.PipelineTriggerTypeWebhook}}
 	secrets := fakeWebhookSecrets{issueFn: func(_ context.Context, params credentialssvc.PipelineWebhookSecretParams) (credentialssvc.IssuedPipelineWebhookSecret, error) {
 		require.Equal(t, credentialssvc.PipelineWebhookSecretParams{
 			OrgSlug: org, ProjectSlug: project, EnvironmentSlug: environment, TriggerSlug: trigger,

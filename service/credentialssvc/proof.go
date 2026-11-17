@@ -96,8 +96,19 @@ func (s *service) proofCredential(ctx context.Context, grant proofevidence.Grant
 	})
 	if err != nil || grant.Check() != nil || ctx.Err() != nil {
 		clear(runtime.PlaintextJSON)
+		if decrypt && ctx.Err() == nil {
+			// A denial stays a denial even when the tenant cannot be found or audit is unavailable.
+			_ = s.recordCredentialRelease(ctx, owner, model.SystemEventActor(), "proof_observation", r.JobID.String(), r.CredentialVersion, "denied")
+		}
 		// Repository and provider diagnostics cannot cross the Proof boundary.
 		return RuntimeCredential{}, proofevidence.ErrAuthorizationDenied
+	}
+	if decrypt {
+		auditErr := s.recordCredentialRelease(ctx, owner, model.SystemEventActor(), "proof_observation", r.JobID.String(), runtime.Version, "released")
+		if auditErr != nil || grant.Check() != nil || ctx.Err() != nil {
+			clear(runtime.PlaintextJSON)
+			return RuntimeCredential{}, proofevidence.ErrAuthorizationDenied
+		}
 	}
 	return runtime, nil
 }

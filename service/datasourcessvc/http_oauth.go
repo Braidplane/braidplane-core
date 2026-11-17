@@ -56,7 +56,7 @@ func (s *service) httpOAuthApp(typ model.DataSourceType, config json.RawMessage,
 func (s *service) createHTTPOAuth(ctx context.Context, org slug.Slug, actor model.EventActor, params *CreateParams, app credentialssvc.HTTPOAuthApp) (*DataSource, error) {
 	owner := dataSourceCredentialOwner(org, params.Slug)
 	err := s.txm.RunInTx(postgres.WithoutTransaction(ctx), func(ctx context.Context, tx postgres.DBTX) error {
-		credential, err := s.credentials.CreatePendingOAuthCredential(ctx, credentialssvc.CreatePendingOAuthCredentialParams{Owner: owner, Provider: "http"})
+		credential, err := s.credentials.CreatePendingOAuthCredential(ctx, credentialssvc.CreatePendingOAuthCredentialParams{Owner: owner, Actor: actor, Provider: "http"})
 		if err != nil {
 			return err
 		}
@@ -77,7 +77,7 @@ func (s *service) createHTTPOAuth(ctx context.Context, org slug.Slug, actor mode
 
 func (s *service) replaceHTTPOAuth(ctx context.Context, tx postgres.DBTX, org slug.Slug, actor model.EventActor, ds *repods.DataSource, app credentialssvc.HTTPOAuthApp) (*repods.DataSource, error) {
 	owner := dataSourceCredentialOwner(org, ds.Slug)
-	credential, err := s.credentials.CreatePendingOAuthCredential(ctx, credentialssvc.CreatePendingOAuthCredentialParams{Owner: owner, Provider: "http"})
+	credential, err := s.credentials.CreatePendingOAuthCredential(ctx, credentialssvc.CreatePendingOAuthCredentialParams{Owner: owner, Actor: actor, Provider: "http", Replace: true})
 	if err != nil {
 		return nil, err
 	}

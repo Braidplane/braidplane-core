@@ -248,6 +248,7 @@ func (s *service) StartProviderDataSourceInstall(
 		}
 		credential, err := s.credentials.CreatePendingOAuthCredential(ctx, credentialssvc.CreatePendingOAuthCredentialParams{
 			Owner:    owner,
+			Actor:    actor,
 			Provider: provider,
 		})
 		if err != nil {
@@ -1393,6 +1394,7 @@ func (s *service) UpdateCredentials(
 				OrgSlug:        orgSlug,
 				DataSourceSlug: repoDS.Slug,
 			},
+			Replace:        true,
 			CredentialType: staticCredentialTypeForDataSource(repoDS.Type),
 			PlaintextJSON:  credentialsJSON,
 			Actor:          actor,
@@ -2395,10 +2397,15 @@ func (s *service) recordDataSourceEvent(
 		return xerror.InvalidInput(xerror.Event).Detail("unsupported data source event action")
 	}
 
+	var version string
+	if action == model.EventActionDelete && ds.Credential != nil {
+		version = credentialssvc.AuditCredentialVersion(ds.Credential.Slug, ds.Credential.UpdatedAt)
+	}
 	if _, err := s.eventProducer.EnqueueRequired(ctx, tx, orgSlug, actor, dataSourceEvent{
 		dataSourceSlug: ds.Slug,
 		dataSourceType: ds.Type,
 		action:         action,
+		version:        version,
 	}); err != nil {
 		return xerror.Wrapf("enqueue required data source audit event: %w", err)
 	}

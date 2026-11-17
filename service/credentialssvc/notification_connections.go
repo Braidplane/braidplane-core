@@ -33,10 +33,15 @@ func (s *service) CreateNotificationConnection(ctx context.Context, params Creat
 	}
 	create := func() (repocredentials.CredentialRecord, error) {
 		return postgres.InTx(ctx, s.txm, func(ctx context.Context, tx postgres.DBTX) (repocredentials.CredentialRecord, error) {
-			return s.repo.CreateNotificationConnection(ctx, tx, repocredentials.CredentialRecord{
+			record, err := s.repo.CreateNotificationConnection(ctx, tx, repocredentials.CredentialRecord{
 				Slug: credentialSlug, OrgSlug: params.OrgSlug, OwnerKind: repocredentials.OwnerKindNotificationConnection,
 				NotificationConnectionSlug: params.Slug,
 			}, params.Name, params.Provider)
+			if err != nil {
+				return repocredentials.CredentialRecord{}, err
+			}
+			owner := CredentialOwner{Kind: CredentialOwnerKindNotificationConnection, OrgSlug: params.OrgSlug, NotificationConnectionSlug: params.Slug}
+			return record, s.recordCredentialLifecycle(ctx, owner, params.Actor, model.EventActionCreate, metadataFromRecord(fromRepoCredentialRecord(record)), "pending")
 		})
 	}
 	record, err := create()

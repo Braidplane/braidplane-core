@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"log/slog"
+	"strconv"
 
 	"github.com/riverqueue/river"
 	"github.com/riverqueue/river/rivertype"
@@ -92,6 +93,7 @@ func (m *telemetryMiddleware) Work(
 	}
 
 	ctx = contextFromMetadata(ctx, job.Metadata)
+	ctx = reqctx.WithAuditOperation(ctx, "river-"+strconv.FormatInt(job.ID, 10))
 	ctx, span := otel.Tracer("braidplane/river").Start(ctx, "river "+job.Kind,
 		trace.WithSpanKind(trace.SpanKindConsumer),
 		trace.WithAttributes(

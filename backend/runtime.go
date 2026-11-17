@@ -250,6 +250,7 @@ func newBackendOperationalApp(
 			c.SetContext(reqctx.WithRequestID(c.Context(), requestID))
 		}
 
+		c.SetContext(reqctx.WithAuditOperation(c.Context(), uuid.NewString()))
 		return c.Next()
 	})
 

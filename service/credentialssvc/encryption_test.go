@@ -47,7 +47,7 @@ func TestEncryptionStaticResolutionBindsStoredTenantAndRecord(t *testing.T) {
 			if owner.Kind == CredentialOwnerKindEnvironmentSecret {
 				kind = StaticCredentialTypeEnvironmentSecret
 			}
-			svc, err := New(testutil.FakeTransactionManager{}, repo, realCredentialTestCipher(t, "current"), nil, testutil.FakeClock{NowFn: time.Now}, false)
+			svc, err := newUnitCredentialService(testutil.FakeTransactionManager{}, repo, realCredentialTestCipher(t, "current"), nil, testutil.FakeClock{NowFn: time.Now}, false)
 			require.NoError(t, err)
 			plaintext := []byte(`{"value":"synthetic-static-secret"}`)
 			_, err = svc.CreateStaticSecret(t.Context(), CreateStaticSecretParams{Owner: owner, CredentialType: kind, PlaintextJSON: plaintext})
@@ -74,7 +74,7 @@ func TestEncryptionWebhookResolutionBindsRecordAndPurpose(t *testing.T) {
 	t.Parallel()
 	repo := newCredentialRepo()
 	ring := realCredentialTestCipher(t, "current")
-	svc, err := New(testutil.FakeTransactionManager{}, repo, ring, nil, testutil.FakeClock{NowFn: time.Now}, false)
+	svc, err := newUnitCredentialService(testutil.FakeTransactionManager{}, repo, ring, nil, testutil.FakeClock{NowFn: time.Now}, false)
 	require.NoError(t, err)
 	params := PipelineWebhookSecretParams{OrgSlug: "acme", ProjectSlug: "project", EnvironmentSlug: "prod", TriggerSlug: "incoming"}
 	issued, err := svc.IssuePipelineWebhookSecret(t.Context(), params)
@@ -101,7 +101,7 @@ func TestEncryptionOAuthRefreshKeepsStoredSlugAndWritesCurrentKey(t *testing.T) 
 	now := time.Date(2026, 6, 3, 10, 0, 0, 0, time.UTC)
 	repo := newCredentialRepo()
 	provider := &fakeProviderAdapter{refresh: OAuthTokenSet{AccessToken: "synthetic-new-access", RefreshToken: "synthetic-new-refresh", ExpiresAt: now.Add(time.Hour)}}
-	svc, err := New(testutil.FakeTransactionManager{}, repo, realCredentialTestCipher(t, "old"), ProviderRegistry{"fakecrm": provider}, testutil.FakeClock{NowFn: func() time.Time { return now }}, false)
+	svc, err := newUnitCredentialService(testutil.FakeTransactionManager{}, repo, realCredentialTestCipher(t, "old"), ProviderRegistry{"fakecrm": provider}, testutil.FakeClock{NowFn: func() time.Time { return now }}, false)
 	require.NoError(t, err)
 	internal := svc.(*service)
 	grant, err := internal.grantFromTokenSet(testOwner(), "fakecrm", OAuthTokenSet{AccessToken: "synthetic-old-access", RefreshToken: "synthetic-old-refresh", ExpiresAt: now.Add(-time.Minute)}, now, slug.Slug("stored-grant"))
