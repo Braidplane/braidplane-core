@@ -133,6 +133,7 @@ func newTestServiceWithEvents(
 
 func testExecutionLimits() queriessvc.ExecutionLimits {
 	return queriessvc.ExecutionLimits{
+		MaxFileBytes:                      128 * 1024 * 1024,
 		QueryTimeout:                      30 * time.Second,
 		ConnectorTimeout:                  30 * time.Second,
 		MaxResultRows:                     1000,
@@ -2484,6 +2485,7 @@ func TestExecute_AppliesConfiguredTimeoutCap(t *testing.T) {
 		nil,
 		connectorFactory,
 		queriessvc.ExecutionLimits{
+			MaxFileBytes:                      128 * 1024 * 1024,
 			QueryTimeout:                      25 * time.Millisecond,
 			ConnectorTimeout:                  time.Second,
 			MaxResultRows:                     1000,
@@ -2504,6 +2506,7 @@ func TestExecute_AppliesConfiguredTimeoutCap(t *testing.T) {
 
 	require.Error(t, err)
 	require.True(t, xerror.Is(err, queriessvc.ErrQueryTimeout), "got %v", err)
+	require.Contains(t, xerror.PublicDetail(err), "execution_limits.query_timeout")
 }
 
 func TestExecute_CancelsConnectorWhenRequestContextIsCancelled(t *testing.T) {
@@ -2541,6 +2544,7 @@ func TestExecute_CancelsConnectorWhenRequestContextIsCancelled(t *testing.T) {
 		nil,
 		connectorFactory,
 		queriessvc.ExecutionLimits{
+			MaxFileBytes:                      128 * 1024 * 1024,
 			QueryTimeout:                      time.Second,
 			ConnectorTimeout:                  time.Second,
 			MaxResultRows:                     1000,
@@ -2658,6 +2662,7 @@ func TestExecute_ReturnsRowLimitViolation(t *testing.T) {
 		nil,
 		connectorFactory,
 		queriessvc.ExecutionLimits{
+			MaxFileBytes:                      128 * 1024 * 1024,
 			QueryTimeout:                      time.Second,
 			ConnectorTimeout:                  time.Second,
 			MaxResultRows:                     1,
@@ -2714,6 +2719,7 @@ func TestExecute_ReturnsResponseSizeViolation(t *testing.T) {
 		nil,
 		connectorFactory,
 		queriessvc.ExecutionLimits{
+			MaxFileBytes:                      128 * 1024 * 1024,
 			QueryTimeout:                      time.Second,
 			ConnectorTimeout:                  time.Second,
 			MaxResultRows:                     1000,
@@ -2770,6 +2776,7 @@ func TestExecute_DoesNotHoldTransactionDuringConnectorExecution(t *testing.T) {
 		txm,
 		connectorFactory,
 		queriessvc.ExecutionLimits{
+			MaxFileBytes:                      128 * 1024 * 1024,
 			QueryTimeout:                      time.Second,
 			ConnectorTimeout:                  time.Second,
 			MaxResultRows:                     1000,

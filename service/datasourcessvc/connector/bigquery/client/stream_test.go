@@ -16,7 +16,7 @@ import (
 )
 
 func TestQueryPagesStreamsOneJobAndCancelsOnFailure(t *testing.T) {
-	for _, mode := range []string{"complete", "row-limit", "consumer-error", "cancel", "page-limit", "schema-change"} {
+	for _, mode := range []string{"unlimited", "complete", "row-limit", "consumer-error", "cancel", "page-limit", "schema-change"} {
 		t.Run(mode, func(t *testing.T) {
 			requests, pages, cancellations := 0, 0, 0
 			ctx, cancel := context.WithTimeout(transportsecurity.WithPlaintext(t.Context()), 5*time.Second)
@@ -61,6 +61,9 @@ func TestQueryPagesStreamsOneJobAndCancelsOnFailure(t *testing.T) {
 			})
 			client := newBudgetTestClient(t, server.URL)
 			rowLimit := 2
+			if mode == "unlimited" {
+				rowLimit = 0
+			}
 			if mode == "row-limit" {
 				rowLimit = 1
 			}
@@ -76,7 +79,7 @@ func TestQueryPagesStreamsOneJobAndCancelsOnFailure(t *testing.T) {
 				return nil
 			})
 			switch mode {
-			case "complete":
+			case "complete", "unlimited":
 				require.NoError(t, err)
 				require.Equal(t, 2, pages, "the response budget resets per page, not per result")
 				require.Zero(t, cancellations)
@@ -96,7 +99,7 @@ func TestQueryPagesStreamsOneJobAndCancelsOnFailure(t *testing.T) {
 				require.ErrorIs(t, err, xerror.ExecutionResponseSizeExceeded())
 				require.Zero(t, pages)
 			}
-			if mode != "complete" {
+			if mode != "complete" && mode != "unlimited" {
 				require.Equal(t, 1, cancellations)
 			}
 		})

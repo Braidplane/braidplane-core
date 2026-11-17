@@ -77,6 +77,7 @@ type ExecutionLimits struct {
 	QueryTimeout                      time.Duration
 	ConnectorTimeout                  time.Duration
 	MaxResultRows                     int
+	StreamMaxRows                     int
 	MaxFileBytes                      int64
 	MaxResponseBytes                  int64
 	ConnectorConcurrencyPerDataSource int
@@ -94,6 +95,7 @@ func (l ExecutionLimits) connectorLimits() types.ExecutionLimits {
 	return types.ExecutionLimits{
 		ConnectorTimeout:     l.ConnectorTimeout,
 		MaxResultRows:        l.MaxResultRows,
+		StreamMaxRows:        l.StreamMaxRows,
 		MaxFileBytes:         l.MaxFileBytes,
 		MaxResponseBytes:     l.MaxResponseBytes,
 		HTTPTimeout:          l.HTTPTimeout,
@@ -457,9 +459,6 @@ func NewWithExecutionLimits(
 	if connectorExecutor == nil {
 		return nil, xerror.Unexpected().Detail("connector executor is required")
 	}
-	if limits.MaxFileBytes == 0 {
-		limits.MaxFileBytes = limits.MaxResponseBytes
-	}
 	if limits.ConnectorConcurrencyQueueTimeout == 0 {
 		limits.ConnectorConcurrencyQueueTimeout = defaultConcurrencyQueueTimeout
 	}
@@ -484,6 +483,9 @@ func NewWithExecutionLimits(
 }
 
 func validateExecutionLimits(limits ExecutionLimits) error {
+	if limits.StreamMaxRows < 0 {
+		return ErrInvalidInput.Detail("execution_limits.stream_max_rows must be greater than or equal to 0")
+	}
 	if limits.QueryTimeout <= 0 {
 		return ErrInvalidInput.Detail("query timeout must be greater than 0")
 	}
@@ -497,7 +499,7 @@ func validateExecutionLimits(limits ExecutionLimits) error {
 		return ErrInvalidInput.Detail("max response bytes must be greater than 0")
 	}
 	if limits.MaxFileBytes <= 0 || limits.MaxFileBytes > filestream.MaxRetainedBytes {
-		return ErrInvalidInput.Detail("max file bytes must be positive and within retained storage bounds")
+		return ErrInvalidInput.Detail("execution_limits.max_file_bytes must be positive and within retained storage bounds")
 	}
 	if limits.ConnectorConcurrencyPerDataSource <= 0 {
 		return ErrInvalidInput.Detail("connector concurrency per data source must be greater than 0")
@@ -1245,7 +1247,11 @@ func (s *service) executePrepared(
 		return nil, err
 	}
 
-	execCtx, cancel := context.WithTimeout(ctx, s.effectiveTimeout(prepared))
+	timeout, timeoutSetting := s.effectiveTimeout(prepared)
+	if deadline, ok := ctx.Deadline(); ok && time.Until(deadline) <= timeout {
+		timeoutSetting = "caller/run deadline"
+	}
+	execCtx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
 
 	connectorLimits := s.effectiveConnectorLimits(prepared)
@@ -1274,7 +1280,7 @@ func (s *service) executePrepared(
 			return nil, context.Canceled
 		}
 		if xerror.Is(execCtx.Err(), context.DeadlineExceeded) {
-			return nil, ErrQueryTimeout.With(execCtx.Err())
+			return nil, ErrQueryTimeout.With(execCtx.Err()).WithPublicDetail(timeoutSetting + " exceeded.")
 		}
 		if xerror.Is(err, resourcescope.ErrInvalid) {
 			logging.LogError(execCtx, "query resource scope rejected", err)
@@ -1318,7 +1324,7 @@ func (s *service) executePrepared(
 			return nil, context.Canceled
 		}
 		if xerror.Is(execCtx.Err(), context.DeadlineExceeded) {
-			return nil, ErrQueryTimeout.With(execCtx.Err())
+			return nil, ErrQueryTimeout.With(execCtx.Err()).WithPublicDetail(timeoutSetting + " exceeded.")
 		}
 		if xerror.Is(execResult.Error(), resourcescope.ErrInvalid) {
 			logging.LogError(execCtx, "query resource scope rejected", execResult.Error())
@@ -1393,27 +1399,33 @@ func jsonPayloadVersion(payload []byte) string {
 	return hex.EncodeToString(digest[:])
 }
 
-func (s *service) effectiveTimeout(prepared *preparedExecution) time.Duration {
+func (s *service) effectiveTimeout(prepared *preparedExecution) (time.Duration, string) {
 	queryTimeout := s.limits.QueryTimeout
+	setting := "execution_limits.query_timeout"
 
 	if prepared != nil && prepared.timeoutSeconds > 0 {
 		savedTimeout := time.Duration(prepared.timeoutSeconds) * time.Second
 		if savedTimeout < queryTimeout {
 			queryTimeout = savedTimeout
+			setting = "saved timeout_seconds"
 		}
 	}
 
 	if s.limits.ConnectorTimeout > 0 && s.limits.ConnectorTimeout < queryTimeout {
 		queryTimeout = s.limits.ConnectorTimeout
+		setting = "execution_limits.connector_timeout"
 	}
 
-	return queryTimeout
+	return queryTimeout, setting
 }
 
 func (s *service) effectiveConnectorLimits(prepared *preparedExecution) types.ExecutionLimits {
 	limits := s.limits.connectorLimits()
 	if prepared != nil && prepared.rowLimit > 0 && prepared.rowLimit < limits.MaxResultRows {
 		limits.MaxResultRows = prepared.rowLimit
+	}
+	if prepared != nil && prepared.rowLimit > 0 && (limits.StreamMaxRows == 0 || prepared.rowLimit < limits.StreamMaxRows) {
+		limits.StreamMaxRows = prepared.rowLimit
 	}
 	return limits
 }
@@ -1427,11 +1439,16 @@ func (s *service) enforceResultLimits(
 	}
 
 	maxRows := limits.MaxResultRows
+	setting := "execution_limits.max_result_rows"
+	if sql, ok := execResult.SQL(); ok && sql != nil && sql.Reference != nil {
+		maxRows = limits.StreamMaxRows
+		setting = "execution_limits.stream_max_rows (or saved row_limit)"
+	}
 	if maxRows > 0 {
 		if rowCountOf(execResult) > maxRows {
 			return xerror.ExecutionRowLimitExceeded().Detailf(
-				"query returned more than %d rows",
-				maxRows,
+				"%s: query returned more than %d rows",
+				setting, maxRows,
 			)
 		}
 	}

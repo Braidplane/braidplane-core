@@ -7,6 +7,9 @@ Use the [shared connection workflow](connect-a-system.md) to create this data
 source in your workspace. You can read this guide without an account or
 provider resources. Running examples requires provider resources appropriate for your evaluation.
 
+See [streaming modes and limits](streaming.md) for this connector’s native-file
+streaming operations and operator settings.
+
 ## Connect and authenticate
 
 1. Choose GitHub when creating a data source in your organization.
@@ -120,7 +123,8 @@ Sink operations receive upstream `input`; it takes precedence over saved inline
 content. CSV input stays raw for CSV output. JSON and spreadsheet output require
 structured input, so CSV-to-JSON or CSV-to-spreadsheet needs an explicit transform.
 
-Reads are bounded full-file/full-object operations with no watermark or cursor
+Structured reads are bounded full-file/full-object operations; `format: file`
+uses retained streaming. There is no watermark or cursor
 checkpoints. Results expose row counts and fields for structured reads, write
 counts where available, and safe file metadata. Raw bytes are not retained in
 historical run diagnostics for later download.

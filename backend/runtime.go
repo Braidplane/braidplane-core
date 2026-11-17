@@ -450,6 +450,14 @@ func Run(cfg *backendconfig.Config, mode Mode, createDistribution DistributionFa
 	defer restoreMetrics()
 
 	backendLogger.Info("configuration loaded", slog.String("runtime_mode", mode.String()))
+	backendLogger.Info("effective execution limits",
+		slog.Int("execution_limits.stream_max_rows", cfg.ExecutionLimits.StreamMaxRows),
+		slog.Int("execution_limits.max_result_rows", cfg.ExecutionLimits.MaxResultRows),
+		slog.Int64("execution_limits.max_file_bytes", cfg.ExecutionLimits.MaxFileBytes),
+		slog.Int64("execution_limits.max_response_bytes", cfg.ExecutionLimits.MaxResponseBytes),
+		slog.Duration("execution_limits.query_timeout", cfg.ExecutionLimits.QueryTimeout.TimeDuration()),
+		slog.Duration("execution_limits.connector_timeout", cfg.ExecutionLimits.ConnectorTimeout.TimeDuration()),
+		slog.Duration("execution.request_timeout", cfg.Execution.RequestTimeout.TimeDuration()))
 
 	launchCtx, cancel := context.WithTimeout(context.Background(), time.Second*30)
 	defer cancel()
@@ -915,6 +923,7 @@ func Run(cfg *backendconfig.Config, mode Mode, createDistribution DistributionFa
 			QueryTimeout:                      cfg.ExecutionLimits.QueryTimeout.TimeDuration(),
 			ConnectorTimeout:                  cfg.ExecutionLimits.ConnectorTimeout.TimeDuration(),
 			MaxResultRows:                     cfg.ExecutionLimits.MaxResultRows,
+			StreamMaxRows:                     cfg.ExecutionLimits.StreamMaxRows,
 			MaxResponseBytes:                  cfg.ExecutionLimits.MaxResponseBytes,
 			ConnectorConcurrencyPerDataSource: cfg.ExecutionLimits.ConnectorConcurrencyPerDataSource,
 			ConnectorConcurrencyQueueTimeout:  cfg.ExecutionLimits.ConnectorConcurrencyQueueTimeout.TimeDuration(),

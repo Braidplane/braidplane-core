@@ -98,7 +98,7 @@ func (c *Connector) streamFileResponse(ctx context.Context, response *http.Respo
 		return fail(filestream.ErrUnavailable)
 	}
 	if method != http.MethodHead && response.ContentLength > limits.MaxFileBytes {
-		return fail(xerror.ExecutionResponseSizeExceeded())
+		return fail(xerror.ExecutionResponseSizeExceeded().WithPublicDetail("execution_limits.max_file_bytes exceeded."))
 	}
 	ref, metadata, err := store.Retain(ctx, limits.MaxFileBytes, func(dst io.Writer) (*filestream.Metadata, error) {
 		if secrets := c.credentialSecrets(); len(secrets) > 0 {

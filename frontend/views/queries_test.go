@@ -26,10 +26,14 @@ func TestSQLFileFormatSurvivesEditing(t *testing.T) {
 		require.NoError(t, json.Unmarshal([]byte(`{"slug":"export-records","query_statement":{"type":"`+vendor+`","sql":"SELECT 1","format":"file"}}`), &query))
 		form := QueryEditorFormDataFromQuery(query)
 		require.Equal(t, "file", form.SQLFormat)
+		require.Equal(t, "0", form.RowLimit)
 		var out bytes.Buffer
 		require.NoError(t, SQLResultFormatField(form.SQLFormat).Render(t.Context(), &out))
 		require.Contains(t, out.String(), `value="file" selected`)
 		require.Contains(t, out.String(), `name="sql_format"`)
+		out.Reset()
+		require.NoError(t, QueryCardFacts(query).Render(t.Context(), &out))
+		require.Contains(t, out.String(), "Configured limits")
 	}
 }
 

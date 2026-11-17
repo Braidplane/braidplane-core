@@ -11793,7 +11793,7 @@ type NewQuery struct {
 	// QueryStatement The query to execute with type-specific structure
 	QueryStatement QueryStatement `json:"query_statement"`
 
-	// RowLimit Maximum number of result rows, capped by the server limit. HTTP top-level JSON array elements each count as one row; objects and scalar/text responses count as one document, while null and opaque files have no JSON rows. Exceeding the effective limit fails with EXECUTION_ROW_LIMIT_EXCEEDED; response-byte limits apply independently.
+	// RowLimit Optional row quota; 0 uses operator policy (max_result_rows for materialized output, stream_max_rows for SQL file output). A positive value adds a smaller quota. HTTP top-level JSON array elements each count as one row; objects and scalar/text responses count as one document, while null and opaque files have no JSON rows. Exceeding the effective limit fails with EXECUTION_ROW_LIMIT_EXCEEDED; response-byte limits apply independently.
 	//
 	// Example: 1000
 	RowLimit *int `json:"row_limit,omitempty"`
@@ -17120,7 +17120,7 @@ type Query struct {
 	// QueryStatement The query to execute with type-specific structure
 	QueryStatement QueryStatement `json:"query_statement"`
 
-	// RowLimit Maximum number of result rows, capped by the server limit. HTTP top-level JSON array elements each count as one row; objects and scalar/text responses count as one document, while null and opaque files have no JSON rows. Exceeding the effective limit fails with EXECUTION_ROW_LIMIT_EXCEEDED; response-byte limits apply independently.
+	// RowLimit Optional row quota; 0 uses operator policy (max_result_rows for materialized output, stream_max_rows for SQL file output). A positive value adds a smaller quota. HTTP top-level JSON array elements each count as one row; objects and scalar/text responses count as one document, while null and opaque files have no JSON rows. Exceeding the effective limit fails with EXECUTION_ROW_LIMIT_EXCEEDED; response-byte limits apply independently.
 	//
 	// Example: 1000
 	RowLimit int `json:"row_limit"`
@@ -18490,7 +18490,7 @@ type UpdateQuery struct {
 	// QueryStatement The query to execute with type-specific structure
 	QueryStatement QueryStatement `json:"query_statement"`
 
-	// RowLimit Maximum number of result rows, capped by the server limit. HTTP top-level JSON array elements each count as one row; objects and scalar/text responses count as one document, while null and opaque files have no JSON rows. Exceeding the effective limit fails with EXECUTION_ROW_LIMIT_EXCEEDED; response-byte limits apply independently.
+	// RowLimit Optional row quota; 0 uses operator policy (max_result_rows for materialized output, stream_max_rows for SQL file output). A positive value adds a smaller quota. HTTP top-level JSON array elements each count as one row; objects and scalar/text responses count as one document, while null and opaque files have no JSON rows. Exceeding the effective limit fails with EXECUTION_ROW_LIMIT_EXCEEDED; response-byte limits apply independently.
 	//
 	// Example: 500
 	RowLimit *int `json:"row_limit,omitempty"`

@@ -590,7 +590,8 @@ the updated duration applies to each newly opened budget window.
 |----------|------|-------------|------|---------|------|-------------|
 | Query Timeout | `execution_limits.query_timeout` | `EXECUTION_LIMITS_QUERY_TIMEOUT` | `--execution-limits-query-timeout` | `30s` | duration | Maximum saved or inline query execution duration |
 | Connector Timeout | `execution_limits.connector_timeout` | `EXECUTION_LIMITS_CONNECTOR_TIMEOUT` | `--execution-limits-connector-timeout` | `30s` | duration | Maximum connector operation duration |
-| Max Result Rows | `execution_limits.max_result_rows` | `EXECUTION_LIMITS_MAX_RESULT_ROWS` | `--execution-limits-max-result-rows` | `1000` | int | Maximum rows or documents returned by one execution |
+| Max Result Rows | `execution_limits.max_result_rows` | `EXECUTION_LIMITS_MAX_RESULT_ROWS` | `--execution-limits-max-result-rows` | `1000` | int | Maximum materialized rows or documents returned by one execution; does not cap streamed SQL files |
+| Stream Max Rows | `execution_limits.stream_max_rows` | `EXECUTION_LIMITS_STREAM_MAX_ROWS` | `--execution-limits-stream-max-rows` | `0` | int | Maximum rows in a streamed SQL file; `0` means no row quota; negative values are rejected |
 | Max File Bytes | `execution_limits.max_file_bytes` | `EXECUTION_LIMITS_MAX_FILE_BYTES` | `--execution-limits-max-file-bytes` | `134217728` | int64 | Maximum bytes per native file; streaming uses ordinary execution deadlines and concurrency limits |
 | Max Response Bytes | `execution_limits.max_response_bytes` | `EXECUTION_LIMITS_MAX_RESPONSE_BYTES` | `--execution-limits-max-response-bytes` | `10485760` | int64 | Maximum normalized execution response payload size in bytes |
 | Connector Concurrency Per Data Source | `execution_limits.connector_concurrency_per_data_source` | `EXECUTION_LIMITS_CONNECTOR_CONCURRENCY_PER_DATA_SOURCE` | `--execution-limits-connector-concurrency-per-data-source` | `4` | int | Maximum concurrent connector executions per organization/data source across the broker-backed deployment |
@@ -610,12 +611,60 @@ the updated duration applies to each newly opened budget window.
 | Transform Max Output Bytes | `execution_limits.transform_max_output_bytes` | `EXECUTION_LIMITS_TRANSFORM_MAX_OUTPUT_BYTES` | `--execution-limits-transform-max-output-bytes` | `10485760` | int64 | Maximum serialized bytes returned by one SQL transform |
 | Transform Max Depth | `execution_limits.transform_max_depth` | `EXECUTION_LIMITS_TRANSFORM_MAX_DEPTH` | `--execution-limits-transform-max-depth` | `16` | int | Maximum nested SQL transform relation and expression depth |
 
+### Streamed transfer policy and upgrades
+
+`stream_max_rows=0` removes the row-count quota for SQL `format: file` exports.
+A positive value rejects the whole export on overflow; it never returns a
+truncated file. A positive saved-query `row_limit` still supplies a smaller
+explicit quota. `max_result_rows` continues to protect materialized query results,
+schema discovery and other row/document operations. SQL transforms retain their
+separate `transform_*` memory, work, output and deadline controls.
+
+The **128 MiB file default** bounds encrypted PostgreSQL staging per source;
+concurrent and completed files also consume storage, WAL and backup space.
+It is a conservative storage allowance, not a memory buffer or hosted plan quota.
+The **30s query, connector and broker defaults** bound held SQL snapshots,
+connections and worker/admission slots. They are conservative operation budgets,
+not measured minimum times for a million rows. Raise them for the deployment's
+storage and throughput. Increasing the file allowance does not change memory
+buffers. See [transfer limits and bounds](doc/SQL_RESULT_STREAMING.md#limits-through-the-transfer-path).
+
+File bytes and deadlines must stay positive: `0` is rejected, not interpreted as
+unlimited or a fallback. This runtime persists finite request deadlines and file
+allowances; it does not support unlimited retained storage or immortal requests.
+`max_file_bytes` may be raised up to `2251799812636672` bytes (the retained storage
+format's signed 32-bit chunk-count bound). S3's 10,000 sequential 8 MiB parts
+impose a lower **83,886,080,000-byte** implementation bound. Providers can impose
+smaller bounds. Size storage for completed files waiting for expiry as well as
+active requests.
+
+The earliest deadline wins: caller/run, saved-query `timeout_seconds`,
+`query_timeout`, `connector_timeout`, `execution.request_timeout`, connector-local
+operation budgets and any private-network authorization deadline. Raise all
+applicable budgets together; a longer query timeout cannot override the broker
+or provider. Startup logs report the loaded row, file, response and time settings.
+
+**Upgrade behavior:** installations that omitted `stream_max_rows` now stream
+SQL files without a row quota, even if they set `max_result_rows=1000`.
+To preserve the previous file row policy, explicitly set `stream_max_rows` to
+that old allowance before upgrading. Existing positive saved-query row limits
+continue to apply. New saved queries and the editor default to `row_limit=0`
+(use operator policy); their API readback preserves zero. Materialized results
+remain bounded by `max_result_rows`; the editor previously inserted a 100-row
+saved quota. The saved-query API accepts explicit quotas up to 10,000 rows and
+saved timeouts of 1–300 seconds. Set old saved file queries to `row_limit=0`
+to remove an earlier saved quota. Drain pending execution requests and upgrade API, worker and executor binaries
+together so encrypted requests agree on the new field. A hosted distribution must explicitly supply
+its chosen streamed quota. Direct `queriessvc.NewWithExecutionLimits` consumers
+must also supply a positive `MaxFileBytes`; zero no longer falls back to
+`MaxResponseBytes`. No live configuration is changed by this Core change.
+
 Production tuning:
 
 - Keep `query_timeout` and `connector_timeout` below the shortest upstream reverse-proxy or load-balancer timeout so users receive Braidplane safety errors instead of dropped connections.
 - Start with low `connector_concurrency_per_data_source` values for shared production targets, then raise them only after observing database pool usage and provider rate-limit behavior.
 - Queues are FIFO within one organization/data source. Independent data sources make progress independently. A full queue is rejected immediately; cancellation or the shorter of the queue and query deadlines removes pending work without consuming a slot.
-- Size row and byte limits for the largest result a user can inspect usefully in the UI, not for bulk export. Large exports should use a separate job path.
+- Size row and byte limits for the largest result a user can inspect usefully in the UI, not for bulk export. Large exports should use SQL `format: file` with a file sink.
 - Keep `http_retry_attempts = 1` unless the target API is known to tolerate idempotent retries. Read retries cover transient network errors, `429` and `5xx`. Saved HTTP pipeline sinks additionally require an explicit verified-provider `write_retry` policy, durable keyed effect and unexpired retention. See [HTTP retry behavior](doc/data-sources/HTTP.md#opt-in-keyed-write-retries).
 - Treat transform limits as one cumulative per-execution budget. A final `LIMIT` does not reduce join candidate work or intermediate row and byte charges.
 

@@ -2,9 +2,11 @@
 
 Native file operations retain encrypted bytes in PostgreSQL before sending them
 to a destination. They use the existing execution deadlines and concurrency queue.
-Set `execution_limits.max_file_bytes` to limit each file; the default is 128 MiB.
+Set positive `execution_limits.max_file_bytes` to limit each file; the default is 128 MiB.
+Zero is rejected. SQL file exports use `stream_max_rows=0` by default (no row quota);
+materialized results retain their existing row cap. See [configuration and upgrade guidance](../CONFIG.md#streamed-transfer-policy-and-upgrades).
 `max_response_bytes` still limits metadata and structured responses. CSV/JSON
-parsing and SQL row results keep their existing limits. PostgreSQL can also
+parsing and SQL row results keep their existing limits. PostgreSQL, MySQL, BigQuery and Snowflake can also
 [serialize a finite SQL result as a retained file](SQL_RESULT_STREAMING.md).
 
 ## Storage and cleanup

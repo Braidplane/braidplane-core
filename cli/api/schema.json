@@ -7145,10 +7145,10 @@
             "description": ""
           },
           "row_limit": {
-            "default": 1000,
+            "default": 0,
             "description": "",
             "maximum": 10000,
-            "minimum": 1,
+            "minimum": 0,
             "type": "integer"
           },
           "slug": {
@@ -19021,7 +19021,7 @@
           "row_limit": {
             "description": "",
             "maximum": 10000,
-            "minimum": 1,
+            "minimum": 0,
             "type": "integer"
           },
           "timeout_seconds": {

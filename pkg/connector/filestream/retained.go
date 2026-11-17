@@ -66,7 +66,7 @@ func ParseReference(ref filepayload.Reference, maxBytes int64) (uuid.UUID, error
 		return uuid.Nil, ErrUnavailable
 	}
 	if ref.SizeBytes > maxBytes {
-		return uuid.Nil, xerror.ExecutionResponseSizeExceeded().Detailf("file exceeds %d byte transfer limit", maxBytes).WithPublicDetail("File exceeds the configured transfer byte limit.")
+		return uuid.Nil, xerror.ExecutionResponseSizeExceeded().Detailf("file exceeds %d byte transfer limit", maxBytes).WithPublicDetail("execution_limits.max_file_bytes exceeded.")
 	}
 	return id, nil
 }

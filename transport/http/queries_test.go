@@ -73,6 +73,7 @@ var testQueryWithParams = &queriessvc.Query{
 
 func testQueryServiceExecutionLimits() queriessvc.ExecutionLimits {
 	return queriessvc.ExecutionLimits{
+		MaxFileBytes:                      128 * 1024 * 1024,
 		QueryTimeout:                      30 * time.Second,
 		ConnectorTimeout:                  30 * time.Second,
 		MaxResultRows:                     1000,
@@ -2260,5 +2261,24 @@ func TestExecutionResultToHTTP_WorkspacePDFExport(t *testing.T) {
 		require.Equal(t, executionError == nil, payload.Success)
 		require.NotNil(t, payload.Payload.FileId)
 		require.Equal(t, "native", *payload.Payload.FileId)
+	}
+}
+
+func TestSavedQueryZeroQuotaRoundTrip(t *testing.T) {
+	for _, quota := range []*int{nil, new(0), new(1500)} {
+		var statement api.QueryStatement
+		require.NoError(t, json.Unmarshal([]byte(`{"type":"postgres","sql":"SELECT id","format":"file"}`), &statement))
+		data, err := buildQueryData(statement, quota, nil)
+		require.NoError(t, err)
+		var stored queryDataJSON
+		require.NoError(t, json.Unmarshal(data, &stored))
+		want := 0
+		if quota != nil {
+			want = *quota
+		}
+		require.Equal(t, want, stored.RowLimit)
+		response, err := queryToHTTP(&queriessvc.Query{Data: data})
+		require.NoError(t, err)
+		require.Equal(t, want, response.RowLimit)
 	}
 }

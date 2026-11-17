@@ -24,7 +24,6 @@ import (
 )
 
 const (
-	defaultQueryRowLimit       = 1000
 	defaultQueryTimeoutSeconds = 30
 )
 
@@ -647,7 +646,6 @@ func buildQueryData(
 
 	qd := queryDataJSON{
 		Statement:      string(stmtJSON),
-		RowLimit:       defaultQueryRowLimit,
 		TimeoutSeconds: defaultQueryTimeoutSeconds,
 	}
 
@@ -684,9 +682,6 @@ func queryToHTTP(q *queriessvc.Query) (api.Query, error) {
 	}
 
 	rowLimit := qd.RowLimit
-	if rowLimit == 0 {
-		rowLimit = defaultQueryRowLimit
-	}
 
 	timeoutSeconds := qd.TimeoutSeconds
 	if timeoutSeconds == 0 {

@@ -11,8 +11,8 @@ import (
 
 // QueryPages consumes bounded pages from one query job without retaining prior pages.
 func (c *Client) QueryPages(ctx context.Context, req QueryRequest, consume func(*QueryResult) error) (retErr error) {
-	if req.MaxResultRows <= 0 || consume == nil {
-		return xerror.InvalidInput(xerror.Query).WithPublicDetail("BigQuery file queries require a positive row limit and page consumer.")
+	if req.MaxResultRows < 0 || consume == nil {
+		return xerror.InvalidInput(xerror.Query).WithPublicDetail("BigQuery file queries require a nonnegative stream_max_rows quota and page consumer.")
 	}
 	if req.Timeout > 0 {
 		var cancel context.CancelFunc
@@ -33,7 +33,7 @@ func (c *Client) QueryPages(ctx context.Context, req QueryRequest, consume func(
 		return xerror.InvalidInput(xerror.Query).WithPublicDetail("BigQuery file output requires one SELECT query; scripts and writes are not supported.")
 	}
 	payload := buildQueryPayload(req)
-	payload.MaxResults = int64(min(999, req.MaxResultRows) + 1)
+	payload.MaxResults = streamPageRows(req.MaxResultRows, 0)
 	response, body, err := callSDK(ctx, 0, budget, func(ctx context.Context) (*bigquery.QueryResponse, error) {
 		return c.api.Jobs.Query(req.ProjectID, payload).Context(ctx).Do()
 	})
@@ -81,8 +81,8 @@ func (c *Client) QueryPages(ctx context.Context, req QueryRequest, consume func(
 			if err := appendProviderRows(page, rows, 0, &remaining); err != nil {
 				return err
 			}
-			if len(page.Rows) > req.MaxResultRows-count {
-				return xerror.ExecutionRowLimitExceeded()
+			if req.MaxResultRows > 0 && len(page.Rows) > req.MaxResultRows-count {
+				return xerror.ExecutionRowLimitExceeded().WithPublicDetail("execution_limits.stream_max_rows (or saved row_limit) exceeded.")
 			}
 			if err := consume(page); err != nil {
 				return err
@@ -99,7 +99,7 @@ func (c *Client) QueryPages(ctx context.Context, req QueryRequest, consume func(
 			return xerror.Unavailable(xerror.Query).WithPublicDetail("BigQuery query results are missing their job identity.")
 		}
 		next, nextBody, err := callSDK(ctx, 0, budget, func(ctx context.Context) (*bigquery.GetQueryResultsResponse, error) {
-			call := c.api.Jobs.GetQueryResults(req.ProjectID, jobID).MaxResults(int64(min(999, max(0, req.MaxResultRows-count)) + 1))
+			call := c.api.Jobs.GetQueryResults(req.ProjectID, jobID).MaxResults(streamPageRows(req.MaxResultRows, count))
 			if complete {
 				call.PageToken(token)
 			}
@@ -126,4 +126,12 @@ func (c *Client) QueryPages(ctx context.Context, req QueryRequest, consume func(
 		}
 		rows, token, complete = next.Rows, next.PageToken, next.JobComplete
 	}
+}
+
+// Keep provider pages bounded even when the transfer has no row quota.
+func streamPageRows(limit, count int) int64 {
+	if limit == 0 {
+		return 1000
+	}
+	return int64(min(999, max(0, limit-count)) + 1)
 }

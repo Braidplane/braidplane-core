@@ -37,7 +37,7 @@ func Copy(ctx context.Context, dst io.Writer, src io.Reader, maxBytes int64) (*M
 	}
 	if _, err := io.ReadFull(src, extra[:]); err != io.EOF {
 		if err == nil {
-			return nil, xerror.ExecutionResponseSizeExceeded()
+			return nil, xerror.ExecutionResponseSizeExceeded().WithPublicDetail("execution_limits.max_file_bytes exceeded.")
 		}
 		return nil, xerror.Unexpected().With(err)
 	}

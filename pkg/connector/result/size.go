@@ -16,7 +16,7 @@ func NewResponseBudget(limit int64) *ResponseBudget { return &ResponseBudget{lim
 
 func (b *ResponseBudget) Check(size int64) error {
 	if b.limit > 0 && size > b.limit-b.used {
-		return xerror.ExecutionResponseSizeExceeded().Detailf("execution response exceeds %d byte limit", b.limit)
+		return xerror.ExecutionResponseSizeExceeded().WithPublicDetail("execution_limits.max_response_bytes (or a lower connector response-byte limit) exceeded.").Detailf("execution response exceeds %d byte limit", b.limit)
 	}
 	return nil
 }

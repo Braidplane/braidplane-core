@@ -19,7 +19,7 @@ import (
 )
 
 func streamTestLimits() types.ExecutionLimits {
-	return types.ExecutionLimits{MaxResultRows: 10, MaxFileBytes: 4096, MaxResponseBytes: 1024}
+	return types.ExecutionLimits{StreamMaxRows: 10, MaxFileBytes: 4096, MaxResponseBytes: 1024}
 }
 
 func TestQueryToPreservesValuesAndSnapshot(t *testing.T) {
@@ -64,11 +64,11 @@ func TestQueryToRowAndByteBoundaries(t *testing.T) {
 	var baseline bytes.Buffer
 	_, err := executor.QueryTo(t.Context(), "SELECT values", nil, streamTestLimits(), &baseline)
 	require.NoError(t, err)
-	for _, limit := range []int{1, 2, 3} {
+	for _, limit := range []int{0, 1, 2, 3} {
 		limits := streamTestLimits()
-		limits.MaxResultRows = limit
+		limits.StreamMaxRows = limit
 		output, err := executor.QueryTo(t.Context(), "SELECT values", nil, limits, io.Discard)
-		if limit < 2 {
+		if limit > 0 && limit < 2 {
 			require.ErrorIs(t, err, xerror.ExecutionRowLimitExceeded())
 			require.Nil(t, output.Metadata)
 		} else {

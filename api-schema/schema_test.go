@@ -697,3 +697,14 @@ func TestCommunityHasNoBillingProfileAPI(t *testing.T) {
 		require.NotContains(t, document.Components.Schemas, name)
 	}
 }
+
+func TestSavedQueryRowQuotaAcceptsOperatorPolicy(t *testing.T) {
+	doc, err := openapi3.NewLoader().LoadFromFile("schema.yml")
+	require.NoError(t, err)
+	for _, name := range []string{"NewQuery", "UpdateQuery"} {
+		quota := doc.Components.Schemas[name].Value.Properties["row_limit"].Value
+		require.NoError(t, quota.VisitJSON(float64(0)))
+		require.NoError(t, quota.VisitJSON(float64(1500)))
+		require.Error(t, quota.VisitJSON(float64(-1)))
+	}
+}

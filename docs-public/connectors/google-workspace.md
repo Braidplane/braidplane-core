@@ -5,6 +5,9 @@ Docs/Slides operations. Authorize files through Google Picker, then use the
 operations below. See [support levels and evidence](support-levels.md) for
 connector status and provider requirements.
 
+See [streaming modes and limits](streaming.md) for this connector’s native-file
+streaming operations and operator settings.
+
 ## Connect and authorize
 
 The deployment operator configures a Google OAuth web client and Picker settings

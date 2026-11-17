@@ -1226,9 +1226,11 @@ func Seed(ctx context.Context, cfg *backendconfig.Config, coreOnly bool) (*Summa
 		credentialsService,
 		clock.New(),
 		queriessvc.ExecutionLimits{
+			MaxFileBytes:                      cfg.ExecutionLimits.MaxFileBytes,
 			QueryTimeout:                      cfg.ExecutionLimits.QueryTimeout.TimeDuration(),
 			ConnectorTimeout:                  cfg.ExecutionLimits.ConnectorTimeout.TimeDuration(),
 			MaxResultRows:                     cfg.ExecutionLimits.MaxResultRows,
+			StreamMaxRows:                     cfg.ExecutionLimits.StreamMaxRows,
 			MaxResponseBytes:                  cfg.ExecutionLimits.MaxResponseBytes,
 			ConnectorConcurrencyPerDataSource: cfg.ExecutionLimits.ConnectorConcurrencyPerDataSource,
 			HTTPTimeout:                       cfg.ExecutionLimits.HTTPTimeout.TimeDuration(),

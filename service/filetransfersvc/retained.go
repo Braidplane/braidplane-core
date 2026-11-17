@@ -100,7 +100,7 @@ func (w *chunkWriter) Write(p []byte) (int, error) {
 		return 0, xerror.Unexpected().With(err)
 	}
 	if int64(len(p)) > w.maxBytes-w.size {
-		return 0, xerror.ExecutionResponseSizeExceeded()
+		return 0, xerror.ExecutionResponseSizeExceeded().WithPublicDetail("execution_limits.max_file_bytes exceeded.")
 	}
 	written := 0
 	for len(p) > 0 {

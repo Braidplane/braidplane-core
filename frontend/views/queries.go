@@ -173,7 +173,7 @@ type QueryExecutionResultView struct {
 
 func DefaultQueryEditorFormData() QueryEditorFormData {
 	return QueryEditorFormData{
-		RowLimit:             "100",
+		RowLimit:             "0",
 		SQLFormat:            "rows",
 		WorkspaceWorksheetID: "0",
 		WorkspaceRange:       "A1:C10",
@@ -390,6 +390,13 @@ func QueryStatementKindLabel(query api.Query) string {
 }
 
 // QueryDescriptionLabel renders a stable fallback for blank query descriptions.
+func QueryRowLimitLabel(limit int) string {
+	if limit == 0 {
+		return "Configured limits"
+	}
+	return fmt.Sprintf("%d rows", limit)
+}
+
 func QueryDescriptionLabel(query api.Query) string {
 	if query.Description != nil && strings.TrimSpace(*query.Description) != "" {
 		return strings.TrimSpace(*query.Description)

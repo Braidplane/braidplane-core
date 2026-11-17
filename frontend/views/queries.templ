@@ -459,7 +459,8 @@ templ QueriesPageContent(dataSources []api.DataSource, selectedDataSource string
 							if selectedDataSourceType != "http" {
 								<label class="form-control w-full">
 									<div class="label py-1"><span class="label-text text-xs">Row limit</span></div>
-									<input class="input input-bordered input-sm w-full" type="number" min="1" name="row_limit" value={ createFormData.RowLimit } required/>
+									<input class="input input-bordered input-sm w-full" type="number" min="0" name="row_limit" value={ createFormData.RowLimit } required/>
+									<span class="label-text-alt">0 uses the operator’s row policy.</span>
 								</label>
 							}
 							<label class="form-control w-full">
@@ -684,7 +685,7 @@ templ QueryCardFacts(query api.Query) {
 			<p>params</p>
 		</div>
 		<div class="min-w-0 rounded-lg border border-primary/25 bg-primary/10 p-2">
-			<p class="font-semibold text-base-content">{ fmt.Sprintf("%d", query.RowLimit) }</p>
+			<p class="font-semibold text-base-content">{ QueryRowLimitLabel(query.RowLimit) }</p>
 			<p>row limit</p>
 		</div>
 		<div class="min-w-0 rounded-lg border border-success/25 bg-success/10 p-2">
@@ -711,7 +712,7 @@ templ QueryQuickLook(orgSlug string, dataSourceSlug string, query api.Query) {
 				{ fmt.Sprintf("%d", len(query.Parameters)) }
 			}
 			@EntityFact("Limits") {
-				{ fmt.Sprintf("%d rows · %ds timeout", query.RowLimit, query.TimeoutSeconds) }
+				{ fmt.Sprintf("%s · %ds timeout", QueryRowLimitLabel(query.RowLimit), query.TimeoutSeconds) }
 			}
 			@EntityFact("Input contract") {
 				{ func() string { if query.ExpectedInputContract != nil { return "Required" }; return "None" }() }

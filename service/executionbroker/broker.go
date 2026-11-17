@@ -997,12 +997,18 @@ func (b *Broker) submitAndWait(
 			}
 			if executionMayHaveExternalSideEffects(kind) && !cancelledBeforeExecution {
 				recordBrokerOutcome(kind, "ambiguous", startedAt)
+				if xerror.Is(waitCtx.Err(), context.DeadlineExceeded) {
+					return encryptedResponse{}, ErrAmbiguousExecution.WithPublicDetail("execution.request_timeout or caller deadline elapsed during execution; inspect the destination before retrying.")
+				}
 				return encryptedResponse{}, ErrAmbiguousExecution
 			}
 			if kind == kindQuery {
 				metrics.RecordConnectorAdmission(contextOutcome(waitCtx.Err()))
 			}
 			recordBrokerOutcome(kind, contextOutcome(waitCtx.Err()), startedAt)
+			if xerror.Is(waitCtx.Err(), context.DeadlineExceeded) {
+				return encryptedResponse{}, xerror.Timeout(xerror.DataSource).With(waitCtx.Err()).WithPublicDetail("execution.request_timeout or caller deadline exceeded.")
+			}
 			return encryptedResponse{}, waitCtx.Err()
 		case <-ticker.C:
 			response, done, readErr := b.readResponse(waitCtx, id, organizationSlug)
@@ -1195,7 +1201,7 @@ func responseError(response encryptedResponse) error {
 	case errorCodeQueryFailed:
 		return xerror.ExecutionUnavailable().WithPublicDetail(response.PublicDetail).Detail("query execution failed")
 	case errorCodeQueryRowLimit:
-		return xerror.ExecutionRowLimitExceeded()
+		return xerror.ExecutionRowLimitExceeded().WithPublicDetail(response.PublicDetail)
 	case errorCodeAcknowledgementRejected:
 		return xerror.HTTPAcknowledgementRejected().WithPublicDetail(response.PublicDetail)
 	case errorCodeAcknowledgementUncertain:
@@ -1203,7 +1209,7 @@ func responseError(response encryptedResponse) error {
 	case errorCodeResourceScope:
 		return resourcescope.ErrInvalid
 	case errorCodeResponseSize:
-		return xerror.ExecutionResponseSizeExceeded().
+		return xerror.ExecutionResponseSizeExceeded().WithPublicDetail(response.PublicDetail).
 			Detail("execution response exceeded the byte limit")
 	case errorCodeRepositoryForbidden:
 		return xerror.Forbidden(xerror.DataSource)

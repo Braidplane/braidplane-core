@@ -60,6 +60,7 @@ nav:
   - Connectors:
       - Connector directory: connectors/index.md
       - Support levels: connectors/support-levels.md
+      - Streaming modes and limits: connectors/streaming.md
       - Connect a system: connectors/connect-a-system.md
       - Data sources:
           - PostgreSQL: connectors/postgresql.md
