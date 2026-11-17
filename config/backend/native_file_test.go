@@ -28,3 +28,27 @@ max_file_bytes = 1073741825
 	_, err = LoadWithArgs(path, []string{"--execution-limits-max-file-bytes=0"})
 	require.ErrorContains(t, err, "max_file_bytes")
 }
+
+func TestStreamRowQuotaConfiguration(t *testing.T) {
+	require.Zero(t, defaults().ExecutionLimits.StreamMaxRows)
+	setTestGitHubAppEnv(t)
+	path := filepath.Join(t.TempDir(), "config.toml")
+	require.NoError(t, os.WriteFile(path, []byte(`[security]
+encryption_key_hex = "0202020202020202020202020202020202020202020202020202020202020202"
+[execution_limits]
+stream_max_rows = 7
+`), 0o600))
+	cfg, err := LoadWithArgs(path, nil)
+	require.NoError(t, err)
+	require.Equal(t, 7, cfg.ExecutionLimits.StreamMaxRows)
+	t.Setenv("EXECUTION_LIMITS_STREAM_MAX_ROWS", "9")
+	cfg, err = LoadWithArgs(path, nil)
+	require.NoError(t, err)
+	require.Equal(t, 9, cfg.ExecutionLimits.StreamMaxRows)
+	cfg, err = LoadWithArgs(path, []string{"--execution-limits-stream-max-rows=0"})
+	require.NoError(t, err)
+	require.Zero(t, cfg.ExecutionLimits.StreamMaxRows)
+	require.Equal(t, 1000, cfg.ExecutionLimits.MaxResultRows)
+	_, err = LoadWithArgs(path, []string{"--execution-limits-stream-max-rows=-1"})
+	require.ErrorContains(t, err, "execution_limits.stream_max_rows")
+}

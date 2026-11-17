@@ -89,6 +89,7 @@ func TestExecuteUsesResolvedProviderRepositoryPayload(t *testing.T) {
 		credentials,
 		fixedCredentialRuntimeClock{now: time.Date(2026, 9, 1, 10, 0, 0, 0, time.UTC)},
 		ExecutionLimits{
+			MaxFileBytes:                      128 * 1024 * 1024,
 			QueryTimeout:                      time.Minute,
 			ConnectorTimeout:                  time.Minute,
 			MaxResultRows:                     100,
@@ -159,6 +160,7 @@ func TestExecuteResolvesRuntimeCredentialBeforeConnectorConstruction(t *testing.
 		credentials,
 		fixedCredentialRuntimeClock{now: time.Date(2026, 6, 3, 10, 0, 0, 0, time.UTC)},
 		ExecutionLimits{
+			MaxFileBytes:                      128 * 1024 * 1024,
 			QueryTimeout:                      time.Minute,
 			ConnectorTimeout:                  time.Minute,
 			MaxResultRows:                     100,
@@ -232,6 +234,7 @@ func TestExecuteStopsBeforeConnectorConstructionWhenRuntimeCredentialResolutionF
 		credentials,
 		fixedCredentialRuntimeClock{now: time.Date(2026, 6, 3, 10, 0, 0, 0, time.UTC)},
 		ExecutionLimits{
+			MaxFileBytes:                      128 * 1024 * 1024,
 			QueryTimeout:                      time.Minute,
 			ConnectorTimeout:                  time.Minute,
 			MaxResultRows:                     100,

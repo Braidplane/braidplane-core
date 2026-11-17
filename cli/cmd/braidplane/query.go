@@ -61,7 +61,7 @@ type queryPayloadFlags struct {
 	ParametersJSON string `help:"Query parameter definition JSON array." name:"parameters-json"`
 	ContractsFile  string `help:"Path to a JSON object containing saved-operation input/output contract attachments. Update replaces all attachments; omission clears them." name:"contracts-file" type:"path"`
 	ParametersFile string `help:"Path to a query parameter definition JSON array file." name:"parameters-file" type:"path"`
-	RowLimit       int    `help:"Maximum number of rows to return." name:"row-limit"`
+	RowLimit       int    `help:"Additional row quota; 0 uses operator policy." name:"row-limit"`
 	TimeoutSeconds int    `help:"Query execution timeout in seconds." name:"timeout-seconds"`
 }
 

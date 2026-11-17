@@ -79,8 +79,8 @@ func StreamRows(ctx context.Context, rows *stdsql.Rows, limits types.ExecutionLi
 		return StreamResult{}, err
 	}
 	for rows.Next() {
-		if stream.count >= limits.MaxResultRows {
-			return StreamResult{}, xerror.ExecutionRowLimitExceeded()
+		if limits.StreamMaxRows > 0 && stream.count >= limits.StreamMaxRows {
+			return StreamResult{}, xerror.ExecutionRowLimitExceeded().WithPublicDetail("execution_limits.stream_max_rows (or saved row_limit) exceeded.")
 		}
 		row := make(map[string]any, len(names))
 		budget := result.NewResponseBudget(limits.MaxResponseBytes)
@@ -103,7 +103,7 @@ func StreamRows(ctx context.Context, rows *stdsql.Rows, limits types.ExecutionLi
 		}
 		if err := rows.Scan(pointers...); err != nil {
 			if xerror.Is(err, xerror.ExecutionResponseSizeExceeded()) {
-				return StreamResult{}, xerror.ExecutionResponseSizeExceeded().With(err)
+				return StreamResult{}, xerror.ExecutionResponseSizeExceeded().With(err).WithPublicDetail("execution_limits.max_response_bytes exceeded for a streamed row.")
 			}
 			return StreamResult{}, ErrQueryExecutionFailed.With(err)
 		}
@@ -173,8 +173,8 @@ func NewRowStream(ctx context.Context, dst io.Writer, names []string, limits typ
 }
 
 func (s *RowStream) WriteRow(row map[string]any) error {
-	if s.count >= s.limits.MaxResultRows {
-		return xerror.ExecutionRowLimitExceeded()
+	if s.limits.StreamMaxRows > 0 && s.count >= s.limits.StreamMaxRows {
+		return xerror.ExecutionRowLimitExceeded().WithPublicDetail("execution_limits.stream_max_rows (or saved row_limit) exceeded.")
 	}
 	if len(row) != len(s.names) {
 		return ErrInvalidConfig.WithPublicDetail("SQL result columns changed during streaming.")
@@ -189,7 +189,7 @@ func (s *RowStream) WriteRow(row map[string]any) error {
 		return xerror.Unexpected().With(err)
 	}
 	if int64(len(encoded)) > s.limits.MaxResponseBytes {
-		return xerror.ExecutionResponseSizeExceeded()
+		return xerror.ExecutionResponseSizeExceeded().WithPublicDetail("execution_limits.max_response_bytes exceeded for a streamed row.")
 	}
 	if s.count > 0 {
 		if _, err := io.WriteString(s.writer, ","); err != nil {
@@ -214,8 +214,8 @@ func (s *RowStream) Finish() (StreamResult, error) {
 }
 
 func validateFileLimits(limits types.ExecutionLimits) error {
-	if limits.MaxResultRows <= 0 || limits.MaxFileBytes <= 0 || limits.MaxResponseBytes <= 0 {
-		return ErrInvalidConfig.WithPublicDetail("SQL file exports require positive row, transfer byte and per-row byte limits.")
+	if limits.StreamMaxRows < 0 || limits.MaxFileBytes <= 0 || limits.MaxResponseBytes <= 0 {
+		return ErrInvalidConfig.WithPublicDetail("SQL file exports require nonnegative execution_limits.stream_max_rows and positive execution_limits.max_file_bytes and execution_limits.max_response_bytes.")
 	}
 	return nil
 }
@@ -272,7 +272,7 @@ func (w *sqlStreamWriter) Write(data []byte) (int, error) {
 		return 0, err
 	}
 	if int64(len(data)) > w.limit-w.written {
-		return 0, xerror.ExecutionResponseSizeExceeded()
+		return 0, xerror.ExecutionResponseSizeExceeded().WithPublicDetail("execution_limits.max_file_bytes exceeded.")
 	}
 	n, err := w.dst.Write(data)
 	w.written += int64(n)

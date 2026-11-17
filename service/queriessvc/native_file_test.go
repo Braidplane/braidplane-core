@@ -11,6 +11,7 @@ import (
 	"github.com/Braidplane/braidplane-core/pkg/connector/result"
 	"github.com/Braidplane/braidplane-core/pkg/domain/model"
 	"github.com/Braidplane/braidplane-core/pkg/eventtest"
+	filepayload "github.com/Braidplane/braidplane-core/pkg/payload/file"
 	"github.com/Braidplane/braidplane-core/pkg/slug"
 	"github.com/Braidplane/braidplane-core/pkg/testutil"
 	"github.com/Braidplane/braidplane-core/service/datasourcessvc"
@@ -72,6 +73,36 @@ func TestFileExecutionUsesOrdinaryLimits(t *testing.T) {
 			_, err = svc.Execute(ctx, slug.Slug(tc.org), "postgres-main", "limited-query", model.SystemEventActor(), nil, queriessvc.WithoutExecutionRecording())
 			require.NoError(t, err)
 			require.True(t, called)
+		})
+	}
+}
+
+func TestSQLStreamQuotaIsSeparateFromMaterializedRows(t *testing.T) {
+	for _, tc := range []struct {
+		name               string
+		quota, saved, want int
+	}{
+		{"unlimited", 0, 0, 0},
+		{"operator", 2000, 0, 2000},
+		{"saved on unlimited", 0, 1500, 1500},
+		{"saved smaller", 2000, 1500, 1500},
+		{"operator smaller", 1500, 2000, 1500},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			saved, err := json.Marshal(map[string]any{"statement": `{"sql":"SELECT id","format":"file"}`, "row_limit": tc.saved})
+			require.NoError(t, err)
+			repo, sources := safetyLimitQueryFixtures(t, saved)
+			limits := testExecutionLimits()
+			limits.StreamMaxRows = tc.quota
+			executor := nativeFileExecutorFunc(func(_ context.Context, request queriessvc.ConnectorExecutionRequest) (*result.ExecutionResult, error) {
+				require.Equal(t, tc.want, request.Limits.StreamMaxRows)
+				require.Equal(t, 1000, request.Limits.MaxResultRows)
+				return result.NewSQLResult("postgres", &result.SQLResult{Rows: []map[string]any{}, RowCount: 1500, Reference: &filepayload.Reference{}}, 0, nil), nil
+			})
+			svc, err := queriessvc.NewWithExecutionLimits(&testutil.FakeTransactionManager{}, repo, sources, executor, newFakeCredentialService(), &testutil.FakeClock{}, limits, eventtest.NewProducer(&fakeQueryEventRecorder{}))
+			require.NoError(t, err)
+			_, err = svc.Execute(t.Context(), "fixture", "postgres-main", "limited-query", model.SystemEventActor(), nil, queriessvc.WithoutExecutionRecording())
+			require.NoError(t, err, "a file reference must not reapply the materialized row limit")
 		})
 	}
 }

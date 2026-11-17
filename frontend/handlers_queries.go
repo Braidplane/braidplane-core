@@ -1556,12 +1556,7 @@ func buildCreateQueryPayload(
 			maxRowLimit = 200
 		}
 
-		rowLimit, rowLimitErr := parsePositiveInt(
-			c.FormValue("row_limit"),
-			100,
-			maxRowLimit,
-			"Row limit",
-		)
+		rowLimit, rowLimitErr := parseQueryRowLimit(c.FormValue("row_limit"), maxRowLimit)
 		if rowLimitErr != "" {
 			return payload, rowLimitErr
 		}
@@ -1631,12 +1626,7 @@ func buildUpdateQueryPayload(
 			maxRowLimit = 200
 		}
 
-		rowLimit, rowLimitErr := parsePositiveInt(
-			c.FormValue("row_limit"),
-			100,
-			maxRowLimit,
-			"Row limit",
-		)
+		rowLimit, rowLimitErr := parseQueryRowLimit(c.FormValue("row_limit"), maxRowLimit)
 		if rowLimitErr != "" {
 			return payload, rowLimitErr
 		}
@@ -2579,6 +2569,13 @@ func convertExecutionParameter(
 	default:
 		return nil, xerror.Unexpected().Detail("unsupported type")
 	}
+}
+
+func parseQueryRowLimit(raw string, maxValue int) (int, string) {
+	if strings.TrimSpace(raw) == "0" {
+		return 0, ""
+	}
+	return parsePositiveInt(raw, 0, maxValue, "Row limit")
 }
 
 func parsePositiveInt(raw string, fallback, maxValue int, fieldLabel string) (int, string) {

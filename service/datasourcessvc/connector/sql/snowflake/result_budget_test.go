@@ -178,12 +178,12 @@ func (r *budgetRows) Next(values []driver.Value) error {
 }
 
 func TestFileQueryStreamsDriverRowsAndDiscardsOverflow(t *testing.T) {
-	for _, limit := range []int{1, 2} {
+	for _, limit := range []int{0, 1, 2} {
 		fixture := &budgetRows{columns: []string{"id", "amount", "nullable"}, values: [][]driver.Value{{int64(9007199254740993), []byte("123456789.123456789"), nil}, {int64(2), []byte("2.000000001"), nil}}}
 		connector := newScanningConnector(t, fixture)
 		store := filestreamfixture.New()
 		ctx := filestream.WithStore(t.Context(), store)
-		got, err := connector.Execute(ctx, json.RawMessage(`{"sql":"SELECT id,amount,nullable","format":"file"}`), nil, types.ExecutionLimits{MaxResultRows: limit, MaxResponseBytes: 1024, MaxFileBytes: 4096})
+		got, err := connector.Execute(ctx, json.RawMessage(`{"sql":"SELECT id,amount,nullable","format":"file"}`), nil, types.ExecutionLimits{StreamMaxRows: limit, MaxResponseBytes: 1024, MaxFileBytes: 4096})
 		require.NoError(t, err)
 		require.True(t, fixture.closed)
 		output, _ := got.SQL()

@@ -13,6 +13,7 @@ type ExecutionLimits struct {
 	ReadOnly             bool
 	ConnectorTimeout     time.Duration
 	MaxResultRows        int
+	StreamMaxRows        int // Zero disables the streamed SQL file row quota.
 	MaxFileBytes         int64
 	MaxResponseBytes     int64
 	HTTPTimeout          time.Duration

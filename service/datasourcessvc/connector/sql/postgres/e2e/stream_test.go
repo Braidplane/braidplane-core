@@ -29,7 +29,7 @@ func TestPostgresRetainedSQLStream(t *testing.T) {
 	connector, err := postgres.New(ctx, getTestConfig())
 	require.NoError(t, err)
 	t.Cleanup(func() { require.NoError(t, connector.Close()) })
-	limits := types.ExecutionLimits{MaxResultRows: 3, MaxResponseBytes: 1024, MaxFileBytes: 4096}
+	limits := types.ExecutionLimits{StreamMaxRows: 3, MaxResponseBytes: 1024, MaxFileBytes: 4096}
 	execution, err := connector.Execute(ctx, json.RawMessage(`{"type":"postgres","format":"file","sql":"SELECT i::bigint AS id, 123456789.123456789::numeric AS decimal, NULL::text AS nullable, decode('00ff','hex') AS binary FROM generate_series(1,3) i ORDER BY i"}`), nil, limits)
 	require.NoError(t, err)
 	require.NoError(t, execution.Error())
@@ -123,7 +123,7 @@ func TestPostgresStreamSnapshotAndCancellation(t *testing.T) {
 	})
 	store := filestreamfixture.New()
 	gate := snapshotGateStore{Store: store, entered: make(chan struct{}), release: make(chan struct{})}
-	limits := types.ExecutionLimits{MaxResultRows: 2, MaxResponseBytes: 4096, MaxFileBytes: 4096}
+	limits := types.ExecutionLimits{StreamMaxRows: 2, MaxResponseBytes: 4096, MaxFileBytes: 4096}
 	type executionOutcome struct {
 		result *result.ExecutionResult
 		err    error

@@ -31,7 +31,7 @@ func TestFileQueryPreservesTypesAcrossPagesAndDiscardsFailures(t *testing.T) {
 				return nil
 			}}
 			conn := newWithClient(Config{ProjectID: "fixture"}, provider)
-			got, err := conn.Execute(ctx, json.RawMessage(`{"type":"bigquery","sql":"SELECT {{id}}","format":"file"}`), map[string]types.TypedParam{"id": {Value: "value", DataType: "text"}}, types.ExecutionLimits{MaxResultRows: 2, MaxResponseBytes: 4096, MaxFileBytes: 8192})
+			got, err := conn.Execute(ctx, json.RawMessage(`{"type":"bigquery","sql":"SELECT {{id}}","format":"file"}`), map[string]types.TypedParam{"id": {Value: "value", DataType: "text"}}, types.ExecutionLimits{StreamMaxRows: 2, MaxResponseBytes: 4096, MaxFileBytes: 8192})
 			require.NoError(t, err)
 			if fail {
 				require.ErrorIs(t, got.Error(), io.ErrUnexpectedEOF)

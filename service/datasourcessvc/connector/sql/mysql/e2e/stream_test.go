@@ -22,7 +22,7 @@ func TestMySQLRetainedSQLStream(t *testing.T) {
 	connector, err := mysql.New(ctx, getTestConfig())
 	require.NoError(t, err)
 	t.Cleanup(func() { require.NoError(t, connector.Close()) })
-	limits := types.ExecutionLimits{MaxResultRows: 1, MaxResponseBytes: 1024, MaxFileBytes: 4096}
+	limits := types.ExecutionLimits{StreamMaxRows: 1, MaxResponseBytes: 1024, MaxFileBytes: 4096}
 	got, err := connector.Execute(ctx, json.RawMessage(`{"type":"mysql","format":"file","sql":"SELECT CAST(9007199254740993 AS SIGNED) AS id, CAST(123456789.123456789 AS DECIMAL(18,9)) AS amount, NULL AS nullable, CAST('bytes' AS BINARY) AS bytes"}`), nil, limits)
 	require.NoError(t, err)
 	require.NoError(t, got.Error())

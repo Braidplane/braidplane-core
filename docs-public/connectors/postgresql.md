@@ -8,6 +8,9 @@ Use the [shared connection workflow](connect-a-system.md) to create this data
 source in your workspace. You can read this guide without an account or
 provider resources. Running examples requires provider resources appropriate for your evaluation.
 
+See [streaming modes and limits](streaming.md) for this connector’s SQL-result
+streaming operations and operator settings.
+
 ## Connection settings
 
 | Field | Required | Type | Default | Notes |

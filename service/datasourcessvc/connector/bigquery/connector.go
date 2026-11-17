@@ -176,7 +176,7 @@ func (c *Connector) executeQuery(
 		MaxResponseBytes:   effectiveResponseBytes(limits),
 	}
 	if fileOutput {
-		request.MaxResultRows = limits.MaxResultRows
+		request.MaxResultRows = limits.StreamMaxRows
 		output, err := sqlconnector.RetainQueryFile(ctx, limits, func(ctx context.Context, dst io.Writer) (sqlconnector.StreamResult, error) {
 			var stream *sqlconnector.RowStream
 			err := c.client.QueryPages(ctx, request, func(page *QueryResult) error {

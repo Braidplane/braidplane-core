@@ -565,6 +565,7 @@ func newTestStack(ctx context.Context, limits queriessvc.ExecutionLimits) (*test
 
 func e2eExecutionLimits() queriessvc.ExecutionLimits {
 	return queriessvc.ExecutionLimits{
+		MaxFileBytes:                      128 * 1024 * 1024,
 		QueryTimeout:                      30 * time.Second,
 		ConnectorTimeout:                  30 * time.Second,
 		MaxResultRows:                     1000,

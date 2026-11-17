@@ -108,7 +108,7 @@ type QueryRequest struct {
 	Parameters         []QueryParameter
 	Timeout            time.Duration
 	MaximumBytesBilled int64
-	MaxResultRows      int   // Maximum retained rows, including the adapter's overflow sentinel.
+	MaxResultRows      int   // Materialized row bound (with overflow sentinel), or streamed quota (0 disables).
 	MaxResponseBytes   int64 // Cumulative provider bytes and a separate retained-row budget.
 }
 

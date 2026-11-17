@@ -259,7 +259,8 @@ type ExecutionConfig struct {
 type ExecutionLimitsConfig struct {
 	QueryTimeout                      config.Duration `toml:"query_timeout"                         env:"EXECUTION_LIMITS_QUERY_TIMEOUT"                         flag:"execution-limits-query-timeout"                         desc:"Maximum saved or inline query execution duration (e.g., 30s, 1m)"`
 	ConnectorTimeout                  config.Duration `toml:"connector_timeout"                     env:"EXECUTION_LIMITS_CONNECTOR_TIMEOUT"                     flag:"execution-limits-connector-timeout"                     desc:"Maximum connector operation duration (e.g., 30s, 1m)"`
-	MaxResultRows                     int             `toml:"max_result_rows"                       env:"EXECUTION_LIMITS_MAX_RESULT_ROWS"                       flag:"execution-limits-max-result-rows"                       desc:"Maximum rows/documents returned by a query execution"`
+	MaxResultRows                     int             `toml:"max_result_rows"                       env:"EXECUTION_LIMITS_MAX_RESULT_ROWS"                       flag:"execution-limits-max-result-rows"                       desc:"Maximum materialized rows/documents; SQL file exports use stream_max_rows"`
+	StreamMaxRows                     int             `toml:"stream_max_rows" env:"EXECUTION_LIMITS_STREAM_MAX_ROWS" flag:"execution-limits-stream-max-rows" desc:"Maximum streamed SQL file rows; 0 disables the row quota"`
 	MaxFileBytes                      int64           `toml:"max_file_bytes" env:"EXECUTION_LIMITS_MAX_FILE_BYTES" flag:"execution-limits-max-file-bytes" desc:"Maximum bytes per native file"`
 	MaxResponseBytes                  int64           `toml:"max_response_bytes"                    env:"EXECUTION_LIMITS_MAX_RESPONSE_BYTES"                    flag:"execution-limits-max-response-bytes"                    desc:"Maximum response payload size in bytes for query execution"`
 	ConnectorConcurrencyPerDataSource int             `toml:"connector_concurrency_per_data_source" env:"EXECUTION_LIMITS_CONNECTOR_CONCURRENCY_PER_DATA_SOURCE" flag:"execution-limits-connector-concurrency-per-data-source" desc:"Deployment-wide maximum concurrent connector executions per organization/data source"`
@@ -428,6 +429,7 @@ func (c *Config) validateExecutionLimits() error {
 	}{
 		{c.ExecutionLimits.QueryTimeout <= 0, "query_timeout", "greater than 0"},
 		{c.ExecutionLimits.ConnectorTimeout <= 0, "connector_timeout", "greater than 0"},
+		{c.ExecutionLimits.StreamMaxRows < 0, "stream_max_rows", "greater than or equal to 0"},
 		{c.ExecutionLimits.MaxResultRows <= 0, "max_result_rows", "greater than 0"},
 		{c.ExecutionLimits.MaxFileBytes <= 0 || c.ExecutionLimits.MaxFileBytes > filestream.MaxRetainedBytes, "max_file_bytes", "positive and within retained storage bounds"},
 		{c.ExecutionLimits.MaxResponseBytes <= 0, "max_response_bytes", "greater than 0"},

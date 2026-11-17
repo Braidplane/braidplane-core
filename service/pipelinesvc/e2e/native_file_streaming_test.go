@@ -196,10 +196,14 @@ func TestNativeFileStreaming(t *testing.T) {
 		require.NoError(t, err)
 		_, err = pool.Exec(ctx, `WITH cred AS (INSERT INTO credentials(organization_id,slug,kind,credential_type,status,encrypted_payload) SELECT id,'sql-credential','static_secret','postgres','active',$2 FROM organizations WHERE slug=$1 RETURNING id,organization_id) INSERT INTO data_sources(organization_id,credential_id,name,slug,type,config,is_active,read_only) SELECT organization_id,id,'SQL export','sql-source','postgres',$3,true,true FROM cred`, org, encryptedSQL, sqlConfig)
 		require.NoError(t, err)
-		const rowCount = 100
+		const rowCount = 1_000_000
 		sqlLimits := limits
-		sqlLimits.MaxResultRows = rowCount
-		sqlLimits.MaxFileBytes = 1 << 20
+		sqlLimits.MaxResultRows = 1000
+		sqlLimits.StreamMaxRows = 0
+		sqlLimits.MaxFileBytes = 128 << 20
+		sqlLimits.QueryTimeout = 30 * time.Second
+		sqlLimits.ConnectorTimeout = 30 * time.Second
+		t.Logf("million-row SQL-to-S3: stream_max_rows=%d max_result_rows=%d max_file_bytes=%d query_timeout=%s connector_timeout=%s broker_request_timeout=5m; S3 timeout=300s", sqlLimits.StreamMaxRows, sqlLimits.MaxResultRows, sqlLimits.MaxFileBytes, sqlLimits.QueryTimeout, sqlLimits.ConnectorTimeout)
 		sqlQueries, err := queriessvc.NewWithExecutionLimits(txm, queriesrepo.New(), sources, broker, credentials, clock.New(), sqlLimits, eventtest.NewProducer(nil))
 		require.NoError(t, err)
 		sqlRunner, err := pipelineruntime.NewRunner(fileTransferQueryAdapter{sqlQueries}, clock.New(), runs, sources, pipelineruntime.NewSinkRuntime(sqlQueries, testSinkEffectLedger(t, txm)))
@@ -233,6 +237,7 @@ func TestNativeFileStreaming(t *testing.T) {
 		require.NoError(t, pool.QueryRow(ctx, `SELECT f.size_bytes,f.sha256,f.chunk_count FROM retained_file_streams f JOIN execution_requests r ON r.id=f.request_id JOIN data_sources d ON d.id=r.data_source_id WHERE f.organization_id=(SELECT id FROM organizations WHERE slug=$1) AND d.slug='sql-source' AND f.sealed`, org).Scan(&retainedBytes, &retainedDigest, &chunks))
 		require.Equal(t, verifiedBytes, retainedBytes)
 		require.Equal(t, verifiedDigest, retainedDigest)
+		t.Logf("independent destination verification: rows=%d bytes=%d sha256=%s retained_chunks=%d", rowCount, verifiedBytes, verifiedDigest, chunks)
 		_, err = sqlQueries.ExecuteInline(ctx, org, "sql-source", map[string]any{"type": "postgres", "format": "file", "sql": "SELECT 1 AS duplicate, 2 AS duplicate"}, nil)
 		require.Error(t, err)
 		require.Contains(t, xerror.PublicDetail(err), "unique column names", "unsupported query shapes must retain a safe actionable diagnostic through the broker")
@@ -249,7 +254,7 @@ func TestNativeFileStreaming(t *testing.T) {
 		t.Run("SQL cancellation releases connector admission", func(t *testing.T) {
 			serialLimits := sqlLimits
 			serialLimits.ConnectorConcurrencyPerDataSource = 1
-			serialLimits.MaxResultRows = 5000
+			serialLimits.StreamMaxRows = 0
 			serialLimits.MaxFileBytes = 8 << 20 // Allow a persisted chunk before the source pauses.
 			serialQueries, err := queriessvc.NewWithExecutionLimits(txm, queriesrepo.New(), sources, broker, credentials, clock.New(), serialLimits, eventtest.NewProducer(nil))
 			require.NoError(t, err)
@@ -300,9 +305,9 @@ func TestNativeFileStreaming(t *testing.T) {
 				name := fmt.Sprintf("sql-%s-%d", limitKind, offset+1)
 				t.Run(name, func(t *testing.T) {
 					caseLimits := sqlLimits
-					caseLimits.MaxResultRows = 3
+					caseLimits.StreamMaxRows = 3
 					if limitKind == "rows" {
-						caseLimits.MaxResultRows += offset
+						caseLimits.StreamMaxRows += offset
 					} else {
 						caseLimits.MaxFileBytes = smallObjectBytes + int64(offset)
 					}
@@ -325,8 +330,10 @@ func TestNativeFileStreaming(t *testing.T) {
 					if offset < 0 {
 						if limitKind == "rows" {
 							require.ErrorIs(t, runErr, xerror.ExecutionRowLimitExceeded())
+							require.Contains(t, xerror.PublicDetail(runErr), "execution_limits.stream_max_rows")
 						} else {
 							require.ErrorIs(t, runErr, xerror.ExecutionResponseSizeExceeded())
+							require.Contains(t, xerror.PublicDetail(runErr), "execution_limits.max_file_bytes")
 						}
 						after, err := independent.HeadObject(ctx, &awss3.HeadObjectInput{Bucket: aws.String("braidplane-fixtures"), Key: aws.String(key)})
 						require.NoError(t, err)
@@ -689,26 +696,63 @@ func (a fileTransferQueryAdapter) Execute(ctx context.Context, org, ds, query sl
 
 func checkSQLFile(t *testing.T, body io.Reader, rows int) (int64, string) {
 	t.Helper()
-	raw, err := io.ReadAll(io.LimitReader(body, 1<<20))
+	hash := sha256.New()
+	counter := &sqlFileCounter{Reader: io.TeeReader(body, hash)}
+	decoder := json.NewDecoder(counter)
+	token, err := decoder.Token()
 	require.NoError(t, err)
-	var output struct {
-		ColumnNames []string `json:"column_names"`
-		Rows        []struct {
-			OrderID int64  `json:"order_id"`
-			Amount  int64  `json:"amount_cents"`
-			Payload string `json:"payload"`
-		} `json:"rows"`
-		RowCount int `json:"row_count"`
+	require.Equal(t, json.Delim('{'), token)
+	var columns []string
+	count, reported := 0, -1
+	for decoder.More() {
+		key, err := decoder.Token()
+		require.NoError(t, err)
+		switch key {
+		case "column_names":
+			require.NoError(t, decoder.Decode(&columns))
+		case "rows":
+			token, err := decoder.Token()
+			require.NoError(t, err)
+			require.Equal(t, json.Delim('['), token)
+			for decoder.More() {
+				var row struct {
+					OrderID int64  `json:"order_id"`
+					Amount  int64  `json:"amount_cents"`
+					Payload string `json:"payload"`
+				}
+				require.NoError(t, decoder.Decode(&row))
+				count++
+				require.EqualValues(t, count, row.OrderID)
+				require.EqualValues(t, count%100000, row.Amount)
+				require.Equal(t, strings.Repeat("x", 32), row.Payload)
+			}
+			token, err = decoder.Token()
+			require.NoError(t, err)
+			require.Equal(t, json.Delim(']'), token)
+		case "row_count":
+			require.NoError(t, decoder.Decode(&reported))
+		default:
+			t.Fatalf("unexpected SQL file field: %v", key)
+		}
 	}
-	require.NoError(t, json.Unmarshal(raw, &output))
-	require.Equal(t, []string{"order_id", "amount_cents", "payload"}, output.ColumnNames)
-	require.Equal(t, rows, output.RowCount)
-	require.Len(t, output.Rows, rows)
-	for i, row := range output.Rows {
-		require.EqualValues(t, i+1, row.OrderID)
-		require.EqualValues(t, (i+1)%100000, row.Amount)
-		require.Equal(t, strings.Repeat("x", 32), row.Payload)
-	}
-	digest := sha256.Sum256(raw)
-	return int64(len(raw)), hex.EncodeToString(digest[:])
+	token, err = decoder.Token()
+	require.NoError(t, err)
+	require.Equal(t, json.Delim('}'), token)
+	var extra any
+	require.ErrorIs(t, decoder.Decode(&extra), io.EOF)
+	require.Equal(t, []string{"order_id", "amount_cents", "payload"}, columns)
+	require.Equal(t, rows, count)
+	require.Equal(t, rows, reported)
+	return counter.bytes, hex.EncodeToString(hash.Sum(nil))
+}
+
+type sqlFileCounter struct {
+	io.Reader
+	bytes int64
+}
+
+func (r *sqlFileCounter) Read(p []byte) (int, error) {
+	n, err := r.Reader.Read(p)
+	r.bytes += int64(n)
+	return n, err
 }

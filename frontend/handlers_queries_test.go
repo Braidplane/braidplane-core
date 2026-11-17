@@ -2852,3 +2852,34 @@ func TestBuildHTTPStatementPreservesAcknowledgementNumber(t *testing.T) {
 	require.NoError(t, response.Body.Close())
 	require.Equal(t, http.StatusOK, response.StatusCode)
 }
+
+func TestBuildSQLFileQueryUsesOperatorRowPolicy(t *testing.T) {
+	for _, row := range []string{"", "0", "1500", "-1"} {
+		app := fiber.New()
+		app.Post("/", func(c fiber.Ctx) error {
+			create, createErr := buildCreateQueryPayload(c, api.DataSourceTypePostgres)
+			update, updateErr := buildUpdateQueryPayload(c, api.DataSourceTypePostgres)
+			if row == "-1" {
+				require.NotEmpty(t, createErr)
+				require.NotEmpty(t, updateErr)
+			} else {
+				require.Empty(t, createErr)
+				require.Empty(t, updateErr)
+				require.NotNil(t, create.RowLimit)
+				require.NotNil(t, update.RowLimit)
+				want := 0
+				if row == "1500" {
+					want = 1500
+				}
+				require.Equal(t, want, *create.RowLimit)
+				require.Equal(t, want, *update.RowLimit)
+			}
+			return c.SendStatus(http.StatusOK)
+		})
+		req := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/", strings.NewReader("name=Export&statement=SELECT+id&sql_format=file&row_limit="+row))
+		req.Header.Set("Content-Type", fiber.MIMEApplicationForm)
+		response, err := app.Test(req)
+		require.NoError(t, err)
+		require.NoError(t, response.Body.Close())
+	}
+}

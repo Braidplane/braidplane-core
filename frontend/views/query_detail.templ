@@ -374,7 +374,8 @@ templ QueryDetailPageContent(orgSlug string, dataSourceSlug string, query api.Qu
 							if editFormData.StatementType != "http" {
 								<label class="form-control w-full">
 									<div class="label py-1"><span class="label-text text-xs">Row limit</span></div>
-									<input class="input input-bordered input-sm w-full" type="number" min="1" name="row_limit" value={ editFormData.RowLimit } required/>
+									<input class="input input-bordered input-sm w-full" type="number" min="0" name="row_limit" value={ editFormData.RowLimit } required/>
+									<span class="label-text-alt">0 uses the operator’s row policy.</span>
 								</label>
 							}
 							<label class="form-control w-full">
@@ -659,7 +660,7 @@ templ QueryDetailPageContent(orgSlug string, dataSourceSlug string, query api.Qu
 						if editFormData.StatementType != "http" {
 							<div>
 								<p class="text-xs uppercase tracking-wide text-base-content/60">Row limit</p>
-								<p class="mt-1 text-sm text-base-content">{ editFormData.RowLimit }</p>
+								<p class="mt-1 text-sm text-base-content">{ QueryRowLimitLabel(query.RowLimit) }</p>
 							</div>
 						}
 						<div>

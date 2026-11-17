@@ -15809,10 +15809,10 @@ components:
           default: []
         row_limit:
           type: integer
-          minimum: 1
+          minimum: 0
           maximum: 10000
-          description: Maximum number of result rows, capped by the server limit. HTTP top-level JSON array elements each count as one row; objects and scalar/text responses count as one document, while null and opaque files have no JSON rows. Exceeding the effective limit fails with EXECUTION_ROW_LIMIT_EXCEEDED; response-byte limits apply independently.
-          default: 1000
+          description: Optional row quota; 0 uses operator policy (max_result_rows for materialized output, stream_max_rows for SQL file output). A positive value adds a smaller quota. HTTP top-level JSON array elements each count as one row; objects and scalar/text responses count as one document, while null and opaque files have no JSON rows. Exceeding the effective limit fails with EXECUTION_ROW_LIMIT_EXCEEDED; response-byte limits apply independently.
+          default: 0
           example: 1000
         timeout_seconds:
           type: integer
@@ -15872,9 +15872,9 @@ components:
             $ref: '#/components/schemas/QueryParameter'
         row_limit:
           type: integer
-          minimum: 1
+          minimum: 0
           maximum: 10000
-          description: Maximum number of result rows, capped by the server limit. HTTP top-level JSON array elements each count as one row; objects and scalar/text responses count as one document, while null and opaque files have no JSON rows. Exceeding the effective limit fails with EXECUTION_ROW_LIMIT_EXCEEDED; response-byte limits apply independently.
+          description: Optional row quota; 0 uses operator policy (max_result_rows for materialized output, stream_max_rows for SQL file output). A positive value adds a smaller quota. HTTP top-level JSON array elements each count as one row; objects and scalar/text responses count as one document, while null and opaque files have no JSON rows. Exceeding the effective limit fails with EXECUTION_ROW_LIMIT_EXCEEDED; response-byte limits apply independently.
           example: 500
         timeout_seconds:
           type: integer
@@ -15934,7 +15934,7 @@ components:
             $ref: '#/components/schemas/QueryParameter'
         row_limit:
           type: integer
-          description: Maximum number of result rows, capped by the server limit. HTTP top-level JSON array elements each count as one row; objects and scalar/text responses count as one document, while null and opaque files have no JSON rows. Exceeding the effective limit fails with EXECUTION_ROW_LIMIT_EXCEEDED; response-byte limits apply independently.
+          description: Optional row quota; 0 uses operator policy (max_result_rows for materialized output, stream_max_rows for SQL file output). A positive value adds a smaller quota. HTTP top-level JSON array elements each count as one row; objects and scalar/text responses count as one document, while null and opaque files have no JSON rows. Exceeding the effective limit fails with EXECUTION_ROW_LIMIT_EXCEEDED; response-byte limits apply independently.
           example: 1000
         timeout_seconds:
           type: integer

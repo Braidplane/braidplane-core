@@ -11,21 +11,28 @@ Each guide lists the available operations and their limits. See
 maintenance ownership and planned connectors.
 Inspect the installed CLI build with `braidplane data-source capabilities`.
 
-| Connector | Typical use |
-|---|---|
-| [PostgreSQL](postgresql.md) | SQL reads, inserts, updates, and upserts |
-| [MySQL](mysql.md) | SQL reads and database-native writes |
-| [Google Workspace](google-workspace.md) | Selected-file Sheets, Drive, Docs and Slides operations |
-| [BigQuery](bigquery.md) | Warehouse query jobs and row appends |
-| [Snowflake](snowflake.md) | Parameterized warehouse reads and INSERT sinks |
-| [MongoDB](mongodb.md) | Document queries and writes |
-| [HTTP](http.md) | Explicit API requests and response payloads |
-| [HubSpot](hubspot.md) | CRM search/list and unique-key upserts |
-| [FTP](ftp.md) | Explicit FTPS file reads and writes |
-| [Git](git.md) | Manually authenticated repository files |
-| [GitHub](github.md) | Repository files through a GitHub App installation |
-| [GitLab](gitlab.md) | Repository files through a managed OAuth connection |
-| [S3](s3.md) | Structured objects and raw file transfers |
+| Connector | Typical use | Native-file streaming | SQL-result streaming |
+|---|---|---|---|
+| [PostgreSQL](postgresql.md) | SQL reads, inserts, updates, and upserts | — | `format: file` SELECT export |
+| [MySQL](mysql.md) | SQL reads and database-native writes | — | `format: file` read query export |
+| [Google Workspace](google-workspace.md) | Selected-file Sheets, Drive, Docs and Slides operations | Drive file read/create/update; Docs/Slides PDF export | — |
+| [BigQuery](bigquery.md) | Warehouse query jobs and row appends | — | `format: file` single SELECT job |
+| [Snowflake](snowflake.md) | Parameterized warehouse reads and INSERT sinks | — | `format: file` query export |
+| [MongoDB](mongodb.md) | Document queries and writes | — | — |
+| [HTTP](http.md) | Explicit API requests and response payloads | File responses and retained request bodies | — |
+| [HubSpot](hubspot.md) | CRM search/list and unique-key upserts | — | — |
+| [FTP](ftp.md) | Explicit FTPS file reads and writes | `format: file` read/write | — |
+| [Git](git.md) | Manually authenticated repository files | `format: file` read/write; Linux workers | — |
+| [GitHub](github.md) | Repository files through a GitHub App installation | `format: file` read/write; Linux workers | — |
+| [GitLab](gitlab.md) | Repository files through a managed OAuth connection | `format: file` read/write; Linux workers | — |
+| [S3](s3.md) | Structured objects and raw file transfers | `format: file` read/write | — |
+
+**Native-file streaming** preserves bytes. **SQL-result streaming** serializes
+query records incrementally into one JSON file (`column_names`, `rows`,
+`row_count`) for delivery to a native-file destination. Both stage encrypted
+chunks before destination writing. A `file` payload capability alone does not
+mean every operation streams. A dash means that streaming mode is unavailable.
+See [streaming modes and limits](streaming.md) for settings and restrictions.
 
 Each guide includes connection settings, authentication and permissions,
 connection testing, metadata discovery, read/write examples, operation fields,

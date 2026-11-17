@@ -27,6 +27,9 @@ Independent qualifiers describe scope, rather than raising a level:
 | Unverified | Implementation or historical evidence exists, but the specified provider/environment/version combination has no qualifying verification record. |
 | Planned | No shipped native connector. Reads and writes are unsupported today; generic HTTP access is a separate customer-authored integration. |
 
+See the [connector streaming matrix](index.md) and [streaming guide](streaming.md)
+for native-file and SQL-result streaming modes, limits and platform restrictions.
+
 ## Shipped scope
 
 These classifications describe build capabilities, not the status of a saved

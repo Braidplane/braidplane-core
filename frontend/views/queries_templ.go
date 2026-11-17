@@ -1516,7 +1516,7 @@ func QueriesPageContent(dataSources []api.DataSource, selectedDataSource string,
 					return templ_7745c5c3_Err
 				}
 				if selectedDataSourceType != "http" {
-					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 180, "<label class=\"form-control w-full\"><div class=\"label py-1\"><span class=\"label-text text-xs\">Row limit</span></div><input class=\"input input-bordered input-sm w-full\" type=\"number\" min=\"1\" name=\"row_limit\" value=\"")
+					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 180, "<label class=\"form-control w-full\"><div class=\"label py-1\"><span class=\"label-text text-xs\">Row limit</span></div><input class=\"input input-bordered input-sm w-full\" type=\"number\" min=\"0\" name=\"row_limit\" value=\"")
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
@@ -1529,7 +1529,7 @@ func QueriesPageContent(dataSources []api.DataSource, selectedDataSource string,
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
-					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 181, "\" required></label> ")
+					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 181, "\" required> <span class=\"label-text-alt\">0 uses the operator’s row policy.</span></label> ")
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
@@ -1541,7 +1541,7 @@ func QueriesPageContent(dataSources []api.DataSource, selectedDataSource string,
 				var templ_7745c5c3_Var69 string
 				templ_7745c5c3_Var69, templ_7745c5c3_Err = templ.ResolveAttributeValue(createFormData.TimeoutSeconds)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/queries.templ`, Line: 467, Col: 142}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/queries.templ`, Line: 468, Col: 142}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var69)
 				if templ_7745c5c3_Err != nil {
@@ -1559,7 +1559,7 @@ func QueriesPageContent(dataSources []api.DataSource, selectedDataSource string,
 					var templ_7745c5c3_Var70 string
 					templ_7745c5c3_Var70, templ_7745c5c3_Err = templ.ResolveAttributeValue(param.Name)
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/queries.templ`, Line: 479, Col: 122}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/queries.templ`, Line: 480, Col: 122}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var70)
 					if templ_7745c5c3_Err != nil {
@@ -1582,7 +1582,7 @@ func QueriesPageContent(dataSources []api.DataSource, selectedDataSource string,
 					var templ_7745c5c3_Var71 string
 					templ_7745c5c3_Var71, templ_7745c5c3_Err = templ.ResolveAttributeValue(string(api.QueryParameterDataTypeText))
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/queries.templ`, Line: 481, Col: 132}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/queries.templ`, Line: 482, Col: 132}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var71)
 					if templ_7745c5c3_Err != nil {
@@ -1605,7 +1605,7 @@ func QueriesPageContent(dataSources []api.DataSource, selectedDataSource string,
 					var templ_7745c5c3_Var72 string
 					templ_7745c5c3_Var72, templ_7745c5c3_Err = templ.ResolveAttributeValue(string(api.QueryParameterDataTypeInteger))
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/queries.templ`, Line: 482, Col: 138}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/queries.templ`, Line: 483, Col: 138}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var72)
 					if templ_7745c5c3_Err != nil {
@@ -1628,7 +1628,7 @@ func QueriesPageContent(dataSources []api.DataSource, selectedDataSource string,
 					var templ_7745c5c3_Var73 string
 					templ_7745c5c3_Var73, templ_7745c5c3_Err = templ.ResolveAttributeValue(string(api.QueryParameterDataTypeBoolean))
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/queries.templ`, Line: 483, Col: 138}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/queries.templ`, Line: 484, Col: 138}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var73)
 					if templ_7745c5c3_Err != nil {
@@ -1651,7 +1651,7 @@ func QueriesPageContent(dataSources []api.DataSource, selectedDataSource string,
 					var templ_7745c5c3_Var74 string
 					templ_7745c5c3_Var74, templ_7745c5c3_Err = templ.ResolveAttributeValue(string(api.QueryParameterDataTypeDate))
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/queries.templ`, Line: 484, Col: 132}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/queries.templ`, Line: 485, Col: 132}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var74)
 					if templ_7745c5c3_Err != nil {
@@ -1674,7 +1674,7 @@ func QueriesPageContent(dataSources []api.DataSource, selectedDataSource string,
 					var templ_7745c5c3_Var75 string
 					templ_7745c5c3_Var75, templ_7745c5c3_Err = templ.ResolveAttributeValue(string(api.QueryParameterDataTypeUuid))
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/queries.templ`, Line: 485, Col: 132}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/queries.templ`, Line: 486, Col: 132}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var75)
 					if templ_7745c5c3_Err != nil {
@@ -1707,7 +1707,7 @@ func QueriesPageContent(dataSources []api.DataSource, selectedDataSource string,
 					var templ_7745c5c3_Var76 string
 					templ_7745c5c3_Var76, templ_7745c5c3_Err = templ.ResolveAttributeValue(param.DefaultValue)
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/queries.templ`, Line: 491, Col: 136}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/queries.templ`, Line: 492, Col: 136}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var76)
 					if templ_7745c5c3_Err != nil {
@@ -1720,7 +1720,7 @@ func QueriesPageContent(dataSources []api.DataSource, selectedDataSource string,
 					var templ_7745c5c3_Var77 string
 					templ_7745c5c3_Var77, templ_7745c5c3_Err = templ.ResolveAttributeValue(param.Description)
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/queries.templ`, Line: 492, Col: 143}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/queries.templ`, Line: 493, Col: 143}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var77)
 					if templ_7745c5c3_Err != nil {
@@ -1733,7 +1733,7 @@ func QueriesPageContent(dataSources []api.DataSource, selectedDataSource string,
 					var templ_7745c5c3_Var78 string
 					templ_7745c5c3_Var78, templ_7745c5c3_Err = templ.ResolveAttributeValue(param.Source)
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/queries.templ`, Line: 493, Col: 71}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/queries.templ`, Line: 494, Col: 71}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var78)
 					if templ_7745c5c3_Err != nil {
@@ -1746,7 +1746,7 @@ func QueriesPageContent(dataSources []api.DataSource, selectedDataSource string,
 					var templ_7745c5c3_Var79 string
 					templ_7745c5c3_Var79, templ_7745c5c3_Err = templ.JoinStringErrs(param.Source)
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/queries.templ`, Line: 494, Col: 103}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/queries.templ`, Line: 495, Col: 103}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var79))
 					if templ_7745c5c3_Err != nil {
@@ -1764,7 +1764,7 @@ func QueriesPageContent(dataSources []api.DataSource, selectedDataSource string,
 				var templ_7745c5c3_Var80 string
 				templ_7745c5c3_Var80, templ_7745c5c3_Err = templ.ResolveAttributeValue(string(api.QueryParameterDataTypeText))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/queries.templ`, Line: 503, Col: 73}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/queries.templ`, Line: 504, Col: 73}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var80)
 				if templ_7745c5c3_Err != nil {
@@ -1777,7 +1777,7 @@ func QueriesPageContent(dataSources []api.DataSource, selectedDataSource string,
 				var templ_7745c5c3_Var81 string
 				templ_7745c5c3_Var81, templ_7745c5c3_Err = templ.ResolveAttributeValue(string(api.QueryParameterDataTypeInteger))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/queries.templ`, Line: 504, Col: 67}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/queries.templ`, Line: 505, Col: 67}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var81)
 				if templ_7745c5c3_Err != nil {
@@ -1790,7 +1790,7 @@ func QueriesPageContent(dataSources []api.DataSource, selectedDataSource string,
 				var templ_7745c5c3_Var82 string
 				templ_7745c5c3_Var82, templ_7745c5c3_Err = templ.ResolveAttributeValue(string(api.QueryParameterDataTypeBoolean))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/queries.templ`, Line: 505, Col: 67}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/queries.templ`, Line: 506, Col: 67}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var82)
 				if templ_7745c5c3_Err != nil {
@@ -1803,7 +1803,7 @@ func QueriesPageContent(dataSources []api.DataSource, selectedDataSource string,
 				var templ_7745c5c3_Var83 string
 				templ_7745c5c3_Var83, templ_7745c5c3_Err = templ.ResolveAttributeValue(string(api.QueryParameterDataTypeDate))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/queries.templ`, Line: 506, Col: 64}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/queries.templ`, Line: 507, Col: 64}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var83)
 				if templ_7745c5c3_Err != nil {
@@ -1816,7 +1816,7 @@ func QueriesPageContent(dataSources []api.DataSource, selectedDataSource string,
 				var templ_7745c5c3_Var84 string
 				templ_7745c5c3_Var84, templ_7745c5c3_Err = templ.ResolveAttributeValue(string(api.QueryParameterDataTypeUuid))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/queries.templ`, Line: 507, Col: 64}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/queries.templ`, Line: 508, Col: 64}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var84)
 				if templ_7745c5c3_Err != nil {
@@ -1903,7 +1903,7 @@ func QueriesPageContent(dataSources []api.DataSource, selectedDataSource string,
 						var templ_7745c5c3_Var88 templ.SafeURL
 						templ_7745c5c3_Var88, templ_7745c5c3_Err = templ.JoinURLErrs(templ.URL(entityListHref(ctx, QueriesListHref(orgSlug, selectedDataSource, "", true), "query", string(query.Slug))))
 						if templ_7745c5c3_Err != nil {
-							return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/queries.templ`, Line: 547, Col: 196}
+							return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/queries.templ`, Line: 548, Col: 196}
 						}
 						_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var88))
 						if templ_7745c5c3_Err != nil {
@@ -1916,7 +1916,7 @@ func QueriesPageContent(dataSources []api.DataSource, selectedDataSource string,
 						var templ_7745c5c3_Var89 string
 						templ_7745c5c3_Var89, templ_7745c5c3_Err = templ.ResolveAttributeValue("query-opener-" + string(query.Slug))
 						if templ_7745c5c3_Err != nil {
-							return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/queries.templ`, Line: 547, Col: 240}
+							return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/queries.templ`, Line: 548, Col: 240}
 						}
 						_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var89)
 						if templ_7745c5c3_Err != nil {
@@ -1929,7 +1929,7 @@ func QueriesPageContent(dataSources []api.DataSource, selectedDataSource string,
 						var templ_7745c5c3_Var90 string
 						templ_7745c5c3_Var90, templ_7745c5c3_Err = templ.JoinStringErrs(query.Name)
 						if templ_7745c5c3_Err != nil {
-							return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/queries.templ`, Line: 547, Col: 255}
+							return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/queries.templ`, Line: 548, Col: 255}
 						}
 						_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var90))
 						if templ_7745c5c3_Err != nil {
@@ -1942,7 +1942,7 @@ func QueriesPageContent(dataSources []api.DataSource, selectedDataSource string,
 						var templ_7745c5c3_Var91 string
 						templ_7745c5c3_Var91, templ_7745c5c3_Err = templ.ResolveAttributeValue(string(query.Slug))
 						if templ_7745c5c3_Err != nil {
-							return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/queries.templ`, Line: 548, Col: 103}
+							return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/queries.templ`, Line: 549, Col: 103}
 						}
 						_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var91)
 						if templ_7745c5c3_Err != nil {
@@ -1955,7 +1955,7 @@ func QueriesPageContent(dataSources []api.DataSource, selectedDataSource string,
 						var templ_7745c5c3_Var92 string
 						templ_7745c5c3_Var92, templ_7745c5c3_Err = templ.JoinStringErrs(string(query.Slug))
 						if templ_7745c5c3_Err != nil {
-							return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/queries.templ`, Line: 548, Col: 126}
+							return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/queries.templ`, Line: 549, Col: 126}
 						}
 						_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var92))
 						if templ_7745c5c3_Err != nil {
@@ -1968,7 +1968,7 @@ func QueriesPageContent(dataSources []api.DataSource, selectedDataSource string,
 						var templ_7745c5c3_Var93 string
 						templ_7745c5c3_Var93, templ_7745c5c3_Err = templ.JoinStringErrs(QueryDescriptionLabel(query))
 						if templ_7745c5c3_Err != nil {
-							return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/queries.templ`, Line: 549, Col: 86}
+							return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/queries.templ`, Line: 550, Col: 86}
 						}
 						_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var93))
 						if templ_7745c5c3_Err != nil {
@@ -1981,7 +1981,7 @@ func QueriesPageContent(dataSources []api.DataSource, selectedDataSource string,
 						var templ_7745c5c3_Var94 string
 						templ_7745c5c3_Var94, templ_7745c5c3_Err = templ.JoinStringErrs(QueryStatementKindLabel(query))
 						if templ_7745c5c3_Err != nil {
-							return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/queries.templ`, Line: 551, Col: 76}
+							return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/queries.templ`, Line: 552, Col: 76}
 						}
 						_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var94))
 						if templ_7745c5c3_Err != nil {
@@ -2057,7 +2057,7 @@ func QueriesPageContent(dataSources []api.DataSource, selectedDataSource string,
 							var templ_7745c5c3_Var99 templ.SafeURL
 							templ_7745c5c3_Var99, templ_7745c5c3_Err = templ.JoinURLErrs(templ.URL("/orgs/" + orgSlug + "/data-sources/" + selectedDataSource + "/queries/" + string(query.Slug) + "/restore"))
 							if templ_7745c5c3_Err != nil {
-								return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/queries.templ`, Line: 565, Col: 139}
+								return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/queries.templ`, Line: 566, Col: 139}
 							}
 							_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var99))
 							if templ_7745c5c3_Err != nil {
@@ -2070,7 +2070,7 @@ func QueriesPageContent(dataSources []api.DataSource, selectedDataSource string,
 							var templ_7745c5c3_Var100 string
 							templ_7745c5c3_Var100, templ_7745c5c3_Err = templ.ResolveAttributeValue("/orgs/" + orgSlug + "/data-sources/" + selectedDataSource + "/queries/" + string(query.Slug) + "/restore")
 							if templ_7745c5c3_Err != nil {
-								return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/queries.templ`, Line: 566, Col: 129}
+								return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/queries.templ`, Line: 567, Col: 129}
 							}
 							_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var100)
 							if templ_7745c5c3_Err != nil {
@@ -2089,7 +2089,7 @@ func QueriesPageContent(dataSources []api.DataSource, selectedDataSource string,
 							var templ_7745c5c3_Var101 templ.SafeURL
 							templ_7745c5c3_Var101, templ_7745c5c3_Err = templ.JoinURLErrs(templ.URL("/orgs/" + orgSlug + "/data-sources/" + selectedDataSource + "/queries/" + string(query.Slug) + "/purge"))
 							if templ_7745c5c3_Err != nil {
-								return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/queries.templ`, Line: 578, Col: 137}
+								return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/queries.templ`, Line: 579, Col: 137}
 							}
 							_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var101))
 							if templ_7745c5c3_Err != nil {
@@ -2102,7 +2102,7 @@ func QueriesPageContent(dataSources []api.DataSource, selectedDataSource string,
 							var templ_7745c5c3_Var102 string
 							templ_7745c5c3_Var102, templ_7745c5c3_Err = templ.ResolveAttributeValue("/orgs/" + orgSlug + "/data-sources/" + selectedDataSource + "/queries/" + string(query.Slug) + "/purge")
 							if templ_7745c5c3_Err != nil {
-								return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/queries.templ`, Line: 579, Col: 127}
+								return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/queries.templ`, Line: 580, Col: 127}
 							}
 							_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var102)
 							if templ_7745c5c3_Err != nil {
@@ -2115,7 +2115,7 @@ func QueriesPageContent(dataSources []api.DataSource, selectedDataSource string,
 							var templ_7745c5c3_Var103 string
 							templ_7745c5c3_Var103, templ_7745c5c3_Err = templ.ResolveAttributeValue(DestructiveConfirmation("Purge", "query", DestructiveResourceLabel(query.Name, string(query.Slug)), "This cannot be undone."))
 							if templ_7745c5c3_Err != nil {
-								return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/queries.templ`, Line: 584, Col: 151}
+								return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/queries.templ`, Line: 585, Col: 151}
 							}
 							_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var103)
 							if templ_7745c5c3_Err != nil {
@@ -2128,7 +2128,7 @@ func QueriesPageContent(dataSources []api.DataSource, selectedDataSource string,
 							var templ_7745c5c3_Var104 string
 							templ_7745c5c3_Var104, templ_7745c5c3_Err = templ.ResolveAttributeValue(DestructiveConfirmation("Purge", "query", DestructiveResourceLabel(query.Name, string(query.Slug)), "This cannot be undone."))
 							if templ_7745c5c3_Err != nil {
-								return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/queries.templ`, Line: 585, Col: 165}
+								return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/queries.templ`, Line: 586, Col: 165}
 							}
 							_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var104)
 							if templ_7745c5c3_Err != nil {
@@ -2184,7 +2184,7 @@ func QueriesPageContent(dataSources []api.DataSource, selectedDataSource string,
 						var templ_7745c5c3_Var107 templ.SafeURL
 						templ_7745c5c3_Var107, templ_7745c5c3_Err = templ.JoinURLErrs(templ.URL(entityDetailHref("/orgs/"+orgSlug+"/data-sources/"+selectedDataSource+"/queries/"+string(query.Slug), entityListHref(ctx, QueriesListHref(orgSlug, selectedDataSource, "", false), "query", string(query.Slug)))))
 						if templ_7745c5c3_Err != nil {
-							return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/queries.templ`, Line: 604, Col: 312}
+							return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/queries.templ`, Line: 605, Col: 312}
 						}
 						_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var107))
 						if templ_7745c5c3_Err != nil {
@@ -2197,7 +2197,7 @@ func QueriesPageContent(dataSources []api.DataSource, selectedDataSource string,
 						var templ_7745c5c3_Var108 string
 						templ_7745c5c3_Var108, templ_7745c5c3_Err = templ.JoinStringErrs(query.Name)
 						if templ_7745c5c3_Err != nil {
-							return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/queries.templ`, Line: 604, Col: 327}
+							return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/queries.templ`, Line: 605, Col: 327}
 						}
 						_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var108))
 						if templ_7745c5c3_Err != nil {
@@ -2210,7 +2210,7 @@ func QueriesPageContent(dataSources []api.DataSource, selectedDataSource string,
 						var templ_7745c5c3_Var109 string
 						templ_7745c5c3_Var109, templ_7745c5c3_Err = templ.ResolveAttributeValue("Preview " + query.Name)
 						if templ_7745c5c3_Err != nil {
-							return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/queries.templ`, Line: 607, Col: 46}
+							return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/queries.templ`, Line: 608, Col: 46}
 						}
 						_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var109)
 						if templ_7745c5c3_Err != nil {
@@ -2223,7 +2223,7 @@ func QueriesPageContent(dataSources []api.DataSource, selectedDataSource string,
 						var templ_7745c5c3_Var110 templ.SafeURL
 						templ_7745c5c3_Var110, templ_7745c5c3_Err = templ.JoinURLErrs(templ.URL(entityListHref(ctx, QueriesListHref(orgSlug, selectedDataSource, "", false), "query", string(query.Slug))))
 						if templ_7745c5c3_Err != nil {
-							return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/queries.templ`, Line: 608, Col: 133}
+							return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/queries.templ`, Line: 609, Col: 133}
 						}
 						_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var110))
 						if templ_7745c5c3_Err != nil {
@@ -2236,7 +2236,7 @@ func QueriesPageContent(dataSources []api.DataSource, selectedDataSource string,
 						var templ_7745c5c3_Var111 string
 						templ_7745c5c3_Var111, templ_7745c5c3_Err = templ.ResolveAttributeValue(entityListHref(ctx, QueriesListHref(orgSlug, selectedDataSource, "", false), "query", string(query.Slug)))
 						if templ_7745c5c3_Err != nil {
-							return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/queries.templ`, Line: 609, Col: 124}
+							return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/queries.templ`, Line: 610, Col: 124}
 						}
 						_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var111)
 						if templ_7745c5c3_Err != nil {
@@ -2249,7 +2249,7 @@ func QueriesPageContent(dataSources []api.DataSource, selectedDataSource string,
 						var templ_7745c5c3_Var112 string
 						templ_7745c5c3_Var112, templ_7745c5c3_Err = templ.ResolveAttributeValue("query-opener-" + string(query.Slug))
 						if templ_7745c5c3_Err != nil {
-							return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/queries.templ`, Line: 615, Col: 51}
+							return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/queries.templ`, Line: 616, Col: 51}
 						}
 						_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var112)
 						if templ_7745c5c3_Err != nil {
@@ -2262,7 +2262,7 @@ func QueriesPageContent(dataSources []api.DataSource, selectedDataSource string,
 						var templ_7745c5c3_Var113 string
 						templ_7745c5c3_Var113, templ_7745c5c3_Err = templ.ResolveAttributeValue(string(query.Slug))
 						if templ_7745c5c3_Err != nil {
-							return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/queries.templ`, Line: 621, Col: 103}
+							return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/queries.templ`, Line: 622, Col: 103}
 						}
 						_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var113)
 						if templ_7745c5c3_Err != nil {
@@ -2275,7 +2275,7 @@ func QueriesPageContent(dataSources []api.DataSource, selectedDataSource string,
 						var templ_7745c5c3_Var114 string
 						templ_7745c5c3_Var114, templ_7745c5c3_Err = templ.JoinStringErrs(string(query.Slug))
 						if templ_7745c5c3_Err != nil {
-							return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/queries.templ`, Line: 621, Col: 126}
+							return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/queries.templ`, Line: 622, Col: 126}
 						}
 						_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var114))
 						if templ_7745c5c3_Err != nil {
@@ -2288,7 +2288,7 @@ func QueriesPageContent(dataSources []api.DataSource, selectedDataSource string,
 						var templ_7745c5c3_Var115 string
 						templ_7745c5c3_Var115, templ_7745c5c3_Err = templ.JoinStringErrs(QueryDescriptionLabel(query))
 						if templ_7745c5c3_Err != nil {
-							return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/queries.templ`, Line: 622, Col: 86}
+							return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/queries.templ`, Line: 623, Col: 86}
 						}
 						_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var115))
 						if templ_7745c5c3_Err != nil {
@@ -2301,7 +2301,7 @@ func QueriesPageContent(dataSources []api.DataSource, selectedDataSource string,
 						var templ_7745c5c3_Var116 string
 						templ_7745c5c3_Var116, templ_7745c5c3_Err = templ.JoinStringErrs(QueryStatementKindLabel(query))
 						if templ_7745c5c3_Err != nil {
-							return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/queries.templ`, Line: 624, Col: 76}
+							return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/queries.templ`, Line: 625, Col: 76}
 						}
 						_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var116))
 						if templ_7745c5c3_Err != nil {
@@ -2404,7 +2404,7 @@ func QueriesPageContent(dataSources []api.DataSource, selectedDataSource string,
 				var templ_7745c5c3_Var121 templ.SafeURL
 				templ_7745c5c3_Var121, templ_7745c5c3_Err = templ.JoinURLErrs(templ.URL(QueriesListCursorHref(orgSlug, selectedDataSource, showDeleted, prevCursor)))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/queries.templ`, Line: 643, Col: 132}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/queries.templ`, Line: 644, Col: 132}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var121))
 				if templ_7745c5c3_Err != nil {
@@ -2417,7 +2417,7 @@ func QueriesPageContent(dataSources []api.DataSource, selectedDataSource string,
 				var templ_7745c5c3_Var122 string
 				templ_7745c5c3_Var122, templ_7745c5c3_Err = templ.ResolveAttributeValue(QueriesListCursorHref(orgSlug, selectedDataSource, showDeleted, prevCursor))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/queries.templ`, Line: 643, Col: 219}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/queries.templ`, Line: 644, Col: 219}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var122)
 				if templ_7745c5c3_Err != nil {
@@ -2441,7 +2441,7 @@ func QueriesPageContent(dataSources []api.DataSource, selectedDataSource string,
 				var templ_7745c5c3_Var123 templ.SafeURL
 				templ_7745c5c3_Var123, templ_7745c5c3_Err = templ.JoinURLErrs(templ.URL(QueriesListCursorHref(orgSlug, selectedDataSource, showDeleted, nextCursor)))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/queries.templ`, Line: 648, Col: 132}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/queries.templ`, Line: 649, Col: 132}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var123))
 				if templ_7745c5c3_Err != nil {
@@ -2454,7 +2454,7 @@ func QueriesPageContent(dataSources []api.DataSource, selectedDataSource string,
 				var templ_7745c5c3_Var124 string
 				templ_7745c5c3_Var124, templ_7745c5c3_Err = templ.ResolveAttributeValue(QueriesListCursorHref(orgSlug, selectedDataSource, showDeleted, nextCursor))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/queries.templ`, Line: 648, Col: 219}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/queries.templ`, Line: 649, Col: 219}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var124)
 				if templ_7745c5c3_Err != nil {
@@ -2482,7 +2482,7 @@ func QueriesPageContent(dataSources []api.DataSource, selectedDataSource string,
 		var templ_7745c5c3_Var125 string
 		templ_7745c5c3_Var125, templ_7745c5c3_Err = templ.ResolveAttributeValue(versionedAssetPath("/assets/js/query_param_editor.js"))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/queries.templ`, Line: 655, Col: 69}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/queries.templ`, Line: 656, Col: 69}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var125)
 		if templ_7745c5c3_Err != nil {
@@ -2553,7 +2553,7 @@ func QuerySidePanelSlot(orgSlug string, selectedDataSource string, selectedQuery
 				var templ_7745c5c3_Var129 string
 				templ_7745c5c3_Var129, templ_7745c5c3_Err = templ.JoinStringErrs(feedbackMessage)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/queries.templ`, Line: 665, Col: 28}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/queries.templ`, Line: 666, Col: 28}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var129))
 				if templ_7745c5c3_Err != nil {
@@ -2612,7 +2612,7 @@ func QueryCardFacts(query api.Query) templ.Component {
 		var templ_7745c5c3_Var131 string
 		templ_7745c5c3_Var131, templ_7745c5c3_Err = templ.JoinStringErrs(fmt.Sprintf("%d", len(query.Parameters)))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/queries.templ`, Line: 683, Col: 88}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/queries.templ`, Line: 684, Col: 88}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var131))
 		if templ_7745c5c3_Err != nil {
@@ -2623,9 +2623,9 @@ func QueryCardFacts(query api.Query) templ.Component {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var132 string
-		templ_7745c5c3_Var132, templ_7745c5c3_Err = templ.JoinStringErrs(fmt.Sprintf("%d", query.RowLimit))
+		templ_7745c5c3_Var132, templ_7745c5c3_Err = templ.JoinStringErrs(QueryRowLimitLabel(query.RowLimit))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/queries.templ`, Line: 687, Col: 81}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/queries.templ`, Line: 688, Col: 82}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var132))
 		if templ_7745c5c3_Err != nil {
@@ -2638,7 +2638,7 @@ func QueryCardFacts(query api.Query) templ.Component {
 		var templ_7745c5c3_Var133 string
 		templ_7745c5c3_Var133, templ_7745c5c3_Err = templ.JoinStringErrs(fmt.Sprintf("%ds", query.TimeoutSeconds))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/queries.templ`, Line: 691, Col: 88}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/queries.templ`, Line: 692, Col: 88}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var133))
 		if templ_7745c5c3_Err != nil {
@@ -2692,7 +2692,7 @@ func QueryQuickLook(orgSlug string, dataSourceSlug string, query api.Query) temp
 			var templ_7745c5c3_Var136 string
 			templ_7745c5c3_Var136, templ_7745c5c3_Err = templ.JoinStringErrs(QueryDescriptionLabel(query))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/queries.templ`, Line: 699, Col: 84}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/queries.templ`, Line: 700, Col: 84}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var136))
 			if templ_7745c5c3_Err != nil {
@@ -2733,7 +2733,7 @@ func QueryQuickLook(orgSlug string, dataSourceSlug string, query api.Query) temp
 					var templ_7745c5c3_Var139 string
 					templ_7745c5c3_Var139, templ_7745c5c3_Err = templ.JoinStringErrs(dataSourceSlug)
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/queries.templ`, Line: 702, Col: 44}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/queries.templ`, Line: 703, Col: 44}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var139))
 					if templ_7745c5c3_Err != nil {
@@ -2768,7 +2768,7 @@ func QueryQuickLook(orgSlug string, dataSourceSlug string, query api.Query) temp
 					var templ_7745c5c3_Var141 string
 					templ_7745c5c3_Var141, templ_7745c5c3_Err = templ.JoinStringErrs(QueryStatementKindLabel(query))
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/queries.templ`, Line: 705, Col: 36}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/queries.templ`, Line: 706, Col: 36}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var141))
 					if templ_7745c5c3_Err != nil {
@@ -2799,7 +2799,7 @@ func QueryQuickLook(orgSlug string, dataSourceSlug string, query api.Query) temp
 					var templ_7745c5c3_Var143 string
 					templ_7745c5c3_Var143, templ_7745c5c3_Err = templ.JoinStringErrs(QueryOperationBehavior(query))
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/queries.templ`, Line: 708, Col: 35}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/queries.templ`, Line: 709, Col: 35}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var143))
 					if templ_7745c5c3_Err != nil {
@@ -2830,7 +2830,7 @@ func QueryQuickLook(orgSlug string, dataSourceSlug string, query api.Query) temp
 					var templ_7745c5c3_Var145 string
 					templ_7745c5c3_Var145, templ_7745c5c3_Err = templ.JoinStringErrs(fmt.Sprintf("%d", len(query.Parameters)))
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/queries.templ`, Line: 711, Col: 46}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/queries.templ`, Line: 712, Col: 46}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var145))
 					if templ_7745c5c3_Err != nil {
@@ -2859,9 +2859,9 @@ func QueryQuickLook(orgSlug string, dataSourceSlug string, query api.Query) temp
 					}
 					ctx = templ.InitializeContext(ctx)
 					var templ_7745c5c3_Var147 string
-					templ_7745c5c3_Var147, templ_7745c5c3_Err = templ.JoinStringErrs(fmt.Sprintf("%d rows · %ds timeout", query.RowLimit, query.TimeoutSeconds))
+					templ_7745c5c3_Var147, templ_7745c5c3_Err = templ.JoinStringErrs(fmt.Sprintf("%s · %ds timeout", QueryRowLimitLabel(query.RowLimit), query.TimeoutSeconds))
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/queries.templ`, Line: 714, Col: 81}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/queries.templ`, Line: 715, Col: 96}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var147))
 					if templ_7745c5c3_Err != nil {
@@ -2897,7 +2897,7 @@ func QueryQuickLook(orgSlug string, dataSourceSlug string, query api.Query) temp
 						return "None"
 					}())
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/queries.templ`, Line: 717, Col: 100}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/queries.templ`, Line: 718, Col: 100}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var149))
 					if templ_7745c5c3_Err != nil {

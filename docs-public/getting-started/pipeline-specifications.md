@@ -351,8 +351,10 @@ bounded pages from one SELECT job. Snowflake reads one driver result under the
 source account's grants; use a read-only role. Duplicate column names and multiple
 result sets are refused. Row transforms cannot consume this file.
 
-The operator must configure positive total row, transfer-byte and response-byte
-limits. The response allowance bounds each row, metadata and BigQuery page; the
+Streamed SQL files have no default row quota. Operators can set a positive
+`execution_limits.stream_max_rows`; a positive saved-query `row_limit` also applies.
+Materialized row results keep their separate `max_result_rows` protection.
+Transfer-byte and response-byte limits must be positive. The response allowance bounds each row, metadata and BigQuery page; the
 transfer allowance bounds the entire serialized object. Results are staged in encrypted
 database chunks before destination writing, so storage grows with result size.
 Cancellation or failure never publishes a partial result as successful, and an

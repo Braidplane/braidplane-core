@@ -29,7 +29,7 @@ func (c *Client) ReadObjectTo(ctx context.Context, req GetObjectRequest, dst io.
 	}
 	defer func() { _ = resp.Body.Close() }()
 	if resp.ContentLength != nil && *resp.ContentLength > req.MaxBytes {
-		return nil, xerror.ExecutionResponseSizeExceeded()
+		return nil, xerror.ExecutionResponseSizeExceeded().WithPublicDetail("execution_limits.max_file_bytes exceeded.")
 	}
 	metadata, err := filestream.Copy(ctx, dst, resp.Body, req.MaxBytes)
 	if err != nil {
