@@ -12,6 +12,7 @@ import (
 
 	"github.com/Braidplane/braidplane-core/pkg/apierror"
 	"github.com/Braidplane/braidplane-core/pkg/httpsecurity"
+	"github.com/Braidplane/braidplane-core/pkg/logging"
 	"github.com/Braidplane/braidplane-core/pkg/reqctx"
 )
 
@@ -108,7 +109,7 @@ func newBackendSecurityMiddleware(cfg backendSecurityConfig) fiber.Handler {
 				logger.ErrorContext(c.Context(), "shared abuse control failed",
 					slog.String("throttle.scope", budget.Scope),
 					slog.String("http.route", c.Path()),
-					slog.Any("error", err),
+					logging.ErrorAttr(err),
 				)
 				return apierror.InternalServerError()
 			}
@@ -243,7 +244,7 @@ func chargeAuthorizedAbuseControl(
 		control.logger.ErrorContext(c.Context(), "shared abuse control failed",
 			slog.String("throttle.scope", scope+".tenant"),
 			slog.String("http.route", c.Path()),
-			slog.Any("error", err),
+			logging.ErrorAttr(err),
 		)
 		return apierror.InternalServerError()
 	}

@@ -17,7 +17,7 @@ import (
 	"github.com/Braidplane/braidplane-core/pkg/apierror"
 )
 
-func TestOpenAPIRequestValidatorPreservesCredentialDiagnostics(t *testing.T) {
+func TestOpenAPIRequestValidatorOmitsSubmittedCredentialData(t *testing.T) {
 	t.Parallel()
 	data, err := os.ReadFile("../../api-schema/schema.yml")
 	require.NoError(t, err)
@@ -31,11 +31,12 @@ func TestOpenAPIRequestValidatorPreservesCredentialDiagnostics(t *testing.T) {
 		t.Error("invalid credentials reached the handler")
 		return c.SendStatus(http.StatusCreated)
 	})
-	for _, tt := range []struct{ credentials, diagnostic string }{
-		{`{"auth_type":"workload_identity","username":"must-not-echo"}`, `property "username" is unsupported`},
-		{`{"auth_type":"oauth2","username":"must-not-echo","password":"must-not-echo"}`, "auth_type"},
+	for _, credentials := range []string{
+		`{"auth_type":"workload_identity","username":"must-not-echo"}`,
+		`{"auth_type":"must-not-echo","username":"must-not-echo","password":"must-not-echo"}`,
+		`{"auth_type":"workload_identity","must-not-echo":"must-not-echo"}`,
 	} {
-		body := `{"name":"invalid","slug":"invalid","type":"snowflake","config":{"account":"acme","warehouse":"wh","database":"db","schema":"public"},"credentials":` + tt.credentials + `}`
+		body := `{"name":"invalid","slug":"invalid","type":"snowflake","config":{"account":"acme","warehouse":"wh","database":"db","schema":"public"},"credentials":` + credentials + `}`
 		req := httptest.NewRequestWithContext(context.Background(), http.MethodPost, "/api/organizations/acme/data-sources", strings.NewReader(body))
 		req.Header.Set("Content-Type", "application/json")
 		req.Header.Set("X-Request-ID", "credential-validation")
@@ -47,7 +48,8 @@ func TestOpenAPIRequestValidatorPreservesCredentialDiagnostics(t *testing.T) {
 		require.NoError(t, response.Body.Close())
 		require.Equal(t, apierror.CodeValidationFailed, result.Error.Code)
 		require.Equal(t, "credential-validation", result.Error.RequestID)
-		require.Contains(t, result.Error.Message, tt.diagnostic)
+		require.Equal(t, "Request validation failed", result.Error.Message)
+		require.Empty(t, result.Error.ValidationErrors)
 		require.NotContains(t, result.Error.Message, "must-not-echo")
 		require.NotContains(t, result.Error.Message, "\nSchema:")
 		require.NotContains(t, result.Error.Message, "\nValue:")

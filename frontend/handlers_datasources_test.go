@@ -1952,7 +1952,7 @@ func TestRouter_HandleDataSourcesPage_LogsFilteredQueryInventoryFailure(t *testi
 	require.Contains(t, logBuffer.String(), `"action":"list queries"`)
 	require.Contains(t, logBuffer.String(), `"error.category":"upstream_response"`)
 	require.Contains(t, logBuffer.String(), `"upstream.status_code":502`)
-	require.Contains(t, logBuffer.String(), `"diagnostic.code":"UPSTREAM_FAILED"`)
+	require.NotContains(t, logBuffer.String(), "UPSTREAM_FAILED")
 	require.NotContains(t, logBuffer.String(), "query inventory unavailable")
 	require.NotContains(t, logBuffer.String(), "secret-query-token")
 }

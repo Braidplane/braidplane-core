@@ -21,11 +21,11 @@ import (
 	"github.com/gofiber/fiber/v3/middleware/compress"
 	"github.com/gofiber/fiber/v3/middleware/proxy"
 	recovermiddleware "github.com/gofiber/fiber/v3/middleware/recover"
-	"github.com/gofiber/fiber/v3/middleware/requestid"
 	"github.com/gofiber/fiber/v3/middleware/session"
 	"github.com/gofiber/fiber/v3/middleware/static"
-	"github.com/google/uuid"
 	"go.opentelemetry.io/otel/propagation"
+
+	sessionstore "github.com/gofiber/storage/postgres/v3"
 
 	frontendconfig "github.com/Braidplane/braidplane-core/config/frontend"
 	"github.com/Braidplane/braidplane-core/frontend"
@@ -37,7 +37,6 @@ import (
 	"github.com/Braidplane/braidplane-core/pkg/reqctx"
 	"github.com/Braidplane/braidplane-core/pkg/tracing"
 	"github.com/Braidplane/braidplane-core/pkg/xerror"
-	sessionstore "github.com/gofiber/storage/postgres/v3"
 )
 
 func apiProxyTarget(baseURL, originalURL string) string {
@@ -213,13 +212,14 @@ func RunWithConfig(cfg *frontendconfig.Config, newRoutePresentation func(string)
 		MaxFileSizeMB:    cfg.Logging.MaxFileSizeMB,
 		Environment:      cfg.Logging.Environment,
 		OTLPLogsEndpoint: cfg.Logging.OTLPLogsEndpoint,
+		HandleSDKErrors:  true,
 	}, "frontend")
 	if err != nil {
 		return xerror.Wrapf("failed to setup frontend logger: %w", err)
 	}
 	defer func() {
 		if closeErr := frontendCloser.Close(); closeErr != nil {
-			frontendLogger.Error("failed to close frontend logger", slog.Any("error", closeErr))
+			frontendLogger.Error("failed to close frontend logger", logging.ErrorAttr(closeErr))
 		}
 	}()
 
@@ -235,7 +235,7 @@ func RunWithConfig(cfg *frontendconfig.Config, newRoutePresentation func(string)
 	}
 	defer func() {
 		if closeErr := traceCloser.Close(); closeErr != nil {
-			frontendLogger.Error("failed to close frontend tracer", slog.Any("error", closeErr))
+			frontendLogger.Error("failed to close frontend tracer", logging.ErrorAttr(closeErr))
 		}
 	}()
 
@@ -268,7 +268,7 @@ func RunWithConfig(cfg *frontendconfig.Config, newRoutePresentation func(string)
 	sessionStore := sessionstore.New(sessionstore.Config{DB: pool, Table: cfg.Session.TableName})
 	defer func() {
 		if err := sessionStore.Close(); err != nil {
-			frontendLogger.Error("failed to close session store", slog.Any("error", err))
+			frontendLogger.Error("failed to close session store", logging.ErrorAttr(err))
 		}
 	}()
 
@@ -311,9 +311,9 @@ func RunWithConfig(cfg *frontendconfig.Config, newRoutePresentation func(string)
 		EnableIPValidation: cfg.Server.ProxyHeader != "",
 	})
 	app.Use(
-		recovermiddleware.New(recovermiddleware.Config{EnableStackTrace: true}),
+		recovermiddleware.New(recovermiddleware.Config{PanicHandler: apierror.RecoverPanic}),
 		compress.New(),
-		requestid.New(requestid.Config{Generator: uuid.NewString}),
+		reqctx.RequestIDMiddleware(),
 	)
 	app.Use(func(c fiber.Ctx) error {
 		requestID := reqctx.FiberRequestID(c)
@@ -365,7 +365,7 @@ func RunWithConfig(cfg *frontendconfig.Config, newRoutePresentation func(string)
 			context.Background(),
 			cfg.Server.DrainTimeout.TimeDuration(),
 		); err != nil {
-			frontendLogger.Error("readiness drain wait failed", slog.Any("error", err))
+			frontendLogger.Error("readiness drain wait failed", logging.ErrorAttr(err))
 			return xerror.Unexpected().With(err)
 		}
 
@@ -373,7 +373,7 @@ func RunWithConfig(cfg *frontendconfig.Config, newRoutePresentation func(string)
 		defer cancel()
 
 		if err := app.ShutdownWithContext(ctx); err != nil {
-			frontendLogger.Error("graceful shutdown failed", slog.Any("error", err))
+			frontendLogger.Error("graceful shutdown failed", logging.ErrorAttr(err))
 			return xerror.Unexpected().With(err)
 		}
 

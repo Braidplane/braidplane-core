@@ -73,7 +73,7 @@ func New(config Config) (*Client, error) {
 func (c *Client) AuthorizationURL(ctx context.Context, params AuthorizationURLParams) (string, error) {
 	u, err := url.Parse(c.authorizationURL)
 	if err != nil {
-		logging.LogError(ctx, "build Google OAuth authorization URL", err, c.clientSecret, params.State)
+		logging.LogError(ctx, "build Google OAuth authorization URL", err)
 		return "", xerror.Unexpected().Detail("Google OAuth authorization endpoint is invalid")
 	}
 	q := u.Query()
@@ -104,13 +104,13 @@ func (c *Client) Revoke(ctx context.Context, token string) error {
 	form := url.Values{"token": {token}}
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, c.revokeURL, strings.NewReader(form.Encode()))
 	if err != nil {
-		logging.LogError(ctx, "create Google OAuth revoke request", err, c.clientSecret, token)
+		logging.LogError(ctx, "create Google OAuth revoke request", err)
 		return xerror.Unexpected().Detail("Google OAuth revoke request could not be created")
 	}
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 	resp, err := c.client.Do(req)
 	if err != nil {
-		logging.LogError(ctx, "Google OAuth revoke request failed", err, c.clientSecret, token)
+		logging.LogError(ctx, "Google OAuth revoke request failed", err)
 		return xerror.Unavailable(xerror.DataSource).Detail("Google OAuth provider request failed")
 	}
 	defer func() { _ = resp.Body.Close() }()
@@ -128,13 +128,13 @@ func (c *Client) exchange(ctx context.Context, form url.Values, requireRefresh b
 	form.Set("client_secret", c.clientSecret)
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, c.tokenURL, strings.NewReader(form.Encode()))
 	if err != nil {
-		logging.LogError(ctx, "create Google OAuth token request", err, c.clientSecret, form.Get("code"), form.Get("refresh_token"))
+		logging.LogError(ctx, "create Google OAuth token request", err)
 		return TokenSet{}, xerror.Unexpected().Detail("Google OAuth token request could not be created")
 	}
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 	resp, err := c.client.Do(req)
 	if err != nil {
-		logging.LogError(ctx, "Google OAuth token request failed", err, c.clientSecret, form.Get("code"), form.Get("refresh_token"))
+		logging.LogError(ctx, "Google OAuth token request failed", err)
 		return TokenSet{}, xerror.Unavailable(xerror.DataSource).Detail("Google OAuth provider request failed")
 	}
 	defer func() { _ = resp.Body.Close() }()
@@ -143,7 +143,7 @@ func (c *Client) exchange(ctx context.Context, form url.Values, requireRefresh b
 	}
 	var token tokenResponse
 	if err := json.NewDecoder(io.LimitReader(resp.Body, 64*1024)).Decode(&token); err != nil {
-		logging.LogError(ctx, "decode Google OAuth token response", err, c.clientSecret, token.AccessToken, token.RefreshToken, form.Get("code"), form.Get("refresh_token"))
+		logging.LogError(ctx, "decode Google OAuth token response", err)
 		return TokenSet{}, xerror.Unavailable(xerror.DataSource).Detail("Google OAuth provider returned an invalid response")
 	}
 	if !strings.EqualFold(strings.TrimSpace(token.TokenType), "bearer") || token.ExpiresIn <= 0 || token.ExpiresIn > int64(maxTokenLifetime/time.Second) {
@@ -167,13 +167,13 @@ func (c *Client) exchange(ctx context.Context, form url.Values, requireRefresh b
 func (c *Client) populateIdentity(ctx context.Context, set *TokenSet) error {
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, c.userInfoURL, nil)
 	if err != nil {
-		logging.LogError(ctx, "create Google identity request", err, set.AccessToken, set.RefreshToken)
+		logging.LogError(ctx, "create Google identity request", err)
 		return xerror.Unavailable(xerror.DataSource).Detail("Google identity provider request failed")
 	}
 	req.Header.Set("Authorization", "Bearer "+set.AccessToken)
 	resp, err := c.client.Do(req)
 	if err != nil {
-		logging.LogError(ctx, "Google identity request failed", err, set.AccessToken, set.RefreshToken)
+		logging.LogError(ctx, "Google identity request failed", err)
 		return xerror.Unavailable(xerror.DataSource).Detail("Google identity provider request failed")
 	}
 	defer func() { _ = resp.Body.Close() }()
@@ -182,7 +182,7 @@ func (c *Client) populateIdentity(ctx context.Context, set *TokenSet) error {
 	}
 	var info userInfoResponse
 	if err := json.NewDecoder(io.LimitReader(resp.Body, 64*1024)).Decode(&info); err != nil {
-		logging.LogError(ctx, "decode Google identity response", err, set.AccessToken, set.RefreshToken)
+		logging.LogError(ctx, "decode Google identity response", err)
 		return xerror.Unavailable(xerror.DataSource).Detail("Google identity provider returned an invalid response")
 	}
 	if strings.TrimSpace(info.Subject) == "" || strings.TrimSpace(info.Email) == "" || !info.EmailVerified {

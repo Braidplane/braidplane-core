@@ -45,7 +45,7 @@ func TestDataSourceSchemaImportWorkerLogsQualifiedOutcomes(t *testing.T) {
 				Status: model.DataSourceSchemaImportStatusFailed,
 				Diagnostic: &datasourcessvc.SchemaImportDiagnostic{
 					Code:    "DATA_SOURCE_CONNECTION_FAILED",
-					Message: "data source connection failed",
+					Message: "opaque-diagnostic-secret-marker",
 				},
 			},
 			wantLevel:   "WARN",
@@ -130,7 +130,7 @@ func TestDataSourceSchemaImportWorkerLogsQualifiedOutcomes(t *testing.T) {
 			if tc.wantOutcome == "failed_persisted" {
 				require.Equal(t, "provider_introspection", entry["error.category"])
 				require.Equal(t, "DATA_SOURCE_CONNECTION_FAILED", entry["diagnostic.code"])
-				require.Equal(t, "data source connection failed", entry["diagnostic.message"])
+				require.NotContains(t, entry, "diagnostic.message")
 			}
 		})
 	}

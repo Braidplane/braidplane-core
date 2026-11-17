@@ -4,8 +4,10 @@ import (
 	"context"
 	"log/slog"
 
-	"github.com/Braidplane/braidplane-core/pkg/executiondelivery"
 	"github.com/riverqueue/river"
+
+	"github.com/Braidplane/braidplane-core/pkg/executiondelivery"
+	"github.com/Braidplane/braidplane-core/pkg/logging"
 
 	"github.com/Braidplane/braidplane-core/pkg/slug"
 	"github.com/Braidplane/braidplane-core/pkg/xerror"
@@ -182,12 +184,11 @@ func (w *pipelineGitWriteFileWorker) Work(
 		slog.String("organization_slug", args.OrganizationSlug.String()),
 		slog.String("data_source_slug", args.DataSourceSlug.String()),
 		slog.String("pipeline_slug", args.PipelineSlug.String()),
-		slog.String("path", args.Path),
 	)
 
 	err := w.pipelineGit.WriteFile(ctx, args)
 	if err != nil {
-		w.logger.ErrorContext(ctx, "pipeline git write job failed", slog.Any("error", err))
+		w.logger.ErrorContext(ctx, "pipeline git write job failed", logging.ErrorAttr(err))
 		return pipelineGitJobError(err)
 	}
 
@@ -229,12 +230,11 @@ func (w *pipelineGitDeleteFileWorker) Work(
 		slog.String("organization_slug", args.OrganizationSlug.String()),
 		slog.String("data_source_slug", args.DataSourceSlug.String()),
 		slog.String("pipeline_slug", args.PipelineSlug.String()),
-		slog.String("path", args.Path),
 	)
 
 	err := w.pipelineGit.DeleteFile(ctx, args)
 	if err != nil {
-		w.logger.ErrorContext(ctx, "pipeline git delete job failed", slog.Any("error", err))
+		w.logger.ErrorContext(ctx, "pipeline git delete job failed", logging.ErrorAttr(err))
 		return pipelineGitJobError(err)
 	}
 
@@ -264,14 +264,12 @@ func (w *pipelineGitPublishProposalWorker) Work(
 		slog.String("project_slug", args.ProjectSlug.String()),
 		slog.String("data_source_slug", args.DataSourceSlug.String()),
 		slog.String("pipeline_slug", args.PipelineSlug.String()),
-		slog.String("branch_name", args.BranchName),
-		slog.String("path", args.Path),
 	)
 
 	result, err := w.pipelineGit.PublishProposal(ctx, args)
 	if err != nil {
 		w.recordProposalFailure(ctx, args, err)
-		w.logger.ErrorContext(ctx, "pipeline git proposal job failed", slog.Any("error", err))
+		w.logger.ErrorContext(ctx, "pipeline git proposal job failed", logging.ErrorAttr(err))
 		return pipelineGitJobError(err)
 	}
 	if err := result.ValidatePublication(args.Authority, args.BranchName); err != nil {
@@ -296,7 +294,7 @@ func (w *pipelineGitPublishProposalWorker) Work(
 			PublishAttemptID: args.PublishAttemptID,
 			Authority:        args.Authority,
 		}); err != nil {
-			w.logger.ErrorContext(ctx, "pipeline git proposal metadata persistence failed", slog.Any("error", err))
+			w.logger.ErrorContext(ctx, "pipeline git proposal metadata persistence failed", logging.ErrorAttr(err))
 			return err
 		}
 	}
@@ -319,7 +317,7 @@ func (w *pipelineGitPublishProposalWorker) recordProposalFailure(
 	)
 	failed.CreationSlug = args.CreationSlug
 	if err := w.recorder.FailProposal(ctx, failed); err != nil {
-		w.logger.ErrorContext(ctx, "pipeline git proposal failure state persistence failed", slog.Any("error", err))
+		w.logger.ErrorContext(ctx, "pipeline git proposal failure state persistence failed", logging.ErrorAttr(err))
 	}
 }
 
@@ -331,7 +329,7 @@ func (w *pipelineGitRefreshProposalWorker) Work(
 	result, err := w.pipelineGit.RefreshProposal(ctx, args)
 	if err != nil {
 		w.recordRefreshFailure(ctx, args, err)
-		w.logger.ErrorContext(ctx, "pipeline git proposal refresh failed", slog.Any("error", err))
+		w.logger.ErrorContext(ctx, "pipeline git proposal refresh failed", logging.ErrorAttr(err))
 		return pipelineGitJobError(err)
 	}
 	if result == nil {
@@ -378,7 +376,7 @@ func (w *pipelineGitRefreshProposalWorker) recordRefreshFailure(
 		ProposalID: args.ProposalID, RefreshAttemptID: args.RefreshAttemptID,
 		FailureCode: failed.FailureCode, FailureMessage: failed.FailureMessage,
 	}); err != nil {
-		w.logger.ErrorContext(ctx, "pipeline git proposal refresh failure state persistence failed", slog.Any("error", err))
+		w.logger.ErrorContext(ctx, "pipeline git proposal refresh failure state persistence failed", logging.ErrorAttr(err))
 	}
 }
 

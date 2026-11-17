@@ -6,6 +6,7 @@ import (
 
 	"github.com/Braidplane/braidplane-core/pkg/clock"
 	"github.com/Braidplane/braidplane-core/pkg/domain/model"
+	"github.com/Braidplane/braidplane-core/pkg/logging"
 	"github.com/Braidplane/braidplane-core/pkg/queue"
 	"github.com/Braidplane/braidplane-core/pkg/slug"
 	"github.com/Braidplane/braidplane-core/pkg/xerror"
@@ -64,7 +65,7 @@ func (p *eventProducer) EnqueueRecord(
 	attrs := eventLogAttrs(orgSlug, event)
 	job, err := p.enqueue(ctx, tx, orgSlug, actor, event, false)
 	if err != nil {
-		attrs = append(attrs, slog.Any("error", err))
+		attrs = append(attrs, logging.ErrorAttr(err))
 		slog.LogAttrs(ctx, slog.LevelWarn, "durable event enqueue failed", attrs...)
 		return EventRecordJob{}, false
 	}

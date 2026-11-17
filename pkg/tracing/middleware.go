@@ -23,9 +23,6 @@ func HTTPMiddleware(component string) fiber.Handler {
 	return func(c fiber.Ctx) error {
 		ctx := extractHTTPContext(c.Context(), c)
 		requestID := strings.TrimSpace(reqctx.FiberRequestID(c))
-		if requestID == "" {
-			requestID = strings.TrimSpace(c.Get(fiber.HeaderXRequestID))
-		}
 		if requestID != "" {
 			ctx = reqctx.WithRequestID(ctx, requestID)
 			c.Locals("requestid", requestID)

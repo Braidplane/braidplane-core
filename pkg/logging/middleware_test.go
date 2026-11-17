@@ -62,7 +62,7 @@ func TestHTTPMiddleware_PreservesResponseBody(t *testing.T) {
 	require.Equal(t, "{\"ok\":true}", string(body))
 }
 
-func TestHTTPMiddleware_RedactsSensitiveData(t *testing.T) {
+func TestHTTPMiddleware_OmitsHTTPPayloadsAndHeaders(t *testing.T) {
 	t.Parallel()
 
 	var logBuffer bytes.Buffer
@@ -75,6 +75,7 @@ func TestHTTPMiddleware_RedactsSensitiveData(t *testing.T) {
 	app.Post("/login", func(c fiber.Ctx) error {
 		c.Set("X-CSRF-Token", "csrf-response-secret")
 		return c.Status(http.StatusOK).JSON(fiber.Map{
+			"data":         "opaque-response-canary",
 			"access_token": "secret-token",
 			"ok":           true,
 		})
@@ -82,6 +83,7 @@ func TestHTTPMiddleware_RedactsSensitiveData(t *testing.T) {
 
 	req := httptest.NewRequestWithContext(context.Background(), http.MethodPost, "/login", strings.NewReader(`{"password":"abc"}`))
 	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("X-Custom", "opaque-header-canary")
 	req.Header.Set("Authorization", "Bearer test")
 	req.Header.Set("Cookie", "session_id=abc")
 	req.Header.Set("X-CSRF-Token", "csrf-request-secret")
@@ -96,7 +98,9 @@ func TestHTTPMiddleware_RedactsSensitiveData(t *testing.T) {
 	require.Equal(t, http.StatusOK, resp.StatusCode)
 
 	logs := logBuffer.String()
-	require.Contains(t, logs, "[REDACTED]")
+	require.Contains(t, logs, "HTTP request received")
+	require.NotContains(t, logs, "opaque-header-canary")
+	require.NotContains(t, logs, "opaque-response-canary")
 	require.NotContains(t, logs, "Bearer test")
 	require.NotContains(t, logs, "session_id=abc")
 	require.NotContains(t, logs, "csrf-request-secret")
@@ -107,7 +111,7 @@ func TestHTTPMiddleware_RedactsSensitiveData(t *testing.T) {
 	require.NotContains(t, logs, "secret-token")
 }
 
-func TestHTTPMiddleware_RedactsTopLevelJSONScalarResponse(t *testing.T) {
+func TestHTTPMiddleware_OmitsTopLevelJSONScalarResponse(t *testing.T) {
 	t.Parallel()
 
 	var logBuffer bytes.Buffer
@@ -130,7 +134,7 @@ func TestHTTPMiddleware_RedactsTopLevelJSONScalarResponse(t *testing.T) {
 	require.Equal(t, http.StatusOK, resp.StatusCode)
 
 	logs := logBuffer.String()
-	require.Contains(t, logs, "[REDACTED_JSON_SCALAR]")
+	require.Contains(t, logs, "HTTP request completed")
 	require.NotContains(t, logs, "secret-token")
 }
 
@@ -212,7 +216,7 @@ func TestHTTPMiddleware_LogsErrorOutcomeForFailedCompletion(t *testing.T) {
 	require.Equal(t, "fiber_error", entry["error.type"])
 	require.Equal(t, "ERROR", entry["level"])
 
-	require.Equal(t, "Service Unavailable", entry["error.message"])
+	require.NotContains(t, entry, "error.message")
 	require.NotContains(t, logBuffer.String(), "dependency unavailable")
 	require.NotContains(t, logBuffer.String(), "opaque-credential-value")
 }
@@ -247,7 +251,7 @@ func TestHTTPMiddleware_LogsAPIErrorStatusAndCode(t *testing.T) {
 	require.Equal(t, "VALIDATION_FAILED", entry["error.type"])
 	require.Equal(t, "api_error", entry["error.kind"])
 	require.Equal(t, "WARN", entry["level"])
-	require.Equal(t, "Bad Request", entry["error.message"])
+	require.NotContains(t, entry, "error.message")
 	require.NotContains(t, logBuffer.String(), "invalid request")
 }
 
@@ -389,48 +393,6 @@ func TestHTTPMiddleware_LogsRouteWithoutRawPathOrQueryValues(t *testing.T) {
 	require.NotContains(t, logs, "payroll")
 	require.NotContains(t, logs, "secret-token")
 	require.NotContains(t, logs, "customer")
-}
-
-func TestRedactBody_RedactsSensitiveFieldNames(t *testing.T) {
-	t.Parallel()
-
-	redacted := redactBody([]byte(`{
-		"api_key": "api-secret",
-		"value": "plain-value-secret",
-		"session_id": "session-secret",
-		"csrf": "csrf-secret",
-		"state": "oauth-state-secret",
-		"authorization_url": "https://provider.example/oauth?state=oauth-state-secret",
-		"nested": {
-			"client_secret": "client-secret",
-			"credentials": {
-				"password": "password-secret"
-			}
-		},
-		"token": {
-			"value": "nested-token-secret"
-		},
-		"safe": "visible"
-	}`))
-
-	require.Contains(t, redacted, `"safe":"visible"`)
-	require.Contains(t, redacted, `"api_key":"[REDACTED]"`)
-	require.Contains(t, redacted, `"value":"[REDACTED]"`)
-	require.Contains(t, redacted, `"session_id":"[REDACTED]"`)
-	require.Contains(t, redacted, `"csrf":"[REDACTED]"`)
-	require.Contains(t, redacted, `"state":"[REDACTED]"`)
-	require.Contains(t, redacted, `"authorization_url":"[REDACTED]"`)
-	require.Contains(t, redacted, `"client_secret":"[REDACTED]"`)
-	require.Contains(t, redacted, `"credentials":"[REDACTED]"`)
-	require.Contains(t, redacted, `"token":"[REDACTED]"`)
-	require.NotContains(t, redacted, "api-secret")
-	require.NotContains(t, redacted, "plain-value-secret")
-	require.NotContains(t, redacted, "session-secret")
-	require.NotContains(t, redacted, "csrf-secret")
-	require.NotContains(t, redacted, "oauth-state-secret")
-	require.NotContains(t, redacted, "client-secret")
-	require.NotContains(t, redacted, "password-secret")
-	require.NotContains(t, redacted, "nested-token-secret")
 }
 
 func TestHTTPMiddlewareNeverCapturesProofIntentsTargetsOrHeaders(t *testing.T) {

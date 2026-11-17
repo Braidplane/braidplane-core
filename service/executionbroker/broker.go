@@ -22,7 +22,6 @@ import (
 	filepayload "github.com/Braidplane/braidplane-core/pkg/payload/file"
 	pipepayload "github.com/Braidplane/braidplane-core/pkg/pipeline/payload"
 	transformsql "github.com/Braidplane/braidplane-core/pkg/pipeline/transform/sql"
-	"github.com/Braidplane/braidplane-core/pkg/repostore"
 	"github.com/Braidplane/braidplane-core/pkg/resourcescope"
 	"github.com/Braidplane/braidplane-core/pkg/sinkbinding"
 	"github.com/Braidplane/braidplane-core/pkg/slug"
@@ -1402,18 +1401,7 @@ func (b *Broker) processClaimed(ctx context.Context, request requestrepo.Request
 					slog.String("execution_request_id", id.String()),
 					slog.String("data_source.type", payload.DataSourceType.String()),
 				}
-				var typedErr *xerror.Error
-				if xerror.As(err, &typedErr) && typedErr != nil {
-					attrs = append(attrs,
-						slog.String("error.type", typedErr.Code()),
-						slog.String("error.kind", typedErr.Kind().String()),
-					)
-				}
-				switch payload.DataSourceType {
-				case model.DataSourceTypeGithub, model.DataSourceTypeGitlab:
-					attrs = append(attrs, slog.String("error", repostore.SanitizeGitErrorDetail(err.Error())))
-				default:
-				}
+				attrs = append(attrs, logging.ErrorAttrs(err)...)
 				attrs = append(attrs, logging.ContextAttrs(execCtx)...)
 				b.logger.LogAttrs(
 					execCtx,
@@ -1553,8 +1541,8 @@ func (b *Broker) processClaimed(ctx context.Context, request requestrepo.Request
 					slog.String("braidplane.event", "execution.git_proposal.worker_failed"),
 					slog.String("execution_request_id", id.String()),
 					slog.String("data_source.type", payload.Auth.DataSourceType.String()),
-					slog.String("error", repostore.SanitizeGitErrorDetail(err.Error())),
 				}
+				attrs = append(attrs, logging.ErrorAttrs(err)...)
 				attrs = append(attrs, logging.ContextAttrs(execCtx)...)
 				b.logger.LogAttrs(execCtx, slog.LevelError, "isolated Git proposal execution failed", attrs...)
 			}

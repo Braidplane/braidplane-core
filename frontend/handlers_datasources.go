@@ -1,7 +1,6 @@
 package frontend
 
 import (
-	"cmp"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -128,7 +127,7 @@ func (r *Router) handleDataSourcesPage(c fiber.Ctx) error {
 			failureAction = responseErr.action
 		}
 		pageErrorDetails = backendErrorDetails(failureAction, status, errorResponse, listErr)
-		r.logRenderedBackendAPIFailure(c, failureAction, errorResponse, listErr, orgSlug.String(), "")
+		r.logRenderedBackendAPIFailure(c, failureAction, listErr, orgSlug.String(), "")
 
 		shellData := r.buildShellDataForOrganizationPage(
 			c,
@@ -332,7 +331,7 @@ func (r *Router) handleSelectDataSourceProviderRepositorySubmit(c fiber.Ctx) err
 	if repositoryID == "" {
 		return redirectHTMXOrSeeOther(c, appendDataSourceReturnQuery(dataSourceReturnURL(c, orgSlug.String(), dsSlug.String()), "error", "Choose a repository."))
 	}
-	status, errorResponse, selectErr := r.selectProviderRepositoryViaAPI(
+	status, _, selectErr := r.selectProviderRepositoryViaAPI(
 		c.Context(),
 		c.Get(fiber.HeaderCookie),
 		orgSlug.String(),
@@ -343,7 +342,7 @@ func (r *Router) handleSelectDataSourceProviderRepositorySubmit(c fiber.Ctx) err
 		if status == fiber.StatusUnauthorized {
 			return redirectToLogin(c, c.OriginalURL())
 		}
-		r.logRenderedBackendAPIFailure(c, "select provider repository", errorResponse, selectErr, orgSlug.String(), dsSlug.String())
+		r.logRenderedBackendAPIFailure(c, "select provider repository", selectErr, orgSlug.String(), dsSlug.String())
 		return redirectHTMXOrSeeOther(c, appendDataSourceReturnQuery(dataSourceReturnURL(c, orgSlug.String(), dsSlug.String()), "error", "GitLab project selection failed. Choose the project again."))
 	}
 	return redirectHTMXOrSeeOther(c, appendDataSourceReturnQuery(dataSourceReturnURL(c, orgSlug.String(), dsSlug.String()), "notice", "Repository selected."))
@@ -378,7 +377,7 @@ func (r *Router) loadSelectedDataSourcePanel(
 		if message == "" {
 			message = "Something went wrong while loading data source details."
 		}
-		r.logRenderedBackendAPIFailure(c, "get data source", errorResponse, getErr, orgSlug.String(), dataSourceSlug.String())
+		r.logRenderedBackendAPIFailure(c, "get data source", getErr, orgSlug.String(), dataSourceSlug.String())
 		return nil, views.DefaultDataSourceSchemaPanelData(), nil, views.DataSourceUpdateFormData{}, status, message, backendErrorDetails("get data source", status, errorResponse, getErr), false
 	}
 
@@ -461,7 +460,7 @@ func (r *Router) handleCreateDataSourceSubmit(c fiber.Ctx) error {
 		message := formFeedbackFromErrorResponse(errorResponse, "Failed to create data source.")
 		formData.TestMessage = message
 		formData.TestSuccess = false
-		r.logRenderedBackendAPIFailure(c, "create data source", errorResponse, createErr, orgSlug.String(), "")
+		r.logRenderedBackendAPIFailure(c, "create data source", createErr, orgSlug.String(), "")
 
 		return r.renderDataSourcesPageWithError(
 			c,
@@ -590,7 +589,7 @@ func (r *Router) handleStartProviderDataSourceOAuthSubmit(c fiber.Ctx, provider,
 		}
 		formData.TestMessage = formFeedbackFromErrorResponse(errorResponse, "Failed to start "+providerLabel+" authorization.")
 		formData.InvalidField = formValidationField(errorResponse, "name", "slug", "type")
-		r.logRenderedBackendAPIFailure(c, "start "+providerLabel+" data source authorization", errorResponse, startErr, orgSlug.String(), "")
+		r.logRenderedBackendAPIFailure(c, "start "+providerLabel+" data source authorization", startErr, orgSlug.String(), "")
 		return r.renderDataSourcesPageWithError(
 			c,
 			orgSlug,
@@ -634,7 +633,7 @@ func (r *Router) handleStartExistingProviderOAuthSubmit(c fiber.Ctx, provider st
 			return redirectToLogin(c, c.OriginalURL())
 		}
 		message := formFeedbackFromErrorResponse(errorResponse, "Failed to load the provider data source.")
-		r.logRenderedBackendAPIFailure(c, "get data source", errorResponse, getErr, orgSlug.String(), dataSourceSlug.String())
+		r.logRenderedBackendAPIFailure(c, "get data source", getErr, orgSlug.String(), dataSourceSlug.String())
 		return redirectHTMXOrSeeOther(c, appendDataSourceReturnQuery(
 			dataSourceReturnURL(c, orgSlug.String(), dataSourceSlug.String()),
 			"error",
@@ -676,7 +675,7 @@ func (r *Router) handleStartExistingProviderOAuthSubmit(c fiber.Ctx, provider st
 			return redirectToLogin(c, c.OriginalURL())
 		}
 		message := formFeedbackFromErrorResponse(errorResponse, "Failed to start provider authorization.")
-		r.logRenderedBackendAPIFailure(c, "start existing provider authorization", errorResponse, startErr, orgSlug.String(), dataSourceSlug.String())
+		r.logRenderedBackendAPIFailure(c, "start existing provider authorization", startErr, orgSlug.String(), dataSourceSlug.String())
 		if dataSourceShouldRenderSidePanel(c) {
 			return r.renderDataSourceSidePanel(
 				c,
@@ -735,7 +734,7 @@ func (r *Router) handleTestDataSourceConnectionSubmit(c fiber.Ctx) error {
 
 		formData.TestMessage = message
 		formData.TestSuccess = false
-		r.logRenderedBackendAPIFailure(c, "test data source connection", errorResponse, testErr, orgSlug.String(), "")
+		r.logRenderedBackendAPIFailure(c, "test data source connection", testErr, orgSlug.String(), "")
 		return r.renderDataSourcesPageWithError(
 			c,
 			orgSlug,
@@ -774,7 +773,7 @@ func (r *Router) handleTestExistingDataSourceConnectionSubmit(c fiber.Ctx) error
 		}
 
 		message := formFeedbackFromErrorResponse(errorResponse, "Connection test failed.")
-		r.logRenderedBackendAPIFailure(c, "test existing data source connection", errorResponse, testErr, orgSlug.String(), dataSourceSlug.String())
+		r.logRenderedBackendAPIFailure(c, "test existing data source connection", testErr, orgSlug.String(), dataSourceSlug.String())
 		if dataSourceShouldRenderSidePanel(c) {
 			return r.renderDataSourceSidePanel(
 				c,
@@ -834,7 +833,7 @@ func (r *Router) handleDeleteDataSourceSubmit(c fiber.Ctx) error {
 		if status == fiber.StatusUnauthorized {
 			return redirectToLogin(c, c.OriginalURL())
 		}
-		r.logRenderedBackendAPIFailure(c, "delete data source", errorResponse, deleteErr, orgSlug.String(), dataSourceSlug.String())
+		r.logRenderedBackendAPIFailure(c, "delete data source", deleteErr, orgSlug.String(), dataSourceSlug.String())
 
 		return r.renderDataSourcesPageWithError(
 			c,
@@ -879,7 +878,7 @@ func (r *Router) handleDataSourceDetailPage(c fiber.Ctx) error {
 		if pageError == "" {
 			pageError = "Something went wrong while loading data source details."
 		}
-		r.logRenderedBackendAPIFailure(c, "get data source", errorResponse, getErr, orgSlug.String(), dataSourceSlug.String())
+		r.logRenderedBackendAPIFailure(c, "get data source", getErr, orgSlug.String(), dataSourceSlug.String())
 
 		shellData := r.buildShellDataForOrganizationPage(
 			c,
@@ -963,7 +962,7 @@ func (r *Router) handleDataSourceDetailPage(c fiber.Ctx) error {
 			if operationsPanel.Error == "" {
 				operationsPanel.Error = "Saved queries could not be loaded. Try opening the query library again."
 			}
-			r.logRenderedBackendAPIFailure(c, "list queries", queryErrorResponse, queryErr, orgSlug.String(), dataSourceSlug.String())
+			r.logRenderedBackendAPIFailure(c, "list queries", queryErr, orgSlug.String(), dataSourceSlug.String())
 		} else {
 			operationsPanel.Queries = queries.Queries
 			operationsPanel.HasMore = queries.HasMore
@@ -997,7 +996,7 @@ func (r *Router) loadPendingProviderRepositories(
 	if form == nil || !form.ProviderSelectionPending {
 		return
 	}
-	repositories, _, errorResponse, err := r.listProviderRepositoriesViaAPI(
+	repositories, _, _, err := r.listProviderRepositoriesViaAPI(
 		c.Context(),
 		c.Get(fiber.HeaderCookie),
 		organizationSlug,
@@ -1005,7 +1004,7 @@ func (r *Router) loadPendingProviderRepositories(
 	)
 	if err != nil {
 		form.ProviderRepositoryLoadError = "Repositories could not be loaded. Retry this page or reconnect the provider."
-		r.logRenderedBackendAPIFailure(c, "list provider repositories", errorResponse, err, organizationSlug, dataSourceSlug)
+		r.logRenderedBackendAPIFailure(c, "list provider repositories", err, organizationSlug, dataSourceSlug)
 		return
 	}
 	form.ProviderRepositories = repositories.Repositories
@@ -1029,7 +1028,7 @@ func (r *Router) handleRefreshDataSourceSchemaSubmit(c fiber.Ctx) error {
 		dataSourceSlug.String(),
 	)
 	if refreshErr != nil {
-		r.logRenderedBackendAPIFailure(c, "refresh data source schema", errorResponse, refreshErr, orgSlug.String(), dataSourceSlug.String())
+		r.logRenderedBackendAPIFailure(c, "refresh data source schema", refreshErr, orgSlug.String(), dataSourceSlug.String())
 		if status == fiber.StatusUnauthorized {
 			return redirectToLogin(c, c.OriginalURL())
 		}
@@ -1122,7 +1121,7 @@ func (r *Router) handleUpdateDataSourceSubmit(c fiber.Ctx) error {
 		if message == "" {
 			message = "Failed to update data source settings."
 		}
-		r.logRenderedBackendAPIFailure(c, "update data source", errorResponse, updateErr, orgSlug.String(), dataSourceSlug.String())
+		r.logRenderedBackendAPIFailure(c, "update data source", updateErr, orgSlug.String(), dataSourceSlug.String())
 		if dataSourceShouldRenderSidePanel(c) {
 			return r.renderDataSourceSidePanel(
 				c,
@@ -1186,7 +1185,7 @@ func (r *Router) handleUpdateDataSourceCredentialsSubmit(c fiber.Ctx) error {
 		if message == "" {
 			message = "Failed to load data source."
 		}
-		r.logRenderedBackendAPIFailure(c, "get data source", errorResponse, getErr, orgSlug.String(), dataSourceSlug.String())
+		r.logRenderedBackendAPIFailure(c, "get data source", getErr, orgSlug.String(), dataSourceSlug.String())
 		if dataSourceShouldRenderSidePanel(c) {
 			return r.renderDataSourceSidePanel(
 				c,
@@ -1243,7 +1242,7 @@ func (r *Router) handleUpdateDataSourceCredentialsSubmit(c fiber.Ctx) error {
 		if message == "" {
 			message = "Failed to update credentials."
 		}
-		r.logRenderedBackendAPIFailure(c, "update data source credentials", errorResponse, updateErr, orgSlug.String(), dataSourceSlug.String())
+		r.logRenderedBackendAPIFailure(c, "update data source credentials", updateErr, orgSlug.String(), dataSourceSlug.String())
 		if dataSourceShouldRenderSidePanel(c) {
 			return r.renderDataSourceSidePanel(
 				c,
@@ -3684,7 +3683,7 @@ func (r *Router) renderDataSourcesPageWithError(
 			errorResponse,
 			listErr,
 		)
-		r.logRenderedBackendAPIFailure(c, "reload data sources after failed action", errorResponse, listErr, orgSlug.String(), "")
+		r.logRenderedBackendAPIFailure(c, "reload data sources after failed action", listErr, orgSlug.String(), "")
 		details = mergeErrorDetails(details, fallback)
 
 		shellData := r.buildShellDataForOrganizationPage(
@@ -3998,12 +3997,10 @@ func (r *Router) loadManagedGitRepositories(c fiber.Ctx, orgSlug string, formDat
 		return
 	}
 	formData.GitLabRepositoryError = "Could not load GitLab repositories. Retry, or check access in organization connections."
-	var payload *api.ErrorResponse
 	if err == nil {
 		err = unexpectedBackendAPIResponse("list GitLab repositories", gitlab.StatusCode())
-		payload = cmp.Or(gitlab.JSON400, gitlab.JSON401, gitlab.JSON403, gitlab.JSON404, gitlab.JSONDefault)
 	}
-	r.logRenderedBackendAPIFailure(c, "list GitLab repositories", payload, err, orgSlug, "")
+	r.logRenderedBackendAPIFailure(c, "list GitLab repositories", err, orgSlug, "")
 }
 
 // dataSourceCreateFormDataFromRequest keeps submitted form values that are allowed by deployment policy.

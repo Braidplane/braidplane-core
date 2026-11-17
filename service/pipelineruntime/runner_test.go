@@ -591,7 +591,7 @@ func TestRunner_RunFailureReasonCodeForSourceResultShapeMismatch(t *testing.T) {
 		pipelinerun.FailureReasonCodeSourceResultShapeMismatch,
 		runResult.Timeline.Failure.ReasonCode,
 	)
-	require.Contains(t, runResult.Timeline.Failure.Error, "id")
+	require.Equal(t, pipelinerun.ErrQueryOutputContractSchemaMismatch.Message(), runResult.Timeline.Failure.Error)
 }
 
 func TestRunner_RunFailureReasonCodeForSinkInputContractMismatch(t *testing.T) {
@@ -666,7 +666,8 @@ func TestRunner_RunFailureReasonCodeForSinkInputContractMismatch(t *testing.T) {
 		pipelinerun.FailureReasonCodeSinkContractMismatch,
 		runResult.Timeline.Failure.ReasonCode,
 	)
-	require.Contains(t, runResult.Timeline.Failure.Error, "order_id")
+	require.Equal(t, pipelinerun.ErrSinkInputContractViolation.Message(), runResult.Timeline.Failure.Error)
+	require.Equal(t, "order_id", runResult.Timeline.Failure.Contract.FieldName)
 }
 
 func TestRunner_RunFailureReasonCodeForS3ObjectWriteFailure(t *testing.T) {
@@ -830,11 +831,13 @@ func TestRunner_RunRejectsUnsupportedSinkIdempotencyClassBeforeDispatch(t *testi
 	require.NotNil(t, runResult.Timeline.Failure)
 	require.Equal(t, failureKindPlatform, runResult.Timeline.Failure.Kind)
 	require.Equal(t, failureSideSink, runResult.Timeline.Failure.Side)
-	require.Contains(t, runResult.Timeline.Failure.Error, "does not support idempotency_class")
+	require.Equal(t, xerror.InvalidInput(xerror.Pipeline).Message(), runResult.Timeline.Failure.Error)
+	require.ErrorContains(t, err, "does not support idempotency_class")
 }
 
 func TestRunner_RunFailureReasonCodeForTransformRuntimeFailure(t *testing.T) {
 	t.Parallel()
+	const canary = "opaque-transform-row-canary"
 
 	runner := mustNewRunnerWithStore(&testutil.FakeQueryExecutor{ExecuteFn: func(
 		context.Context,
@@ -853,7 +856,7 @@ func TestRunner_RunFailureReasonCodeForTransformRuntimeFailure(t *testing.T) {
 	}}, NewNoopRunStore(), newRunnerPreValidationMockService())
 	runner.transformRuntime = &fakeTransformRuntime{
 		executeFn: func(*pipelinespec.TransformSpec, *payload.Payload) (*payload.Output, error) {
-			return nil, xerror.ValidationFailed().Detail("sql_v1 transform failed")
+			return nil, xerror.ValidationFailed().Detail(canary)
 		},
 	}
 
@@ -914,6 +917,8 @@ func TestRunner_RunFailureReasonCodeForTransformRuntimeFailure(t *testing.T) {
 		pipelinerun.FailureReasonCodeTransformRuntimeFailed,
 		runResult.Timeline.Failure.ReasonCode,
 	)
+	require.Equal(t, xerror.ValidationFailed().Message(), runResult.Timeline.Failure.Error)
+	requireTimelineDoesNotContain(t, runResult.Timeline, canary)
 }
 
 // requireTimelineDoesNotContain verifies persisted run diagnostics did not copy

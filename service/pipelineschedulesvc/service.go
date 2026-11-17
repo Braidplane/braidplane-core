@@ -11,6 +11,7 @@ import (
 
 	"github.com/Braidplane/braidplane-core/pkg/clock"
 	"github.com/Braidplane/braidplane-core/pkg/domain/model"
+	"github.com/Braidplane/braidplane-core/pkg/logging"
 	pipelinerun "github.com/Braidplane/braidplane-core/pkg/pipeline/run"
 	"github.com/Braidplane/braidplane-core/pkg/queue"
 	"github.com/Braidplane/braidplane-core/pkg/slug"
@@ -879,7 +880,7 @@ func (s *Service) createRetryDecisionNotification(
 			slog.Any("project_slug", optionalSlugLogValue(params.ProjectSlug)),
 			slog.Any("environment_slug", optionalSlugLogValue(params.EnvironmentSlug)),
 			slog.String("dedupe_fingerprint", params.DedupeFingerprint),
-			slog.Any("error", err),
+			logging.ErrorAttr(err),
 		)
 	}
 }

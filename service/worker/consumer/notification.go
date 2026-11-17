@@ -6,6 +6,7 @@ import (
 
 	"github.com/riverqueue/river"
 
+	"github.com/Braidplane/braidplane-core/pkg/logging"
 	"github.com/Braidplane/braidplane-core/pkg/xerror"
 
 	"github.com/Braidplane/braidplane-core/service/notificationsvc"
@@ -74,7 +75,7 @@ func (w *notificationDeliveryWorker) Work(
 				return xerror.Wrapf("snooze notification delivery: %w", river.JobSnooze(deliveryErr.RetryAfter))
 			}
 		}
-		w.logger.ErrorContext(ctx, "notification delivery job failed", slog.Any("error", err))
+		w.logger.ErrorContext(ctx, "notification delivery job failed", logging.ErrorAttr(err))
 		return err
 	}
 

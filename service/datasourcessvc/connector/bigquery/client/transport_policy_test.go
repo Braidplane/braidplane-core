@@ -8,8 +8,9 @@ import (
 	"testing"
 	"testing/iotest"
 
-	"github.com/Braidplane/braidplane-core/pkg/xerror"
 	"github.com/stretchr/testify/require"
+
+	"github.com/Braidplane/braidplane-core/pkg/xerror"
 )
 
 func TestTransportPolicyRejectsPlaintextProviderAndTokenEndpoints(t *testing.T) {
@@ -23,7 +24,7 @@ func TestTransportPolicyRejectsPlaintextProviderAndTokenEndpoints(t *testing.T) 
 	}
 }
 
-func TestProviderFailuresLogOriginalBeforeSanitizing(t *testing.T) {
+func TestProviderFailuresLogBoundedClassification(t *testing.T) {
 	cause := xerror.Unexpected().Detail("upstream connection interrupted password=fixture-password")
 	for _, operation := range []string{"response read", "token transport"} {
 		t.Run(operation, func(t *testing.T) {
@@ -49,7 +50,8 @@ func TestProviderFailuresLogOriginalBeforeSanitizing(t *testing.T) {
 				require.ErrorIs(t, err, xerror.Unavailable(xerror.DataSource))
 			}
 			require.NotContains(t, err.Error(), "upstream connection interrupted")
-			require.Contains(t, logs.String(), "upstream connection interrupted")
+			require.Contains(t, logs.String(), xerror.Unexpected().Code())
+			require.NotContains(t, logs.String(), "upstream connection interrupted")
 			require.NotContains(t, logs.String(), "fixture-password")
 		})
 	}

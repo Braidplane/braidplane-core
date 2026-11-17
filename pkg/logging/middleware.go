@@ -2,10 +2,8 @@ package logging
 
 import (
 	"context"
-	"encoding/json"
 	"log/slog"
 	"net/http"
-	"strings"
 	"time"
 
 	"github.com/gofiber/fiber/v3"
@@ -13,55 +11,26 @@ import (
 	"go.opentelemetry.io/otel/trace"
 
 	"github.com/Braidplane/braidplane-core/pkg/apierror"
-	"github.com/Braidplane/braidplane-core/pkg/redaction"
 	"github.com/Braidplane/braidplane-core/pkg/reqctx"
 	"github.com/Braidplane/braidplane-core/pkg/xerror"
 )
 
-// HTTPMiddleware returns a Fiber middleware that logs full HTTP requests and responses
-func HTTPMiddleware(logger *slog.Logger, logBodies bool) fiber.Handler {
+// HTTPMiddleware returns a Fiber middleware that logs HTTP request metadata.
+func HTTPMiddleware(logger *slog.Logger, logRequests bool) fiber.Handler {
 	return func(c fiber.Ctx) error {
 		c.SetContext(ensureTraceContext(c))
 
 		start := time.Now()
-		debugEnabled := logger.Enabled(c.Context(), slog.LevelDebug)
-
-		protectedProof := protectedProofRoute(c.Path())
-		var requestBody []byte
-		if debugEnabled && logBodies && !protectedProof && len(c.Body()) > 0 {
-			requestBody = make([]byte, len(c.Body()))
-			copy(requestBody, c.Body())
+		if logRequests && logger.Enabled(c.Context(), slog.LevelDebug) {
+			logger.LogAttrs(c.Context(), slog.LevelDebug, "HTTP request received", append(
+				fiberContextAttrs(c), slog.String("http.method", c.Method()),
+			)...)
 		}
 
 		err := c.Next()
-
 		duration := time.Since(start)
 		statusCode := responseStatusCode(c, err)
 		route := fiberRoute(c)
-		protectedProof = protectedProof || protectedProofRoute(route)
-		if debugEnabled {
-			attrs := []slog.Attr{
-				slog.String("http.method", c.Method()),
-				slog.String("http.route", route),
-				slog.String("client.address", c.IP()),
-			}
-			attrs = append(attrs, fiberContextAttrs(c)...)
-
-			if logBodies && !protectedProof && len(requestBody) > 0 {
-				attrs = append(attrs, slog.String("request_body", redactBody(requestBody)))
-			}
-
-			if !protectedProof {
-				headers := make(map[string]string)
-				for key, value := range c.Request().Header.All() {
-					headers[string(key)] = redactHeaderValue(string(key), string(value))
-				}
-				attrs = append(attrs, slog.Any("request_headers", headers))
-				attrs = append(attrs, slog.String("user_agent.original", c.Get("User-Agent")))
-			}
-
-			logger.LogAttrs(c.Context(), slog.LevelDebug, "HTTP request received", attrs...)
-		}
 
 		completionAttrs := []slog.Attr{
 			slog.String("braidplane.event", "http.request.completed"),
@@ -74,7 +43,7 @@ func HTTPMiddleware(logger *slog.Logger, logBodies bool) fiber.Handler {
 		completionAttrs = append(completionAttrs, fiberContextAttrs(c)...)
 
 		if err != nil {
-			completionAttrs = append(completionAttrs, httpErrorAttrs(err, statusCode)...)
+			completionAttrs = append(completionAttrs, ErrorAttrs(err)...)
 		}
 
 		level := slog.LevelInfo
@@ -85,39 +54,7 @@ func HTTPMiddleware(logger *slog.Logger, logBodies bool) fiber.Handler {
 		}
 		logger.LogAttrs(c.Context(), level, "HTTP request completed", completionAttrs...)
 
-		if debugEnabled {
-			responseAttrs := []slog.Attr{
-				slog.String("http.method", c.Method()),
-				slog.String("http.route", route),
-				slog.Int("http.status_code", statusCode),
-				slog.Duration("duration", duration),
-			}
-			responseAttrs = append(responseAttrs, fiberContextAttrs(c)...)
-
-			responseBody := c.Response().Body()
-			if logBodies && !protectedProof && len(responseBody) > 0 {
-				responseAttrs = append(
-					responseAttrs,
-					slog.String("response_body", redactBody(responseBody)),
-				)
-			}
-
-			if !protectedProof {
-				respHeaders := make(map[string]string)
-				for key, value := range c.Response().Header.All() {
-					respHeaders[string(key)] = redactHeaderValue(string(key), string(value))
-				}
-				responseAttrs = append(responseAttrs, slog.Any("response_headers", respHeaders))
-			}
-
-			logger.LogAttrs(c.Context(), slog.LevelDebug, "HTTP response sent", responseAttrs...)
-		}
-
-		if err != nil {
-			return err
-		}
-
-		return nil
+		return err
 	}
 }
 
@@ -185,165 +122,45 @@ func httpOutcome(statusCode int) string {
 	return "success"
 }
 
-func errorType(err error) string {
+// ErrorAttrs returns bounded classifications without formatting the error.
+func ErrorAttrs(err error) []slog.Attr {
 	if err == nil {
-		return ""
+		return nil
 	}
 
+	code, kind, category := xerror.Classify(err)
 	var fiberErr *fiber.Error
-	if xerror.As(err, &fiberErr) {
-		return "fiber_error"
-	}
-
 	var apiErr *apierror.Error
-	if xerror.As(err, &apiErr) {
-		return apiErr.Code
+	switch {
+	case xerror.As(err, &fiberErr):
+		code = "fiber_error"
+	case xerror.As(err, &apiErr) && apiErr != nil:
+		code, kind = apiErr.Code, "api_error"
 	}
 
-	var appErr *xerror.Error
-	if xerror.As(err, &appErr) {
-		return appErr.Code()
-	}
-
-	return errorValue
-}
-
-func errorKind(err error) string {
-	var apiErr *apierror.Error
-	if xerror.As(err, &apiErr) {
-		return "api_error"
-	}
-
-	var appErr *xerror.Error
-	if xerror.As(err, &appErr) {
-		return appErr.Kind().String()
-	}
-	return ""
-}
-
-func errorAttrs(err error, sensitiveValues ...string) []slog.Attr {
-	attrs := []slog.Attr{
-		slog.String("error.type", errorType(err)),
-		slog.String("error.message", redaction.ErrorMessage(err, sensitiveValues...)),
-	}
-	if kind := errorKind(err); kind != "" {
+	attrs := []slog.Attr{slog.String("error.type", code)}
+	if kind != "" {
 		attrs = append(attrs, slog.String("error.kind", kind))
+	}
+	if category != "" {
+		attrs = append(attrs, slog.String("error.category", category))
 	}
 	return attrs
 }
 
-func httpErrorAttrs(err error, status int) []slog.Attr {
-	attrs := []slog.Attr{
-		slog.String("error.type", errorType(err)),
-		slog.String("error.message", http.StatusText(status)),
-	}
-	if kind := errorKind(err); kind != "" {
-		attrs = append(attrs, slog.String("error.kind", kind))
-	}
-	return attrs
+// ErrorAttr adds classification fields to a log call with other attributes.
+func ErrorAttr(err error) slog.Attr {
+	return slog.GroupAttrs("", ErrorAttrs(err)...)
 }
 
-func redactHeaderValue(key, value string) string {
-	switch strings.ToLower(strings.TrimSpace(key)) {
-	case "authorization", "cookie", "set-cookie", "x-csrf-token", "referer", "hx-current-url":
-		return "[REDACTED]"
-	default:
-		return value
-	}
+// LogError records a safe error diagnostic with the process logger.
+func LogError(ctx context.Context, message string, err error) {
+	LogErrorWith(ctx, slog.Default(), message, err)
 }
 
-func redactBody(raw []byte) string {
-	trimmed := strings.TrimSpace(string(raw))
-	if trimmed == "" {
-		return ""
-	}
-
-	var payload any
-	if err := json.Unmarshal(raw, &payload); err != nil {
-		return "[REDACTED_NON_JSON_BODY]"
-	}
-
-	switch payload.(type) {
-	case map[string]any, []any:
-		// Traverse containers and redact sensitive keys recursively.
-	default:
-		return "[REDACTED_JSON_SCALAR]"
-	}
-
-	redacted := redactSensitiveFields(payload)
-	out, err := json.Marshal(redacted)
+// LogErrorWith records a safe error diagnostic with the supplied logger.
+func LogErrorWith(ctx context.Context, logger *slog.Logger, message string, err error) {
 	if err != nil {
-		return "[REDACTED_BODY]"
+		logger.LogAttrs(ctx, slog.LevelError, message, append(ContextAttrs(ctx), ErrorAttrs(err)...)...)
 	}
-
-	return string(out)
-}
-
-func redactSensitiveFields(value any) any {
-	switch v := value.(type) {
-	case map[string]any:
-		result := make(map[string]any, len(v))
-		for k, child := range v {
-			if isSensitiveKey(k) {
-				result[k] = "[REDACTED]"
-				continue
-			}
-			result[k] = redactSensitiveFields(child)
-		}
-		return result
-	case []any:
-		result := make([]any, len(v))
-		for i := range v {
-			result[i] = redactSensitiveFields(v[i])
-		}
-		return result
-	default:
-		return value
-	}
-}
-
-func isSensitiveKey(key string) bool {
-	k := strings.ToLower(strings.TrimSpace(key))
-	if k == "value" {
-		return true
-	}
-	for _, marker := range []string{
-		"api_key",
-		"apikey",
-		"authorization_url",
-		"authorizationurl",
-		"auth_url",
-		"authurl",
-		"bearer_token",
-		"cookie",
-		"credential",
-		"csrf",
-		"password",
-		"secret",
-		"session",
-		"state",
-		"token",
-	} {
-		if strings.Contains(k, marker) {
-			return true
-		}
-	}
-	return false
-}
-
-// Proof intents and metadata targets must remain absent even from debug payload logs.
-func protectedProofRoute(path string) bool {
-	path = strings.ToLower(path)
-	return strings.Contains(path, "/proof-observation") || strings.Contains(path, "/proof-receipts")
-}
-
-// LogError records a safe error diagnostic at a boundary that returns a sanitized error.
-func LogError(ctx context.Context, message string, err error, sensitiveValues ...string) {
-	if err == nil {
-		return
-	}
-
-	attrs := ContextAttrs(ctx)
-	attrs = append(attrs, errorAttrs(err, sensitiveValues...)...)
-	slog.Default().LogAttrs(ctx, slog.LevelError, message, attrs...)
 }

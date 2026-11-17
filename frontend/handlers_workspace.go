@@ -11,6 +11,7 @@ import (
 
 	api "github.com/Braidplane/braidplane-core/api-schema/gen/client"
 	"github.com/Braidplane/braidplane-core/frontend/views"
+	"github.com/Braidplane/braidplane-core/pkg/logging"
 	"github.com/Braidplane/braidplane-core/pkg/reqctx"
 	"github.com/Braidplane/braidplane-core/pkg/slug"
 )
@@ -31,16 +32,15 @@ func (r *Router) requireWorkspace(c fiber.Ctx) error {
 		return c.Next()
 	}
 
-	organizations, status, errorResponse, err := r.listWorkspaceGateOrganizations(c)
+	organizations, status, _, err := r.listWorkspaceGateOrganizations(c)
 	if err != nil {
 		if status == fiber.StatusUnauthorized {
 			return redirectToLogin(c, c.OriginalURL())
 		}
-		r.logger.Error(
+		r.logger.ErrorContext(c.Context(),
 			"workspace gate organization lookup failed",
 			slog.Int("status", status),
-			slog.String("details", errorPopupDetails(errorResponse, "")),
-			slog.Any("error", err),
+			logging.ErrorAttr(err),
 		)
 		return c.Status(fiber.StatusServiceUnavailable).SendString("workspace membership unavailable")
 	}
@@ -202,7 +202,7 @@ func (r *Router) handleWorkspaceGateSubmit(c fiber.Ctx) error {
 	if createdOrganization != nil {
 		if orgSlug, slugErr := slug.New(createdOrganization.Slug); slugErr == nil {
 			if setErr := reqctx.SetActiveOrganizationSlug(c, r.sessionStore, orgSlug); setErr != nil {
-				r.logger.Error("failed to set active organization from workspace gate", slog.Any("error", setErr))
+				r.logger.ErrorContext(c.Context(), "failed to set active organization from workspace gate", logging.ErrorAttr(setErr))
 			}
 		}
 	}
@@ -278,11 +278,11 @@ func (r *Router) ensureActiveOrganizationMembership(
 
 	orgSlug, err := slug.New(organizations[0].Slug)
 	if err != nil {
-		r.logger.Error("workspace gate received invalid organization slug", slog.Any("error", err))
+		r.logger.ErrorContext(c.Context(), "workspace gate received invalid organization slug", logging.ErrorAttr(err))
 		return
 	}
 	if err := reqctx.SetActiveOrganizationSlug(c, r.sessionStore, orgSlug); err != nil {
-		r.logger.Error("failed to set active organization from membership", slog.Any("error", err))
+		r.logger.ErrorContext(c.Context(), "failed to set active organization from membership", logging.ErrorAttr(err))
 	}
 }
 

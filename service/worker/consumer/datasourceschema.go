@@ -92,17 +92,7 @@ func (w *dataSourceSchemaImportWorker) Work(
 			slog.String("outcome", "failed_persisted"),
 			slog.String("error.category", "provider_introspection"),
 		)
-		if result.Diagnostic != nil {
-			attrs = append(attrs,
-				slog.String("diagnostic.code", result.Diagnostic.Code),
-				slog.String("diagnostic.message", result.Diagnostic.Message),
-			)
-		} else {
-			attrs = append(attrs,
-				slog.String("diagnostic.code", "DATA_SOURCE_SCHEMA_IMPORT_FAILED"),
-				slog.String("diagnostic.message", "Schema import failed."),
-			)
-		}
+		attrs = append(attrs, slog.String("diagnostic.code", diagnosticCode))
 		w.logger.LogAttrs(ctx, slog.LevelWarn, "data source schema import failed and diagnostic persisted", attrs...)
 	case model.DataSourceSchemaImportStatusReady:
 		attrs = append(attrs, slog.String("outcome", "succeeded"))

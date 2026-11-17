@@ -15,10 +15,6 @@ import (
 	"syscall"
 	"time"
 
-	workspace "github.com/Braidplane/braidplane-core/pkg/connector/googleworkspace"
-	"github.com/Braidplane/braidplane-core/pkg/connector/schemaquota"
-	"github.com/Braidplane/braidplane-core/pkg/googleclient"
-	"github.com/Braidplane/braidplane-core/pkg/xerror"
 	"golang.org/x/oauth2"
 	"google.golang.org/api/docs/v1"
 	"google.golang.org/api/drive/v3"
@@ -26,6 +22,11 @@ import (
 	"google.golang.org/api/option"
 	"google.golang.org/api/sheets/v4"
 	"google.golang.org/api/slides/v1"
+
+	workspace "github.com/Braidplane/braidplane-core/pkg/connector/googleworkspace"
+	"github.com/Braidplane/braidplane-core/pkg/connector/schemaquota"
+	"github.com/Braidplane/braidplane-core/pkg/googleclient"
+	"github.com/Braidplane/braidplane-core/pkg/xerror"
 )
 
 const (
@@ -109,7 +110,7 @@ func (c *Client) Metadata(ctx context.Context, id string, limits Limits) (*works
 	}
 	response, err := read(ctx, limits, func(ctx context.Context) (*sheets.Spreadsheet, error) {
 		return c.sheets.Spreadsheets.Get(id).Fields("spreadsheetId,properties(title),sheets(properties(sheetId,title,gridProperties(rowCount,columnCount)))").Context(ctx).Do()
-	}, c.credentials.AccessToken)
+	})
 	if err != nil {
 		return nil, err
 	}
@@ -156,7 +157,7 @@ func (c *Client) TestConnection(ctx context.Context, limits Limits) error {
 	}
 	_, err := read(ctx, limits, func(ctx context.Context) (*drive.About, error) {
 		return c.drive.About.Get().Fields("user(emailAddress)").Context(ctx).Do()
-	}, c.credentials.AccessToken)
+	})
 	return err
 }
 
@@ -169,7 +170,7 @@ func (c *Client) FileMetadata(ctx context.Context, id string, limits Limits) (*w
 	}
 	f, err := read(ctx, limits, func(ctx context.Context) (*drive.File, error) {
 		return c.drive.Files.Get(id).SupportsAllDrives(true).Fields(fileFields).Context(ctx).Do()
-	}, c.credentials.AccessToken)
+	})
 	if err != nil {
 		return nil, err
 	}
@@ -217,7 +218,7 @@ func (c *Client) Discovery(ctx context.Context, options workspace.ListOptions, l
 			call = call.Corpora("drive").DriveId(options.DriveID)
 		}
 		return call.Context(ctx).Do()
-	}, c.credentials.AccessToken)
+	})
 	if err != nil {
 		return nil, err
 	}
@@ -251,14 +252,14 @@ func (c *Client) Discovery(ctx context.Context, options workspace.ListOptions, l
 func (c *Client) Download(ctx context.Context, id string, limits Limits) ([]byte, error) {
 	response, err := read(ctx, limits, func(ctx context.Context) (*http.Response, error) {
 		return c.drive.Files.Get(id).SupportsAllDrives(true).Context(ctx).Download()
-	}, c.credentials.AccessToken)
+	})
 	if err != nil {
 		return nil, err
 	}
 	defer func() { _ = response.Body.Close() }()
 	body, err := googleclient.ReadResponse(response.Body, responseLimit(ctx, limits))
 	if err != nil {
-		googleclient.LogError(ctx, err, c.credentials.AccessToken)
+		googleclient.LogError(ctx, err)
 		return nil, safeError(err)
 	}
 	return body, nil
@@ -283,7 +284,7 @@ func (c *Client) Upload(ctx context.Context, id, folder, name, contentType strin
 	}
 	if err != nil {
 		mapped := safeError(err)
-		googleclient.LogError(ctx, err, c.credentials.AccessToken)
+		googleclient.LogError(ctx, err)
 		if ctx.Err() != nil {
 			mapped = xerror.Timeout(xerror.DataSource)
 		}
@@ -304,7 +305,7 @@ func (c *Client) Read(ctx context.Context, id, cellRange string, limits Limits) 
 	}
 	response, err := read(ctx, limits, func(ctx context.Context) (*sheets.ValueRange, error) {
 		return c.sheets.Spreadsheets.Values.Get(id, cellRange).MajorDimension("ROWS").ValueRenderOption("UNFORMATTED_VALUE").DateTimeRenderOption("SERIAL_NUMBER").Context(ctx).Do()
-	}, c.credentials.AccessToken)
+	})
 	if err != nil {
 		return nil, err
 	}
@@ -324,7 +325,7 @@ func (c *Client) Update(ctx context.Context, id, cellRange string, values [][]an
 	payload := &sheets.ValueRange{Range: cellRange, MajorDimension: "ROWS", Values: values}
 	_, err := c.sheets.Spreadsheets.Values.Update(id, cellRange, payload).ValueInputOption("RAW").IncludeValuesInResponse(false).Context(ctx).Do()
 	if err != nil {
-		googleclient.LogError(ctx, err, c.credentials.AccessToken)
+		googleclient.LogError(ctx, err)
 		var provider *googleapi.Error
 		if xerror.As(err, &provider) && provider.Code < 500 && provider.Code != http.StatusTooManyRequests {
 			return googleclient.StatusError(provider.Code)
@@ -353,7 +354,7 @@ func operationContext(ctx context.Context, limits Limits) (context.Context, cont
 }
 
 // The generated clients issue a single request per Do call. Only reads enter this retry loop.
-func read[T any](ctx context.Context, limits Limits, call func(context.Context) (T, error), sensitiveValues ...string) (T, error) {
+func read[T any](ctx context.Context, limits Limits, call func(context.Context) (T, error)) (T, error) {
 	ctx, cancel := operationContext(ctx, limits)
 	defer cancel()
 	attempts := max(1, limits.RetryAttempts)
@@ -362,7 +363,7 @@ func read[T any](ctx context.Context, limits Limits, call func(context.Context) 
 		if err == nil {
 			return result, nil
 		}
-		googleclient.LogError(ctx, err, sensitiveValues...)
+		googleclient.LogError(ctx, err)
 		if ctx.Err() != nil {
 			return result, xerror.Timeout(xerror.DataSource)
 		}

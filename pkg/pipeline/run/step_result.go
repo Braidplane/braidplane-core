@@ -116,7 +116,7 @@ func (sr *StepResult) MarshalJSON() ([]byte, error) {
 	payload := payloadForStorage(sr.payload)
 	var errMsg *string
 	if sr.err != nil {
-		msg := sr.err.Error()
+		msg, _, _ := xerror.Classify(sr.err)
 		errMsg = &msg
 	}
 

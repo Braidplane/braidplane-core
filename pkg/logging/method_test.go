@@ -42,12 +42,12 @@ func TestLogMethodCompletionIncludesOperationalFields(t *testing.T) {
 	require.Contains(t, entry, "duration_ms")
 	require.Equal(t, "PROJECT_INVALID_INPUT", entry["error.type"])
 	require.Equal(t, "invalid_input", entry["error.kind"])
-	require.Equal(t, "create project: project invalid input: invalid project", entry["error.message"])
+	require.NotContains(t, entry, "error.message")
 
 	raw := buf.String()
 	require.NotContains(t, raw, "orgSlug")
 	require.NotContains(t, raw, "projectSlug")
-	require.Contains(t, raw, "invalid project")
+	require.NotContains(t, raw, "invalid project")
 }
 
 func TestLogMethodCompletionLogsSuccessAtDebug(t *testing.T) {
@@ -96,7 +96,6 @@ func TestLogErrorIncludesSafeDiagnosticAndCorrelation(t *testing.T) {
 		reqctx.WithRequestID(context.Background(), "req-123"),
 		"dispatch failed",
 		xerror.Unexpected().Detail("sink rejected password=secret-value Bearer bearer-value https://user:pass@example.test/path/token?access_token=query-value"),
-		"bearer-value",
 	)
 
 	var entry map[string]any
@@ -104,7 +103,7 @@ func TestLogErrorIncludesSafeDiagnosticAndCorrelation(t *testing.T) {
 	require.Equal(t, "dispatch failed", entry["msg"])
 	require.Equal(t, "req-123", entry["request_id"])
 	require.Equal(t, xerror.Unexpected().Code(), entry["error.type"])
-	require.Equal(t, "sink rejected password=[REDACTED] Bearer [REDACTED] [REDACTED_URL]", entry["error.message"])
+	require.NotContains(t, entry, "error.message")
 
 	raw := buf.String()
 	for _, value := range []string{"secret-value", "bearer-value", "user:pass", "query-value"} {

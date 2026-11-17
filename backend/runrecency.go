@@ -5,6 +5,7 @@ import (
 	"log/slog"
 	"time"
 
+	"github.com/Braidplane/braidplane-core/pkg/logging"
 	"github.com/Braidplane/braidplane-core/service/pipelineschedulesvc"
 	"github.com/Braidplane/braidplane-core/service/runrecencysvc"
 )
@@ -19,7 +20,7 @@ type recencyScheduleObserver struct {
 func (s recencyScheduleObserver) DispatchDueSchedules(ctx context.Context, now time.Time) (pipelineschedulesvc.DispatchResult, error) {
 	result, err := s.Service.DispatchDueSchedules(ctx, now)
 	if err := s.recency.Evaluate(ctx, now); err != nil {
-		s.logger.ErrorContext(ctx, "successful-run recency evaluation failed", slog.Any("error", err))
+		s.logger.ErrorContext(ctx, "successful-run recency evaluation failed", logging.ErrorAttr(err))
 	}
 	return result, err
 }

@@ -468,7 +468,7 @@ func TestRunner_RunIncrementalVisibilityUsesSourceForHighestPriorityStatus(t *te
 	require.NotNil(t, runResult)
 	require.Equal(t, "blocked", runResult.Metadata.Incremental.CheckpointStatus)
 	require.Equal(t, "fetch-orders", runResult.Metadata.Incremental.SourceStepSlug)
-	require.Contains(t, runResult.Metadata.Incremental.BlockedReason, "orders sink failed")
+	require.Equal(t, xerror.Unexpected().Message(), runResult.Metadata.Incremental.BlockedReason)
 }
 
 func TestRunner_RunFullVisibilityMarksCheckpointNotApplicable(t *testing.T) {

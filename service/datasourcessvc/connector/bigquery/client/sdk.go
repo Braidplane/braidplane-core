@@ -99,7 +99,7 @@ func (t *sdkTransport) RoundTrip(req *http.Request) (*http.Response, error) {
 	// #nosec G704 -- SDK endpoints are hostguarded; Proof's caller-owned transport enforces its exact allowlist.
 	response, err := t.client.client.Do(request)
 	if err != nil {
-		googleclient.LogError(req.Context(), err, token)
+		googleclient.LogError(req.Context(), err)
 		return nil, googleclient.TransportError(req.Context(), err)
 	}
 	body, err := readProviderResponse(req.Context(), response, policy.maxResponseBytes)

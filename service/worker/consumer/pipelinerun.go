@@ -6,6 +6,7 @@ import (
 
 	"github.com/riverqueue/river"
 
+	"github.com/Braidplane/braidplane-core/pkg/logging"
 	"github.com/Braidplane/braidplane-core/service/worker/jobs"
 )
 
@@ -45,7 +46,7 @@ func (w *pipelineRunExecutionWorker) Work(
 		w.logger.ErrorContext(
 			ctx,
 			"pipeline run execution job failed",
-			slog.Any("error", err),
+			logging.ErrorAttr(err),
 			slog.String("organization_slug", job.Args.OrganizationSlug.String()),
 			slog.String("project_slug", job.Args.ProjectSlug.String()),
 			slog.String("environment_slug", job.Args.EnvironmentSlug.String()),

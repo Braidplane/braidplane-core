@@ -38,8 +38,8 @@ tests {
     expect(res.status).to.equal(400);
   });
 
-  test("should identify the unsupported authentication selector", function() {
+  test("returns safe validation metadata", function() {
     expect(res.body.error.code).to.equal("VALIDATION_FAILED");
-    expect(res.body.error.message).to.contain("auth_type");
+    expect(res.body.error.message).to.equal("Request validation failed");
   });
 }

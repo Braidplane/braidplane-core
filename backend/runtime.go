@@ -15,11 +15,11 @@ import (
 	"github.com/gofiber/fiber/v3/middleware/compress"
 	"github.com/gofiber/fiber/v3/middleware/cors"
 	recovermiddleware "github.com/gofiber/fiber/v3/middleware/recover"
-	"github.com/gofiber/fiber/v3/middleware/requestid"
 	"github.com/gofiber/fiber/v3/middleware/session"
-	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/riverqueue/river"
+
+	sessionstore "github.com/gofiber/storage/postgres/v3"
 
 	oapi "github.com/Braidplane/braidplane-core/api-schema/gen/server"
 	backendconfig "github.com/Braidplane/braidplane-core/config/backend"
@@ -132,7 +132,6 @@ import (
 	workerjobs "github.com/Braidplane/braidplane-core/service/worker/jobs"
 	workerproducer "github.com/Braidplane/braidplane-core/service/worker/producer"
 	"github.com/Braidplane/braidplane-core/transport/http"
-	sessionstore "github.com/gofiber/storage/postgres/v3"
 )
 
 // notificationLifecycleEventProducer adapts the worker event producer to the
@@ -241,9 +240,9 @@ func newBackendOperationalApp(
 		EnableIPValidation: serverConfig.ProxyHeader != "",
 	})
 	app.Use(
-		recovermiddleware.New(recovermiddleware.Config{EnableStackTrace: true}),
+		recovermiddleware.New(recovermiddleware.Config{PanicHandler: apierror.RecoverPanic}),
 		compress.New(),
-		requestid.New(requestid.Config{Generator: uuid.NewString}),
+		reqctx.RequestIDMiddleware(),
 	)
 	app.Use(func(c fiber.Ctx) error {
 		requestID := reqctx.FiberRequestID(c)
@@ -296,7 +295,7 @@ func runBackendHTTP(
 			context.Background(),
 			serverConfig.DrainTimeout.TimeDuration(),
 		); err != nil {
-			logger.Error("readiness drain wait failed", slog.Any("error", err))
+			logger.Error("readiness drain wait failed", logging.ErrorAttr(err))
 			return xerror.Unexpected().With(err)
 		}
 
@@ -304,7 +303,7 @@ func runBackendHTTP(
 		defer cancel()
 
 		if err := app.ShutdownWithContext(ctx); err != nil {
-			logger.Error("graceful shutdown failed", slog.Any("error", err))
+			logger.Error("graceful shutdown failed", logging.ErrorAttr(err))
 			return xerror.Unexpected().With(err)
 		}
 		logger.Info("server shutdown complete")
@@ -374,7 +373,7 @@ func runExecutionOnlyBackend(
 	}
 	defer func() {
 		if closeErr := broker.Close(); closeErr != nil {
-			logger.Error("close execution connector runtime pool", slog.Any("error", closeErr))
+			logger.Error("close execution connector runtime pool", logging.ErrorAttr(closeErr))
 		}
 	}()
 	executorCtx, stopExecutor := context.WithCancel(context.Background())
@@ -412,13 +411,14 @@ func Run(cfg *backendconfig.Config, mode Mode, createDistribution DistributionFa
 		MaxFileSizeMB:    cfg.Logging.MaxFileSizeMB,
 		Environment:      cfg.Logging.Environment,
 		OTLPLogsEndpoint: cfg.Logging.OTLPLogsEndpoint,
+		HandleSDKErrors:  true,
 	}, "backend")
 	if err != nil {
 		return xerror.Wrapf("failed to setup backend logger: %w", err)
 	}
 	defer func() {
 		if closeErr := backendCloser.Close(); closeErr != nil {
-			backendLogger.Error("failed to close backend logger", slog.Any("error", closeErr))
+			backendLogger.Error("failed to close backend logger", logging.ErrorAttr(closeErr))
 		}
 	}()
 
@@ -434,7 +434,7 @@ func Run(cfg *backendconfig.Config, mode Mode, createDistribution DistributionFa
 	}
 	defer func() {
 		if closeErr := traceCloser.Close(); closeErr != nil {
-			backendLogger.Error("failed to close backend tracer", slog.Any("error", closeErr))
+			backendLogger.Error("failed to close backend tracer", logging.ErrorAttr(closeErr))
 		}
 	}()
 
@@ -609,7 +609,7 @@ func Run(cfg *backendconfig.Config, mode Mode, createDistribution DistributionFa
 	}
 	defer func() {
 		if closeErr := executionRequestBroker.Close(); closeErr != nil {
-			backendLogger.Error("close execution connector runtime pool", slog.Any("error", closeErr))
+			backendLogger.Error("close execution connector runtime pool", logging.ErrorAttr(closeErr))
 		}
 	}()
 	if executionComposition.processesRiverJobs {
@@ -1335,7 +1335,7 @@ func Run(cfg *backendconfig.Config, mode Mode, createDistribution DistributionFa
 			sessionStore := sessionstore.New(sessionstore.Config{DB: pool, Table: cfg.Session.TableName})
 			defer func() {
 				if err := sessionStore.Close(); err != nil {
-					backendLogger.Error("failed to close session store", slog.Any("error", err))
+					backendLogger.Error("failed to close session store", logging.ErrorAttr(err))
 				}
 			}()
 			store := session.NewStore(backendSessionConfig(sessionStore, cfg.Session))

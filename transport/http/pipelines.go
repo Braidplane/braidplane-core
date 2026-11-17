@@ -15,6 +15,7 @@ import (
 	api "github.com/Braidplane/braidplane-core/api-schema/gen/server"
 	"github.com/Braidplane/braidplane-core/pkg/apierror"
 	"github.com/Braidplane/braidplane-core/pkg/domain/model"
+	"github.com/Braidplane/braidplane-core/pkg/logging"
 	"github.com/Braidplane/braidplane-core/pkg/odcs"
 	pipelinedrift "github.com/Braidplane/braidplane-core/pkg/pipeline/drift"
 	pipelineformat "github.com/Braidplane/braidplane-core/pkg/pipeline/format"
@@ -58,7 +59,7 @@ func (s *server) ListPipelines(
 	for i, item := range response.Items {
 		apiPipeline, mapErr := toAPIPipelineRef(item)
 		if mapErr != nil {
-			slog.Error("failed to map pipeline list item", "error", mapErr)
+			slog.Error("failed to map pipeline list item", logging.ErrorAttr(mapErr))
 			return apierror.InternalServerError()
 		}
 		pipelinesResponse[i] = apiPipeline
@@ -101,7 +102,7 @@ func (s *server) GetPipeline(
 
 	apiPipeline, err := toAPIPipeline(orgSlug, pipeline)
 	if err != nil {
-		slog.Error("failed to map pipeline", "error", err)
+		slog.Error("failed to map pipeline", logging.ErrorAttr(err))
 		return apierror.InternalServerError()
 	}
 
@@ -161,7 +162,7 @@ func (s *server) UpdatePipeline(
 
 	apiPipeline, err := toAPIPipeline(orgSlug, updated)
 	if err != nil {
-		slog.Error("failed to map updated pipeline", "error", err)
+		slog.Error("failed to map updated pipeline", logging.ErrorAttr(err))
 		return apierror.InternalServerError()
 	}
 
@@ -292,7 +293,7 @@ func (s *server) ValidatePipeline(
 				slog.String("project_slug", projectSlug.String()),
 				slog.String("environment_slug", environmentSlug.String()),
 				slog.String("pipeline_slug", pipeline.Metadata.Slug.String()),
-				slog.Any("error", authErr),
+				logging.ErrorAttr(authErr),
 			)
 			return c.JSON(toAPIPipelineValidationResponse(result))
 		}
@@ -316,7 +317,7 @@ func (s *server) ValidatePipeline(
 				slog.String("project_slug", projectSlug.String()),
 				slog.String("environment_slug", environmentSlug.String()),
 				slog.String("pipeline_slug", pipeline.Metadata.Slug.String()),
-				slog.Any("error", recordErr),
+				logging.ErrorAttr(recordErr),
 			)
 		}
 	}
@@ -634,7 +635,7 @@ func (s *server) GetPipelineDraft(
 
 	apiDraft, err := toAPIPipelineDraft(draft)
 	if err != nil {
-		slog.Error("failed to map pipeline draft", "error", err)
+		slog.Error("failed to map pipeline draft", logging.ErrorAttr(err))
 		return apierror.InternalServerError()
 	}
 
@@ -691,7 +692,7 @@ func (s *server) SavePipelineDraft(
 
 	apiDraft, err := toAPIPipelineDraft(draft)
 	if err != nil {
-		slog.Error("failed to map saved pipeline draft", "error", err)
+		slog.Error("failed to map saved pipeline draft", logging.ErrorAttr(err))
 		return apierror.InternalServerError()
 	}
 
@@ -747,7 +748,7 @@ func (s *server) PublishPipelineDraft(
 
 	apiPipeline, err := toAPIPipeline(orgSlug, published)
 	if err != nil {
-		slog.Error("failed to map published pipeline", "error", err)
+		slog.Error("failed to map published pipeline", logging.ErrorAttr(err))
 		return apierror.InternalServerError()
 	}
 
@@ -894,7 +895,7 @@ func (s *server) GetPipelineVersion(
 
 	apiVersion, err := toAPIPipelineVersion(version)
 	if err != nil {
-		slog.Error("failed to map pipeline version", "error", err)
+		slog.Error("failed to map pipeline version", logging.ErrorAttr(err))
 		return apierror.InternalServerError()
 	}
 

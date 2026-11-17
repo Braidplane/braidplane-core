@@ -136,7 +136,7 @@ func (c *Client) ExchangeCode(ctx context.Context, code string) (Install, error)
 
 	var payload oauthResponse
 	if err := json.NewDecoder(io.LimitReader(response.Body, maxResponseBytes)).Decode(&payload); err != nil {
-		logging.LogError(ctx, "decode Slack OAuth response", err, c.clientSecret, code, payload.AccessToken, payload.IncomingWebhook.URL)
+		logging.LogError(ctx, "decode Slack OAuth response", err)
 		return Install{}, xerror.Unavailable(xerror.DataSource).Detail("Slack OAuth provider returned an invalid response")
 	}
 	if !payload.OK {
@@ -177,7 +177,7 @@ func (c *WebhookClient) SendWebhook(ctx context.Context, webhookURL, text string
 	req.Header.Set("Content-Type", "application/json")
 	response, err := c.client.Do(req)
 	if err != nil {
-		logging.LogError(ctx, "Slack webhook request failed", err, webhookURL, text)
+		logging.LogError(ctx, "Slack webhook request failed", err)
 		return xerror.Unavailable(xerror.DataSource).Detail("Slack webhook request failed")
 	}
 	defer func() { _ = response.Body.Close() }()
@@ -206,7 +206,7 @@ func (c *Client) Revoke(ctx context.Context, accessToken string) error {
 		Error string `json:"error"`
 	}
 	if err := json.NewDecoder(io.LimitReader(response.Body, maxResponseBytes)).Decode(&payload); err != nil {
-		logging.LogError(ctx, "decode Slack revoke response", err, c.clientSecret, accessToken)
+		logging.LogError(ctx, "decode Slack revoke response", err)
 		return xerror.Unavailable(xerror.DataSource).Detail("Slack revoke provider returned an invalid response")
 	}
 	if payload.OK || payload.Error == "invalid_auth" {
@@ -232,7 +232,7 @@ func (c *Client) postForm(ctx context.Context, endpoint string, form url.Values,
 	}
 	response, err := c.client.Do(req)
 	if err != nil {
-		logging.LogError(ctx, "Slack provider request failed", err, c.clientSecret, authorization, form.Get("code"))
+		logging.LogError(ctx, "Slack provider request failed", err)
 		return nil, xerror.Unavailable(xerror.DataSource).Detail("Slack provider request failed")
 	}
 	return response, nil

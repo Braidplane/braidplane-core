@@ -18,7 +18,7 @@ import (
 	workerproducer "github.com/Braidplane/braidplane-core/service/worker/producer"
 )
 
-func TestAccountDeletionLogsCauseWithoutPersistingItInRiver(t *testing.T) {
+func TestAccountDeletionLogsOnlySafeClassification(t *testing.T) {
 	var logs bytes.Buffer
 	previous := slog.Default()
 	slog.SetDefault(slog.New(slog.NewJSONHandler(&logs, nil)))
@@ -29,7 +29,8 @@ func TestAccountDeletionLogsCauseWithoutPersistingItInRiver(t *testing.T) {
 	worker := AccountDeletionWorker{Service: svc}
 	err = worker.Work(t.Context(), &river.Job[jobs.AccountDeletionArgs]{Args: jobs.AccountDeletionArgs{Request: "delete-fixture"}})
 	require.EqualError(t, err, "user unavailable: account deletion failed")
-	require.Contains(t, logs.String(), "archive account acceptance: constraint failed")
+	require.Contains(t, logs.String(), `"error.type":"INTERNAL_ERROR"`)
+	require.NotContains(t, logs.String(), "archive account acceptance: constraint failed")
 	require.NotContains(t, logs.String(), "fixture-password")
 }
 

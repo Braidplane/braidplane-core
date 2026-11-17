@@ -5,12 +5,13 @@ import (
 	"io"
 	"net/http"
 
+	"google.golang.org/api/drive/v3"
+	"google.golang.org/api/googleapi"
+
 	"github.com/Braidplane/braidplane-core/pkg/connector/filestream"
 	workspace "github.com/Braidplane/braidplane-core/pkg/connector/googleworkspace"
 	"github.com/Braidplane/braidplane-core/pkg/googleclient"
 	"github.com/Braidplane/braidplane-core/pkg/xerror"
-	"google.golang.org/api/drive/v3"
-	"google.golang.org/api/googleapi"
 )
 
 type streamDownloadKey struct{}
@@ -41,7 +42,7 @@ func (c *Client) downloadTo(ctx context.Context, id string, limits Limits, maxBy
 		response, err = c.drive.Files.Get(id).SupportsAllDrives(true).Context(ctx).Download()
 	}
 	if err != nil {
-		googleclient.LogError(ctx, err, c.credentials.AccessToken)
+		googleclient.LogError(ctx, err)
 		return nil, safeError(err)
 	}
 	defer func() { _ = response.Body.Close() }()
@@ -80,7 +81,7 @@ func (c *Client) UploadFrom(ctx context.Context, id, folder, name, contentType s
 		output, err = c.drive.Files.Update(id, &drive.File{}).SupportsAllDrives(true).Fields(fileFields+",size").Media(input, options...).Context(ctx).Do()
 	}
 	if err != nil {
-		googleclient.LogError(ctx, err, c.credentials.AccessToken)
+		googleclient.LogError(ctx, err)
 		return nil, nativeWriteError(err)
 	}
 	if output == nil || output.Id == "" || id != "" && output.Id != id || output.Size != size || input.N != 1 {

@@ -13,6 +13,7 @@ import (
 
 	api "github.com/Braidplane/braidplane-core/api-schema/gen/client"
 	"github.com/Braidplane/braidplane-core/frontend/views"
+	"github.com/Braidplane/braidplane-core/pkg/logging"
 	"github.com/Braidplane/braidplane-core/pkg/slug"
 	"github.com/Braidplane/braidplane-core/pkg/xerror"
 )
@@ -1229,15 +1230,15 @@ func (r *Router) latestPipelineRunsByPipelineViaAPI(
 	var lookupErr error
 	for result := range results {
 		if result.err != nil {
-			r.logger.Warn(
+			r.logger.WarnContext(
+				ctx,
 				"pipeline latest run lookup failed",
 				slog.String("organization_slug", organizationSlug),
 				slog.String("project_slug", projectSlug),
 				slog.String("environment_slug", environmentSlug),
 				slog.String("pipeline_slug", result.pipelineSlug),
 				slog.Int("status", result.status),
-				slog.String("details", errorPopupDetails(result.errorResponse, "")),
-				slog.Any("error", result.err),
+				logging.ErrorAttr(result.err),
 			)
 			if lookupErr == nil {
 				lookupStatus = result.status

@@ -7,7 +7,6 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
-	"log/slog"
 	"maps"
 	"reflect"
 	"sort"
@@ -20,6 +19,7 @@ import (
 	"github.com/Braidplane/braidplane-core/pkg/deploymentplan"
 	"github.com/Braidplane/braidplane-core/pkg/domain/model"
 	"github.com/Braidplane/braidplane-core/pkg/jsonvalue"
+	"github.com/Braidplane/braidplane-core/pkg/logging"
 	"github.com/Braidplane/braidplane-core/pkg/metrics"
 	filepayload "github.com/Braidplane/braidplane-core/pkg/payload/file"
 	pipelinegraph "github.com/Braidplane/braidplane-core/pkg/pipeline/graph"
@@ -1541,7 +1541,7 @@ func (r *Runner) Run(
 		if failure == nil {
 			failure = &pipelinerun.FailureContext{
 				Step:       failureStep,
-				Error:      edgeValidationErr.Error(),
+				Error:      "Pipeline step connections are invalid.",
 				At:         failureAt,
 				Kind:       failureKindPlatform,
 				Side:       failureSide,
@@ -1802,7 +1802,7 @@ func (r *Runner) Run(
 				fs := step.Slug
 				timeline.Failure = &pipelinerun.FailureContext{
 					Step:       step.Slug,
-					Error:      upstreamErr.Error(),
+					Error:      "A required upstream step could not be resolved.",
 					At:         r.clock.Now(),
 					Kind:       failureKindPlatform,
 					Side:       failureSideTransform,
@@ -1883,7 +1883,7 @@ func (r *Runner) Run(
 					fs := step.Slug
 					timeline.Failure = &pipelinerun.FailureContext{
 						Step:       step.Slug,
-						Error:      execErr.Error(),
+						Error:      failureSummary(execErr, "Pipeline step execution failed."),
 						At:         stepCompletedAt,
 						Kind:       failureKindPlatform,
 						Side:       failureSideTransform,
@@ -1975,7 +1975,7 @@ func (r *Runner) Run(
 				fs := step.Slug
 				timeline.Failure = &pipelinerun.FailureContext{
 					Step:       step.Slug,
-					Error:      execErr.Error(),
+					Error:      failureSummary(execErr, "Pipeline step execution failed."),
 					At:         stepCompletedAt,
 					Kind:       failureKindPlatform,
 					Side:       failureSideTransform,
@@ -2024,7 +2024,7 @@ func (r *Runner) Run(
 				fs := step.Slug
 				timeline.Failure = &pipelinerun.FailureContext{
 					Step:       step.Slug,
-					Error:      sinkResolveErr.Error(),
+					Error:      "A required sink input could not be resolved.",
 					At:         r.clock.Now(),
 					Kind:       failureKindPlatform,
 					Side:       failureSideSink,
@@ -2241,7 +2241,7 @@ func (r *Runner) Run(
 				sinkReasonCode := sinkFailureReasonCode(execErr, step, sinkExecKind)
 				sinkFailure := &pipelinerun.FailureContext{
 					Step:       step.Slug,
-					Error:      execErr.Error(),
+					Error:      failureSummary(execErr, "Pipeline step execution failed."),
 					At:         stepCompletedAt,
 					Kind:       sinkExecKind,
 					Side:       failureSideSink,
@@ -2302,7 +2302,7 @@ func (r *Runner) Run(
 			fs := step.Slug
 			timeline.Failure = &pipelinerun.FailureContext{
 				Step:       step.Slug,
-				Error:      refErr.Error(),
+				Error:      "A query reference could not be resolved.",
 				At:         r.clock.Now(),
 				Kind:       failureKindPlatform,
 				Side:       failureSideSource,
@@ -2330,7 +2330,7 @@ func (r *Runner) Run(
 			fs := step.Slug
 			timeline.Failure = &pipelinerun.FailureContext{
 				Step:       step.Slug,
-				Error:      refErr.Error(),
+				Error:      "A query reference could not be resolved.",
 				At:         r.clock.Now(),
 				Kind:       failureKindPlatform,
 				Side:       failureSideSource,
@@ -2367,7 +2367,7 @@ func (r *Runner) Run(
 			fs := step.Slug
 			timeline.Failure = &pipelinerun.FailureContext{
 				Step:       step.Slug,
-				Error:      lookupErr.Error(),
+				Error:      "The incremental checkpoint identity could not be resolved.",
 				At:         r.clock.Now(),
 				Kind:       failureKindPlatform,
 				Side:       failureSideSource,
@@ -2410,7 +2410,7 @@ func (r *Runner) Run(
 				fs := step.Slug
 				timeline.Failure = &pipelinerun.FailureContext{
 					Step:       step.Slug,
-					Error:      checkpointErr.Error(),
+					Error:      "The incremental checkpoint could not be loaded.",
 					At:         r.clock.Now(),
 					Kind:       failureKindPlatform,
 					Side:       failureSideSource,
@@ -2605,7 +2605,7 @@ func (r *Runner) Run(
 			queryFailureContract := contractFailureDiagnostic(execErr)
 			if queryFailureContract != nil || xerror.Is(execErr, ErrQueryOutputContractSchemaMismatch) {
 				queryFailureKind = failureKindPlatform
-				queryFailureError = execErr.Error()
+				queryFailureError = failureSummary(execErr, "Query output did not satisfy the contract.")
 				queryFailureActionHint = contractFailureActionHint()
 			}
 			timeline.Failure = &pipelinerun.FailureContext{
@@ -2726,7 +2726,7 @@ func (r *Runner) Run(
 		return runResult, xerror.Wrapf("persist pipeline run: %w", persistErr)
 	}
 	if err := saveCheckpoint(ctx, false); err != nil {
-		slog.Error("save checkpoint", "run_slug", timeline.RunSlug, "err", err)
+		logging.LogError(ctx, "save checkpoint", err)
 	}
 	return runResult, runErr
 }
@@ -2889,11 +2889,8 @@ func pipelineOutcome(runResult *pipelinerun.RunResult, runErr error) string {
 
 func pipelineErrorType(runResult *pipelinerun.RunResult, runErr error) string {
 	if runErr != nil {
-		var appErr *xerror.Error
-		if xerror.As(runErr, &appErr) {
-			return appErr.Code()
-		}
-		return metricOutcomeError
+		code, _, _ := xerror.Classify(runErr)
+		return code
 	}
 	if runResult == nil || runResult.Timeline.Failure == nil {
 		return "none"
@@ -3199,6 +3196,14 @@ func dataSourceFailureSummary(
 	}
 }
 
+func failureSummary(err error, fallback string) string {
+	var typed *xerror.Error
+	if xerror.As(err, &typed) && typed != nil {
+		return typed.Message()
+	}
+	return fallback
+}
+
 // dataSourceIssueSummary exposes only explicitly safe detail or a typed message.
 // Provider text can contain credentials and customer data, even without JSON.
 func dataSourceIssueSummary(err error) string {
@@ -3211,11 +3216,7 @@ func dataSourceIssueSummary(err error) string {
 	if detail := strings.TrimSpace(xerror.PublicDetail(err)); detail != "" {
 		return detail
 	}
-	var xe *xerror.Error
-	if xerror.As(err, &xe) && xe != nil {
-		return xe.Message()
-	}
-	return "data source execution failed"
+	return failureSummary(err, "data source execution failed")
 }
 
 const runtimeSecretRedaction = "[REDACTED]"
@@ -4383,7 +4384,7 @@ func incrementalCheckpointBlocker(
 	dependentSinks := dependentSinkSteps(g, sourceSlug)
 	for _, sinkSlug := range dependentSinks {
 		if sinkErr, failed := failedSinks[sinkSlug]; failed {
-			return sinkSlug, sinkErr.Error(), true
+			return sinkSlug, dataSourceIssueSummary(sinkErr), true
 		}
 	}
 	for _, sinkSlug := range dependentSinks {

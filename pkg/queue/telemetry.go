@@ -16,9 +16,12 @@ import (
 	"github.com/Braidplane/braidplane-core/pkg/logging"
 	"github.com/Braidplane/braidplane-core/pkg/reqctx"
 	"github.com/Braidplane/braidplane-core/pkg/tracing"
+	"github.com/Braidplane/braidplane-core/pkg/xerror"
 )
 
 const telemetryMetadataKey = "braidplane"
+
+var errWorkerPanic = xerror.New(xerror.KindInternal, "WORKER_PANIC", "worker panicked")
 
 type telemetryMetadata struct {
 	RequestID   string `json:"request_id,omitempty"`
@@ -32,6 +35,15 @@ type workerOutcome struct {
 }
 
 type workerOutcomeKey struct{}
+
+type workerAttemptError struct {
+	code  string
+	cause error
+}
+
+// River stores Error() and uses the chain to distinguish cancellation, snooze and shutdown.
+func (e workerAttemptError) Error() string { return e.code }
+func (e workerAttemptError) Unwrap() error { return e.cause }
 
 type telemetryMiddleware struct {
 	river.MiddlewareDefaults
@@ -74,7 +86,7 @@ func (m *telemetryMiddleware) Work(
 	ctx context.Context,
 	job *rivertype.JobRow,
 	next func(context.Context) error,
-) error {
+) (err error) {
 	if job == nil {
 		return next(ctx)
 	}
@@ -93,23 +105,45 @@ func (m *telemetryMiddleware) Work(
 	outcome := &workerOutcome{name: "succeeded"}
 	ctx = context.WithValue(ctx, workerOutcomeKey{}, outcome)
 	m.logger.LogAttrs(ctx, slog.LevelInfo, "River job execution started", workerLogAttrs(ctx, job, "started")...)
-	err := next(ctx)
-	if err != nil {
-		outcome.name = "execution_failed"
-		tracing.RecordError(span, err)
-	}
-	span.SetAttributes(attribute.String("job.outcome", outcome.name))
-	if outcome.diagnosticCode != "" {
-		span.SetAttributes(attribute.String("diagnostic.code", outcome.diagnosticCode))
-	}
-	if outcome.diagnosticCategory != "" {
-		span.SetAttributes(attribute.String("diagnostic.category", outcome.diagnosticCategory))
-	}
-	if err == nil {
-		span.SetStatus(codes.Ok, outcome.name)
-	}
-	m.logger.LogAttrs(ctx, slog.LevelInfo, "River job execution completed", workerLogAttrs(ctx, job, outcome.name)...)
-	return err
+	defer func() {
+		if recover() != nil {
+			err = errWorkerPanic
+			outcome.name = "panicked"
+		}
+
+		if err != nil {
+			var cancelErr *river.JobCancelError
+			var snoozeErr *river.JobSnoozeError
+			code, _, category := xerror.Classify(err)
+			switch {
+			case outcome.name == "panicked":
+			case xerror.As(err, &snoozeErr):
+				outcome.name, code = "snoozed", "job_snoozed"
+			case xerror.As(err, &cancelErr), category == "request_canceled":
+				outcome.name = "canceled"
+				if code == "error" {
+					code = "job_canceled"
+				}
+			default:
+				outcome.name = "execution_failed"
+			}
+			tracing.RecordError(span, err)
+			err = workerAttemptError{code: code, cause: err}
+		} else {
+			span.SetStatus(codes.Ok, outcome.name)
+		}
+		span.SetAttributes(attribute.String("job.outcome", outcome.name))
+		if outcome.diagnosticCode != "" {
+			span.SetAttributes(attribute.String("diagnostic.code", outcome.diagnosticCode))
+		}
+		if outcome.diagnosticCategory != "" {
+			span.SetAttributes(attribute.String("diagnostic.category", outcome.diagnosticCategory))
+		}
+		m.logger.LogAttrs(ctx, slog.LevelInfo, "River job execution completed", append(
+			workerLogAttrs(ctx, job, outcome.name), logging.ErrorAttrs(err)...,
+		)...)
+	}()
+	return next(ctx)
 }
 
 func MarkWorkerSkipped(ctx context.Context) {

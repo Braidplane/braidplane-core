@@ -4,9 +4,12 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"fmt"
 	"log/slog"
 	"testing"
+	"time"
 
+	"github.com/riverqueue/river"
 	"github.com/riverqueue/river/rivertype"
 	"github.com/stretchr/testify/require"
 	"go.opentelemetry.io/otel"
@@ -135,4 +138,63 @@ func traceIDString(t *testing.T, value string) trace.TraceID {
 	id, err := trace.TraceIDFromHex(value)
 	require.NoError(t, err)
 	return id
+}
+
+func TestWorkerAttemptErrorsKeepRiverControlFlowWithoutRetainingValues(t *testing.T) {
+	const canary = "opaque-worker-canary"
+	cause := xerror.Unexpected().Detail(canary)
+	for _, tt := range []struct {
+		name, outcome, code string
+		err                 error
+	}{
+		{name: "success", outcome: "succeeded"},
+		{name: "retry", outcome: "execution_failed", code: xerror.Unexpected().Code(), err: cause},
+		{name: "unknown", outcome: "execution_failed", code: "error", err: fmt.Errorf("%s", canary)},
+		{name: "explicit cancel", outcome: "canceled", code: xerror.Unexpected().Code(), err: river.JobCancel(cause)},
+		{name: "shutdown cancel", outcome: "canceled", code: "request_canceled", err: fmt.Errorf("%s: %w", canary, context.Canceled)},
+		{name: "snooze", outcome: "snoozed", code: "job_snoozed", err: river.JobSnooze(time.Minute)},
+		{name: "panic", outcome: "panicked", code: errWorkerPanic.Code()},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			var logs bytes.Buffer
+			middleware := newTelemetryMiddleware(slog.New(slog.NewJSONHandler(&logs, nil)))
+			err := middleware.Work(t.Context(), &rivertype.JobRow{Kind: "test", Attempt: 1}, func(context.Context) error {
+				if tt.name == "panic" {
+					panic(canary)
+				}
+				return tt.err
+			})
+
+			if tt.code == "" {
+				require.NoError(t, err)
+			} else {
+				require.EqualError(t, err, tt.code)
+				if tt.err != nil {
+					require.ErrorIs(t, err, tt.err)
+				}
+				var cancel *river.JobCancelError
+				require.Equal(t, tt.name == "explicit cancel", xerror.As(err, &cancel))
+				var snooze *river.JobSnoozeError
+				if xerror.As(err, &snooze) {
+					require.Equal(t, time.Minute, snooze.Duration)
+				}
+				attempt, marshalErr := json.Marshal(rivertype.AttemptError{Error: err.Error()})
+				require.NoError(t, marshalErr)
+				require.NotContains(t, string(attempt), canary)
+			}
+			require.Contains(t, logs.String(), tt.outcome)
+			require.NotContains(t, logs.String(), canary)
+		})
+	}
+}
+
+func TestRiverLoggerOmitsDependencyErrorText(t *testing.T) {
+	var logs bytes.Buffer
+	logger := slog.New(riverLogHandler{slog.NewJSONHandler(&logs, nil)})
+	logger.With("err", "bound-error-canary").Error("River operation failed",
+		"error", fmt.Errorf("database-error-canary: %w", context.DeadlineExceeded),
+		"panic_val", "panic-value-canary", "job_id", 42)
+	require.Contains(t, logs.String(), "deadline_exceeded")
+	require.Contains(t, logs.String(), `"job_id":42`)
+	require.NotContains(t, logs.String(), "canary")
 }

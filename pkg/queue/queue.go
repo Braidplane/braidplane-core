@@ -100,7 +100,9 @@ func New(pool *pgxpool.Pool, config *Config) (*Client, error) {
 	if riverConfig.JobTimeout <= 0 || riverConfig.RescueStuckJobsAfter-riverConfig.JobTimeout < time.Minute {
 		return nil, xerror.Unexpected().Detail("queue rescue delay must exceed a positive job timeout by at least one minute")
 	}
-	riverConfig.Middleware = []rivertype.Middleware{newTelemetryMiddleware(riverConfig.Logger)}
+	telemetry := newTelemetryMiddleware(riverConfig.Logger)
+	riverConfig.Middleware = []rivertype.Middleware{telemetry}
+	riverConfig.Logger = slog.New(riverLogHandler{telemetry.logger.Handler()})
 
 	riverClient, err := river.NewClient(riverpgxv5.New(pool), riverConfig)
 	if err != nil {

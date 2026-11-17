@@ -719,7 +719,8 @@ func TestProcessConnectionTestLogsCorrelatedManagedGitFailure(t *testing.T) {
 	require.Equal(t, "execution.connection_test.worker_failed", entry["braidplane.event"])
 	require.Equal(t, requestID.String(), entry["execution_request_id"])
 	require.Equal(t, "gitlab", entry["data_source.type"])
-	require.Contains(t, entry["error"], "https://[REDACTED]@gitlab.com/acme/repo.git")
+	require.Equal(t, xerror.Unexpected().Code(), entry["error.type"])
+	require.NotContains(t, logs.String(), "gitlab.com/acme/repo.git")
 	require.NotContains(t, logs.String(), "supersecret")
 }
 
@@ -809,7 +810,8 @@ func TestProcessGitProposalLogsCorrelatedSanitizedFailure(t *testing.T) {
 	require.Equal(t, "execution.git_proposal.worker_failed", entry["braidplane.event"])
 	require.Equal(t, requestID.String(), entry["execution_request_id"])
 	require.Equal(t, "github", entry["data_source.type"])
-	require.Contains(t, entry["error"], "https://[REDACTED]@github.com/acme/repo%zz")
+	require.NotEmpty(t, entry["error.type"])
+	require.NotContains(t, logs.String(), "github.com/acme/repo%zz")
 	require.NotContains(t, logs.String(), "supersecret")
 	require.NotContains(t, logs.String(), "synthetic-installation-token")
 	plaintext, err := cipher.Decrypt(repo.request.ResultCiphertext)

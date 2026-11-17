@@ -12,6 +12,7 @@ import (
 
 	api "github.com/Braidplane/braidplane-core/api-schema/gen/client"
 	"github.com/Braidplane/braidplane-core/frontend/views"
+	"github.com/Braidplane/braidplane-core/pkg/logging"
 	"github.com/Braidplane/braidplane-core/pkg/reqctx"
 	slugpkg "github.com/Braidplane/braidplane-core/pkg/slug"
 	"github.com/Braidplane/braidplane-core/pkg/xerror"
@@ -23,7 +24,7 @@ func (r *Router) loadAuthenticationMethods(c fiber.Ctx) error {
 		defer cancel()
 		response, err := r.apiClient.GetAuthenticationMethodsWithResponse(ctx)
 		if err != nil || response == nil || response.JSON200 == nil {
-			r.logger.Warn("authentication methods unavailable")
+			r.logger.WarnContext(ctx, "authentication methods unavailable")
 			return false
 		}
 		return response.JSON200.GoogleSignInEnabled
@@ -34,13 +35,13 @@ func (r *Router) loadAuthenticationMethods(c fiber.Ctx) error {
 func (r *Router) handleLogout(c fiber.Ctx) error {
 	sess, err := r.sessionStore.Get(c)
 	if err != nil {
-		r.logger.Error("failed to get session during logout", slog.Any("error", err))
+		r.logger.ErrorContext(c.Context(), "failed to get session during logout", logging.ErrorAttr(err))
 		return c.Status(fiber.StatusInternalServerError).SendString("failed to logout")
 	}
 	defer sess.Release()
 
 	if err := sess.Destroy(); err != nil {
-		r.logger.Error("failed to destroy session during logout", slog.Any("error", err))
+		r.logger.ErrorContext(c.Context(), "failed to destroy session during logout", logging.ErrorAttr(err))
 		return c.Status(fiber.StatusInternalServerError).SendString("failed to logout")
 	}
 
@@ -108,10 +109,10 @@ func (r *Router) handleLoginSubmit(c fiber.Ctx) error {
 		},
 	)
 	if err != nil {
-		r.logger.Error("frontend signin failed",
+		r.logger.ErrorContext(c.Context(), "frontend signin failed",
 			slog.Int("status", fiber.StatusInternalServerError),
 			slog.String("message", "Sign in failed with status 500."),
-			slog.Any("error", err),
+			logging.ErrorAttr(err),
 		)
 
 		setHTMLResponseStatus(c, fiber.StatusInternalServerError)
@@ -131,7 +132,7 @@ func (r *Router) handleLoginSubmit(c fiber.Ctx) error {
 
 	if resp.StatusCode() == http.StatusOK {
 		if resp.JSON200 == nil || resp.JSON200.AuthenticationVersion <= 0 {
-			r.logger.Error("frontend signin failed",
+			r.logger.ErrorContext(c.Context(), "frontend signin failed",
 				slog.Int("status", fiber.StatusInternalServerError),
 				slog.String("message", "Sign in response missing user payload."),
 			)
@@ -153,10 +154,10 @@ func (r *Router) handleLoginSubmit(c fiber.Ctx) error {
 
 		userSlug, err := slugpkg.New(resp.JSON200.Slug)
 		if err != nil {
-			r.logger.Error("frontend signin failed",
+			r.logger.ErrorContext(c.Context(), "frontend signin failed",
 				slog.Int("status", fiber.StatusInternalServerError),
 				slog.String("message", "Sign in response contained invalid user slug."),
-				slog.Any("error", err),
+				logging.ErrorAttr(err),
 			)
 
 			c.Status(fiber.StatusInternalServerError)
@@ -175,10 +176,10 @@ func (r *Router) handleLoginSubmit(c fiber.Ctx) error {
 		}
 
 		if err := reqctx.ResetAndSetAuthenticatedUser(c, r.sessionStore, userSlug, resp.JSON200.AuthenticationVersion, true); err != nil {
-			r.logger.Error("frontend signin failed",
+			r.logger.ErrorContext(c.Context(), "frontend signin failed",
 				slog.Int("status", fiber.StatusInternalServerError),
 				slog.String("message", "Failed to persist frontend session."),
-				slog.Any("error", err),
+				logging.ErrorAttr(err),
 			)
 
 			c.Status(fiber.StatusInternalServerError)
@@ -201,7 +202,7 @@ func (r *Router) handleLoginSubmit(c fiber.Ctx) error {
 
 	if resp.StatusCode() == http.StatusAccepted {
 		if resp.JSON202 == nil {
-			r.logger.Error("frontend signin failed",
+			r.logger.ErrorContext(c.Context(), "frontend signin failed",
 				slog.Int("status", fiber.StatusInternalServerError),
 				slog.String("message", "Sign in response missing MFA challenge payload."),
 			)
@@ -238,18 +239,7 @@ func (r *Router) handleLoginSubmit(c fiber.Ctx) error {
 	setHTMLResponseStatus(c, status)
 	pageError := loginErrorMessage(status, errorResponse)
 
-	if errorResponse != nil {
-		r.logger.Error("frontend signin failed",
-			slog.Int("status", status),
-			slog.String("code", errorResponse.Error.Code),
-			slog.String("message", pageError),
-		)
-	} else {
-		r.logger.Error("frontend signin failed",
-			slog.Int("status", status),
-			slog.String("message", pageError),
-		)
-	}
+	r.logger.ErrorContext(c.Context(), "frontend signin failed", slog.Int("status", status))
 
 	return renderTempl(
 		c,
@@ -292,7 +282,7 @@ func (r *Router) handleMFASubmit(c fiber.Ctx) error {
 		},
 	)
 	if err != nil {
-		r.logger.Error("frontend mfa verification failed", slog.Any("error", err))
+		r.logger.ErrorContext(c.Context(), "frontend mfa verification failed", logging.ErrorAttr(err))
 		setHTMXAwareErrorStatus(c, fiber.StatusInternalServerError)
 		return renderTempl(
 			c,
@@ -308,7 +298,7 @@ func (r *Router) handleMFASubmit(c fiber.Ctx) error {
 
 	if resp.StatusCode() == http.StatusOK {
 		if resp.JSON200 == nil || resp.JSON200.AuthenticationVersion <= 0 {
-			r.logger.Error("frontend mfa verification failed",
+			r.logger.ErrorContext(c.Context(), "frontend mfa verification failed",
 				slog.Int("status", fiber.StatusInternalServerError),
 				slog.String("message", "MFA response missing user payload."),
 			)
@@ -327,10 +317,10 @@ func (r *Router) handleMFASubmit(c fiber.Ctx) error {
 
 		userSlug, err := slugpkg.New(resp.JSON200.Slug)
 		if err != nil {
-			r.logger.Error("frontend mfa verification failed",
+			r.logger.ErrorContext(c.Context(), "frontend mfa verification failed",
 				slog.Int("status", fiber.StatusInternalServerError),
 				slog.String("message", "MFA response contained invalid user slug."),
-				slog.Any("error", err),
+				logging.ErrorAttr(err),
 			)
 			setHTMXAwareErrorStatus(c, fiber.StatusInternalServerError)
 			return renderTempl(
@@ -346,10 +336,10 @@ func (r *Router) handleMFASubmit(c fiber.Ctx) error {
 		}
 
 		if err := reqctx.ResetAndSetAuthenticatedUser(c, r.sessionStore, userSlug, resp.JSON200.AuthenticationVersion, true); err != nil {
-			r.logger.Error("frontend mfa verification failed",
+			r.logger.ErrorContext(c.Context(), "frontend mfa verification failed",
 				slog.Int("status", fiber.StatusInternalServerError),
 				slog.String("message", "Failed to persist frontend session."),
-				slog.Any("error", err),
+				logging.ErrorAttr(err),
 			)
 			setHTMXAwareErrorStatus(c, fiber.StatusInternalServerError)
 			return renderTempl(
@@ -558,18 +548,7 @@ func (r *Router) handleSignupSubmit(c fiber.Ctx) error {
 			pageError = fallbackMessageFromStatus(status)
 		}
 
-		if errorResponse != nil {
-			r.logger.Error("frontend signup failed",
-				slog.Int("status", status),
-				slog.String("code", errorResponse.Error.Code),
-				slog.String("message", pageError),
-			)
-		} else {
-			r.logger.Error("frontend signup failed",
-				slog.Int("status", status),
-				slog.String("message", pageError),
-			)
-		}
+		r.logger.ErrorContext(c.Context(), "frontend signup failed", slog.Int("status", status))
 
 		return renderTempl(
 			c,
@@ -615,7 +594,7 @@ func (r *Router) handleForgotPasswordSubmit(c fiber.Ctx) error {
 		api.RequestPasswordResetJSONRequestBody{Email: api.Email(email)},
 	)
 	if err != nil {
-		r.logger.Error("frontend forgot password failed", slog.Any("error", err))
+		r.logger.ErrorContext(c.Context(), "frontend forgot password failed", logging.ErrorAttr(err))
 		setHTMXAwareErrorStatus(c, fiber.StatusInternalServerError)
 		return renderTempl(
 			c,
@@ -706,7 +685,7 @@ func (r *Router) handleResetPasswordSubmit(c fiber.Ctx) error {
 		},
 	)
 	if err != nil {
-		r.logger.Error("frontend reset password failed", slog.Any("error", err))
+		r.logger.ErrorContext(c.Context(), "frontend reset password failed", logging.ErrorAttr(err))
 		setHTMXAwareErrorStatus(c, fiber.StatusInternalServerError)
 		return renderTempl(
 			c,
@@ -775,7 +754,7 @@ func (r *Router) handleResendVerificationEmail(c fiber.Ctx) error {
 		api.ResendVerificationEmailJSONRequestBody{Email: api.Email(email)},
 	)
 	if err != nil {
-		r.logger.Error("frontend resend verification failed", slog.Any("error", err))
+		r.logger.ErrorContext(c.Context(), "frontend resend verification failed", logging.ErrorAttr(err))
 		setHTMXAwareErrorStatus(c, fiber.StatusInternalServerError)
 		return renderTempl(
 			c,

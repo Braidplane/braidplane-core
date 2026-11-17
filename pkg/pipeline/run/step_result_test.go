@@ -46,7 +46,8 @@ func TestStepResult_MarshalJSON_EmitsRunInputMetadataAndError(t *testing.T) {
 	require.NoError(t, json.Unmarshal(encoded, &doc))
 	require.Equal(t, runInputResultType, doc["result_type"])
 	require.Equal(t, runInputVendorType, doc["vendor_type"])
-	require.Contains(t, doc["error"].(string), "input failed")
+	require.Equal(t, xerror.Unexpected().Code(), doc["error"])
+	require.NotContains(t, string(encoded), "input failed")
 	require.NotContains(t, string(encoded), "raw-value")
 }
 
@@ -358,7 +359,9 @@ func TestStepResult_JSONRoundTrip(t *testing.T) {
 			require.Equal(t, input.DurationMs(), cloned.DurationMs())
 			require.Equal(t, input.IsSuccess(), cloned.IsSuccess())
 			if input.Error() != nil {
-				require.ErrorContains(t, cloned.Error(), input.Error().Error())
+				code, _, _ := xerror.Classify(input.Error())
+				require.EqualError(t, cloned.Error(), code)
+				require.NotContains(t, string(encoded), input.Error().Error())
 			} else {
 				require.NoError(t, cloned.Error())
 			}

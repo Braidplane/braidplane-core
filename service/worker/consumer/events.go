@@ -7,6 +7,7 @@ import (
 	"github.com/riverqueue/river"
 
 	"github.com/Braidplane/braidplane-core/pkg/domain/model"
+	"github.com/Braidplane/braidplane-core/pkg/logging"
 	"github.com/Braidplane/braidplane-core/pkg/xerror"
 	"github.com/Braidplane/braidplane-core/service/eventssvc"
 	"github.com/Braidplane/braidplane-core/service/worker/jobs"
@@ -68,7 +69,7 @@ func (w *eventRecordWorker) Work(
 			w.logger.InfoContext(ctx, "event record job skipped duplicate slug")
 			return nil
 		}
-		w.logger.ErrorContext(ctx, "event record job failed", slog.Any("error", err))
+		w.logger.ErrorContext(ctx, "event record job failed", logging.ErrorAttr(err))
 		return err
 	}
 

@@ -134,7 +134,7 @@ func ConfigureAndPingDB(
 	defer cancel()
 
 	if err := db.PingContext(timeoutCtx); err != nil {
-		logging.LogError(ctx, "SQL connector startup failed", err, config.DSN)
+		logging.LogError(ctx, "SQL connector startup failed", err)
 		_ = db.Close()
 		if config.StartupErrorMapper != nil {
 			if mappedErr := config.StartupErrorMapper(err); mappedErr != nil {

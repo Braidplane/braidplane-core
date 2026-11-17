@@ -1,13 +1,13 @@
 package frontend
 
 import (
-	"log/slog"
 	"net/http"
 
 	"github.com/gofiber/fiber/v3"
 
 	api "github.com/Braidplane/braidplane-core/api-schema/gen/client"
 	"github.com/Braidplane/braidplane-core/frontend/views"
+	"github.com/Braidplane/braidplane-core/pkg/logging"
 )
 
 func (r *Router) handleAccountDeletionSubmit(c fiber.Ctx) error {
@@ -20,7 +20,7 @@ func (r *Router) handleAccountDeletionSubmit(c fiber.Ctx) error {
 		Confirmation: api.DELETEMYACCOUNT,
 	}, frontendRequestEditor(c.Context(), c.Get(fiber.HeaderCookie)))
 	if err != nil {
-		r.logger.Error("account removal response unavailable", slog.Any("error", err))
+		r.logger.ErrorContext(c.Context(), "account removal response unavailable", logging.ErrorAttr(err))
 		c.Status(fiber.StatusBadGateway)
 		return renderTempl(c, views.AccountDeletionOutcome(nil, "We could not confirm the request outcome. Contact your instance administrator before retrying."))
 	}
@@ -53,7 +53,7 @@ func (r *Router) handleAccountDeletionSubmit(c fiber.Ctx) error {
 		err = sess.Destroy()
 	}
 	if err != nil {
-		r.logger.Error("expire removed account session cookie", slog.Any("error", err))
+		r.logger.ErrorContext(c.Context(), "expire removed account session cookie", logging.ErrorAttr(err))
 	}
 	return renderTempl(c, views.AccountDeletionOutcome(receipt, ""))
 }
