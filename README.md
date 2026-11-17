@@ -4,6 +4,7 @@
 
 # Braidplane Community core
 
+[![Community core CI (main)](https://github.com/Braidplane/braidplane-core/actions/workflows/ci.yml/badge.svg?branch=main&event=push)](https://github.com/Braidplane/braidplane-core/actions/workflows/ci.yml)
 [![License: Apache-2.0](https://img.shields.io/badge/license-Apache--2.0-blue)](LICENSE)
 [![Documentation: getting started](https://img.shields.io/badge/docs-getting%20started-blue)](docs-public/getting-started/overview.md)
 
