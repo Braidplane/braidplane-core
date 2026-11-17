@@ -90,7 +90,7 @@ func KindString(s string) (Kind, error) {
 
 // KindValues returns all values of the enum
 func KindValues() []Kind {
-	return _KindValues
+	return append([]Kind(nil), _KindValues...)
 }
 
 // KindStrings returns a slice of all String values of the enum

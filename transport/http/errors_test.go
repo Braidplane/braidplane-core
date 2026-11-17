@@ -242,6 +242,14 @@ func TestMapServiceError(t *testing.T) {
 			wantErr: apierror.New(404, "USER_NOT_FOUND", "user not found"),
 		},
 		{
+			name: "JoinedErrorDoesNotUseSiblingDetail",
+			input: xerror.Join(
+				userssvc.ErrUserNotFound,
+				xerror.Unavailable(xerror.DataSource).WithPublicDetail("connector unavailable"),
+			),
+			wantErr: apierror.New(404, "USER_NOT_FOUND", "user not found"),
+		},
+		{
 			name: "XerrorPublicDetailIsReturnedWhenExplicitlyMarkedSafe",
 			input: xerror.InvalidInput(xerror.DataSource).
 				WithPublicDetail("invalid credentials format"),
@@ -266,6 +274,11 @@ func TestMapServiceError(t *testing.T) {
 		{
 			name:    "UnknownErrorMapsToInternalServerError",
 			input:   fmt.Errorf("unexpected failure"),
+			wantErr: apierror.InternalServerError(),
+		},
+		{
+			name:    "TypedNilMapsToInternalServerError",
+			input:   (*xerror.Error)(nil),
 			wantErr: apierror.InternalServerError(),
 		},
 	}

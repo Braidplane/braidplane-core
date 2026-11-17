@@ -1292,7 +1292,7 @@ func (s *service) executePrepared(
 		if isPreservedExecutionError(err) {
 			return nil, err
 		}
-		return nil, xerror.Wrapf("%w: connector execution failed: %w", ErrDataSourceUnavailable, err)
+		return nil, ErrDataSourceUnavailable.With(err).Detail("connector execution failed")
 	}
 
 	if execResult != nil {
