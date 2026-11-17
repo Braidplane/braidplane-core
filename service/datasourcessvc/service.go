@@ -1636,6 +1636,9 @@ func (s *service) Delete(
 	actor model.EventActor,
 ) error {
 	err := s.txm.RunInTx(ctx, func(ctx context.Context, tx postgres.DBTX) error {
+		if err := s.repo.LockDataSourceForUpdate(ctx, tx, orgSlug, dsSlug); err != nil {
+			return err
+		}
 		repoDS, err := s.repo.FindBySlug(ctx, tx, orgSlug, dsSlug)
 		if err != nil {
 			return xerror.Wrapf("find data source for delete in repo: %w", err)

@@ -576,6 +576,9 @@ func webhookSecretParams(org, project, environment, trigger slug.Slug) credentia
 func (s *service) RotatePipelineWebhookSecret(ctx context.Context, orgSlug, projectSlug, environmentSlug, triggerSlug slug.Slug, actor model.EventActor) (model.PipelineWebhookSecret, error) {
 	var result model.PipelineWebhookSecret
 	err := s.txm.RunInTx(ctx, func(ctx context.Context, tx postgres.DBTX) error {
+		if _, err := s.repo.LockPipelineTriggerTopology(ctx, tx, orgSlug, projectSlug, environmentSlug); err != nil {
+			return err
+		}
 		trigger, err := s.repo.FindPipelineTriggerBySlug(ctx, tx, orgSlug, projectSlug, environmentSlug, triggerSlug)
 		if err != nil {
 			return err

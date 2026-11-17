@@ -4326,6 +4326,32 @@ func TestUpdateDataSourceCredentialsRejectsForcedReadOnlyWhenReferencedByProject
 	assert.Nil(t, result)
 }
 
+func TestDeleteAuditsLockedCredentialRevision(t *testing.T) {
+	t.Parallel()
+	repo := testutil.NewFakeDataSourceRepo()
+	events := &fakeDataSourceEventRecorder{}
+	const org, source, credential = slug.Slug("acme"), slug.Slug("warehouse"), slug.Slug("current-credential")
+	updated := time.Date(2026, 11, 17, 12, 0, 0, 0, time.UTC)
+	locked := false
+	repo.LockDataSourceForUpdateFn = func(_ context.Context, _ postgres.DBTX, gotOrg, gotSource slug.Slug) error {
+		require.Equal(t, org, gotOrg)
+		require.Equal(t, source, gotSource)
+		locked = true
+		return nil
+	}
+	repo.FindBySlugFn = func(context.Context, postgres.DBTX, slug.Slug, slug.Slug) (*repods.DataSource, error) {
+		require.True(t, locked, "audit must read the attached revision under the delete lock")
+		return &repods.DataSource{
+			Slug: source, Type: model.DataSourceTypePostgres,
+			Credential: &repods.CredentialMetadata{Slug: credential, UpdatedAt: updated},
+		}, nil
+	}
+	svc := newTestServiceWithEvents(t, repo, testutil.NewFakeSchemaMetadataRepo(), testutil.NewFakeEncryptor(), nil, events)
+	require.NoError(t, svc.Delete(t.Context(), org, source, model.UserEventActor("alice")))
+	require.Len(t, events.calls, 1)
+	require.Equal(t, credentialssvc.AuditCredentialVersion(credential, updated), events.calls[0].Metadata["version"])
+}
+
 func TestDeleteDataSource(t *testing.T) {
 	t.Parallel()
 
