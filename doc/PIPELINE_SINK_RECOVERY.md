@@ -39,8 +39,9 @@ This endpoint is synchronous. A persisted failed recovery is returned as a run
 record with its failure diagnostics. After a response timeout, inspect run
 history and provider state before another attempt. Confirmed repeat-safe effects
 are skipped with `skip_ledger_succeeded`; their completed ledger records stay
-immutable. An unknown S3 write can converge through the same deterministic
-object overwrite. Unknown `deduplicated_by_ledger` attempts and attempted `unsafe`
+immutable. An unknown deterministic S3 overwrite can be confirmed by complete object
+readback matching the prepared bytes, content type and user metadata. It cannot
+start another writer; missing or different output keeps recovery blocked. Unknown `deduplicated_by_ledger` attempts and attempted `unsafe`
 operations remain refused; there is no force-retry or manual success-marking API.
 
 The initial representative workflow uses row input and S3 JSON export with
@@ -53,7 +54,7 @@ retained in the checkpoint are unsupported. Recovery refuses a missing sink
 input rather than accepting new values or guessing a provider destination.
 Pipeline file checkpoints privately pin complete encrypted input for the
 organization's replay-checkpoint retention window, measured from checkpoint
-creation (seven days by default). A new live sink claim reads those original
+creation (seven days by default). For an unclaimed effect, a new live sink claim reads those original
 bytes after recovery; a lost source claim is never revived. The association is
 scoped to the original organization, project, environment and run, and stays out
 of public JSON. Missing, expired or mismatched input is refused before creating

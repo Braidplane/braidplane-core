@@ -49,6 +49,17 @@ func qualifyLargeSQLFaults(t *testing.T, ctx context.Context, pool *pgxpool.Pool
 		require.Equal(t, expectedBytes, n)
 		require.Equal(t, expectedDigest, hex.EncodeToString(digest.Sum(nil)))
 	}
+	download := func(path string) {
+		object, err := oracle.GetObject(ctx, &awss3.GetObjectInput{Bucket: aws.String("braidplane-fixtures"), Key: &key})
+		require.NoError(t, err)
+		// #nosec G703 -- operator-selected synthetic evidence path, not request input.
+		output, err := os.Create(path)
+		require.NoError(t, err)
+		_, err = io.Copy(output, object.Body)
+		require.NoError(t, err)
+		require.NoError(t, object.Body.Close())
+		require.NoError(t, output.Close())
+	}
 	run := func(ctx context.Context, name string) error {
 		_, err := runner.Run(ctx, pipelineruntime.RunRequest{OrgSlug: org, ProjectSlug: project, EnvironmentSlug: environment, RunSlug: name, Pipeline: pipeline, PipelineVersionID: version})
 		return err
@@ -117,6 +128,61 @@ func qualifyLargeSQLFaults(t *testing.T, ctx context.Context, pool *pgxpool.Pool
 			t.Fatal("second multipart part never reached fault boundary")
 		}
 	}
+	t.Run("pre-dispatch failure replays retained bytes", func(t *testing.T) {
+		var encrypted []byte
+		require.NoError(t, pool.QueryRow(ctx, `SELECT encrypted_payload FROM credentials WHERE organization_id=(SELECT id FROM organizations WHERE slug=$1) AND slug='fixture-credential'`, org).Scan(&encrypted))
+		restore := func() {
+			_, err := pool.Exec(ctx, `UPDATE credentials SET encrypted_payload=$2 WHERE organization_id=(SELECT id FROM organizations WHERE slug=$1) AND slug='fixture-credential'`, org, encrypted)
+			require.NoError(t, err)
+		}
+		defer restore()
+		_, err := pool.Exec(ctx, `UPDATE credentials SET encrypted_payload='invalid synthetic ciphertext'::bytea WHERE organization_id=(SELECT id FROM organizations WHERE slug=$1) AND slug='fixture-credential'`, org)
+		require.NoError(t, err)
+		require.Error(t, run(ctx, "large-pre-dispatch"))
+		failed, err := runs.Get(ctx, org, project, environment, "large-pre-dispatch")
+		require.NoError(t, err)
+		require.Equal(t, "failed", failed.Status)
+		require.NotNil(t, failed.Failure)
+		require.Equal(t, "sink", failed.Failure.Side)
+		checkpoint, err := runs.GetCheckpoint(ctx, org, project, environment, "large-pre-dispatch")
+		require.NoError(t, err)
+		retained, _ := checkpoint.Results["read"].Payload()
+		require.NotNil(t, retained.FileReference)
+		require.Equal(t, expectedBytes, retained.FileReference.SizeBytes)
+		require.Zero(t, parts.Load())
+		require.Zero(t, completions.Load())
+		_, err = pool.Exec(ctx, `UPDATE large_recovery_source SET changed=true`)
+		require.NoError(t, err)
+		restore()
+		hold.Store(false)
+		var before, after int
+		const reads = `SELECT count(*) FROM execution_requests r JOIN data_sources d ON d.id=r.data_source_id WHERE r.organization_id=(SELECT id FROM organizations WHERE slug=$1) AND d.slug='sql-source'`
+		require.NoError(t, pool.QueryRow(ctx, reads, org).Scan(&before))
+		started := time.Now()
+		for index, name := range []string{"large-byte-recovered", "large-byte-recovered-again"} {
+			priorParts := parts.Load()
+			outcome, err := runner.Recover(ctx, pipelineruntime.ReplayRequest{OrgSlug: org, ProjectSlug: project, EnvironmentSlug: environment, SourceRunSlug: "large-pre-dispatch", ReplayRunSlug: name, PipelineVersionID: version})
+			require.NoError(t, err)
+			require.Equal(t, "succeeded", outcome.Metadata.Status)
+			if index == 1 {
+				require.Equal(t, priorParts, parts.Load())
+			}
+			assertPrior()
+		}
+		t.Logf("supported large byte recovery and confirmed-repeat elapsed=%s parts=%d completions=%d", time.Since(started), parts.Load(), completions.Load())
+		require.EqualValues(t, 1, completions.Load())
+		require.NoError(t, pool.QueryRow(ctx, reads, org).Scan(&after))
+		require.Equal(t, before, after)
+		preserved, err := runs.Get(ctx, org, project, environment, "large-pre-dispatch")
+		require.NoError(t, err)
+		require.Equal(t, failed, preserved)
+		download(qualificationOutput + ".recovered")
+		_, err = pool.Exec(ctx, `UPDATE large_recovery_source SET changed=false`)
+		require.NoError(t, err)
+		parts.Store(0)
+		completions.Store(0)
+		hold.Store(true)
+	})
 	t.Run("backpressure and cancellation", func(t *testing.T) {
 		cancelCtx, cancel := context.WithCancel(ctx)
 		defer cancel()
@@ -204,13 +270,14 @@ func qualifyLargeSQLFaults(t *testing.T, ctx context.Context, pool *pgxpool.Pool
 			outcome, err := runner.Recover(ctx, pipelineruntime.ReplayRequest{OrgSlug: org, ProjectSlug: project, EnvironmentSlug: environment, SourceRunSlug: "large-executor-lost", ReplayRunSlug: run, PipelineVersionID: version})
 			require.NoError(t, err)
 			require.Equal(t, "succeeded", outcome.Metadata.Status)
-			if index == 1 {
-				require.Equal(t, priorParts, parts.Load(), "confirmed recovery must not upload again")
+			require.Equal(t, priorParts, parts.Load(), "unknown effects may be confirmed by readback, not rewritten")
+			if index == 0 {
+				require.Equal(t, "reconcile_provider_effect", outcome.Timeline.Snapshots[1].Input.SinkReplayDecision)
 			}
 			assertPrior()
 		}
 		t.Logf("supported large recovery and confirmed-repeat elapsed=%s parts=%d completions=%d", time.Since(repairStarted), parts.Load(), completions.Load())
-		require.EqualValues(t, 1, completions.Load())
+		require.Zero(t, completions.Load(), "executor-loss recovery must not issue another completion")
 		uploads, err = oracle.ListMultipartUploads(ctx, &awss3.ListMultipartUploadsInput{Bucket: aws.String("braidplane-fixtures"), Prefix: &key})
 		require.NoError(t, err)
 		require.Empty(t, uploads.Uploads)
@@ -219,15 +286,7 @@ func qualifyLargeSQLFaults(t *testing.T, ctx context.Context, pool *pgxpool.Pool
 		retained, err := runs.Get(ctx, org, project, environment, "large-executor-lost")
 		require.NoError(t, err)
 		require.Equal(t, original, *retained, "recovery must preserve original failed history")
-		object, err := oracle.GetObject(ctx, &awss3.GetObjectInput{Bucket: aws.String("braidplane-fixtures"), Key: &key})
-		require.NoError(t, err)
-		// #nosec G703 -- operator-selected synthetic evidence path, not request input.
-		output, err := os.Create(qualificationOutput + ".recovered")
-		require.NoError(t, err)
-		_, err = io.Copy(output, object.Body)
-		require.NoError(t, err)
-		require.NoError(t, object.Body.Close())
-		require.NoError(t, output.Close())
+		download(qualificationOutput + ".reconciled")
 		// Expired recovery associations cannot turn metadata into replay authority.
 		_, err = pool.Exec(ctx, `UPDATE pipeline_checkpoint_files pin SET expires_at=clock_timestamp()-interval '1 second' FROM pipeline_checkpoint pc WHERE pc.id=pin.checkpoint_id AND pc.run_slug='large-executor-lost' AND pc.project_environment_id=(SELECT pe.id FROM project_environments pe JOIN projects p ON p.id=pe.project_id JOIN organizations o ON o.id=p.organization_id JOIN environments e ON e.id=pe.environment_id WHERE o.slug=$1 AND p.slug=$2 AND e.slug=$3)`, org, project, environment)
 		require.NoError(t, err)

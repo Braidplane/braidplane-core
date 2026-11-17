@@ -1,8 +1,8 @@
 {
   "issue": 149,
   "date_utc": "2026-11-17",
-  "base_revision": "93dbeb660a1b43212679c56637900a48dcfeae18",
-  "revision_note": "Uncommitted implementation over the base revision; exact changed-source hashes below identify the tested tree.",
+  "base_revision": "a129d76de12598a8bb6659f90071bf2e7381f420",
+  "revision_note": "Stacked on PR #151; exact changed-source and compiled test-binary hashes identify the qualified tree. Receipt and documentation refreshed after execution.",
   "source_sha256": {
     "comparison/sample_process_memory.py": "fbdfbb7f0454710fc5d9cd222968cc89064fdd90f7e4ea6b1690e6d5b1c7f540",
     "comparison/test_sample_process_memory.py": "dab540a2eecfd77921603355dcf4f7d0c607b523f58813ecdfa128dcc1a4c003",
@@ -10,25 +10,25 @@
     "comparison/verify_large_output.py": "a843846df2cc3bbb73dc144e0d0e3a91a774ce06c81763b33e586c3f5d9f6aae",
     "pkg/pipeline/run/runtime_payload_test.go": "2ad89691ecbd6574939cd0578cb58e5e42549abf397d15926630cfbcb6c59325",
     "pkg/pipeline/run/step_result.go": "715814c48bc98d8a0d489feb469c84de0e62370f46add8e0faff5448194e0059",
-    "postgres/dbgen/models.go": "7154c64b10986ba2c16318b6c36a1f6133afac99b3601a09e8207f8c932be72a",
-    "postgres/dbgen/query.sql.go": "d1a565425b5acd534542df04f1324561fa69b34ea1e803e22e3ac83e58c70a8b",
+    "postgres/dbgen/models.go": "6cf09bfa6e382fdf31a5faeee170ee466aa89a616a78cabff6e704c49b335ec9",
+    "postgres/dbgen/query.sql.go": "13b62c2bd33fca2bb1937b46d7c83e21c885777dec85cf0bdaf7b5edcb2c7570",
     "postgres/executionrequests/e2e/initiator_test.go": "0e52c32cfc9f3cd13ab70cd5ce29a68a0253e3ff26a7439a11603e23e0db2d60",
     "postgres/executionrequests/e2e/repository_test.go": "ac662f8a2ae1122f9054052d56a785faa94281577a00f78154a49bf2a211717a",
     "postgres/executionrequests/repository.go": "182e348fe3c2ef81f7a47807c21af3a436e39884b905a3b5bf5bba0c5b64cbae",
-    "postgres/migrations/000004_checkpoint_file_inputs.up.sql": "c7ad2c6446f10e022ffb98e3cad0bf226dfc57bff913fea47a1dbb75937e9a0f",
-    "postgres/migrations/manifest.sha256": "9ef514cc8cd8829d1e82daabf335a21d67b4b45404771a4cc16126bf6d56ed3e",
-    "postgres/query.sql": "64ef2f9b676cf8aa87de2b1c6e7e7538a0aa3469a4a25fa69535f64c4a20180e",
+    "postgres/migrations/000005_checkpoint_file_inputs.up.sql": "c7ad2c6446f10e022ffb98e3cad0bf226dfc57bff913fea47a1dbb75937e9a0f",
+    "postgres/migrations/manifest.sha256": "0fa75f7dc74ca8b0217946d40dfd1ffffd2c958476730ea7fbf4e9b5d1a30070",
+    "postgres/query.sql": "275737d0d71bb570b9f5fe4feeeac0532cb501ea4d8e832952b463672c9cf1dc",
     "postgres/retainedfiles/e2e/repository_test.go": "49060796a62bf2f2d99fcbf35e8050cc3dd0f786af4503f8df32bf39c0fd96e9",
     "postgres/retainedfiles/repository.go": "ab4960a5cf1718517bb99e4815d4b8580034f3cd6006c52a029d975a72054488",
-    "service/executionbroker/broker.go": "2424a3e22461fff9707b7b5173cfd247559a9281b300708feefe11274e9a4619",
+    "service/executionbroker/broker.go": "512e8694ab316790f4c5aa31d49e2a50ac3e6ade4fd8e26270b447a546b5dc7d",
     "service/executionbroker/broker_test.go": "69d128488e4638dfbaaf96015ee077bdbf74bac459c9f976bfd53304e7f2cdc4",
     "service/pipelineruntime/run_store.go": "41089d6d7decee6a32c56473f6f63e3e2a745e47ac5c20d4a1aea5332da73292",
-    "service/pipelineruntime/runner.go": "09bf27940fd2534b6d901988a6903a632ef1d7119a245e96adec91074ca7bbe1",
+    "service/pipelineruntime/runner.go": "65edf32e94fdcd5f7320dd7716291a7a12642feb03d1363982c88b3708c41b6c",
     "service/pipelinesvc/e2e/checkpoint_file_expiry_test.go": "f99a73d6432a6b1bca05e13bd3c39390275ae151cd3610fc19db8061008387cf",
-    "service/pipelinesvc/e2e/large_sql_qualification_test.go": "8498ae72122c2580515c96d62a3725a1d7460590c3dfbb301338de44ceaabc9a",
-    "service/pipelinesvc/e2e/native_file_streaming_test.go": "bce903f53cbcbe9d2fa75afda807d34d8a7130542dc0c614250725f35a0fb875"
+    "service/pipelinesvc/e2e/large_sql_qualification_test.go": "e247e0c616763e9c1d2e5bd9c6bb9b5b8f35347e509003d774e738521be9fa19",
+    "service/pipelinesvc/e2e/native_file_streaming_test.go": "c3454a13fe85b5f8a9780e64cfe92f691dd54fa17621d6a233d918d21305dab7"
   },
-  "test_binary_sha256": "d82b182713d42ecc00a2cb84c0aeb73571eef7012d1dd7cc9a9e35fea66be0d1",
+  "test_binary_sha256": "5ccd71be8c097baea5bec90f8225c92335d04d68090693c2563ac69e27c473f3",
   "toolchain": {
     "go": "1.26.10",
     "verifier_ijson": "3.6.0"
@@ -50,7 +50,7 @@
     "scope": "Synthetic loopback PostgreSQL -> encrypted retained broker -> S3-compatible fixture; no live provider."
   },
   "effective_limits": {
-    "max_result_rows": 1000000,
+    "max_result_rows": 1000,
     "max_file_bytes": 2147483648,
     "max_response_bytes": 1048576,
     "query_timeout_seconds": 300,
@@ -70,62 +70,62 @@
     "sql_pool_max_open": 5,
     "sql_pool_max_idle": 2,
     "fixture_executor_process_timeout_seconds": 600,
-    "deployment_private_postgres_authorization_policy_used": false
+    "deployment_private_postgres_authorization_policy_used": false,
+    "stream_max_rows": 0
   },
   "transfer": {
-    "elapsed": "27.88072825s",
+    "elapsed": "30.751627625s",
     "bytes": 1078777880,
     "sha256": "14a16998b6126c78a14fb1f56cafa1bf44bc5e9b9ce299682a93b31c1e19d77e",
     "retained_chunks": 1029,
     "scope": "Run lookup, SQL read/serialization, encrypted staging, complete multipart sink write and independent full-object download/hash; excludes compile, fixture startup and Python row verification."
   },
   "recovery": {
-    "fence_elapsed_since_kill": "29.966936917s",
-    "recovery_and_confirmed_repeat_elapsed": "14.371409917s",
+    "fence_elapsed_since_kill": "29.973106042s",
+    "recovery_and_confirmed_repeat_elapsed": "6.518793458s",
     "new_sql_requests": 0,
-    "recovery_completions": 1,
+    "recovery_completions": 0,
     "original_failed_history_preserved": true,
     "original_source_request_and_file_expiry_advanced_before_recovery": true,
-    "scope": "Real SIGKILL at second multipart part, changed source-state row, broker lease fence, original retained input under fresh sink claims; elapsed recovery includes two recovery calls and complete destination digest readbacks."
+    "scope": "Real SIGKILL at second multipart part, changed source-state row, broker lease fence, expired ordinary source retention; full S3 readback reconciles the prior matching destination, then confirmed repetition skips it. No new writer for an unresolved effect."
   },
   "memory": {
-    "sampled_peak_rss_sum_kib": 214512,
-    "samples": 656,
-    "kernel_maximum_rss_bytes": 148914176,
+    "sampled_peak_rss_sum_kib": 210384,
+    "samples": 783,
+    "kernel_maximum_rss_bytes": 145080320,
     "scope": "Sample sum includes /usr/bin/time parent, Go test harness, in-process broker and owned executor children. Excludes Docker services/daemon, OS cache, compilation and independent Python verifier. RSS sums may count shared pages per process; sampled peak is not a hard bound.",
     "delay_between_samples_seconds": 0.25,
-    "mean_observed_interval_seconds": 0.28251353729772205
+    "mean_observed_interval_seconds": 0.3022381905704508
   },
   "retained_storage": {
-    "observed_plaintext_bytes": 3245770841,
-    "observed_ciphertext_bytes": 3246083375,
-    "chunk_relation_bytes": 3374645248,
-    "scope": "At observed crash boundary: three full SQL inputs plus initial 9 MiB+17 S3 file. Relation includes indexes/TOAST and small fixture data; excludes WAL, backups, SQL temporary files and other relations. No continuous peak measurement of total database storage."
+    "observed_plaintext_bytes": 4324548721,
+    "observed_ciphertext_bytes": 4324965103,
+    "chunk_relation_bytes": 4495507456,
+    "scope": "At observed crash boundary: four full SQL inputs plus initial 9 MiB+17 S3 file. Relation includes indexes/TOAST and small fixture data; excludes WAL, backups, SQL temporary files and other relations. No continuous peak measurement of total database storage."
   },
   "whole_rehearsal": {
-    "elapsed_seconds": 185.23,
-    "user_seconds": 25.73,
-    "system_seconds": 10.22,
+    "elapsed_seconds": 236.51,
+    "user_seconds": 33.54,
+    "system_seconds": 13.38,
     "scope": "Direct test binary including fixture provisioning/cleanup, all source/sink failure cases, readbacks and deliberate lease waits; excludes compilation and Python verification."
   },
   "failure_assertions": {
     "database_storage_error": "PostgreSQL 53100 injected after two real retained chunks; nontransactional sequence proves the boundary fired. Host disk was not filled.",
     "backpressure": "Second part held; no subsequent parts or completion while blocked.",
     "cancellation": "Caller error, no open multipart uploads or active/pending execution requests; prior-good length and digest preserved. Separate single-slot SQL cancellation check passes.",
-    "executor_loss": "One orphan multipart upload with one 8 MiB part explicitly observed and aborted. Fresh-claim recovery succeeds and confirmed repetition uploads no more parts.",
+    "executor_loss": "One orphan multipart upload with one 8 MiB part explicitly observed and aborted. Recovery confirms prior matching destination with complete readback, zero new parts/completions; confirmed repetition skips the effect.",
     "refusals": "Expired/missing file association, mismatched metadata and cross-organization input rejected. Public JSON omits private IDs.",
     "cleanup": "Ordinary maintenance query removes expired SQL retained streams after fixture advances stream/pin expiries. Package-owned Docker fixtures report successful cleanup.",
-    "concurrent_pin_and_expiry": "Real uncommitted pin held across expiry while maintenance waits; after commit, fresh-snapshot expiry preserves both the stream and its source request. The same fixture failed before the locking repair. REPEATABLE READ maintenance is refused."
+    "concurrent_pin_and_expiry": "Real uncommitted pin held across expiry while maintenance waits; after commit, fresh-snapshot expiry preserves both the stream and its source request. The same fixture failed before the locking repair. REPEATABLE READ maintenance is refused.",
+    "pre_dispatch_failure": "Sink credential-decryption failure before provider dispatch, then changed SQL source and repaired synthetic credential; fresh sink claim reads the original retained bytes. Confirmed repetition sends no additional parts."
   },
   "untested": [
     "Live AWS S3 acceptance",
     "Production pipeline-worker rescue timing (#148)",
-    "Default streamed row policy (#147)",
     "Native-transform scalability",
     "Other connector capacity",
     "Continuous WAL/backup/database-disk peak",
-    "Hosted capacity and production throughput",
-    "Integration with the separately developed #147 and #148 revisions"
+    "Hosted capacity and production throughput"
   ],
   "validation": {
     "qualification": "passed",
@@ -140,10 +140,19 @@
       "final_review_issues": 1,
       "severity": "minor",
       "resolution": "Procedure now propagates test, sampler and verifier failure statuses. Four shell exit-status checks passed. No runtime code changed after the final review.",
-      "prior_major_issue": "Concurrent pin/expiry race reproduced, repaired with parent locking and a fresh-snapshot cutoff, then requalified."
+      "prior_major_issue": "Concurrent pin/expiry race reproduced, repaired with parent locking and a fresh-snapshot cutoff, then requalified.",
+      "scope": "Prior full implementation review and fixes preceded this rebase; stacked integration review recorded separately."
     },
     "execution_request_postgres_suite": "passed",
     "procedure_failure_statuses": "passed: test=7, sampler=8, verifier=9, success=0"
   },
-  "independent_verification": "Complete initial and recovered objects are verified separately with sql-object-envelope and the frozen datasets.sql formula; verdicts retained beside this receipt."
+  "independent_verification": "Complete initial, byte-recovered and reconciled objects verified separately with sql-object-envelope and frozen datasets.sql formula; all three verdicts retained beside this receipt.",
+  "retained_byte_recovery": {
+    "recovery_and_confirmed_repeat_elapsed": "15.452148333s",
+    "new_sql_requests": 0,
+    "parts": 129,
+    "completions": 1,
+    "original_failed_history_preserved": true,
+    "scope": "Sink credential-decryption failure before provider dispatch, then changed SQL source and repaired synthetic credential; fresh sink claim reads the original retained bytes. Confirmed repetition sends no additional parts."
+  }
 }

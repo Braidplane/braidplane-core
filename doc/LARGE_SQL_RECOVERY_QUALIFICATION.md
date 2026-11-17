@@ -11,30 +11,36 @@ The [sanitized receipt](../comparison/evidence/149/receipt.json) identifies the
 base revision, exact changed-source hashes, fixture images and measurement scope.
 The [run log](../comparison/evidence/149/run.txt) records all assertions. The
 [initial verdict](../comparison/evidence/149/verification.json) and
-[recovered verdict](../comparison/evidence/149/recovery-verification.json) each
+[recovered verdict](../comparison/evidence/149/recovery-verification.json) and
+[reconciled verdict](../comparison/evidence/149/reconciliation-verification.json) each
 check every record in the complete original downloaded object.
 
 On the recorded shared M3 Pro host, one million 1,024-byte synthetic payloads
 produced a 1,078,777,880-byte object. Transfer plus complete download/hash took
-27.881 seconds. After SIGKILL, the broker lease fence completed in 29.967 seconds;
-supported recovery plus a confirmed repeat and full digest readbacks took
-14.371 seconds. Both outputs have SHA-256
+30.752 seconds. After a pre-dispatch failure and source mutation, retained-byte
+recovery plus a confirmed repeat took 15.452 seconds. After SIGKILL, the broker
+lease fence completed in 29.973 seconds; reconciliation plus a confirmed repeat
+and full digest readbacks took 6.519 seconds, without another provider write.
+All three outputs have SHA-256
 `14a16998b6126c78a14fb1f56cafa1bf44bc5e9b9ce299682a93b31c1e19d77e`.
 
-The sampled application RSS sum peaked at 214,512 KiB (209.48 MiB). At the crash
-boundary, retained input occupied 3,245,770,841 logical plaintext bytes and
-3,246,083,375 ciphertext bytes; the chunk relation, including indexes and TOAST,
-occupied 3,374,645,248 bytes. The whole rehearsal took 185.23 seconds, including
+The sampled application RSS sum peaked at 210,384 KiB (205.45 MiB). At the crash
+boundary, retained input occupied 4,324,548,721 logical plaintext bytes and
+4,324,965,103 ciphertext bytes; the chunk relation, including indexes and TOAST,
+occupied 4,495,507,456 bytes. The whole rehearsal took 236.51 seconds, including
 fixture startup, fault cases, lease waits and cleanup. These figures describe
-one local run under the explicit profile below; they establish no throughput
+one local run stacked on [PR #151](https://github.com/Braidplane/braidplane-core/pull/151)
+(revision `a129d76de12598a8bb6659f90071bf2e7381f420`) under the explicit profile below; they establish no throughput
 ranking or production capacity. See the receipt for inclusions and exclusions.
 
 ## Recovery boundary
 
 Pipeline checkpoints privately pin sealed file inputs. Recovery restores those
 references only within the original organization, project, environment and run,
-then reads the original encrypted chunks under a new live sink claim. It does
-not revive a dead source claim or reread changed SQL. Public checkpoint and run
+then reads the original encrypted chunks under a new live sink claim when no
+provider effect has started. An uncertain S3 overwrite is reconciled through
+complete destination readback; it cannot issue another write. Confirmed effects
+are skipped. Recovery does not revive a dead source claim or reread changed SQL. Public checkpoint and run
 JSON continue to contain metadata only.
 
 The pin lasts for the organization's replay-checkpoint retention window, measured
@@ -99,6 +105,10 @@ if [ "$sampler_status" -ne 0 ]; then exit "$sampler_status"; fi
   --encoding sql-object-envelope --rows 1000000 --payload-bytes 1024 \
   .worktree/qualification-149/destination.json.recovered \
   > .worktree/qualification-149/recovery-verification.json
+.worktree/comparison-venv/bin/python comparison/verify_large_output.py \
+  --encoding sql-object-envelope --rows 1000000 --payload-bytes 1024 \
+  .worktree/qualification-149/destination.json.reconciled \
+  > .worktree/qualification-149/reconciliation-verification.json
 (cd comparison && ../.worktree/comparison-venv/bin/python -m unittest \
   test_verify_large_output test_sample_process_memory)
 )
@@ -125,7 +135,8 @@ normalization or intermediate row-array conversion is used.
 
 | Control | Large fixture setting |
 |---|---|
-| Rows | 1,000,000 explicit allowance |
+| Streamed row policy | Unlimited (`StreamMaxRows=0`); fixture emits 1,000,000 rows |
+| Materialized result row limit | 1,000 (`MaxResultRows`); separate from streamed results |
 | Maximum retained file | 2,147,483,648 bytes |
 | Per-row and metadata response allowance | 1,048,576 bytes |
 | Query, connector and HTTP deadlines | Five minutes each |
@@ -152,7 +163,7 @@ a one-row source-state table allows mutation after executor loss.
 
 These are fixture settings, not proposed defaults. The run does not determine
 whether five-minute operation deadlines are necessary. Self-hosted controls are
-tracked in [#147](https://github.com/Braidplane/braidplane-core/issues/147).
+defined by [#147](https://github.com/Braidplane/braidplane-core/issues/147).
 The broker's executor lease is distinct from pipeline worker rescue in
 [#148](https://github.com/Braidplane/braidplane-core/issues/148). This rehearsal
 kills a real broker executor and waits for its existing lease fence; it does not
@@ -166,7 +177,8 @@ change or measure the production River rescue threshold.
 | Retained storage capacity | A fixture-only trigger raises PostgreSQL `53100` after two persisted chunks. The run fails, no unsealed stream or active request remains, and the complete prior destination keeps its length and SHA-256. This simulates a database capacity error; it does not fill a disk or qualify recovery of PostgreSQL itself. |
 | Destination backpressure | The second multipart part blocks after one accepted 8 MiB part. No further part or completion is sent while blocked. |
 | Cancellation at that boundary | The caller returns an error, active/pending requests drain, the multipart upload is aborted and the prior complete destination retains its length and digest. Source cancellation also proves a subsequent single-slot SQL request can run. |
-| Executor death at that boundary | SIGKILL terminates only the fixture child. Source state changes before replacement. The broker reports ambiguous execution, the original pipeline remains failed. After ordinary source expiry is advanced, supported recovery publishes the original retained input with no new SQL requests. Repeated recovery sends no further parts or completion. Expired pins are explicitly refused. The prior destination remains complete until supported recovery publishes the original bytes. |
+| Failure before provider dispatch | A synthetic credential-decryption failure leaves a sealed, pinned SQL input and no provider effect. After changing SQL source state and restoring the fixture credential, recovery uploads the retained original bytes. A confirmed repeat performs no additional upload; no SQL request is issued. |
+| Executor death at that boundary | SIGKILL terminates only the fixture child. Source state changes before replacement. The broker reports ambiguous execution, the original pipeline remains failed. After ordinary source expiry is advanced, supported recovery confirms the prior matching destination by complete readback with no new SQL requests, parts or completion. A repeated recovery skips the confirmed effect. Expired pins are explicitly refused. The prior destination remains complete throughout. |
 | Provider cleanup after death | Exactly one open multipart upload with one 8 MiB part remains. The procedure lists and explicitly aborts it. Real installations need an operator cleanup or an incomplete-upload lifecycle rule. |
 | Retained cleanup | The fixture advances its SQL stream and checkpoint-pin expiries and calls the ordinary maintenance query, then requires zero SQL retained files. Unpinned files retain deadline-plus-15-minute expiry. Pinned pipeline files follow replay-checkpoint retention with minute maintenance. PostgreSQL file size need not shrink. |
 

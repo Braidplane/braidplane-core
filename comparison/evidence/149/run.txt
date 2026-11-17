@@ -2,95 +2,101 @@ containerfixture: provisioning database
 containerfixture: provisioning s3-connector-test
 containerfixture: provisioning s3-connector-test-setup
 === RUN   TestNativeFileStreaming
-SDK 2026/11/17 12:04:40 WARN Response has no supported checksum. Not validating response payload.
+SDK 2026/11/17 12:38:21 WARN Response has no supported checksum. Not validating response payload.
 === RUN   TestNativeFileStreaming/checkpoint_recovery_refuses_missing_retained_file_input
 === RUN   TestNativeFileStreaming/SQL_snapshot_crosses_retained_broker_and_S3_sink
-    native_file_streaming_test.go:244: large SQL profile rows=1000000 limits={QueryTimeout:5m0s ConnectorTimeout:5m0s MaxResultRows:1000000 MaxFileBytes:2147483648 MaxResponseBytes:1048576 ConnectorConcurrencyPerDataSource:2 ConnectorConcurrencyQueueTimeout:1m0s ConnectorConcurrencyMaxQueued:4 HTTPTimeout:5m0s HTTPMaxRedirects:3 HTTPMaxRequestBytes:1048576 HTTPMaxResponseBytes:1048576 HTTPRetryAttempts:1 HTTPRetryBackoff:0s} broker_workers=2 broker_deadline=5m outer_budget=30m0s
-    native_file_streaming_test.go:270: large SQL transfer+download elapsed=27.88072825s bytes=1078777880 sha256=14a16998b6126c78a14fb1f56cafa1bf44bc5e9b9ce299682a93b31c1e19d77e output=<worktree>/.worktree/recovery-149/locked/destination.json
-    native_file_streaming_test.go:279: SQL retained plaintext_bytes=1078777880 chunks=1029
+    native_file_streaming_test.go:222: million-row SQL-to-S3: stream_max_rows=0 max_result_rows=1000 max_file_bytes=2147483648 query_timeout=5m0s connector_timeout=5m0s broker_request_timeout=5m; S3 timeout=300s
+    native_file_streaming_test.go:247: large SQL profile rows=1000000 limits={QueryTimeout:5m0s ConnectorTimeout:5m0s MaxResultRows:1000 StreamMaxRows:0 MaxFileBytes:2147483648 MaxResponseBytes:1048576 ConnectorConcurrencyPerDataSource:2 ConnectorConcurrencyQueueTimeout:1m0s ConnectorConcurrencyMaxQueued:4 HTTPTimeout:5m0s HTTPMaxRedirects:3 HTTPMaxRequestBytes:1048576 HTTPMaxResponseBytes:1048576 HTTPRetryAttempts:1 HTTPRetryBackoff:0s} broker_workers=2 broker_deadline=5m outer_budget=30m0s
+    native_file_streaming_test.go:273: large SQL transfer+download elapsed=30.751627625s bytes=1078777880 sha256=14a16998b6126c78a14fb1f56cafa1bf44bc5e9b9ce299682a93b31c1e19d77e output=<checkout>/.worktree/recovery-149/stacked/destination.json
+    native_file_streaming_test.go:282: independent destination verification: rows=1000000 bytes=1078777880 sha256=14a16998b6126c78a14fb1f56cafa1bf44bc5e9b9ce299682a93b31c1e19d77e retained_chunks=1029
+    native_file_streaming_test.go:283: SQL retained plaintext_bytes=1078777880 chunks=1029
 === RUN   TestNativeFileStreaming/SQL_snapshot_crosses_retained_broker_and_S3_sink/private_file_checkpoint_scope_and_atomicity
 === RUN   TestNativeFileStreaming/SQL_snapshot_crosses_retained_broker_and_S3_sink/concurrent_checkpoint_pin_and_expiry
 === RUN   TestNativeFileStreaming/SQL_snapshot_crosses_retained_broker_and_S3_sink/large_SQL_failure_boundaries
 === RUN   TestNativeFileStreaming/SQL_snapshot_crosses_retained_broker_and_S3_sink/large_SQL_failure_boundaries/retained_storage_capacity_error
+=== RUN   TestNativeFileStreaming/SQL_snapshot_crosses_retained_broker_and_S3_sink/large_SQL_failure_boundaries/pre-dispatch_failure_replays_retained_bytes
+    large_sql_qualification_test.go:172: supported large byte recovery and confirmed-repeat elapsed=15.452148333s parts=129 completions=1
 === RUN   TestNativeFileStreaming/SQL_snapshot_crosses_retained_broker_and_S3_sink/large_SQL_failure_boundaries/backpressure_and_cancellation
 === RUN   TestNativeFileStreaming/SQL_snapshot_crosses_retained_broker_and_S3_sink/large_SQL_failure_boundaries/executor_loss_and_supported_file_recovery
-    large_sql_qualification_test.go:159: retained at crash boundary plaintext_bytes=3245770841 ciphertext_bytes=3246083375 chunk_relation_bytes=3374645248 (includes indexes/TOAST; excludes WAL/backups)
-    large_sql_qualification_test.go:172: large executor fenced elapsed_since_kill=29.966936917s parts=4 completions=0
-    large_sql_qualification_test.go:212: supported large recovery and confirmed-repeat elapsed=14.371409917s parts=133 completions=1
-    large_sql_qualification_test.go:236: expired file recovery refusal=Retained file bytes are unavailable or incomplete. File metadata does not provide repair inputs; reconcile provider effects before starting a new evaluation, which reads sources again.
+    large_sql_qualification_test.go:225: retained at crash boundary plaintext_bytes=4324548721 ciphertext_bytes=4324965103 chunk_relation_bytes=4495507456 (includes indexes/TOAST; excludes WAL/backups)
+    large_sql_qualification_test.go:238: large executor fenced elapsed_since_kill=29.973106042s parts=4 completions=0
+SDK 2026/11/17 12:40:33 WARN Response has no supported checksum. Not validating response payload.
+    large_sql_qualification_test.go:279: supported large recovery and confirmed-repeat elapsed=6.518793458s parts=4 completions=0
+    large_sql_qualification_test.go:295: expired file recovery refusal=Retained file bytes are unavailable or incomplete. File metadata does not provide repair inputs; reconcile provider effects before starting a new evaluation, which reads sources again.
 === NAME  TestNativeFileStreaming/SQL_snapshot_crosses_retained_broker_and_S3_sink/large_SQL_failure_boundaries
-    native_file_streaming_test.go:312: expired SQL retained files removed through normal maintenance query; expiry advanced only in fixture
+    native_file_streaming_test.go:316: expired SQL retained files removed through normal maintenance query; expiry advanced only in fixture
 === RUN   TestNativeFileStreaming/SQL_snapshot_crosses_retained_broker_and_S3_sink/SQL_checkpoint_recovery_refuses_reread_and_redispatch
 === RUN   TestNativeFileStreaming/SQL_snapshot_crosses_retained_broker_and_S3_sink/SQL_cancellation_releases_connector_admission
 === RUN   TestNativeFileStreaming/SQL_snapshot_crosses_retained_broker_and_S3_sink/sql-rows-0
 === RUN   TestNativeFileStreaming/SQL_snapshot_crosses_retained_broker_and_S3_sink/sql-rows-1
-2026/11/17 12:06:45 INFO pipeline orphan removed org_slug=native-file-1794913480495749000 pipeline_slug=sql-rows-0
+2026/11/17 12:41:15 INFO pipeline orphan removed org_slug=native-file-1794915500885780000 pipeline_slug=sql-rows-0
 === RUN   TestNativeFileStreaming/SQL_snapshot_crosses_retained_broker_and_S3_sink/sql-rows-2
-2026/11/17 12:06:46 INFO pipeline orphan removed org_slug=native-file-1794913480495749000 pipeline_slug=sql-rows-1
+2026/11/17 12:41:16 INFO pipeline orphan removed org_slug=native-file-1794915500885780000 pipeline_slug=sql-rows-1
 === RUN   TestNativeFileStreaming/SQL_snapshot_crosses_retained_broker_and_S3_sink/sql-bytes-0
-2026/11/17 12:06:46 INFO pipeline orphan removed org_slug=native-file-1794913480495749000 pipeline_slug=sql-rows-2
+2026/11/17 12:41:17 INFO pipeline orphan removed org_slug=native-file-1794915500885780000 pipeline_slug=sql-rows-2
 === RUN   TestNativeFileStreaming/SQL_snapshot_crosses_retained_broker_and_S3_sink/sql-bytes-1
-2026/11/17 12:06:46 INFO pipeline orphan removed org_slug=native-file-1794913480495749000 pipeline_slug=sql-bytes-0
+2026/11/17 12:41:17 INFO pipeline orphan removed org_slug=native-file-1794915500885780000 pipeline_slug=sql-bytes-0
 === RUN   TestNativeFileStreaming/SQL_snapshot_crosses_retained_broker_and_S3_sink/sql-bytes-2
-2026/11/17 12:06:46 INFO pipeline orphan removed org_slug=native-file-1794913480495749000 pipeline_slug=sql-bytes-1
+2026/11/17 12:41:18 INFO pipeline orphan removed org_slug=native-file-1794915500885780000 pipeline_slug=sql-bytes-1
 === RUN   TestNativeFileStreaming/effective_byte_limits_preserve_prior_good_output
 === RUN   TestNativeFileStreaming/effective_byte_limits_preserve_prior_good_output/below
-2026/11/17 12:06:47 INFO pipeline orphan removed org_slug=native-file-1794913480495749000 pipeline_slug=sql-bytes-2
-2026/11/17 12:06:47 INFO pipeline orphan removed org_slug=native-file-1794913480495749000 pipeline_slug=sql-transfer
-2026/11/17 12:06:47 INFO pipeline orphan removed org_slug=native-file-1794913480495749000 pipeline_slug=native-transfer
-SDK 2026/11/17 12:06:47 WARN Response has no supported checksum. Not validating response payload.
+2026/11/17 12:41:18 INFO pipeline orphan removed org_slug=native-file-1794915500885780000 pipeline_slug=sql-bytes-2
+2026/11/17 12:41:18 INFO pipeline orphan removed org_slug=native-file-1794915500885780000 pipeline_slug=sql-transfer
+2026/11/17 12:41:18 INFO pipeline orphan removed org_slug=native-file-1794915500885780000 pipeline_slug=native-transfer
+SDK 2026/11/17 12:41:18 WARN Response has no supported checksum. Not validating response payload.
 === RUN   TestNativeFileStreaming/effective_byte_limits_preserve_prior_good_output/at
-2026/11/17 12:06:47 INFO pipeline orphan removed org_slug=native-file-1794913480495749000 pipeline_slug=limit-below
-SDK 2026/11/17 12:06:47 WARN Response has no supported checksum. Not validating response payload.
+2026/11/17 12:41:19 INFO pipeline orphan removed org_slug=native-file-1794915500885780000 pipeline_slug=limit-below
+SDK 2026/11/17 12:41:19 WARN Response has no supported checksum. Not validating response payload.
 === RUN   TestNativeFileStreaming/effective_byte_limits_preserve_prior_good_output/above
-2026/11/17 12:06:48 INFO pipeline orphan removed org_slug=native-file-1794913480495749000 pipeline_slug=limit-at
-SDK 2026/11/17 12:06:48 WARN Response has no supported checksum. Not validating response payload.
+2026/11/17 12:41:19 INFO pipeline orphan removed org_slug=native-file-1794915500885780000 pipeline_slug=limit-at
+SDK 2026/11/17 12:41:19 WARN Response has no supported checksum. Not validating response payload.
 === RUN   TestNativeFileStreaming/BrokenStreamsNeverImplySuccessfulDelivery
-2026/11/17 12:06:48 INFO pipeline orphan removed org_slug=native-file-1794913480495749000 pipeline_slug=limit-above
-SDK 2026/11/17 12:06:48 WARN Response has no supported checksum. Not validating response payload.
-SDK 2026/11/17 12:06:48 WARN Response has no supported checksum. Not validating response payload.
-SDK 2026/11/17 12:06:49 WARN Response has no supported checksum. Not validating response payload.
+2026/11/17 12:41:19 INFO pipeline orphan removed org_slug=native-file-1794915500885780000 pipeline_slug=limit-above
+SDK 2026/11/17 12:41:19 WARN Response has no supported checksum. Not validating response payload.
+SDK 2026/11/17 12:41:20 WARN Response has no supported checksum. Not validating response payload.
+SDK 2026/11/17 12:41:21 WARN Response has no supported checksum. Not validating response payload.
 === RUN   TestNativeFileStreaming/BrokenStreamsNeverImplySuccessfulDelivery/ExecutorLossRefusesRedispatch
-SDK 2026/11/17 12:06:52 WARN Response has no supported checksum. Not validating response payload.
---- PASS: TestNativeFileStreaming (162.89s)
+SDK 2026/11/17 12:41:24 WARN Response has no supported checksum. Not validating response payload.
+--- PASS: TestNativeFileStreaming (214.59s)
     --- PASS: TestNativeFileStreaming/checkpoint_recovery_refuses_missing_retained_file_input (0.01s)
-    --- PASS: TestNativeFileStreaming/SQL_snapshot_crosses_retained_broker_and_S3_sink (126.27s)
-        --- PASS: TestNativeFileStreaming/SQL_snapshot_crosses_retained_broker_and_S3_sink/private_file_checkpoint_scope_and_atomicity (0.02s)
-        --- PASS: TestNativeFileStreaming/SQL_snapshot_crosses_retained_broker_and_S3_sink/concurrent_checkpoint_pin_and_expiry (2.05s)
-        --- PASS: TestNativeFileStreaming/SQL_snapshot_crosses_retained_broker_and_S3_sink/large_SQL_failure_boundaries (94.02s)
-            --- PASS: TestNativeFileStreaming/SQL_snapshot_crosses_retained_broker_and_S3_sink/large_SQL_failure_boundaries/retained_storage_capacity_error (2.57s)
-            --- PASS: TestNativeFileStreaming/SQL_snapshot_crosses_retained_broker_and_S3_sink/large_SQL_failure_boundaries/backpressure_and_cancellation (17.33s)
-            --- PASS: TestNativeFileStreaming/SQL_snapshot_crosses_retained_broker_and_S3_sink/large_SQL_failure_boundaries/executor_loss_and_supported_file_recovery (59.71s)
-        --- PASS: TestNativeFileStreaming/SQL_snapshot_crosses_retained_broker_and_S3_sink/SQL_checkpoint_recovery_refuses_reread_and_redispatch (0.01s)
-        --- PASS: TestNativeFileStreaming/SQL_snapshot_crosses_retained_broker_and_S3_sink/SQL_cancellation_releases_connector_admission (0.30s)
-        --- PASS: TestNativeFileStreaming/SQL_snapshot_crosses_retained_broker_and_S3_sink/sql-rows-0 (0.23s)
-        --- PASS: TestNativeFileStreaming/SQL_snapshot_crosses_retained_broker_and_S3_sink/sql-rows-1 (0.41s)
-        --- PASS: TestNativeFileStreaming/SQL_snapshot_crosses_retained_broker_and_S3_sink/sql-rows-2 (0.36s)
-        --- PASS: TestNativeFileStreaming/SQL_snapshot_crosses_retained_broker_and_S3_sink/sql-bytes-0 (0.09s)
-        --- PASS: TestNativeFileStreaming/SQL_snapshot_crosses_retained_broker_and_S3_sink/sql-bytes-1 (0.35s)
-        --- PASS: TestNativeFileStreaming/SQL_snapshot_crosses_retained_broker_and_S3_sink/sql-bytes-2 (0.37s)
-    --- PASS: TestNativeFileStreaming/effective_byte_limits_preserve_prior_good_output (0.78s)
-        --- PASS: TestNativeFileStreaming/effective_byte_limits_preserve_prior_good_output/below (0.38s)
-        --- PASS: TestNativeFileStreaming/effective_byte_limits_preserve_prior_good_output/at (0.31s)
-        --- PASS: TestNativeFileStreaming/effective_byte_limits_preserve_prior_good_output/above (0.09s)
-    --- PASS: TestNativeFileStreaming/BrokenStreamsNeverImplySuccessfulDelivery (35.13s)
-        --- PASS: TestNativeFileStreaming/BrokenStreamsNeverImplySuccessfulDelivery/ExecutorLossRefusesRedispatch (31.07s)
+    --- PASS: TestNativeFileStreaming/SQL_snapshot_crosses_retained_broker_and_S3_sink (176.93s)
+        --- PASS: TestNativeFileStreaming/SQL_snapshot_crosses_retained_broker_and_S3_sink/private_file_checkpoint_scope_and_atomicity (0.03s)
+        --- PASS: TestNativeFileStreaming/SQL_snapshot_crosses_retained_broker_and_S3_sink/concurrent_checkpoint_pin_and_expiry (2.04s)
+        --- PASS: TestNativeFileStreaming/SQL_snapshot_crosses_retained_broker_and_S3_sink/large_SQL_failure_boundaries (139.25s)
+            --- PASS: TestNativeFileStreaming/SQL_snapshot_crosses_retained_broker_and_S3_sink/large_SQL_failure_boundaries/retained_storage_capacity_error (2.96s)
+            --- PASS: TestNativeFileStreaming/SQL_snapshot_crosses_retained_broker_and_S3_sink/large_SQL_failure_boundaries/pre-dispatch_failure_replays_retained_bytes (32.76s)
+            --- PASS: TestNativeFileStreaming/SQL_snapshot_crosses_retained_broker_and_S3_sink/large_SQL_failure_boundaries/backpressure_and_cancellation (16.40s)
+            --- PASS: TestNativeFileStreaming/SQL_snapshot_crosses_retained_broker_and_S3_sink/large_SQL_failure_boundaries/executor_loss_and_supported_file_recovery (53.50s)
+        --- PASS: TestNativeFileStreaming/SQL_snapshot_crosses_retained_broker_and_S3_sink/SQL_checkpoint_recovery_refuses_reread_and_redispatch (0.05s)
+        --- PASS: TestNativeFileStreaming/SQL_snapshot_crosses_retained_broker_and_S3_sink/SQL_cancellation_releases_connector_admission (0.52s)
+        --- PASS: TestNativeFileStreaming/SQL_snapshot_crosses_retained_broker_and_S3_sink/sql-rows-0 (0.55s)
+        --- PASS: TestNativeFileStreaming/SQL_snapshot_crosses_retained_broker_and_S3_sink/sql-rows-1 (0.77s)
+        --- PASS: TestNativeFileStreaming/SQL_snapshot_crosses_retained_broker_and_S3_sink/sql-rows-2 (1.56s)
+        --- PASS: TestNativeFileStreaming/SQL_snapshot_crosses_retained_broker_and_S3_sink/sql-bytes-0 (0.15s)
+        --- PASS: TestNativeFileStreaming/SQL_snapshot_crosses_retained_broker_and_S3_sink/sql-bytes-1 (0.50s)
+        --- PASS: TestNativeFileStreaming/SQL_snapshot_crosses_retained_broker_and_S3_sink/sql-bytes-2 (0.41s)
+    --- PASS: TestNativeFileStreaming/effective_byte_limits_preserve_prior_good_output (0.93s)
+        --- PASS: TestNativeFileStreaming/effective_byte_limits_preserve_prior_good_output/below (0.39s)
+        --- PASS: TestNativeFileStreaming/effective_byte_limits_preserve_prior_good_output/at (0.39s)
+        --- PASS: TestNativeFileStreaming/effective_byte_limits_preserve_prior_good_output/above (0.15s)
+    --- PASS: TestNativeFileStreaming/BrokenStreamsNeverImplySuccessfulDelivery (35.70s)
+        --- PASS: TestNativeFileStreaming/BrokenStreamsNeverImplySuccessfulDelivery/ExecutorLossRefusesRedispatch (30.99s)
 PASS
-      185.23 real        25.73 user        10.22 sys
-           148914176  maximum resident set size
+      236.51 real        33.54 user        13.38 sys
+           145080320  maximum resident set size
                    0  average shared memory size
                    0  average unshared data size
                    0  average unshared stack size
-               65738  page reclaims
-               15650  page faults
+               74434  page reclaims
+               16400  page faults
                    0  swaps
                    0  block input operations
                    0  block output operations
-              130384  messages sent
-              719899  messages received
-               25135  signals received
-                9949  voluntary context switches
-              978695  involuntary context switches
-        224166214873  instructions retired
-         80112720753  cycles elapsed
-           107004816  peak memory footprint
+              168100  messages sent
+             1020737  messages received
+               28673  signals received
+               10421  voluntary context switches
+             1121622  involuntary context switches
+        341374022897  instructions retired
+        123998380606  cycles elapsed
+           105251728  peak memory footprint
