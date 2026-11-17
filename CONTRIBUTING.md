@@ -12,6 +12,13 @@ changes before implementing them. Connector proposals should name the system,
 operation and synthetic test plan; see [connector support](docs-public/connectors/support-levels.md).
 Report vulnerabilities privately through [SECURITY.md](SECURITY.md).
 
+Maintainers set and verify Braidplane's native GitHub Priority field on every
+new issue: Medium for normal work, High for significant correctness/security
+problems or current delivery prerequisites, Low for optional or deferred work,
+and Urgent for an immediate incident. Preserve explicit priority decisions.
+Use Projects for planning views and milestones for delivery checkpoints;
+keep Priority on the issue rather than duplicating it in labels or project fields.
+
 Fork this repository, create a branch, and open a pull request against the
 branch you started from. For setup, follow [COMMUNITY_BUILD.md](COMMUNITY_BUILD.md).
 Start with focused checks in [quality gates](doc/QUALITY_GATES.md); regeneration
