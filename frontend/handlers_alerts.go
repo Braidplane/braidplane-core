@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"log/slog"
 	"net/http"
 	"net/url"
 	"sort"
@@ -96,7 +97,7 @@ func (r *Router) handleAlertPolicySelectorOptions(c fiber.Ctx) error {
 			r.logger.DebugContext(
 				c.Context(),
 				"alert policy projects unavailable",
-				"status", status,
+				slog.Int("status", status),
 				logging.ErrorAttr(projectErr),
 			)
 			dynamicOptions.Projects = []views.AlertFormOption{}
@@ -119,7 +120,7 @@ func (r *Router) handleAlertPolicySelectorOptions(c fiber.Ctx) error {
 			r.logger.DebugContext(
 				c.Context(),
 				"alert policy project environments unavailable",
-				"status", status,
+				slog.Int("status", status),
 				logging.ErrorAttr(environmentErr),
 			)
 			dynamicOptions.Environments = []views.AlertFormOption{}
@@ -145,7 +146,7 @@ func (r *Router) handleAlertPolicySelectorOptions(c fiber.Ctx) error {
 		r.logger.DebugContext(
 			c.Context(),
 			"alert policy source metadata unavailable",
-			"status", status,
+			slog.Int("status", status),
 			logging.ErrorAttr(sourceMetadataErr),
 		)
 		dynamicOptions.SourceMetadata = []api.AlertPolicySourceMetadata{}
