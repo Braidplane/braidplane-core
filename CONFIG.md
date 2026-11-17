@@ -538,6 +538,9 @@ Logging behavior:
 
 Tracing behavior:
 
+See [collector setup and qualification](doc/OPENTELEMETRY.md) for a runnable
+example, emitted signals, propagation boundaries and failure behavior.
+
 - Traces are pushed from Braidplane to the configured OTLP/HTTP collector endpoint
 - Set `tracing.otlp_traces_endpoint` to your OTLP/HTTP collector's trace endpoint
 - Empty `tracing.otlp_traces_endpoint` disables trace export
