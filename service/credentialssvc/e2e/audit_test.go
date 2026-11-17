@@ -69,9 +69,11 @@ func TestStaticCredentialLifecycleRequiresTenantAudit(t *testing.T) {
 	require.Len(t, event.Metadata["version"], 64)
 	require.NotContains(t, fmt.Sprint(event.Metadata), marker)
 	require.NotNil(t, event.RequestID)
+	require.Equal(t, reqctx.AuditOperation(ctx), *event.RequestID)
 	require.Len(t, *event.RequestID, 64)
 	require.NotContains(t, *event.RequestID, marker)
 	peer, err := eventService.ListEvents(ctx, other, filters, model.ListRequest{})
 	require.NoError(t, err)
 	require.Empty(t, peer.Items)
+	verifyCredentialAuditExport(t, eventService, org, other, event.Slug, marker)
 }

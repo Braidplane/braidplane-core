@@ -9,7 +9,7 @@ import (
 	"github.com/Braidplane/braidplane-core/pkg/reqctx"
 	"github.com/Braidplane/braidplane-core/pkg/slug"
 	"github.com/Braidplane/braidplane-core/pkg/uuid"
-	"github.com/Braidplane/braidplane-core/pkg/xerror"
+	"github.com/Braidplane/braidplane-core/service/credentialssvc"
 	"github.com/Braidplane/braidplane-core/service/datasourcessvc"
 	"github.com/Braidplane/braidplane-core/service/eventrecorder"
 	"github.com/Braidplane/braidplane-core/service/pipelinegit"
@@ -18,14 +18,22 @@ import (
 )
 
 type credentialHandoffEvent struct {
-	resource  slug.Slug
-	entity    model.EventEntityType
-	requestID uuid.UUID
-	kind      string
-	version   string
+	resource        slug.Slug
+	entity          model.EventEntityType
+	requestID       uuid.UUID
+	kind            string
+	version         string
+	parentOperation string
 }
 
 func (e credentialHandoffEvent) EventRecord() (eventrecorder.Record, error) {
+	metadata := map[string]any{
+		"operation": e.kind, "operation_id": e.requestID.String(),
+		"outcome": "enveloped", "version": e.version,
+	}
+	if e.parentOperation != "" {
+		metadata["parent_operation_id"] = e.parentOperation
+	}
 	return eventrecorder.Record{
 		SlugPrefix:    "evt-credential-broker-handoff",
 		EventClass:    model.EventClassSecurityAudit,
@@ -33,18 +41,14 @@ func (e credentialHandoffEvent) EventRecord() (eventrecorder.Record, error) {
 		EntitySlug:    e.resource,
 		Action:        model.EventActionRead,
 		SchemaVersion: model.CurrentEventSchemaVersion,
-		Metadata: map[string]any{
-			"operation":    e.kind,
-			"operation_id": e.requestID.String(),
-			"outcome":      "enveloped",
-			"version":      e.version,
-		},
+		Metadata:      metadata,
 	}, nil
 }
 
 func (b *Broker) recordCredentialHandoff(ctx context.Context, org slug.Slug, requestID uuid.UUID, kind string, payload any) error {
 	var source slug.Slug
 	var reference string
+	unversioned := false
 	switch request := payload.(type) {
 	case queriessvc.ConnectorExecutionRequest:
 		source, reference = request.DataSourceSlug, request.CredentialReference
@@ -53,6 +57,9 @@ func (b *Broker) recordCredentialHandoff(ctx context.Context, org slug.Slug, req
 		}
 	case proofevidencesvc.ExecutionRequest:
 		source, reference = request.Request.CredentialDataSourceSlug, request.Request.CredentialVersion
+	case datasourcessvc.ConnectionTestRequest:
+		source = request.DataSourceSlug
+		unversioned = len(request.CredentialsJSON) != 0
 	case datasourcessvc.SchemaIntrospectionRequest:
 		source, reference = request.DataSourceSlug, request.CredentialReference
 	case datasourcessvc.GitBranchRequest:
@@ -73,7 +80,7 @@ func (b *Broker) recordCredentialHandoff(ctx context.Context, org slug.Slug, req
 			source = request.DataSourceSlug
 		}
 	}
-	if reference == "" {
+	if reference == "" && !unversioned {
 		return nil
 	}
 	entity, resource := model.EventEntityTypeDataSource, source
@@ -81,19 +88,24 @@ func (b *Broker) recordCredentialHandoff(ctx context.Context, org slug.Slug, req
 		entity, resource = model.EventEntityTypeOrganization, org
 	}
 	if b.audit == nil {
-		return xerror.Unexpected().Detail("credential handoff audit recorder is unavailable")
+		return credentialssvc.ErrCredentialAuditUnavailable
 	}
 	actor := reqctx.AuditActor(ctx)
 	if actor.Type == model.EventActorTypeUnknown {
 		actor = model.SystemEventActor()
 	}
-	version := sha256.Sum256([]byte(reference))
+	version := ""
+	if reference != "" {
+		digest := sha256.Sum256([]byte(reference))
+		version = hex.EncodeToString(digest[:])
+	}
 	ctx = reqctx.WithRequestID(ctx, requestID.String())
 	_, err := b.audit.Record(ctx, org, actor, credentialHandoffEvent{
-		entity: entity, resource: resource, requestID: requestID, kind: kind, version: hex.EncodeToString(version[:]),
+		entity: entity, resource: resource, requestID: requestID, kind: kind, version: version,
+		parentOperation: reqctx.AuditOperation(ctx),
 	})
 	if err != nil {
-		return xerror.Wrapf("record broker credential handoff: %w", err)
+		return credentialssvc.ErrCredentialAuditUnavailable
 	}
 	return nil
 }

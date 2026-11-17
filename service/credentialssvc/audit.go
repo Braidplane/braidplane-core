@@ -103,7 +103,7 @@ func auditRevision(value string) string {
 
 func runtimeAuditOperation(ctx context.Context) string {
 	if id := reqctx.AuditOperation(ctx); id != "" {
-		return auditRevision(id)
+		return id
 	}
 	return uuid.New().String()
 }

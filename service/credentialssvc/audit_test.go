@@ -2,7 +2,6 @@ package credentialssvc
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"testing"
 	"time"
@@ -15,6 +14,7 @@ import (
 	"github.com/Braidplane/braidplane-core/pkg/reqctx"
 	"github.com/Braidplane/braidplane-core/pkg/slug"
 	"github.com/Braidplane/braidplane-core/pkg/testutil"
+	"github.com/Braidplane/braidplane-core/pkg/xerror"
 	"github.com/Braidplane/braidplane-core/postgres"
 	repocredentials "github.com/Braidplane/braidplane-core/postgres/credentials"
 	"github.com/Braidplane/braidplane-core/service/eventrecorder"
@@ -34,7 +34,7 @@ func newUnitCredentialService(txm postgres.TransactionManager, repo repocredenti
 	}
 	concrete := svc.(*service)
 	concrete.audit = credentialAuditStub(func(context.Context, slug.Slug, model.EventActor, eventrecorder.Event) (*model.Event, error) {
-		return nil, nil
+		return &model.Event{}, nil
 	})
 	return concrete, nil
 }
@@ -72,7 +72,7 @@ func TestCredentialReleaseRequiresAudit(t *testing.T) {
 		}
 		require.Equal(t, eventSlug, record.Slug)
 		if auditFailure {
-			return nil, errors.New("synthetic audit recorder failure")
+			return nil, xerror.Unexpected().Detail("synthetic audit recorder failure")
 		}
 		return nil, eventssvc.ErrSlugTaken
 	})

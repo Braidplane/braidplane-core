@@ -4895,6 +4895,15 @@ func TestResolveGitExecutionAuthUsesGitHubAppToken(t *testing.T) {
 	require.Equal(t, "secret/2026-10-18T10:00:00Z", auth.CredentialReference)
 	require.NotNil(t, auth.GitHubContentsPermission)
 	require.Equal(t, "write", *auth.GitHubContentsPermission)
+
+	githubApps.tokenErr = credentialssvc.ErrCredentialAuditUnavailable
+	repo.MarkTestFailureFn = func(context.Context, postgres.DBTX, slug.Slug, slug.Slug, int64, string, json.RawMessage) (*repods.DataSource, error) {
+		t.Fatal("an audit outage must not mark a provider binding unavailable")
+		return nil, credentialssvc.ErrCredentialAuditUnavailable
+	}
+	auth, err = svc.ResolveGitExecutionAuth(t.Context(), orgSlug, dsSlug)
+	require.ErrorIs(t, err, credentialssvc.ErrCredentialAuditUnavailable)
+	require.Nil(t, auth)
 }
 
 func TestPrepareGitExecutionAuthDoesNotReadGitHubContentsPermissionFromTenantPayload(t *testing.T) {

@@ -36,6 +36,7 @@ type Installation struct {
 	RepositorySelection string
 	SuspendedAt         *time.Time
 	DeletedAt           *time.Time
+	UpdatedAt           time.Time
 }
 
 type RepositoryBinding struct {
@@ -151,7 +152,7 @@ func (*repository) GetInstallation(ctx context.Context, db postgres.DBTX, org sl
 	if err != nil {
 		return nil, err
 	}
-	return &Installation{ID: int64(row.ID), OrganizationID: row.OrganizationID, InstallationID: row.InstallationID, AccountID: row.AccountID, AccountLogin: row.AccountLogin, AccountType: row.AccountType, RepositorySelection: row.RepositorySelection, SuspendedAt: optionalTime(row.SuspendedAt), DeletedAt: optionalTime(row.DeletedAt)}, nil
+	return &Installation{ID: int64(row.ID), OrganizationID: row.OrganizationID, InstallationID: row.InstallationID, AccountID: row.AccountID, AccountLogin: row.AccountLogin, AccountType: row.AccountType, RepositorySelection: row.RepositorySelection, SuspendedAt: optionalTime(row.SuspendedAt), DeletedAt: optionalTime(row.DeletedAt), UpdatedAt: row.UpdatedAt.Time}, nil
 }
 
 func (*repository) ListRepositories(ctx context.Context, db postgres.DBTX, org slug.Slug) ([]RepositoryBinding, error) {

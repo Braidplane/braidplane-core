@@ -67,6 +67,9 @@ func HTTPMiddleware(component string) fiber.Handler {
 		if requestID != "" {
 			attrs = append(attrs, attribute.String("request_id", requestID))
 		}
+		if operation := reqctx.AuditOperation(ctx); operation != "" {
+			attrs = append(attrs, attribute.String("audit_operation_id", operation))
+		}
 		span.SetAttributes(attrs...)
 
 		if statusCode >= http.StatusInternalServerError && err == nil {

@@ -31,6 +31,7 @@ import (
 	eventrepo "github.com/Braidplane/braidplane-core/postgres/events"
 	requestrepo "github.com/Braidplane/braidplane-core/postgres/executionrequests"
 	"github.com/Braidplane/braidplane-core/postgres/retainedfiles"
+	"github.com/Braidplane/braidplane-core/service/credentialssvc"
 	"github.com/Braidplane/braidplane-core/service/datasourcessvc"
 	"github.com/Braidplane/braidplane-core/service/datasourcessvc/connector"
 	connectortypes "github.com/Braidplane/braidplane-core/service/datasourcessvc/connector/types"
@@ -188,6 +189,9 @@ func (b *Broker) Close() error {
 
 func (b *Broker) TestConnection(ctx context.Context, request datasourcessvc.ConnectionTestRequest) error {
 	_, err := b.submitAndWait(ctx, request.OrganizationSlug.String(), kindConnectionTest, request)
+	if xerror.Is(err, credentialssvc.ErrCredentialAuditUnavailable) {
+		return executiondelivery.MarkNotExecuted(err)
+	}
 	if err != nil {
 		if code, ok := b.admission.EncodeOperationError(err); ok && code != "" {
 			return executiondelivery.MarkNotExecuted(err)

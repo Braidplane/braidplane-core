@@ -2620,6 +2620,9 @@ func (s *service) resolveRuntimeConnectorPayload(
 	runtimeDS := *ds
 	credentialsJSON, installationToken, err := s.resolveManagedProviderGitConfig(ctx, orgSlug, &runtimeDS, credentialsJSON)
 	if err != nil {
+		if xerror.Is(err, credentialssvc.ErrCredentialAuditUnavailable) {
+			return nil, nil, "", nil, err
+		}
 		if markErr := s.markProviderRepositoryUnavailable(ctx, orgSlug, ds); markErr != nil {
 			return nil, nil, "", nil, xerror.Join(err, markErr)
 		}
@@ -2670,6 +2673,9 @@ func (s *service) snapshotDataSourceAndCredentials(
 		if before.ConnectionTestRevision == after.ConnectionTestRevision {
 			credentialsJSON, _, err = s.resolveManagedProviderGitConfig(ctx, orgSlug, after, credentialsJSON)
 			if err != nil {
+				if xerror.Is(err, credentialssvc.ErrCredentialAuditUnavailable) {
+					return nil, nil, err
+				}
 				if markErr := s.markProviderRepositoryUnavailable(ctx, orgSlug, after); markErr != nil {
 					return nil, nil, xerror.Join(err, markErr)
 				}

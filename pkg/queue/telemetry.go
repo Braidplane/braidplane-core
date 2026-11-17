@@ -100,6 +100,7 @@ func (m *telemetryMiddleware) Work(
 			attribute.String("job.kind", job.Kind),
 			attribute.String("job.queue", job.Queue),
 			attribute.Int("job.attempt", job.Attempt),
+			attribute.String("audit_operation_id", reqctx.AuditOperation(ctx)),
 		),
 	)
 	defer span.End()

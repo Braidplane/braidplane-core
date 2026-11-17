@@ -53,7 +53,7 @@ func TestAcceptVerifiesBeforeMappingAndDeduplicates(t *testing.T) {
 		require.NotContains(t, string(serialized), "delivery-1")
 		require.NotContains(t, string(serialized), "c-17")
 		eventCount++
-		return nil, nil
+		return &model.Event{}, nil
 	}))
 
 	request := signedRequest(now, secret, []byte(`{"event":{"customer_id":"c-17"}}`))
@@ -426,7 +426,7 @@ func newWebhookService(
 	svc, err := New(testutil.FakeTransactionManager{}, repo, secrets, producer, executor, cipher, testutil.FakeClock{NowFn: func() time.Time { return now }}, testutil.FakeRunSucceededNotifier{})
 	require.NoError(t, err)
 	svc.audit = eventrecorder.New(webhookAuditFunc(func(context.Context, eventssvc.CreateEventParams) (*model.Event, error) {
-		return nil, nil
+		return &model.Event{}, nil
 	}))
 	return svc
 }
