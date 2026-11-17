@@ -12,6 +12,15 @@ fixtures. Never commit credentials or runtime data.
 The Go module is github.com/Braidplane/braidplane-core. Shared packages live
 under pkg/.
 
+When creating or updating a Core PR, apply exactly one release classification:
+`release:patch` for compatible fixes, `release:minor` for features,
+`release:breaking` for incompatible changes, or `release:none` for changes
+without a distributed behavior change. Preserve an existing reviewed choice;
+resolve missing or conflicting classifications before handoff. Read back the
+PR labels from GitHub after writing and report the verified classification.
+Add `release:security` only for an approved public security release. See
+`doc/CORE_RELEASE_AUTOMATION.md`; the reviewer confirms classification before merge.
+
 ## Start here
 
 - Read `CONTRIBUTING.md` for contribution rules, `COMMUNITY_BUILD.md` for

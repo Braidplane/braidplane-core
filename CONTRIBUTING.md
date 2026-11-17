@@ -23,8 +23,11 @@ kerak19 maintains Community core and decides review priority, acceptance
 and releases. Review covers correctness, tenant boundaries, compatibility,
 rights and relevant test evidence. Review capacity is limited; there is no
 promised review or merge date. Respond to feedback on the same PR.
-Before merge, the reviewer selects exactly one `release:patch`, `release:minor`,
-`release:breaking` or `release:none` label. After successful main CI, eligible
+When opening or updating a PR, apply exactly one `release:patch`, `release:minor`,
+`release:breaking` or `release:none` label and verify it on GitHub before handoff.
+If you lack label permissions, state the required classification for a maintainer
+to apply. Preserve an existing reviewed choice; the reviewer confirms the
+classification before merge. After successful main CI, eligible
 labels authorize automatic v0 prereleases after required CI and artifact checks.
 Stable releases require an explicit promotion dispatch.
 Breaking changes follow the same path, use a minor bump and are marked explicitly

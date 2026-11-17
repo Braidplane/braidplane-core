@@ -17,6 +17,13 @@ infrastructure identity. They have no deployment environment or private source
 token. Fixtures and credentials are synthetic. Hosted VMs can reach the
 internet; this setup does not block general network access.
 
+The separate `release-labels.yml` PR check also has read-only pull-request
+metadata access so it can validate current labels through the GitHub API. It uses
+the release planner's classification rules on a disposable hosted VM, with no
+write token, deployment environment, caches or artifacts. Label edits rerun only
+this workflow. Its `Release labels` status must be required in the main branch
+ruleset to enforce classification before merge.
+
 Keep outside-fork workflow runs awaiting maintainer approval until the public
 checks verify fork approval, token denial and runner exclusion. Both repository
 and organization settings must prevent public
