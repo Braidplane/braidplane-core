@@ -624,7 +624,7 @@ func (s *service) resolveRuntimeCredential(ctx context.Context, params ResolveRu
 				runtime, err := s.resolveGrant(postgres.WithoutTransaction(ctx), grant)
 				if xerror.Is(err, ErrOAuthGrantConflict) {
 					if attempt == 1 {
-						return RuntimeCredential{}, err
+						return runtime, err
 					}
 					continue
 				}
@@ -640,26 +640,23 @@ func (s *service) resolveRuntimeCredential(ctx context.Context, params ResolveRu
 	if params.Owner.Kind == CredentialOwnerKindNotificationConnection {
 		return RuntimeCredential{}, ErrCredentialNotFound
 	}
-	return postgres.InRead(
+	stored, err := postgres.InRead(
 		postgres.WithoutTransaction(ctx),
 		s.txm,
-		func(ctx context.Context, db postgres.DBTX) (RuntimeCredential, error) {
-			repoRecord, err := s.findStaticSecret(ctx, db, params.Owner)
-			if err != nil {
-				return RuntimeCredential{}, err
-			}
-			record := fromRepoCredentialRecord(repoRecord)
-			plaintext, err := s.decryptPayload(credentialScope(record.Owner.OrgSlug, record.Slug, "static-secret"), record.EncryptedPayload)
-			if err != nil {
-				return RuntimeCredential{}, err
-			}
-			return RuntimeCredential{
-				Kind:          CredentialKindStaticSecret,
-				Version:       runtimeCredentialVersion(record.Slug, record.UpdatedAt),
-				PlaintextJSON: plaintext,
-			}, nil
+		func(ctx context.Context, db postgres.DBTX) (repocredentials.CredentialRecord, error) {
+			return s.findStaticSecret(ctx, db, params.Owner)
 		},
 	)
+	if err != nil {
+		return RuntimeCredential{}, err
+	}
+	record := fromRepoCredentialRecord(stored)
+	plaintext, err := s.decryptPayload(credentialScope(record.Owner.OrgSlug, record.Slug, "static-secret"), record.EncryptedPayload)
+	return RuntimeCredential{
+		Kind:          CredentialKindStaticSecret,
+		Version:       runtimeCredentialVersion(record.Slug, record.UpdatedAt),
+		PlaintextJSON: plaintext,
+	}, err
 }
 
 // Refresh forces an OAuth grant refresh and returns safe updated credential metadata.
@@ -1133,16 +1130,17 @@ func (s *service) resolveGrant(
 	ctx context.Context,
 	grant CredentialGrant,
 ) (RuntimeCredential, error) {
+	revision := RuntimeCredential{Version: runtimeCredentialVersion(grant.Slug, grant.UpdatedAt)}
 	if grant.Status == CredentialStatusRevoked {
-		return RuntimeCredential{}, ErrProviderGrantRevoked
+		return revision, ErrProviderGrantRevoked
 	}
 	if grant.Status != CredentialStatusActive {
-		return RuntimeCredential{}, ErrCredentialNotFound
+		return revision, ErrCredentialNotFound
 	}
 
 	tokenSet, err := s.decryptTokenSet(grant)
 	if err != nil {
-		return RuntimeCredential{}, err
+		return revision, err
 	}
 
 	now := s.now()
@@ -1153,25 +1151,26 @@ func (s *service) resolveGrant(
 	if grant.AccessTokenExpires.IsZero() || grant.AccessTokenExpires.After(refreshBefore) {
 		runtime, err := grantRuntimeCredential(grant, tokenSet)
 		if err != nil {
-			return RuntimeCredential{}, err
+			return revision, err
 		}
-		runtime.Version = runtimeCredentialVersion(grant.Slug, grant.UpdatedAt)
+		runtime.Version = revision.Version
 		return runtime, nil
 	}
 
 	updated, err := s.refreshGrant(ctx, grant, now, reqctx.AuditActor(ctx))
 	if err != nil {
-		return RuntimeCredential{}, err
+		return revision, err
 	}
+	revision.Version = runtimeCredentialVersion(updated.Slug, updated.UpdatedAt)
 	refreshed, err := s.decryptTokenSet(updated)
 	if err != nil {
-		return RuntimeCredential{}, err
+		return revision, err
 	}
 	runtime, err := grantRuntimeCredential(updated, refreshed)
 	if err != nil {
-		return RuntimeCredential{}, err
+		return revision, err
 	}
-	runtime.Version = runtimeCredentialVersion(updated.Slug, updated.UpdatedAt)
+	runtime.Version = revision.Version
 	return runtime, nil
 }
 
