@@ -32,6 +32,7 @@ import (
 	"github.com/Braidplane/braidplane-core/postgres/datasources"
 	"github.com/Braidplane/braidplane-core/postgres/deploymentresolutions"
 	"github.com/Braidplane/braidplane-core/postgres/driftimpact"
+	"github.com/Braidplane/braidplane-core/postgres/environments"
 	"github.com/Braidplane/braidplane-core/postgres/incrementalcheckpoints"
 	"github.com/Braidplane/braidplane-core/postgres/odcscontracts"
 	"github.com/Braidplane/braidplane-core/postgres/pipelineruns"
@@ -43,6 +44,7 @@ import (
 	"github.com/Braidplane/braidplane-core/service/credentialssvc"
 	"github.com/Braidplane/braidplane-core/service/datasourcerefssvc"
 	"github.com/Braidplane/braidplane-core/service/datasourcessvc"
+	"github.com/Braidplane/braidplane-core/service/environmentssvc"
 	"github.com/Braidplane/braidplane-core/service/odcscontractsvc"
 	"github.com/Braidplane/braidplane-core/service/pipelinegit"
 	"github.com/Braidplane/braidplane-core/service/pipelineruntime"
@@ -216,13 +218,16 @@ func testDeploymentResolutionPinsAttempt(t *testing.T, scoped, rich, event, requ
 	require.NoError(t, err)
 	compiler, err := contractplansvc.New(pipelines.New(), txm, plans, operations, odcscontracts.NewRepository(), store, refs)
 	require.NoError(t, err)
-	app := resolutionAPI(svc, compiler)
+	app := resolutionAPI(svc, compiler, environmentssvc.New(txm, environments.NewRepository(), events), refs)
 	projectPath := fmt.Sprintf("/organizations/%s/projects/%s", org, project)
 	deploymentPath := projectPath + "/environments/dev/pipelines/sync:deploy"
 	var reconciled api.PipelineReconcileResponse
 	resolutionPost(t, app, projectPath+"/pipelines:reconcile", map[string]any{}, 200, &reconciled)
 	require.Empty(t, reconciled.Failures)
 	require.Equal(t, 1, reconciled.Summary.Synced)
+	require.Len(t, reconciled.Synced, 1)
+	require.NotNil(t, reconciled.Synced[0].Readiness)
+	require.NotEmpty(t, reconciled.Synced[0].Readiness.Environments)
 
 	_, err = refs.UpsertEnvironmentBinding(ctx, org, project, "sync", "dev", "acme-postgres", model.UpsertDataSourceBinding{DataSourceSlug: "physical"}, actor)
 	require.NoError(t, err)

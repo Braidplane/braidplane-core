@@ -13,6 +13,8 @@ import (
 	"github.com/Braidplane/braidplane-core/pkg/reqctx"
 	"github.com/Braidplane/braidplane-core/pkg/testutil/fakes"
 	"github.com/Braidplane/braidplane-core/service/contractplansvc"
+	"github.com/Braidplane/braidplane-core/service/datasourcerefssvc"
+	"github.com/Braidplane/braidplane-core/service/environmentssvc"
 	"github.com/Braidplane/braidplane-core/service/pipelinesvc"
 	transport "github.com/Braidplane/braidplane-core/transport/http"
 	"github.com/gofiber/fiber/v3"
@@ -20,7 +22,7 @@ import (
 )
 
 // Only lifecycle routes are invoked; unrelated server dependencies stay unused.
-func resolutionAPI(svc pipelinesvc.Service, compiler *contractplansvc.Service) *fiber.App {
+func resolutionAPI(svc pipelinesvc.Service, compiler *contractplansvc.Service, environments environmentssvc.Service, refs datasourcerefssvc.Service) *fiber.App {
 	server := transport.NewServer(
 		nil,                         // usersService
 		nil,                         // accountClosureService
@@ -35,14 +37,14 @@ func resolutionAPI(svc pipelinesvc.Service, compiler *contractplansvc.Service) *
 		nil,                         // odcsContractsService
 		compiler,                    // compiledPlansService
 		nil,                         // odcsArtifactImporter
-		nil,                         // environmentsService
+		environments,                // environmentsService
 		nil,                         // membersService
 		nil,                         // rolesService
 		nil,                         // apiKeysService
 		nil,                         // patsService
 		nil,                         // credentialsService
 		nil,                         // datasourcesService
-		nil,                         // dataSourceRefsService
+		refs,                        // dataSourceRefsService
 		nil,                         // queriesService
 		nil,                         // eventsService
 		nil,                         // githubAppService
