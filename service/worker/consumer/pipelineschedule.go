@@ -68,6 +68,7 @@ func (w *pipelineScheduleDispatchWorker) Work(
 		slog.Int("claimed", result.Claimed),
 		slog.Int("enqueued", result.Enqueued),
 		slog.Int("skipped_disabled", result.SkippedDisabled),
+		slog.Int("skipped_invalid", result.SkippedInvalid),
 		slog.Int("skipped_misfire", result.SkippedMisfire),
 		slog.Int("already_claimed", result.AlreadyClaimed),
 	)
