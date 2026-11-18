@@ -40,6 +40,7 @@ class RuntimeSuiteTest(unittest.TestCase):
                     'while True: time.sleep(1)\n')
                 result = subprocess.run(["bash", str(ROOT / "scripts/ci-runtime.sh"), suite],
                     cwd=root, env=os.environ | {"CI": "true", "CI_GIT_IMAGE": "synthetic-fixture",
+                        "CI_PLAYWRIGHT_IMAGE": "synthetic-browser",
                         "CALLS": str(calls), "FAILED_TASK": failed,
                         "PATH": f'{root / "bin"}:{os.environ["PATH"]}'},
                     capture_output=True, text=True, timeout=15)
@@ -47,13 +48,14 @@ class RuntimeSuiteTest(unittest.TestCase):
                 commands = calls.read_text()
                 self.assertIn("down --volumes --remove-orphans", commands)
                 if suite == "browser":
-                    self.assertIn("task test-e2e", commands)
+                    self.assertIn("run-server --host 127.0.0.1", commands)
+                    self.assertIn("run test:e2e", commands)
                     self.assertNotIn("task bruno-ci", commands)
                     self.assertNotIn("mysql-connector-test", commands)
                 else:
                     self.assertIn("task bruno-ci", commands)
                     self.assertIn("task test-bruno", commands)
-                    self.assertNotIn("task test-e2e", commands)
+                    self.assertNotIn("run test:e2e", commands)
                     self.assertIn("mysql-connector-test", commands)
                     self.assertIn("bind 127.0.0.1:0", commands)
                     self.assertIn("port hubspot-connector-test 8080", commands)

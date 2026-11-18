@@ -138,7 +138,8 @@ module.exports = async function globalSetup(config) {
         });
 
     // Each engine owns a session; journeys do not mutate its active organization.
-    const browser = await chromium.launch();
+    const endpoint = process.env.PW_TEST_CONNECT_WS_ENDPOINT;
+    const browser = endpoint ? await chromium.connect(endpoint) : await chromium.launch();
     try {
         for (const authStatePath of Object.values(authStatePaths)) {
             const context = await browser.newContext({ baseURL });

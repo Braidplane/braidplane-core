@@ -303,7 +303,6 @@ jobs:
           path: |
             ~/.cache/braidplane/node
             ~/.cache/braidplane/npm
-            ~/.cache/ms-playwright
           key: community-node-${{ matrix.suite }}-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('ci/toolchain/versions.env', 'frontend/package-lock.json', 'bruno/package-lock.json') }}
       - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
       - name: Build cached Git fixture image
@@ -330,7 +329,10 @@ jobs:
           echo "$RUNNER_TEMP/bin" >> "$GITHUB_PATH"
           bash scripts/node-toolchain.sh npm --prefix frontend ci
           if [ "$RUNTIME_SUITE" = browser ]; then
-            bash scripts/node-toolchain.sh npm --prefix frontend exec -- playwright install --with-deps chromium firefox webkit
+            version=$(bash scripts/node-toolchain.sh node -p "require('./frontend/package-lock.json').packages['node_modules/playwright'].version")
+            image="mcr.microsoft.com/playwright:v${version}-noble"
+            /usr/bin/time -f 'Playwright image pull: %es' docker pull "$image"
+            echo "CI_PLAYWRIGHT_IMAGE=$image" >> "$GITHUB_ENV"
           fi
       - name: Run the selected runtime suite on disposable fixtures
         env:
@@ -356,7 +358,6 @@ jobs:
           path: |
             ~/.cache/braidplane/node
             ~/.cache/braidplane/npm
-            ~/.cache/ms-playwright
           key: ${{ steps.cache-2.outputs.cache-primary-key }}
       - name: Report sampled disk headroom
         if: ${{ always() }}
