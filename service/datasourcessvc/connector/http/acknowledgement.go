@@ -21,7 +21,7 @@ type acknowledgementCheck struct {
 }
 
 func invalidAcknowledgement() *xerror.Error {
-	return xerror.InvalidInput(xerror.Query).WithPublicDetail("HTTP acknowledgement requires 1-16 distinct 2xx status codes, 1-8 scalar equality checks with object-only paths, and at most 8 distinct empty field names")
+	return xerror.InvalidInput(xerror.Query).WithPublicDetail("HTTP acknowledgement requires 1-16 distinct 2xx status codes, 0-8 scalar equality checks with object-only paths, and at most 8 distinct empty field names")
 }
 
 func decodeAcknowledgement(raw json.RawMessage) (*httpAcknowledgement, error) {
@@ -34,7 +34,7 @@ func decodeAcknowledgement(raw json.RawMessage) (*httpAcknowledgement, error) {
 	if err := decoder.Decode(&a); err != nil || a == nil {
 		return nil, invalidAcknowledgement()
 	}
-	if len(a.StatusCodes) < 1 || len(a.StatusCodes) > 16 || len(a.Success) < 1 || len(a.Success) > 8 || len(a.EmptyFields) > 8 {
+	if len(a.StatusCodes) < 1 || len(a.StatusCodes) > 16 || a.Success == nil || len(a.Success) > 8 || len(a.EmptyFields) > 8 {
 		return nil, invalidAcknowledgement()
 	}
 	statuses := map[int]bool{}
@@ -147,6 +147,10 @@ func acknowledgementScalar(value any) bool {
 	}
 }
 
+func (a *httpAcknowledgement) statusOnly() bool {
+	return len(a.Success) == 0 && len(a.EmptyFields) == 0
+}
+
 func (a *httpAcknowledgement) evaluate(status int, body []byte) error {
 	rejected := func() error {
 		return xerror.HTTPAcknowledgementRejected().WithPublicDetail("HTTP response rejected by the acknowledgement contract. A rejected acknowledgement does not prove that a write was rolled back; verify remote state before retrying.")
@@ -160,6 +164,9 @@ func (a *httpAcknowledgement) evaluate(status int, body []byte) error {
 	}
 	if !acceptedStatus {
 		return rejected()
+	}
+	if a.statusOnly() {
+		return nil
 	}
 	root, err := acknowledgementJSON(body)
 	if err != nil {

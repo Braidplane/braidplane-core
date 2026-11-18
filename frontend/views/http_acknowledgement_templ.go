@@ -116,7 +116,7 @@ func httpAcknowledgementFields(form HTTPAcknowledgementFormData) templ.Component
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 9, "\" placeholder=\"200, 201\"></label><p class=\"text-xs text-base-content/70\">1–16 distinct codes from 200 to 299, separated by commas.</p></div><div class=\"space-y-2\" data-kv-editor><div class=\"flex flex-wrap items-center justify-between gap-2\"><p class=\"text-sm font-medium\">Success checks</p><button class=\"btn btn-outline btn-xs\" type=\"button\" data-add-kv>Add success check</button></div><p class=\"text-xs text-base-content/70\">1–8 object paths, such as status.code. Expected values are JSON scalars: \"OK\", true or 1.0. Types must match; 1 and 1.0 differ. No arrays, wildcards or templates.</p><div class=\"space-y-2\" data-kv-rows>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 9, "\" placeholder=\"200, 201\"></label><p class=\"text-xs text-base-content/70\">1–16 distinct codes from 200 to 299, separated by commas.</p></div><div class=\"space-y-2\" data-kv-editor><div class=\"flex flex-wrap items-center justify-between gap-2\"><p class=\"text-sm font-medium\">Success checks</p><button class=\"btn btn-outline btn-xs\" type=\"button\" data-add-kv>Add success check</button></div><p class=\"text-xs text-base-content/70\">Remove all checks and empty error fields to acknowledge by status alone. Add up to 8 object paths, such as status.code. Expected values are JSON scalars: \"OK\", true or 1.0. Types must match; 1 and 1.0 differ. No arrays, wildcards or templates.</p><div class=\"space-y-2\" data-kv-rows>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -126,7 +126,7 @@ func httpAcknowledgementFields(form HTTPAcknowledgementFormData) templ.Component
 				return templ_7745c5c3_Err
 			}
 		}
-		if len(form.Success) == 0 {
+		if !form.Enabled && len(form.Success) == 0 {
 			templ_7745c5c3_Err = httpAcknowledgementSuccessRow(QueryKeyValueFormData{}).Render(ctx, templ_7745c5c3_Buffer)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err

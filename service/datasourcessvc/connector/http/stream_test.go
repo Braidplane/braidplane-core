@@ -49,7 +49,7 @@ func TestHTTPStreamsNativeFilesAndReopensRetainedInputForKeyedRetry(t *testing.T
 	require.NoError(t, err)
 	t.Cleanup(func() { require.NoError(t, connector.Close()) })
 	limits := types.ExecutionLimits{MaxResponseBytes: 1024, HTTPMaxResponseBytes: 1024, HTTPMaxRequestBytes: 1024, MaxFileBytes: int64(len(content)), HTTPRetryAttempts: 2}
-	source, err := connector.Execute(ctx, []byte(`{"method":"GET","path":"/file"}`), nil, limits)
+	source, err := connector.Execute(ctx, []byte(`{"method":"GET","path":"/file","acknowledgement":{"status_codes":[200],"success":[]}}`), nil, limits)
 	require.NoError(t, err)
 	require.NoError(t, source.Error())
 	file, ok := source.HTTP()

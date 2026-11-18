@@ -33,26 +33,36 @@ func (d acknowledgementDataSources) FindBySlug(ctx context.Context, org, source 
 }
 
 func TestHTTPAcknowledgementControlsSinkEffectAndCheckpoint(t *testing.T) {
+	const jsonAck = `{"status_codes":[200],"success":[{"path":"status.code","equals":"OK"}],"empty_fields":["errors"]}`
+	const terminalAck = `{"status_codes":[204],"success":[]}`
 	for _, tc := range []struct {
-		name, body string
-		want       error
+		name, body, ack string
+		status          int
+		want            error
 	}{
-		{"success", `{"status":{"code":"OK"}}`, nil},
-		{"rejection", `{"status":{"code":"ERROR"}}`, xerror.HTTPAcknowledgementRejected()},
-		{"uncertain", `{}`, xerror.HTTPAcknowledgementUncertain()},
+		{"completed", "", terminalAck, 204, nil},
+		{"queued", "", terminalAck, 202, xerror.HTTPAcknowledgementRejected()},
+		{"interrupted", "", terminalAck, 0, xerror.HTTPAcknowledgementUncertain()},
+		{"success", `{"status":{"code":"OK"}}`, jsonAck, 200, nil},
+		{"rejection", `{"status":{"code":"ERROR"}}`, jsonAck, 200, xerror.HTTPAcknowledgementRejected()},
+		{"uncertain", `{}`, jsonAck, 200, xerror.HTTPAcknowledgementUncertain()},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			requests := 0
 			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				requests++
+				if tc.status == 0 {
+					panic(http.ErrAbortHandler)
+				}
 				w.Header().Set("Content-Type", "application/json")
+				w.WriteHeader(tc.status)
 				_, _ = fmt.Fprint(w, tc.body)
 			}))
 			defer server.Close()
 			connector, err := httpconnector.New(transportsecurity.WithPlaintext(t.Context()), httpconnector.Config{BaseURL: server.URL, AllowPrivateHosts: true}, httpconnector.Credentials{})
 			require.NoError(t, err)
 			sinkExecutor := &fakeSinkQueryExecutor{executeFn: func(ctx context.Context, _, _, _ slug.Slug, _ model.EventActor, _ map[string]any, _ ...queriessvc.ExecuteOption) (*result.ExecutionResult, error) {
-				return connector.Execute(ctx, json.RawMessage(`{"method":"POST","path":"/records","acknowledgement":{"status_codes":[200],"success":[{"path":"status.code","equals":"OK"}],"empty_fields":["errors"]}}`), nil)
+				return connector.Execute(ctx, json.RawMessage(`{"method":"POST","path":"/records","acknowledgement":`+tc.ack+`}`), nil)
 			}}
 			ledger := &fakeSinkEffectLedger{effect: pipelinerun.SinkEffect{Claimed: true, State: pipelinerun.SinkEffectStateInProgress}}
 			sourceExecutor := &incrementalCheckpointQueryExecutor{executeWithCheckpointFn: func(_ context.Context, _, _, _ slug.Slug, _ map[string]any, input *pipelinerun.IncrementalCheckpointInput) (*result.ExecutionResult, *pipelinerun.IncrementalCheckpointObservation, error) {

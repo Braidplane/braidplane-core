@@ -68,6 +68,19 @@ func TestHTTPAcknowledgementFormRoundTrip(t *testing.T) {
 	}
 }
 
+func TestHTTPAcknowledgementStatusOnlyForm(t *testing.T) {
+	form := views.HTTPAcknowledgementFormData{Enabled: true, StatusCodes: "204"}
+	contract, message := httpAcknowledgementFromForm(form)
+	require.Empty(t, message)
+	raw, err := json.Marshal(contract)
+	require.NoError(t, err)
+	require.JSONEq(t, `{"status_codes":[204],"success":[]}`, string(raw))
+	var statement api.QueryStatement
+	require.NoError(t, json.Unmarshal([]byte(`{"type":"http","method":"POST","path":"/records","acknowledgement":`+string(raw)+`}`), &statement))
+	reopened := views.QueryEditorFormDataFromQuery(api.Query{QueryStatement: statement})
+	require.Equal(t, form, reopened.HTTPAcknowledgement)
+}
+
 func TestHTTPAcknowledgementFormValidation(t *testing.T) {
 	t.Parallel()
 	for _, tc := range []struct {
@@ -80,8 +93,7 @@ func TestHTTPAcknowledgementFormValidation(t *testing.T) {
 		{"Non2xxStatus", func(f *views.HTTPAcknowledgementFormData) { f.StatusCodes = "400" }, "200 to 299"},
 		{"MalformedStatus", func(f *views.HTTPAcknowledgementFormData) { f.StatusCodes = "200," }, "HTTP status codes"},
 		{"TooManyStatuses", func(f *views.HTTPAcknowledgementFormData) { f.StatusCodes = strings.Repeat("200,", 16) + "201" }, "1–16"},
-		{"NoChecks", func(f *views.HTTPAcknowledgementFormData) { f.Success = nil }, "1–8 success checks"},
-		{"TooManyChecks", func(f *views.HTTPAcknowledgementFormData) { f.Success = make([]views.QueryKeyValueFormData, 9) }, "1–8 success checks"},
+		{"TooManyChecks", func(f *views.HTTPAcknowledgementFormData) { f.Success = make([]views.QueryKeyValueFormData, 9) }, "at most 8 success checks"},
 		{"EmptyPath", func(f *views.HTTPAcknowledgementFormData) { f.Success[0].Key = "" }, "success check 1"},
 		{"ArrayPath", func(f *views.HTTPAcknowledgementFormData) { f.Success[0].Key = "items[0].code" }, "object path"},
 		{"EmptySegment", func(f *views.HTTPAcknowledgementFormData) { f.Success[0].Key = "status..code" }, "segments must not be empty"},

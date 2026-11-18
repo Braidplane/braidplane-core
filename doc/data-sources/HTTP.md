@@ -211,7 +211,14 @@ API and CLI operation JSON use the same contract shown above. All checks apply
 to each response, including every page of a paginated GET. Existing operations without this object retain their
 status-and-body behavior; HTTP sinks still require a 2xx status.
 
-`status_codes` requires 1 to 16 distinct 2xx codes. `success` requires 1 to 8 checks.
+`status_codes` requires 1 to 16 distinct 2xx codes. For an endpoint that documents 204 as completed delivery and 202 as queued, use
+`"acknowledgement": {"status_codes": [204], "success": []}`. In the UI,
+remove all success checks and empty error fields. The sink can confirm an empty
+204 response. A 202 leaves the write unconfirmed and blocks its dependent
+checkpoint. Accept 202 only when queue submission itself is the intended effect.
+The connector does not poll for job completion.
+
+`success` accepts up to 8 checks.
 Each path traverses JSON objects only, with at most 16 dot-separated segments
 and 256 bytes; arrays, wildcards and templates are unsupported. `equals` is a
 non-null string, boolean or number. Types must match. Numbers require the same

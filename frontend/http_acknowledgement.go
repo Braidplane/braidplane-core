@@ -38,7 +38,7 @@ func httpAcknowledgementFromForm(form views.HTTPAcknowledgementFormData) (*api.H
 	if !form.Enabled {
 		return nil, ""
 	}
-	contract := &api.HTTPAcknowledgement{}
+	contract := &api.HTTPAcknowledgement{Success: []api.HTTPAcknowledgementCheck{}}
 	statuses := strings.Split(form.StatusCodes, ",")
 	if len(statuses) > 16 {
 		return nil, "Acknowledgement: enter 1–16 distinct HTTP status codes from 200 to 299, separated by commas."
@@ -52,8 +52,8 @@ func httpAcknowledgementFromForm(form views.HTTPAcknowledgementFormData) (*api.H
 		seenStatuses[status] = true
 		contract.StatusCodes = append(contract.StatusCodes, status)
 	}
-	if len(form.Success) < 1 || len(form.Success) > 8 {
-		return nil, "Acknowledgement: add 1–8 success checks."
+	if len(form.Success) > 8 {
+		return nil, "Acknowledgement: use at most 8 success checks."
 	}
 	for i, row := range form.Success {
 		parts := strings.Split(row.Key, ".")
