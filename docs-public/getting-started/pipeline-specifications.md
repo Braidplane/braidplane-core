@@ -486,7 +486,7 @@ the first write, rejects duplicates, and encodes each ID as one path segment.
 IDs must be nonblank, at most 256 bytes, and free of surrounding whitespace.
 The path segments `.` and `..` are invalid.
 
-For example, this sink updates the display name of each inventory item:
+The [inventory pipeline example](https://github.com/Braidplane/braidplane-core/blob/main/examples/pipelines/yaml/http-inventory-updates.pipeline.yaml) reads item IDs and labels with inline PostgreSQL. Its HTTP sink updates each item’s display name:
 
 ```yaml
 sink:

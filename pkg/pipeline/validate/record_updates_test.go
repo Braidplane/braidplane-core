@@ -11,7 +11,7 @@ import (
 )
 
 func TestRecordUpdatesDefinition(t *testing.T) {
-	const path = "../../../examples/pipelines/yaml/http-company-updates.pipeline.yaml"
+	const path = "../../../examples/pipelines/yaml/http-inventory-updates.pipeline.yaml"
 	source, err := os.ReadFile(path)
 	require.NoError(t, err)
 	_, err = Load(path, source)
@@ -19,10 +19,10 @@ func TestRecordUpdatesDefinition(t *testing.T) {
 	p, err := spec.Load(path, source)
 	require.NoError(t, err)
 	sink := p.Steps[1].Sink
-	sink.OperationInline = map[string]any{"method": "PUT", "path": "/v2/inventory/{{record_id}}", "body": "{{input}}"}
+	sink.OperationInline = map[string]any{"method": "PUT", "path": "/v2/inventory/{{record_id}}", "body": map[string]any{"attributes": "{{input}}"}}
 	cfg := sink.Config["record_updates"].(map[string]any)
-	cfg["readback"] = map[string]any{"identity_field": "recordID"}
-	cfg["fields"] = map[string]string{"company_name": "Display-Name"}
+	cfg["readback"] = map[string]any{"identity_field": "recordID", "fields_object": "attributes"}
+	cfg["fields"] = map[string]string{"label": "Display-Name"}
 	data, err := json.Marshal(p)
 	require.NoError(t, err)
 	_, err = Load("inventory.pipeline.json", data)
@@ -40,7 +40,7 @@ func TestRecordUpdatesDefinition(t *testing.T) {
 		{"mapped response ID", func(s *spec.SinkSpec) {
 			config := s.Config["record_updates"].(map[string]any)
 			config["readback"] = map[string]any{"identity_field": "id"}
-			config["fields"] = map[string]string{"company": "id"}
+			config["fields"] = map[string]string{"item": "id"}
 		}},
 		{"missing readback", func(s *spec.SinkSpec) { delete(s.Config["record_updates"].(map[string]any), "readback") }},
 		{"missing response ID", func(s *spec.SinkSpec) {
