@@ -10,6 +10,7 @@ import (
 	"github.com/Braidplane/braidplane-core/pkg/apierror"
 	"github.com/Braidplane/braidplane-core/pkg/domain/model"
 	"github.com/Braidplane/braidplane-core/pkg/locale"
+	"github.com/Braidplane/braidplane-core/pkg/logging"
 	"github.com/Braidplane/braidplane-core/pkg/reqctx"
 )
 
@@ -147,7 +148,7 @@ func (s *server) ResendVerificationEmail(c fiber.Ctx) error {
 
 	err := s.usersService.ResendVerificationEmail(c.Context(), string(req.Email))
 	if err != nil {
-		slog.Error("resend verification email failed", "error", err)
+		slog.Error("resend verification email failed", logging.ErrorAttr(err))
 		logAuthSecurityEvent(c, s.sessionStore, slog.Default(), slog.LevelError, "auth.email_verification.resent", "failure", fiber.StatusNoContent, "")
 		return c.SendStatus(fiber.StatusNoContent)
 	}

@@ -451,7 +451,7 @@ func TestRunner_RunIncrementalSourceBlocksObservationWhenDependentSinkFails(t *t
 	require.Equal(t, pipelinerun.IncrementalCheckpointTransitionBlocked, transition.Status)
 	require.Equal(t, must.Slug("fetch-users"), transition.SourceStepSlug)
 	require.Equal(t, must.Slug("persist-users"), transition.BlockedByStep)
-	require.Contains(t, transition.BlockedReason, "sink write failed")
+	require.Equal(t, xerror.Unexpected().Message(), transition.BlockedReason)
 	require.Empty(t, transition.CommittingRunSlug)
 	require.JSONEq(t, string(observedUpper), string(transition.ObservedUpperBound))
 }

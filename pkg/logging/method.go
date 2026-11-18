@@ -54,7 +54,7 @@ func LogMethodCompletion(ctx context.Context, logger *slog.Logger, completion Me
 	attrs = append(attrs, ContextAttrs(ctx)...)
 
 	if completion.Err != nil {
-		attrs = append(attrs, errorAttrs(completion.Err)...)
+		attrs = append(attrs, ErrorAttrs(completion.Err)...)
 	}
 
 	logger.LogAttrs(ctx, level, "interface method completed", attrs...)

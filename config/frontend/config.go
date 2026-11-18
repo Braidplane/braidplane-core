@@ -70,7 +70,7 @@ type LoggingConfig struct {
 	Level            string          `toml:"level"             env:"LOG_LEVEL"             flag:"log-level"             desc:"Log level (none, debug, info, warn, error)"`
 	File             string          `toml:"frontend_file"     env:"LOG_FRONTEND_FILE"     flag:"log-frontend-file"     desc:"Frontend log file path (empty disables file logging)"`
 	RotationInterval config.Duration `toml:"rotation_interval" env:"LOG_ROTATION_INTERVAL" flag:"log-rotation-interval" desc:"Log file rotation interval (e.g., 1h, 24h)"`
-	LogHTTPRequests  bool            `toml:"log_http_requests" env:"LOG_HTTP_REQUESTS"     flag:"log-http-requests"     desc:"Log full HTTP request/response bodies"`
+	LogHTTPRequests  bool            `toml:"log_http_requests" env:"LOG_HTTP_REQUESTS"     flag:"log-http-requests"     desc:"Log HTTP request metadata at debug level"`
 	MaxFileSizeMB    int             `toml:"max_file_size_mb"  env:"LOG_MAX_FILE_SIZE_MB"  flag:"log-max-file-size-mb"  desc:"Maximum log file size in MB before rotation"`
 	Environment      string          `toml:"environment"       env:"LOG_ENVIRONMENT"       flag:"log-environment"       desc:"Deployment environment for structured logs"`
 	OTLPLogsEndpoint string          `toml:"otlp_logs_endpoint" env:"LOG_OTLP_LOGS_ENDPOINT" flag:"log-otlp-logs-endpoint" desc:"Full OTLP/HTTP logs endpoint (empty disables direct log export)"`

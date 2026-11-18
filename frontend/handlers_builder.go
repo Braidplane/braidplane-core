@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"log/slog"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -16,6 +15,7 @@ import (
 	"github.com/Braidplane/braidplane-core/frontend/views"
 	"github.com/Braidplane/braidplane-core/pkg/apierror"
 	"github.com/Braidplane/braidplane-core/pkg/domain/model"
+	"github.com/Braidplane/braidplane-core/pkg/logging"
 	pipelinespec "github.com/Braidplane/braidplane-core/pkg/pipeline/spec"
 	"github.com/Braidplane/braidplane-core/pkg/reqctx"
 	"github.com/Braidplane/braidplane-core/pkg/slug"
@@ -466,8 +466,7 @@ func (r *Router) handleBuilderProposalReview(c fiber.Ctx) error {
 	}
 	review, err := buildBuilderProposalReview(pipeline)
 	if err != nil {
-		slog.ErrorContext(c.Context(), "build pipeline proposal review",
-			"request_id", reqctx.FiberRequestID(c), "error", err)
+		logging.LogErrorWith(c.Context(), r.logger, "build pipeline proposal review", err)
 		return c.Status(fiber.StatusUnprocessableEntity).JSON(api.ErrorResponse{Error: api.Error{
 			Code: "PROPOSAL_REVIEW_INVALID", Message: "proposal review could not be generated",
 		}})

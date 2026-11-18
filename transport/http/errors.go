@@ -1,9 +1,10 @@
 package http
 
 import (
-	"log/slog"
+	"context"
 
 	"github.com/Braidplane/braidplane-core/pkg/apierror"
+	"github.com/Braidplane/braidplane-core/pkg/logging"
 	"github.com/Braidplane/braidplane-core/pkg/xerror"
 )
 
@@ -14,7 +15,7 @@ import (
 func MapServiceError(err error) error {
 	var xe *xerror.Error
 	if !xerror.As(err, &xe) || xe == nil {
-		slog.Error("unexpected service error", "error", err)
+		logging.LogError(context.Background(), "unexpected service error", err)
 		return apierror.InternalServerError()
 	}
 

@@ -25,7 +25,7 @@ func TestPostgresExecutionErrorClassification(t *testing.T) {
 	for _, tc := range []struct {
 		name  string
 		cause error
-		want  error
+		want  *xerror.Error
 	}{
 		{"missing column", &pgconn.PgError{Code: "42703", Message: "private-column-secret"}, xerror.SourceSchemaReferenceInvalid()},
 		{"missing relation", &pgconn.PgError{Code: "42P01", Message: "private-relation-secret"}, xerror.SourceSchemaReferenceInvalid()},
@@ -47,15 +47,13 @@ func TestPostgresExecutionErrorClassification(t *testing.T) {
 			require.ErrorIs(t, err, tc.want)
 			var logs bytes.Buffer
 			logging.LogMethodCompletion(t.Context(), slog.New(slog.NewJSONHandler(&logs, nil)), logging.MethodCompletion{Layer: "service", Method: "Execute", Err: err})
-			require.NotEmpty(t, logs.String())
+			require.Contains(t, logs.String(), tc.want.Code())
+			require.NotContains(t, logs.String(), "private-")
+			stored, marshalErr := json.Marshal(connectorresult.NewSQLResult("postgres", &connectorresult.SQLResult{}, 0, err))
+			require.NoError(t, marshalErr)
+			require.NotContains(t, string(stored), "private-")
 			if xerror.Is(err, xerror.InvalidCredentials()) || xerror.Is(err, xerror.DestinationConstraintViolation()) {
-				require.NotContains(t, logs.String(), "private-")
 				require.NotContains(t, err.Error(), "private-")
-				stored, marshalErr := json.Marshal(connectorresult.NewSQLResult("postgres", &connectorresult.SQLResult{}, 0, err))
-				require.NoError(t, marshalErr)
-				require.NotContains(t, string(stored), "private-")
-			} else {
-				require.Contains(t, logs.String(), tc.cause.Error())
 			}
 			recorder := tracetest.NewSpanRecorder()
 			provider := sdktrace.NewTracerProvider(sdktrace.WithSpanProcessor(recorder))

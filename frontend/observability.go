@@ -1,14 +1,12 @@
 package frontend
 
 import (
-	"context"
 	"fmt"
 	"log/slog"
 	"strings"
 
 	"github.com/gofiber/fiber/v3"
 
-	api "github.com/Braidplane/braidplane-core/api-schema/gen/client"
 	"github.com/Braidplane/braidplane-core/pkg/logging"
 	"github.com/Braidplane/braidplane-core/pkg/xerror"
 )
@@ -31,7 +29,6 @@ func unexpectedBackendAPIResponse(action string, status int) error {
 func (r *Router) logRenderedBackendAPIFailure(
 	c fiber.Ctx,
 	action string,
-	payload *api.ErrorResponse,
 	callErr error,
 	organizationSlug string,
 	dataSourceSlug string,
@@ -40,19 +37,15 @@ func (r *Router) logRenderedBackendAPIFailure(
 		return
 	}
 
-	category := "transport"
-	upstreamStatus := 0
-	switch {
-	case xerror.Is(callErr, context.Canceled):
-		category = "request_canceled"
-	case xerror.Is(callErr, context.DeadlineExceeded):
-		category = "deadline_exceeded"
-	default:
-		var responseErr *backendAPIResponseError
-		if xerror.As(callErr, &responseErr) && responseErr != nil {
-			category = "upstream_response"
-			upstreamStatus = responseErr.status
-		}
+	_, _, category := xerror.Classify(callErr)
+	if category == "" {
+		category = "transport"
+	}
+	var upstreamStatus int
+	var responseErr *backendAPIResponseError
+	if xerror.As(callErr, &responseErr) && responseErr != nil {
+		category = "upstream_response"
+		upstreamStatus = responseErr.status
 	}
 
 	attrs := []slog.Attr{
@@ -60,11 +53,8 @@ func (r *Router) logRenderedBackendAPIFailure(
 		slog.String("action", strings.TrimSpace(action)),
 		slog.String("error.category", category),
 	}
-	if upstreamStatus > 0 {
+	if upstreamStatus >= 100 && upstreamStatus <= 599 {
 		attrs = append(attrs, slog.Int("upstream.status_code", upstreamStatus))
-	}
-	if payload != nil && strings.TrimSpace(payload.Error.Code) != "" {
-		attrs = append(attrs, slog.String("diagnostic.code", strings.TrimSpace(payload.Error.Code)))
 	}
 	if organizationSlug = strings.TrimSpace(organizationSlug); organizationSlug != "" {
 		attrs = append(attrs, slog.String("organization.slug", organizationSlug))

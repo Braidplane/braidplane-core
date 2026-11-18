@@ -7,6 +7,7 @@ import (
 	"github.com/gofiber/fiber/v3"
 	"github.com/gofiber/fiber/v3/middleware/requestid"
 	"github.com/gofiber/fiber/v3/middleware/session"
+	"github.com/google/uuid"
 
 	"github.com/Braidplane/braidplane-core/pkg/must"
 	"github.com/Braidplane/braidplane-core/pkg/slug"
@@ -88,6 +89,18 @@ func GetRequestID(ctx context.Context) *string {
 	}
 
 	return &requestID
+}
+
+// RequestIDMiddleware accepts canonical UUID correlation IDs and replaces all other input.
+func RequestIDMiddleware() fiber.Handler {
+	middleware := requestid.New(requestid.Config{Generator: uuid.NewString})
+	return func(c fiber.Ctx) error {
+		raw := c.Get(fiber.HeaderXRequestID)
+		if id, err := uuid.Parse(raw); err != nil || id.String() != raw {
+			c.Request().Header.Del(fiber.HeaderXRequestID)
+		}
+		return middleware(c)
+	}
 }
 
 // FiberRequestID reads the middleware ID or the application-owned fallback.

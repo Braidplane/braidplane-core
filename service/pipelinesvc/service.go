@@ -23,6 +23,7 @@ import (
 	"github.com/Braidplane/braidplane-core/pkg/contractplan"
 	"github.com/Braidplane/braidplane-core/pkg/domain/model"
 	"github.com/Braidplane/braidplane-core/pkg/executiondelivery"
+	"github.com/Braidplane/braidplane-core/pkg/logging"
 	"github.com/Braidplane/braidplane-core/pkg/odcs"
 	pipelinedrift "github.com/Braidplane/braidplane-core/pkg/pipeline/drift"
 	pipelineformat "github.com/Braidplane/braidplane-core/pkg/pipeline/format"
@@ -963,7 +964,7 @@ func (s *service) Validate(
 			slog.String("org_slug", orgSlug.String()),
 			slog.String("project_slug", projectSlug.String()),
 			slog.String("pipeline_slug", authoredCandidate.Metadata.Slug.String()),
-			slog.Any("error", persistErr),
+			logging.ErrorAttr(persistErr),
 		)
 	}
 	return &PipelineValidationResult{
@@ -2604,7 +2605,7 @@ func (s *service) executeQueuedPipelineRun(ctx context.Context, args jobs.Pipeli
 					return err
 				}
 				if startedAt.After(root.StartedAt.Add(time.Duration(*snapshot.RetryPolicy.MaxElapsedSeconds) * time.Second)) {
-					refusal = xerror.InvalidInput(xerror.PipelineRun).Detail("completion retry elapsed-time cap exceeded")
+					refusal = ErrRetryElapsed
 				}
 			}
 		}
@@ -2673,7 +2674,7 @@ func (s *service) executeQueuedPipelineRun(ctx context.Context, args jobs.Pipeli
 				slog.String("environment_slug", args.EnvironmentSlug.String()),
 				slog.String("pipeline_slug", args.PipelineSlug.String()),
 				slog.String("run_slug", args.RunSlug.String()),
-				slog.Any("error", err),
+				logging.ErrorAttr(err),
 			)
 			return nil
 		}
@@ -3196,9 +3197,10 @@ func (s *service) completeQueuedRunFailure(
 	runErr error,
 ) error {
 	endedAt := s.executionClock.Now().UTC()
-	errorSummary := strings.TrimSpace(runErr.Error())
-	if errorSummary == "" {
-		errorSummary = ErrPipelineExecutionFailed.Error()
+	errorSummary := ErrPipelineExecutionFailed.Message()
+	var typed *xerror.Error
+	if xerror.As(runErr, &typed) && typed != nil {
+		errorSummary = typed.Message()
 	}
 	failureKind := pipelineRunFailureKindPlatform
 	var failureSide *string
@@ -3503,7 +3505,7 @@ func (s *service) recordExecutionValidationFailure(
 			slog.String("project_slug", projectSlug.String()),
 			slog.String("environment_slug", environmentSlug.String()),
 			slog.String("pipeline_slug", pipelineSlug),
-			slog.Any("error", recordErr),
+			logging.ErrorAttr(recordErr),
 		)
 	}
 }
@@ -4016,7 +4018,7 @@ func (s *service) recordPipelineRunEvent(
 			slog.String("pipeline_slug", run.Metadata.PipelineSlug),
 			slog.String("run_slug", run.Metadata.RunSlug),
 			slog.String("event_slug", job.EventSlug.String()),
-			slog.Any("error", err),
+			logging.ErrorAttr(err),
 		)
 		return nil
 	}

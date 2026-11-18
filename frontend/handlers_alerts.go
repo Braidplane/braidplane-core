@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"log/slog"
 	"net/http"
 	"net/url"
 	"sort"
@@ -13,6 +14,7 @@ import (
 
 	api "github.com/Braidplane/braidplane-core/api-schema/gen/client"
 	"github.com/Braidplane/braidplane-core/frontend/views"
+	"github.com/Braidplane/braidplane-core/pkg/logging"
 	"github.com/Braidplane/braidplane-core/pkg/slug"
 	"github.com/Braidplane/braidplane-core/pkg/xerror"
 )
@@ -83,7 +85,7 @@ func (r *Router) handleAlertPolicySelectorOptions(c fiber.Ctx) error {
 	r.loadOperationalCapabilities(c, orgSlug.String())
 	dynamicOptions := views.AlertPolicyDynamicOptions{}
 	if views.AlertPolicyProjectScopeEnabled(formData) {
-		projects, status, errorResponse, projectErr := r.alertPolicyProjectOptionsViaAPI(
+		projects, status, _, projectErr := r.alertPolicyProjectOptionsViaAPI(
 			c.Context(),
 			c.Get(fiber.HeaderCookie),
 			orgSlug.String(),
@@ -95,8 +97,8 @@ func (r *Router) handleAlertPolicySelectorOptions(c fiber.Ctx) error {
 			r.logger.DebugContext(
 				c.Context(),
 				"alert policy projects unavailable",
-				"status", status,
-				"error", backendErrorDetails("list projects for alert policy selector", status, errorResponse, projectErr),
+				slog.Int("status", status),
+				logging.ErrorAttr(projectErr),
 			)
 			dynamicOptions.Projects = []views.AlertFormOption{}
 		} else {
@@ -105,7 +107,7 @@ func (r *Router) handleAlertPolicySelectorOptions(c fiber.Ctx) error {
 	}
 
 	if views.AlertPolicyEnvironmentScopeEnabled(formData) && strings.TrimSpace(formData.ProjectSlug) != "" {
-		environments, status, errorResponse, environmentErr := r.alertPolicyEnvironmentOptionsViaAPI(
+		environments, status, _, environmentErr := r.alertPolicyEnvironmentOptionsViaAPI(
 			c.Context(),
 			c.Get(fiber.HeaderCookie),
 			orgSlug.String(),
@@ -118,8 +120,8 @@ func (r *Router) handleAlertPolicySelectorOptions(c fiber.Ctx) error {
 			r.logger.DebugContext(
 				c.Context(),
 				"alert policy project environments unavailable",
-				"status", status,
-				"error", backendErrorDetails("list project environments for alert policy selector", status, errorResponse, environmentErr),
+				slog.Int("status", status),
+				logging.ErrorAttr(environmentErr),
 			)
 			dynamicOptions.Environments = []views.AlertFormOption{}
 		} else {
@@ -131,7 +133,7 @@ func (r *Router) handleAlertPolicySelectorOptions(c fiber.Ctx) error {
 		}
 	}
 
-	sourceMetadata, sourceRefs, status, errorResponse, sourceMetadataErr := r.alertPolicySourceMetadataViaAPI(
+	sourceMetadata, sourceRefs, status, _, sourceMetadataErr := r.alertPolicySourceMetadataViaAPI(
 		c.Context(),
 		c.Get(fiber.HeaderCookie),
 		orgSlug.String(),
@@ -144,8 +146,8 @@ func (r *Router) handleAlertPolicySelectorOptions(c fiber.Ctx) error {
 		r.logger.DebugContext(
 			c.Context(),
 			"alert policy source metadata unavailable",
-			"status", status,
-			"error", backendErrorDetails("list alert policy source metadata", status, errorResponse, sourceMetadataErr),
+			slog.Int("status", status),
+			logging.ErrorAttr(sourceMetadataErr),
 		)
 		dynamicOptions.SourceMetadata = []api.AlertPolicySourceMetadata{}
 		dynamicOptions.SourceRefs = []views.AlertFormOption{}

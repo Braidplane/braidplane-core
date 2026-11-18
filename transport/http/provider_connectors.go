@@ -15,6 +15,7 @@ import (
 	"github.com/Braidplane/braidplane-core/pkg/apierror"
 	workspace "github.com/Braidplane/braidplane-core/pkg/connector/googleworkspace"
 	"github.com/Braidplane/braidplane-core/pkg/domain/model"
+	"github.com/Braidplane/braidplane-core/pkg/logging"
 	"github.com/Braidplane/braidplane-core/pkg/slug"
 	"github.com/Braidplane/braidplane-core/pkg/xerror"
 	"github.com/Braidplane/braidplane-core/service/credentialssvc"
@@ -343,7 +344,7 @@ func (s *server) RefreshDataSourceProviderGrant(
 		s.eventActor(c),
 		model.EventActionRefresh,
 	); err != nil {
-		slog.WarnContext(c.Context(), "failed to record provider grant refresh event", "error", err)
+		slog.WarnContext(c.Context(), "failed to record provider grant refresh event", logging.ErrorAttr(err))
 	}
 	return c.JSON(credentialMetadataToHTTP(metadata))
 }
@@ -384,7 +385,7 @@ func (s *server) RevokeDataSourceProviderGrant(
 		s.eventActor(c),
 		model.EventActionRevoke,
 	); err != nil {
-		slog.WarnContext(c.Context(), "failed to record provider grant revoke event", "error", err)
+		slog.WarnContext(c.Context(), "failed to record provider grant revoke event", logging.ErrorAttr(err))
 	}
 	return c.JSON(credentialMetadataToHTTP(metadata))
 }

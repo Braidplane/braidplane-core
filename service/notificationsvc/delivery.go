@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"github.com/Braidplane/braidplane-core/pkg/domain/model"
+	"github.com/Braidplane/braidplane-core/pkg/logging"
 	"github.com/Braidplane/braidplane-core/pkg/slug"
 	"github.com/Braidplane/braidplane-core/pkg/xerror"
 	"github.com/Braidplane/braidplane-core/postgres"
@@ -99,7 +100,7 @@ func (s *service) DeliverNotification(ctx context.Context, params DeliverNotific
 		recipients, err := parseNotificationEmailRecipients(work.NonSecretConfig)
 		if err != nil {
 			slog.LogAttrs(ctx, slog.LevelWarn, "notification email destination config invalid",
-				append(deliveryWorkLogAttrs(work), slog.Any("error", err))...)
+				append(deliveryWorkLogAttrs(work), logging.ErrorAttr(err))...)
 			return reponotifications.DeliveryWork{}, nil
 		}
 

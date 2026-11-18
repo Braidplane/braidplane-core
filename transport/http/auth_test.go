@@ -94,7 +94,7 @@ func TestInitiateGoogleAuthUnavailable(t *testing.T) {
 	assert.Contains(t, string(body), "GOOGLE_AUTH_UNAVAILABLE")
 	assert.NotContains(t, string(body), "provider-access-secret")
 	assert.NotContains(t, string(body), "private-issuer.invalid")
-	assert.Contains(t, logs.String(), `"error.category":"dns"`)
+	assert.Contains(t, logs.String(), `"error.category":"dns_error"`)
 	assert.NotContains(t, logs.String(), "private-issuer.invalid")
 	assert.NotContains(t, logs.String(), "provider-access-secret")
 }
@@ -107,10 +107,10 @@ func TestGoogleAuthFailureCategoryIsBounded(t *testing.T) {
 		want string
 	}{
 		{"cancelled", context.Canceled, "request_canceled"},
-		{"deadline", context.DeadlineExceeded, "timeout"},
-		{"dns", &net.DNSError{Err: "opaque-provider-secret"}, "dns"},
-		{"tls", &tls.CertificateVerificationError{Err: fmt.Errorf("opaque-provider-secret")}, "tls"},
-		{"network", &net.OpError{Err: fmt.Errorf("opaque-provider-secret")}, "network"},
+		{"deadline", context.DeadlineExceeded, "deadline_exceeded"},
+		{"dns", &net.DNSError{Err: "opaque-provider-secret"}, "dns_error"},
+		{"tls", &tls.CertificateVerificationError{Err: fmt.Errorf("opaque-provider-secret")}, "tls_error"},
+		{"network", &net.OpError{Err: fmt.Errorf("opaque-provider-secret")}, "network_error"},
 		{"configuration", xerror.ValidationFailed(), "configuration"},
 		{"unknown", fmt.Errorf("opaque-provider-secret"), "provider_discovery"},
 	} {

@@ -10,6 +10,7 @@ import (
 	api "github.com/Braidplane/braidplane-core/api-schema/gen/server"
 	"github.com/Braidplane/braidplane-core/pkg/apierror"
 	"github.com/Braidplane/braidplane-core/pkg/domain/model"
+	"github.com/Braidplane/braidplane-core/pkg/logging"
 	"github.com/Braidplane/braidplane-core/pkg/slug"
 	"github.com/Braidplane/braidplane-core/pkg/xerror"
 	"github.com/Braidplane/braidplane-core/service/datasourcessvc"
@@ -621,7 +622,7 @@ func (s *server) IntrospectDataSourceSchema(
 
 	resp, err := schemaResultToHTTP(schema)
 	if err != nil {
-		slog.Error("failed to map schema result", "error", err)
+		slog.Error("failed to map schema result", logging.ErrorAttr(err))
 		return apierror.ValidationFailed("Invalid data source type")
 	}
 
@@ -996,13 +997,13 @@ func dataSourceToHTTP(ds *datasourcessvc.DataSource) api.DataSource {
 	resp.SchemaDiagnostic = schemaImportDiagnosticToHTTP(ds.SchemaImportDiagnostic)
 	// Set the polymorphic Config field from raw message bytes
 	if err := resp.Config.UnmarshalJSON(ds.Config); err != nil {
-		slog.Error("failed to unmarshal data source config", "error", err)
+		slog.Error("failed to unmarshal data source config", logging.ErrorAttr(err))
 	}
 	schema := ds.Schema
 	if schema == nil {
 		empty, err := emptySchemaResponseForDataSourceType(ds.Type)
 		if err != nil {
-			slog.Error("failed to map empty data source schema", "error", err)
+			slog.Error("failed to map empty data source schema", logging.ErrorAttr(err))
 			if resp.SchemaStatus != api.DataSourceSchemaStatusFailed {
 				resp.SchemaStatus = api.DataSourceSchemaStatusFailed
 			}
@@ -1015,7 +1016,7 @@ func dataSourceToHTTP(ds *datasourcessvc.DataSource) api.DataSource {
 
 	mapped, err := schemaResultToHTTP(schema)
 	if err != nil {
-		slog.Error("failed to map cached data source schema", "error", err)
+		slog.Error("failed to map cached data source schema", logging.ErrorAttr(err))
 		if resp.SchemaStatus != api.DataSourceSchemaStatusFailed {
 			resp.SchemaStatus = api.DataSourceSchemaStatusFailed
 		}

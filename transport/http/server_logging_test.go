@@ -21,6 +21,6 @@ func TestAuthorizationErrorAttrsIncludeRequestContext(t *testing.T) {
 		byKey[attr.Key] = attr
 	}
 
-	require.Contains(t, byKey, "error")
+	require.Equal(t, "error", byKey["error.type"].Value.String())
 	require.Equal(t, "req-123", byKey["request_id"].Value.String())
 }

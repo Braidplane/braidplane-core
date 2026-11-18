@@ -8,6 +8,7 @@ import (
 	"github.com/riverqueue/river"
 
 	"github.com/Braidplane/braidplane-core/pkg/crypto"
+	"github.com/Braidplane/braidplane-core/pkg/logging"
 	"github.com/Braidplane/braidplane-core/pkg/xerror"
 	"github.com/Braidplane/braidplane-core/service/email"
 	"github.com/Braidplane/braidplane-core/service/notificationsvc"
@@ -116,14 +117,14 @@ func (w *emailSendWorker) Work(
 	}
 	if err != nil {
 		if markErr := w.recordAlertDeliveryAttemptFailed(ctx, job, args, err); markErr != nil {
-			w.logger.ErrorContext(ctx, "alert delivery attempt failure diagnostic update failed", slog.Any("error", markErr))
+			w.logger.ErrorContext(ctx, "alert delivery attempt failure diagnostic update failed", logging.ErrorAttr(markErr))
 		}
-		w.logger.ErrorContext(ctx, "email send job failed", slog.Any("error", err))
+		w.logger.ErrorContext(ctx, "email send job failed", logging.ErrorAttr(err))
 		return err
 	}
 
 	if err := w.recordAlertDeliveryAttemptSent(ctx, job, args); err != nil {
-		w.logger.ErrorContext(ctx, "alert delivery attempt success diagnostic update failed", slog.Any("error", err))
+		w.logger.ErrorContext(ctx, "alert delivery attempt success diagnostic update failed", logging.ErrorAttr(err))
 	}
 	w.logger.InfoContext(ctx, "email send job succeeded")
 	return nil

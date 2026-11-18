@@ -242,7 +242,11 @@ func TestWorkerHostEmailWorkerFailureLeavesJobRetryable(t *testing.T) { // Real 
 	job := waitForRiverJobState(t, ctx, pool, emailQueue, jobs.EmailSendArgs{}.Kind(), argsFilter, "retryable")
 	require.Equal(t, "retryable", job.state)
 	require.Equal(t, 1, job.attempt)
-	require.Contains(t, job.errorsJSON, "connect")
+	var attempts []rivertype.AttemptError
+	require.NoError(t, json.Unmarshal([]byte(job.errorsJSON), &attempts))
+	require.Len(t, attempts, 1)
+	require.Equal(t, xerror.Unexpected().Code(), attempts[0].Error)
+	require.Empty(t, attempts[0].Trace)
 }
 
 func TestWorkerHostPipelineGitProducerCommittedJobExecutes(t *testing.T) { // Real River/Postgres/SMTP E2E uses shared external state.

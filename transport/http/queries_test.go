@@ -1983,7 +1983,7 @@ func TestExecutionResultToHTTP_FTPNilPayloadOnError(t *testing.T) {
 	require.NoError(t, err)
 	assert.False(t, ftpResp.Success)
 	require.NotNil(t, ftpResp.Error)
-	assert.Equal(t, "ftp read failed", *ftpResp.Error)
+	assert.Equal(t, "error", *ftpResp.Error)
 	assert.Equal(t, api.FTPExecutionResultPayloadOperationRead, ftpResp.Payload.Operation)
 	assert.Equal(t, api.FTPExecutionResultPayloadFormatJson, ftpResp.Payload.Format)
 }
@@ -2033,7 +2033,7 @@ func TestExecutionResultToHTTP_S3NilPayloadOnError(t *testing.T) {
 	require.NoError(t, err)
 	assert.False(t, s3Resp.Success)
 	require.NotNil(t, s3Resp.Error)
-	assert.Equal(t, "s3 read failed", *s3Resp.Error)
+	assert.Equal(t, "error", *s3Resp.Error)
 	assert.Equal(t, api.S3ExecutionResultPayloadOperationRead, s3Resp.Payload.Operation)
 	assert.Equal(t, api.S3ExecutionResultPayloadFormatJson, s3Resp.Payload.Format)
 }
@@ -2051,7 +2051,7 @@ func TestExecutionResultToHTTP_ObjectRowsNilPayloadOnError(t *testing.T) {
 	assert.False(t, objectRowsResp.Success)
 	assert.Equal(t, "hubspot", objectRowsResp.Type)
 	require.NotNil(t, objectRowsResp.Error)
-	assert.Equal(t, "hubspot request failed", *objectRowsResp.Error)
+	assert.Equal(t, "error", *objectRowsResp.Error)
 	assert.Empty(t, objectRowsResp.Payload.ObjectType)
 	assert.Empty(t, objectRowsResp.Payload.ColumnNames)
 	assert.Empty(t, objectRowsResp.Payload.Rows)
@@ -2072,7 +2072,7 @@ func TestStoredExecutionResultToHTTP_FTPNilPayloadOnError(t *testing.T) {
 	require.NoError(t, err)
 	assert.False(t, ftpResp.Success)
 	require.NotNil(t, ftpResp.Error)
-	assert.Equal(t, "ftp write failed", *ftpResp.Error)
+	assert.Equal(t, "error", *ftpResp.Error)
 	assert.Equal(t, api.FTPExecutionResultPayloadOperationRead, ftpResp.Payload.Operation)
 	assert.Equal(t, api.FTPExecutionResultPayloadFormatJson, ftpResp.Payload.Format)
 }
@@ -2090,7 +2090,7 @@ func TestStoredExecutionResultToHTTP_S3NilPayloadOnError(t *testing.T) {
 	require.NoError(t, err)
 	assert.False(t, s3Resp.Success)
 	require.NotNil(t, s3Resp.Error)
-	assert.Equal(t, "s3 write failed", *s3Resp.Error)
+	assert.Equal(t, "error", *s3Resp.Error)
 	assert.Equal(t, api.S3ExecutionResultPayloadOperationRead, s3Resp.Payload.Operation)
 	assert.Equal(t, api.S3ExecutionResultPayloadFormatJson, s3Resp.Payload.Format)
 }
@@ -2111,7 +2111,7 @@ func TestStoredExecutionResultToHTTP_ObjectRowsNilPayloadOnError(t *testing.T) {
 	assert.False(t, objectRowsResp.Success)
 	assert.Equal(t, "hubspot", objectRowsResp.Type)
 	require.NotNil(t, objectRowsResp.Error)
-	assert.Equal(t, "hubspot rate limit exceeded", *objectRowsResp.Error)
+	assert.Equal(t, "error", *objectRowsResp.Error)
 	assert.Empty(t, objectRowsResp.Payload.ObjectType)
 	assert.Empty(t, objectRowsResp.Payload.ColumnNames)
 	assert.Empty(t, objectRowsResp.Payload.Rows)
@@ -2242,7 +2242,7 @@ func TestExecutionResultToHTTP_WorkspaceNilPayload(t *testing.T) {
 	payload, err := apiResult.AsWorkspaceFileExecutionResult()
 	require.NoError(t, err)
 	require.False(t, payload.Success)
-	require.Equal(t, "file read failed", *payload.Error)
+	require.Equal(t, "error", *payload.Error)
 }
 
 func TestAPIDecimalContractRoundTrip(t *testing.T) {

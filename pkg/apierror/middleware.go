@@ -2,7 +2,7 @@ package apierror
 
 import (
 	"encoding/json"
-	"log/slog"
+	"net/http"
 	"strings"
 
 	"github.com/go-playground/validator/v10"
@@ -11,6 +11,11 @@ import (
 	"github.com/Braidplane/braidplane-core/pkg/reqctx"
 	"github.com/Braidplane/braidplane-core/pkg/xerror"
 )
+
+// RecoverPanic discards the panic value and returns a fixed server error.
+func RecoverPanic(_ fiber.Ctx, _ any) error {
+	return InternalServerError()
+}
 
 // Middleware is a Fiber middleware that converts errors to structured API responses
 func Middleware() fiber.ErrorHandler {
@@ -43,7 +48,7 @@ func Middleware() fiber.ErrorHandler {
 					{
 						Field:   jsonErr.Field,
 						Code:    CodeValidationInvalidFormat,
-						Message: "Expected " + jsonErr.Type.String() + " but got " + jsonErr.Value,
+						Message: "Unexpected JSON value type",
 					},
 				}).
 				withRequestID(requestID)
@@ -65,19 +70,17 @@ func Middleware() fiber.ErrorHandler {
 			// Most Fiber errors from generated code are parameter parsing errors
 			switch fiberErr.Code {
 			case fiber.StatusBadRequest:
-				apiErr = ValidationFailed(fiberErr.Message).
-					withMessage(fiberErr.Message)
+				apiErr = ValidationFailed("Request validation failed")
 			case fiber.StatusUnauthorized:
-				apiErr = Unauthorized().
-					withMessage(fiberErr.Message)
+				apiErr = Unauthorized()
 			case fiber.StatusForbidden:
-				apiErr = New(fiber.StatusForbidden, CodeAuthForbidden, fiberErr.Message)
+				apiErr = New(fiber.StatusForbidden, CodeAuthForbidden, http.StatusText(fiberErr.Code))
 			case fiber.StatusNotFound:
 				apiErr = New(fiber.StatusNotFound, CodeInternalServerError, "Resource not found")
 			case fiber.StatusMethodNotAllowed:
-				apiErr = New(fiber.StatusMethodNotAllowed, CodeMethodNotAllowed, fiberErr.Message)
+				apiErr = New(fiber.StatusMethodNotAllowed, CodeMethodNotAllowed, http.StatusText(fiberErr.Code))
 			default:
-				apiErr = New(fiberErr.Code, CodeInternalServerError, fiberErr.Message)
+				apiErr = New(fiberErr.Code, CodeInternalServerError, http.StatusText(fiberErr.Code))
 			}
 
 			apiErr = apiErr.withRequestID(requestID)
@@ -91,9 +94,7 @@ func Middleware() fiber.ErrorHandler {
 			return c.Status(apiErr.HTTPStatus).JSON(ErrorResponse{Error: apiErr})
 		}
 
-		// Unknown error - log and return generic error
-		slog.Error("unhandled error", "error", err, "request_id", requestID)
-
+		// HTTP request completion records the classification.
 		apiErr = InternalServerError().
 			withRequestID(requestID)
 		return c.Status(apiErr.HTTPStatus).JSON(ErrorResponse{Error: apiErr})
@@ -163,7 +164,6 @@ func validationErrorCode(err validator.FieldError) string {
 	case "datetime":
 		return CodeDatetimeInvalid
 	default:
-		slog.Error("unhandled validator tag", "tag", err.Tag(), "field", err.Field())
 		return CodeValidationInvalidFormat
 	}
 }
@@ -200,7 +200,6 @@ func validationErrorMessage(err validator.FieldError) string {
 	case "datetime":
 		return "Invalid date/time format"
 	default:
-		slog.Error("unhandled validator tag", "tag", err.Tag(), "field", err.Field())
 		return field + " validation failed"
 	}
 }

@@ -470,10 +470,7 @@ func (s *server) eventActor(c fiber.Ctx) model.EventActor {
 }
 
 func authorizationErrorAttrs(ctx context.Context, err error) []slog.Attr {
-	return append(
-		[]slog.Attr{slog.Any("error", err)},
-		obslogging.ContextAttrs(ctx)...,
-	)
+	return append(obslogging.ContextAttrs(ctx), obslogging.ErrorAttrs(err)...)
 }
 
 // Sessions exposes the shared browser state to distribution route composition.

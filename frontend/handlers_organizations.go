@@ -14,6 +14,7 @@ import (
 
 	api "github.com/Braidplane/braidplane-core/api-schema/gen/client"
 	"github.com/Braidplane/braidplane-core/frontend/views"
+	"github.com/Braidplane/braidplane-core/pkg/logging"
 	"github.com/Braidplane/braidplane-core/pkg/reqctx"
 	"github.com/Braidplane/braidplane-core/pkg/slug"
 	"github.com/Braidplane/braidplane-core/pkg/xerror"
@@ -2057,9 +2058,9 @@ func (r *Router) handleCreateOrganizationSubmit(c fiber.Ctx) error {
 			r.sessionStore,
 			newOrgSlug,
 		); setErr != nil {
-			r.logger.Error(
+			r.logger.ErrorContext(c.Context(),
 				"failed to set active organization in session",
-				slog.Any("error", setErr),
+				logging.ErrorAttr(setErr),
 			)
 		}
 	}
@@ -2107,16 +2108,15 @@ func (r *Router) handleSwitchOrganization(c fiber.Ctx) error {
 	}
 
 	returnTo := resolvePostLoginRedirect(c.Query("return_to"))
-	canSelect, status, errorResponse, err := r.userCanSelectOrganization(c, orgSlug)
+	canSelect, status, _, err := r.userCanSelectOrganization(c, orgSlug)
 	if err != nil {
 		if status == fiber.StatusUnauthorized {
 			return redirectToLogin(c, c.OriginalURL())
 		}
-		r.logger.Error(
+		r.logger.ErrorContext(c.Context(),
 			"failed to verify organization switch membership",
 			slog.Int("status", status),
-			slog.String("details", errorPopupDetails(errorResponse, "")),
-			slog.Any("error", err),
+			logging.ErrorAttr(err),
 		)
 		return c.Status(fiber.StatusInternalServerError).SendString("failed to switch organization")
 	}
@@ -2125,7 +2125,7 @@ func (r *Router) handleSwitchOrganization(c fiber.Ctx) error {
 	}
 
 	if err := reqctx.SetActiveOrganizationSlug(c, r.sessionStore, orgSlug); err != nil {
-		r.logger.Error("failed to set active organization", slog.Any("error", err))
+		r.logger.ErrorContext(c.Context(), "failed to set active organization", logging.ErrorAttr(err))
 		return c.Status(fiber.StatusInternalServerError).SendString("failed to switch organization")
 	}
 

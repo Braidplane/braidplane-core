@@ -3,6 +3,7 @@ package logging
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"io"
 	"log/slog"
 	"net/http"
@@ -14,6 +15,7 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/require"
+	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/trace"
 	collectorlogsv1 "go.opentelemetry.io/proto/otlp/collector/logs/v1"
 	commonv1 "go.opentelemetry.io/proto/otlp/common/v1"
@@ -321,4 +323,21 @@ func TestEmptyEndpointIgnoresAmbientOTLPExportSettings(t *testing.T) {
 	require.Zero(t, calls.Load(), "an empty application endpoint must disable log exports")
 	entry := readSingleJSONLogEntry(t, path)
 	require.Equal(t, "local-only synthetic record", entry["msg"])
+}
+
+func TestSDKErrorHandlerUsesOnlyLocalClassification(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "frontend.log")
+	_, closer, err := Setup(Config{
+		Level: "info", FilePath: path, RotationInterval: time.Hour, HandleSDKErrors: true,
+	}, "frontend")
+	require.NoError(t, err)
+	otel.Handle(fmt.Errorf("collector-response-canary: %w", context.DeadlineExceeded))
+	require.NoError(t, closer.Close())
+
+	entry := readSingleJSONLogEntry(t, path)
+	require.Equal(t, "OpenTelemetry SDK error", entry["msg"])
+	require.Equal(t, "deadline_exceeded", entry["error.type"])
+	content, err := os.ReadFile(path)
+	require.NoError(t, err)
+	require.NotContains(t, string(content), "collector-response-canary")
 }

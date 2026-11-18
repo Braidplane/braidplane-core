@@ -126,7 +126,7 @@ Non-local startup checks:
 
 - Backend and standalone frontend reject local, loopback, or wildcard database hosts, empty database credentials, and `postgres`/`postgres` credentials.
 - Staging and production require `database.ssl_mode` to be `require`, `verify-ca` or `verify-full`, including databases on private networks. The `self-hosted` profile requires `verify-full`; supply the customer CA through `database.ssl_root_cert` when needed.
-- Backend and standalone frontend require secure session cookies and reject debug logging plus full HTTP request/response body logging.
+- Backend and standalone frontend require secure session cookies and reject debug logging and HTTP request-start logging.
 - Backend requires `frontend_url`, `auth.google_redirect_uri`, and the CORS origin to use HTTPS. Staging and production require public origins. The `self-hosted` profile permits operator-configured private IP application and documentation origins; local, loopback and wildcard hosts remain rejected. The Google redirect URI must use the same origin as `frontend_url` and end with `/api/auth/google/callback`; `cors.allowed_origins` must contain exactly that application origin.
 - Backend requires `server.drain_timeout` to be greater than `0s` outside local development so readiness can turn not-ready before the listener starts graceful shutdown.
 - Backend rejects local SMTP hosts, `smtp.insecure_skip_verify = true`, missing or repository-default no-reply addresses, and development no-reply placeholders.
@@ -511,7 +511,7 @@ settings below. Keep passwords in the protected process environment. The
 | Backend File | `logging.backend_file` | `LOG_BACKEND_FILE` | `--log-backend-file` | `logs/backend.log` | string | Backend log file path. Owned by the backend process. Empty disables backend file logging. |
 | Frontend File | `logging.frontend_file` | `LOG_FRONTEND_FILE` | `--log-frontend-file` | `logs/frontend.log` | string | Standalone frontend log file path. Owned by the standalone frontend process. Empty disables frontend file logging. |
 | Rotation Interval | `logging.rotation_interval` | `LOG_ROTATION_INTERVAL` | `--log-rotation-interval` | `1h` | duration | Log file rotation interval (e.g., 1h, 24h) |
-| Log HTTP Requests | `logging.log_http_requests` | `LOG_HTTP_REQUESTS` | `--log-http-requests` | `true` | bool | Log full HTTP request/response bodies |
+| Log HTTP Requests | `logging.log_http_requests` | `LOG_HTTP_REQUESTS` | `--log-http-requests` | `true` | bool | Log HTTP request metadata at debug level |
 | Max File Size (MB) | `logging.max_file_size_mb` | `LOG_MAX_FILE_SIZE_MB` | `--log-max-file-size-mb` | `100` | int | Maximum log file size in MB before rotation |
 | Environment | `logging.environment` | `LOG_ENVIRONMENT` | `--log-environment` | `local` | string | Deployment environment included in structured log records |
 | OTLP Logs Endpoint | `logging.otlp_logs_endpoint` | `LOG_OTLP_LOGS_ENDPOINT` | `--log-otlp-logs-endpoint` | `` | string | Full OTLP/HTTP logs endpoint (empty disables direct log export) |

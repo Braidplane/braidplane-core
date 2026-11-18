@@ -2,7 +2,6 @@ package frontend
 
 import (
 	"context"
-	"log/slog"
 	"net/http"
 	"strings"
 	"time"
@@ -11,6 +10,7 @@ import (
 
 	api "github.com/Braidplane/braidplane-core/api-schema/gen/client"
 	"github.com/Braidplane/braidplane-core/frontend/views"
+	"github.com/Braidplane/braidplane-core/pkg/logging"
 	"github.com/Braidplane/braidplane-core/pkg/slug"
 	"github.com/Braidplane/braidplane-core/pkg/xerror"
 )
@@ -130,7 +130,7 @@ func (r *Router) handleSecurityAuditEventsExport(c fiber.Ctx) error {
 		wrapped := xerror.Unexpected().With(err)
 		r.logger.Error(
 			"security audit export failed",
-			slog.Any("error", wrapped),
+			logging.ErrorAttr(wrapped),
 		)
 		return c.Status(fiber.StatusInternalServerError).SendString("Unable to export security audit events.")
 	}

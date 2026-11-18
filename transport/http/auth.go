@@ -1,11 +1,8 @@
 package http
 
 import (
-	"context"
-	"crypto/tls"
 	"encoding/json"
 	"log/slog"
-	"net"
 	"net/url"
 	"time"
 
@@ -15,6 +12,7 @@ import (
 	"github.com/Braidplane/braidplane-core/pkg/apierror"
 	"github.com/Braidplane/braidplane-core/pkg/domain/model"
 	"github.com/Braidplane/braidplane-core/pkg/httpsecurity"
+	"github.com/Braidplane/braidplane-core/pkg/logging"
 	"github.com/Braidplane/braidplane-core/pkg/oauthflow"
 	"github.com/Braidplane/braidplane-core/pkg/reqctx"
 	"github.com/Braidplane/braidplane-core/pkg/xerror"
@@ -71,7 +69,7 @@ func (s *server) initiateGoogleAuth(c fiber.Ctx) error {
 	// Generate a random state for CSRF protection
 	state, err := oauthflow.RandomState()
 	if err != nil {
-		slog.Error("Failed to generate OAuth state", slog.Any("error", err))
+		slog.Error("Failed to generate OAuth state", logging.ErrorAttr(err))
 		return apierror.InternalServerError()
 	}
 	authURL, err := s.oidcService.GetAuthURL(c.Context(), state, s.googleRedirectURI)
@@ -83,7 +81,7 @@ func (s *server) initiateGoogleAuth(c fiber.Ctx) error {
 	// Store state in session for validation in callback
 	sess, err := s.sessionStore.Get(c)
 	if err != nil {
-		slog.Error("Failed to get session", slog.Any("error", err))
+		slog.Error("Failed to get session", logging.ErrorAttr(err))
 		return apierror.InternalServerError()
 	}
 	defer sess.Release()
@@ -95,7 +93,7 @@ func (s *server) initiateGoogleAuth(c fiber.Ctx) error {
 	sess.Set("oauth_return_to", c.Query("return_to", "/dashboard"))
 
 	if err := sess.Save(); err != nil {
-		slog.Error("Failed to save session", slog.Any("error", err))
+		slog.Error("Failed to save session", logging.ErrorAttr(err))
 		return apierror.InternalServerError()
 	}
 
@@ -105,26 +103,9 @@ func (s *server) initiateGoogleAuth(c fiber.Ctx) error {
 
 // Only bounded classifications cross into logs; discovery errors can contain provider text.
 func googleAuthFailureCategory(err error) string {
-	if xerror.Is(err, context.Canceled) {
-		return "request_canceled"
-	}
-	if xerror.Is(err, context.DeadlineExceeded) {
-		return "timeout"
-	}
-	var dns *net.DNSError
-	if xerror.As(err, &dns) {
-		return "dns"
-	}
-	var certificate *tls.CertificateVerificationError
-	if xerror.As(err, &certificate) {
-		return "tls"
-	}
-	var network net.Error
-	if xerror.As(err, &network) {
-		if network.Timeout() {
-			return "timeout"
-		}
-		return "network"
+	_, _, category := xerror.Classify(err)
+	if category != "" {
+		return category
 	}
 	if xerror.Is(err, xerror.ValidationFailed()) {
 		return "configuration"
@@ -138,7 +119,7 @@ func (s *server) HandleGoogleCallback(c fiber.Ctx, params api.HandleGoogleCallba
 	// Get session to validate state
 	sess, err := s.sessionStore.Get(c)
 	if err != nil {
-		slog.Error("Failed to get session", slog.Any("error", err))
+		slog.Error("Failed to get session", logging.ErrorAttr(err))
 		logAuthSecurityEvent(c, s.sessionStore, slog.Default(), slog.LevelWarn, "auth.oauth.callback.failed", "error", fiber.StatusFound, "")
 		errorURL := s.frontendURL + "/auth/error?error=session_error"
 		return c.Redirect().Status(fiber.StatusFound).To(errorURL)
@@ -172,7 +153,7 @@ func (s *server) HandleGoogleCallback(c fiber.Ctx, params api.HandleGoogleCallba
 
 	// Check if Google returned an error
 	if params.Error != nil && *params.Error != "" {
-		slog.Warn("Google OAuth error", slog.String("error", *params.Error))
+		slog.WarnContext(c.Context(), "Google OAuth provider rejected authorization")
 		logAuthSecurityEvent(c, s.sessionStore, slog.Default(), slog.LevelWarn, "auth.oauth.callback.failed", "error", fiber.StatusFound, "")
 		// Redirect to frontend error page
 		errorURL := s.frontendURL + "/auth/error?error=" + url.QueryEscape(*params.Error)
@@ -194,7 +175,7 @@ func (s *server) HandleGoogleCallback(c fiber.Ctx, params api.HandleGoogleCallba
 		s.googleRedirectURI,
 	)
 	if err != nil {
-		slog.Error("Failed to exchange authorization code", slog.Any("error", err))
+		slog.Error("Failed to exchange authorization code", logging.ErrorAttr(err))
 		logAuthSecurityEvent(c, s.sessionStore, slog.Default(), slog.LevelWarn, "auth.oauth.callback.failed", "error", fiber.StatusFound, "")
 		errorURL := s.frontendURL + "/auth/error?error=authentication_failed"
 		return c.Redirect().Status(fiber.StatusFound).To(errorURL)
@@ -260,7 +241,7 @@ func (s *server) HandleGoogleCallback(c fiber.Ctx, params api.HandleGoogleCallba
 			}
 			return c.Redirect().Status(fiber.StatusFound).To(s.frontendURL + "/auth/signup?return_to=" + url.QueryEscape(returnTo))
 		}
-		slog.Error("Failed to login/create OIDC user", slog.Any("error", err))
+		slog.Error("Failed to login/create OIDC user", logging.ErrorAttr(err))
 		logAuthSecurityEvent(c, s.sessionStore, slog.Default(), slog.LevelWarn, "auth.oauth.callback.failed", "error", fiber.StatusFound, "")
 		errorURL := s.frontendURL + "/auth/error?error=authentication_failed"
 		return c.Redirect().Status(fiber.StatusFound).To(errorURL)
@@ -277,7 +258,7 @@ func (s *server) completeGoogleSignup(c fiber.Ctx, identity *model.OIDCUserInfo,
 			code = "email_already_exists"
 			slog.Warn("OIDC email already registered")
 		} else {
-			slog.Error("Failed to create OIDC user from pending signup", slog.Any("error", err))
+			slog.Error("Failed to create OIDC user from pending signup", logging.ErrorAttr(err))
 		}
 		logAuthSecurityEvent(c, s.sessionStore, slog.Default(), slog.LevelWarn, "auth.oauth.callback.failed", "error", fiber.StatusFound, "")
 		return c.Redirect().Status(fiber.StatusFound).To(s.frontendURL + "/auth/error?error=" + code)
@@ -291,7 +272,7 @@ func (s *server) finishGoogleAuthentication(c fiber.Ctx, user *model.User, retur
 	}
 	// Rotate the pre-auth session before storing authenticated state.
 	if err := reqctx.ResetAndSetAuthenticatedUser(c, s.sessionStore, user.Slug, user.AuthenticationVersion, false); err != nil {
-		slog.Error("Failed to save session", slog.Any("error", err))
+		slog.Error("Failed to save session", logging.ErrorAttr(err))
 		errorURL := s.frontendURL + "/auth/error?error=session_error"
 		return c.Redirect().Status(fiber.StatusFound).To(errorURL)
 	}

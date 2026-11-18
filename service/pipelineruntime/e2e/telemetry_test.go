@@ -438,7 +438,7 @@ func newPipelineEmitter(t *testing.T, endpoint string) (func(string, bool), func
 		logging.LogMethodCompletion(ctx, logger, logging.MethodCompletion{Layer: "service", Package: "qualification", Method: "Run", StartedAt: started})
 		privateErr := xerror.Unexpected().Detail("password=" + canary)
 		tracing.RecordError(span, privateErr)
-		logging.LogError(ctx, "synthetic failure", privateErr, canary)
+		logging.LogError(ctx, "synthetic failure", privateErr)
 		span.End()
 		require.Less(t, time.Since(started), 2*time.Second, "telemetry must not block pipeline execution")
 	}

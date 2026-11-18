@@ -129,8 +129,7 @@ func newFileResult(
 }
 
 // UnmarshalJSON restores the discriminated result envelope used by persisted
-// worker execution responses. Error text is carried only inside the encrypted
-// response payload; callers must not log the raw envelope.
+// worker execution responses. Older stored results may contain error text.
 func (r *ExecutionResult) UnmarshalJSON(data []byte) error {
 	var envelope struct {
 		ResultType    ExecutionResultType `json:"result_type"`
@@ -265,7 +264,7 @@ func (r *ExecutionResult) IsSuccess() bool           { return r.err == nil }
 func (r *ExecutionResult) MarshalJSON() ([]byte, error) {
 	var errMsg *string
 	if r.err != nil {
-		msg := r.err.Error()
+		msg, _, _ := xerror.Classify(r.err)
 		errMsg = &msg
 	}
 

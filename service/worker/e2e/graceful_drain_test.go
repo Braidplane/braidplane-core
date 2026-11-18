@@ -2,6 +2,7 @@ package e2e
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"log/slog"
 	"sync"
@@ -10,9 +11,11 @@ import (
 
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/riverqueue/river"
+	"github.com/riverqueue/river/rivertype"
 	"github.com/stretchr/testify/require"
 
 	"github.com/Braidplane/braidplane-core/pkg/queue"
+	"github.com/Braidplane/braidplane-core/pkg/xerror"
 	"github.com/Braidplane/braidplane-core/postgres"
 )
 
@@ -120,6 +123,46 @@ func TestRiverGracefulDrainWaitsForRunningJobAndLeavesQueuedJobForReplacement(t 
 	err = pool.QueryRow(ctx, "SELECT count(*) FROM "+effectTable).Scan(&effects)
 	require.NoError(t, err)
 	require.Equal(t, 2, effects)
+}
+
+func TestRiverCancellationRetainsOnlySafeAttemptCode(t *testing.T) {
+	if testing.Short() {
+		t.Skip("requires the local River/PostgreSQL fixture")
+	}
+
+	const canary = "opaque-canceled-worker-canary"
+	ctx, cancel := context.WithTimeout(t.Context(), 20*time.Second)
+	defer cancel()
+	pool := openWorkerE2EPool(t)
+	queueName := uniqueWorkerE2EQueue("safe_cancel")
+	cleanupRiverJobsByArgs(t, pool, queueName, riverDrainArgs{}.Kind(), map[string]any{"name": "cancel"})
+
+	workers := river.NewWorkers()
+	require.NoError(t, river.AddWorkerSafely(workers, river.WorkFunc(func(context.Context, *river.Job[riverDrainArgs]) error {
+		return river.JobCancel(xerror.Unexpected().Detail(canary))
+	})))
+	client, err := queue.New(pool, &queue.Config{
+		Logger:  slog.New(slog.DiscardHandler),
+		Queues:  map[string]river.QueueConfig{queueName: {MaxWorkers: 1}},
+		Workers: workers,
+	})
+	require.NoError(t, err)
+	require.NoError(t, client.Start(ctx))
+	t.Cleanup(func() {
+		stopCtx, stop := context.WithTimeout(context.Background(), 5*time.Second)
+		defer stop()
+		require.NoError(t, client.Stop(stopCtx))
+	})
+
+	job := enqueueRiverDrainJob(t, ctx, pool, client, queueName, "cancel", false)
+	result := waitForRiverDrainJob(t, ctx, pool, job.ID, "cancelled")
+	require.Equal(t, 1, result.attempt)
+	var attempts []rivertype.AttemptError
+	require.NoError(t, json.Unmarshal([]byte(result.errorsJSON), &attempts))
+	require.Len(t, attempts, 1)
+	require.Equal(t, xerror.Unexpected().Code(), attempts[0].Error)
+	require.Empty(t, attempts[0].Trace)
+	require.NotContains(t, result.errorsJSON, canary)
 }
 
 type riverDrainArgs struct {

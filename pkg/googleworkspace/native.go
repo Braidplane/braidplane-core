@@ -5,12 +5,13 @@ import (
 	"encoding/json"
 	"net/http"
 
-	workspace "github.com/Braidplane/braidplane-core/pkg/connector/googleworkspace"
-	"github.com/Braidplane/braidplane-core/pkg/googleclient"
-	"github.com/Braidplane/braidplane-core/pkg/xerror"
 	"google.golang.org/api/docs/v1"
 	"google.golang.org/api/drive/v3"
 	"google.golang.org/api/slides/v1"
+
+	workspace "github.com/Braidplane/braidplane-core/pkg/connector/googleworkspace"
+	"github.com/Braidplane/braidplane-core/pkg/googleclient"
+	"github.com/Braidplane/braidplane-core/pkg/xerror"
 )
 
 // ReadNative retains the native structure, including every Google Docs tab.
@@ -21,7 +22,7 @@ func (c *Client) ReadNative(ctx context.Context, resource, id string, limits Lim
 	if resource == "document" {
 		doc, err := read(ctx, limits, func(ctx context.Context) (*docs.Document, error) {
 			return c.docs.Documents.Get(id).IncludeTabsContent(true).Context(ctx).Do()
-		}, c.credentials.AccessToken)
+		})
 		if err != nil {
 			return nil, err
 		}
@@ -32,7 +33,7 @@ func (c *Client) ReadNative(ctx context.Context, resource, id string, limits Lim
 	}
 	presentation, err := read(ctx, limits, func(ctx context.Context) (*slides.Presentation, error) {
 		return c.slides.Presentations.Get(id).Context(ctx).Do()
-	}, c.credentials.AccessToken)
+	})
 	if err != nil {
 		return nil, err
 	}
@@ -51,7 +52,7 @@ func (c *Client) CreateNative(ctx context.Context, folder, name, mimeType string
 	defer cancel()
 	f, err := c.drive.Files.Create(&drive.File{Name: name, Parents: []string{folder}, MimeType: mimeType}).SupportsAllDrives(true).Fields(fileFields).Context(ctx).Do()
 	if err != nil {
-		googleclient.LogError(ctx, err, c.credentials.AccessToken)
+		googleclient.LogError(ctx, err)
 		return nil, nativeWriteError(err)
 	}
 	if f == nil || workspace.ValidateID(f.Id) != nil || f.MimeType != mimeType || f.Name != name {
@@ -70,7 +71,7 @@ func (c *Client) ReplaceNative(ctx context.Context, resource, id, match, text st
 	if resource == "document" {
 		response, err := c.docs.Documents.BatchUpdate(id, &docs.BatchUpdateDocumentRequest{Requests: []*docs.Request{{ReplaceAllText: &docs.ReplaceAllTextRequest{ContainsText: &docs.SubstringMatchCriteria{Text: match, MatchCase: true}, ReplaceText: text, ForceSendFields: []string{"ReplaceText"}}}}}).Context(ctx).Do()
 		if err != nil {
-			googleclient.LogError(ctx, err, c.credentials.AccessToken)
+			googleclient.LogError(ctx, err)
 			return 0, nativeWriteError(err)
 		}
 		if response == nil || response.DocumentId != id || len(response.Replies) != 1 || response.Replies[0] == nil || response.Replies[0].ReplaceAllText == nil {
@@ -80,7 +81,7 @@ func (c *Client) ReplaceNative(ctx context.Context, resource, id, match, text st
 	}
 	response, err := c.slides.Presentations.BatchUpdate(id, &slides.BatchUpdatePresentationRequest{Requests: []*slides.Request{{ReplaceAllText: &slides.ReplaceAllTextRequest{ContainsText: &slides.SubstringMatchCriteria{Text: match, MatchCase: true}, ReplaceText: text, ForceSendFields: []string{"ReplaceText"}}}}}).Context(ctx).Do()
 	if err != nil {
-		googleclient.LogError(ctx, err, c.credentials.AccessToken)
+		googleclient.LogError(ctx, err)
 		return 0, nativeWriteError(err)
 	}
 	if response == nil || response.PresentationId != id || len(response.Replies) != 1 || response.Replies[0] == nil || response.Replies[0].ReplaceAllText == nil {
@@ -95,14 +96,14 @@ func (c *Client) ExportPDF(ctx context.Context, id string, limits Limits) ([]byt
 	}
 	response, err := read(ctx, limits, func(ctx context.Context) (*http.Response, error) {
 		return c.drive.Files.Export(id, "application/pdf").Context(ctx).Download()
-	}, c.credentials.AccessToken)
+	})
 	if err != nil {
 		return nil, err
 	}
 	defer func() { _ = response.Body.Close() }()
 	body, err := googleclient.ReadResponse(response.Body, responseLimit(ctx, limits))
 	if err != nil {
-		googleclient.LogError(ctx, err, c.credentials.AccessToken)
+		googleclient.LogError(ctx, err)
 		return nil, safeError(err)
 	}
 	return body, nil

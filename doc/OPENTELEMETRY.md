@@ -27,7 +27,6 @@ Set these variables before starting Core, for example with `task dev`:
 export LOG_OTLP_LOGS_ENDPOINT=http://127.0.0.1:4318/v1/logs
 export TRACING_OTLP_TRACES_ENDPOINT=http://127.0.0.1:4318/v1/traces
 export TRACING_SAMPLING_RATIO=1
-export LOG_HTTP_REQUESTS=false
 task dev
 ```
 
@@ -112,22 +111,32 @@ are retried within the export deadline; permanent rejection is discarded.
 Buffers are memory-only and are not a durable spool. Collector acceptance is
 not proof that a downstream backend retained a record. Restart restores delivery
 of new records; it does not guarantee replay of lost records. Export failures
-are reported through SDK diagnostics or provider close errors and do not change
+are reported as bounded local diagnostics and do not change
 the runner's success/failure result. Telemetry cannot serve as the run ledger.
 
 ## Confidentiality and qualification
 
-The tests reuse shared error classification, redaction and allowlisted context
-helpers covered by [issue #29](https://github.com/Braidplane/braidplane-core/issues/29).
-Synthetic row values and credential canaries must stay out of exported logs,
-span attributes and exporter failure diagnostics. Shared span error helpers
-record bounded type/kind rather than raw error strings.
+Shared HTTP, PostgreSQL, connector and decorated service/repository boundaries
+use one classifier. Logs and spans keep the application `error.type` code and
+`error.kind` for typed errors. A recognized wrapped cause adds `error.category`.
+Supported categories are `request_canceled`, `deadline_exceeded`, `timeout`,
+`dns_error`, `tls_error`, `network_error` and `database_error`. Unclassified
+errors use `error`. Span status descriptions use the same safe type.
 
-The logging fanout does not sanitize arbitrary caller-provided slog fields.
-Optional HTTP debug body logging is also a separate surface; disable it for this
-example. This suite qualifies the exercised instrumentation, not every possible
-log call or all of #29. Review sensitive application logging and collector SDK
-diagnostics before exporting production data.
+Pass errors to `tracing.RecordError`, `logging.LogError` or
+`logging.ErrorAttrs`. Use `logging.LogErrorWith` when a caller supplies its own
+logger. Keep log messages and action names application-defined. Raw error text,
+wrapped messages, SQL, provider URLs, headers, credentials and payloads must stay
+out of telemetry. HTTP completion logs use route templates, status codes and
+correlation IDs. `LOG_HTTP_REQUESTS` enables a request-start event at debug
+level with method and correlation fields. HTTP request IDs accept canonical
+UUIDs so arbitrary header text cannot become a log or API response field.
+
+River stores a bounded classification for failed worker attempts. The worker
+boundary preserves retry, cancel and snooze decisions. Retained execution
+errors use a classification or application-defined summary. User-facing
+diagnostics may include an explicitly safe detail where the producer has vetted
+it for disclosure. Keep those details out of shared telemetry.
 
 Run the repeatable collector and failure qualification without application
 configuration, databases or provider accounts:

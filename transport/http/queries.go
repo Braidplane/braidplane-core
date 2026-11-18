@@ -14,6 +14,7 @@ import (
 	workspace "github.com/Braidplane/braidplane-core/pkg/connector/googleworkspace"
 	"github.com/Braidplane/braidplane-core/pkg/connector/result"
 	"github.com/Braidplane/braidplane-core/pkg/domain/model"
+	"github.com/Braidplane/braidplane-core/pkg/logging"
 	filepayload "github.com/Braidplane/braidplane-core/pkg/payload/file"
 	"github.com/Braidplane/braidplane-core/pkg/pipeline/payload"
 	pipelinespec "github.com/Braidplane/braidplane-core/pkg/pipeline/spec"
@@ -73,7 +74,7 @@ func (s *server) ListQueries(
 	for _, q := range response.Items {
 		apiQ, mapErr := queryToHTTP(q)
 		if mapErr != nil {
-			slog.Error("failed to map query", "error", mapErr)
+			slog.Error("failed to map query", logging.ErrorAttr(mapErr))
 			return apierror.InternalServerError()
 		}
 
@@ -166,7 +167,7 @@ func (s *server) CreateQuery(
 
 	apiQ, err := queryToHTTP(q)
 	if err != nil {
-		slog.Error("failed to map created query", "error", err)
+		slog.Error("failed to map created query", logging.ErrorAttr(err))
 		return apierror.InternalServerError()
 	}
 
@@ -206,7 +207,7 @@ func (s *server) GetQuery(
 
 	apiQ, err := queryToHTTP(q)
 	if err != nil {
-		slog.Error("failed to map query", "error", err)
+		slog.Error("failed to map query", logging.ErrorAttr(err))
 		return apierror.InternalServerError()
 	}
 
@@ -295,7 +296,7 @@ func (s *server) UpdateQuery(
 
 	apiQ, err := queryToHTTP(q)
 	if err != nil {
-		slog.Error("failed to map updated query", "error", err)
+		slog.Error("failed to map updated query", logging.ErrorAttr(err))
 		return apierror.InternalServerError()
 	}
 
@@ -468,7 +469,7 @@ func (s *server) ExecuteQuery(
 
 	httpResult, err := executionResultToHTTP(result)
 	if err != nil {
-		slog.Error("failed to convert execution result", "error", err)
+		slog.Error("failed to convert execution result", logging.ErrorAttr(err))
 		return apierror.InternalServerError()
 	}
 
@@ -525,7 +526,7 @@ func (s *server) ListQueryExecutions(
 
 	apiExecutions, err := queryExecutionsToHTTP(response.Items)
 	if err != nil {
-		slog.Error("failed to map query executions", "error", err)
+		slog.Error("failed to map query executions", logging.ErrorAttr(err))
 		return apierror.InternalServerError()
 	}
 
@@ -582,7 +583,7 @@ func (s *server) GetQueryExecution(
 
 	apiExecution, err := queryExecutionToHTTP(execution)
 	if err != nil {
-		slog.Error("failed to map query execution", "error", err)
+		slog.Error("failed to map query execution", logging.ErrorAttr(err))
 		return apierror.InternalServerError()
 	}
 
@@ -1699,10 +1700,7 @@ func executionResultToHTTP(r *result.ExecutionResult) (api.QueryExecutionResult,
 			DurationMs: int(r.DurationMs()),
 			Success:    r.IsSuccess(),
 		}
-		if r.Error() != nil {
-			errMsg := r.Error().Error()
-			result.Error = &errMsg
-		}
+		result.Error = executionResultError(r.Error())
 		if err := apiResult.FromSQLExecutionResult(result); err != nil {
 			return apiResult, xerror.Unexpected().With(err)
 		}
@@ -1742,10 +1740,7 @@ func executionResultToHTTP(r *result.ExecutionResult) (api.QueryExecutionResult,
 			DurationMs: int(r.DurationMs()),
 			Success:    r.IsSuccess(),
 		}
-		if r.Error() != nil {
-			errMsg := r.Error().Error()
-			result.Error = &errMsg
-		}
+		result.Error = executionResultError(r.Error())
 		if err := apiResult.FromMongoDBExecutionResult(result); err != nil {
 			return apiResult, xerror.Unexpected().With(err)
 		}
@@ -1782,10 +1777,7 @@ func executionResultToHTTP(r *result.ExecutionResult) (api.QueryExecutionResult,
 			DurationMs: int(r.DurationMs()),
 			Success:    r.IsSuccess(),
 		}
-		if r.Error() != nil {
-			errMsg := r.Error().Error()
-			result.Error = &errMsg
-		}
+		result.Error = executionResultError(r.Error())
 		if err := apiResult.FromHTTPExecutionResult(result); err != nil {
 			return apiResult, xerror.Unexpected().With(err)
 		}
@@ -1898,8 +1890,8 @@ func executionResultError(err error) *string {
 		return nil
 	}
 
-	msg := err.Error()
-	return &msg
+	code, _, _ := xerror.Classify(err)
+	return &code
 }
 
 func buildObjectRowsExecutionResult(

@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"go.opentelemetry.io/contrib/bridges/otelslog"
+	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 	otlploghttp "go.opentelemetry.io/otel/exporters/otlp/otlplog/otlploghttp"
 	sdklog "go.opentelemetry.io/otel/sdk/log"
@@ -46,6 +47,7 @@ type Config struct {
 	MaxFileSizeMB    int
 	Environment      string
 	OTLPLogsEndpoint string
+	HandleSDKErrors  bool
 }
 
 // WithAttrs attaches allowlisted log attributes to ctx.
@@ -223,9 +225,12 @@ func Setup(cfg Config, component string) (*slog.Logger, io.Closer, error) {
 	}
 
 	if levelName == "none" {
-		return slog.New(
-			slog.DiscardHandler,
-		).With(attrsToAny(resourceAttrs)...), &multiCloser{}, nil
+		logger := slog.New(slog.DiscardHandler).With(attrsToAny(resourceAttrs)...)
+		var closer io.Closer = &multiCloser{}
+		if cfg.HandleSDKErrors {
+			closer = installSDKErrorHandler(logger, closer)
+		}
+		return logger, closer, nil
 	}
 
 	// Parse log level
@@ -274,7 +279,8 @@ func Setup(cfg Config, component string) (*slog.Logger, io.Closer, error) {
 	// Create multi-writer
 	multiWriter := io.MultiWriter(writers...)
 
-	handlers = append(handlers, slog.NewJSONHandler(multiWriter, opts).WithAttrs(resourceAttrs))
+	localHandler := slog.NewJSONHandler(multiWriter, opts).WithAttrs(resourceAttrs)
+	handlers = append(handlers, localHandler)
 
 	if endpoint := strings.TrimSpace(cfg.OTLPLogsEndpoint); endpoint != "" {
 		handler, closer, err := newOTLPHandler(endpoint, component, level, resourceAttrs)
@@ -288,8 +294,23 @@ func Setup(cfg Config, component string) (*slog.Logger, io.Closer, error) {
 	handler := newFanoutHandler(handlers...)
 	logger := slog.New(handler)
 
-	// Return logger and a closer that closes all file writers
-	return logger, &multiCloser{closers: closers}, nil
+	var closer io.Closer = &multiCloser{closers: closers}
+	if cfg.HandleSDKErrors {
+		closer = installSDKErrorHandler(slog.New(localHandler), closer)
+	}
+	return logger, closer, nil
+}
+
+func installSDKErrorHandler(localLogger *slog.Logger, closer io.Closer) io.Closer {
+	previous := otel.GetErrorHandler()
+	// Local output avoids exporting a new log record when the exporter fails.
+	otel.SetErrorHandler(otel.ErrorHandlerFunc(func(err error) {
+		LogErrorWith(context.Background(), localLogger, "OpenTelemetry SDK error", err)
+	}))
+	return closeFunc(func() error {
+		defer otel.SetErrorHandler(previous)
+		return closer.Close()
+	})
 }
 
 func newOTLPHandler(

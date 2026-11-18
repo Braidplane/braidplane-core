@@ -1208,7 +1208,7 @@ func TestServer_PipelineValidationResults(t *testing.T) {
 				require.Equal(t, "service/pipelinesvc.Service.RevalidatePipeline", entry["braidplane.method"])
 				require.Equal(t, tc.code, entry["error.type"])
 				require.Equal(t, "error", entry["outcome"])
-				require.Equal(t, tc.err.Error(), entry["error.message"])
+				require.NotContains(t, entry, "error.message")
 			})
 		}
 	})

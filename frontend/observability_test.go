@@ -13,7 +13,6 @@ import (
 	"github.com/stretchr/testify/require"
 	"go.opentelemetry.io/otel/trace"
 
-	api "github.com/Braidplane/braidplane-core/api-schema/gen/client"
 	"github.com/Braidplane/braidplane-core/pkg/reqctx"
 	"github.com/Braidplane/braidplane-core/pkg/xerror"
 )
@@ -30,7 +29,6 @@ func TestLogRenderedBackendAPIFailureClassifiesAndRedacts(t *testing.T) {
 	tests := []struct {
 		name               string
 		callErr            error
-		payload            *api.ErrorResponse
 		wantCategory       string
 		wantUpstreamStatus float64
 	}{
@@ -47,7 +45,6 @@ func TestLogRenderedBackendAPIFailureClassifiesAndRedacts(t *testing.T) {
 		{
 			name:               "UpstreamResponse",
 			callErr:            unexpectedBackendAPIResponse("get data source", http.StatusBadGateway),
-			payload:            mustAPIErrorResponse(t, `{"error":{"code":"UPSTREAM_FAILED","message":"secret-message-marker","detailed_error":"token=secret-token-marker"}}`),
 			wantCategory:       "upstream_response",
 			wantUpstreamStatus: http.StatusBadGateway,
 		},
@@ -67,7 +64,6 @@ func TestLogRenderedBackendAPIFailureClassifiesAndRedacts(t *testing.T) {
 				router.logRenderedBackendAPIFailure(
 					c,
 					"get data source",
-					tc.payload,
 					tc.callErr,
 					"acme-corp",
 					"hubspot-crm",
@@ -97,11 +93,4 @@ func TestLogRenderedBackendAPIFailureClassifiesAndRedacts(t *testing.T) {
 			require.NotContains(t, logBuffer.String(), "secret-token-marker")
 		})
 	}
-}
-
-func mustAPIErrorResponse(t *testing.T, raw string) *api.ErrorResponse {
-	t.Helper()
-	var result api.ErrorResponse
-	require.NoError(t, json.Unmarshal([]byte(raw), &result))
-	return &result
 }

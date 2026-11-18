@@ -8,6 +8,7 @@ import (
 	"github.com/riverqueue/river"
 
 	"github.com/Braidplane/braidplane-core/pkg/clock"
+	"github.com/Braidplane/braidplane-core/pkg/logging"
 	"github.com/Braidplane/braidplane-core/service/pipelineschedulesvc"
 	"github.com/Braidplane/braidplane-core/service/worker/jobs"
 )
@@ -56,7 +57,7 @@ func (w *pipelineScheduleDispatchWorker) Work(
 ) error {
 	result, err := w.service.DispatchDueSchedules(ctx, w.clock.Now().UTC())
 	if err != nil {
-		w.logger.ErrorContext(ctx, "pipeline schedule dispatch job failed", slog.Any("error", err))
+		w.logger.ErrorContext(ctx, "pipeline schedule dispatch job failed", logging.ErrorAttr(err))
 		return err
 	}
 
@@ -102,7 +103,7 @@ func (w *pipelineScheduleFireExecutionWorker) Work(
 	job *river.Job[jobs.PipelineScheduleFireExecutionArgs],
 ) error {
 	if err := w.service.ExecuteClaimedScheduleFire(ctx, job.Args); err != nil {
-		w.logger.ErrorContext(ctx, "pipeline schedule fire execution job failed", slog.Any("error", err))
+		w.logger.ErrorContext(ctx, "pipeline schedule fire execution job failed", logging.ErrorAttr(err))
 		return err
 	}
 

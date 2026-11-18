@@ -199,7 +199,7 @@ func TestPipelineServiceExecuteBlocksIncrementalObservationWhenDependentSinkFail
 		"run-blocked",
 	)
 	require.JSONEq(t, `{"value":"2026-05-24T11:00:00Z"}`, string(blockedUpperBound))
-	require.Contains(t, blockedReason, "sink write failed")
+	require.Equal(t, xerror.Unexpected().Message(), blockedReason)
 }
 
 func TestPipelineServiceExecuteConcurrentIncrementalCommitsDoNotRollbackRun(t *testing.T) {

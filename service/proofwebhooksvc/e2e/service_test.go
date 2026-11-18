@@ -3,6 +3,7 @@ package e2e
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"fmt"
 	"log/slog"
 	"strconv"
@@ -13,6 +14,7 @@ import (
 
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/riverqueue/river"
+	"github.com/riverqueue/river/rivertype"
 	"github.com/stretchr/testify/require"
 
 	"github.com/Braidplane/braidplane-core/pkg/clock"
@@ -130,7 +132,11 @@ func TestProofIntakeFailsClosedAndRedactsWorkerFailures(t *testing.T) { // Share
 	job := fixture.waitForJob(t, event.DeliveryID, "retryable")
 	require.NotContains(t, job.errors, secret)
 	require.NotContains(t, fixture.logs.String(), secret)
-	require.Contains(t, job.errors, proofwebhooksvc.ErrProcessingUnavailable.Error())
+	var attempts []rivertype.AttemptError
+	require.NoError(t, json.Unmarshal([]byte(job.errors), &attempts))
+	require.Len(t, attempts, 1)
+	require.Equal(t, proofwebhooksvc.ErrProcessingUnavailable.Code(), attempts[0].Error)
+	require.Empty(t, attempts[0].Trace)
 
 	fixture.sources.setError(nil)
 	_, err = fixture.pool.Exec(t.Context(), `

@@ -7,6 +7,7 @@ import (
 
 	"github.com/riverqueue/river"
 
+	"github.com/Braidplane/braidplane-core/pkg/logging"
 	"github.com/Braidplane/braidplane-core/pkg/xerror"
 	"github.com/Braidplane/braidplane-core/service/retentionsvc"
 	"github.com/Braidplane/braidplane-core/service/worker/jobs"
@@ -44,7 +45,7 @@ func (w *eventPruneWorker) Work(
 	}
 	result, err := w.service.PruneExpiredCustomerData(ctx, execution)
 	if err != nil {
-		w.logger.ErrorContext(ctx, "event prune job failed", slog.Any("error", err))
+		w.logger.ErrorContext(ctx, "event prune job failed", logging.ErrorAttr(err))
 		return err
 	}
 

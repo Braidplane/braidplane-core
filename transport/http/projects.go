@@ -10,6 +10,7 @@ import (
 	api "github.com/Braidplane/braidplane-core/api-schema/gen/server"
 	"github.com/Braidplane/braidplane-core/pkg/apierror"
 	"github.com/Braidplane/braidplane-core/pkg/domain/model"
+	"github.com/Braidplane/braidplane-core/pkg/logging"
 	"github.com/Braidplane/braidplane-core/pkg/slug"
 )
 
@@ -232,7 +233,7 @@ func (s *server) SetProjectPipelineBackend(
 			slog.LevelWarn,
 			"invalid project pipeline backend mode",
 			slog.String("mode", string(req.Mode)),
-			slog.Any("error", err),
+			logging.ErrorAttr(err),
 		)
 		return apierror.ValidationFailed("Invalid pipeline backend mode")
 	}

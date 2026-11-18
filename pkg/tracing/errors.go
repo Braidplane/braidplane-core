@@ -15,7 +15,7 @@ func RecordError(span trace.Span, err error) {
 	}
 
 	attrs := ErrorAttributes(err)
-	span.SetStatus(codes.Error, errorType(err))
+	span.SetStatus(codes.Error, attrs[0].Value.AsString())
 	span.SetAttributes(attrs...)
 }
 
@@ -24,31 +24,13 @@ func ErrorAttributes(err error) []attribute.KeyValue {
 	if err == nil {
 		return nil
 	}
-
-	attrs := []attribute.KeyValue{attribute.String("error.type", errorType(err))}
-	if kind := errorKind(err); kind != "" {
+	code, kind, category := xerror.Classify(err)
+	attrs := []attribute.KeyValue{attribute.String("error.type", code)}
+	if kind != "" {
 		attrs = append(attrs, attribute.String("error.kind", kind))
 	}
+	if category != "" {
+		attrs = append(attrs, attribute.String("error.category", category))
+	}
 	return attrs
-}
-
-func errorType(err error) string {
-	if err == nil {
-		return ""
-	}
-
-	var appErr *xerror.Error
-	if xerror.As(err, &appErr) {
-		return appErr.Code()
-	}
-
-	return "error"
-}
-
-func errorKind(err error) string {
-	var appErr *xerror.Error
-	if xerror.As(err, &appErr) {
-		return appErr.Kind().String()
-	}
-	return ""
 }
