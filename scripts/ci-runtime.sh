@@ -32,9 +32,10 @@ mkdir -p .worktree
 export GIT_TEST_SSH_KEY_PATH="$PWD/.worktree/ci-git-key"
 ssh-keygen -q -t ed25519 -N '' -f "$GIT_TEST_SSH_KEY_PATH"
 export GIT_TEST_SSH_PUBLIC_KEY="$(cat "$GIT_TEST_SSH_KEY_PATH.pub")"
-app_pid='' git_id=''
+app_pid='' git_id='' browser_id=''
 cleanup() {
     if [[ -n "$app_pid" ]]; then kill -TERM "$app_pid" 2>/dev/null || true; wait "$app_pid" 2>/dev/null || true; fi
+    if [[ -n "$browser_id" ]]; then docker stop "$browser_id" >/dev/null || true; fi
     if [[ -n "$git_id" ]]; then docker stop "$git_id" >/dev/null || true; fi
     docker compose -f docker-compose.yml -f docker-compose.connectors.yml -p "$COMPOSE_PROJECT_NAME" down --volumes --remove-orphans >/dev/null || true
 }
@@ -94,6 +95,15 @@ else
     bash scripts/go-toolchain.sh test -c -o .worktree/ci-browser-bin/google-signup-fixture \
         ./transport/http/e2e/google-signup-fixture
     bash scripts/node-toolchain.sh node scripts/check-browser-inventory.cjs
-    task test-e2e -- --workers=1
+    browser_id=$(docker run -d --rm --init --network host --shm-size=1g \
+        -v "$PWD/frontend/node_modules:/work/node_modules:ro" "${CI_PLAYWRIGHT_IMAGE:?}" \
+        node /work/node_modules/playwright/cli.js run-server --host 127.0.0.1 --port 39323)
+    export PW_TEST_CONNECT_WS_ENDPOINT=ws://127.0.0.1:39323/
+    for attempt in {1..30}; do
+        if curl -fsS http://127.0.0.1:39323/ >/dev/null 2>&1; then break; fi
+        if [[ "$attempt" = 30 ]]; then docker logs "$browser_id" >&2; exit 1; fi
+        sleep 1
+    done
+    bash scripts/node-toolchain.sh npm --prefix frontend run test:e2e -- --workers=1
     bash scripts/node-toolchain.sh node scripts/browser-measurements.cjs product .worktree/playwright/product.json
 fi
