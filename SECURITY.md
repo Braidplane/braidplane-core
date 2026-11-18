@@ -1,5 +1,7 @@
 # Security policy
 
+The [OWASP ASVS verification matrix](doc/OWASP_ASVS.md) tracks release evidence for Community Core.
+
 ## Report privately
 
 Email [contact@braidplane.com](mailto:contact@braidplane.com) with the subject
