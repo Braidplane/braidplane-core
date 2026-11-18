@@ -218,13 +218,18 @@ func (s *server) ReconcilePipelines(
 	if result == nil || len(result.Specs) == 0 {
 		return c.JSON(response)
 	}
+	const unavailable = "Environment readiness could not be evaluated."
 	if err := s.canReadReadiness(c, orgSlug); err != nil {
-		response.ReadinessWarning = ptr.Ptr("Read access to pipelines, environments and data sources is required to view readiness.")
+		response.ReadinessWarning = ptr.Ptr(unavailable)
+		var denied *apierror.Error
+		if xerror.As(err, &denied) && denied.Code == apierror.CodeAuthForbidden {
+			response.ReadinessWarning = ptr.Ptr("Read access to pipelines, environments and data sources is required to view readiness.")
+		}
 		return c.JSON(response)
 	}
 	reports, err := readinesssvc.LoadSpecs(c.Context(), s.environmentsService, s.dataSourceRefsService, orgSlug, projectSlug, result.Specs)
 	if err != nil {
-		response.ReadinessWarning = ptr.Ptr("Environment readiness could not be evaluated.")
+		response.ReadinessWarning = ptr.Ptr(unavailable)
 		return c.JSON(response)
 	}
 	for i, report := range reports {

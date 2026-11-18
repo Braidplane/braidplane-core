@@ -417,14 +417,17 @@ func TestServer_ReconcilePipelines(t *testing.T) {
 
 func TestServer_ReconcileReadiness(t *testing.T) {
 	for _, tc := range []struct {
-		name                          string
-		dryRun, denyRead, loadFailure bool
+		name                                       string
+		dryRun, denyRead, loadFailure, authFailure bool
 	}{
-		{name: "preview", dryRun: true}, {name: "apply"}, {name: "restricted", denyRead: true}, {name: "unavailable", loadFailure: true},
+		{name: "preview", dryRun: true}, {name: "apply"}, {name: "restricted", denyRead: true}, {name: "unavailable", loadFailure: true}, {name: "auth unavailable", authFailure: true},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			app, store := newTestApp(t, testServerConfig{
 				authService: fakeAuthService{CanFn: func(_ context.Context, input authorization.Input) (bool, error) {
+					if tc.authFailure && input.Resource == model.ResourceEnvironments {
+						return false, fmt.Errorf("private provider detail")
+					}
 					return !tc.denyRead || input.Resource != model.ResourceEnvironments, nil
 				}},
 				environmentsService: &fakeEnvironmentsService{ListProjectEnvironmentsFn: func(context.Context, slug.Slug, slug.Slug, model.ListRequest) (model.ListResponse[model.ProjectEnvironment], error) {
@@ -451,10 +454,14 @@ func TestServer_ReconcileReadiness(t *testing.T) {
 			require.Equal(t, 1, body.Summary.Synced)
 			require.Empty(t, body.Failures)
 			report := body.Synced[0].Readiness
-			if tc.denyRead || tc.loadFailure {
+			if tc.denyRead || tc.loadFailure || tc.authFailure {
 				require.Nil(t, report)
 				require.NotNil(t, body.ReadinessWarning)
-				require.NotContains(t, *body.ReadinessWarning, "private provider detail")
+				if tc.denyRead {
+					require.Contains(t, *body.ReadinessWarning, "Read access")
+				} else {
+					require.Equal(t, "Environment readiness could not be evaluated.", *body.ReadinessWarning)
+				}
 				return
 			}
 			require.Nil(t, body.ReadinessWarning)
