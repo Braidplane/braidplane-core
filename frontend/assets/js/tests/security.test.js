@@ -3,6 +3,35 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 await import("../security.js");
 await import("../ui-utils.js");
 
+describe("browser session cleanup", () => {
+    it("clears authenticated data before the logout form is sent and keeps its CSRF field", () => {
+        const draftKey = "braidplane.builder.canvas.state.v6/user/org/project/draft-pipeline";
+        window.localStorage.setItem(draftKey, "synthetic draft");
+        window.localStorage.setItem("braidplane.sidebar.collapsed", "1");
+        window.sessionStorage.setItem("braidplane.lineage.view", "synthetic lineage");
+        window.sessionStorage.setItem("htmx-history-cache", "synthetic history");
+        document.body.innerHTML = `
+            <main>Authenticated workspace</main>
+            <form method="post" action="/auth/logout"><input name="_csrf" value="fixture"></form>
+        `;
+        const logout = document.querySelector("form");
+        try {
+            expect(logout.dispatchEvent(new Event("submit", { bubbles: true, cancelable: true }))).toBe(true);
+            expect(window.localStorage.getItem(draftKey)).toBeNull();
+            expect(window.localStorage.getItem("braidplane.sidebar.collapsed")).toBe("1");
+            expect(window.sessionStorage.getItem("braidplane.lineage.view")).toBeNull();
+            expect(window.sessionStorage.getItem("htmx-history-cache")).toBeNull();
+            expect(document.querySelector("main")).toBeNull();
+            expect(logout.isConnected).toBe(true);
+            expect(new FormData(logout).get("_csrf")).toBe("fixture");
+        } finally {
+            window.localStorage.clear();
+            window.sessionStorage.clear();
+            delete document.documentElement.dataset.braidplaneSessionEnded;
+        }
+    });
+});
+
 describe("security CSRF helpers", () => {
     beforeEach(() => {
         document.head.innerHTML = '<meta name="csrf-token" content="csrf-token">';

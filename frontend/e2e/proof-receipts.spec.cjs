@@ -87,7 +87,9 @@ test("Reconnect navigates to GitHub under same-origin form CSP on desktop", asyn
     await page.route(destination, (route) => route.fulfill({ contentType: "text/html", body: "GitHub installation" }));
     expect((await page.request.get(`${fixture.url}/_test/session`)).ok()).toBe(true);
     const response = await page.goto(`${fixture.url}/organizations/connected/github`);
-    expect(response.headers()["content-security-policy"]).toBe("form-action 'self'");
+    const policy = response.headers()["content-security-policy"];
+    expect(policy).toContain("form-action 'self'");
+    expect(policy).toContain("frame-ancestors 'none'");
     await page.getByRole("button", { name: "Reconnect", exact: true }).click();
     await expect(page).toHaveURL(destination);
     expect(await page.context().cookies(`${fixture.url}/github/callback`)).toEqual(

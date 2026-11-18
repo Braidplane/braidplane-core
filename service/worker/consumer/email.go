@@ -77,19 +77,19 @@ func (w *emailSendWorker) Work(
 	var err error
 	switch args.Type {
 	case jobs.EmailTypeVerification:
-		verificationLink, linkErr := w.tokenizedLink(args, "encrypted email verification token is required", "decrypt email verification token")
-		if linkErr != nil {
-			err = linkErr
+		code, codeErr := w.decryptedToken(args, "encrypted email verification token is required", "decrypt email verification token")
+		if codeErr != nil {
+			err = codeErr
 			break
 		}
-		err = w.emailSvc.EmailVerification(ctx, &user, verificationLink)
+		err = w.emailSvc.EmailVerification(ctx, &user, args.Link, code)
 	case jobs.EmailTypePasswordReset:
-		resetLink, linkErr := w.tokenizedLink(args, "encrypted password reset token is required", "decrypt password reset token")
-		if linkErr != nil {
-			err = linkErr
+		code, codeErr := w.decryptedToken(args, "encrypted password reset token is required", "decrypt password reset token")
+		if codeErr != nil {
+			err = codeErr
 			break
 		}
-		err = w.emailSvc.PasswordReset(ctx, &user, resetLink)
+		err = w.emailSvc.PasswordReset(ctx, &user, args.Link, code)
 	case jobs.EmailTypeSessionMFA:
 		code, codeErr := w.decryptedCode(args)
 		if codeErr != nil {
@@ -193,6 +193,21 @@ func (w *emailSendWorker) tokenizedLink(
 	missingTokenDetail string,
 	decryptContext string,
 ) (string, error) {
+	token, err := w.decryptedToken(args, missingTokenDetail, decryptContext)
+	if err != nil {
+		return "", err
+	}
+	linkURL, err := url.Parse(args.Link)
+	if err != nil {
+		return "", xerror.ValidationFailed().With(err)
+	}
+	values := linkURL.Query()
+	values.Set("token", token)
+	linkURL.RawQuery = values.Encode()
+	return linkURL.String(), nil
+}
+
+func (w *emailSendWorker) decryptedToken(args jobs.EmailSendArgs, missingTokenDetail, decryptContext string) (string, error) {
 	if len(args.EncryptedToken) == 0 {
 		return "", xerror.ValidationFailed().Detail(missingTokenDetail)
 	}
@@ -202,14 +217,7 @@ func (w *emailSendWorker) tokenizedLink(
 		return "", xerror.Wrapf("%s: %w", decryptContext, err)
 	}
 
-	linkURL, err := url.Parse(args.Link)
-	if err != nil {
-		return "", xerror.ValidationFailed().With(err)
-	}
-	values := linkURL.Query()
-	values.Set("token", string(token))
-	linkURL.RawQuery = values.Encode()
-	return linkURL.String(), nil
+	return string(token), nil
 }
 
 func (w *emailSendWorker) decryptedCode(args jobs.EmailSendArgs) (string, error) {

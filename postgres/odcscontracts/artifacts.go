@@ -37,9 +37,16 @@ func (r *repository) CreateArtifact(ctx context.Context, db postgres.DBTX, org, 
 }
 
 func (r *repository) FindArtifact(ctx context.Context, db postgres.DBTX, org, project slug.Slug, a model.ODCSArtifact) (*model.ODCSArtifact, error) {
-	row, err := dbgen.New(db).FindODCSArtifact(ctx, dbgen.FindODCSArtifactParams{OrgSlug: org, ProjectSlug: project, SourceRepo: a.SourceRepo, SourceCommit: a.Commit, SourcePath: a.Path})
+	row, err := dbgen.New(db).FindODCSArtifact(ctx, dbgen.FindODCSArtifactParams{
+		OrgSlug: org, ProjectSlug: project, SourceRepo: a.SourceRepo, PublicID: a.PublicID,
+		SourceCommit: a.Commit, SourcePath: a.Path,
+	})
 	if err != nil {
 		return nil, mapError(err)
 	}
-	return &model.ODCSArtifact{ContractSlug: row.ContractSlug, RevisionSlug: slug.Slug(row.RevisionSlug), ArtifactDigest: row.ArtifactDigest, Original: row.Original, Path: row.SourcePath, Format: row.Format, SourceRepo: row.SourceRepo, Commit: row.SourceCommit}, nil
+	return &model.ODCSArtifact{
+		PublicID: row.PublicID, ContractSlug: row.ContractSlug, RevisionSlug: slug.Slug(row.RevisionSlug),
+		ArtifactDigest: row.ArtifactDigest, Original: row.Original, Path: row.SourcePath,
+		Format: row.Format, SourceRepo: row.SourceRepo, Commit: row.SourceCommit,
+	}, nil
 }

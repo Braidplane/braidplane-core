@@ -40,7 +40,7 @@ func TestRouter_HandleMembersPage_RequiresAuth(t *testing.T) {
 	}))
 	defer apiServer.Close()
 
-	router, err := NewRouter(apiServer.URL, slog.New(slog.DiscardHandler), session.NewStore())
+	router, err := newHandlerTestRouter(apiServer.URL, slog.New(slog.DiscardHandler), session.NewStore())
 	require.NoError(t, err)
 
 	app := fiber.New()
@@ -102,7 +102,7 @@ func TestRouter_HandleMembersPage_RendersMembersList(t *testing.T) {
 	defer apiServer.Close()
 
 	store := session.NewStore()
-	router, err := NewRouter(apiServer.URL, slog.New(slog.DiscardHandler), store)
+	router, err := newHandlerTestRouter(apiServer.URL, slog.New(slog.DiscardHandler), store)
 	require.NoError(t, err)
 
 	app := fiber.New()
@@ -187,7 +187,7 @@ func TestRouter_HandleMembersPage_RendersPendingInvitationsSeparately(t *testing
 	defer apiServer.Close()
 
 	store := session.NewStore()
-	router, err := NewRouter(apiServer.URL, slog.New(slog.DiscardHandler), store)
+	router, err := newHandlerTestRouter(apiServer.URL, slog.New(slog.DiscardHandler), store)
 	require.NoError(t, err)
 
 	app := fiber.New()
@@ -252,7 +252,7 @@ func TestRouter_HandleMembersPage_PaginatesInvitationsSeparately(t *testing.T) {
 	defer apiServer.Close()
 
 	store := session.NewStore()
-	router, err := NewRouter(apiServer.URL, slog.New(slog.DiscardHandler), store)
+	router, err := newHandlerTestRouter(apiServer.URL, slog.New(slog.DiscardHandler), store)
 	require.NoError(t, err)
 
 	app := fiber.New()
@@ -321,7 +321,7 @@ func TestRouter_HandleMembersPage_GatesActionsFromRolePermissions(t *testing.T) 
 	defer apiServer.Close()
 
 	store := session.NewStore()
-	router, err := NewRouter(apiServer.URL, slog.New(slog.DiscardHandler), store)
+	router, err := newHandlerTestRouter(apiServer.URL, slog.New(slog.DiscardHandler), store)
 	require.NoError(t, err)
 
 	app := fiber.New()
@@ -382,7 +382,7 @@ func TestRouter_HandleMembersPage_ForbiddenRendersErrorPage(t *testing.T) {
 	defer apiServer.Close()
 
 	store := session.NewStore()
-	router, err := NewRouter(apiServer.URL, slog.New(slog.DiscardHandler), store)
+	router, err := newHandlerTestRouter(apiServer.URL, slog.New(slog.DiscardHandler), store)
 	require.NoError(t, err)
 
 	app := fiber.New()
@@ -419,7 +419,7 @@ func TestRouter_HandleCreateMemberSubmit_Success(t *testing.T) {
 	defer apiServer.Close()
 
 	store := session.NewStore()
-	router, err := NewRouter(apiServer.URL, slog.New(slog.DiscardHandler), store)
+	router, err := newHandlerTestRouter(apiServer.URL, slog.New(slog.DiscardHandler), store)
 	require.NoError(t, err)
 
 	app := fiber.New()
@@ -471,7 +471,7 @@ func TestRouter_HandleCreateMemberSubmit_HTMXRedirectHeader(t *testing.T) {
 	defer apiServer.Close()
 
 	store := session.NewStore()
-	router, err := NewRouter(apiServer.URL, slog.New(slog.DiscardHandler), store)
+	router, err := newHandlerTestRouter(apiServer.URL, slog.New(slog.DiscardHandler), store)
 	require.NoError(t, err)
 
 	app := fiber.New()
@@ -541,7 +541,7 @@ func TestRouter_HandleCreateMemberSubmit_InvalidInputRendersPopup(t *testing.T) 
 	defer apiServer.Close()
 
 	store := session.NewStore()
-	router, err := NewRouter(apiServer.URL, slog.New(slog.DiscardHandler), store)
+	router, err := newHandlerTestRouter(apiServer.URL, slog.New(slog.DiscardHandler), store)
 	require.NoError(t, err)
 
 	app := fiber.New()
@@ -612,7 +612,7 @@ func TestRouter_HandleCreateMemberSubmit_InvalidInputHTMXRendersInviteSection(t 
 	defer apiServer.Close()
 
 	store := session.NewStore()
-	router, err := NewRouter(apiServer.URL, slog.New(slog.DiscardHandler), store)
+	router, err := newHandlerTestRouter(apiServer.URL, slog.New(slog.DiscardHandler), store)
 	require.NoError(t, err)
 
 	app := fiber.New()
@@ -682,7 +682,7 @@ func TestRouter_HandleCreateMemberSubmit_APIErrorHTMXShowsInviteError(t *testing
 	defer apiServer.Close()
 
 	store := session.NewStore()
-	router, err := NewRouter(apiServer.URL, slog.New(slog.DiscardHandler), store)
+	router, err := newHandlerTestRouter(apiServer.URL, slog.New(slog.DiscardHandler), store)
 	require.NoError(t, err)
 
 	app := fiber.New()
@@ -748,7 +748,7 @@ func TestRouter_HandleCreateMemberSubmit_Backend500HTMXShowsError(t *testing.T) 
 	defer apiServer.Close()
 
 	store := session.NewStore()
-	router, err := NewRouter(apiServer.URL, slog.New(slog.DiscardHandler), store)
+	router, err := newHandlerTestRouter(apiServer.URL, slog.New(slog.DiscardHandler), store)
 	require.NoError(t, err)
 
 	app := fiber.New()
@@ -797,7 +797,7 @@ func TestRouter_HandleResendMemberInvitationSubmit_HTMXShowsSuccess(t *testing.T
 	defer apiServer.Close()
 
 	store := session.NewStore()
-	router, err := NewRouter(apiServer.URL, slog.New(slog.DiscardHandler), store)
+	router, err := newHandlerTestRouter(apiServer.URL, slog.New(slog.DiscardHandler), store)
 	require.NoError(t, err)
 
 	app := fiber.New()
@@ -847,7 +847,7 @@ func TestRouter_HandleRevokeMemberInvitationSubmit_HTMXShowsSuccess(t *testing.T
 	defer apiServer.Close()
 
 	store := session.NewStore()
-	router, err := NewRouter(apiServer.URL, slog.New(slog.DiscardHandler), store)
+	router, err := newHandlerTestRouter(apiServer.URL, slog.New(slog.DiscardHandler), store)
 	require.NoError(t, err)
 
 	app := fiber.New()
@@ -917,7 +917,7 @@ func TestRouter_HandleUpdateMemberRoleSubmit_ConflictRendersPopup(t *testing.T) 
 	defer apiServer.Close()
 
 	store := session.NewStore()
-	router, err := NewRouter(apiServer.URL, slog.New(slog.DiscardHandler), store)
+	router, err := newHandlerTestRouter(apiServer.URL, slog.New(slog.DiscardHandler), store)
 	require.NoError(t, err)
 
 	app := fiber.New()
@@ -988,7 +988,7 @@ func TestRouter_HandleUpdateMemberRoleSubmit_ConflictHTMXRendersPopup(t *testing
 	defer apiServer.Close()
 
 	store := session.NewStore()
-	router, err := NewRouter(apiServer.URL, slog.New(slog.DiscardHandler), store)
+	router, err := newHandlerTestRouter(apiServer.URL, slog.New(slog.DiscardHandler), store)
 	require.NoError(t, err)
 
 	app := fiber.New()
@@ -1032,7 +1032,7 @@ func TestRouter_HandleUpdateMemberRoleSubmit_Success(t *testing.T) {
 	defer apiServer.Close()
 
 	store := session.NewStore()
-	router, err := NewRouter(apiServer.URL, slog.New(slog.DiscardHandler), store)
+	router, err := newHandlerTestRouter(apiServer.URL, slog.New(slog.DiscardHandler), store)
 	require.NoError(t, err)
 
 	app := fiber.New()
@@ -1071,7 +1071,7 @@ func TestRouter_HandleUpdateMemberRoleSubmit_HTMXRendersRoleCell(t *testing.T) {
 			defer apiServer.Close()
 
 			store := session.NewStore()
-			router, err := NewRouter(apiServer.URL, slog.New(slog.DiscardHandler), store)
+			router, err := newHandlerTestRouter(apiServer.URL, slog.New(slog.DiscardHandler), store)
 			require.NoError(t, err)
 
 			app := fiber.New()
@@ -1113,7 +1113,7 @@ func TestRouter_HandleRemoveMemberSubmit_Success(t *testing.T) {
 	defer apiServer.Close()
 
 	store := session.NewStore()
-	router, err := NewRouter(apiServer.URL, slog.New(slog.DiscardHandler), store)
+	router, err := newHandlerTestRouter(apiServer.URL, slog.New(slog.DiscardHandler), store)
 	require.NoError(t, err)
 
 	app := fiber.New()
@@ -1182,7 +1182,7 @@ func TestRouter_HandleRemoveMemberSubmit_HTMXRedirectHeader(t *testing.T) {
 	defer apiServer.Close()
 
 	store := session.NewStore()
-	router, err := NewRouter(apiServer.URL, slog.New(slog.DiscardHandler), store)
+	router, err := newHandlerTestRouter(apiServer.URL, slog.New(slog.DiscardHandler), store)
 	require.NoError(t, err)
 
 	app := fiber.New()
@@ -1259,7 +1259,7 @@ func TestRouter_HandleRemoveMemberSubmit_HTMXRendersFailure(t *testing.T) {
 	defer apiServer.Close()
 
 	store := session.NewStore()
-	router, err := NewRouter(apiServer.URL, slog.New(slog.DiscardHandler), store)
+	router, err := newHandlerTestRouter(apiServer.URL, slog.New(slog.DiscardHandler), store)
 	require.NoError(t, err)
 
 	app := fiber.New()

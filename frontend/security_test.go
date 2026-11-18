@@ -2,15 +2,18 @@ package frontend
 
 import (
 	"context"
+	"encoding/json"
 	"io"
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
 	"regexp"
+	"strconv"
 	"strings"
 	"sync/atomic"
 	"testing"
+	"time"
 
 	"github.com/gofiber/fiber/v3"
 	"github.com/gofiber/fiber/v3/middleware/session"
@@ -21,6 +24,59 @@ import (
 	"github.com/Braidplane/braidplane-core/pkg/slug"
 )
 
+func TestProtectedRouteRequiresBackendSession(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		name   string
+		status int
+		slug   string
+		want   int
+	}{
+		{"current session", http.StatusOK, "test-user", http.StatusBadRequest},
+		{"revoked session", http.StatusUnauthorized, "", http.StatusSeeOther},
+		{"closed account", http.StatusNotFound, "", http.StatusSeeOther},
+		{"different subject", http.StatusOK, "other-user", http.StatusServiceUnavailable},
+		{"backend unavailable", http.StatusBadGateway, "", http.StatusServiceUnavailable},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			backend := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				assert.NotEmpty(t, r.Header.Get("Cookie"))
+				w.Header().Set("Content-Type", "application/json")
+				if r.URL.Path == "/api/organizations" {
+					assert.Equal(t, "current session", tc.name)
+					_, _ = io.WriteString(w, `{"organizations":[]}`)
+					return
+				}
+				assert.Equal(t, "/api/users/profile", r.URL.Path)
+				w.WriteHeader(tc.status)
+				if tc.status == http.StatusOK {
+					_, _ = io.WriteString(w, `{"slug":"`+tc.slug+`"}`)
+				}
+			}))
+			defer backend.Close()
+			store := session.NewStore()
+			router, err := NewRouter(backend.URL, slog.New(slog.DiscardHandler), store)
+			require.NoError(t, err)
+			app := fiber.New()
+			registerTestSessionRoute(app, store)
+			router.RegisterRoutes(app, CommunityPresentation{})
+			request := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/member-invitations/accept?source=email", nil)
+			request.Header.Set("Cookie", getAuthenticatedSessionCookie(t, app))
+			response, err := app.Test(request)
+			require.NoError(t, err)
+			defer func() { _ = response.Body.Close() }()
+			require.Equal(t, tc.want, response.StatusCode)
+			require.Equal(t, "no-store", response.Header.Get(fiber.HeaderCacheControl))
+			if tc.want == http.StatusSeeOther {
+				assert.Equal(t, "1", response.Header.Get(browserSessionEndedHeader))
+				assert.Equal(t, "/auth/login?return_to=%2Fmember-invitations%2Faccept%3Fsource%3Demail", response.Header.Get("Location"))
+			} else {
+				assert.Empty(t, response.Header.Get(browserSessionEndedHeader))
+			}
+		})
+	}
+}
+
 func TestProtectedDashboardRedirectPreservesReturnTo(t *testing.T) {
 	t.Parallel()
 	backend := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -28,7 +84,7 @@ func TestProtectedDashboardRedirectPreservesReturnTo(t *testing.T) {
 		w.WriteHeader(http.StatusInternalServerError)
 	}))
 	t.Cleanup(backend.Close)
-	router, err := NewRouter(backend.URL, slog.New(slog.DiscardHandler), session.NewStore())
+	router, err := newHandlerTestRouter(backend.URL, slog.New(slog.DiscardHandler), session.NewStore())
 	require.NoError(t, err)
 	app := fiber.New()
 	router.RegisterRoutes(app, CommunityPresentation{})
@@ -40,6 +96,46 @@ func TestProtectedDashboardRedirectPreservesReturnTo(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, "/auth/login", location.Path)
 	require.Equal(t, "/dashboard?project_slug=ops", location.Query().Get("return_to"))
+}
+
+func TestBrowserSessionStatusReadsExpiryWithoutSaving(t *testing.T) {
+	t.Parallel()
+	store := session.NewStore()
+	router, err := newHandlerTestRouter("http://127.0.0.1:1", slog.New(slog.DiscardHandler), store)
+	require.NoError(t, err)
+	app := fiber.New()
+	registerTestSessionRoute(app, store)
+	router.RegisterRoutes(app, CommunityPresentation{})
+	cookie := getAuthenticatedSessionCookie(t, app)
+	id := strings.SplitN(cookie, "=", 2)[1]
+	router.SetBrowserSessionExpiry(func(_ context.Context, key string) (int64, error) {
+		assert.Equal(t, id, key)
+		return time.Now().Add(30 * time.Minute).Unix(), nil
+	})
+
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, browserSessionStatusPath, nil)
+	req.Header.Set("Cookie", cookie)
+	response, err := app.Test(req)
+	require.NoError(t, err)
+	defer func() { _ = response.Body.Close() }()
+	require.Equal(t, http.StatusNoContent, response.StatusCode)
+	require.Equal(t, "no-store", response.Header.Get(fiber.HeaderCacheControl))
+	require.Empty(t, response.Header.Values(fiber.HeaderSetCookie))
+	expiry := response.Header.Get(browserSessionTTLHeader)
+	require.Regexp(t, `^[0-9a-f]{32}:[0-9]+$`, expiry)
+	remaining, err := strconv.Atoi(strings.SplitN(expiry, ":", 2)[1])
+	require.NoError(t, err)
+	require.InDelta(t, (30 * time.Minute).Milliseconds(), remaining, 5000)
+	require.NotContains(t, expiry, id)
+
+	req = httptest.NewRequestWithContext(t.Context(), http.MethodGet, browserSessionStatusPath, nil)
+	anonymous, err := app.Test(req)
+	require.NoError(t, err)
+	defer func() { _ = anonymous.Body.Close() }()
+	require.Equal(t, http.StatusUnauthorized, anonymous.StatusCode)
+	require.Equal(t, "1", anonymous.Header.Get(browserSessionEndedHeader))
+	require.Empty(t, anonymous.Header.Get(browserSessionTTLHeader))
+	require.Empty(t, anonymous.Header.Values(fiber.HeaderSetCookie))
 }
 
 func TestFrontendRouteNeedsSecuritySession(t *testing.T) {
@@ -93,10 +189,14 @@ func TestRouter_AuthForms_RenderCSRFToken(t *testing.T) {
 	}))
 	defer apiServer.Close()
 
-	router, err := NewRouter(apiServer.URL, slog.New(slog.DiscardHandler), session.NewStore())
+	router, err := newHandlerTestRouter(apiServer.URL, slog.New(slog.DiscardHandler), session.NewStore())
 	require.NoError(t, err)
 
 	app := fiber.New()
+	app.Use(func(c fiber.Ctx) error {
+		c.Set(fiber.HeaderContentSecurityPolicy, "form-action 'self'")
+		return c.Next()
+	})
 	router.RegisterRoutes(app, CommunityPresentation{})
 
 	resp, err := app.Test(httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/auth/login", nil))
@@ -109,8 +209,15 @@ func TestRouter_AuthForms_RenderCSRFToken(t *testing.T) {
 	require.NoError(t, err)
 
 	assert.Equal(t, http.StatusOK, resp.StatusCode)
+	assert.Equal(t, "form-action 'self', frame-ancestors 'none'", resp.Header.Get(fiber.HeaderContentSecurityPolicy))
 	assert.Contains(t, string(body), `name="_csrf"`)
 	assert.NotEmpty(t, extractCSRFToken(t, string(body)))
+
+	textResponse, err := app.Test(httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/robots.txt", nil))
+	require.NoError(t, err)
+	require.NoError(t, textResponse.Body.Close())
+	require.Equal(t, http.StatusNotFound, textResponse.StatusCode)
+	assert.Equal(t, "form-action 'self'", textResponse.Header.Get(fiber.HeaderContentSecurityPolicy))
 }
 
 func TestRouter_HandleLoginSubmit_RejectsMissingCSRFBeforeAPI(t *testing.T) {
@@ -123,7 +230,7 @@ func TestRouter_HandleLoginSubmit_RejectsMissingCSRFBeforeAPI(t *testing.T) {
 	}))
 	defer apiServer.Close()
 
-	router, err := NewRouter(apiServer.URL, slog.New(slog.DiscardHandler), session.NewStore())
+	router, err := newHandlerTestRouter(apiServer.URL, slog.New(slog.DiscardHandler), session.NewStore())
 	require.NoError(t, err)
 
 	app := fiber.New()
@@ -145,6 +252,7 @@ func TestRouter_HandleLoginSubmit_RejectsMissingCSRFBeforeAPI(t *testing.T) {
 
 	assert.Equal(t, http.StatusOK, resp.StatusCode)
 	assert.Contains(t, string(body), "Security check failed")
+	assert.Equal(t, "frame-ancestors 'none'", resp.Header.Get(fiber.HeaderContentSecurityPolicy))
 	assert.Equal(t, int32(0), apiCalls.Load())
 }
 
@@ -173,7 +281,7 @@ func TestRouter_HandleLoginSubmit_AllowsValidCSRF(t *testing.T) {
 	defer apiServer.Close()
 
 	store := session.NewStore()
-	router, err := NewRouter(apiServer.URL, slog.New(slog.DiscardHandler), store)
+	router, err := newHandlerTestRouter(apiServer.URL, slog.New(slog.DiscardHandler), store)
 	require.NoError(t, err)
 
 	app := fiber.New()
@@ -209,7 +317,7 @@ func TestRouter_HandleLoginSubmit_ValidationErrorIncludesFreshCSRF(t *testing.T)
 	}))
 	defer apiServer.Close()
 
-	router, err := NewRouter(apiServer.URL, slog.New(slog.DiscardHandler), session.NewStore())
+	router, err := newHandlerTestRouter(apiServer.URL, slog.New(slog.DiscardHandler), session.NewStore())
 	require.NoError(t, err)
 
 	app := fiber.New()
@@ -247,7 +355,7 @@ func TestRouter_HandleLogout_RejectsMissingCSRF(t *testing.T) {
 	defer apiServer.Close()
 
 	store := session.NewStore()
-	router, err := NewRouter(apiServer.URL, slog.New(slog.DiscardHandler), store)
+	router, err := newHandlerTestRouter(apiServer.URL, slog.New(slog.DiscardHandler), store)
 	require.NoError(t, err)
 
 	app := fiber.New()
@@ -284,8 +392,9 @@ func TestRouter_HandleLogout_RejectsMissingCSRF(t *testing.T) {
 func TestRouter_HandleLogout_AllowsValidCSRF(t *testing.T) {
 	t.Parallel()
 
-	apiServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
-		w.WriteHeader(http.StatusNotFound)
+	apiServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		assert.NotEqual(t, "/api/users/profile", r.URL.Path)
+		w.WriteHeader(http.StatusServiceUnavailable)
 	}))
 	defer apiServer.Close()
 
@@ -311,7 +420,7 @@ func TestRouter_HandleLogout_AllowsValidCSRF(t *testing.T) {
 	require.NoError(t, err)
 	require.NoError(t, loginResp.Body.Close())
 
-	req := httptest.NewRequestWithContext(context.Background(), http.MethodPost, "/auth/logout", strings.NewReader("_csrf="+url.QueryEscape(token)))
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodPost, "/AUTH/logout/", strings.NewReader("_csrf="+url.QueryEscape(token)))
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 	for _, cookie := range append(cookies, loginResp.Cookies()...) {
 		req.AddCookie(cookie)
@@ -327,40 +436,69 @@ func TestRouter_HandleLogout_AllowsValidCSRF(t *testing.T) {
 	assert.Equal(t, "/auth/login", resp.Header.Get("Location"))
 }
 
-func TestRouter_HandleLoginSubmit_ThrottlesAttempts(t *testing.T) {
+func TestRouter_HandleLoginSubmit_ThrottlesOnlyTheClient(t *testing.T) {
 	t.Parallel()
 
-	apiServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+	apiServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
+		if r.Method == http.MethodGet {
+			_, _ = io.WriteString(w, `{"google_sign_in_enabled":false}`)
+			return
+		}
+		var payload struct{ Password string }
+		if !assert.NoError(t, json.NewDecoder(r.Body).Decode(&payload)) {
+			w.WriteHeader(http.StatusBadRequest)
+			return
+		}
+		if payload.Password == "Synthetic valid password" {
+			_, _ = io.WriteString(w, `{"authentication_version":1,"slug":"fixture-user","email":"jane@example.com","role":"user"}`)
+			return
+		}
 		w.WriteHeader(http.StatusUnauthorized)
-		_, _ = w.Write([]byte(`{"error":{"code":"INVALID_CREDENTIALS","message":"invalid username or password"}}`))
+		_, _ = io.WriteString(w, `{"error":{"code":"INVALID_CREDENTIALS","message":"invalid username or password"}}`)
 	}))
 	defer apiServer.Close()
 
-	router, err := NewRouter(apiServer.URL, slog.New(slog.DiscardHandler), session.NewStore())
+	router, err := newHandlerTestRouter(apiServer.URL, slog.New(slog.DiscardHandler), session.NewStore())
 	require.NoError(t, err)
-
-	app := fiber.New()
+	app := fiber.New(fiber.Config{
+		ProxyHeader: fiber.HeaderXForwardedFor, TrustProxy: true, EnableIPValidation: true,
+		TrustProxyConfig: fiber.TrustProxyConfig{Proxies: []string{"0.0.0.0"}},
+	})
 	router.RegisterRoutes(app, CommunityPresentation{})
 
-	for i := 0; i < defaultAuthThrottleMax; i++ {
+	submit := func(client, path, email, password string) *http.Response {
+		t.Helper()
 		token, cookies := frontendCSRFToken(t, app, "/auth/login")
-		resp := postLoginWithCSRF(t, app, token, cookies)
-		require.NoError(t, resp.Body.Close())
-		assert.Equal(t, http.StatusUnauthorized, resp.StatusCode)
+		form := url.Values{"email": {email}, "password": {password}, "_csrf": {token}}
+		req := httptest.NewRequestWithContext(t.Context(), http.MethodPost, path, strings.NewReader(form.Encode()))
+		req.Header.Set(fiber.HeaderContentType, "application/x-www-form-urlencoded")
+		req.Header.Set(fiber.HeaderXForwardedFor, client)
+		for _, cookie := range cookies {
+			req.AddCookie(cookie)
+		}
+		resp, err := app.Test(req)
+		require.NoError(t, err)
+		return resp
 	}
 
-	token, cookies := frontendCSRFToken(t, app, "/auth/login")
-	resp := postLoginWithCSRF(t, app, token, cookies)
-	defer func() {
+	const account = "jane@example.com"
+	for range defaultAuthThrottleMax {
+		resp := submit("192.0.2.1", "/auth/login", account, "Wrong fixture password")
 		require.NoError(t, resp.Body.Close())
-	}()
-
-	body, err := io.ReadAll(resp.Body)
+		require.Equal(t, http.StatusUnauthorized, resp.StatusCode)
+	}
+	blocked := submit("192.0.2.1", "/AUTH/LOGIN/", "other@example.test", "Wrong fixture password")
+	defer func() { require.NoError(t, blocked.Body.Close()) }()
+	body, err := io.ReadAll(blocked.Body)
 	require.NoError(t, err)
+	require.Equal(t, http.StatusTooManyRequests, blocked.StatusCode)
+	require.Contains(t, string(body), "Too many attempts")
 
-	assert.Equal(t, http.StatusTooManyRequests, resp.StatusCode)
-	assert.Contains(t, string(body), "Too many attempts")
+	allowed := submit("192.0.2.2", "/auth/login", account, "Synthetic valid password")
+	defer func() { require.NoError(t, allowed.Body.Close()) }()
+	require.Equal(t, http.StatusSeeOther, allowed.StatusCode)
+	require.Equal(t, "/dashboard", allowed.Header.Get(fiber.HeaderLocation))
 }
 
 func TestRouter_HandleMFASubmit_ThrottlesAttempts(t *testing.T) {
@@ -373,7 +511,7 @@ func TestRouter_HandleMFASubmit_ThrottlesAttempts(t *testing.T) {
 	}))
 	defer apiServer.Close()
 
-	router, err := NewRouter(apiServer.URL, slog.New(slog.DiscardHandler), session.NewStore())
+	router, err := newHandlerTestRouter(apiServer.URL, slog.New(slog.DiscardHandler), session.NewStore())
 	require.NoError(t, err)
 
 	app := fiber.New()
@@ -428,7 +566,7 @@ func TestRouter_HandleAccountPasswordSubmit_ThrottlesAttempts(t *testing.T) {
 	defer apiServer.Close()
 
 	store := session.NewStore()
-	router, err := NewRouter(apiServer.URL, slog.New(slog.DiscardHandler), store)
+	router, err := newHandlerTestRouter(apiServer.URL, slog.New(slog.DiscardHandler), store)
 	require.NoError(t, err)
 
 	app := fiber.New()
@@ -473,28 +611,6 @@ func extractCSRFToken(t *testing.T, body string) string {
 	matches := regexp.MustCompile(`name="_csrf"\s+value="([^"]+)"`).FindStringSubmatch(body)
 	require.Len(t, matches, 2, "expected rendered page to contain a CSRF token")
 	return matches[1]
-}
-
-func postLoginWithCSRF(
-	t *testing.T,
-	app *fiber.App,
-	token string,
-	cookies []*http.Cookie,
-) *http.Response {
-	t.Helper()
-
-	form := url.Values{}
-	form.Set("email", "jane@example.com")
-	form.Set("password", "wrong-password")
-	form.Set("_csrf", token)
-	req := httptest.NewRequestWithContext(context.Background(), http.MethodPost, "/auth/login", strings.NewReader(form.Encode()))
-	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
-	for _, cookie := range cookies {
-		req.AddCookie(cookie)
-	}
-	resp, err := app.Test(req)
-	require.NoError(t, err)
-	return resp
 }
 
 // postAccountPasswordWithCSRF submits the account password form with a valid session and CSRF token.

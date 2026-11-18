@@ -77,6 +77,32 @@ volume retains database state across stop/start. The installation's unique
 Compose project name stays in `release.env`; preserve it during recovery. Docker
 administrators can inspect container credentials and are trusted operators.
 
+The bundled TLS edge sends a one-year HSTS policy for the application hostname.
+For an existing installation or a custom TLS edge, apply the policy to its
+HTTPS responses, including edge errors. Image-set upgrades retain the installed
+Caddyfile. Review subdomain coverage separately before enabling it.
+
+New bundles put the edge, frontend and API on a dedicated private IPv4 /29.
+The edge forwards its observed client address. The frontend and API trust only
+their configured adjacent proxy address. API-only bundles trust the edge at the
+API. Preparation chooses a subnet from `10.254.0.0/16`. Use
+`--proxy-subnet <private-IPv4-/29>` when that range overlaps Docker or site
+networks. Keep the configured peer addresses and the proxy network together.
+
+Image upgrades retain the installed Compose and Caddy files. To update an
+existing bundle, back up those files and stage the packaged `proxy` network
+with a free private /29. Keep the existing database and application `private`
+network. Attach the edge only to `proxy`, and attach the frontend and API to
+both networks. Put the `api-proxy` alias on the API's `proxy` attachment and
+set the frontend's `BACKEND_API_URL` to `http://api-proxy:3001`. Match each
+trusted address to its adjacent proxy. For an API-only bundle, route Caddy
+directly to `api-proxy:3001` and configure the API to trust the edge.
+Validate the rendered Compose configuration before a maintenance-window
+recreate of the affected services. For custom proxies, have the edge replace
+the incoming forwarding header with the observed client address. When the
+frontend proxies requests, set the API's `SERVER_PROXY_HEADER` to
+`X-Forwarded-For`, which is the header the frontend sends.
+
 Stop preserves containers, volumes and keys. Failed startup also preserves them.
 Inspect status and project logs before retrying. Never replace credentials or
 reset the data volume to repair a failed installation. Stdout logs are bounded
@@ -219,6 +245,9 @@ contract; it does not apply new topology or configuration formats. Confirm the
 release owner supports that transition. The platform and exact PostgreSQL image
 must stay unchanged. Downgrades and PostgreSQL upgrades are rejected.
 
+When upgrading from unprefixed HTTPS cookies, sign in again and reselect any
+remembered dashboard scope. Restart any GitHub connection setup in progress.
+
 ```sh
 python3 -m scripts.installation.lifecycle upgrade /protected/braidplane \
   --release "$PWD/release.json" \
@@ -354,7 +383,7 @@ python3 -m scripts.installation.prepare /protected/braidplane-api release.json \
 ```
 
 The edge certificate must cover the chosen API hostname. Preparation omits the
-frontend container and routes HTTPS directly to `api:3001`. API, control worker,
+frontend container and routes HTTPS directly to `api-proxy:3001`. API, control worker,
 poller executor, PostgreSQL, migrations, grants and administrator bootstrap stay
 available. Use the same install/start/stop/status/upgrade commands and retain the
 same data/key custody rules. The complete release manifest still identifies the

@@ -4,7 +4,7 @@ const {
     assertSeededAuth,
     signInWithCredentials,
     signUpAndVerify,
-    waitForMailpitLink,
+    waitForMailpitCode,
     uniqueE2ESlug,
     deleteE2EAccount,
     e2eEmail,
@@ -20,19 +20,27 @@ test.beforeAll(assertSeededAuth);
 
 test("signs in and navigates from dashboard to scoped pipelines", async ({ page }) => {
     await signInWithCredentials(page, e2eEmail, e2ePassword);
-    const scopeCookies = ["braidplane_dashboard_project_scope", "braidplane_dashboard_environment_scope"];
+    const app = new URL(page.url());
+    const prefix = (await page.context().cookies(app.origin)).some((cookie) => cookie.name === "__Host-session_id")
+        ? "__Host-"
+        : "";
+    const cookieLocation = prefix
+        ? { url: `${app.origin}/`, secure: true }
+        : { domain: app.hostname, path: "/dashboard" };
+    const scopeCookies = [
+        `${prefix}braidplane_dashboard_project_scope`,
+        `${prefix}braidplane_dashboard_environment_scope`,
+    ];
     await page.context().addCookies([
         {
             name: scopeCookies[0],
             value: `${e2eOrgSlug}:${e2eProjectSlug}`,
-            domain: new URL(page.url()).hostname,
-            path: "/dashboard",
+            ...cookieLocation,
         },
         {
             name: scopeCookies[1],
             value: `${e2eOrgSlug}:${e2eProjectSlug}:${e2eEnvironmentSlug}`,
-            domain: new URL(page.url()).hostname,
-            path: "/dashboard",
+            ...cookieLocation,
         },
     ]);
     await page.goto(`/dashboard?project_slug=${e2eProjectSlug}&environment_slug=${e2eEnvironmentSlug}`);
@@ -64,20 +72,16 @@ test.describe("password recovery", () => {
             await page.context().clearCookies();
             await page.goto("/auth/forgot-password");
             await page.locator('input[name="email"]').fill(email);
-            await page.getByRole("button", { name: "Send reset link" }).click();
+            await page.getByRole("button", { name: "Send reset code" }).click();
             await expect(
-                page.getByText("If an account exists for this email, a reset link has been sent."),
+                page.getByText("If an account exists for this email, a reset code has been sent."),
             ).toBeVisible();
 
-            const link = await waitForMailpitLink(page, email, "/auth/reset-password?token=");
-            const resetURL = new URL(link);
-            expect(resetURL.pathname).toBe("/auth/reset-password");
-            expect(Boolean(resetURL.searchParams.get("token"))).toBe(true);
+            const { link, code } = await waitForMailpitCode(page, email, "/auth/reset-password");
             await page.goto(link);
             await expect(page.getByRole("heading", { name: "Reset password", exact: true })).toBeVisible();
-            expect(
-                (await page.locator('input[name="token"]').inputValue()) === resetURL.searchParams.get("token"),
-            ).toBe(true);
+            await expect(page.getByLabel("Reset code")).toHaveValue("");
+            await page.getByLabel("Reset code").fill(code);
             await page.locator('input[name="password"]').fill(newPassword);
             await page.locator('input[name="confirm_password"]').fill(newPassword);
             await page.getByRole("button", { name: "Reset password", exact: true }).click();

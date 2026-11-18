@@ -1,6 +1,6 @@
 # syntax=docker/dockerfile:1
 
-FROM golang:1.26.10-bookworm@sha256:23ce71337b726608afb1bc00986e630a05034a87a87ea1fc2cd1ae5cf33387eb AS go-builder
+FROM golang:1.26.11-bookworm@sha256:dc40a13b61304647ed7e5d581d246b86413dfc29d63c6d018310feb93cd98fc0 AS go-builder
 WORKDIR /src
 ENV GOWORK=off
 COPY go.mod go.sum ./
@@ -46,7 +46,7 @@ FROM scratch AS release-evidence
 COPY --from=go-builder /out/ /out/
 COPY --from=styles /src/frontend/assets/ /frontend-assets/
 
-FROM debian:bookworm-20260918-slim@sha256:3783cc01769c7b2b1b83a5c5ad96c815348e28ed7da68e2e3687004faa906251 AS backend
+FROM debian:bookworm-20261104-slim@sha256:734a72b3d6142a71993b4bc580ca01d8ca687f77a2c422d96a961d3376b179bc AS backend
 RUN apt-get update \
     && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends ca-certificates git openssh-client tzdata \
     && test "$(dpkg-query -W -f='${Version}' ca-certificates)" = '20250419~deb12u2' \

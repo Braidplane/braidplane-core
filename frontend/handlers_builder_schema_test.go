@@ -62,7 +62,7 @@ func TestBuilderSchemaPreservesAPIAuthorization(t *testing.T) {
 		w.WriteHeader(http.StatusForbidden)
 	}))
 	defer backend.Close()
-	router, err := NewRouter(backend.URL, slog.New(slog.DiscardHandler), session.NewStore())
+	router, err := newHandlerTestRouter(backend.URL, slog.New(slog.DiscardHandler), session.NewStore())
 	require.NoError(t, err)
 	app := fiber.New()
 	app.Get("/builder/schema", router.handleBuilderSchema)

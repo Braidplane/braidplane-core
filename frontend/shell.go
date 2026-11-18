@@ -279,7 +279,7 @@ func (r *Router) withProjectShellData(
 
 	activeProjectSlug = strings.TrimSpace(activeProjectSlug)
 	if activeProjectSlug == "" {
-		organization, rememberedProject := dashboardRememberedProjectScope(c)
+		organization, rememberedProject := r.dashboardRememberedProjectScope(c)
 		if organization == shellData.ActiveOrganizationSlug {
 			for _, project := range projectList.Projects {
 				if project.Slug == rememberedProject {

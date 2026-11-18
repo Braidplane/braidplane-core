@@ -60,7 +60,7 @@ func AccountDeletionOutcome(receipt *api.AccountDeletionRequest, message string)
 			templ_7745c5c3_Var2 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = AuthPage("Account removal", false, AccountDeletionOutcomeContent(receipt, message)).Render(ctx, templ_7745c5c3_Buffer)
+		templ_7745c5c3_Err = AuthPage("Account removal", true, AccountDeletionOutcomeContent(receipt, message)).Render(ctx, templ_7745c5c3_Buffer)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

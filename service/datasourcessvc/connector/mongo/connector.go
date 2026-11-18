@@ -7,6 +7,7 @@ import (
 	"net"
 	"net/url"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/Braidplane/braidplane-core/pkg/connector/transportsecurity"
@@ -40,6 +41,18 @@ type Credentials struct {
 	Password string `json:"password" validate:"required"`
 }
 
+func (c Credentials) scramAuth(database string) options.Credential {
+	if database == "" {
+		database = "admin"
+	}
+	return options.Credential{
+		AuthMechanism: "SCRAM-SHA-256",
+		AuthSource:    database,
+		Username:      c.Username,
+		Password:      c.Password,
+	}
+}
+
 // Connector connects to MongoDB databases.
 type Connector struct {
 	client   *mongo.Client
@@ -68,24 +81,16 @@ func New(ctx context.Context, config Config, creds Credentials) (*Connector, err
 		config.ConnectTimeout = 5
 	}
 
-	authDB := config.AuthDatabase
-	if authDB == "" {
-		authDB = "admin"
-	}
-
 	uri := url.URL{
 		Scheme: "mongodb",
-		User:   url.UserPassword(creds.Username, creds.Password),
 		Host:   net.JoinHostPort(config.Host, strconv.Itoa(config.Port)),
 		Path:   "/",
 	}
-	query := uri.Query()
-	query.Set("authSource", authDB)
-	uri.RawQuery = query.Encode()
 
 	connectTimeout := time.Duration(config.ConnectTimeout) * time.Second
 	opts := options.Client().
 		ApplyURI(uri.String()).
+		SetAuth(creds.scramAuth(config.AuthDatabase)).
 		SetServerSelectionTimeout(connectTimeout).
 		SetConnectTimeout(connectTimeout)
 	if !transportsecurity.PlaintextAllowed(ctx) {
@@ -211,7 +216,7 @@ func (c *Connector) Execute(
 		), nil
 	}
 
-	var rawStatement any
+	var rawStatement map[string]any
 	if err := json.Unmarshal(queryData, &rawStatement); err != nil {
 		durationMs := time.Since(start).Milliseconds()
 		return result.NewMongoDBResult(
@@ -220,9 +225,16 @@ func (c *Connector) Execute(
 			xerror.Unexpected().Detailf("invalid MongoDB query data: %w", err),
 		), nil
 	}
+	if rawStatement == nil {
+		return result.NewMongoDBResult(nil, time.Since(start).Milliseconds(),
+			xerror.InvalidInput(xerror.Query).WithPublicDetail("The MongoDB statement must be an object.")), nil
+	}
 
 	// Substitute parameters in the parsed statement so exact placeholders can resolve to native
 	// objects and arrays rather than forcing raw JSON string injection.
+	if err := validateMongoBindings(rawStatement, params, normalized); err != nil {
+		return result.NewMongoDBResult(nil, time.Since(start).Milliseconds(), err), nil
+	}
 	resolvedStatement, err := param.SubstituteValue(rawStatement, normalized)
 	if err != nil {
 		durationMs := time.Since(start).Milliseconds()
@@ -232,11 +244,6 @@ func (c *Connector) Execute(
 			xerror.Wrapf("failed to substitute statement parameters: %w", err),
 		), nil
 	}
-	if err := validateResolvedStructuredFields(resolvedStatement); err != nil {
-		durationMs := time.Since(start).Milliseconds()
-		return result.NewMongoDBResult(nil, durationMs, err), nil
-	}
-
 	resolvedStatementJSON, err := json.Marshal(resolvedStatement)
 	if err != nil {
 		durationMs := time.Since(start).Milliseconds()
@@ -256,6 +263,9 @@ func (c *Connector) Execute(
 			xerror.Unexpected().Detailf("invalid MongoDB query data: %w", err),
 		), nil
 	}
+	if err := validateResolvedStructuredFields(resolvedStatementJSON); err != nil {
+		return result.NewMongoDBResult(nil, time.Since(start).Milliseconds(), err), nil
+	}
 	if qd.Collection == "" {
 		durationMs := time.Since(start).Milliseconds()
 		return result.NewMongoDBResult(
@@ -274,8 +284,14 @@ func (c *Connector) Execute(
 		), nil
 	}
 
-	// Parameters are now pre-substituted in the raw JSON before unmarshaling,
-	// so no need for field-by-field substitution here
+	if qd.hasUnsupportedCommandOperator() {
+		return result.NewMongoDBResult(nil, time.Since(start).Milliseconds(),
+			xerror.InvalidInput(xerror.Query).WithPublicDetail("MongoDB statements cannot use server-side JavaScript or internal operators.")), nil
+	}
+	if execLimits.ReadOnly && !qd.isReadOnly() {
+		return result.NewMongoDBResult(nil, time.Since(start).Milliseconds(),
+			xerror.DataSourceReadOnly().WithPublicDetail("This MongoDB data source permits read-only operations.")), nil
+	}
 
 	db := c.client.Database(c.database)
 	coll := db.Collection(qd.Collection)
@@ -333,15 +349,79 @@ func (c *Connector) Execute(
 	return result.NewMongoDBResult(resultData, durationMs, execErr), nil
 }
 
-func validateResolvedStructuredFields(statement any) error {
-	statementMap, ok := statement.(map[string]any)
-	if !ok {
-		return nil
+func (qd mongoQueryData) hasUnsupportedCommandOperator() bool {
+	switch qd.Operation {
+	case OperationFind:
+		return containsUnsupportedOperator(qd.Filter) || containsUnsupportedOperator(qd.Projection)
+	case OperationAggregate:
+		return containsUnsupportedOperator(qd.Pipeline)
+	case OperationUpdateOne, OperationUpdateMany:
+		// Classic update modifiers store values as data. $pull can evaluate a predicate.
+		for key := range qd.Update {
+			if isUnsupportedOperator(key) {
+				return true
+			}
+		}
+		return containsUnsupportedOperator(qd.Filter) || containsUnsupportedOperator(qd.Update["$pull"])
+	case OperationCountDocuments, OperationDeleteOne, OperationDeleteMany:
+		return containsUnsupportedOperator(qd.Filter)
+	default:
+		return false
 	}
+}
 
-	for _, field := range []string{"filter", "projection", "sort", "pipeline", "document", "documents", "update"} {
-		value, exists := statementMap[field]
-		if exists && value == nil {
+func (qd mongoQueryData) isReadOnly() bool {
+	switch qd.Operation {
+	case OperationFind, OperationCountDocuments:
+		return true
+	case OperationAggregate:
+		for _, stage := range qd.Pipeline {
+			document, _ := stage.(map[string]any)
+			for key := range document {
+				if key == "$out" || key == "$merge" {
+					return false
+				}
+			}
+		}
+		return true
+	default:
+		return false
+	}
+}
+
+func isUnsupportedOperator(key string) bool {
+	return key == "$where" || key == "$function" || key == "$accumulator" || strings.HasPrefix(key, "$_")
+}
+
+// Inspect command keys while preserving scalar data values.
+func containsUnsupportedOperator(value any) bool {
+	switch typed := value.(type) {
+	case map[string]any:
+		if _, literal := typed["$literal"]; literal && len(typed) == 1 {
+			return false
+		}
+		for key, child := range typed {
+			if isUnsupportedOperator(key) || containsUnsupportedOperator(child) {
+				return true
+			}
+		}
+	case []any:
+		for _, child := range typed {
+			if containsUnsupportedOperator(child) {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+func validateResolvedStructuredFields(statement []byte) error {
+	var statementMap map[string]json.RawMessage
+	if err := json.Unmarshal(statement, &statementMap); err != nil {
+		return err
+	}
+	for field, value := range statementMap {
+		if isMongoStructuredField(strings.ToLower(field)) && bytes.Equal(value, []byte("null")) {
 			return xerror.Unexpected().Detailf(
 				"MongoDB field %q must not resolve to null",
 				field,

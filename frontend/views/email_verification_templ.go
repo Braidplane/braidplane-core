@@ -58,7 +58,7 @@ func EmailVerificationPageContent(email string, notice string, returnTo string) 
 			templ_7745c5c3_Var2 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 1, "<div class=\"space-y-5 text-center\"><h1 class=\"text-2xl font-semibold\">Verify your email</h1><p class=\"text-sm text-base-content/70\">We sent a verification link to your inbox.</p>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 1, "<div class=\"space-y-5 text-center\"><h1 class=\"text-2xl font-semibold\">Verify your email</h1><p class=\"text-sm text-base-content/70\">We sent a verification code to your inbox.</p>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -94,7 +94,7 @@ func EmailVerificationPageContent(email string, notice string, returnTo string) 
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 5, "</div><div class=\"rounded-lg border border-base-300 bg-base-200/30 p-3 text-left\"><p class=\"text-xs font-semibold uppercase tracking-wide text-base-content/60\">Next step</p><p class=\"mt-2 text-sm text-base-content/80\">Open your inbox and click the verification link.</p><p class=\"text-sm text-base-content/80\">You can close this page now.</p></div><div class=\"grid gap-2\"><a class=\"btn btn-primary w-full\" href=\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 5, "</div><div class=\"rounded-lg border border-base-300 bg-base-200/30 p-3 text-left\"><p class=\"text-xs font-semibold uppercase tracking-wide text-base-content/60\">Next step</p><p class=\"mt-2 text-sm text-base-content/80\">Open the link in your inbox and enter the verification code.</p><p class=\"text-sm text-base-content/80\">You can close this page now.</p></div><div class=\"grid gap-2\"><a class=\"btn btn-primary w-full\" href=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -107,7 +107,7 @@ func EmailVerificationPageContent(email string, notice string, returnTo string) 
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 6, "\">I&apos;ve clicked the link</a><form method=\"post\" action=\"/auth/resend-verification\" hx-post=\"/auth/resend-verification\" hx-target=\"main\" hx-select=\"main\" hx-swap=\"innerHTML\"><input type=\"hidden\" name=\"email\" value=\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 6, "\">Continue to sign in</a><form method=\"post\" action=\"/auth/resend-verification\" hx-post=\"/auth/resend-verification\" hx-target=\"main\" hx-select=\"main\" hx-swap=\"innerHTML\"><input type=\"hidden\" name=\"email\" value=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -143,7 +143,65 @@ func EmailVerificationPageContent(email string, notice string, returnTo string) 
 				return templ_7745c5c3_Err
 			}
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 10, "<button class=\"btn btn-outline w-full\" type=\"submit\">Resend verification link</button></form></div><p class=\"text-xs text-base-content/70\">Didn&apos;t receive anything? Check your spam folder.</p></div>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 10, "<button class=\"btn btn-outline w-full\" type=\"submit\">Resend verification code</button></form></div><p class=\"text-xs text-base-content/70\">Didn&apos;t receive anything? Check your spam folder.</p></div>")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		return nil
+	})
+}
+
+func EmailVerificationConfirmationPage() templ.Component {
+	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
+		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
+		if templ_7745c5c3_CtxErr := ctx.Err(); templ_7745c5c3_CtxErr != nil {
+			return templ_7745c5c3_CtxErr
+		}
+		templ_7745c5c3_Buffer, templ_7745c5c3_IsBuffer := templruntime.GetBuffer(templ_7745c5c3_W)
+		if !templ_7745c5c3_IsBuffer {
+			defer func() {
+				templ_7745c5c3_BufErr := templruntime.ReleaseBuffer(templ_7745c5c3_Buffer)
+				if templ_7745c5c3_Err == nil {
+					templ_7745c5c3_Err = templ_7745c5c3_BufErr
+				}
+			}()
+		}
+		ctx = templ.InitializeContext(ctx)
+		templ_7745c5c3_Var8 := templ.GetChildren(ctx)
+		if templ_7745c5c3_Var8 == nil {
+			templ_7745c5c3_Var8 = templ.NopComponent
+		}
+		ctx = templ.ClearChildren(ctx)
+		templ_7745c5c3_Err = AuthPage("Confirm email", false, EmailVerificationConfirmationForm()).Render(ctx, templ_7745c5c3_Buffer)
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		return nil
+	})
+}
+
+func EmailVerificationConfirmationForm() templ.Component {
+	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
+		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
+		if templ_7745c5c3_CtxErr := ctx.Err(); templ_7745c5c3_CtxErr != nil {
+			return templ_7745c5c3_CtxErr
+		}
+		templ_7745c5c3_Buffer, templ_7745c5c3_IsBuffer := templruntime.GetBuffer(templ_7745c5c3_W)
+		if !templ_7745c5c3_IsBuffer {
+			defer func() {
+				templ_7745c5c3_BufErr := templruntime.ReleaseBuffer(templ_7745c5c3_Buffer)
+				if templ_7745c5c3_Err == nil {
+					templ_7745c5c3_Err = templ_7745c5c3_BufErr
+				}
+			}()
+		}
+		ctx = templ.InitializeContext(ctx)
+		templ_7745c5c3_Var9 := templ.GetChildren(ctx)
+		if templ_7745c5c3_Var9 == nil {
+			templ_7745c5c3_Var9 = templ.NopComponent
+		}
+		ctx = templ.ClearChildren(ctx)
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 11, "<div class=\"space-y-5 text-center\"><h1 class=\"text-2xl font-semibold\">Confirm your email</h1><form class=\"space-y-3\" method=\"post\" action=\"/verify-email\" hx-history=\"false\"><label class=\"form-control w-full\"><span class=\"label-text\">Verification code</span> <input class=\"input input-bordered w-full\" type=\"text\" name=\"token\" autocomplete=\"one-time-code\" autocapitalize=\"none\" spellcheck=\"false\" required></label> <button class=\"btn btn-primary w-full\" type=\"submit\">Verify email</button></form></div>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

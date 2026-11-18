@@ -16,8 +16,13 @@ class RuntimeSuiteTest(unittest.TestCase):
                 (root / "bin").mkdir()
                 calls = root / "calls"
                 commands = {
-                    "docker": 'echo "docker $*" >> "$CALLS"; if [[ "$1" = run ]]; then echo fixture-id; fi',
-                    "task": 'echo "task $*" >> "$CALLS"; if [[ "$1" = "$FAILED_TASK" ]]; then exit 42; fi',
+                    "docker": 'echo "docker $*" >> "$CALLS"; '
+                              'if [[ "$1" = run ]]; then echo fixture-id; fi; '
+                              'if [[ " $* " = *" up "* ]]; then echo "bind ${HUBSPOT_MOCK_PORT:-}" >> "$CALLS"; fi; '
+                              'if [[ " $* " = *" port hubspot-connector-test 8080 " ]]; then echo "127.0.0.1:49123"; fi',
+                    "task": 'echo "task $*" >> "$CALLS"; '
+                            'echo "hubspot $HUBSPOT_BASE_URL $HUBSPOT_OAUTH_BASE_URL" >> "$CALLS"; '
+                            'if [[ "$1" = "$FAILED_TASK" ]]; then exit 42; fi',
                     "ssh-keygen": 'touch "$PWD/.worktree/ci-git-key"; echo synthetic-public-key > "$PWD/.worktree/ci-git-key.pub"',
                     "ssh-keyscan": 'echo synthetic-host-key',
                     "curl": 'test -f .worktree/community/keys.env',
@@ -50,3 +55,6 @@ class RuntimeSuiteTest(unittest.TestCase):
                     self.assertIn("task test-bruno", commands)
                     self.assertNotIn("task test-e2e", commands)
                     self.assertIn("mysql-connector-test", commands)
+                    self.assertIn("bind 127.0.0.1:0", commands)
+                    self.assertIn("port hubspot-connector-test 8080", commands)
+                    self.assertIn("hubspot http://127.0.0.1:49123 http://localhost:49123", commands)

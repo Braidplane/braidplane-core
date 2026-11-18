@@ -24,7 +24,7 @@ script:pre-request {
   }
   // Wait for the original email so the later resend cannot race its delivery.
   const {emailText} = require('./auth-email.cjs');
-  bru.setVar('originalVerificationEmail', await emailText(require('axios'), bru.getEnvVar('mailpitUrl'), userEmail, /token=([a-f0-9]{64})/));
+  bru.setVar('originalVerificationEmail', await emailText(require('axios'), bru.getEnvVar('mailpitUrl'), userEmail, /\/verify-email(?:\r?\n|$)/));
 
 }
 

@@ -226,7 +226,7 @@ func (gitRemoteAdapter) CloneRemote(
 	return cloneRemote(ctx, repoURL, branch, env, nil)
 }
 
-func cloneRemote(ctx context.Context, repoURL, branch string, env []string, nativeFile *nativeFileCheckout) (RepoStore, string, func(), error) {
+func cloneRemote(ctx context.Context, repoURL, branch string, env []string, checkout *fileCheckout) (RepoStore, string, func(), error) {
 	if err := validateRemoteRepoURLScheme(repoURL); err != nil {
 		return nil, "", nil, err
 	}
@@ -243,7 +243,7 @@ func cloneRemote(ctx context.Context, repoURL, branch string, env []string, nati
 	}
 
 	args := []string{"clone", "--depth=1"}
-	if nativeFile != nil {
+	if checkout != nil {
 		args = append(args, "--no-checkout", "--no-local", "--no-tags", "--no-recurse-submodules")
 		for _, config := range nativeFileCloneConfig {
 			args = append(args, "--config", config)
@@ -268,8 +268,8 @@ func cloneRemote(ctx context.Context, repoURL, branch string, env []string, nati
 		).WithPublicDetail(publicDetail)
 	}
 
-	if nativeFile != nil {
-		if err := prepareNativeCheckout(ctx, targetDir, *nativeFile); err != nil {
+	if checkout != nil {
+		if err := prepareFileCheckout(ctx, targetDir, *checkout, env); err != nil {
 			cleanup()
 			return nil, "", nil, err
 		}

@@ -115,7 +115,7 @@ func TestODCSCatalogInspection(t *testing.T) {
 			}))
 			defer server.Close()
 			store := session.NewStore()
-			router, err := NewRouter(server.URL, slog.New(slog.DiscardHandler), store)
+			router, err := newHandlerTestRouter(server.URL, slog.New(slog.DiscardHandler), store)
 			require.NoError(t, err)
 			app := fiber.New()
 			registerTestSessionRoute(app, store)

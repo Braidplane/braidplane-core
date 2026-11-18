@@ -53,7 +53,8 @@ func TestCustomerSMTPTrustAndRecoveryDelivery(t *testing.T) {
 			require.NoError(t, err)
 			ctx, cancel := context.WithTimeout(t.Context(), 5*time.Second)
 			defer cancel()
-			err = sender.PasswordReset(ctx, &model.User{Email: "owner@customer.example.test", Locale: "en"}, "https://app.customer.example.test/reset-password?token=synthetic-reset-token")
+			resetCode := strings.Repeat("a", 64)
+			err = sender.PasswordReset(ctx, &model.User{Email: "owner@customer.example.test", Locale: "en"}, "https://app.customer.example.test/auth/reset-password", resetCode)
 			if !tc.success {
 				require.Error(t, err)
 				require.Empty(t, messages)
@@ -63,9 +64,24 @@ func TestCustomerSMTPTrustAndRecoveryDelivery(t *testing.T) {
 			select {
 			case message := <-messages:
 				require.Contains(t, message, "owner@customer.example.test")
-				require.Contains(t, message, "synthetic-reset-token")
+				require.Contains(t, message, "https://app.customer.example.test/auth/reset-password")
+				require.Contains(t, message, "Code: "+resetCode)
+				require.NotContains(t, message, "?token")
 			case <-ctx.Done():
 				t.Fatal("customer SMTP did not receive recovery email")
+			}
+			cfg.Host, messages = customerSMTPFixture(t, cert, tc.startTLS)
+			sender, err = email.NewService(cfg, bundle)
+			require.NoError(t, err)
+			verificationCode := strings.Repeat("b", 64)
+			require.NoError(t, sender.EmailVerification(ctx, &model.User{Email: "owner@customer.example.test", Locale: "pl"}, "https://app.customer.example.test/verify-email", verificationCode))
+			select {
+			case message := <-messages:
+				require.Contains(t, message, "https://app.customer.example.test/verify-email")
+				require.Contains(t, message, "Kod: "+verificationCode)
+				require.NotContains(t, message, "?token")
+			case <-ctx.Done():
+				t.Fatal("customer SMTP did not receive verification email")
 			}
 		})
 	}

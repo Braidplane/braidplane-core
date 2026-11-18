@@ -29,6 +29,11 @@ class PreparationTest(unittest.TestCase):
         args.update(overrides)
         prepare(**args)
 
+    def assert_hsts_config(self):
+        edge = (self.target / "Caddyfile").read_text()
+        self.assertIn('header >Strict-Transport-Security "max-age=31536000"', edge)
+        self.assertIn('handle_errors {\n    header Strict-Transport-Security "max-age=31536000"\n    respond "" {err.status_code}', edge)
+
     def test_bundle_is_self_contained_and_preserves_keys(self):
         self.prepare()
         runtime = dict(line.split("=", 1) for line in (self.target / "runtime.env").read_text().splitlines())
@@ -47,6 +52,7 @@ class PreparationTest(unittest.TestCase):
         self.assertTrue(config["session"]["cookie_secure"])
         for name in ("compose.json", "Caddyfile", "runtime-grants.sql", "execution-grants.sql", "release.json"):
             self.assertTrue((self.target / name).is_file(), name)
+        self.assert_hsts_config()
         before = (self.target / "runtime.env").read_bytes()
         with self.assertRaises(FileExistsError):
             self.prepare()
@@ -59,13 +65,26 @@ class PreparationTest(unittest.TestCase):
         for service in ("api", "worker", "executor", "database", "bootstrap", "migrate", "grants"):
             self.assertIn(service, compose["services"])
         self.assertEqual(compose["services"]["edge"]["depends_on"], {"api": {"condition": "service_healthy"}})
-        self.assertIn("reverse_proxy api:3001", (self.target / "Caddyfile").read_text())
+        self.assertIn("reverse_proxy api-proxy:3001", (self.target / "Caddyfile").read_text())
+        self.assertEqual(compose["services"]["api"]["environment"]["SERVER_TRUSTED_PROXIES"],
+                         compose["services"]["edge"]["networks"]["proxy"]["ipv4_address"])
+        self.assert_hsts_config()
         self.assertNotIn("frontend", (self.target / "Caddyfile").read_text())
+
+    def test_custom_proxy_subnet_pins_exact_adjacent_peers(self):
+        self.prepare(proxy_subnet="192.168.95.0/29")
+        compose = json.loads((self.target / "compose.json").read_text())
+        services = compose["services"]
+        self.assertEqual(compose["networks"]["proxy"]["ipam"]["config"][0]["subnet"], "192.168.95.0/29")
+        self.assertEqual(services["edge"]["networks"]["proxy"]["ipv4_address"], "192.168.95.2")
+        self.assertEqual(services["frontend"]["environment"]["FRONTEND_SERVER_TRUSTED_PROXIES"], "192.168.95.2")
+        self.assertEqual(services["api"]["environment"]["SERVER_TRUSTED_PROXIES"], "192.168.95.3")
 
     def test_untrusted_customer_values_create_nothing(self):
         for key, value in (("hostname", "app.test\nEVIL=yes"), ("hostname", "app.localhost"),
                            ("bind_address", "0.0.0.0;id"), ("smtp_host", 'mail.test:587"'),
-                           ("smtp_host", "mail.test:99999"), ("sender", "x@test\nEVIL=yes")):
+                           ("smtp_host", "mail.test:99999"), ("sender", "x@test\nEVIL=yes"),
+                           ("proxy_subnet", "203.0.113.0/29"), ("proxy_subnet", "10.1.2.0/24")):
             with self.subTest(key=key):
                 with self.assertRaises(ValueError):
                     self.prepare(**{key: value})

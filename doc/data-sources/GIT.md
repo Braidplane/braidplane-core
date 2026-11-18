@@ -76,7 +76,11 @@ Proof starts disabled for new sources. Its assessment and GitHub publication
 controls are separate from repository authorization; live connector evidence
 requires separate environment authorization. See Proof configuration.
 
-Plain `http://` repository URLs are not supported. Use `https://`, `ssh://`, or SCP-style SSH syntax such as `git@github.com:org/repo.git`. SSH connections require a trusted host key entry; the connector does not disable host key verification.
+Use `https://` with HTTPS credentials, or use `ssh://` or SCP-style SSH syntax such as `git@github.com:org/repo.git` with SSH credentials. Supply authentication secrets in the credential fields. Repository URLs may include an SSH login name and must omit passwords, HTTPS user information, queries and fragments. SSH connections require a trusted host key entry.
+
+To change transport, create a new source with the matching credentials and rebind its consumers. For a saved URL that contains credentials, remove them from the URL and rotate those credentials before testing the source again.
+
+The API strips credentials, query strings, and fragments from stored Git URLs in data-source responses. A URL that Core cannot display safely appears as an empty `repo_url`. Update an unbound source with a clean remote URL. If a project backend prevents the update, create a replacement source and rebind the project and other consumers.
 
 ## Migration inventory and recovery
 
@@ -105,8 +109,9 @@ or evidence that the deployment has been migrated.
 
 Git data sources execute raw Git operations with the runtime `git` command.
 HTTPS remotes also require Git's HTTPS remote helper, CA certificates, and a
-POSIX shell for the in-memory credential helper. SSH remotes require the runtime `ssh` client,
-a POSIX shell for passphrase askpass helpers, a writable runtime home, and
+POSIX shell for the in-memory credential helper. SSH remotes require OpenSSH with
+environment variable support in `IdentityFile` and `UserKnownHostsFile`. They also
+require a POSIX shell for passphrase askpass helpers, a writable runtime home, and
 passwd data for the process UID. Validate these dependencies in the release
 image before tagging or pushing it. This core repository does not define a
 staging-image validation task.
@@ -177,7 +182,9 @@ previous schema cache unchanged rather than persisting a partial result.
 
 A query defines a file operation:
 
-**Read** (`operation: read`): reads the file at `path` and returns rows for `csv`, `json`, and `spreadsheet`, or a native file payload for `format: file`. Supported formats: `csv`, `json`, `file`, `spreadsheet`, or `auto` (detected from extension). Spreadsheet mode supports Excel workbook files, selects one worksheet, optionally crops to an A1 range, and normalizes the selected cells into rows.
+**Read** (`operation: read`): reads the file at `path` and returns rows for `csv`, `json`, and `spreadsheet`, or a native file payload for `format: file`. Supported formats: `csv`, `json`, `file`, `spreadsheet`, or `auto` (detected from extension). Explicit structured formats require a matching extension. Spreadsheet mode supports Excel workbook files, selects one worksheet, optionally crops to an A1 range, and normalizes the selected cells into rows.
+
+Structured reads fetch a shallow branch snapshot with a 256 MiB limit per pack or index file. Git checks out only the requested file, preserves repository attribute conversions, and applies the configured response byte limit to the resulting content. That limit defaults to 10 MiB. Git subprocess limits can also reject large object allocations during fetch or checkout.
 
 **Write** (`operation: write`): for pipeline sinks, serializes the runtime-provided `input` payload into `path`; direct (non-pipeline) saved queries may alternatively provide inline `content`. The write commits the change in a shallow clone and pushes to the configured remote repository. When reserved runtime `path` or `input` bindings are present they override the saved query's inline path/content values. Non-empty runtime `branch` and `message` overrides also replace the saved query values when provided; empty values fall back to the saved query or connector defaults. CSV-format writes preserve raw `input` bytes when the upstream payload is already CSV. JSON-format writes accept structured payloads only: row arrays and document payloads are written as JSON, while scalar and null content are rejected. Spreadsheet writes accept row-object arrays and write an Excel workbook with a stable header order. Native file writes use `format: file` and preserve raw bytes without CSV/JSON/spreadsheet parsing. In pipeline terms, that means CSV-to-JSON or CSV-to-spreadsheet requires an explicit transform instead of a hidden sink-side conversion.
 

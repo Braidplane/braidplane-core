@@ -1,6 +1,7 @@
 import json
 import importlib.util
 import io
+from email.message import Message
 from pathlib import Path
 import ssl
 import tempfile
@@ -61,6 +62,14 @@ class FrontendProbeTests(unittest.TestCase):
             spec.loader.exec_module(probe)
         self.probe = probe
 
+    def test_secure_session_cookie_probe_requires_a_parsed_host_cookie(self):
+        headers = Message()
+        headers['Set-Cookie'] = '__Host-session_id=fixture; Secure; HttpOnly; SameSite=Lax; Path=/'
+        self.probe.assert_secure_session_cookies(headers)
+        headers.replace_header('Set-Cookie', 'invalid-cookie')
+        with self.assertRaisesRegex(AssertionError, 'invalid session cookie header'):
+            self.probe.assert_secure_session_cookies(headers)
+
     def test_readiness_waits_for_api_and_frontend_and_is_bounded(self):
         probe = self.probe
         probe.client = Mock()
@@ -84,7 +93,9 @@ class FrontendProbeTests(unittest.TestCase):
     def test_auth_throttle_retries_one_default_window_then_fails(self):
         probe = self.probe
         def response(status):
-            return HTTPError(probe.base, status, 'synthetic', {}, io.BytesIO(b'body'))
+            headers = Message()
+            headers['Strict-Transport-Security'] = 'max-age=31536000'
+            return HTTPError(probe.base, status, 'synthetic', headers, io.BytesIO(b'body'))
         probe.client = Mock()
         probe.client.open.side_effect = [response(429), response(200)]
         with patch.object(probe.time, 'sleep') as sleep:

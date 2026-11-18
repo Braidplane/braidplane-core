@@ -14,15 +14,14 @@ export SERVER_PORT=3001 FRONTEND_SERVER_PORT=3002 COMMUNITY_WORKER_PORT=3003
 export POSTGRES_CONNECTOR_PORT=35433 GIT_SSH_PORT=32223 GIT_HTTP_PORT=32080
 export HTTP_CONNECTOR_PORT=38080 OPENAPI_SERVER_PORT=38081
 export MYSQL_CONNECTOR_PORT=33307 MONGO_CONNECTOR_PORT=37017 FTP_CONNECTOR_PORT=32121
-export HUBSPOT_MOCK_PORT=38082 BIGQUERY_MOCK_PORT=38084 S3_CONNECTOR_PORT=39000
-export HUBSPOT_BASE_URL="http://127.0.0.1:$HUBSPOT_MOCK_PORT" HUBSPOT_ALLOW_PRIVATE_HOSTS=true
+export BIGQUERY_MOCK_PORT=38084 S3_CONNECTOR_PORT=39000
+export HUBSPOT_ALLOW_PRIVATE_HOSTS=true
 export BIGQUERY_BASE_URL="http://127.0.0.1:$BIGQUERY_MOCK_PORT" BIGQUERY_ALLOW_PRIVATE_HOSTS=true
 export BIGQUERY_TOKEN_URL="$BIGQUERY_BASE_URL/token"
 export DB_HOST=127.0.0.1 DB_USER=postgres DB_PASSWORD=postgres DB_DATABASE=braidplane DB_SSL_MODE=disable
 export FRONTEND_URL="http://127.0.0.1:$FRONTEND_SERVER_PORT"
 export HUBSPOT_OAUTH_CLIENT_ID=braidplane-local-oauth-client
 export HUBSPOT_OAUTH_CLIENT_SECRET=braidplane-local-oauth-secret
-export HUBSPOT_OAUTH_BASE_URL="http://localhost:$HUBSPOT_MOCK_PORT"
 export HUBSPOT_OAUTH_REDIRECT_URI="$FRONTEND_URL/provider-connectors/hubspot/callback"
 export E2E_BASE_URL="$FRONTEND_URL"
 export MAILPIT_URL="http://127.0.0.1:$MAILPIT_WEB_PORT" GOWORK=off BRAIDPLANE_BROWSER_PROFILE=critical
@@ -49,13 +48,24 @@ git_id=$(docker run -d --rm -p "127.0.0.1:$GIT_SSH_PORT:23231" -p "127.0.0.1:$GI
     -e SOFT_SERVE_INITIAL_ADMIN_KEYS="$GIT_TEST_SSH_PUBLIC_KEY" -e SOFT_SERVE_DATA_PATH=/soft-serve \
     -e 'SOFT_SERVE_DB_DATA_SOURCE=soft-serve.db?_pragma=busy_timeout(5000)&_pragma=foreign_keys(1)&_txlock=immediate' "$git_image")
 if [ "$suite" = bruno ]; then
-    docker compose -f docker-compose.yml -f docker-compose.connectors.yml up -d --build --wait \
+    # Let Docker reserve the port so runner services cannot collide with the fixture.
+    HUBSPOT_MOCK_PORT=127.0.0.1:0 docker compose -f docker-compose.yml -f docker-compose.connectors.yml up -d --build --wait \
         postgres-connector-test mysql-connector-test mongo-connector-test \
         http-connector-test openapi-server hubspot-connector-test bigquery-connector-test \
         ftp-connector-test s3-connector-test-setup
+    hubspot_address=$(docker compose -f docker-compose.yml -f docker-compose.connectors.yml port hubspot-connector-test 8080)
+    HUBSPOT_MOCK_PORT=${hubspot_address##*:}
+    if [[ ! "$HUBSPOT_MOCK_PORT" =~ ^[1-9][0-9]{0,4}$ ]]; then
+        echo "invalid HubSpot fixture port: $hubspot_address" >&2
+        exit 1
+    fi
 else
     docker compose -f docker-compose.yml -f docker-compose.connectors.yml up -d --wait postgres-connector-test
+    HUBSPOT_MOCK_PORT=38082
 fi
+export HUBSPOT_MOCK_PORT
+export HUBSPOT_BASE_URL="http://127.0.0.1:$HUBSPOT_MOCK_PORT"
+export HUBSPOT_OAUTH_BASE_URL="http://localhost:$HUBSPOT_MOCK_PORT"
 python3 scripts/dev.py > .worktree/ci-browser-start.log 2>&1 &
 app_pid=$!
 for attempt in {1..900}; do

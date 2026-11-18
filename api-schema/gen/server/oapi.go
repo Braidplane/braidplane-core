@@ -6066,6 +6066,21 @@ func (e TestSnowflakeDataSourceConnectionRequestType) Valid() bool {
 	}
 }
 
+// Defines values for UnavailableGitConfigRepoUrl.
+const (
+	Empty UnavailableGitConfigRepoUrl = ""
+)
+
+// Valid indicates whether the value is a known member of the UnavailableGitConfigRepoUrl enum.
+func (e UnavailableGitConfigRepoUrl) Valid() bool {
+	switch e {
+	case Empty:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for UpdateODCSContractStatus.
 const (
 	UpdateODCSContractStatusActive   UpdateODCSContractStatus = "active"
@@ -8075,6 +8090,11 @@ type AccountDeletionRequest struct {
 
 // AccountDeletionRequestState defines model for AccountDeletionRequest.State.
 type AccountDeletionRequestState string
+
+// AccountFullName Full display name for an account
+//
+// Example: John Doe
+type AccountFullName = string
 
 // AlertDeliveryAttempt Alert-owned delivery attempt diagnostic row for one notification and destination. Provider response metadata is sanitized and must not contain raw provider responses or secret material.
 type AlertDeliveryAttempt struct {
@@ -11820,10 +11840,10 @@ type NewUser struct {
 	// Email Example: john.doe@example.com
 	Email Email `json:"email"`
 
-	// FullName Human-readable display name
+	// FullName Full display name for an account
 	//
-	// Example: Acme Corp
-	FullName Name `json:"full_name"`
+	// Example: John Doe
+	FullName AccountFullName `json:"full_name"`
 
 	// Password Example: SecurePass123!
 	Password Password `json:"password"`
@@ -12016,7 +12036,9 @@ type ODCSArtifact struct {
 	Original       []byte             `json:"original"`
 	Path           string             `json:"path"`
 	RevisionSlug   string             `json:"revision_slug"`
-	SourceRepo     string             `json:"source_repo"`
+
+	// SourceRepo Public repository identity or an opaque artifact locator when historical provenance cannot be displayed safely.
+	SourceRepo string `json:"source_repo"`
 }
 
 // ODCSArtifactFormat defines model for ODCSArtifact.Format.
@@ -18207,6 +18229,17 @@ type TestSnowflakeDataSourceConnectionRequestType string
 // Timestamp Example: 2025-10-04T12:34:56Z
 type Timestamp = time.Time
 
+// UnavailableGitConfig Read-only configuration returned when a stored Git repository URL cannot be safely displayed.
+type UnavailableGitConfig struct {
+	AllowPrivateHosts *bool                       `json:"allow_private_hosts,omitempty"`
+	BasePath          *string                     `json:"base_path,omitempty"`
+	DefaultBranch     *string                     `json:"default_branch,omitempty"`
+	RepoUrl           UnavailableGitConfigRepoUrl `json:"repo_url"`
+}
+
+// UnavailableGitConfigRepoUrl defines model for UnavailableGitConfig.RepoUrl.
+type UnavailableGitConfigRepoUrl string
+
 // UpdateAPIKey defines model for UpdateAPIKey.
 type UpdateAPIKey struct {
 	// CanManageApiKeys Enables or disables API key management. Bearer API keys cannot change this field.
@@ -18516,10 +18549,10 @@ type UpdateUserProfile struct {
 	// Example: https://example.com/avatar.jpg
 	AvatarUrl *string `json:"avatar_url,omitempty"`
 
-	// FullName Human-readable display name
+	// FullName Full display name for an account
 	//
-	// Example: Acme Corp
-	FullName *Name `json:"full_name,omitempty"`
+	// Example: John Doe
+	FullName *AccountFullName `json:"full_name,omitempty"`
 
 	// JobTitle Optional job title. Send an empty string to clear it.
 	//
@@ -21404,6 +21437,32 @@ func (t *DataSource_Config) FromGitConfig(v GitConfig) error {
 
 // MergeGitConfig performs a merge with any union data inside the DataSource_Config, using the provided GitConfig
 func (t *DataSource_Config) MergeGitConfig(v GitConfig) error {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+
+	merged, err := runtime.JSONMerge(t.union, b)
+	t.union = merged
+	return err
+}
+
+// AsUnavailableGitConfig returns the union data inside the DataSource_Config as a UnavailableGitConfig
+func (t DataSource_Config) AsUnavailableGitConfig() (UnavailableGitConfig, error) {
+	var body UnavailableGitConfig
+	err := json.Unmarshal(t.union, &body)
+	return body, err
+}
+
+// FromUnavailableGitConfig overwrites any union data inside the DataSource_Config as the provided UnavailableGitConfig
+func (t *DataSource_Config) FromUnavailableGitConfig(v UnavailableGitConfig) error {
+	b, err := json.Marshal(v)
+	t.union = b
+	return err
+}
+
+// MergeUnavailableGitConfig performs a merge with any union data inside the DataSource_Config, using the provided UnavailableGitConfig
+func (t *DataSource_Config) MergeUnavailableGitConfig(v UnavailableGitConfig) error {
 	b, err := json.Marshal(v)
 	if err != nil {
 		return err

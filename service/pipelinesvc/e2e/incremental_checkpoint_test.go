@@ -778,7 +778,7 @@ func createIncrementalCheckpointServiceOrgProject(
 	user, err := usersService.CreateUser(ctx, model.NewUser{
 		FullName: fmt.Sprintf("Incremental Checkpoint User %d", unique),
 		Email:    orgSlug.String() + "@example.com",
-		Password: "password123",
+		Password: "core-service-fixture-passphrase",
 		Role:     model.RoleUser,
 		Locale:   "en",
 	})

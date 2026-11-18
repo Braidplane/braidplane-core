@@ -2,6 +2,7 @@ package repostore
 
 import (
 	"context"
+	"crypto/rand"
 	"os"
 	"path/filepath"
 	"strings"
@@ -11,6 +12,43 @@ import (
 
 	"github.com/Braidplane/braidplane-core/pkg/xerror"
 )
+
+func TestFileReadFetchAndCheckoutHaveSeparateLimits(t *testing.T) {
+	t.Parallel()
+	ctx := t.Context()
+	source := t.TempDir()
+	require.NoError(t, runGit(ctx, source, "init", "--initial-branch=main"))
+	require.NoError(t, runGit(ctx, source, "config", "user.name", "Git budget fixture"))
+	require.NoError(t, runGit(ctx, source, "config", "user.email", "fixture@example.test"))
+	data := make([]byte, 16<<10)
+	_, err := rand.Read(data)
+	require.NoError(t, err)
+	require.NoError(t, os.WriteFile(filepath.Join(source, "sibling.bin"), data, 0o600))
+	want := strings.Repeat("safe fixture\n", 128)
+	require.NoError(t, os.WriteFile(filepath.Join(source, "selected.txt"), []byte(want), 0o600))
+	require.NoError(t, runGit(ctx, source, "add", "--all"))
+	require.NoError(t, runGit(ctx, source, "commit", "--no-gpg-sign", "-m", "seed bounded read fixture"))
+
+	checkout := fileCheckout{path: "selected.txt", maxBytes: 4096, preserveAttributes: true}
+	fetchCtx := context.WithValue(ctx, gitWriteLimitKey{}, int64(4096))
+	_, root, cleanup, err := cloneRemoteFile(fetchCtx, source, "main", nil, checkout)
+	require.ErrorContains(t, err, "git clone")
+	require.Empty(t, root)
+	require.Nil(t, cleanup)
+
+	_, cleanup, err = CloneReadFileRemote(ctx, source, "main", "selected.txt", 512, nil)
+	require.ErrorIs(t, err, xerror.ExecutionResponseSizeExceeded())
+	require.Nil(t, cleanup)
+
+	store, root, cleanup, err := cloneRemoteFile(ctx, source, "main", nil, checkout)
+	require.NoError(t, err)
+	t.Cleanup(cleanup)
+	got, err := store.ReadFile(ctx, "selected.txt", 4096)
+	require.NoError(t, err)
+	require.Equal(t, want, string(got))
+	_, err = os.Stat(filepath.Join(root, "sibling.bin"))
+	require.ErrorIs(t, err, os.ErrNotExist)
+}
 
 type recordingRemoteAdapter struct {
 	checkRemoteRepoURL string

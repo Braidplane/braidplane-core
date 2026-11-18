@@ -8,6 +8,59 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+func TestRepositoryLoadRequiresOnePipelineDocument(t *testing.T) {
+	t.Parallel()
+	const yamlPipeline = `metadata:
+  slug: users-sync
+  name: Users Sync
+steps:
+  - kind: query
+    slug: fetch-users
+    query:
+      data_source_ref: acme-postgres
+      operation_type: sql
+      operation_ref: list-active-users
+`
+	const jsonPipeline = `{
+  "metadata": {"slug":"users-sync","name":"Users Sync"},
+  "steps": [{"kind":"query","slug":"fetch-users","query":{
+    "data_source_ref":"acme-postgres","operation_type":"sql","operation_ref":"list-active-users"
+  }}]
+}`
+	for _, tc := range []struct {
+		name string
+		path string
+		data string
+	}{
+		{"YAML", "users.pipeline.yaml", yamlPipeline + "...\n# end\n"},
+		{"JSON", "users.pipeline.json", jsonPipeline + "\n \t"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			loaded, err := Load(tc.path, []byte(tc.data))
+			require.NoError(t, err)
+			require.Equal(t, "users-sync", loaded.Metadata.Slug.String())
+		})
+	}
+	for _, tc := range []struct {
+		name   string
+		path   string
+		data   string
+		detail string
+	}{
+		{"additional YAML document", "users.pipeline.yaml", yamlPipeline + "---\n{}\n", "multiple YAML documents"},
+		{"empty YAML document", "users.pipeline.yml", yamlPipeline + "---\n", "multiple YAML documents"},
+		{"malformed YAML tail", "users.pipeline.yaml", yamlPipeline + "---\n[", "decode pipeline"},
+		{"additional JSON value", "users.pipeline.json", jsonPipeline + "\n{}", "multiple JSON values"},
+		{"malformed JSON tail", "users.pipeline.json", jsonPipeline + "\n{", "decode pipeline"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			loaded, err := Load(tc.path, []byte(tc.data))
+			require.ErrorContains(t, err, tc.detail)
+			require.Nil(t, loaded)
+		})
+	}
+}
+
 func TestValidateDirectory(t *testing.T) {
 	t.Parallel()
 

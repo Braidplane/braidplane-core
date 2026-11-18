@@ -467,13 +467,21 @@ func (s *service) ConsumeOAuthInstall(
 	}
 
 	now := s.now()
+	stateHash := oauthflow.HashState(params.State)
 	var install CredentialInstall
 	err := s.txm.RunInTx(ctx, func(ctx context.Context, tx postgres.DBTX) error {
+		pending, err := s.repo.FindOAuthInstallByState(ctx, tx, params.Provider, stateHash, now)
+		if err != nil {
+			return err
+		}
+		if !fromRepoCredentialInstall(pending).AllowsCallbackActor(params.Actor) {
+			return ErrOAuthStateInvalid
+		}
 		repoInstall, err := s.repo.ConsumeOAuthInstall(
 			ctx,
 			tx,
 			params.Provider,
-			oauthflow.HashState(params.State),
+			stateHash,
 			now,
 		)
 		install = fromRepoCredentialInstall(repoInstall)
@@ -511,7 +519,7 @@ func (s *service) CompleteOAuthCallback(
 			return err
 		}
 		prepared = fromRepoCredentialInstall(repoInstall)
-		if prepared.RepositorySetupSlug != "" && (params.Actor.UserSlugValue() == "" || params.Actor.UserSlugValue() != prepared.Actor.UserSlugValue()) {
+		if !prepared.AllowsCallbackActor(params.Actor) {
 			return ErrOAuthStateInvalid
 		}
 		intentState, err := s.repo.LockOAuthGrantIntent(ctx, tx, toRepoResolveParams(ResolveRuntimeCredentialParams{Owner: prepared.Owner}))
@@ -941,7 +949,7 @@ func (s *service) finalizeOAuthCallback(
 		return CompleteOAuthCallbackResult{}, err
 	}
 	install := fromRepoCredentialInstall(repoInstall)
-	if install.RepositorySetupSlug != "" && (params.Actor.UserSlugValue() == "" || params.Actor.UserSlugValue() != install.Actor.UserSlugValue()) {
+	if !install.AllowsCallbackActor(params.Actor) {
 		return CompleteOAuthCallbackResult{}, ErrOAuthStateInvalid
 	}
 	intentState, err := s.repo.LockOAuthGrantIntent(ctx, tx, toRepoResolveParams(ResolveRuntimeCredentialParams{Owner: install.Owner}))

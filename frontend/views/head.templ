@@ -15,7 +15,8 @@ templ AppHead(title string, includeHTMX bool) {
 		<link rel="stylesheet" href={ versionedAssetPath("/assets/css/app.css") } type="text/css"/>
 		<link rel="stylesheet" href={ versionedAssetPath("/assets/css/app-custom.css") } type="text/css"/>
 		if includeHTMX {
-			<script src={ versionedAssetPath("/assets/vendor/htmx-2.0.8.min.js") } defer></script>
+			<meta name="htmx-config" content={ `{"historyCacheSize":0,"refreshOnHistoryMiss":true}` }/>
+			<script src={ versionedAssetPath("/assets/vendor/htmx-2.0.11.min.js") } defer></script>
 			<script src={ versionedAssetPath("/assets/js/security.js") } defer></script>
 		}
 		<script src={ versionedAssetPath("/assets/js/ui-utils.js") } defer></script>

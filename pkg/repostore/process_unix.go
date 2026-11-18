@@ -7,19 +7,32 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"strconv"
 	"syscall"
 	"time"
+
+	"github.com/Braidplane/braidplane-core/pkg/xerror"
 )
 
 func newGitCommand(ctx context.Context, args ...string) *exec.Cmd {
 	cmd := exec.CommandContext(ctx, "git", args...)
-	if maxBytes, ok := ctx.Value(nativeGitLimitsKey{}).(int64); ok && cmd.Err == nil {
+	script := ""
+	var blocks int64
+	if maxBytes, ok := ctx.Value(nativeGitLimitsKey{}).(int64); ok {
+		script, blocks = nativeGitResourceScript, nativeGitFileBlocks(maxBytes)
+	} else if limit, ok := ctx.Value(gitWriteLimitKey{}).(int64); ok {
+		script, blocks = ordinaryGitResourceScript, (limit+511)/512
+		if runtime.GOOS == "linux" {
+			script = gitAddressSpaceLimitScript + script
+		}
+	}
+	if script != "" && cmd.Err == nil {
 		gitPath, err := filepath.Abs(cmd.Path)
 		if err != nil {
 			cmd.Err = ErrRepositorySetup.With(err)
 		} else {
-			limitedArgs := []string{"-c", nativeGitResourceScript, "braidplane-native-git", strconv.FormatInt(nativeGitFileBlocks(maxBytes), 10), gitPath}
+			limitedArgs := []string{"-c", script, "braidplane-git", strconv.FormatInt(blocks, 10), gitPath}
 			limitedArgs = append(limitedArgs, args...)
 			cmd = exec.CommandContext(ctx, "/bin/sh", limitedArgs...)
 		}
@@ -38,4 +51,13 @@ func newGitCommand(ctx context.Context, args ...string) *exec.Cmd {
 	}
 	cmd.WaitDelay = time.Second
 	return cmd
+}
+
+func gitFileLimitSignal(err error) bool {
+	var exit *exec.ExitError
+	if !xerror.As(err, &exit) {
+		return false
+	}
+	status, ok := exit.Sys().(syscall.WaitStatus)
+	return ok && status.Signaled() && status.Signal() == syscall.SIGXFSZ
 }

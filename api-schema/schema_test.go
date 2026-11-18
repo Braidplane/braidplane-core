@@ -7,7 +7,9 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/Braidplane/braidplane-core/pkg/domain/model"
 	"github.com/Braidplane/braidplane-core/pkg/publicschema"
+	"github.com/Braidplane/braidplane-core/pkg/validate"
 	"github.com/getkin/kin-openapi/openapi3"
 	"github.com/stretchr/testify/require"
 )
@@ -625,6 +627,45 @@ func TestAuthenticationResponseAndPasswordSchemaContracts(t *testing.T) {
 	require.Error(t, login.VisitJSON(body), "login requires the captured credential generation")
 	body["authentication_version"] = float64(1)
 	require.NoError(t, login.VisitJSON(body))
+}
+
+func TestAccountFullNameMatchesServiceValidation(t *testing.T) {
+	t.Parallel()
+	document, err := openapi3.NewLoader().LoadFromFile("schema.yml")
+	require.NoError(t, err)
+	const email = "alice@example.com"
+	const password = "test-password"
+	for _, tc := range []struct {
+		name  string
+		valid bool
+	}{
+		{"", false},
+		{"A", true},
+		{strings.Repeat("ł", 100), true},
+		{strings.Repeat("ł", 101), false},
+	} {
+		signup := map[string]any{"full_name": tc.name, "email": email, "password": password}
+		profile := map[string]any{"full_name": tc.name}
+		require.Equal(t, tc.valid, document.Components.Schemas["NewUser"].Value.VisitJSON(signup) == nil)
+		require.Equal(t, tc.valid, document.Components.Schemas["UpdateUserProfile"].Value.VisitJSON(profile) == nil)
+		require.Equal(t, tc.valid, validate.Default().Struct(model.NewUser{
+			FullName: tc.name, Email: email, Password: password, Role: model.RoleUser,
+		}) == nil)
+		require.Equal(t, tc.valid, validate.Default().Struct(model.UpdateUserProfile{FullName: &tc.name}) == nil)
+	}
+	require.NoError(t, document.Components.Schemas["UpdateUserProfile"].Value.VisitJSON(map[string]any{"locale": "en"}))
+	require.NoError(t, document.Components.Schemas["Name"].Value.VisitJSON(strings.Repeat("a", 255)))
+}
+
+func TestUnavailableGitURLIsResponseOnly(t *testing.T) {
+	t.Parallel()
+	document, err := openapi3.NewLoader().LoadFromFile("schema.yml")
+	require.NoError(t, err)
+	body := map[string]any{"repo_url": "", "default_branch": "main"}
+	config := document.Components.Schemas["DataSource"].Value.Properties["config"]
+	require.NoError(t, config.Value.VisitJSON(body))
+	require.Error(t, document.Components.Schemas["GitConfig"].Value.VisitJSON(body))
+	require.Error(t, document.Components.Schemas["DataSourceConfig"].Value.VisitJSON(body))
 }
 
 func TestCompositionAttachmentAPISchema(t *testing.T) {

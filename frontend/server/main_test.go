@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
+	"encoding/json"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -12,6 +13,7 @@ import (
 	"strings"
 	"testing"
 	"time"
+	"unicode/utf8"
 
 	"github.com/gofiber/fiber/v3"
 	"github.com/gofiber/fiber/v3/middleware/proxy"
@@ -152,6 +154,8 @@ func TestFrontendSessionConfigScopesCookieToRoot(t *testing.T) {
 	assert.True(t, got.CookieHTTPOnly)
 	assert.True(t, got.CookieSecure)
 	assert.Equal(t, 24*time.Hour, got.IdleTimeout)
+	assert.Equal(t, "__Host-session_id", got.Extractor.Key)
+	assert.Equal(t, "session_id", frontendSessionConfig(&frontendconfig.Config{}).Extractor.Key)
 }
 
 func TestRegisterStaticAssetRoutesServesBrandIcons(t *testing.T) {
@@ -168,6 +172,49 @@ func TestRegisterStaticAssetRoutesServesBrandIcons(t *testing.T) {
 
 	require.Equal(t, http.StatusOK, resp.StatusCode)
 	require.Contains(t, resp.Header.Get(fiber.HeaderContentType), "image/png")
+}
+
+func TestRegisterStaticAssetRoutesDeclaresManifestAndSVGContentTypes(t *testing.T) {
+	t.Parallel()
+	app := fiber.New()
+	registerStaticAssetRoutesFromRoots(app, 3600, "../../brand/icons", "../../frontend/assets")
+	app.Use(func(c fiber.Ctx) error {
+		return c.Redirect().Status(fiber.StatusSeeOther).To("/auth/login")
+	})
+	for _, tc := range []struct {
+		path      string
+		mediaType string
+	}{
+		{"/assets/site.webmanifest", "application/manifest+json"},
+		{"/assets/site%2Ewebmanifest", "application/manifest+json"},
+		{"/assets/icons/data-sources/vendors/brand/snowflake.svg", "image/svg+xml; charset=utf-8"},
+	} {
+		for _, method := range []string{http.MethodGet, http.MethodHead} {
+			resp, err := app.Test(httptest.NewRequestWithContext(t.Context(), method, tc.path, nil))
+			require.NoError(t, err)
+			body, err := io.ReadAll(resp.Body)
+			require.NoError(t, resp.Body.Close())
+			require.NoError(t, err)
+			require.Equal(t, http.StatusOK, resp.StatusCode)
+			require.Equal(t, tc.mediaType, resp.Header.Get(fiber.HeaderContentType))
+			require.Equal(t, "no-store", resp.Header.Get(fiber.HeaderCacheControl))
+			switch {
+			case method == http.MethodHead:
+				require.Empty(t, body)
+			case tc.mediaType == "application/manifest+json":
+				require.True(t, json.Valid(body))
+			default:
+				require.True(t, utf8.Valid(body))
+			}
+		}
+	}
+	for _, method := range []string{http.MethodGet, http.MethodHead} {
+		resp, err := app.Test(httptest.NewRequestWithContext(t.Context(), method, "/assets/missing.webmanifest", nil))
+		require.NoError(t, err)
+		require.Equal(t, http.StatusNotFound, resp.StatusCode)
+		require.Empty(t, resp.Header.Get(fiber.HeaderLocation))
+		require.NoError(t, resp.Body.Close())
+	}
 }
 
 func TestRegisterStaticAssetRoutesDoesNotServeExcludedVendorIcons(t *testing.T) {
@@ -378,12 +425,14 @@ func TestInjectAPIProxyHeaders_OverwritesForwardedClientIPAndPreservesCorrelatio
 		)
 		assert.Equal(t, "braidplane.component=frontend", string(c.Request().Header.Peek("baggage")))
 		assert.Equal(t, "0.0.0.0", string(c.Request().Header.Peek(fiber.HeaderXForwardedFor)))
+		assert.Len(t, c.Request().Header.PeekAll(fiber.HeaderXForwardedFor), 1)
 
 		return c.SendStatus(http.StatusNoContent)
 	})
 
 	req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/api/test", nil)
-	req.Header.Set(fiber.HeaderXForwardedFor, "198.18.12.34")
+	req.Header.Add(fiber.HeaderXForwardedFor, "198.18.12.34")
+	req.Header.Add(fiber.HeaderXForwardedFor, "198.18.12.35")
 	resp, err := app.Test(req)
 	require.NoError(t, err)
 	t.Cleanup(func() {

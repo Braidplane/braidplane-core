@@ -404,7 +404,7 @@ func createDefaultEnvironmentE2EOrganization(
 	user, err := stack.users.CreateUser(ctx, model.NewUser{
 		FullName: name + " Owner",
 		Email:    userSlug.String() + "@example.test",
-		Password: "password123",
+		Password: "core-service-fixture-passphrase",
 		Role:     model.RoleUser,
 		Locale:   "en",
 	})

@@ -99,7 +99,11 @@ func TestAccountDeletionSessionOwnershipAndRevocation(t *testing.T) {
 	)
 	app := fiber.New(fiber.Config{ErrorHandler: apierror.Middleware()})
 	app.Post("/_test/login/:user", func(c fiber.Ctx) error {
-		if err := reqctx.SetUserSlug(c, store, slug.Slug(c.Params("user"))); err != nil {
+		user, err := userService.GetUserBySlug(c.Context(), slug.Slug(c.Params("user")))
+		if err != nil {
+			return err
+		}
+		if err := reqctx.ResetAndSetAuthenticatedUser(c, store, user.Slug, user.AuthenticationVersion, true); err != nil {
 			return err
 		}
 		return c.SendStatus(fiber.StatusOK)
@@ -108,6 +112,7 @@ func TestAccountDeletionSessionOwnershipAndRevocation(t *testing.T) {
 	app.Use(transport.NewBackendSecurityMiddlewareForApp(store, slog.New(slog.DiscardHandler), httpsecurity.NewMemoryAbuseLimiter(), 100, time.Nanosecond, 0, 0, 0, time.Minute))
 	patService := patssvc.New(txm, pats.NewRepository())
 	app.Use(transport.NewBearerAuthMiddleware(apikeyssvc.New(txm, apikeys.NewRepository(), nil, nil), patService))
+	app.Use(transport.NewSessionAuthenticationMiddleware(userService, store))
 	api.RegisterHandlers(app, srv)
 	type responseSnapshot struct {
 		StatusCode int
@@ -142,6 +147,7 @@ func TestAccountDeletionSessionOwnershipAndRevocation(t *testing.T) {
 		return append(cookies, profile.cookies...), token
 	}
 	aliceCookies, csrf := login(alice)
+	aliceOtherCookies, _ := login(alice)
 	bobCookies, _ := login(bob)
 	require.Equal(t, http.StatusNotFound, request(http.MethodPost, "/users/profile/exports", `{}`, aliceCookies, csrf).StatusCode)
 	const body = `{"confirmation":"DELETE MY ACCOUNT"}`
@@ -164,8 +170,9 @@ func TestAccountDeletionSessionOwnershipAndRevocation(t *testing.T) {
 	require.Equal(t, "completed", string(result.State))
 	require.NotNil(t, result.CompletedAt)
 	require.Empty(t, result.OwnershipRequired)
-	require.Equal(t, http.StatusForbidden, request(http.MethodGet, "/users/profile", "", aliceCookies, "").StatusCode)
-	require.Equal(t, http.StatusForbidden, request(http.MethodPost, "/users/profile/deletion", body, aliceCookies, csrf).StatusCode)
+	require.Equal(t, http.StatusUnauthorized, request(http.MethodGet, "/users/profile", "", aliceCookies, "").StatusCode)
+	require.Equal(t, http.StatusUnauthorized, request(http.MethodGet, "/users/profile", "", aliceOtherCookies, "").StatusCode)
+	require.Contains(t, []int{http.StatusUnauthorized, http.StatusForbidden}, request(http.MethodPost, "/users/profile/deletion", body, aliceCookies, csrf).StatusCode)
 	require.Equal(t, http.StatusOK, request(http.MethodGet, "/users/profile", "", bobCookies, "").StatusCode)
 	t.Cleanup(func() {
 		_, cleanupErr := pool.Exec(context.Background(), `DELETE FROM account_deletion_requests WHERE slug = $1`, result.Slug)

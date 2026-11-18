@@ -46,7 +46,7 @@ CREATE TABLE public.schema_migrations(version bigint NOT NULL PRIMARY KEY, dirty
 INSERT INTO public.schema_migrations VALUES (74, false);`)
 	require.NoError(t, err)
 
-	apply := func(ledger string, files map[string]string) {
+	apply := func(ledger string, files map[string]string, useCoreRunner bool) {
 		t.Helper()
 		directory := t.TempDir()
 		for name, sql := range files {
@@ -57,10 +57,20 @@ INSERT INTO public.schema_migrations VALUES (74, false);`)
 		require.NoError(t, err)
 		u.Path = database
 		query := u.Query()
-		query.Set("search_path", "shadow,public")
+		query.Set("search_path", "shadow, public")
+		query.Set("application_name", "core migration + fixture")
 		u.RawQuery = query.Encode()
 		selected, err := postgres.MigrationDatabaseURL(u.String(), ledger)
 		require.NoError(t, err)
+		if useCoreRunner {
+			changed, err := postgres.ApplyMigrationCatalog(selected, os.DirFS(directory))
+			require.NoError(t, err)
+			require.True(t, changed)
+			changed, err = postgres.ApplyMigrationCatalog(selected, os.DirFS(directory))
+			require.NoError(t, err)
+			require.False(t, changed)
+			return
+		}
 		runner, err := migrate.New("file://"+filepath.ToSlash(directory), selected)
 		require.NoError(t, err)
 		t.Cleanup(func() {
@@ -74,12 +84,18 @@ INSERT INTO public.schema_migrations VALUES (74, false);`)
 	core := map[string]string{
 		"000001_core.up.sql": "CREATE TABLE public.core_fixture(value text); INSERT INTO public.core_fixture VALUES ('preserved');",
 	}
-	apply("core_schema_migrations", core)
+	apply("core_schema_migrations", core, false)
 	apply("managed_schema_migrations", map[string]string{
 		"000001_managed.up.sql": "CREATE TABLE public.managed_fixture(value text); INSERT INTO public.managed_fixture SELECT value FROM public.core_fixture;",
-	})
-	core["000002_core.up.sql"] = "ALTER TABLE public.core_fixture ADD COLUMN revision integer NOT NULL DEFAULT 2;"
-	apply("core_schema_migrations", core)
+	}, false)
+	core["000002_core.up.sql"] = `
+DO $$ BEGIN
+  IF current_setting('application_name') <> 'core migration + fixture' THEN
+    RAISE EXCEPTION 'migration connection options changed';
+  END IF;
+END $$;
+ALTER TABLE public.core_fixture ADD COLUMN revision integer NOT NULL DEFAULT 2;`
+	apply("core_schema_migrations", core, true)
 
 	for ledger, version := range map[string]uint{"schema_migrations": 74, "core_schema_migrations": 2, "managed_schema_migrations": 1} {
 		preflight, err := postgres.NewMigrationPreflight(pool, ledger, version)

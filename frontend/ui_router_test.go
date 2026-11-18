@@ -15,7 +15,7 @@ import (
 func TestNewRouter_RequiresLogger(t *testing.T) {
 	t.Parallel()
 
-	router, err := NewRouter("http://localhost:3001", nil, session.NewStore())
+	router, err := newHandlerTestRouter("http://localhost:3001", nil, session.NewStore())
 	require.Error(t, err)
 	require.Nil(t, router)
 	require.ErrorContains(t, err, "frontend logger is required")
@@ -29,7 +29,7 @@ func TestMountedFrontendRoutes_DoNotInterceptAPISessions(t *testing.T) {
 	}))
 	defer apiServer.Close()
 
-	router, err := NewRouter(
+	router, err := newHandlerTestRouter(
 		apiServer.URL,
 		slog.New(slog.DiscardHandler),
 		session.NewStore(),
@@ -55,4 +55,5 @@ func TestMountedFrontendRoutes_DoNotInterceptAPISessions(t *testing.T) {
 
 	require.Equal(t, http.StatusUnauthorized, resp.StatusCode)
 	require.Empty(t, resp.Header.Get("Location"))
+	require.Empty(t, resp.Header.Get(fiber.HeaderContentSecurityPolicy))
 }

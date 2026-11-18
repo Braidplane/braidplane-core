@@ -4,14 +4,17 @@ import (
 	"context"
 	"io/fs"
 	"net/url"
+	"strconv"
 	"strings"
 	"time"
 
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/stdlib"
 
+	"github.com/Braidplane/braidplane-core/pkg/dbpool"
 	"github.com/Braidplane/braidplane-core/pkg/xerror"
 	migrate "github.com/golang-migrate/migrate/v4"
-	_ "github.com/golang-migrate/migrate/v4/database/postgres"
+	migratepgx "github.com/golang-migrate/migrate/v4/database/pgx/v5"
 	"github.com/golang-migrate/migrate/v4/source/iofs"
 )
 
@@ -34,17 +37,39 @@ func ApplyMigrationCatalog(databaseURL string, catalog fs.FS) (bool, error) {
 	if catalog == nil {
 		return false, xerror.ValidationFailed().Detail("migration catalog is required")
 	}
+	options, err := migrationOptions(parsed)
+	if err != nil {
+		return false, err
+	}
+	plain := migrate.FilterCustomQuery(parsed)
+	// pgx decodes URL query spaces as %20. FilterCustomQuery encodes them as +.
+	plain.RawQuery = strings.ReplaceAll(plain.RawQuery, "+", "%20")
+	connection, err := pgx.ParseConfig(plain.String())
+	if err != nil {
+		return false, xerror.ValidationFailed().Detail("invalid migration connection configuration")
+	}
+	if err := dbpool.RestrictAuthentication(&connection.Config); err != nil {
+		return false, err
+	}
 	source, err := iofs.New(catalog, ".")
 	if err != nil {
 		return false, xerror.Wrapf("open migration catalog: %w", err)
 	}
-	if err := guardLegacyMigrationTarget(parsed); err != nil {
+	if err := guardLegacyMigrationTarget(options.MigrationsTable, connection); err != nil {
 		_ = source.Close()
 		return false, err
 	}
-	runner, err := migrate.NewWithSourceInstance("iofs", source, databaseURL)
+	db := stdlib.OpenDB(*connection)
+	driver, err := migratepgx.WithInstance(db, options)
 	if err != nil {
 		_ = source.Close()
+		_ = db.Close()
+		return false, xerror.Unexpected().Detailf("initialize migration runner: %s", sanitizeMigrationError(err, databaseURL))
+	}
+	runner, err := migrate.NewWithInstance("iofs", source, "pgx5", driver)
+	if err != nil {
+		_ = source.Close()
+		_ = driver.Close()
 		return false, xerror.Unexpected().Detailf("initialize migration runner: %s", sanitizeMigrationError(err, databaseURL))
 	}
 	defer func() { _, _ = runner.Close() }()
@@ -73,35 +98,61 @@ func sanitizeMigrationError(err error, databaseURL string) string {
 	return message
 }
 
-// guardLegacyMigrationTarget refuses a new ledger before the migrate driver can create it.
-func guardLegacyMigrationTarget(selected *url.URL) error {
+func migrationOptions(selected *url.URL) (*migratepgx.Config, error) {
 	query := selected.Query()
 	table := query.Get("x-migrations-table")
 	const prefix = `"public"."`
 	if !strings.HasPrefix(table, prefix) || !strings.HasSuffix(table, `"`) || query.Get("x-migrations-table-quoted") != "true" {
-		return xerror.ValidationFailed().Detail("migration ledger URL must use an explicitly quoted public table")
+		return nil, xerror.ValidationFailed().Detail("migration ledger URL must use an explicitly quoted public table")
 	}
 	ledger := strings.TrimSuffix(strings.TrimPrefix(table, prefix), `"`)
 	if err := validateMigrationLedger(ledger); err != nil {
-		return err
+		return nil, err
 	}
+	// The original migration driver used the URL path as part of the lock key.
+	options := &migratepgx.Config{DatabaseName: selected.Path, MigrationsTable: table, MigrationsTableQuoted: true, MultiStatementMaxSize: migratepgx.DefaultMultiStatementMaxSize}
+	if value := query.Get("x-statement-timeout"); value != "" {
+		milliseconds, err := strconv.Atoi(value)
+		if err != nil {
+			return nil, xerror.ValidationFailed().Detail("invalid migration statement timeout")
+		}
+		options.StatementTimeout = time.Duration(milliseconds) * time.Millisecond
+	}
+	if value := query.Get("x-multi-statement"); value != "" {
+		enabled, err := strconv.ParseBool(value)
+		if err != nil {
+			return nil, xerror.ValidationFailed().Detail("invalid migration multi-statement setting")
+		}
+		options.MultiStatementEnabled = enabled
+	}
+	if value := query.Get("x-multi-statement-max-size"); value != "" {
+		size, err := strconv.Atoi(value)
+		if err != nil {
+			return nil, xerror.ValidationFailed().Detail("invalid migration statement size")
+		}
+		if size > 0 {
+			options.MultiStatementMaxSize = size
+		}
+	}
+	return options, nil
+}
+
+// guardLegacyMigrationTarget refuses a new ledger before the migrate driver can create it.
+func guardLegacyMigrationTarget(table string, config *pgx.ConnConfig) error {
+	ledger := strings.TrimSuffix(strings.TrimPrefix(table, `"public"."`), `"`)
 	if ledger == "schema_migrations" {
 		return nil
 	}
-	plain := *selected
-	query.Del("x-migrations-table")
-	query.Del("x-migrations-table-quoted")
-	plain.RawQuery = query.Encode()
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
-	connection, err := pgx.Connect(ctx, plain.String())
+	connection, err := pgx.ConnectConfig(ctx, config.Copy())
 	if err != nil {
-		return xerror.Unexpected().Detailf("inspect migration target: %s", sanitizeMigrationError(err, plain.String()))
+		return xerror.Unexpected().Detailf("inspect migration target: %s", sanitizeMigrationError(err, config.ConnString()))
 	}
 	defer func() { _ = connection.Close(ctx) }()
 	var legacyPresent bool
 	if err := connection.QueryRow(ctx, `SELECT pg_catalog.to_regclass('public.schema_migrations') IS NOT NULL`).Scan(&legacyPresent); err != nil {
-		return xerror.Unexpected().Detailf("inspect migration target metadata: %s", sanitizeMigrationError(err, plain.String()))
+		return xerror.Unexpected().Detailf("inspect migration target metadata: %s", sanitizeMigrationError(err, config.ConnString()))
 	}
 	if !legacyPresent {
 		return nil

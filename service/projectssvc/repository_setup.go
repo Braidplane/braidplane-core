@@ -288,7 +288,7 @@ func (s *RepositorySetupService) rejectAuthorization(ctx context.Context, org, p
 	if provider == model.DataSourceTypeGithub {
 		err = s.github.ConsumeRejectedInstall(ctx, org, setup, actor, state)
 	} else {
-		_, err = s.credentials.ConsumeOAuthInstall(ctx, credentialssvc.ConsumeOAuthInstallParams{Provider: "gitlab", State: state})
+		_, err = s.credentials.ConsumeOAuthInstall(ctx, credentialssvc.ConsumeOAuthInstallParams{Provider: "gitlab", State: state, Actor: actor})
 	}
 	if err != nil {
 		return nil, err

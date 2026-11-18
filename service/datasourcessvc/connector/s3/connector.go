@@ -21,7 +21,6 @@ import (
 var s3FileAdapter = remotefile.Adapter{
 	ConnectorName:       "S3",
 	ErrorKind:           remotefile.ErrorKindInvalidQuery,
-	SpreadsheetFilePath: true,
 	SchemaParsedColumns: true,
 	LimitPolicy: remotefile.LimitPolicy{
 		UseHTTPFallbackForRead:  true,

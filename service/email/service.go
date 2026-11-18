@@ -3,6 +3,7 @@ package email
 import (
 	"context"
 	"net"
+	"net/url"
 	"strconv"
 	"strings"
 
@@ -15,8 +16,8 @@ import (
 )
 
 type Service interface {
-	EmailVerification(ctx context.Context, user *model.User, verificationLink string) error
-	PasswordReset(ctx context.Context, user *model.User, resetLink string) error
+	EmailVerification(ctx context.Context, user *model.User, verificationLink, code string) error
+	PasswordReset(ctx context.Context, user *model.User, resetLink, code string) error
 	SessionMFA(ctx context.Context, user *model.User, code string) error
 	MemberInvitation(ctx context.Context, invitation model.MemberInvitationEmail, acceptanceLink string) error
 	Notification(ctx context.Context, recipient model.NotificationEmailRecipient, notification model.NotificationEmail) error
@@ -84,8 +85,11 @@ func NewService(smtpCfg config.SMTP, bundle *i18n.Bundle) (Service, error) {
 func (s service) EmailVerification(
 	ctx context.Context,
 	user *model.User,
-	verificationLink string,
+	verificationLink, code string,
 ) error {
+	if err := validateAccountActionEmail(verificationLink, code); err != nil {
+		return err
+	}
 	message := mail.NewMsg()
 
 	err := message.To(user.Email)
@@ -104,6 +108,7 @@ func (s service) EmailVerification(
 
 	body := localizer.Localize(i18n.EmailVerification.ID, map[string]any{
 		"VerificationLink": verificationLink,
+		"Code":             code,
 	})
 
 	message.SetBodyString(mail.TypeTextPlain, body)
@@ -119,8 +124,11 @@ func (s service) EmailVerification(
 func (s service) PasswordReset(
 	ctx context.Context,
 	user *model.User,
-	resetLink string,
+	resetLink, code string,
 ) error {
+	if err := validateAccountActionEmail(resetLink, code); err != nil {
+		return err
+	}
 	message := mail.NewMsg()
 
 	err := message.To(user.Email)
@@ -139,6 +147,7 @@ func (s service) PasswordReset(
 
 	body := localizer.Localize(i18n.PasswordReset.ID, map[string]any{
 		"ResetLink": resetLink,
+		"Code":      code,
 	})
 
 	message.SetBodyString(mail.TypeTextPlain, body)
@@ -148,6 +157,18 @@ func (s service) PasswordReset(
 		return xerror.Unexpected().With(err)
 	}
 
+	return nil
+}
+
+func validateAccountActionEmail(link, code string) error {
+	target, err := url.Parse(link)
+	if err != nil || target.Hostname() == "" || target.User != nil ||
+		(target.Scheme != "http" && target.Scheme != "https") || target.RawQuery != "" || target.ForceQuery || target.Fragment != "" {
+		return xerror.ValidationFailed().Detail("Account email requires a clean HTTP or HTTPS link")
+	}
+	if code == "" {
+		return xerror.ValidationFailed().Detail("Account email requires a separate code")
+	}
 	return nil
 }
 

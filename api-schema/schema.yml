@@ -665,10 +665,10 @@ paths:
                 format: uri
                 example: "http://localhost:3000"
             Set-Cookie:
-              description: Session cookie (HttpOnly, SameSite=Lax) - only set on success
+              description: Session cookie set on success. HTTPS uses a Secure host-only cookie.
               schema:
                 type: string
-                example: "session_id=abc123; HttpOnly; SameSite=Lax; Path=/; Max-Age=604800"
+                example: "__Host-session_id=abc123; Secure; HttpOnly; SameSite=Lax; Path=/"
 
   /auth/email/verify:
     post:
@@ -4586,7 +4586,7 @@ paths:
   /provider-connectors/{provider}/callback:
     get:
       summary: Complete provider connector OAuth callback
-      description: Validates the callback state, exchanges the authorization code, stores the encrypted provider grant, and redirects to the product surface. OAuth codes, state values, tokens, provider headers, and raw provider responses are never returned.
+      description: Validates the callback state, exchanges the authorization code, stores the encrypted provider grant, and redirects to the product surface. A user-initiated install requires the same authenticated user on callback. OAuth codes, state values, tokens, provider headers, and raw provider responses are never returned.
       tags:
         - data-sources
       operationId: handleProviderConnectorCallback
@@ -7083,7 +7083,7 @@ paths:
   /organizations/{slug}/projects/{project_slug}/environments/{environment_slug}/pipeline-triggers/{pipeline_trigger_slug}/webhook-secret/rotate:
     post:
       summary: Rotate pipeline webhook verification secret
-      description: Issues a new webhook verification key version and returns its secret value once.
+      description: Issues a new webhook verification key version and returns its secret value once. Requires pipeline trigger update and pipeline execute permissions.
       tags: [pipelines]
       operationId: rotatePipelineWebhookSecret
       parameters:
@@ -7263,7 +7263,7 @@ paths:
   /organizations/{slug}/projects/{project_slug}/environments/{environment_slug}/pipeline-triggers/{pipeline_trigger_slug}/deliveries/{delivery_id}/replay:
     post:
       summary: Replay a retained pipeline webhook delivery
-      description: Explicitly enqueues another attempt only when encrypted execution input is retained and no linked run requires the pipeline run replay contract.
+      description: Explicitly enqueues another attempt only when encrypted execution input is retained and no linked run requires the pipeline run replay contract. Requires pipeline trigger update and pipeline execute permissions.
       tags: [pipelines]
       operationId: replayPipelineWebhookDelivery
       parameters:
@@ -9046,7 +9046,7 @@ paths:
             type: string
             minLength: 1
             maxLength: 1024
-            description: At most 1024 UTF-8 bytes; NUL is rejected.
+            description: Repository identity or opaque artifact locator from the response. At most 1024 UTF-8 bytes; NUL is rejected.
         - name: commit
           in: query
           required: true
@@ -9599,8 +9599,8 @@ components:
     SessionAuth:
       type: apiKey
       in: cookie
-      name: session_id
-      description: Browser session. Unsafe cookie-authenticated requests also require X-CSRF-Token from an authenticated safe request.
+      name: __Host-session_id
+      description: Browser session on HTTPS. Local HTTP uses session_id. Unsafe cookie-authenticated requests also require X-CSRF-Token from an authenticated safe request.
     WebhookSignature:
       type: apiKey
       in: header
@@ -10483,6 +10483,7 @@ components:
           type: string
         source_repo:
           type: string
+          description: Public repository identity or an opaque artifact locator when historical provenance cannot be displayed safely.
         commit:
           type: string
         artifact_digest:
@@ -10683,6 +10684,13 @@ components:
       maxLength: 255
       example: "Acme Corp"
 
+    AccountFullName:
+      type: string
+      description: Full display name for an account
+      minLength: 1
+      maxLength: 100
+      example: "John Doe"
+
     Role:
       type: string
       description: Global user role. This is distinct from an organization membership role.
@@ -10747,7 +10755,7 @@ components:
       additionalProperties: false
       properties:
         full_name:
-          $ref: '#/components/schemas/Name'
+          $ref: '#/components/schemas/AccountFullName'
         email:
           $ref: '#/components/schemas/Email'
         password:
@@ -10942,7 +10950,7 @@ components:
       minProperties: 1
       properties:
         full_name:
-          $ref: '#/components/schemas/Name'
+          $ref: '#/components/schemas/AccountFullName'
         locale:
           type: string
           description: User's preferred locale (BCP 47 language tag)
@@ -13243,6 +13251,22 @@ components:
       required:
         - repo_url
 
+    UnavailableGitConfig:
+      type: object
+      description: Read-only configuration returned when a stored Git repository URL cannot be safely displayed.
+      additionalProperties: false
+      required: [repo_url]
+      properties:
+        repo_url:
+          type: string
+          enum: [""]
+        default_branch:
+          type: string
+        base_path:
+          type: string
+        allow_private_hosts:
+          type: boolean
+
     ProviderRepository:
       type: object
       description: Stable provider repository identity and safe display metadata. Native Git endpoints and credentials are resolved internally and are never returned here.
@@ -13728,6 +13752,7 @@ components:
             - $ref: '#/components/schemas/MongoDBConfig'
             - $ref: '#/components/schemas/FTPConfig'
             - $ref: '#/components/schemas/GitConfig'
+            - $ref: '#/components/schemas/UnavailableGitConfig'
             - $ref: '#/components/schemas/ProviderGitConfig'
             - $ref: '#/components/schemas/S3Config'
         is_active:

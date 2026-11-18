@@ -459,6 +459,48 @@ func TestSnowflakeRequestPayloadAndCredentialValidation(t *testing.T) {
 	require.ErrorContains(t, err, "auth_type")
 }
 
+func TestPublicGitConfigurationProjectsOnlyDeclaredFields(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		rawURL string
+		public string
+	}{
+		{"https://git.example.com/acme/reports.git", "https://git.example.com/acme/reports.git"},
+		{"ssh://git@git.example.com:2222/acme/reports.git", "ssh://git@git.example.com:2222/acme/reports.git"},
+		{"git@git.example.com:acme/reports.git", "git@git.example.com:acme/reports.git"},
+		{"https://login:fixture-only@git.example.com/acme/reports.git?label=fixture-only#fragment", "https://git.example.com/acme/reports.git"},
+		{"ssh://git:fixture-only@git.example.com/acme/reports.git", "ssh://git@git.example.com/acme/reports.git"},
+		{"ssh://git%3Afixture-only@git.example.com/acme/reports.git", ""},
+		{"git:fixture-only@git.example.com:acme/reports.git", ""},
+		{"unsupported:fixture-only", ""},
+	} {
+		input, err := json.Marshal(map[string]any{
+			"repo_url": tc.rawURL, "default_branch": "main", "base_path": "reports",
+			"allow_private_hosts": true, "historical_field": "fixture-only",
+		})
+		require.NoError(t, err)
+		diagnostic := "historic diagnostic fixture-only"
+		response := dataSourceToHTTP(&datasourcessvc.DataSource{
+			Type: model.DataSourceTypeGit, Config: input, TestError: &diagnostic,
+		})
+		projected, err := response.Config.AsGitConfig()
+		require.NoError(t, err)
+		assert.Equal(t, tc.public, projected.RepoUrl)
+		require.NotNil(t, projected.DefaultBranch)
+		assert.Equal(t, "main", *projected.DefaultBranch)
+		require.NotNil(t, projected.BasePath)
+		assert.Equal(t, "reports", *projected.BasePath)
+		require.NotNil(t, projected.AllowPrivateHosts)
+		assert.True(t, *projected.AllowPrivateHosts)
+		require.NotNil(t, response.TestError)
+		assert.Contains(t, *response.TestError, "Git connection test failed")
+		payload, err := json.Marshal(response)
+		require.NoError(t, err)
+		assert.NotContains(t, string(payload), "fixture-only")
+		assert.NotContains(t, string(payload), "historical_field")
+	}
+}
+
 func TestDataSourceToHTTP(t *testing.T) {
 	t.Parallel()
 

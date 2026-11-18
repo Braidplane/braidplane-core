@@ -165,7 +165,7 @@ type AuthConfig struct {
 // AbuseControlsConfig defines shared PostgreSQL-backed request budgets. These
 // values apply across API replicas and survive process restarts.
 type AbuseControlsConfig struct {
-	AuthAttempts            int             `toml:"auth_attempts"              env:"ABUSE_CONTROLS_AUTH_ATTEMPTS"              flag:"abuse-controls-auth-attempts"              desc:"Maximum authentication attempts per client and stable subject in one window"`
+	AuthAttempts            int             `toml:"auth_attempts"              env:"ABUSE_CONTROLS_AUTH_ATTEMPTS"              flag:"abuse-controls-auth-attempts"              desc:"Maximum authentication attempts per client and, where applicable, per stable subject in one window"`
 	AuthWindow              config.Duration `toml:"auth_window"                env:"ABUSE_CONTROLS_AUTH_WINDOW"                flag:"abuse-controls-auth-window"                desc:"Shared authentication throttle window (e.g., 1m)"`
 	ExpensiveClientAttempts int             `toml:"expensive_client_attempts"  env:"ABUSE_CONTROLS_EXPENSIVE_CLIENT_ATTEMPTS"  flag:"abuse-controls-expensive-client-attempts"  desc:"Maximum expensive operations per client in one window"`
 	ExpensiveTenantAttempts int             `toml:"expensive_tenant_attempts"  env:"ABUSE_CONTROLS_EXPENSIVE_TENANT_ATTEMPTS"  flag:"abuse-controls-expensive-tenant-attempts"  desc:"Maximum expensive operations per tenant in one window"`

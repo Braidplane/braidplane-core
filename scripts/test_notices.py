@@ -17,7 +17,7 @@ class NoticeTest(unittest.TestCase):
         self.root = Path(self.temp.name)
         (self.root / "MPL_SOURCES.sha256").write_text("")
         for name in (
-            "pkg/odcs/schema/LICENSE", "brand/icons/app/LICENSE",
+            "pkg/odcs/schema/LICENSE", "pkg/passwordpolicy/LICENSE", "brand/icons/app/LICENSE",
             "frontend/assets/vendor/LICENSE-widget", "brand/icons/data-sources/licenses/DISCLAIMER",
         ):
             path = self.root / name
@@ -54,7 +54,8 @@ class NoticeTest(unittest.TestCase):
             {(goos, arch, cgo) for goos, arch in generate_notices.TARGETS for cgo in ("0", "1")}
             | {("windows", arch, "0") for arch in ("amd64", "arm64")},
         )
-        for text in (b"Go fixture notices", b"pkg/odcs/schema/LICENSE notice", b"tailwindcss license", b"daisyui license", b"DISCLAIMER notice", b"Generator fixture notices"):
+        for text in (b"Go fixture notices", b"pkg/odcs/schema/LICENSE notice", b"pkg/passwordpolicy/LICENSE notice",
+                     b"tailwindcss license", b"daisyui license", b"DISCLAIMER notice", b"Generator fixture notices"):
             self.assertIn(text, result)
         self.assertNotIn(str(self.root).encode(), result)
 

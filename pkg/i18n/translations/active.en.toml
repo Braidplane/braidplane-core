@@ -1,6 +1,6 @@
 [email_verification]
 description = "Email verification message sent to users to verify their email address."
-other = "Please verify your email address by clicking the link below: {{.VerificationLink}}"
+other = "Open the link and enter the code to confirm your email address.\n\n{{.VerificationLink}}\n\nCode: {{.Code}}"
 
 [email_verification_subject]
 description = "Subject line for the email verification message."
@@ -8,7 +8,7 @@ other = "Please verify your email address"
 
 [password_reset]
 description = "Password reset message sent to users to reset their password."
-other = "Reset your password by clicking the link below: {{.ResetLink}}"
+other = "Open the link and enter the code to reset your password.\n\n{{.ResetLink}}\n\nCode: {{.Code}}"
 
 [password_reset_subject]
 description = "Subject line for the password reset message."

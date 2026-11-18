@@ -3,6 +3,9 @@
 Use this guide to configure Community core on customer infrastructure and check
 where its data goes.
 
+Core PostgreSQL connections reject MD5 authentication. Configure
+SCRAM-SHA-256 for password-based runtime and migration roles.
+
 Set `DEPLOYMENT_PROFILE=self-hosted` for the API, worker and frontend. Supply
 customer-owned keys and database credentials, and keep SMTP certificate
 verification enabled.
@@ -130,7 +133,7 @@ process and network isolation, and installation on a clean machine.
 
 | Boundary | Current local evidence |
 |---|---|
-| Bootstrap and recovery | The [PostgreSQL suite](../service/instanceadminsvc/e2e/bootstrap_test.go) tests concurrent bootstrap attempts and rollback when the audit write fails. The [recovery suite](../service/instanceadminsvc/e2e/recovery_test.go) tests login, encrypted River arguments, worker reset links, password replacement and single-use tokens. |
+| Bootstrap and recovery | The [PostgreSQL suite](../service/instanceadminsvc/e2e/bootstrap_test.go) tests concurrent bootstrap attempts and rollback when the audit write fails. The [recovery suite](../service/instanceadminsvc/e2e/recovery_test.go) tests login, encrypted River arguments, worker delivery of reset codes, password replacement and single-use tokens. |
 | Runtime DB authority | The [grant fixture](../postgres/e2e/runtime_grants_test.go) checks data access, default grants and startup schema checks. It also tests repeated application of the grants, denied schema/ledger writes and rejection of unsafe roles. |
 | Customer SMTP trust | The [SMTP suite](../service/email/e2e/customer_smtp_test.go) delivers recovery email with an explicit CA. It rejects unknown CAs, certificate-name mismatches and servers without STARTTLS. |
 | Telemetry disabled | Logging and tracing tests confirm that empty application endpoints disable export even with ambient OTLP variables set. File-logging tests check rotation of the active and previous files. |

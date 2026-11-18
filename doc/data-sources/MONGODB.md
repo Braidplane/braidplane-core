@@ -43,6 +43,9 @@ fixture exceptions.
 | `username` | yes | MongoDB user |
 | `password` | yes | MongoDB password |
 
+The connector and collection metadata checks require SCRAM-SHA-256. Enable it
+for the account in the configured authentication database before connecting.
+
 Credentials are encrypted at rest and never returned in API responses. See [DATA_SOURCES.md - Shared credential lifecycle](../DATA_SOURCES.md#shared-credential-lifecycle).
 
 ## Schema introspection
@@ -53,7 +56,7 @@ Sampling is best-effort: collections or documents that cannot be read are skippe
 
 ## Query and operation model
 
-Queries can be expressed as MongoDB aggregation pipelines or find operations. Parameters use `{{param_name}}` template syntax. Exact whole-field placeholders resolve before statement unmarshaling, so saved operations can bind native objects or arrays directly into fields such as `documents`, `document`, `filter`, `update`, or `pipeline` instead of relying on raw JSON string injection. Structured fields in those positions must resolve to non-null object or array values; `null` is rejected before execution.
+Queries can be expressed as MongoDB aggregation pipelines or find operations. Parameters use `{{param_name}}` template syntax. Declared text, date, UUID, integer and boolean parameters keep their scalar types. Use an undeclared whole-field placeholder to bind a native object or array to `documents`, `document`, `filter`, `update`, or `pipeline`. Structured fields require a non-null value of the corresponding shape. Nested objects can be bound as data in insert documents and literal update values. Existing saved sinks with a text-declared `input` can still bind a whole insertion document or document array. Set the operation in the statement. Use `$literal` to bind parameter text starting with `$` in an expression.
 
 Execution returns:
 - `column_names`: keys from the top-level fields of returned documents
@@ -78,10 +81,14 @@ by selecting the maximum returned value from the configured `field`.
 Watermark contracts may declare a positive duration `lookback_window` when the
 query should intentionally overlap reads for late-arriving documents.
 
-**As a sink**: the pipeline step uses `operation_type: mongodb`. The public statement exposes `insert_one`, `update_one`, `update_many`, `delete_one` and `delete_many`. It exposes no replace or upsert option. Saved operations bind runtime payloads through structured placeholders such as `document: "{{input}}"`, `filter: "{{input}}"` or `update: "{{input}}"`; match the operation's object/array shape. Contextual CSV/file bindings do not provide automatic CSV-to-document or native binary ingestion.
+**As a sink**: the pipeline step uses `operation_type: mongodb`. The public statement exposes `insert_one`, `update_one`, `update_many`, `delete_one` and `delete_many`. It exposes no replace or upsert option. Saved operations bind runtime payloads through whole-field placeholders such as `document: "{{input}}"`, `filter: "{{input}}"` or `update: "{{input}}"`. Keep `input` undeclared for whole filter and update bindings, and match the operation's object or array shape. Contextual CSV/file bindings do not provide automatic CSV-to-document or native binary ingestion.
 
 ## Known limitations
 
+- Core rejects server-side JavaScript and internal operators in query
+  expressions after resolving parameters. Use native query and aggregation
+  operators. MongoDB administrators control scripting in server-owned views
+  and can disable it with `security.javascriptEnabled: false`.
 - Transform paths that require JSON-native transform execution are outside the
   production-launch path. Transform steps operate on rows.
 - Pagination is not supported.

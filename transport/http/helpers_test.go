@@ -412,10 +412,10 @@ type fakeAPIKeysService struct {
 	ListAPIKeysFn         func(ctx context.Context, orgSlug slug.Slug, roleFilter *slug.Slug, req model.ListRequest) (model.ListResponse[model.APIKey], error)
 	CreateAPIKeyFn        func(ctx context.Context, orgSlug slug.Slug, actor model.EventActor, newAPIKey model.NewAPIKey) (*model.APIKeyWithToken, error)
 	GetAPIKeyFn           func(ctx context.Context, orgSlug, apiKeySlug slug.Slug) (*model.APIKey, error)
-	UpdateAPIKeyFn        func(ctx context.Context, orgSlug, apiKeySlug slug.Slug, actor model.EventActor, update model.UpdateAPIKey) (*model.APIKey, error)
-	RevokeAPIKeyFn        func(ctx context.Context, orgSlug, apiKeySlug slug.Slug, actor model.EventActor) error
+	UpdateAPIKeyFn        func(ctx context.Context, orgSlug, apiKeySlug slug.Slug, actor model.EventActor, callerRole *slug.Slug, update model.UpdateAPIKey) (*model.APIKey, error)
+	RevokeAPIKeyFn        func(ctx context.Context, orgSlug, apiKeySlug slug.Slug, actor model.EventActor, callerRole *slug.Slug) error
 	DeleteRevokedAPIKeyFn func(ctx context.Context, orgSlug, apiKeySlug slug.Slug, actor model.EventActor) error
-	RotateAPIKeyFn        func(ctx context.Context, orgSlug, apiKeySlug slug.Slug, actor model.EventActor) (*model.APIKeyWithToken, error)
+	RotateAPIKeyFn        func(ctx context.Context, orgSlug, apiKeySlug slug.Slug, actor model.EventActor, callerRole *slug.Slug) (*model.APIKeyWithToken, error)
 	AuthenticateFn        func(ctx context.Context, token string) (*model.APIKeyPrincipal, error)
 }
 
@@ -912,10 +912,11 @@ func (f *fakeAPIKeysService) UpdateAPIKey(
 	ctx context.Context,
 	orgSlug, apiKeySlug slug.Slug,
 	actor model.EventActor,
+	callerRole *slug.Slug,
 	update model.UpdateAPIKey,
 ) (*model.APIKey, error) {
 	if f.UpdateAPIKeyFn != nil {
-		return f.UpdateAPIKeyFn(ctx, orgSlug, apiKeySlug, actor, update)
+		return f.UpdateAPIKeyFn(ctx, orgSlug, apiKeySlug, actor, callerRole, update)
 	}
 	return nil, errFakeAPIKeysServiceFnNotSet
 }
@@ -924,9 +925,10 @@ func (f *fakeAPIKeysService) RevokeAPIKey(
 	ctx context.Context,
 	orgSlug, apiKeySlug slug.Slug,
 	actor model.EventActor,
+	callerRole *slug.Slug,
 ) error {
 	if f.RevokeAPIKeyFn != nil {
-		return f.RevokeAPIKeyFn(ctx, orgSlug, apiKeySlug, actor)
+		return f.RevokeAPIKeyFn(ctx, orgSlug, apiKeySlug, actor, callerRole)
 	}
 	return errFakeAPIKeysServiceFnNotSet
 }
@@ -946,9 +948,10 @@ func (f *fakeAPIKeysService) RotateAPIKey(
 	ctx context.Context,
 	orgSlug, apiKeySlug slug.Slug,
 	actor model.EventActor,
+	callerRole *slug.Slug,
 ) (*model.APIKeyWithToken, error) {
 	if f.RotateAPIKeyFn != nil {
-		return f.RotateAPIKeyFn(ctx, orgSlug, apiKeySlug, actor)
+		return f.RotateAPIKeyFn(ctx, orgSlug, apiKeySlug, actor, callerRole)
 	}
 	return nil, errFakeAPIKeysServiceFnNotSet
 }

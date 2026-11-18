@@ -10,6 +10,7 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/stdlib"
 
+	"github.com/Braidplane/braidplane-core/pkg/dbpool"
 	"github.com/Braidplane/braidplane-core/pkg/domain/model"
 	"github.com/Braidplane/braidplane-core/pkg/proofevidence"
 	sqlconnector "github.com/Braidplane/braidplane-core/service/datasourcessvc/connector/sql"
@@ -43,7 +44,7 @@ func (o TableMetadataObserver) ReadMetadata(ctx context.Context, transport proof
 		return nil, 0, proofevidence.OutcomeDenied
 	}
 	connection, err := pgx.ParseConfig(buildDSN(config))
-	if err != nil {
+	if err != nil || dbpool.RestrictAuthentication(&connection.Config) != nil {
 		return nil, 0, proofevidence.OutcomeDenied
 	}
 	// The admitted dialer owns DNS; pgx must retain the reviewed hostname.

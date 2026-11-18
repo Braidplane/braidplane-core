@@ -37,7 +37,7 @@ func TestRouter_LoadDashboardPipelineData_UsesUnavailableDeploymentMetrics(t *te
 	}))
 	defer apiServer.Close()
 
-	router, err := NewRouter(apiServer.URL, slog.New(slog.DiscardHandler), session.NewStore())
+	router, err := newHandlerTestRouter(apiServer.URL, slog.New(slog.DiscardHandler), session.NewStore())
 	require.NoError(t, err)
 
 	data := views.DashboardData{}
@@ -127,7 +127,7 @@ func TestRouter_LoadDashboardRunData_UsesScopedSucceededRunEvidence(t *testing.T
 			}))
 			defer apiServer.Close()
 
-			router, err := NewRouter(apiServer.URL, slog.New(slog.DiscardHandler), session.NewStore())
+			router, err := newHandlerTestRouter(apiServer.URL, slog.New(slog.DiscardHandler), session.NewStore())
 			require.NoError(t, err)
 			data := views.DashboardData{}
 			unauthorized := router.loadDashboardRunData(
@@ -172,7 +172,7 @@ func TestRouter_LoadDashboardFirstResultUsesRecordedMetadata(t *testing.T) {
 				_, _ = w.Write([]byte(tc.body))
 			}))
 			defer server.Close()
-			router, err := NewRouter(server.URL, slog.New(slog.DiscardHandler), session.NewStore())
+			router, err := newHandlerTestRouter(server.URL, slog.New(slog.DiscardHandler), session.NewStore())
 			require.NoError(t, err)
 			data := views.DashboardData{}
 			unauthorized := router.loadDashboardFirstResultData(t.Context(), "session=present", views.AuthenticatedShellData{ActiveOrganizationSlug: "acme"}, &data)
@@ -225,7 +225,7 @@ func TestRouter_LoadDashboardData_LoadsPanelsConcurrently(t *testing.T) {
 	defer apiServer.Close()
 
 	store := session.NewStore()
-	router, err := NewRouter(apiServer.URL, slog.New(slog.DiscardHandler), store)
+	router, err := newHandlerTestRouter(apiServer.URL, slog.New(slog.DiscardHandler), store)
 	require.NoError(t, err)
 
 	app := fiber.New()
@@ -285,7 +285,7 @@ func TestRouter_FilterDataSourcesForList_LoadsQueryInventoryConcurrently(t *test
 	}))
 	defer apiServer.Close()
 
-	router, err := NewRouter(apiServer.URL, slog.New(slog.DiscardHandler), session.NewStore())
+	router, err := newHandlerTestRouter(apiServer.URL, slog.New(slog.DiscardHandler), session.NewStore())
 	require.NoError(t, err)
 
 	dataSources := []api.DataSource{
@@ -362,7 +362,7 @@ func TestRouter_HandleDashboardPage_EnablesProjectRuntimeNavFromDefaultScope(t *
 	defer apiServer.Close()
 
 	store := session.NewStore()
-	router, err := NewRouter(apiServer.URL, slog.New(slog.DiscardHandler), store)
+	router, err := newHandlerTestRouter(apiServer.URL, slog.New(slog.DiscardHandler), store)
 	require.NoError(t, err)
 
 	app := fiber.New()
@@ -423,7 +423,7 @@ func TestRouter_HandleDashboardPage_FallsBackFromStaleRememberedProjectScope(t *
 	defer apiServer.Close()
 
 	store := session.NewStore()
-	router, err := NewRouter(apiServer.URL, slog.New(slog.DiscardHandler), store)
+	router, err := newHandlerTestRouter(apiServer.URL, slog.New(slog.DiscardHandler), store)
 	require.NoError(t, err)
 
 	app := fiber.New()

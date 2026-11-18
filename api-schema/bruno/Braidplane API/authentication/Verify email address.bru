@@ -28,8 +28,8 @@ script:pre-request {
 
   // Fetch the latest email from Mailpit for this recipient
   const {emailText} = require('./auth-email.cjs');
-  const content = await emailText(axios, bru.getEnvVar("mailpitUrl"), userEmail, /token=([a-f0-9]{64})/, bru.getVar('originalVerificationEmail'));
-  bru.setVar("verificationToken", content.match(/token=([a-f0-9]{64})/)[1]);
+  const content = await emailText(axios, bru.getEnvVar("mailpitUrl"), userEmail, /\/verify-email(?:\r?\n|$)/, bru.getVar('originalVerificationEmail'));
+  bru.setVar("verificationToken", content.match(/^(?:Code|Kod): ([a-f0-9]{64})\s*$/m)[1]);
 }
 
 tests {

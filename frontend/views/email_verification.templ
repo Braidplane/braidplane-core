@@ -7,26 +7,43 @@ templ EmailVerificationPage(title string, email string, notice string, returnTo 
 templ EmailVerificationPageContent(email string, notice string, returnTo string) {
 	<div class="space-y-5 text-center">
 		<h1 class="text-2xl font-semibold">Verify your email</h1>
-		<p class="text-sm text-base-content/70">We sent a verification link to your inbox.</p>
+		<p class="text-sm text-base-content/70">We sent a verification code to your inbox.</p>
 		if notice != "" {
 			<div class="alert alert-success text-sm">{ notice }</div>
 		}
 		<div class="badge badge-info badge-soft mx-auto h-auto min-h-8 max-w-full break-all px-3 py-2 text-center">Sent to: { email }</div>
 		<div class="rounded-lg border border-base-300 bg-base-200/30 p-3 text-left">
 			<p class="text-xs font-semibold uppercase tracking-wide text-base-content/60">Next step</p>
-			<p class="mt-2 text-sm text-base-content/80">Open your inbox and click the verification link.</p>
+			<p class="mt-2 text-sm text-base-content/80">Open the link in your inbox and enter the verification code.</p>
 			<p class="text-sm text-base-content/80">You can close this page now.</p>
 		</div>
 		<div class="grid gap-2">
-			<a class="btn btn-primary w-full" href={ templ.URL(AuthReturnURL("/auth/login", returnTo)) }>I&apos;ve clicked the link</a>
+			<a class="btn btn-primary w-full" href={ templ.URL(AuthReturnURL("/auth/login", returnTo)) }>Continue to sign in</a>
 			<form method="post" action="/auth/resend-verification" hx-post="/auth/resend-verification" hx-target="main" hx-select="main" hx-swap="innerHTML">
 				<input type="hidden" name="email" value={ email }/>
 				if returnTo != "" {
 					<input type="hidden" name="return_to" value={ returnTo }/>
 				}
-				<button class="btn btn-outline w-full" type="submit">Resend verification link</button>
+				<button class="btn btn-outline w-full" type="submit">Resend verification code</button>
 			</form>
 		</div>
 		<p class="text-xs text-base-content/70">Didn&apos;t receive anything? Check your spam folder.</p>
+	</div>
+}
+
+templ EmailVerificationConfirmationPage() {
+	@AuthPage("Confirm email", false, EmailVerificationConfirmationForm())
+}
+
+templ EmailVerificationConfirmationForm() {
+	<div class="space-y-5 text-center">
+		<h1 class="text-2xl font-semibold">Confirm your email</h1>
+		<form class="space-y-3" method="post" action="/verify-email" hx-history="false">
+			<label class="form-control w-full">
+				<span class="label-text">Verification code</span>
+				<input class="input input-bordered w-full" type="text" name="token" autocomplete="one-time-code" autocapitalize="none" spellcheck="false" required/>
+			</label>
+			<button class="btn btn-primary w-full" type="submit">Verify email</button>
+		</form>
 	</div>
 }

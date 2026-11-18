@@ -550,9 +550,8 @@ response includes structured diagnostics and exits nonzero when invalid. Local
 success reports a file count; local failures and request errors remain on stderr.
 The output option does not change what validation does.
 
-The CLI reads only the first YAML document or JSON value from a file. Additional
-content is not validated or sent for server validation. Ensure the file contains
-one document or value before relying on the result.
+Each pipeline file must contain one YAML document or JSON value. Formatting,
+validation, and Git reconciliation reject additional documents or values.
 
 Start from the downloadable
 [PostgreSQL-to-S3 specification](files/joined-orders.pipeline.yaml) for a

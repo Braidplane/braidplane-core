@@ -31,7 +31,7 @@ func TestSchemaSpreadsheetUsesSampleBudget(t *testing.T) {
 					files:  map[string]fakeFile{"sparse.xlsx": {content: content.Bytes()}},
 					listed: []SchemaFile{{Name: "sparse.xlsx", Target: "sparse.xlsx"}},
 				}
-				schema, schemaErr := (Adapter{SchemaParsedColumns: parsedColumns, SpreadsheetFilePath: true}).IntrospectSchema(ctx, provider, opts)
+				schema, schemaErr := (Adapter{SchemaParsedColumns: parsedColumns}).IntrospectSchema(ctx, provider, opts)
 				require.NoError(t, schemaErr)
 				require.Len(t, schema.Files, 1)
 				require.Empty(t, schema.Files[0].Fields)

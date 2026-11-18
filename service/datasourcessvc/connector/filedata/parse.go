@@ -9,6 +9,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"unicode/utf8"
 
 	"github.com/Braidplane/braidplane-core/pkg/connector/result"
 	"github.com/Braidplane/braidplane-core/pkg/xerror"
@@ -23,6 +24,12 @@ func ParseCSV(content []byte, opts ParseCSVOptions) (*result.FileResult, error) 
 		)
 	}
 
+	// encoding/csv accepts arbitrary bytes inside a field.
+	if !utf8.Valid(content) || bytes.ContainsFunc(content, func(r rune) bool {
+		return (r < ' ' && r != '\t' && r != '\r' && r != '\n') || r == '\x7f'
+	}) {
+		return nil, xerror.InvalidInput(xerror.Query).WithPublicDetail("CSV content must be valid UTF-8 text.")
+	}
 	reader := csv.NewReader(bytes.NewReader(content))
 	if opts.Delimiter != "" {
 		runes := []rune(opts.Delimiter)
@@ -107,6 +114,23 @@ func ParseCSV(content []byte, opts ParseCSVOptions) (*result.FileResult, error) 
 	}, nil
 }
 
+func decodeJSONContent(content []byte) (any, error) {
+	// encoding/json substitutes replacement characters for invalid UTF-8 in strings.
+	if !utf8.Valid(content) {
+		return nil, xerror.InvalidInput(xerror.Query).WithPublicDetail("JSON content must be valid UTF-8 text.")
+	}
+	var raw any
+	decoder := json.NewDecoder(bytes.NewReader(content))
+	decoder.UseNumber()
+	if err := decoder.Decode(&raw); err != nil {
+		return nil, xerror.Unexpected().Detailf("parse JSON content: %w", err)
+	}
+	if err := decoder.Decode(new(any)); err != io.EOF {
+		return nil, xerror.Unexpected().Detail("parse JSON content: trailing data")
+	}
+	return raw, nil
+}
+
 // ParseJSON parses JSON content and returns a FileResult with rows and sorted column names.
 func ParseJSON(content []byte) (*result.FileResult, error) {
 	return ParseJSONWithLimits(content, ParseJSONOptions{})
@@ -121,15 +145,9 @@ func ParseJSONWithLimits(content []byte, opts ParseJSONOptions) (*result.FileRes
 		)
 	}
 
-	var raw any
-	decoder := json.NewDecoder(bytes.NewReader(content))
-	decoder.UseNumber()
-	if err := decoder.Decode(&raw); err != nil {
-		return nil, xerror.Unexpected().Detailf("parse JSON content: %w", err)
-	}
-
-	if err := decoder.Decode(new(any)); err != io.EOF {
-		return nil, xerror.Unexpected().Detail("parse JSON content: trailing data")
+	raw, err := decodeJSONContent(content)
+	if err != nil {
+		return nil, err
 	}
 	rows := make([]map[string]any, 0)
 	switch typed := raw.(type) {

@@ -81,12 +81,11 @@ func executeMongoRawWithLimits(
 	params map[string]any,
 	limits types.ExecutionLimits,
 ) (any, error) {
-	// Convert plain params to TypedParam map (use "text" for E2E tests)
+	// These fixture parameters have no saved scalar declaration.
 	typedParams := make(map[string]types.TypedParam, len(params))
 	for name, value := range params {
 		typedParams[name] = types.TypedParam{
-			Value:    value,
-			DataType: "text", // E2E tests don't test normalization
+			Value: value,
 		}
 	}
 

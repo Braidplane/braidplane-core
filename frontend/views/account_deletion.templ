@@ -30,7 +30,7 @@ templ AccountDeletionSection() {
 }
 
 templ AccountDeletionOutcome(receipt *api.AccountDeletionRequest, message string) {
-	@AuthPage("Account removal", false, AccountDeletionOutcomeContent(receipt, message))
+	@AuthPage("Account removal", true, AccountDeletionOutcomeContent(receipt, message))
 }
 
 templ AccountDeletionOutcomeContent(receipt *api.AccountDeletionRequest, message string) {

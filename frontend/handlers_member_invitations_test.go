@@ -25,7 +25,7 @@ func TestRouter_HandleMemberInvitationLandingPage_RequiresAuth(t *testing.T) {
 	defer apiServer.Close()
 
 	store := session.NewStore()
-	router, err := NewRouter(apiServer.URL, slog.New(slog.DiscardHandler), store)
+	router, err := newHandlerTestRouter(apiServer.URL, slog.New(slog.DiscardHandler), store)
 	require.NoError(t, err)
 
 	app := fiber.New()
@@ -49,7 +49,7 @@ func TestRouter_HandleAcceptMemberInvitationSubmit_RequiresAuthWithTokenReturn(t
 	}))
 	defer apiServer.Close()
 
-	router, err := NewRouter(apiServer.URL, slog.New(slog.DiscardHandler), session.NewStore())
+	router, err := newHandlerTestRouter(apiServer.URL, slog.New(slog.DiscardHandler), session.NewStore())
 	require.NoError(t, err)
 
 	app := fiber.New()
@@ -86,7 +86,7 @@ func TestRouter_HandleMemberInvitationLandingPage_RendersReviewActions(t *testin
 	defer apiServer.Close()
 
 	store := session.NewStore()
-	router, err := NewRouter(apiServer.URL, slog.New(slog.DiscardHandler), store)
+	router, err := newHandlerTestRouter(apiServer.URL, slog.New(slog.DiscardHandler), store)
 	require.NoError(t, err)
 
 	app := fiber.New()
@@ -135,7 +135,7 @@ func TestRouter_HandleAcceptMemberInvitationSubmit_RendersAcceptedMembership(t *
 	defer apiServer.Close()
 
 	store := session.NewStore()
-	router, err := NewRouter(apiServer.URL, slog.New(slog.DiscardHandler), store)
+	router, err := newHandlerTestRouter(apiServer.URL, slog.New(slog.DiscardHandler), store)
 	require.NoError(t, err)
 
 	app := fiber.New()
@@ -185,7 +185,7 @@ func TestRouter_HandleAcceptMemberInvitationSubmit_RendersUnusableTokenState(t *
 	defer apiServer.Close()
 
 	store := session.NewStore()
-	router, err := NewRouter(apiServer.URL, slog.New(slog.DiscardHandler), store)
+	router, err := newHandlerTestRouter(apiServer.URL, slog.New(slog.DiscardHandler), store)
 	require.NoError(t, err)
 
 	app := fiber.New()
@@ -258,7 +258,7 @@ func TestRouter_HandleMemberInvitationSubmit_RendersEmailVerificationPrompt(t *t
 			defer apiServer.Close()
 
 			store := session.NewStore()
-			router, err := NewRouter(apiServer.URL, slog.New(slog.DiscardHandler), store)
+			router, err := newHandlerTestRouter(apiServer.URL, slog.New(slog.DiscardHandler), store)
 			require.NoError(t, err)
 
 			app := fiber.New()

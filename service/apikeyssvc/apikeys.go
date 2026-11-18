@@ -159,6 +159,7 @@ func (s *service) UpdateAPIKey(
 	ctx context.Context,
 	orgSlug, apiKeySlug slug.Slug,
 	actor model.EventActor,
+	callerRole *slug.Slug,
 	update model.UpdateAPIKey,
 ) (*model.APIKey, error) {
 	if err := validate.Default().Struct(update); err != nil {
@@ -169,7 +170,11 @@ func (s *service) UpdateAPIKey(
 		canManageAPIKeys = *update.CanManageAPIKeys
 	}
 
+	var result model.APIKey
 	err := s.txm.RunInTx(ctx, func(ctx context.Context, tx postgres.DBTX) error {
+		if err := s.lockAPIKeyForMutation(ctx, tx, orgSlug, apiKeySlug, actor, callerRole); err != nil {
+			return err
+		}
 		if _, err := s.apiKeysRepo.FindBySlug(ctx, tx, orgSlug, apiKeySlug); err != nil {
 			return xerror.Wrapf("find api key before update: %w", err)
 		}
@@ -189,21 +194,30 @@ func (s *service) UpdateAPIKey(
 		}); err != nil {
 			return err
 		}
+		key, err := s.apiKeysRepo.FindBySlug(ctx, tx, orgSlug, apiKeySlug)
+		if err != nil {
+			return xerror.Wrapf("find updated api key: %w", err)
+		}
+		result = apiKeyToModel(key)
 		return nil
 	})
 	if err != nil {
 		return nil, err
 	}
 
-	return s.GetAPIKey(ctx, orgSlug, apiKeySlug)
+	return &result, nil
 }
 
 func (s *service) RevokeAPIKey(
 	ctx context.Context,
 	orgSlug, apiKeySlug slug.Slug,
 	actor model.EventActor,
+	callerRole *slug.Slug,
 ) error {
 	return s.txm.RunInTx(ctx, func(ctx context.Context, tx postgres.DBTX) error {
+		if err := s.lockAPIKeyForMutation(ctx, tx, orgSlug, apiKeySlug, actor, callerRole); err != nil {
+			return err
+		}
 		if _, err := s.apiKeysRepo.FindBySlug(ctx, tx, orgSlug, apiKeySlug); err != nil {
 			return xerror.Wrapf("find api key before revoke: %w", err)
 		}
@@ -243,6 +257,7 @@ func (s *service) RotateAPIKey(
 	ctx context.Context,
 	orgSlug, apiKeySlug slug.Slug,
 	actor model.EventActor,
+	callerRole *slug.Slug,
 ) (*model.APIKeyWithToken, error) {
 	token, tokenHash, safePrefix, err := generateToken()
 	if err != nil {
@@ -251,6 +266,9 @@ func (s *service) RotateAPIKey(
 
 	var ret *model.APIKeyWithToken
 	err = s.txm.RunInTx(ctx, func(ctx context.Context, tx postgres.DBTX) error {
+		if err := s.lockAPIKeyForMutation(ctx, tx, orgSlug, apiKeySlug, actor, callerRole); err != nil {
+			return err
+		}
 		key, err := s.apiKeysRepo.Rotate(ctx, tx, apikeys.RotateParams{
 			OrgSlug:     orgSlug,
 			Slug:        apiKeySlug,
@@ -274,6 +292,30 @@ func (s *service) RotateAPIKey(
 	}
 
 	return ret, nil
+}
+
+func (s *service) lockAPIKeyForMutation(
+	ctx context.Context,
+	tx postgres.DBTX,
+	orgSlug, apiKeySlug slug.Slug,
+	actor model.EventActor,
+	callerRole *slug.Slug,
+) error {
+	if actor.Type != model.EventActorTypeAPIKey {
+		return nil
+	}
+	if callerRole == nil || *callerRole == "" {
+		return ErrAPIKeyRoleMismatch
+	}
+	// Hold the target row through the mutation so its slug keeps the same identity.
+	targetRole, err := s.apiKeysRepo.LockRoleBySlug(ctx, tx, orgSlug, apiKeySlug)
+	if err != nil {
+		return err
+	}
+	if targetRole != *callerRole {
+		return ErrAPIKeyRoleMismatch
+	}
+	return nil
 }
 
 func (s *service) Authenticate(ctx context.Context, token string) (*model.APIKeyPrincipal, error) {

@@ -63,12 +63,8 @@ func (o CollectionMetadataObserver) ReadMetadata(ctx context.Context, transport 
 	if json.Unmarshal(credential, &creds) != nil || creds.Username == "" || creds.Password == "" {
 		return nil, 0, proofevidence.OutcomeDenied
 	}
-	authDatabase := o.AuthDatabase
-	if authDatabase == "" {
-		authDatabase = "admin"
-	}
 	opts := options.Client().SetHosts([]string{net.JoinHostPort(o.Host, strconv.Itoa(int(o.Port)))}).
-		SetAuth(options.Credential{Username: creds.Username, Password: creds.Password, AuthSource: authDatabase}).
+		SetAuth(creds.scramAuth(o.AuthDatabase)).
 		SetDirect(true).SetMaxPoolSize(1).SetMinPoolSize(0).SetRetryReads(false).SetRetryWrites(false).
 		SetServerMonitoringMode(options.ServerMonitoringModePoll).
 		SetConnectTimeout(limits.Timeout).SetServerSelectionTimeout(limits.Timeout).SetDialer(transport)

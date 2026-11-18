@@ -186,11 +186,7 @@ func TestRotatePipelineWebhookSecret(t *testing.T) {
 			assertUserEventActor(t, actor, must.Slug("alice"))
 			return model.PipelineWebhookSecret{KeyVersion: 4, Value: "rotated-secret"}, nil
 		}},
-		authService: fakeAuthService{CanFn: func(_ context.Context, input authorization.Input) (bool, error) {
-			require.Equal(t, model.Update, input.Action)
-			require.Equal(t, model.ResourcePipelineTriggers, input.Resource)
-			return true, nil
-		}},
+		authService: allowAuthorizationService(),
 	})
 
 	resp := authenticatedRequest(t, app, store, must.Slug("alice"), jsonRequest(
@@ -214,7 +210,9 @@ func TestRotatePipelineWebhookSecretReturnsForbiddenWhenUnauthorized(t *testing.
 			t.Fatal("service must not be called when authorization fails")
 			return model.PipelineWebhookSecret{}, nil
 		}},
-		authService: fakeAuthService{CanFn: func(context.Context, authorization.Input) (bool, error) { return false, nil }},
+		authService: fakeAuthService{CanFn: func(_ context.Context, input authorization.Input) (bool, error) {
+			return input.Resource == model.ResourcePipelineTriggers && input.Action == model.Update, nil
+		}},
 	})
 
 	resp := authenticatedRequest(t, app, store, must.Slug("alice"), jsonRequest(
@@ -223,7 +221,7 @@ func TestRotatePipelineWebhookSecretReturnsForbiddenWhenUnauthorized(t *testing.
 	defer func() { require.NoError(t, resp.Body.Close()) }()
 
 	require.Equal(t, http.StatusForbidden, resp.StatusCode)
-	assertErrorResponse(t, resp, apierror.Forbidden("pipeline_triggers", "update"))
+	assertErrorResponse(t, resp, apierror.Forbidden("pipelines", "execute"))
 }
 
 func TestRotatePipelineWebhookSecretMapsServiceError(t *testing.T) {

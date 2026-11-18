@@ -289,10 +289,10 @@ handles observations with the original reserved deadline and no provider retry.
 | Table Name | `frontend_session.table_name` | `FRONTEND_SESSION_TABLE_NAME` | `--frontend-session-table-name` | `user_sessions` | string | Session storage table shared with the backend; requires matching database grants |
 | Cookie Secure | `frontend_session.cookie_secure` | `FRONTEND_SESSION_COOKIE_SECURE` | `--frontend-session-cookie-secure` | `true` | bool | Set Secure flag on standalone frontend session cookies |
 
-Backend and frontend authentication cookies are host-only because the runtime
-does not set a cookie `Domain`. They are also `Secure`, `HttpOnly`,
-`SameSite=Lax`, and scoped to `/`, so staging and production application hosts
-cannot share sessions.
+Set backend and frontend cookie security to the same value so both services
+read the same session cookie. HTTPS deployments use `__Host-session_id` with
+`Secure`, `HttpOnly`, `SameSite=Lax`, and `Path=/`. The host-only cookie keeps
+sessions separate across application hosts. Local HTTP uses `session_id`.
 
 ### Security Configuration
 
@@ -567,25 +567,33 @@ Metrics behavior:
 ### Shared Abuse Controls Configuration
 
 PostgreSQL enforces these budgets atomically across all API replicas and process
-restarts. Every value must be positive. Authentication requests count against
-both client and stable-subject budgets. Expensive connector, query and pipeline
-operations count against client and tenant budgets. Credential mutations use the
-narrower credential budget in both dimensions.
+restarts. Every value must be positive. Password sign-in has a per-client
+budget shared by the browser and API. Failed attempts from one client cannot
+block another client's sign-in to the same account. Email delivery and MFA
+verification also have stable-subject budgets for the recipient or challenge.
+MFA email delivery during sign-in has a shared per-account budget that is
+charged only after the password has been verified.
+Expensive connector, query and pipeline operations count against client and
+tenant budgets. Credential mutations use the narrower budget in both dimensions.
 
 | Variable | TOML | Environment | Flag | Default | Type | Description |
 |----------|------|-------------|------|---------|------|-------------|
-| Authentication Attempts | `abuse_controls.auth_attempts` | `ABUSE_CONTROLS_AUTH_ATTEMPTS` | `--abuse-controls-auth-attempts` | `5` | int | Maximum authentication attempts per client and stable subject in one window |
+| Authentication Attempts | `abuse_controls.auth_attempts` | `ABUSE_CONTROLS_AUTH_ATTEMPTS` | `--abuse-controls-auth-attempts` | `5` | int | Maximum authentication attempts per client and, where applicable, per stable subject in one window |
 | Authentication Window | `abuse_controls.auth_window` | `ABUSE_CONTROLS_AUTH_WINDOW` | `--abuse-controls-auth-window` | `1m` | duration | Shared authentication throttle window |
 | Expensive Client Attempts | `abuse_controls.expensive_client_attempts` | `ABUSE_CONTROLS_EXPENSIVE_CLIENT_ATTEMPTS` | `--abuse-controls-expensive-client-attempts` | `20` | int | Maximum connector, query, or pipeline operations per client in one window |
 | Expensive Tenant Attempts | `abuse_controls.expensive_tenant_attempts` | `ABUSE_CONTROLS_EXPENSIVE_TENANT_ATTEMPTS` | `--abuse-controls-expensive-tenant-attempts` | `40` | int | Maximum connector, query, or pipeline operations per tenant in one window |
 | Credential Attempts | `abuse_controls.credential_attempts` | `ABUSE_CONTROLS_CREDENTIAL_ATTEMPTS` | `--abuse-controls-credential-attempts` | `10` | int | Maximum credential mutations per client and tenant in one window |
 | Expensive Window | `abuse_controls.expensive_window` | `ABUSE_CONTROLS_EXPENSIVE_WINDOW` | `--abuse-controls-expensive-window` | `1m` | duration | Shared expensive-operation throttle window |
 
-Rate-limited requests return the same non-enumerating `429` response with a
-`Retry-After` header. If the shared store is unavailable, protected requests
-fail closed instead of falling back to process-local counters. To recover from
-an accidental lockout, an operator can lower the window and restart the API;
-the updated duration applies to each newly opened budget window.
+Rate-limited API requests return a non-enumerating `429` response with
+`Retry-After`. If the shared store is unavailable, protected requests fail
+closed. The standalone browser frontend also has a fixed local limit of five
+attempts per minute per client and operation. Configure trusted proxy peers so
+both services see the observed client address. Users behind a shared address
+share its budget and can retry after the window expires. The limit slows
+password guessing and credential stuffing from each source. Campaigns that
+spread attempts across many addresses can also be addressed with edge
+anti-automation and account MFA.
 
 ### Execution Limits Configuration
 

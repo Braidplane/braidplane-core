@@ -6,13 +6,15 @@ import (
 	"encoding/json"
 	"io"
 	"net/http"
+	"net/netip"
 	"net/url"
 	"strconv"
 	"strings"
 	"time"
 
-	"github.com/Braidplane/braidplane-core/pkg/connector/transportsecurity"
+	"golang.org/x/net/idna"
 
+	"github.com/Braidplane/braidplane-core/pkg/connector/transportsecurity"
 	"github.com/Braidplane/braidplane-core/pkg/xerror"
 )
 
@@ -140,7 +142,11 @@ func (c *Client) ListProjects(ctx context.Context, accessToken string) ([]Projec
 		if decodeErr != nil {
 			return nil, xerror.Unavailable(xerror.DataSource).With(decodeErr)
 		}
-		projects = append(projects, pageProjects...)
+		for _, project := range pageProjects {
+			if c.validProjectWebURL(project.WebURL) {
+				projects = append(projects, project)
+			}
+		}
 		if resp.Header.Get("X-Next-Page") == "" {
 			return projects, nil
 		}
@@ -163,7 +169,49 @@ func (c *Client) GetProject(ctx context.Context, accessToken, projectID string) 
 	if err := json.NewDecoder(io.LimitReader(resp.Body, 256*1024)).Decode(&project); err != nil {
 		return project, xerror.Unavailable(xerror.DataSource).With(err)
 	}
+	if !c.validProjectWebURL(project.WebURL) {
+		return Project{}, xerror.Unavailable(xerror.DataSource).Detail("GitLab returned a repository URL outside its configured origin")
+	}
 	return project, nil
+}
+
+func (c *Client) validProjectWebURL(raw string) bool {
+	target, err := url.Parse(raw)
+	if err != nil || target.Hostname() == "" || target.User != nil || strings.Contains(raw, "\\") {
+		return false
+	}
+	base, err := url.Parse(c.baseURL)
+	if err != nil || target.Scheme != base.Scheme {
+		return false
+	}
+	host := webHost(target.Hostname())
+	port := webPort(target)
+	return host != "" && host == webHost(base.Hostname()) && port != 0 && port == webPort(base)
+}
+
+func webHost(host string) string {
+	if ip, err := netip.ParseAddr(host); err == nil {
+		return ip.String()
+	}
+	host, err := idna.Lookup.ToASCII(host)
+	if err != nil {
+		return ""
+	}
+	return strings.ToLower(host)
+}
+
+func webPort(target *url.URL) uint16 {
+	if raw := target.Port(); raw != "" {
+		port, err := strconv.ParseUint(raw, 10, 16)
+		if err != nil {
+			return 0
+		}
+		return uint16(port)
+	}
+	if target.Scheme == "https" {
+		return 443
+	}
+	return 80
 }
 
 func (c *Client) exchange(ctx context.Context, form url.Values) (TokenSet, error) {

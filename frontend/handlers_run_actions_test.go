@@ -42,7 +42,7 @@ func TestRunStepActionsRequireCurrentAuthorizedResources(t *testing.T) {
 				}
 			}))
 			defer backend.Close()
-			router, err := NewRouter(backend.URL, slog.New(slog.DiscardHandler), session.NewStore())
+			router, err := newHandlerTestRouter(backend.URL, slog.New(slog.DiscardHandler), session.NewStore())
 			require.NoError(t, err)
 			source, query := "source", "read"
 			node := runlineage.Node{Kind: "query", Snapshot: &api.PipelineRunStepSnapshot{Input: api.PipelineRunStepInputSnapshot{DataSourceSlug: &source, OperationRef: &query}}}

@@ -12,6 +12,8 @@ import (
 	"strings"
 	"sync"
 	"time"
+	"unicode"
+	"unicode/utf8"
 
 	"github.com/Braidplane/braidplane-core/pkg/connector/transportsecurity"
 
@@ -32,6 +34,14 @@ type Config struct {
 	BasePath          string `json:"base_path,omitempty"`
 	ConnectTimeout    int    `json:"connect_timeout,omitempty"     validate:"omitempty,min=1,max=300"`
 	AllowPrivateHosts bool   `json:"allow_private_hosts,omitempty"`
+}
+
+// ValidateBasePath checks the configured directory before it is persisted or used.
+func (cfg Config) ValidateBasePath() error {
+	if !validFTPPathText(cfg.BasePath) {
+		return xerror.InvalidInput(xerror.DataSource).WithPublicDetail("FTP base path must use UTF-8 without control characters or backslashes.")
+	}
+	return nil
 }
 
 // Credentials holds FTP authentication values.
@@ -83,6 +93,9 @@ var ftpFileAdapter = remotefile.Adapter{
 
 // New creates a new FTP connector.
 func New(ctx context.Context, config Config, creds Credentials) (*Connector, error) {
+	if err := config.ValidateBasePath(); err != nil {
+		return nil, err
+	}
 	if config.ConnectTimeout == 0 {
 		config.ConnectTimeout = 5
 	}
@@ -153,12 +166,7 @@ func New(ctx context.Context, config Config, creds Credentials) (*Connector, err
 		return nil, mapConnectionError(err)
 	}
 
-	basePath := strings.TrimSpace(config.BasePath)
-	if basePath == "" {
-		basePath = "/"
-	}
-
-	connector.conn, connector.basePath, connector.control = conn, basePath, control
+	connector.conn, connector.basePath, connector.control = conn, config.BasePath, control
 	connector.config, connector.credentials = config, creds
 	return connector, nil
 }
@@ -258,18 +266,18 @@ func (c *Connector) Execute(
 		applyWriteParamOverrides(&qd, normalized)
 	}
 
-	if strings.TrimSpace(qd.Path) == "" {
+	if err := substituteSpreadsheetParams(&qd, normalized); err != nil {
+		duration := time.Since(start).Milliseconds()
+		return result.NewFTPResult(nil, duration, err), nil
+	}
+
+	if qd.Path == "" {
 		duration := time.Since(start).Milliseconds()
 		return result.NewFTPResult(
 			nil,
 			duration,
-			xerror.Unexpected().Detail("FTP query data must specify a path"),
+			xerror.InvalidInput(xerror.Query).WithPublicDetail("FTP query data must specify a path."),
 		), nil
-	}
-
-	if err := substituteSpreadsheetParams(&qd, normalized); err != nil {
-		duration := time.Since(start).Milliseconds()
-		return result.NewFTPResult(nil, duration, err), nil
 	}
 
 	joinedPath, err := joinFTPPath(c.basePath, qd.Path)
@@ -312,7 +320,16 @@ func substituteSpreadsheetParams(qd *ftpQueryData, params map[string]any) error 
 	return remotefile.SubstituteCommonParams(qd, params, "path")
 }
 
+func validFTPPathText(value string) bool {
+	return utf8.ValidString(value) && !strings.ContainsFunc(value, func(r rune) bool {
+		return unicode.IsControl(r) || r == '\\'
+	})
+}
+
 func joinFTPPath(basePath, relativePath string) (string, error) {
+	if !validFTPPathText(relativePath) {
+		return "", xerror.InvalidInput(xerror.Query).WithPublicDetail("FTP file path must use UTF-8 without control characters or backslashes.")
+	}
 	baseClean := path.Clean("/" + strings.TrimSpace(basePath))
 	rel := relativePath
 	if rel == "" {

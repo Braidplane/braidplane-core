@@ -9,11 +9,19 @@ import (
 	"github.com/Braidplane/braidplane-core/pkg/crypto"
 	"github.com/Braidplane/braidplane-core/pkg/domain/model"
 	"github.com/Braidplane/braidplane-core/pkg/must"
+	"github.com/Braidplane/braidplane-core/pkg/passwordpolicy"
 	"github.com/Braidplane/braidplane-core/pkg/slug"
 	"github.com/Braidplane/braidplane-core/postgres"
 	"github.com/Braidplane/braidplane-core/postgres/users"
 	"github.com/stretchr/testify/require"
 )
+
+func TestBootstrapRejectsCommonPasswordBeforeUsingDependencies(t *testing.T) {
+	t.Parallel()
+	bootstrap := &Bootstrapper{}
+	err := bootstrap.Bootstrap(t.Context(), must.Slug("fixture-admin"), "Fixture Admin", "fixture@example.com", "password")
+	require.ErrorIs(t, err, passwordpolicy.ErrCommonPassword)
+}
 
 func TestBootstrapOnlyWithoutAdministrator(t *testing.T) {
 	for _, count := range []int64{0, 1} {

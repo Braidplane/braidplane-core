@@ -18,7 +18,7 @@ import (
 
 func TestGitHubAppAndProofReceiptRoutesAreAvailable(t *testing.T) {
 	t.Parallel()
-	router, err := NewRouter("http://localhost:3001", slog.New(slog.DiscardHandler), session.NewStore())
+	router, err := newHandlerTestRouter("http://localhost:3001", slog.New(slog.DiscardHandler), session.NewStore())
 	require.NoError(t, err)
 	app := fiber.New()
 	router.RegisterRoutes(app, CommunityPresentation{})
@@ -57,10 +57,13 @@ func TestRepositoryGitHubDeniedCallbackRecoversCLIProjectWithoutCookies(t *testi
 	defer func() { require.NoError(t, response.Body.Close()) }()
 	require.Equal(t, http.StatusSeeOther, response.StatusCode)
 	require.Equal(t, "/organizations/acme/projects/pipelines?section=repository&repository_path=create&repository_setup=failed", response.Header.Get("Location"))
-	for _, cookie := range response.Cookies() {
-		if cookie.Name == githubInstallProjectCookie || cookie.Name == githubInstallOrganizationCookie {
-			require.Negative(t, cookie.MaxAge)
-		}
+	cookies := response.Cookies()
+	require.Len(t, cookies, 2)
+	for _, cookie := range cookies {
+		require.Contains(t, []string{"__Secure-" + githubInstallProjectCookie, "__Secure-" + githubInstallOrganizationCookie}, cookie.Name)
+		require.Equal(t, "/github/callback", cookie.Path)
+		require.True(t, cookie.Secure)
+		require.Negative(t, cookie.MaxAge)
 	}
 }
 
@@ -85,7 +88,7 @@ func TestOrganizationGitHubCallbackRedirectsCompletionFailureToOrganization(t *t
 	app.Get("/github/callback", router.handleOrganizationGitHubCallback)
 
 	req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/github/callback?installation_id=9&state=state&code=code", nil)
-	req.AddCookie(&http.Cookie{Name: githubInstallOrganizationCookie, Value: "acme"})
+	req.AddCookie(&http.Cookie{Name: "__Secure-" + githubInstallOrganizationCookie, Value: "acme"})
 	response, err := app.Test(req)
 	require.NoError(t, err)
 	require.Equal(t, http.StatusSeeOther, response.StatusCode)
@@ -116,7 +119,7 @@ func TestOrganizationGitHubCallbackAllowsExistingInstallationWithoutID(t *testin
 	app := fiber.New()
 	app.Get("/github/callback", router.handleOrganizationGitHubCallback)
 	req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/github/callback?state=state&code=code", nil)
-	req.AddCookie(&http.Cookie{Name: githubInstallOrganizationCookie, Value: "acme"})
+	req.AddCookie(&http.Cookie{Name: "__Secure-" + githubInstallOrganizationCookie, Value: "acme"})
 	response, err := app.Test(req)
 	require.NoError(t, err)
 	defer func() { require.NoError(t, response.Body.Close()) }()
@@ -151,7 +154,7 @@ func TestOrganizationGitHubAuthorizeExistingPostsAccountLogin(t *testing.T) {
 	require.Equal(t, http.StatusSeeOther, response.StatusCode)
 	require.Equal(t, "https://github.com/login/oauth/authorize?state=state", response.Header.Get("Location"))
 	for _, cookie := range response.Cookies() {
-		if cookie.Name == githubInstallProjectCookie {
+		if cookie.Name == "__Secure-"+githubInstallProjectCookie {
 			require.Negative(t, cookie.MaxAge)
 			require.True(t, cookie.HttpOnly)
 			require.True(t, cookie.Secure)
@@ -216,8 +219,8 @@ func TestRepositoryGitHubCallbackReturnsToProject(t *testing.T) {
 			app.Get("/github/callback", router.handleOrganizationGitHubCallback)
 			req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/github/callback?installation_id=9&state=state&code=code", nil)
 			if !tc.noCookies {
-				req.AddCookie(&http.Cookie{Name: githubInstallOrganizationCookie, Value: "acme"})
-				req.AddCookie(&http.Cookie{Name: githubInstallProjectCookie, Value: "pipelines"})
+				req.AddCookie(&http.Cookie{Name: "__Secure-" + githubInstallOrganizationCookie, Value: "acme"})
+				req.AddCookie(&http.Cookie{Name: "__Secure-" + githubInstallProjectCookie, Value: "pipelines"})
 			}
 			response, err := app.Test(req)
 			require.NoError(t, err)
@@ -225,7 +228,7 @@ func TestRepositoryGitHubCallbackReturnsToProject(t *testing.T) {
 			require.Equal(t, http.StatusSeeOther, response.StatusCode)
 			require.Equal(t, tc.location, response.Header.Get("Location"))
 			for _, cookie := range response.Cookies() {
-				if cookie.Name == githubInstallProjectCookie || cookie.Name == githubInstallOrganizationCookie {
+				if cookie.Name == "__Secure-"+githubInstallProjectCookie || cookie.Name == "__Secure-"+githubInstallOrganizationCookie {
 					require.Negative(t, cookie.MaxAge)
 					require.True(t, cookie.HttpOnly)
 					require.True(t, cookie.Secure)

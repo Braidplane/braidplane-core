@@ -44,7 +44,8 @@ func TestBootstrappedLocalAdministratorPasswordRecovery(t *testing.T) {
 	hasher := crypto.NewArgon2WithParams(8, 1, 1, 16, 32)
 	bootstrap, err := instanceadminsvc.NewBootstrapper(txm, instanceadmins.NewRepository(), repo, hasher)
 	require.NoError(t, err)
-	require.NoError(t, bootstrap.Bootstrap(ctx, subject, "Customer Owner", address, "initial-customer-password"))
+	initialPassword := "  initial-customer\npassword\r\n"
+	require.NoError(t, bootstrap.Bootstrap(ctx, subject, "Customer Owner", address, initialPassword))
 	cipher, err := crypto.NewAES256(bytes.Repeat([]byte{0x42}, 32))
 	require.NoError(t, err)
 	client, err := queue.NewEnqueueOnly(pool)
@@ -52,7 +53,7 @@ func TestBootstrappedLocalAdministratorPasswordRecovery(t *testing.T) {
 	mailProducer, err := producer.NewEmailProducerForQueue(queue.NewEnqueuer(client), cipher, "bootstrap-recovery")
 	require.NoError(t, err)
 	svc := userssvc.New(txm, hasher, repo, mailProducer, nil, "https://app.customer.example.test")
-	user, err := svc.LoginUser(ctx, address, "initial-customer-password")
+	user, err := svc.LoginUser(ctx, address, initialPassword)
 	require.NoError(t, err)
 	require.Equal(t, model.RoleSuperAdmin, user.Role)
 	require.NoError(t, svc.RequestPasswordReset(ctx, "unknown@customer.example.test"))
@@ -91,12 +92,13 @@ func TestBootstrappedLocalAdministratorPasswordRecovery(t *testing.T) {
 	require.NoError(t, worker.Work(ctx, &river.Job[jobs.EmailSendArgs]{Args: args}))
 	link, err := url.Parse(delivery.link)
 	require.NoError(t, err)
-	token := link.Query().Get("token")
+	require.Empty(t, link.RawQuery)
+	token := delivery.code
 	require.NotEmpty(t, token)
 	require.NotContains(t, string(raw), token, "reset token must not be stored in plaintext queue args")
 	require.Equal(t, address, delivery.recipient)
 	require.NoError(t, svc.ResetPassword(ctx, token, "replacement-customer-password"))
-	_, err = svc.LoginUser(ctx, address, "initial-customer-password")
+	_, err = svc.LoginUser(ctx, address, initialPassword)
 	require.Error(t, err)
 	user, err = svc.LoginUser(ctx, address, "replacement-customer-password")
 	require.NoError(t, err)
@@ -107,10 +109,10 @@ func TestBootstrappedLocalAdministratorPasswordRecovery(t *testing.T) {
 
 type recoveryMail struct {
 	email.Service
-	link, recipient string
+	link, code, recipient string
 }
 
-func (m *recoveryMail) PasswordReset(_ context.Context, user *model.User, link string) error {
-	m.link, m.recipient = link, user.Email
+func (m *recoveryMail) PasswordReset(_ context.Context, user *model.User, link, code string) error {
+	m.link, m.code, m.recipient = link, code, user.Email
 	return nil
 }

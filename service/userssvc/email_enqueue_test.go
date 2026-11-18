@@ -31,11 +31,11 @@ func (p *emailServiceBackedProducer) EnqueueEmailVerification(
 	verificationURL string,
 	token string,
 ) (queue.QueuedJob, error) {
-	verificationLink := verificationURL + "?token=" + token
 	return queue.QueuedJob{State: "queued"}, p.emailSvc.EmailVerification(
 		ctx,
 		user,
-		verificationLink,
+		verificationURL,
+		token,
 	)
 }
 
@@ -46,8 +46,7 @@ func (p *emailServiceBackedProducer) EnqueuePasswordReset(
 	resetURL string,
 	token string,
 ) (queue.QueuedJob, error) {
-	resetLink := resetURL + "?token=" + token
-	return queue.QueuedJob{State: "queued"}, p.emailSvc.PasswordReset(ctx, user, resetLink)
+	return queue.QueuedJob{State: "queued"}, p.emailSvc.PasswordReset(ctx, user, resetURL, token)
 }
 
 func (p *emailServiceBackedProducer) EnqueueSessionMFA(

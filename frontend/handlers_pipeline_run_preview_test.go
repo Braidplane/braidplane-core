@@ -104,7 +104,7 @@ func TestPipelineRunPreviewIdentityAndAvailability(t *testing.T) {
 				}
 			}))
 			defer server.Close()
-			router, err := NewRouter(server.URL, slog.New(slog.DiscardHandler), session.NewStore())
+			router, err := newHandlerTestRouter(server.URL, slog.New(slog.DiscardHandler), session.NewStore())
 			require.NoError(t, err)
 			var result views.PipelineRunPreview
 			app := fiber.New()

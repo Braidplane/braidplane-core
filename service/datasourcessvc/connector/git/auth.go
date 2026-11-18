@@ -100,12 +100,6 @@ func authEnv(
 
 		keyPath := filepath.ToSlash(tmpFile.Name())
 		knownHostsPath := filepath.ToSlash(knownHostsFile.Name())
-		sshCmd := fmt.Sprintf(
-			"ssh -i %s -o StrictHostKeyChecking=yes -o UserKnownHostsFile=%s -o ConnectTimeout=10 -o BatchMode=yes -o IdentitiesOnly=yes",
-			keyPath,
-			knownHostsPath,
-		)
-
 		if creds.SSHPassphrase != "" {
 			passTmp, passErr := os.CreateTemp("", "braidplane-git-ssh-pass-*")
 			if passErr != nil {
@@ -140,7 +134,7 @@ func authEnv(
 			)
 		}
 
-		env = append(env, "GIT_SSH_COMMAND="+sshCmd)
+		env = repostore.SSHAuthEnv(env, keyPath, knownHostsPath)
 		repoURLWithCreds = identityURLModifier()
 		return env, repoURLWithCreds, cleanup, nil
 

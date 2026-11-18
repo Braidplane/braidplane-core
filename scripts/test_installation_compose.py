@@ -50,6 +50,18 @@ class InstallationComposeTest(unittest.TestCase):
             self.assertEqual(probe["timeout"], "3s")
         self.assertEqual(self.services["edge"]["depends_on"]["frontend"]["condition"], "service_healthy")
 
+    def test_proxy_network_only_contains_request_forwarders(self):
+        proxy_members = {name for name, service in self.services.items() if "proxy" in service["networks"]}
+        self.assertEqual(proxy_members, {"edge", "frontend", "api"})
+        edge, frontend, api = (self.services[name] for name in ("edge", "frontend", "api"))
+        self.assertEqual(set(edge["networks"]), {"proxy"})
+        self.assertEqual(frontend["environment"]["FRONTEND_SERVER_TRUSTED_PROXIES"],
+                         edge["networks"]["proxy"]["ipv4_address"])
+        self.assertEqual(api["environment"]["SERVER_TRUSTED_PROXIES"],
+                         frontend["networks"]["proxy"]["ipv4_address"])
+        self.assertEqual(frontend["environment"]["BACKEND_API_URL"], "http://api-proxy:3001")
+        self.assertIn("api-proxy", api["networks"]["proxy"]["aliases"])
+
 
 if __name__ == "__main__":
     unittest.main()

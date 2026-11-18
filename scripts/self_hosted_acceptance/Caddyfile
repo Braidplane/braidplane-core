@@ -3,5 +3,10 @@
 }
 https://app.customer.test {
   tls /fixture/server.pem /fixture/server.key
+  header >Strict-Transport-Security "max-age=31536000"
   reverse_proxy frontend:3002
+  handle_errors {
+    header Strict-Transport-Security "max-age=31536000"
+    respond "" {err.status_code}
+  }
 }

@@ -1208,7 +1208,7 @@ func (s *service) executePrepared(
 			return nil, deploymentplan.ErrInvalid.With(err)
 		}
 	}
-	typedParams, err := buildTypedParams(prepared.queryParams, paramValues)
+	typedParams, err := buildTypedParams(prepared.queryParams, paramValues, ds.Type)
 	if err != nil {
 		if prepared.resourceScope != nil {
 			return nil, resourcescope.ErrInvalid.With(err)
@@ -1634,8 +1634,13 @@ func executionStatusFromResult(result *result.ExecutionResult) string {
 func buildTypedParams(
 	queryParams []*QueryParameter,
 	paramValues map[string]any,
+	dsType model.DataSourceType,
 ) (map[string]types.TypedParam, error) {
 	resolvedValues := make(map[string]any, len(paramValues))
+	defaultType := ParameterDataTypeText.String()
+	if dsType == model.DataSourceTypeMongoDB {
+		defaultType = ""
+	}
 	for name, value := range paramValues {
 		resolved, err := pipelineruntime.ResolveIncrementalValue(value, paramValues)
 		if err != nil {
@@ -1669,7 +1674,7 @@ func buildTypedParams(
 
 		typedParams[name] = types.TypedParam{
 			Value:    pipelineruntime.LiteralValue(value),
-			DataType: ParameterDataTypeText.String(),
+			DataType: defaultType,
 		}
 	}
 

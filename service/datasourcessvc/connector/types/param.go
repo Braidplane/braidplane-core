@@ -5,7 +5,7 @@ import "time"
 // TypedParam represents a query parameter with its value and declared data type.
 type TypedParam struct {
 	Value    any
-	DataType string // Parameter data type from query definition (text, integer, boolean, date, uuid)
+	DataType string // Empty when the query declares no type.
 }
 
 // ExecutionLimits carries per-execution safety guardrails into connectors.

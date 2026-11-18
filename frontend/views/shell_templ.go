@@ -147,7 +147,7 @@ func AuthenticatedShell(data AuthenticatedShellData, content templ.Component) te
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 12, "</span> <span class=\"block truncate text-xs text-base-content/60\">Account</span></span></a><form class=\"shell-expanded-only mt-2\" method=\"post\" action=\"/auth/logout\" hx-post=\"/auth/logout\" hx-swap=\"none\"><button class=\"btn btn-ghost btn-xs w-full justify-start\" type=\"submit\">Logout</button></form></div></aside>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 12, "</span> <span class=\"block truncate text-xs text-base-content/60\">Account</span></span></a><form class=\"shell-expanded-only mt-2\" method=\"post\" action=\"/auth/logout\"><button class=\"btn btn-ghost btn-xs w-full justify-start\" type=\"submit\">Logout</button></form></div></aside>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -196,7 +196,7 @@ func AuthenticatedShell(data AuthenticatedShellData, content templ.Component) te
 				return templ_7745c5c3_Err
 			}
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 17, "</nav><div class=\"divider my-3\"></div><a class=\"btn btn-ghost btn-sm w-full justify-start\" href=\"/account\">Account</a><form class=\"mt-1\" method=\"post\" action=\"/auth/logout\" hx-post=\"/auth/logout\" hx-swap=\"none\"><button class=\"btn btn-ghost btn-sm w-full justify-start\" type=\"submit\">Logout</button></form></div></div><div class=\"min-w-0\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 17, "</nav><div class=\"divider my-3\"></div><a class=\"btn btn-ghost btn-sm w-full justify-start\" href=\"/account\">Account</a><form class=\"mt-1\" method=\"post\" action=\"/auth/logout\"><button class=\"btn btn-ghost btn-sm w-full justify-start\" type=\"submit\">Logout</button></form></div></div><div class=\"min-w-0\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

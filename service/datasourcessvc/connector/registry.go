@@ -177,6 +177,9 @@ var productionConnectorRegistry = mustConnectorRegistry(
 		model.DataSourceTypeFTP,
 		catalog.OperationTypeFTP,
 		ftpconnector.New,
+		withConfigPreparation(func(cfg *ftpconnector.Config, _ ftpconnector.Credentials) error {
+			return cfg.ValidateBasePath()
+		}),
 		withPrivateHostCheck[ftpconnector.Config, ftpconnector.Credentials](
 			func(cfg ftpconnector.Config) bool {
 				return cfg.AllowPrivateHosts
@@ -187,6 +190,7 @@ var productionConnectorRegistry = mustConnectorRegistry(
 		model.DataSourceTypeGit,
 		catalog.OperationTypeGit,
 		gitconnector.New,
+		withConfigPreparation(gitconnector.ValidateRemoteAuth),
 		withPrivateHostCheck[gitconnector.Config, gitconnector.Credentials](
 			func(cfg gitconnector.Config) bool {
 				return cfg.AllowPrivateHosts

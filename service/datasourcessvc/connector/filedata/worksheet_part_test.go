@@ -7,8 +7,29 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/stretchr/testify/require"
 	"github.com/xuri/excelize/v2"
 )
+
+func TestWorkbookContentTypeResolution(t *testing.T) {
+	workbook := excelize.NewFile()
+	defer func() { _ = workbook.Close() }()
+	expected := excelize.ContentTypeSheetML
+	defaultType := `<Default Extension="XML" ContentType="` + strings.ToUpper(expected) + `"/>`
+	wrongType := `<Override PartName="/XL/Workbook.xml" ContentType="` + excelize.ContentTypeMacro + `"/>`
+	foreign := `<alt:Override PartName="/xl/workbook.xml" ContentType="` + expected + `"/>`
+	for _, tc := range []struct {
+		entries string
+		valid   bool
+	}{
+		{defaultType, true},
+		{defaultType + wrongType, false},
+		{foreign, false},
+	} {
+		workbook.Pkg.Store("[Content_Types].xml", []byte(`<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types" xmlns:alt="urn:example">`+tc.entries+`</Types>`))
+		require.Equal(t, tc.valid, workbookContentTypeMatches(workbook, "xl/workbook.xml", expected))
+	}
+}
 
 func TestSpreadsheetWorksheetXML(t *testing.T) {
 	f := excelize.NewFile()
@@ -28,7 +49,7 @@ func TestSpreadsheetWorksheetXML(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		reader, err := spreadsheetWorksheetXML(buf.Bytes(), wb, "Second")
+		reader, err := spreadsheetWorksheetXML(buf.Bytes(), wb, "Second", "")
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -87,13 +108,13 @@ func TestSpreadsheetWorksheetXMLCustomAndAmbiguous(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer func() { _ = wb.Close() }()
-	reader, err := spreadsheetWorksheetXML(modified.Bytes(), wb, "Sheet1")
+	reader, err := spreadsheetWorksheetXML(modified.Bytes(), wb, "Sheet1", "")
 	if err != nil {
 		t.Fatal(err)
 	}
 	_ = reader.Close()
 	wb.WorkBook.Sheets.Sheet = append(wb.WorkBook.Sheets.Sheet, wb.WorkBook.Sheets.Sheet[0])
-	if _, err := spreadsheetWorksheetXML(modified.Bytes(), wb, "Sheet1"); err == nil || !strings.Contains(err.Error(), "ambiguous") {
+	if _, err := spreadsheetWorksheetXML(modified.Bytes(), wb, "Sheet1", ""); err == nil || !strings.Contains(err.Error(), "ambiguous") {
 		t.Fatalf("expected ambiguity, got %v", err)
 	}
 }

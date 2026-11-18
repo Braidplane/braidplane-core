@@ -24,7 +24,7 @@ func TestRouter_HandleOrganizationRolesPage_RequiresAuth(t *testing.T) {
 	}))
 	defer apiServer.Close()
 
-	router, err := NewRouter(apiServer.URL, slog.New(slog.DiscardHandler), session.NewStore())
+	router, err := newHandlerTestRouter(apiServer.URL, slog.New(slog.DiscardHandler), session.NewStore())
 	require.NoError(t, err)
 
 	app := fiber.New()
@@ -55,7 +55,7 @@ func TestRouter_HandleOrganizationRolesPage_RendersRoles(t *testing.T) {
 	defer apiServer.Close()
 
 	store := session.NewStore()
-	router, err := NewRouter(apiServer.URL, slog.New(slog.DiscardHandler), store)
+	router, err := newHandlerTestRouter(apiServer.URL, slog.New(slog.DiscardHandler), store)
 	require.NoError(t, err)
 
 	app := fiber.New()
@@ -107,7 +107,7 @@ func TestRouter_HandleOrganizationRolesPage_RendersArchivedRoles(t *testing.T) {
 	defer apiServer.Close()
 
 	store := session.NewStore()
-	router, err := NewRouter(apiServer.URL, slog.New(slog.DiscardHandler), store)
+	router, err := newHandlerTestRouter(apiServer.URL, slog.New(slog.DiscardHandler), store)
 	require.NoError(t, err)
 
 	app := fiber.New()
@@ -150,7 +150,7 @@ func TestRouter_HandleOrganizationRolesPage_GatesActionsFromPermissions(t *testi
 	defer apiServer.Close()
 
 	store := session.NewStore()
-	router, err := NewRouter(apiServer.URL, slog.New(slog.DiscardHandler), store)
+	router, err := newHandlerTestRouter(apiServer.URL, slog.New(slog.DiscardHandler), store)
 	require.NoError(t, err)
 
 	app := fiber.New()
@@ -191,7 +191,7 @@ func TestRouter_HandleOrganizationRolesPage_RendersAuthorizationError(t *testing
 	defer apiServer.Close()
 
 	store := session.NewStore()
-	router, err := NewRouter(apiServer.URL, slog.New(slog.DiscardHandler), store)
+	router, err := newHandlerTestRouter(apiServer.URL, slog.New(slog.DiscardHandler), store)
 	require.NoError(t, err)
 
 	app := fiber.New()
@@ -235,7 +235,7 @@ func TestRouter_HandleCreateRoleSubmit_RendersValidationFailure(t *testing.T) {
 	defer apiServer.Close()
 
 	store := session.NewStore()
-	router, err := NewRouter(apiServer.URL, slog.New(slog.DiscardHandler), store)
+	router, err := newHandlerTestRouter(apiServer.URL, slog.New(slog.DiscardHandler), store)
 	require.NoError(t, err)
 
 	app := fiber.New()
@@ -307,7 +307,7 @@ func TestRouter_HandleCreateRoleSubmit_CreatesRole(t *testing.T) {
 	defer apiServer.Close()
 
 	store := session.NewStore()
-	router, err := NewRouter(apiServer.URL, slog.New(slog.DiscardHandler), store)
+	router, err := newHandlerTestRouter(apiServer.URL, slog.New(slog.DiscardHandler), store)
 	require.NoError(t, err)
 
 	app := fiber.New()
@@ -371,7 +371,7 @@ func TestRouter_HandleUpdateRoleSubmit_UpdatesRole(t *testing.T) {
 	defer apiServer.Close()
 
 	store := session.NewStore()
-	router, err := NewRouter(apiServer.URL, slog.New(slog.DiscardHandler), store)
+	router, err := newHandlerTestRouter(apiServer.URL, slog.New(slog.DiscardHandler), store)
 	require.NoError(t, err)
 
 	app := fiber.New()
@@ -417,7 +417,7 @@ func TestRouter_HandleArchiveRoleSubmit_ArchivesRole(t *testing.T) {
 	defer apiServer.Close()
 
 	store := session.NewStore()
-	router, err := NewRouter(apiServer.URL, slog.New(slog.DiscardHandler), store)
+	router, err := newHandlerTestRouter(apiServer.URL, slog.New(slog.DiscardHandler), store)
 	require.NoError(t, err)
 
 	app := fiber.New()
@@ -461,7 +461,7 @@ func TestRouter_HandleArchiveRoleSubmit_RequiresTypedConfirmation(t *testing.T) 
 	defer apiServer.Close()
 
 	store := session.NewStore()
-	router, err := NewRouter(apiServer.URL, slog.New(slog.DiscardHandler), store)
+	router, err := newHandlerTestRouter(apiServer.URL, slog.New(slog.DiscardHandler), store)
 	require.NoError(t, err)
 
 	app := fiber.New()
@@ -511,7 +511,7 @@ func TestRouter_HandleRestoreRoleSubmit_RestoresRole(t *testing.T) {
 	defer apiServer.Close()
 
 	store := session.NewStore()
-	router, err := NewRouter(apiServer.URL, slog.New(slog.DiscardHandler), store)
+	router, err := newHandlerTestRouter(apiServer.URL, slog.New(slog.DiscardHandler), store)
 	require.NoError(t, err)
 
 	app := fiber.New()

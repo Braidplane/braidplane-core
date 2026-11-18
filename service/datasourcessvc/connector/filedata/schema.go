@@ -1,14 +1,11 @@
 package filedata
 
 import (
-	"bytes"
 	"encoding/json"
-	"io"
 	"sort"
 	"strings"
 
 	"github.com/Braidplane/braidplane-core/pkg/nativetype"
-	"github.com/Braidplane/braidplane-core/pkg/xerror"
 )
 
 // InferCSVFields infers field names from CSV content column headers.
@@ -37,14 +34,9 @@ func InferCSVFields(content []byte) ([]Field, error) {
 // InferJSONFields infers field paths and types from JSON content.
 // Nested paths use dot notation; array fields carry a [] suffix.
 func InferJSONFields(content []byte) ([]Field, error) {
-	var raw any
-	decoder := json.NewDecoder(bytes.NewReader(content))
-	decoder.UseNumber()
-	if err := decoder.Decode(&raw); err != nil {
-		return nil, xerror.Unexpected().With(err)
-	}
-	if err := decoder.Decode(new(any)); err != io.EOF {
-		return nil, xerror.Unexpected().Detail("JSON content must contain exactly one value").With(err)
+	raw, err := decodeJSONContent(content)
+	if err != nil {
+		return nil, err
 	}
 
 	fieldTypes := map[string]string{}

@@ -5,7 +5,7 @@ Build the Community backend, frontend and CLI from this repository.
 ## Toolchain and source
 
 Use Bash, Git, Python 3, OpenSSL, curl, tar, xz, Go and Task. The wrappers select
-Go 1.26.10, Node 24.19.0 and npm 11.17.0 from `ci/toolchain/versions.env`. They download public
+Go 1.26.11, Node 24.19.0 and npm 11.17.0 from `ci/toolchain/versions.env`. They download public
 releases into local caches; Go modules and frontend packages use their lockfiles.
 The public CLI lives in `cli/`; shared neutral contracts live in `pkg/`.
 Both use the root Go module. Build from this root

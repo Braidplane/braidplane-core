@@ -8,8 +8,9 @@ function resetToken(text, frontendUrl) {
   assert.equal(url.origin, new URL(frontendUrl).origin, 'Recovery URL must use the configured frontend');
   assert.equal(url.pathname, '/auth/reset-password', 'Recovery URL must target the frontend auth route');
   assert.equal(url.hash, '');
-  const token = url.searchParams.get('token');
-  assert.match(token || '', /^[a-f0-9]{64}$/, 'Recovery URL must contain a complete token');
+  assert.equal(url.search, '', 'Recovery URL must omit query parameters');
+  const token = text.match(/^(?:Code|Kod): ([a-f0-9]{64})\s*$/m)?.[1];
+  assert.ok(token, 'Recovery email must contain a separate code');
   return token;
 }
 

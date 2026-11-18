@@ -65,8 +65,8 @@ task dev
 The first run downloads the pinned toolchains and dependencies, builds the
 application, starts PostgreSQL and Mailpit, and applies core migrations. Open
 <http://127.0.0.1:3002>, create an account and find its verification email at
-<http://127.0.0.1:38025>. Provider credentials are only needed for integrations
-that use them.
+<http://127.0.0.1:38025>. Open the link and select **Verify email**. Provider
+credentials are only needed for integrations that use them.
 
 Ctrl-C stops the application processes; the database, Mailpit and local keys
 remain for the next run. Keep the keys with the database: encrypted data needs

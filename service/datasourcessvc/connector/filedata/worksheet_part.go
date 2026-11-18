@@ -23,7 +23,69 @@ type spreadsheetRelationships struct {
 	} `xml:"Relationship"`
 }
 
-func spreadsheetWorksheetXML(content []byte, workbook *excelize.File, sheetName string) (io.ReadCloser, error) {
+func spreadsheetContentType(filePath string) string {
+	switch strings.ToLower(filepath.Ext(filePath)) {
+	case ".xlam":
+		return excelize.ContentTypeAddinMacro
+	case ".xlsm":
+		return excelize.ContentTypeMacro
+	case ".xlsx":
+		return excelize.ContentTypeSheetML
+	case ".xltm":
+		return excelize.ContentTypeTemplateMacro
+	case ".xltx":
+		return excelize.ContentTypeTemplate
+	default:
+		return ""
+	}
+}
+
+func workbookContentTypeMatches(workbook *excelize.File, workbookPart, expected string) bool {
+	var manifest struct {
+		XMLName  xml.Name `xml:"http://schemas.openxmlformats.org/package/2006/content-types Types"`
+		Defaults []struct {
+			Extension string `xml:"Extension,attr"`
+			Type      string `xml:"ContentType,attr"`
+		} `xml:"http://schemas.openxmlformats.org/package/2006/content-types Default"`
+		Overrides []struct {
+			Part string `xml:"PartName,attr"`
+			Type string `xml:"ContentType,attr"`
+		} `xml:"http://schemas.openxmlformats.org/package/2006/content-types Override"`
+	}
+	value, _ := workbook.Pkg.Load("[Content_Types].xml")
+	data, ok := value.([]byte)
+	if !ok || xml.Unmarshal(data, &manifest) != nil {
+		return false
+	}
+	matches := 0
+	for _, entry := range manifest.Overrides {
+		if strings.EqualFold(entry.Part, "/"+workbookPart) {
+			if !strings.EqualFold(entry.Type, expected) {
+				return false
+			}
+			matches++
+		}
+	}
+	if matches > 0 {
+		return matches == 1
+	}
+	// OPC uses a matching extension default when the part has no override.
+	extension := strings.TrimPrefix(filepath.Ext(workbookPart), ".")
+	if extension == "" {
+		return false
+	}
+	for _, entry := range manifest.Defaults {
+		if strings.EqualFold(entry.Extension, extension) {
+			if !strings.EqualFold(entry.Type, expected) {
+				return false
+			}
+			matches++
+		}
+	}
+	return matches == 1
+}
+
+func spreadsheetWorksheetXML(content []byte, workbook *excelize.File, sheetName, filePath string) (io.ReadCloser, error) {
 	fail := func(message string) (io.ReadCloser, error) {
 		return nil, xerror.Unexpected().Detail("resolve spreadsheet worksheet: " + message)
 	}
@@ -57,6 +119,9 @@ func spreadsheetWorksheetXML(content []byte, workbook *excelize.File, sheetName 
 	}
 	if wbPath == "" || workbook.WorkBook == nil {
 		return fail("missing workbook")
+	}
+	if expected := spreadsheetContentType(filePath); expected != "" && !workbookContentTypeMatches(workbook, wbPath, expected) {
+		return nil, xerror.InvalidInput(xerror.Query).WithPublicDetail("The spreadsheet content type must match the file extension.")
 	}
 	wbRelsPath := strings.TrimPrefix(filepath.Dir(wbPath)+"/_rels/"+filepath.Base(wbPath)+".rels", "/")
 	if filepath.Dir(wbPath) == "." {
@@ -129,7 +194,7 @@ func spreadsheetWorksheetXML(content []byte, workbook *excelize.File, sheetName 
 
 // preflightSpreadsheetWorksheet bounds Excelize's worksheet expansion before it reads cells.
 func preflightSpreadsheetWorksheet(content []byte, workbook *excelize.File, sheetName string, opts SpreadsheetOptions) error {
-	reader, err := spreadsheetWorksheetXML(content, workbook, sheetName)
+	reader, err := spreadsheetWorksheetXML(content, workbook, sheetName, opts.FilePath)
 	if err != nil {
 		return err
 	}

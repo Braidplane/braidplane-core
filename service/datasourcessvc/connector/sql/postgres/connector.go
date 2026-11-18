@@ -21,6 +21,7 @@ import (
 
 	"github.com/Braidplane/braidplane-core/pkg/connector/result"
 	"github.com/Braidplane/braidplane-core/pkg/connector/schemaquota"
+	"github.com/Braidplane/braidplane-core/pkg/dbpool"
 	"github.com/Braidplane/braidplane-core/pkg/decimal"
 	"github.com/Braidplane/braidplane-core/pkg/hostguard"
 	"github.com/Braidplane/braidplane-core/pkg/sinkbinding"
@@ -117,6 +118,9 @@ func openPostgresDB(ctx context.Context, dsn string, config Config) (*stdsql.DB,
 	connConfig, err := pgx.ParseConfig(dsn)
 	if err != nil {
 		return nil, xerror.Unexpected().With(err)
+	}
+	if err := dbpool.RestrictAuthentication(&connConfig.Config); err != nil {
+		return nil, err
 	}
 	if config.DialFunc != nil {
 		connConfig.DialFunc = config.DialFunc

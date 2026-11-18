@@ -13,6 +13,7 @@ import (
 
 	api "github.com/Braidplane/braidplane-core/api-schema/gen/client"
 	"github.com/Braidplane/braidplane-core/frontend/views"
+	"github.com/Braidplane/braidplane-core/pkg/httpsecurity"
 	"github.com/Braidplane/braidplane-core/pkg/xerror"
 )
 
@@ -150,8 +151,8 @@ func (r *Router) loadDashboardProjectScope(
 	}
 	if !explicitProjectSlug && (requestedProjectSlug == "" || !projectMatched) {
 		if requestedProjectSlug != "" {
-			expireDashboardScopeCookie(c, dashboardScopeProjectCookieName)
-			expireDashboardScopeCookie(c, dashboardScopeEnvironmentCookieName)
+			r.expireDashboardScopeCookie(c, dashboardScopeProjectCookieName)
+			r.expireDashboardScopeCookie(c, dashboardScopeEnvironmentCookieName)
 		}
 		requestedProjectSlug = selectDefaultProjectSlug(projectList.Projects)
 		r.rememberDashboardProjectScope(c, shellData.ActiveOrganizationSlug, requestedProjectSlug)
@@ -247,13 +248,13 @@ func (r *Router) dashboardRequestedProjectSlug(c fiber.Ctx, activeOrganizationSl
 	if dashboardQueryHas(c, "project_slug") {
 		projectSlug := strings.TrimSpace(c.Query("project_slug"))
 		if projectSlug == "" {
-			expireDashboardScopeCookie(c, dashboardScopeProjectCookieName)
-			expireDashboardScopeCookie(c, dashboardScopeEnvironmentCookieName)
+			r.expireDashboardScopeCookie(c, dashboardScopeProjectCookieName)
+			r.expireDashboardScopeCookie(c, dashboardScopeEnvironmentCookieName)
 		}
 		return projectSlug, true
 	}
 
-	organizationSlug, projectSlug := dashboardRememberedProjectScope(c)
+	organizationSlug, projectSlug := r.dashboardRememberedProjectScope(c)
 	if organizationSlug == strings.TrimSpace(activeOrganizationSlug) {
 		return projectSlug, false
 	}
@@ -265,12 +266,12 @@ func (r *Router) dashboardRequestedEnvironmentSlug(c fiber.Ctx, activeOrganizati
 	if requestRuntimeEnvironmentSlug(c) != "" || dashboardQueryHas(c, "environment_slug") || dashboardQueryHas(c, "target_environment_slug") {
 		environmentSlug := strings.TrimSpace(requestRuntimeEnvironmentSlug(c))
 		if environmentSlug == "" {
-			expireDashboardScopeCookie(c, dashboardScopeEnvironmentCookieName)
+			r.expireDashboardScopeCookie(c, dashboardScopeEnvironmentCookieName)
 		}
 		return environmentSlug
 	}
 
-	organizationSlug, projectSlug, environmentSlug := dashboardRememberedEnvironmentScope(c)
+	organizationSlug, projectSlug, environmentSlug := r.dashboardRememberedEnvironmentScope(c)
 	if organizationSlug == strings.TrimSpace(activeOrganizationSlug) &&
 		projectSlug == strings.TrimSpace(activeProjectSlug) {
 		return environmentSlug
@@ -280,7 +281,7 @@ func (r *Router) dashboardRequestedEnvironmentSlug(c fiber.Ctx, activeOrganizati
 
 // rememberDashboardProjectScope preserves project context across dashboard and organization pages.
 func (r *Router) rememberDashboardProjectScope(c fiber.Ctx, organizationSlug, projectSlug string) {
-	setDashboardScopeCookie(c, dashboardScopeProjectCookieName, strings.Join([]string{
+	r.setDashboardScopeCookie(c, dashboardScopeProjectCookieName, strings.Join([]string{
 		strings.TrimSpace(organizationSlug),
 		strings.TrimSpace(projectSlug),
 	}, ":"))
@@ -288,7 +289,7 @@ func (r *Router) rememberDashboardProjectScope(c fiber.Ctx, organizationSlug, pr
 
 // rememberDashboardEnvironmentScope preserves the selected project's runtime context.
 func (r *Router) rememberDashboardEnvironmentScope(c fiber.Ctx, organizationSlug, projectSlug, environmentSlug string) {
-	setDashboardScopeCookie(c, dashboardScopeEnvironmentCookieName, strings.Join([]string{
+	r.setDashboardScopeCookie(c, dashboardScopeEnvironmentCookieName, strings.Join([]string{
 		strings.TrimSpace(organizationSlug),
 		strings.TrimSpace(projectSlug),
 		strings.TrimSpace(environmentSlug),
@@ -296,8 +297,8 @@ func (r *Router) rememberDashboardEnvironmentScope(c fiber.Ctx, organizationSlug
 }
 
 // dashboardRememberedProjectScope returns a previously selected dashboard project scope.
-func dashboardRememberedProjectScope(c fiber.Ctx) (string, string) {
-	parts := strings.Split(c.Cookies(dashboardScopeProjectCookieName), ":")
+func (r *Router) dashboardRememberedProjectScope(c fiber.Ctx) (string, string) {
+	parts := strings.Split(c.Cookies(r.dashboardCookieName(dashboardScopeProjectCookieName)), ":")
 	if len(parts) != 2 {
 		return "", ""
 	}
@@ -305,8 +306,8 @@ func dashboardRememberedProjectScope(c fiber.Ctx) (string, string) {
 }
 
 // dashboardRememberedEnvironmentScope returns a previously selected dashboard runtime scope.
-func dashboardRememberedEnvironmentScope(c fiber.Ctx) (string, string, string) {
-	parts := strings.Split(c.Cookies(dashboardScopeEnvironmentCookieName), ":")
+func (r *Router) dashboardRememberedEnvironmentScope(c fiber.Ctx) (string, string, string) {
+	parts := strings.Split(c.Cookies(r.dashboardCookieName(dashboardScopeEnvironmentCookieName)), ":")
 	if len(parts) != 3 {
 		return "", "", ""
 	}
@@ -319,31 +320,41 @@ func dashboardQueryHas(c fiber.Ctx, key string) bool {
 }
 
 // setDashboardScopeCookie writes remembered scope shared by the application shell.
-func setDashboardScopeCookie(c fiber.Ctx, name, value string) {
+func (r *Router) setDashboardScopeCookie(c fiber.Ctx, name, value string) {
 	c.Cookie(&fiber.Cookie{
-		Name:     name,
+		Name:     r.dashboardCookieName(name),
 		Value:    value,
 		Path:     dashboardScopeCookiePath,
 		MaxAge:   dashboardScopeCookieMaxAge,
 		HTTPOnly: true,
+		Secure:   r.secureCookies,
 		SameSite: fiber.CookieSameSiteLaxMode,
 	})
-	expireLegacyDashboardScopeCookie(c, name)
+	r.expireLegacyDashboardScopeCookie(c, name)
 }
 
 // expireDashboardScopeCookie clears a remembered dashboard scope cookie.
-func expireDashboardScopeCookie(c fiber.Ctx, name string) {
+func (r *Router) expireDashboardScopeCookie(c fiber.Ctx, name string) {
 	c.Cookie(&fiber.Cookie{
-		Name:    name,
-		Value:   "",
-		Path:    dashboardScopeCookiePath,
-		Expires: time.Now().Add(-time.Hour),
-		MaxAge:  -1,
+		Name:     r.dashboardCookieName(name),
+		Path:     dashboardScopeCookiePath,
+		Expires:  time.Now().Add(-time.Hour),
+		MaxAge:   -1,
+		HTTPOnly: true,
+		Secure:   r.secureCookies,
+		SameSite: fiber.CookieSameSiteLaxMode,
 	})
-	expireLegacyDashboardScopeCookie(c, name)
+	r.expireLegacyDashboardScopeCookie(c, name)
 }
 
-func expireLegacyDashboardScopeCookie(c fiber.Ctx, name string) {
+func (r *Router) dashboardCookieName(name string) string {
+	return httpsecurity.BrowserCookieName(name, dashboardScopeCookiePath, r.secureCookies)
+}
+
+func (r *Router) expireLegacyDashboardScopeCookie(c fiber.Ctx, name string) {
+	if r.secureCookies {
+		return
+	}
 	// Fiber's Cookie replaces by name, so append the old path's deletion separately.
 	c.Response().Header.Add(fiber.HeaderSetCookie, (&http.Cookie{
 		Name: name, Path: "/dashboard", MaxAge: -1, HttpOnly: true, SameSite: http.SameSiteLaxMode,

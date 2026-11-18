@@ -19,6 +19,7 @@ import (
 	"github.com/Braidplane/braidplane-core/postgres"
 	"github.com/Braidplane/braidplane-core/postgres/odcscontracts"
 	"github.com/Braidplane/braidplane-core/postgres/projects"
+	gitconnector "github.com/Braidplane/braidplane-core/service/datasourcessvc/connector/git"
 	"github.com/Braidplane/braidplane-core/service/pipelinegit"
 )
 
@@ -26,6 +27,7 @@ var (
 	ErrArtifact       = xerror.New(xerror.KindInvalidInput, "ODCS_ARTIFACT_INVALID", "invalid ODCS artifact import")
 	ErrImportConflict = xerror.New(xerror.KindAlreadyExists, "ODCS_IMPORT_CONFLICT", "ODCS import conflicts with catalog or repository state")
 	fullCommit        = regexp.MustCompile(`^[0-9a-f]{40}$`)
+	artifactRepoID    = regexp.MustCompile(`^[A-Za-z0-9_-]{22}$`)
 )
 
 // ArtifactImporter reads only the configured project Git backend; callers enforce project permissions.
@@ -52,8 +54,11 @@ type admittedArtifact struct {
 
 func digestBytes(raw []byte) string { sum := sha256.Sum256(raw); return hex.EncodeToString(sum[:]) }
 
-// Bound the indexed text values below PostgreSQL's B-tree key-size limit.
-const maxArtifactLocationBytes = 1024
+const (
+	// Bound the indexed text values below PostgreSQL's B-tree key-size limit.
+	maxArtifactLocationBytes  = 1024
+	artifactRepoLocatorPrefix = "odcs-artifact:"
+)
 
 func validateArtifactKey(repo, commit, filePath string) error {
 	if len(repo) == 0 || len(repo) > maxArtifactLocationBytes || !utf8.ValidString(repo) || strings.ContainsRune(repo, 0) {
@@ -81,6 +86,9 @@ func (s *ArtifactImporter) Import(ctx context.Context, org, project slug.Slug, a
 	}
 	if source.SourceRepo == nil || source.LastAppliedCommit == nil || !fullCommit.MatchString(*source.LastAppliedCommit) {
 		return nil, ErrArtifact.WithPublicDetail("configured Git source must supply immutable commit provenance")
+	}
+	if repo := *source.SourceRepo; repo == "" || gitconnector.PublicRepoIdentity(repo) != repo {
+		return nil, ErrArtifact.WithPublicDetail("configured Git source must supply a public repository identity")
 	}
 	commit := *source.LastAppliedCommit
 	if expectedCommit != "" && expectedCommit != commit {
@@ -244,13 +252,18 @@ func (s *ArtifactImporter) Get(ctx context.Context, org, project, contract, revi
 	if err := validateArtifactKey(repo, commit, filePath); err != nil {
 		return nil, err
 	}
+	key := model.ODCSArtifact{SourceRepo: repo, Commit: commit, Path: filePath}
 	var result *model.ODCSArtifact
 	err := s.txm.RunRead(ctx, func(ctx context.Context, db postgres.DBTX) error {
 		revision, err := s.repo.GetRevision(ctx, db, org, project, contract, revisionSlug)
 		if err != nil {
 			return err
 		}
-		result, err = s.repo.FindArtifact(ctx, db, org, project, model.ODCSArtifact{SourceRepo: repo, Commit: commit, Path: filePath})
+		result, err = s.repo.FindArtifact(ctx, db, org, project, key)
+		if id, ok := strings.CutPrefix(repo, artifactRepoLocatorPrefix); xerror.Is(err, odcscontracts.ErrNotFound) && ok && artifactRepoID.MatchString(id) {
+			key.SourceRepo, key.PublicID = "", id
+			result, err = s.repo.FindArtifact(ctx, db, org, project, key)
+		}
 		if err != nil {
 			return err
 		}
@@ -258,6 +271,9 @@ func (s *ArtifactImporter) Get(ctx context.Context, org, project, contract, revi
 			return odcscontracts.ErrNotFound
 		}
 		result.Digest = revision.Digest
+		if result.SourceRepo == "" || gitconnector.PublicRepoIdentity(result.SourceRepo) != result.SourceRepo {
+			result.SourceRepo = artifactRepoLocatorPrefix + result.PublicID
+		}
 		return nil
 	})
 	if err != nil {

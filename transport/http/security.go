@@ -114,9 +114,7 @@ func newBackendSecurityMiddleware(cfg backendSecurityConfig) fiber.Handler {
 				return apierror.InternalServerError()
 			}
 			if !decision.Allowed {
-				if retryAfter := time.Until(decision.ResetAt); retryAfter > 0 {
-					c.Set(fiber.HeaderRetryAfter, strconv.FormatInt(max(1, int64(retryAfter.Seconds()+1)), 10))
-				}
+				setAbuseRetryAfter(c, decision.ResetAt)
 				event := "abuse.rate_limited"
 				if strings.HasPrefix(budget.Scope, "auth.") {
 					event = "auth.rate_limited"
@@ -251,11 +249,15 @@ func chargeAuthorizedAbuseControl(
 	if decision.Allowed {
 		return nil
 	}
-	if retryAfter := time.Until(decision.ResetAt); retryAfter > 0 {
-		c.Set(fiber.HeaderRetryAfter, strconv.FormatInt(max(1, int64(retryAfter.Seconds()+1)), 10))
-	}
+	setAbuseRetryAfter(c, decision.ResetAt)
 	logAuthSecurityEvent(c, nil, control.logger, slog.LevelWarn, "abuse.rate_limited", "rate_limited", fiber.StatusTooManyRequests, scope+".tenant|"+subject)
 	return apierror.RateLimited()
+}
+
+func setAbuseRetryAfter(c fiber.Ctx, resetAt time.Time) {
+	if retryAfter := time.Until(resetAt); retryAfter > 0 {
+		c.Set(fiber.HeaderRetryAfter, strconv.FormatInt(max(1, int64(retryAfter.Seconds()+1)), 10))
+	}
 }
 
 type backendExpensiveRoute struct {
@@ -354,10 +356,12 @@ func backendSecurityPath(path string) string {
 	return path
 }
 
-// backendAuthThrottleSubject extracts an optional second throttle key for auth
-// routes. Email routes use normalized email; MFA verification uses a token hash
-// so raw challenge tokens are not stored in throttle keys or logs.
+// backendAuthThrottleSubject extracts the optional second throttle key. An
+// unauthenticated password attempt must not exhaust another client's sign-in.
 func backendAuthThrottleSubject(c fiber.Ctx) string {
+	if backendSecurityPath(c.Path()) == "/sessions" {
+		return ""
+	}
 	var payload struct {
 		Email          string `json:"email"`
 		ChallengeToken string `json:"challenge_token"`

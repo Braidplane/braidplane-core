@@ -32,8 +32,10 @@ for _ in range(60):
     time.sleep(.5)
 else:raise AssertionError('worker did not deliver reset email to customer SMTP')
 message=json.load(urllib.request.urlopen('http://mail:8025/api/v1/message/'+mailbox[0]['ID'],timeout=5))
-match=re.search(r'https://app\.customer\.test/auth/reset-password\?token=([a-zA-Z0-9]+)',message['Text'])
-assert match,'reset email must use the customer application origin'
+text=message['Text']
+assert 'https://app.customer.test/auth/reset-password' in text.splitlines(),'reset email must have a clean URL on the customer application origin'
+match=re.search(r'^Code: ([a-f0-9]{64})\s*$',text,re.MULTILINE)
+assert match,'reset email must contain a separate code'
 token=match.group(1)
 request('/auth/password/reset',{'token':token,'password':passwords['replacement']},204)
 request('/sessions',{'email':'owner@customer.test','password':passwords['initial']},401)

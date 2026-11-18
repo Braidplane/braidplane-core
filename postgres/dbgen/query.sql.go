@@ -11867,18 +11867,23 @@ func (q *Queries) FindOAuthInstallByState(ctx context.Context, arg FindOAuthInst
 }
 
 const findODCSArtifact = `-- name: FindODCSArtifact :one
-SELECT a.organization_id, a.project_id, a.contract_id, a.revision_slug, a.source_repo, a.source_commit, a.source_path, a.format, a.artifact_digest, a.original, a.created_at, c.slug AS contract_slug FROM odcs_artifacts a
+SELECT a.organization_id, a.project_id, a.contract_id, a.revision_slug, a.source_repo, a.source_commit, a.source_path, a.format, a.artifact_digest, a.original, a.created_at, a.public_id, c.slug AS contract_slug FROM odcs_artifacts a
 JOIN odcs_contracts c ON c.id = a.contract_id AND c.organization_id = a.organization_id AND c.project_id = a.project_id
 JOIN projects p ON p.id = a.project_id AND p.organization_id = a.organization_id
 JOIN organizations o ON o.id = a.organization_id
 WHERE o.slug = $1 AND p.slug = $2
-AND a.source_repo = $3 AND a.source_commit = $4
-AND a.source_path = $5
+AND (
+    ($3::text = '' AND a.source_repo = $4)
+    OR a.public_id = $3
+)
+AND a.source_commit = $5
+AND a.source_path = $6
 `
 
 type FindODCSArtifactParams struct {
 	OrgSlug      slug.Slug
 	ProjectSlug  slug.Slug
+	PublicID     string
 	SourceRepo   string
 	SourceCommit string
 	SourcePath   string
@@ -11896,6 +11901,7 @@ type FindODCSArtifactRow struct {
 	ArtifactDigest string
 	Original       []byte
 	CreatedAt      pgtype.Timestamptz
+	PublicID       string
 	ContractSlug   slug.Slug
 }
 
@@ -11903,6 +11909,7 @@ func (q *Queries) FindODCSArtifact(ctx context.Context, arg FindODCSArtifactPara
 	row := q.db.QueryRow(ctx, findODCSArtifact,
 		arg.OrgSlug,
 		arg.ProjectSlug,
+		arg.PublicID,
 		arg.SourceRepo,
 		arg.SourceCommit,
 		arg.SourcePath,
@@ -11920,6 +11927,7 @@ func (q *Queries) FindODCSArtifact(ctx context.Context, arg FindODCSArtifactPara
 		&i.ArtifactDigest,
 		&i.Original,
 		&i.CreatedAt,
+		&i.PublicID,
 		&i.ContractSlug,
 	)
 	return i, err
@@ -15038,6 +15046,7 @@ WHERE
     email_verification_token_hash = $1
     AND deleted_at IS NULL
     AND email_verification_token_expires_at > NOW()
+FOR UPDATE
 `
 
 func (q *Queries) FindUserByEmailVerificationToken(ctx context.Context, emailVerificationTokenHash pgtype.Text) (User, error) {
@@ -25091,6 +25100,28 @@ func (q *Queries) LoadTriggerRetryAttemptForExecution(ctx context.Context, arg L
 		&i.TriggerSlug,
 	)
 	return i, err
+}
+
+const lockAPIKeyRoleBySlug = `-- name: LockAPIKeyRoleBySlug :one
+SELECT r.slug AS role_slug
+FROM api_keys ak
+JOIN organizations o ON ak.organization_id = o.id
+JOIN roles r ON ak.role_id = r.id
+WHERE o.slug = $1
+    AND ak.slug = $2
+FOR UPDATE OF ak
+`
+
+type LockAPIKeyRoleBySlugParams struct {
+	OrgSlug    slug.Slug
+	ApiKeySlug slug.Slug
+}
+
+func (q *Queries) LockAPIKeyRoleBySlug(ctx context.Context, arg LockAPIKeyRoleBySlugParams) (slug.Slug, error) {
+	row := q.db.QueryRow(ctx, lockAPIKeyRoleBySlug, arg.OrgSlug, arg.ApiKeySlug)
+	var role_slug slug.Slug
+	err := row.Scan(&role_slug)
+	return role_slug, err
 }
 
 const lockAccountDeletionOrganizations = `-- name: LockAccountDeletionOrganizations :many

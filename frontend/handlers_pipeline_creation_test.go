@@ -70,7 +70,7 @@ func TestQueryPipelineSetup(t *testing.T) {
 				}
 			}))
 			defer server.Close()
-			router, err := NewRouter(server.URL, slog.New(slog.DiscardHandler), session.NewStore())
+			router, err := newHandlerTestRouter(server.URL, slog.New(slog.DiscardHandler), session.NewStore())
 			require.NoError(t, err)
 			app := fiber.New()
 			path := "/orgs/:slug/data-sources/:dsSlug/queries/:querySlug/pipeline"
@@ -159,7 +159,7 @@ func TestPipelineCreationProgressUsesRecordedSpecAndExactVersion(t *testing.T) {
 				}
 			}))
 			defer server.Close()
-			router, err := NewRouter(server.URL, slog.New(slog.DiscardHandler), session.NewStore())
+			router, err := newHandlerTestRouter(server.URL, slog.New(slog.DiscardHandler), session.NewStore())
 			require.NoError(t, err)
 			app := fiber.New()
 			app.Get("/orgs/:slug/projects/:projectSlug/pipeline-creations/:creationSlug", router.handlePipelineCreationProgress)
@@ -230,7 +230,7 @@ func TestBuilderCreatePipeline(t *testing.T) {
 				}
 			}))
 			defer server.Close()
-			router, err := NewRouter(server.URL, slog.New(slog.DiscardHandler), session.NewStore())
+			router, err := newHandlerTestRouter(server.URL, slog.New(slog.DiscardHandler), session.NewStore())
 			require.NoError(t, err)
 			app := fiber.New()
 			app.Post("/orgs/:slug/projects/:projectSlug/pipeline-creations", router.handleBuilderCreatePipeline)

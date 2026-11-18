@@ -99,6 +99,8 @@ Workspace statements use `type: "google_workspace"`, a `resource`, and an
 
 JSON reads and writes use an object or an array of row objects; CSV uses the
 shared tabular serializer, and `file` preserves the native file payload.
+Structured Drive reads require a `.json` or `.csv` extension matching the
+selected format.
 
 Files support My Drive and shared drives. Creation does not upsert by name or
 create native Google documents. Native document operations use the separate resources below; conversion remains unavailable. Writes have no automatic retry; a lost response

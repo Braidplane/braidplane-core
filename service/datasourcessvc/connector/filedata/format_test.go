@@ -4,113 +4,43 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
+
+	"github.com/Braidplane/braidplane-core/pkg/xerror"
 )
 
 func TestDetectFormat(t *testing.T) {
 	t.Parallel()
 
-	tests := []struct {
-		name        string
-		format      QueryFormat
-		path        string
-		content     []byte
-		wantFormat  QueryFormat
-		wantErrText string
+	for _, tc := range []struct {
+		name   string
+		format QueryFormat
+		path   string
+		want   QueryFormat
 	}{
-		{
-			name:       "ExplicitCSV",
-			format:     QueryFormatCSV,
-			path:       "file.txt",
-			content:    []byte("a,b"),
-			wantFormat: QueryFormatCSV,
-		},
-		{
-			name:       "ExplicitJSON",
-			format:     QueryFormatJSON,
-			path:       "file.txt",
-			content:    []byte(`{}`),
-			wantFormat: QueryFormatJSON,
-		},
-		{
-			name:       "ExplicitSpreadsheet",
-			format:     QueryFormatSpreadsheet,
-			path:       "file.bin",
-			content:    []byte("xlsx"),
-			wantFormat: QueryFormatSpreadsheet,
-		},
-		{
-			name:       "AutoFromCSVExtension",
-			format:     QueryFormatAuto,
-			path:       "data.csv",
-			content:    []byte("a,b"),
-			wantFormat: QueryFormatCSV,
-		},
-		{
-			name:       "AutoFromJSONExtension",
-			format:     QueryFormatAuto,
-			path:       "data.json",
-			content:    []byte(`[]`),
-			wantFormat: QueryFormatJSON,
-		},
-		{
-			name:       "AutoFromSpreadsheetExtension",
-			format:     QueryFormatAuto,
-			path:       "data.xlsm",
-			content:    []byte("xlsx"),
-			wantFormat: QueryFormatSpreadsheet,
-		},
-		{
-			name:       "AutoFromXLTXExtension",
-			format:     QueryFormatAuto,
-			path:       "data.xltx",
-			content:    []byte("xlsx"),
-			wantFormat: QueryFormatSpreadsheet,
-		},
-		{
-			name:       "AutoDetectJSONByContent",
-			format:     QueryFormatAuto,
-			path:       "data.txt",
-			content:    []byte(`[{"a":1}]`),
-			wantFormat: QueryFormatJSON,
-		},
-		{
-			name:       "AutoDetectCSVByContent",
-			format:     QueryFormatAuto,
-			path:       "data.txt",
-			content:    []byte("a,b,c"),
-			wantFormat: QueryFormatCSV,
-		},
-		{
-			name:        "UnsupportedFormat",
-			format:      QueryFormat(99),
-			path:        "data.xml",
-			content:     []byte("<root/>"),
-			wantErrText: "unsupported file query format",
-		},
-		{
-			name:        "EmptyContentAutoFails",
-			format:      QueryFormatAuto,
-			path:        "data.txt",
-			content:     []byte(""),
-			wantErrText: "file is empty",
-		},
-	}
-
-	for _, tc := range tests {
+		{"explicit CSV", QueryFormatCSV, "users.CSV", QueryFormatCSV},
+		{"explicit JSON", QueryFormatJSON, "users.json", QueryFormatJSON},
+		{"explicit workbook", QueryFormatSpreadsheet, "users.xlsx", QueryFormatSpreadsheet},
+		{"auto CSV", QueryFormatAuto, "users.csv", QueryFormatCSV},
+		{"default JSON", QueryFormatUnknown, "users.json", QueryFormatJSON},
+		{"auto workbook", QueryFormatAuto, "users.xltx", QueryFormatSpreadsheet},
+		{"raw", QueryFormatFile, "users", QueryFormatFile},
+		{"mismatched explicit format", QueryFormatJSON, "users.csv", QueryFormatUnknown},
+		{"unknown explicit extension", QueryFormatSpreadsheet, "users.bin", QueryFormatUnknown},
+		{"unknown auto extension", QueryFormatAuto, "users.txt", QueryFormatUnknown},
+		{"missing auto extension", QueryFormatAuto, "users", QueryFormatUnknown},
+	} {
 		t.Run(tc.name, func(t *testing.T) {
-			t.Parallel()
-
-			got, err := DetectFormat(tc.format, tc.path, tc.content)
-
-			if tc.wantErrText != "" {
-				require.ErrorContains(t, err, tc.wantErrText)
+			actual, err := DetectFormat(tc.format, tc.path)
+			require.Equal(t, tc.want, actual)
+			if tc.want == QueryFormatUnknown {
+				require.ErrorIs(t, err, xerror.InvalidInput(xerror.Query))
 				return
 			}
-
 			require.NoError(t, err)
-			require.Equal(t, tc.wantFormat, got)
 		})
 	}
+	_, err := DetectFormat(QueryFormat(99), "users.json")
+	require.ErrorContains(t, err, "unsupported file query format")
 }
 
 func TestDetectWriteFormat(t *testing.T) {

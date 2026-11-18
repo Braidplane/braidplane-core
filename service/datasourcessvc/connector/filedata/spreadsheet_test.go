@@ -185,6 +185,11 @@ func TestEncodeSpreadsheetContent_UsesWorkbookExtensionContentType(t *testing.T)
 
 	contentTypes := readSpreadsheetZipEntry(t, content, "[Content_Types].xml")
 	require.Contains(t, contentTypes, "application/vnd.ms-excel.sheet.macroEnabled.main+xml")
+	parsed, err := ParseSpreadsheet(content, SpreadsheetOptions{FilePath: "exports/users.XLSM"})
+	require.NoError(t, err)
+	require.Equal(t, 1, parsed.RowCount)
+	_, err = ParseSpreadsheet(content, SpreadsheetOptions{FilePath: "exports/users.xlsx"})
+	require.ErrorIs(t, err, xerror.InvalidInput(xerror.Query))
 }
 
 // testSpreadsheetContent builds an in-memory workbook fixture for parser tests.

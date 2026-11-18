@@ -18,7 +18,7 @@ const issueMessages = (issues) => issues.map((issue) => (typeof issue === "strin
 
 const resetLocalStorage = () => {
     const store = new Map();
-    Object.defineProperty(window, "localStorage", {
+    Object.defineProperty(window, "sessionStorage", {
         configurable: true,
         value: {
             getItem: (key) => (store.has(String(key)) ? store.get(String(key)) : null),
@@ -140,7 +140,7 @@ describe("storageKeyFor", () => {
         expect(t.storageKeyFor("orders", "acme", "", "alice")).toBeNull();
         expect(t.storageKeyFor("orders", "acme", "ops", "")).toBeNull();
         expect(t.storageKeyFor("orders", "acme", "ops", "bob")).not.toBe(key);
-        window.localStorage.setItem(
+        window.sessionStorage.setItem(
             "braidplane.builder.canvas.state.v5.orders",
             JSON.stringify({
                 pipeline_spec: { metadata: { slug: "orders", name: "Orders" }, steps: [] },
@@ -149,9 +149,9 @@ describe("storageKeyFor", () => {
         );
         expect(t.loadState("braidplane.builder.canvas.state.v5.orders")).not.toBeNull();
         expect(t.loadState(key)).toBeNull();
-        window.localStorage.clear();
+        window.sessionStorage.clear();
         t.saveState(null, null, null, [], {});
-        expect(window.localStorage.getItem(null)).toBeNull();
+        expect(window.sessionStorage.getItem(null)).toBeNull();
     });
 });
 
@@ -528,13 +528,13 @@ describe("saveResponseProblem", () => {
 
     it("RedirectedResponse_ExplainsSessionExpiry", () => {
         expect(t.saveResponseProblem(responseLike({ redirected: true, url: "/auth/login?return_to=%2Fbuilder" }))).toBe(
-            "Saved locally, but your session expired. Sign in again and retry.",
+            "Your session expired. Sign in again to continue.",
         );
     });
 
     it("LoginURL_ExplainsSessionExpiry", () => {
         expect(t.saveResponseProblem(responseLike({ url: "http://localhost:3000/auth/login" }))).toBe(
-            "Saved locally, but your session expired. Sign in again and retry.",
+            "Your session expired. Sign in again to continue.",
         );
     });
 
@@ -741,7 +741,7 @@ describe("saveState and loadState", () => {
         const edges = document.createElement("div");
         t.writeEdgesData(edges, imported.edges);
         t.saveState("event-state", grid, edges, imported.bindings);
-        expect(JSON.parse(window.localStorage.getItem("event-state")).pipeline_spec.steps).toEqual(steps);
+        expect(JSON.parse(window.sessionStorage.getItem("event-state")).pipeline_spec.steps).toEqual(steps);
         const restored = t.loadState("event-state");
         expect(
             t.buildBuilderStatePayload(restored.nodes, restored.edges, restored.bindings).pipeline_spec.steps,
@@ -777,7 +777,7 @@ describe("saveState and loadState", () => {
             { sourceFormat: "json", exportFormat: "yaml" },
         );
 
-        expect(JSON.parse(window.localStorage.getItem("braidplane.builder.canvas.test"))).toEqual({
+        expect(JSON.parse(window.sessionStorage.getItem("braidplane.builder.canvas.test"))).toEqual({
             pipeline_spec: {
                 metadata: {
                     slug: "draft-pipeline",
@@ -816,7 +816,7 @@ describe("saveState and loadState", () => {
     });
 
     it("LoadState_NormalizesPipelineFormats", () => {
-        window.localStorage.setItem(
+        window.sessionStorage.setItem(
             "braidplane.builder.canvas.test",
             JSON.stringify({
                 pipeline_spec: {
@@ -853,7 +853,7 @@ describe("saveState and loadState", () => {
     });
 
     it("LoadState_PreservesLegacyPipelineSpecDataSourceSlug", () => {
-        window.localStorage.setItem(
+        window.sessionStorage.setItem(
             "braidplane.builder.canvas.test",
             JSON.stringify({
                 pipeline_spec: {
@@ -962,7 +962,7 @@ describe("saveState and loadState", () => {
             exportFormat: "yaml",
         });
 
-        const saved = JSON.parse(window.localStorage.getItem("braidplane.builder.canvas.test"));
+        const saved = JSON.parse(window.sessionStorage.getItem("braidplane.builder.canvas.test"));
         expect(saved.pipeline_spec.steps[0].sink).toEqual({
             data_source_ref: "acme-mysql",
             operation_type: "sql",
@@ -1014,7 +1014,7 @@ describe("saveState and loadState", () => {
             exportFormat: "yaml",
         });
 
-        const saved = JSON.parse(window.localStorage.getItem("braidplane.builder.canvas.test"));
+        const saved = JSON.parse(window.sessionStorage.getItem("braidplane.builder.canvas.test"));
         expect(saved.pipeline_spec.steps[0].sink).toEqual({
             data_source_ref: "acme-http",
             operation_type: "http",
@@ -1056,7 +1056,7 @@ describe("saveState and loadState", () => {
             exportFormat: "yaml",
         });
 
-        const saved = JSON.parse(window.localStorage.getItem("braidplane.builder.canvas.test"));
+        const saved = JSON.parse(window.sessionStorage.getItem("braidplane.builder.canvas.test"));
         expect(saved.pipeline_spec.steps[0].sink).toEqual({
             data_source_ref: "acme-http",
             operation_type: "http",
@@ -3431,7 +3431,7 @@ describe("logical reference round trip", () => {
             expected_spec_hash: "current",
             draft_based_on_spec_hash: "older",
         });
-        window.localStorage.setItem("logical-ref-round-trip", JSON.stringify(payload));
+        window.sessionStorage.setItem("logical-ref-round-trip", JSON.stringify(payload));
         const restored = t.loadState("logical-ref-round-trip");
         expect(restored.nodes[0].dataSourceSlug).toBe("source");
         expect(restored.nodes[1].sinkDataSourceSlug).toBe("source");

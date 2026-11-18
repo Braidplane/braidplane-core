@@ -11,6 +11,8 @@ import (
 
 type nativeGitLimitsKey struct{}
 
+type gitWriteLimitKey struct{}
+
 // WithNativeFileLimits binds Git helpers to an explicit finite transfer allowance.
 func WithNativeFileLimits(ctx context.Context, maxBytes int64) (context.Context, error) {
 	if maxBytes <= 0 || maxBytes > filestream.MaxRetainedBytes {
@@ -36,21 +38,28 @@ func gitCommandContext(ctx context.Context) (context.Context, context.CancelFunc
 	return context.WithTimeout(ctx, gitCommandTimeout)
 }
 
-// POSIX sh uses 512-byte file blocks. Stricter kernel limits stay in force.
-const nativeGitResourceScript = `native_git_blocks=$1
-shift
-native_git_vmem=$(ulimit -v) || exit 125
+const gitAddressSpaceLimitScript = `native_git_vmem=$(ulimit -v) || exit 125
 if [ "$native_git_vmem" = unlimited ] || [ "$native_git_vmem" -gt 524288 ]; then
   native_git_vmem=524288
 fi
 ulimit -v "$native_git_vmem" || exit 125
-native_git_file_limit=$(ulimit -f) || exit 125
-if [ "$native_git_file_limit" != unlimited ] && [ "$native_git_file_limit" -lt "$native_git_blocks" ]; then
-  native_git_blocks=$native_git_file_limit
-fi
-ulimit -f "$native_git_blocks" || exit 125
-export GIT_ALLOC_LIMIT=16777216
+`
+
+const nativeGitResourceScript = gitAddressSpaceLimitScript + `export GIT_ALLOC_LIMIT=16777216
 export GIT_TERMINAL_PROMPT=0
+` + gitWriteLimitScript
+
+const ordinaryGitResourceScript = `export GIT_ALLOC_LIMIT=268435456
+` + gitWriteLimitScript
+
+// POSIX sh uses 512-byte file blocks. Stricter kernel limits stay in force.
+const gitWriteLimitScript = `git_file_blocks=$1
+shift
+git_existing_limit=$(ulimit -f) || exit 125
+if [ "$git_existing_limit" != unlimited ] && [ "$git_existing_limit" -lt "$git_file_blocks" ]; then
+  git_file_blocks=$git_existing_limit
+fi
+ulimit -f "$git_file_blocks" || exit 125
 exec "$@"
 `
 

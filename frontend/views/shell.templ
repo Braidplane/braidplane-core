@@ -95,7 +95,7 @@ templ AuthenticatedShell(data AuthenticatedShellData, content templ.Component) {
 									<span class="block truncate text-xs text-base-content/60">Account</span>
 								</span>
 							</a>
-							<form class="shell-expanded-only mt-2" method="post" action="/auth/logout" hx-post="/auth/logout" hx-swap="none">
+							<form class="shell-expanded-only mt-2" method="post" action="/auth/logout">
 								<button class="btn btn-ghost btn-xs w-full justify-start" type="submit">Logout</button>
 							</form>
 						</div>
@@ -118,7 +118,7 @@ templ AuthenticatedShell(data AuthenticatedShellData, content templ.Component) {
 										</nav>
 										<div class="divider my-3"></div>
 										<a class="btn btn-ghost btn-sm w-full justify-start" href="/account">Account</a>
-										<form class="mt-1" method="post" action="/auth/logout" hx-post="/auth/logout" hx-swap="none">
+										<form class="mt-1" method="post" action="/auth/logout">
 											<button class="btn btn-ghost btn-sm w-full justify-start" type="submit">Logout</button>
 										</form>
 									</div>

@@ -34,7 +34,6 @@ type Adapter struct {
 	ConnectorName       string
 	ErrorKind           ErrorKind
 	LimitPolicy         LimitPolicy
-	SpreadsheetFilePath bool
 	SchemaParsedColumns bool
 }
 
@@ -90,7 +89,11 @@ func (adapter Adapter) ExecuteRead(
 	stmt Statement,
 	limits types.ExecutionLimits,
 ) (*result.FileResult, error) {
-	if limits.MaxFileBytes > 0 && stmt.Format == filedata.QueryFormatFile {
+	format, err := filedata.DetectFormat(stmt.Format, target)
+	if err != nil {
+		return nil, err
+	}
+	if limits.MaxFileBytes > 0 && format == filedata.QueryFormatFile {
 		return adapter.executeStreamRead(ctx, provider, target, limits.MaxFileBytes)
 	}
 	readLimit := adapter.responseByteLimit(limits, adapter.LimitPolicy.UseHTTPFallbackForRead)
@@ -103,11 +106,6 @@ func (adapter Adapter) ExecuteRead(
 			"file content exceeds %d byte limit",
 			readLimit,
 		)
-	}
-
-	format, err := filedata.DetectFormat(stmt.Format, target, content.Content)
-	if err != nil {
-		return nil, err
 	}
 
 	parseMaxBytes := adapter.responseByteLimit(limits, adapter.LimitPolicy.UseHTTPFallbackForParse)
@@ -139,7 +137,7 @@ func (adapter Adapter) ExecuteRead(
 			HasHeader: stmt.HasHeader,
 			MaxRows:   limits.MaxResultRows,
 			MaxBytes:  parseMaxBytes,
-			FilePath:  adapter.spreadsheetPath(target),
+			FilePath:  target,
 		})
 	default:
 		err = adapter.queryErrorf("unsupported %s file format %q", adapter.connectorName(), format)
@@ -340,14 +338,6 @@ func (adapter Adapter) responseByteLimit(
 		return limits.HTTPMaxResponseBytes
 	}
 	return 0
-}
-
-// spreadsheetPath returns the file path hint only for connectors that preserve workbook extensions.
-func (adapter Adapter) spreadsheetPath(target string) string {
-	if adapter.SpreadsheetFilePath {
-		return target
-	}
-	return ""
 }
 
 // connectorName returns a stable connector label for shared adapter diagnostics.

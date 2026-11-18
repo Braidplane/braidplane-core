@@ -46,9 +46,19 @@ func TestLiteralBindingsRequireExecutionContext(t *testing.T) {
 	prepared, err := prepareInlineExecution(ctx, inline)
 	require.NoError(t, err)
 	require.NoError(t, validateRuntimeExecutionData(ctx, prepared.statementJSON, true))
-	typed, err := buildTypedParams(nil, map[string]any{"value": runtimevars.LiteralString("{{runtime.unknown}}")})
+	typed, err := buildTypedParams(nil, map[string]any{"value": runtimevars.LiteralString("{{runtime.unknown}}")}, model.DataSourceTypePostgres)
 	require.NoError(t, err)
 	require.Equal(t, "{{runtime.unknown}}", typed["value"].Value)
+}
+
+func TestMongoTypedParamsPreserveDeclaration(t *testing.T) {
+	values := map[string]any{"scalar": "ready", "document": map[string]any{"state": "ready"}}
+	declared := []*QueryParameter{{Name: "scalar", DataType: ParameterDataTypeText}}
+	params, err := buildTypedParams(declared, values, model.DataSourceTypeMongoDB)
+	require.NoError(t, err)
+	require.Equal(t, "text", params["scalar"].DataType)
+	require.Empty(t, params["document"].DataType)
+	require.Equal(t, values["document"], params["document"].Value)
 }
 
 func TestSavedDefinitionCannotUseInternalLiteralBindings(t *testing.T) {

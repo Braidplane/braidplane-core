@@ -13,12 +13,20 @@ from .release import compose_inputs, read_manifest
 SOURCE = Path(__file__).resolve().parent
 
 
-def prepare(directory, manifest, hostname, bind_address, smtp_host, sender, certificates, api_only=False):
+def prepare(directory, manifest, hostname, bind_address, smtp_host, sender, certificates, api_only=False, proxy_subnet=None):
     # Restrict customer text before writing Compose, dotenv, Caddy or SQL inputs.
     if not re.fullmatch(r"[a-z0-9](?:[a-z0-9.-]*[a-z0-9])?", hostname) or "." not in hostname or hostname.endswith(".localhost"):
         raise ValueError("hostname must be a customer DNS name without a scheme or port")
     if ipaddress.ip_address(bind_address).version != 4:
         raise ValueError("bind address must be an IPv4 address")
+    if proxy_subnet is None:
+        base = int(ipaddress.IPv4Address("10.254.0.0"))
+        network = ipaddress.IPv4Network((base + 8 * secrets.randbelow(8192), 29))
+    else:
+        network = ipaddress.IPv4Network(proxy_subnet)
+        private_ranges = ("10.0.0.0/8", "172.16.0.0/12", "192.168.0.0/16")
+        if network.prefixlen != 29 or not any(network.subnet_of(ipaddress.IPv4Network(cidr)) for cidr in private_ranges):
+            raise ValueError("proxy subnet must be a private IPv4 /29")
     if not re.fullmatch(r"[a-zA-Z0-9.-]+:[0-9]{1,5}", smtp_host) or not 1 <= int(smtp_host.rsplit(":", 1)[1]) <= 65535:
         raise ValueError("SMTP host must be hostname:port")
     if not re.fullmatch(r"[a-zA-Z0-9._+-]+@[a-zA-Z0-9.-]+", sender):
@@ -45,14 +53,21 @@ def prepare(directory, manifest, hostname, bind_address, smtp_host, sender, cert
             (directory / "certificates" / name).chmod(0o600 if name.endswith(".key") else 0o644)
         for name in ("compose.json", "Caddyfile", "execution-grants.sql"):
             shutil.copyfile(SOURCE / name, directory / name)
+        compose_path = directory / "compose.json"
+        compose = json.loads(compose_path.read_text())
+        compose["networks"]["proxy"]["ipam"]["config"][0]["subnet"] = str(network)
+        services = compose["services"]
+        edge_ip, frontend_ip, api_ip = (str(network[index]) for index in (2, 3, 4))
+        for name, address in (("edge", edge_ip), ("frontend", frontend_ip), ("api", api_ip)):
+            services[name]["networks"]["proxy"]["ipv4_address"] = address
+        services["frontend"]["environment"]["FRONTEND_SERVER_TRUSTED_PROXIES"] = edge_ip
+        services["api"]["environment"]["SERVER_TRUSTED_PROXIES"] = edge_ip if api_only else frontend_ip
         if api_only:
-            compose_path = directory / "compose.json"
-            compose = json.loads(compose_path.read_text())
-            del compose["services"]["frontend"]
-            compose["services"]["edge"]["depends_on"] = {"api": {"condition": "service_healthy"}}
-            compose_path.write_text(json.dumps(compose, indent=2) + "\n")
+            del services["frontend"]
+            services["edge"]["depends_on"] = {"api": {"condition": "service_healthy"}}
             caddy = directory / "Caddyfile"
-            caddy.write_text(caddy.read_text().replace("reverse_proxy frontend:3002", "reverse_proxy api:3001"))
+            caddy.write_text(caddy.read_text().replace("reverse_proxy frontend:3002", "reverse_proxy api-proxy:3001"))
+        compose_path.write_text(json.dumps(compose, indent=2) + "\n")
         shutil.copyfile(SOURCE.parent / "self-hosted-runtime-grants.sql", directory / "runtime-grants.sql")
         write("release.json", json.dumps(release, indent=2) + "\n")
         write("release.env", compose_inputs(release) + f"BRAIDPLANE_HOST={hostname}\nBRAIDPLANE_BIND_ADDRESS={bind_address}\nBRAIDPLANE_PROJECT_NAME=braidplane-{secrets.token_hex(6)}\n")
@@ -117,6 +132,7 @@ def main():
     for name in ("directory", "manifest", "hostname", "bind_address", "smtp_host", "sender", "certificates"):
         parser.add_argument(name)
     parser.add_argument("--api-only", action="store_true", help="Omit the frontend and route TLS directly to the API.")
+    parser.add_argument("--proxy-subnet", help="Use a non-overlapping private IPv4 /29 for trusted proxy traffic.")
     args = parser.parse_args()
     try:
         prepare(**vars(args))

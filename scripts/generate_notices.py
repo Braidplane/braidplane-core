@@ -59,7 +59,7 @@ def generate():
         b"This inventory does not establish rights clearance. See doc/RELEASE_RIGHTS.md.\n\n",
         notices,
     ]
-    assets = [ROOT / "pkg/odcs/schema/LICENSE", ROOT / "brand/icons/app/LICENSE"]
+    assets = [ROOT / "pkg/odcs/schema/LICENSE", ROOT / "pkg/passwordpolicy/LICENSE", ROOT / "brand/icons/app/LICENSE"]
     assets.extend(sorted((ROOT / "frontend/assets/vendor").glob("LICENSE*")))
     assets.extend(sorted((ROOT / "brand/icons/data-sources/licenses").iterdir()))
     lock = json.loads((ROOT / "frontend/package-lock.json").read_text())

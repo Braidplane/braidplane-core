@@ -163,41 +163,35 @@ func (s *server) HandleProviderConnectorCallback(
 	if install.RepositorySetupSlug != "" || install.RepositorySetupProjectSlug != "" {
 		return s.handleRepositoryGitLabCallback(c, provider, params, install, err)
 	}
-	if err != nil {
-		if install.Owner.OrgSlug != "" &&
-			(xerror.Is(err, credentialssvc.ErrOAuthStateExpired) ||
-				xerror.Is(err, credentialssvc.ErrOAuthStateConsumed)) {
-			action, resource := oauthCallbackPermission(install.Provider, install.Owner, install.Intent)
-			if _, authErr := s.canOrgUserPrincipal(
-				c,
-				install.Owner.OrgSlug,
-				action,
-				resource,
-			); authErr != nil {
-				return authErr
-			}
-			status := "error"
-			if xerror.Is(err, credentialssvc.ErrOAuthStateExpired) {
-				status = "expired"
-			}
-			return s.redirectProviderOAuthResult(c, install.Owner, status)
-		}
+	if err != nil && (install.Owner.OrgSlug == "" ||
+		(!xerror.Is(err, credentialssvc.ErrOAuthStateExpired) && !xerror.Is(err, credentialssvc.ErrOAuthStateConsumed))) {
 		return s.redirectProviderOAuthFailure(c, "")
 	}
 	action, resource := oauthCallbackPermission(install.Provider, install.Owner, install.Intent)
-	userSlug, err := s.canOrgUserPrincipal(
+	userSlug, authErr := s.canOrgUserPrincipal(
 		c,
 		install.Owner.OrgSlug,
 		action,
 		resource,
 	)
+	if authErr != nil {
+		return authErr
+	}
+	actor := model.UserEventActor(userSlug)
+	if !install.AllowsCallbackActor(actor) {
+		return s.redirectProviderOAuthFailure(c, "")
+	}
 	if err != nil {
-		return err
+		status := "error"
+		if xerror.Is(err, credentialssvc.ErrOAuthStateExpired) {
+			status = "expired"
+		}
+		return s.redirectProviderOAuthResult(c, install.Owner, status)
 	}
 	if params.Error != nil {
 		if _, err := s.credentialsService.ConsumeOAuthInstall(
 			c.Context(),
-			credentialssvc.ConsumeOAuthInstallParams{Provider: provider, State: *params.State},
+			credentialssvc.ConsumeOAuthInstallParams{Provider: provider, State: *params.State, Actor: actor},
 		); err != nil {
 			return s.redirectProviderOAuthResult(c, install.Owner, "error")
 		}
@@ -206,7 +200,7 @@ func (s *server) HandleProviderConnectorCallback(
 	if params.Code == nil {
 		if _, err := s.credentialsService.ConsumeOAuthInstall(
 			c.Context(),
-			credentialssvc.ConsumeOAuthInstallParams{Provider: provider, State: *params.State},
+			credentialssvc.ConsumeOAuthInstallParams{Provider: provider, State: *params.State, Actor: actor},
 		); err != nil {
 			return s.redirectProviderOAuthResult(c, install.Owner, "error")
 		}
@@ -230,7 +224,7 @@ func (s *server) HandleProviderConnectorCallback(
 			State:    *params.State,
 			Code:     *params.Code,
 			Issuer:   issuer,
-			Actor:    model.UserEventActor(userSlug),
+			Actor:    actor,
 		},
 	)
 	if err != nil {

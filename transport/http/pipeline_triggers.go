@@ -288,7 +288,7 @@ func (s *server) RotatePipelineWebhookSecret(
 	if err != nil {
 		return err
 	}
-	if err := s.canOrg(c, orgSlug, model.Update, model.ResourcePipelineTriggers); err != nil {
+	if err := s.canUpdateExecutableWebhook(c, orgSlug); err != nil {
 		return err
 	}
 	secret, err := s.pipelineTriggersService.RotatePipelineWebhookSecret(c.Context(), orgSlug, projectSlug, environmentSlug, triggerSlug, s.eventActor(c))
@@ -297,6 +297,13 @@ func (s *server) RotatePipelineWebhookSecret(
 	}
 	c.Set(fiber.HeaderCacheControl, "no-store")
 	return c.JSON(api.PipelineWebhookSecretIssuance{KeyVersion: secret.KeyVersion, Value: secret.Value})
+}
+
+func (s *server) canUpdateExecutableWebhook(c fiber.Ctx, orgSlug slug.Slug) error {
+	if err := s.canOrg(c, orgSlug, model.Update, model.ResourcePipelineTriggers); err != nil {
+		return err
+	}
+	return s.canOrg(c, orgSlug, model.Execute, model.ResourcePipelines)
 }
 
 func newPipelineTriggerFromAPI(req api.NewPipelineTrigger) (model.NewPipelineTrigger, error) {

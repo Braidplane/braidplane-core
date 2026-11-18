@@ -2,11 +2,14 @@ package userssvc
 
 import (
 	"context"
+	"time"
 
 	"github.com/Braidplane/braidplane-core/pkg/crypto"
 	"github.com/Braidplane/braidplane-core/pkg/domain/model"
+	"github.com/Braidplane/braidplane-core/pkg/httpsecurity"
 	"github.com/Braidplane/braidplane-core/pkg/slug"
 	"github.com/Braidplane/braidplane-core/postgres"
+	"github.com/Braidplane/braidplane-core/postgres/abusecontrols"
 	"github.com/Braidplane/braidplane-core/postgres/users"
 	workerproducer "github.com/Braidplane/braidplane-core/service/worker/producer"
 )
@@ -39,6 +42,8 @@ type usersService struct {
 	eventProducer   workerproducer.EventProducer
 	frontendURL     string
 	created         func(context.Context, postgres.DBTX, *model.User) error
+	mfaEmailLimiter abusecontrols.Repository
+	mfaEmailBudget  httpsecurity.AbuseLimit
 }
 
 // New creates a new users service with the given querier and users repository.
@@ -70,4 +75,12 @@ type Option func(*usersService)
 
 func WithCreated(created func(context.Context, postgres.DBTX, *model.User) error) Option {
 	return func(s *usersService) { s.created = created }
+}
+
+// WithMFAEmailBudget limits challenge delivery after password verification.
+func WithMFAEmailBudget(repo abusecontrols.Repository, limit int, window time.Duration) Option {
+	return func(s *usersService) {
+		s.mfaEmailLimiter = repo
+		s.mfaEmailBudget = httpsecurity.AbuseLimit{Scope: "auth.mfa_email.recipient", Limit: limit, Window: window}
+	}
 }

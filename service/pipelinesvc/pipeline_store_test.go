@@ -1,6 +1,7 @@
 package pipelinesvc
 
 import (
+	"bytes"
 	"context"
 	"crypto/sha256"
 	"encoding/json"
@@ -1851,6 +1852,7 @@ func TestPipelineStore_ReconcileFromGit_ContinuesOnPipelineFailure(t *testing.T)
 	for _, tc := range []struct{ name, stage, message string }{
 		{"read error", "read", "boom"},
 		{"disconnected flows", "load", `["a", "x"]; ["b", "y"]`},
+		{"additional YAML document", "load", "multiple YAML documents"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			validSpecYAML := []byte(`
@@ -1897,6 +1899,9 @@ steps:
 					case "pipelines/invalid.pipeline.yaml":
 						if tc.stage == "read" {
 							return nil, fmt.Errorf("boom")
+						}
+						if tc.name == "additional YAML document" {
+							return append(bytes.Clone(validSpecYAML), []byte("---\n{}\n")...), nil
 						}
 						return []byte(`metadata:
   slug: disconnected

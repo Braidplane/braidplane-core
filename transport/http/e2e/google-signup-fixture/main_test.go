@@ -31,6 +31,7 @@ import (
 	"github.com/Braidplane/braidplane-core/frontend"
 	"github.com/Braidplane/braidplane-core/pkg/crypto"
 	"github.com/Braidplane/braidplane-core/pkg/queue"
+	"github.com/Braidplane/braidplane-core/pkg/reqctx"
 	"github.com/Braidplane/braidplane-core/pkg/testutil/containerfixture"
 	"github.com/Braidplane/braidplane-core/pkg/testutil/e2edb"
 	"github.com/Braidplane/braidplane-core/postgres"
@@ -95,7 +96,13 @@ func TestFixtureServer(t *testing.T) {
 	// Only these workspace-supporting reads are synthetic. Google auth handlers,
 	// sessions, users service/repository, and durable agreement enqueue are production code.
 	backend.Get("/api/organizations", func(c fiber.Ctx) error { return c.JSON(fiber.Map{"organizations": []any{}}) })
-	backend.Get("/api/users/profile", func(c fiber.Ctx) error { return c.JSON(fiber.Map{"full_name": "Google Browser Test"}) })
+	backend.Get("/api/users/profile", func(c fiber.Ctx) error {
+		userSlug := reqctx.GetUserSlug(c, store)
+		if userSlug == "" {
+			return c.SendStatus(fiber.StatusUnauthorized)
+		}
+		return c.JSON(fiber.Map{"slug": userSlug.String(), "full_name": "Google Browser Test"})
+	})
 	api.RegisterHandlers(backend.Group("/api"), transporthttp.NewServer(usersService, nil, oidcService, store, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, appURL, callbackURL, true, true, nil))
 	backendListener := listen(t, "127.0.0.1:0")
 	go func() { _ = backend.Listener(backendListener, fiber.ListenConfig{DisableStartupMessage: true}) }()

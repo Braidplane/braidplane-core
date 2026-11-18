@@ -33,6 +33,10 @@ func (r *Router) loadAuthenticationMethods(c fiber.Ctx) error {
 }
 
 func (r *Router) handleLogout(c fiber.Ctx) error {
+	if reqctx.GetUserSlug(c, r.sessionStore) == "" {
+		r.setBrowserSessionEnded(c)
+		return redirectToLogin(c, authenticatedReturnTo(c))
+	}
 	sess, err := r.sessionStore.Get(c)
 	if err != nil {
 		r.logger.ErrorContext(c.Context(), "failed to get session during logout", logging.ErrorAttr(err))
@@ -45,10 +49,15 @@ func (r *Router) handleLogout(c fiber.Ctx) error {
 		return c.Status(fiber.StatusInternalServerError).SendString("failed to logout")
 	}
 
+	r.setBrowserSessionEnded(c)
 	return redirectHTMXOrSeeOther(c, "/auth/login")
 }
 
 func (r *Router) handleLoginPage(c fiber.Ctx) error {
+	c.Set(fiber.HeaderCacheControl, "no-store")
+	if reqctx.GetUserSlug(c, r.sessionStore) == "" {
+		r.setBrowserSessionEnded(c)
+	}
 	returnTo := safeReturnTo(c.Query("return_to"))
 	return renderTempl(
 		c,
@@ -72,10 +81,10 @@ func (r *Router) handleForgotPasswordPage(c fiber.Ctx) error {
 }
 
 func (r *Router) handleResetPasswordPage(c fiber.Ctx) error {
-	token := strings.TrimSpace(c.Query("token"))
+	setAccountCodeResponseHeaders(c)
 	return renderTempl(
 		c,
-		views.ResetPasswordPage("Reset password", token, "", "", ""),
+		views.ResetPasswordPage("Reset password", "", "", ""),
 	)
 }
 
@@ -107,6 +116,7 @@ func (r *Router) handleLoginSubmit(c fiber.Ctx) error {
 			Email:    api.Email(email),
 			Password: password,
 		},
+		frontendRequestEditor(c.Context(), ""),
 	)
 	if err != nil {
 		r.logger.ErrorContext(c.Context(), "frontend signin failed",
@@ -280,6 +290,7 @@ func (r *Router) handleMFASubmit(c fiber.Ctx) error {
 			ChallengeToken: challengeToken,
 			Code:           code,
 		},
+		frontendRequestEditor(c.Context(), ""),
 	)
 	if err != nil {
 		r.logger.ErrorContext(c.Context(), "frontend mfa verification failed", logging.ErrorAttr(err))
@@ -592,6 +603,7 @@ func (r *Router) handleForgotPasswordSubmit(c fiber.Ctx) error {
 	resp, err := r.apiClient.RequestPasswordResetWithResponse(
 		c.Context(),
 		api.RequestPasswordResetJSONRequestBody{Email: api.Email(email)},
+		frontendRequestEditor(c.Context(), ""),
 	)
 	if err != nil {
 		r.logger.ErrorContext(c.Context(), "frontend forgot password failed", logging.ErrorAttr(err))
@@ -638,15 +650,17 @@ func (r *Router) handleForgotPasswordSubmit(c fiber.Ctx) error {
 			email,
 			"",
 			"",
-			"If an account exists for this email, a reset link has been sent.",
+			"If an account exists for this email, a reset code has been sent.",
 		),
 	)
 }
 
 func (r *Router) handleResetPasswordSubmit(c fiber.Ctx) error {
-	token := strings.TrimSpace(c.FormValue("token"))
-	password := c.FormValue("password")
-	confirmPassword := c.FormValue("confirm_password")
+	setAccountCodeResponseHeaders(c)
+	form := c.Request().PostArgs()
+	token := strings.TrimSpace(string(form.Peek("token")))
+	password := string(form.Peek("password"))
+	confirmPassword := string(form.Peek("confirm_password"))
 
 	if password != confirmPassword {
 		setHTMXAwareErrorStatus(c, fiber.StatusBadRequest)
@@ -654,7 +668,6 @@ func (r *Router) handleResetPasswordSubmit(c fiber.Ctx) error {
 			c,
 			views.ResetPasswordPage(
 				"Reset password",
-				token,
 				"Passwords do not match.",
 				"",
 				"",
@@ -669,7 +682,6 @@ func (r *Router) handleResetPasswordSubmit(c fiber.Ctx) error {
 			c,
 			views.ResetPasswordPage(
 				"Reset password",
-				token,
 				validationMessage,
 				"",
 				"",
@@ -683,6 +695,7 @@ func (r *Router) handleResetPasswordSubmit(c fiber.Ctx) error {
 			Token:    token,
 			Password: password,
 		},
+		frontendRequestEditor(c.Context(), ""),
 	)
 	if err != nil {
 		r.logger.ErrorContext(c.Context(), "frontend reset password failed", logging.ErrorAttr(err))
@@ -691,7 +704,6 @@ func (r *Router) handleResetPasswordSubmit(c fiber.Ctx) error {
 			c,
 			views.ResetPasswordPage(
 				"Reset password",
-				token,
 				"Password reset failed with status 500.",
 				"",
 				"",
@@ -711,7 +723,6 @@ func (r *Router) handleResetPasswordSubmit(c fiber.Ctx) error {
 			c,
 			views.ResetPasswordPage(
 				"Reset password",
-				token,
 				message,
 				detailedErrorFromErrorResponse(errorResponse),
 				"",
@@ -723,7 +734,6 @@ func (r *Router) handleResetPasswordSubmit(c fiber.Ctx) error {
 		c,
 		views.ResetPasswordPage(
 			"Reset password",
-			token,
 			"",
 			"",
 			"Password reset successful. You can now sign in with your new password.",
@@ -752,6 +762,7 @@ func (r *Router) handleResendVerificationEmail(c fiber.Ctx) error {
 	resp, err := r.apiClient.ResendVerificationEmailWithResponse(
 		c.Context(),
 		api.ResendVerificationEmailJSONRequestBody{Email: api.Email(email)},
+		frontendRequestEditor(c.Context(), ""),
 	)
 	if err != nil {
 		r.logger.ErrorContext(c.Context(), "frontend resend verification failed", logging.ErrorAttr(err))
@@ -812,16 +823,21 @@ func (r *Router) createUserViaAPI(
 	)
 }
 
-func (r *Router) handleVerifyEmail(c fiber.Ctx) error {
-	token := strings.TrimSpace(c.Query("token"))
+func setAccountCodeResponseHeaders(c fiber.Ctx) {
+	c.Set(fiber.HeaderCacheControl, "no-store")
+	c.Set(fiber.HeaderReferrerPolicy, "no-referrer")
+}
+
+func (r *Router) handleVerifyEmailPage(c fiber.Ctx) error {
+	setAccountCodeResponseHeaders(c)
+	return renderTempl(c, views.EmailVerificationConfirmationPage())
+}
+
+func (r *Router) handleVerifyEmailSubmit(c fiber.Ctx) error {
+	setAccountCodeResponseHeaders(c)
+	token := strings.TrimSpace(string(c.Request().PostArgs().Peek("token")))
 	if token == "" || token == "{{token}}" {
-		c.Status(fiber.StatusBadRequest)
-		return renderTempl(c, views.EmailVerificationResultPage(
-			"Verify email",
-			false,
-			"Invalid or missing verification token.",
-			"",
-		))
+		return invalidEmailVerificationToken(c)
 	}
 
 	status, errorResponse, err := r.verifyEmailViaAPI(c.Context(), token)
@@ -855,6 +871,11 @@ func (r *Router) handleVerifyEmail(c fiber.Ctx) error {
 	))
 }
 
+func invalidEmailVerificationToken(c fiber.Ctx) error {
+	c.Status(fiber.StatusBadRequest)
+	return renderTempl(c, views.EmailVerificationResultPage("Verify email", false, "Invalid or missing verification token.", ""))
+}
+
 func (r *Router) verifyEmailViaAPI(
 	ctx context.Context,
 	token string,
@@ -862,6 +883,7 @@ func (r *Router) verifyEmailViaAPI(
 	resp, err := r.apiClient.VerifyEmailWithResponse(
 		ctx,
 		api.VerifyEmailJSONRequestBody{Token: token},
+		frontendRequestEditor(ctx, ""),
 	)
 	if err != nil {
 		return http.StatusInternalServerError, nil, xerror.Unexpected().With(err)

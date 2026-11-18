@@ -262,3 +262,23 @@ func TestFTPConnector_IntrospectionDiscoversStructuredAndNestedRawFiles(t *testi
 	_, err = conn.IntrospectSchema(schemaquota.WithQuota(ctx, 1, 1024))
 	require.ErrorContains(t, err, "item limit")
 }
+
+func TestFTPConnector_RelativeBasePathMatchesDiscoveryAndReads(t *testing.T) {
+	if testing.Short() {
+		t.Skip("dependency-backed FTP fixture")
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	config := testConfig(depsports.FTPConnectorPort())
+	config.BasePath = "nested"
+	conn, err := ftpconnector.New(transportsecurity.WithPlaintext(ctx), config, testCredentials())
+	require.NoError(t, err)
+	defer func() { _ = conn.Close() }()
+	schema, err := conn.IntrospectSchema(ctx)
+	require.NoError(t, err)
+	require.Len(t, schema.Files, 1)
+	require.Equal(t, "report.bin", schema.Files[0].Name)
+	file, err := executeFTP(ctx, conn, map[string]any{"type": "ftp", "path": "report.bin", "format": "file"}, nil)
+	require.NoError(t, err)
+	require.Equal(t, "/nested/report.bin", file.TargetPath)
+}

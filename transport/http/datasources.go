@@ -14,6 +14,7 @@ import (
 	"github.com/Braidplane/braidplane-core/pkg/slug"
 	"github.com/Braidplane/braidplane-core/pkg/xerror"
 	"github.com/Braidplane/braidplane-core/service/datasourcessvc"
+	gitconnector "github.com/Braidplane/braidplane-core/service/datasourcessvc/connector/git"
 	httpconnector "github.com/Braidplane/braidplane-core/service/datasourcessvc/connector/http"
 	snowflakeconnector "github.com/Braidplane/braidplane-core/service/datasourcessvc/connector/sql/snowflake"
 )
@@ -995,8 +996,20 @@ func dataSourceToHTTP(ds *datasourcessvc.DataSource) api.DataSource {
 		resp.Credential = &credential
 	}
 	resp.SchemaDiagnostic = schemaImportDiagnosticToHTTP(ds.SchemaImportDiagnostic)
-	// Set the polymorphic Config field from raw message bytes
-	if err := resp.Config.UnmarshalJSON(ds.Config); err != nil {
+	if ds.Type == model.DataSourceTypeGit {
+		var config api.GitConfig
+		if err := json.Unmarshal(ds.Config, &config); err != nil {
+			config = api.GitConfig{}
+		}
+		config.RepoUrl = gitconnector.PublicRepoURL(config.RepoUrl)
+		if resp.TestError != nil {
+			message := "Git connection test failed. Check the repository settings and test the connection again."
+			resp.TestError = &message
+		}
+		if err := resp.Config.FromGitConfig(config); err != nil {
+			slog.Error("failed to marshal public Git configuration")
+		}
+	} else if err := resp.Config.UnmarshalJSON(ds.Config); err != nil {
 		slog.Error("failed to unmarshal data source config", logging.ErrorAttr(err))
 	}
 	schema := ds.Schema
@@ -1025,6 +1038,10 @@ func dataSourceToHTTP(ds *datasourcessvc.DataSource) api.DataSource {
 	}
 	resp.Schema = mapped
 	return resp
+}
+
+func publicGitRepositoryIdentity(raw string) string {
+	return gitconnector.PublicRepoIdentity(raw)
 }
 
 // schemaImportResultToHTTP maps queued import state returned by the service to the refresh API response.

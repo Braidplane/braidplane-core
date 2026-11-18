@@ -47,13 +47,9 @@ func (provider ftpSchemaProvider) listDirectory(ctx context.Context, relative st
 	if depth > 32 {
 		return nil, xerror.ExecutionUnavailable().Detail("schema discovery exceeds 32 directory levels")
 	}
-	directory := provider.connector.basePath
-	if relative != "" {
-		var err error
-		directory, err = joinFTPPath(directory, relative)
-		if err != nil {
-			return nil, err
-		}
+	directory, err := joinFTPPath(provider.connector.basePath, relative)
+	if err != nil {
+		return nil, err
 	}
 	entries, err := provider.connector.conn.List(directory)
 	if err != nil {
@@ -64,7 +60,7 @@ func (provider ftpSchemaProvider) listDirectory(ctx context.Context, relative st
 		if err := ctx.Err(); err != nil {
 			return nil, err
 		}
-		if entry == nil || entry.Name == "." || entry.Name == ".." || strings.ContainsAny(entry.Name, "/\\") {
+		if entry == nil || entry.Name == "" || entry.Name == "." || entry.Name == ".." || strings.Contains(entry.Name, "/") {
 			continue
 		}
 		if entry.Type != ftpclient.EntryTypeFile && entry.Type != ftpclient.EntryTypeFolder {

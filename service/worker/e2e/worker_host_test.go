@@ -2020,7 +2020,7 @@ func workerE2EUser(t *testing.T, pool *pgxpool.Pool, suffix string) *model.User 
 }
 
 func uniqueWorkerE2ELink(kind string) string {
-	return fmt.Sprintf("https://app.example.com/%s?token=worker-fixture-%d", kind, time.Now().UnixNano())
+	return fmt.Sprintf("https://app.example.com/%s/worker-fixture-%d", kind, time.Now().UnixNano())
 }
 
 func uniqueWorkerE2EQueue(base string) string {

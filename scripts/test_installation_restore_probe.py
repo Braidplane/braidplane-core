@@ -105,11 +105,17 @@ class RestoreProbeDatabaseTest(unittest.TestCase):
         init = (b'CREATE ROLE braidplane_migrator LOGIN; CREATE ROLE braidplane_runtime LOGIN; '
                 b'CREATE ROLE braidplane_executor LOGIN; ALTER DATABASE braidplane OWNER TO braidplane_migrator; '
                 b'ALTER SCHEMA public OWNER TO braidplane_migrator;')
-        catalog = (ROOT / 'postgres/migrations/000001_core.up.sql').read_bytes()
-        docker('exec', '-i', container, 'psql', '-U', 'postgres', '-d', 'braidplane', '-v', 'ON_ERROR_STOP=1',
-               input=init + b' SET ROLE braidplane_migrator;\n' + catalog +
-               b'\nCREATE TABLE public.core_schema_migrations(version bigint, dirty boolean); '
-               b'INSERT INTO public.core_schema_migrations VALUES (1, false);')
+        def psql(sql):
+            docker('exec', '-i', container, 'psql', '-U', 'postgres', '-d', 'braidplane',
+                   '-v', 'ON_ERROR_STOP=1', input=sql)
+        psql(init)
+        migrations = sorted((ROOT / 'postgres/migrations').glob('*.up.sql'))
+        for migration in migrations:
+            psql(b'SET ROLE braidplane_migrator;\n' + migration.read_bytes())
+        schema_version = int(migrations[-1].name.split('_', 1)[0])
+        psql(b'SET ROLE braidplane_migrator;\n'
+             b'CREATE TABLE public.core_schema_migrations(version bigint, dirty boolean); '
+             + f'INSERT INTO public.core_schema_migrations VALUES ({schema_version}, false);'.encode())
         dump = docker('exec', container, 'pg_dump', '-U', 'postgres', '-d', 'braidplane',
                       '--format=custom', '--no-owner', '--no-acl').stdout
         with tempfile.TemporaryDirectory() as temporary:
@@ -132,5 +138,5 @@ class RestoreProbeDatabaseTest(unittest.TestCase):
                     archive.addfile(info, io.BytesIO(content))
             seal(directory, release, '2026-01-01T00:00:00+00:00')
             result = probe(directory)
-            self.assertEqual(result['schema_version'], '1')
+            self.assertEqual(result['schema_version'], str(schema_version))
             print('Isolated real-catalog restore:', json.dumps(result, sort_keys=True))

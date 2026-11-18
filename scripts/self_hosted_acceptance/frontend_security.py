@@ -27,6 +27,7 @@ def request(path,fields=None,expected=200):
         except urllib.error.HTTPError as error:response=error
         with response:
             body=response.read().decode()
+            assert response.headers.get_all('Strict-Transport-Security') == ['max-age=31536000'], (path, 'incorrect HSTS policy')
             if response.status != 429 or expected == 429 or attempt:
                 assert response.status==expected,(path,response.status,expected)
                 return body,response.headers
@@ -43,14 +44,19 @@ def login():
     assert token, 'CSRF token missing'
     return token.group(1)
 
-def check_security():
-    page,headers=request('/auth/login')
+def assert_secure_session_cookies(headers):
     cookies=headers.get_all('Set-Cookie') or []
     assert cookies,'session cookie missing'
     for raw in cookies:
         parsed=http.cookies.SimpleCookie(raw)
+        assert parsed, 'invalid session cookie header'
         for cookie in parsed.values():
+            assert cookie.key == '__Host-session_id' and cookie['path'] == '/' and not cookie['domain'], 'expected the host-only session cookie'
             assert cookie['secure'] and cookie['httponly'] and cookie['samesite'].lower()=='lax', ('cookie protections',bool(cookie['secure']),bool(cookie['httponly']),cookie['samesite'])
+
+def check_security():
+    page,headers=request('/auth/login')
+    assert_secure_session_cookies(headers)
     token=re.search(r'name="_csrf" value="([^"]+)"',page)
     assert token,'CSRF token missing'
     passwords=json.loads(Path('/fixture/passwords.json').read_text())
@@ -58,6 +64,7 @@ def check_security():
     request('/auth/login',fields,403)
     request('/auth/login',fields|{'_csrf':'invalid-synthetic-token'},403)
     _,headers=request('/auth/login',fields|{'_csrf':token.group(1)},303)
+    assert_secure_session_cookies(headers)
     assert headers.get('Location','').startswith('/'), 'login redirect must stay local'
     profile,_=request('/api/users/profile')
     assert json.loads(profile)['slug']=='customer-owner','frontend session must authorize the profile API'

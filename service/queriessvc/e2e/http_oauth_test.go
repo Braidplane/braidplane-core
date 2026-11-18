@@ -72,7 +72,7 @@ func testRenewsHTTPOAuthForSavedQueriesAndPipelineReads(t *testing.T, stack *tes
 			t.Cleanup(func() { http.DefaultTransport = previousTransport })
 
 			suffix := time.Now().UnixNano()
-			user, err := stack.usersService.CreateUser(t.Context(), model.NewUser{FullName: "HTTP OAuth execution fixture", Email: fmt.Sprintf("http-oauth-%d@example.com", suffix), Password: "password123", Role: model.RoleUser, Locale: "en"})
+			user, err := stack.usersService.CreateUser(t.Context(), model.NewUser{FullName: "HTTP OAuth execution fixture", Email: fmt.Sprintf("http-oauth-%d@example.com", suffix), Password: "core-service-fixture-passphrase", Role: model.RoleUser, Locale: "en"})
 			require.NoError(t, err)
 			org, err := stack.orgService.CreateOrganization(t.Context(), user.Slug, model.UserEventActor(user.Slug), model.NewOrganization{Name: "HTTP OAuth execution", Slug: must.Slug(fmt.Sprintf("http-oauth-org-%d", suffix))})
 			require.NoError(t, err)

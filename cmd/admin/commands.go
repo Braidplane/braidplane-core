@@ -6,7 +6,7 @@ import (
 	"io"
 	"os"
 
-	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/Braidplane/braidplane-core/pkg/dbpool"
 
 	"github.com/Braidplane/braidplane-core/config"
 	backendconfig "github.com/Braidplane/braidplane-core/config/backend"
@@ -34,6 +34,7 @@ type bootstrapCommand struct {
 	Name                   string `required:"" help:"Account full name."`
 	Email                  string `required:"" help:"Operator-verified email address."`
 	EmailOwnershipVerified bool   `help:"Attest independent verification of email ownership."`
+	PasswordStdinRaw       bool   `help:"Read the exact UTF-8 password from stdin, including line breaks."`
 }
 
 type rekeyCommand struct {
@@ -84,7 +85,7 @@ func runAdminCLI(args []string, stdout, stderr io.Writer) error {
 	if err != nil {
 		return xerror.Wrapf("load administrator configuration: %w", err)
 	}
-	pool, err := pgxpool.New(context.Background(), cfg.Database.ConnectionString())
+	pool, err := dbpool.New(context.Background(), cfg.Database.ConnectionString())
 	if err != nil {
 		return xerror.Unexpected().Detail("connect administrator database")
 	}

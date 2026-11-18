@@ -46,6 +46,9 @@ development fixtures.
 | `username` | yes | Database user |
 | `password` | yes | Database password |
 
+PostgreSQL connector and metadata connections reject MD5 authentication.
+Configure SCRAM-SHA-256 for password-based accounts.
+
 Credentials are encrypted at rest and never returned in API responses. See [DATA_SOURCES.md - Shared credential lifecycle](../DATA_SOURCES.md#shared-credential-lifecycle).
 
 ## Operation modes and least privilege

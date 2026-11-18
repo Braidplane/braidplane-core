@@ -201,7 +201,7 @@
     document.addEventListener("htmx:timeout", progressDisconnected);
 
     window.addEventListener("pagehide", () => {
-        if (!active) return;
+        if (!active || document.documentElement.dataset.braidplaneSessionEnded === "true") return;
         try {
             saved = active.read();
             sessionStorage.setItem(storageKey, JSON.stringify(saved));

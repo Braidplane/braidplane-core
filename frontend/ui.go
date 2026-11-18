@@ -24,6 +24,8 @@ type Router struct {
 	apiBaseURL                     string
 	logger                         *slog.Logger
 	sessionStore                   *session.Store
+	verifySession                  func(fiber.Ctx, slug.Slug) error
+	browserSessionExpiry           func(context.Context, string) (int64, error)
 	selfServiceRegistrationEnabled bool
 	allowPrivateDataSourceHosts    bool
 	documentationURL               string
@@ -52,15 +54,17 @@ func NewRouter(
 	if err != nil {
 		return nil, xerror.Unexpected().With(err)
 	}
-	return &Router{
+	router := &Router{
 		apiClient:                      client,
 		apiBaseURL:                     apiBaseURL,
 		applicationURL:                 strings.TrimRight(frontendURL, "/"),
 		logger:                         logger,
 		sessionStore:                   sessionStore,
 		selfServiceRegistrationEnabled: true,
-		secureCookies:                  strings.HasPrefix(strings.ToLower(strings.TrimSpace(frontendURL)), "https://"),
-	}, nil
+		secureCookies:                  sessionStore.CookieSecure,
+	}
+	router.verifySession = router.requireBackendSession
+	return router, nil
 }
 
 // SetDocumentationURL configures the validated public documentation destination.
@@ -86,6 +90,11 @@ func (r *Router) SetSelfServiceRegistrationEnabled(enabled bool) {
 // SetAllowPrivateDataSourceHosts controls private-host controls on data source forms.
 func (r *Router) SetAllowPrivateDataSourceHosts(enabled bool) {
 	r.allowPrivateDataSourceHosts = enabled
+}
+
+// SetBrowserSessionExpiry supplies the persisted Unix expiry of a browser session.
+func (r *Router) SetBrowserSessionExpiry(lookup func(context.Context, string) (int64, error)) {
+	r.browserSessionExpiry = lookup
 }
 
 // RoutePresentation supplies an explicit hosted or Community route set to the core frontend.
@@ -130,6 +139,11 @@ type PublicPresentation struct {
 
 func (r *Router) RegisterRoutes(app *fiber.App, presentation RoutePresentation) {
 	app.Use(r.ensureFrontendRequestID)
+	switch presentation.(type) {
+	case CommunityPresentation, *CommunityPresentation:
+		app.Use(requireTopLevelHTML)
+	}
+	app.Get(browserSessionStatusPath, r.handleBrowserSessionStatus)
 	app.Use(r.securityMiddleware())
 
 	presentation.RegisterPublicRoutes(app, routerManagedHost{router: r})
@@ -149,10 +163,11 @@ func (r *Router) RegisterRoutes(app *fiber.App, presentation RoutePresentation) 
 	app.Post("/auth/reset-password", r.handleResetPasswordSubmit)
 	app.Post("/auth/resend-verification", r.handleResendVerificationEmail)
 	app.Get("/auth/error", r.handleAuthErrorPage)
-	app.Get("/verify-email", r.handleVerifyEmail)
+	app.Get("/verify-email", r.handleVerifyEmailPage)
+	app.Post("/verify-email", r.handleVerifyEmailSubmit)
+	app.Post("/auth/logout", r.handleLogout)
 
 	protected := app.Group("", r.requireAuth)
-	protected.Post("/auth/logout", r.handleLogout)
 	protected.Get("/account", r.handleAccountPage)
 	protected.Post("/account/deletion", r.handleAccountDeletionSubmit)
 	protected.Post("/account/profile", r.handleAccountProfileSubmit)
@@ -490,11 +505,26 @@ func (r *Router) memberInvitationsEnabled() bool {
 }
 
 func (r *Router) requireAuth(c fiber.Ctx) error {
+	c.Set(fiber.HeaderCacheControl, "no-store")
 	userSlug := reqctx.GetUserSlug(c, r.sessionStore)
 	if userSlug == "" {
-		return redirectToLogin(c, authenticatedReturnTo(c))
+		return r.rejectBrowserSession(c)
 	}
 
+	c.Locals(authenticatedBrowserPage, true)
+	return r.verifySession(c, userSlug)
+}
+
+func (r *Router) requireBackendSession(c fiber.Ctx, userSlug slug.Slug) error {
+	user, status, _, err := r.getProfileViaAPI(c.Context(), c.Get(fiber.HeaderCookie))
+	switch status {
+	case fiber.StatusUnauthorized, fiber.StatusForbidden, fiber.StatusNotFound:
+		return r.rejectBrowserSession(c)
+	}
+	if err != nil || user == nil || user.Slug != userSlug.String() {
+		r.logger.Warn("backend session validation failed", slog.Int("status", status))
+		return c.SendStatus(fiber.StatusServiceUnavailable)
+	}
 	return c.Next()
 }
 

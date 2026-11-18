@@ -2449,7 +2449,7 @@ func TestTestConnection_GitFailureFromRealConnectorHasPublicDetail(t *testing.T)
 
 	err := svc.TestConnection(context.Background(), must.Slug("acme-corp"), &TestConnectionParams{
 		Type:       model.DataSourceTypeGit,
-		ConfigJSON: []byte(`{"repo_url":"ssh://git@127.0.0.1:1/acme/repo.git","allow_private_hosts":true}`),
+		ConfigJSON: []byte(`{"repo_url":"https://127.0.0.1:1/acme/repo.git","allow_private_hosts":true}`),
 		Credentials: map[string]any{
 			"auth_type": gitconnector.AuthTypeHTTPS,
 		},
@@ -2458,6 +2458,23 @@ func TestTestConnection_GitFailureFromRealConnectorHasPublicDetail(t *testing.T)
 	require.Error(t, err)
 	require.ErrorIs(t, err, ErrConnectionFailed)
 	require.Contains(t, xerror.PublicDetail(err), "git ls-remote failed")
+}
+
+func TestDraftGitConnectionChecksCredentialTransportBeforeConstruction(t *testing.T) {
+	t.Parallel()
+	factory := testutil.NewFakeConnectorFactory()
+	factory.NewConnectorFn = func(context.Context, model.DataSourceType, []byte, []byte) (connector.Connector, error) {
+		t.Fatal("connector must not be constructed for mismatched Git credentials")
+		return nil, ErrInvalidInput
+	}
+	svc := newTestService(testutil.NewFakeDataSourceRepo(), testutil.NewFakeSchemaMetadataRepo(), testutil.NewFakeEncryptor(), factory.NewConnectorFn)
+	err := svc.TestConnection(t.Context(), "acme", &TestConnectionParams{
+		Type:        model.DataSourceTypeGit,
+		ConfigJSON:  []byte(`{"repo_url":"https://git.example.com/acme/reports.git"}`),
+		Credentials: map[string]any{"auth_type": "ssh"},
+	})
+	require.ErrorIs(t, err, ErrInvalidInput)
+	require.ErrorContains(t, err, "authentication must match")
 }
 
 func TestTestExistingConnectionUsesPersistedConfigAndStoredCredentials(t *testing.T) {
@@ -4267,6 +4284,34 @@ func TestUpdateDataSourceCredentials_ForcesReadOnlyForCredentiallessHTTPSGit(t *
 	assert.True(t, setReadOnlyCalled)
 	assert.True(t, setReadOnlyValue)
 	assert.True(t, result.ReadOnly)
+}
+
+func TestRotateGitCredentialsChecksConfigurationAfterLocking(t *testing.T) {
+	t.Parallel()
+	repo := testutil.NewFakeDataSourceRepo()
+	locked := false
+	repo.LockDataSourceForUpdateFn = func(context.Context, postgres.DBTX, slug.Slug, slug.Slug) error {
+		locked = true
+		return nil
+	}
+	repo.FindBySlugFn = func(_ context.Context, _ postgres.DBTX, _, source slug.Slug) (*repods.DataSource, error) {
+		config := []byte(`{"repo_url":"https://git.example.com/acme/reports.git"}`)
+		if locked {
+			config = []byte(`{"repo_url":"git@git.example.com:acme/reports.git"}`)
+		}
+		return &repods.DataSource{Slug: source, Type: model.DataSourceTypeGit, Config: config}, nil
+	}
+	repo.UpdateCredentialsFn = func(context.Context, postgres.DBTX, slug.Slug, slug.Slug, *repods.UpdateCredentialsParams) (*repods.DataSource, error) {
+		t.Fatal("credentials must not be attached when the locked configuration uses a different transport")
+		return nil, ErrInvalidInput
+	}
+	svc := newTestService(repo, testutil.NewFakeSchemaMetadataRepo(), testutil.NewFakeEncryptor(), nil)
+	_, err := svc.UpdateCredentials(t.Context(), "acme", "reports", model.UserEventActor("alice"), &UpdateCredentialsParams{
+		Credentials: map[string]any{"auth_type": "https"},
+	})
+	require.ErrorIs(t, err, ErrInvalidInput)
+	require.ErrorContains(t, err, "authentication must match")
+	require.True(t, locked)
 }
 
 func TestUpdateDataSourceCredentialsRejectsForcedReadOnlyWhenReferencedByProjectBackend(t *testing.T) {

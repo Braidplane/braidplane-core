@@ -219,6 +219,7 @@ func (s *server) UpdateAPIKey(
 		orgSlug,
 		apiKeySlug,
 		s.eventActor(c),
+		apiKeyMutationRole(c),
 		model.UpdateAPIKey{
 			Name:             req.Name,
 			Description:      req.Description,
@@ -227,7 +228,7 @@ func (s *server) UpdateAPIKey(
 		},
 	)
 	if err != nil {
-		return mapServiceError(err)
+		return mapAPIKeyMutationError(err, model.Update)
 	}
 
 	return c.JSON(apiKeyToHTTP(*key))
@@ -255,8 +256,9 @@ func (s *server) DeleteAPIKey(
 		orgSlug,
 		apiKeySlug,
 		s.eventActor(c),
+		apiKeyMutationRole(c),
 	); err != nil {
-		return mapServiceError(err)
+		return mapAPIKeyMutationError(err, model.Delete)
 	}
 
 	return c.SendStatus(fiber.StatusNoContent)
@@ -314,9 +316,10 @@ func (s *server) RotateAPIKey(
 		orgSlug,
 		apiKeySlug,
 		s.eventActor(c),
+		apiKeyMutationRole(c),
 	)
 	if err != nil {
-		return mapServiceError(err)
+		return mapAPIKeyMutationError(err, model.Update)
 	}
 
 	return c.JSON(apiKeyWithTokenToHTTP(*key))
@@ -416,6 +419,20 @@ func (s *server) canManageAPIKeyTarget(
 		return mapServiceError(err)
 	}
 	return canManageAPIKey(c, *target, action)
+}
+
+func apiKeyMutationRole(c fiber.Ctx) *slug.Slug {
+	if principal, ok := reqctx.GetAPIKeyPrincipal(c); ok {
+		return &principal.Role
+	}
+	return nil
+}
+
+func mapAPIKeyMutationError(err error, action model.Action) error {
+	if xerror.Is(err, apikeyssvc.ErrAPIKeyRoleMismatch) {
+		return apierror.Forbidden(model.ResourceAPIKeys.String(), action.String())
+	}
+	return mapServiceError(err)
 }
 
 func canManageAPIKey(c fiber.Ctx, target model.APIKey, action model.Action) error {

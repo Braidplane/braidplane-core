@@ -29,7 +29,7 @@ func NewServiceWithLogging(base Service, logger *slog.Logger) Service {
 }
 
 // EmailVerification implements Service.
-func (_d ServiceWithLogging) EmailVerification(ctx context.Context, user *model.User, verificationLink string) (err error) {
+func (_d ServiceWithLogging) EmailVerification(ctx context.Context, user *model.User, verificationLink string, code string) (err error) {
 	_startedAt := time.Now()
 	_ctx := ctx
 	_ctx, _span := tracing.StartMethodSpan(_ctx, tracing.MethodSpan{
@@ -53,7 +53,7 @@ func (_d ServiceWithLogging) EmailVerification(ctx context.Context, user *model.
 			Err:         err,
 		})
 	}()
-	err = _d._base.EmailVerification(_ctx, user, verificationLink)
+	err = _d._base.EmailVerification(_ctx, user, verificationLink, code)
 	return
 }
 
@@ -145,7 +145,7 @@ func (_d ServiceWithLogging) Notification(ctx context.Context, recipient model.N
 }
 
 // PasswordReset implements Service.
-func (_d ServiceWithLogging) PasswordReset(ctx context.Context, user *model.User, resetLink string) (err error) {
+func (_d ServiceWithLogging) PasswordReset(ctx context.Context, user *model.User, resetLink string, code string) (err error) {
 	_startedAt := time.Now()
 	_ctx := ctx
 	_ctx, _span := tracing.StartMethodSpan(_ctx, tracing.MethodSpan{
@@ -169,7 +169,7 @@ func (_d ServiceWithLogging) PasswordReset(ctx context.Context, user *model.User
 			Err:         err,
 		})
 	}()
-	err = _d._base.PasswordReset(_ctx, user, resetLink)
+	err = _d._base.PasswordReset(_ctx, user, resetLink, code)
 	return
 }
 
