@@ -114,6 +114,11 @@ func checkBinding(ref model.DataSourceRef, binding model.DataSourceBinding, boun
 	if !slices.Contains(ref.RequiredCapabilities, capability) {
 		problem("missing_capability", "update_ref_capabilities")
 	}
+	refType, knownRef := catalog.DescriptorFor(ref.DataSourceType)
+	incompatibleRef := ref.DataSourceType != model.DataSourceTypeUnknown && (!knownRef || refType.QueryOperationType != operationType)
+	if incompatibleRef {
+		problem("invalid_ref_type", "update_ref_type")
+	}
 	if !bound {
 		problem("missing_binding", "configure_binding")
 		return
@@ -126,7 +131,7 @@ func checkBinding(ref model.DataSourceRef, binding model.DataSourceBinding, boun
 		problem("read_only_sink", "bind_writable_target")
 	}
 	descriptor, known := catalog.DescriptorFor(binding.DataSourceType)
-	if !known || (ref.DataSourceType != model.DataSourceTypeUnknown && binding.DataSourceType != ref.DataSourceType) || descriptor.QueryOperationType != operationType {
+	if !known || (ref.DataSourceType != model.DataSourceTypeUnknown && binding.DataSourceType != ref.DataSourceType) || (!incompatibleRef && descriptor.QueryOperationType != operationType) {
 		problem("invalid_target_type", "bind_compatible_target")
 	}
 	if known && (sink && !descriptor.SupportsPipelineSink || !sink && !descriptor.SupportsPipelineSource) {

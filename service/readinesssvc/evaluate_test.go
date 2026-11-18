@@ -79,3 +79,18 @@ func TestEmptyScope(t *testing.T) {
 	require.Equal(t, "informational", report.Status)
 	require.Equal(t, "informational", report.Environments[0].Status)
 }
+
+func TestIncompatibleLogicalRefAction(t *testing.T) {
+	capability := model.DataSourceRefCapabilityPipelineSource
+	ref := model.DataSourceRef{DataSourceType: model.DataSourceTypePostgres, RequiredCapabilities: []model.DataSourceRefCapability{capability}}
+	binding := model.DataSourceBinding{DataSourceType: model.DataSourceTypePostgres, DataSourceActive: true}
+	for _, bound := range []bool{true, false} {
+		var actions []string
+		checkBinding(ref, binding, bound, capability, "s3", func(_, action string) { actions = append(actions, action) })
+		expected := []string{"update_ref_type"}
+		if !bound {
+			expected = append(expected, "configure_binding")
+		}
+		require.Equal(t, expected, actions)
+	}
+}
