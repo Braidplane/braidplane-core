@@ -3,6 +3,7 @@ package pipelineruntime
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"strings"
 	"testing"
 	"time"
@@ -566,4 +567,39 @@ func TestRecoveryLeavesOriginallyCommittedIndependentWindowAlone(t *testing.T) {
 	require.Equal(t, b.SourceStepSlug, final[1].SourceStepSlug)
 	require.Equal(t, pipelinerun.IncrementalCheckpointTransitionCommitted, final[1].Status)
 	require.Equal(t, "repair", final[1].CommittingRunSlug)
+}
+
+func TestRecordUpdatesRequireRetainableFileInputsBeforeDispatch(t *testing.T) {
+	for _, content := range []string{"inline-file", ""} {
+		t.Run(fmt.Sprintf("%d-bytes", len(content)), func(t *testing.T) {
+			executor := adaptTestQueryExecutor(&testutil.FakeQueryExecutor{ExecuteFn: func(_ context.Context, _, _, operation slug.Slug, _ map[string]any) (*result.ExecutionResult, error) {
+				if operation == "read-file" {
+					file := filepayload.NewFilePayloadMetadata("test.bin", "application/octet-stream", []byte(content))
+					return result.NewHTTPResult(&result.HTTPResult{StatusCode: 200, File: &file, RawBody: []byte(content)}, 0, nil), nil
+				}
+				return successfulSQLResult(1), nil
+			}})
+			calls := 0
+			runner, err := NewRunner(executor, nil, &fakeRunStore{}, acknowledgementDataSources{}, &fakeSinkRuntime{executeFn: func(context.Context, *SinkRuntimeInput) error {
+				calls++
+				return nil
+			}})
+			require.NoError(t, err)
+			pipeline := incrementalCheckpointPipeline()
+			rows, update := pipeline.Steps[0], pipeline.Steps[1]
+			rows.Query.Incremental = nil
+			configureRecordUpdateRecoverySink(update.Sink)
+			pipeline.Steps = []pipelinespec.Step{rows, {
+				Kind: "query", Slug: "fetch-file", Query: &pipelinespec.QueryRef{OperationType: "http", DataSourceSlug: "warehouse", OperationRef: "read-file", Parameters: map[string]any{"scope": "$steps.fetch-users.rows"}, OutputContract: &payload.Contract{Representation: model.ContractRepresentationFile}},
+			}, update}
+			_, err = runner.Run(t.Context(), RunRequest{OrgSlug: "acme", ProjectSlug: "ops", EnvironmentSlug: "dev", RunSlug: "update", Pipeline: pipeline, PipelineVersionID: 42})
+			if content != "" {
+				require.ErrorIs(t, err, errSinkConfigurationInvalid)
+				require.Zero(t, calls)
+				return
+			}
+			require.NoError(t, err)
+			require.Equal(t, 1, calls)
+		})
+	}
 }

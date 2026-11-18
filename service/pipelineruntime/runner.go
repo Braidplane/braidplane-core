@@ -1676,7 +1676,7 @@ func (r *Runner) Run(
 			if _, ok := sink.Config["record_updates"]; ok {
 				unavailable = errSinkConfigurationInvalid.WithPublicDetail("Record updates require complete, retainable repair inputs before dispatch.")
 				for _, step := range checkpointPipeline.Steps {
-					if step.Sink == nil && completedResults[step.Slug] == nil {
+					if step.Sink == nil && !retainableRecordUpdateInput(completedResults[step.Slug]) {
 						return unavailable
 					}
 				}
@@ -2789,6 +2789,22 @@ func (r *Runner) Run(
 		logging.LogError(ctx, "save checkpoint", err)
 	}
 	return runResult, runErr
+}
+
+// Checkpoint JSON omits file bytes. Nonempty files need a reference the run store can pin.
+func retainableRecordUpdateInput(step *pipelinerun.StepResult) bool {
+	if step == nil {
+		return false
+	}
+	content, ok := step.Payload()
+	if !ok || content.Representation != model.ContractRepresentationFile {
+		return true
+	}
+	if content.FileReference == nil {
+		return content.File != nil && content.File.SizeBytes == 0 && len(content.FileBytes) == 0
+	}
+	_, err := buildSinkPayloadBinding(&SinkRuntimeInput{SourceResult: step})
+	return err == nil
 }
 
 // resolveEnvironmentSecrets substitutes write-only secret values only on the execution copy.
