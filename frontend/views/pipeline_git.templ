@@ -147,8 +147,11 @@ templ pipelineDeployContent(data PipelineDeployView) {
 		if data.Version == nil {
 			<a class="btn btn-outline btn-sm" href={ templ.URL(PipelineDetailHrefWithEnvironment(data.Org, data.Project, data.Environment, data.Pipeline)) }>Back to pipeline details</a>
 		}
-		if data.ReviewDeployment && data.Version != nil && data.TargetEnabled {
-			<a class="btn btn-outline btn-sm" href={ templ.URL(pipelineDeploySelectionHref(data.Org, data.Project, data.Environment, data.Pipeline, data.Version.SpecHash, data.CompiledDigest, data.ResolutionDigest)) }>Review current deployment</a>
+		if data.ReviewDeployment && data.Current != nil && data.TargetEnabled {
+			<a class="btn btn-outline btn-sm" href={ templ.URL(pipelineDeploySelectionHref(data.Org, data.Project, data.Environment, data.Pipeline, data.Current.CurrentVersionSpecHash, "", "")) }>Review current deployment</a>
+		}
+		if data.ReviewDeployment && data.Version != nil && data.ResolutionDigest != "" && data.TargetEnabled {
+			<a class="btn btn-outline btn-sm" href={ templ.URL(pipelineDeploySelectionHref(data.Org, data.Project, data.Environment, data.Pipeline, data.Version.SpecHash, data.CompiledDigest, data.ResolutionDigest)) }>Review rollback selection</a>
 		}
 		if data.Version != nil && data.TargetEnabled {
 			<a class="link link-primary" href={ templ.URL(PipelineBindingSetupHref(data.Org, data.Project, data.Environment, data.Pipeline, data.Version.SpecHash, pipelineDeploySelectionHref(data.Org, data.Project, data.Environment, data.Pipeline, data.Version.SpecHash, data.CompiledDigest, data.ResolutionDigest))) }>Resolve selected version bindings</a>

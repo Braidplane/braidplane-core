@@ -10531,6 +10531,7 @@
 
         let activeConflictResolutionSession = null;
         let activeConflictDialogConfig = null;
+        let loadingConflictConfig = null;
 
         const setConflictModalStatus = (message, tone = TONE_NEUTRAL) => {
             const statusElement = document.getElementById("builder-conflict-modal-status");
@@ -10848,6 +10849,8 @@
 
                 appendButton("Merge manually", "btn btn-sm btn-primary", async () => {
                     const config = activeConflictDialogConfig;
+                    if (!config || loadingConflictConfig === config) return;
+                    loadingConflictConfig = config;
                     setConflictModalStatus("Loading canonical state for the merge resolver...");
                     try {
                         const canonicalState = await fetchCanonicalBuilderState(
@@ -10878,6 +10881,8 @@
                                 ? error.message
                                 : "Could not load canonical state for merge resolution.";
                         setConflictModalStatus(message, TONE_ERROR);
+                    } finally {
+                        if (loadingConflictConfig === config) loadingConflictConfig = null;
                     }
                 });
             }
@@ -10913,10 +10918,9 @@
                             },
                         );
                         setConflictModalStatus("Applying merged draft...");
-                        const saved = await activeConflictDialogConfig.onApplyMerge(
-                            mergedState,
-                            activeConflictDialogConfig.conflict,
-                        );
+                        const config = activeConflictDialogConfig;
+                        const saved = await config.onApplyMerge(mergedState, config.conflict);
+                        if (!conflictModal.open || config !== activeConflictDialogConfig) return;
                         if (saved) {
                             conflictModal.close();
                             saveReason?.focus();
@@ -11873,6 +11877,7 @@
                 return item;
             };
 
+            let proposalReviewRequest = 0;
             const openProposalReview = async () => {
                 const organizationSlug = getActiveOrganizationSlug();
                 const projectSlug = getActiveProjectSlug();
@@ -11907,6 +11912,8 @@
                     proposalReviewConfirm.disabled = true;
                 }
                 proposalReviewCanPublish = false;
+                if (proposalReviewModal.open) return;
+                const request = ++proposalReviewRequest;
                 proposalReviewModal.showModal();
 
                 try {
@@ -11915,6 +11922,7 @@
                         { headers: { Accept: "application/json" } },
                     );
                     const review = await readAPIJSON(response);
+                    if (!proposalReviewModal.open || request !== proposalReviewRequest) return;
                     if (!response.ok) {
                         throw new Error(
                             review?.error?.detailed_error || review?.error?.message || `status ${response.status}`,
@@ -11984,6 +11992,7 @@
                             "Proposal publication is unavailable. Check the project repository connection and publishing access.";
                     }
                 } catch (error) {
+                    if (!proposalReviewModal.open || request !== proposalReviewRequest) return;
                     if (proposalReviewState instanceof HTMLElement) {
                         proposalReviewState.textContent = "Unavailable";
                     }

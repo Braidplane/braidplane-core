@@ -46,9 +46,8 @@ for (const [boundary, roleChange, denialText] of [
             await expect(page.getByRole("button", { name: "Compile selected version", exact: true })).toHaveCount(0);
             await assess(page, testInfo, `rollback-update-denied-${boundary.replace(" ", "-")}`);
 
-            const review = page.getByRole("link", { name: "Review current deployment", exact: true });
-            await page.keyboard.press("Tab");
-            await expect(review).toBeFocused();
+            const review = page.getByRole("link", { name: "Review rollback selection", exact: true });
+            await tabTo(page, review);
             await page.keyboard.press("Enter");
             await expect(selected.getByRole("heading")).toBeFocused();
             await expect(selected).toContainText(digest);
@@ -123,8 +122,7 @@ test("rollback reviews the previous resolution and retries after a deployment re
         await assess(page, testInfo, "rollback-revision-conflict");
 
         await expect(conflict).toBeFocused();
-        await page.keyboard.press("Tab");
-        await expect(page.getByRole("link", { name: "Review current deployment", exact: true })).toBeFocused();
+        await tabTo(page, page.getByRole("link", { name: "Review rollback selection", exact: true }));
         await page.keyboard.press("Enter");
         await expect(selectionHeading).toBeFocused();
         await expect(selected).toContainText(digest);

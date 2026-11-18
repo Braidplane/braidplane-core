@@ -302,8 +302,8 @@
                 previousTarget = spreadsheetID;
                 worksheet.replaceChildren(new Option("Loading worksheets…", selected));
                 worksheetMetadata();
-                status.textContent = "Loading worksheets…";
-                retry.setAttribute("aria-disabled", "true");
+                if (status) status.textContent = "Loading worksheets…";
+                retry?.setAttribute("aria-disabled", "true");
                 const isCurrent = () =>
                     fields.isConnected && request === worksheetRequest && target.value === spreadsheetID;
                 try {
@@ -321,23 +321,25 @@
                     if (selected) worksheet.value = selected;
                     worksheetMetadata();
                     if (worksheet.value !== selected) worksheet.dispatchEvent(new Event("change", { bubbles: true }));
-                    status.textContent = worksheets.length
-                        ? `${worksheets.length} ${worksheets.length === 1 ? "worksheet" : "worksheets"} loaded.`
-                        : "No worksheets available.";
-                    if (document.activeElement === retry) worksheet.focus();
-                    retry.hidden = true;
+                    if (status)
+                        status.textContent = worksheets.length
+                            ? `${worksheets.length} ${worksheets.length === 1 ? "worksheet" : "worksheets"} loaded.`
+                            : "No worksheets available.";
+                    if (retry && document.activeElement === retry) worksheet.focus();
+                    if (retry) retry.hidden = true;
                 } catch (error) {
                     if (!isCurrent()) return;
                     worksheet.replaceChildren(
                         new Option(selected ? "Selected worksheet (unverified)" : "Worksheets unavailable", selected),
                     );
-                    status.textContent = `Could not load worksheets. ${error.message}`;
-                    retry.hidden = false;
+                    const feedback = status || fields.querySelector("[data-workspace-feedback]");
+                    if (feedback) feedback.textContent = `Could not load worksheets. ${error.message}`;
+                    if (retry) retry.hidden = false;
                 } finally {
-                    if (isCurrent()) retry.removeAttribute("aria-disabled");
+                    if (isCurrent()) retry?.removeAttribute("aria-disabled");
                 }
             };
-            retry.addEventListener("click", () => {
+            retry?.addEventListener("click", () => {
                 if (retry.getAttribute("aria-disabled") !== "true") void loadWorksheets();
             });
             target.addEventListener("change", loadWorksheets);

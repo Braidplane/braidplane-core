@@ -50,7 +50,15 @@ test("GitHub existing installation supports keyboard validation and authorizatio
         await expect(page).toHaveURL(settings);
         await assess(page, testInfo, "github-existing-install-refused");
 
+        const handoff = page.waitForResponse(
+            (response) =>
+                response.request().method() === "POST" &&
+                new URL(response.url()).pathname.endsWith("/github/authorize-existing"),
+        );
         await enterAccount("synthetic-valid");
+        const response = await handoff;
+        expect(response.status()).toBe(200);
+        expect(response.headers()["hx-redirect"]).toBe(authorization);
         await expect(page).toHaveTitle("Synthetic authorization");
         await expect(page).toHaveURL(authorization);
     });
