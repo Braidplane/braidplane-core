@@ -6,7 +6,7 @@ import re
 import subprocess
 from pathlib import Path
 
-from scripts.admit_core_ci import admit
+from scripts.admit_core_ci import admit, require_main
 from scripts.core_release_candidate import candidate
 from scripts.core_release_identity import api
 from scripts.qualify_core_images import BINARIES
@@ -73,13 +73,15 @@ def collect(repository, checkout, start, source):
     return list(pulls.values())
 
 
-def release_metadata(checkout, repository, source, platform=None):
+def release_metadata(checkout, repository, source, platform=None, *, read_source=None):
+    if read_source is None:
+        read_source = lambda name: (checkout / name).read_text()
     refs = api(f"repos/{repository}/git/matching-refs/tags/v")
     versions = [ref["ref"].removeprefix("refs/tags/") for ref in refs]
     completed = api(f"repos/{repository}/git/matching-refs/tags/core-published/")
     pattern = r"refs/tags/core-published/(v0\.(?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*)(?:-rc\.[1-9][0-9]*)?)/linux-(?:amd64|arm64)"
     completed = [(ref, match.group(1)) for ref in completed if (match := re.fullmatch(pattern, ref["ref"]))]
-    start = read_json(checkout / "ci/core-release-start.json")["source"]
+    start = json.loads(read_source("ci/core-release-start.json"))["source"]
     previous = "v0.0.0"
 
     def identity(ref, version):
@@ -139,7 +141,7 @@ def release_metadata(checkout, repository, source, platform=None):
             plan = prior_value["plan"]
             return {"release-plan.json": json.dumps(plan, indent=2) + "\n",
                     "release-inputs.json": json.dumps(prior, indent=2) + "\n",
-                    "CHANGELOG.md": with_notes((checkout / "CHANGELOG.md").read_text(), plan)}
+                    "CHANGELOG.md": with_notes(read_source("CHANGELOG.md"), plan)}
     numbers = [int(match.group(1)) for version in versions
                if (match := re.fullmatch(re.escape(target) + r"-rc\.([1-9][0-9]*)", version))]
     plan["version"] = f"{target}-rc.{max(numbers, default=0) + 1}"
@@ -154,40 +156,45 @@ def release_metadata(checkout, repository, source, platform=None):
             plan["version"] = version
     return {"release-plan.json": json.dumps(plan, indent=2) + "\n",
             "release-inputs.json": json.dumps(inputs, indent=2) + "\n",
-            "CHANGELOG.md": with_notes((checkout / "CHANGELOG.md").read_text(), plan)}
+            "CHANGELOG.md": with_notes(read_source("CHANGELOG.md"), plan)}
 
 
 def prepare(checkout, env, event):
-    repository, source = env["GITHUB_REPOSITORY"], env["GITHUB_SHA"]
+    repository, workflow_sha = env["GITHUB_REPOSITORY"], env["GITHUB_SHA"]
     run = event["workflow_run"]
+    source = run["head_sha"]
     if (env["GITHUB_EVENT_NAME"] != "workflow_run" or env["GITHUB_REF"] != "refs/heads/main" or
-            env["GITHUB_WORKFLOW_SHA"] != source or env["RUNNER_ENVIRONMENT"] != "github-hosted" or
+            env["GITHUB_WORKFLOW_SHA"] != workflow_sha or env["RUNNER_ENVIRONMENT"] != "github-hosted" or
             env["GITHUB_WORKFLOW_REF"] != repository + "/.github/workflows/core-release-plan.yml@refs/heads/main"):
         raise ValueError("automatic preparation requires trusted main workflow code")
-    if run["head_sha"] != source or api(f"repos/{repository}/git/ref/heads/main")["object"]["sha"] != source:
-        print("Main advanced; wait for successful CI on current main.")
-        return
     admit(repository, source, str(run["id"]), str(run["run_attempt"]))
-    if git(checkout, "rev-parse", "HEAD") != source or git(checkout, "status", "--porcelain=v1", "--untracked-files=all"):
-        raise ValueError("automatic preparation requires clean exact source")
-    config = read_json(checkout / "ci/core-release.json")
+    require_main(repository, source, checkout)
+    if git(checkout, "rev-parse", "HEAD") != workflow_sha or git(checkout, "status", "--porcelain=v1", "--untracked-files=all"):
+        raise ValueError("automatic preparation requires clean workflow source")
+
+    def read_source(name):
+        return subprocess.check_output(["git", "-C", str(checkout), "show", f"{source}:{name}"]).decode()
+
+    config = json.loads(read_source("ci/core-release.json"))
     if (set(config) != {"platform", "platforms", "edge", "postgres"} or
             config["platforms"] != ["linux/amd64", "linux/arm64"] or config["platform"] not in config["platforms"]):
         raise ValueError("invalid reviewed release configuration")
     placeholders = {name: {"containerimage.digest": "sha256:" + "0" * 64} for name in BINARIES}
     candidate(repository.lower(), source, "v0.0.1", config["platform"], config["edge"], config["postgres"], placeholders)
-    metadata = {platform: release_metadata(checkout, repository, source, platform) for platform in config["platforms"]}
+    metadata = {platform: release_metadata(checkout, repository, source, platform, read_source=read_source) for platform in config["platforms"]}
     if all(value is None for value in metadata.values()):
         print("No release: no eligible merged changes.")
         return
-    runs = api(f"repos/{repository}/actions/workflows/core-release.yml/runs?head_sha={source}&event=workflow_dispatch")
+
+    endpoint = f"repos/{repository}/actions/workflows/core-release.yml/runs?per_page=100"
+    raw = subprocess.check_output(["gh", "api", endpoint, "--paginate", "--slurp"])
+    titles = {item["display_title"] for page in json.loads(raw) for item in page["workflow_runs"]}
     inputs = {key: config[key] for key in ("platform", "edge", "postgres")}
-    inputs.update(ci_run_id=str(run["id"]), ci_attempt=str(run["run_attempt"]))
+    inputs.update(source_sha=source, ci_run_id=str(run["id"]), ci_attempt=str(run["run_attempt"]))
     for platform in config["platforms"]:
         if metadata[platform] is None:
             continue
-        if any(item["head_sha"] == source and item.get("display_title", "Core release candidate") ==
-               f"Core release candidate ({platform})" for item in runs["workflow_runs"]):
+        if f"Core release candidate ({platform}, {source})" in titles:
             print(f"Candidate run already exists for {platform}; inspect or retry that run.")
             continue
         api(f"repos/{repository}/actions/workflows/core-release.yml/dispatches",

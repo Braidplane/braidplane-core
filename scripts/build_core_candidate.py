@@ -22,15 +22,13 @@ BUILDKIT_IMAGE = "docker.io/moby/buildkit@sha256:93da6a53287490dd3b35952f73a1096
 
 def build(args, env, event):
     repository = env["GITHUB_REPOSITORY"]
-    revision = env["GITHUB_SHA"]
+    revision = env.get("RELEASE_SOURCE", env["GITHUB_SHA"])
     placeholders = {name: {"containerimage.digest": "sha256:" + "0" * 64} for name in BINARIES}
     candidate(repository.lower(), revision, args.version or "v0.0.1", args.platform, args.edge, args.postgres, placeholders)
     if (env["GITHUB_REF"] != "refs/heads/main" or env["GITHUB_EVENT_NAME"] != "workflow_dispatch" or
-            env["GITHUB_WORKFLOW_SHA"] != revision or event["repository"]["full_name"] != repository):
+            env["GITHUB_WORKFLOW_SHA"] != env["GITHUB_SHA"] or event["repository"]["full_name"] != repository):
         raise ValueError("candidate requires the reviewed main workflow and source revision")
     checkout = args.checkout.resolve(strict=True)
-    if checkout != Path(__file__).resolve().parents[1]:
-        raise ValueError("release tooling must run from the candidate checkout")
     output = args.output.resolve()
     if output.is_relative_to(checkout):
         raise ValueError("release output must be outside the checkout")
@@ -95,6 +93,9 @@ def build(args, env, event):
                         "baseline_sha256": baseline,
                         "record_sha256": hashlib.sha256(record_path.read_bytes()).hexdigest(), "images": images,
                         "metadata_sha256": {name: hashlib.sha256((output / name).read_bytes()).hexdigest() for name in release_files}}
+            if "RELEASE_SOURCE" in env:
+                receipt = Path(env["RUNNER_TEMP"]) / "core-release-ci-admission.json"
+                approval["ci_admission_sha256"] = hashlib.sha256(receipt.read_bytes()).hexdigest()
             (output / "approval.json").write_text(json.dumps(approval, indent=2, sort_keys=True) + "\n")
         finally:
             if created:

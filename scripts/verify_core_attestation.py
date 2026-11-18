@@ -31,10 +31,11 @@ def verify(subject, digest, repository, workflow, source_sha, signer_sha, run_id
         if hashlib.sha256(Path(subject).read_bytes()).hexdigest() != digest:
             raise ValueError("artifact bytes differ from the expected digest")
     identity = f"https://github.com/{repository}/{workflow}@refs/heads/main"
+    # The certificate describes the Actions checkout. The predicate binds the candidate checkout.
     output = subprocess.check_output([
         "gh", "attestation", "verify", subject, "--repo", repository, "--cert-identity", identity,
         "--cert-oidc-issuer", "https://token.actions.githubusercontent.com", "--source-ref", "refs/heads/main",
-        "--source-digest", source_sha, "--signer-digest", signer_sha, "--deny-self-hosted-runners",
+        "--source-digest", signer_sha, "--signer-digest", signer_sha, "--deny-self-hosted-runners",
         "--predicate-type", predicate, "--format", "json",
     ])
     statements = json.loads(output)

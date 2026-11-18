@@ -52,8 +52,9 @@ class PromoteCoreReleaseTest(unittest.TestCase):
         self.write('approval.json', dict(record_sha256=file_hash(self.fixture / 'record.json'), metadata_sha256=materials))
         self.value = dict(repository='Example/core', source=self.source, record=record, plan=self.plan, inputs=inputs,
                           materials=materials, approval_sha256=file_hash(self.fixture / 'approval.json'), run_id='123')
+        self.value['workflow_sha'] = 'c' * 40
         self.write('identity.json', self.value)
-        self.run = dict(status='completed', conclusion='success', head_sha=self.source, event='workflow_dispatch',
+        self.run = dict(status='completed', conclusion='success', head_sha='c' * 40, event='workflow_dispatch',
                         path='.github/workflows/core-release.yml', head_branch='main', run_attempt=2)
         self.versions = [self.rc]
         self.tags = {self.rc: self.tag(self.value, "2026-01-02T00:00:00Z")}
@@ -104,6 +105,8 @@ class PromoteCoreReleaseTest(unittest.TestCase):
             self.execute()
         self.assertEqual(verify.call_args.args[2]['version'], self.rc)
         self.assertEqual(verify.call_args.args[2]['attempt'], '2')
+        self.assertEqual(verify.call_args.args[2]['signer_sha'], 'c' * 40)
+        self.assertEqual(verify.call_args.args[2]['source_sha'], self.source)
         body = publish.call_args.args[3]
         self.assertIn('## v0.1.0\n', body)
         self.assertIn('Repair retries (#1)', body)

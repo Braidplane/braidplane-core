@@ -29,7 +29,7 @@ def validate_candidate(directory, approved_sha256, repository, source_sha):
     if file_hash(approval_path) != approved_sha256:
         raise ValueError("approval document differs from the approved digest")
     approval = read_json(approval_path)
-    if not isinstance(approval, dict) or set(approval) != {"core_revision", "version", "platform", "record_sha256", "baseline_sha256", "images", "metadata_sha256"}:
+    if not isinstance(approval, dict) or set(approval) - {"ci_admission_sha256"} != {"core_revision", "version", "platform", "record_sha256", "baseline_sha256", "images", "metadata_sha256"}:
         raise ValueError("invalid candidate approval document")
     if approval["core_revision"] != source_sha:
         raise ValueError("candidate source differs from the approved revision")

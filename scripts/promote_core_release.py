@@ -88,7 +88,7 @@ def promote(candidate, platform, checkout, output, env):
     if not re.fullmatch(r"[1-9][0-9]*", run_id):
         raise ValueError("invalid RC signing run")
     run = api(f"repos/{repository}/actions/runs/{run_id}")
-    if (run["status"] != "completed" or run["conclusion"] != "success" or run["head_sha"] != source or
+    if (run["status"] != "completed" or run["conclusion"] != "success" or run["head_sha"] != value["workflow_sha"] or
             run["event"] != "workflow_dispatch" or run["path"] != ".github/workflows/core-release.yml" or
             run["head_branch"] != "main"):
         raise ValueError("RC publication run must have succeeded on exact main source")
@@ -114,7 +114,7 @@ def promote(candidate, platform, checkout, output, env):
                            {name: (output / name).read_bytes() for name in approval["metadata_sha256"]})
     migration = record["migration"]
     expected = dict(record_sha256=approval["record_sha256"], repository=repository, workflow=".github/workflows/core-release.yml",
-                    source_sha=source, signer_sha=source, run_id=run_id, attempt=str(run["run_attempt"]), version=candidate,
+                    source_sha=source, signer_sha=value["workflow_sha"], run_id=run_id, attempt=str(run["run_attempt"]), version=candidate,
                     platform=platform, migration_version=migration["version"], migration_digest=migration["digest"])
     verify_release(output / "record.json", output / "installation.tar.gz", expected, output / "verification", Path(env["DOCKER_CONFIG"]))
     promoted = dict(value, promotion=dict(version=version, candidate=candidate))

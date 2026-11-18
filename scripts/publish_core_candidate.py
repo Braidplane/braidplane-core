@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Publish only the approved Core OCI images by digest."""
 import argparse
+import hashlib
 import json
 import os
 import subprocess
@@ -20,10 +21,8 @@ ORAS_IMAGE = "ghcr.io/oras-project/oras@sha256:9cfb578be975b762fd898b9d004243d80
 def publish(directory, approved_digest, checkout, output, ci_run_id, ci_attempt, env, event):
     if env.get("CORE_RELEASE_PUBLICATION_AUTHORIZED") != "yes":
         raise ValueError("explicit Core publication authorization is required")
-    repository, sha = env["GITHUB_REPOSITORY"], env["GITHUB_SHA"]
+    repository, sha = env["GITHUB_REPOSITORY"], env.get("RELEASE_SOURCE", env["GITHUB_SHA"])
     checkout = checkout.resolve(strict=True)
-    if checkout != Path(__file__).resolve().parents[1]:
-        raise ValueError("release tooling must run from the candidate checkout")
     head = subprocess.check_output(["git", "-C", str(checkout), "rev-parse", "HEAD"], text=True).strip()
     dirty = subprocess.check_output(["git", "-C", str(checkout), "status", "--porcelain=v1", "--untracked-files=all"])
     if head != sha or dirty:
@@ -37,6 +36,12 @@ def publish(directory, approved_digest, checkout, output, ci_run_id, ci_attempt,
     if source_catalog != expected_catalog:
         raise ValueError("candidate migration identity differs from the approved source")
     ci = admit(repository, sha, ci_run_id, ci_attempt)
+    if "RELEASE_SOURCE" in env:
+        receipt = Path(env["RUNNER_TEMP"]) / "core-release-ci-admission.json"
+        data = receipt.read_bytes()
+        approval = json.loads((directory / "approval.json").read_bytes())
+        if json.loads(data) != ci or hashlib.sha256(data).hexdigest() != approval["ci_admission_sha256"]:
+            raise ValueError("CI admission differs from the approved candidate")
     output = output.resolve()
     if output.is_relative_to(checkout) or output.is_relative_to(directory):
         raise ValueError("publication evidence must be outside the checkout and candidate directory")

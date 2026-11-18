@@ -43,9 +43,9 @@ After fixing labels, rerun the failed automatic preparation run; there is no
 need to rerun successful product CI just to select a release.
 
 `core-release-plan.yml` listens for completed Community core CI runs. It accepts
-only successful **push-to-main** CI for the exact current main source, and checks
-the full required job inventory through `scripts.admit_core_ci`. PR CI, branch
-rehearsals and stale main runs cannot dispatch a release candidate. It checks out
+only successful **push-to-main** CI for a source commit still reachable from
+the canonical repository's live `main`. It checks the full required job
+inventory through `scripts.admit_core_ci`. It checks out
 trusted main code with read-only contents/PR access and Actions write only to
 dispatch the existing `core-release.yml`; it cannot write source, create PRs,
 sign, publish packages, use deployment environments or restore contribution
@@ -66,14 +66,19 @@ verify that the pinned edge and PostgreSQL dependencies contain a native image.
 Change this configuration through normal review.
 These pins do not independently qualify distribution or hardware support.
 
-The dispatcher submits the source configuration and exact main CI run/attempt
-to `core-release.yml`. That workflow checks CI again, selects the version when
-its job starts and refuses changed configuration or source. This accounts for
-an earlier queued candidate being published first; already-published or
-`release:none` work cleanly skips publication. A main advance or
-label/version race can safely stop an old dispatch; use the run for the current
-successful main revision. Duplicate completion events do not start another
-candidate for the same source.
+The dispatcher submits the exact source SHA, source configuration and CI
+run/attempt to `core-release.yml`. The workflow rechecks CI and reachability
+before build and after publication approval. It runs release tooling from the
+reviewed workflow checkout and builds from a separate checkout of the admitted
+source. The approval digest binds the CI admission receipt to the candidate.
+The signing certificate identifies the workflow revision, and the signed
+provenance identifies the candidate source revision.
+
+Candidate builds select the version when their job starts. Already-published
+or `release:none` changes can skip the build. Publication shares a queue with
+promotion and checks completed release sources across versions and platforms
+before reserving a tag. An older source cannot publish after a newer one.
+The dispatcher uses the source SHA and platform to identify existing runs.
 
 ## Authorization and enablement
 
@@ -127,7 +132,7 @@ candidate under the [dependency update policy](../SECURITY.md#dependency-updates
 Repeat the advisory review against the same digests before promotion.
 
 After signing, verification requires the expected public repository, workflow,
-source/signer revision, hosted runner and current run/attempt for all ten subjects:
+candidate source, signer revision, hosted runner and current run/attempt for all ten subjects:
 record and archive provenance, plus provenance and SBOM for each of four images.
 Only then is `core-published/v0.X.Y-rc.N/linux-amd64` created and the GitHub prerelease published. A candidate tag or an
 uploaded Actions artifact alone is not a completed release.
@@ -190,8 +195,8 @@ expires. Tags retain identity, not downloadable archive bytes or run receipts.
 4. For a terminal preparation failure before reservation, inspect the failure
    and retry that run. The dispatcher deliberately does not restart an existing
    run just because another completion event arrives. Manual `core-release.yml`
-   dispatch remains available with the source configuration and exact successful
-   main CI run/attempt. An optional expected version can refuse an unexpected
+   dispatch remains available with the source SHA, configuration and exact
+   successful main CI run/attempt. An optional expected version can refuse an unexpected
    selection. Incorrect values fail admission.
 5. If source advances while a candidate is building or queued, its original
    artifact identity remains unchanged; newer main CI can queue a later candidate. An older candidate cannot reuse a

@@ -42,7 +42,7 @@ class PublishCoreReleaseTest(unittest.TestCase):
             asset.write_text('synthetic')
             release = dict(id=7, tag_name='v0.1.0-rc.1', body='notes', prerelease=True, draft=True)
             with patch('scripts.publish_core_release.subprocess.check_output', return_value=b'[[]]'), \
-                 patch('scripts.publish_core_release.api', side_effect=[release, [], {}]) as api, \
+                 patch('scripts.publish_core_release.api', side_effect=[release, [], [dict(name=asset.name, digest="sha256:" + file_hash(asset))], {}]) as api, \
                  patch('scripts.publish_core_release.subprocess.run') as upload:
                 publish_release('Example/core', release['tag_name'], 'a' * 40, 'notes', [asset], True)
             self.assertNotIn('--clobber', upload.call_args.args[0])
@@ -70,9 +70,28 @@ class PublishCoreReleaseTest(unittest.TestCase):
 
     def test_upload_failure_leaves_release_unpublished(self):
         release = dict(id=7, tag_name='v0.1.0', body='notes', prerelease=False, draft=True)
+        with tempfile.TemporaryDirectory() as tmp:
+            asset = Path(tmp) / 'record.json'
+            asset.write_text('synthetic')
+            self.assert_upload_failure(release, asset)
+
+    def assert_upload_failure(self, release, asset):
         with patch('scripts.publish_core_release.subprocess.check_output', return_value=b'[[]]'), \
              patch('scripts.publish_core_release.api', side_effect=[release, []]) as api, \
              patch('scripts.publish_core_release.subprocess.run', side_effect=subprocess.CalledProcessError(1, ['gh'])):
             with self.assertRaises(subprocess.CalledProcessError):
-                publish_release('Example/core', 'v0.1.0', 'a' * 40, 'notes', [Path('/tmp/synthetic')], False)
+                publish_release('Example/core', 'v0.1.0', 'a' * 40, 'notes', [asset], False)
         self.assertEqual(api.call_count, 2)
+
+
+    def test_uploaded_digest_mismatch_keeps_release_in_draft(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            asset = Path(tmp) / 'record.json'
+            asset.write_text('synthetic')
+            release = dict(id=7, tag_name='v0.1.0-rc.1', body='notes', prerelease=True, draft=True)
+            with patch('scripts.publish_core_release.subprocess.check_output', return_value=b'[[]]'), \
+                 patch('scripts.publish_core_release.api', side_effect=[release, [], [dict(name=asset.name, digest='sha256:bad')]]) as api, \
+                 patch('scripts.publish_core_release.subprocess.run'), \
+                 self.assertRaisesRegex(ValueError, 'uploaded release asset differs'):
+                publish_release('Example/core', release['tag_name'], 'a' * 40, 'notes', [asset], True)
+            self.assertEqual(api.call_count, 3)
