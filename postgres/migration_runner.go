@@ -4,10 +4,13 @@ import (
 	"context"
 	"io/fs"
 	"net/url"
+	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
 
+	"github.com/jackc/pgservicefile"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/stdlib"
 
@@ -41,14 +44,8 @@ func ApplyMigrationCatalog(databaseURL string, catalog fs.FS) (bool, error) {
 	if err != nil {
 		return false, err
 	}
-	plain := migrate.FilterCustomQuery(parsed)
-	// pgx decodes URL query spaces as %20. FilterCustomQuery encodes them as +.
-	plain.RawQuery = strings.ReplaceAll(plain.RawQuery, "+", "%20")
-	connection, err := pgx.ParseConfig(plain.String())
+	connection, err := parseMigrationConnection(parsed)
 	if err != nil {
-		return false, xerror.ValidationFailed().Detail("invalid migration connection configuration")
-	}
-	if err := dbpool.RestrictAuthentication(&connection.Config); err != nil {
 		return false, err
 	}
 	source, err := iofs.New(catalog, ".")
@@ -80,6 +77,70 @@ func ApplyMigrationCatalog(databaseURL string, catalog fs.FS) (bool, error) {
 		return false, xerror.Unexpected().Detailf("apply migrations: %s", sanitizeMigrationError(err, databaseURL))
 	}
 	return true, nil
+}
+
+func parseMigrationConnection(databaseURL *url.URL) (*pgx.ConnConfig, error) {
+	plain := migrate.FilterCustomQuery(databaseURL)
+	query := plain.Query()
+	for _, key := range []string{"sslmode", "ssl", "service", "servicefile"} {
+		if len(query[key]) > 1 || query.Has(key) && query.Get(key) == "" {
+			return nil, xerror.ValidationFailed().Detailf("invalid migration connection setting %s", key)
+		}
+	}
+	if query.Get("sslmode") == "" && query.Get("ssl") != "true" {
+		mode, configured, err := migrationServiceTLSMode(query)
+		if err != nil {
+			return nil, err
+		}
+		if !configured {
+			mode = os.Getenv("PGSSLMODE")
+		}
+		if mode == "" {
+			mode = "require"
+		}
+		// Pin the selected mode so rereading the service cannot change TLS policy.
+		query.Set("sslmode", mode)
+	}
+	// pgx decodes URL query spaces as %20.
+	plain.RawQuery = strings.ReplaceAll(query.Encode(), "+", "%20")
+	connection, err := pgx.ParseConfig(plain.String())
+	if err != nil {
+		return nil, xerror.ValidationFailed().Detail("invalid migration connection configuration")
+	}
+	if err := dbpool.RestrictAuthentication(&connection.Config); err != nil {
+		return nil, err
+	}
+	return connection, nil
+}
+
+// migrationServiceTLSMode uses the service-file precedence of pgx.ParseConfig.
+func migrationServiceTLSMode(query url.Values) (string, bool, error) {
+	service := os.Getenv("PGSERVICE")
+	if query.Has("service") {
+		service = query.Get("service")
+	}
+	if service == "" {
+		return "", false, nil
+	}
+
+	serviceFile := os.Getenv("PGSERVICEFILE")
+	if query.Has("servicefile") {
+		serviceFile = query.Get("servicefile")
+	} else if serviceFile == "" {
+		if home, err := os.UserHomeDir(); err == nil {
+			serviceFile = filepath.Join(home, ".pg_service.conf")
+		}
+	}
+	profiles, err := pgservicefile.ReadServicefile(serviceFile)
+	if err != nil {
+		return "", false, xerror.ValidationFailed().Detail("invalid migration connection service file")
+	}
+	profile, err := profiles.GetService(service)
+	if err != nil {
+		return "", false, xerror.ValidationFailed().Detail("migration connection service is missing from its service file")
+	}
+	mode, configured := profile.Settings["sslmode"]
+	return mode, configured, nil
 }
 
 // sanitizeMigrationError removes the configured database URL and password from

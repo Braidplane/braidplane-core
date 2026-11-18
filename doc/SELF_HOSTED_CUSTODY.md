@@ -4,7 +4,15 @@ Use this guide to configure Community core on customer infrastructure and check
 where its data goes.
 
 Core PostgreSQL connections reject MD5 authentication. Configure
-SCRAM-SHA-256 for password-based runtime and migration roles.
+SCRAM-SHA-256 for password-based runtime, executor, and migration roles. Before
+upgrading, check their existing PostgreSQL password verifiers. If you need to
+replace an MD5 verifier, stop processes that use the affected login. Set
+`password_encryption` to `scram-sha-256` before resetting its password and
+update the corresponding secret file. Update the applicable `pg_hba.conf`
+rules and reload PostgreSQL. Check all logins matched by a shared rule and add
+a narrower rule for Core roles if other logins require their existing settings.
+Verify all three role logins before upgrading. Start the application processes
+with the updated secret files and verify readiness before restoring traffic.
 
 Set `DEPLOYMENT_PROFILE=self-hosted` for the API, worker and frontend. Supply
 customer-owned keys and database credentials, and keep SMTP certificate
@@ -83,6 +91,13 @@ Before upgrading an existing installation, stop application writes and preserve
 those values through an operator-reviewed export or consumer-owned migration,
 then clear the old fields. Keep the export protected with the database backup;
 do not put personal data in source control, logs or issue reports.
+
+Schedule a maintenance window before upgrading a database that has not applied
+Core migration 6. The migration adds generated public IDs to existing
+`odcs_artifacts` rows and builds a unique index while holding an exclusive
+table lock. Rehearse the upgrade on a recent disposable copy of the database
+to size the window. Pause application access and wait for existing transactions
+to finish before starting the migration.
 
 Inspect and preserve any failed migration's ledger state before recovery.
 Clearing the fields alone does not repair a dirty ledger. Never force a version

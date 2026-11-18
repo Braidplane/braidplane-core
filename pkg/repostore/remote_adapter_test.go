@@ -26,6 +26,7 @@ func TestFileReadFetchAndCheckoutHaveSeparateLimits(t *testing.T) {
 	require.NoError(t, os.WriteFile(filepath.Join(source, "sibling.bin"), data, 0o600))
 	want := strings.Repeat("safe fixture\n", 128)
 	require.NoError(t, os.WriteFile(filepath.Join(source, "selected.txt"), []byte(want), 0o600))
+	require.NoError(t, os.WriteFile(filepath.Join(source, "large.txt"), []byte(strings.Repeat("x", int(gitConvertedReadBlobBytes)+1)), 0o600))
 	require.NoError(t, runGit(ctx, source, "add", "--all"))
 	require.NoError(t, runGit(ctx, source, "commit", "--no-gpg-sign", "-m", "seed bounded read fixture"))
 
@@ -38,6 +39,11 @@ func TestFileReadFetchAndCheckoutHaveSeparateLimits(t *testing.T) {
 
 	_, cleanup, err = CloneReadFileRemote(ctx, source, "main", "selected.txt", 512, nil)
 	require.ErrorIs(t, err, xerror.ExecutionResponseSizeExceeded())
+	require.Nil(t, cleanup)
+
+	_, cleanup, err = CloneReadFileRemote(ctx, source, "main", "large.txt", 4096, nil)
+	require.ErrorIs(t, err, xerror.ExecutionResponseSizeExceeded())
+	require.ErrorContains(t, err, "before checkout")
 	require.Nil(t, cleanup)
 
 	store, root, cleanup, err := cloneRemoteFile(ctx, source, "main", nil, checkout)

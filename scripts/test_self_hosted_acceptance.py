@@ -65,9 +65,12 @@ class FrontendProbeTests(unittest.TestCase):
     def test_secure_session_cookie_probe_requires_a_parsed_host_cookie(self):
         headers = Message()
         headers['Set-Cookie'] = '__Host-session_id=fixture; Secure; HttpOnly; SameSite=Lax; Path=/'
+        headers['Set-Cookie'] = 'github_install_project=; Max-Age=0; Path=/'
         self.probe.assert_secure_session_cookies(headers)
-        headers.replace_header('Set-Cookie', 'invalid-cookie')
-        with self.assertRaisesRegex(AssertionError, 'invalid session cookie header'):
+        headers.replace_header(
+            'Set-Cookie', 'unrelated=fixture; __Host-session_id=fixture; Secure; HttpOnly; SameSite=Lax; Path=/',
+        )
+        with self.assertRaisesRegex(AssertionError, 'host session cookie missing or invalid'):
             self.probe.assert_secure_session_cookies(headers)
 
     def test_readiness_waits_for_api_and_frontend_and_is_bounded(self):

@@ -9,7 +9,10 @@ import (
 	"github.com/Braidplane/braidplane-core/pkg/xerror"
 )
 
-const gitReadFetchMaxBytes int64 = 256 << 20
+const (
+	gitReadFetchMaxBytes      int64 = 256 << 20
+	gitConvertedReadBlobBytes int64 = 32 << 20
+)
 
 type fileCheckout struct {
 	path               string
@@ -107,6 +110,24 @@ func prepareFileCheckout(ctx context.Context, directory string, target fileCheck
 	if !ok || strings.TrimSuffix(name, "\x00") != target.path || len(fields) != 3 || fields[1] != "blob" || fields[0] != "100644" && fields[0] != "100755" {
 		return ErrInvalidPath
 	}
+	if target.maxBytes > 0 {
+		sizeText, _, err := runGitCommandOutput(ctx, directory, nil, "cat-file", "-s", fields[2])
+		if err != nil {
+			return ErrRepositorySetup.With(err)
+		}
+		size, err := strconv.ParseInt(strings.TrimSpace(sizeText), 10, 64)
+		if err != nil || size < 0 {
+			return ErrRepositorySetup.Detail("native blob has an invalid size")
+		}
+		blobLimit := target.maxBytes
+		if target.preserveAttributes {
+			// Source encodings can shrink on checkout. Bound the input independently.
+			blobLimit = max(blobLimit, gitConvertedReadBlobBytes)
+		}
+		if size > blobLimit {
+			return xerror.ExecutionResponseSizeExceeded().Detail("Git blob exceeds the file allowance before checkout")
+		}
+	}
 	if target.preserveAttributes {
 		ctx = context.WithValue(ctx, gitWriteLimitKey{}, target.maxBytes)
 		env = append(append([]string(nil), env...), "LC_ALL=C")
@@ -118,19 +139,6 @@ func prepareFileCheckout(ctx context.Context, directory string, target fileCheck
 			return ErrRepositorySetup.With(err).Detail(sanitizeGitOutput(stderr))
 		}
 		return nil
-	}
-	if target.maxBytes > 0 {
-		sizeText, _, err := runGitCommandOutput(ctx, directory, nil, "cat-file", "-s", fields[2])
-		if err != nil {
-			return ErrRepositorySetup.With(err)
-		}
-		size, err := strconv.ParseInt(strings.TrimSpace(sizeText), 10, 64)
-		if err != nil || size < 0 {
-			return ErrRepositorySetup.Detail("native blob has an invalid size")
-		}
-		if size > target.maxBytes {
-			return xerror.ExecutionResponseSizeExceeded().Detail("Git blob exceeds the file allowance before checkout")
-		}
 	}
 	return runGit(ctx, directory, "--literal-pathspecs", "checkout-index", "--force", "--", target.path)
 }

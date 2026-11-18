@@ -45,14 +45,19 @@ def login():
     return token.group(1)
 
 def assert_secure_session_cookies(headers):
-    cookies=headers.get_all('Set-Cookie') or []
-    assert cookies,'session cookie missing'
-    for raw in cookies:
-        parsed=http.cookies.SimpleCookie(raw)
-        assert parsed, 'invalid session cookie header'
-        for cookie in parsed.values():
-            assert cookie.key == '__Host-session_id' and cookie['path'] == '/' and not cookie['domain'], 'expected the host-only session cookie'
-            assert cookie['secure'] and cookie['httponly'] and cookie['samesite'].lower()=='lax', ('cookie protections',bool(cookie['secure']),bool(cookie['httponly']),cookie['samesite'])
+    session_cookies = []
+    for raw in headers.get_all('Set-Cookie') or []:
+        if raw.split(';', 1)[0].partition('=')[0].strip() != '__Host-session_id':
+            continue
+        parsed = http.cookies.SimpleCookie(raw)
+        assert '__Host-session_id' in parsed, 'host session cookie missing or invalid'
+        session_cookies.append(parsed['__Host-session_id'])
+    assert session_cookies, 'host session cookie missing or invalid'
+    for cookie in session_cookies:
+        assert cookie['path'] == '/' and not cookie['domain'], 'expected the host-only session cookie'
+        assert cookie['secure'] and cookie['httponly'] and cookie['samesite'].lower() == 'lax', (
+            'cookie protections', bool(cookie['secure']), bool(cookie['httponly']), cookie['samesite'],
+        )
 
 def check_security():
     page,headers=request('/auth/login')

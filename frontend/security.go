@@ -29,6 +29,21 @@ const (
 
 type browserPageContextKey struct{}
 
+type browserSessionSnapshotKey struct{}
+
+type browserSessionSnapshot struct {
+	generation string
+	expiresAt  time.Time
+}
+
+func (s browserSessionSnapshot) headerValue() string {
+	remaining := time.Until(s.expiresAt).Milliseconds()
+	if s.generation == "" || remaining <= 0 {
+		return ""
+	}
+	return s.generation + ":" + strconv.FormatInt(remaining, 10)
+}
+
 var authenticatedBrowserPage browserPageContextKey
 
 func (r *Router) setBrowserSessionEnded(c fiber.Ctx) {
@@ -45,25 +60,24 @@ func (r *Router) rejectBrowserSession(c fiber.Ctx) error {
 	return redirectToLogin(c, authenticatedReturnTo(c))
 }
 
-func (r *Router) browserSessionObservation(c fiber.Ctx) (string, error) {
+func (r *Router) browserSessionObservation(c fiber.Ctx) (browserSessionSnapshot, error) {
 	sess, err := r.sessionStore.Get(c)
 	if err != nil {
-		return "", xerror.Wrapf("read browser session: %w", err)
+		return browserSessionSnapshot{}, xerror.Wrapf("read browser session: %w", err)
 	}
 	defer sess.Release()
 	raw, _ := sess.Get(reqctx.SessionUserKey).(string)
 	user, err := slug.New(raw)
 	if err != nil || user == "" {
-		return "", nil
+		return browserSessionSnapshot{}, nil
 	}
 	expiry, err := r.browserSessionExpiry(c.Context(), sess.ID())
-	remaining := time.Until(time.Unix(expiry, 0)).Milliseconds()
-	if err != nil || remaining <= 0 {
-		return "", err
+	if err != nil {
+		return browserSessionSnapshot{}, err
 	}
 	// The browser needs to distinguish consecutive logins without receiving the session ID.
 	generation := sha256.Sum256([]byte("braidplane browser session " + sess.ID()))
-	return hex.EncodeToString(generation[:16]) + ":" + strconv.FormatInt(remaining, 10), nil
+	return browserSessionSnapshot{generation: hex.EncodeToString(generation[:16]), expiresAt: time.Unix(expiry, 0)}, nil
 }
 
 func (r *Router) handleBrowserSessionStatus(c fiber.Ctx) error {
@@ -75,11 +89,21 @@ func (r *Router) handleBrowserSessionStatus(c fiber.Ctx) error {
 	if err != nil {
 		return c.SendStatus(fiber.StatusServiceUnavailable)
 	}
-	if observation == "" {
-		c.Set(browserSessionEndedHeader, "1")
-		return c.SendStatus(fiber.StatusUnauthorized)
+	status := fiber.StatusUnauthorized
+	if observation.headerValue() != "" {
+		status = r.backendSessionStatus(c, reqctx.GetUserSlug(c, r.sessionStore))
 	}
-	c.Set(browserSessionTTLHeader, observation)
+	value := observation.headerValue()
+	if status == fiber.StatusOK && value == "" {
+		status = fiber.StatusUnauthorized
+	}
+	if status == fiber.StatusUnauthorized {
+		c.Set(browserSessionEndedHeader, "1")
+	}
+	if status != fiber.StatusOK {
+		return c.SendStatus(status)
+	}
+	c.Set(browserSessionTTLHeader, value)
 	return c.SendStatus(fiber.StatusNoContent)
 }
 
@@ -159,14 +183,20 @@ func (r *Router) securityMiddleware() fiber.Handler {
 				if r.browserSessionExpiry != nil {
 					observation, err := r.browserSessionObservation(c)
 					if err != nil {
-						c.Response().ResetBody()
-						return c.SendStatus(fiber.StatusServiceUnavailable)
+						// An authorized mutation may have committed a one-time result.
+						snapshot, ok := c.Locals(browserSessionSnapshotKey{}).(browserSessionSnapshot)
+						if !ok {
+							c.Response().ResetBody()
+							return c.SendStatus(fiber.StatusServiceUnavailable)
+						}
+						observation = snapshot
 					}
-					if observation == "" {
+					value := observation.headerValue()
+					if value == "" {
 						c.Response().ResetBody()
 						return r.rejectBrowserSession(c)
 					}
-					metadata += `<meta name="braidplane-session-expiry" content="` + observation + `">`
+					metadata += `<meta name="braidplane-session-expiry" content="` + value + `">`
 				}
 				body = strings.Replace(body, "</head>", metadata+"</head>", 1)
 			}
@@ -188,7 +218,7 @@ func frontendRouteNeedsSecuritySession(c fiber.Ctx) bool {
 
 	path := strings.TrimRight(c.Path(), "/")
 	switch path {
-	case "", "/privacy", "/solutions", "/solutions/data-engineers", "/solutions/engineering-leaders", "/solutions/business-teams", "/solutions/settlement-review", "/solutions/supplier-price-desk", "/pricing", "/robots.txt", "/sitemap.xml":
+	case "", browserSessionStatusPath, "/privacy", "/solutions", "/solutions/data-engineers", "/solutions/engineering-leaders", "/solutions/business-teams", "/solutions/settlement-review", "/solutions/supplier-price-desk", "/pricing", "/robots.txt", "/sitemap.xml":
 		return false
 	default:
 		return true

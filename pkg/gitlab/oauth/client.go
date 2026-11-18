@@ -130,6 +130,7 @@ func (c *Client) Revoke(ctx context.Context, accessToken string) error {
 // ListProjects returns a bounded list of projects visible to the authenticated grant.
 func (c *Client) ListProjects(ctx context.Context, accessToken string) ([]Project, error) {
 	projects := make([]Project, 0)
+	var rejectedProjects bool
 	for page := 1; page <= maxProjectPages; page++ {
 		path := "/api/v4/projects?membership=true&order_by=path&sort=asc&simple=true&per_page=100&page=" + strconv.Itoa(page)
 		resp, err := c.get(ctx, path, accessToken)
@@ -143,11 +144,16 @@ func (c *Client) ListProjects(ctx context.Context, accessToken string) ([]Projec
 			return nil, xerror.Unavailable(xerror.DataSource).With(decodeErr)
 		}
 		for _, project := range pageProjects {
-			if c.validProjectWebURL(project.WebURL) {
+			if c.validRepositoryOrigin(project.WebURL) && c.validRepositoryOrigin(project.HTTPURLToRepo) {
 				projects = append(projects, project)
+			} else {
+				rejectedProjects = true
 			}
 		}
 		if resp.Header.Get("X-Next-Page") == "" {
+			if len(projects) == 0 && rejectedProjects {
+				return nil, xerror.Unavailable(xerror.DataSource).WithPublicDetail("GitLab returned repository URLs outside the configured instance origin.")
+			}
 			return projects, nil
 		}
 	}
@@ -169,13 +175,13 @@ func (c *Client) GetProject(ctx context.Context, accessToken, projectID string) 
 	if err := json.NewDecoder(io.LimitReader(resp.Body, 256*1024)).Decode(&project); err != nil {
 		return project, xerror.Unavailable(xerror.DataSource).With(err)
 	}
-	if !c.validProjectWebURL(project.WebURL) {
+	if !c.validRepositoryOrigin(project.WebURL) || !c.validRepositoryOrigin(project.HTTPURLToRepo) {
 		return Project{}, xerror.Unavailable(xerror.DataSource).Detail("GitLab returned a repository URL outside its configured origin")
 	}
 	return project, nil
 }
 
-func (c *Client) validProjectWebURL(raw string) bool {
+func (c *Client) validRepositoryOrigin(raw string) bool {
 	target, err := url.Parse(raw)
 	if err != nil || target.Hostname() == "" || target.User != nil || strings.Contains(raw, "\\") {
 		return false

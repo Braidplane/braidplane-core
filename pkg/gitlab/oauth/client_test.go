@@ -7,6 +7,8 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
+
+	"github.com/Braidplane/braidplane-core/pkg/xerror"
 )
 
 func TestListProjectsFollowsGitLabPagination(t *testing.T) {
@@ -22,10 +24,10 @@ func TestListProjectsFollowsGitLabPagination(t *testing.T) {
 		}
 		if r.URL.Query().Get("page") == "1" {
 			w.Header().Set("X-Next-Page", "2")
-			_, _ = fmt.Fprintf(w, `[{"id":1,"name":"One","path_with_namespace":"acme/one","web_url":%q},{"id":3,"name":"Outside","web_url":"https://other.example/acme/three"}]`, fixtureOrigin+"/acme/one")
+			_, _ = fmt.Fprintf(w, `[{"id":1,"name":"One","path_with_namespace":"acme/one","web_url":%q,"http_url_to_repo":%q},{"id":3,"name":"Outside","web_url":%q,"http_url_to_repo":"https://other.example/acme/three.git"}]`, fixtureOrigin+"/acme/one", fixtureOrigin+"/acme/one.git", fixtureOrigin+"/acme/three")
 			return
 		}
-		_, _ = fmt.Fprintf(w, `[{"id":2,"name":"Two","path_with_namespace":"acme/two","web_url":%q}]`, fixtureOrigin+"/acme/two")
+		_, _ = fmt.Fprintf(w, `[{"id":2,"name":"Two","path_with_namespace":"acme/two","web_url":%q,"http_url_to_repo":%q}]`, fixtureOrigin+"/acme/two", fixtureOrigin+"/acme/two.git")
 	}))
 	fixtureOrigin = "http://" + server.Listener.Addr().String()
 	server.Start()
@@ -43,23 +45,30 @@ func TestListProjectsFollowsGitLabPagination(t *testing.T) {
 func TestProjectWebURLMatchesConfiguredOrigin(t *testing.T) {
 	t.Parallel()
 	client := &Client{baseURL: "https://git.example.com/gitlab"}
-	require.True(t, client.validProjectWebURL("https://GIT.example.com:443/gitlab/group/subgroup/repository"))
-	require.False(t, client.validProjectWebURL("https://git.example.com:8443/gitlab/group/repository"))
-	require.False(t, client.validProjectWebURL("https://other.example/gitlab/group/repository"))
-	require.False(t, client.validProjectWebURL("https://user@git.example.com/gitlab/group/repository"))
-	require.False(t, client.validProjectWebURL("http://git.example.com/gitlab/group/repository"))
-	require.False(t, client.validProjectWebURL("/gitlab/group/repository"))
+	require.True(t, client.validRepositoryOrigin("https://GIT.example.com:443/gitlab/group/subgroup/repository"))
+	require.False(t, client.validRepositoryOrigin("https://git.example.com:8443/gitlab/group/repository"))
+	require.False(t, client.validRepositoryOrigin("https://other.example/gitlab/group/repository"))
+	require.False(t, client.validRepositoryOrigin("https://user@git.example.com/gitlab/group/repository"))
+	require.False(t, client.validRepositoryOrigin("http://git.example.com/gitlab/group/repository"))
+	require.False(t, client.validRepositoryOrigin("/gitlab/group/repository"))
 	client.baseURL = "https://bücher.example"
-	require.True(t, client.validProjectWebURL("https://xn--bcher-kva.example:0443/repository"))
+	require.True(t, client.validRepositoryOrigin("https://xn--bcher-kva.example:0443/repository"))
 	client.baseURL = "https://[2001:db8::1]"
-	require.True(t, client.validProjectWebURL("https://[2001:0db8:0:0::1]/repository"))
+	require.True(t, client.validRepositoryOrigin("https://[2001:0db8:0:0::1]/repository"))
 }
 
-func TestGetProjectRejectsWebURLOutsideConfiguredOrigin(t *testing.T) {
+func TestGitLabRejectsProjectsOutsideConfiguredCloneOrigin(t *testing.T) {
 	t.Parallel()
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
-		_, _ = w.Write([]byte(`{"id":42,"name":"Reports","web_url":"https://other.example/acme/reports"}`))
+	var fixtureOrigin string
+	server := httptest.NewUnstartedServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		project := fmt.Sprintf(`{"id":42,"name":"Reports","web_url":%q,"http_url_to_repo":"https://other.example/acme/reports.git"}`, fixtureOrigin+"/acme/reports")
+		if r.URL.Path == "/api/v4/projects" {
+			project = "[" + project + "]"
+		}
+		_, _ = w.Write([]byte(project))
 	}))
+	fixtureOrigin = "http://" + server.Listener.Addr().String()
+	server.Start()
 	t.Cleanup(server.Close)
 	client, err := New(Config{
 		ClientID: "id", ClientSecret: "secret", RedirectURI: "https://example.com/callback",
@@ -68,4 +77,7 @@ func TestGetProjectRejectsWebURLOutsideConfiguredOrigin(t *testing.T) {
 	require.NoError(t, err)
 	_, err = client.GetProject(t.Context(), "test-token", "42")
 	require.ErrorContains(t, err, "outside its configured origin")
+	_, err = client.ListProjects(t.Context(), "test-token")
+	require.ErrorIs(t, err, xerror.Unavailable(xerror.DataSource))
+	require.Contains(t, xerror.PublicDetail(err), "outside the configured instance origin")
 }
