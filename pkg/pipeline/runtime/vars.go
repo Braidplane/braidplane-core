@@ -754,41 +754,9 @@ func InputParameterKeys(input map[string]any) []string {
 // EnvironmentKeys lists only references in fields ResolvePipeline substitutes.
 func EnvironmentKeys(pipeline *pipelinespec.Pipeline) []string {
 	keys := map[string]bool{}
-	var visit func(any)
-	visit = func(value any) {
-		switch value := value.(type) {
-		case string:
-			for _, match := range runtimeReference.FindAllStringSubmatch(value, -1) {
-				name, _, _ := strings.Cut(match[1], "|")
-				if key, ok := strings.CutPrefix(strings.TrimSpace(name), EnvNamespace); ok {
-					keys[key] = true
-				}
-			}
-		case map[string]any:
-			for _, nested := range value {
-				visit(nested)
-			}
-		case []any:
-			for _, nested := range value {
-				visit(nested)
-			}
-		}
-	}
-	if pipeline != nil {
-		for _, step := range pipeline.Steps {
-			if step.Query != nil {
-				visit(step.Query.Parameters)
-				visit(step.Query.OperationInline)
-				if step.Query.Incremental != nil {
-					visit(step.Query.Incremental.LookbackWindow)
-				}
-			}
-			if step.Sink != nil {
-				visit(step.Sink.OperationInline)
-				visit(step.Sink.Config)
-			}
-		}
-	}
+	visitEnvironmentReferences(pipeline, func(key string, _ RequirementUsage) {
+		keys[key] = true
+	})
 	result := make([]string, 0, len(keys))
 	for key := range keys {
 		result = append(result, key)
