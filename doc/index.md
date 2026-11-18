@@ -44,6 +44,7 @@ Public user guides live under `docs-public/` with separate MkDocs navigation.
 - [Pipeline sink recovery](PIPELINE_SINK_RECOVERY.md)
 - [Public entrypoint preparation review](PUBLIC_ENTRYPOINT_REVIEW.md)
 - [Community core validation](QUALITY_GATES.md)
+- [WCAG 2.2 AA release verification](WCAG_22_AA.md)
 - [Community release rights and notice delivery](RELEASE_RIGHTS.md)
 - [Pinned resource scopes and dynamic selectors](RESOURCE_SCOPES.md)
 - [Local HTTP timestamp ingestion](examples/http-timestamp-watermark/README.md)
