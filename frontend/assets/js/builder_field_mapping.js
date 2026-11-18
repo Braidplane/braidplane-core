@@ -96,7 +96,11 @@
         open.setAttribute("aria-label", `Open field mapping for ${slug}`);
         const title = element("span", "Field mapping");
         const status = element("small", "Reading SQL…");
-        open.append(title, status);
+        status.id = `builder-mapping-status-${slug}`;
+        open.setAttribute("aria-describedby", status.id);
+        open.append(title);
+        const label = element("div", "", "min-w-0 flex-1");
+        label.append(open, status);
         open.addEventListener("click", () => onOpen(open));
         const toggle = element("button", "", "btn btn-ghost btn-xs builder-mapping-toggle");
         toggle.type = "button";
@@ -113,7 +117,7 @@
         details.id = `builder-mapping-detail-${slug}`;
         details.hidden = true;
         toggle.setAttribute("aria-controls", details.id);
-        header.append(open, toggle);
+        header.append(label, toggle);
         root.append(header, details);
         // These controls must not trigger node selection, connection gestures or canvas shortcuts.
         for (const event of ["click", "pointerdown", "keydown"])

@@ -51,6 +51,7 @@ func registerBuilderReferenceFixture(app *fiber.App) {
 		mu.Lock()
 		defer mu.Unlock()
 		builderReferencesEnabled, imported, bound = true, true, true
+		includeQueryArchiveSource = c.Query("include_archive") == "true"
 		return c.SendStatus(http.StatusOK)
 	})
 	app.Get("/_test/builder-requests", func(c fiber.Ctx) error {
@@ -126,10 +127,14 @@ func handleBuilderReferenceAPI(w http.ResponseWriter, r *http.Request) bool {
 		}
 		encode(map[string]any{"draft": builderDraft})
 	case "/api/organizations/acme/data-sources/warehouse/queries", "/api/organizations/acme/data-sources/warehouse-prod/queries":
-		encode(map[string]any{"queries": []any{
-			map[string]string{"slug": "customers", "name": "Customers"},
-			map[string]string{"slug": "upsert-customers", "name": "Upsert customers"},
-		}})
+		queries := []map[string]string{
+			{"slug": "customers", "name": "Customers"},
+			{"slug": "upsert-customers", "name": "Upsert customers"},
+		}
+		if includeQueryArchiveSource && r.URL.Query().Get("include_deleted") == "true" {
+			queries = append(queries, map[string]string{"slug": "archived-customers", "name": "Archived customers", "deleted_at": "2026-10-01T00:00:00Z"})
+		}
+		encode(map[string]any{"queries": queries})
 	default:
 		return false
 	}

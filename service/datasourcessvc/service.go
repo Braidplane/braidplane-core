@@ -88,7 +88,7 @@ type GitExecutionAuth struct {
 
 // Service defines the interface for data source business logic.
 type Service interface {
-	ConnectHTTPOAuth(context.Context, slug.Slug, slug.Slug, model.EventActor) (*HTTPOAuthConnection, error)
+	ConnectHTTPOAuth(context.Context, slug.Slug, slug.Slug, model.EventActor, bool) (*HTTPOAuthConnection, error)
 	AttachOrganizationGitLabConnection(context.Context, slug.Slug, slug.Slug, model.EventActor) error
 	Create(
 		ctx context.Context,
@@ -272,6 +272,7 @@ func (s *service) StartProviderDataSourceInstall(
 			Provider:           provider,
 			IncludeWriteScopes: !readOnly,
 			AccessMode:         workspaceConsentMode(params.Type, params.ConfigJSON),
+			MoreTime:           params.MoreTime,
 			Intent:             credentialssvc.OAuthInstallIntentCreate,
 			Actor:              actor,
 		})

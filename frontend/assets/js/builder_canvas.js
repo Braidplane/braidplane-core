@@ -393,6 +393,8 @@
     const TONE_ERROR = "error";
     const TONE_SUCCESS = "success";
     const TONE_NEUTRAL = "neutral";
+    const CONNECTION_SOURCE_SELECTED =
+        "Connection source selected. In Outputs, choose a step in Add outgoing link and select Add. On the canvas, drag to or click the destination input handle.";
     const TONE_WARNING = "warning";
 
     const builderRendering = window.braidplaneBuilderCanvasRendering;
@@ -2172,7 +2174,7 @@
         item.setAttribute(ATTR_SINK_QUERY_SLUG, data.sinkQuerySlug || "");
         item.tabIndex = 0;
         item.setAttribute("role", "button");
-        item.setAttribute("aria-label", nodeDisclosureTitle(data));
+        item.removeAttribute("aria-label");
         syncPortsForNode(item, data.kind || "");
 
         const content = item.querySelector(".builder-node-content");
@@ -2183,9 +2185,10 @@
         if (data.kind === KIND_TRANSFORM) {
             item.tabIndex = -1;
             item.setAttribute("role", "group");
+            item.setAttribute("aria-label", nodeDisclosureTitle(data));
             content.tabIndex = 0;
             content.setAttribute("role", "button");
-            content.setAttribute("aria-label", nodeDisclosureTitle(data));
+            content.removeAttribute("aria-label");
         }
 
         const title = kindLabel(data.kind);
@@ -2220,14 +2223,14 @@
                       : data.nodeType || DEFAULT_NODE_TYPE;
 
         clearChildren(content);
-        const titleElement = document.createElement("p");
-        titleElement.className = "text-[10px] font-semibold uppercase tracking-wide text-base-content/50";
+        const titleElement = document.createElement("span");
+        titleElement.className = "block text-[10px] font-semibold uppercase tracking-wide text-base-content/70";
         titleElement.textContent = title;
-        const subtitleElement = document.createElement("p");
-        subtitleElement.className = "mt-2 truncate text-sm font-semibold text-base-content";
+        const subtitleElement = document.createElement("span");
+        subtitleElement.className = "block mt-2 truncate text-sm font-semibold text-base-content";
         subtitleElement.textContent = subtitle;
-        const detailsElement = document.createElement("p");
-        detailsElement.className = "mt-0.5 truncate text-[11px] text-base-content/70";
+        const detailsElement = document.createElement("span");
+        detailsElement.className = "block mt-0.5 truncate text-[11px] text-base-content/70";
         detailsElement.textContent = details;
         content.append(titleElement, subtitleElement, detailsElement);
         renderNodeBadges(content, nodeConfigBadges(data));
@@ -3939,17 +3942,17 @@
             }
 
             if (!(getInlineSQLToggleField() instanceof HTMLElement)) {
-                const toggleLabel = document.createElement("label");
-                toggleLabel.className = "form-control mt-2";
-                toggleLabel.id = "builder-inline-sql-toggle-group";
-                toggleLabel.innerHTML =
+                const toggleGroup = document.createElement("div");
+                toggleGroup.className = "form-control mt-2";
+                toggleGroup.id = "builder-inline-sql-toggle-group";
+                toggleGroup.innerHTML =
                     '<span class="label-text text-xs">Inline SQL</span>' +
                     '<label class="label cursor-pointer justify-start gap-2">' +
                     `<input class="checkbox checkbox-sm" id="${property.inlineSQLToggleId || "builder-field-inline-sql-toggle"}" type="checkbox"/>` +
                     '<span class="label-text text-xs" id="builder-inline-sql-toggle-label">Use inline SQL instead of a saved query</span>' +
                     "</label>";
                 sourceGroup.insertBefore(
-                    toggleLabel,
+                    toggleGroup,
                     savedQueryGroup instanceof HTMLElement ? savedQueryGroup : queryField,
                 );
             }
@@ -4108,6 +4111,7 @@
 
             buttonElement.classList.toggle("btn-primary", active);
             buttonElement.classList.toggle("btn-outline", !active);
+            buttonElement.setAttribute("aria-pressed", String(active));
         };
 
         const applyWorkspaceViewMode = () => {
@@ -4502,6 +4506,7 @@
             );
 
         const syncCanvasSurfaceSize = () => {
+            surfaceElement.style.setProperty("--builder-min-target-size", `${24 / canvasScale}px`);
             const view = canvasViewBox(canvasScale);
             canvasOffsetX = view.offsetX;
             canvasOffsetY = view.offsetY;
@@ -7183,6 +7188,25 @@
             return readNodeDataFromElement(item);
         };
 
+        const inspectNodeItem = (item) => {
+            if (selectNodeItem(item)) {
+                (item.querySelector(".builder-node-content[tabindex='0']") || item).focus();
+            }
+        };
+
+        const inspectCanvasDiagnostic = (inspect) => {
+            const revealCanvas = workspaceViewMode === "source";
+            if (revealCanvas) {
+                workspaceViewMode = "split";
+                applyWorkspaceViewMode();
+            }
+            inspect();
+            if (revealCanvas && rootElement.contains(document.activeElement)) {
+                render();
+                document.activeElement.scrollIntoView({ block: "center", inline: "center" });
+            }
+        };
+
         const connectNodeItems = (sourceItem, targetItem, { selectTarget = true } = {}) => {
             if (!(sourceItem instanceof HTMLElement) || !(targetItem instanceof HTMLElement)) {
                 setStatusMessage("Select a producer first, then choose a downstream target.", TONE_NEUTRAL);
@@ -7359,13 +7383,7 @@
             }
 
             const drag = activeConnectionDrag;
-            const target = drag.moved ? connectionTargetAtPointer(event, drag.sourceItem) : null;
-            const targetItem =
-                target?.item instanceof HTMLElement
-                    ? target.item
-                    : drag.targetPort instanceof HTMLElement
-                      ? drag.targetPort.closest(".builder-node")
-                      : null;
+            const targetItem = drag.moved ? connectionTargetAtPointer(event, drag.sourceItem)?.item : null;
 
             window.removeEventListener("mousemove", handleConnectionDragMove);
             window.removeEventListener("mouseup", finishConnectionDrag);
@@ -7383,10 +7401,7 @@
                 return;
             }
 
-            setStatusMessage(
-                "Connection source selected. Drag to a downstream input handle, click an input handle, or Shift+click a downstream node.",
-                TONE_NEUTRAL,
-            );
+            setStatusMessage(CONNECTION_SOURCE_SELECTED, TONE_NEUTRAL);
         };
 
         const cancelConnectionDrag = () => {
@@ -7461,8 +7476,7 @@
                 connectionStatus.textContent = `${outgoingEdges.length} downstream`;
             }
             if (connectionHelp instanceof HTMLElement) {
-                connectionHelp.textContent =
-                    "Choose downstream steps here, drag from an output handle, or select a producer and Shift+click a target.";
+                connectionHelp.textContent = "Choose a step in Add outgoing link, then select Add.";
             }
 
             if (canHaveOutgoingConnection(node.kind)) {
@@ -7478,6 +7492,9 @@
                 const outgoingSelect = document.createElement("select");
                 outgoingSelect.className = "select select-bordered select-sm w-full";
                 outgoingSelect.id = "builder-connection-outgoing-select";
+                if (connectionHelp instanceof HTMLElement) {
+                    outgoingSelect.setAttribute("aria-describedby", connectionHelp.id);
+                }
                 const outgoingPlaceholder = document.createElement("option");
                 outgoingPlaceholder.value = "";
                 outgoingPlaceholder.textContent = "Select target node";
@@ -7531,6 +7548,7 @@
                         removeButton.type = "button";
                         removeButton.className = "btn btn-ghost btn-xs";
                         removeButton.textContent = "Remove";
+                        removeButton.setAttribute("aria-label", `Remove connection ${edge.from} to ${edge.to}`);
                         removeButton.setAttribute("data-remove-outgoing-to", edge.to);
                         row.appendChild(label);
                         row.appendChild(removeButton);
@@ -7831,7 +7849,6 @@
         const schemaRefresh = document.getElementById("builder-schema-refresh");
         let schemaIdentity = "";
         let schemaDatasets = [];
-        let schemaTimer;
         let schemaGeneration = 0;
         const schemaContext = () => {
             const item = selectedItem();
@@ -7873,9 +7890,8 @@
                       ? `${dataset.fields.length} fields available. Existing fields keep their definitions.`
                       : "No typed field proposal is available. Inspect the cached metadata above.");
         };
-        const loadSchema = async (refresh = false, remainingPolls = 30) => {
+        const loadSchema = async (refresh = false) => {
             const context = schemaContext();
-            clearTimeout(schemaTimer);
             const generation = ++schemaGeneration;
             schemaDatasets = [];
             schemaLines.textContent = "";
@@ -7897,7 +7913,7 @@
                     schema.error ||
                     {
                         not_imported: "No cached schema yet. Refresh schema to import it.",
-                        importing: "Schema import in progress…",
+                        importing: "Schema import is running. Use Reload cache to check progress.",
                         failed: "Schema import failed. Refresh schema to retry.",
                         ready: `Cached schema · ${context.source.name || context.source.slug}`,
                     }[schema.status] ||
@@ -7916,10 +7932,6 @@
                     schemaDataset.append(option);
                 });
                 updateSchemaProposal();
-                if (schema.status === "importing" && remainingPolls > 0 && schemaPanel.open)
-                    schemaTimer = setTimeout(() => loadSchema(false, remainingPolls - 1), 1000);
-                else if (schema.status === "importing")
-                    schemaStatus.textContent = "Schema import is still running. Reload cache to check progress.";
             } catch (error) {
                 if (current()) schemaStatus.textContent = error.message;
             } finally {
@@ -7928,10 +7940,7 @@
         };
         schemaPanel?.addEventListener("toggle", () => {
             if (schemaPanel.open && !schemaPanel.classList.contains("hidden")) loadSchema();
-            else {
-                clearTimeout(schemaTimer);
-                schemaGeneration++;
-            }
+            else schemaGeneration++;
         });
         document.getElementById("builder-schema-reload")?.addEventListener("click", () => loadSchema());
         schemaRefresh?.addEventListener("click", () => loadSchema(true));
@@ -7977,7 +7986,6 @@
                 return;
             }
             schemaIdentity = identity;
-            clearTimeout(schemaTimer);
             schemaGeneration++;
             schemaDatasets = [];
             updateSchemaProposal();
@@ -8614,24 +8622,21 @@
                 } else {
                     issues.forEach((issue) => {
                         const item = document.createElement("li");
-                        item.textContent = issue.message;
                         if (issue.nodeSlug) {
-                            item.style.cursor = "pointer";
-                            item.title = `Click to select ${issue.nodeSlug}`;
-                            item.classList.add("hover:underline");
-                            item.addEventListener("click", () => {
+                            const button = document.createElement("button");
+                            button.type = "button";
+                            button.className = "link inline-flex min-h-6 items-center text-left whitespace-normal";
+                            button.textContent = issue.message;
+                            button.addEventListener("click", (event) => {
+                                event.stopPropagation();
                                 const target = gridElement.querySelector(
                                     `.builder-node[${ATTR_NODE_SLUG}="${issue.nodeSlug}"]`,
                                 );
-                                if (!(target instanceof HTMLElement)) {
-                                    return;
-                                }
-                                selectedSlug = issue.nodeSlug;
-                                selectedEdge = null;
-                                showSelection(target);
-                                applySelection(gridElement, selectedSlug);
-                                scheduleRender();
+                                inspectCanvasDiagnostic(() => inspectNodeItem(target));
                             });
+                            item.appendChild(button);
+                        } else {
+                            item.textContent = issue.message;
                         }
                         validationList.appendChild(item);
                     });
@@ -8771,19 +8776,27 @@
                 return;
             }
 
-            const rootRect = rootElement.getBoundingClientRect();
+            const bounds =
+                nodeDisclosurePopover.offsetParent?.getBoundingClientRect() || rootElement.getBoundingClientRect();
             const nodeRect = item.getBoundingClientRect();
             const popoverRect = nodeDisclosurePopover.getBoundingClientRect();
             const gap = 12;
             const min = 12;
-            let left = nodeRect.right - rootRect.left + gap;
-            if (left + popoverRect.width > rootRect.width - min) {
-                left = nodeRect.left - rootRect.left - popoverRect.width - gap;
+            const right = nodeRect.right - bounds.left + gap;
+            const leftOfNode = nodeRect.left - bounds.left - popoverRect.width - gap;
+            const maxLeft = Math.max(min, bounds.width - popoverRect.width - min);
+            const maxTop = Math.max(min, bounds.height - popoverRect.height - min);
+            let left = right;
+            let top = Math.max(min, Math.min(nodeRect.top - bounds.top, maxTop));
+            if (right > maxLeft) {
+                left = leftOfNode;
+                if (leftOfNode < min) {
+                    left = Math.max(min, Math.min(nodeRect.left - bounds.left, maxLeft));
+                    const below = nodeRect.bottom - bounds.top + gap;
+                    const above = nodeRect.top - bounds.top - popoverRect.height - gap;
+                    top = below > maxTop && above >= min ? above : below;
+                }
             }
-            left = Math.max(min, Math.min(left, Math.max(min, rootRect.width - popoverRect.width - min)));
-
-            let top = nodeRect.top - rootRect.top;
-            top = Math.max(min, Math.min(top, Math.max(min, rootRect.height - popoverRect.height - min)));
             nodeDisclosurePopover.style.left = `${Math.round(left)}px`;
             nodeDisclosurePopover.style.top = `${Math.round(top)}px`;
         };
@@ -8826,6 +8839,26 @@
                 showNodeDisclosure(item);
             }, 180);
         };
+
+        const scheduleHideNodeDisclosure = () => {
+            if (disclosureHoverTimer !== null) window.clearTimeout(disclosureHoverTimer);
+            // Allow the pointer to cross the gap between the step and its summary.
+            disclosureHoverTimer = window.setTimeout(() => {
+                disclosureHoverTimer = null;
+                if (
+                    disclosureNode?.matches(":hover") ||
+                    disclosureNode?.contains(document.activeElement) ||
+                    nodeDisclosurePopover?.matches(":hover")
+                )
+                    return;
+                hideNodeDisclosure();
+            }, 180);
+        };
+        nodeDisclosurePopover?.addEventListener("pointerenter", () => {
+            if (disclosureHoverTimer !== null) window.clearTimeout(disclosureHoverTimer);
+            disclosureHoverTimer = null;
+        });
+        nodeDisclosurePopover?.addEventListener("pointerleave", scheduleHideNodeDisclosure);
 
         const handleNodeDisclosureScroll = () => {
             if (
@@ -8881,17 +8914,13 @@
                     positionNodeDisclosure(item);
                 }
             });
-            item.addEventListener("mouseleave", () => hideNodeDisclosure(item));
-            item.addEventListener("pointerleave", () => hideNodeDisclosure(item));
+            item.addEventListener("mouseleave", scheduleHideNodeDisclosure);
+            item.addEventListener("pointerleave", scheduleHideNodeDisclosure);
             item.addEventListener("focus", () => showNodeDisclosure(item));
             item.addEventListener("focusin", () => showNodeDisclosure(item));
             item.addEventListener("blur", () => hideNodeDisclosure(item));
             item.addEventListener("focusout", () => hideNodeDisclosure(item));
             item.addEventListener("keydown", (event) => {
-                if (event.key === "Escape") {
-                    hideNodeDisclosure();
-                    return;
-                }
                 if (event.key !== "Enter" && event.key !== " ") {
                     return;
                 }
@@ -9061,55 +9090,61 @@
             return applyHistorySnapshot(historyStates[historyIndex], "Redo applied.");
         };
 
-        gridElement.addEventListener(
-            "mousedown",
-            (event) => {
-                const target = event.target;
-                if (!(target instanceof HTMLElement)) {
+        const handlePortInteraction = (event) => {
+            const target = event.target;
+            if (!(target instanceof HTMLElement)) {
+                return;
+            }
+            const portEl = target.closest("[data-port]");
+            if (!(portEl instanceof HTMLElement)) {
+                return;
+            }
+
+            const nodeItem = portEl.closest(".builder-node");
+            if (!(nodeItem instanceof HTMLElement)) {
+                return;
+            }
+
+            const slug = nodeItem.getAttribute(ATTR_NODE_SLUG) || "";
+            const portType = portEl.getAttribute(ATTR_PORT) || "";
+            if (!slug || (portType !== PORT_DIR_IN && portType !== PORT_DIR_OUT) || event.button !== 0) {
+                return;
+            }
+
+            if (event.type === "click" && portType === PORT_DIR_OUT) {
+                return;
+            }
+            event.preventDefault();
+            event.stopPropagation();
+
+            // Keep an input press from starting a node drag. A click commits the connection.
+            if (event.type === "mousedown" && portType === PORT_DIR_IN) {
+                return;
+            }
+
+            hideNodeDisclosure();
+
+            if (portType === PORT_DIR_IN) {
+                const sourceItem = selectedItem();
+                if (sourceItem instanceof HTMLElement && sourceItem !== nodeItem) {
+                    connectNodeItems(sourceItem, nodeItem);
                     return;
                 }
-                const portEl = target.closest("[data-port]");
-                if (!(portEl instanceof HTMLElement)) {
-                    return;
-                }
+            }
 
-                const nodeItem = portEl.closest(".builder-node");
-                if (!(nodeItem instanceof HTMLElement)) {
-                    return;
-                }
-
-                const slug = nodeItem.getAttribute(ATTR_NODE_SLUG) || "";
-                const portType = portEl.getAttribute(ATTR_PORT) || "";
-                if (!slug || (portType !== PORT_DIR_IN && portType !== PORT_DIR_OUT)) {
-                    return;
-                }
-
-                event.preventDefault();
-                event.stopPropagation();
-
-                hideNodeDisclosure();
-
-                if (portType === PORT_DIR_IN) {
-                    const sourceItem = selectedItem();
-                    if (sourceItem instanceof HTMLElement && sourceItem !== nodeItem) {
-                        connectNodeItems(sourceItem, nodeItem);
-                        return;
-                    }
-                }
-
-                selectNodeItem(nodeItem, { renderSelection: portType !== PORT_DIR_OUT });
-                if (portType === PORT_DIR_OUT) {
-                    beginConnectionDrag(nodeItem, event);
-                    setStatusMessage(
-                        "Connection source selected. Drag to a downstream input handle, click an input handle, or Shift+click a downstream node.",
-                        TONE_NEUTRAL,
-                    );
-                } else {
-                    setStatusMessage("Select a producer first, then click this input handle.", TONE_NEUTRAL);
-                }
-            },
-            true,
-        );
+            selectNodeItem(nodeItem, { renderSelection: portType !== PORT_DIR_OUT });
+            if (portType === PORT_DIR_OUT) {
+                beginConnectionDrag(nodeItem, event);
+                setStatusMessage(CONNECTION_SOURCE_SELECTED, TONE_NEUTRAL);
+            } else {
+                setStatusMessage(
+                    "Select a producer first. Add the destination from Outputs or click its input handle.",
+                    TONE_NEUTRAL,
+                );
+            }
+        };
+        gridElement.addEventListener("mousedown", handlePortInteraction, true);
+        gridElement.addEventListener("click", handlePortInteraction, true);
 
         // Mirror the Go layout constants (builder_layout.go): firstColX=2, levelGapX=7.
         // Query → level 0 (X=2), Transform → level 1 (X=9), Sink → level 2 (X=16).
@@ -9959,6 +9994,10 @@
                     return;
                 }
                 const node = readNodeDataFromElement(selectedNodeItem);
+                const restoreFocus = connectionEditor?.contains(document.activeElement);
+                const focusDestination = () => {
+                    if (restoreFocus) connectionSection.querySelector("#builder-connection-outgoing-select")?.focus();
+                };
 
                 if (target.id === "builder-connection-outgoing-add-btn") {
                     const outgoingSelect = connectionSection.querySelector("#builder-connection-outgoing-select");
@@ -9974,9 +10013,10 @@
                     const targetNode = nodes.find((candidate) => candidate.slug === targetSlug) || null;
                     const result = ensureCanonicalConnection(node, targetNode);
                     if (!result.ok) {
+                        renderConnectionsEditor(node);
                         setConnectionError(result.error);
                         setStatusMessage(result.error, TONE_ERROR);
-                        renderConnectionsEditor(node);
+                        focusDestination();
                         return;
                     }
 
@@ -9985,6 +10025,7 @@
                     scheduleRender();
                     saveAndValidate();
                     setStatusMessage(`Connected ${node.slug} -> ${targetSlug}.`, TONE_SUCCESS);
+                    focusDestination();
                     return;
                 }
 
@@ -10003,6 +10044,7 @@
                 scheduleRender();
                 saveAndValidate();
                 setStatusMessage(`Removed ${node.slug} -> ${removeTo}.`, TONE_SUCCESS);
+                focusDestination();
             });
         }
 
@@ -10148,6 +10190,7 @@
                             "mt-4 space-y-2 text-xs",
                             section,
                         );
+                        schemaPreview.setAttribute("role", "group");
                         schemaPreview.setAttribute("aria-label", `${label} contract preview`);
                         loadRevision(ref)
                             .then(({ rawRevision, object }) => {
@@ -10163,6 +10206,7 @@
                         appendText("p", contractSummary(contract), "builder-inspector-subtitle", section);
                         if (!contract) return;
                         const schemaPreview = appendText("div", "", "mt-4 space-y-2 text-xs", section);
+                        schemaPreview.setAttribute("role", "group");
                         schemaPreview.setAttribute("aria-label", `${label} contract preview`);
                         builderRendering.renderEdgeContractPreview(schemaPreview, contract, contract);
                     }
@@ -10176,7 +10220,7 @@
                     button.type = "button";
                     button.className = "btn btn-outline btn-sm";
                     button.textContent = label;
-                    button.addEventListener("click", () => selectNodeItem(item));
+                    button.addEventListener("click", () => inspectNodeItem(item));
                     actions.appendChild(button);
                 }
                 appendText(
@@ -10220,7 +10264,39 @@
             scheduleRender();
         });
 
+        const removeStepButton = document.getElementById("builder-remove-step-btn");
+        const removeSelectedStep = () => {
+            const target = selectedItem();
+            if (!(target instanceof HTMLElement)) {
+                selectedSlug = null;
+                showSelection(null);
+                applySelection(gridElement, selectedSlug);
+                return;
+            }
+
+            const restoreFocus = target.contains(document.activeElement) || document.activeElement === removeStepButton;
+            target.remove();
+            removeConnectedEdges(edgesDataElement, selectedSlug);
+            bindingsState = bindingsState.filter(
+                (binding) => binding.fromNode !== selectedSlug && binding.toNode !== selectedSlug,
+            );
+            selectedSlug = null;
+            selectedEdge = null;
+            showSelection(null);
+            scheduleRender();
+            saveAndValidate();
+            if (restoreFocus) togglePropertiesButton?.focus();
+        };
+        removeStepButton?.addEventListener("click", removeSelectedStep);
+
         document.addEventListener("keydown", (event) => {
+            if (event.defaultPrevented || document.querySelector("dialog[open], [popover]:popover-open")) return;
+            if (event.key === "Escape") {
+                const hadDisclosure = disclosureNode !== null;
+                hideNodeDisclosure();
+                cancelConnectionDrag();
+                if (hadDisclosure) return;
+            }
             if (isTypingContext(event.target)) {
                 return;
             }
@@ -10269,26 +10345,6 @@
                 return;
             }
 
-            if ((event.metaKey || event.ctrlKey) && (event.key === "+" || event.key === "=")) {
-                event.preventDefault();
-                const anchor = defaultZoomAnchor();
-                adjustCanvasScale(zoomStep, anchor.clientX, anchor.clientY);
-                return;
-            }
-
-            if ((event.metaKey || event.ctrlKey) && event.key === "-") {
-                event.preventDefault();
-                const anchor = defaultZoomAnchor();
-                adjustCanvasScale(-zoomStep, anchor.clientX, anchor.clientY);
-                return;
-            }
-
-            if ((event.metaKey || event.ctrlKey) && event.key === "0") {
-                event.preventDefault();
-                fitCanvasToNodes();
-                return;
-            }
-
             if (event.key === "Escape") {
                 selectedSlug = null;
                 selectedEdge = null;
@@ -10297,38 +10353,41 @@
                 return;
             }
 
-            if (event.key !== "Delete" && event.key !== "Backspace") {
+            if (
+                (event.key !== "Delete" && event.key !== "Backspace") ||
+                event.ctrlKey ||
+                event.metaKey ||
+                event.altKey ||
+                event.shiftKey
+            ) {
                 return;
             }
 
             if (!selectedSlug) {
-                if (selectedEdge) {
-                    const edges = parseEdgeData(edgesDataElement).filter((edge) => {
-                        return !(edge.from === selectedEdge.from && edge.to === selectedEdge.to);
-                    });
-                    writeEdgesData(edgesDataElement, edges);
+                const target = event.target;
+                if (
+                    selectedEdge &&
+                    target instanceof SVGElement &&
+                    edgesLayerElement.contains(target) &&
+                    target.getAttribute(ATTR_EDGE_FROM) === selectedEdge.from &&
+                    target.getAttribute(ATTR_EDGE_TO) === selectedEdge.to
+                ) {
+                    event.preventDefault();
+                    removeCanonicalConnections([selectedEdge]);
                     selectedEdge = null;
+                    showSelection(null);
                     scheduleRender();
                     saveAndValidate();
+                    togglePropertiesButton?.focus();
                 }
                 return;
             }
 
-            const target = selectedItem();
-            if (!(target instanceof HTMLElement)) {
-                selectedSlug = null;
-                showSelection(null);
-                applySelection(gridElement, selectedSlug);
-                return;
+            const item = selectedItem();
+            if (item && (event.target === item || event.target === item.querySelector(".builder-node-content"))) {
+                event.preventDefault();
+                removeSelectedStep();
             }
-
-            target.remove();
-            removeConnectedEdges(edgesDataElement, selectedSlug);
-            selectedSlug = null;
-            selectedEdge = null;
-            showSelection(null);
-            scheduleRender();
-            saveAndValidate();
         });
 
         window.addEventListener("resize", () => {
@@ -10478,7 +10537,9 @@
             if (!(statusElement instanceof HTMLElement)) {
                 return;
             }
-            statusElement.textContent = message;
+            if (statusElement.textContent !== message) {
+                statusElement.textContent = message;
+            }
             statusElement.classList.remove("text-error", "text-success", "text-base-content/60");
             if (tone === TONE_ERROR) {
                 statusElement.classList.add("text-error");
@@ -10584,6 +10645,7 @@
                                 type="button"
                                 class="flex w-full items-start justify-between gap-3 px-3 py-3 text-left"
                                 data-conflict-select-unit="${escapeHTML(unit.key)}"
+                                aria-pressed="${isSelected}"
                             >
                                 <div class="min-w-0 flex-1">
                                     <p class="truncate text-sm font-semibold text-base-content">${escapeHTML(unit.title || unit.key)}</p>
@@ -10686,11 +10748,11 @@
                                         ${field.manualError ? `<span class="text-[11px] text-error">${escapeHTML(field.manualError)}</span>` : ""}
                                     </div>
                                     <div class="mt-3 flex flex-wrap items-center gap-2" data-conflict-field-actions="${escapeHTML(field.key)}">
-                                        <button type="button" class="btn btn-sm ${field.choice === "canonical" ? "btn-primary" : "btn-outline"}" data-conflict-field-choice="canonical" data-conflict-unit="${escapeHTML(unit.key)}" data-conflict-field="${escapeHTML(field.key)}">Accept canonical</button>
-                                        <button type="button" class="btn btn-sm ${field.choice === "draft" ? "btn-primary" : "btn-outline"}" data-conflict-field-choice="draft" data-conflict-unit="${escapeHTML(unit.key)}" data-conflict-field="${escapeHTML(field.key)}">Keep draft</button>
+                                        <button type="button" class="btn btn-sm ${field.choice === "canonical" ? "btn-primary" : "btn-outline"}" data-conflict-field-choice="canonical" data-conflict-unit="${escapeHTML(unit.key)}" data-conflict-field="${escapeHTML(field.key)}" aria-pressed="${field.choice === "canonical"}">Accept canonical</button>
+                                        <button type="button" class="btn btn-sm ${field.choice === "draft" ? "btn-primary" : "btn-outline"}" data-conflict-field-choice="draft" data-conflict-unit="${escapeHTML(unit.key)}" data-conflict-field="${escapeHTML(field.key)}" aria-pressed="${field.choice === "draft"}">Keep draft</button>
                                         ${
                                             field.valueType !== "presence"
-                                                ? `<button type="button" class="btn btn-sm ${isManual ? "btn-primary" : "btn-outline"}" data-conflict-field-choice="manual" data-conflict-unit="${escapeHTML(unit.key)}" data-conflict-field="${escapeHTML(field.key)}">Manual</button>`
+                                                ? `<button type="button" class="btn btn-sm ${isManual ? "btn-primary" : "btn-outline"}" data-conflict-field-choice="manual" data-conflict-unit="${escapeHTML(unit.key)}" data-conflict-field="${escapeHTML(field.key)}" aria-pressed="${isManual}">Manual</button>`
                                                 : ""
                                         }
                                     </div>
@@ -10700,8 +10762,8 @@
                                                 <div class="mt-3 ${isManual ? "" : "hidden"}">
                                                     ${
                                                         field.valueType === "json"
-                                                            ? `<textarea class="textarea textarea-bordered h-32 w-full font-mono text-xs" data-conflict-manual-input="${escapeHTML(unit.key)}" data-conflict-manual-field="${escapeHTML(field.key)}">${escapeHTML(editorValue)}</textarea>`
-                                                            : `<input class="input input-bordered w-full text-sm" type="text" data-conflict-manual-input="${escapeHTML(unit.key)}" data-conflict-manual-field="${escapeHTML(field.key)}" value="${escapeHTML(editorValue)}"/>`
+                                                            ? `<textarea class="textarea textarea-bordered h-32 w-full font-mono text-xs" aria-label="${escapeHTML(field.label)}" data-conflict-manual-input="${escapeHTML(unit.key)}" data-conflict-manual-field="${escapeHTML(field.key)}">${escapeHTML(editorValue)}</textarea>`
+                                                            : `<input class="input input-bordered w-full text-sm" type="text" aria-label="${escapeHTML(field.label)}" data-conflict-manual-input="${escapeHTML(unit.key)}" data-conflict-manual-field="${escapeHTML(field.key)}" value="${escapeHTML(editorValue)}"/>`
                                                     }
                                                 </div>
                                             `
@@ -10755,6 +10817,7 @@
                     setConflictModalMode("overview");
                     setConflictModalStatus("Resolver closed. The line diff is still available below.");
                     renderConflictDialogActions();
+                    conflictModal.querySelector("#builder-conflict-modal-diff")?.focus();
                 });
             } else {
                 appendButton("Use canonical", "btn btn-sm btn-outline", () => {
@@ -10784,20 +10847,18 @@
                 }
 
                 appendButton("Merge manually", "btn btn-sm btn-primary", async () => {
-                    if (!activeConflictDialogConfig) {
-                        return;
-                    }
+                    const config = activeConflictDialogConfig;
                     setConflictModalStatus("Loading canonical state for the merge resolver...");
                     try {
                         const canonicalState = await fetchCanonicalBuilderState(
-                            activeConflictDialogConfig.organizationSlug,
-                            activeConflictDialogConfig.projectSlug,
-                            activeConflictDialogConfig.pipelineSlug,
+                            config.organizationSlug,
+                            config.projectSlug,
+                            config.pipelineSlug,
                         );
-                        const session = buildConflictResolutionSession(
-                            canonicalState,
-                            activeConflictDialogConfig.draftState,
-                        );
+                        if (!conflictModal.open || config !== activeConflictDialogConfig) {
+                            return;
+                        }
+                        const session = buildConflictResolutionSession(canonicalState, config.draftState);
                         if (!Array.isArray(session.units) || session.units.length === 0) {
                             setConflictModalStatus(
                                 "No field-level semantic conflicts were found. Choose a side from the conflict actions instead.",
@@ -10807,10 +10868,11 @@
                         }
                         activeConflictResolutionSession = session;
                         setConflictModalMode("resolver");
-                        setConflictModalStatus("Resolve each changed unit, then apply the merged draft.");
-                        renderConflictDialogActions();
-                        renderConflictResolutionSession();
+                        renderConflictResolutionSession("[data-conflict-select-unit][aria-pressed=true]");
                     } catch (error) {
+                        if (!conflictModal.open || config !== activeConflictDialogConfig) {
+                            return;
+                        }
                         const message =
                             error instanceof Error
                                 ? error.message
@@ -10857,6 +10919,7 @@
                         );
                         if (saved) {
                             conflictModal.close();
+                            saveReason?.focus();
                             return;
                         }
                         setConflictModalStatus(
@@ -10867,9 +10930,10 @@
                     !activeConflictResolutionSession.summary?.canApply,
                 );
             }
+            appendButton("Cancel", "btn btn-sm btn-ghost", () => conflictModal.close());
         };
 
-        const renderConflictResolutionSession = () => {
+        const renderConflictResolutionSession = (focusSelector, selection) => {
             const session = activeConflictResolutionSession;
             if (!session) {
                 return;
@@ -10917,7 +10981,7 @@
                             activeConflictResolutionSession,
                             unitKey,
                         );
-                        renderConflictResolutionSession();
+                        renderConflictResolutionSession("[data-conflict-select-unit][aria-pressed=true]");
                     });
                 });
 
@@ -10929,7 +10993,9 @@
                             activeConflictResolutionSession,
                             { unitKey, choice },
                         );
-                        renderConflictResolutionSession();
+                        renderConflictResolutionSession(
+                            `[data-conflict-apply-unit][data-conflict-choice="${CSS.escape(choice)}"]`,
+                        );
                     });
                 });
 
@@ -10943,30 +11009,43 @@
                                 activeConflictResolutionSession,
                                 { unitKey, fieldKey, choice },
                             );
-                            renderConflictResolutionSession();
+                            const fieldSelector = `[data-conflict-field-key="${CSS.escape(fieldKey)}"]`;
+                            renderConflictResolutionSession(
+                                choice === "manual"
+                                    ? `${fieldSelector} [data-conflict-manual-input]`
+                                    : `${fieldSelector} [data-conflict-field-choice="${CSS.escape(choice)}"]`,
+                            );
                         });
                     },
                 );
 
                 root.querySelectorAll("[data-conflict-manual-input][data-conflict-manual-field]").forEach((input) => {
-                    input.addEventListener("input", () => {
+                    input.addEventListener("input", (event) => {
+                        if (event.isComposing) {
+                            return;
+                        }
                         const unitKey = input.getAttribute("data-conflict-manual-input") || "";
                         const fieldKey = input.getAttribute("data-conflict-manual-field") || "";
-                        const manualText =
-                            input instanceof HTMLTextAreaElement || input instanceof HTMLInputElement
-                                ? input.value
-                                : "";
                         activeConflictResolutionSession = updateConflictResolutionManualValue(
                             activeConflictResolutionSession,
-                            { unitKey, fieldKey, manualText },
+                            { unitKey, fieldKey, manualText: input.value },
                         );
-                        renderConflictResolutionSession();
+                        renderConflictResolutionSession(`[data-conflict-manual-field="${CSS.escape(fieldKey)}"]`, [
+                            input.selectionStart,
+                            input.selectionEnd,
+                            input.selectionDirection,
+                        ]);
                     });
                 });
             };
 
             attachChoiceHandlers(unitsList);
             attachChoiceHandlers(inspector);
+            const target = document.getElementById("builder-conflict-resolver")?.querySelector(focusSelector);
+            target?.focus();
+            if (selection) {
+                target?.setSelectionRange(...selection);
+            }
         };
 
         const populateConflictDiffView = ({
@@ -11484,8 +11563,12 @@
                     });
 
                     if (!response.ok) {
-                        const message = await readAPIErrorMessage(response);
-                        setSourceEditorStatus(message || "Unable to apply pipeline source.", TONE_ERROR);
+                        const message = (await readAPIErrorMessage(response)) || "Unable to apply pipeline source.";
+                        const guidance =
+                            response.status === 400
+                                ? " Check the YAML or JSON syntax and required pipeline fields."
+                                : "";
+                        setSourceEditorStatus(message + guidance, TONE_ERROR);
                         return;
                     }
 
@@ -11500,6 +11583,7 @@
 
         if (validateButton instanceof HTMLButtonElement) {
             validateButton.addEventListener("click", async () => {
+                if (validateButton.hasAttribute("aria-busy")) return;
                 const isValid = refreshValidation();
                 if (!isValid) {
                     setStatusMessage("Draft issues found. Resolve them before server preflight.", TONE_ERROR);
@@ -11520,8 +11604,9 @@
                 serverDiagnostics = [];
                 renderEdgeDiagnostics();
                 scheduleRender();
-                validateButton.disabled = true;
+                validateButton.setAttribute("aria-disabled", "true");
                 validateButton.setAttribute("aria-busy", "true");
+                validateButton.classList.add("btn-disabled");
                 setStatusMessage("Checking this draft against the selected runtime target...", TONE_NEUTRAL);
                 try {
                     const response = await fetch(options.validationUrl || "/builder/validate", {
@@ -11551,32 +11636,30 @@
                                 if (diagnostic?.edge || diagnostic?.step) {
                                     const button = document.createElement("button");
                                     button.type = "button";
-                                    button.className = "link text-left whitespace-normal";
+                                    button.className =
+                                        "link inline-flex min-h-6 items-center text-left whitespace-normal text-base-content";
                                     button.textContent = message;
                                     button.addEventListener("click", () => {
-                                        if (diagnostic.edge) {
-                                            const path = Array.from(
-                                                edgesLayerElement.querySelectorAll('[role="button"]'),
-                                            ).find(
-                                                (entry) =>
-                                                    entry.getAttribute(ATTR_EDGE_FROM) === diagnostic.edge.from &&
-                                                    entry.getAttribute(ATTR_EDGE_TO) === diagnostic.edge.to,
-                                            );
-                                            inspectEdge(path);
-                                            path?.focus({ preventScroll: true });
-                                        } else {
-                                            const node = Array.from(gridElement.querySelectorAll(".builder-node")).find(
-                                                (entry) => entry.getAttribute(ATTR_NODE_SLUG) === diagnostic.step,
-                                            );
-                                            if (node) {
-                                                selectedSlug = diagnostic.step;
-                                                selectedEdge = null;
-                                                isPropertiesVisible = true;
-                                                applyMainGridLayout();
-                                                showSelection(node);
-                                                scheduleRender();
+                                        inspectCanvasDiagnostic(() => {
+                                            if (diagnostic.edge) {
+                                                const path = Array.from(
+                                                    edgesLayerElement.querySelectorAll('[role="button"]'),
+                                                ).find(
+                                                    (entry) =>
+                                                        entry.getAttribute(ATTR_EDGE_FROM) === diagnostic.edge.from &&
+                                                        entry.getAttribute(ATTR_EDGE_TO) === diagnostic.edge.to,
+                                                );
+                                                inspectEdge(path);
+                                                path?.focus();
+                                            } else {
+                                                const node = Array.from(
+                                                    gridElement.querySelectorAll(".builder-node"),
+                                                ).find(
+                                                    (entry) => entry.getAttribute(ATTR_NODE_SLUG) === diagnostic.step,
+                                                );
+                                                inspectNodeItem(node);
                                             }
-                                        }
+                                        });
                                     });
                                     item.appendChild(button);
                                 } else item.textContent = message;
@@ -11600,7 +11683,8 @@
                 } catch (_) {
                     setStatusMessage("Server preflight is unavailable. Retry validation.", TONE_ERROR);
                 } finally {
-                    validateButton.disabled = false;
+                    validateButton.classList.remove("btn-disabled");
+                    validateButton.removeAttribute("aria-disabled");
                     validateButton.removeAttribute("aria-busy");
                 }
             });
@@ -11778,7 +11862,7 @@
                 const item = document.createElement("div");
                 item.className = "min-w-0 rounded border border-base-300 bg-base-100 px-3 py-2";
                 const name = document.createElement("p");
-                name.className = "font-semibold uppercase tracking-wide text-base-content/50";
+                name.className = "font-semibold uppercase tracking-wide text-base-content/70";
                 name.textContent = label;
                 const content = document.createElement("p");
                 content.className = "mt-1 break-all font-mono text-base-content/80";
@@ -11804,6 +11888,14 @@
                 }
                 if (proposalReviewError instanceof HTMLElement) {
                     proposalReviewError.textContent = "";
+                }
+                if (proposalReviewState instanceof HTMLElement) {
+                    proposalReviewState.textContent = "Loading";
+                }
+                proposalReviewFacts?.replaceChildren();
+                if (proposalReviewAttribution instanceof HTMLElement) proposalReviewAttribution.textContent = "";
+                for (const diff of [proposalStructuralDiff, proposalSourceDiff]) {
+                    if (diff instanceof HTMLElement) diff.textContent = "Loading…";
                 }
                 if (proposalReviewLink instanceof HTMLAnchorElement) {
                     proposalReviewLink.classList.add("hidden");
@@ -11890,6 +11982,12 @@
                             "Proposal publication is unavailable. Check the project repository connection and publishing access.";
                     }
                 } catch (error) {
+                    if (proposalReviewState instanceof HTMLElement) {
+                        proposalReviewState.textContent = "Unavailable";
+                    }
+                    for (const diff of [proposalStructuralDiff, proposalSourceDiff]) {
+                        if (diff instanceof HTMLElement) diff.textContent = "Review unavailable.";
+                    }
                     if (proposalReviewError instanceof HTMLElement) {
                         proposalReviewError.textContent = `Unable to load proposal review: ${error.message || "unknown error"}.`;
                     }

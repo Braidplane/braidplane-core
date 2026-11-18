@@ -47,12 +47,16 @@ templ PipelineRunLineageWorkbench(
 				if lineage.Message != "" {
 					<p class="mt-1 text-xs text-base-content/65">{ lineage.Message }</p>
 				}
-				<p class="mt-1 text-xs text-base-content/65">The execution timeline remains available in Steps.</p>
+				if embedded {
+					<p class="mt-1 text-xs text-base-content/65">The execution timeline remains available in Steps.</p>
+				} else {
+					<a class="link link-primary mt-1 inline-flex min-h-6 items-center text-sm" href="#run-execution-timeline">Review recorded timeline</a>
+				}
 			</div>
 		} else if len(lineage.Nodes) == 0 {
 			<div class="mt-3 text-sm">The executed pipeline version contains no steps.</div>
 		} else if embedded {
-			@PipelineRunLineageCompact(lineage)
+			@PipelineRunLineageStepList(lineage, "lineage-preview-step-")
 			<div class="mt-3">
 				<a
 					class="btn btn-outline btn-sm w-full"
@@ -63,24 +67,34 @@ templ PipelineRunLineageWorkbench(
 			</div>
 		} else {
 			<div id="pipeline-run-lineage-workbench" class="mt-4 grid min-w-0 grid-cols-1 gap-4">
+				<div class="lg:hidden">
+					@PipelineRunLineageStepList(lineage, "lineage-compact-step-")
+				</div>
+				<details class="hidden rounded-xl border border-base-300 bg-base-100 p-4 lg:block" data-run-details-key="lineage-steps">
+					<summary id="lineage-steps-toggle" class="cursor-pointer font-semibold">Lineage steps</summary>
+					@PipelineRunLineageStepList(lineage, "lineage-list-step-")
+				</details>
+				if len(lineage.Edges) > 0 {
+					<details class="rounded-xl border border-base-300 bg-base-100 p-4" data-run-details-key="lineage-dependencies">
+						<summary id="lineage-dependencies-toggle" class="cursor-pointer font-semibold">Lineage dependencies</summary>
+						<ul class="mt-3 space-y-2 text-sm">
+							for i, edge := range lineage.Edges {
+								<li><a id={ fmt.Sprintf("lineage-list-dependency-%d", i) } class="link link-primary break-words" data-entity-focus="lineage-step-evidence" href={ templ.URL(edge.Href) }>{ lineageDependencyLabel(edge) }</a></li>
+							}
+						</ul>
+					</details>
+				}
 				@PipelineRunLineageGraph(orgSlug, activeProjectSlug, environmentSlug, run, lineage)
 				<div class="min-w-0 space-y-4">
 					@PipelineRunLineageEvidence(lineage)
 				</div>
-				if len(lineage.Edges) > 0 {
-					<ul class="sr-only" aria-label="Lineage dependencies">
-						for _, edge := range lineage.Edges {
-							<li>{ lineageDependencyLabel(edge) }</li>
-						}
-					</ul>
-				}
 			</div>
 		}
 	</section>
 }
 
 templ PipelineRunLineageLegend(lineage runlineage.View) {
-	<div class="grid grid-cols-3 overflow-hidden rounded-xl border border-base-300 bg-base-100" aria-label="Pipeline stages">
+	<div class="grid grid-cols-3 overflow-hidden rounded-xl border border-base-300 bg-base-100" role="group" aria-label="Pipeline stages">
 		<div class="border-r border-base-300 px-3 py-2.5">
 			<div class="flex items-center gap-2">
 				<span class={ lineageKindDotClass("query") }></span>
@@ -128,7 +142,7 @@ templ PipelineRunLineageFactGroup(title string, facts []lineageEvidenceFact) {
 templ lineageStatusBadge(node runlineage.Node) {
 	<span class={ lineageStatusBadgeClass(node.Status) }>
 		if node.Status == runlineage.StatusRunning {
-			<span class="loading loading-spinner size-3 motion-reduce:animate-none" aria-hidden="true"></span>
+			<svg class="size-3 shrink-0" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" aria-hidden="true"><circle cx="8" cy="8" r="5"></circle><path d="M8 5v3l2 1"></path></svg>
 		} else if node.Status == runlineage.StatusSucceeded {
 			<svg class="size-3 shrink-0" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m3 8 3 3 7-7"></path></svg>
 		} else if node.Status == runlineage.StatusPending {
@@ -140,7 +154,7 @@ templ lineageStatusBadge(node runlineage.Node) {
 	</span>
 }
 
-templ PipelineRunLineageCompact(lineage runlineage.View) {
+templ PipelineRunLineageStepList(lineage runlineage.View, linkIDPrefix string) {
 	<ol class="mt-3 max-h-[28rem] space-y-2 overflow-y-auto pr-1" aria-label="Run lineage steps">
 		for _, node := range lineage.Nodes {
 			<li class="relative">
@@ -151,8 +165,8 @@ templ PipelineRunLineageCompact(lineage runlineage.View) {
 								<span class={ lineageKindBadgeClass(node.Kind) }>{ lineageKindLabel(node.Kind) }</span>
 								@lineageStatusBadge(node)
 							</div>
-							<a class="mt-2 block truncate text-sm font-semibold link link-primary" data-entity-focus="lineage-step-evidence" href={ templ.URL(node.Href) } aria-current={ func() string { if node.Selected { return "true" }; return "false" }() }>{ lineageStepName(node) }</a>
-							<p class="mt-1 truncate font-mono text-[0.68rem] text-base-content/60">{ node.Slug }</p>
+							<a id={ linkIDPrefix + node.Slug } class="mt-2 block break-words text-sm font-semibold link link-primary" data-entity-focus="lineage-step-evidence" href={ templ.URL(node.Href) } aria-current={ func() string { if node.Selected { return "true" }; return "false" }() }>{ lineageStepName(node) }</a>
+							<p class="mt-1 break-all font-mono text-[0.68rem] text-base-content/60">{ node.Slug }</p>
 						</div>
 						if node.DurationMs > 0 {
 							<span class="shrink-0 text-xs tabular-nums text-base-content/60">{ lineageDurationLabel(node) }</span>
@@ -210,7 +224,7 @@ templ PipelineRunLineageEvidence(lineage runlineage.View) {
 			<a class="btn btn-outline btn-sm mt-3" href={ templ.URL(DefinitionHref(node.Href, node.Slug, node.FailureInput, node.Boundary, "structured")) }>{ lineageDefinitionActionLabel(*node) }</a>
 			{{ actions := runStepActions(ctx) }}
 			if actions.DataSourceHref != "" || actions.QueryHref != "" || actions.PipelineHref != "" {
-				<div class="mt-3 flex flex-wrap gap-3 text-sm" aria-label="Current configuration">
+				<div class="mt-3 flex flex-wrap gap-3 text-sm" role="group" aria-label="Current configuration">
 					if actions.PipelineHref != "" {
 						<a class="btn btn-outline btn-sm" href={ templ.URL(entityDetailHref(actions.PipelineHref, node.Href)) }>Edit current pipeline in Builder</a>
 					}
@@ -262,10 +276,7 @@ templ PipelineRunLineageEvidence(lineage runlineage.View) {
 }
 
 templ PipelineRunLineageGraph(orgSlug string, activeProjectSlug string, environmentSlug string, run api.PipelineRunRecord, lineage runlineage.View) {
-	<div class="min-w-0">
-		<div class="lg:hidden">
-			@PipelineRunLineageCompact(lineage)
-		</div>
+	<div class="hidden min-w-0 lg:block">
 		<div class="hidden lg:block" data-lineage-view={ buildEnvironmentRunDetailHref(orgSlug, activeProjectSlug, environmentSlug, string(run.Metadata.RunSlug)) + "|" + lineage.VersionHash }>
 			@PipelineRunLineageLegend(lineage)
 			<div class="mt-3">
@@ -279,14 +290,14 @@ templ PipelineRunLineageGraph(orgSlug string, activeProjectSlug string, environm
 							<button type="button" class="btn btn-ghost btn-xs" data-lineage-action="fit" aria-pressed="true">Fit</button>
 							<button type="button" class="btn btn-ghost btn-xs" data-lineage-action="reset">100%</button>
 						</div>
-						<span>Drag background or scroll to pan · + / − to zoom · 0 to fit</span>
+						<span id="run-lineage-keyboard-help">Drag the background to pan. Press Escape while dragging to cancel. Focus the graph to use arrow keys to pan, + or − to zoom, and 0 to fit.</span>
 					</div>
 					<div
 						data-lineage-viewport
 						class="pipeline-graph-grid relative h-[32rem] min-w-0 overflow-auto rounded-b-xl border border-base-300 bg-base-200/35 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"
 						tabindex="0"
 						role="region"
-						aria-label="Run lineage graph"
+						aria-label="Run lineage graph" aria-describedby="run-lineage-keyboard-help"
 					>
 						<div data-lineage-bounds class="relative overflow-hidden" style={ templ.SafeCSS(fmt.Sprintf("width:%dpx;height:%dpx;", lineage.CanvasWidth, lineage.CanvasHeight)) }>
 							<div
@@ -319,10 +330,12 @@ templ PipelineRunLineageGraph(orgSlug string, activeProjectSlug string, environm
 										<polygon class={ lineageEdgeClass(edge) } points={ edge.ArrowPoints } fill="currentColor"></polygon>
 									}
 								</svg>
-								for _, edge := range lineage.Edges {
+								for i, edge := range lineage.Edges {
 									<a
+										id={ fmt.Sprintf("lineage-graph-dependency-%d", i) }
 										href={ templ.URL(edge.Href) }
 										aria-label={ lineageDependencyLabel(edge) }
+										data-entity-focus="lineage-step-evidence"
 										class={ lineageEdgeLabelClass(edge) }
 										style={ templ.SafeCSS(fmt.Sprintf("left:%dpx;top:%dpx;transform:translate(-50%%,-50%%);", edge.LabelX, edge.LabelY)) }
 									>
@@ -335,11 +348,11 @@ templ PipelineRunLineageGraph(orgSlug string, activeProjectSlug string, environm
 										style={ templ.SafeCSS(fmt.Sprintf("left:%dpx;top:%dpx;width:208px;height:116px;", node.X, node.Y)) }
 									>
 										<a
+											id={ "lineage-graph-step-" + node.Slug }
 											class={ lineageNodeClass(node) }
 											data-entity-focus="lineage-step-evidence"
 											href={ templ.URL(node.Href) }
 											title={ lineagePayloadPreview(node) }
-											aria-label={ lineageNodeAriaLabel(node) }
 											if node.Selected {
 												aria-current="true"
 											}

@@ -58,22 +58,12 @@ func WorkspaceGatePageContent(usageType string, organizationWorkspaceName string
 			templ_7745c5c3_Var2 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 1, "<div class=\"space-y-5\">")
-		if templ_7745c5c3_Err != nil {
-			return templ_7745c5c3_Err
-		}
-		if pageError != "" {
-			templ_7745c5c3_Err = ErrorPopup("workspace-gate-error-popup", pageError, pageErrorDetails).Render(ctx, templ_7745c5c3_Buffer)
-			if templ_7745c5c3_Err != nil {
-				return templ_7745c5c3_Err
-			}
-		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 2, "<div><p class=\"text-xs font-semibold uppercase tracking-wide text-primary\">Workspace setup</p><h1 class=\"mt-2 text-2xl font-semibold text-base-content\">Set up your workspace</h1><p class=\"mt-2 text-sm text-base-content/70\">Choose who will use this workspace. Both options have the same product features.</p></div>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 1, "<div class=\"space-y-5\"><div><p class=\"text-xs font-semibold uppercase tracking-wide text-primary\">Workspace setup</p><h1 class=\"mt-2 text-2xl font-semibold text-base-content\">Set up your workspace</h1><p class=\"mt-2 text-sm text-base-content/70\">Choose who will use this workspace. Both options have the same product features.</p></div>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		if HasAccountNotice(ctx) {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 3, "<div class=\"rounded-lg border border-base-300 bg-base-200/40 p-4 text-sm text-base-content/75\">")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 2, "<div class=\"rounded-lg border border-base-300 bg-base-200/40 p-4 text-sm text-base-content/75\">")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -81,48 +71,48 @@ func WorkspaceGatePageContent(usageType string, organizationWorkspaceName string
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 4, "</div>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 3, "</div>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 5, "<form class=\"space-y-4\" method=\"post\" action=\"/workspace\" hx-post=\"/workspace\" hx-target=\"body\" hx-select=\"body\" hx-swap=\"outerHTML\"><input type=\"hidden\" name=\"usage_type\" value=\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 4, "<form class=\"space-y-4\" method=\"post\" action=\"/workspace\" hx-post=\"/workspace\" hx-target=\"#main-content\" hx-select=\"#main-content\" hx-swap=\"outerHTML\" data-form-feedback><input type=\"hidden\" name=\"usage_type\" value=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var3 string
 		templ_7745c5c3_Var3, templ_7745c5c3_Err = templ.ResolveAttributeValue(usageType)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/workspace_gate.templ`, Line: 23, Col: 59}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/workspace_gate.templ`, Line: 20, Col: 59}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var3)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 6, "\"> ")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 5, "\"> ")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		if returnTo != "" {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 7, "<input type=\"hidden\" name=\"return_to\" value=\"")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 6, "<input type=\"hidden\" name=\"return_to\" value=\"")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 			var templ_7745c5c3_Var4 string
 			templ_7745c5c3_Var4, templ_7745c5c3_Err = templ.ResolveAttributeValue(returnTo)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/workspace_gate.templ`, Line: 25, Col: 58}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/workspace_gate.templ`, Line: 22, Col: 58}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var4)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 8, "\">")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 7, "\">")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 9, "<fieldset><legend class=\"label-text mb-2\">Who is this workspace for?</legend><div class=\"grid gap-2 sm:grid-cols-2\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 8, "<fieldset><legend class=\"label-text mb-2\">Who is this workspace for?</legend><div class=\"grid gap-2 sm:grid-cols-2\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -131,7 +121,7 @@ func WorkspaceGatePageContent(usageType string, organizationWorkspaceName string
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 10, "<a class=\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 9, "<a class=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -144,20 +134,20 @@ func WorkspaceGatePageContent(usageType string, organizationWorkspaceName string
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 11, "\" href=\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 10, "\" href=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var7 templ.SafeURL
 		templ_7745c5c3_Var7, templ_7745c5c3_Err = templ.JoinURLErrs(templ.URL(WorkspaceGateUsageURL("personal", returnTo)))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/workspace_gate.templ`, Line: 30, Col: 119}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/workspace_gate.templ`, Line: 27, Col: 119}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var7))
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 12, "\"><strong class=\"block text-sm font-semibold text-base-content\">Personal</strong><span class=\"mt-1 block text-xs leading-5 text-base-content/65\">For your own projects; invite others later.</span></a> ")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 11, "\"><strong class=\"block text-sm font-semibold text-base-content\">Personal</strong><span class=\"mt-1 block text-xs leading-5 text-base-content/65\">For your own projects; invite others later.</span></a> ")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -166,7 +156,7 @@ func WorkspaceGatePageContent(usageType string, organizationWorkspaceName string
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 13, "<a class=\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 12, "<a class=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -179,56 +169,56 @@ func WorkspaceGatePageContent(usageType string, organizationWorkspaceName string
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 14, "\" href=\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 13, "\" href=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var10 templ.SafeURL
 		templ_7745c5c3_Var10, templ_7745c5c3_Err = templ.JoinURLErrs(templ.URL(WorkspaceGateUsageURL("organization", returnTo)))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/workspace_gate.templ`, Line: 31, Col: 127}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/workspace_gate.templ`, Line: 28, Col: 127}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var10))
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 15, "\"><strong class=\"block text-sm font-semibold text-base-content\">Organization</strong><span class=\"mt-1 block text-xs leading-5 text-base-content/65\">For a team or company; no business details needed.</span></a></div></fieldset>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 14, "\"><strong class=\"block text-sm font-semibold text-base-content\">Organization</strong><span class=\"mt-1 block text-xs leading-5 text-base-content/65\">For a team or company; no business details needed.</span></a></div></fieldset>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		if usageType == "organization" {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 16, "<label class=\"form-control w-full\"><div class=\"label\"><span class=\"label-text\">Organization workspace name</span></div><input class=\"input input-bordered w-full\" type=\"text\" name=\"organization_workspace_name\" placeholder=\"Acme Operations\" value=\"")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 15, "<label class=\"form-control w-full\"><div class=\"label\"><span class=\"label-text\">Organization workspace name</span></div><input class=\"input input-bordered w-full\" type=\"text\" name=\"organization_workspace_name\" placeholder=\"Acme Operations\" value=\"")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 			var templ_7745c5c3_Var11 string
 			templ_7745c5c3_Var11, templ_7745c5c3_Err = templ.ResolveAttributeValue(organizationWorkspaceName)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/workspace_gate.templ`, Line: 39, Col: 158}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/workspace_gate.templ`, Line: 36, Col: 158}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var11)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 17, "\" autocomplete=\"organization\" maxlength=\"255\" required></label>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 16, "\" autocomplete=\"organization\" maxlength=\"255\" required></label>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 		} else {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 18, "<div class=\"rounded-lg border border-base-300 bg-base-200/40 p-4\"><p class=\"text-xs font-semibold uppercase tracking-wide text-base-content/60\">Workspace name</p><p class=\"mt-1 text-base font-medium text-base-content\">")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 17, "<div class=\"rounded-lg border border-base-300 bg-base-200/40 p-4\"><p class=\"text-xs font-semibold uppercase tracking-wide text-base-content/60\">Workspace name</p><p class=\"mt-1 text-base font-medium text-base-content\">")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 			var templ_7745c5c3_Var12 string
 			templ_7745c5c3_Var12, templ_7745c5c3_Err = templ.JoinStringErrs(personalWorkspaceName)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/workspace_gate.templ`, Line: 44, Col: 84}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/workspace_gate.templ`, Line: 41, Col: 84}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var12))
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 19, "</p></div>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 18, "</p></div>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -237,7 +227,34 @@ func WorkspaceGatePageContent(usageType string, organizationWorkspaceName string
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 20, "<button class=\"btn btn-primary w-full\" type=\"submit\">Create workspace</button></form><a class=\"btn btn-outline btn-sm w-full\" href=\"/account\">Account settings</a><form method=\"post\" action=\"/auth/logout\"><button class=\"btn btn-ghost btn-sm w-full\" type=\"submit\">Sign out</button></form></div>")
+		templ_7745c5c3_Err = FormError("workspace-gate-feedback", pageError, true).Render(ctx, templ_7745c5c3_Buffer)
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		if pageErrorDetails != "" {
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 19, "<details class=\"text-sm\"><summary>More details</summary><p class=\"whitespace-pre-wrap break-words\">")
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			var templ_7745c5c3_Var13 string
+			templ_7745c5c3_Var13, templ_7745c5c3_Err = templ.JoinStringErrs(pageErrorDetails)
+			if templ_7745c5c3_Err != nil {
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/workspace_gate.templ`, Line: 47, Col: 121}
+			}
+			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var13))
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 20, "</p></details>")
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+		}
+		templ_7745c5c3_Err = FormRequestError().Render(ctx, templ_7745c5c3_Buffer)
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 21, "<button class=\"btn btn-primary w-full\" type=\"submit\">Create workspace</button></form><a class=\"btn btn-outline btn-sm w-full\" href=\"/account\">Account settings</a><form method=\"post\" action=\"/auth/logout\"><button class=\"btn btn-ghost btn-sm w-full\" type=\"submit\">Sign out</button></form></div>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

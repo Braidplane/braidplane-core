@@ -116,6 +116,7 @@ describe("dashboard onboarding", () => {
         document.querySelector("[data-dashboard-onboarding-dismiss]").click();
         expect(onboarding.hidden).toBe(true);
         expect(resume.hidden).toBe(false);
+        expect(document.activeElement).toBe(document.querySelector("[data-dashboard-onboarding-show]"));
     });
 
     it("Dismiss_PersistsAndHidesChecklist", () => {

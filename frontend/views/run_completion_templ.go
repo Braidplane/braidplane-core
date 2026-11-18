@@ -195,7 +195,7 @@ func PipelineRunCompletionPanel(org, project, environment, run string, inspectio
 					return templ_7745c5c3_Err
 				}
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 20, " <div class=\"overflow-x-auto\"><table class=\"table table-sm min-w-[40rem]\"><caption class=\"pb-2 text-left text-sm font-semibold\">Recorded attempts</caption> <thead><tr><th>Attempt</th><th>Status</th><th>Executed version</th><th>Deployment revision</th></tr></thead> <tbody>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 20, " <h3 id=\"recorded-attempts-heading\" class=\"text-sm font-semibold\">Recorded attempts</h3><div class=\"overflow-x-auto focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary\" tabindex=\"0\" role=\"region\" aria-label=\"Recorded attempt details\"><table class=\"table table-sm min-w-[40rem]\" aria-labelledby=\"recorded-attempts-heading\"><thead><tr><th>Attempt</th><th>Status</th><th>Executed version</th><th>Deployment revision</th></tr></thead> <tbody>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -326,40 +326,40 @@ func PipelineRunCompletionPanel(org, project, environment, run string, inspectio
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
-					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 34, "</a><p class=\"break-all font-mono\">")
+					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 34, "</a><p class=\"break-words\">From <code class=\"break-all\">")
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
 					var templ_7745c5c3_Var17 string
 					templ_7745c5c3_Var17, templ_7745c5c3_Err = templ.JoinStringErrs(trigger.Completion.UpstreamPipelineSlug)
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/run_completion.templ`, Line: 75, Col: 78}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/run_completion.templ`, Line: 75, Col: 99}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var17))
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
-					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 35, " → ")
+					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 35, "</code> to <code class=\"break-all\">")
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
 					var templ_7745c5c3_Var18 string
-					templ_7745c5c3_Var18, templ_7745c5c3_Err = templ.JoinStringErrs(string(trigger.Completion.Condition))
+					templ_7745c5c3_Var18, templ_7745c5c3_Err = templ.JoinStringErrs(trigger.PipelineSlug)
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/run_completion.templ`, Line: 75, Col: 123}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/run_completion.templ`, Line: 75, Col: 158}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var18))
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
-					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 36, " → ")
+					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 36, "</code> · Condition ")
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
 					var templ_7745c5c3_Var19 string
-					templ_7745c5c3_Var19, templ_7745c5c3_Err = templ.JoinStringErrs(trigger.PipelineSlug)
+					templ_7745c5c3_Var19, templ_7745c5c3_Err = templ.JoinStringErrs(string(trigger.Completion.Condition))
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/run_completion.templ`, Line: 75, Col: 152}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/run_completion.templ`, Line: 75, Col: 219}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var19))
 					if templ_7745c5c3_Err != nil {
@@ -457,40 +457,40 @@ func PipelineCompletionDecisionDetails(org, project, environment string, decisio
 			templ_7745c5c3_Var23 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 44, "<div class=\"min-w-0 space-y-2 border-b border-base-300 pb-4 text-sm\"><p class=\"break-all font-mono\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 44, "<div class=\"min-w-0 space-y-2 border-b border-base-300 pb-4 text-sm\"><p class=\"break-words\">From <code class=\"break-all\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var24 string
 		templ_7745c5c3_Var24, templ_7745c5c3_Err = templ.JoinStringErrs(decision.UpstreamPipelineSlug)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/run_completion.templ`, Line: 95, Col: 64}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/run_completion.templ`, Line: 95, Col: 85}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var24))
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 45, " → ")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 45, "</code> to <code class=\"break-all\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var25 string
-		templ_7745c5c3_Var25, templ_7745c5c3_Err = templ.JoinStringErrs(completionCondition(decision.Condition))
+		templ_7745c5c3_Var25, templ_7745c5c3_Err = templ.JoinStringErrs(decision.DownstreamPipelineSlug)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/run_completion.templ`, Line: 95, Col: 112}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/run_completion.templ`, Line: 95, Col: 155}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var25))
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 46, " → ")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 46, "</code> · Condition ")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var26 string
-		templ_7745c5c3_Var26, templ_7745c5c3_Err = templ.JoinStringErrs(decision.DownstreamPipelineSlug)
+		templ_7745c5c3_Var26, templ_7745c5c3_Err = templ.JoinStringErrs(completionCondition(decision.Condition))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/run_completion.templ`, Line: 95, Col: 152}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/run_completion.templ`, Line: 95, Col: 219}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var26))
 		if templ_7745c5c3_Err != nil {

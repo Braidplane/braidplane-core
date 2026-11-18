@@ -57,7 +57,7 @@
             .filter((entry) => typeof entry?.message === "string" && entry.message.trim())
             .map((entry) => {
                 const edgeIndex = /^graph\.(?:edges|bindings)\[(\d+)\]/.exec(entry.field || "");
-                const collection = entry.field?.startsWith("graph.bindings") ? state.graph.bindings : edges;
+                const collection = entry.field?.startsWith("graph.bindings") ? state?.graph?.bindings : edges;
                 // shortcut: compatibility targets use the canonical edge marker; adopt structured edge fields if that diagnostic format changes.
                 const marker = /\bedge "([a-z0-9-]+)->([a-z0-9-]+)"/.exec(entry.message);
                 const edge = edgeIndex
@@ -65,7 +65,7 @@
                     : marker
                       ? edges.find((candidate) => candidate.from_step === marker[1] && candidate.to_step === marker[2])
                       : null;
-                const stepIndex = /^steps\[(\d+)\]/.exec(entry.field || "");
+                const stepIndex = /^(?:(?:pipeline_spec|spec)\.)?steps\[(\d+)\](?:\.|$)/.exec(entry.field || "");
                 const step = stepIndex ? state?.pipeline_spec?.steps?.[Number(stepIndex[1])]?.slug : null;
                 return {
                     message: entry.field ? `${entry.field}: ${entry.message}` : entry.message,

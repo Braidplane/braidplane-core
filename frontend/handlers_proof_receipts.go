@@ -72,7 +72,7 @@ func (r *Router) handleProofReceiptHistoryPage(c fiber.Ctx) error {
 		}
 		shell := r.buildShellDataForProjectPage(c, "Proof", org.String(), project.String(), message, "", c.Get(fiber.HeaderCookie))
 		c.Status(status)
-		return renderTempl(c, views.ProofHistoryPage(shell, nil))
+		return renderTempl(c, views.ProofHistoryPage(shell, nil, false))
 	}
 	limit := api.LimitParam(20)
 	params := &api.ListProofReceiptsParams{Limit: &limit}
@@ -109,7 +109,9 @@ func (r *Router) handleProofReceiptHistoryPage(c fiber.Ctx) error {
 	shell := r.buildShellDataForProjectPage(c, "Proof", org.String(), project.String(), message, "", c.Get(fiber.HeaderCookie))
 	shell.ActiveEnvironmentSlug = environment.String()
 	c.Status(status)
-	return renderTempl(c, views.ProofHistoryPage(shell, history))
+	restartHistory := params.Cursor != nil && (status == http.StatusBadRequest ||
+		(history != nil && len(history.Receipts) == 0))
+	return renderTempl(c, views.ProofHistoryPage(shell, history, restartHistory))
 }
 
 func (r *Router) getProofReceiptViaAPI(c fiber.Ctx, orgSlug, projectSlug, environmentSlug, receiptSlug string) (*api.ProofReceipt, int, *api.ErrorResponse, error) {

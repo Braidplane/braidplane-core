@@ -197,20 +197,20 @@ func SnowflakeOnboardingPanel(org, environment, ds string, onboarding *api.Snowf
 				return templ_7745c5c3_Err
 			}
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 14, "<div class=\"flex flex-wrap gap-2\"><button type=\"button\" class=\"btn btn-outline btn-sm\" hx-get=\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 14, "<div class=\"flex flex-wrap gap-2\"><button id=\"snowflake-onboarding-retry\" type=\"button\" class=\"btn btn-outline btn-sm\" hx-get=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var12 string
-		templ_7745c5c3_Var12, templ_7745c5c3_Err = templ.ResolveAttributeValue(SnowflakeOnboardingHref(org, environment, ds))
+		templ_7745c5c3_Var12, templ_7745c5c3_Err = templ.ResolveAttributeValue(entitySectionHref(ctx, SnowflakeOnboardingHref(org, environment, ds), "settings"))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/snowflake_onboarding.templ`, Line: 47, Col: 110}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/snowflake_onboarding.templ`, Line: 47, Col: 178}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var12)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 15, "\" hx-target=\"closest [data-snowflake-onboarding]\" hx-swap=\"outerHTML\">Retry status</button> ")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 15, "\" hx-target=\"closest [data-snowflake-onboarding]\" hx-swap=\"outerHTML focus-scroll:true\">Retry status</button> ")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -220,9 +220,9 @@ func SnowflakeOnboardingPanel(org, environment, ds string, onboarding *api.Snowf
 				return templ_7745c5c3_Err
 			}
 			var templ_7745c5c3_Var13 templ.SafeURL
-			templ_7745c5c3_Var13, templ_7745c5c3_Err = templ.JoinURLErrs(templ.URL(DataSourceTestHref(org, environment, ds)))
+			templ_7745c5c3_Var13, templ_7745c5c3_Err = templ.JoinURLErrs(templ.URL(entitySectionHref(ctx, DataSourceTestHref(org, environment, ds), "settings")))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/snowflake_onboarding.templ`, Line: 49, Col: 84}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/snowflake_onboarding.templ`, Line: 49, Col: 120}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var13))
 			if templ_7745c5c3_Err != nil {
@@ -256,9 +256,9 @@ func SnowflakeOnboardingPanel(org, environment, ds string, onboarding *api.Snowf
 				return templ_7745c5c3_Err
 			}
 			var templ_7745c5c3_Var15 templ.SafeURL
-			templ_7745c5c3_Var15, templ_7745c5c3_Err = templ.JoinURLErrs(templ.URL(dataSourceMutationHref(org, environment, ds, "snowflake-identity")))
+			templ_7745c5c3_Var15, templ_7745c5c3_Err = templ.JoinURLErrs(templ.URL(entitySectionHref(ctx, dataSourceMutationHref(org, environment, ds, "snowflake-identity"), "settings")))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/snowflake_onboarding.templ`, Line: 53, Col: 110}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/snowflake_onboarding.templ`, Line: 53, Col: 146}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var15))
 			if templ_7745c5c3_Err != nil {

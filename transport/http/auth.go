@@ -14,10 +14,13 @@ import (
 	"github.com/Braidplane/braidplane-core/pkg/httpsecurity"
 	"github.com/Braidplane/braidplane-core/pkg/logging"
 	"github.com/Braidplane/braidplane-core/pkg/oauthflow"
+	"github.com/Braidplane/braidplane-core/pkg/ptr"
 	"github.com/Braidplane/braidplane-core/pkg/reqctx"
 	"github.com/Braidplane/braidplane-core/pkg/xerror"
 	"github.com/Braidplane/braidplane-core/service/userssvc"
 )
+
+const googleOAuthMoreTimeKey = "oauth_more_time"
 
 // GetAuthenticationMethods reports deployment configuration before authentication.
 func (s *server) GetAuthenticationMethods(c fiber.Ctx) error {
@@ -25,7 +28,7 @@ func (s *server) GetAuthenticationMethods(c fiber.Ctx) error {
 	return c.JSON(api.GetAuthenticationMethods200JSONResponse{GoogleSignInEnabled: s.oidcService.Configured()})
 }
 
-func (s *server) RegisterGoogleAccount(c fiber.Ctx) error {
+func (s *server) RegisterGoogleAccount(c fiber.Ctx, params api.RegisterGoogleAccountParams) error {
 	if !s.externalOnboardingEnabled || !s.selfServiceRegistrationEnabled {
 		return apierror.New(fiber.StatusForbidden, "SELF_SERVICE_REGISTRATION_DISABLED", "Account creation is currently unavailable.")
 	}
@@ -50,22 +53,26 @@ func (s *server) RegisterGoogleAccount(c fiber.Ctx) error {
 		if err := sess.Save(); err != nil {
 			return apierror.InternalServerError()
 		}
+		if time.Now().Unix() >= expires {
+			target := url.Values{"google_signup_expired": {"true"}, "return_to": {returnTo}}
+			return c.Redirect().Status(fiber.StatusFound).To(s.frontendURL + "/auth/signup?" + target.Encode())
+		}
 		var identity model.OIDCUserInfo
-		if time.Now().Unix() >= expires || json.Unmarshal([]byte(pending), &identity) != nil {
+		if json.Unmarshal([]byte(pending), &identity) != nil {
 			return c.Redirect().Status(fiber.StatusFound).To(s.frontendURL + "/auth/error?error=invalid_state")
 		}
 		return s.completeGoogleSignup(c, &identity, returnTo)
 	}
-	return s.initiateGoogleAuth(c)
+	return s.initiateGoogleAuth(c, ptr.Value(params.MoreTime))
 }
 
 // InitiateGoogleAuth initiates the Google OAuth flow
 // (GET /auth/google)
-func (s *server) InitiateGoogleAuth(c fiber.Ctx) error {
-	return s.initiateGoogleAuth(c)
+func (s *server) InitiateGoogleAuth(c fiber.Ctx, params api.InitiateGoogleAuthParams) error {
+	return s.initiateGoogleAuth(c, ptr.Value(params.MoreTime))
 }
 
-func (s *server) initiateGoogleAuth(c fiber.Ctx) error {
+func (s *server) initiateGoogleAuth(c fiber.Ctx, moreTime bool) error {
 	// Generate a random state for CSRF protection
 	state, err := oauthflow.RandomState()
 	if err != nil {
@@ -87,7 +94,8 @@ func (s *server) initiateGoogleAuth(c fiber.Ctx) error {
 	defer sess.Release()
 
 	sess.Set("oauth_state", state)
-	sess.Set("oauth_expires_at", time.Now().Add(10*time.Minute).Unix())
+	sess.Set("oauth_expires_at", time.Now().Add(oauthflow.CallbackWindow(moreTime)).Unix())
+	sess.Set(googleOAuthMoreTimeKey, moreTime)
 	sess.Delete(reqctx.SessionGoogleSignupKey)
 	sess.Delete(reqctx.SessionGoogleSignupExpiresKey)
 	sess.Set("oauth_return_to", c.Query("return_to", "/dashboard"))
@@ -131,18 +139,22 @@ func (s *server) HandleGoogleCallback(c fiber.Ctx, params api.HandleGoogleCallba
 	if storedState, ok := sess.Get("oauth_state").(string); ok {
 		storedStateStr = storedState
 	}
-	// Require both incoming and stored state to be present and match
-	if params.State == nil || *params.State == "" || storedStateStr == "" ||
-		*params.State != storedStateStr || time.Now().Unix() >= expiresAt {
-		slog.Error("State missing or mismatch - possible CSRF attack")
+	returnTo, _ := sess.Get("oauth_return_to").(string)
+	matchingState := storedStateStr != "" && params.State != nil && *params.State == storedStateStr
+	if !matchingState || time.Now().Unix() >= expiresAt {
+		slog.Error("Google OAuth state is missing, invalid, or expired")
 		logAuthSecurityEvent(c, s.sessionStore, slog.Default(), slog.LevelWarn, "auth.oauth.callback.failed", "error", fiber.StatusFound, "")
-		errorURL := s.frontendURL + "/auth/error?error=invalid_state"
-		return c.Redirect().Status(fiber.StatusFound).To(errorURL)
+		query := url.Values{"error": {"invalid_state"}}
+		if matchingState && returnTo != "" {
+			query.Set("return_to", returnTo)
+		}
+		return c.Redirect().Status(fiber.StatusFound).To(s.frontendURL + "/auth/error?" + query.Encode())
 	}
 	// Clear stored state after validation to prevent replay attacks
+	moreTime, _ := sess.Get(googleOAuthMoreTimeKey).(bool)
 	sess.Delete("oauth_state")
 	sess.Delete("oauth_expires_at")
-	returnTo, _ := sess.Get("oauth_return_to").(string)
+	sess.Delete(googleOAuthMoreTimeKey)
 	if returnTo == "" {
 		returnTo = "/dashboard"
 	}
@@ -234,7 +246,7 @@ func (s *server) HandleGoogleCallback(c fiber.Ctx, params api.HandleGoogleCallba
 				return apierror.InternalServerError()
 			}
 			sess.Set(reqctx.SessionGoogleSignupKey, string(pending))
-			sess.Set(reqctx.SessionGoogleSignupExpiresKey, time.Now().Add(10*time.Minute).Unix())
+			sess.Set(reqctx.SessionGoogleSignupExpiresKey, time.Now().Add(oauthflow.CallbackWindow(moreTime)).Unix())
 			sess.Set("oauth_return_to", returnTo)
 			if err := sess.Save(); err != nil {
 				return apierror.InternalServerError()

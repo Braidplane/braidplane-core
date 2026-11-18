@@ -1,0 +1,41 @@
+Workflow,State,WCAG 2.2 criterion,Result,Check,Evidence
+Authentication,Sign-in form,1.3.5,Pass,Autocomplete identifies username and current password,workflows.spec.cjs
+Authentication,Sign-in and MFA,3.3.8,Pass,Chromium autofill and keyboard paste through MFA,mfa.spec.cjs; password-manager-core-evidence.json
+Authentication,Invalid or expired reset link,3.3.3,Pass,Keyboard route to request a replacement link,reset-link.spec.cjs
+Authentication,Google callback,2.2.1,Pass,100-minute option before redirect and retry after expiry,google-pending-timing/browser-results-review.json
+Authentication,Native password generation,3.3.8,Untested,Browser-generated password flow,
+Project and source setup,Organization and project forms,3.3.1,Pass,Invalid identifier error is identified and focused,project-setup.spec.cjs
+Project and source setup,Repository source selection,3.2.2,Pass,Branch refresh preserves focus on the source control,source-choice.spec.cjs
+Project and source setup,Workspace worksheet refusal and retry,4.1.3,Pass,Loading and failure status and recovery status are exposed,workspace-worksheet-retry-summary.json
+Project and source setup,Workspace worksheet retry,1.4.10,Pass,Retry and recovered selector stay reachable at 400%,workspace-worksheet-retry-zoom-results.json
+Pipeline authoring and validation,Create and connect graph steps,2.1.1,Pass,"Keyboard add, connect, validate, save and remove",workflows.spec.cjs
+Pipeline authoring and validation,Connect graph steps by pointer,2.5.7,Pass,Separate clicks complete a connection,workflows.spec.cjs
+Pipeline authoring and validation,Cancel pointer connection,2.5.2,Pass,Escape and release outside cancel the sampled interactions,workflows.spec.cjs
+Pipeline authoring and validation,Proposal and conflict dialogs,2.1.2,Pass,Escape dismisses dialog and returns focus,builder-dialogs.spec.cjs
+Deployment,Protected binding removal,3.3.4,Pass,"Review, typed confirmation and cancellation available",deployment.spec.cjs
+Deployment,Binding removal refusal,2.4.11,Pass,Focused refusal stays visible at 200% and 400%,binding-removal-zoom-results.json
+Deployment,Rollback after permission change,3.3.1,Pass,Focused error identifies denial and preserves selection,deployment-rollback.spec.cjs
+Run inspection and recovery,Branched run lineage,1.3.1,Pass,"List exposes graph destinations, dependencies and outcomes",lineage.spec.cjs
+Run inspection and recovery,Live run progress,2.2.2,Pass,Pause stops updates and discards a pending response,live-updates.spec.cjs
+Run inspection and recovery,Pruned run definition,2.1.1,Pass,Keyboard access to recorded timeline and snapshots,run-delivery.spec.cjs
+Proof,Mixed claims and evidence,2.4.6,Pass,Repeated disclosures expose distinct names,proof-claims.spec.cjs
+Proof,Configuration refusal and retry,3.3.3,Pass,Error feedback and retry preserve values,proof-configuration.spec.cjs
+Proof,Invalid history cursor,2.1.1,Pass,Keyboard route recovers from invalid history state,proof-claims.spec.cjs
+Authentication,Sampled keyboard sequences,2.4.7,Pass,Selected controls show visible focus at both widths,acceptance-focus-outline-contrast-summary.json
+Authentication,Browser-rendered page,3.1.1,Pass,English document declaration in sampled states,language-sample-summary.json
+Project and source setup,Sampled keyboard sequences,2.4.7,Pass,Selected controls show visible focus at both widths,acceptance-focus-outline-contrast-summary.json
+Project and source setup,Browser-rendered page,3.1.1,Pass,English document declaration in sampled states,language-sample-summary.json
+Pipeline authoring and validation,Sampled keyboard sequences,2.4.7,Pass,Selected controls show visible focus at both widths,acceptance-focus-outline-contrast-summary.json
+Pipeline authoring and validation,Browser-rendered page,3.1.1,Pass,English document declaration in sampled states,language-sample-summary.json
+Deployment,Sampled keyboard sequences,2.4.7,Pass,Selected controls show visible focus at both widths,acceptance-focus-outline-contrast-summary.json
+Deployment,Browser-rendered page,3.1.1,Pass,English document declaration in sampled states,language-sample-summary.json
+Run inspection and recovery,Sampled keyboard sequences,2.4.7,Pass,Selected controls show visible focus at both widths,acceptance-focus-outline-contrast-summary.json
+Run inspection and recovery,Browser-rendered page,3.1.1,Pass,English document declaration in sampled states,language-sample-summary.json
+Proof,Sampled keyboard sequences,2.4.7,Pass,Selected controls show visible focus at both widths,acceptance-focus-outline-contrast-summary.json
+Proof,Browser-rendered page,3.1.1,Pass,English document declaration in sampled states,language-sample-summary.json
+Project and source setup,Dynamic status with screen reader,4.1.3,Untested,Spoken announcements deferred,
+Pipeline authoring and validation,Dynamic status with screen reader,4.1.3,Untested,Spoken announcements deferred,
+Deployment,Dynamic status with screen reader,4.1.3,Untested,Spoken announcements deferred,
+Run inspection and recovery,Dynamic status with screen reader,4.1.3,Untested,Spoken announcements deferred,
+Proof,Dynamic status with screen reader,4.1.3,Untested,Spoken announcements deferred,
+Shared,Authored Core surfaces,1.2.2,Not applicable,No prerecorded video identified in reviewed scope,acceptance-source-applicability.json

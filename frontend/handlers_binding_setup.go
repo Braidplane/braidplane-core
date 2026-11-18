@@ -29,7 +29,10 @@ func (r *Router) renderPipelineBindingSetup(c fiber.Ctx, statusCode int, message
 	}
 	permissions := r.resolveOrganizationPermissions(c.Context(), c.Get(fiber.HeaderCookie), org.String())
 	if !permissions.Can("pipelines", "read") {
-		return c.SendStatus(http.StatusForbidden)
+		if isHTMXRequest(c) {
+			return redirectHTMXOrSeeOther(c, pipelineBindingSetupReloadHref(c, org.String(), project.String(), pipeline.String()))
+		}
+		return r.renderPipelineGitAccessDenied(c, org.String(), project.String(), false, "You need permission to read pipelines to inspect bindings.")
 	}
 	hash := c.Query("spec_hash")
 	if strings.TrimSpace(hash) == "" {
@@ -114,6 +117,11 @@ func pipelineBindingSetupReturnHref(c fiber.Ctx, org, project, pipeline, environ
 	}
 	if candidate.Path == expected.Path+"/deploy" {
 		values.Set("spec_hash", hash)
+		for _, key := range []string{"compiled_plan_digest", "resolution_digest"} {
+			if value := candidate.Query().Get(key); value != "" {
+				values.Set(key, value)
+			}
+		}
 	} else {
 		// Detail sections have no selected-version semantics; retain the caller's focus only.
 		for _, key := range []string{"section", "list_return"} {

@@ -37,7 +37,7 @@ func AuthPage(title string, includeHTMX bool, content templ.Component) templ.Com
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 2, "<body class=\"auth-page min-h-screen bg-base-200\"><a class=\"sr-only z-50 rounded-md bg-base-100 px-3 py-2 text-sm font-medium text-base-content shadow focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary\" href=\"#main-content\">Skip to main content</a><main class=\"auth-shell\" id=\"main-content\" data-auth-shell><div class=\"auth-flow\" data-auth-flow aria-hidden=\"true\"><span class=\"auth-flow-line auth-flow-line-one\"></span> <span class=\"auth-flow-line auth-flow-line-two\"></span> <span class=\"auth-flow-line auth-flow-line-three\"></span> <span class=\"auth-flow-node auth-flow-node-one\"></span> <span class=\"auth-flow-node auth-flow-node-two\"></span> <span class=\"auth-flow-node auth-flow-node-three\"></span> <span class=\"auth-flow-node auth-flow-node-four\"></span></div><div class=\"auth-shell-grid\"><aside class=\"auth-context\" aria-label=\"Braidplane product context\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 2, "<body class=\"auth-page min-h-screen bg-base-200\"><a class=\"sr-only z-50 rounded-md bg-base-100 px-3 py-2 text-sm font-medium text-base-content shadow focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary\" href=\"#main-content\">Skip to main content</a><main class=\"auth-shell\" id=\"main-content\" tabindex=\"-1\" data-auth-shell><div class=\"auth-flow\" data-auth-flow aria-hidden=\"true\"><span class=\"auth-flow-line auth-flow-line-one\"></span> <span class=\"auth-flow-line auth-flow-line-two\"></span> <span class=\"auth-flow-line auth-flow-line-three\"></span> <span class=\"auth-flow-node auth-flow-node-one\"></span> <span class=\"auth-flow-node auth-flow-node-two\"></span> <span class=\"auth-flow-node auth-flow-node-three\"></span> <span class=\"auth-flow-node auth-flow-node-four\"></span></div><div class=\"auth-shell-grid\"><aside class=\"auth-context\" aria-label=\"Braidplane product context\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -45,7 +45,7 @@ func AuthPage(title string, includeHTMX bool, content templ.Component) templ.Com
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 3, "<div class=\"auth-context-copy\"><p class=\"text-xs font-semibold uppercase tracking-wide text-primary\">Operational data workflows</p><h2 class=\"mt-3 text-3xl font-semibold tracking-tight text-base-content\">Move data with a clear operational trail.</h2><p class=\"mt-4 max-w-md text-sm leading-6 text-base-content/65\">Secure access to pipelines, runs, contracts, and diagnostics.</p></div><div class=\"auth-flow-summary\" aria-label=\"Product workflow\"><span><i></i>Sources</span> <span><i></i>Contracts</span> <span><i></i>Runs</span></div></aside><section class=\"auth-panel\" aria-label=\"Account access\"><div class=\"auth-brand-compact\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 3, "<div class=\"auth-context-copy\"><p class=\"text-xs font-semibold uppercase tracking-wide text-primary\">Operational data workflows</p><h2 class=\"mt-3 text-3xl font-semibold tracking-tight text-base-content\">Move data with a clear operational trail.</h2><p class=\"mt-4 max-w-md text-sm leading-6 text-base-content/65\">Secure access to pipelines, runs, contracts, and diagnostics.</p></div><div class=\"auth-flow-summary\" role=\"group\" aria-label=\"Product workflow\"><span><i></i>Sources</span> <span><i></i>Contracts</span> <span><i></i>Runs</span></div></aside><section class=\"auth-panel\" aria-label=\"Account access\"><div class=\"auth-brand-compact\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -90,7 +90,7 @@ func AuthBrand() templ.Component {
 			templ_7745c5c3_Var2 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 6, "<div class=\"flex items-center gap-3 text-base-content\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 6, "<div class=\"flex flex-wrap items-center gap-3 text-base-content\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -99,6 +99,48 @@ func AuthBrand() templ.Component {
 			return templ_7745c5c3_Err
 		}
 		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 7, "<span class=\"text-lg font-semibold\">Braidplane</span> <span class=\"badge badge-ghost badge-sm\">Alpha</span></div>")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		return nil
+	})
+}
+
+func authNewPasswordField(label string) templ.Component {
+	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
+		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
+		if templ_7745c5c3_CtxErr := ctx.Err(); templ_7745c5c3_CtxErr != nil {
+			return templ_7745c5c3_CtxErr
+		}
+		templ_7745c5c3_Buffer, templ_7745c5c3_IsBuffer := templruntime.GetBuffer(templ_7745c5c3_W)
+		if !templ_7745c5c3_IsBuffer {
+			defer func() {
+				templ_7745c5c3_BufErr := templruntime.ReleaseBuffer(templ_7745c5c3_Buffer)
+				if templ_7745c5c3_Err == nil {
+					templ_7745c5c3_Err = templ_7745c5c3_BufErr
+				}
+			}()
+		}
+		ctx = templ.InitializeContext(ctx)
+		templ_7745c5c3_Var3 := templ.GetChildren(ctx)
+		if templ_7745c5c3_Var3 == nil {
+			templ_7745c5c3_Var3 = templ.NopComponent
+		}
+		ctx = templ.ClearChildren(ctx)
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 8, "<div class=\"form-control block w-full\"><label class=\"label\" for=\"auth-new-password\"><span class=\"label-text\">")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		var templ_7745c5c3_Var4 string
+		templ_7745c5c3_Var4, templ_7745c5c3_Err = templ.JoinStringErrs(label)
+		if templ_7745c5c3_Err != nil {
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/auth.templ`, Line: 55, Col: 79}
+		}
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var4))
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 9, "</span></label> <input class=\"input input-bordered w-full\" id=\"auth-new-password\" type=\"password\" name=\"password\" autocomplete=\"new-password\" minlength=\"8\" aria-describedby=\"auth-new-password-help\" required><p id=\"auth-new-password-help\" class=\"pt-1 text-xs text-base-content/70\">Use at least 8 characters.</p></div>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -122,38 +164,38 @@ func AuthLogo() templ.Component {
 			}()
 		}
 		ctx = templ.InitializeContext(ctx)
-		templ_7745c5c3_Var3 := templ.GetChildren(ctx)
-		if templ_7745c5c3_Var3 == nil {
-			templ_7745c5c3_Var3 = templ.NopComponent
+		templ_7745c5c3_Var5 := templ.GetChildren(ctx)
+		if templ_7745c5c3_Var5 == nil {
+			templ_7745c5c3_Var5 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 8, "<img class=\"h-24 w-24 shrink-0 object-contain\" src=\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 10, "<img class=\"h-24 w-24 shrink-0 object-contain\" src=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		var templ_7745c5c3_Var4 string
-		templ_7745c5c3_Var4, templ_7745c5c3_Err = templ.ResolveAttributeValue(versionedAssetPath("/assets/icons/app/logo-128-transparent.png"))
+		var templ_7745c5c3_Var6 string
+		templ_7745c5c3_Var6, templ_7745c5c3_Err = templ.ResolveAttributeValue(versionedAssetPath("/assets/icons/app/logo-128-transparent.png"))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/auth.templ`, Line: 54, Col: 118}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/auth.templ`, Line: 62, Col: 118}
 		}
-		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var4)
-		if templ_7745c5c3_Err != nil {
-			return templ_7745c5c3_Err
-		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 9, "\" srcset=\"")
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var6)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		var templ_7745c5c3_Var5 string
-		templ_7745c5c3_Var5, templ_7745c5c3_Err = templ.ResolveAttributeValue(versionedAssetPath("/assets/icons/app/logo-128-transparent.png") + " 1x, " + versionedAssetPath("/assets/icons/app/logo-256-transparent.png") + " 2x")
-		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/auth.templ`, Line: 54, Col: 279}
-		}
-		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var5)
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 11, "\" srcset=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 10, "\" width=\"96\" height=\"96\" alt=\"\" aria-hidden=\"true\">")
+		var templ_7745c5c3_Var7 string
+		templ_7745c5c3_Var7, templ_7745c5c3_Err = templ.ResolveAttributeValue(versionedAssetPath("/assets/icons/app/logo-128-transparent.png") + " 1x, " + versionedAssetPath("/assets/icons/app/logo-256-transparent.png") + " 2x")
+		if templ_7745c5c3_Err != nil {
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/auth.templ`, Line: 62, Col: 279}
+		}
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var7)
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 12, "\" width=\"96\" height=\"96\" alt=\"\" aria-hidden=\"true\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -177,38 +219,38 @@ func BraidplaneLogo() templ.Component {
 			}()
 		}
 		ctx = templ.InitializeContext(ctx)
-		templ_7745c5c3_Var6 := templ.GetChildren(ctx)
-		if templ_7745c5c3_Var6 == nil {
-			templ_7745c5c3_Var6 = templ.NopComponent
+		templ_7745c5c3_Var8 := templ.GetChildren(ctx)
+		if templ_7745c5c3_Var8 == nil {
+			templ_7745c5c3_Var8 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 11, "<img class=\"h-12 w-12 shrink-0 object-contain\" src=\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 13, "<img class=\"h-12 w-12 shrink-0 object-contain\" src=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		var templ_7745c5c3_Var7 string
-		templ_7745c5c3_Var7, templ_7745c5c3_Err = templ.ResolveAttributeValue(versionedAssetPath("/assets/icons/app/logo-64-transparent.png"))
+		var templ_7745c5c3_Var9 string
+		templ_7745c5c3_Var9, templ_7745c5c3_Err = templ.ResolveAttributeValue(versionedAssetPath("/assets/icons/app/logo-64-transparent.png"))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/auth.templ`, Line: 58, Col: 117}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/auth.templ`, Line: 66, Col: 117}
 		}
-		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var7)
-		if templ_7745c5c3_Err != nil {
-			return templ_7745c5c3_Err
-		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 12, "\" srcset=\"")
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var9)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		var templ_7745c5c3_Var8 string
-		templ_7745c5c3_Var8, templ_7745c5c3_Err = templ.ResolveAttributeValue(versionedAssetPath("/assets/icons/app/logo-64-transparent.png") + " 1x, " + versionedAssetPath("/assets/icons/app/logo-128-transparent.png") + " 2x")
-		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/auth.templ`, Line: 58, Col: 277}
-		}
-		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var8)
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 14, "\" srcset=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 13, "\" width=\"48\" height=\"48\" alt=\"\" aria-hidden=\"true\">")
+		var templ_7745c5c3_Var10 string
+		templ_7745c5c3_Var10, templ_7745c5c3_Err = templ.ResolveAttributeValue(versionedAssetPath("/assets/icons/app/logo-64-transparent.png") + " 1x, " + versionedAssetPath("/assets/icons/app/logo-128-transparent.png") + " 2x")
+		if templ_7745c5c3_Err != nil {
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/auth.templ`, Line: 66, Col: 277}
+		}
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var10)
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 15, "\" width=\"48\" height=\"48\" alt=\"\" aria-hidden=\"true\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

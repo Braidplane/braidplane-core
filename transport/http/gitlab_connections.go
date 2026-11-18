@@ -3,6 +3,7 @@ package http
 import (
 	api "github.com/Braidplane/braidplane-core/api-schema/gen/server"
 	"github.com/Braidplane/braidplane-core/pkg/domain/model"
+	"github.com/Braidplane/braidplane-core/pkg/ptr"
 	"github.com/Braidplane/braidplane-core/pkg/slug"
 	"github.com/Braidplane/braidplane-core/pkg/xerror"
 	"github.com/Braidplane/braidplane-core/service/credentialssvc"
@@ -49,7 +50,7 @@ func (s *server) StartOrganizationGitLabAuthorization(c fiber.Ctx, orgParam api.
 	if connection.Credential.Status == credentialssvc.CredentialStatusPending {
 		intent = credentialssvc.OAuthInstallIntentCreate
 	}
-	install, err := s.credentialsService.StartOAuthInstall(c.Context(), credentialssvc.StartOAuthInstallParams{Owner: organizationGitLabOwner(org), Provider: "gitlab", Intent: intent, IncludeWriteScopes: request.IncludeWriteScopes, Actor: s.eventActor(c)})
+	install, err := s.credentialsService.StartOAuthInstall(c.Context(), credentialssvc.StartOAuthInstallParams{Owner: organizationGitLabOwner(org), Provider: "gitlab", Intent: intent, IncludeWriteScopes: request.IncludeWriteScopes, MoreTime: ptr.Value(request.MoreTime), Actor: s.eventActor(c)})
 	if err != nil {
 		return mapServiceError(err)
 	}

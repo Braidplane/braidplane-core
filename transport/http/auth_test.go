@@ -5,6 +5,7 @@ import (
 	"context"
 	"crypto/tls"
 	"encoding/base64"
+	"encoding/json"
 	"fmt"
 	"io"
 	"log/slog"
@@ -12,6 +13,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"strings"
 	"testing"
 	"time"
 
@@ -20,12 +22,61 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/Braidplane/braidplane-core/pkg/domain/model"
+	"github.com/Braidplane/braidplane-core/pkg/httpsecurity"
 	"github.com/Braidplane/braidplane-core/pkg/ptr"
 	"github.com/Braidplane/braidplane-core/pkg/reqctx"
 	"github.com/Braidplane/braidplane-core/pkg/xerror"
 	"github.com/Braidplane/braidplane-core/service/oidc"
 	"github.com/Braidplane/braidplane-core/service/userssvc"
 )
+
+func TestRegisterGoogleAccount_ExpiredSignupPreservesReturnPath(t *testing.T) {
+	t.Parallel()
+
+	app, store := newTestApp(t, testServerConfig{})
+	const returnTo = "/organizations/acme/projects?section=repository"
+	app.Get("/_test/expired-google-signup", func(c fiber.Ctx) error {
+		sess, err := store.Get(c)
+		if err != nil {
+			return err
+		}
+		defer sess.Release()
+		sess.Set(reqctx.SessionGoogleSignupKey, "{}")
+		sess.Set(reqctx.SessionGoogleSignupExpiresKey, time.Now().Add(-time.Minute).Unix())
+		sess.Set("oauth_return_to", returnTo)
+		if err := sess.Save(); err != nil {
+			return err
+		}
+		token, err := httpsecurity.EnsureCSRFToken(c, store)
+		if err != nil {
+			return err
+		}
+		return c.SendString(token)
+	})
+	seed, err := app.Test(httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/_test/expired-google-signup", nil))
+	require.NoError(t, err)
+	t.Cleanup(func() { require.NoError(t, seed.Body.Close()) })
+	require.Equal(t, http.StatusOK, seed.StatusCode)
+	token, err := io.ReadAll(seed.Body)
+	require.NoError(t, err)
+	require.NotEmpty(t, token)
+	form := url.Values{httpsecurity.CSRFFormField: {string(token)}}
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/auth/google", strings.NewReader(form.Encode()))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	for _, cookie := range seed.Cookies() {
+		req.AddCookie(cookie)
+	}
+	resp, err := app.Test(req)
+	require.NoError(t, err)
+	t.Cleanup(func() { require.NoError(t, resp.Body.Close()) })
+	require.Equal(t, http.StatusFound, resp.StatusCode)
+	location, err := url.Parse(resp.Header.Get("Location"))
+	require.NoError(t, err)
+	require.Equal(t, "localhost:3000", location.Host)
+	require.Equal(t, "/auth/signup", location.Path)
+	require.Equal(t, "true", location.Query().Get("google_signup_expired"))
+	require.Equal(t, returnTo, location.Query().Get("return_to"))
+}
 
 func TestInitiateGoogleAuth(t *testing.T) {
 	t.Parallel()
@@ -39,23 +90,10 @@ func TestInitiateGoogleAuth(t *testing.T) {
 		},
 	})
 
-	req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/auth/google", nil)
-	resp, err := app.Test(req)
-	require.NoError(t, err)
-	defer func() {
-		require.NoError(t, resp.Body.Close())
-	}()
-	assert.Equal(t, http.StatusFound, resp.StatusCode)
-
-	location := resp.Header.Get("Location")
-	assert.Contains(t, location, "https://accounts.google.com/authorize")
-	authURL, err := url.Parse(location)
-	require.NoError(t, err)
-	state := authURL.Query().Get("state")
-	decodedState, err := base64.RawURLEncoding.DecodeString(state)
-	require.NoError(t, err)
-	assert.Len(t, decodedState, 32)
-
+	type oauthState struct {
+		State   string
+		Expires int64
+	}
 	app.Get("/_test/oauth-state", func(c fiber.Ctx) error {
 		sess, err := store.Get(c)
 		if err != nil {
@@ -63,16 +101,56 @@ func TestInitiateGoogleAuth(t *testing.T) {
 		}
 		defer sess.Release()
 		storedState, _ := sess.Get("oauth_state").(string)
-		return c.SendString(storedState)
+		expires, _ := sess.Get("oauth_expires_at").(int64)
+		return c.JSON(oauthState{State: storedState, Expires: expires})
 	})
-	stateReq := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/_test/oauth-state", nil)
-	for _, cookie := range resp.Cookies() {
-		stateReq.AddCookie(cookie)
+
+	for _, tc := range []struct {
+		name    string
+		method  string
+		path    string
+		timeout time.Duration
+	}{
+		{"default sign-in", http.MethodGet, "/auth/google", 10 * time.Minute},
+		{"extended sign-in", http.MethodGet, "/auth/google?more_time=true", 100 * time.Minute},
+		{"default signup", http.MethodPost, "/auth/google", 10 * time.Minute},
+		{"extended signup", http.MethodPost, "/auth/google?more_time=true", 100 * time.Minute},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			before := time.Now().Add(tc.timeout).Unix()
+			req := httptest.NewRequestWithContext(t.Context(), tc.method, tc.path, nil)
+			resp, err := app.Test(req)
+			after := time.Now().Add(tc.timeout).Unix()
+			require.NoError(t, err)
+			defer func() {
+				require.NoError(t, resp.Body.Close())
+			}()
+			require.Equal(t, http.StatusFound, resp.StatusCode)
+
+			location := resp.Header.Get("Location")
+			assert.Contains(t, location, "https://accounts.google.com/authorize")
+			authURL, err := url.Parse(location)
+			require.NoError(t, err)
+			state := authURL.Query().Get("state")
+			decodedState, err := base64.RawURLEncoding.DecodeString(state)
+			require.NoError(t, err)
+			assert.Len(t, decodedState, 32)
+
+			stateReq := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/_test/oauth-state", nil)
+			for _, cookie := range resp.Cookies() {
+				stateReq.AddCookie(cookie)
+			}
+			stateResp, err := app.Test(stateReq)
+			require.NoError(t, err)
+			defer func() { require.NoError(t, stateResp.Body.Close()) }()
+			require.Equal(t, http.StatusOK, stateResp.StatusCode)
+			var stored oauthState
+			require.NoError(t, json.NewDecoder(stateResp.Body).Decode(&stored))
+			assert.Equal(t, state, stored.State)
+			assert.GreaterOrEqual(t, stored.Expires, before)
+			assert.LessOrEqual(t, stored.Expires, after)
+		})
 	}
-	stateResp, err := app.Test(stateReq)
-	require.NoError(t, err)
-	defer func() { require.NoError(t, stateResp.Body.Close()) }()
-	assertResponseBody(t, stateResp, state)
 }
 
 func TestInitiateGoogleAuthUnavailable(t *testing.T) {
@@ -137,6 +215,81 @@ func TestAuthenticationMethodsArePublicAndNotCached(t *testing.T) {
 	}
 }
 
+func TestPendingGoogleSignupHonorsTheSelectedCallbackWindow(t *testing.T) {
+	t.Parallel()
+	for _, scenario := range []struct {
+		name   string
+		query  string
+		window time.Duration
+	}{
+		{"default", "", 10 * time.Minute},
+		{"more time", "&more_time=true", 100 * time.Minute},
+	} {
+		t.Run(scenario.name, func(t *testing.T) {
+			app, store := newTestApp(t, testServerConfig{
+				oidcService: &fakeOIDCService{ExchangeCodeForTokenFn: func(_ context.Context, _, _ string) (*oidc.User, error) {
+					return &oidc.User{ProviderID: "synthetic-id", Email: "signup@example.test", EmailVerified: true, Name: "Synthetic User"}, nil
+				}},
+				usersService: &fakeUsersService{LoginOrCreateOIDCUserFn: func(_ context.Context, _ *model.OIDCUserInfo) (*model.User, error) {
+					return nil, userssvc.ErrUserNotFound
+				}},
+			})
+			type pendingState struct {
+				Expires           int64
+				OAuthStateCleared bool
+			}
+			app.Get("/_test/pending-google-signup", func(c fiber.Ctx) error {
+				sess, err := store.Get(c)
+				if err != nil {
+					return err
+				}
+				defer sess.Release()
+				expires, _ := sess.Get(reqctx.SessionGoogleSignupExpiresKey).(int64)
+				return c.JSON(pendingState{Expires: expires, OAuthStateCleared: sess.Get("oauth_state") == nil && sess.Get("oauth_more_time") == nil})
+			})
+			const returnTo = "/organizations/acme/projects?section=repository"
+			start, err := app.Test(httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/auth/google?return_to="+url.QueryEscape(returnTo)+scenario.query, nil))
+			require.NoError(t, err)
+			t.Cleanup(func() { require.NoError(t, start.Body.Close()) })
+			require.Equal(t, http.StatusFound, start.StatusCode)
+			consent, err := url.Parse(start.Header.Get("Location"))
+			require.NoError(t, err)
+			state := consent.Query().Get("state")
+			require.NotEmpty(t, state)
+
+			callbackURL := "/auth/google/callback?" + url.Values{"state": {state}, "code": {"synthetic-code"}}.Encode()
+			callbackReq := httptest.NewRequestWithContext(t.Context(), http.MethodGet, callbackURL, nil)
+			for _, cookie := range start.Cookies() {
+				callbackReq.AddCookie(cookie)
+			}
+			before := time.Now().Add(scenario.window).Unix()
+			callback, err := app.Test(callbackReq)
+			after := time.Now().Add(scenario.window).Unix()
+			require.NoError(t, err)
+			t.Cleanup(func() { require.NoError(t, callback.Body.Close()) })
+			require.Equal(t, http.StatusFound, callback.StatusCode)
+			location, err := url.Parse(callback.Header.Get("Location"))
+			require.NoError(t, err)
+			require.Equal(t, "/auth/signup", location.Path)
+			require.Equal(t, returnTo, location.Query().Get("return_to"))
+
+			inspection := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/_test/pending-google-signup", nil)
+			for _, cookie := range start.Cookies() {
+				inspection.AddCookie(cookie)
+			}
+			response, err := app.Test(inspection)
+			require.NoError(t, err)
+			t.Cleanup(func() { require.NoError(t, response.Body.Close()) })
+			require.Equal(t, http.StatusOK, response.StatusCode)
+			var pending pendingState
+			require.NoError(t, json.NewDecoder(response.Body).Decode(&pending))
+			require.GreaterOrEqual(t, pending.Expires, before)
+			require.LessOrEqual(t, pending.Expires, after)
+			require.True(t, pending.OAuthStateCleared)
+		})
+	}
+}
+
 func TestHandleGoogleCallback(t *testing.T) {
 	t.Parallel()
 
@@ -145,6 +298,7 @@ func TestHandleGoogleCallback(t *testing.T) {
 		queryParams             string
 		sessionState            string
 		sessionExpired          bool
+		sessionReturnTo         string
 		exchangeCodeForTokenFn  func(ctx context.Context, code, redirectURI string) (*oidc.User, error)
 		loginOIDCUserFn         func(ctx context.Context, oidcUser *model.OIDCUserInfo) (*model.User, error)
 		loginOrCreateOIDCUserFn func(ctx context.Context, oidcUser *model.OIDCUserInfo) (*model.User, error)
@@ -197,13 +351,15 @@ func TestHandleGoogleCallback(t *testing.T) {
 			queryParams:          "code=valid-code&state=test-state",
 			sessionState:         "test-state",
 			sessionExpired:       true,
+			sessionReturnTo:      "/organizations?view=all",
 			wantStatus:           http.StatusFound,
-			wantLocationContains: "/auth/error?error=invalid_state",
+			wantLocationContains: "/auth/error?error=invalid_state&return_to=%2Forganizations%3Fview%3Dall",
 		},
 		{
 			name:                 "StateMismatchRedirectsToErrorPage",
 			queryParams:          "code=valid-code&state=wrong-state",
 			sessionState:         "correct-state",
+			sessionReturnTo:      "/organizations?view=all",
 			wantStatus:           http.StatusFound,
 			wantLocationContains: "/auth/error?error=invalid_state",
 		},
@@ -367,6 +523,9 @@ func TestHandleGoogleCallback(t *testing.T) {
 					defer sess.Release()
 					sess.Set("oauth_state", tt.sessionState)
 					sess.Set("oauth_expires_at", time.Now().Add(10*time.Minute).Unix())
+					if tt.sessionReturnTo != "" {
+						sess.Set("oauth_return_to", tt.sessionReturnTo)
+					}
 					if tt.sessionExpired {
 						sess.Set("oauth_expires_at", time.Now().Add(-time.Minute).Unix())
 					}
@@ -401,6 +560,9 @@ func TestHandleGoogleCallback(t *testing.T) {
 			if tt.wantLocationContains != "" {
 				location := resp.Header.Get("Location")
 				assert.Contains(t, location, tt.wantLocationContains)
+				if tt.wantLocationContains == "/auth/error?error=invalid_state" {
+					assert.Equal(t, "http://localhost:3000"+tt.wantLocationContains, location)
+				}
 			}
 		})
 	}

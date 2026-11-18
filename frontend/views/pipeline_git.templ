@@ -5,12 +5,25 @@ import (
 	"github.com/Braidplane/braidplane-core/pkg/ptr"
 )
 
+templ PipelineGitAccessDenied(shell AuthenticatedShellData, message string, backHref string, backLabel string) {
+	@AuthenticatedShell(shell, pipelineGitAccessDeniedContent(message, backHref, backLabel))
+}
+
+templ pipelineGitAccessDeniedContent(message string, backHref string, backLabel string) {
+	<section id="pipeline-git-workflow" class="max-w-4xl space-y-4" data-form-feedback>
+		<div class="alert alert-error" role="alert" tabindex="-1" data-form-feedback-focus>{ message }</div>
+		<a class="btn btn-outline btn-sm" href={ templ.URL(backHref) }>{ backLabel }</a>
+	</section>
+}
+
 templ PipelineSyncPage(shell AuthenticatedShellData, data PipelineSyncView) {
+	{{ shell.DocumentTitle = "Sync from Git" }}
 	@AuthenticatedShell(shell, pipelineSyncContent(data))
 }
 
 templ pipelineSyncContent(data PipelineSyncView) {
-	<section id="pipeline-git-workflow" class="space-y-4">
+	{{ partialApply := data.Report != nil && !data.Report.DryRun && data.Report.Summary.Failed > 0 }}
+	<section id="pipeline-git-workflow" class="space-y-4" data-form-feedback>
 		<div class="flex flex-wrap items-center justify-between gap-3">
 			<h2 class="text-xl font-semibold">Sync from Git</h2>
 			<a class="btn btn-outline btn-sm" href={ templ.URL(buildEnvironmentProjectPipelinesListHref(data.Org, data.Project, data.Environment, "", "")) }>Back to pipelines</a>
@@ -19,43 +32,44 @@ templ pipelineSyncContent(data PipelineSyncView) {
 		if data.Pipeline != "" {
 			<p>Pipeline: <span class="font-mono">{ data.Pipeline }</span></p>
 		}
-		if data.Error != "" {
-			<div role="alert" class="alert alert-error">{ data.Error }</div>
-		}
+		@FormError("pipeline-sync-feedback", data.Error, true)
 		if data.Backend == nil {
 			<p>No Git backend is available for this project.</p>
 			<a class="link link-primary" href={ templ.URL("/organizations/" + data.Org + "/projects/" + data.Project) }>Configure project Git backend</a>
 		} else {
 			<p class="break-all font-mono text-sm">{ data.Backend.Repo } · { data.Backend.TrackedBranch }</p>
-			<form method="post" action={ templ.URL(PipelineSyncHref(data.Org, data.Project, data.Environment, data.Pipeline)) } hx-post={ PipelineSyncHref(data.Org, data.Project, data.Environment, data.Pipeline) } hx-target="#pipeline-git-workflow" hx-select="#pipeline-git-workflow" hx-swap="outerHTML" hx-disabled-elt="find button">
-				<input type="hidden" name="action" value="preview"/>
-				<input type="hidden" name="pipeline_slug" value={ data.Pipeline }/>
-				<input type="hidden" name="environment_slug" value={ data.Environment }/>
-				<button class="btn btn-outline btn-sm" type="submit">Preview Git changes</button>
-				<span class="htmx-indicator ml-2 text-sm" role="status">Reading Git…</span>
-				<p data-request-error role="alert" hidden></p>
-			</form>
+			if !partialApply {
+				@pipelineSyncPreviewForm(data, "Preview Git changes")
+			}
 		}
 		if data.Report != nil {
 			{{ report := data.Report }}
+			{{ summary := fmt.Sprintf("%d synced · %d skipped · %d deleted · %d drift resets · %d failed", report.Summary.Synced, report.Summary.Skipped, report.Summary.Deleted, report.Summary.DriftReset, report.Summary.Failed) }}
 			if report.DryRun {
-				<h3 class="text-lg font-semibold">Sync preview</h3>
+				<h3 class="text-lg font-semibold" tabindex="-1" data-form-feedback-focus>Sync preview</h3>
 				<p class="text-sm">No changes applied. Database state may change before sync.</p>
-			} else if report.Summary.Failed > 0 {
-				<div role="alert" class="alert alert-warning">Sync completed with failures. Only successfully synced versions can be deployed.</div>
+			} else if partialApply {
+				<div role="alert" class="alert alert-warning" tabindex="-1" data-form-feedback-focus>
+					<div>
+						<p>Sync completed with failures. Only successfully synced versions can be deployed.</p>
+						<p>{ summary }</p>
+					</div>
+				</div>
 			} else {
-				<div role="status" class="alert alert-success">Git sync completed. Deploy synced versions separately.</div>
+				<div role="status" class="alert alert-success" tabindex="-1" data-form-feedback-focus>Git sync completed. Deploy synced versions separately.</div>
 			}
 			<dl class="grid gap-2 text-sm sm:grid-cols-2">
 				<div><dt class="font-semibold">Repository</dt><dd class="break-all font-mono">{ ptr.Value(report.Source.Repo) }</dd></div>
 				<div><dt class="font-semibold">Tracked ref</dt><dd class="break-all font-mono">{ ptr.Value(report.Source.Ref) }</dd></div>
 				<div><dt class="font-semibold">Commit</dt><dd class="break-all font-mono">{ ptr.Value(report.Source.Commit) }</dd></div>
 			</dl>
-			<p class="text-sm">{ fmt.Sprintf("%d synced · %d skipped · %d deleted · %d drift resets · %d failed", report.Summary.Synced, report.Summary.Skipped, report.Summary.Deleted, report.Summary.DriftReset, report.Summary.Failed) }</p>
+			if !partialApply {
+				<p class="text-sm">{ summary }</p>
+			}
 			if report.Summary.Deleted > 0 || report.Summary.DriftReset > 0 {
 				<div role="alert" class="alert alert-warning">Review deletions and drift resets below. Sync can remove pipelines missing from Git and replace stored definitions.</div>
 			}
-			<div class="overflow-x-auto">
+			<div class="overflow-x-auto" tabindex="0" role="region" aria-label="Git sync results">
 				<table class="table table-sm">
 					<thead><tr><th>Result</th><th>Pipeline / path</th><th>Version / reason</th><th><span class="sr-only">Actions</span></th></tr></thead>
 					<tbody>
@@ -66,7 +80,7 @@ templ pipelineSyncContent(data PipelineSyncView) {
 								<td class="max-w-xs break-all font-mono">{ item.SpecHash }</td>
 								<td>
 									if !report.DryRun {
-										<a class="btn btn-primary btn-sm" href={ templ.URL(PipelineDeployHref(data.Org, data.Project, data.Environment, item.PipelineSlug, item.SpecHash)) }>Deploy version</a>
+										<a class="btn btn-primary btn-sm whitespace-nowrap" href={ templ.URL(PipelineDeployHref(data.Org, data.Project, data.Environment, item.PipelineSlug, item.SpecHash)) }>Deploy version</a>
 										<a class="link ml-2" href={ templ.URL(PipelineDetailHrefWithEnvironment(data.Org, data.Project, data.Environment, item.PipelineSlug)) }>Bindings and details</a>
 									}
 								</td>
@@ -82,11 +96,14 @@ templ pipelineSyncContent(data PipelineSyncView) {
 							<tr><td class="text-warning">Drift reset</td><td class="break-all">{ item.PipelineSlug }<br/>{ item.SourcePath }</td><td class="max-w-xs break-all font-mono">{ item.PreviousSpecHash } → { item.AppliedSpecHash }</td><td></td></tr>
 						}
 						for _, item := range report.Failures {
-							<tr><td class="text-error">Failed</td><td class="break-all">{ ptr.Value(item.PipelineSlug) }<br/>{ ptr.Value(item.PipelinePath) }</td><td>{ string(item.Stage) }: check the committed definition and Git source, then preview again.</td><td></td></tr>
+							<tr><td class="text-error">Failed</td><td class="break-all">{ ptr.Value(item.PipelineSlug) }<br/>{ ptr.Value(item.PipelinePath) }</td><td>{ pipelineSyncFailureGuidance(item.Stage) }</td><td></td></tr>
 						}
 					</tbody>
 				</table>
 			</div>
+			if partialApply && data.Backend != nil {
+				@pipelineSyncPreviewForm(data, "Preview Git changes again")
+			}
 			if pipelineSyncCanApply(report) {
 				<form method="post" action={ templ.URL(PipelineSyncHref(data.Org, data.Project, data.Environment, data.Pipeline)) } hx-post={ PipelineSyncHref(data.Org, data.Project, data.Environment, data.Pipeline) } hx-target="#pipeline-git-workflow" hx-select="#pipeline-git-workflow" hx-swap="outerHTML" hx-disabled-elt="find button">
 					<input type="hidden" name="action" value="apply"/>
@@ -106,19 +123,35 @@ templ pipelineSyncContent(data PipelineSyncView) {
 	</section>
 }
 
+templ pipelineSyncPreviewForm(data PipelineSyncView, label string) {
+	<form method="post" action={ templ.URL(PipelineSyncHref(data.Org, data.Project, data.Environment, data.Pipeline)) } hx-post={ PipelineSyncHref(data.Org, data.Project, data.Environment, data.Pipeline) } hx-target="#pipeline-git-workflow" hx-select="#pipeline-git-workflow" hx-swap="outerHTML" hx-disabled-elt="find button">
+		<input type="hidden" name="action" value="preview"/>
+		<input type="hidden" name="pipeline_slug" value={ data.Pipeline }/>
+		<input type="hidden" name="environment_slug" value={ data.Environment }/>
+		<button class="btn btn-outline btn-sm" type="submit">{ label }</button>
+		<span class="htmx-indicator ml-2 text-sm" role="status">Reading Git…</span>
+		<p data-request-error role="alert" hidden></p>
+	</form>
+}
+
 templ PipelineDeployPage(shell AuthenticatedShellData, data PipelineDeployView) {
+	{{ shell.DocumentTitle = "Deploy pipeline version" }}
 	@AuthenticatedShell(shell, pipelineDeployContent(data))
 }
 
 templ pipelineDeployContent(data PipelineDeployView) {
-	<section id="pipeline-git-workflow" class="max-w-4xl space-y-4">
+	<section id="pipeline-git-workflow" class="max-w-4xl space-y-4" data-form-feedback>
 		<h2 class="text-xl font-semibold">Deploy pipeline version</h2>
 		<p class="break-all font-mono">{ data.Pipeline }</p>
-		if data.Error != "" {
-			<div role="alert" class="alert alert-error">{ data.Error }</div>
+		@FormError("pipeline-deployment-feedback", data.Error, true)
+		if data.Version == nil {
+			<a class="btn btn-outline btn-sm" href={ templ.URL(PipelineDetailHrefWithEnvironment(data.Org, data.Project, data.Environment, data.Pipeline)) }>Back to pipeline details</a>
 		}
-		if data.Version != nil {
-			<a class="link link-primary" href={ templ.URL(PipelineBindingSetupHref(data.Org, data.Project, data.Environment, data.Pipeline, data.Version.SpecHash, PipelineDeployHref(data.Org, data.Project, data.Environment, data.Pipeline, data.Version.SpecHash))) }>Resolve selected version bindings</a>
+		if data.ReviewDeployment && data.Version != nil && data.TargetEnabled {
+			<a class="btn btn-outline btn-sm" href={ templ.URL(pipelineDeploySelectionHref(data.Org, data.Project, data.Environment, data.Pipeline, data.Version.SpecHash, data.CompiledDigest, data.ResolutionDigest)) }>Review current deployment</a>
+		}
+		if data.Version != nil && data.TargetEnabled {
+			<a class="link link-primary" href={ templ.URL(PipelineBindingSetupHref(data.Org, data.Project, data.Environment, data.Pipeline, data.Version.SpecHash, pipelineDeploySelectionHref(data.Org, data.Project, data.Environment, data.Pipeline, data.Version.SpecHash, data.CompiledDigest, data.ResolutionDigest))) }>Resolve selected version bindings</a>
 		}
 		if data.Version != nil {
 			<dl class="space-y-2 text-sm">
@@ -126,53 +159,105 @@ templ pipelineDeployContent(data PipelineDeployView) {
 				<div><dt class="font-semibold">Source commit</dt><dd class="break-all font-mono">{ ptr.Value(data.Version.GitCommitSha) }</dd></div>
 			</dl>
 			if data.Deployed != nil {
-				<div role="status" class="alert alert-success break-all">Deployed { data.Deployed.CurrentVersionSpecHash } to { data.Deployed.EnvironmentSlug }.</div>
+				<div role="status" class="alert alert-success break-all" tabindex="-1" data-form-feedback-focus>Deployed { data.Deployed.CurrentVersionSpecHash } to { data.Deployed.EnvironmentSlug }.</div>
 				<a class="btn btn-outline btn-sm" href={ templ.URL(pipelineBuilderHrefWithEnvironment(data.Org, data.Project, data.Environment, data.Pipeline)) }>Open pipeline to run</a>
 				<a class="link ml-2" href={ templ.URL(buildEnvironmentRunsListHrefWithProject(data.Org, data.Project, data.Environment, "", "", "", data.Pipeline)) }>View runs</a>
 			} else {
 				if len(data.Environments) == 0 {
 					<a class="link link-primary" href={ templ.URL("/orgs/" + data.Org + "/projects/" + data.Project + "/environments") }>Manage enabled environments</a>
+				} else {
+					<form method="get" action={ templ.URL("/orgs/" + data.Org + "/projects/" + data.Project + "/pipelines/" + data.Pipeline + "/deploy") } class="flex flex-wrap items-end gap-3">
+						<input type="hidden" name="spec_hash" value={ data.Version.SpecHash }/>
+						<input type="hidden" name="compiled_plan_digest" value={ data.CompiledDigest }/>
+						<input type="hidden" name="resolution_digest" value={ data.ResolutionDigest }/>
+						<input type="hidden" name="review_from_environment" value={ data.Environment }/>
+						<label class="form-control">
+							<span class="label-text mb-1">Runtime environment</span>
+							<select class="select select-bordered select-sm" name="environment_slug" required>
+								if !data.TargetEnabled {
+									<option value="" selected disabled>Select an enabled environment</option>
+								}
+								for _, env := range data.Environments {
+									<option value={ env.EnvironmentSlug } selected?={ env.EnvironmentSlug == data.Environment }>{ env.EnvironmentName } ({ env.EnvironmentSlug })</option>
+								}
+							</select>
+						</label>
+						<button type="submit" class="btn btn-outline btn-sm">Review target</button>
+					</form>
 				}
-				<form method="get" action={ templ.URL("/orgs/" + data.Org + "/projects/" + data.Project + "/pipelines/" + data.Pipeline + "/deploy") } class="flex flex-wrap items-end gap-3">
-					<input type="hidden" name="spec_hash" value={ data.Version.SpecHash }/>
-					<input type="hidden" name="compiled_plan_digest" value={ data.CompiledDigest }/>
-					<input type="hidden" name="resolution_digest" value={ data.ResolutionDigest }/>
-					<label class="form-control">
-						<span class="label-text mb-1">Runtime environment</span>
-						<select class="select select-bordered select-sm" name="environment_slug" required>
-							for _, env := range data.Environments {
-								<option value={ env.EnvironmentSlug } selected?={ env.EnvironmentSlug == data.Environment }>{ env.EnvironmentName } ({ env.EnvironmentSlug })</option>
-							}
-						</select>
-					</label>
-					<button type="submit" class="btn btn-outline btn-sm">Review target</button>
-				</form>
 				if data.Environment != "" {
-					<p class="text-sm">Target: <strong>{ data.Environment }</strong></p>
+					<h3 class="text-sm" tabindex="-1" data-form-feedback-focus?={ data.ReviewTarget && data.Error == "" }
+						if data.RollbackSelectionCleared {
+							aria-describedby="pipeline-rollback-target-change"
+						}
+					>Target: <strong>{ data.Environment }</strong></h3>
+					if data.RollbackSelectionCleared {
+						<p class="text-sm text-base-content/70" id="pipeline-rollback-target-change">The previous rollback selection belongs to another environment. Review a rollback resolution for this target.</p>
+					}
 					if data.Current != nil {
 						<p class="break-all text-sm">Currently deployed: <span class="font-mono">{ data.Current.CurrentVersionSpecHash }</span></p>
+						if ptr.Value(data.Current.PreviousVersionSpecHash) != "" && ptr.Value(data.Current.PreviousResolutionDigest) != "" && data.ResolutionDigest != ptr.Value(data.Current.PreviousResolutionDigest) {
+							<a class="btn btn-outline btn-sm" href={ templ.URL(pipelineDeploySelectionHref(data.Org, data.Project, data.Environment, data.Pipeline, ptr.Value(data.Current.PreviousVersionSpecHash), "", ptr.Value(data.Current.PreviousResolutionDigest))) }>Review previous resolution for rollback</a>
+						}
 					} else if data.CanDeploy {
 						<p class="text-sm">No version deployed in this environment.</p>
 					}
 				}
+				if data.TargetEnabled && data.ResolutionDigest != "" && data.CompiledDigest == "" {
+					<section class="space-y-2" aria-labelledby="pipeline-rollback-selection">
+						<h3 id="pipeline-rollback-selection" class="font-semibold" tabindex="-1" data-form-feedback-focus?={ data.Error == "" }>Rollback selection</h3>
+						<p class="break-all text-sm">Selected resolution: <code>{ data.ResolutionDigest }</code></p>
+						<p class="text-sm text-base-content/70">Braidplane revalidates this environment’s stored resolution when you submit. A successful rollback applies the resolution to future runs.</p>
+					</section>
+				}
 				<section class="space-y-3 border-t border-base-300 pt-4" aria-label="Compiled plan">
-					<h3 class="font-semibold">Compiled plan</h3>
-					<form method="post" action={ templ.URL(PipelineDeployHref(data.Org, data.Project, data.Environment, data.Pipeline, data.Version.SpecHash)) } class="flex flex-wrap items-center gap-3">
-						<input type="hidden" name="spec_hash" value={ data.Version.SpecHash }/>
-						<input type="hidden" name="environment_slug" value={ data.Environment }/>
-						<details class="w-full">
-							<summary class="cursor-pointer text-sm">Rich projection selection</summary>
-							<label class="form-control mt-2"><span class="label-text">Projection selection JSON</span><textarea class="textarea textarea-bordered mt-1 w-full font-mono text-xs" name="projection" rows="8" aria-describedby="pipeline-projection-help">{ data.ProjectionJSON }</textarea></label>
-							<p id="pipeline-projection-help" class="mt-1 text-xs text-base-content/70">Optional exact revision/object pins, explicit mapping declarations, non-secret values with revisions, and local relationships. Catalog documents come from this project. A mapping declaration does not prove provider support or runtime conformance.</p>
-						</details>
-						<details class="w-full">
-							<summary class="cursor-pointer text-sm">Resource scope selection</summary>
-							<label class="form-control mt-2"><span class="label-text">Resource scope selection JSON</span><textarea class="textarea textarea-bordered mt-1 w-full font-mono text-xs" name="resource_scopes" rows="8" aria-describedby="pipeline-resource-scopes-help">{ data.ResourceScopesJSON }</textarea></label>
-							<p id="pipeline-resource-scopes-help" class="mt-1 text-xs text-base-content/70">Optional JSON array of step, role and scope selections. Pin the logical source, saved operation, contract revision and object with the s3/relative-key/v1 policy. Supply fixed endpoint, region, bucket and prefix, and explicit dynamic_key and force_path_style flags. Use non-secret values only. Deployment still resolves authorized bindings.</p>
-						</details>
-						<button class="btn btn-outline btn-sm" type="submit" name="action" value="compile" disabled?={ !data.CanCompile }>Compile selected version</button>
-						<p class="text-sm text-base-content/70">Capture source, contracts and saved operations from this immutable version.</p>
-					</form>
+					<h3 class="font-semibold" tabindex="-1" data-form-feedback-focus?={ data.Compiled != nil && data.Error == "" }>Compiled plan</h3>
+					if !data.TargetEnabled {
+						<p class="text-sm text-base-content/70">Select an enabled environment to compile or deploy.</p>
+					} else if data.CanCompile {
+						<form method="post" action={ templ.URL(PipelineDeployHref(data.Org, data.Project, data.Environment, data.Pipeline, data.Version.SpecHash)) } class="flex flex-wrap items-center gap-3">
+							<input type="hidden" name="spec_hash" value={ data.Version.SpecHash }/>
+							<input type="hidden" name="environment_slug" value={ data.Environment }/>
+							<details class="w-full" open?={ data.ProjectionJSON != "" }>
+								<summary class="cursor-pointer text-sm">Rich projection selection</summary>
+								<label class="form-control mt-2">
+									<span class="label-text">Projection selection JSON</span>
+									<textarea
+										class="textarea textarea-bordered mt-1 w-full font-mono text-xs"
+										name="projection"
+										rows="8"
+										aria-describedby="pipeline-projection-help"
+										aria-invalid={ boolString(data.InvalidCompileField == "projection") }
+										if data.InvalidCompileField == "projection" {
+											aria-errormessage="pipeline-deployment-feedback"
+										}
+									>{ data.ProjectionJSON }</textarea>
+								</label>
+								<p id="pipeline-projection-help" class="mt-1 text-xs text-base-content/70">Optional exact revision/object pins, explicit mapping declarations, non-secret values with revisions, and local relationships. Catalog documents come from this project. A mapping declaration does not prove provider support or runtime conformance.</p>
+							</details>
+							<details class="w-full" open?={ data.ResourceScopesJSON != "" }>
+								<summary class="cursor-pointer text-sm">Resource scope selection</summary>
+								<label class="form-control mt-2">
+									<span class="label-text">Resource scope selection JSON</span>
+									<textarea
+										class="textarea textarea-bordered mt-1 w-full font-mono text-xs"
+										name="resource_scopes"
+										rows="8"
+										aria-describedby="pipeline-resource-scopes-help"
+										aria-invalid={ boolString(data.InvalidCompileField == "resource_scopes") }
+										if data.InvalidCompileField == "resource_scopes" {
+											aria-errormessage="pipeline-deployment-feedback"
+										}
+									>{ data.ResourceScopesJSON }</textarea>
+								</label>
+								<p id="pipeline-resource-scopes-help" class="mt-1 text-xs text-base-content/70">Optional JSON array of step, role and scope selections. Pin the logical source, saved operation, contract revision and object with the s3/relative-key/v1 policy. Supply fixed endpoint, region, bucket and prefix, and explicit dynamic_key and force_path_style flags. Use non-secret values only. Deployment still resolves authorized bindings.</p>
+							</details>
+							<button class="btn btn-outline btn-sm" type="submit" name="action" value="compile">Compile selected version</button>
+							<p class="text-sm text-base-content/70">Capture source, contracts and saved operations from this immutable version.</p>
+						</form>
+					} else {
+						<p class="text-sm text-base-content/70">You can inspect retained plans. To compile or deploy a version, you need permission to update pipelines.</p>
+					}
 					<form method="get" class="space-y-3">
 						<input type="hidden" name="spec_hash" value={ data.Version.SpecHash }/>
 						<input type="hidden" name="environment_slug" value={ data.Environment }/>
@@ -237,7 +322,13 @@ templ pipelineDeployContent(data PipelineDeployView) {
 								<span class="label-text-alt mt-1">Type { data.Environment } to confirm deployment.</span>
 							</label>
 						}
-						<button type="submit" class="btn btn-primary btn-sm">Deploy to { data.Environment }</button>
+						<button type="submit" class="btn btn-primary btn-sm">
+							if data.ResolutionDigest != "" {
+								Roll back in { data.Environment }
+							} else {
+								Deploy to { data.Environment }
+							}
+						</button>
 						<span class="htmx-indicator ml-2 text-sm" role="status">Deploying…</span>
 						<p data-request-error role="alert" hidden></p>
 					</form>

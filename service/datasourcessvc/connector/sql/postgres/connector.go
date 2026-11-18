@@ -169,6 +169,8 @@ func mapPostgresError(err error) error {
 			return xerror.Forbidden(xerror.DataSource).With(err)
 		case "42703", "42P01", "3F000":
 			return xerror.SourceSchemaReferenceInvalid().With(err)
+		case "22012":
+			return xerror.SourceQueryInvalid().WithPublicDetail("Division by zero. Check values used as divisors and try again.")
 		case "42601", "42702", "42P09", "42803", "42804", "42883", "42P10":
 			return xerror.SourceQueryInvalid().With(err)
 		}

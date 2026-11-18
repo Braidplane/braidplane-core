@@ -11,9 +11,9 @@ import (
 )
 
 func TestRunInspectionStatusOutlivesRequest(t *testing.T) {
-	previousStatus, previousEnabled, previousImported, previousLarge := runInspectionStatus, runInspectionEnabled, imported, runInspectionLarge
+	previousStatus, previousEnabled, previousImported, previousTopology := runInspectionStatus, runInspectionEnabled, imported, runInspectionTopology
 	t.Cleanup(func() {
-		runInspectionStatus, runInspectionEnabled, imported, runInspectionLarge = previousStatus, previousEnabled, previousImported, previousLarge
+		runInspectionStatus, runInspectionEnabled, imported, runInspectionTopology = previousStatus, previousEnabled, previousImported, previousTopology
 	})
 	for _, status := range []string{"succeeded", "failed"} {
 		t.Run(status, func(t *testing.T) {

@@ -6,12 +6,6 @@ const { chromium } = require("@playwright/test");
 const { resolvePlaywrightBaseURL } = require("../assets/js/playwright_base_url.cjs");
 const { isolateE2EAuthClient } = require("./support/auth-throttle-client.cjs");
 
-const authStatePaths = {
-    chromium: resolve(__dirname, ".auth", "e2e-user-chromium.json"),
-    firefox: resolve(__dirname, ".auth", "e2e-user-firefox.json"),
-    webkit: resolve(__dirname, ".auth", "e2e-user-webkit.json"),
-};
-
 function extractField(output, key) {
     const re = new RegExp(`^${key}=(.+)$`, "m");
     const match = output.match(re);
@@ -63,7 +57,7 @@ module.exports = async function globalSetup(config) {
         throw new Error("E2E credentials are not set; run fake-seed or provide E2E_USER_EMAIL and E2E_USER_PASSWORD.");
     }
 
-    mkdirSync(dirname(authStatePaths.chromium), { recursive: true });
+    mkdirSync(resolve(__dirname, ".auth"), { recursive: true });
     const httpOAuthFixtureBin = resolve(__dirname, ".auth", "http-oauth-fixture");
     execFileSync(
         "bash",
@@ -137,11 +131,14 @@ module.exports = async function globalSetup(config) {
             envPath: resolve(repoRoot, ".worktree-env"),
         });
 
-    // Each engine owns a session; journeys do not mutate its active organization.
+    // Projects that share a state file need only one sign-in against the seeded account's throttle.
+    const authStatePaths = new Set(config.projects.map((project) => project.use.storageState));
     const endpoint = process.env.PW_TEST_CONNECT_WS_ENDPOINT;
     const browser = endpoint ? await chromium.connect(endpoint) : await chromium.launch();
     try {
-        for (const authStatePath of Object.values(authStatePaths)) {
+        for (const authStatePath of authStatePaths) {
+            if (typeof authStatePath !== "string") continue;
+            mkdirSync(dirname(authStatePath), { recursive: true });
             const context = await browser.newContext({ baseURL });
             const page = await context.newPage();
             try {

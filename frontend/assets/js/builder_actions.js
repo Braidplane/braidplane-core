@@ -82,89 +82,49 @@
         return null;
     };
 
-    const showNotification = (message, type = "info", details = "") => {
-        // Create a simple notification (can be replaced with DaisyUI toast later)
+    const showNotification = (message, type = "info", details = "", runHref = "") => {
+        const feedback = document.getElementById("builder-run-feedback");
+        if (!feedback) return;
+
         const notification = document.createElement("div");
-        notification.className = `alert alert-${type} fixed bottom-4 right-4 z-50 w-96 shadow-lg`;
-        notification.style.opacity = "1";
-        notification.style.maxWidth = "calc(100vw - 2rem)";
-        notification.style.backgroundColor = `var(--color-${type})`;
-        notification.style.color = `var(--color-${type}-content)`;
-
-        let removeTimeoutId = 0;
-
-        const clearRemovalTimer = () => {
-            if (removeTimeoutId) {
-                window.clearTimeout(removeTimeoutId);
-                removeTimeoutId = 0;
-            }
-        };
-
-        const removeNotification = () => {
-            clearRemovalTimer();
-            notification.remove();
-        };
-
-        const scheduleRemoval = (detailsEl) => {
-            clearRemovalTimer();
-            removeTimeoutId = window.setTimeout(() => {
-                if (detailsEl instanceof HTMLDetailsElement && detailsEl.open) {
-                    return;
-                }
-                notification.remove();
-            }, 5000);
-        };
+        notification.className = `alert alert-${type} min-w-0 items-start`;
 
         const content = document.createElement("div");
         content.className = "flex min-w-0 flex-col gap-2 break-words";
 
-        const summary = document.createElement("span");
+        const summary = document.createElement("p");
+        summary.setAttribute("role", type === "error" ? "alert" : "status");
+        summary.tabIndex = -1;
         summary.textContent = message;
         content.appendChild(summary);
 
-        let detailsEl = null;
-
         if (typeof details === "string" && details.trim() !== "" && details.trim() !== message.trim()) {
-            detailsEl = document.createElement("details");
-            detailsEl.className = "text-xs opacity-90";
+            const disclosure = document.createElement("details");
+            disclosure.className = "text-xs";
 
-            const detailsSummary = document.createElement("summary");
-            detailsSummary.className = "cursor-pointer";
-            detailsSummary.textContent = "Show details";
-            detailsEl.appendChild(detailsSummary);
+            const label = document.createElement("summary");
+            label.className = "cursor-pointer";
+            label.textContent = "Show details";
 
             const pre = document.createElement("pre");
             pre.className = "whitespace-pre-wrap break-words mt-1";
             pre.textContent = details;
-            detailsEl.appendChild(pre);
 
-            detailsEl.addEventListener("toggle", () => {
-                if (detailsEl.open) {
-                    clearRemovalTimer();
-                    return;
-                }
-                scheduleRemoval(detailsEl);
-            });
-
-            content.appendChild(detailsEl);
+            disclosure.append(label, pre);
+            content.appendChild(disclosure);
         }
 
-        const close = document.createElement("button");
-        close.className = "btn btn-sm btn-ghost";
-        close.textContent = "✕";
-        close.style.color = "inherit";
-        close.setAttribute("aria-label", "Dismiss notification");
-        close.addEventListener("click", () => {
-            removeNotification();
-        });
+        if (runHref) {
+            const link = document.createElement("a");
+            link.className = "link w-fit";
+            link.href = runHref;
+            link.textContent = "Open run details";
+            content.appendChild(link);
+        }
 
         notification.appendChild(content);
-        notification.appendChild(close);
-        document.body.appendChild(notification);
-
-        // Auto-hide after 5 seconds
-        scheduleRemoval(detailsEl);
-
+        feedback.replaceChildren(notification);
+        summary.focus();
         return notification;
     };
 
@@ -219,6 +179,10 @@
             return;
         }
         const { orgSlug, projectSlug, environmentSlug, pipelineSlug, pipelineHasDraft } = context;
+        const runDetailsHref = (slug) =>
+            slug
+                ? `/orgs/${encodeURIComponent(orgSlug)}/projects/${encodeURIComponent(projectSlug)}/runs/${encodeURIComponent(slug)}?environment_slug=${encodeURIComponent(environmentSlug)}`
+                : "";
 
         if (pipelineHasDraft) {
             showNotification(
@@ -291,13 +255,7 @@
                 if (failure.error) detailParts.push(failure.error);
                 const detailText = detailParts.join("\n\n");
 
-                showNotification(primaryMsg, "error", detailText);
-
-                if (runSlug) {
-                    setTimeout(() => {
-                        window.location.href = `/orgs/${encodeURIComponent(orgSlug)}/projects/${encodeURIComponent(projectSlug)}/runs/${encodeURIComponent(runSlug)}?environment_slug=${encodeURIComponent(environmentSlug)}`;
-                    }, 3000);
-                }
+                showNotification(primaryMsg, "error", detailText, runDetailsHref(runSlug));
                 return true;
             }
 
@@ -393,14 +351,9 @@
                     ? `Run requested in ${environmentSlug} (run: ${runSlug})`
                     : `Run requested in ${environmentSlug}`,
                 "info",
+                "",
+                runDetailsHref(runSlug),
             );
-
-            if (runSlug) {
-                const runHref = `/orgs/${encodeURIComponent(orgSlug)}/projects/${encodeURIComponent(projectSlug)}/runs/${encodeURIComponent(runSlug)}?environment_slug=${encodeURIComponent(environmentSlug)}`;
-                setTimeout(() => {
-                    window.location.href = runHref;
-                }, 250);
-            }
         } catch (error) {
             const details = error && typeof error.fullDetails === "string" ? error.fullDetails : "";
             showNotification(`Failed to execute pipeline: ${error.message}`, "error", details);

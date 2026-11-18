@@ -42,6 +42,7 @@ type ProjectPipelineBackendControls struct {
 	ProviderOwner            string
 	RepositoryName           string
 	CreationBranch           string
+	RepositoryOAuthMoreTime  bool
 	DataSourceOptions        []ProjectPipelineBackendDataSourceOption
 	Branches                 []api.DataSourceBranch
 	BranchesPending          bool
@@ -178,6 +179,9 @@ func ProjectPipelineBackendBranchOptions(
 				Label: func() string {
 					if controls.BranchesPending {
 						return branchName
+					}
+					if controls.BranchLoadError != "" {
+						return branchName + " (saved; could not verify)"
 					}
 					return branchName + " (not found on remote)"
 				}(),

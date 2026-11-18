@@ -1431,7 +1431,9 @@ describe("renderBuilderNodeContent", () => {
 
         expect(item.tabIndex).toBe(0);
         expect(item.getAttribute("role")).toBe("button");
-        expect(item.getAttribute("aria-label")).toBe("Query Step: read-orders");
+        expect(item.hasAttribute("aria-label")).toBe(false);
+        expect(item.textContent).toContain("read-orders");
+        expect(item.textContent).toContain("orders-postgres / list-orders-incremental");
 
         const badges = Array.from(item.querySelectorAll(".builder-node-badge")).map((badge) => ({
             label: badge.textContent,

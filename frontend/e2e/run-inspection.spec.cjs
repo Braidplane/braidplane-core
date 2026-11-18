@@ -213,7 +213,7 @@ test("diagnoses the recorded failure and retains context after recovery refusal"
             "provider may have applied",
         );
         await captureE2EEvidenceScreenshot(page, testInfo, "unknown-write-steps-desktop.png", { fullPage: true });
-        await graph.getByRole("link", { name: /Transform step Normalize customers/ }).click();
+        await graph.getByRole("link", { name: /Transform .*Normalize customers/ }).click();
         await page
             .getByRole("link", { name: /Inspect executed step & contract|Compare executed output contract/ })
             .click();
@@ -266,7 +266,8 @@ test("navigates the complete 22-step lineage while preserving the selected view"
         const graph = page.getByRole("region", { name: "Run lineage graph", exact: true });
         const canvas = graph.locator("[data-lineage-canvas]");
         const controls = page.getByRole("group", { name: "Lineage view controls" });
-        const nodes = canvas.locator('a[data-entity-focus="lineage-step-evidence"]');
+        const fit = controls.getByRole("button", { name: "Fit", exact: true });
+        const nodes = canvas.locator('a[id^="lineage-graph-step-"]');
         await expect(nodes).toHaveCount(22);
         const fits = () =>
             graph.evaluate((viewport) => {
@@ -293,6 +294,10 @@ test("navigates the complete 22-step lineage while preserving the selected view"
         await page.setViewportSize({ width: 1100, height: 850 });
         await expect.poll(fits).toBe(true);
         await captureE2EEvidenceScreenshot(page, testInfo, "lineage-22-laptop.png", { fullPage: true });
+        await graph.scrollIntoViewIfNeeded();
+        const fitBox = await graph.boundingBox();
+        await page.mouse.click(fitBox.x + 8, fitBox.y + 150);
+        await expect(fit).toHaveAttribute("aria-pressed", "true");
         await controls.getByRole("button", { name: "100%", exact: true }).click();
         await expect(controls.locator("output")).toHaveText("100%");
         await graph.focus();
@@ -300,12 +305,22 @@ test("navigates the complete 22-step lineage while preserving the selected view"
         await page.keyboard.press("ArrowDown");
         await expect.poll(() => graph.evaluate((element) => element.scrollTop)).toBeGreaterThan(initialTop);
         const box = await graph.boundingBox();
-        const beforePan = await graph.evaluate((element) => element.scrollTop);
+        const scrollTop = () => graph.evaluate((element) => element.scrollTop);
+        const beforePan = await scrollTop();
         await page.mouse.move(box.x + 8, box.y + 150);
         await page.mouse.down();
         await page.mouse.move(box.x + 8, box.y + 80);
+        await expect.poll(scrollTop).toBeGreaterThan(beforePan + 50);
+        await expect(graph).toBeFocused();
+        await page.keyboard.press("Escape");
+        await page.mouse.move(box.x + 8, box.y + 65);
         await page.mouse.up();
-        await expect.poll(() => graph.evaluate((element) => element.scrollTop)).toBeGreaterThan(beforePan + 50);
+        await expect.poll(scrollTop).toBe(beforePan);
+        await page.mouse.move(box.x + 8, box.y + 150);
+        await page.mouse.down();
+        await page.mouse.move(box.x - 4, box.y + 80);
+        await page.mouse.up();
+        await expect.poll(scrollTop).toBeGreaterThan(beforePan + 50);
         await nodes.first().scrollIntoViewIfNeeded();
         const position = await graph.evaluate((element) => ({ left: element.scrollLeft, top: element.scrollTop }));
         await nodes.first().click();
@@ -330,14 +345,11 @@ test("navigates the complete 22-step lineage while preserving the selected view"
         await expect
             .poll(() => graph.evaluate((element) => ({ left: element.scrollLeft, top: element.scrollTop })))
             .toEqual(position);
-        await controls.getByRole("button", { name: "Fit", exact: true }).click();
+        await fit.click();
         await expect.poll(fits).toBe(true);
         await controls.getByRole("button", { name: "Zoom in", exact: true }).click();
-        await expect(controls.getByRole("button", { name: "Fit", exact: true })).toHaveAttribute(
-            "aria-pressed",
-            "false",
-        );
-        await controls.getByRole("button", { name: "Fit", exact: true }).click();
+        await expect(fit).toHaveAttribute("aria-pressed", "false");
+        await fit.click();
         await expect.poll(fits).toBe(true);
         await page.setViewportSize({ width: 390, height: 844 });
         const compact = page.getByRole("list", { name: "Run lineage steps", exact: true });
@@ -371,11 +383,11 @@ test("keeps lineage full width above step inspection", async ({ page }, testInfo
         expect(graphBox.width).toBeGreaterThan(workbenchBox.width - 4);
         expect(inspectorBox.y).toBeGreaterThanOrEqual(graphBox.y + graphBox.height);
         for (const kind of ["Source", "Transform", "Sink"]) {
-            const node = graph.getByRole("link", { name: new RegExp(`${kind} step`) }).first();
+            const node = graph.getByRole("link", { name: new RegExp(`^${kind} `) }).first();
             await node.scrollIntoViewIfNeeded();
             await expect(node).toBeInViewport();
         }
-        await graph.getByRole("link", { name: /Transform step Normalize customers/ }).click();
+        await graph.getByRole("link", { name: /Transform .*Normalize customers/ }).click();
         await expect(evidence).toContainText("Normalize customers");
         await expect(evidence).toBeVisible();
         await evidence
@@ -500,10 +512,8 @@ test("pinpoints source and named-input failures with historical definition navig
             await expect(graph.locator("svg path.text-error")).toHaveCount(failure === "source" ? 0 : 1);
             if (failure === "transform") {
                 const label = await graph.getByRole("link", { name: /Failed input boundary:/ }).boundingBox();
-                const source = await graph.getByRole("link", { name: /Source step Fetch customers/ }).boundingBox();
-                const target = await graph
-                    .getByRole("link", { name: /Transform step Normalize customers/ })
-                    .boundingBox();
+                const source = await graph.getByRole("link", { name: /Source .*Fetch customers/ }).boundingBox();
+                const target = await graph.getByRole("link", { name: /Transform .*Normalize customers/ }).boundingBox();
                 expect(label.x).toBeGreaterThanOrEqual(source.x + source.width);
                 expect(label.x + label.width).toBeLessThanOrEqual(target.x);
             }
@@ -564,7 +574,7 @@ test("compares Builder and lineage for the same multi-input topology", async ({ 
         await page.goto(`${fixture.url}/orgs/acme/projects/ops/runs/run-inspection?environment_slug=dev&section=steps`);
         const node = page
             .getByRole("region", { name: "Run lineage graph", exact: true })
-            .getByRole("link", { name: /Transform step Normalize customers/ });
+            .getByRole("link", { name: /Transform .*Normalize customers/ });
         await node.focus();
         await expect(node).toBeFocused();
         const runSize = await node.evaluate((element) => ({
@@ -806,7 +816,7 @@ test("keeps live Steps selection, graph position and focus through quiet work, o
         await expect(progress).toContainText("Running step fetch");
         await expect(progress).toContainText("0 completed · 0 failed · 2 pending");
         const graph = page.getByRole("region", { name: "Run lineage graph", exact: true });
-        const runningSource = graph.getByRole("link", { name: /^Source step Fetch customers, Running\./ });
+        const runningSource = graph.getByRole("link", { name: /^Source Running Fetch customers/ });
         const selectedTransform = graph.locator('a[aria-current="true"]');
         await expect(runningSource.getByText("Running", { exact: true })).toBeVisible();
         await expect(selectedTransform.getByText("Pending", { exact: true }).locator("circle")).toBeVisible();
@@ -863,21 +873,17 @@ test("keeps live Steps selection, graph position and focus through quiet work, o
         await expect.poll(() => page.evaluate(() => window.scrollY)).toBe(documentScroll);
         await expect(page.locator('[data-lineage-view] a[aria-current="true"]')).toContainText("normalize");
         await expect(selectedTransform.getByText("Running", { exact: true })).toBeVisible();
-        expect(await selectedTransform.evaluate((element) => getComputedStyle(element).borderTopColor)).toBe(
-            runningAppearance.border,
-        );
+        await expect(selectedTransform).toHaveCSS("border-top-color", runningAppearance.border);
         expect(await selectedTransform.evaluate((element) => getComputedStyle(element).outlineWidth)).toBe("2px");
         await expect(
             graph
-                .getByRole("link", { name: /^Source step Fetch customers, Succeeded\./ })
+                .getByRole("link", { name: /^Source Succeeded Fetch customers/ })
                 .getByText("Succeeded", { exact: true })
                 .locator("svg"),
         ).toBeVisible();
-        await page.emulateMedia({ reducedMotion: "reduce" });
-        expect(
-            await selectedTransform.locator(".loading").evaluate((element) => getComputedStyle(element).animationName),
-        ).toBe("none");
-        await page.emulateMedia({ reducedMotion: "no-preference" });
+        const runningIcon = selectedTransform.getByText("Running", { exact: true }).locator("svg");
+        await expect(runningIcon).toBeVisible();
+        expect(await runningIcon.evaluate((element) => getComputedStyle(element).animationName)).toBe("none");
         await captureE2EEvidenceScreenshot(page, testInfo, "live-progress-running-desktop.png", { fullPage: true });
         await page.setViewportSize({ width: 390, height: 844 });
         const compactSteps = page.getByRole("list", { name: "Run lineage steps", exact: true });
@@ -893,9 +899,7 @@ test("keeps live Steps selection, graph position and focus through quiet work, o
         await expect(progress).not.toHaveAttribute("hx-trigger");
         await expect(progress).toContainText("1 completed · 1 failed · 1 pending");
         await expect(selectedTransform.getByText("Failed", { exact: true })).toBeVisible();
-        expect(await selectedTransform.evaluate((element) => getComputedStyle(element).borderTopColor)).not.toBe(
-            runningAppearance.border,
-        );
+        await expect(selectedTransform).not.toHaveCSS("border-top-color", runningAppearance.border);
         await page.setViewportSize({ width: 390, height: 844 });
         expect(await progress.evaluate((element) => element.scrollWidth <= element.clientWidth)).toBe(true);
         await captureE2EEvidenceScreenshot(page, testInfo, "live-progress-terminal-compact.png", { fullPage: true });
@@ -934,7 +938,7 @@ test("keeps the selected step after navigating away from a pending progress poll
             );
             await started;
             expect((await page.request.post(`${fixture.url}/_test/run/running?phase=normalize`)).ok()).toBe(true);
-            await page.getByRole("link", { name: /Source step Fetch customers/ }).click();
+            await page.getByRole("link", { name: /Source .*Fetch customers/ }).click();
             await expect(page.locator('[data-lineage-view] a[aria-current="true"]')).toContainText("fetch");
             releasePoll();
             await finished;

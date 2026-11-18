@@ -20,18 +20,22 @@ templ ProofConfigurationPage(shell AuthenticatedShellData, org, selected string,
 }
 
 templ ProofConfigurationContent(org, selected string, configurations []api.DataSourceProofConfiguration, feedback string, failed, canEdit bool) {
-	<div class="space-y-5">
+	<div class="space-y-5" data-form-feedback>
 		<header class="flex flex-wrap items-start justify-between gap-3">
-			<div>
-				<h1 class="text-xl font-semibold">Proof configuration</h1>
-				<p class="mt-1 max-w-3xl text-sm text-base-content/70">Choose which managed repository changes receive assessments. Repository access works independently of Proof.</p>
-			</div>
+			<p class="max-w-3xl text-sm text-base-content/70">Choose which managed repository changes receive assessments. Repository access works independently of Proof.</p>
 			<a class="btn btn-outline btn-sm" href={ templ.URL("/organizations/" + org + "/connections") }>Git integrations</a>
 		</header>
-		if feedback!="" {
-			<div role="status" class={ "alert",templ.KV("alert-error",failed),templ.KV("alert-success",!failed) }>{ feedback }</div>
+		if failed {
+			@FormError("proof-configuration-error", feedback, true)
+			if selected != "" {
+				<a class="btn btn-outline btn-sm" href={ templ.URL("/orgs/" + org + "/data-sources/" + selected + "/proof") }>Reload Proof configuration</a>
+			}
+		} else if feedback!="" {
+			<div class="alert alert-success" role="status" tabindex="-1" data-form-feedback-focus>{ feedback }</div>
 		}
-		@ProofConfigurationForms(org, selected, configurations, canEdit, failed)
+		if !failed || len(configurations) > 0 {
+			@ProofConfigurationForms(org, selected, configurations, canEdit, failed)
+		}
 	</div>
 }
 
@@ -58,25 +62,25 @@ templ ProofDataSourceForm(org, selected string, configuration api.DataSourceProo
 		</div>
 		@ProofConfigurationReadiness(configuration)
 		if configuration.Provider!="git" {
-			<form method="post" action={ templ.URL("/orgs/" + org + "/data-sources/" + string(configuration.DataSourceSlug) + "/proof") } class="mt-4 space-y-4" data-dirty-form>
+			<form method="post" action={ templ.URL("/orgs/" + org + "/data-sources/" + string(configuration.DataSourceSlug) + "/proof") } class="mt-4 space-y-4" data-dirty-form data-dirty-unsaved?={ failed }>
 				<input type="hidden" name="expected_repository_id" value={ configuration.RepositoryId }/>
 				if selected=="" {
 					<input type="hidden" name="return_to" value="organization"/>
 				}
 				<fieldset disabled?={ !canEdit } class="space-y-4">
-					<label class="flex items-center gap-3 text-sm font-medium"><input type="checkbox" class="checkbox checkbox-sm" name="enabled" checked?={ configuration.Enabled }/>Enable Proof assessments</label>
+					<label class="flex items-center gap-3 text-sm font-medium"><input type="checkbox" class="checkbox min-h-6 min-w-6 shrink-0" name="enabled" checked?={ configuration.Enabled }/>Enable Proof assessments</label>
 					<details class="border-t border-base-300 pt-3" open?={ failed }>
 						<summary class="cursor-pointer text-sm font-semibold">Assessment targets ({ len(configuration.Targets) })</summary>
 						if len(configuration.AvailableTargets)>0 {
 							<div class="border-t border-base-300 pt-4">
 								<h3 class="text-sm font-semibold">Assessment targets</h3>
-								<p class="mt-1 text-xs text-base-content/60">Enter one repository-relative pipeline path per line for each target you want assessed. Leave unused targets empty.</p>
+								<p id={ "proof-paths-help-" + string(configuration.DataSourceSlug) } class="mt-1 text-xs text-base-content/60">Enter one repository-relative pipeline path per line for each target you want assessed. Leave unused targets empty.</p>
 								for _,target:=range configuration.AvailableTargets {
 									<div class="mt-4 min-w-0">
 										<label class="block text-sm font-medium" for={ "paths-" + string(configuration.DataSourceSlug) + "-" + string(target.ProjectSlug) + "-" + string(target.EnvironmentSlug) }>{ string(target.ProjectSlug) } / { string(target.EnvironmentSlug) }</label>
 										<p class="mt-1 break-all text-xs text-base-content/60">{ target.TargetRef } · { target.PipelineDirectory }</p>
 										<input type="hidden" name={ "ref:" + string(target.ProjectSlug) + ":" + string(target.EnvironmentSlug) } value={ target.TargetRef }/>
-										<textarea id={ "paths-" + string(configuration.DataSourceSlug) + "-" + string(target.ProjectSlug) + "-" + string(target.EnvironmentSlug) } name={ "paths:" + string(target.ProjectSlug) + ":" + string(target.EnvironmentSlug) } class="textarea textarea-bordered mt-2 w-full font-mono text-xs" rows="3" placeholder={ target.PipelineDirectory + "/pipeline.yaml" }>{ proofConfiguredPaths(configuration,target) }</textarea>
+										<textarea id={ "paths-" + string(configuration.DataSourceSlug) + "-" + string(target.ProjectSlug) + "-" + string(target.EnvironmentSlug) } name={ "paths:" + string(target.ProjectSlug) + ":" + string(target.EnvironmentSlug) } aria-describedby={ "proof-paths-help-" + string(configuration.DataSourceSlug) } class="textarea textarea-bordered mt-2 w-full font-mono text-xs" rows="3" placeholder={ target.PipelineDirectory + "/pipeline.yaml" }>{ proofConfiguredPaths(configuration,target) }</textarea>
 										<a class="link mt-1 inline-block text-xs" href={ templ.URL("/orgs/" + org + "/projects/" + string(target.ProjectSlug) + "/proof-receipts?environment_slug=" + string(target.EnvironmentSlug)) }>Receipt history</a>
 									</div>
 								}
@@ -89,7 +93,7 @@ templ ProofDataSourceForm(org, selected string, configuration api.DataSourceProo
 						<summary class="cursor-pointer text-sm font-semibold">Publication options</summary>
 						if configuration.Provider=="github" || configuration.Provider=="gitlab" {
 							<label class="flex items-center gap-3 text-sm">
-								<input type="checkbox" class="checkbox checkbox-sm" name="publish_checks" checked?={ configuration.PublishChecks }/>
+								<input type="checkbox" class="checkbox min-h-6 min-w-6 shrink-0" name="publish_checks" checked?={ configuration.PublishChecks }/>
 								if configuration.Provider=="gitlab" {
 									Publish informational GitLab notes
 								} else {

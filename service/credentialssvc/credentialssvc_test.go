@@ -386,6 +386,32 @@ func TestServiceStartOAuthInstallStoresOnlyStateHash(t *testing.T) {
 	assert.Equal(t, now.Add(DefaultInstallTTL), stored.ExpiresAt)
 }
 
+func TestServiceStartOAuthInstallAllowsMoreTimeForCallback(t *testing.T) {
+	t.Parallel()
+
+	now := time.Date(2026, 6, 3, 10, 0, 0, 0, time.UTC)
+	repo := newCredentialRepo()
+	providers := ProviderRegistry{"fakecrm": &fakeProviderAdapter{authURL: "https://fakecrm.example/oauth"}}
+	svc := newTestServiceAt(t, repo, providers, now)
+	install, err := svc.StartOAuthInstall(t.Context(), StartOAuthInstallParams{
+		Owner:    testOwner(),
+		Provider: "fakecrm",
+		Intent:   OAuthInstallIntentCreate,
+		MoreTime: true,
+	})
+	require.NoError(t, err)
+	require.Len(t, repo.installs, 1)
+	assert.Equal(t, now.Add(100*time.Minute), install.ExpiresAt)
+	assert.Equal(t, install.ExpiresAt, repo.installs[0].ExpiresAt)
+	assert.Equal(t, oauthflow.HashState(install.State), repo.installs[0].StateHash)
+
+	lookup := FindOAuthInstallParams{Provider: "fakecrm", State: install.State}
+	_, err = newTestServiceAt(t, repo, providers, now.Add(11*time.Minute)).FindOAuthInstall(t.Context(), lookup)
+	require.NoError(t, err)
+	_, err = newTestServiceAt(t, repo, providers, install.ExpiresAt.Add(time.Second)).FindOAuthInstall(t.Context(), lookup)
+	require.ErrorIs(t, err, ErrOAuthStateExpired)
+}
+
 func TestRepositorySetupConsentStoresExactContextAndRequiresStartingUser(t *testing.T) {
 	t.Parallel()
 	repo := newCredentialRepo()

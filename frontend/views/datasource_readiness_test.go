@@ -87,7 +87,7 @@ func TestDataSourceQuickLookIgnoresWhitespaceTestErrors(t *testing.T) {
 	}
 }
 
-func TestSchemaBrowserPollsOnlyWhileImporting(t *testing.T) {
+func TestSchemaBrowserOffersExplicitStatusCheckWhileImporting(t *testing.T) {
 	for _, status := range []api.DataSourceSchemaStatus{api.DataSourceSchemaStatusNotImported, api.DataSourceSchemaStatusImporting, api.DataSourceSchemaStatusReady, api.DataSourceSchemaStatusFailed} {
 		t.Run(string(status), func(t *testing.T) {
 			source := &api.DataSource{Name: "Warehouse", Slug: "warehouse", Type: api.DataSourceTypePostgres}
@@ -99,16 +99,19 @@ func TestSchemaBrowserPollsOnlyWhileImporting(t *testing.T) {
 			var out bytes.Buffer
 			require.NoError(t, DataSourceDetailPanelContent("acme", "dev", source, panel, nil, DataSourceUpdateFormData{}, NewOrganizationPermissions("datasources:update"), DataSourceOperationsPanelData{}).Render(ctx, &out))
 			html := out.String()
+			require.NotContains(t, html, `hx-trigger="every 2s"`)
 			if status == api.DataSourceSchemaStatusImporting {
-				require.Contains(t, html, `hx-get="/orgs/acme/data-sources/warehouse?environment_slug=dev&amp;section=schema"`)
-				require.Contains(t, html, `hx-trigger="every 2s"`)
-				require.Contains(t, html, `hx-select="#data-source-schema-browser"`)
-				require.Contains(t, html, "This panel updates automatically.")
+				require.Contains(t, html, `action="/orgs/acme/data-sources/warehouse"`)
+				require.Contains(t, html, `hx-get="/orgs/acme/data-sources/warehouse"`)
+				require.Contains(t, html, `data-entity-focus="data-source-schema-heading"`)
+				require.Contains(t, html, `name="section" value="schema"`)
+				require.Contains(t, html, "Check import status")
+				require.Contains(t, html, "Schema import is running.")
 				require.Contains(t, html, `disabled>Importing…</button>`)
 				require.NotContains(t, html, "No tables discovered.")
 				require.NotContains(t, html, "Schema import completed")
 			} else {
-				require.NotContains(t, html, `hx-trigger="every 2s"`)
+				require.NotContains(t, html, "Check import status")
 				if status == api.DataSourceSchemaStatusFailed {
 					require.Contains(t, html, "Schema access denied.")
 					require.Contains(t, html, "Retry import")

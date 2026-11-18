@@ -16,6 +16,7 @@ import (
 	workspace "github.com/Braidplane/braidplane-core/pkg/connector/googleworkspace"
 	"github.com/Braidplane/braidplane-core/pkg/domain/model"
 	"github.com/Braidplane/braidplane-core/pkg/logging"
+	"github.com/Braidplane/braidplane-core/pkg/ptr"
 	"github.com/Braidplane/braidplane-core/pkg/slug"
 	"github.com/Braidplane/braidplane-core/pkg/xerror"
 	"github.com/Braidplane/braidplane-core/service/credentialssvc"
@@ -70,6 +71,7 @@ func (s *server) StartProviderDataSourceInstall(
 			Type:       dsType,
 			ConfigJSON: configJSON,
 			ReadOnly:   req.ReadOnly,
+			MoreTime:   ptr.Value(req.MoreTime),
 		},
 	)
 	if err != nil {
@@ -134,6 +136,7 @@ func (s *server) StartProviderConnectorInstall(
 			Provider:           provider,
 			IncludeWriteScopes: !dataSource.ReadOnly,
 			AccessMode:         accessMode,
+			MoreTime:           ptr.Value(req.MoreTime),
 			Intent:             intent,
 			Actor:              s.eventActor(c),
 		},
@@ -713,7 +716,7 @@ func (s *server) GetGoogleWorkspaceWorksheets(c fiber.Ctx, slugParam api.SlugPar
 }
 
 // ConnectDataSourceHTTPOAuth uses the saved encrypted app for consent or machine acquisition.
-func (s *server) ConnectDataSourceHTTPOAuth(c fiber.Ctx, orgParam api.SlugParam, sourceParam api.DataSourceSlugParam) error {
+func (s *server) ConnectDataSourceHTTPOAuth(c fiber.Ctx, orgParam api.SlugParam, sourceParam api.DataSourceSlugParam, params api.ConnectDataSourceHTTPOAuthParams) error {
 	if err := s.canManageDataSourceGrant(c, orgParam, sourceParam); err != nil {
 		return err
 	}
@@ -724,7 +727,7 @@ func (s *server) ConnectDataSourceHTTPOAuth(c fiber.Ctx, orgParam api.SlugParam,
 	if err := chargeAuthorizedOrganizationAbuseControl(c, org.String(), "credential.mutation", true); err != nil {
 		return err
 	}
-	result, err := s.datasourcesService.ConnectHTTPOAuth(c.Context(), org, source, s.eventActor(c))
+	result, err := s.datasourcesService.ConnectHTTPOAuth(c.Context(), org, source, s.eventActor(c), ptr.Value(params.MoreTime))
 	if err != nil {
 		return mapServiceError(err)
 	}

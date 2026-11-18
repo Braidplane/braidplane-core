@@ -29,7 +29,9 @@ func OrganizationNewPage(shellData AuthenticatedShellData, formData Organization
 			templ_7745c5c3_Var1 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = AuthenticatedShell(shellData, OrganizationNewPageContent(formData)).Render(ctx, templ_7745c5c3_Buffer)
+		content := OrganizationNewPageContent(formData, shellData.PageError, shellData.PageErrorDetails)
+		shellData.PageError, shellData.PageErrorDetails = "", ""
+		templ_7745c5c3_Err = AuthenticatedShell(shellData, content).Render(ctx, templ_7745c5c3_Buffer)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -37,7 +39,7 @@ func OrganizationNewPage(shellData AuthenticatedShellData, formData Organization
 	})
 }
 
-func OrganizationNewPageContent(formData OrganizationCreateFormData) templ.Component {
+func OrganizationNewPageContent(formData OrganizationCreateFormData, pageError string, pageErrorDetails string) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
 		if templ_7745c5c3_CtxErr := ctx.Err(); templ_7745c5c3_CtxErr != nil {
@@ -58,27 +60,27 @@ func OrganizationNewPageContent(formData OrganizationCreateFormData) templ.Compo
 			templ_7745c5c3_Var2 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 1, "<div class=\"mx-auto w-full max-w-3xl py-2\"><div class=\"card w-full rounded-xl border border-base-300 bg-base-100 shadow-sm\"><div class=\"card-body gap-4\"><h2 class=\"text-2xl font-semibold\">Create organization</h2><p class=\"text-sm text-base-content/70\">Set up a new workspace for your team.</p><form class=\"space-y-3\" method=\"post\" action=\"/organizations\" hx-post=\"/organizations\" hx-target=\"body\" hx-select=\"body\" hx-swap=\"outerHTML\"><label class=\"form-control w-full\"><div class=\"label\"><span class=\"label-text\">Organization name</span></div><input class=\"input input-bordered input-lg w-full\" type=\"text\" name=\"name\" placeholder=\"Acme HQ\" value=\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 1, "<div class=\"mx-auto w-full max-w-3xl py-2\"><div class=\"card w-full rounded-xl border border-base-300 bg-base-100 shadow-sm\"><div class=\"card-body gap-4\"><h2 class=\"text-2xl font-semibold\">Create organization</h2><p class=\"text-sm text-base-content/70\">Set up a new workspace for your team.</p><form class=\"space-y-3\" method=\"post\" action=\"/organizations\" hx-post=\"/organizations\" hx-target=\"#main-content\" hx-select=\"#main-content\" hx-swap=\"outerHTML\" data-form-feedback><label class=\"form-control w-full\"><div class=\"label\"><span class=\"label-text\">Organization name</span></div><input class=\"input input-bordered input-lg w-full\" type=\"text\" name=\"name\" placeholder=\"Acme HQ\" value=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var3 string
 		templ_7745c5c3_Var3, templ_7745c5c3_Err = templ.ResolveAttributeValue(formData.Name)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations_new.templ`, Line: 18, Col: 125}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations_new.templ`, Line: 20, Col: 125}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var3)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 2, "\"></label> <label class=\"form-control w-full\"><div class=\"label\"><span class=\"label-text\">Description (optional)</span></div><textarea class=\"textarea textarea-bordered textarea-lg w-full resize-y\" rows=\"4\" name=\"description\" placeholder=\"Optional workspace context.\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 2, "\" autocomplete=\"organization\" maxlength=\"255\" required></label> <label class=\"form-control w-full\"><div class=\"label\"><span class=\"label-text\">Description (optional)</span></div><textarea class=\"textarea textarea-bordered textarea-lg w-full resize-y\" rows=\"4\" name=\"description\" placeholder=\"Optional workspace context.\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var4 string
 		templ_7745c5c3_Var4, templ_7745c5c3_Err = templ.JoinStringErrs(formData.Description)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations_new.templ`, Line: 24, Col: 171}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations_new.templ`, Line: 26, Col: 171}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var4))
 		if templ_7745c5c3_Err != nil {
@@ -92,7 +94,34 @@ func OrganizationNewPageContent(formData OrganizationCreateFormData) templ.Compo
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 4, "<div class=\"flex flex-col gap-2 pt-1 sm:flex-row sm:justify-end\"><a class=\"btn btn-outline w-full sm:w-auto\" href=\"/dashboard\">Cancel</a> <button class=\"btn btn-primary w-full sm:w-auto\" type=\"submit\">Create Organization</button></div></form></div></div></div>")
+		templ_7745c5c3_Err = FormError("organization-create-feedback", pageError, true).Render(ctx, templ_7745c5c3_Buffer)
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		if pageErrorDetails != "" {
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 4, "<details class=\"text-sm\"><summary>More details</summary><p class=\"whitespace-pre-wrap break-words\">")
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			var templ_7745c5c3_Var5 string
+			templ_7745c5c3_Var5, templ_7745c5c3_Err = templ.JoinStringErrs(pageErrorDetails)
+			if templ_7745c5c3_Err != nil {
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations_new.templ`, Line: 31, Col: 123}
+			}
+			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var5))
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 5, "</p></details>")
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+		}
+		templ_7745c5c3_Err = FormRequestError().Render(ctx, templ_7745c5c3_Buffer)
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 6, "<div class=\"flex flex-col gap-2 pt-1 sm:flex-row sm:justify-end\"><a class=\"btn btn-outline w-full sm:w-auto\" href=\"/dashboard\">Cancel</a> <button class=\"btn btn-primary w-full sm:w-auto\" type=\"submit\">Create Organization</button></div></form></div></div></div>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

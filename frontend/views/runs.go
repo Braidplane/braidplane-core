@@ -810,7 +810,7 @@ func runCheckpointStatusVisible(status api.PipelineRunCheckpointStatus) bool {
 
 func runIncrementalDiagnosticsVisible(run api.PipelineRunRecord) bool {
 	incremental := run.Metadata.Incremental
-	return incremental.Mode != api.Full ||
+	return (incremental.Mode != "" && incremental.Mode != api.Full) ||
 		runCheckpointStatusVisible(incremental.CheckpointStatus) ||
 		incremental.BlockedReason != "" ||
 		incremental.ReplayBlockedReason != "" ||

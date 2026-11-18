@@ -42,20 +42,20 @@ func SuccessPopup(id string, summary string) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 2, "\" data-success-popup data-auto-dismiss-ms=\"5000\" class=\"fixed bottom-4 left-4 right-4 z-50 rounded-xl border border-success/30 bg-base-100 p-4 shadow-xl sm:bottom-auto sm:left-auto sm:right-4 sm:top-4 sm:w-[min(92vw,420px)]\"><div class=\"flex items-start gap-3\"><div class=\"mt-0.5 text-success\" aria-hidden=\"true\">&#10003;</div><div class=\"min-w-0\"><p class=\"text-sm font-semibold text-base-content\">Success</p><p class=\"mt-1 text-sm text-base-content/80\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 2, "\" class=\"alert alert-success my-3\" role=\"status\"><span>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var3 string
 		templ_7745c5c3_Var3, templ_7745c5c3_Err = templ.JoinStringErrs(summary)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/success_popup.templ`, Line: 9, Col: 58}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/success_popup.templ`, Line: 5, Col: 17}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var3))
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 3, "</p></div><button class=\"btn btn-ghost btn-xs btn-circle focus:outline-none focus-visible:ring-2 focus-visible:ring-success\" type=\"button\" aria-label=\"Dismiss success\" data-popup-dismiss=\"[data-success-popup]\">X</button></div></div>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 3, "</span></div>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

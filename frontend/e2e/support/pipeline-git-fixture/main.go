@@ -28,12 +28,26 @@ var (
 	imported, bound, deployed bool
 	richCompiled              bool
 	scopedCompiled            bool
+	includeQueryArchiveSource bool
+	rejectNextGitApply        bool
+	partialGitSync            bool
+	partialGitSyncCorrected   bool
+	rejectNextCompile         bool
+	deploymentReadOnly        bool
+	deploymentBackendDenied   bool
+	deploymentNoPipelineRead  bool
+	deploymentMultipleTargets bool
+	deploymentNoTargets       bool
+	rollbackRevision          int64
 )
 
 const (
-	version  = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
-	commit   = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
-	pipeline = workspacePipeline
+	version                = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+	rollbackCurrentVersion = "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+	rollbackResolution     = "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+	commit                 = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+	correctedGitCommit     = "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+	pipeline               = workspacePipeline
 )
 
 func main() {
@@ -55,9 +69,41 @@ func main() {
 	app.Get("/_test/session", func(c fiber.Ctx) error {
 		return reqctx.SetUserSlug(c, store, slug.Slug("test-user"))
 	})
+	app.Post("/_test/git-source-changed", func(c fiber.Ctx) error {
+		mu.Lock()
+		defer mu.Unlock()
+		rejectNextGitApply = true
+		return c.SendStatus(http.StatusNoContent)
+	})
+	app.Post("/_test/git-sync-partial", func(c fiber.Ctx) error {
+		mu.Lock()
+		defer mu.Unlock()
+		partialGitSyncCorrected = c.Query("corrected") == "true"
+		partialGitSync = !partialGitSyncCorrected
+		return c.SendStatus(http.StatusNoContent)
+	})
+	app.Post("/_test/deployment-access", func(c fiber.Ctx) error {
+		mu.Lock()
+		defer mu.Unlock()
+		rejectNextCompile = c.Query("reject_compile") == "true"
+		deploymentReadOnly = c.Query("read_only") == "true"
+		deploymentBackendDenied = c.Query("backend_denied") == "true"
+		deploymentNoPipelineRead = c.Query("no_read") == "true"
+		deploymentMultipleTargets = c.Query("multiple_targets") == "true"
+		deploymentNoTargets = c.Query("no_targets") == "true"
+		if deploymentReadOnly {
+			imported = true
+		}
+		if c.Query("rollback") == "true" {
+			imported, bound = true, true
+			rollbackRevision = 7
+		}
+		return c.SendStatus(http.StatusNoContent)
+	})
 	app.Get("/assets/icons/*", static.New("brand/icons"))
 	app.Get("/assets/*", static.New("frontend/assets"))
 	registerRunInspectionFixture(app)
+	registerAuthInspectionFixture(app, store)
 	registerCompletionInspectionFixture(app)
 	registerNotificationFixture(app)
 	registerRecencyFixture(app)
@@ -86,6 +132,9 @@ func handleAPI(w http.ResponseWriter, r *http.Request) {
 	defer mu.Unlock()
 	w.Header().Set("Content-Type", "application/json")
 	write := func(body string) { _, _ = w.Write([]byte(body)) }
+	if handleAuthInspectionAPI(w, r) {
+		return
+	}
 	if r.URL.Path == "/api/users/profile" && !runInspectionEnabled {
 		write(`{"slug":"test-user"}`)
 		return
@@ -124,6 +173,12 @@ func handleAPI(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		if r.Method == http.MethodPost {
+			if rejectNextCompile {
+				rejectNextCompile = false
+				w.WriteHeader(http.StatusForbidden)
+				write(`{"error":{"message":"Compiler access denied for this version."}}`)
+				return
+			}
 			var body apiwire.PipelineCompilationRequest
 			if json.NewDecoder(r.Body).Decode(&body) != nil {
 				http.Error(w, "invalid compilation selection", http.StatusBadRequest)
@@ -162,12 +217,28 @@ func handleAPI(w http.ResponseWriter, r *http.Request) {
 	case "/api/organizations/acme":
 		write(`{"name":"Acme","slug":"acme","member_role":"admin"}`)
 	case "/api/organizations/acme/roles/admin":
-		write(`{"slug":"admin","permissions":[{"resource":"pipelines","action":"read"},{"resource":"pipelines","action":"update"},{"resource":"pipelines","action":"execute"},{"resource":"projects","action":"read"},{"resource":"projects","action":"update"},{"resource":"datasources","action":"read"},{"resource":"datasources","action":"update"},{"resource":"data_sources","action":"update"}]}`)
+		if deploymentNoPipelineRead {
+			write(`{"slug":"admin","permissions":[{"resource":"projects","action":"read"}]}`)
+			return
+		}
+		if deploymentReadOnly {
+			write(`{"slug":"admin","permissions":[{"resource":"pipelines","action":"read"},{"resource":"projects","action":"read"}]}`)
+			return
+		}
+		write(`{"slug":"admin","permissions":[{"resource":"pipelines","action":"read"},{"resource":"pipelines","action":"update"},{"resource":"pipelines","action":"execute"},{"resource":"projects","action":"read"},{"resource":"projects","action":"update"},{"resource":"datasources","action":"read"},{"resource":"datasources","action":"update"},{"resource":"data_sources","action":"update"},{"resource":"data_sources","action":"delete"}]}`)
 	case "/api/organizations/acme/projects":
 		write(`{"projects":[{"name":"Ops","slug":"ops"}]}`)
 	case prefix:
 		write(`{"name":"Ops","slug":"ops","pipeline_backend":{"data_source_slug":"git-source","repo":"https://example.com/pipelines.git","tracked_branch":"main","pipeline_dir":"pipelines"}}`)
 	case prefix + "/environments":
+		if deploymentNoTargets {
+			write(`{"project_environments":[]}`)
+			return
+		}
+		if deploymentMultipleTargets {
+			write(`{"project_environments":[{"environment_slug":"dev","environment_name":"Development","is_default":true,"environment_protected":true},{"environment_slug":"staging","environment_name":"Staging"}]}`)
+			return
+		}
 		write(`{"project_environments":[{"environment_slug":"dev","environment_name":"Development","is_default":true,"environment_protected":true}]}`)
 	case prefix + "/pipelines":
 		if imported {
@@ -192,25 +263,37 @@ func handleAPI(w http.ResponseWriter, r *http.Request) {
 			w.WriteHeader(http.StatusBadRequest)
 			return
 		}
+		sourceCommit := commit
+		if partialGitSyncCorrected {
+			sourceCommit = correctedGitCommit
+		}
 		if !req.DryRun {
-			if req.ExpectedSource == nil || req.ExpectedSource.Commit != commit {
+			if rejectNextGitApply || req.ExpectedSource == nil || req.ExpectedSource.Commit != sourceCommit {
+				rejectNextGitApply = false
 				w.WriteHeader(http.StatusConflict)
 				write(`{"error":{"code":"PIPELINE_RECONCILE_SOURCE_CHANGED","message":"Git source changed"}}`)
 				return
 			}
 			imported = true
 		}
+		synced := []map[string]string{{"pipeline_slug": "daily-sync", "source_path": "pipelines/daily-sync.yaml", "spec_hash": version}}
+		failures := []map[string]string{}
+		if partialGitSync {
+			failures = append(failures, map[string]string{"pipeline_path": "pipelines/broken.yaml", "stage": "load", "message": "synthetic provider detail"})
+		} else if partialGitSyncCorrected {
+			synced = append(synced, map[string]string{"pipeline_slug": "broken", "source_path": "pipelines/broken.yaml", "spec_hash": rollbackCurrentVersion})
+		}
 		report := map[string]any{
 			"dry_run": req.DryRun, "pipeline_dir": "pipelines",
-			"source":   map[string]string{"data_source_slug": "git-source", "repo": "https://example.com/pipelines.git", "ref": "refs/heads/main", "commit": commit},
-			"summary":  map[string]int{"synced": 1, "failed": 0},
-			"synced":   []map[string]string{{"pipeline_slug": "daily-sync", "source_path": "pipelines/daily-sync.yaml", "spec_hash": version}},
-			"failures": []map[string]string{},
+			"source":   map[string]string{"data_source_slug": "git-source", "repo": "https://example.com/pipelines.git", "ref": "refs/heads/main", "commit": sourceCommit},
+			"summary":  map[string]int{"synced": len(synced), "failed": len(failures)},
+			"synced":   synced,
+			"failures": failures,
 		}
 		if err := json.NewEncoder(w).Encode(report); err != nil {
 			http.Error(w, "encode fixture report", http.StatusInternalServerError)
 		}
-	case prefix + "/pipelines/daily-sync/versions/" + version:
+	case prefix + "/pipelines/daily-sync/versions/" + version, prefix + "/pipelines/daily-sync/versions/" + rollbackCurrentVersion:
 		if !imported {
 			w.WriteHeader(http.StatusNotFound)
 			return
@@ -221,10 +304,27 @@ func handleAPI(w http.ResponseWriter, r *http.Request) {
 		if err := json.Unmarshal([]byte(workspacePipeline), &definition); err != nil {
 			panic(err)
 		}
-		if err := json.NewEncoder(w).Encode(map[string]any{"pipeline_slug": "daily-sync", "spec_hash": version, "git_commit_sha": commit, "spec": definition.Spec, "composition_admission_enabled": true}); err != nil {
+		hash := strings.TrimPrefix(r.URL.Path, prefix+"/pipelines/daily-sync/versions/")
+		if err := json.NewEncoder(w).Encode(map[string]any{"pipeline_slug": "daily-sync", "spec_hash": hash, "git_commit_sha": commit, "spec": definition.Spec, "composition_admission_enabled": true}); err != nil {
 			panic(err)
 		}
+	case prefix + "/environments/staging/pipelines/daily-sync/deployment":
+		write(`{"pipeline_slug":"daily-sync","environment_slug":"staging","current_version_spec_hash":"` + version + `","revision":3}`)
 	case prefix + "/environments/dev/pipelines/daily-sync/deployment":
+		if rollbackRevision > 0 {
+			if rollbackRevision == 9 {
+				write(`{"pipeline_slug":"daily-sync","environment_slug":"dev","current_version_spec_hash":"` + version + `","current_resolution_digest":"` + rollbackResolution + `","revision":9}`)
+				return
+			}
+			if err := json.NewEncoder(w).Encode(map[string]any{
+				"pipeline_slug": "daily-sync", "environment_slug": "dev",
+				"current_version_spec_hash": rollbackCurrentVersion, "revision": rollbackRevision,
+				"previous_version_spec_hash": version, "previous_resolution_digest": rollbackResolution,
+			}); err != nil {
+				panic(err)
+			}
+			return
+		}
 		if !deployed {
 			w.WriteHeader(http.StatusNotFound)
 			write(`{"error":{"message":"Not deployed"}}`)
@@ -232,13 +332,38 @@ func handleAPI(w http.ResponseWriter, r *http.Request) {
 		}
 		write(`{"pipeline_slug":"daily-sync","environment_slug":"dev","current_version_spec_hash":"` + version + `"}`)
 	case prefix + "/environments/dev/pipelines/daily-sync:deploy":
+		if deploymentBackendDenied {
+			deploymentBackendDenied = false
+			deploymentReadOnly = true
+			w.WriteHeader(http.StatusForbidden)
+			write(`{"error":{"code":"AUTH_FORBIDDEN","message":"You do not have permission to update pipelines."}}`)
+			return
+		}
 		var req struct {
 			SpecHash           string  `json:"spec_hash"`
 			Confirmation       string  `json:"protected_environment_confirmation"`
 			ExpectedRevision   *int64  `json:"expected_revision"`
 			CompiledPlanDigest *string `json:"compiled_plan_digest"`
+			ResolutionDigest   string  `json:"resolution_digest"`
+			ExpectedCurrent    string  `json:"expected_current_spec_hash"`
 		}
-		if json.NewDecoder(r.Body).Decode(&req) != nil || req.SpecHash != version || req.Confirmation != "dev" || req.ExpectedRevision == nil || *req.ExpectedRevision != 0 || req.CompiledPlanDigest == nil || *req.CompiledPlanDigest != compiledDigest {
+		decodeErr := json.NewDecoder(r.Body).Decode(&req)
+		if rollbackRevision > 0 {
+			if decodeErr != nil || req.SpecHash != version || req.Confirmation != "dev" || req.ExpectedRevision == nil || *req.ExpectedRevision != rollbackRevision || req.ExpectedCurrent != rollbackCurrentVersion || req.CompiledPlanDigest != nil || req.ResolutionDigest != rollbackResolution {
+				w.WriteHeader(http.StatusBadRequest)
+				write(`{"error":{"message":"Invalid rollback selection"}}`)
+				return
+			}
+			rollbackRevision++
+			if rollbackRevision == 8 {
+				w.WriteHeader(http.StatusConflict)
+				write(`{"error":{"message":"Deployment revision changed"}}`)
+				return
+			}
+			write(`{"pipeline_slug":"daily-sync","environment_slug":"dev","current_version_spec_hash":"` + version + `","current_resolution_digest":"` + rollbackResolution + `","revision":9}`)
+			return
+		}
+		if decodeErr != nil || req.SpecHash != version || req.Confirmation != "dev" || req.ExpectedRevision == nil || *req.ExpectedRevision != 0 || req.CompiledPlanDigest == nil || *req.CompiledPlanDigest != compiledDigest {
 			w.WriteHeader(http.StatusBadRequest)
 			write(`{"error":{"message":"Invalid version or protected environment confirmation"}}`)
 			return
@@ -251,8 +376,28 @@ func handleAPI(w http.ResponseWriter, r *http.Request) {
 		deployed = true
 		write(`{"pipeline_slug":"daily-sync","environment_slug":"dev","current_version_spec_hash":"` + version + `"}`)
 	case prefix + "/pipelines/daily-sync/environments/dev/data-source-bindings/source":
+		if r.Method == http.MethodDelete {
+			if deploymentReadOnly {
+				w.WriteHeader(http.StatusForbidden)
+				write(`{"error":{"message":"Removing bindings requires data-source delete permission."}}`)
+				return
+			}
+			if r.URL.Query().Get("protected_environment_confirmation") != "dev" {
+				w.WriteHeader(http.StatusBadRequest)
+				write(`{"error":{"message":"Type dev to confirm removing this binding."}}`)
+				return
+			}
+			bound = false
+			w.WriteHeader(http.StatusNoContent)
+			return
+		}
 		if r.Method != http.MethodPut {
 			w.WriteHeader(http.StatusMethodNotAllowed)
+			return
+		}
+		if deploymentReadOnly {
+			w.WriteHeader(http.StatusForbidden)
+			write(`{"error":{"message":"Updating bindings requires data-source update permission."}}`)
 			return
 		}
 		bound = true
@@ -260,9 +405,15 @@ func handleAPI(w http.ResponseWriter, r *http.Request) {
 	case prefix + "/data-source-refs":
 		write(`{"data_source_refs":[{"pipeline_slug":"daily-sync","slug":"source","name":"Source","data_source_type":"postgres","required_capabilities":["pipeline_source","pipeline_sink"]}]}`)
 	case "/api/organizations/acme/data-sources":
-		write(`{"data_sources":[{"slug":"warehouse","name":"Warehouse","type":"postgres","is_active":true,"read_only":false},{"slug":"git-source","name":"Pipeline repository","type":"github","is_active":true,"read_only":false,"config":{"repository":{"id":"42","full_name":"acme/pipelines","web_url":"https://github.com/acme/pipelines"}}}]}`)
+		archiveSource := ""
+		if includeQueryArchiveSource {
+			archiveSource = `,{"slug":"warehouse-prod","name":"Warehouse archive","type":"postgres","is_active":true,"read_only":true}`
+		}
+		write(`{"data_sources":[{"slug":"warehouse","name":"Warehouse","type":"postgres","is_active":true,"read_only":false},{"slug":"git-source","name":"Pipeline repository","type":"github","is_active":true,"read_only":false,"config":{"repository":{"id":"42","full_name":"acme/pipelines","web_url":"https://github.com/acme/pipelines"}}}` + archiveSource + `]}`)
 	case "/api/organizations/acme/data-sources/git-source/branches":
 		write(`{"branches":[{"name":"main","is_default":true}]}`)
+	case prefix + "/environments/staging/data-source-bindings", prefix + "/environments/staging/pipeline-validation-results":
+		write(`{"data_source_bindings":[],"validation_results":[]}`)
 	case prefix + "/environments/dev/data-source-bindings":
 		if bound {
 			write(`{"data_source_bindings":[{"pipeline_slug":"daily-sync","environment_slug":"dev","data_source_ref_slug":"source","data_source_slug":"warehouse","data_source_name":"Warehouse","data_source_type":"postgres","data_source_active":true}]}`)

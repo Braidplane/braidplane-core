@@ -40,6 +40,7 @@ type StartProviderDataSourceInstallParams struct {
 	Type       model.DataSourceType `validate:"required,datasourcetype"`
 	ConfigJSON json.RawMessage      `validate:"required"`
 	ReadOnly   *bool
+	MoreTime   bool
 }
 
 // ProviderDataSourceInstall returns the pending source and its provider authorization metadata.

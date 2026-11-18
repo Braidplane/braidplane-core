@@ -120,7 +120,7 @@ body.bg-base-200 {
         linear-gradient(160deg, transparent 49.2%, color-mix(in oklab, var(--color-primary) 48%, transparent) 49.5%, color-mix(in oklab, var(--color-info) 34%, transparent) 50%, transparent 50.3%);
 }
 
-.auth-panel > :not([data-error-popup], [data-success-popup]) {
+.auth-panel > :not([data-error-popup]) {
     position: relative;
     z-index: 1;
 }
@@ -408,6 +408,15 @@ body.bg-base-200 {
     background-color: color-mix(in oklab, var(--braidplane-surface) 76%, #000 24%);
 }
 
+/* Keep active fields distinct from the surrounding dark surface. */
+[data-theme="control-room"] :is(.input, .select, .textarea):where(:not(:disabled, :has(:disabled))) {
+    border-color: #66788e;
+}
+
+[data-theme="control-room"] .checkbox:where(:not(:disabled, [aria-disabled="true"])) {
+    border-color: var(--input-color, #66788e);
+}
+
 /* Single-value choices follow their label; form columns can keep their own width. */
 [data-theme="control-room"] select:where(:not([multiple])):where(:not([size]), [size="0"], [size="1"]) {
     field-sizing: content;
@@ -422,13 +431,24 @@ body.bg-base-200 {
 [data-theme="control-room"] [data-org-switcher] .dropdown-content {
     inline-size: max-content;
     max-inline-size: calc(100vw - 2rem);
+    box-shadow: none;
+}
+
+@media (max-height: 30rem) {
+    #shell-organization-menu:popover-open {
+        position-area: none;
+        inset: 0;
+        margin: auto;
+    }
 }
 
 [data-theme="control-room"] .input:focus,
 [data-theme="control-room"] .input:focus-within,
 [data-theme="control-room"] .select:focus,
 [data-theme="control-room"] .textarea:focus {
-    outline-color: color-mix(in oklab, var(--color-primary) 62%, transparent);
+    outline-color: var(--color-primary);
+    /* Keep focus visible inside scroll-panel clipping boundaries. */
+    outline-offset: -2px;
 }
 
 [data-theme="control-room"] .badge {
@@ -534,6 +554,27 @@ body.bg-base-200 {
 .pipeline-graph-grid {
     background-image: radial-gradient(circle at 1px 1px, color-mix(in oklab, var(--color-base-content) 3.2%, transparent) 1px, transparent 0);
     background-size: 10px 10px;
+}
+
+#builder-source-editor:focus-visible {
+    outline: 2px solid var(--color-primary);
+    outline-offset: -2px;
+}
+
+#run-execution-timeline,
+#run-sink-delivery-heading {
+    scroll-margin-top: 0.75rem;
+}
+
+#run-execution-timeline:focus,
+#run-sink-delivery-heading:focus {
+    outline: 2px solid var(--color-primary);
+    outline-offset: 2px;
+}
+
+#pipeline-git-workflow [tabindex="-1"]:focus {
+    outline: 2px solid var(--color-primary);
+    outline-offset: 2px;
 }
 
 #builder-grid .builder-node-content.node-card-selected,

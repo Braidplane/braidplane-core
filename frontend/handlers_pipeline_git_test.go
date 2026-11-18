@@ -19,9 +19,10 @@ import (
 
 func TestPipelineGitWorkflow(t *testing.T) {
 	t.Parallel()
-	for _, scenario := range []string{"preview", "apply", "stale", "missing preview", "changed directory", "deploy", "protected", "bindings", "deployment conflict", "disabled target", "unauthorized", "cross tenant", "csrf", "pipeline named sync", "compile projection", "invalid projection", "compile scopes", "invalid scopes"} {
+	for _, scenario := range []string{"preview", "apply", "stale", "missing preview", "changed directory", "deploy", "protected", "bindings", "deployment conflict", "disabled target", "unauthorized", "cross tenant", "csrf", "pipeline named sync", "compile projection", "invalid projection", "compile scopes", "invalid scopes", "deploy denied", "compile denied", "backend compile denied"} {
 		t.Run(scenario, func(t *testing.T) {
 			t.Parallel()
+			updateDenied := scenario == "deploy denied" || scenario == "compile denied"
 			calls := 0
 			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
 				w.Header().Set("Content-Type", "application/json")
@@ -32,10 +33,12 @@ func TestPipelineGitWorkflow(t *testing.T) {
 				switch {
 				case path == "/api/organizations":
 					role := "admin"
-					if scenario == "unauthorized" {
+					if scenario == "unauthorized" || updateDenied {
 						role = "viewer"
 					}
 					_, _ = w.Write([]byte(`{"organizations":[{"slug":"acme-hq","name":"Acme","member_role":"` + role + `"}]}`))
+				case path == "/api/organizations/acme-hq/roles/viewer" && updateDenied:
+					_, _ = w.Write([]byte(`{"slug":"viewer","permissions":[{"resource":"pipelines","action":"read"}]}`))
 				case path == "/api/organizations/acme-hq/projects":
 					_, _ = w.Write([]byte(`{"projects":[{"slug":"default","name":"Default"}]}`))
 				case path == "/api/organizations/acme-hq/projects/default/pipelines/sync":
@@ -49,6 +52,11 @@ func TestPipelineGitWorkflow(t *testing.T) {
 				case strings.HasSuffix(path, "/pipelines/daily-sync/versions/exact-version/compiled-plans"):
 					calls++
 					assert.Equal(t, "dev", req.URL.Query().Get("environment_slug"))
+					if scenario == "backend compile denied" {
+						w.WriteHeader(http.StatusForbidden)
+						_, _ = w.Write([]byte(`{"error":{"code":"AUTH_FORBIDDEN","message":"Compile permission was revoked."}}`))
+						return
+					}
 					var body api.PipelineCompilationRequest
 					if !assert.NoError(t, json.NewDecoder(req.Body).Decode(&body)) || !assert.NotNil(t, body.Projection) || !assert.Len(t, body.Projection.Inputs, 1) {
 						w.WriteHeader(http.StatusBadRequest)
@@ -158,7 +166,7 @@ func TestPipelineGitWorkflow(t *testing.T) {
 				form.Set("pipeline_dir", "previous-directory")
 			case "cross tenant":
 				path = "/orgs/other/projects/default/pipeline-sync"
-			case "deploy", "protected", "bindings", "deployment conflict", "disabled target", "compile projection", "invalid projection", "compile scopes", "invalid scopes":
+			case "deploy", "protected", "bindings", "deployment conflict", "disabled target", "compile projection", "invalid projection", "compile scopes", "invalid scopes", "deploy denied", "compile denied", "backend compile denied":
 				path = "/orgs/acme-hq/projects/default/pipelines/daily-sync/deploy"
 				form = url.Values{"spec_hash": {"exact-version"}, "environment_slug": {"dev"}, "expected_current_spec_hash": {"old-version"}, "expected_revision": {"7"}, "protected_environment_confirmation": {"dev"}}
 				if scenario == "compile projection" || scenario == "invalid projection" || scenario == "compile scopes" || scenario == "invalid scopes" {
@@ -180,6 +188,9 @@ func TestPipelineGitWorkflow(t *testing.T) {
 				if scenario == "protected" {
 					form.Del("protected_environment_confirmation")
 				}
+				if scenario == "compile denied" || scenario == "backend compile denied" {
+					form.Set("action", "compile")
+				}
 			}
 			method := http.MethodPost
 			if scenario == "pipeline named sync" {
@@ -189,6 +200,9 @@ func TestPipelineGitWorkflow(t *testing.T) {
 			req := httptest.NewRequestWithContext(t.Context(), method, path, strings.NewReader(form.Encode()))
 			req.Header.Set("Content-Type", fiber.MIMEApplicationForm)
 			req.Header.Set("Cookie", cookie)
+			if updateDenied {
+				req.Header.Set("HX-Request", "true")
+			}
 			if scenario != "csrf" {
 				addCSRFToken(t, app, req)
 			}
@@ -199,6 +213,23 @@ func TestPipelineGitWorkflow(t *testing.T) {
 			require.NoError(t, err)
 			html := string(body)
 			switch scenario {
+			case "backend compile denied":
+				require.Equal(t, http.StatusForbidden, response.StatusCode)
+				require.Contains(t, html, "Compile permission was revoked.")
+				require.Contains(t, html, "Selected immutable version")
+				require.Contains(t, html, "Review current deployment")
+				require.NotContains(t, html, ">Compile selected version</button>")
+				require.NotContains(t, html, "Confirm protected environment")
+				require.Equal(t, 1, calls)
+			case "deploy denied", "compile denied":
+				require.Equal(t, http.StatusForbidden, response.StatusCode)
+				require.Equal(t, "true", response.Header.Get("X-Braidplane-Pipeline-Access-Denied"))
+				require.Contains(t, html, "You need permission to update pipelines")
+				require.Contains(t, html, "Selected immutable version")
+				require.Contains(t, html, "Currently deployed:")
+				require.NotContains(t, html, ">Compile selected version</button>")
+				require.NotContains(t, html, "Confirm protected environment")
+				require.Zero(t, calls)
 			case "compile projection", "compile scopes":
 				require.Equal(t, 1, calls)
 				require.Contains(t, html, "sha256:retained")

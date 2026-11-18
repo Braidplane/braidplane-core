@@ -204,10 +204,10 @@ templ BuilderBlueprintContent(state BuilderBlueprintState) {
 							<div class="badge badge-sm badge-warning badge-outline uppercase">{ builderRuntimeTargetBadgeLabel(state.TargetEnvironmentSlug) }</div>
 						}
 					</div>
-					<div class="flex flex-wrap items-center gap-2">
-						<button class="btn btn-xs btn-outline" id="builder-mode-preview-btn" type="button">Preview</button>
-						<button class="btn btn-xs btn-outline" id="builder-mode-split-btn" type="button">Split</button>
-						<button class="btn btn-xs btn-outline" id="builder-mode-source-btn" type="button">Source</button>
+					<div class="flex flex-wrap items-center gap-2" role="group" aria-label="Builder view">
+						<button class="btn btn-xs btn-outline transition-none" id="builder-mode-preview-btn" type="button">Preview</button>
+						<button class="btn btn-xs btn-outline transition-none" id="builder-mode-split-btn" type="button">Split</button>
+						<button class="btn btn-xs btn-outline transition-none" id="builder-mode-source-btn" type="button">Source</button>
 					</div>
 					<div class="flex flex-wrap items-center gap-2">
 						<button class="btn btn-sm btn-outline max-w-44" id="builder-validate-btn" type="button" disabled?={ !state.HasImportedGraph && state.CanCreatePipeline && state.DeepLinkProjectSlug != "" } title={ builderRuntimeActionLabel("Validate", state.TargetEnvironmentSlug) }>
@@ -240,13 +240,14 @@ templ BuilderBlueprintContent(state BuilderBlueprintState) {
 					</form>
 				</details>
 				if strings.TrimSpace(state.SaveReason) != "" {
-					<p class="mt-3 text-xs text-base-content/70" id="builder-save-reason">{ state.SaveReason }</p>
+					<p class="mt-3 text-xs text-base-content/70" id="builder-save-reason" role="status" tabindex="-1">{ state.SaveReason }</p>
 				} else {
-					<p class="mt-3 text-xs text-base-content/70" id="builder-save-reason">Save blocked: select a node and resolve validation issues.</p>
+					<p class="mt-3 text-xs text-base-content/70" id="builder-save-reason" role="status" tabindex="-1">Save blocked: select a node and resolve validation issues.</p>
 				}
 				if strings.TrimSpace(state.RunReason) != "" {
 					<p class="mt-1 text-xs text-base-content/60" id="builder-run-reason">{ state.RunReason }</p>
 				}
+				<div id="builder-run-feedback" class="mt-3 empty:hidden"></div>
 				if state.ProposalReview != nil {
 					if state.ProposalReview.MatchesCanonicalSource {
 						<div class="mt-3 space-y-2 rounded-lg border border-base-300 p-3 text-sm" id="builder-matching-draft-notice" role="status">
@@ -382,7 +383,7 @@ templ BuilderBlueprintContent(state BuilderBlueprintState) {
 							<div class="relative z-10">
 								<div class="flex flex-wrap items-center gap-2 rounded-lg border border-base-300 bg-base-100 px-3 py-2 text-xs text-base-content/80">
 									<span class="mr-auto text-base-content/70">Select a step to inspect or edit it.</span>
-									<div class="flex items-center gap-1" aria-label="Canvas controls">
+									<div class="flex items-center gap-1" role="group" aria-label="Canvas controls">
 										<button type="button" class="btn btn-ghost btn-sm" id="builder-zoom-out-btn" aria-label="Zoom out" title="Zoom out">−</button>
 										<button type="button" class="btn btn-ghost btn-sm" id="builder-zoom-in-btn" aria-label="Zoom in" title="Zoom in">+</button>
 										<output class="min-w-10 text-center text-xs tabular-nums" id="builder-zoom-level" aria-label="Canvas zoom">100%</output>
@@ -544,7 +545,7 @@ templ BuilderBlueprintContent(state BuilderBlueprintState) {
 										background: color-mix(in oklab, var(--color-base-100) 94%, #000 6%);
 										color: var(--color-base-content);
 										box-shadow: 0 16px 40px color-mix(in oklab, #000 40%, transparent);
-										pointer-events: none;
+										pointer-events: auto;
 									}
 
 									.builder-node-disclosure-popover dl {
@@ -571,9 +572,15 @@ templ BuilderBlueprintContent(state BuilderBlueprintState) {
 									}
 
 									#builder-grid .builder-node:focus-visible { outline: none; }
+									#builder-grid .builder-node:focus-visible > .builder-node-content,
+									#builder-grid .builder-node-content:focus-visible {
+										--builder-focus-outline: max(2px, calc(var(--builder-min-target-size, 24px) / 8));
+										outline: var(--builder-focus-outline) solid var(--color-base-content);
+										outline-offset: 0;
+									}
                                     #builder-edges-layer [role="button"]:focus { outline: none; }
                                     #builder-edges-layer [role="button"]:focus {
-                                        stroke: color-mix(in oklab, var(--color-info) 20%, transparent);
+                                        stroke: color-mix(in oklab, var(--color-info) 76%, transparent);
                                     }
                                     #builder-edges-layer {
 										pointer-events: none;
@@ -715,6 +722,7 @@ templ BuilderBlueprintContent(state BuilderBlueprintState) {
                                     }
                                     .builder-mapping-attachment {
                                         position: absolute; top: calc(100% + 12px); left: 12px; right: 0;
+                                        min-width: calc(2 * var(--builder-min-target-size, 24px) + 22px);
                                         border: 1px solid var(--color-base-300); border-radius: 8px;
                                         background: var(--color-base-200); color: var(--color-base-content);
                                     }
@@ -723,9 +731,11 @@ templ BuilderBlueprintContent(state BuilderBlueprintState) {
                                         border-left: 1px solid var(--color-base-300);
                                     }
                                     .builder-mapping-attachment-header { display: flex; align-items: center; gap: 4px; padding: 8px; }
+                                    .builder-mapping-attachment-header > div { min-width: var(--builder-min-target-size, 24px); }
                                     .builder-mapping-open { flex: 1; min-width: 0; text-align: left; font-size: 12px; cursor: pointer; }
+                                    .builder-mapping-open, .builder-mapping-toggle { min-width: var(--builder-min-target-size, 24px); min-height: var(--builder-min-target-size, 24px); }
                                     .builder-mapping-open > span { display: block; font-weight: 600; }
-                                    .builder-mapping-open small { display: block; margin-top: 3px; font-size: 11px; color: color-mix(in oklab, var(--color-base-content) 75%, transparent); }
+                                    .builder-mapping-attachment-header small { display: block; margin-top: 3px; font-size: 11px; color: color-mix(in oklab, var(--color-base-content) 75%, transparent); }
                                     .builder-mapping-toggle svg { width: 14px; height: 14px; fill: none; stroke: currentColor; stroke-width: 1.7; }
                                     .builder-mapping-toggle[aria-expanded="true"] svg { transform: rotate(180deg); }
                                     .builder-mapping-attachment-detail { border-top: 1px solid var(--color-base-300); padding: 10px; }
@@ -780,10 +790,10 @@ templ BuilderBlueprintContent(state BuilderBlueprintState) {
 													for _, node := range state.ImportedNodes {
 														<div class="builder-node absolute" data-kind={ node.Kind } data-node-type="query" data-node-slug={ node.Slug } data-data-source-slug={ node.DataSourceSlug } data-operation-type={ node.OperationType } data-operation-inline={ node.OperationInline } data-query-output-contract={ node.QueryOutputContract } data-query-incremental={ node.QueryIncremental } data-query-slug={ node.QuerySlug } data-use-inline-sql={ boolString(node.UseInlineSQL) } data-use-inline-operation={ boolString(node.UseInlineOperation) } data-inline-sql={ node.InlineSQL } data-step-slug={ node.StepSlug } data-step-name={ node.StepName } data-original-step={ node.OriginalStep } data-transform-output-kind={ node.TransformOutputKind } data-transform-sql={ node.TransformSQL } data-transform-inputs={ node.TransformInputs } data-transform-input-contract={ node.TransformInputContract } data-transform-output-contract={ node.TransformOutputContract } data-parameters={ node.Parameters } data-sink-backend={ node.SinkBackend } data-sink-data-source-slug={ node.SinkDataSourceSlug } data-sink-operation-type={ node.SinkOperationType } data-sink-operation-inline={ node.SinkOperationInline } data-sink-idempotency-class={ node.SinkIdempotencyClass } data-sink-input-contract={ node.SinkInputContract } data-sink-use-inline-operation={ boolString(node.SinkUseInlineOperation) } data-sink-query-slug={ node.SinkQuerySlug } data-grid-x={ node.X } data-grid-y={ node.Y } style={ templ.SafeCSS(fmt.Sprintf("left: calc(%d * var(--builder-grid-unit-x)); top: calc(%d * var(--builder-grid-unit-y)); width: var(--builder-node-width); height: var(--builder-node-height);", node.X, node.Y)) }>
 															<div class="builder-node-content rounded-lg border border-primary/30 bg-base-100 px-3 py-2 shadow-sm h-full">
-																<p class="text-[10px] font-semibold uppercase tracking-wide text-base-content/50">{ node.Kind }</p>
-																<p class="mt-0.5 truncate text-xs font-medium text-base-content">{ node.Slug }</p>
+																<span class="block text-[10px] font-semibold uppercase tracking-wide text-base-content/50">{ node.Kind }</span>
+																<span class="block mt-0.5 truncate text-xs font-medium text-base-content">{ node.Slug }</span>
 																if node.Kind == "sink" {
-																	<p class="mt-0.5 truncate text-[11px] text-base-content/70">{ node.SinkBackend }</p>
+																	<span class="block mt-0.5 truncate text-[11px] text-base-content/70">{ node.SinkBackend }</span>
 																}
 															</div>
 															if node.Kind == "transform" || node.Kind == "sink" {
@@ -835,7 +845,7 @@ templ BuilderBlueprintContent(state BuilderBlueprintState) {
 									<pre aria-hidden="true" class="m-0 pointer-events-none whitespace-pre border-r border-base-300 bg-base-200/50 px-2 py-3 text-right text-[11px] text-base-content/50" id="builder-source-line-numbers" style="position: absolute; top: 0; bottom: 0; left: 0; z-index: 20; width: 3rem; overflow-y: scroll; overflow-x: hidden; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace; line-height: 20px;"></pre>
 									<div id="builder-source-content-viewport" style="position: absolute; top: 0; bottom: 0; left: 3rem; right: 0; z-index: 10; overflow: hidden;">
 										<pre aria-hidden="true" class="hidden m-0 pointer-events-none whitespace-pre text-base-content/90" id="builder-source-highlight" style="position: absolute; top: 0; left: 0; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace; font-size: 12px; line-height: 20px; letter-spacing: 0; tab-size: 2; font-variant-ligatures: none; padding: 12px;"></pre>
-										<textarea aria-label="Pipeline source" class="resize-none overflow-auto border-0 bg-transparent p-3 text-base-content pointer-events-auto cursor-text focus:outline-none focus:ring-2 focus:ring-primary/30" id="builder-source-editor" spellcheck="false" style="position: absolute; top: 0; right: 0; bottom: 0; left: 0; z-index: 30; width: 100%; height: 100%; box-sizing: border-box; overscroll-behavior: contain; -webkit-overflow-scrolling: touch; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace; font-size: 12px; line-height: 20px; letter-spacing: 0; tab-size: 2; font-variant-ligatures: none; color: var(--color-base-content) !important; -webkit-text-fill-color: var(--color-base-content) !important; opacity: 1 !important; caret-color: var(--color-primary);" wrap="off"></textarea>
+										<textarea aria-describedby="builder-source-status" aria-label="Pipeline source" class="resize-none overflow-auto border-0 bg-transparent p-3 text-base-content pointer-events-auto cursor-text" id="builder-source-editor" spellcheck="false" style="position: absolute; top: 0; right: 0; bottom: 0; left: 0; z-index: 30; width: 100%; height: 100%; box-sizing: border-box; overscroll-behavior: contain; -webkit-overflow-scrolling: touch; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace; font-size: 12px; line-height: 20px; letter-spacing: 0; tab-size: 2; font-variant-ligatures: none; color: var(--color-base-content) !important; -webkit-text-fill-color: var(--color-base-content) !important; opacity: 1 !important; caret-color: var(--color-primary);" wrap="off"></textarea>
 									</div>
 								</div>
 							</div>
@@ -843,7 +853,7 @@ templ BuilderBlueprintContent(state BuilderBlueprintState) {
 								<button class="btn btn-xs btn-outline" id="builder-source-sync-btn" type="button">Sync From Canvas</button>
 								<button class="btn btn-xs btn-primary" id="builder-source-apply-btn" type="button">Apply To Canvas</button>
 							</div>
-							<p class="mt-2 text-xs text-base-content/70" id="builder-source-status">Source editor is ready.</p>
+							<p class="mt-2 text-xs text-base-content/70" id="builder-source-status" role="status">Source editor is ready.</p>
 						</div>
 					</div>
 					<section popover="auto" id="builder-mapping-workspace" aria-label="Mapping details">
@@ -880,6 +890,7 @@ templ BuilderBlueprintContent(state BuilderBlueprintState) {
 									<h3 id="builder-property-kind">Node</h3>
 									<p class="builder-inspector-subtitle" id="builder-property-node-type">query</p>
 									<code class="builder-inspector-identifier" id="builder-property-identifier"></code>
+									<button type="button" class="btn btn-outline btn-sm mt-2" id="builder-remove-step-btn">Remove step</button>
 								</div>
 								<details class="hidden border-y border-base-300 py-3" id="builder-schema-panel">
 									<summary class="cursor-pointer text-xs font-medium">Data source schema</summary>
@@ -921,20 +932,20 @@ templ BuilderBlueprintContent(state BuilderBlueprintState) {
 										<p class="mt-2 text-xs text-base-content/70"><a class="link link-primary" href={ templ.URL(DataSourcesListHref(state.DeepLinkOrgSlug, state.TargetEnvironmentSlug, "")) } target="_blank" rel="noopener noreferrer">Manage connections (new tab)</a>.</p>
 										<button type="button" class="btn btn-ghost btn-xs mt-1" data-builder-refresh-connections>Refresh connections</button>
 									}
-									<label class="form-control mt-2" id="builder-inline-sql-toggle-group">
+									<div class="form-control mt-2" id="builder-inline-sql-toggle-group">
 										<span class="label-text text-xs">Inline SQL</span>
 										<label class="label cursor-pointer justify-start gap-2">
 											<input class="checkbox checkbox-sm" id="builder-field-inline-sql-toggle" type="checkbox"/>
 											<span class="label-text text-xs" id="builder-inline-sql-toggle-label">Use inline SQL instead of a saved query</span>
 										</label>
-									</label>
-									<label class="form-control mt-2 hidden" id="builder-inline-operation-toggle-group">
+									</div>
+									<div class="form-control mt-2 hidden" id="builder-inline-operation-toggle-group">
 										<span class="label-text text-xs">Inline operation</span>
 										<label class="label cursor-pointer justify-start gap-2">
 											<input class="checkbox checkbox-sm" id="builder-field-inline-operation-toggle" type="checkbox"/>
 											<span class="label-text text-xs" id="builder-inline-operation-toggle-label">Use inline operation instead of a saved query</span>
 										</label>
-									</label>
+									</div>
 									<div class="hidden" id="builder-source-inline-operation-group">
 										<label class="form-control mt-2" id="builder-source-inline-operation-json-field">
 											<span class="label-text text-xs" id="builder-inline-operation-label">Inline operation (JSON)</span>
@@ -1076,13 +1087,13 @@ templ BuilderBlueprintContent(state BuilderBlueprintState) {
 										<select class="select select-bordered select-sm" id="builder-field-sink-replay-policy" aria-describedby="builder-sink-replay-help"></select>
 									</label>
 									<p class="mt-2 text-[11px] text-base-content/60" id="builder-sink-replay-help">Choose how repeated attempts avoid duplicate writes. Uncertain delivery may still require investigation.</p>
-									<label class="form-control mt-2" id="builder-sink-inline-operation-toggle-group">
+									<div class="form-control mt-2" id="builder-sink-inline-operation-toggle-group">
 										<span class="label-text text-xs">Inline operation</span>
 										<label class="label cursor-pointer justify-start gap-2">
 											<input class="checkbox checkbox-sm" id="builder-field-sink-inline-operation-toggle" type="checkbox"/>
 											<span class="label-text text-xs" id="builder-sink-inline-operation-toggle-label">Use inline operation instead of a saved query</span>
 										</label>
-									</label>
+									</div>
 									<div id="builder-sink-saved-query-group">
 										<label class="form-control mt-2">
 											<span class="label-text text-xs" id="builder-sink-query-ref-label">Saved query</span>
@@ -1206,29 +1217,29 @@ templ BuilderBlueprintContent(state BuilderBlueprintState) {
 		<script src={ versionedAssetPath("/assets/js/builder_canvas.js") } defer></script>
 		<script src={ versionedAssetPath("/assets/js/builder_actions.js") } defer></script>
 		<!-- Draft conflict modal -->
-		<dialog id="builder-conflict-modal" class="modal">
-			<div class="modal-box h-[min(92vh,960px)] w-11/12 max-w-[min(96vw,1440px)] overflow-hidden p-0">
-				<div class="flex h-full min-h-0 flex-col">
+		<dialog id="builder-conflict-modal" class="modal" aria-labelledby="builder-conflict-modal-title" aria-describedby="builder-conflict-modal-summary">
+			<div class="modal-box h-[min(92vh,960px)] w-11/12 max-w-[min(96vw,1440px)] overflow-y-auto p-0 lg:overflow-hidden">
+				<div class="flex min-h-full flex-col lg:h-full">
 					<div class="border-b border-base-300 px-5 py-4">
-						<h3 class="text-lg font-bold" id="builder-conflict-modal-title">Version conflict</h3>
+						<h3 class="text-lg font-bold" id="builder-conflict-modal-title" tabindex="-1" autofocus>Version conflict</h3>
 						<p class="pt-3 text-sm" id="builder-conflict-modal-summary"></p>
 						<p class="text-sm text-base-content/60" id="builder-conflict-modal-detail"></p>
 					</div>
-					<div class="min-h-0 flex-1 overflow-hidden px-5 py-4">
+					<div class="min-h-0 flex-1 px-5 py-4 lg:overflow-hidden">
 						<div class="flex h-full min-h-0 flex-col gap-4" id="builder-conflict-modal-overview">
 							<details class="rounded-lg border border-base-300 bg-base-200/40 px-3 py-2" id="builder-conflict-modal-diff-container" open>
-								<summary class="cursor-pointer text-sm text-base-content/70 select-none">Show diff (canonical vs. your draft)</summary>
-								<pre id="builder-conflict-modal-diff" class="mt-2 max-h-[50vh] overflow-auto whitespace-pre-wrap break-all rounded bg-base-200 p-2 text-xs font-mono">Loading diff…</pre>
+								<summary id="builder-conflict-diff-label" class="cursor-pointer text-sm text-base-content/70 select-none">Show diff (canonical vs. your draft)</summary>
+								<pre id="builder-conflict-modal-diff" class="mt-2 max-h-[50vh] overflow-auto whitespace-pre-wrap break-all rounded bg-base-200 p-2 text-xs font-mono" role="region" aria-labelledby="builder-conflict-diff-label" tabindex="0">Loading diff…</pre>
 							</details>
 						</div>
-						<div class="hidden h-full min-h-0" id="builder-conflict-resolver">
-							<div class="grid h-full min-h-0 gap-4 lg:grid-cols-[minmax(280px,360px)_minmax(0,1fr)]">
+						<div class="hidden min-h-0 lg:h-full" id="builder-conflict-resolver">
+							<div class="grid min-h-0 gap-4 lg:h-full lg:grid-cols-[minmax(280px,360px)_minmax(0,1fr)]">
 								<section class="min-h-0 overflow-hidden rounded-lg border border-base-300 bg-base-100">
 									<div class="border-b border-base-300 px-4 py-3">
 										<div class="flex flex-wrap items-center justify-between gap-2">
 											<div>
 												<p class="text-sm font-semibold text-base-content">Changed units</p>
-												<p class="text-xs text-base-content/60">Pick a unit, then resolve its fields on the right.</p>
+												<p class="text-xs text-base-content/60">Pick a unit to see its fields.</p>
 											</div>
 											<div class="text-right">
 												<p class="text-xs font-semibold uppercase tracking-wide text-base-content/60" id="builder-conflict-resolver-unresolved-count">0 unresolved</p>
@@ -1236,62 +1247,62 @@ templ BuilderBlueprintContent(state BuilderBlueprintState) {
 											</div>
 										</div>
 									</div>
-									<div class="h-[calc(100%-74px)] overflow-auto px-3 py-3" id="builder-conflict-units-list"></div>
+									<div class="px-3 py-3 lg:h-[calc(100%-74px)] lg:overflow-auto" id="builder-conflict-units-list"></div>
 								</section>
 								<section class="min-h-0 overflow-hidden rounded-lg border border-base-300 bg-base-100">
 									<div class="border-b border-base-300 px-4 py-3">
 										<p class="text-sm font-semibold text-base-content">Manual merge</p>
 										<p class="text-xs text-base-content/60">Resolve the selected unit field-by-field and then apply the merged draft.</p>
 									</div>
-									<div class="h-[calc(100%-74px)] min-h-0 overflow-auto px-4 py-4" id="builder-conflict-resolver-inspector"></div>
+									<div class="min-h-0 px-4 py-4 lg:h-[calc(100%-74px)] lg:overflow-auto" id="builder-conflict-resolver-inspector"></div>
 								</section>
 							</div>
 						</div>
 					</div>
 					<div class="border-t border-base-300 px-5 py-4">
 						<div class="flex flex-wrap items-center justify-between gap-3">
-							<div class="text-xs text-base-content/60" id="builder-conflict-modal-status">Use canonical, use your draft, or merge manually before saving again.</div>
+							<div class="text-xs text-base-content/60" id="builder-conflict-modal-status" role="status">Use canonical, use your draft, or merge manually before saving again.</div>
 							<div class="flex flex-wrap gap-2" id="builder-conflict-modal-actions"></div>
 						</div>
 					</div>
 				</div>
 			</div>
-			<form method="dialog" class="modal-backdrop">
-				<button type="submit" class="cursor-default">close</button>
+			<form method="dialog" class="modal-backdrop" aria-hidden="true">
+				<button type="submit" class="cursor-default" tabindex="-1" aria-label="Dismiss dialog"></button>
 			</form>
 		</dialog>
-		<dialog id="builder-proposal-review-modal" class="modal">
+		<dialog id="builder-proposal-review-modal" class="modal" aria-labelledby="builder-proposal-review-title" aria-describedby="builder-proposal-review-description">
 			<div class="modal-box h-[min(92vh,940px)] w-11/12 max-w-[min(96vw,1280px)] overflow-hidden p-0">
 				<div class="flex h-full min-h-0 flex-col">
 					<div class="border-b border-base-300 px-5 py-4">
 						<div class="flex flex-wrap items-start justify-between gap-3">
 							<div>
-								<h3 class="text-lg font-bold">Review Git proposal</h3>
-								<p class="mt-1 text-sm text-base-content/60">Only the canonical pipeline file is committed. Merge does not deploy until Git reconciliation runs.</p>
+								<h3 id="builder-proposal-review-title" class="text-lg font-bold" tabindex="-1" autofocus>Review Git proposal</h3>
+								<p id="builder-proposal-review-description" class="mt-1 text-sm text-base-content/60">Only the canonical pipeline file is committed. Merge does not deploy until Git reconciliation runs.</p>
 							</div>
-							<span class="badge badge-outline" id="builder-proposal-review-state">Loading</span>
+							<span class="badge badge-outline" id="builder-proposal-review-state" role="status">Loading</span>
 						</div>
 					</div>
 					<div class="min-h-0 flex-1 overflow-auto px-5 py-4">
 						<div class="grid gap-2 text-xs sm:grid-cols-2 lg:grid-cols-3" id="builder-proposal-review-facts"></div>
 						<div class="mt-4 grid min-h-0 gap-4 lg:grid-cols-2">
 							<details class="rounded-lg border border-base-300 bg-base-100 p-3" open>
-								<summary class="cursor-pointer text-sm font-semibold">Structural diff</summary>
-								<pre class="mt-3 max-h-[44vh] overflow-auto whitespace-pre-wrap break-all rounded bg-base-200 p-3 text-xs font-mono" id="builder-proposal-structural-diff">Loading…</pre>
+								<summary id="builder-proposal-structural-diff-label" class="cursor-pointer text-sm font-semibold">Structural diff</summary>
+								<pre class="mt-3 max-h-[44vh] overflow-auto whitespace-pre-wrap break-all rounded bg-base-200 p-3 text-xs font-mono" id="builder-proposal-structural-diff" role="region" aria-labelledby="builder-proposal-structural-diff-label" tabindex="0">Loading…</pre>
 							</details>
 							<details class="rounded-lg border border-base-300 bg-base-100 p-3" open>
-								<summary class="cursor-pointer text-sm font-semibold">Canonical source diff</summary>
-								<pre class="mt-3 max-h-[44vh] overflow-auto whitespace-pre-wrap break-all rounded bg-base-200 p-3 text-xs font-mono" id="builder-proposal-source-diff">Loading…</pre>
+								<summary id="builder-proposal-source-diff-label" class="cursor-pointer text-sm font-semibold">Canonical source diff</summary>
+								<pre class="mt-3 max-h-[44vh] overflow-auto whitespace-pre-wrap break-all rounded bg-base-200 p-3 text-xs font-mono" id="builder-proposal-source-diff" role="region" aria-labelledby="builder-proposal-source-diff-label" tabindex="0">Loading…</pre>
 							</details>
 						</div>
 						<p class="mt-3 text-sm font-medium text-base-content" id="builder-proposal-review-attribution"></p>
 						<a class="hidden mt-3 btn btn-outline btn-sm" id="builder-proposal-review-link" target="_blank" rel="noopener noreferrer">Review proposal in Git</a>
-						<p class="mt-2 text-xs text-error" id="builder-proposal-review-error"></p>
+						<p class="mt-2 text-xs text-error" id="builder-proposal-review-error" role="alert"></p>
 					</div>
 					<div class="border-t border-base-300 px-5 py-4">
 						<div class="flex flex-wrap items-center justify-between gap-3">
 							<p class="text-xs text-base-content/60">The provider status shown here is last-known at the displayed observation time.</p>
-							<div class="flex gap-2">
+							<div class="flex flex-wrap gap-2">
 								<button class="btn btn-sm btn-ghost" id="builder-proposal-review-cancel" type="button">Cancel</button>
 								<button class="btn btn-sm btn-primary" id="builder-proposal-review-confirm" type="button">Create or update proposal</button>
 							</div>
@@ -1299,7 +1310,7 @@ templ BuilderBlueprintContent(state BuilderBlueprintState) {
 					</div>
 				</div>
 			</div>
-			<form method="dialog" class="modal-backdrop"><button type="submit">close</button></form>
+			<form method="dialog" class="modal-backdrop" aria-hidden="true"><button type="submit" tabindex="-1" aria-label="Dismiss dialog"></button></form>
 		</dialog>
 		<script src={ versionedAssetPath("/assets/js/builder_canvas_init.js") } defer></script>
 	</div>

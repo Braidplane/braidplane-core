@@ -3,10 +3,12 @@ package views
 import api "github.com/Braidplane/braidplane-core/api-schema/gen/client"
 
 templ PipelineDeploymentDetailPage(shellData AuthenticatedShellData, orgSlug string, activeProjectSlug string, environmentSlug string, pipelineSlug string, pipeline *api.Pipeline, deployment *api.PipelineDeployment) {
-	@AuthenticatedShell(shellData, PipelineDeploymentDetailPageContent(orgSlug, activeProjectSlug, environmentSlug, shellData.ActiveEnvironmentColor, pipelineSlug, pipeline, deployment))
+	{{ content := PipelineDeploymentDetailPageContent(orgSlug, activeProjectSlug, environmentSlug, shellData.ActiveEnvironmentColor, pipelineSlug, pipeline, deployment, shellData.PageError, shellData.PageErrorDetails) }}
+	{{ shellData.PageError, shellData.PageErrorDetails = "", "" }}
+	@AuthenticatedShell(shellData, content)
 }
 
-templ PipelineDeploymentDetailPageContent(orgSlug string, activeProjectSlug string, environmentSlug string, environmentColor string, pipelineSlug string, pipeline *api.Pipeline, deployment *api.PipelineDeployment) {
+templ PipelineDeploymentDetailPageContent(orgSlug string, activeProjectSlug string, environmentSlug string, environmentColor string, pipelineSlug string, pipeline *api.Pipeline, deployment *api.PipelineDeployment, message string, details string) {
 	<div class="flex flex-wrap items-start justify-between gap-3">
 		<div>
 			<h2 class="text-xl font-semibold text-base-content">Pipeline deployment</h2>
@@ -18,9 +20,7 @@ templ PipelineDeploymentDetailPageContent(orgSlug string, activeProjectSlug stri
 		</div>
 	</div>
 	if deployment == nil {
-		<div class="alert alert-warning mt-6">
-			<span>Deployment details are unavailable. No deployment pointer exists for this pipeline in the selected runtime target.</span>
-		</div>
+		@EntityLoadError("deployment-detail-error", "Deployment details are unavailable. "+message, details)
 		<section class="mt-4 rounded-xl border border-base-300 bg-base-100 p-5">
 			<div class="grid gap-4 md:grid-cols-3">
 				<div>

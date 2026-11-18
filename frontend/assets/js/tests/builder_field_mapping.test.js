@@ -282,6 +282,11 @@ describe("canvas mapping attachments", () => {
         document.body.append(attachment.element);
         await attachment.update(c);
         expect(attachment.element.textContent).toContain("1 fields · 1 required missing");
+        const open = attachment.element.querySelector(".builder-mapping-open");
+        expect(open.getAttribute("aria-label")).toBe("Open field mapping for normalize");
+        expect(document.getElementById(open.getAttribute("aria-describedby")).textContent).toBe(
+            "1 fields · 1 required missing",
+        );
         expect(attachment.element.textContent).toContain("TRIM(item_code)→sku");
         const summary = document.createElement("div");
         attachment.renderSummary(summary);

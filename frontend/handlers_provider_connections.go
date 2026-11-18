@@ -62,22 +62,37 @@ func (r *Router) handleProviderConnectionsPage(c fiber.Ctx) error {
 		feedback, failed = "GitLab authorization expired. Start a new connection attempt.", true
 	case "error":
 		feedback, failed = "GitLab authorization could not be completed. Try connecting again.", true
+	case "connect_failed":
+		feedback, failed = gitLabConnectStartError, true
+	case "disconnect_failed":
+		feedback, failed = "Could not disconnect GitLab. Check your access and retry.", true
 	}
 	if fiber.Query[bool](c, "saved") {
-		feedback = "Proof configuration saved."
+		feedback, failed = "Proof configuration saved.", false
 	}
 	permissions := r.resolveOrganizationPermissions(c.Context(), c.Get(fiber.HeaderCookie), org.String())
 	return renderTempl(c, views.ProviderConnectionsPage(shell, org.String(), gitlab, configurations, feedback, failed, connectionError, proofError, permissions))
 }
+
+const gitLabConnectStartError = "Could not start GitLab authorization. Try connecting again."
 
 func (r *Router) handleOrganizationGitLabConnect(c fiber.Ctx) error {
 	org, err := slug.New(c.Params("slug"))
 	if err != nil {
 		return fiber.ErrBadRequest
 	}
-	response, err := r.apiClient.StartOrganizationGitLabAuthorizationWithResponse(c.Context(), org.String(), api.StartOrganizationGitLabAuthorizationJSONRequestBody{IncludeWriteScopes: c.FormValue("include_write_scopes") == "on"}, frontendRequestEditor(c.Context(), c.Get(fiber.HeaderCookie)))
+	returnURL := "/organizations/" + org.String() + "/connections"
+	includeWrite := c.FormValue("include_write_scopes") == "on"
+	request := api.StartOrganizationGitLabAuthorizationJSONRequestBody{IncludeWriteScopes: includeWrite}
+	if moreTime := c.FormValue("more_time") == "true"; moreTime {
+		request.MoreTime = &moreTime
+	}
+	response, err := r.apiClient.StartOrganizationGitLabAuthorizationWithResponse(c.Context(), org.String(), request, frontendRequestEditor(c.Context(), c.Get(fiber.HeaderCookie)))
+	if err == nil && response.StatusCode() == http.StatusUnauthorized {
+		return redirectToLogin(c, returnURL)
+	}
 	if err != nil || response.StatusCode() != http.StatusCreated || response.JSON201 == nil {
-		return fiber.ErrServiceUnavailable
+		return providerConnectionFailure(c, returnURL+"?provider_oauth=connect_failed", gitLabConnectStartError)
 	}
 	return redirectHTMXOrSeeOther(c, response.JSON201.AuthorizationUrl)
 }
@@ -87,14 +102,15 @@ func (r *Router) handleOrganizationGitLabDisconnect(c fiber.Ctx) error {
 	if err != nil {
 		return fiber.ErrBadRequest
 	}
+	returnURL := "/organizations/" + org.String() + "/connections"
 	response, err := r.apiClient.DisconnectOrganizationGitLabConnectionWithResponse(c.Context(), org.String(), frontendRequestEditor(c.Context(), c.Get(fiber.HeaderCookie)))
-	if err != nil {
-		return fiber.ErrServiceUnavailable
+	if err == nil && response.StatusCode() == http.StatusUnauthorized {
+		return redirectToLogin(c, returnURL)
 	}
-	if response.StatusCode() != http.StatusOK {
-		return c.SendStatus(response.StatusCode())
+	if err != nil || response.StatusCode() != http.StatusOK {
+		return redirectHTMXOrSeeOther(c, returnURL+"?provider_oauth=disconnect_failed")
 	}
-	return redirectHTMXOrSeeOther(c, "/organizations/"+org.String()+"/connections?provider_oauth=disconnected")
+	return redirectHTMXOrSeeOther(c, returnURL+"?provider_oauth=disconnected")
 }
 
 func (r *Router) handleAttachOrganizationGitLabConnection(c fiber.Ctx) error {
@@ -106,12 +122,27 @@ func (r *Router) handleAttachOrganizationGitLabConnection(c fiber.Ctx) error {
 	if err != nil {
 		return fiber.ErrBadRequest
 	}
+	returnURL := dataSourceReturnURL(c, org.String(), ds.String())
+	const fallback = "Could not attach the organization GitLab connection. Check repository access and retry."
 	response, err := r.apiClient.AttachDataSourceOrganizationGitLabConnectionWithResponse(c.Context(), org.String(), ds.String(), frontendRequestEditor(c.Context(), c.Get(fiber.HeaderCookie)))
 	if err != nil {
-		return fiber.ErrServiceUnavailable
+		return redirectHTMXOrSeeOther(c, appendDataSourceReturnQuery(returnURL, "error", fallback))
+	}
+	if response.StatusCode() == http.StatusUnauthorized {
+		return redirectToLogin(c, returnURL)
 	}
 	if response.StatusCode() != http.StatusNoContent {
-		return c.Status(response.StatusCode()).SendString(formFeedbackFromErrorResponse(cmp.Or(response.JSON400, response.JSON401, response.JSON403, response.JSON404, response.JSON409, response.JSONDefault), "Could not attach the organization GitLab connection. Check repository access and retry."))
+		message := cmp.Or(messageFromErrorResponse(cmp.Or(response.JSON400, response.JSON403, response.JSON404, response.JSON409, response.JSONDefault)), fallback)
+		return redirectHTMXOrSeeOther(c, appendDataSourceReturnQuery(returnURL, "error", message))
 	}
-	return redirectHTMXOrSeeOther(c, views.DataSourceDetailHref(org.String(), dataSourceActiveEnvironmentSlug(c), ds.String()))
+	return redirectHTMXOrSeeOther(c, appendDataSourceReturnQuery(returnURL, "notice", "Organization GitLab connection attached."))
+}
+
+func providerConnectionFailure(c fiber.Ctx, returnURL, message string) error {
+	if isHTMXRequest(c) {
+		c.Set("HX-Retarget", "#provider-connections-feedback")
+		c.Set("HX-Reswap", "outerHTML")
+		return renderTempl(c, views.ProviderConnectionsFeedback(message, true))
+	}
+	return redirectHTMXOrSeeOther(c, returnURL)
 }

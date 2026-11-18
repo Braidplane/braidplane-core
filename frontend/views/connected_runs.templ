@@ -19,7 +19,7 @@ templ PipelineConnectedRuns(org, project, environment, run string, inspection Ru
 	>
 		<div class="flex flex-wrap items-center justify-between gap-2">
 			<h2 id="connected-runs-heading" class="text-lg font-semibold">Connected runs</h2>
-			<a class="btn btn-outline btn-sm" href={ templ.URL(base) }>Refresh evidence</a>
+			<a id="connected-run-refresh" class="btn btn-outline btn-sm" href={ templ.URL(base) }>Refresh evidence</a>
 		</div>
 		<p class="text-sm text-base-content/70">Recorded causal execution. Each pipeline run has its own outcome; dispatch decisions do not guarantee completion of the whole connection.</p>
 		if inspection.Connected==nil {
@@ -36,15 +36,16 @@ templ PipelineConnectedRuns(org, project, environment, run string, inspection Ru
 				<p role="status" class="alert alert-warning">Some context is unavailable, retained away, or cannot be shown with your access. Hidden identities and totals are omitted.</p>
 			}
 			<div class="hidden lg:block" data-lineage-view={ org + "/" + project + "/" + environment + "|connected|" + graph.Anchor }>
+				<a class="link link-primary mb-2 inline-flex min-h-6 items-center text-sm" href="#connected-run-list">Skip graph to connected runs list</a>
 				<div class="flex flex-wrap items-center gap-2 rounded-t-xl border border-base-300 p-2 text-xs" role="group" aria-label="Connected run graph controls">
 					<button type="button" class="btn btn-ghost btn-xs" data-lineage-action="out" aria-label="Zoom out">−</button>
-					<output class="w-12 text-center" data-lineage-zoom aria-live="polite">100%</output>
+					<output class="w-12 text-center" data-lineage-zoom aria-live="polite" aria-label="Current zoom">100%</output>
 					<button type="button" class="btn btn-ghost btn-xs" data-lineage-action="in" aria-label="Zoom in">+</button>
 					<button type="button" class="btn btn-ghost btn-xs" data-lineage-action="fit" aria-pressed="true">Fit</button>
 					<button type="button" class="btn btn-ghost btn-xs" data-lineage-action="reset">100%</button>
-					<span>Drag or arrow keys to pan · + / − to zoom · 0 to fit · Tab to select a run</span>
+					<span id="connected-runs-keyboard-help">Drag the background to pan. Focus the graph to use arrow keys to pan, + or − to zoom, and 0 to fit. Tab to a run to inspect it.</span>
 				</div>
-				<div data-lineage-viewport class="pipeline-graph-grid relative h-[32rem] overflow-auto rounded-b-xl border border-base-300 bg-base-200/35 focus-visible:outline-primary" tabindex="0" role="region" aria-label="Connected historical runs graph">
+				<div data-lineage-viewport class="pipeline-graph-grid relative h-[32rem] overflow-auto rounded-b-xl border border-base-300 bg-base-200/35 focus-visible:outline-primary" tabindex="0" role="region" aria-label="Connected historical runs graph" aria-describedby="connected-runs-keyboard-help">
 					<div data-lineage-bounds class="relative overflow-hidden" style={ templ.SafeCSS(fmt.Sprintf("width:%dpx;height:%dpx", graph.Width, graph.Height)) }>
 						<div data-lineage-canvas class="absolute origin-top-left" style={ templ.SafeCSS(fmt.Sprintf("width:%dpx;height:%dpx", graph.Width, graph.Height)) }>
 							<svg class="pointer-events-none absolute inset-0" width={ fmt.Sprint(graph.Width) } height={ fmt.Sprint(graph.Height) } aria-hidden="true">
@@ -67,12 +68,15 @@ templ PipelineConnectedRuns(org, project, environment, run string, inspection Ru
 					</div>
 				</div>
 			</div>
-			<ul class="space-y-2 lg:hidden" aria-label="Connected logical runs and outcomes">
+			<ul id="connected-run-list" class="space-y-2 focus-visible:outline-2 focus-visible:outline-primary" tabindex="-1" aria-label="Connected logical runs and outcomes">
 				for _,node:=range graph.Nodes {
-					<li class="border-b border-base-300 pb-2 text-sm"><a class="link link-primary break-all" href={ templ.URL(node.Href) }>{ node.Record.PipelineSlug } · { node.Record.Completion.RootRunSlug }</a><p>{ connectedRunState(node.Record.Completion) }</p></li>
+					<li class="border-b border-base-300 pb-2 text-sm">
+						<a id={ "connected-run-list-node-" + node.Record.Completion.RootRunSlug } class="link link-primary inline-block min-h-6 break-all" href={ templ.URL(node.Href) } aria-current={ fmt.Sprint(node.Selected) }>{ node.Record.PipelineSlug } · { node.Record.Completion.RootRunSlug }</a>
+						<p>{ connectedRunState(node.Record.Completion) } · Recorded attempts: { fmt.Sprint(len(node.Record.Completion.Attempts)) }</p>
+					</li>
 				}
 			</ul>
-			<aside id="connected-run-evidence" tabindex="-1" class="min-w-0 space-y-3 border-t border-base-300 pt-4" aria-label="Selected connected run evidence">
+			<aside id="connected-run-evidence" tabindex="-1" class="min-w-0 space-y-3 border-t border-base-300 pt-4 focus-visible:outline-2 focus-visible:outline-primary" aria-label="Selected connected run evidence">
 				if graph.Selected==nil {
 					<p>Select a visible run to inspect its recorded attempts.</p>
 				} else {
@@ -110,7 +114,7 @@ templ PipelineConnectedRuns(org, project, environment, run string, inspection Ru
 					<p class="text-sm">No visible persisted causal decisions. This does not prove that no subscription was configured or matched.</p>
 				}
 				for _,decision:=range graph.Decisions {
-					<div id={ fmt.Sprintf("connected-decision-%s-%s-%d", decision.RootRunSlug, decision.TriggerSlug, decision.TriggerRevision) }>
+					<div id={ fmt.Sprintf("connected-decision-%s-%s-%d", decision.RootRunSlug, decision.TriggerSlug, decision.TriggerRevision) } tabindex="-1" class="focus-visible:outline-2 focus-visible:outline-primary" role="group" aria-label={ fmt.Sprintf("Dispatch decision for %s, revision %d", decision.TriggerSlug, decision.TriggerRevision) }>
 						@PipelineCompletionDecisionDetails(org, project, environment, decision)
 					</div>
 				}

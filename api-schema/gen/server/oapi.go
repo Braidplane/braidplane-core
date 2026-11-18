@@ -10336,6 +10336,9 @@ type GitHubAppConnectionRepositorySelection string
 // GitHubAppExistingInstallationAuthorizationRequest defines model for GitHubAppExistingInstallationAuthorizationRequest.
 type GitHubAppExistingInstallationAuthorizationRequest struct {
 	AccountLogin string `json:"account_login"`
+
+	// MoreTime Allow 100 minutes for the Core callback instead of 10.
+	MoreTime *bool `json:"more_time,omitempty"`
 }
 
 // GitHubAppInstallStart defines model for GitHubAppInstallStart.
@@ -18058,11 +18061,17 @@ type StartProviderConnectorInstallRequest struct {
 	//
 	// Example: create_grant
 	Intent ProviderInstallIntent `json:"intent"`
+
+	// MoreTime Allow 100 minutes for the Core callback instead of 10. The provider controls its own authorization deadlines.
+	MoreTime *bool `json:"more_time,omitempty"`
 }
 
 // StartProviderDataSourceInstallRequest Starts OAuth-first onboarding for a new provider-backed data source.
 type StartProviderDataSourceInstallRequest struct {
 	Config StartProviderDataSourceInstallRequest_Config `json:"config"`
+
+	// MoreTime Allow 100 minutes for the Core callback instead of 10. The provider controls its own authorization deadlines.
+	MoreTime *bool `json:"more_time,omitempty"`
 
 	// Name Human-readable display name
 	//
@@ -19169,10 +19178,22 @@ type UserSlugParam = Slug
 // Example: acme-corp
 type ValidationSlugParam = Slug
 
+// InitiateGoogleAuthParams defines parameters for InitiateGoogleAuth.
+type InitiateGoogleAuthParams struct {
+	// MoreTime Allow 100 minutes instead of 10 for a new Google authorization to return to Core.
+	MoreTime *bool `form:"more_time,omitempty" json:"more_time,omitempty"`
+}
+
 // RegisterGoogleAccountFormdataBody defines parameters for RegisterGoogleAccount.
 type RegisterGoogleAccountFormdataBody struct {
 	// UnderscoreCsrf Browser form CSRF token. Required when completing a pending signup.
 	UnderscoreCsrf *string `form:"_csrf,omitempty" json:"_csrf,omitempty"`
+}
+
+// RegisterGoogleAccountParams defines parameters for RegisterGoogleAccount.
+type RegisterGoogleAccountParams struct {
+	// MoreTime Allow 100 minutes instead of 10 for a new Google authorization to return to Core.
+	MoreTime *bool `form:"more_time,omitempty" json:"more_time,omitempty"`
 }
 
 // HandleGoogleCallbackParams defines parameters for HandleGoogleCallback.
@@ -19403,6 +19424,12 @@ type ListGoogleWorkspaceFilesParams struct {
 	PageToken *string `form:"page_token,omitempty" json:"page_token,omitempty"`
 }
 
+// ConnectDataSourceHTTPOAuthParams defines parameters for ConnectDataSourceHTTPOAuth.
+type ConnectDataSourceHTTPOAuthParams struct {
+	// MoreTime Allow 100 minutes for the Core callback instead of 10.
+	MoreTime *bool `form:"more_time,omitempty" json:"more_time,omitempty"`
+}
+
 // RotateDataSourceProviderGrantParams defines parameters for RotateDataSourceProviderGrant.
 type RotateDataSourceProviderGrantParams struct {
 	// AccessMode Workspace file access mode. Defaults to selected_files. Other providers reject this parameter.
@@ -19601,10 +19628,19 @@ type ListEventsParamsOrder string
 // ListEventsParamsDirection defines parameters for ListEvents.
 type ListEventsParamsDirection string
 
+// StartOrganizationGitHubAppInstallParams defines parameters for StartOrganizationGitHubAppInstall.
+type StartOrganizationGitHubAppInstallParams struct {
+	// MoreTime Allow 100 minutes for the Core callback instead of 10.
+	MoreTime *bool `form:"more_time,omitempty" json:"more_time,omitempty"`
+}
+
 // StartOrganizationGitLabAuthorizationJSONBody defines parameters for StartOrganizationGitLabAuthorization.
 type StartOrganizationGitLabAuthorizationJSONBody struct {
 	// IncludeWriteScopes Explicitly authorize Git writes; data-source read-only restrictions still apply.
 	IncludeWriteScopes bool `json:"include_write_scopes"`
+
+	// MoreTime Allow 100 minutes for the Core callback instead of 10.
+	MoreTime *bool `json:"more_time,omitempty"`
 }
 
 // ListMemberInvitationsParams defines parameters for ListMemberInvitations.
@@ -20056,6 +20092,12 @@ type DeleteDataSourceBindingParams struct {
 type CompilePipelineVersionParams struct {
 	// EnvironmentSlug Environment whose bindings select saved-operation definitions for this explicit compilation. Required when the retained version references saved operations. Captured operation content remains portable; deployment resolves its own targets.
 	EnvironmentSlug *Slug `form:"environment_slug,omitempty" json:"environment_slug,omitempty"`
+}
+
+// CreateProjectRepositoryParams defines parameters for CreateProjectRepository.
+type CreateProjectRepositoryParams struct {
+	// MoreTime Allow 100 minutes for the Core callback instead of 10 if provider authorization is required. May change when retrying the same saved setup.
+	MoreTime *bool `form:"more_time,omitempty" json:"more_time,omitempty"`
 }
 
 // ListRolesParams defines parameters for ListRoles.
@@ -27870,10 +27912,10 @@ type ServerInterface interface {
 	VerifyEmail(c fiber.Ctx) error
 	// InitiateGoogleAuth Initiate Google OAuth flow
 	// (GET /auth/google)
-	InitiateGoogleAuth(c fiber.Ctx) error
+	InitiateGoogleAuth(c fiber.Ctx, params InitiateGoogleAuthParams) error
 	// RegisterGoogleAccount Start or complete Google account registration
 	// (POST /auth/google)
-	RegisterGoogleAccount(c fiber.Ctx) error
+	RegisterGoogleAccount(c fiber.Ctx, params RegisterGoogleAccountParams) error
 	// HandleGoogleCallback Handle Google OAuth callback
 	// (GET /auth/google/callback)
 	HandleGoogleCallback(c fiber.Ctx, params HandleGoogleCallbackParams) error
@@ -28023,7 +28065,7 @@ type ServerInterface interface {
 	GetGoogleWorkspaceWorksheets(c fiber.Ctx, slug SlugParam, dsSlug DataSourceSlugParam, fileId string) error
 	// ConnectDataSourceHTTPOAuth Connect or reconnect an HTTP OAuth source
 	// (POST /organizations/{slug}/data-sources/{ds_slug}/http-oauth/connect)
-	ConnectDataSourceHTTPOAuth(c fiber.Ctx, slug SlugParam, dsSlug DataSourceSlugParam) error
+	ConnectDataSourceHTTPOAuth(c fiber.Ctx, slug SlugParam, dsSlug DataSourceSlugParam, params ConnectDataSourceHTTPOAuthParams) error
 	// GetDataSourceProofConfiguration Get a data source's Proof settings and available assessment targets
 	// (GET /organizations/{slug}/data-sources/{ds_slug}/proof)
 	GetDataSourceProofConfiguration(c fiber.Ctx, slug SlugParam, dsSlug DataSourceSlugParam) error
@@ -28143,7 +28185,7 @@ type ServerInterface interface {
 	AuthorizeOrganizationGitHubAppConnection(c fiber.Ctx, slug SlugParam) error
 	// StartOrganizationGitHubAppInstall Start managed GitHub App installation
 	// (POST /organizations/{slug}/github-app-connection/install)
-	StartOrganizationGitHubAppInstall(c fiber.Ctx, slug SlugParam) error
+	StartOrganizationGitHubAppInstall(c fiber.Ctx, slug SlugParam, params StartOrganizationGitHubAppInstallParams) error
 	// DisconnectOrganizationGitLabConnection Revoke the shared GitLab connection for all attached data sources
 	// (DELETE /organizations/{slug}/gitlab-connection)
 	DisconnectOrganizationGitLabConnection(c fiber.Ctx, slug SlugParam) error
@@ -28476,7 +28518,7 @@ type ServerInterface interface {
 	GetProjectRepositorySetup(c fiber.Ctx, slug SlugParam, projectSlug ProjectSlugParam) error
 	// CreateProjectRepository Create and attach a private pipeline repository
 	// (POST /organizations/{slug}/projects/{project_slug}/repository-setup)
-	CreateProjectRepository(c fiber.Ctx, slug SlugParam, projectSlug ProjectSlugParam) error
+	CreateProjectRepository(c fiber.Ctx, slug SlugParam, projectSlug ProjectSlugParam, params CreateProjectRepositoryParams) error
 	// AbandonProjectRepositorySetup Keep existing resources and choose a new repository target
 	// (POST /organizations/{slug}/projects/{project_slug}/repository-setup/abandon)
 	AbandonProjectRepositorySetup(c fiber.Ctx, slug SlugParam, projectSlug ProjectSlugParam) error
@@ -28638,8 +28680,27 @@ func (siw *ServerInterfaceWrapper) VerifyEmail(c fiber.Ctx) error {
 // InitiateGoogleAuth operation middleware
 func (siw *ServerInterfaceWrapper) InitiateGoogleAuth(c fiber.Ctx) error {
 
+	var err error
+	_ = err
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params InitiateGoogleAuthParams
+
+	var query url.Values
+	query, err = url.ParseQuery(string(c.Request().URI().QueryString()))
+	if err != nil {
+		return fiber.NewError(fiber.StatusBadRequest, fmt.Errorf("Invalid format for query string: %w", err).Error())
+	}
+
+	// ------------- Optional query parameter "more_time" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "more_time", query, &params.MoreTime, runtime.BindQueryParameterOptions{Type: "boolean", Format: ""})
+	if err != nil {
+		return fiber.NewError(fiber.StatusBadRequest, fmt.Errorf("Invalid format for parameter more_time: %w", err).Error())
+	}
+
 	handler := func(c fiber.Ctx) error {
-		return siw.Handler.InitiateGoogleAuth(c)
+		return siw.Handler.InitiateGoogleAuth(c, params)
 	}
 
 	for i := len(siw.HandlerMiddlewares) - 1; i >= 0; i-- {
@@ -28656,8 +28717,27 @@ func (siw *ServerInterfaceWrapper) InitiateGoogleAuth(c fiber.Ctx) error {
 // RegisterGoogleAccount operation middleware
 func (siw *ServerInterfaceWrapper) RegisterGoogleAccount(c fiber.Ctx) error {
 
+	var err error
+	_ = err
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params RegisterGoogleAccountParams
+
+	var query url.Values
+	query, err = url.ParseQuery(string(c.Request().URI().QueryString()))
+	if err != nil {
+		return fiber.NewError(fiber.StatusBadRequest, fmt.Errorf("Invalid format for query string: %w", err).Error())
+	}
+
+	// ------------- Optional query parameter "more_time" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "more_time", query, &params.MoreTime, runtime.BindQueryParameterOptions{Type: "boolean", Format: ""})
+	if err != nil {
+		return fiber.NewError(fiber.StatusBadRequest, fmt.Errorf("Invalid format for parameter more_time: %w", err).Error())
+	}
+
 	handler := func(c fiber.Ctx) error {
-		return siw.Handler.RegisterGoogleAccount(c)
+		return siw.Handler.RegisterGoogleAccount(c, params)
 	}
 
 	for i := len(siw.HandlerMiddlewares) - 1; i >= 0; i-- {
@@ -30667,8 +30747,24 @@ func (siw *ServerInterfaceWrapper) ConnectDataSourceHTTPOAuth(c fiber.Ctx) error
 		return fiber.NewError(fiber.StatusBadRequest, fmt.Errorf("Invalid format for parameter ds_slug: %w", err).Error())
 	}
 
+	// Parameter object where we will unmarshal all parameters from the context
+	var params ConnectDataSourceHTTPOAuthParams
+
+	var query url.Values
+	query, err = url.ParseQuery(string(c.Request().URI().QueryString()))
+	if err != nil {
+		return fiber.NewError(fiber.StatusBadRequest, fmt.Errorf("Invalid format for query string: %w", err).Error())
+	}
+
+	// ------------- Optional query parameter "more_time" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "more_time", query, &params.MoreTime, runtime.BindQueryParameterOptions{Type: "boolean", Format: ""})
+	if err != nil {
+		return fiber.NewError(fiber.StatusBadRequest, fmt.Errorf("Invalid format for parameter more_time: %w", err).Error())
+	}
+
 	handler := func(c fiber.Ctx) error {
-		return siw.Handler.ConnectDataSourceHTTPOAuth(c, slug, dsSlug)
+		return siw.Handler.ConnectDataSourceHTTPOAuth(c, slug, dsSlug, params)
 	}
 
 	for i := len(siw.HandlerMiddlewares) - 1; i >= 0; i-- {
@@ -32581,8 +32677,24 @@ func (siw *ServerInterfaceWrapper) StartOrganizationGitHubAppInstall(c fiber.Ctx
 		return fiber.NewError(fiber.StatusBadRequest, fmt.Errorf("Invalid format for parameter slug: %w", err).Error())
 	}
 
+	// Parameter object where we will unmarshal all parameters from the context
+	var params StartOrganizationGitHubAppInstallParams
+
+	var query url.Values
+	query, err = url.ParseQuery(string(c.Request().URI().QueryString()))
+	if err != nil {
+		return fiber.NewError(fiber.StatusBadRequest, fmt.Errorf("Invalid format for query string: %w", err).Error())
+	}
+
+	// ------------- Optional query parameter "more_time" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "more_time", query, &params.MoreTime, runtime.BindQueryParameterOptions{Type: "boolean", Format: ""})
+	if err != nil {
+		return fiber.NewError(fiber.StatusBadRequest, fmt.Errorf("Invalid format for parameter more_time: %w", err).Error())
+	}
+
 	handler := func(c fiber.Ctx) error {
-		return siw.Handler.StartOrganizationGitHubAppInstall(c, slug)
+		return siw.Handler.StartOrganizationGitHubAppInstall(c, slug, params)
 	}
 
 	for i := len(siw.HandlerMiddlewares) - 1; i >= 0; i-- {
@@ -38327,8 +38439,24 @@ func (siw *ServerInterfaceWrapper) CreateProjectRepository(c fiber.Ctx) error {
 		return fiber.NewError(fiber.StatusBadRequest, fmt.Errorf("Invalid format for parameter project_slug: %w", err).Error())
 	}
 
+	// Parameter object where we will unmarshal all parameters from the context
+	var params CreateProjectRepositoryParams
+
+	var query url.Values
+	query, err = url.ParseQuery(string(c.Request().URI().QueryString()))
+	if err != nil {
+		return fiber.NewError(fiber.StatusBadRequest, fmt.Errorf("Invalid format for query string: %w", err).Error())
+	}
+
+	// ------------- Optional query parameter "more_time" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "more_time", query, &params.MoreTime, runtime.BindQueryParameterOptions{Type: "boolean", Format: ""})
+	if err != nil {
+		return fiber.NewError(fiber.StatusBadRequest, fmt.Errorf("Invalid format for parameter more_time: %w", err).Error())
+	}
+
 	handler := func(c fiber.Ctx) error {
-		return siw.Handler.CreateProjectRepository(c, slug, projectSlug)
+		return siw.Handler.CreateProjectRepository(c, slug, projectSlug, params)
 	}
 
 	for i := len(siw.HandlerMiddlewares) - 1; i >= 0; i-- {
@@ -40390,6 +40518,7 @@ func (response VerifyEmail400Response) VisitVerifyEmailResponse(ctx fiber.Ctx) e
 }
 
 type InitiateGoogleAuthRequestObject struct {
+	Params InitiateGoogleAuthParams
 }
 
 type InitiateGoogleAuthResponseObject interface {
@@ -40412,6 +40541,15 @@ func (response InitiateGoogleAuth302Response) VisitInitiateGoogleAuthResponse(ct
 	return nil
 }
 
+type InitiateGoogleAuth400JSONResponse ErrorResponse
+
+func (response InitiateGoogleAuth400JSONResponse) VisitInitiateGoogleAuthResponse(ctx fiber.Ctx) error {
+	ctx.Response().Header.Set("Content-Type", "application/json")
+	ctx.Status(400)
+
+	return ctx.JSON(&response)
+}
+
 type InitiateGoogleAuth503JSONResponse ErrorResponse
 
 func (response InitiateGoogleAuth503JSONResponse) VisitInitiateGoogleAuthResponse(ctx fiber.Ctx) error {
@@ -40422,7 +40560,8 @@ func (response InitiateGoogleAuth503JSONResponse) VisitInitiateGoogleAuthRespons
 }
 
 type RegisterGoogleAccountRequestObject struct {
-	Body *RegisterGoogleAccountFormdataRequestBody
+	Params RegisterGoogleAccountParams
+	Body   *RegisterGoogleAccountFormdataRequestBody
 }
 
 type RegisterGoogleAccountResponseObject interface {
@@ -42236,6 +42375,7 @@ func (response GetGoogleWorkspaceWorksheets503JSONResponse) VisitGetGoogleWorksp
 type ConnectDataSourceHTTPOAuthRequestObject struct {
 	Slug   SlugParam           `json:"slug"`
 	DsSlug DataSourceSlugParam `json:"ds_slug"`
+	Params ConnectDataSourceHTTPOAuthParams
 }
 
 type ConnectDataSourceHTTPOAuthResponseObject interface {
@@ -43849,7 +43989,8 @@ func (response AuthorizeOrganizationGitHubAppConnection404JSONResponse) VisitAut
 }
 
 type StartOrganizationGitHubAppInstallRequestObject struct {
-	Slug SlugParam `json:"slug"`
+	Slug   SlugParam `json:"slug"`
+	Params StartOrganizationGitHubAppInstallParams
 }
 
 type StartOrganizationGitHubAppInstallResponseObject interface {
@@ -49241,6 +49382,7 @@ func (response GetProjectRepositorySetup404JSONResponse) VisitGetProjectReposito
 type CreateProjectRepositoryRequestObject struct {
 	Slug        SlugParam        `json:"slug"`
 	ProjectSlug ProjectSlugParam `json:"project_slug"`
+	Params      CreateProjectRepositoryParams
 	Body        *CreateProjectRepositoryJSONRequestBody
 }
 
@@ -51477,8 +51619,10 @@ func (sh *strictHandler) VerifyEmail(ctx fiber.Ctx) error {
 }
 
 // InitiateGoogleAuth operation middleware
-func (sh *strictHandler) InitiateGoogleAuth(ctx fiber.Ctx) error {
+func (sh *strictHandler) InitiateGoogleAuth(ctx fiber.Ctx, params InitiateGoogleAuthParams) error {
 	var request InitiateGoogleAuthRequestObject
+
+	request.Params = params
 
 	handler := func(ctx fiber.Ctx, request interface{}) (interface{}, error) {
 		return sh.ssi.InitiateGoogleAuth(ctx.Context(), request.(InitiateGoogleAuthRequestObject))
@@ -51502,8 +51646,10 @@ func (sh *strictHandler) InitiateGoogleAuth(ctx fiber.Ctx) error {
 }
 
 // RegisterGoogleAccount operation middleware
-func (sh *strictHandler) RegisterGoogleAccount(ctx fiber.Ctx) error {
+func (sh *strictHandler) RegisterGoogleAccount(ctx fiber.Ctx, params RegisterGoogleAccountParams) error {
 	var request RegisterGoogleAccountRequestObject
+
+	request.Params = params
 
 	var body RegisterGoogleAccountFormdataRequestBody
 	if err := ctx.Bind().Body(&body); err != nil {
@@ -52986,11 +53132,12 @@ func (sh *strictHandler) GetGoogleWorkspaceWorksheets(ctx fiber.Ctx, slug SlugPa
 }
 
 // ConnectDataSourceHTTPOAuth operation middleware
-func (sh *strictHandler) ConnectDataSourceHTTPOAuth(ctx fiber.Ctx, slug SlugParam, dsSlug DataSourceSlugParam) error {
+func (sh *strictHandler) ConnectDataSourceHTTPOAuth(ctx fiber.Ctx, slug SlugParam, dsSlug DataSourceSlugParam, params ConnectDataSourceHTTPOAuthParams) error {
 	var request ConnectDataSourceHTTPOAuthRequestObject
 
 	request.Slug = slug
 	request.DsSlug = dsSlug
+	request.Params = params
 
 	handler := func(ctx fiber.Ctx, request interface{}) (interface{}, error) {
 		return sh.ssi.ConnectDataSourceHTTPOAuth(ctx.Context(), request.(ConnectDataSourceHTTPOAuthRequestObject))
@@ -54185,10 +54332,11 @@ func (sh *strictHandler) AuthorizeOrganizationGitHubAppConnection(ctx fiber.Ctx,
 }
 
 // StartOrganizationGitHubAppInstall operation middleware
-func (sh *strictHandler) StartOrganizationGitHubAppInstall(ctx fiber.Ctx, slug SlugParam) error {
+func (sh *strictHandler) StartOrganizationGitHubAppInstall(ctx fiber.Ctx, slug SlugParam, params StartOrganizationGitHubAppInstallParams) error {
 	var request StartOrganizationGitHubAppInstallRequestObject
 
 	request.Slug = slug
+	request.Params = params
 
 	handler := func(ctx fiber.Ctx, request interface{}) (interface{}, error) {
 		return sh.ssi.StartOrganizationGitHubAppInstall(ctx.Context(), request.(StartOrganizationGitHubAppInstallRequestObject))
@@ -57636,11 +57784,12 @@ func (sh *strictHandler) GetProjectRepositorySetup(ctx fiber.Ctx, slug SlugParam
 }
 
 // CreateProjectRepository operation middleware
-func (sh *strictHandler) CreateProjectRepository(ctx fiber.Ctx, slug SlugParam, projectSlug ProjectSlugParam) error {
+func (sh *strictHandler) CreateProjectRepository(ctx fiber.Ctx, slug SlugParam, projectSlug ProjectSlugParam, params CreateProjectRepositoryParams) error {
 	var request CreateProjectRepositoryRequestObject
 
 	request.Slug = slug
 	request.ProjectSlug = projectSlug
+	request.Params = params
 
 	var body CreateProjectRepositoryJSONRequestBody
 	if err := ctx.Bind().Body(&body); err != nil {

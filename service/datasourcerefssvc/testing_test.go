@@ -362,7 +362,7 @@ func (r *fakeDataSourceRefsRepository) DeleteEnvironmentBinding(
 }
 
 type fakeDataSourcesService struct {
-	ConnectHTTPOAuthFn func(context.Context, slug.Slug, slug.Slug, model.EventActor) (*datasourcessvc.HTTPOAuthConnection, error)
+	ConnectHTTPOAuthFn func(context.Context, slug.Slug, slug.Slug, model.EventActor, bool) (*datasourcessvc.HTTPOAuthConnection, error)
 	items              map[string]*datasourcessvc.DataSource
 	createCalls        int
 }
@@ -588,9 +588,9 @@ func (s *fakeDataSourcesService) GetGoogleWorkspaceWorksheets(context.Context, s
 	return nil, xerror.Unavailable(xerror.DataSource)
 }
 
-func (f *fakeDataSourcesService) ConnectHTTPOAuth(ctx context.Context, org, source slug.Slug, actor model.EventActor) (*datasourcessvc.HTTPOAuthConnection, error) {
+func (f *fakeDataSourcesService) ConnectHTTPOAuth(ctx context.Context, org, source slug.Slug, actor model.EventActor, moreTime bool) (*datasourcessvc.HTTPOAuthConnection, error) {
 	if f.ConnectHTTPOAuthFn == nil {
 		return nil, xerror.Unexpected().Detail("unexpected ConnectHTTPOAuth call")
 	}
-	return f.ConnectHTTPOAuthFn(ctx, org, source, actor)
+	return f.ConnectHTTPOAuthFn(ctx, org, source, actor, moreTime)
 }

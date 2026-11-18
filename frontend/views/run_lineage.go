@@ -157,7 +157,7 @@ func lineageEdgeClass(edge runlineage.Edge) string {
 	case runlineage.StatusSucceeded:
 		return "text-success"
 	default:
-		return "text-base-content/25"
+		return "text-base-content/50"
 	}
 }
 
@@ -254,6 +254,9 @@ func lineageDependencyLabel(edge runlineage.Edge) string {
 	prefix := ""
 	if edge.Tone == runlineage.StatusFailed {
 		prefix = "Failed input boundary: "
+	}
+	if edge.Label != "" {
+		prefix = edge.Label + ". " + prefix
 	}
 	kinds := make([]string, 0, len(edge.Kinds))
 	for _, kind := range edge.Kinds {
@@ -407,16 +410,6 @@ func lineageObservedSummary(node runlineage.Node) string {
 
 func lineagePayloadPreview(node runlineage.Node) string {
 	return "Planned · " + lineagePlannedSummary(node) + " · Observed · " + lineageObservedSummary(node)
-}
-
-func lineageNodeAriaLabel(node runlineage.Node) string {
-	return fmt.Sprintf(
-		"%s step %s, %s. %s. Select for full evidence.",
-		lineageKindLabel(node.Kind),
-		lineageStepName(node),
-		lineageNodeStatusLabel(node),
-		lineagePayloadPreview(node),
-	)
 }
 
 func lineageNodeStatusLabel(node runlineage.Node) string {

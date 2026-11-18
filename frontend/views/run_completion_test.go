@@ -132,7 +132,7 @@ func TestCompletionStatePermutationsDoNotInventChildren(t *testing.T) {
 			}
 			if scenario == "final_failure" {
 				require.Contains(t, html, "Closed · failed")
-				require.Contains(t, html, "daily-sync → final_failure → normalize-orders")
+				require.Contains(t, html, "From <code class=\"break-all\">daily-sync</code> to <code class=\"break-all\">normalize-orders</code> · Condition final_failure")
 			}
 			if scenario == "waiting" {
 				require.NotContains(t, html, "parent-final")

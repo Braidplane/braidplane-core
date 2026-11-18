@@ -1060,7 +1060,7 @@ func (s *service) startOAuthInstall(
 	if err != nil {
 		return ProviderConnectorInstall{}, ErrInvalidInput.With(err)
 	}
-	expiresAt := now.Add(DefaultInstallTTL)
+	expiresAt := now.Add(oauthflow.CallbackWindow(params.MoreTime))
 	scopePlan := OAuthScopePlan{Required: append([]string(nil), params.RequestedScopes...)}
 	if contextualProvider, ok := provider.(ContextualScopePlanningProvider); ok {
 		scopePlan = contextualProvider.OAuthScopePlanForInstall(OAuthScopePlanParams{

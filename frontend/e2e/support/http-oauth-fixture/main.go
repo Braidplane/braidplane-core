@@ -1,4 +1,4 @@
-// This fixture runs production SSR against synthetic API replies; it does not implement the OAuth protocol or persistence.
+// This fixture runs production SSR against synthetic API replies and in-memory state.
 package main
 
 import (
@@ -12,6 +12,7 @@ import (
 	"strings"
 	"sync"
 
+	api "github.com/Braidplane/braidplane-core/api-schema/gen/client"
 	"github.com/Braidplane/braidplane-core/frontend"
 	"github.com/Braidplane/braidplane-core/pkg/reqctx"
 	"github.com/Braidplane/braidplane-core/pkg/slug"
@@ -23,7 +24,7 @@ import (
 func main() {
 	var mu sync.Mutex
 	var source map[string]any
-	queries := []any{}
+	queries := []map[string]any{}
 	mode := ""
 	origin := ""
 	pending := func() {
@@ -61,12 +62,44 @@ func main() {
 			w.WriteHeader(http.StatusCreated)
 			encode(map[string]any{"data_source": map[string]any{"slug": "hubspot-crm", "name": "HubSpot CRM", "type": "hubspot"}, "install": map[string]any{"authorization_url": origin + "/_test/consent"}})
 		case "/api/organizations/acme/data-sources/test-connection":
+			var input struct {
+				Type   string `json:"type"`
+				Config struct {
+					HealthPath string            `json:"health_path"`
+					WifObjects []json.RawMessage `json:"wif_objects"`
+				} `json:"config"`
+				Credentials struct {
+					AuthType string `json:"auth_type"`
+					Username string `json:"username"`
+				} `json:"credentials"`
+			}
+			if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, 16384)).Decode(&input); err != nil {
+				w.WriteHeader(http.StatusBadRequest)
+				return
+			}
+			if input.Type == "snowflake" {
+				if input.Credentials.AuthType != "password" || len(input.Config.WifObjects) != 0 {
+					w.WriteHeader(http.StatusBadRequest)
+					return
+				}
+				if input.Credentials.Username != "synthetic-reader" {
+					w.WriteHeader(http.StatusUnprocessableEntity)
+					encode(map[string]any{"error": map[string]any{"message": "Check the Snowflake username and password."}})
+					return
+				}
+			}
+			if input.Config.HealthPath == "/offline" {
+				w.WriteHeader(http.StatusUnprocessableEntity)
+				encode(map[string]any{"error": map[string]any{"code": "fixture_unavailable", "message": "Health endpoint is unavailable."}})
+				return
+			}
 			w.WriteHeader(http.StatusNoContent)
 		case "/api/organizations/acme/data-sources":
 			if r.Method == http.MethodPost {
 				var input struct {
 					Name        string         `json:"name"`
 					Slug        string         `json:"slug"`
+					Type        string         `json:"type"`
 					Config      map[string]any `json:"config"`
 					Credentials struct {
 						OAuth struct {
@@ -79,14 +112,24 @@ func main() {
 					w.WriteHeader(http.StatusBadRequest)
 					return
 				}
-				source = map[string]any{"slug": input.Slug, "name": input.Name, "type": "http", "config": input.Config, "read_only": true, "created_at": "2026-10-15T00:00:00Z", "updated_at": "2026-10-15T00:00:00Z"}
+				source = map[string]any{"slug": input.Slug, "name": input.Name, "type": input.Type, "config": input.Config, "read_only": true, "created_at": "2026-10-15T00:00:00Z", "updated_at": "2026-10-15T00:00:00Z"}
+				if input.Type == "git" || input.Type == "snowflake" {
+					source["is_active"] = true
+					w.WriteHeader(http.StatusCreated)
+					encode(source)
+					return
+				}
 				source["schema_status"] = "ready"
 				source["schema"] = map[string]any{"schema_type": "http", "operations": []any{
 					map[string]any{"id": "getUser", "method": "GET", "path": "/users/{id}", "draft": map[string]any{"statement": map[string]any{"type": "http", "method": "GET", "path": "/users/{{path_id}}"}, "parameters": []any{map[string]any{"name": "path_id", "data_type": "text", "is_required": true}}}},
 					map[string]any{"id": "upload", "method": "POST", "path": "/upload", "diagnostics": []string{"Multipart request bodies require manual authoring."}},
 				}}
 				mode = input.Credentials.OAuth.GrantType
-				pending()
+				if mode == "" {
+					source["is_active"] = true
+				} else {
+					pending()
+				}
 				w.WriteHeader(http.StatusCreated)
 				encode(source)
 			} else {
@@ -96,12 +139,59 @@ func main() {
 				}
 				encode(map[string]any{"data_sources": items, "has_more": false})
 			}
+		case "/api/organizations/acme/data-sources/ssh-repository",
+			"/api/organizations/acme/data-sources/ssh-repository/credentials":
+			if source == nil || source["type"] != "git" {
+				w.WriteHeader(http.StatusNotFound)
+				return
+			}
+			if strings.HasSuffix(r.URL.Path, "/credentials") {
+				if r.Method != http.MethodPatch {
+					w.WriteHeader(http.StatusMethodNotAllowed)
+					return
+				}
+				var input api.UpdateDataSourceCredentialsJSONRequestBody
+				if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, 16384)).Decode(&input); err != nil {
+					w.WriteHeader(http.StatusBadRequest)
+					return
+				}
+				credentials, err := input.Credentials.AsGitCredentials()
+				if err != nil || credentials.AuthType != "ssh" || credentials.SshPrivateKey == nil || credentials.SshKnownHosts == nil {
+					w.WriteHeader(http.StatusUnprocessableEntity)
+					return
+				}
+			}
+			encode(source)
+		case "/api/organizations/acme/data-sources/snowflake-password":
+			if source == nil || source["type"] != "snowflake" {
+				w.WriteHeader(http.StatusNotFound)
+				return
+			}
+			encode(source)
 		case "/api/organizations/acme/data-sources/http-app":
 			if source == nil {
 				w.WriteHeader(404)
-			} else {
-				encode(source)
+				return
 			}
+			if r.Method == http.MethodPatch {
+				var input struct {
+					Name   string         `json:"name"`
+					Config map[string]any `json:"config"`
+				}
+				r.Body = http.MaxBytesReader(w, r.Body, 16384)
+				if json.NewDecoder(r.Body).Decode(&input) != nil {
+					w.WriteHeader(http.StatusBadRequest)
+					return
+				}
+				if input.Config["health_path"] == "/unavailable" {
+					w.WriteHeader(http.StatusUnprocessableEntity)
+					encode(map[string]any{"error": map[string]any{"message": "Choose an available health path."}})
+					return
+				}
+				source["name"] = input.Name
+				source["config"] = input.Config
+			}
+			encode(source)
 		case "/api/organizations/acme/data-sources/http-app/schema":
 			encode(map[string]any{"status": "not_imported", "schema_type": "http"})
 		case "/api/organizations/acme/data-sources/http-app/queries":
@@ -120,6 +210,43 @@ func main() {
 			} else {
 				encode(map[string]any{"queries": queries, "has_more": false})
 			}
+		case "/api/organizations/acme/data-sources/http-app/queries/get-user":
+			if len(queries) == 0 {
+				w.WriteHeader(http.StatusNotFound)
+				return
+			}
+			query := queries[len(queries)-1]
+			if r.Method == http.MethodPut {
+				var update map[string]any
+				r.Body = http.MaxBytesReader(w, r.Body, 16384)
+				if json.NewDecoder(r.Body).Decode(&update) != nil {
+					w.WriteHeader(http.StatusBadRequest)
+					return
+				}
+				for key, value := range update {
+					query[key] = value
+				}
+			}
+			encode(query)
+		case "/api/organizations/acme/data-sources/http-app/queries/get-user/execute":
+			var input struct {
+				Parameters map[string]any `json:"parameters"`
+			}
+			r.Body = http.MaxBytesReader(w, r.Body, 16384)
+			if json.NewDecoder(r.Body).Decode(&input) != nil {
+				w.WriteHeader(http.StatusBadRequest)
+				return
+			}
+			if input.Parameters["path_id"] == "missing" {
+				w.WriteHeader(http.StatusUnprocessableEntity)
+				encode(map[string]any{"error": map[string]any{
+					"message": "The customer was not found.", "detailed_error": "The synthetic HTTP endpoint returned 404.",
+				}})
+				return
+			}
+			encode(map[string]any{"type": "http", "result_type": "http", "success": true, "duration_ms": 5, "payload": map[string]any{
+				"status_code": 200, "body": map[string]string{"name": "Synthetic customer"},
+			}})
 		case "/api/organizations/acme/data-sources/http-app/credentials":
 			r.Body = http.MaxBytesReader(w, r.Body, 16384)
 			var input struct {
@@ -159,6 +286,16 @@ func main() {
 	}
 	app := fiber.New()
 	app.Get("/_test/session", func(c fiber.Ctx) error { return reqctx.SetUserSlug(c, store, slug.Slug("test-user")) })
+	app.Post("/_test/schema-status", func(c fiber.Ctx) error {
+		mu.Lock()
+		defer mu.Unlock()
+		status := c.Query("status")
+		if source == nil || (status != "importing" && status != "ready") {
+			return c.SendStatus(http.StatusBadRequest)
+		}
+		source["schema_status"] = status
+		return c.SendStatus(http.StatusNoContent)
+	})
 	app.Get("/_test/consent", func(c fiber.Ctx) error {
 		return c.Type("html").SendString(`<h1>Synthetic OAuth consent</h1><p>UI fixture only. No provider credentials or tokens.</p><form method="post" action="/_test/authorize"><button>Allow access</button></form>`)
 	})

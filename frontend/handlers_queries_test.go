@@ -514,7 +514,7 @@ func TestRouter_HandleExecuteQuerySubmit_RendersBackendErrorInPopup(t *testing.T
 			require.NotContains(t, string(body), "Execution result (")
 			require.NotContains(t, string(body), "Duration: 0ms")
 			if tc.status == http.StatusUnprocessableEntity {
-				require.Contains(t, string(body), "query-execution-error-popup")
+				require.Contains(t, string(body), "query-execution-error")
 			}
 		})
 	}
@@ -585,7 +585,7 @@ func TestRouter_HandleExecuteQuerySubmit_HTMXRendersBackendErrorInSlot(t *testin
 	require.Contains(t, string(body), "syntax error at or near FROM")
 	require.Contains(t, string(body), "query-execution-feedback-slot")
 	require.NotContains(t, string(body), "alert alert-warning mt-4 py-2 text-sm")
-	require.Contains(t, string(body), "query-execution-error-popup")
+	require.Contains(t, string(body), "query-execution-error")
 	require.Regexp(t, `id="query-results-tab"[^>]*aria-selected="true"`, string(body))
 	require.NotContains(t, string(body), "Execution result (")
 	require.NotContains(t, string(body), "Duration: 0ms")
@@ -643,7 +643,7 @@ func TestRouter_HandleExecuteQuerySubmit_HTMXQueryLoadFailureRendersFeedbackSlot
 
 	require.Equal(t, http.StatusOK, resp.StatusCode)
 	require.Contains(t, bodyText, `id="query-execution-feedback-slot"`)
-	require.Contains(t, bodyText, `id="query-execution-error-popup"`)
+	require.Contains(t, bodyText, `id="query-execution-error"`)
 	require.Contains(t, bodyText, "query load failed")
 	require.Contains(t, bodyText, "safe query load detail")
 	require.NotContains(t, bodyText, `id="queries-workspace"`)
@@ -874,7 +874,10 @@ func TestRouter_HandleCreateQuerySubmit_HTMXRendersBackendValidationError(t *tes
 	require.NoError(t, err)
 
 	require.Equal(t, http.StatusOK, resp.StatusCode)
+	require.Contains(t, string(body), `id="query-create-error"`)
+	require.Contains(t, string(body), `role="alert" tabindex="-1" autofocus data-form-error-focus`)
 	require.Contains(t, string(body), "query SQL is required")
+	require.Contains(t, string(body), `name="name" value="Top users"`)
 	require.Empty(t, resp.Header.Get("Location"))
 }
 

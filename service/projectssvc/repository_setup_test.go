@@ -75,11 +75,21 @@ func TestRepositoryAuthorizationFailureIsDurableAndRetryStartsFreshConsent(t *te
 				require.Zero(t, f.github.completeCalls)
 				require.Zero(t, f.credentials.completeCalls)
 				require.Zero(t, f.projects.sets)
+				request.MoreTime = true
 				resumed, err := f.service.Create(t.Context(), "acme", "project", request, actor)
 				require.NoError(t, err)
 				require.Equal(t, pending.Slug, resumed.Slug)
 				require.Empty(t, resumed.FailureCode)
 				require.NotEmpty(t, resumed.AuthorizationURL)
+				require.False(t, resumed.Request.MoreTime, "callback window is not part of the saved target")
+				if provider == model.DataSourceTypeGithub {
+					require.True(t, f.github.moreTime)
+				} else {
+					require.Len(t, f.credentials.starts, 2)
+					require.False(t, f.credentials.starts[0].MoreTime)
+					require.True(t, f.credentials.starts[1].MoreTime)
+					require.Equal(t, pending.Slug, f.credentials.starts[1].RepositorySetupSlug)
+				}
 			})
 		}
 	}
@@ -366,7 +376,7 @@ func TestRepositorySetupAbandonPreservesPartialResourcesAndRequiresFreshIdentity
 	require.NotEmpty(t, next.AuthorizationURL)
 
 	// A stale in-flight request cannot claim the new active attempt.
-	_, err = fx.service.runSetup(t.Context(), "acme", "project", partial, model.SystemEventActor(), nil)
+	_, err = fx.service.runSetup(t.Context(), "acme", "project", partial, model.SystemEventActor(), nil, false)
 	require.ErrorIs(t, err, repositorysetups.ErrBusy)
 	require.Equal(t, 1, fx.bootstrap.calls)
 	_, err = fx.service.Abandon(t.Context(), "acme", "project", archived.Slug, true, model.SystemEventActor())
@@ -915,6 +925,7 @@ type fakeSetupGitHub struct {
 	results                   []*gitprovider.RepositoryBootstrapResult
 	errs                      []error
 	startCalls, completeCalls int
+	moreTime                  bool
 	requests                  []gitprovider.RepositoryBootstrapRequest
 	consumeCalls              int
 	consumeErr                error
@@ -925,8 +936,9 @@ func (g *fakeSetupGitHub) ConsumeRejectedInstall(context.Context, slug.Slug, slu
 	return g.consumeErr
 }
 
-func (g *fakeSetupGitHub) StartRepositorySetup(_ context.Context, org slug.Slug, _ model.EventActor, setup slug.Slug) (string, error) {
+func (g *fakeSetupGitHub) StartRepositorySetup(_ context.Context, org slug.Slug, _ model.EventActor, setup slug.Slug, moreTime bool) (string, error) {
 	g.startCalls++
+	g.moreTime = moreTime
 	if g.startErr != nil {
 		return "", g.startErr
 	}

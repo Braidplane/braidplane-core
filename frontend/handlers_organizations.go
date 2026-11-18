@@ -15,6 +15,7 @@ import (
 	api "github.com/Braidplane/braidplane-core/api-schema/gen/client"
 	"github.com/Braidplane/braidplane-core/frontend/views"
 	"github.com/Braidplane/braidplane-core/pkg/logging"
+	"github.com/Braidplane/braidplane-core/pkg/oauthflow"
 	"github.com/Braidplane/braidplane-core/pkg/reqctx"
 	"github.com/Braidplane/braidplane-core/pkg/slug"
 	"github.com/Braidplane/braidplane-core/pkg/xerror"
@@ -499,8 +500,13 @@ func (r *Router) renderOrganizationProjectFullPage(
 	contentErrorDetails string,
 	contentSuccessSummary string,
 ) error {
-	if c.Method() == fiber.MethodGet && c.Query("repository_setup") == "failed" && contentErrorSummary == "" {
-		contentErrorSummary = "GitHub authorization could not be completed. Your repository target is saved. Resume setup to try again."
+	if c.Method() == fiber.MethodGet && contentErrorSummary == "" {
+		switch c.Query("repository_setup") {
+		case "failed":
+			contentErrorSummary = "GitHub authorization could not be completed. Your repository target is saved. Resume setup to try again."
+		case "expired":
+			contentErrorSummary = "GitHub authorization expired. Your repository target is saved. Resume setup to authorize again."
+		}
 	}
 	if c.Method() == fiber.MethodGet && contentErrorSummary == "" {
 		switch c.Query("gitlab_setup") {
@@ -1426,7 +1432,12 @@ func (r *Router) handleUpdateProjectPipelineBackendSubmit(c fiber.Ctx) error {
 		provider := api.CreateProjectRepositoryRequestProvider(c.FormValue("repository_provider"))
 		trackedBranch, pipelineDir := strings.TrimSpace(c.FormValue("tracked_branch")), strings.TrimSpace(c.FormValue("pipeline_dir"))
 		request := api.CreateProjectRepositoryRequest{Provider: provider, Owner: strings.TrimSpace(c.FormValue("provider_owner")), RepositoryName: strings.TrimSpace(c.FormValue("repository_name")), TrackedBranch: &trackedBranch, PipelineDir: &pipelineDir, CreatePrivateRepository: api.CreateProjectRepositoryRequestCreatePrivateRepository(c.FormValue("create_private_repository") == "on")}
-		response, err := r.apiClient.CreateProjectRepositoryWithResponse(c.Context(), orgSlug.String(), projectSlug.String(), request, frontendRequestEditor(c.Context(), c.Get(fiber.HeaderCookie)))
+		moreTime := c.FormValue("more_time") == "true"
+		var params *api.CreateProjectRepositoryParams
+		if moreTime {
+			params = &api.CreateProjectRepositoryParams{MoreTime: &moreTime}
+		}
+		response, err := r.apiClient.CreateProjectRepositoryWithResponse(c.Context(), orgSlug.String(), projectSlug.String(), params, request, frontendRequestEditor(c.Context(), c.Get(fiber.HeaderCookie)))
 		if err != nil {
 			return renderResponse(http.StatusBadGateway, "", "", "Repository setup could not be completed.", "Try again with the same details to resume.", "")
 		}
@@ -1455,8 +1466,9 @@ func (r *Router) handleUpdateProjectPipelineBackendSubmit(c fiber.Ctx) error {
 				return renderResponse(http.StatusBadGateway, "", "", "Provider authorization is unavailable.", "", "")
 			}
 			if provider == api.CreateProjectRepositoryRequestProviderGithub {
-				r.setGitHubInstallCookie(c, githubInstallOrganizationCookie, orgSlug.String(), 600)
-				r.setGitHubInstallCookie(c, githubInstallProjectCookie, projectSlug.String(), 600)
+				maxAge := int(oauthflow.CallbackWindow(moreTime).Seconds())
+				r.setGitHubInstallCookie(c, githubInstallOrganizationCookie, orgSlug.String(), maxAge)
+				r.setGitHubInstallCookie(c, githubInstallProjectCookie, projectSlug.String(), maxAge)
 			}
 			return redirectHTMXOrSeeOther(c, *setup.AuthorizationUrl)
 		}
@@ -2134,6 +2146,7 @@ func (r *Router) handleSwitchOrganization(c fiber.Ctx) error {
 
 func (r *Router) loadManagedRepositorySetup(c fiber.Ctx, org, project string, controls *views.ProjectPipelineBackendControls) {
 	controls.RepositoryProvider = c.FormValue("repository_provider", "github")
+	controls.RepositoryOAuthMoreTime = c.FormValue("more_time") == "true"
 	if c.Query("section") != "repository" || c.Query("repository_path") != "create" {
 		return
 	}

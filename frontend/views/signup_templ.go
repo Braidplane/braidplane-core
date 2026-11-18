@@ -58,12 +58,6 @@ func SignupPageContent(fullName string, email string, pageError string, pageErro
 			templ_7745c5c3_Var2 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		if pageError != "" {
-			templ_7745c5c3_Err = ErrorPopup("signup-error-popup", pageError, pageErrorDetails).Render(ctx, templ_7745c5c3_Buffer)
-			if templ_7745c5c3_Err != nil {
-				return templ_7745c5c3_Err
-			}
-		}
 		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 1, "<div class=\"space-y-5\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
@@ -76,7 +70,7 @@ func SignupPageContent(fullName string, email string, pageError string, pageErro
 			var templ_7745c5c3_Var3 templ.SafeURL
 			templ_7745c5c3_Var3, templ_7745c5c3_Err = templ.JoinURLErrs(templ.URL(AuthReturnURL("/auth/login", returnTo)))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/signup.templ`, Line: 22, Col: 94}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/signup.templ`, Line: 19, Col: 94}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var3))
 			if templ_7745c5c3_Err != nil {
@@ -99,26 +93,44 @@ func SignupPageContent(fullName string, email string, pageError string, pageErro
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
+			if signup.GoogleSignupExpired {
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 6, "<div data-form-feedback>")
+				if templ_7745c5c3_Err != nil {
+					return templ_7745c5c3_Err
+				}
+				templ_7745c5c3_Err = FormError("google-signup-feedback", "Your Google sign-in expired. Please sign in again.", true).Render(ctx, templ_7745c5c3_Buffer)
+				if templ_7745c5c3_Err != nil {
+					return templ_7745c5c3_Err
+				}
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 7, "</div>")
+				if templ_7745c5c3_Err != nil {
+					return templ_7745c5c3_Err
+				}
+			}
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 8, " ")
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
 			if googleSignInEnabled(ctx) || signup.GoogleSignupPending {
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 6, "<form class=\"space-y-3\" method=\"post\" action=\"")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 9, "<form class=\"space-y-3\" method=\"post\" action=\"")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
 				var templ_7745c5c3_Var4 templ.SafeURL
 				templ_7745c5c3_Var4, templ_7745c5c3_Err = templ.JoinURLErrs(templ.URL(AuthReturnURL("/api/auth/google", returnTo)))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/signup.templ`, Line: 32, Col: 105}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/signup.templ`, Line: 34, Col: 105}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var4))
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 7, "\">")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 10, "\">")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
 				if signup.GoogleSignupPending {
-					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 8, "<p class=\"text-sm text-base-content/70\">Google verified your account. Continue to finish creating your account.</p>")
+					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 11, "<p class=\"text-sm text-base-content/70\">Google verified your account. Continue to finish creating your account.</p>")
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
@@ -126,7 +138,7 @@ func SignupPageContent(fullName string, email string, pageError string, pageErro
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
-					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 9, " <button class=\"btn btn-primary w-full\" type=\"submit\">Create account with Google</button>")
+					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 12, " <button class=\"btn btn-primary h-auto min-h-10 w-full py-3\" type=\"submit\">Create account with Google</button>")
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
@@ -135,66 +147,87 @@ func SignupPageContent(fullName string, email string, pageError string, pageErro
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
-					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 10, " <button class=\"btn btn-outline w-full\" type=\"submit\">Continue with Google</button>")
+					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 13, " <button class=\"btn btn-outline w-full\" type=\"submit\">Continue with Google</button><p class=\"text-sm text-base-content/70\">Core allows 10 minutes for Google sign-in by default.</p><button class=\"btn btn-outline h-auto min-h-10 w-full whitespace-normal py-2\" type=\"submit\" formaction=\"")
+					if templ_7745c5c3_Err != nil {
+						return templ_7745c5c3_Err
+					}
+					var templ_7745c5c3_Var5 string
+					templ_7745c5c3_Var5, templ_7745c5c3_Err = templ.ResolveAttributeValue(templ.URL(googleAuthMoreTimeURL(returnTo)))
+					if templ_7745c5c3_Err != nil {
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/signup.templ`, Line: 43, Col: 153}
+					}
+					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var5)
+					if templ_7745c5c3_Err != nil {
+						return templ_7745c5c3_Err
+					}
+					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 14, "\">Continue with Google (100 minutes)</button>")
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
 				}
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 11, "</form><div class=\"divider text-xs uppercase tracking-wide text-base-content/50\">or use email</div>")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 15, "</form><div class=\"divider text-xs uppercase tracking-wide text-base-content/50\">or use email</div>")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 12, " <form class=\"space-y-3\" method=\"post\" action=\"/auth/signup\" hx-post=\"/auth/signup\" hx-target=\"main\" hx-select=\"main\" hx-swap=\"innerHTML\">")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 16, " <form class=\"space-y-3\" method=\"post\" action=\"/auth/signup\" hx-post=\"/auth/signup\" hx-target=\"#main-content\" hx-select=\"#main-content\" hx-swap=\"outerHTML\" data-form-feedback>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 			if returnTo != "" {
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 13, "<input type=\"hidden\" name=\"return_to\" value=\"")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 17, "<input type=\"hidden\" name=\"return_to\" value=\"")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				var templ_7745c5c3_Var5 string
-				templ_7745c5c3_Var5, templ_7745c5c3_Err = templ.ResolveAttributeValue(returnTo)
+				var templ_7745c5c3_Var6 string
+				templ_7745c5c3_Var6, templ_7745c5c3_Err = templ.ResolveAttributeValue(returnTo)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/signup.templ`, Line: 46, Col: 59}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/signup.templ`, Line: 50, Col: 59}
 				}
-				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var5)
-				if templ_7745c5c3_Err != nil {
-					return templ_7745c5c3_Err
-				}
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 14, "\"> ")
+				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var6)
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 18, "\"> ")
+				if templ_7745c5c3_Err != nil {
+					return templ_7745c5c3_Err
+				}
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 15, "<label class=\"form-control block w-full\"><div class=\"label\"><span class=\"label-text\">Full name</span></div><input class=\"input input-bordered w-full\" type=\"text\" name=\"full_name\" placeholder=\"Jane Doe\" value=\"")
-			if templ_7745c5c3_Err != nil {
-				return templ_7745c5c3_Err
-			}
-			var templ_7745c5c3_Var6 string
-			templ_7745c5c3_Var6, templ_7745c5c3_Err = templ.ResolveAttributeValue(fullName)
-			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/signup.templ`, Line: 52, Col: 116}
-			}
-			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var6)
-			if templ_7745c5c3_Err != nil {
-				return templ_7745c5c3_Err
-			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 16, "\" autocomplete=\"name\" maxlength=\"255\" required></label> <label class=\"form-control block w-full\"><div class=\"label\"><span class=\"label-text\">Email</span></div><input class=\"input input-bordered w-full\" type=\"email\" name=\"email\" placeholder=\"name@company.com\" value=\"")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 19, "<label class=\"form-control block w-full\"><div class=\"label\"><span class=\"label-text\">Full name</span></div><input class=\"input input-bordered w-full\" type=\"text\" name=\"full_name\" placeholder=\"Jane Doe\" value=\"")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 			var templ_7745c5c3_Var7 string
-			templ_7745c5c3_Var7, templ_7745c5c3_Err = templ.ResolveAttributeValue(email)
+			templ_7745c5c3_Var7, templ_7745c5c3_Err = templ.ResolveAttributeValue(fullName)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/signup.templ`, Line: 58, Col: 118}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/signup.templ`, Line: 56, Col: 116}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var7)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 17, "\" autocomplete=\"email\" maxlength=\"255\" required></label> <label class=\"form-control block w-full\"><div class=\"label\"><span class=\"label-text\">Password</span></div><input class=\"input input-bordered w-full\" type=\"password\" name=\"password\" placeholder=\"At least 8 characters\" autocomplete=\"new-password\" minlength=\"8\" required><p class=\"pt-1 text-xs text-base-content/60\">Use at least 8 characters.</p></label> <label class=\"form-control block w-full\"><div class=\"label\"><span class=\"label-text\">Confirm password</span></div><input class=\"input input-bordered w-full\" type=\"password\" name=\"confirm_password\" placeholder=\"Repeat your password\" autocomplete=\"new-password\" minlength=\"8\" required></label>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 20, "\" autocomplete=\"name\" maxlength=\"255\" required></label> <label class=\"form-control block w-full\"><div class=\"label\"><span class=\"label-text\">Email</span></div><input class=\"input input-bordered w-full\" type=\"email\" name=\"email\" placeholder=\"name@company.com\" value=\"")
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			var templ_7745c5c3_Var8 string
+			templ_7745c5c3_Var8, templ_7745c5c3_Err = templ.ResolveAttributeValue(email)
+			if templ_7745c5c3_Err != nil {
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/signup.templ`, Line: 62, Col: 118}
+			}
+			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var8)
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 21, "\" autocomplete=\"email\" maxlength=\"255\" required></label>")
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			templ_7745c5c3_Err = authNewPasswordField("Password").Render(ctx, templ_7745c5c3_Buffer)
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 22, "<label class=\"form-control block w-full\"><div class=\"label\"><span class=\"label-text\">Confirm password</span></div><input class=\"input input-bordered w-full\" type=\"password\" name=\"confirm_password\" placeholder=\"Repeat your password\" autocomplete=\"new-password\" minlength=\"8\" required></label>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -202,25 +235,52 @@ func SignupPageContent(fullName string, email string, pageError string, pageErro
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 18, "<button class=\"btn btn-primary w-full\" type=\"submit\">Create account</button></form><p class=\"text-center text-sm text-base-content/70\">Already have an account? <a class=\"link link-primary\" href=\"")
+			templ_7745c5c3_Err = FormError("signup-feedback", pageError, true).Render(ctx, templ_7745c5c3_Buffer)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			var templ_7745c5c3_Var8 templ.SafeURL
-			templ_7745c5c3_Var8, templ_7745c5c3_Err = templ.JoinURLErrs(templ.URL(AuthReturnURL("/auth/login", returnTo)))
-			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/signup.templ`, Line: 78, Col: 89}
+			if pageErrorDetails != "" {
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 23, "<details class=\"text-sm\"><summary>More details</summary><p class=\"whitespace-pre-wrap break-words\">")
+				if templ_7745c5c3_Err != nil {
+					return templ_7745c5c3_Err
+				}
+				var templ_7745c5c3_Var9 string
+				templ_7745c5c3_Var9, templ_7745c5c3_Err = templ.JoinStringErrs(pageErrorDetails)
+				if templ_7745c5c3_Err != nil {
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/signup.templ`, Line: 74, Col: 122}
+				}
+				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var9))
+				if templ_7745c5c3_Err != nil {
+					return templ_7745c5c3_Err
+				}
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 24, "</p></details>")
+				if templ_7745c5c3_Err != nil {
+					return templ_7745c5c3_Err
+				}
 			}
-			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var8))
+			templ_7745c5c3_Err = FormRequestError().Render(ctx, templ_7745c5c3_Buffer)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 19, "\">Sign in</a></p>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 25, "<button class=\"btn btn-primary w-full\" type=\"submit\">Create account</button></form><p class=\"text-center text-sm text-base-content/70\">Already have an account? <a class=\"link link-primary\" href=\"")
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			var templ_7745c5c3_Var10 templ.SafeURL
+			templ_7745c5c3_Var10, templ_7745c5c3_Err = templ.JoinURLErrs(templ.URL(AuthReturnURL("/auth/login", returnTo)))
+			if templ_7745c5c3_Err != nil {
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/signup.templ`, Line: 81, Col: 89}
+			}
+			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var10))
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 26, "\">Sign in</a></p>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 20, "</div>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 27, "</div>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -238,6 +298,9 @@ func signupUsageClass(current string, value string) string {
 }
 
 // SignupState tracks a verified identity awaiting explicit account creation.
-type SignupState struct{ GoogleSignupPending bool }
+type SignupState struct {
+	GoogleSignupPending bool
+	GoogleSignupExpired bool
+}
 
 var _ = templruntime.GeneratedTemplate

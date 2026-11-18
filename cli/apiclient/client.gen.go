@@ -12465,11 +12465,13 @@ type StartProviderConnectorInstallRequest struct {
 	AccessMode     *GoogleWorkspaceAccessMode `json:"access_mode,omitempty"`
 	DataSourceSlug Slug                       `json:"data_source_slug"`
 	Intent         ProviderInstallIntent      `json:"intent"`
+	MoreTime       *bool                      `json:"more_time,omitempty"`
 }
 
 // StartProviderDataSourceInstallRequest defines model for StartProviderDataSourceInstallRequest.
 type StartProviderDataSourceInstallRequest struct {
 	Config   StartProviderDataSourceInstallRequest_Config `json:"config"`
+	MoreTime *bool                                        `json:"more_time,omitempty"`
 	Name     Name                                         `json:"name"`
 	ReadOnly *bool                                        `json:"read_only,omitempty"`
 	Slug     *Slug                                        `json:"slug,omitempty"`
@@ -13229,6 +13231,11 @@ type ListGoogleWorkspaceFilesParams struct {
 	PageToken *string `form:"page_token,omitempty" json:"page_token,omitempty"`
 }
 
+// ConnectDataSourceHTTPOAuthParams defines parameters for ConnectDataSourceHTTPOAuth.
+type ConnectDataSourceHTTPOAuthParams struct {
+	MoreTime *bool `form:"more_time,omitempty" json:"more_time,omitempty"`
+}
+
 // RotateDataSourceProviderGrantParams defines parameters for RotateDataSourceProviderGrant.
 type RotateDataSourceProviderGrantParams struct {
 	AccessMode *GoogleWorkspaceAccessMode `form:"access_mode,omitempty" json:"access_mode,omitempty"`
@@ -13658,6 +13665,11 @@ type DeleteDataSourceBindingParams struct {
 // CompilePipelineVersionParams defines parameters for CompilePipelineVersion.
 type CompilePipelineVersionParams struct {
 	EnvironmentSlug *Slug `form:"environment_slug,omitempty" json:"environment_slug,omitempty"`
+}
+
+// CreateProjectRepositoryParams defines parameters for CreateProjectRepository.
+type CreateProjectRepositoryParams struct {
+	MoreTime *bool `form:"more_time,omitempty" json:"more_time,omitempty"`
 }
 
 // ListRolesParams defines parameters for ListRoles.
@@ -21183,7 +21195,7 @@ type ClientInterface interface {
 	GetGoogleWorkspaceWorksheets(ctx context.Context, slug SlugParam, dsSlug DataSourceSlugParam, fileId string, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// ConnectDataSourceHTTPOAuth performs a POST /organizations/{slug}/data-sources/{ds_slug}/http-oauth/connect (the `ConnectDataSourceHTTPOAuth` operationId) request.
-	ConnectDataSourceHTTPOAuth(ctx context.Context, slug SlugParam, dsSlug DataSourceSlugParam, reqEditors ...RequestEditorFn) (*http.Response, error)
+	ConnectDataSourceHTTPOAuth(ctx context.Context, slug SlugParam, dsSlug DataSourceSlugParam, params *ConnectDataSourceHTTPOAuthParams, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// GetDataSourceProofConfiguration performs a GET /organizations/{slug}/data-sources/{ds_slug}/proof (the `GetDataSourceProofConfiguration` operationId) request.
 	GetDataSourceProofConfiguration(ctx context.Context, slug SlugParam, dsSlug DataSourceSlugParam, reqEditors ...RequestEditorFn) (*http.Response, error)
@@ -21775,11 +21787,11 @@ type ClientInterface interface {
 
 	// CreateProjectRepositoryWithBody performs a POST /organizations/{slug}/projects/{project_slug}/repository-setup (the `CreateProjectRepository` operationId) request,
 	// with any type of body and a specified content type.
-	CreateProjectRepositoryWithBody(ctx context.Context, slug SlugParam, projectSlug ProjectSlugParam, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+	CreateProjectRepositoryWithBody(ctx context.Context, slug SlugParam, projectSlug ProjectSlugParam, params *CreateProjectRepositoryParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// CreateProjectRepository performs a POST /organizations/{slug}/projects/{project_slug}/repository-setup (the `CreateProjectRepository` operationId) request.
 	// Takes a body of the `application/json` content type.
-	CreateProjectRepository(ctx context.Context, slug SlugParam, projectSlug ProjectSlugParam, body CreateProjectRepositoryJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+	CreateProjectRepository(ctx context.Context, slug SlugParam, projectSlug ProjectSlugParam, params *CreateProjectRepositoryParams, body CreateProjectRepositoryJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// AbandonProjectRepositorySetupWithBody performs a POST /organizations/{slug}/projects/{project_slug}/repository-setup/abandon (the `AbandonProjectRepositorySetup` operationId) request,
 	// with any type of body and a specified content type.
@@ -22597,8 +22609,8 @@ func (c *Client) GetGoogleWorkspaceWorksheets(ctx context.Context, slug SlugPara
 }
 
 // ConnectDataSourceHTTPOAuth performs a POST /organizations/{slug}/data-sources/{ds_slug}/http-oauth/connect (the `ConnectDataSourceHTTPOAuth` operationId) request.
-func (c *Client) ConnectDataSourceHTTPOAuth(ctx context.Context, slug SlugParam, dsSlug DataSourceSlugParam, reqEditors ...RequestEditorFn) (*http.Response, error) {
-	req, err := NewConnectDataSourceHTTPOAuthRequest(c.Server, slug, dsSlug)
+func (c *Client) ConnectDataSourceHTTPOAuth(ctx context.Context, slug SlugParam, dsSlug DataSourceSlugParam, params *ConnectDataSourceHTTPOAuthParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewConnectDataSourceHTTPOAuthRequest(c.Server, slug, dsSlug, params)
 	if err != nil {
 		return nil, err
 	}
@@ -24899,8 +24911,8 @@ func (c *Client) GetProjectRepositorySetup(ctx context.Context, slug SlugParam, 
 
 // CreateProjectRepositoryWithBody performs a POST /organizations/{slug}/projects/{project_slug}/repository-setup (the `CreateProjectRepository` operationId) request,
 // with any type of body and a specified content type.
-func (c *Client) CreateProjectRepositoryWithBody(ctx context.Context, slug SlugParam, projectSlug ProjectSlugParam, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
-	req, err := NewCreateProjectRepositoryRequestWithBody(c.Server, slug, projectSlug, contentType, body)
+func (c *Client) CreateProjectRepositoryWithBody(ctx context.Context, slug SlugParam, projectSlug ProjectSlugParam, params *CreateProjectRepositoryParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewCreateProjectRepositoryRequestWithBody(c.Server, slug, projectSlug, params, contentType, body)
 	if err != nil {
 		return nil, err
 	}
@@ -24913,8 +24925,8 @@ func (c *Client) CreateProjectRepositoryWithBody(ctx context.Context, slug SlugP
 
 // CreateProjectRepository performs a POST /organizations/{slug}/projects/{project_slug}/repository-setup (the `CreateProjectRepository` operationId) request.
 // Takes a body of the `application/json` content type.
-func (c *Client) CreateProjectRepository(ctx context.Context, slug SlugParam, projectSlug ProjectSlugParam, body CreateProjectRepositoryJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
-	req, err := NewCreateProjectRepositoryRequest(c.Server, slug, projectSlug, body)
+func (c *Client) CreateProjectRepository(ctx context.Context, slug SlugParam, projectSlug ProjectSlugParam, params *CreateProjectRepositoryParams, body CreateProjectRepositoryJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewCreateProjectRepositoryRequest(c.Server, slug, projectSlug, params, body)
 	if err != nil {
 		return nil, err
 	}
@@ -27636,7 +27648,7 @@ func NewGetGoogleWorkspaceWorksheetsRequest(server string, slug SlugParam, dsSlu
 }
 
 // NewConnectDataSourceHTTPOAuthRequest constructs an http.Request for the ConnectDataSourceHTTPOAuth method
-func NewConnectDataSourceHTTPOAuthRequest(server string, slug SlugParam, dsSlug DataSourceSlugParam) (*http.Request, error) {
+func NewConnectDataSourceHTTPOAuthRequest(server string, slug SlugParam, dsSlug DataSourceSlugParam, params *ConnectDataSourceHTTPOAuthParams) (*http.Request, error) {
 	var err error
 
 	var pathParam0 string
@@ -27666,6 +27678,33 @@ func NewConnectDataSourceHTTPOAuthRequest(server string, slug SlugParam, dsSlug 
 	queryURL, err := serverURL.Parse(operationPath)
 	if err != nil {
 		return nil, err
+	}
+
+	if params != nil {
+		// queryValues collects non-styled parameters (passthrough, JSON)
+		// that are safe to round-trip through url.Values.Encode().
+		queryValues := queryURL.Query()
+		// rawQueryFragments collects pre-encoded query fragments from
+		// styled parameters, preserving literal commas as delimiters
+		// per the OpenAPI spec (e.g. "color=blue,black,brown").
+		var rawQueryFragments []string
+
+		if params.MoreTime != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "more_time", *params.MoreTime, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "boolean", Format: ""}); err != nil {
+				return nil, err
+			} else {
+				for _, qp := range strings.Split(queryFrag, "&") {
+					rawQueryFragments = append(rawQueryFragments, qp)
+				}
+			}
+
+		}
+
+		if encoded := queryValues.Encode(); encoded != "" {
+			rawQueryFragments = append(rawQueryFragments, encoded)
+		}
+		queryURL.RawQuery = strings.Join(rawQueryFragments, "&")
 	}
 
 	req, err := http.NewRequest(http.MethodPost, queryURL.String(), nil)
@@ -36311,18 +36350,18 @@ func NewGetProjectRepositorySetupRequest(server string, slug SlugParam, projectS
 }
 
 // NewCreateProjectRepositoryRequest calls the generic CreateProjectRepository builder with application/json body
-func NewCreateProjectRepositoryRequest(server string, slug SlugParam, projectSlug ProjectSlugParam, body CreateProjectRepositoryJSONRequestBody) (*http.Request, error) {
+func NewCreateProjectRepositoryRequest(server string, slug SlugParam, projectSlug ProjectSlugParam, params *CreateProjectRepositoryParams, body CreateProjectRepositoryJSONRequestBody) (*http.Request, error) {
 	var bodyReader io.Reader
 	buf, err := json.Marshal(body)
 	if err != nil {
 		return nil, err
 	}
 	bodyReader = bytes.NewReader(buf)
-	return NewCreateProjectRepositoryRequestWithBody(server, slug, projectSlug, "application/json", bodyReader)
+	return NewCreateProjectRepositoryRequestWithBody(server, slug, projectSlug, params, "application/json", bodyReader)
 }
 
 // NewCreateProjectRepositoryRequestWithBody constructs an http.Request for the CreateProjectRepository method, with any body, and a specified content type
-func NewCreateProjectRepositoryRequestWithBody(server string, slug SlugParam, projectSlug ProjectSlugParam, contentType string, body io.Reader) (*http.Request, error) {
+func NewCreateProjectRepositoryRequestWithBody(server string, slug SlugParam, projectSlug ProjectSlugParam, params *CreateProjectRepositoryParams, contentType string, body io.Reader) (*http.Request, error) {
 	var err error
 
 	var pathParam0 string
@@ -36352,6 +36391,33 @@ func NewCreateProjectRepositoryRequestWithBody(server string, slug SlugParam, pr
 	queryURL, err := serverURL.Parse(operationPath)
 	if err != nil {
 		return nil, err
+	}
+
+	if params != nil {
+		// queryValues collects non-styled parameters (passthrough, JSON)
+		// that are safe to round-trip through url.Values.Encode().
+		queryValues := queryURL.Query()
+		// rawQueryFragments collects pre-encoded query fragments from
+		// styled parameters, preserving literal commas as delimiters
+		// per the OpenAPI spec (e.g. "color=blue,black,brown").
+		var rawQueryFragments []string
+
+		if params.MoreTime != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "more_time", *params.MoreTime, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "boolean", Format: ""}); err != nil {
+				return nil, err
+			} else {
+				for _, qp := range strings.Split(queryFrag, "&") {
+					rawQueryFragments = append(rawQueryFragments, qp)
+				}
+			}
+
+		}
+
+		if encoded := queryValues.Encode(); encoded != "" {
+			rawQueryFragments = append(rawQueryFragments, encoded)
+		}
+		queryURL.RawQuery = strings.Join(rawQueryFragments, "&")
 	}
 
 	req, err := http.NewRequest(http.MethodPost, queryURL.String(), body)
@@ -38144,7 +38210,7 @@ type ClientWithResponsesInterface interface {
 	// ConnectDataSourceHTTPOAuthWithResponse performs a POST /organizations/{slug}/data-sources/{ds_slug}/http-oauth/connect (the `ConnectDataSourceHTTPOAuth` operationId) request.
 	//
 	// Returns a wrapper object for the known response body format(s).
-	ConnectDataSourceHTTPOAuthWithResponse(ctx context.Context, slug SlugParam, dsSlug DataSourceSlugParam, reqEditors ...RequestEditorFn) (*ConnectDataSourceHTTPOAuthResponse, error)
+	ConnectDataSourceHTTPOAuthWithResponse(ctx context.Context, slug SlugParam, dsSlug DataSourceSlugParam, params *ConnectDataSourceHTTPOAuthParams, reqEditors ...RequestEditorFn) (*ConnectDataSourceHTTPOAuthResponse, error)
 
 	// GetDataSourceProofConfigurationWithResponse performs a GET /organizations/{slug}/data-sources/{ds_slug}/proof (the `GetDataSourceProofConfiguration` operationId) request.
 	//
@@ -39000,11 +39066,11 @@ type ClientWithResponsesInterface interface {
 	// with any type of body and a specified content type.
 	//
 	// Returns a wrapper object for the known response body format(s).
-	CreateProjectRepositoryWithBodyWithResponse(ctx context.Context, slug SlugParam, projectSlug ProjectSlugParam, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*CreateProjectRepositoryResponse, error)
+	CreateProjectRepositoryWithBodyWithResponse(ctx context.Context, slug SlugParam, projectSlug ProjectSlugParam, params *CreateProjectRepositoryParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*CreateProjectRepositoryResponse, error)
 
 	// CreateProjectRepositoryWithResponse performs a POST /organizations/{slug}/projects/{project_slug}/repository-setup (the `CreateProjectRepository` operationId) request.
 	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
-	CreateProjectRepositoryWithResponse(ctx context.Context, slug SlugParam, projectSlug ProjectSlugParam, body CreateProjectRepositoryJSONRequestBody, reqEditors ...RequestEditorFn) (*CreateProjectRepositoryResponse, error)
+	CreateProjectRepositoryWithResponse(ctx context.Context, slug SlugParam, projectSlug ProjectSlugParam, params *CreateProjectRepositoryParams, body CreateProjectRepositoryJSONRequestBody, reqEditors ...RequestEditorFn) (*CreateProjectRepositoryResponse, error)
 
 	// AbandonProjectRepositorySetupWithBodyWithResponse performs a POST /organizations/{slug}/projects/{project_slug}/repository-setup/abandon (the `AbandonProjectRepositorySetup` operationId) request,
 	// with any type of body and a specified content type.
@@ -50995,8 +51061,8 @@ func (c *ClientWithResponses) GetGoogleWorkspaceWorksheetsWithResponse(ctx conte
 // ConnectDataSourceHTTPOAuthWithResponse performs a POST /organizations/{slug}/data-sources/{ds_slug}/http-oauth/connect (the `ConnectDataSourceHTTPOAuth` operationId) request.
 //
 // Returns a wrapper object for the known response body format(s).
-func (c *ClientWithResponses) ConnectDataSourceHTTPOAuthWithResponse(ctx context.Context, slug SlugParam, dsSlug DataSourceSlugParam, reqEditors ...RequestEditorFn) (*ConnectDataSourceHTTPOAuthResponse, error) {
-	rsp, err := c.ConnectDataSourceHTTPOAuth(ctx, slug, dsSlug, reqEditors...)
+func (c *ClientWithResponses) ConnectDataSourceHTTPOAuthWithResponse(ctx context.Context, slug SlugParam, dsSlug DataSourceSlugParam, params *ConnectDataSourceHTTPOAuthParams, reqEditors ...RequestEditorFn) (*ConnectDataSourceHTTPOAuthResponse, error) {
+	rsp, err := c.ConnectDataSourceHTTPOAuth(ctx, slug, dsSlug, params, reqEditors...)
 	if err != nil {
 		return nil, err
 	}
@@ -52877,8 +52943,8 @@ func (c *ClientWithResponses) GetProjectRepositorySetupWithResponse(ctx context.
 // with any type of body and a specified content type.
 //
 // Returns a wrapper object for the known response body format(s).
-func (c *ClientWithResponses) CreateProjectRepositoryWithBodyWithResponse(ctx context.Context, slug SlugParam, projectSlug ProjectSlugParam, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*CreateProjectRepositoryResponse, error) {
-	rsp, err := c.CreateProjectRepositoryWithBody(ctx, slug, projectSlug, contentType, body, reqEditors...)
+func (c *ClientWithResponses) CreateProjectRepositoryWithBodyWithResponse(ctx context.Context, slug SlugParam, projectSlug ProjectSlugParam, params *CreateProjectRepositoryParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*CreateProjectRepositoryResponse, error) {
+	rsp, err := c.CreateProjectRepositoryWithBody(ctx, slug, projectSlug, params, contentType, body, reqEditors...)
 	if err != nil {
 		return nil, err
 	}
@@ -52887,8 +52953,8 @@ func (c *ClientWithResponses) CreateProjectRepositoryWithBodyWithResponse(ctx co
 
 // CreateProjectRepositoryWithResponse performs a POST /organizations/{slug}/projects/{project_slug}/repository-setup (the `CreateProjectRepository` operationId) request.
 // Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
-func (c *ClientWithResponses) CreateProjectRepositoryWithResponse(ctx context.Context, slug SlugParam, projectSlug ProjectSlugParam, body CreateProjectRepositoryJSONRequestBody, reqEditors ...RequestEditorFn) (*CreateProjectRepositoryResponse, error) {
-	rsp, err := c.CreateProjectRepository(ctx, slug, projectSlug, body, reqEditors...)
+func (c *ClientWithResponses) CreateProjectRepositoryWithResponse(ctx context.Context, slug SlugParam, projectSlug ProjectSlugParam, params *CreateProjectRepositoryParams, body CreateProjectRepositoryJSONRequestBody, reqEditors ...RequestEditorFn) (*CreateProjectRepositoryResponse, error) {
+	rsp, err := c.CreateProjectRepository(ctx, slug, projectSlug, params, body, reqEditors...)
 	if err != nil {
 		return nil, err
 	}

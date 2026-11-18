@@ -118,3 +118,15 @@ templ EntityAttentionBadge(reason string) {
 		</span>
 	}
 }
+
+templ EntityLoadError(id string, message string, details string) {
+	<div data-form-feedback>
+		@FormError(id, message, true)
+		if details != "" {
+			<details class="mt-3 text-sm">
+				<summary>Technical error details</summary>
+				<p class="mt-2 whitespace-pre-wrap break-words">{ details }</p>
+			</details>
+		}
+	</div>
+}

@@ -68,6 +68,7 @@ type BreadcrumbItem struct {
 type AuthenticatedShellData struct {
 	NotificationReturnHref     string
 	Title                      string
+	DocumentTitle              string
 	Subtitle                   string
 	ActiveOrganizationName     string
 	CurrentPath                string

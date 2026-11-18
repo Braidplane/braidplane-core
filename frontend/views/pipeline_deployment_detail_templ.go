@@ -31,7 +31,9 @@ func PipelineDeploymentDetailPage(shellData AuthenticatedShellData, orgSlug stri
 			templ_7745c5c3_Var1 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = AuthenticatedShell(shellData, PipelineDeploymentDetailPageContent(orgSlug, activeProjectSlug, environmentSlug, shellData.ActiveEnvironmentColor, pipelineSlug, pipeline, deployment)).Render(ctx, templ_7745c5c3_Buffer)
+		content := PipelineDeploymentDetailPageContent(orgSlug, activeProjectSlug, environmentSlug, shellData.ActiveEnvironmentColor, pipelineSlug, pipeline, deployment, shellData.PageError, shellData.PageErrorDetails)
+		shellData.PageError, shellData.PageErrorDetails = "", ""
+		templ_7745c5c3_Err = AuthenticatedShell(shellData, content).Render(ctx, templ_7745c5c3_Buffer)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -39,7 +41,7 @@ func PipelineDeploymentDetailPage(shellData AuthenticatedShellData, orgSlug stri
 	})
 }
 
-func PipelineDeploymentDetailPageContent(orgSlug string, activeProjectSlug string, environmentSlug string, environmentColor string, pipelineSlug string, pipeline *api.Pipeline, deployment *api.PipelineDeployment) templ.Component {
+func PipelineDeploymentDetailPageContent(orgSlug string, activeProjectSlug string, environmentSlug string, environmentColor string, pipelineSlug string, pipeline *api.Pipeline, deployment *api.PipelineDeployment, message string, details string) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
 		if templ_7745c5c3_CtxErr := ctx.Err(); templ_7745c5c3_CtxErr != nil {
@@ -67,7 +69,7 @@ func PipelineDeploymentDetailPageContent(orgSlug string, activeProjectSlug strin
 		var templ_7745c5c3_Var3 templ.SafeURL
 		templ_7745c5c3_Var3, templ_7745c5c3_Err = templ.JoinURLErrs(templ.URL(PipelineDetailHrefWithEnvironment(orgSlug, activeProjectSlug, environmentSlug, pipelineSlug)))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/pipeline_deployment_detail.templ`, Line: 16, Col: 147}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/pipeline_deployment_detail.templ`, Line: 18, Col: 147}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var3))
 		if templ_7745c5c3_Err != nil {
@@ -80,7 +82,7 @@ func PipelineDeploymentDetailPageContent(orgSlug string, activeProjectSlug strin
 		var templ_7745c5c3_Var4 templ.SafeURL
 		templ_7745c5c3_Var4, templ_7745c5c3_Err = templ.JoinURLErrs(templ.URL(buildEnvironmentRunsListHrefWithProject(orgSlug, activeProjectSlug, environmentSlug, "", "", "", pipelineSlug)))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/pipeline_deployment_detail.templ`, Line: 17, Col: 165}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/pipeline_deployment_detail.templ`, Line: 19, Col: 165}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var4))
 		if templ_7745c5c3_Err != nil {
@@ -93,7 +95,7 @@ func PipelineDeploymentDetailPageContent(orgSlug string, activeProjectSlug strin
 		var templ_7745c5c3_Var5 string
 		templ_7745c5c3_Var5, templ_7745c5c3_Err = templ.JoinStringErrs(runtimeTargetActionLabel("View runs", environmentSlug))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/pipeline_deployment_detail.templ`, Line: 17, Col: 224}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/pipeline_deployment_detail.templ`, Line: 19, Col: 224}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var5))
 		if templ_7745c5c3_Err != nil {
@@ -104,7 +106,11 @@ func PipelineDeploymentDetailPageContent(orgSlug string, activeProjectSlug strin
 			return templ_7745c5c3_Err
 		}
 		if deployment == nil {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 5, "<div class=\"alert alert-warning mt-6\"><span>Deployment details are unavailable. No deployment pointer exists for this pipeline in the selected runtime target.</span></div><section class=\"mt-4 rounded-xl border border-base-300 bg-base-100 p-5\"><div class=\"grid gap-4 md:grid-cols-3\"><div><p class=\"text-xs font-semibold uppercase tracking-wide text-base-content/60\">Runtime target</p><p class=\"mt-1 font-mono text-sm text-base-content\">")
+			templ_7745c5c3_Err = EntityLoadError("deployment-detail-error", "Deployment details are unavailable. "+message, details).Render(ctx, templ_7745c5c3_Buffer)
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 5, " <section class=\"mt-4 rounded-xl border border-base-300 bg-base-100 p-5\"><div class=\"grid gap-4 md:grid-cols-3\"><div><p class=\"text-xs font-semibold uppercase tracking-wide text-base-content/60\">Runtime target</p><p class=\"mt-1 font-mono text-sm text-base-content\">")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}

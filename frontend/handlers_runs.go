@@ -291,7 +291,7 @@ func (r *Router) handlePipelineRunDetailPageWithProject(c fiber.Ctx, activeProje
 	if user, _, _, err := r.getProfileViaAPI(c.Context(), c.Get(fiber.HeaderCookie)); err == nil && user != nil && user.Timezone != nil {
 		c.SetContext(views.WithRunTimezone(c.Context(), *user.Timezone))
 	}
-	shellData := r.buildRunDetailShellData(c, orgSlug.String(), activeProjectSlug, environmentSlug.String(), runSlug.String(), c.Query("recovery_error"), "")
+	shellData := r.buildRunDetailShellData(c, orgSlug.String(), activeProjectSlug, environmentSlug.String(), runSlug.String(), "", "")
 	permissions := r.resolveOrganizationPermissions(c.Context(), c.Get(fiber.HeaderCookie), orgSlug.String())
 	if lineage.SelectedIndex >= 0 {
 		node := lineage.Nodes[lineage.SelectedIndex]
@@ -909,15 +909,16 @@ func (r *Router) handleRecoverPipelineRunSubmit(c fiber.Ctx) error {
 	if err != nil {
 		return c.SendStatus(fiber.StatusBadRequest)
 	}
+	back := fmt.Sprintf("/orgs/%s/projects/%s/runs/%s?environment_slug=%s&section=attempts", org, project, run, environment)
 	permissions := r.resolveOrganizationPermissions(c.Context(), c.Get(fiber.HeaderCookie), org.String())
 	if !permissions.Can("pipelines", "execute") {
-		return c.SendStatus(fiber.StatusForbidden)
+		return redirectHTMXOrSeeOther(c, back+"&recovery_error="+url.QueryEscape("Recovery was refused because you do not have permission to execute pipelines."))
 	}
 	payload := api.RecoverPipelineRunRequest{}
 	if value := strings.TrimSpace(c.FormValue("protected_environment_confirmation")); value != "" {
 		confirmation, err := slug.New(value)
 		if err != nil {
-			return c.SendStatus(fiber.StatusBadRequest)
+			return redirectHTMXOrSeeOther(c, back+"&recovery_error="+url.QueryEscape("Enter a valid environment slug."))
 		}
 		value := confirmation.String()
 		payload.ProtectedEnvironmentConfirmation = &value
@@ -925,7 +926,6 @@ func (r *Router) handleRecoverPipelineRunSubmit(c fiber.Ctx) error {
 	requestCtx, cancel := frontendAPIExecutionContext(c.Context(), 0)
 	defer cancel()
 	response, err := r.apiClient.RecoverPipelineRunWithResponse(requestCtx, org.String(), project, environment.String(), run.String(), payload, frontendRequestEditor(requestCtx, c.Get(fiber.HeaderCookie)))
-	back := fmt.Sprintf("/orgs/%s/projects/%s/runs/%s?environment_slug=%s&section=attempts", org, project, run, environment)
 	if err != nil {
 		return redirectHTMXOrSeeOther(c, back+"&recovery_error="+url.QueryEscape("Recovery response unavailable. Inspect the run and provider outcome before trying again."))
 	}

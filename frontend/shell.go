@@ -419,6 +419,10 @@ func environmentSwitcherHref(originalURL, environmentSlug string) string {
 		values.Set("target_environment_slug", trimmedEnvironmentSlug)
 		values.Del("environment_slug")
 	default:
+		if len(segments) == 7 && segments[0] == "orgs" && segments[2] == "projects" && segments[4] == "pipelines" && segments[6] == "deploy" {
+			values.Set("review_from_environment", values.Get("environment_slug"))
+			values.Del("rollback_selection_cleared")
+		}
 		values.Set("environment_slug", trimmedEnvironmentSlug)
 		values.Del("target_environment_slug")
 	}

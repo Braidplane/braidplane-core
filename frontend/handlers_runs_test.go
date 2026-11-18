@@ -899,7 +899,13 @@ func TestHandleRecoverPipelineRunSubmit(t *testing.T) {
 				require.Equal(t, "/orgs/acme-hq/projects/default/runs/recovered?environment_slug=prod", response.Header.Get("Location"))
 				require.Equal(t, 1, calls)
 			default:
-				require.Equal(t, http.StatusForbidden, response.StatusCode)
+				require.Equal(t, http.StatusSeeOther, response.StatusCode)
+				location, err := url.Parse(response.Header.Get("Location"))
+				require.NoError(t, err)
+				require.Equal(t, "/orgs/acme-hq/projects/default/runs/original", location.Path)
+				require.Equal(t, "prod", location.Query().Get("environment_slug"))
+				require.Equal(t, "attempts", location.Query().Get("section"))
+				require.Equal(t, "Recovery was refused because you do not have permission to execute pipelines.", location.Query().Get("recovery_error"))
 				require.Zero(t, calls)
 			}
 		})

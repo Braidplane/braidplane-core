@@ -118,7 +118,7 @@ func (c *cliAPIClient) getSnowflakeOnboarding(ctx context.Context, dataSource st
 }
 
 func (c *cliAPIClient) connectDataSourceHTTPOAuth(ctx context.Context, source string) (*api.HTTPOAuthConnection, error) {
-	response, err := c.openapi.ConnectDataSourceHTTPOAuthWithResponse(ctx, c.organization, source)
+	response, err := c.openapi.ConnectDataSourceHTTPOAuthWithResponse(ctx, c.organization, source, nil)
 	if err != nil {
 		return nil, xerror.Wrapf("connect HTTP OAuth source: %w", err)
 	}

@@ -58,25 +58,19 @@ func ForgotPasswordPageContent(email string, pageError string, pageErrorDetails 
 			templ_7745c5c3_Var2 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		if pageError != "" {
-			templ_7745c5c3_Err = ErrorPopup("forgot-password-error-popup", pageError, pageErrorDetails).Render(ctx, templ_7745c5c3_Buffer)
-			if templ_7745c5c3_Err != nil {
-				return templ_7745c5c3_Err
-			}
-		}
 		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 1, "<div class=\"space-y-5\"><header><p class=\"text-xs font-semibold uppercase tracking-wide text-primary\">Account recovery</p><h1 class=\"mt-2 text-2xl font-semibold\">Forgot password</h1><p class=\"mt-2 text-sm text-base-content/70\">Enter your email and we will send a reset code.</p></header>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		if successMessage != "" {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 2, "<div class=\"alert alert-success text-sm\">")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 2, "<div class=\"alert alert-success text-sm\" role=\"status\">")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 			var templ_7745c5c3_Var3 string
 			templ_7745c5c3_Var3, templ_7745c5c3_Err = templ.JoinStringErrs(successMessage)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/forgot_password.templ`, Line: 18, Col: 60}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/forgot_password.templ`, Line: 15, Col: 74}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var3))
 			if templ_7745c5c3_Err != nil {
@@ -87,20 +81,51 @@ func ForgotPasswordPageContent(email string, pageError string, pageErrorDetails 
 				return templ_7745c5c3_Err
 			}
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 4, "<form class=\"space-y-3\" method=\"post\" action=\"/auth/forgot-password\" hx-post=\"/auth/forgot-password\" hx-target=\"main\" hx-select=\"main\" hx-swap=\"innerHTML\"><label class=\"form-control w-full\"><div class=\"label\"><span class=\"label-text\">Email</span></div><input class=\"input input-bordered w-full\" type=\"email\" name=\"email\" placeholder=\"name@company.com\" value=\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 4, "<form class=\"space-y-3\" method=\"post\" action=\"/auth/forgot-password\" hx-post=\"/auth/forgot-password\" hx-target=\"#main-content\" hx-select=\"#main-content\" hx-swap=\"outerHTML\" data-form-feedback><label class=\"form-control w-full\"><div class=\"label\"><span class=\"label-text\">Email</span></div><input class=\"input input-bordered w-full\" type=\"email\" name=\"email\" placeholder=\"name@company.com\" value=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var4 string
 		templ_7745c5c3_Var4, templ_7745c5c3_Err = templ.ResolveAttributeValue(email)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/forgot_password.templ`, Line: 25, Col: 117}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/forgot_password.templ`, Line: 22, Col: 117}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var4)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 5, "\"></label> <button class=\"btn btn-primary w-full\" type=\"submit\">Send reset code</button></form><p class=\"text-center text-sm text-base-content/70\">Remembered your password? <a class=\"link link-primary\" href=\"/auth/login\">Back to sign in</a></p></div>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 5, "\" autocomplete=\"email\" maxlength=\"255\" required></label>")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = FormError("forgot-password-feedback", pageError, true).Render(ctx, templ_7745c5c3_Buffer)
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		if pageErrorDetails != "" {
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 6, "<details class=\"text-sm\"><summary>More details</summary><p class=\"whitespace-pre-wrap break-words\">")
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			var templ_7745c5c3_Var5 string
+			templ_7745c5c3_Var5, templ_7745c5c3_Err = templ.JoinStringErrs(pageErrorDetails)
+			if templ_7745c5c3_Err != nil {
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/forgot_password.templ`, Line: 26, Col: 121}
+			}
+			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var5))
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 7, "</p></details>")
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+		}
+		templ_7745c5c3_Err = FormRequestError().Render(ctx, templ_7745c5c3_Buffer)
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 8, "<button class=\"btn btn-primary w-full\" type=\"submit\">Send reset code</button></form><p class=\"text-center text-sm text-base-content/70\">Remembered your password? <a class=\"link link-primary\" href=\"/auth/login\">Back to sign in</a></p></div>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

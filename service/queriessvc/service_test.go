@@ -1442,8 +1442,9 @@ func TestExecute(t *testing.T) {
 			queryData json.RawMessage,
 			params map[string]types.TypedParam,
 		) (*result.ExecutionResult, error)
-		wantErrContains string
-		validateFn      func(t *testing.T, result *result.ExecutionResult)
+		wantErrContains  string
+		wantPublicDetail string
+		validateFn       func(t *testing.T, result *result.ExecutionResult)
 	}{
 		{
 			name:        "ExecutesQuerySuccessfully",
@@ -1514,12 +1515,13 @@ func TestExecute(t *testing.T) {
 			},
 		},
 		{
-			name:            "ReturnsErrorOnMissingRequiredParameter",
-			orgSlug:         must.Slug("org-1"),
-			dsSlug:          must.Slug("postgres-main"),
-			querySlug:       must.Slug("get-user-by-id"),
-			paramValues:     map[string]any{}, // user_id is missing
-			wantErrContains: "missing required parameter \"user_id\"",
+			name:             "ReturnsErrorOnMissingRequiredParameter",
+			orgSlug:          must.Slug("org-1"),
+			dsSlug:           must.Slug("postgres-main"),
+			querySlug:        must.Slug("get-user-by-id"),
+			paramValues:      map[string]any{}, // user_id is missing
+			wantErrContains:  "missing required parameter \"user_id\"",
+			wantPublicDetail: "Parameter user_id is required.",
 			repoSetupFn: func(r *testutil.FakeQueryRepository) {
 				r.FindBySlugFn = func(ctx context.Context, tx postgres.DBTX, orgSlug, dsSlug, querySlug slug.Slug) (*qrepo.Query, []*qrepo.QueryParameter, error) {
 					return &qrepo.Query{
@@ -1982,6 +1984,9 @@ func TestExecute(t *testing.T) {
 			if tc.wantErrContains != "" {
 				require.Error(t, err)
 				require.Contains(t, err.Error(), tc.wantErrContains)
+				if tc.wantPublicDetail != "" {
+					require.Equal(t, tc.wantPublicDetail, xerror.PublicDetail(err))
+				}
 				return
 			}
 

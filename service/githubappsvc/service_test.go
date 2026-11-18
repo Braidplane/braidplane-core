@@ -37,7 +37,7 @@ func TestInstallStateIsActorOrganizationBoundAndSingleUse(t *testing.T) {
 	svc.now = func() time.Time { return now }
 	actor := model.UserEventActor(must.Slug("alice"))
 
-	installURL, err := svc.Start(t.Context(), must.Slug("acme"), actor)
+	installURL, err := svc.Start(t.Context(), must.Slug("acme"), actor, false)
 	require.NoError(t, err)
 	parsed, err := url.Parse(installURL)
 	require.NoError(t, err)
@@ -62,7 +62,7 @@ func TestInstallStateIsActorOrganizationBoundAndSingleUse(t *testing.T) {
 	require.ErrorIs(t, err, ErrInvalidInstall)
 	require.Equal(t, 1, provider.calls)
 
-	installURL, err = svc.Start(t.Context(), must.Slug("acme"), actor)
+	installURL, err = svc.Start(t.Context(), must.Slug("acme"), actor, false)
 	require.NoError(t, err)
 	parsed, err = url.Parse(installURL)
 	require.NoError(t, err)
@@ -163,12 +163,12 @@ func TestCompleteRejectsExpiredStateAndInstallationMismatch(t *testing.T) {
 			require.NoError(t, err)
 			now := time.Date(2026, 8, 20, 12, 0, 0, 0, time.UTC)
 			svc.now = func() time.Time { return now }
-			installURL, err := svc.Start(t.Context(), must.Slug("acme"), actor)
+			installURL, err := svc.Start(t.Context(), must.Slug("acme"), actor, false)
 			require.NoError(t, err)
 			parsed, err := url.Parse(installURL)
 			require.NoError(t, err)
 			if tc.expired {
-				now = now.Add(installTTL + time.Second)
+				now = now.Add(10*time.Minute + time.Second)
 			}
 			_, err = svc.Complete(t.Context(), actor, parsed.Query().Get("state"), "code", 9)
 			require.ErrorIs(t, err, ErrInvalidInstall)
@@ -183,13 +183,18 @@ func TestExistingInstallationAuthorizationBindsOnlyRequestedAccount(t *testing.T
 	svc, err := New(testutil.FakeTransactionManager{}, repo, provider, &fakeEvents{}, "https://github.com/apps/braidplane/installations/new")
 	require.NoError(t, err)
 
-	link, err := svc.StartExistingAuthorization(t.Context(), "acme", model.UserEventActor("alice"), "Acme")
+	startedAt := time.Date(2026, 8, 20, 12, 0, 0, 0, time.UTC)
+	now := startedAt
+	svc.now = func() time.Time { return now }
+	link, err := svc.StartExistingAuthorization(t.Context(), "acme", model.UserEventActor("alice"), "Acme", true)
 	require.NoError(t, err)
 	parsed, err := url.Parse(link)
 	require.NoError(t, err)
 	require.Equal(t, "https", parsed.Scheme)
 	require.Equal(t, "acme", repo.intent.RequestedAccountLogin)
+	require.Equal(t, startedAt.Add(100*time.Minute), repo.intent.ExpiresAt)
 
+	now = startedAt.Add(11 * time.Minute)
 	connection, err := svc.Complete(t.Context(), model.UserEventActor("alice"), parsed.Query().Get("state"), "code", 0)
 	require.NoError(t, err)
 	require.Equal(t, int64(9), connection.InstallationID)
@@ -202,10 +207,10 @@ func TestExistingInstallationAuthorizationRejectsInvalidAccountAndOldCallbackWit
 	t.Parallel()
 	svc, err := New(testutil.FakeTransactionManager{}, &fakeRepository{}, &fakeProvider{}, &fakeEvents{}, "https://github.com/apps/braidplane/installations/new")
 	require.NoError(t, err)
-	_, err = svc.StartExistingAuthorization(t.Context(), "acme", model.UserEventActor("alice"), "https://github.com/acme")
+	_, err = svc.StartExistingAuthorization(t.Context(), "acme", model.UserEventActor("alice"), "https://github.com/acme", false)
 	require.ErrorIs(t, err, ErrInvalidInstall)
 
-	link, err := svc.Start(t.Context(), "acme", model.UserEventActor("alice"))
+	link, err := svc.Start(t.Context(), "acme", model.UserEventActor("alice"), false)
 	require.NoError(t, err)
 	parsed, err := url.Parse(link)
 	require.NoError(t, err)
@@ -253,7 +258,7 @@ func TestCompleteRejectsInstallationBoundToAnotherOrganization(t *testing.T) {
 	svc, err := New(testutil.FakeTransactionManager{}, repo, provider, &fakeEvents{}, "https://github.com/apps/braidplane/installations/new")
 	require.NoError(t, err)
 	actor := model.UserEventActor(must.Slug("alice"))
-	installURL, err := svc.Start(t.Context(), must.Slug("acme"), actor)
+	installURL, err := svc.Start(t.Context(), must.Slug("acme"), actor, false)
 	require.NoError(t, err)
 	parsed, err := url.Parse(installURL)
 	require.NoError(t, err)
@@ -269,7 +274,7 @@ func TestCompleteRejectsIncompleteProviderIdentity(t *testing.T) {
 	repo := &fakeRepository{}
 	svc, err := New(testutil.FakeTransactionManager{}, repo, &fakeProvider{verified: githubapps.VerifiedInstallation{InstallationID: 9}}, &fakeEvents{}, "https://github.com/apps/braidplane/installations/new")
 	require.NoError(t, err)
-	installURL, err := svc.Start(t.Context(), must.Slug("acme"), actor)
+	installURL, err := svc.Start(t.Context(), must.Slug("acme"), actor, false)
 	require.NoError(t, err)
 	parsed, err := url.Parse(installURL)
 	require.NoError(t, err)
@@ -496,8 +501,13 @@ func TestRepositoryInstallIntentBindsActorOrganizationAndSetup(t *testing.T) {
 	svc, err := New(testutil.FakeTransactionManager{}, repo, provider, &fakeEvents{}, "https://github.com/apps/braidplane/installations/new")
 	require.NoError(t, err)
 	actor := model.UserEventActor("alice")
-	authURL, err := svc.StartRepositorySetup(t.Context(), "acme", actor, "repo-isolated")
+	startedAt := time.Date(2026, 8, 20, 12, 0, 0, 0, time.UTC)
+	now := startedAt
+	svc.now = func() time.Time { return now }
+	authURL, err := svc.StartRepositorySetup(t.Context(), "acme", actor, "repo-isolated", true)
 	require.NoError(t, err)
+	require.Equal(t, startedAt.Add(100*time.Minute), repo.intent.ExpiresAt)
+	now = startedAt.Add(11 * time.Minute)
 	parsed, err := url.Parse(authURL)
 	require.NoError(t, err)
 	state := parsed.Query().Get("state")
@@ -536,7 +546,7 @@ func TestRepositoryInstallCannotReplaceAnotherInstallation(t *testing.T) {
 	svc, err := New(testutil.FakeTransactionManager{}, repo, provider, &fakeEvents{}, "https://github.com/apps/braidplane/installations/new")
 	require.NoError(t, err)
 	actor := model.UserEventActor("alice")
-	link, err := svc.StartRepositorySetup(t.Context(), "acme", actor, "repo-isolated")
+	link, err := svc.StartRepositorySetup(t.Context(), "acme", actor, "repo-isolated", false)
 	require.NoError(t, err)
 	parsed, err := url.Parse(link)
 	require.NoError(t, err)
@@ -552,7 +562,7 @@ func TestRepositoryInstallBindingFailureRetainsIncompleteProviderIdentity(t *tes
 	svc, err := New(testutil.FakeTransactionManager{}, repo, provider, &fakeEvents{}, "https://github.com/apps/braidplane/installations/new")
 	require.NoError(t, err)
 	actor := model.UserEventActor("alice")
-	link, err := svc.StartRepositorySetup(t.Context(), "acme", actor, "repo-isolated")
+	link, err := svc.StartRepositorySetup(t.Context(), "acme", actor, "repo-isolated", false)
 	require.NoError(t, err)
 	parsed, err := url.Parse(link)
 	require.NoError(t, err)

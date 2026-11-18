@@ -5,9 +5,6 @@ templ SignupPage(title string, fullName string, email string, pageError string, 
 }
 
 templ SignupPageContent(fullName string, email string, pageError string, pageErrorDetails string, returnTo string, selfServiceRegistrationEnabled bool, signup SignupState) {
-	if pageError != "" {
-		@ErrorPopup("signup-error-popup", pageError, pageErrorDetails)
-	}
 	<div class="space-y-5">
 		if !selfServiceRegistrationEnabled {
 			<header>
@@ -28,20 +25,27 @@ templ SignupPageContent(fullName string, email string, pageError string, pageErr
 				<p class="mt-2 text-sm text-base-content/70">Create an account on this instance.</p>
 			</header>
 			@AccountNotice(ctx)
+			if signup.GoogleSignupExpired {
+				<div data-form-feedback>
+					@FormError("google-signup-feedback", "Your Google sign-in expired. Please sign in again.", true)
+				</div>
+			}
 			if googleSignInEnabled(ctx) || signup.GoogleSignupPending {
 				<form class="space-y-3" method="post" action={ templ.URL(AuthReturnURL("/api/auth/google", returnTo)) }>
 					if signup.GoogleSignupPending {
 						<p class="text-sm text-base-content/70">Google verified your account. Continue to finish creating your account.</p>
 						@AccountFields(ctx)
-						<button class="btn btn-primary w-full" type="submit">Create account with Google</button>
+						<button class="btn btn-primary h-auto min-h-10 w-full py-3" type="submit">Create account with Google</button>
 					} else {
 						@AccountFields(ctx)
 						<button class="btn btn-outline w-full" type="submit">Continue with Google</button>
+						<p class="text-sm text-base-content/70">Core allows 10 minutes for Google sign-in by default.</p>
+						<button class="btn btn-outline h-auto min-h-10 w-full whitespace-normal py-2" type="submit" formaction={ templ.URL(googleAuthMoreTimeURL(returnTo)) }>Continue with Google (100 minutes)</button>
 					}
 				</form>
 				<div class="divider text-xs uppercase tracking-wide text-base-content/50">or use email</div>
 			}
-			<form class="space-y-3" method="post" action="/auth/signup" hx-post="/auth/signup" hx-target="main" hx-select="main" hx-swap="innerHTML">
+			<form class="space-y-3" method="post" action="/auth/signup" hx-post="/auth/signup" hx-target="#main-content" hx-select="#main-content" hx-swap="outerHTML" data-form-feedback>
 				if returnTo != "" {
 					<input type="hidden" name="return_to" value={ returnTo }/>
 				}
@@ -57,13 +61,7 @@ templ SignupPageContent(fullName string, email string, pageError string, pageErr
 					</div>
 					<input class="input input-bordered w-full" type="email" name="email" placeholder="name@company.com" value={ email } autocomplete="email" maxlength="255" required/>
 				</label>
-				<label class="form-control block w-full">
-					<div class="label">
-						<span class="label-text">Password</span>
-					</div>
-					<input class="input input-bordered w-full" type="password" name="password" placeholder="At least 8 characters" autocomplete="new-password" minlength="8" required/>
-					<p class="pt-1 text-xs text-base-content/60">Use at least 8 characters.</p>
-				</label>
+				@authNewPasswordField("Password")
 				<label class="form-control block w-full">
 					<div class="label">
 						<span class="label-text">Confirm password</span>
@@ -71,6 +69,11 @@ templ SignupPageContent(fullName string, email string, pageError string, pageErr
 					<input class="input input-bordered w-full" type="password" name="confirm_password" placeholder="Repeat your password" autocomplete="new-password" minlength="8" required/>
 				</label>
 				@AccountFields(ctx)
+				@FormError("signup-feedback", pageError, true)
+				if pageErrorDetails != "" {
+					<details class="text-sm"><summary>More details</summary><p class="whitespace-pre-wrap break-words">{ pageErrorDetails }</p></details>
+				}
+				@FormRequestError()
 				<button class="btn btn-primary w-full" type="submit">Create account</button>
 			</form>
 			<p class="text-center text-sm text-base-content/70">
@@ -91,4 +94,7 @@ func signupUsageClass(current string, value string) string {
 }
 
 // SignupState tracks a verified identity awaiting explicit account creation.
-type SignupState struct{ GoogleSignupPending bool }
+type SignupState struct {
+	GoogleSignupPending bool
+	GoogleSignupExpired bool
+}

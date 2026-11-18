@@ -58,20 +58,14 @@ func MFAPageContent(challengeToken string, returnTo string, pageError string, pa
 			templ_7745c5c3_Var2 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		if pageError != "" {
-			templ_7745c5c3_Err = ErrorPopup("mfa-error-popup", pageError, pageErrorDetails).Render(ctx, templ_7745c5c3_Buffer)
-			if templ_7745c5c3_Err != nil {
-				return templ_7745c5c3_Err
-			}
-		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 1, "<div class=\"space-y-5\"><header><p class=\"text-xs font-semibold uppercase tracking-wide text-info\">Security check</p><h1 class=\"mt-2 text-2xl font-semibold\">Check your email</h1><p class=\"mt-2 text-sm text-base-content/70\">Enter the six-digit code to finish signing in.</p></header><form class=\"space-y-3\" method=\"post\" action=\"/auth/mfa\" hx-post=\"/auth/mfa\" hx-target=\"main\" hx-select=\"main\" hx-swap=\"innerHTML\"><input type=\"hidden\" name=\"challenge_token\" value=\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 1, "<div class=\"space-y-5\"><header><p class=\"text-xs font-semibold uppercase tracking-wide text-info\">Security check</p><h1 class=\"mt-2 text-2xl font-semibold\">Check your email</h1><p class=\"mt-2 text-sm text-base-content/70\">Enter the six-digit code to finish signing in.</p></header><form class=\"space-y-3\" method=\"post\" action=\"/auth/mfa\" hx-post=\"/auth/mfa\" hx-target=\"#main-content\" hx-select=\"#main-content\" hx-swap=\"outerHTML\" data-form-feedback><input type=\"hidden\" name=\"challenge_token\" value=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var3 string
 		templ_7745c5c3_Var3, templ_7745c5c3_Err = templ.ResolveAttributeValue(challengeToken)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/mfa.templ`, Line: 18, Col: 69}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/mfa.templ`, Line: 15, Col: 69}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var3)
 		if templ_7745c5c3_Err != nil {
@@ -84,13 +78,65 @@ func MFAPageContent(challengeToken string, returnTo string, pageError string, pa
 		var templ_7745c5c3_Var4 string
 		templ_7745c5c3_Var4, templ_7745c5c3_Err = templ.ResolveAttributeValue(returnTo)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/mfa.templ`, Line: 19, Col: 57}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/mfa.templ`, Line: 16, Col: 57}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var4)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 3, "\"> <label class=\"form-control w-full\"><div class=\"label\"><span class=\"label-text\">Code</span></div><input class=\"input input-bordered w-full tracking-widest\" type=\"text\" name=\"code\" inputmode=\"numeric\" autocomplete=\"one-time-code\" pattern=\"[0-9]{6}\" maxlength=\"6\" placeholder=\"123456\" required></label> <button class=\"btn btn-primary w-full\" type=\"submit\">Verify code</button></form><p class=\"text-center text-sm text-base-content/70\"><a class=\"link link-primary\" href=\"/auth/login\">Back to sign in</a></p></div>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 3, "\"> <label class=\"form-control w-full\"><div class=\"label\"><span class=\"label-text\">Code</span></div><input class=\"input input-bordered w-full tracking-widest\" type=\"text\" name=\"code\" inputmode=\"numeric\" autocomplete=\"one-time-code\" pattern=\"[0-9]{6}\" maxlength=\"6\" placeholder=\"123456\" required")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = templ.RenderAttributes(ctx, templ_7745c5c3_Buffer, FormFieldError(pageError != "", "mfa-feedback"))
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 4, "></label>")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = FormError("mfa-feedback", pageError, true).Render(ctx, templ_7745c5c3_Buffer)
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		if pageErrorDetails != "" {
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 5, "<details class=\"text-sm\"><summary>More details</summary><p class=\"whitespace-pre-wrap break-words\">")
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			var templ_7745c5c3_Var5 string
+			templ_7745c5c3_Var5, templ_7745c5c3_Err = templ.JoinStringErrs(pageErrorDetails)
+			if templ_7745c5c3_Err != nil {
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/mfa.templ`, Line: 25, Col: 121}
+			}
+			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var5))
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 6, "</p></details>")
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+		}
+		templ_7745c5c3_Err = FormRequestError().Render(ctx, templ_7745c5c3_Buffer)
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 7, "<button class=\"btn btn-primary w-full\" type=\"submit\">Verify code</button></form><p class=\"text-center text-sm text-base-content/70\"><a class=\"link link-primary\" href=\"")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		var templ_7745c5c3_Var6 templ.SafeURL
+		templ_7745c5c3_Var6, templ_7745c5c3_Err = templ.JoinURLErrs(templ.URL(AuthReturnURL("/auth/login", returnTo)))
+		if templ_7745c5c3_Err != nil {
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/mfa.templ`, Line: 31, Col: 88}
+		}
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var6))
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 8, "\">Sign in again for a new code</a></p></div>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

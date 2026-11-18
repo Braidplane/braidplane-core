@@ -27,7 +27,7 @@ func (s *server) GetProjectRepositorySetup(c fiber.Ctx, orgParam api.SlugParam, 
 	return c.JSON(projectRepositorySetupToHTTP(setup))
 }
 
-func (s *server) CreateProjectRepository(c fiber.Ctx, orgParam api.SlugParam, projectParam api.ProjectSlugParam) error {
+func (s *server) CreateProjectRepository(c fiber.Ctx, orgParam api.SlugParam, projectParam api.ProjectSlugParam, params api.CreateProjectRepositoryParams) error {
 	org, project, err := parseProjectPath(orgParam, projectParam)
 	if err != nil {
 		return err
@@ -56,6 +56,7 @@ func (s *server) CreateProjectRepository(c fiber.Ctx, orgParam api.SlugParam, pr
 		Provider: provider, Owner: req.Owner, RepositoryName: req.RepositoryName,
 		TrackedBranch: stringValue(req.TrackedBranch), PipelineDir: stringValue(req.PipelineDir),
 		CreatePrivateRepository: bool(req.CreatePrivateRepository),
+		MoreTime:                ptr.Value(params.MoreTime),
 	}, s.eventActor(c))
 	if err != nil {
 		return mapServiceError(err)

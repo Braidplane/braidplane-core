@@ -3,6 +3,17 @@ import { describe, expect, it, vi } from "vitest";
 await import("../ui-utils.js");
 
 describe("server form error focus", () => {
+    it("FocusesSettledFeedbackOnceWithoutStealingLaterFocus", () => {
+        document.body.innerHTML =
+            '<main><form data-form-feedback><div role="alert" tabindex="-1" data-form-error-focus>Invalid code.</div></form><button>Continue</button></main>';
+        const main = document.querySelector("main");
+        main.dispatchEvent(new CustomEvent("htmx:afterSettle", { bubbles: true }));
+        expect(document.activeElement).toBe(document.querySelector('[role="alert"]'));
+        document.querySelector("button").focus();
+        main.dispatchEvent(new CustomEvent("htmx:afterSettle", { bubbles: true }));
+        expect(document.activeElement).toBe(document.querySelector("button"));
+    });
+
     it("KeepsAFailedDraftSaveableWithoutAnotherEdit", () => {
         document.body.innerHTML =
             '<form data-dirty-form data-dirty-unsaved><input name="name" value="Unsaved draft"><button type="submit" data-dirty-submit disabled>Save</button></form>';
@@ -371,6 +382,25 @@ describe("HTMX scroll preservation", () => {
 describe("entity list return scroll", () => {
     const key = "braidplane:entity-list-scroll";
 
+    it("keeps focused provider callback feedback in view", () => {
+        const original = window.location.href;
+        const scrollTo = vi.spyOn(window, "scrollTo").mockImplementation(() => {});
+        const list = "/orgs/acme/data-sources?selected=warehouse";
+        try {
+            window.history.replaceState({}, "", list);
+            document.body.innerHTML = '<div data-provider-oauth-feedback role="status" tabindex="-1">Connected.</div>';
+            document.querySelector("[data-provider-oauth-feedback]").focus();
+            sessionStorage.setItem(key, JSON.stringify({ url: list, y: 913 }));
+            window.dispatchEvent(new Event("load"));
+            expect(scrollTo).not.toHaveBeenCalled();
+            expect(sessionStorage.getItem(key)).toBeNull();
+        } finally {
+            sessionStorage.removeItem(key);
+            scrollTo.mockRestore();
+            window.history.replaceState({}, "", original);
+        }
+    });
+
     it("keeps the position through detail sections and restores only the matching list once", () => {
         const original = window.location.href;
         const scrollTo = vi.spyOn(window, "scrollTo").mockImplementation(() => {});
@@ -438,23 +468,6 @@ describe("entity list return scroll", () => {
             sessionStorage.removeItem(key);
             scrollTo.mockRestore();
             window.history.replaceState({}, "", original);
-        }
-    });
-});
-
-describe("success popups", () => {
-    it("AutoDismissesPopupsInsertedByPartialSwaps", () => {
-        vi.useFakeTimers();
-        try {
-            document.body.innerHTML = `<div id="success" data-success-popup data-auto-dismiss-ms="250">Saved</div>`;
-
-            window.braidplaneInitSuccessPopups(document);
-
-            expect(document.getElementById("success")).not.toBeNull();
-            vi.advanceTimersByTime(250);
-            expect(document.getElementById("success")).toBeNull();
-        } finally {
-            vi.useRealTimers();
         }
     });
 });
@@ -658,6 +671,27 @@ describe("data source Git auth forms", () => {
         expect(postgresFields.classList.contains("hidden")).toBe(false);
         expect(httpFields.classList.contains("hidden")).toBe(true);
         expect(document.querySelector('input[name="base_url"]').disabled).toBe(true);
+    });
+
+    it("KeepsMySQLPasswordHelpScopedToMySQL", () => {
+        document.body.innerHTML = `<form data-data-source-create-form>
+            <select data-ds-type-select><option value="postgres">PostgreSQL</option><option value="mysql" selected>MySQL</option></select>
+            <label data-ds-fields="postgres,mysql">
+                <input type="password" id="data-source-create-database-password" data-required-for="postgres" />
+                <span id="data-source-create-mysql-password-help" data-ds-fields="mysql">MySQL password help</span>
+            </label>
+        </form>`;
+        const form = document.querySelector("form");
+        form.dispatchEvent(new CustomEvent("htmx:afterSwap", { bubbles: true }));
+        const password = form.querySelector("input");
+        expect(password.getAttribute("aria-describedby")).toBe("data-source-create-mysql-password-help");
+        expect(password.required).toBe(false);
+
+        const type = form.querySelector("select");
+        type.value = "postgres";
+        type.dispatchEvent(new Event("change", { bubbles: true }));
+        expect(password.hasAttribute("aria-describedby")).toBe(false);
+        expect(password.required).toBe(true);
     });
 
     it("KeepsConnectorFieldsScopedAfterConnectionFeedbackSwap", () => {

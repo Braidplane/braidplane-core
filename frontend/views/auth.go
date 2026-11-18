@@ -13,6 +13,14 @@ func AuthReturnURL(path, returnTo string) string {
 	return path + "?" + values.Encode()
 }
 
+func googleAuthMoreTimeURL(returnTo string) string {
+	values := url.Values{"more_time": {"true"}}
+	if returnTo != "" {
+		values.Set("return_to", returnTo)
+	}
+	return "/api/auth/google?" + values.Encode()
+}
+
 // WorkspaceGateUsageURL switches gate intent while preserving the safe continuation target.
 func WorkspaceGateUsageURL(usageType, returnTo string) string {
 	values := url.Values{}

@@ -33,6 +33,7 @@
     "cmd/fake/README.md": "Package, fixture or acceptance guidance beside its owning source. Local links and anchors remain checked.",
     "frontend/AGENTS.md": "Contributor/agent instructions beside the owning source; not site content. Local links and anchors remain checked.",
     "frontend/acceptance/README.md": "Package, fixture or acceptance guidance beside its owning source. Local links and anchors remain checked.",
+    "frontend/accessibility/README.md": "Core WCAG assessment scope, local checks and manual evidence beside the owning tests. Local links and anchors remain checked.",
     "frontend/e2e/ALPHA_COVERAGE.md": "Package, fixture or acceptance guidance beside its owning source. Local links and anchors remain checked.",
     "frontend/e2e/README.md": "Package, fixture or acceptance guidance beside its owning source. Local links and anchors remain checked.",
     "frontend/testdata/binding-setup/README.md": "Package, fixture or acceptance guidance beside its owning source. Local links and anchors remain checked.",

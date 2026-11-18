@@ -1,5 +1,10 @@
 # Community browser workflow tests
 
+The separate [WCAG assessment](../accessibility/README.md) runs axe and focused
+keyboard checks with `task test-accessibility` against an owned local runtime.
+It records outstanding manual and screen-reader work separately from this
+critical journey inventory.
+
 Playwright exercises the Community frontend/backend. Git, run-inspection, HTTP
 OAuth, notification connection and Proof fixtures render the production
 frontend against isolated API replies. They prove UI integration; provider and

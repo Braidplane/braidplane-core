@@ -77,10 +77,10 @@ func TestHTTPOAuthPublicSetupConnectReplaceAndStaticFallback(t *testing.T) {
 			require.Equal(t, credentialssvc.CredentialStatusPending, created.Credential.Status)
 			require.Equal(t, beforeTokens, tokenCalls)
 			require.Equal(t, beforeHealth, healthCalls)
-			_, err = svc.ConnectHTTPOAuth(t.Context(), other, source, model.ExternalEventActor())
+			_, err = svc.ConnectHTTPOAuth(t.Context(), other, source, model.ExternalEventActor(), false)
 			require.Error(t, err)
 			connect := func() {
-				result, err := svc.ConnectHTTPOAuth(t.Context(), org, source, model.ExternalEventActor())
+				result, err := svc.ConnectHTTPOAuth(t.Context(), org, source, model.ExternalEventActor(), false)
 				require.NoError(t, err)
 				if grant == "authorization_code" {
 					require.NotNil(t, result.Install)
@@ -112,7 +112,7 @@ func TestHTTPOAuthPublicSetupConnectReplaceAndStaticFallback(t *testing.T) {
 			require.NoError(t, err)
 			require.True(t, static.IsActive)
 			require.Equal(t, credentialssvc.CredentialKindStaticSecret, static.Credential.Kind)
-			_, err = svc.ConnectHTTPOAuth(t.Context(), org, source, model.ExternalEventActor())
+			_, err = svc.ConnectHTTPOAuth(t.Context(), org, source, model.ExternalEventActor(), false)
 			require.Error(t, err)
 		})
 	}

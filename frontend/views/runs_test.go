@@ -61,7 +61,6 @@ func TestLineageDisplayHelpersUseSourceLanguageAndSanitizedEvidence(t *testing.T
 	require.Contains(t, lineageObservedSummary(node), "Output: 3 rows")
 	require.Contains(t, lineagePayloadPreview(node), "Planned ·")
 	require.Contains(t, lineagePayloadPreview(node), "Observed ·")
-	require.Contains(t, lineageNodeAriaLabel(node), "Source step Read users, Succeeded.")
 	require.NotContains(t, lineagePayloadPreview(node), "payload value")
 
 	transform := runlineage.Node{

@@ -52,3 +52,25 @@ func TestOrganizationGitLabCallbackAlwaysRequiresOrganizationUpdate(t *testing.T
 		require.Equal(t, model.ResourceOrganizations, resource)
 	}
 }
+
+func TestOrganizationGitLabAuthorizationForwardsCallbackWindow(t *testing.T) {
+	t.Parallel()
+	credentials := &fakeCredentialsService{
+		CreateOrganizationGitLabConnectionFn: func(_ context.Context, params credentialssvc.CreateOrganizationGitLabConnectionParams) (credentialssvc.OrganizationGitLabConnection, error) {
+			require.Equal(t, "acme", params.OrganizationSlug.String())
+			return credentialssvc.OrganizationGitLabConnection{Credential: credentialssvc.CredentialMetadata{Status: credentialssvc.CredentialStatusPending}}, nil
+		},
+		StartOAuthInstallFn: func(_ context.Context, params credentialssvc.StartOAuthInstallParams) (credentialssvc.ProviderConnectorInstall, error) {
+			require.True(t, params.MoreTime)
+			require.False(t, params.IncludeWriteScopes)
+			require.Equal(t, credentialssvc.OAuthInstallIntentCreate, params.Intent)
+			assertUserEventActor(t, params.Actor, "alice")
+			return credentialssvc.ProviderConnectorInstall{AuthorizationURL: "https://gitlab.example/oauth"}, nil
+		},
+	}
+	app, store := newTestApp(t, testServerConfig{credentialsService: credentials})
+	request := jsonRequest(t, http.MethodPost, "/organizations/acme/gitlab-connection/authorization", map[string]bool{"include_write_scopes": false, "more_time": true})
+	response := authenticatedRequest(t, app, store, "alice", request)
+	defer func() { _ = response.Body.Close() }()
+	require.Equal(t, http.StatusCreated, response.StatusCode)
+}

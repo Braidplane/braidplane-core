@@ -28,10 +28,8 @@ templ PipelineConnectionsPanel() {
 		} else if len(connections.Edges) == 0 {
 			<div class="rounded-lg border border-dashed border-base-300 bg-base-200/30 px-4 py-3 text-sm text-base-content/70">No completion subscriptions are visible in the returned configuration subset.</div>
 		} else {
-			<div class="lg:hidden">
-				@PipelineConnectionsCompact(connections)
-			</div>
 			<div class="hidden lg:block" data-lineage-view={ entityPageURL(ctx).Path + "|connections|" + entityPageURL(ctx).Query().Get("environment_slug") }>
+				<a class="link link-primary mb-2 inline-flex min-h-6 items-center text-sm" href="#pipeline-subscription-list">Skip graph to subscription list</a>
 				<div class="flex flex-wrap items-center justify-between gap-2 rounded-t-xl border border-b-0 border-base-300 bg-base-100 px-3 py-2 text-xs text-base-content/60">
 					<span>Current completion subscriptions</span>
 					<div class="flex flex-wrap items-center gap-1" role="group" aria-label="Connections graph controls">
@@ -41,9 +39,9 @@ templ PipelineConnectionsPanel() {
 						<button type="button" class="btn btn-ghost btn-xs" data-lineage-action="fit" aria-pressed="true">Fit</button>
 						<button type="button" class="btn btn-ghost btn-xs" data-lineage-action="reset">100%</button>
 					</div>
-					<span>Drag background or scroll to pan · + / − to zoom · 0 to fit</span>
+					<span id="pipeline-connections-keyboard-help">Drag the background to pan. Focus the graph to use arrow keys to pan, + or − to zoom, and 0 to fit.</span>
 				</div>
-				<div data-lineage-viewport class="pipeline-graph-grid relative h-[32rem] min-w-0 overflow-auto rounded-b-xl border border-base-300 bg-base-200/35 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary" tabindex="0" role="region" aria-label="Current pipeline connections graph">
+				<div data-lineage-viewport class="pipeline-graph-grid relative h-[32rem] min-w-0 overflow-auto rounded-b-xl border border-base-300 bg-base-200/35 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary" tabindex="0" role="region" aria-label="Current pipeline connections graph" aria-describedby="pipeline-connections-keyboard-help">
 					<div data-lineage-bounds class="relative overflow-hidden" style={ templ.SafeCSS(fmt.Sprintf("width:%dpx;height:%dpx;", connections.CanvasWidth, connections.CanvasHeight)) }>
 						<div data-lineage-canvas class="absolute origin-top-left" style={ templ.SafeCSS(fmt.Sprintf("width:%dpx;height:%dpx;", connections.CanvasWidth, connections.CanvasHeight)) }>
 							<svg class="pointer-events-none absolute inset-0 z-0" width={ fmt.Sprintf("%d", connections.CanvasWidth) } height={ fmt.Sprintf("%d", connections.CanvasHeight) } viewBox={ fmt.Sprintf("0 0 %d %d", connections.CanvasWidth, connections.CanvasHeight) } aria-hidden="true">
@@ -53,10 +51,10 @@ templ PipelineConnectionsPanel() {
 								}
 							</svg>
 							for _, edge := range connections.Edges {
-								<a href={ templ.URL(edge.TriggerHref) } class="absolute z-20 w-40 text-center -translate-x-1/2 -translate-y-1/2 rounded border border-base-300 bg-base-100 px-2 py-1 text-xs shadow-sm hover:border-primary focus:outline-none focus-visible:ring-2 focus-visible:ring-primary" style={ templ.SafeCSS(fmt.Sprintf("left:%dpx;top:%dpx;", edge.LabelX, edge.LabelY)) } aria-label={ "Trigger " + edge.TriggerSlug + ", revision " + fmt.Sprintf("%d", edge.Revision) }>
+								<a href={ templ.URL(edge.TriggerHref) } class="absolute z-20 w-40 text-center -translate-x-1/2 -translate-y-1/2 rounded border border-base-300 bg-base-100 px-2 py-1 text-xs shadow-sm hover:border-primary focus:outline-none focus-visible:ring-2 focus-visible:ring-primary" style={ templ.SafeCSS(fmt.Sprintf("left:%dpx;top:%dpx;", edge.LabelX, edge.LabelY)) }>
 									{ pipelineConnectionConditionLabel(edge.Condition) } → { edge.State }
 									<br/>
-									{ edge.TriggerSlug } · r{ fmt.Sprintf("%d", edge.Revision) }
+									Trigger { edge.TriggerSlug } · revision { fmt.Sprintf("%d", edge.Revision) }
 								</a>
 							}
 							for _, node := range connections.Nodes {
@@ -70,28 +68,24 @@ templ PipelineConnectionsPanel() {
 					</div>
 				</div>
 			</div>
-			<div class="hidden lg:block">
-				@PipelineConnectionsCompact(connections)
-			</div>
+			@PipelineConnectionsList(connections)
 		}
 	</div>
 }
 
-templ PipelineConnectionsCompact(connections PipelineConnections) {
-	<ol class="space-y-2" aria-label="Current completion subscriptions">
+templ PipelineConnectionsList(connections PipelineConnections) {
+	<ol id="pipeline-subscription-list" class="space-y-2 focus-visible:outline-2 focus-visible:outline-primary" tabindex="-1" aria-label="Current completion subscriptions">
 		for _, edge := range connections.Edges {
 			<li class="rounded-lg border border-base-300 bg-base-100 px-3 py-3">
 				<div class="flex flex-wrap items-center gap-2 text-sm">
-					<a class="link link-primary break-all font-medium" href={ templ.URL(pipelineConnectionNodeHref(connections, edge.From)) }>{ edge.From }</a>
-					<span class="text-base-content/50">→</span>
-					<a class="link link-primary break-all font-medium" href={ templ.URL(pipelineConnectionNodeHref(connections, edge.To)) }>{ edge.To }</a>
+					<span>From <a class="link link-primary inline-block min-h-6 break-all font-medium" href={ templ.URL(pipelineConnectionNodeHref(connections, edge.From)) }>{ edge.From }</a>
+						to <a class="link link-primary inline-block min-h-6 break-all font-medium" href={ templ.URL(pipelineConnectionNodeHref(connections, edge.To)) }>{ edge.To }</a></span>
 					<span class={ pipelineConnectionStateBadgeClass(edge.State) }>{ edge.State }</span>
 					<span class="badge badge-ghost badge-xs">{ pipelineConnectionConditionLabel(edge.Condition) }</span>
 				</div>
 				<div class="mt-2 flex flex-wrap gap-x-3 gap-y-1 text-xs text-base-content/65">
-					<a class="link" href={ templ.URL(edge.TriggerHref) }>{ edge.TriggerSlug }</a>
+					<a class="link inline-block min-h-6 break-all" href={ templ.URL(edge.TriggerHref) }>{ edge.TriggerSlug }</a>
 					<span>Revision { edge.Revision }</span>
-					<a class="link" href={ templ.URL(edge.TriggerHref) }>Trigger details</a>
 				</div>
 			</li>
 		}

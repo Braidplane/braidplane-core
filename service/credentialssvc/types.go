@@ -5,10 +5,11 @@ import (
 	"time"
 
 	"github.com/Braidplane/braidplane-core/pkg/domain/model"
+	"github.com/Braidplane/braidplane-core/pkg/oauthflow"
 	"github.com/Braidplane/braidplane-core/pkg/slug"
 )
 
-const DefaultInstallTTL = 10 * time.Minute
+const DefaultInstallTTL = oauthflow.DefaultCallbackWindow
 
 //go:generate -command enumer go tool -modfile=../../tools/go.mod enumer
 //go:generate enumer -type=CredentialKind -transform=snake -output=credential_kind_string.go -text -json -linecomment
@@ -237,6 +238,7 @@ type StartOAuthInstallParams struct {
 	RequestedScopes            []string
 	IncludeWriteScopes         bool
 	AccessMode                 string `validate:"omitempty,oneof=selected_files"`
+	MoreTime                   bool
 	Intent                     OAuthInstallIntent
 	Actor                      model.EventActor
 }

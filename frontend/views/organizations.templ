@@ -311,61 +311,28 @@ templ OrganizationDetailPageContent(organization api.Organization, activeOrganiz
 }
 
 templ OrganizationDetailTabs(orgSlug string, activeTab string) {
-	<div class="mt-6 overflow-x-auto">
-		<div class="tabs tabs-border min-w-max" role="tablist" aria-label="Organization detail sections">
-			<a
-				class={ "tab" + func() string {
-	if activeTab == "overview" {
-		return " tab-active"
-	}
-	return ""
-}() }
-				role="tab"
-				href={ templ.URL("/organizations/" + orgSlug) }
-			>Overview</a>
-			<a class={ "tab", templ.KV("tab-active", activeTab == "github" || activeTab == "connections") } role="tab" href={ templ.URL("/organizations/" + orgSlug + "/connections") }>Git integrations</a>
-			<a
-				class={ "tab" + func() string {
-	if activeTab == "retention" {
-		return " tab-active"
-	}
-	return ""
-}() }
-				role="tab"
-				href={ templ.URL("/organizations/" + orgSlug + "/retention") }
-			>Retention</a>
-			<a
-				class={ "tab" + func() string {
-	if activeTab == "members" {
-		return " tab-active"
-	}
-	return ""
-}() }
-				role="tab"
-				href={ templ.URL("/organizations/" + orgSlug + "/members") }
-			>Members</a>
-			<a
-				class={ "tab" + func() string {
-	if activeTab == "roles" {
-		return " tab-active"
-	}
-	return ""
-}() }
-				role="tab"
-				href={ templ.URL("/organizations/" + orgSlug + "/roles") }
-			>Roles</a>
-			<a
-				class={ "tab" + func() string {
-	if activeTab == "security" {
-		return " tab-active"
-	}
-	return ""
-}() }
-				role="tab"
-				href={ templ.URL("/organizations/" + orgSlug + "/security") }
-			>Security</a>
+	<nav class="mt-6" aria-label="Organization detail sections">
+		<div class="tabs tabs-border">
+			for _, section := range []struct{ key, path, label string }{
+				{ "overview", "", "Overview" },
+				{ "connections", "/connections", "Git integrations" },
+				{ "retention", "/retention", "Retention" },
+				{ "members", "/members", "Members" },
+				{ "roles", "/roles", "Roles" },
+				{ "security", "/security", "Security" },
+			} {
+				{{
+					current := "false"
+					if activeTab == section.key {
+						current = "page"
+					} else if activeTab == "github" && section.key == "connections" {
+						current = "location"
+					}
+				}}
+				<a class={ "tab focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-primary", templ.KV("tab-active", current != "false") } aria-current={ current } href={ templ.URL("/organizations/" + orgSlug + section.path) }>{ section.label }</a>
+			}
 		</div>
-	</div>
+	</nav>
 }
 
 templ OrganizationGitHubPage(shellData AuthenticatedShellData, organization api.Organization, connection *api.GitHubAppConnection, feedback string, feedbackError bool) {
@@ -375,6 +342,7 @@ templ OrganizationGitHubPage(shellData AuthenticatedShellData, organization api.
 templ OrganizationGitHubPageContent(organization api.Organization, connection *api.GitHubAppConnection, feedback string, feedbackError bool) {
 	<div class="space-y-6">
 		@OrganizationDetailTabs(string(organization.Slug), "github")
+		@ProviderConnectionsFeedback(feedback, feedbackError)
 		<section class="rounded-xl border border-base-300 bg-base-100 p-4 sm:p-5">
 			<div class="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
 				<div>
@@ -382,7 +350,8 @@ templ OrganizationGitHubPageContent(organization api.Organization, connection *a
 					<p class="mt-1 text-sm text-base-content/70">Alpha supports one GitHub organization or personal account per Braidplane organization. Multiple data sources share this installation and can select different repositories. Proof is optional.</p>
 				</div>
 				if connection == nil || connection.DeletedAt != nil {
-					<form method="post" action={ templ.URL("/organizations/" + string(organization.Slug) + "/github/connect") } hx-post={ "/organizations/" + string(organization.Slug) + "/github/connect" } hx-swap="none">
+					<form class="flex flex-col items-start gap-2 sm:max-w-xs" method="post" action={ templ.URL("/organizations/" + string(organization.Slug) + "/github/connect") } hx-post={ "/organizations/" + string(organization.Slug) + "/github/connect" } hx-swap="none">
+						@OAuthCallbackTimeOption(false)
 						<button class="btn btn-primary btn-sm w-full sm:w-auto" type="submit">Connect GitHub</button>
 					</form>
 				} else {
@@ -391,13 +360,6 @@ templ OrganizationGitHubPageContent(organization api.Organization, connection *a
 					</form>
 				}
 			</div>
-			if feedback != "" {
-				if feedbackError {
-					<div class="alert alert-error mt-4" role="alert">{ feedback }</div>
-				} else {
-					<div class="alert alert-info mt-4" role="status">{ feedback }</div>
-				}
-			}
 			if connection != nil && connection.DeletedAt == nil {
 				<div class="mt-5 border-t border-base-300 pt-4">
 					<div class="flex flex-wrap items-center gap-2">
@@ -421,16 +383,20 @@ templ OrganizationGitHubPageContent(organization api.Organization, connection *a
 							}
 						</ul>
 					}
-					<form class="mt-4" method="post" action={ templ.URL("/organizations/" + string(organization.Slug) + "/github/connect") } hx-post={ "/organizations/" + string(organization.Slug) + "/github/connect" } hx-swap="none"><button class="btn btn-ghost btn-sm" type="submit">Reconnect</button></form>
+					<form class="mt-4 flex flex-col items-start gap-2" method="post" action={ templ.URL("/organizations/" + string(organization.Slug) + "/github/connect") } hx-post={ "/organizations/" + string(organization.Slug) + "/github/connect" } hx-swap="none">
+						@OAuthCallbackTimeOption(false)
+						<button class="btn btn-ghost btn-sm" type="submit">Reconnect</button>
+					</form>
 				</div>
 			} else {
 				<div class="mt-5 space-y-4 border-t border-base-300 pt-4">
 					<p class="text-sm text-base-content/60">No GitHub account is connected.</p>
-					<form class="flex flex-col gap-2 sm:flex-row sm:items-end" method="post" action="github/authorize-existing" hx-post="github/authorize-existing" hx-swap="none">
-						<label class="form-control w-full sm:max-w-xs"><span class="label-text text-sm">Already installed? GitHub account or organization</span><input class="input input-bordered input-sm" type="text" name="account_login" required maxlength="39" pattern="[A-Za-z0-9][A-Za-z0-9-]*" autocomplete="username"/></label>
+					<form class="flex flex-col items-start gap-2" method="post" action="github/authorize-existing" hx-post="github/authorize-existing" hx-swap="none">
+						<label class="form-control w-full sm:max-w-xs"><span class="label-text text-sm">Already installed? GitHub account or organization</span><input class="input input-bordered input-sm" type="text" name="account_login" required maxlength="39" pattern="[A-Za-z0-9][A-Za-z0-9\-]*" autocomplete="username" aria-describedby="github-existing-install-help"/></label>
+						@OAuthCallbackTimeOption(false)
 						<button class="btn btn-outline btn-sm" type="submit">Connect existing installation</button>
 					</form>
-					<p class="text-xs text-base-content/60">Use the exact GitHub account or organization where the App is already installed. If it is not installed yet, use Connect GitHub above.</p>
+					<p id="github-existing-install-help" class="text-xs text-base-content/60">Enter the GitHub account or organization where the App is installed. Use letters, numbers and hyphens. If the App needs installing, use Connect GitHub above.</p>
 				</div>
 			}
 		</section>
@@ -939,7 +905,7 @@ templ OrganizationProjectsPage(shellData AuthenticatedShellData, organization ap
 }
 
 templ OrganizationProjectsPageContent(organization api.Organization, projects []api.Project, selectedProjectSlug string, backendControls ProjectPipelineBackendControls, projectContext ProjectOperationalContext, permissions OrganizationPermissions, createFormData ProjectCreateFormData, contentErrorSummary string, contentErrorDetails string, contentSuccessSummary string) {
-	<div id="organization-projects-workspace">
+	<div id="organization-projects-workspace" data-form-feedback>
 		if permissions.Can("projects", "create") {
 			<div class="flex flex-wrap items-center justify-end gap-3">
 				<button
@@ -979,7 +945,7 @@ templ OrganizationProjectsPageContent(organization api.Organization, projects []
 			</form>
 		}
 		if contentErrorSummary != "" {
-			<div class="alert alert-error mb-5 items-start" role="alert">
+			<div class="alert alert-error mb-5 items-start" role="alert" tabindex="-1" autofocus?={ createFormData.HasInput() } data-form-error-focus?={ createFormData.HasInput() }>
 				<div>
 					<p class="font-semibold">{ contentErrorSummary }</p>
 					if contentErrorDetails != "" {
@@ -1028,7 +994,7 @@ templ OrganizationProjectsPageContent(organization api.Organization, projects []
 							@EntityListItem(organizationProjectItemStateClass(project, projects, ""), organizationProjectIsSelected(project, projects, selectedProjectSlug), "project-opener-"+string(project.Slug), string(project.Name), projectListHref(ctx, string(organization.Slug), string(project.Slug)), "#project-quick-look", "project-preview-heading", "#projects-loading") {
 								<div class="flex flex-wrap items-start justify-between gap-3">
 									<div class="min-w-0">
-										<h3 class="break-words text-base font-semibold text-base-content"><a class="relative z-10 hover:underline" href={ templ.URL(projectDetailHref(ctx, string(organization.Slug), string(project.Slug))) }>{ string(project.Name) }</a></h3>
+										<h3 class="break-words text-base font-semibold text-base-content"><a class="relative z-10 inline-flex min-h-6 items-center hover:underline" href={ templ.URL(projectDetailHref(ctx, string(organization.Slug), string(project.Slug))) }>{ string(project.Name) }</a></h3>
 										<p class="mt-1 break-all font-mono text-xs text-base-content/70">{ string(project.Slug) }</p>
 									</div>
 								</div>
@@ -1234,13 +1200,15 @@ templ OrganizationProjectDetailPanel(organization api.Organization, project api.
 								<h3 class="text-sm font-semibold text-base-content">Connect existing repository</h3>
 								<p class="mt-1 text-xs text-base-content/65">Read and validate the selected branch without changing repository contents.</p>
 							</div>
-							<label class="form-control w-full">
-								<div class="label py-1">
+							<div class="form-control w-full">
+								<label class="label py-1" for="project-backend-data-source">
 									<span class="label-text text-xs">Backend data source</span>
-								</div>
+								</label>
 								<select
 									class="select select-bordered select-sm w-full"
+									id="project-backend-data-source"
 									name="data_source_slug"
+									aria-describedby="project-backend-source-help"
 									required
 									disabled?={ len(backendControls.DataSourceOptions) == 0 }
 									hx-get={ projectRepositoryHref(ctx, string(organization.Slug), string(project.Slug), projectRepositoryPath(ctx)) }
@@ -1267,6 +1235,7 @@ templ OrganizationProjectDetailPanel(organization api.Organization, project api.
 										}
 									}
 								</select>
+								<p id="project-backend-source-help" class="mt-1 text-xs text-base-content/70">Changing the data source reloads the tracked branch choices.</p>
 								if backendControls.DataSourceLoadError != "" {
 									<p class="mt-1 text-xs text-warning">{ backendControls.DataSourceLoadError }</p>
 								} else {
@@ -1277,7 +1246,7 @@ templ OrganizationProjectDetailPanel(organization api.Organization, project api.
 								if backendControls.DataSourceLoadDetails != "" {
 									<p class="mt-1 break-words text-xs text-warning/90">{ backendControls.DataSourceLoadDetails }</p>
 								}
-							</label>
+							</div>
 							<details open?={ backendControls.PipelineDir != "pipelines" }>
 								<summary class="cursor-pointer text-sm text-base-content/70">Pipeline path</summary>
 								<label class="form-control w-full">
@@ -1681,12 +1650,14 @@ templ OrganizationProjectFullPage(shellData AuthenticatedShellData, organization
 templ OrganizationProjectFullPageContent(organization api.Organization, project api.Project, backendControls ProjectPipelineBackendControls, projectContext ProjectOperationalContext, permissions OrganizationPermissions, contentErrorSummary string, contentErrorDetails string, contentSuccessSummary string) {
 	<div id="organization-project-full-page" class="max-w-5xl">
 		if contentErrorSummary != "" {
-			<div class="alert alert-error mb-5 items-start" role="alert">
-				<div>
-					<p class="font-semibold">{ contentErrorSummary }</p>
-					if contentErrorDetails != "" {
-						<p class="mt-1 text-sm opacity-80">{ contentErrorDetails }</p>
-					}
+			<div data-form-feedback>
+				<div class="alert alert-error mb-5 items-start" role="alert" tabindex="-1" autofocus data-form-error-focus>
+					<div>
+						<p class="font-semibold">{ contentErrorSummary }</p>
+						if contentErrorDetails != "" {
+							<p class="mt-1 text-sm opacity-80">{ contentErrorDetails }</p>
+						}
+					</div>
 				</div>
 			</div>
 		}
@@ -2013,19 +1984,44 @@ templ ProjectQuickLookUnavailable(message string) {
 }
 
 templ ProjectBackendBranchControl(orgSlug string, project api.Project, backendControls ProjectPipelineBackendControls) {
+	{{ branchesURL := "/organizations/" + orgSlug + "/projects/" + string(project.Slug) + "/settings/pipeline-backend/branches" }}
+	{{ options := ProjectPipelineBackendBranchOptions(project, backendControls, backendControls.SelectedDataSource) }}
 	<div
 		id="project-backend-branches"
 		class="form-control w-full"
-		hx-get={ "/organizations/" + orgSlug + "/projects/" + string(project.Slug) + "/settings/pipeline-backend/branches" }
-		hx-trigger={ func() string { if backendControls.BranchesPending { return "load" }; return "retryBranches" }() }
+		if backendControls.BranchesPending {
+			hx-get={ branchesURL }
+			hx-trigger="load"
+		}
 		hx-include="closest form"
 		hx-params="data_source_slug,tracked_branch"
 		hx-target="this"
 		hx-select="unset"
-		hx-swap="outerHTML"
+		hx-swap="outerHTML show:none focus-scroll:true"
 		hx-push-url="false"
 		hx-indicator="this"
+		hx-sync="#project-backend-branches:drop"
 	>
+		if backendControls.SelectedDataSource != "" {
+			<button id="project-branch-refresh" type="button" class="btn btn-ghost btn-xs" aria-describedby="project-branch-status" hx-get={ branchesURL } hx-target="#project-backend-branches">
+				if backendControls.BranchesPending || backendControls.BranchLoadError != "" {
+					Retry branches
+				} else {
+					Refresh branches
+				}
+			</button>
+		}
+		if backendControls.BranchLoadError != "" {
+			<p id="project-branch-status" class="mt-1 text-xs text-warning" role="alert">{ backendControls.BranchLoadError }</p>
+		} else {
+			<p id="project-branch-status" class="mt-1 text-xs text-base-content/70" role="status">
+				if backendControls.BranchesPending {
+					Loading branches…
+				} else {
+					{ ProjectPipelineBackendBranchHelpText(backendControls, backendControls.SelectedDataSource, options) }
+				}
+			</p>
+		}
 		<label class="label py-1" for="project-tracked-branch">
 			<span class="label-text text-xs">Tracked branch</span>
 		</label>
@@ -2033,41 +2029,25 @@ templ ProjectBackendBranchControl(orgSlug string, project api.Project, backendCo
 			class="select select-bordered select-sm w-full font-mono"
 			id="project-tracked-branch"
 			name="tracked_branch"
+			aria-describedby="project-branch-status"
 			required
-			disabled?={ backendControls.SelectedDataSource == "" || (!backendControls.BranchesPending && len(ProjectPipelineBackendBranchOptions(project, backendControls, backendControls.SelectedDataSource)) == 0) }
+			disabled?={ backendControls.SelectedDataSource == "" || (!backendControls.BranchesPending && len(options) == 0) }
 		>
 			if backendControls.SelectedDataSource == "" {
 				<option value="">Select a Git data source first</option>
 			} else if backendControls.BranchesPending && backendControls.SelectedBranch == "" {
-				<option value="">Loading branches…</option>
-			} else if len(ProjectPipelineBackendBranchOptions(project, backendControls, backendControls.SelectedDataSource)) == 0 {
+				<option value="" data-branch-loading>Loading branches…</option>
+			} else if len(options) == 0 {
 				<option value="">No branches available</option>
 			} else {
 				<option value="" selected?={ backendControls.SelectedBranch == "" }>Select branch</option>
-				for _, branch := range ProjectPipelineBackendBranchOptions(project, backendControls, backendControls.SelectedDataSource) {
+				for _, branch := range options {
 					<option value={ branch.Name } selected?={ branch.Name == backendControls.SelectedBranch }>{ branch.Label }</option>
 				}
 			}
 		</select>
-		<p
-			class={ "mt-1 text-xs " + func() string {
-	if backendControls.BranchLoadError != "" {
-		return "text-warning"
-	}
-	return "text-base-content/60"
-}() }
-		>
-			if backendControls.BranchesPending {
-				<span role="status">Loading branches…</span>
-			} else {
-				{ ProjectPipelineBackendBranchHelpText(backendControls, backendControls.SelectedDataSource, ProjectPipelineBackendBranchOptions(project, backendControls, backendControls.SelectedDataSource)) }
-			}
-		</p>
 		if backendControls.BranchLoadDetails != "" {
 			<p class="mt-1 break-words text-xs text-warning/90">{ backendControls.BranchLoadDetails }</p>
-		}
-		if backendControls.BranchLoadError != "" || backendControls.BranchesPending {
-			<button type="button" class="btn btn-ghost btn-xs" hx-get={ "/organizations/" + orgSlug + "/projects/" + string(project.Slug) + "/settings/pipeline-backend/branches" } hx-target="#project-backend-branches">Retry branches</button>
 		}
 	</div>
 }

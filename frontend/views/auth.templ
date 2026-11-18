@@ -6,7 +6,7 @@ templ AuthPage(title string, includeHTMX bool, content templ.Component) {
 		@AppHead(title, includeHTMX)
 		<body class="auth-page min-h-screen bg-base-200">
 			<a class="sr-only z-50 rounded-md bg-base-100 px-3 py-2 text-sm font-medium text-base-content shadow focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary" href="#main-content">Skip to main content</a>
-			<main class="auth-shell" id="main-content" data-auth-shell>
+			<main class="auth-shell" id="main-content" tabindex="-1" data-auth-shell>
 				<div class="auth-flow" data-auth-flow aria-hidden="true">
 					<span class="auth-flow-line auth-flow-line-one"></span>
 					<span class="auth-flow-line auth-flow-line-two"></span>
@@ -24,7 +24,7 @@ templ AuthPage(title string, includeHTMX bool, content templ.Component) {
 							<h2 class="mt-3 text-3xl font-semibold tracking-tight text-base-content">Move data with a clear operational trail.</h2>
 							<p class="mt-4 max-w-md text-sm leading-6 text-base-content/65">Secure access to pipelines, runs, contracts, and diagnostics.</p>
 						</div>
-						<div class="auth-flow-summary" aria-label="Product workflow">
+						<div class="auth-flow-summary" role="group" aria-label="Product workflow">
 							<span><i></i>Sources</span>
 							<span><i></i>Contracts</span>
 							<span><i></i>Runs</span>
@@ -43,10 +43,18 @@ templ AuthPage(title string, includeHTMX bool, content templ.Component) {
 }
 
 templ AuthBrand() {
-	<div class="flex items-center gap-3 text-base-content">
+	<div class="flex flex-wrap items-center gap-3 text-base-content">
 		@AuthLogo()
 		<span class="text-lg font-semibold">Braidplane</span>
 		<span class="badge badge-ghost badge-sm">Alpha</span>
+	</div>
+}
+
+templ authNewPasswordField(label string) {
+	<div class="form-control block w-full">
+		<label class="label" for="auth-new-password"><span class="label-text">{ label }</span></label>
+		<input class="input input-bordered w-full" id="auth-new-password" type="password" name="password" autocomplete="new-password" minlength="8" aria-describedby="auth-new-password-help" required/>
+		<p id="auth-new-password-help" class="pt-1 text-xs text-base-content/70">Use at least 8 characters.</p>
 	</div>
 }
 

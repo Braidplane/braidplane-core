@@ -39,7 +39,6 @@ templ ManagedProjectRepositoryForm(organization api.Organization, project api.Pr
 			hx-target={ ProjectDetailHTMXTarget(fullPage) }
 			hx-select={ ProjectDetailHTMXTarget(fullPage) }
 			hx-swap="outerHTML show:none focus-scroll:false"
-			data-preserve-scroll
 		>
 			<input type="hidden" name="mode" value="managed_create"/>
 			<input type="hidden" name="project_slug" value={ string(project.Slug) }/>
@@ -110,6 +109,7 @@ templ ManagedProjectRepositoryForm(organization api.Organization, project api.Pr
 				<input class="checkbox checkbox-sm mt-0.5 shrink-0" type="checkbox" name="create_private_repository" required/>
 				<span>Create this private repository and add the Braidplane template.</span>
 			</label>
+			@OAuthCallbackTimeOption(controls.RepositoryOAuthMoreTime)
 			<div class="flex flex-wrap gap-2">
 				<button class="btn btn-primary btn-sm" type="submit">
 					if controls.RepositorySetup!=nil {
