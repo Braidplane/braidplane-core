@@ -324,3 +324,10 @@ func TestAvailableCatalogEnvironmentsByProtection(t *testing.T) {
 	require.Len(t, protected, 1)
 	require.Equal(t, api.Slug("prod"), protected[0].Slug)
 }
+
+func TestRefreshedSourceKeepsAvailableTrackedBranch(t *testing.T) {
+	t.Parallel()
+	options := []ProjectPipelineBackendBranchOption{{Name: "main", IsDefault: true}, {Name: "release"}}
+	require.Equal(t, "release", ProjectPipelineBackendSelectedTrackedBranch(api.Project{}, options, "new-source", "release"))
+	require.Equal(t, "main", ProjectPipelineBackendSelectedTrackedBranch(api.Project{}, options, "new-source", "missing"))
+}

@@ -156,6 +156,21 @@ describe("workspace connector", () => {
         expect(document.querySelector("[data-workspace-worksheet-status]").textContent).toBe("1 worksheet loaded.");
     });
 
+    it("clears the old worksheet before draft listeners record a spreadsheet change", async () => {
+        vi.stubGlobal("fetch", vi.fn().mockResolvedValue(response({}, 403)));
+        document.body.innerHTML = workspacePanel({ spreadsheetID: "old", worksheetID: "19" });
+        const target = document.querySelector('[name="workspace_spreadsheet_id"]');
+        const worksheet = document.querySelector('[name="workspace_worksheet_id"]');
+        const record = vi.fn();
+        target.addEventListener("change", () => record(target.value, worksheet.value));
+        window.BraidplaneWorkspace.init(document);
+        target.value = "new";
+        target.dispatchEvent(new Event("change", { bubbles: true }));
+        expect(record).toHaveBeenCalledExactlyOnceWith("new", "");
+        await vi.waitFor(() => expect(document.querySelector("[data-workspace-worksheet-retry]").hidden).toBe(false));
+        expect(worksheet.value).toBe("");
+    });
+
     it("LoadsFirstActualWorksheetWhenSelectingSpreadsheetFile", async () => {
         const fetchMock = vi
             .fn()
@@ -414,6 +429,22 @@ describe("selected-file authorization", () => {
         expect(options.headers["X-CSRF-Token"]).toBe("csrf-test");
         expect(JSON.stringify(fixture.fetchMock.mock.calls)).not.toContain("browser-only-token");
     });
+    it("keeps a typed folder ID while a picker selection is being verified", async () => {
+        const fixture = setup();
+        await vi.waitFor(() => expect(fixture.tokenConfig()).toBeDefined());
+        fixture.tokenConfig().callback({ scope, access_token: "browser-only-token" });
+        fixture.fetchMock.mockResolvedValueOnce(
+            response({ files: [{ file_id: "picked", mime_type: "application/vnd.google-apps.folder" }] }),
+        );
+        const verification = fixture.callback({ action: "picked", docs: [{ id: "picked" }] });
+        const folder = document.querySelector('[name="workspace_folder_id"]');
+        folder.value = "typed";
+        folder.dispatchEvent(new Event("input", { bubbles: true }));
+        await verification;
+        expect(folder.value).toBe("typed");
+        expect(document.querySelector("[data-workspace-feedback]").textContent).toContain("Kept the newer");
+    });
+
     it("retries library loading for a later panel after a failure", async () => {
         vi.stubGlobal("google", undefined);
         vi.stubGlobal("fetch", vi.fn().mockResolvedValue(response(settings)));

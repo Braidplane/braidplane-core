@@ -207,6 +207,9 @@ func ProjectPipelineBackendSelectedTrackedBranch(
 		}
 		return projectPipelineBackendTrackedBranch(project)
 	}
+	if branch := strings.TrimSpace(requestedBranch); projectPipelineBackendBranchOptionExists(branchOptions, branch) {
+		return branch
+	}
 	for _, option := range branchOptions {
 		if option.IsDefault {
 			return option.Name

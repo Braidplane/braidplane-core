@@ -65,6 +65,9 @@
             const base = `/orgs/${encodeURIComponent(panel.dataset.org)}/data-sources/${encodeURIComponent(panel.dataset.source)}/google_workspace`;
             const feedback = panel.querySelector("[data-workspace-feedback]");
             let selectionRevision = 0;
+            panel.querySelector('[name="workspace_folder_id"]')?.addEventListener("input", () => {
+                selectionRevision++;
+            });
             const choose = (file) => {
                 if (!file) return;
                 selectionRevision++;
@@ -342,7 +345,8 @@
             retry?.addEventListener("click", () => {
                 if (retry.getAttribute("aria-disabled") !== "true") void loadWorksheets();
             });
-            target.addEventListener("change", loadWorksheets);
+            // Clear the old worksheet before the Builder reads the new spreadsheet.
+            target.addEventListener("change", loadWorksheets, true);
             if (target.value) void loadWorksheets();
         });
     };

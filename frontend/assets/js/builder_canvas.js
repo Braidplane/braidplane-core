@@ -11316,7 +11316,7 @@
             }
         };
 
-        const applySavedPipelineResult = (savedPipeline) => {
+        const applySavedPipelineResult = (savedPipeline, savedState) => {
             const savedPipelineSlug = savedPipeline?.draft?.pipeline_slug || savedPipeline?.slug || "";
             if (typeof savedPipelineSlug !== "string" || savedPipelineSlug.trim() === "") {
                 return;
@@ -11336,7 +11336,7 @@
                 true,
                 versionContext,
             );
-            markActionStatePersisted();
+            persistedActionStateJSON = savedState ?? buildActionStateJSON();
             refreshValidation();
         };
 
@@ -11366,6 +11366,8 @@
                 return false;
             }
 
+            const savedState = buildActionStateJSON();
+            const savedStorageKey = storageKey;
             const response = await fetch(options.saveUrl, {
                 method: "POST",
                 headers: {
@@ -11375,8 +11377,8 @@
                 body: JSON.stringify(savePayload),
             });
 
-            if (!isCurrent()) return false;
             if (!response.ok) {
+                if (!isCurrent()) return false;
                 const payload = await readAPIJSON(response);
                 if (!isCurrent()) return false;
                 if (response.status === 409 && payload?.error) {
@@ -11414,18 +11416,21 @@
 
             const responseProblem = saveResponseProblem(response);
             if (responseProblem !== "") {
+                if (!isCurrent()) return false;
                 setStatusMessage(`Saving the merged draft failed: ${responseProblem}`, TONE_ERROR);
                 return false;
             }
 
             const savedPipeline = await readAPIJSON(response);
-            if (!isCurrent()) return false;
+            if (storageKey !== savedStorageKey) return false;
             if (!savedPipeline) {
+                if (!isCurrent()) return false;
                 setStatusMessage("Saving the merged draft failed: unexpected server response.", TONE_ERROR);
                 return false;
             }
 
-            applySavedPipelineResult(savedPipeline);
+            applySavedPipelineResult(savedPipeline, savedState);
+            if (!isCurrent()) return false;
             setStatusMessage(
                 flow === "publish"
                     ? "Conflict resolved and merged draft saved. Publish again when ready."
