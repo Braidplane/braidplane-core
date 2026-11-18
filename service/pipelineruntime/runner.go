@@ -1189,6 +1189,15 @@ func (r *Runner) Replay(
 	if timeline.SinkReplayIdentity != "" {
 		effectIdentity = timeline.SinkReplayIdentity
 	}
+	windows := cloneIncrementalSourceWindows(checkpoint.IncrementalSourceWindows)
+	// These events and their cursor commits were persisted in the original terminal transaction.
+	for _, event := range timeline.Events {
+		window, ok := windows[event.Step]
+		if ok && event.Type == "checkpoint_committed" && (event.Status == "committed" || event.Status == "unchanged") {
+			window.RecoveryPredecessor = nil
+			windows[event.Step] = window
+		}
+	}
 	replayFromStep := checkpoint.StepSlug.String()
 	replayPipeline := checkpoint.Pipeline
 	if len(checkpoint.CompiledPlan) > 0 {
@@ -1202,7 +1211,7 @@ func (r *Runner) Replay(
 		PipelineVersionID: req.PipelineVersionID, ReplayOfRunSlug: &effectIdentity,
 		ReplayFromStep: &replayFromStep, executionContext: timeline.ExecutionContext, pinnedResults: cloneStepResults(checkpoint.Results),
 		Incremental: pipelinerun.IncrementalRunOptions{
-			SourceWindows: cloneIncrementalSourceWindows(checkpoint.IncrementalSourceWindows),
+			SourceWindows: windows,
 			// Only explicitly retained record-update windows may release their checkpoint.
 			SkipCheckpointCommit: true,
 		},
@@ -4123,8 +4132,13 @@ func checkpointWindowSummary(
 			display = input.Window.DisplayMetadata
 		}
 	}
-	if len(upper) == 0 && observation != nil {
-		upper = observation.ObservedUpperBound
+	if observation != nil {
+		if len(lower) == 0 {
+			lower = observation.ObservedLowerBound
+		}
+		if len(upper) == 0 {
+			upper = observation.ObservedUpperBound
+		}
 	}
 	checkpointKind := checkpointKindForSummary(input, observation)
 	lowerSummary := CheckpointValueSummary(checkpointKind, lower)

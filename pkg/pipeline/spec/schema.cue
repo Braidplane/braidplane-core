@@ -399,10 +399,16 @@ import (
 	}
 }
 
+#RecordField: string & =~"^[A-Za-z_][A-Za-z0-9_.-]{0,127}$"
 #RecordUpdates: {
 	identity_field: string & != ""
-	fields: ({[string]: string & =~"^[a-z][a-z0-9_]*$" & != "hs_object_id"}) & struct.MinFields(1) & struct.MaxFields(100)
+	fields: ({[string]: #RecordField}) & struct.MinFields(1) & struct.MaxFields(100)
 	max_records: int & >=1 & <=100
+	readback: {
+		identity_field: #RecordField
+		fields_object?: #RecordField & != identity_field
+		select_parameter?: #RecordField
+	}
 }
 
 #SinkStep: {
@@ -429,9 +435,9 @@ import (
 			input_contract?: {representation: "rows"}
 			operation_inline: close({
 				type?: "http"
-				method: "PATCH"
-				path:   "/crm/v3/objects/companies/{{record_id}}"
-				body:   close({properties: "{{input}}"})
+				method: "PATCH" | "PUT"
+				path:   string & !~"(^|/)\\.{1,2}/" & =~"^(/|/?[A-Za-z0-9._~-]+/)([A-Za-z0-9._~-]+/)*\\{\\{record_id\\}\\}$"
+				body:   "{{input}}" | (({[#RecordField]: "{{input}}"}) & struct.MinFields(1) & struct.MaxFields(1))
 			})
 		}
 		empty_input_policy?: "skip" | "reject"

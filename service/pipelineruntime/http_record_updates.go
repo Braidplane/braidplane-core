@@ -23,7 +23,7 @@ type httpRecordUpdate struct {
 	properties map[string]string
 }
 
-func prepareHTTPRecordUpdates(ctx context.Context, rows []map[string]any, cfg *pipelinespec.RecordUpdates) ([]httpRecordUpdate, error) {
+func prepareHTTPRecordUpdates(ctx context.Context, rows []map[string]any, cfg *pipelinespec.RecordUpdates, wrapperBytes int) ([]httpRecordUpdate, error) {
 	if len(rows) > cfg.MaxRecords {
 		return nil, errSinkConfigurationInvalid.Detail("record update count exceeds max_records")
 	}
@@ -56,7 +56,7 @@ func prepareHTTPRecordUpdates(ctx context.Context, rows []map[string]any, cfg *p
 		if err != nil {
 			return nil, errSinkConfigurationInvalid.Detail("invalid record update properties")
 		}
-		remaining -= len(encoded) + len(id) + len(`{"properties":}`)
+		remaining -= len(encoded) + len(id) + wrapperBytes
 		if remaining < 0 {
 			return nil, errSinkConfigurationInvalid.Detail("record update batch exceeds byte limit")
 		}
@@ -82,19 +82,25 @@ func (s *sinkRuntime) executeHTTPRecordUpdates(ctx context.Context, input *SinkR
 	if !ok || payload == nil || payload.Representation != model.ContractRepresentationRows {
 		return errSinkConfigurationInvalid.Detail("record updates require rows")
 	}
-	updates, err := prepareHTTPRecordUpdates(ctx, payload.Rows, cfg)
+	// The validated body contains exactly one input token, optionally wrapped in an object.
+	template, err := json.Marshal(input.SinkOperationInline["body"])
+	if err != nil {
+		return errSinkConfigurationInvalid.Detail("invalid HTTP record update body")
+	}
+	updates, err := prepareHTTPRecordUpdates(ctx, payload.Rows, cfg, len(template)-len(`"{{input}}"`))
 	if err != nil {
 		return err
 	}
 	for _, update := range updates {
+		input.DeliveryOutcome = "unknown"
 		if err := ctx.Err(); err != nil {
 			return xerror.Unexpected().With(err)
 		}
 		err := s.executeRecordEffect(ctx, input, update.id, func(ctx context.Context) error {
-			_, err := s.dispatchRecordUpdate(ctx, input, update, false)
+			_, err := s.dispatchRecordUpdate(ctx, input, update, false, cfg.Readback)
 			return err
 		}, func(ctx context.Context) (bool, error) {
-			return s.dispatchRecordUpdate(ctx, input, update, true)
+			return s.dispatchRecordUpdate(ctx, input, update, true, cfg.Readback)
 		})
 		if err != nil {
 			return err
@@ -107,20 +113,20 @@ func (s *sinkRuntime) executeHTTPRecordUpdates(ctx context.Context, input *SinkR
 	return nil
 }
 
-func (s *sinkRuntime) dispatchRecordUpdate(ctx context.Context, input *SinkRuntimeInput, update httpRecordUpdate, reconcile bool) (bool, error) {
+func (s *sinkRuntime) dispatchRecordUpdate(ctx context.Context, input *SinkRuntimeInput, update httpRecordUpdate, reconcile bool, readback sinkbinding.RecordReadback) (bool, error) {
 	executor, ok := s.queryExecutor.(interface {
 		ExecuteInline(context.Context, slug.Slug, slug.Slug, map[string]any, map[string]any) (*result.ExecutionResult, error)
 	})
 	if !ok {
 		return false, errSinkNotConfigured.Detail("HTTP inline sink executor is required")
 	}
-	ctx = sinkbinding.WithHTTPRecordUpdate(ctx, update.id, update.properties, reconcile)
+	ctx = sinkbinding.WithHTTPRecordUpdate(ctx, update.id, update.properties, reconcile, readback)
 	output, err := executor.ExecuteInline(ctx, input.OrgSlug, input.SinkDataSourceSlug, input.SinkOperationInline, nil)
 	if err != nil || output == nil || output.Error() != nil {
 		if ctx.Err() != nil {
 			return false, xerror.Unexpected().With(ctx.Err())
 		}
-		return false, xerror.HTTPAcknowledgementUncertain().WithPublicDetail("The destination company update could not be confirmed.")
+		return false, xerror.HTTPAcknowledgementUncertain().WithPublicDetail("The destination record update could not be confirmed.")
 	}
 	response, ok := output.HTTP()
 	if ok && response != nil {

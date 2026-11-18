@@ -1752,7 +1752,7 @@ func (b *Broker) executeConnector(
 		ctx = sinkbinding.WithSinkExecution(ctx)
 	}
 	if update := payload.HTTPRecordUpdate; update != nil {
-		ctx = sinkbinding.WithHTTPRecordUpdate(ctx, update.RecordID, update.Properties, update.Reconcile)
+		ctx = sinkbinding.WithHTTPRecordUpdate(ctx, update.RecordID, update.Properties, update.Reconcile, update.Readback)
 	}
 	if payload.Limits.MaxFileBytes > 0 {
 		expires := time.Now().Add(requestRetention)

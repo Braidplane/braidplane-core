@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"sync"
 	"testing"
 
 	"github.com/Braidplane/braidplane-core/pkg/contractplan"
@@ -23,9 +24,12 @@ func testHTTPRecordUpdateCredentials(t *testing.T, stack *testStack) {
 	actor := model.UserEventActor(user)
 	for _, auth := range []string{"static", "oauth"} {
 		t.Run(auth, func(t *testing.T) {
+			var mu sync.Mutex
 			var companyName string
 			tokenCalls := 0
 			server := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				mu.Lock()
+				defer mu.Unlock()
 				w.Header().Set("Content-Type", "application/json")
 				switch r.URL.Path {
 				case "/token":
@@ -81,7 +85,7 @@ func testHTTPRecordUpdateCredentials(t *testing.T, stack *testStack) {
 				reconcile bool
 				status    int
 			}{{true, 409}, {false, 200}, {true, 200}} {
-				ctx := sinkbinding.WithHTTPRecordUpdate(sinkbinding.WithSinkExecution(t.Context()), "8713", map[string]string{"name": "Synthetic company"}, step.reconcile)
+				ctx := sinkbinding.WithHTTPRecordUpdate(sinkbinding.WithSinkExecution(t.Context()), "8713", map[string]string{"name": "Synthetic company"}, step.reconcile, sinkbinding.RecordReadback{IdentityField: "id", FieldsObject: "properties", SelectParameter: "properties"})
 				result, _, err := stack.queriesSvc.ExecuteSnapshot(ctx, org, ds, contractplan.OperationContent{Data: data}, nil, nil)
 				require.NoError(t, err)
 				reply, ok := result.HTTP()
@@ -90,6 +94,8 @@ func testHTTPRecordUpdateCredentials(t *testing.T, stack *testStack) {
 				require.Empty(t, reply.Body)
 				require.Empty(t, reply.Headers)
 			}
+			mu.Lock()
+			defer mu.Unlock()
 			require.Equal(t, "Synthetic company", companyName)
 			if auth == "oauth" {
 				require.Equal(t, 1, tokenCalls, "all operations should reuse the established grant")

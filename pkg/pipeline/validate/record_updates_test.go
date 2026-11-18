@@ -1,6 +1,7 @@
 package validate
 
 import (
+	"encoding/json"
 	"os"
 	"testing"
 
@@ -15,6 +16,18 @@ func TestRecordUpdatesDefinition(t *testing.T) {
 	require.NoError(t, err)
 	_, err = Load(path, source)
 	require.NoError(t, err)
+	p, err := spec.Load(path, source)
+	require.NoError(t, err)
+	sink := p.Steps[1].Sink
+	sink.OperationInline = map[string]any{"method": "PUT", "path": "/v2/inventory/{{record_id}}", "body": "{{input}}"}
+	cfg := sink.Config["record_updates"].(map[string]any)
+	cfg["readback"] = map[string]any{"identity_field": "recordID"}
+	cfg["fields"] = map[string]string{"company_name": "Display-Name"}
+	data, err := json.Marshal(p)
+	require.NoError(t, err)
+	_, err = Load("inventory.pipeline.json", data)
+	require.NoError(t, err)
+
 	for _, tc := range []struct {
 		name string
 		edit func(*spec.SinkSpec)
@@ -24,13 +37,22 @@ func TestRecordUpdatesDefinition(t *testing.T) {
 		{"duplicate mapping", func(s *spec.SinkSpec) {
 			s.Config["record_updates"].(map[string]any)["fields"] = map[string]string{"first": "name", "second": "name"}
 		}},
-		{"read-only ID", func(s *spec.SinkSpec) {
-			s.Config["record_updates"].(map[string]any)["fields"] = map[string]string{"company": "hs_object_id"}
+		{"mapped response ID", func(s *spec.SinkSpec) {
+			config := s.Config["record_updates"].(map[string]any)
+			config["readback"] = map[string]any{"identity_field": "id"}
+			config["fields"] = map[string]string{"company": "id"}
+		}},
+		{"missing readback", func(s *spec.SinkSpec) { delete(s.Config["record_updates"].(map[string]any), "readback") }},
+		{"missing response ID", func(s *spec.SinkSpec) {
+			s.Config["record_updates"].(map[string]any)["readback"] = map[string]any{"fields_object": "fields"}
+		}},
+		{"extra readback option", func(s *spec.SinkSpec) {
+			s.Config["record_updates"].(map[string]any)["readback"] = map[string]any{"identity_field": "id", "url": "/elsewhere"}
 		}},
 		{"unexpected field", func(s *spec.SinkSpec) { s.Config["record_updates"].(map[string]any)["page"] = 1 }},
 		{"saved operation", func(s *spec.SinkSpec) { s.OperationInline = nil; s.OperationRef = "old-saved-operation" }},
 		{"unexpected path", func(s *spec.SinkSpec) { s.OperationInline["path"] = "/other" }},
-		{"unmapped body", func(s *spec.SinkSpec) { s.OperationInline["body"] = "{{input}}" }},
+		{"unmapped body", func(s *spec.SinkSpec) { s.OperationInline["body"] = "literal" }},
 		{"extra HTTP settings", func(s *spec.SinkSpec) { s.OperationInline["write_retry"] = true }},
 		{"unsafe replay", func(s *spec.SinkSpec) { s.IdempotencyClass = spec.SinkIdempotencyClassUnsafe }},
 	} {

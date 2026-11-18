@@ -2295,7 +2295,7 @@ func TestWorkerPreservesSinkRetryAuthority(t *testing.T) {
 			broker := &Broker{admission: testutil.FakeOperationAdmission{}, runtimePool: pool, txm: fakeTXM{}, repo: &fakeRequestRepo{}}
 			request := queriessvc.ConnectorExecutionRequest{SinkExecution: sink, OrganizationSlug: "acme", DataSourceSlug: "http-api", DataSourceType: model.DataSourceTypeHTTP, CredentialReference: "secret/2026-10-18T10:00:00Z", ConfigVersion: "v1", CredentialVersion: "v1"}
 			if sink {
-				request.HTTPRecordUpdate = &sinkbinding.HTTPRecordUpdate{RecordID: "23", Properties: map[string]string{"name": "fixture"}, Reconcile: true}
+				request.HTTPRecordUpdate = &sinkbinding.HTTPRecordUpdate{RecordID: "23", Properties: map[string]string{"name": "fixture"}, Reconcile: true, Readback: sinkbinding.RecordReadback{IdentityField: "key"}}
 			}
 			encoded, err := marshalRequestPlaintext(kindQuery, request)
 			require.NoError(t, err)

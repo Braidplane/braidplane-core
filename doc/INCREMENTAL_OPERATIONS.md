@@ -54,7 +54,7 @@ diagnostics. Exact request windows are persisted with the queued execution job;
 request input values and raw cursor tokens stay out of audit metadata and user
 visible summaries. A required `backfill_requested` security-audit event is atomic
 with run acceptance. Backfill execution and recovery of a backfill leave normal committed checkpoints
-unchanged. A normal incremental source feeding a bounded HTTP record update
+unchanged. A normal incremental source feeding [bounded per-record HTTP updates](../docs-public/getting-started/pipeline-specifications.md#update-http-records-from-rows)
 can commit its retained window after recovery confirms all dependent sinks.
 The original predecessor checkpoint must still be current. Other retained-payload
 recoveries skip checkpoint promotion. Automatic chunk scheduling, checkpoint reset, and

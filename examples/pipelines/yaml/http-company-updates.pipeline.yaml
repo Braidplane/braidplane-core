@@ -35,4 +35,8 @@ steps:
           identity_field: hubspot_company_id
           fields:
             company_name: name
+          readback:
+            identity_field: id
+            fields_object: properties
+            select_parameter: properties
           max_records: 25

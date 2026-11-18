@@ -241,8 +241,8 @@ live execution claim. Public run/checkpoint JSON exposes file metadata only;
 missing or expired file inputs are refused without rereading the source.
 Event payloads and runs with resolved environment secrets are excluded from this
 early retention. Missing inputs, unknown ledger-only attempts and unsafe effects
-remain refused. Deterministic S3 output can be confirmed through readback as
-described below.
+remain refused unless supported readback confirms the effect. Readback is available
+for deterministic S3 output and [bounded HTTP record updates](#update-http-records-from-rows).
 Worker-loss detection and fencing are automatic. With the default one-minute job
 timeout and two-minute rescue threshold, the target is three minutes after worker
 loss when PostgreSQL and worker capacity are available. Rescue uses attempt age;
@@ -475,40 +475,73 @@ example, the S3 walkthrough uses `naturally_idempotent` because it overwrites a
 deterministic object key. If a sink cannot be replayed safely, recover it
 manually and verify the destination before starting another write.
 
-## Update HubSpot companies from rows
+## Update HTTP records from rows
 
-An HTTP sink normally sends the upstream payload in one request. To update existing
-HubSpot companies individually, set `sink.config.record_updates` and use the inline
-company PATCH operation shown in the [example pipeline](https://github.com/Braidplane/braidplane-core/blob/main/examples/pipelines/yaml/http-company-updates.pipeline.yaml).
-Configure the writable HTTP data source with the HubSpot API base URL and either a
-static bearer token or an existing OAuth grant with company read and write access.
+An HTTP sink normally sends its upstream payload in one request. Set
+`sink.config.record_updates` to send one update per row to an existing record.
+Use an inline `PATCH` or `PUT` operation with a fixed path ending in
+`/{{record_id}}`. The source column named by `identity_field` supplies the
+destination's stable record ID as a string. The sink checks every ID before
+the first write, rejects duplicates, and encodes each ID as one path segment.
+IDs must be nonblank, at most 256 bytes, and free of surrounding whitespace.
+The path segments `.` and `..` are invalid.
 
-The `identity_field` supplies each company's HubSpot record ID as a string. The
-sink checks all IDs before the first write and encodes each ID as one path segment.
-Each row must have a distinct, nonblank ID of at most 256 bytes. Leading and
-trailing whitespace and the path segments `.` and `..` are invalid.
-Map source column names to the internal names of properties this pipeline owns
-in `fields`. Supply strings for all mapped values. Other properties keep their
-destination values. Choose properties for which the source is authoritative
-and use the same stable source window when recovering a failed delivery.
-[HubSpot company update API](https://developers.hubspot.com/docs/api-reference/legacy/crm/objects/companies/update-company).
+For example, this sink updates the display name of each inventory item:
 
-Set `max_records` between 1 and 100. The sink accepts up to 100 property
-mappings, caps the projected batch at 1 MiB and has a 60-second deadline.
-The example reads up to 25 changed companies per source window and sets only
-the company name. The source query must enforce the window size. An oversized
-batch fails before dispatch.
+```yaml
+sink:
+  input: changed-items
+  data_source_ref: inventory-api
+  operation_type: http
+  idempotency_class: deduplicated_by_ledger
+  operation_inline:
+    type: http
+    method: PATCH
+    path: "/inventory/items/{{record_id}}"
+    body: "{{input}}"
+  config:
+    record_updates:
+      identity_field: item_id
+      fields: {label: displayName}
+      max_records: 25
+      readback: {identity_field: recordID}
+```
+
+Each entry in `fields` maps a source column to a case-sensitive destination
+field. Supply string values for every mapped field. Bind `"{{input}}"` as the
+JSON body or place it under one field, such as `{"attributes": "{{input}}"}`.
+Use PATCH for partial updates. Use PUT only when the mapped fields form the
+complete representation the API requires for replacement. Assign each mapped
+field to one authoritative writer.
+
+A write response with HTTP 200 or 201 confirms delivery when its JSON matches
+the requested state. A 204 response triggers one immediate GET of the same
+record. GET must return HTTP 200 with matching JSON. A 202 response leaves
+delivery uncertain. A fresh delivery makes at most two requests per row.
+Missing, null or non-string fields cannot confirm a string value, including
+an empty string. Set `readback.identity_field` to the top-level field
+containing the record's string ID. Mapped fields are read from the top level
+unless `readback.fields_object` names a nested object containing them. If the
+API requires field selection on GET, set `readback.select_parameter` to the
+query parameter that accepts comma-separated destination field names. The example above
+expects a response like `{"recordID": "r1", "displayName": "Alba"}`.
+
+Set `max_records` between 1 and 100. The sink accepts up to 100 field mappings,
+caps the projected batch at 1 MiB and has a 60-second deadline. Bound the
+source window to fit. An oversized batch fails before dispatch.
+
+Use `idempotency_class: deduplicated_by_ledger`. Recovery skips confirmed
+records and reads the destination for an uncertain write. A matching ID and
+mapped values confirm delivery. A mismatch leaves the effect unresolved for
+operator investigation. A later run has a new delivery identity and can update
+the same record. An incremental source commits its checkpoint after all required
+writes are confirmed.
 
 Before the first write, the runner must retain every source and transform output
 needed for recovery. The complete repair checkpoint, including the pipeline and
 intermediate outputs, must fit within 10 MiB. Event-input runs and pipelines
 that resolve environment secrets cannot retain these repair inputs. Configure
 provider credentials on the data source.
-
-Use `idempotency_class: deduplicated_by_ledger`. Recovery skips confirmed
-records and reads the mapped properties of a company whose write outcome is
-uncertain. A later delivery can still update the same company. An incremental
-source commits its checkpoint only after confirmation of every required update.
 
 ## Incremental query sources
 

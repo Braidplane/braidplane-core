@@ -102,6 +102,19 @@ is from input field to HubSpot property.
 }
 ```
 
+## Update existing companies through an HTTP data source
+
+Use the generic HTTP data source for a pipeline that updates existing companies one
+record at a time. The example maps `company_name` to the HubSpot `name` property and uses each
+company's HubSpot record ID in the URL. Both the PATCH body and the GET response
+wrap company fields in `properties`. Readback checks the top-level `id` and
+requests the mapped fields with `?properties=name`. Configure the writable HTTP
+data source with the HubSpot API base URL and a static bearer token or an
+existing OAuth grant with `crm.objects.companies.read` and
+`crm.objects.companies.write` scopes.
+[Example pipeline](https://github.com/Braidplane/braidplane-core/blob/main/examples/pipelines/yaml/http-company-updates.pipeline.yaml)
+and [HubSpot company update API](https://developers.hubspot.com/docs/api-reference/legacy/crm/objects/companies/update-company).
+
 ## Operation reference
 
 | Field | Meaning |

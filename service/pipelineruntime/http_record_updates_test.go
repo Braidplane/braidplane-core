@@ -11,6 +11,7 @@ import (
 
 	"github.com/Braidplane/braidplane-core/pkg/connector/result"
 	"github.com/Braidplane/braidplane-core/pkg/connector/transportsecurity"
+	"github.com/Braidplane/braidplane-core/pkg/domain/model"
 	pipelinerun "github.com/Braidplane/braidplane-core/pkg/pipeline/run"
 	pipelinespec "github.com/Braidplane/braidplane-core/pkg/pipeline/spec"
 	"github.com/Braidplane/braidplane-core/pkg/slug"
@@ -28,20 +29,20 @@ func TestHTTPRecordUpdatePreflight(t *testing.T) {
 		{"id": "..", "source": "value"},
 		{"id": "second", "source": strings.Repeat("x", maxRecordUpdateBytes)},
 	} {
-		rows, err := prepareHTTPRecordUpdates(t.Context(), []map[string]any{first, second}, cfg)
+		rows, err := prepareHTTPRecordUpdates(t.Context(), []map[string]any{first, second}, cfg, 0)
 		require.Error(t, err)
 		require.Nil(t, rows)
 	}
-	_, err := prepareHTTPRecordUpdates(t.Context(), []map[string]any{first, first, first}, cfg)
+	_, err := prepareHTTPRecordUpdates(t.Context(), []map[string]any{first, first, first}, cfg, 0)
 	require.ErrorContains(t, err, "max_records")
 	ctx, cancel := context.WithCancel(t.Context())
 	cancel()
-	_, err = prepareHTTPRecordUpdates(ctx, []map[string]any{first}, cfg)
+	_, err = prepareHTTPRecordUpdates(ctx, []map[string]any{first}, cfg, 0)
 	require.ErrorIs(t, err, context.Canceled)
 }
 
 func TestHTTPRecordUpdatesRecoverSecondAcknowledgement(t *testing.T) {
-	const prefix = "/crm/v3/objects/companies/"
+	const prefix = "/v2/accounts/"
 	state := map[string]string{}
 	var requests []string
 	var mu sync.Mutex
@@ -50,15 +51,13 @@ func TestHTTPRecordUpdatesRecoverSecondAcknowledgement(t *testing.T) {
 		defer mu.Unlock()
 		id := strings.TrimPrefix(r.URL.Path, prefix)
 		requests = append(requests, r.Method+" "+r.URL.EscapedPath())
-		if r.Method == http.MethodPatch {
-			var body struct {
-				Properties map[string]string `json:"properties"`
-			}
-			if err := json.NewDecoder(r.Body).Decode(&body); err != nil || len(body.Properties) != 1 {
+		if r.Method == http.MethodPut {
+			var body map[string]string
+			if err := json.NewDecoder(r.Body).Decode(&body); err != nil || len(body) != 1 {
 				http.Error(w, "unexpected body", 400)
 				return
 			}
-			state[id] = body.Properties["name"]
+			state[id] = body["name"]
 			if len(requests) == 2 {
 				panic(http.ErrAbortHandler)
 			}
@@ -68,7 +67,7 @@ func TestHTTPRecordUpdatesRecoverSecondAcknowledgement(t *testing.T) {
 		if r.Method == http.MethodGet && len(requests) == 3 {
 			name = "different"
 		}
-		_ = json.NewEncoder(w).Encode(map[string]any{"id": id, "properties": map[string]string{"name": name}})
+		_ = json.NewEncoder(w).Encode(map[string]string{"recordKey": id, "name": name})
 	}))
 	defer server.Close()
 	c, err := httpconnector.New(transportsecurity.WithPlaintext(t.Context()), httpconnector.Config{BaseURL: server.URL, AllowPrivateHosts: true}, httpconnector.Credentials{})
@@ -97,8 +96,8 @@ func TestHTTPRecordUpdatesRecoverSecondAcknowledgement(t *testing.T) {
 	pipeline := incrementalCheckpointPipeline()
 	sink := pipeline.Steps[1].Sink
 	sink.OperationType, sink.OperationRef = "http", ""
-	sink.OperationInline = map[string]any{"type": "http", "method": "PATCH", "path": prefix + "{{record_id}}", "body": map[string]any{"properties": "{{input}}"}}
-	sink.Config = map[string]any{"record_updates": map[string]any{"identity_field": "cursor", "fields": map[string]any{"label": "name"}, "max_records": 2}}
+	sink.OperationInline = map[string]any{"type": "http", "method": "PUT", "path": prefix + "{{record_id}}", "body": "{{input}}"}
+	sink.Config = map[string]any{"record_updates": map[string]any{"identity_field": "cursor", "readback": map[string]any{"identity_field": "recordKey"}, "fields": map[string]any{"label": "name"}, "max_records": 2}}
 	request := RunRequest{OrgSlug: "acme", ProjectSlug: "default", EnvironmentSlug: "prod", RunSlug: "original", PipelineVersionID: 42, Pipeline: pipeline}
 	original, err := runner.Run(t.Context(), request)
 	require.Error(t, err)
@@ -119,9 +118,9 @@ func TestHTTPRecordUpdatesRecoverSecondAcknowledgement(t *testing.T) {
 	mu.Lock()
 	defer mu.Unlock()
 	require.Equal(t, []string{
-		"PATCH " + prefix + "company%2Fa", "PATCH " + prefix + "company-b",
+		"PUT " + prefix + "company%2Fa", "PUT " + prefix + "company-b",
 		"GET " + prefix + "company-b", "GET " + prefix + "company-b",
-		"PATCH " + prefix + "company%2Fa", "PATCH " + prefix + "company-b",
+		"PUT " + prefix + "company%2Fa", "PUT " + prefix + "company-b",
 	}, requests)
 	require.Equal(t, map[string]string{"company/a": "synthetic-later-value", "company-b": "second"}, state)
 	evidence, err := json.Marshal([]any{ledger.attempts, store.timelines})
@@ -129,4 +128,35 @@ func TestHTTPRecordUpdatesRecoverSecondAcknowledgement(t *testing.T) {
 	for _, private := range []string{"company/a", "company-b", "synthetic-first-value", "synthetic-later-value"} {
 		require.NotContains(t, string(evidence), private)
 	}
+}
+
+type cancelAfterConfirmedRecord struct {
+	recoveryLedger
+	cancel context.CancelFunc
+}
+
+func (l *cancelAfterConfirmedRecord) MarkSucceeded(ctx context.Context, org, project, environment slug.Slug, attempt pipelinerun.SinkEffectAttempt) error {
+	err := l.recoveryLedger.MarkSucceeded(ctx, org, project, environment, attempt)
+	l.cancel()
+	return err
+}
+
+func TestRecordUpdatesCanceledAfterFirstConfirmation(t *testing.T) {
+	ctx, cancel := context.WithCancel(t.Context())
+	defer cancel()
+	ledger := &cancelAfterConfirmedRecord{recoveryLedger: recoveryLedger{effects: map[string]pipelinerun.SinkEffectState{}}, cancel: cancel}
+	writes := 0
+	executor := &inlineSinkExecutor{inline: func(context.Context, slug.Slug, slug.Slug, map[string]any, map[string]any) (*result.ExecutionResult, error) {
+		writes++
+		return result.NewHTTPResult(&result.HTTPResult{StatusCode: http.StatusOK}, 0, nil), nil
+	}}
+	input := sinkEffectTestInput(pipelinespec.SinkIdempotencyClassDeduplicatedByLedger)
+	input.SinkBackend, input.SinkOperationType, input.SinkOperationRef = model.SinkBackendHTTP, "http", ""
+	input.SinkOperationInline = map[string]any{"method": "PATCH", "path": "/items/{{record_id}}", "body": "{{input}}"}
+	input.SinkConfig = map[string]any{"record_updates": map[string]any{"identity_field": "cursor", "readback": map[string]any{"identity_field": "key"}, "fields": map[string]any{"updated_at": "lastSync"}, "max_records": 2}}
+	input.SourceResult = pipelinerun.NewStepResult(successfulSQLResult(2))
+	err := NewSinkRuntime(executor, ledger).Execute(ctx, input)
+	require.ErrorIs(t, err, context.Canceled)
+	require.Equal(t, 1, writes)
+	require.Equal(t, "unknown", input.DeliveryOutcome)
 }

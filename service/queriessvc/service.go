@@ -446,7 +446,7 @@ func (e localConnectorExecutor) ExecuteConnector(
 		ctx = sinkbinding.WithSinkExecution(ctx)
 	}
 	if update := request.HTTPRecordUpdate; update != nil {
-		ctx = sinkbinding.WithHTTPRecordUpdate(ctx, update.RecordID, update.Properties, update.Reconcile)
+		ctx = sinkbinding.WithHTTPRecordUpdate(ctx, update.RecordID, update.Properties, update.Reconcile, update.Readback)
 	}
 	return connector.Execute(ctx, conn, request.StatementJSON, request.Parameters, request.ResourceScope, request.Limits)
 }

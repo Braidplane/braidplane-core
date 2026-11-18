@@ -473,7 +473,7 @@ func validateSinkOperationContract(sink *pipelinespec.SinkSpec) error {
 		}
 		if sink.OperationType != pipelinespec.OperationTypeHTTP || !sinkbinding.ValidRecordUpdateOperation(sink.OperationInline) ||
 			sink.IdempotencyClass != pipelinespec.SinkIdempotencyClassDeduplicatedByLedger {
-			return xerror.InvalidInput(xerror.Pipeline).Detail("record_updates requires the inline HubSpot company PATCH operation and deduplicated_by_ledger")
+			return xerror.InvalidInput(xerror.Pipeline).Detail("record_updates requires an inline HTTP record PUT or PATCH operation and deduplicated_by_ledger")
 		}
 		if sink.InputContract != nil && sink.InputContract.Representation != model.ContractRepresentationRows {
 			return xerror.InvalidInput(xerror.Pipeline).Detail("record_updates requires rows input")
