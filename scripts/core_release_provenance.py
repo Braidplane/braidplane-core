@@ -32,6 +32,9 @@ def predicate(release, env, event):
             event["repository"]["full_name"] != repository or event["repository"]["visibility"] != "public"):
         raise ValueError("release requires the reviewed public main workflow and source revision")
     url = f"https://github.com/{repository}/{workflow}"
+    release_parameters = {"version": release["version"], "platform": release["platform"]}
+    if source != sha:
+        release_parameters["source_sha"] = source
     return {
         "buildDefinition": {
             "buildType": "https://actions.github.io/buildtypes/workflow/v1",
@@ -39,9 +42,9 @@ def predicate(release, env, event):
                                                 "path": workflow, "ref": "refs/heads/main"}},
             "internalParameters": {"github": {"event_name": "workflow_dispatch", "repository_id": repository_id,
                                               "repository_owner_id": owner_id, "runner_environment": "github-hosted"},
-                                   "release": {"version": release["version"], "platform": release["platform"]}},
+                                   "release": release_parameters},
             "resolvedDependencies": [{"uri": f"git+https://github.com/{repository}@refs/heads/main",
-                                      "digest": {"gitCommit": source}}],
+                                      "digest": {"gitCommit": sha}}],
         },
         "runDetails": {"builder": {"id": url + "@refs/heads/main"},
                        "metadata": {"invocationId": f"https://github.com/{repository}/actions/runs/{run_id}/attempts/{attempt}"}},
