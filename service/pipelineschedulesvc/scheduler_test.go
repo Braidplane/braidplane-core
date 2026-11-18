@@ -79,6 +79,7 @@ func TestDispatchDueSchedulesIsolatesInvalidSchedule(t *testing.T) {
 		pending: []pipelinetriggers.PendingRunFinalization{{ReceiverID: "receiver", DeliveryID: "delivery", AttemptNumber: 1}},
 		triggers: []DueScheduleTrigger{
 			newDueScheduleTrigger("acme-a", "prod", "invalid", "sync", true, "invalid", "UTC", nil),
+			newDueScheduleTrigger("acme-a", "prod", "no-calendar-match", "sync", true, "0 0 31 4 *", "UTC", nil),
 			newDueScheduleTrigger("acme-b", "prod", "leap-day", "sync", true, "0 12 29 2 *", "UTC", nil),
 		},
 		claimResults: []ScheduleFireClaimResult{{Claimed: true, FireSlug: must.Slug("leap-fire")}},
@@ -88,7 +89,7 @@ func TestDispatchDueSchedulesIsolatesInvalidSchedule(t *testing.T) {
 
 	result, err := svc.DispatchDueSchedules(context.Background(), now)
 	require.NoError(t, err)
-	require.Equal(t, DispatchResult{Scanned: 2, SkippedInvalid: 1, Claimed: 1, Enqueued: 1}, result)
+	require.Equal(t, DispatchResult{Scanned: 3, SkippedInvalid: 2, Claimed: 1, Enqueued: 1}, result)
 	require.Len(t, producer.calls, 1)
 	require.Equal(t, must.Slug("acme-b"), producer.calls[0].args.OrganizationSlug)
 	require.Equal(t, now, producer.calls[0].args.ScheduledFireAt)
