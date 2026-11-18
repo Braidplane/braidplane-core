@@ -1154,7 +1154,8 @@ func pipelineValidationResultFromExecutionError(
 	err error,
 	pipeline *pipelinespec.Pipeline,
 ) (*PipelineValidationResult, bool) {
-	if !isExecutionValidationFailure(err) {
+	var unpersisted *pipelineruntime.UnpersistedPrevalidationError
+	if xerror.As(err, &unpersisted) || !isExecutionValidationFailure(err) {
 		return nil, false
 	}
 	return &PipelineValidationResult{
@@ -3195,7 +3196,7 @@ func (s *service) completeQueuedRunFailure(
 	args jobs.PipelineRunExecutionArgs,
 	startedAt time.Time,
 	runErr error,
-) error {
+) (completionErr error) {
 	endedAt := s.executionClock.Now().UTC()
 	errorSummary := ErrPipelineExecutionFailed.Message()
 	var typed *xerror.Error
@@ -3211,6 +3212,11 @@ func (s *service) completeQueuedRunFailure(
 	timeline := failedQueuedPipelineRunTimeline(args, startedAt, endedAt, errorSummary)
 	var prevalidation *pipelineruntime.UnpersistedPrevalidationError
 	if xerror.As(runErr, &prevalidation) {
+		defer func() {
+			if completionErr != nil {
+				completionErr = xerror.Join(completionErr, runErr)
+			}
+		}()
 		failure := prevalidation.Failure
 		timeline.Failure = &failure
 	}

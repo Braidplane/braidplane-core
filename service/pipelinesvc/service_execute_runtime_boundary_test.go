@@ -2232,8 +2232,13 @@ func TestQueuedRunCompletesUnpersistedPrevalidationFailure(t *testing.T) {
 	}
 	svc := &service{executionClock: fixedClock{at: now}, txm: &recordingPipelineGitTxManager{}, runRepo: repo, eventProducer: eventtest.NewProducer(&fakePipelineEventRecorder{})}
 	diagnosis := pipelinerun.FailureContext{Step: "fetch", Side: "source", Kind: "platform", ReasonCode: pipelinerun.FailureReasonCodeSourceResultShapeMismatch, Error: "Source schema pre-execution validation failed."}
-	err := ErrPipelineExecutionFailed.With(&pipelineruntime.UnpersistedPrevalidationError{Failure: diagnosis, Err: xerror.Unexpected()})
-	require.ErrorIs(t, svc.completeQueuedRunFailure(t.Context(), args, now, err), writeErr)
+	err := ErrPipelineExecutionFailed.With(&pipelineruntime.UnpersistedPrevalidationError{Failure: diagnosis, Err: xerror.Join(xerror.Unexpected().Detail("private storage detail"), pipelineruntime.ErrQueryOutputContractSchemaMismatch)})
+	validation, record := pipelineValidationResultFromExecutionError(err, testPipelineSpec())
+	require.False(t, record)
+	require.Nil(t, validation)
+	completionErr := svc.completeQueuedRunFailure(t.Context(), args, now, err)
+	require.ErrorIs(t, completionErr, writeErr)
+	require.ErrorIs(t, completionErr, pipelineruntime.ErrQueryOutputContractSchemaMismatch)
 	writeErr = nil
 	require.NoError(t, svc.completeQueuedRunFailure(t.Context(), args, now, err))
 	var timeline pipelinerun.RunTimeline
