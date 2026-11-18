@@ -123,6 +123,9 @@ are examples of gaps within the process scope above.
 
 ## Regression matrix
 
+Use the [WCAG 2.2 AA release matrix](../../doc/WCAG_22_AA.md) to track
+criterion-level decisions for a named release.
+
 [Download the CSV matrix](matrix.csv) for the selected workflow checks. Each
 row records a state, a WCAG 2.2 criterion, a result and its evidence. Evidence
 names refer to specs in this directory or local reports under
