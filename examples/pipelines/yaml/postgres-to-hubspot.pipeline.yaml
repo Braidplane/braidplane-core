@@ -19,6 +19,7 @@ metadata:
   #     email: email
   #     first_name: firstname
   #     last_name: lastname
+  #   Missing, NULL and blank name fields preserve existing HubSpot values.
   #   rows: "{{input}}"
 steps:
   - kind: query
@@ -41,9 +42,11 @@ steps:
           - name: first_name
             type: string
             required: false
+            nullable: true
           - name: last_name
             type: string
             required: false
+            nullable: true
   - kind: sink
     slug: upsert-hubspot-contacts
     name: Upsert contacts into HubSpot
@@ -63,9 +66,11 @@ steps:
           - name: first_name
             type: string
             required: false
+            nullable: true
           - name: last_name
             type: string
             required: false
+            nullable: true
       data_source_ref: hubspot-destination
       operation_type: hubspot
       operation_ref: upsert-contacts-by-customer-id

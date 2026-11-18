@@ -850,9 +850,39 @@ func buildUpsertInputs(
 			if target == idProperty {
 				continue
 			}
-			if value, exists := row[inputField]; exists {
-				values[target] = value
+			value := row[inputField]
+			switch v := value.(type) {
+			case nil:
+				continue
+			case string:
+				if strings.TrimSpace(v) == "" {
+					continue
+				}
+				values[target] = v
+				continue
+			case map[string]any:
+				if clearValue, ok := v["$clear"].(bool); ok && clearValue && len(v) == 1 {
+					values[target] = ""
+					continue
+				}
+			case time.Time:
+				if propertyByName[target].Type == "date" {
+					values[target] = v.Format(time.DateOnly)
+					continue
+				}
+				if _, err := v.MarshalJSON(); err == nil {
+					values[target] = v
+					continue
+				}
+			case bool, int, int8, int16, int32, int64, uint, uint8, uint16, uint32, uint64, float32, float64, json.Number:
+				if _, err := json.Marshal(v); err == nil {
+					values[target] = v
+					continue
+				}
 			}
+			return nil, xerror.InvalidInput(xerror.Query).Detailf(
+				"hubspot upsert row %d has an unsupported value for field %q", rowIndex+1, inputField,
+			)
 		}
 		inputs = append(inputs, hubspotclient.UpsertInput{
 			ID:         idValue,
