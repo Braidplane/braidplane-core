@@ -3145,15 +3145,15 @@ func parseMySQLFormWithPrivateHosts(
 	}
 
 	return api.MySQLConfig{
-		Host:              host,
-		Port:              port,
-		Database:          database,
-		ConnectTimeout:    connectTimeout,
-		AllowPrivateHosts: privateHostsFormPointer(c, databaseAllowPrivateHostsField, allowPrivateDataSourceHosts),
-	}, api.MySQLCredentials{
-		Username: username,
-		Password: password,
-	}, ""
+			Host:              host,
+			Port:              port,
+			Database:          database,
+			ConnectTimeout:    connectTimeout,
+			AllowPrivateHosts: privateHostsFormPointer(c, databaseAllowPrivateHostsField, allowPrivateDataSourceHosts),
+		}, api.MySQLCredentials{
+			Username: username,
+			Password: password,
+		}, ""
 }
 
 // parseMongoFormWithPrivateHosts converts MongoDB create/test fields into API payload pieces.
@@ -3188,16 +3188,16 @@ func parseMongoFormWithPrivateHosts(
 	}
 
 	return api.MongoDBConfig{
-		Host:              host,
-		Port:              port,
-		Database:          database,
-		AuthDatabase:      authDatabasePtr,
-		ConnectTimeout:    connectTimeout,
-		AllowPrivateHosts: privateHostsFormPointer(c, databaseAllowPrivateHostsField, allowPrivateDataSourceHosts),
-	}, api.MongoDBCredentials{
-		Username: username,
-		Password: password,
-	}, ""
+			Host:              host,
+			Port:              port,
+			Database:          database,
+			AuthDatabase:      authDatabasePtr,
+			ConnectTimeout:    connectTimeout,
+			AllowPrivateHosts: privateHostsFormPointer(c, databaseAllowPrivateHostsField, allowPrivateDataSourceHosts),
+		}, api.MongoDBCredentials{
+			Username: username,
+			Password: password,
+		}, ""
 }
 
 // parseHTTPFormWithPrivateHosts validates policy-gated HTTP config and attaches
