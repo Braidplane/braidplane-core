@@ -964,6 +964,40 @@ func TestPollingCancellationStillPersistsCancellation(t *testing.T) {
 	require.ErrorIs(t, err, ErrAmbiguousExecution, "started writes retain their uncertain-outcome classification")
 }
 
+func TestPollingFailureCancelsOutstandingRequest(t *testing.T) {
+	t.Parallel()
+	readErr := fmt.Errorf("temporary connection failure")
+	cancelErr := fmt.Errorf("cancel failed")
+	for _, tc := range []struct {
+		name      string
+		kind      string
+		queued    bool
+		cancelErr error
+		wantErr   error
+		ambiguous bool
+	}{
+		{"queued query", kindQuery, true, nil, readErr, false},
+		{"active query", kindQuery, false, nil, ErrAmbiguousExecution, true},
+		{"query cancellation failed", kindQuery, false, cancelErr, cancelErr, true},
+		{"active transform", kindTransform, false, nil, readErr, false},
+		{"transform cancellation failed", kindTransform, false, cancelErr, cancelErr, false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			cipher, err := crypto.NewAES256(make([]byte, 32))
+			require.NoError(t, err)
+			repo := &fakeRequestRepo{findErr: readErr, cancelBeforeExecution: tc.queued, cancelErr: tc.cancelErr}
+			dispatcher := &recordingDispatcher{}
+			broker := &Broker{txm: fakeTXM{}, repo: repo, cipher: cipher, dispatcher: dispatcher, requestTimeout: testRequestTimeout}
+			_, err = broker.submitAndWait(t.Context(), "acme", tc.kind, queriessvc.ConnectorExecutionRequest{})
+			require.EqualValues(t, 1, dispatcher.calls.Load())
+			require.EqualValues(t, 1, repo.cancelCalls.Load())
+			require.ErrorIs(t, err, tc.wantErr)
+			require.Equal(t, tc.ambiguous, xerror.Is(err, ErrAmbiguousExecution))
+		})
+	}
+}
+
 func TestQueuedQueryCancellationIsNotAmbiguous(t *testing.T) {
 	t.Parallel()
 
