@@ -425,7 +425,7 @@ func TestServer_ReconcileReadiness(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			app, store := newTestApp(t, testServerConfig{
 				authService: fakeAuthService{CanFn: func(_ context.Context, input authorization.Input) (bool, error) {
-					return !(tc.denyRead && input.Resource == model.ResourceEnvironments), nil
+					return !tc.denyRead || input.Resource != model.ResourceEnvironments, nil
 				}},
 				environmentsService: &fakeEnvironmentsService{ListProjectEnvironmentsFn: func(context.Context, slug.Slug, slug.Slug, model.ListRequest) (model.ListResponse[model.ProjectEnvironment], error) {
 					require.False(t, tc.denyRead)
@@ -435,7 +435,8 @@ func TestServer_ReconcileReadiness(t *testing.T) {
 					return model.ListResponse[model.ProjectEnvironment]{Items: []model.ProjectEnvironment{{Environment: model.Environment{Slug: "prod"}}}}, nil
 				}},
 				pipelinesService: &fakePipelinesService{ReconcilePipelinesFn: func(_ context.Context, _, _, _ slug.Slug, _ model.EventActor, req pipelinesvc.ReconcilePipelinesRequest) (*pipelinesvc.ReconcilePipelinesResult, error) {
-					return &pipelinesvc.ReconcilePipelinesResult{DryRun: req.DryRun, Summary: pipelinesvc.ReconcilePipelinesSummary{Synced: 1},
+					return &pipelinesvc.ReconcilePipelinesResult{
+						DryRun: req.DryRun, Summary: pipelinesvc.ReconcilePipelinesSummary{Synced: 1},
 						Synced: []pipelinesvc.ReconcilePipelinesSyncedPipeline{{PipelineSlug: "ledger"}},
 						Specs:  []*pipelinespec.Pipeline{{Metadata: pipelinespec.Metadata{Slug: "ledger"}, Steps: []pipelinespec.Step{{Slug: "read", Kind: "query", Query: &pipelinespec.QueryRef{DataSourceSlug: "source", OperationType: "sql"}}}}},
 					}, nil
