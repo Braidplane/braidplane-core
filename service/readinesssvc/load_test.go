@@ -2,7 +2,6 @@ package readinesssvc
 
 import (
 	"context"
-	"errors"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -10,6 +9,7 @@ import (
 	"github.com/Braidplane/braidplane-core/pkg/domain/model"
 	pipelinespec "github.com/Braidplane/braidplane-core/pkg/pipeline/spec"
 	"github.com/Braidplane/braidplane-core/pkg/slug"
+	"github.com/Braidplane/braidplane-core/pkg/xerror"
 	"github.com/Braidplane/braidplane-core/service/datasourcerefssvc"
 	"github.com/Braidplane/braidplane-core/service/environmentssvc"
 	"github.com/Braidplane/braidplane-core/service/pipelinesvc"
@@ -90,7 +90,7 @@ func TestLoadSelectedPipeline(t *testing.T) {
 		name         string
 		bindingError error
 	}{
-		{name: "enabled environments"}, {name: "later binding lookup fails", bindingError: errors.New("binding read unavailable")},
+		{name: "enabled environments"}, {name: "later binding lookup fails", bindingError: xerror.Unexpected().Detail("binding read unavailable")},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			refs := &loadRefs{t: t, bindingError: tc.bindingError}
