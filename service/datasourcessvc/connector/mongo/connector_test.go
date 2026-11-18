@@ -286,6 +286,8 @@ func TestMongoParameterBindingPolicy(t *testing.T) {
 		{"classic set data", `{"update":{"$set":{"data":"{{value}}"}}}`, "", object, true},
 		{"push literal document", `{"update":{"$push":{"events":"{{value}}"}}}`, "", object, true},
 		{"push modifiers stay authored", `{"update":{"$push":{"events":"{{value}}"}}}`, "", map[string]any{"$each": []any{1}}, false},
+		{"serialized append modifiers stay authored", `{"update":{"$push":{"events":"{{value}}"}}}`, "", json.RawMessage(`{"$each":[1]}`), false},
+		{"serialized append literal document", `{"update":{"$push":{"events":"{{value}}"}}}`, "", json.RawMessage(`{"sample":1}`), true},
 		{"BSON append modifiers stay authored", `{"update":{"$push":{"events":"{{value}}"}}}`, "", bson.D{{Key: "$each", Value: bson.A{1}}}, false},
 		{"BSON map update modifiers stay authored", `{"update":{"$addToSet":{"events":"{{value}}"}}}`, "", bson.M{"$each": bson.A{1}}, false},
 		{"BSON append literal document", `{"update":{"$push":{"events":"{{value}}"}}}`, "", bson.D{{Key: "sample", Value: 1}}, true},

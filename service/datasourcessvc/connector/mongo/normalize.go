@@ -5,8 +5,6 @@ import (
 	"strconv"
 	"strings"
 
-	"go.mongodb.org/mongo-driver/v2/bson"
-
 	"github.com/Braidplane/braidplane-core/pkg/sinkbinding"
 	"github.com/Braidplane/braidplane-core/pkg/xerror"
 	"github.com/Braidplane/braidplane-core/service/datasourcessvc/connector/param"
@@ -165,7 +163,7 @@ func validMongoBinding(name, dataType string, value any, exact bool, position mo
 	}
 }
 
-func hasMongoModifierKeys(document map[string]any) bool {
+func hasMongoModifierKeys[V any](document map[string]V) bool {
 	for key := range document {
 		if strings.HasPrefix(key, "$") {
 			return true
@@ -178,21 +176,14 @@ func literalMongoAppendValue(value any) bool {
 	if document, ok := value.(map[string]any); ok {
 		return !hasMongoModifierKeys(document)
 	}
-	kind, raw, err := bson.MarshalValue(value)
+	// Execute serializes the resolved statement as JSON before decoding its update.
+	raw, err := json.Marshal(value)
 	if err != nil {
 		return false
 	}
-	if kind != bson.TypeEmbeddedDocument {
+	if raw[0] != '{' {
 		return true
 	}
-	fields, err := bson.Raw(raw).Elements()
-	if err != nil {
-		return false
-	}
-	for _, field := range fields {
-		if strings.HasPrefix(field.Key(), "$") {
-			return false
-		}
-	}
-	return true
+	var document map[string]json.RawMessage
+	return json.Unmarshal(raw, &document) == nil && !hasMongoModifierKeys(document)
 }
