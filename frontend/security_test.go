@@ -170,19 +170,25 @@ func TestExpiryLookupFailurePreservesAuthorizedMutationResult(t *testing.T) {
 	store := session.NewStore()
 	router, err := newHandlerTestRouter("http://127.0.0.1:1", slog.New(slog.DiscardHandler), store)
 	require.NoError(t, err)
+	var lookupUnavailable atomic.Bool
 	router.SetBrowserSessionExpiry(func(context.Context, string) (int64, error) {
-		return 0, assert.AnError
+		if lookupUnavailable.Load() {
+			return 0, assert.AnError
+		}
+		return time.Now().Add(time.Minute).Unix(), nil
 	})
 
 	app := fiber.New()
 	registerTestSessionRoute(app, store)
 	router.RegisterRoutes(app, CommunityPresentation{})
 	app.All("/_test/mutation", router.requireAuth, func(c fiber.Ctx) error {
+		lookupUnavailable.Store(true)
 		return c.Type("html").SendString("<html><head></head><body>Synthetic result</body></html>")
 	})
 	cookie := getAuthenticatedSessionCookie(t, app)
 
 	for _, method := range []string{http.MethodGet, http.MethodPost} {
+		lookupUnavailable.Store(false)
 		req := httptest.NewRequestWithContext(t.Context(), method, "/_test/mutation", nil)
 		req.Header.Set("Cookie", cookie)
 		if method == http.MethodPost {
@@ -200,6 +206,7 @@ func TestExpiryLookupFailurePreservesAuthorizedMutationResult(t *testing.T) {
 		}
 		require.Equal(t, http.StatusOK, response.StatusCode)
 		require.Contains(t, string(body), "Synthetic result")
+		require.Contains(t, string(body), `name="braidplane-session-expiry"`)
 	}
 }
 

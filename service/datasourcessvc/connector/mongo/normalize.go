@@ -5,6 +5,8 @@ import (
 	"strconv"
 	"strings"
 
+	"go.mongodb.org/mongo-driver/v2/bson"
+
 	"github.com/Braidplane/braidplane-core/pkg/sinkbinding"
 	"github.com/Braidplane/braidplane-core/pkg/xerror"
 	"github.com/Braidplane/braidplane-core/service/datasourcessvc/connector/param"
@@ -144,10 +146,8 @@ func validMongoBinding(name, dataType string, value any, exact bool, position mo
 		isBoolean = true
 	case int, int8, int16, int32, int64, uint, uint8, uint16, uint32, uint64, float32, float64, json.Number:
 	default:
-		if position.appendValue {
-			if document, ok := value.(map[string]any); ok && hasMongoModifierKeys(document) {
-				return false
-			}
+		if position.appendValue && !literalMongoAppendValue(value) {
+			return false
 		}
 		// Legacy saved sinks declare input as text for their whole document payload.
 		return exact && ((dataType == "" || dataType == "json") && (position.wholeField || position.data || position.appendValue) ||
@@ -172,4 +172,27 @@ func hasMongoModifierKeys(document map[string]any) bool {
 		}
 	}
 	return false
+}
+
+func literalMongoAppendValue(value any) bool {
+	if document, ok := value.(map[string]any); ok {
+		return !hasMongoModifierKeys(document)
+	}
+	kind, raw, err := bson.MarshalValue(value)
+	if err != nil {
+		return false
+	}
+	if kind != bson.TypeEmbeddedDocument {
+		return true
+	}
+	fields, err := bson.Raw(raw).Elements()
+	if err != nil {
+		return false
+	}
+	for _, field := range fields {
+		if strings.HasPrefix(field.Key(), "$") {
+			return false
+		}
+	}
+	return true
 }

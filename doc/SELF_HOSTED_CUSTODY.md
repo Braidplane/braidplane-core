@@ -9,7 +9,8 @@ upgrading, check their existing PostgreSQL password verifiers. If you need to
 replace an MD5 verifier, stop processes that use the affected login. Set
 `password_encryption` to `scram-sha-256` before resetting its password and
 update the corresponding secret file. Update the applicable `pg_hba.conf`
-rules, including rules shared with the executor, and reload PostgreSQL.
+rules and reload PostgreSQL. Check all logins matched by a shared rule and add
+a narrower rule for Core roles if other logins require their existing settings.
 Verify all three role logins before upgrading. Start the application processes
 with the updated secret files and verify readiness before restoring traffic.
 
@@ -95,7 +96,8 @@ Schedule a maintenance window before upgrading a database that has not applied
 Core migration 6. The migration adds generated public IDs to existing
 `odcs_artifacts` rows and builds a unique index while holding an exclusive
 table lock. Rehearse the upgrade on a recent disposable copy of the database
-to size the window. Pause application access during the migration.
+to size the window. Pause application access and wait for existing transactions
+to finish before starting the migration.
 
 Inspect and preserve any failed migration's ledger state before recovery.
 Clearing the fields alone does not repair a dirty ledger. Never force a version

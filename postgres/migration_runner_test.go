@@ -40,6 +40,7 @@ func TestMigrationCatalogRequiresExplicitLedgerBeforeOpeningDatabase(t *testing.
 
 func TestMigrationConnectionTLSDefault(t *testing.T) {
 	t.Setenv("PGSERVICE", "")
+	t.Setenv("PGSSLROOTCERT", "")
 	for _, tc := range []struct {
 		name, query, environment string
 		wantTLS                  bool
@@ -64,6 +65,7 @@ func TestMigrationConnectionTLSDefault(t *testing.T) {
 
 func TestMigrationConnectionTLSWithService(t *testing.T) {
 	t.Setenv("PGSSLMODE", "")
+	t.Setenv("PGSSLROOTCERT", "")
 	path := filepath.Join(t.TempDir(), "pg_service.conf")
 	require.NoError(t, os.WriteFile(path, []byte("[verify]\nsslmode=verify-full\n[default]\n"), 0o600))
 	t.Setenv("PGSERVICEFILE", path)
@@ -82,5 +84,15 @@ func TestMigrationConnectionTLSWithService(t *testing.T) {
 	require.NotNil(t, config.TLSConfig)
 	for _, fallback := range config.Fallbacks {
 		require.NotNil(t, fallback.TLSConfig)
+	}
+}
+
+func TestMigrationConnectionRejectsAmbiguousURLSettings(t *testing.T) {
+	t.Parallel()
+	for _, query := range []string{"sslmode=verify-full&sslmode=", "sslmode=", "service=verify&service=default"} {
+		address, err := url.Parse("postgres://fixture@db.example.test/core?" + query)
+		require.NoError(t, err)
+		_, err = parseMigrationConnection(address)
+		require.ErrorIs(t, err, xerror.ValidationFailed())
 	}
 }

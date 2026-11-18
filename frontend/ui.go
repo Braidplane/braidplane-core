@@ -13,6 +13,7 @@ import (
 
 	api "github.com/Braidplane/braidplane-core/api-schema/gen/client"
 	"github.com/Braidplane/braidplane-core/frontend/views"
+	"github.com/Braidplane/braidplane-core/pkg/httpsecurity"
 	"github.com/Braidplane/braidplane-core/pkg/reqctx"
 	"github.com/Braidplane/braidplane-core/pkg/slug"
 	"github.com/Braidplane/braidplane-core/pkg/xerror"
@@ -511,6 +512,16 @@ func (r *Router) requireAuth(c fiber.Ctx) error {
 		return r.rejectBrowserSession(c)
 	}
 
+	if r.browserSessionExpiry != nil && !httpsecurity.SafeMethod(c.Method()) {
+		observation, err := r.browserSessionObservation(c)
+		if err != nil {
+			return c.SendStatus(fiber.StatusServiceUnavailable)
+		}
+		if observation.headerValue() == "" {
+			return r.rejectBrowserSession(c)
+		}
+		c.Locals(browserSessionSnapshotKey{}, observation)
+	}
 	c.Locals(authenticatedBrowserPage, true)
 	return r.verifySession(c, userSlug)
 }

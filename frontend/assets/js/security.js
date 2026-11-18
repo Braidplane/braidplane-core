@@ -221,9 +221,12 @@
                 // The last confirmed deadline still applies offline.
             } finally {
                 refreshing = false;
-                if (!observed && active() && expiry && timeLeft() > 1000) {
-                    clearTimeout(refreshTimer);
-                    refreshTimer = setTimeout(() => refresh(propagate), Math.min(5000, (timeLeft() - 1000) / 2));
+                if (!observed && active() && expiry) {
+                    const delay = Math.min(5000, timeLeft() - 1000);
+                    if (delay >= 1000) {
+                        clearTimeout(refreshTimer);
+                        refreshTimer = setTimeout(() => refresh(propagate), delay);
+                    }
                 }
             }
         }

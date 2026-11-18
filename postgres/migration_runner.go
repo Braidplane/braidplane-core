@@ -82,14 +82,24 @@ func ApplyMigrationCatalog(databaseURL string, catalog fs.FS) (bool, error) {
 func parseMigrationConnection(databaseURL *url.URL) (*pgx.ConnConfig, error) {
 	plain := migrate.FilterCustomQuery(databaseURL)
 	query := plain.Query()
-	if query.Get("sslmode") == "" && query.Get("ssl") != "true" && os.Getenv("PGSSLMODE") == "" {
-		serviceMode, err := migrationServiceTLSMode(query)
+	for _, key := range []string{"sslmode", "ssl", "service", "servicefile"} {
+		if len(query[key]) > 1 || query.Has(key) && query.Get(key) == "" {
+			return nil, xerror.ValidationFailed().Detailf("invalid migration connection setting %s", key)
+		}
+	}
+	if query.Get("sslmode") == "" && query.Get("ssl") != "true" {
+		mode, configured, err := migrationServiceTLSMode(query)
 		if err != nil {
 			return nil, err
 		}
-		if serviceMode == "" {
-			query.Set("sslmode", "require")
+		if !configured {
+			mode = os.Getenv("PGSSLMODE")
 		}
+		if mode == "" {
+			mode = "require"
+		}
+		// Pin the selected mode so rereading the service cannot change TLS policy.
+		query.Set("sslmode", mode)
 	}
 	// pgx decodes URL query spaces as %20.
 	plain.RawQuery = strings.ReplaceAll(query.Encode(), "+", "%20")
@@ -104,13 +114,13 @@ func parseMigrationConnection(databaseURL *url.URL) (*pgx.ConnConfig, error) {
 }
 
 // migrationServiceTLSMode uses the service-file precedence of pgx.ParseConfig.
-func migrationServiceTLSMode(query url.Values) (string, error) {
+func migrationServiceTLSMode(query url.Values) (string, bool, error) {
 	service := os.Getenv("PGSERVICE")
 	if query.Has("service") {
 		service = query.Get("service")
 	}
 	if service == "" {
-		return "", nil
+		return "", false, nil
 	}
 
 	serviceFile := os.Getenv("PGSERVICEFILE")
@@ -123,13 +133,14 @@ func migrationServiceTLSMode(query url.Values) (string, error) {
 	}
 	profiles, err := pgservicefile.ReadServicefile(serviceFile)
 	if err != nil {
-		return "", xerror.ValidationFailed().Detail("invalid migration connection service file")
+		return "", false, xerror.ValidationFailed().Detail("invalid migration connection service file")
 	}
 	profile, err := profiles.GetService(service)
 	if err != nil {
-		return "", xerror.ValidationFailed().Detail("migration connection service is missing from its service file")
+		return "", false, xerror.ValidationFailed().Detail("migration connection service is missing from its service file")
 	}
-	return profile.Settings["sslmode"], nil
+	mode, configured := profile.Settings["sslmode"]
+	return mode, configured, nil
 }
 
 // sanitizeMigrationError removes the configured database URL and password from
