@@ -113,8 +113,6 @@ Set `operation_type` to the connector operation family:
 - Sink: `sql`, `bigquery`, `snowflake`, `http`, `hubspot`, `ftp`, `mongodb`,
   `git`, or `s3`
 
-For nullable HubSpot sink inputs, see [partial updates and clears](../connectors/hubspot.md#partial-updates-and-clears).
-
 `google_workspace` is available only where the deployment enables that
 connector. Check the connection options in your workspace before using it in a
 pipeline.
