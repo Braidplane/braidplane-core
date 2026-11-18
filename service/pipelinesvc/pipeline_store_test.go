@@ -1952,6 +1952,8 @@ steps:
 				testReconcileFromGitParams(),
 			)
 			require.NoError(t, err)
+			require.Len(t, result.Specs, 1)
+			require.Equal(t, slug.Slug("acme-users-sync"), result.Specs[0].Metadata.Slug)
 			require.Equal(t, 2, result.Scanned)
 			require.Equal(t, 1, result.Upserted)
 			require.Equal(t, 0, result.Deleted)
@@ -2133,6 +2135,8 @@ steps:
 	require.Equal(t, "acme-users-sync", result.SyncedPipelines[0].PipelineSlug)
 	require.Len(t, result.DeletedPipelines, 1)
 	require.Equal(t, "stale-git", result.DeletedPipelines[0].PipelineSlug)
+	require.Len(t, result.Specs, 1)
+	require.Equal(t, slug.Slug("acme-users-sync"), result.Specs[0].Metadata.Slug)
 	require.Equal(t, 0, upsertSpecCallCount)
 	require.Equal(t, 0, upsertRefCallCount)
 	require.Equal(t, 0, createVersionCallCount)
@@ -2402,6 +2406,8 @@ steps:
 	)
 
 	require.NoError(t, err)
+	require.Len(t, result.Specs, 1)
+	require.Equal(t, slug.Slug("acme-users-sync"), result.Specs[0].Metadata.Slug)
 	require.Equal(t, []slug.Slug{slug.Slug("acme-users-sync")}, upserted)
 	require.Empty(t, deleted, "filtered reconcile must not delete unrequested materialized rows")
 	require.Equal(t, 1, result.Synced)

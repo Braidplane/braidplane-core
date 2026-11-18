@@ -1043,7 +1043,20 @@ func TestRunWithArgsPipelineApplyPostsRequestAndPrintsReport(t *testing.T) {
 			"synced": [{
 				"pipeline_slug": "acme-users-sync",
 				"source_path": "git-pipelines/acme-users-sync.pipeline.yaml",
-				"spec_hash": "synced-hash"
+				"spec_hash": "synced-hash",
+				"readiness": {
+					"status": "blocked",
+					"environments": [{
+						"environment_slug": "prod",
+						"status": "blocked",
+						"diagnostics": [{
+							"code": "missing_binding", "severity": "error",
+							"environment_slug": "prod", "pipeline_slug": "acme-users-sync",
+							"step_slug": "load", "requirement_key": "users",
+							"field_path": "/steps/0/query/data_source_ref", "next_action": "configure_binding"
+						}]
+					}]
+				}
 			}, {
 				"pipeline_slug": "nightly-export",
 				"source_path": "git-pipelines/nightly-export.pipeline.yaml",
@@ -1113,6 +1126,17 @@ func TestRunWithArgsPipelineApplyPostsRequestAndPrintsReport(t *testing.T) {
 	require.Equal(t, []api.Slug{"acme-users-sync", "nightly-export"}, *gotRequest.PipelineSlugs)
 	require.Contains(t, stdout.String(), `"synced"`)
 	require.Contains(t, stdout.String(), "acme-users-sync")
+	var report api.PipelineReconcileResponse
+	require.NoError(t, json.Unmarshal(stdout.Bytes(), &report))
+	readiness := report.Synced[0].Readiness
+	require.NotNil(t, readiness)
+	require.EqualValues(t, "blocked", readiness.Status)
+	require.Len(t, readiness.Environments, 1)
+	env := readiness.Environments[0]
+	require.Equal(t, "prod", env.EnvironmentSlug)
+	require.Len(t, env.Diagnostics, 1)
+	require.Equal(t, "users", env.Diagnostics[0].RequirementKey)
+	require.Equal(t, "configure_binding", env.Diagnostics[0].NextAction)
 	require.Contains(t, stdout.String(), "legacy-sync")
 	require.Contains(t, stdout.String(), "filtered_out")
 	require.Contains(t, stdout.String(), "nightly-export")
@@ -1194,6 +1218,7 @@ func TestRunWithArgsPipelineApplyImportsWithoutDeploying(t *testing.T) {
 			gotReconcileMethod = r.Method
 			_, _ = w.Write([]byte(`{
 				"dry_run": false,
+				"readiness_warning": "Environment readiness could not be evaluated.",
 				"pipeline_dir": "git-pipelines",
 				"requested_pipeline_slugs": ["acme-users-sync"],
 				"source": {
@@ -1257,6 +1282,7 @@ func TestRunWithArgsPipelineApplyImportsWithoutDeploying(t *testing.T) {
 	require.True(t, gotReconcile)
 	require.Equal(t, http.MethodPost, gotReconcileMethod)
 	require.False(t, gotDeploy)
+	require.Contains(t, stdout.String(), `"readiness_warning": "Environment readiness could not be evaluated."`)
 	require.Contains(t, stdout.String(), `"dry_run": false`)
 	require.Contains(t, stdout.String(), "acme-users-sync")
 }

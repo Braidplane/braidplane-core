@@ -415,6 +415,59 @@ func TestServer_ReconcilePipelines(t *testing.T) {
 	})
 }
 
+func TestServer_ReconcileReadiness(t *testing.T) {
+	for _, tc := range []struct {
+		name                          string
+		dryRun, denyRead, loadFailure bool
+	}{
+		{name: "preview", dryRun: true}, {name: "apply"}, {name: "restricted", denyRead: true}, {name: "unavailable", loadFailure: true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			app, store := newTestApp(t, testServerConfig{
+				authService: fakeAuthService{CanFn: func(_ context.Context, input authorization.Input) (bool, error) {
+					return !(tc.denyRead && input.Resource == model.ResourceEnvironments), nil
+				}},
+				environmentsService: &fakeEnvironmentsService{ListProjectEnvironmentsFn: func(context.Context, slug.Slug, slug.Slug, model.ListRequest) (model.ListResponse[model.ProjectEnvironment], error) {
+					require.False(t, tc.denyRead)
+					if tc.loadFailure {
+						return model.ListResponse[model.ProjectEnvironment]{}, fmt.Errorf("private provider detail")
+					}
+					return model.ListResponse[model.ProjectEnvironment]{Items: []model.ProjectEnvironment{{Environment: model.Environment{Slug: "prod"}}}}, nil
+				}},
+				pipelinesService: &fakePipelinesService{ReconcilePipelinesFn: func(_ context.Context, _, _, _ slug.Slug, _ model.EventActor, req pipelinesvc.ReconcilePipelinesRequest) (*pipelinesvc.ReconcilePipelinesResult, error) {
+					return &pipelinesvc.ReconcilePipelinesResult{DryRun: req.DryRun, Summary: pipelinesvc.ReconcilePipelinesSummary{Synced: 1},
+						Synced: []pipelinesvc.ReconcilePipelinesSyncedPipeline{{PipelineSlug: "ledger"}},
+						Specs:  []*pipelinespec.Pipeline{{Metadata: pipelinespec.Metadata{Slug: "ledger"}, Steps: []pipelinespec.Step{{Slug: "read", Kind: "query", Query: &pipelinespec.QueryRef{DataSourceSlug: "source", OperationType: "sql"}}}}},
+					}, nil
+				}},
+			})
+			req := jsonRequest(t, http.MethodPost, "/organizations/acme/projects/default/pipelines:reconcile", api.PipelineReconcileRequest{DryRun: &tc.dryRun})
+			resp := authenticatedRequest(t, app, store, "test-user", req)
+			defer func() { _ = resp.Body.Close() }()
+			require.Equal(t, http.StatusOK, resp.StatusCode)
+			var body api.PipelineReconcileResponse
+			require.NoError(t, json.NewDecoder(resp.Body).Decode(&body))
+			require.Equal(t, 1, body.Summary.Synced)
+			require.Empty(t, body.Failures)
+			report := body.Synced[0].Readiness
+			if tc.denyRead || tc.loadFailure {
+				require.Nil(t, report)
+				require.NotNil(t, body.ReadinessWarning)
+				require.NotContains(t, *body.ReadinessWarning, "private provider detail")
+				return
+			}
+			require.Nil(t, body.ReadinessWarning)
+			require.NotNil(t, report)
+			require.Equal(t, api.ReadinessStatus("blocked"), report.Status)
+			require.Len(t, report.Environments, 1)
+			env := report.Environments[0]
+			require.Equal(t, "prod", env.EnvironmentSlug)
+			require.Len(t, env.Diagnostics, 1)
+			require.Equal(t, "missing_ref", env.Diagnostics[0].Code)
+		})
+	}
+}
+
 func TestServer_ReconcilePipelinesRejectsLegacyBranchOverride(t *testing.T) {
 	t.Parallel()
 

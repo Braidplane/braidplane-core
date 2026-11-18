@@ -10701,6 +10701,10 @@
             "description": "",
             "type": "string"
           },
+          "readiness_warning": {
+            "description": "",
+            "type": "string"
+          },
           "requested_pipeline_slugs": {
             "description": "",
             "items": {
@@ -10852,6 +10856,9 @@
         "properties": {
           "pipeline_slug": {
             "$ref": "#/components/schemas/Slug"
+          },
+          "readiness": {
+            "$ref": "#/components/schemas/ReadinessReport"
           },
           "source_path": {
             "description": "",
@@ -16812,6 +16819,112 @@
           {
             "$ref": "#/components/schemas/S3Statement"
           }
+        ]
+      },
+      "ReadinessDiagnostic": {
+        "properties": {
+          "code": {
+            "type": "string"
+          },
+          "environment_slug": {
+            "$ref": "#/components/schemas/Slug"
+          },
+          "field_path": {
+            "type": "string"
+          },
+          "next_action": {
+            "description": "",
+            "type": "string"
+          },
+          "pipeline_slug": {
+            "$ref": "#/components/schemas/Slug"
+          },
+          "requirement_key": {
+            "type": "string"
+          },
+          "severity": {
+            "enum": [
+              "error",
+              "warning",
+              "informational"
+            ],
+            "type": "string",
+            "x-enum-varnames": [
+              "ReadinessDiagnosticSeverityError",
+              "ReadinessDiagnosticSeverityWarning",
+              "ReadinessDiagnosticSeverityInformational"
+            ]
+          },
+          "step_slug": {
+            "description": "",
+            "type": "string"
+          }
+        },
+        "required": [
+          "severity",
+          "code",
+          "environment_slug",
+          "pipeline_slug",
+          "step_slug",
+          "requirement_key",
+          "field_path",
+          "next_action"
+        ],
+        "type": "object"
+      },
+      "ReadinessEnvironment": {
+        "properties": {
+          "diagnostics": {
+            "items": {
+              "$ref": "#/components/schemas/ReadinessDiagnostic"
+            },
+            "type": "array"
+          },
+          "environment_slug": {
+            "$ref": "#/components/schemas/Slug"
+          },
+          "status": {
+            "$ref": "#/components/schemas/ReadinessStatus"
+          }
+        },
+        "required": [
+          "environment_slug",
+          "status",
+          "diagnostics"
+        ],
+        "type": "object"
+      },
+      "ReadinessReport": {
+        "properties": {
+          "environments": {
+            "items": {
+              "$ref": "#/components/schemas/ReadinessEnvironment"
+            },
+            "type": "array"
+          },
+          "status": {
+            "$ref": "#/components/schemas/ReadinessStatus"
+          }
+        },
+        "required": [
+          "status",
+          "environments"
+        ],
+        "type": "object"
+      },
+      "ReadinessStatus": {
+        "enum": [
+          "ready",
+          "blocked",
+          "warning",
+          "informational"
+        ],
+        "type": "string",
+        "x-enum-varnames": [
+          "ReadinessStatusReady",
+          "ReadinessStatusBlocked",
+          "ReadinessStatusWarning",
+          "ReadinessStatusInformational"
         ]
       },
       "RecoverPipelineRunRequest": {

@@ -167,6 +167,7 @@ type ReconcileFromGitParams struct {
 
 // ReconcileFromGitResult captures the effect of one reconcile run.
 type ReconcileFromGitResult struct {
+	Specs                 []*pipelinespec.Pipeline `json:"-"`
 	Scanned               int
 	Upserted              int
 	Synced                int
@@ -1257,6 +1258,7 @@ func (s *pipelineStore) ReconcileFromGit(
 				)
 			}
 
+			result.Specs = append(result.Specs, p.pipeline)
 			result.addSynced(p.pipeline.Metadata.Slug.String(), p.sourcePath, p.hash)
 
 			if params.DryRun {

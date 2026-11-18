@@ -13891,6 +13891,9 @@ type PipelineReconcileResponse struct {
 	// Example: pipelines
 	PipelineDir string `json:"pipeline_dir"`
 
+	// ReadinessWarning Reason readiness could not be reported for this reconciliation.
+	ReadinessWarning *string `json:"readiness_warning,omitempty"`
+
 	// RequestedPipelineSlugs Pipeline slug filter requested by the caller.
 	RequestedPipelineSlugs []Slug `json:"requested_pipeline_slugs"`
 
@@ -13987,7 +13990,8 @@ type PipelineReconcileSyncedPipeline struct {
 	// PipelineSlug URL-friendly identifier
 	//
 	// Example: acme-corp
-	PipelineSlug Slug `json:"pipeline_slug"`
+	PipelineSlug Slug             `json:"pipeline_slug"`
+	Readiness    *ReadinessReport `json:"readiness,omitempty"`
 
 	// SourcePath Pipeline spec path inside the git repository.
 	//

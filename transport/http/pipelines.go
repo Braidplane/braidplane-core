@@ -30,6 +30,7 @@ import (
 	"github.com/Braidplane/braidplane-core/service/authorization"
 	"github.com/Braidplane/braidplane-core/service/datasourcerefssvc"
 	"github.com/Braidplane/braidplane-core/service/pipelinesvc"
+	"github.com/Braidplane/braidplane-core/service/readinesssvc"
 )
 
 // ListPipelines returns persisted pipeline references for an organization.
@@ -213,7 +214,23 @@ func (s *server) ReconcilePipelines(
 		return mapServiceError(err)
 	}
 
-	return c.JSON(toAPIPipelineReconcileResponse(result))
+	response := toAPIPipelineReconcileResponse(result)
+	if result == nil || len(result.Specs) == 0 {
+		return c.JSON(response)
+	}
+	if err := s.canReadReadiness(c, orgSlug); err != nil {
+		response.ReadinessWarning = ptr.Ptr("Read access to pipelines, environments and data sources is required to view readiness.")
+		return c.JSON(response)
+	}
+	reports, err := readinesssvc.LoadSpecs(c.Context(), s.environmentsService, s.dataSourceRefsService, orgSlug, projectSlug, result.Specs)
+	if err != nil {
+		response.ReadinessWarning = ptr.Ptr("Environment readiness could not be evaluated.")
+		return c.JSON(response)
+	}
+	for i, report := range reports {
+		response.Synced[i].Readiness = toAPIReadinessReport(report)
+	}
+	return c.JSON(response)
 }
 
 // ValidatePipeline validates a project-scoped pipeline spec and records failed history for write-authorized callers.
