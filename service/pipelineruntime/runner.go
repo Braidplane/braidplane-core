@@ -1595,13 +1595,10 @@ func (r *Runner) Run(
 			runResult,
 		)
 		if persistErr != nil {
-			if req.pinnedResults != nil {
-				runResult = nil
+			return nil, &UnpersistedPrevalidationError{
+				Failure: *runResult.Timeline.Failure,
+				Err:     xerror.Join(xerror.Wrapf("persist pipeline run: %w", persistErr), edgeValidationErr),
 			}
-			return runResult, xerror.Join(
-				xerror.Wrapf("persist pipeline run: %w", persistErr),
-				edgeValidationErr,
-			)
 		}
 
 		return runResult, edgeValidationErr

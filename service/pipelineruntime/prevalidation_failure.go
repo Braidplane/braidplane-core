@@ -8,6 +8,15 @@ import (
 	"github.com/Braidplane/braidplane-core/pkg/xerror"
 )
 
+// UnpersistedPrevalidationError carries the redacted diagnosis for queued-run completion.
+type UnpersistedPrevalidationError struct {
+	Failure pipelinerun.FailureContext
+	Err     error
+}
+
+func (e *UnpersistedPrevalidationError) Error() string { return e.Err.Error() }
+func (e *UnpersistedPrevalidationError) Unwrap() error { return e.Err }
+
 // Keep component identity independent of error text, which can contain SQL or provider details.
 type prevalidationStepError struct {
 	step  pipelinespec.Step

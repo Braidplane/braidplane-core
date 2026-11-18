@@ -99,3 +99,24 @@ func TestCompositionPrevalidationDefersQueryAliasesToRuntime(t *testing.T) {
 	_, err = runtime.Execute(t.Context(), "acme", p.Steps[1].Transform, map[string]*payload.Payload{"orders": {Representation: model.ContractRepresentationRows, Rows: []map[string]any{{"id": int64(1)}}, ColumnNames: []string{"id"}, RowCount: 1}})
 	require.Error(t, err)
 }
+
+func TestPrevalidationTerminalWriteFailure(t *testing.T) {
+	store, saved := durableCheckStore(t, func(run *pipelinerun.RunResult) bool { return run.Metadata.Status == "failed" })
+	runner := checkTestRunner(t, store, &fakeSinkRuntime{})
+	runner.dataSourceService = compositionDataSourceService{schema: datasourcessvc.Schema[datasourcessvc.SQLSchemaPayload]{
+		Type: "postgres", Payload: datasourcessvc.SQLSchemaPayload{Tables: []datasourcessvc.SchemaTable{
+			{Name: "orders", Columns: []datasourcessvc.SchemaColumn{{Name: "id", Type: "text"}}},
+		}},
+	}}
+	outcome, err := runner.Execute(t.Context(), checkTestRequest(t))
+	require.Nil(t, outcome)
+	require.ErrorIs(t, err, ErrQueryOutputContractSchemaMismatch)
+	require.ErrorContains(t, err, "persist pipeline run")
+	var unpersisted *UnpersistedPrevalidationError
+	require.ErrorAs(t, err, &unpersisted)
+	require.Equal(t, pipelinerun.FailureReasonCodeSourceResultShapeMismatch, unpersisted.Failure.ReasonCode)
+	require.Len(t, *saved, 1)
+	var durable pipelinerun.RunTimeline
+	require.NoError(t, json.Unmarshal((*saved)[0], &durable))
+	require.Equal(t, "running", durable.Status)
+}
