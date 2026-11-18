@@ -9,7 +9,10 @@ import (
 	"github.com/Braidplane/braidplane-core/pkg/xerror"
 )
 
-const gitReadFetchMaxBytes int64 = 256 << 20
+const (
+	gitReadFetchMaxBytes      int64 = 256 << 20
+	gitConvertedReadBlobBytes int64 = 32 << 20
+)
 
 type fileCheckout struct {
 	path               string
@@ -118,8 +121,8 @@ func prepareFileCheckout(ctx context.Context, directory string, target fileCheck
 		}
 		blobLimit := target.maxBytes
 		if target.preserveAttributes {
-			// Attribute conversion can shrink source bytes, for example CRLF to LF.
-			blobLimit = min(2*blobLimit, gitReadFetchMaxBytes)
+			// Source encodings can shrink on checkout. Bound the input independently.
+			blobLimit = max(blobLimit, gitConvertedReadBlobBytes)
 		}
 		if size > blobLimit {
 			return xerror.ExecutionResponseSizeExceeded().Detail("Git blob exceeds the file allowance before checkout")

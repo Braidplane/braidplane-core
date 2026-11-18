@@ -55,6 +55,19 @@ describe("session monitoring across tabs", () => {
         return dom.window;
     }
 
+    it("preserves shared drafts when another tab opens for the current session", () => {
+        const browser = tab("old");
+        const draftKey = "braidplane.builder.canvas.state.v6/synthetic-draft";
+        try {
+            browser.localStorage.setItem(draftKey, "fixture draft");
+            browser.eval(securityScript);
+            expect(browser.localStorage.getItem(draftKey)).toBe("fixture draft");
+            expect(browser.localStorage.getItem("braidplane.session.expiry")).toBeNull();
+        } finally {
+            browser.close();
+        }
+    });
+
     it("honors logout recorded before the page started monitoring", () => {
         const browser = tab("new");
         try {

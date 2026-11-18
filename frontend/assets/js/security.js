@@ -130,9 +130,10 @@
             try {
                 if (window.sessionStorage.getItem(TAB_GENERATION_KEY) !== generation) {
                     clearStorage("sessionStorage", isDraftKey);
-                    clearStorage("localStorage", isDraftKey);
                     window.sessionStorage.setItem(TAB_GENERATION_KEY, generation);
                 }
+                const current = window.localStorage.getItem(BROWSER_GENERATION_KEY);
+                if (current && current !== generation) clearStorage("localStorage", isDraftKey);
                 window.localStorage.setItem(BROWSER_GENERATION_KEY, generation);
             } catch (_) {
                 // The timer remains active without browser storage.
@@ -234,7 +235,7 @@
             initialSample.monotonic = navigation.requestStart;
         }
         if (!confirmGeneration) publishGeneration();
-        observe(initial, initialSample);
+        observe(initial, initialSample, false);
         if (!expiry || !active()) return;
         if (confirmGeneration) refresh();
         document.addEventListener("visibilitychange", () => {

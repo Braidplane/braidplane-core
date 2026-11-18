@@ -47,9 +47,11 @@ def login():
 def assert_secure_session_cookies(headers):
     session_cookies = []
     for raw in headers.get_all('Set-Cookie') or []:
+        if raw.split(';', 1)[0].partition('=')[0].strip() != '__Host-session_id':
+            continue
         parsed = http.cookies.SimpleCookie(raw)
-        if '__Host-session_id' in parsed:
-            session_cookies.append(parsed['__Host-session_id'])
+        assert '__Host-session_id' in parsed, 'host session cookie missing or invalid'
+        session_cookies.append(parsed['__Host-session_id'])
     assert session_cookies, 'host session cookie missing or invalid'
     for cookie in session_cookies:
         assert cookie['path'] == '/' and not cookie['domain'], 'expected the host-only session cookie'

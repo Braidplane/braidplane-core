@@ -2,6 +2,8 @@ package postgres
 
 import (
 	"net/url"
+	"os"
+	"path/filepath"
 	"testing"
 
 	"github.com/Braidplane/braidplane-core/pkg/xerror"
@@ -37,6 +39,7 @@ func TestMigrationCatalogRequiresExplicitLedgerBeforeOpeningDatabase(t *testing.
 }
 
 func TestMigrationConnectionTLSDefault(t *testing.T) {
+	t.Setenv("PGSERVICE", "")
 	for _, tc := range []struct {
 		name, query, environment string
 		wantTLS                  bool
@@ -56,5 +59,28 @@ func TestMigrationConnectionTLSDefault(t *testing.T) {
 				assert.Equal(t, tc.wantTLS, fallback.TLSConfig != nil)
 			}
 		})
+	}
+}
+
+func TestMigrationConnectionTLSWithService(t *testing.T) {
+	t.Setenv("PGSSLMODE", "")
+	path := filepath.Join(t.TempDir(), "pg_service.conf")
+	require.NoError(t, os.WriteFile(path, []byte("[verify]\nsslmode=verify-full\n[default]\n"), 0o600))
+	t.Setenv("PGSERVICEFILE", path)
+	t.Setenv("PGSERVICE", "verify")
+	address, err := url.Parse("postgres://fixture@db.example.test/core")
+	require.NoError(t, err)
+	config, err := parseMigrationConnection(address)
+	require.NoError(t, err)
+	require.NotNil(t, config.TLSConfig)
+	require.False(t, config.TLSConfig.InsecureSkipVerify)
+	require.Equal(t, "db.example.test", config.TLSConfig.ServerName)
+
+	t.Setenv("PGSERVICE", "default")
+	config, err = parseMigrationConnection(address)
+	require.NoError(t, err)
+	require.NotNil(t, config.TLSConfig)
+	for _, fallback := range config.Fallbacks {
+		require.NotNil(t, fallback.TLSConfig)
 	}
 }

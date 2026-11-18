@@ -5,10 +5,12 @@ import (
 	"io/fs"
 	"net/url"
 	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
 
+	"github.com/jackc/pgservicefile"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/stdlib"
 
@@ -80,8 +82,14 @@ func ApplyMigrationCatalog(databaseURL string, catalog fs.FS) (bool, error) {
 func parseMigrationConnection(databaseURL *url.URL) (*pgx.ConnConfig, error) {
 	plain := migrate.FilterCustomQuery(databaseURL)
 	query := plain.Query()
-	if query.Get("sslmode") == "" && os.Getenv("PGSSLMODE") == "" {
-		query.Set("sslmode", "require")
+	if query.Get("sslmode") == "" && query.Get("ssl") != "true" && os.Getenv("PGSSLMODE") == "" {
+		serviceMode, err := migrationServiceTLSMode(query)
+		if err != nil {
+			return nil, err
+		}
+		if serviceMode == "" {
+			query.Set("sslmode", "require")
+		}
 	}
 	// pgx decodes URL query spaces as %20.
 	plain.RawQuery = strings.ReplaceAll(query.Encode(), "+", "%20")
@@ -93,6 +101,35 @@ func parseMigrationConnection(databaseURL *url.URL) (*pgx.ConnConfig, error) {
 		return nil, err
 	}
 	return connection, nil
+}
+
+// migrationServiceTLSMode uses the service-file precedence of pgx.ParseConfig.
+func migrationServiceTLSMode(query url.Values) (string, error) {
+	service := os.Getenv("PGSERVICE")
+	if query.Has("service") {
+		service = query.Get("service")
+	}
+	if service == "" {
+		return "", nil
+	}
+
+	serviceFile := os.Getenv("PGSERVICEFILE")
+	if query.Has("servicefile") {
+		serviceFile = query.Get("servicefile")
+	} else if serviceFile == "" {
+		if home, err := os.UserHomeDir(); err == nil {
+			serviceFile = filepath.Join(home, ".pg_service.conf")
+		}
+	}
+	profiles, err := pgservicefile.ReadServicefile(serviceFile)
+	if err != nil {
+		return "", xerror.ValidationFailed().Detail("invalid migration connection service file")
+	}
+	profile, err := profiles.GetService(service)
+	if err != nil {
+		return "", xerror.ValidationFailed().Detail("migration connection service is missing from its service file")
+	}
+	return profile.Settings["sslmode"], nil
 }
 
 // sanitizeMigrationError removes the configured database URL and password from

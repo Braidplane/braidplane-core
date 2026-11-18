@@ -4,12 +4,14 @@ Use this guide to configure Community core on customer infrastructure and check
 where its data goes.
 
 Core PostgreSQL connections reject MD5 authentication. Configure
-SCRAM-SHA-256 for password-based runtime and migration roles. Before upgrading,
-check the existing password verifiers for both roles. For roles using MD5
-verifiers, set `password_encryption` to `scram-sha-256` before resetting their
-passwords, then store the replacement passwords in the installation's secret
-files. Configure the applicable `pg_hba.conf` rules to use `scram-sha-256`,
-reload PostgreSQL, and verify both role logins before starting the upgrade.
+SCRAM-SHA-256 for password-based runtime, executor, and migration roles. Before
+upgrading, check their existing PostgreSQL password verifiers. If you need to
+replace an MD5 verifier, stop processes that use the affected login. Set
+`password_encryption` to `scram-sha-256` before resetting its password and
+update the corresponding secret file. Update the applicable `pg_hba.conf`
+rules, including rules shared with the executor, and reload PostgreSQL.
+Verify all three role logins before upgrading. Start the application processes
+with the updated secret files and verify readiness before restoring traffic.
 
 Set `DEPLOYMENT_PROFILE=self-hosted` for the API, worker and frontend. Supply
 customer-owned keys and database credentials, and keep SMTP certificate
