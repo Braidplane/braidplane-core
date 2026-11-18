@@ -865,6 +865,15 @@ func buildUpsertInputs(
 					values[target] = ""
 					continue
 				}
+			case time.Time:
+				if propertyByName[target].Type == "date" {
+					values[target] = v.Format(time.DateOnly)
+					continue
+				}
+				if _, err := v.MarshalJSON(); err == nil {
+					values[target] = v
+					continue
+				}
 			case bool, int, int8, int16, int32, int64, uint, uint8, uint16, uint32, uint64, float32, float64, json.Number:
 				if _, err := json.Marshal(v); err == nil {
 					values[target] = v
