@@ -1,3 +1,4 @@
+import hashlib
 import json
 import subprocess
 import tempfile
@@ -6,6 +7,7 @@ from unittest.mock import patch
 
 from scripts.publish_core_candidate import ORAS_IMAGE, publish
 from scripts.test_core_release_provenance import context
+from scripts.validate_core_candidate import file_hash
 from scripts.test_validate_core_candidate import ValidateCoreCandidateTest
 
 
@@ -21,17 +23,27 @@ class PublishCoreCandidateTest(ValidateCoreCandidateTest):
 
     def test_publish_uses_approved_digests_without_tags(self):
         calls = []
+        ci = {"source_sha": "a" * 40, "run_id": 123, "attempt": 1}
+        data = (json.dumps(ci, indent=2, sort_keys=True) + "\n").encode()
+        (Path(self.publication_tmp.name) / "core-release-ci-admission.json").write_bytes(data)
+        approval_path = self.root / "approval.json"
+        approval = json.loads(approval_path.read_text())
+        approval["ci_admission_sha256"] = hashlib.sha256(data).hexdigest()
+        approval_path.write_text(json.dumps(approval))
+        env = dict(self.env, RELEASE_SOURCE="a" * 40, GITHUB_SHA="b" * 40, GITHUB_WORKFLOW_SHA="b" * 40,
+                   RUNNER_TEMP=self.publication_tmp.name)
 
         def run(command, **kwargs):
             calls.append((command, kwargs))
 
         git = ["a" * 40 + "\n", b"", b"1 " + b"d" * 64 + b"\n"]
         with patch("scripts.publish_core_candidate.subprocess.check_output", side_effect=git), \
-             patch("scripts.publish_core_candidate.admit", return_value={"synthetic": True}), \
+             patch("scripts.publish_core_candidate.admit", return_value=ci), \
              patch("scripts.publish_core_candidate.subprocess.run", side_effect=run), \
              patch("scripts.publish_core_candidate.require_image_manifest") as inspect, \
              patch("scripts.publish_core_candidate.qualify"), patch("scripts.publish_core_candidate.generate"):
-            publish(self.root, self.approved, self.checkout, self.output, "123", "1", self.env, self.event)
+            publish(self.root, file_hash(approval_path), self.checkout, self.output, "123", "1", env, self.event)
+        self.assertEqual((self.output / "ci-admission.json").read_bytes(), data)
         copies = [call for call in calls if ORAS_IMAGE in call[0]]
         self.assertEqual(len(copies), 4)
         self.assertEqual(inspect.call_count, 4)
@@ -45,6 +57,23 @@ class PublishCoreCandidateTest(ValidateCoreCandidateTest):
         self.assertEqual([entry["status"] for entry in entries], ["attempted", "verified"] * 4)
         self.assertEqual(json.loads((self.output / "provenance.json").read_text())["buildDefinition"]["resolvedDependencies"][0]["digest"]["gitCommit"], "a" * 40)
         self.assertFalse(Path(calls[0][1]["env"]["DOCKER_CONFIG"]).exists())
+
+    def test_publication_rejects_a_different_ci_receipt_before_registry_writes(self):
+        receipt = Path(self.publication_tmp.name) / "core-release-ci-admission.json"
+        receipt.write_text(json.dumps({"source_sha": "a" * 40, "run_id": 123, "attempt": 2}, indent=2, sort_keys=True) + "\n")
+        approval_path = self.root / "approval.json"
+        approval = json.loads(approval_path.read_text())
+        approval["ci_admission_sha256"] = hashlib.sha256(b"original approved CI receipt").hexdigest()
+        approval_path.write_text(json.dumps(approval))
+        env = dict(self.env, RELEASE_SOURCE="a" * 40, GITHUB_SHA="b" * 40, GITHUB_WORKFLOW_SHA="b" * 40,
+                   RUNNER_TEMP=self.publication_tmp.name)
+        git = ["a" * 40 + "\n", b"", b"1 " + b"d" * 64 + b"\n"]
+        with patch("scripts.publish_core_candidate.subprocess.check_output", side_effect=git), \
+             patch("scripts.publish_core_candidate.admit", return_value=json.loads(receipt.read_text())), \
+             patch("scripts.publish_core_candidate.subprocess.run") as run, \
+             self.assertRaisesRegex(ValueError, "CI admission differs"):
+            publish(self.root, file_hash(approval_path), self.checkout, self.output, "123", "2", env, self.event)
+        run.assert_not_called()
 
     def test_bad_approval_stops_before_registry_actions(self):
         with patch("scripts.publish_core_candidate.subprocess.check_output", side_effect=["a" * 40 + "\n", b""]), \

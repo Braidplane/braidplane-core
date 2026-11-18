@@ -336,7 +336,7 @@ func TestCommunityWorkflowTrustBoundary(t *testing.T) {
 		{"promotion skipped verification", ".github/workflows/core-release-promote.yml", "      - name: Verify RC and publish stable release\n", "      - name: Verify RC and publish stable release\n        if: false\n"},
 		{"release plan fork event", ".github/workflows/core-release-plan.yml", "  workflow_run:", "  pull_request_target:\n  workflow_run:"},
 		{"release plan untrusted CI", ".github/workflows/core-release-plan.yml", "github.event.workflow_run.event == 'push'", "true"},
-		{"release plan stale CI", ".github/workflows/core-release-plan.yml", "github.event.workflow_run.head_sha == github.sha", "true"},
+		{"release plan requires tip", ".github/workflows/core-release-plan.yml", "github.event.workflow_run.conclusion == 'success'", "github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.head_sha == github.sha"},
 		{"release plan source write", ".github/workflows/core-release-plan.yml", "    permissions:\n      contents: read", "    permissions:\n      contents: write"},
 		{"release plan credential", ".github/workflows/core-release-plan.yml", "persist-credentials: false", "persist-credentials: true"},
 		{"release plan candidate checkout", ".github/workflows/core-release-plan.yml", "fetch-depth: 0", "fetch-depth: 0\n          ref: ${{ github.event.pull_request.head.sha }}"},
@@ -567,7 +567,7 @@ func releasePlanBoundary(document map[string]any) error {
 	}
 	job, ok := jobs["prepare-plan"].(map[string]any)
 	expected := map[string]any{
-		"if":      "${{ github.ref == 'refs/heads/main' && github.event.repository.visibility == 'public' && github.event.workflow_run.event == 'push' && github.event.workflow_run.head_branch == 'main' && github.event.workflow_run.head_repository.full_name == github.repository && github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.head_sha == github.sha && vars.CORE_RELEASE_PREPARATION_ENABLED == 'true' }}",
+		"if":      "${{ github.ref == 'refs/heads/main' && github.event.repository.visibility == 'public' && github.event.workflow_run.event == 'push' && github.event.workflow_run.head_branch == 'main' && github.event.workflow_run.head_repository.full_name == github.repository && github.event.workflow_run.conclusion == 'success' && vars.CORE_RELEASE_PREPARATION_ENABLED == 'true' }}",
 		"runs-on": "ubuntu-24.04", "timeout-minutes": 10,
 		"permissions": map[string]any{"contents": "read", "pull-requests": "read", "actions": "write"},
 		"steps": []any{
@@ -674,6 +674,9 @@ func releaseBoundary(document map[string]any) error {
 		if !ok {
 			return fmt.Errorf("release steps missing")
 		}
+		if env, _ := job["env"].(map[string]any); env["RELEASE_SOURCE"] != "${{ inputs.source_sha }}" {
+			return fmt.Errorf("release jobs must use the explicit CI source")
+		}
 		admission, build := -1, -1
 		reservation, publication, verification, lastSignature, prerelease := -1, -1, -1, -1, -1
 		for index, item := range steps {
@@ -683,6 +686,13 @@ func releaseBoundary(document map[string]any) error {
 			}
 			if name == "publish" {
 				switch step["name"] {
+				case "Re-admit the candidate source before publication":
+					admission = index
+					if step["if"] != nil || step["continue-on-error"] != nil ||
+						!strings.HasPrefix(fmt.Sprint(step["run"]), "python3 -m scripts.admit_core_ci ") ||
+						!strings.Contains(fmt.Sprint(step["run"]), "--checkout ") {
+						return fmt.Errorf("publication must recheck CI and main reachability")
+					}
 				case "Reserve immutable release identity":
 					reservation = index
 				case "Publish the approved candidate by digest":
@@ -765,7 +775,7 @@ func releaseBoundary(document map[string]any) error {
 				}
 			}
 		}
-		if name == "publish" && (reservation < 0 || publication <= reservation || verification <= lastSignature || lastSignature <= publication || prerelease <= verification) {
+		if name == "publish" && (admission < 0 || reservation <= admission || publication <= reservation || verification <= lastSignature || lastSignature <= publication || prerelease <= verification) {
 			return fmt.Errorf("publication must reserve identity before copying and verify after signing")
 		}
 		if name == "prepare" && (admission < 0 || build <= admission) {

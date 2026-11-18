@@ -1,3 +1,4 @@
+import hashlib
 import json
 import tempfile
 import unittest
@@ -92,8 +93,12 @@ class BuildCoreCandidateTest(unittest.TestCase):
                 build(self.args, self.env, self.event)
             self.assertEqual(run.call_count, 1)
 
-    def test_exports_local_archives_without_registry_writes(self):
+    def test_exports_admitted_source_without_registry_writes(self):
         self.args.version = ""
+        self.env.update(RELEASE_SOURCE="a" * 40, GITHUB_SHA="b" * 40, GITHUB_WORKFLOW_SHA="b" * 40,
+                        RUNNER_TEMP=self.tmp.name)
+        receipt = Path(self.tmp.name) / "core-release-ci-admission.json"
+        receipt.write_text(json.dumps({"source_sha": "a" * 40, "run_id": 123, "attempt": 1}))
         calls = []
 
         def run(command, **kwargs):
@@ -110,11 +115,12 @@ class BuildCoreCandidateTest(unittest.TestCase):
         with patch("scripts.build_core_candidate.subprocess.check_output", side_effect=["a" * 40 + "\n", b""]), \
              patch("scripts.build_core_candidate.subprocess.run", side_effect=run), \
              patch("scripts.build_core_candidate.verify_archive") as verify, \
-             patch("scripts.build_core_candidate.package"), patch("scripts.build_core_candidate.record", return_value={}):
+             patch("scripts.build_core_candidate.package") as package, patch("scripts.build_core_candidate.record", return_value={}):
             build(self.args, self.env, self.event)
         images = [cmd for cmd in calls if "--metadata-file" in cmd]
         self.assertEqual(len(images), 4)
         self.assertEqual(verify.call_count, 4)
+        self.assertEqual(package.call_args.kwargs["checkout"], self.args.checkout)
         for cmd in images:
             self.assertIn("--no-cache", cmd)
             self.assertEqual(cmd[cmd.index("--label") + 1],
@@ -125,6 +131,9 @@ class BuildCoreCandidateTest(unittest.TestCase):
         self.assertTrue((self.args.output / "record.json").is_file())
         approval = json.loads((self.args.output / "approval.json").read_text())
         self.assertEqual(approval["version"], "v0.1.0")
+        self.assertEqual(approval["core_revision"], "a" * 40)
+        self.assertEqual(approval["ci_admission_sha256"], hashlib.sha256(receipt.read_bytes()).hexdigest())
+        self.assertEqual(json.loads((self.args.output / "release.json").read_text())["core_revision"], "a" * 40)
         self.assertEqual(set(approval["images"]), {"backend", "frontend", "migrate", "cli"})
         self.assertEqual(approval["images"]["backend"]["manifest_digest"], "sha256:" + "c" * 64)
 

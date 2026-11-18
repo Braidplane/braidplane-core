@@ -29,16 +29,25 @@ def publish_release(repository, version, source, body, assets, prerelease):
         tag_name=version, target_commitish=source, name=version, body=body, draft=True, prerelease=prerelease))
     if release["body"] != body or release["prerelease"] != prerelease:
         raise ValueError("existing release metadata differs; never replace it")
-    existing = {asset["name"]: asset for asset in api(f"repos/{repository}/releases/{release['id']}/assets?per_page=100")}
+    asset_endpoint = f"repos/{repository}/releases/{release['id']}/assets?per_page=100"
+    expected = {path.name: "sha256:" + file_hash(path) for path in assets}
+    existing = {asset["name"]: asset.get("digest") for asset in api(asset_endpoint)}
+    missing = []
     for path in assets:
         if path.name in existing:
-            if existing[path.name].get("digest") != "sha256:" + file_hash(path):
+            if existing[path.name] != expected[path.name]:
                 raise ValueError("existing release asset differs; never replace it")
         elif release["draft"]:
-            subprocess.run(["gh", "release", "upload", version, str(path), "--repo", repository], check=True)
+            missing.append(path)
         else:
             raise ValueError("published release is missing a required asset")
+    for path in missing:
+        subprocess.run(["gh", "release", "upload", version, str(path), "--repo", repository], check=True)
     if release["draft"]:
+        if missing:
+            uploaded = {asset["name"]: asset.get("digest") for asset in api(asset_endpoint)}
+            if any(uploaded.get(name) != digest for name, digest in expected.items()):
+                raise ValueError("uploaded release asset differs from the approved digest")
         api(f"repos/{repository}/releases/{release['id']}", dict(draft=False, make_latest="false" if prerelease else "true"), method="PATCH")
 
 
@@ -47,7 +56,7 @@ def publish_candidate(directory, identity_dir, env):
     release = value["record"]["release"]
     version = release["version"]
     if (not re.fullmatch(r"v0\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)-rc\.[1-9][0-9]*", version) or
-            value["source"] != env["GITHUB_SHA"] or value["repository"] != env["GITHUB_REPOSITORY"]):
+            value["source"] != env.get("RELEASE_SOURCE", env["GITHUB_SHA"]) or value["repository"] != env["GITHUB_REPOSITORY"]):
         raise ValueError("prerelease requires this run's verified v0 RC")
     # The completion tag exists only after all ten subjects passed verification.
     ref = f"core-published/{version}/{release['platform'].replace('/', '-')}"

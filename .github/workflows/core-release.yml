@@ -1,9 +1,13 @@
 name: Core release candidate
-run-name: Core release candidate (${{ inputs.platform }})
+run-name: Core release candidate (${{ inputs.platform }}, ${{ inputs.source_sha }})
 
 on:
   workflow_dispatch:
     inputs:
+      source_sha:
+        description: Exact source SHA from the successful main CI run
+        required: true
+        type: string
       version:
         description: Optional expected version; normally selected when the candidate starts
         required: false
@@ -47,6 +51,8 @@ jobs:
       contents: read
       pull-requests: read
       actions: read
+    env:
+      RELEASE_SOURCE: ${{ inputs.source_sha }}
     outputs:
       approval_sha256: ${{ steps.review.outputs.approval_sha256 }}
     steps:
@@ -61,8 +67,9 @@ jobs:
           CI_ATTEMPT: ${{ inputs.ci_attempt }}
         run: |
           python3 -m scripts.admit_core_ci \
-            "$GITHUB_REPOSITORY" "$GITHUB_SHA" "$CI_RUN_ID" "$CI_ATTEMPT" \
-            "$RUNNER_TEMP/core-release-ci-admission.json"
+            "$GITHUB_REPOSITORY" "$RELEASE_SOURCE" "$CI_RUN_ID" "$CI_ATTEMPT" \
+            "$RUNNER_TEMP/core-release-ci-admission.json" --checkout "$GITHUB_WORKSPACE" \
+            --source-tree "$RUNNER_TEMP/core-release-source"
       - name: Prepare candidate OCI archives
         id: candidate
         env:
@@ -74,7 +81,7 @@ jobs:
         run: |
           python3 -m scripts.build_core_candidate \
             "$RELEASE_VERSION" "$RELEASE_PLATFORM" "$RELEASE_EDGE" "$RELEASE_POSTGRES" \
-            "$GITHUB_WORKSPACE" "$RUNNER_TEMP/core-release-candidate"
+            "$RUNNER_TEMP/core-release-source" "$RUNNER_TEMP/core-release-candidate"
       - name: Show candidate identity
         if: ${{ steps.candidate.outputs.ready == 'true' }}
         id: review
@@ -124,6 +131,7 @@ jobs:
       attestations: write
       artifact-metadata: write
     env:
+      RELEASE_SOURCE: ${{ inputs.source_sha }}
       GH_TOKEN: ${{ github.token }}
       GITHUB_TOKEN: ${{ github.token }}
     steps:
@@ -145,13 +153,22 @@ jobs:
             printf 'RELEASE_OUTPUT=%s\n' "$RUNNER_TEMP/core-release-output"
             printf 'CANDIDATE_DIR=%s\n' "$RUNNER_TEMP/core-release-candidate"
           } >> "$GITHUB_ENV"
+      - name: Re-admit the candidate source before publication
+        env:
+          CI_RUN_ID: ${{ inputs.ci_run_id }}
+          CI_ATTEMPT: ${{ inputs.ci_attempt }}
+        run: |
+          python3 -m scripts.admit_core_ci \
+            "$GITHUB_REPOSITORY" "$RELEASE_SOURCE" "$CI_RUN_ID" "$CI_ATTEMPT" \
+            "$RUNNER_TEMP/core-release-ci-admission.json" --checkout "$GITHUB_WORKSPACE" \
+            --source-tree "$RUNNER_TEMP/core-release-source"
       - name: Reserve immutable release identity
         env:
           CORE_RELEASE_PUBLICATION_AUTHORIZED: 'yes'
           APPROVED_SHA256: ${{ needs.prepare.outputs.approval_sha256 }}
         run: |
           python3 -m scripts.core_release_identity reserve "$CANDIDATE_DIR" "$APPROVED_SHA256" \
-            "$GITHUB_WORKSPACE" "$RUNNER_TEMP/core-release-identity"
+            "$RUNNER_TEMP/core-release-source" "$RUNNER_TEMP/core-release-identity"
       - name: Publish the approved candidate by digest
         id: publish_candidate
         env:
@@ -161,7 +178,7 @@ jobs:
           RELEASE_CI_ATTEMPT: ${{ inputs.ci_attempt }}
         run: |
           python3 -m scripts.publish_core_candidate "$CANDIDATE_DIR" "$APPROVED_SHA256" \
-            "$GITHUB_WORKSPACE" "$RELEASE_OUTPUT" "$RELEASE_CI_RUN" "$RELEASE_CI_ATTEMPT"
+            "$RUNNER_TEMP/core-release-source" "$RELEASE_OUTPUT" "$RELEASE_CI_RUN" "$RELEASE_CI_ATTEMPT"
       - name: Prepare signing credentials and coordinates
         id: images
         run: |
@@ -265,7 +282,7 @@ jobs:
           APPROVED_SHA256: ${{ needs.prepare.outputs.approval_sha256 }}
         run: |
           python3 -m scripts.core_release_identity complete "$CANDIDATE_DIR" "$APPROVED_SHA256" \
-            "$GITHUB_WORKSPACE" "$RUNNER_TEMP/core-release-identity"
+            "$RUNNER_TEMP/core-release-source" "$RUNNER_TEMP/core-release-identity"
       - name: Publish verified RC prerelease
         run: |
           python3 -m scripts.publish_core_release "$CANDIDATE_DIR" "$RUNNER_TEMP/core-release-identity"

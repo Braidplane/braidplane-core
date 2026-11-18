@@ -19,11 +19,12 @@ def predicate(release, env, event):
         raise ValueError("invalid release workflow identity")
     workflow = workflow_ref[len(prefix):-len(suffix)]
     sha = env["GITHUB_WORKFLOW_SHA"]
+    source = release["core_revision"]
     run_id, attempt = env["GITHUB_RUN_ID"], env["GITHUB_RUN_ATTEMPT"]
     repository_id, owner_id = env["GITHUB_REPOSITORY_ID"], env["GITHUB_REPOSITORY_OWNER_ID"]
     if (not re.fullmatch(r"\.github/workflows/[A-Za-z0-9_.-]+\.ya?ml", workflow) or
             not re.fullmatch(r"[0-9a-f]{40}", sha) or env["GITHUB_SHA"] != sha or
-            release["core_revision"] != sha or env["GITHUB_REF"] != "refs/heads/main" or
+            not re.fullmatch(r"[0-9a-f]{40}", source) or source != env.get("RELEASE_SOURCE", sha) or env["GITHUB_REF"] != "refs/heads/main" or
             env["GITHUB_EVENT_NAME"] != "workflow_dispatch" or
             env["RUNNER_ENVIRONMENT"] != "github-hosted" or
             not re.fullmatch(r"[1-9][0-9]*", repository_id) or not re.fullmatch(r"[1-9][0-9]*", owner_id) or
@@ -40,7 +41,7 @@ def predicate(release, env, event):
                                               "repository_owner_id": owner_id, "runner_environment": "github-hosted"},
                                    "release": {"version": release["version"], "platform": release["platform"]}},
             "resolvedDependencies": [{"uri": f"git+https://github.com/{repository}@refs/heads/main",
-                                      "digest": {"gitCommit": sha}}],
+                                      "digest": {"gitCommit": source}}],
         },
         "runDetails": {"builder": {"id": url + "@refs/heads/main"},
                        "metadata": {"invocationId": f"https://github.com/{repository}/actions/runs/{run_id}/attempts/{attempt}"}},

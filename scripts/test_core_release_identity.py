@@ -6,7 +6,7 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
-from scripts.core_release_identity import api, baseline, bind, execute, identity
+from scripts.core_release_identity import api, check_publication_order, baseline, bind, execute, identity
 from scripts.core_release_version import notes
 
 
@@ -43,7 +43,7 @@ class ReleaseIdentityTest(unittest.TestCase):
         self.assertEqual(api.call_count, 5)
 
     def test_failed_verification_never_marks_complete_and_retry_checks_same_identity(self):
-        value = dict(repository='Example/core', source='a' * 40, record=dict(
+        value = dict(repository='Example/core', source='a' * 40, workflow_sha='d' * 40, record=dict(
             release=dict(version='v0.1.0', platform='linux/amd64'), migration=dict(version=1, digest='b' * 64)))
         env = dict(CORE_RELEASE_PUBLICATION_AUTHORIZED='yes', GITHUB_RUN_ID='123', GITHUB_RUN_ATTEMPT='2', DOCKER_CONFIG='/tmp')
         with patch('scripts.core_release_identity.identity', return_value=value), \
@@ -60,6 +60,29 @@ class ReleaseIdentityTest(unittest.TestCase):
             execute('complete', Path('/tmp'), 'approved', Path('/tmp'), Path('/tmp/output'), env)
             self.assertEqual(bind_mock.call_args.args[1], 'core-published/v0.1.0/linux-amd64')
             self.assertEqual(verify.call_args.args[2]['attempt'], '2')
+            self.assertEqual(verify.call_args.args[2]['signer_sha'], 'd' * 40)
+
+    def test_publication_order_rejects_older_and_duplicate_sources(self):
+        source, newer = 'a' * 40, 'b' * 40
+        ref = dict(ref='refs/tags/core-published/v0.3.0-rc.1/linux-amd64',
+                   object=dict(type='tag', sha='synthetic-tag'))
+        for published, returncode, version, platform, allowed in (
+            (newer, 1, 'v0.2.1-rc.4', 'linux-arm64', False),
+            (newer, 0, 'v0.3.0-rc.2', 'linux-amd64', True),
+            (source, 0, 'v0.3.0-rc.1', 'linux-amd64', True),
+            (source, 0, 'v0.3.0-rc.1', 'linux-arm64', True),
+            (source, 0, 'v0.3.0-rc.2', 'linux-amd64', False),
+        ):
+            tag = dict(object=dict(type='commit', sha=published))
+            with self.subTest(published=published, version=version, platform=platform), \
+                 patch('scripts.core_release_identity.api', side_effect=[[ref], tag]), \
+                 patch('scripts.core_release_identity.subprocess.run', return_value=subprocess.CompletedProcess([], returncode)):
+                args = ('Example/core', source, version, platform, Path('/tmp'))
+                if allowed:
+                    check_publication_order(*args)
+                else:
+                    with self.assertRaises(ValueError):
+                        check_publication_order(*args)
 
     def test_baseline_requires_rc_and_current_stable_reservation(self):
         def refs(*versions):
@@ -87,7 +110,7 @@ class ReleaseIdentityTest(unittest.TestCase):
                         supersedes=["v0.1.0"], changes=[dict(kind="fix", summary="Repair retries.")])
             files = {"release-plan.json": json.dumps(plan), "CHANGELOG.md": notes(plan),
                      "release-inputs.json": json.dumps(dict(through_sha="a" * 40)), "ci/core-release.json": "synthetic configuration",
-                     "ci/toolchain/versions.env": "GO_VERSION=synthetic", ".github/workflows/core-release.yml": "synthetic workflow"}
+                     "ci/toolchain/versions.env": "GO_VERSION=synthetic", ".github/workflows/core-release.yml": (Path(__file__).resolve().parents[1] / ".github/workflows/core-release.yml").read_text()}
             for name, contents in files.items():
                 path = root / name
                 path.parent.mkdir(parents=True, exist_ok=True)

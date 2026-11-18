@@ -62,21 +62,22 @@ Buildx caches too. Cache prefixes alone do not control access; GitHub also
 scopes caches by repository and ref.
 
 `core-release-plan.yml` accepts only completed, successful push-to-main Core CI
-for its exact current main source. It checks required jobs again, computes a
+for candidate commits reachable from live `main`. It checks required jobs again, computes a
 version from merged reviewer labels and dispatches `core-release.yml` using the
 reviewed source configuration. Its token can read source/PR metadata and dispatch Actions workflows, but cannot
 write source/PRs, sign, publish packages or use deployment environments/secrets. It checks out trusted main code with no contribution cache or artifact
-restore. PR CI, branch dispatches and stale main runs cannot dispatch candidates.
+restore. PR CI, branch dispatches and detached commits fail admission.
 See [automatic candidates](CORE_RELEASE_AUTOMATION.md#reviewer-labels-and-automatic-candidates).
 
 The dispatched `core-release.yml` workflow prepares OCI archives when
 `CORE_RELEASE_PREPARATION_ENABLED` is `true`. Before enabling preparation, review
 the source, version, platform, external image digests and artifact exposure.
-Supply the successful main-push CI run and attempt for that exact source;
-preparation checks them before building with a read-only token. Review the CI
+Supply the exact source SHA and its successful main-push CI run and attempt.
+Preparation checks them before building with a read-only token. Review the CI
 admission, generated plan/changelog/input receipt, approval document and release
 record in the job summary. The generated metadata lives in the candidate and
-installation archive; the source checkout remains clean.
+installation archive. Release tooling runs from the trusted workflow checkout,
+and the separate candidate checkout remains clean.
 
 Publication requires `CORE_RELEASE_PUBLICATION_ENABLED=true` and the main-only
 `core-release` environment. Under the v0 standing policy, that environment has

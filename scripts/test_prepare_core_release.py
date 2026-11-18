@@ -157,29 +157,43 @@ class PrepareCoreReleaseTest(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, 'direct commits'):
                 collect('Example/core', self.root, 'c' * 40, 'b' * 40)
 
-    def test_dispatch_requires_ci_and_never_writes_source_or_prs(self):
+    def test_dispatch_uses_ci_source_when_main_advances(self):
         metadata = {'release-plan.json': json.dumps(dict(version='v0.0.1'))}
-        with patch('scripts.prepare_core_release.api', side_effect=[dict(object=dict(sha='b' * 40)), dict(workflow_runs=[]), None, None]) as api, \
+        env = dict(self.env, GITHUB_SHA='c' * 40, GITHUB_WORKFLOW_SHA='c' * 40)
+        config = dict(self.config, platforms=['linux/amd64', 'linux/arm64'])
+        with patch('scripts.prepare_core_release.api') as api, \
              patch('scripts.prepare_core_release.admit') as admit, \
-             patch('scripts.prepare_core_release.git', side_effect=['b' * 40, '']), \
-             patch('scripts.prepare_core_release.release_metadata', return_value=metadata):
-            prepare(self.root, self.env, self.event)
+             patch('scripts.prepare_core_release.require_main') as reachability, \
+             patch('scripts.prepare_core_release.git', side_effect=['c' * 40, '']), \
+             patch('scripts.prepare_core_release.subprocess.check_output',
+                   side_effect=[json.dumps(config).encode(), b'[{"workflow_runs": []}]']) as read, \
+             patch('scripts.prepare_core_release.release_metadata', return_value=metadata) as select:
+            prepare(self.root, env, self.event)
         admit.assert_called_once_with('Example/core', 'b' * 40, '123', '1')
-        self.assertTrue(api.call_args.args[0].endswith('/core-release.yml/dispatches'))
-        self.assertEqual([call.args[1]['inputs'] for call in api.call_args_list[-2:]],
-                         [dict(self.config, platform=platform, ci_run_id='123', ci_attempt='1')
+        reachability.assert_called_once_with('Example/core', 'b' * 40, self.root)
+        self.assertEqual(read.call_args_list[0].args[0][-1], 'b' * 40 + ':ci/core-release.json')
+        self.assertEqual([call.args[2] for call in select.call_args_list], ['b' * 40] * 2)
+        self.assertEqual([call.args[1] for call in api.call_args_list],
+                         [dict(ref='main', inputs=dict(self.config, platform=platform, source_sha='b' * 40,
+                                                      ci_run_id='123', ci_attempt='1'))
                           for platform in ('linux/amd64', 'linux/arm64')])
 
-    def test_retry_dispatches_missing_arm64_after_amd64_completed(self):
+    def test_retry_dispatches_only_missing_platform(self):
         metadata = {'release-plan.json': json.dumps(dict(version='v0.0.1-rc.1'))}
-        with patch('scripts.prepare_core_release.api', side_effect=[dict(object=dict(sha='b' * 40)),
-                   dict(workflow_runs=[dict(head_sha='b' * 40, display_title='Core release candidate (linux/amd64)')]), None]) as api, \
+        config = dict(self.config, platforms=['linux/amd64', 'linux/arm64'])
+        runs = [dict(workflow_runs=[dict(head_sha='c' * 40, event='workflow_dispatch', head_branch='main',
+                     display_title=f"Core release candidate (linux/amd64, {'b' * 40})"),
+                     dict(head_sha='d' * 40, event='workflow_dispatch', head_branch='other',
+                     display_title=f"Core release candidate (linux/arm64, {'b' * 40})")])]
+        with patch('scripts.prepare_core_release.api') as api, \
              patch('scripts.prepare_core_release.admit'), \
+             patch('scripts.prepare_core_release.require_main'), \
              patch('scripts.prepare_core_release.git', side_effect=['b' * 40, '']), \
-             patch('scripts.prepare_core_release.release_metadata', side_effect=[None, metadata]) as select:
+             patch('scripts.prepare_core_release.subprocess.check_output',
+                   side_effect=[json.dumps(config).encode(), json.dumps(runs).encode()]), \
+             patch('scripts.prepare_core_release.release_metadata', return_value=metadata):
             prepare(self.root, self.env, self.event)
-        self.assertEqual([call.args[-1] for call in select.call_args_list], ['linux/amd64', 'linux/arm64'])
-        self.assertEqual(api.call_count, 3)
+        self.assertEqual(api.call_count, 1)
         self.assertEqual(api.call_args.args[1]['inputs']['platform'], 'linux/arm64')
 
     def test_sibling_reuses_version_and_metadata_without_suppressing_arm64(self):
@@ -241,20 +255,13 @@ class PrepareCoreReleaseTest(unittest.TestCase):
         self.assertEqual(json.loads(metadata['release-plan.json'])['version'], 'v0.0.1-rc.2')
         self.assertEqual(json.loads(metadata['release-inputs.json'])['pull_requests'][0]['title'], changed['title'])
 
-    def test_failed_ci_untrusted_event_and_duplicate_run_do_not_dispatch(self):
+    def test_failed_ci_and_untrusted_event_do_not_dispatch(self):
         for event in ('pull_request', 'push'):
             with patch('scripts.prepare_core_release.api') as api, self.assertRaises(ValueError):
                 prepare(self.root, dict(self.env, GITHUB_EVENT_NAME=event), self.event)
             api.assert_not_called()
-        with patch('scripts.prepare_core_release.api', return_value=dict(object=dict(sha='b' * 40))) as api, \
+        with patch('scripts.prepare_core_release.api') as api, \
              patch('scripts.prepare_core_release.admit', side_effect=ValueError('failed CI')):
             with self.assertRaisesRegex(ValueError, 'failed CI'):
                 prepare(self.root, self.env, self.event)
-            self.assertEqual(api.call_count, 1)
-        with patch('scripts.prepare_core_release.api', side_effect=[dict(object=dict(sha='b' * 40)), dict(workflow_runs=[
-                 dict(head_sha='b' * 40, display_title=f'Core release candidate ({platform})')
-                 for platform in ('linux/amd64', 'linux/arm64')])]) as api, \
-             patch('scripts.prepare_core_release.admit'), patch('scripts.prepare_core_release.git', side_effect=['b' * 40, '']), \
-             patch('scripts.prepare_core_release.release_metadata', return_value={'release-plan.json': '{}'}):
-            prepare(self.root, self.env, self.event)
-        self.assertEqual(api.call_count, 2)
+            api.assert_not_called()

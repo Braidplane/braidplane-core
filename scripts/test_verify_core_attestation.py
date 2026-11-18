@@ -31,7 +31,7 @@ class VerifyAttestationTest(unittest.TestCase):
             self.assertEqual(verify(*ARGS), raw)
             command = gh.call_args.args[0]
             self.assertIn("--deny-self-hosted-runners", command)
-            self.assertEqual(command[command.index("--source-digest") + 1], "b" * 40)
+            self.assertEqual(command[command.index("--source-digest") + 1], "c" * 40)
             self.assertEqual(command[command.index("--signer-digest") + 1], "c" * 40)
             self.assertEqual(command[command.index("--cert-identity") + 1],
                              "https://github.com/Example/core/.github/workflows/release.yml@refs/heads/main")

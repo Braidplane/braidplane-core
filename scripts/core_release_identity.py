@@ -6,6 +6,7 @@ import re
 import subprocess
 from pathlib import Path
 
+from scripts.admit_core_ci import require_main
 from scripts.verify_core_release import read_json
 from scripts.validate_core_candidate import file_hash, validate_candidate
 from scripts.verify_core_release import verify_release
@@ -67,10 +68,13 @@ def baseline(repository, plan):
 
 
 def identity(directory, approved, checkout, env):
-    repository, source = env["GITHUB_REPOSITORY"], env["GITHUB_SHA"]
+    repository, source = env["GITHUB_REPOSITORY"], env.get("RELEASE_SOURCE", env["GITHUB_SHA"])
     record = validate_candidate(directory, approved, repository, source)
-    release = record["release"]
-    if env["GITHUB_WORKFLOW_SHA"] != source or env["GITHUB_WORKFLOW_REF"] != repository + "/.github/workflows/core-release.yml@refs/heads/main":
+    if "RELEASE_SOURCE" in env:
+        receipt = Path(env["RUNNER_TEMP"]) / "core-release-ci-admission.json"
+        if file_hash(receipt) != read_json(directory / "approval.json")["ci_admission_sha256"]:
+            raise ValueError("CI admission differs from the approved candidate")
+    if env["GITHUB_WORKFLOW_SHA"] != env["GITHUB_SHA"] or env["GITHUB_WORKFLOW_REF"] != repository + "/.github/workflows/core-release.yml@refs/heads/main":
         raise ValueError("identity requires the exact reviewed release workflow")
     head = subprocess.check_output(["git", "-C", str(checkout), "rev-parse", "HEAD"], text=True).strip()
     dirty = subprocess.check_output(["git", "-C", str(checkout), "status", "--porcelain=v1", "--untracked-files=all"])
@@ -78,12 +82,34 @@ def identity(directory, approved, checkout, env):
         raise ValueError("release identity requires clean exact source")
     plan = read_json(directory / "release-plan.json")
     materials = {name: file_hash(checkout / name) for name in
-                 ("ci/core-release.json", "ci/toolchain/versions.env", ".github/workflows/core-release.yml")}
+                 ("ci/core-release.json", "ci/toolchain/versions.env")}
+    materials[".github/workflows/core-release.yml"] = file_hash(Path(__file__).resolve().parents[1] / ".github/workflows/core-release.yml")
     materials.update({name: file_hash(directory / name) for name in ("release-plan.json", "release-inputs.json", "CHANGELOG.md")})
-    return {"repository": repository, "source": source, "workflow_sha": source,
+    return {"repository": repository, "source": source, "workflow_sha": env["GITHUB_WORKFLOW_SHA"],
             "run_id": env["GITHUB_RUN_ID"],
             "materials": materials, "plan": plan, "inputs": read_json(directory / "release-inputs.json"),
             "approval_sha256": approved, "record": record}
+
+
+def check_publication_order(repository, source, version, platform, checkout):
+    refs = api(f"repos/{repository}/git/matching-refs/tags/core-published/")
+    for ref in refs:
+        if not re.fullmatch(r"refs/tags/core-published/v0\.[0-9]+\.[0-9]+(?:-rc\.[0-9]+)?/linux-(?:amd64|arm64)", ref["ref"]):
+            continue
+        if ref["object"]["type"] != "tag":
+            raise ValueError("published release cursor must be an annotated identity tag")
+        tag = api(f"repos/{repository}/git/tags/{ref['object']['sha']}")
+        published = tag["object"]["sha"]
+        if tag["object"]["type"] != "commit" or not re.fullmatch(r"[0-9a-f]{40}", published):
+            raise ValueError("invalid completed release source")
+        if published == source:
+            parts = ref["ref"].split("/")
+            if parts[-1] == platform and parts[-2] != version:
+                raise ValueError("source already published for this platform")
+            continue
+        result = subprocess.run(["git", "-C", str(checkout), "merge-base", "--is-ancestor", published, source])
+        if result.returncode != 0:
+            raise ValueError("completed release source is outside candidate history")
 
 
 def execute(phase, directory, approved, checkout, output, env):
@@ -95,6 +121,7 @@ def execute(phase, directory, approved, checkout, output, env):
     version, platform = release["version"], release["platform"].replace('/', '-')
     message = json.dumps(value, sort_keys=True, separators=(",", ":"))
     if phase == "reserve":
+        check_publication_order(repository, source, version, platform, checkout)
         baseline(repository, value["plan"])
         bind(repository, version, source, json.dumps({"source": source, "version": version}, sort_keys=True))
         bind(repository, f"core-candidate/{version}/{platform}", source, message)
@@ -105,11 +132,13 @@ def execute(phase, directory, approved, checkout, output, env):
         bind(repository, f"core-candidate/{version}/{platform}", source, message)
         migration = value["record"]["migration"]
         expected = dict(record_sha256=file_hash(directory / "record.json"), repository=repository,
-                        workflow=".github/workflows/core-release.yml", source_sha=source, signer_sha=source,
+                        workflow=".github/workflows/core-release.yml", source_sha=source, signer_sha=value["workflow_sha"],
                         run_id=env["GITHUB_RUN_ID"], attempt=env["GITHUB_RUN_ATTEMPT"], version=version,
                         platform=release["platform"], migration_version=migration["version"], migration_digest=migration["digest"])
         verify_release(directory / "record.json", directory / "installation.tar.gz", expected,
                        output / "verification", Path(env["DOCKER_CONFIG"]))
+        if "RELEASE_SOURCE" in env:
+            require_main(repository, source, checkout)
         bind(repository, f"core-published/{version}/{platform}", source, message)
 
 

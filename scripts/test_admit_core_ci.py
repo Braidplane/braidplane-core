@@ -1,11 +1,13 @@
 import copy
 import json
 import re
+import subprocess
+import tempfile
 import unittest
 from pathlib import Path
 from unittest.mock import patch
 
-from scripts.admit_core_ci import REQUIRED, admit
+from scripts.admit_core_ci import REQUIRED, admit, require_main
 
 
 def fixture():
@@ -30,6 +32,38 @@ class AdmitCoreCITest(unittest.TestCase):
         receipt = self.execute(run, jobs)
         self.assertEqual(receipt["jobs"], sorted(job["name"] for job in jobs["jobs"]))
         self.assertEqual(receipt["source_sha"], "a" * 40)
+
+    def test_live_main_accepts_an_ancestor_and_rejects_detached_history(self):
+        run = subprocess.run
+        with tempfile.TemporaryDirectory() as checkout:
+            def git(*args):
+                return subprocess.check_output(["git", "-C", checkout, *args], stderr=subprocess.PIPE).decode().strip()
+
+            git("init", "-q")
+            git("config", "commit.gpgSign", "false")
+            git("config", "core.hooksPath", "/dev/null")
+            git("config", "user.name", "Synthetic CI")
+            git("config", "user.email", "ci@example.test")
+            git("commit", "--allow-empty", "-qm", "tested")
+            source = git("rev-parse", "HEAD")
+            git("commit", "--allow-empty", "-qm", "main advanced")
+            tip = git("rev-parse", "HEAD")
+            git("checkout", "-q", "--orphan", "rewritten")
+            git("commit", "--allow-empty", "-qm", "unrelated main")
+            rewritten = git("rev-parse", "HEAD")
+
+            for main, reachable in ((tip, True), (rewritten, False)):
+                with patch("scripts.admit_core_ci.subprocess.check_output", return_value=json.dumps({"object": {"sha": main}})), \
+                     patch("scripts.admit_core_ci.subprocess.run") as command:
+                    # Both tips are already local in this fixture.
+                    command.side_effect = lambda argv, **kwargs: (
+                        None if "fetch" in argv else run(argv, **kwargs))
+                    if reachable:
+                        require_main("Example/core", source, checkout)
+                    else:
+                        with self.assertRaises(subprocess.CalledProcessError):
+                            require_main("Example/core", source, checkout)
+                    self.assertEqual(command.call_args_list[0].args[0][-1], main)
 
     def test_release_requirements_track_workflow_shards(self):
         workflow = Path(__file__).resolve().parents[1] / ".github/workflows/ci.yml"
@@ -84,7 +118,8 @@ class AdmitCoreCITest(unittest.TestCase):
     def test_wrong_source_event_attempt_or_status_fails(self):
         run, jobs = fixture()
         for key, value in (("head_sha", "b" * 40), ("event", "pull_request"), ("run_attempt", 2),
-                           ("path", ".github/workflows/other.yml"), ("conclusion", "failure")):
+                           ("path", ".github/workflows/other.yml"), ("conclusion", "failure"),
+                           ("head_branch", "other"), ("head_repository", {"full_name": "Fork/core"})):
             changed = copy.deepcopy(run)
             changed[key] = value
             with self.subTest(key=key), self.assertRaises(ValueError):

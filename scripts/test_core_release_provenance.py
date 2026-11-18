@@ -19,7 +19,8 @@ def context():
 
 class CoreReleaseProvenanceTest(unittest.TestCase):
     def test_generated_claim_satisfies_verification_contract(self):
-        claim = predicate(manifest(), context(), {"repository": {"full_name": REPOSITORY, "visibility": "public"}})
+        env = dict(context(), RELEASE_SOURCE="a" * 40, GITHUB_SHA="b" * 40, GITHUB_WORKFLOW_SHA="b" * 40)
+        claim = predicate(manifest(), env, {"repository": {"full_name": REPOSITORY, "visibility": "public"}})
         definition = claim["buildDefinition"]
         self.assertEqual(definition["buildType"], "https://actions.github.io/buildtypes/workflow/v1")
         self.assertEqual(definition["externalParameters"], {"workflow": {"repository": "https://github.com/" + REPOSITORY,
@@ -30,7 +31,7 @@ class CoreReleaseProvenanceTest(unittest.TestCase):
         statement = value[0]["verificationResult"]["statement"]
         statement["predicateType"], statement["predicate"] = PROVENANCE, claim
         with patch("scripts.verify_core_attestation.subprocess.check_output", return_value=json.dumps(value).encode()):
-            verify(SUBJECT, DIGEST, REPOSITORY, ".github/workflows/release.yml", "a" * 40, "a" * 40,
+            verify(SUBJECT, DIGEST, REPOSITORY, ".github/workflows/release.yml", "a" * 40, "b" * 40,
                    "123", "1", PROVENANCE, manifest()["version"], manifest()["platform"])
 
     def test_rejects_untrusted_context(self):
