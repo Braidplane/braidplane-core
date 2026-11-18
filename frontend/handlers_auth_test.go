@@ -1826,7 +1826,8 @@ func TestRouter_HandleResetPasswordSubmit_InvalidToken(t *testing.T) {
 	require.Equal(t, http.StatusBadRequest, resp.StatusCode)
 	require.Contains(t, string(body), "This password reset code is invalid or expired.")
 	require.Contains(t, string(body), `href="/auth/forgot-password"`)
-	require.NotContains(t, string(body), `name="token"`)
+	require.Contains(t, string(body), `name="token" autocomplete="one-time-code"`)
+	require.NotContains(t, string(body), `name="token" value=`)
 	require.Contains(t, string(body), `href="/auth/login"`)
 	require.NotContains(t, string(body), "Password reset successful")
 }

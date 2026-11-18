@@ -11,7 +11,7 @@ test("verification resend supports keyboard correction after an invalid code", a
     await page.goto("/verify-email");
     const code = page.getByLabel("Verification code");
     await tabTo(page, code);
-    await page.keyboard.insertText("0".repeat(64));
+    await page.keyboard.insertText("{{token}}");
     await page.keyboard.press("Enter");
     const alert = page.getByRole("alert");
     const email = page.getByLabel("Account email", { exact: true });
