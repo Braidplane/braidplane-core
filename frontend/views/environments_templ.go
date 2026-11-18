@@ -64,25 +64,31 @@ func OrganizationEnvironmentsPageContent(orgSlug string, environments []api.Envi
 			templ_7745c5c3_Var2 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 1, "<div id=\"organization-environments-content\"><div class=\"flex flex-wrap items-center justify-end gap-3\"><a class=\"btn btn-outline btn-sm w-full sm:w-auto\" href=\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 1, "<div id=\"organization-environments-content\"><div class=\"flex flex-wrap items-center justify-end gap-3\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		var templ_7745c5c3_Var3 templ.SafeURL
-		templ_7745c5c3_Var3, templ_7745c5c3_Err = templ.JoinURLErrs(templ.URL(RuntimeVariableComparisonHref(orgSlug, "", "", "")))
-		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 16, Col: 122}
-		}
-		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var3))
-		if templ_7745c5c3_Err != nil {
-			return templ_7745c5c3_Err
-		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 2, "\">Compare runtime variables</a> ")
-		if templ_7745c5c3_Err != nil {
-			return templ_7745c5c3_Err
+		if permissions.Can("environments", "read") {
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 2, "<a class=\"btn btn-outline btn-sm w-full sm:w-auto\" href=\"")
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			var templ_7745c5c3_Var3 templ.SafeURL
+			templ_7745c5c3_Var3, templ_7745c5c3_Err = templ.JoinURLErrs(templ.URL(RuntimeVariableComparisonHref(orgSlug, "", "", "")))
+			if templ_7745c5c3_Err != nil {
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 17, Col: 123}
+			}
+			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var3))
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 3, "\">Compare runtime variables</a> ")
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
 		}
 		if permissions.Can("environments", "create") {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 3, "<button class=\"btn btn-primary btn-sm w-full sm:w-auto\" type=\"button\" aria-controls=\"create-environment\" aria-expanded=\"")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 4, "<button class=\"btn btn-primary btn-sm w-full sm:w-auto\" type=\"button\" aria-controls=\"create-environment\" aria-expanded=\"")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -94,44 +100,44 @@ func OrganizationEnvironmentsPageContent(orgSlug string, environments []api.Envi
 				return "false"
 			}())
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 22, Col: 148}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 24, Col: 148}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var4)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 4, "\" data-toggle-target=\"create-environment\">Create environment</button>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 5, "\" data-toggle-target=\"create-environment\">Create environment</button>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 5, "</div><div class=\"mt-6 grid gap-3 sm:grid-cols-3\"><div class=\"rounded-lg border border-base-300 bg-base-200/40 p-4\"><p class=\"text-xs font-semibold uppercase tracking-wide text-base-content/60\">Runtime targets</p><p class=\"mt-2 text-2xl font-semibold text-base-content\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 6, "</div><div class=\"mt-6 grid gap-3 sm:grid-cols-3\"><div class=\"rounded-lg border border-base-300 bg-base-200/40 p-4\"><p class=\"text-xs font-semibold uppercase tracking-wide text-base-content/60\">Runtime targets</p><p class=\"mt-2 text-2xl font-semibold text-base-content\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var5 string
 		templ_7745c5c3_Var5, templ_7745c5c3_Err = templ.JoinStringErrs(fmt.Sprintf("%d", len(environments)))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 30, Col: 99}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 32, Col: 99}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var5))
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 6, "</p><p class=\"mt-1 text-xs text-base-content/65\">Available runtime targets</p></div><div class=\"rounded-lg border border-error/35 bg-error/10 p-4\"><p class=\"text-xs font-semibold uppercase tracking-wide text-base-content/60\">Protected targets</p><p class=\"mt-2 text-2xl font-semibold text-error\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 7, "</p><p class=\"mt-1 text-xs text-base-content/65\">Available runtime targets</p></div><div class=\"rounded-lg border border-error/35 bg-error/10 p-4\"><p class=\"text-xs font-semibold uppercase tracking-wide text-base-content/60\">Protected targets</p><p class=\"mt-2 text-2xl font-semibold text-error\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var6 string
 		templ_7745c5c3_Var6, templ_7745c5c3_Err = templ.JoinStringErrs(fmt.Sprintf("%d", ProtectedEnvironmentCount(environments)))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 35, Col: 114}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 37, Col: 114}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var6))
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 7, "</p><p class=\"mt-1 text-xs text-base-content/65\">Require confirmation for production-risk changes</p></div><div class=\"rounded-lg border border-base-300 bg-base-200/40 p-4\"><p class=\"text-xs font-semibold uppercase tracking-wide text-base-content/60\">Project enablement</p><p class=\"mt-2 text-sm font-semibold text-base-content\">Project scoped</p><p class=\"mt-1 text-xs text-base-content/65\">Projects opt into the targets they use</p></div></div>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 8, "</p><p class=\"mt-1 text-xs text-base-content/65\">Require confirmation for production-risk changes</p></div><div class=\"rounded-lg border border-base-300 bg-base-200/40 p-4\"><p class=\"text-xs font-semibold uppercase tracking-wide text-base-content/60\">Project enablement</p><p class=\"mt-2 text-sm font-semibold text-base-content\">Project scoped</p><p class=\"mt-1 text-xs text-base-content/65\">Projects opt into the targets they use</p></div></div>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -146,7 +152,7 @@ func OrganizationEnvironmentsPageContent(orgSlug string, environments []api.Envi
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 8, "<div id=\"create-environment\" class=\"")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 9, "<div id=\"create-environment\" class=\"")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -159,7 +165,7 @@ func OrganizationEnvironmentsPageContent(orgSlug string, environments []api.Envi
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 9, "\">")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 10, "\">")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -167,7 +173,7 @@ func OrganizationEnvironmentsPageContent(orgSlug string, environments []api.Envi
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 10, "</div>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 11, "</div>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -178,7 +184,7 @@ func OrganizationEnvironmentsPageContent(orgSlug string, environments []api.Envi
 				return templ_7745c5c3_Err
 			}
 		} else if len(environments) == 0 {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 11, "<div class=\"mt-6 rounded-xl border border-dashed border-base-300 bg-base-200/30 p-8 text-center\"><h2 class=\"text-lg font-semibold text-base-content\">No environments</h2><p class=\"mt-2 text-sm text-base-content/70\">Create runtime targets before projects can enable environments.</p></div>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 12, "<div class=\"mt-6 rounded-xl border border-dashed border-base-300 bg-base-200/30 p-8 text-center\"><h2 class=\"text-lg font-semibold text-base-content\">No environments</h2><p class=\"mt-2 text-sm text-base-content/70\">Create runtime targets before projects can enable environments.</p></div>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -195,20 +201,20 @@ func OrganizationEnvironmentsPageContent(orgSlug string, environments []api.Envi
 					}()
 				}
 				ctx = templ.InitializeContext(ctx)
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 12, "<section class=\"min-w-0 rounded-xl border border-base-300 bg-base-100 p-4\"><div class=\"flex items-center justify-between gap-3\"><div><h2 class=\"text-base font-semibold text-base-content\">Runtime targets</h2><p class=\"mt-1 text-xs text-base-content/65\">Select an environment for a read-only quick look.</p></div><span class=\"badge badge-outline h-auto min-h-6 py-1 leading-tight\">")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 13, "<section class=\"min-w-0 rounded-xl border border-base-300 bg-base-100 p-4\"><div class=\"flex items-center justify-between gap-3\"><div><h2 class=\"text-base font-semibold text-base-content\">Runtime targets</h2><p class=\"mt-1 text-xs text-base-content/65\">Select an environment for a read-only quick look.</p></div><span class=\"badge badge-outline h-auto min-h-6 py-1 leading-tight\">")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
 				var templ_7745c5c3_Var10 string
 				templ_7745c5c3_Var10, templ_7745c5c3_Err = templ.JoinStringErrs(fmt.Sprintf("%d entries", len(environments)))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 72, Col: 120}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 74, Col: 120}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var10))
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 13, "</span></div><div class=\"mt-4 space-y-3\">")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 14, "</span></div><div class=\"mt-4 space-y-3\">")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
@@ -225,46 +231,46 @@ func OrganizationEnvironmentsPageContent(orgSlug string, environments []api.Envi
 							}()
 						}
 						ctx = templ.InitializeContext(ctx)
-						templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 14, "<div class=\"flex flex-wrap items-start justify-between gap-3\"><div class=\"min-w-0 flex-1 basis-full sm:basis-auto\"><h3 class=\"break-words text-base font-semibold text-base-content\"><a class=\"relative z-10 hover:underline\" href=\"")
+						templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 15, "<div class=\"flex flex-wrap items-start justify-between gap-3\"><div class=\"min-w-0 flex-1 basis-full sm:basis-auto\"><h3 class=\"break-words text-base font-semibold text-base-content\"><a class=\"relative z-10 hover:underline\" href=\"")
 						if templ_7745c5c3_Err != nil {
 							return templ_7745c5c3_Err
 						}
 						var templ_7745c5c3_Var12 templ.SafeURL
 						templ_7745c5c3_Var12, templ_7745c5c3_Err = templ.JoinURLErrs(templ.URL(entityDetailHref(OrganizationEnvironmentDetailHref(orgSlug, environment.Slug), EnvironmentSelectionHref(orgSlug, environment.Slug))))
 						if templ_7745c5c3_Err != nil {
-							return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 79, Col: 266}
+							return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 81, Col: 266}
 						}
 						_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var12))
 						if templ_7745c5c3_Err != nil {
 							return templ_7745c5c3_Err
 						}
-						templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 15, "\">")
+						templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 16, "\">")
 						if templ_7745c5c3_Err != nil {
 							return templ_7745c5c3_Err
 						}
 						var templ_7745c5c3_Var13 string
 						templ_7745c5c3_Var13, templ_7745c5c3_Err = templ.JoinStringErrs(environment.Name)
 						if templ_7745c5c3_Err != nil {
-							return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 79, Col: 287}
+							return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 81, Col: 287}
 						}
 						_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var13))
 						if templ_7745c5c3_Err != nil {
 							return templ_7745c5c3_Err
 						}
-						templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 16, "</a></h3><p class=\"mt-1 break-all font-mono text-xs text-base-content/70\">")
+						templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 17, "</a></h3><p class=\"mt-1 break-all font-mono text-xs text-base-content/70\">")
 						if templ_7745c5c3_Err != nil {
 							return templ_7745c5c3_Err
 						}
 						var templ_7745c5c3_Var14 string
 						templ_7745c5c3_Var14, templ_7745c5c3_Err = templ.JoinStringErrs(environment.Slug)
 						if templ_7745c5c3_Err != nil {
-							return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 80, Col: 93}
+							return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 82, Col: 93}
 						}
 						_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var14))
 						if templ_7745c5c3_Err != nil {
 							return templ_7745c5c3_Err
 						}
-						templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 17, "</p></div><div class=\"flex flex-wrap gap-2\">")
+						templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 18, "</p></div><div class=\"flex flex-wrap gap-2\">")
 						if templ_7745c5c3_Err != nil {
 							return templ_7745c5c3_Err
 						}
@@ -273,7 +279,7 @@ func OrganizationEnvironmentsPageContent(orgSlug string, environments []api.Envi
 						if templ_7745c5c3_Err != nil {
 							return templ_7745c5c3_Err
 						}
-						templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 18, "<span class=\"")
+						templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 19, "<span class=\"")
 						if templ_7745c5c3_Err != nil {
 							return templ_7745c5c3_Err
 						}
@@ -286,20 +292,20 @@ func OrganizationEnvironmentsPageContent(orgSlug string, environments []api.Envi
 						if templ_7745c5c3_Err != nil {
 							return templ_7745c5c3_Err
 						}
-						templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 19, "\">")
+						templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 20, "\">")
 						if templ_7745c5c3_Err != nil {
 							return templ_7745c5c3_Err
 						}
 						var templ_7745c5c3_Var17 string
 						templ_7745c5c3_Var17, templ_7745c5c3_Err = templ.JoinStringErrs(EnvironmentRiskLabel(string(environment.Slug), environment.Protected))
 						if templ_7745c5c3_Err != nil {
-							return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 83, Col: 151}
+							return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 85, Col: 151}
 						}
 						_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var17))
 						if templ_7745c5c3_Err != nil {
 							return templ_7745c5c3_Err
 						}
-						templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 20, "</span> ")
+						templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 21, "</span> ")
 						if templ_7745c5c3_Err != nil {
 							return templ_7745c5c3_Err
 						}
@@ -309,7 +315,7 @@ func OrganizationEnvironmentsPageContent(orgSlug string, environments []api.Envi
 							if templ_7745c5c3_Err != nil {
 								return templ_7745c5c3_Err
 							}
-							templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 21, "<span class=\"")
+							templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 22, "<span class=\"")
 							if templ_7745c5c3_Err != nil {
 								return templ_7745c5c3_Err
 							}
@@ -322,25 +328,25 @@ func OrganizationEnvironmentsPageContent(orgSlug string, environments []api.Envi
 							if templ_7745c5c3_Err != nil {
 								return templ_7745c5c3_Err
 							}
-							templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 22, "\">protected</span>")
+							templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 23, "\">protected</span>")
 							if templ_7745c5c3_Err != nil {
 								return templ_7745c5c3_Err
 							}
 						}
-						templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 23, "</div></div><p class=\"mt-3 text-sm text-base-content/70\">")
+						templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 24, "</div></div><p class=\"mt-3 text-sm text-base-content/70\">")
 						if templ_7745c5c3_Err != nil {
 							return templ_7745c5c3_Err
 						}
 						var templ_7745c5c3_Var20 string
 						templ_7745c5c3_Var20, templ_7745c5c3_Err = templ.JoinStringErrs(EnvironmentRiskSummary(string(environment.Slug), environment.Protected))
 						if templ_7745c5c3_Err != nil {
-							return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 89, Col: 126}
+							return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 91, Col: 126}
 						}
 						_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var20))
 						if templ_7745c5c3_Err != nil {
 							return templ_7745c5c3_Err
 						}
-						templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 24, "</p>")
+						templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 25, "</p>")
 						if templ_7745c5c3_Err != nil {
 							return templ_7745c5c3_Err
 						}
@@ -351,7 +357,7 @@ func OrganizationEnvironmentsPageContent(orgSlug string, environments []api.Envi
 						return templ_7745c5c3_Err
 					}
 				}
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 25, "</div></section>")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 26, "</div></section>")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
@@ -362,7 +368,7 @@ func OrganizationEnvironmentsPageContent(orgSlug string, environments []api.Envi
 				return templ_7745c5c3_Err
 			}
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 26, "</div>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 27, "</div>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -435,7 +441,7 @@ func OrganizationEnvironmentDetailPanel(orgSlug string, environments []api.Envir
 									}()
 								}
 								ctx = templ.InitializeContext(ctx)
-								templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 27, "<span>Organization runtime target</span>")
+								templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 28, "<span>Organization runtime target</span>")
 								if templ_7745c5c3_Err != nil {
 									return templ_7745c5c3_Err
 								}
@@ -445,7 +451,7 @@ func OrganizationEnvironmentDetailPanel(orgSlug string, environments []api.Envir
 							if templ_7745c5c3_Err != nil {
 								return templ_7745c5c3_Err
 							}
-							templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 28, " ")
+							templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 29, " ")
 							if templ_7745c5c3_Err != nil {
 								return templ_7745c5c3_Err
 							}
@@ -467,7 +473,7 @@ func OrganizationEnvironmentDetailPanel(orgSlug string, environments []api.Envir
 									if templ_7745c5c3_Err != nil {
 										return templ_7745c5c3_Err
 									}
-									templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 29, "<span class=\"")
+									templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 30, "<span class=\"")
 									if templ_7745c5c3_Err != nil {
 										return templ_7745c5c3_Err
 									}
@@ -480,12 +486,12 @@ func OrganizationEnvironmentDetailPanel(orgSlug string, environments []api.Envir
 									if templ_7745c5c3_Err != nil {
 										return templ_7745c5c3_Err
 									}
-									templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 30, "\">Protected; changes require confirmation</span>")
+									templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 31, "\">Protected; changes require confirmation</span>")
 									if templ_7745c5c3_Err != nil {
 										return templ_7745c5c3_Err
 									}
 								} else {
-									templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 31, "<span>Unprotected</span>")
+									templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 32, "<span>Unprotected</span>")
 									if templ_7745c5c3_Err != nil {
 										return templ_7745c5c3_Err
 									}
@@ -502,7 +508,7 @@ func OrganizationEnvironmentDetailPanel(orgSlug string, environments []api.Envir
 						if templ_7745c5c3_Err != nil {
 							return templ_7745c5c3_Err
 						}
-						templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 32, " <p class=\"text-sm text-base-content/70\">Project enablement and bindings are configured per project.</p>")
+						templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 33, " <p class=\"text-sm text-base-content/70\">Project enablement and bindings are configured per project.</p>")
 						if templ_7745c5c3_Err != nil {
 							return templ_7745c5c3_Err
 						}
@@ -571,20 +577,20 @@ func OrganizationEnvironmentDetailPageContent(orgSlug string, environment api.En
 		ctx = templ.ClearChildren(ctx)
 		section := OrganizationEnvironmentSection(entityPageURL(ctx).Query().Get("section"))
 		detailHref := OrganizationEnvironmentDetailHref(orgSlug, string(environment.Slug))
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 33, "<div id=\"organization-environment-full-page\" class=\"max-w-5xl\"><div class=\"mb-4\"><a class=\"btn btn-outline btn-sm\" href=\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 34, "<div id=\"organization-environment-full-page\" class=\"max-w-5xl\"><div class=\"mb-4\"><a class=\"btn btn-outline btn-sm\" href=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var30 templ.SafeURL
 		templ_7745c5c3_Var30, templ_7745c5c3_Err = templ.JoinURLErrs(templ.URL(entityBackHref(ctx, EnvironmentSelectionHref(orgSlug, string(environment.Slug)))))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 134, Col: 135}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 136, Col: 135}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var30))
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 34, "\">Back to environments</a></div>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 35, "\">Back to environments</a></div>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -606,7 +612,7 @@ func OrganizationEnvironmentDetailPageContent(orgSlug string, environment api.En
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 35, "<span class=\"")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 36, "<span class=\"")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
@@ -619,7 +625,7 @@ func OrganizationEnvironmentDetailPageContent(orgSlug string, environment api.En
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 36, "\">Protected</span>")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 37, "\">Protected</span>")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
@@ -646,7 +652,7 @@ func OrganizationEnvironmentDetailPageContent(orgSlug string, environment api.En
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 37, " ")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 38, " ")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -654,7 +660,7 @@ func OrganizationEnvironmentDetailPageContent(orgSlug string, environment api.En
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 38, " ")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 39, " ")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -672,7 +678,7 @@ func OrganizationEnvironmentDetailPageContent(orgSlug string, environment api.En
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 39, "</div>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 40, "</div>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -702,43 +708,43 @@ func OrganizationEnvironmentDetailContent(orgSlug string, environment api.Enviro
 		}
 		ctx = templ.ClearChildren(ctx)
 		updateFormID := "organization-environment-" + string(environment.Slug) + "-update"
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 40, "<div class=\"grid content-start gap-4\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 41, "<div class=\"grid content-start gap-4\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		if OrganizationEnvironmentSection(entityPageURL(ctx).Query().Get("section")) == "settings" {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 41, "<section id=\"environment-settings\" class=\"rounded-xl border border-base-300 bg-base-100 p-4\"><div class=\"flex flex-wrap items-start justify-between gap-3\"><div><h2 class=\"text-base font-semibold text-base-content\">Settings</h2><p class=\"mt-1 break-all font-mono text-xs text-base-content/70\">")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 42, "<section id=\"environment-settings\" class=\"rounded-xl border border-base-300 bg-base-100 p-4\"><div class=\"flex flex-wrap items-start justify-between gap-3\"><div><h2 class=\"text-base font-semibold text-base-content\">Settings</h2><p class=\"mt-1 break-all font-mono text-xs text-base-content/70\">")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 			var templ_7745c5c3_Var36 string
 			templ_7745c5c3_Var36, templ_7745c5c3_Err = templ.JoinStringErrs(environment.Slug)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 158, Col: 89}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 160, Col: 89}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var36))
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 42, "</p></div><div class=\"flex flex-wrap gap-2\">")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 43, "</p></div><div class=\"flex flex-wrap gap-2\">")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 			if showFullPageLink {
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 43, "<a class=\"btn btn-outline btn-sm\" href=\"")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 44, "<a class=\"btn btn-outline btn-sm\" href=\"")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
 				var templ_7745c5c3_Var37 templ.SafeURL
 				templ_7745c5c3_Var37, templ_7745c5c3_Err = templ.JoinURLErrs(templ.URL(OrganizationEnvironmentDetailHref(orgSlug, string(environment.Slug))))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 162, Col: 127}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 164, Col: 127}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var37))
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 44, "\">Open full page</a> ")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 45, "\">Open full page</a> ")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
@@ -748,7 +754,7 @@ func OrganizationEnvironmentDetailContent(orgSlug string, environment api.Enviro
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 45, "<span class=\"")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 46, "<span class=\"")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -761,20 +767,20 @@ func OrganizationEnvironmentDetailContent(orgSlug string, environment api.Enviro
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 46, "\">")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 47, "\">")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 			var templ_7745c5c3_Var40 string
 			templ_7745c5c3_Var40, templ_7745c5c3_Err = templ.JoinStringErrs(EnvironmentRiskLabel(string(environment.Slug), environment.Protected))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 164, Col: 147}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 166, Col: 147}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var40))
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 47, "</span> ")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 48, "</span> ")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -784,7 +790,7 @@ func OrganizationEnvironmentDetailContent(orgSlug string, environment api.Enviro
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 48, "<span class=\"")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 49, "<span class=\"")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
@@ -797,225 +803,225 @@ func OrganizationEnvironmentDetailContent(orgSlug string, environment api.Enviro
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 49, "\">protected</span>")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 50, "\">protected</span>")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 50, "</div></div><p class=\"mt-3 text-sm text-base-content/70\">")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 51, "</div></div><p class=\"mt-3 text-sm text-base-content/70\">")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 			var templ_7745c5c3_Var43 string
 			templ_7745c5c3_Var43, templ_7745c5c3_Err = templ.JoinStringErrs(EnvironmentRiskSummary(string(environment.Slug), environment.Protected))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 170, Col: 122}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 172, Col: 122}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var43))
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 51, "</p>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 52, "</p>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 			if permissions.Can("environments", "update") {
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 52, "<form id=\"")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 53, "<form id=\"")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
 				var templ_7745c5c3_Var44 string
 				templ_7745c5c3_Var44, templ_7745c5c3_Err = templ.ResolveAttributeValue(updateFormID)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 172, Col: 28}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 174, Col: 28}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var44)
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 53, "\" class=\"mt-4 grid gap-3 lg:grid-cols-2\" method=\"post\" action=\"")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 54, "\" class=\"mt-4 grid gap-3 lg:grid-cols-2\" method=\"post\" action=\"")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
 				var templ_7745c5c3_Var45 templ.SafeURL
 				templ_7745c5c3_Var45, templ_7745c5c3_Err = templ.JoinURLErrs(templ.URL(organizationEnvironmentAction(ctx, "/organizations/"+orgSlug+"/environments/"+string(environment.Slug)+"/update", fullPage)))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 172, Col: 227}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 174, Col: 227}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var45))
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 54, "\" hx-post=\"")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 55, "\" hx-post=\"")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
 				var templ_7745c5c3_Var46 string
 				templ_7745c5c3_Var46, templ_7745c5c3_Err = templ.ResolveAttributeValue(organizationEnvironmentAction(ctx, "/organizations/"+orgSlug+"/environments/"+string(environment.Slug)+"/update", fullPage))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 172, Col: 363}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 174, Col: 363}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var46)
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 55, "\" hx-target=\"")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 56, "\" hx-target=\"")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
 				var templ_7745c5c3_Var47 string
 				templ_7745c5c3_Var47, templ_7745c5c3_Err = templ.ResolveAttributeValue(OrganizationEnvironmentHTMXTarget(fullPage))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 172, Col: 421}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 174, Col: 421}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var47)
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 56, "\" hx-select=\"")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 57, "\" hx-select=\"")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
 				var templ_7745c5c3_Var48 string
 				templ_7745c5c3_Var48, templ_7745c5c3_Err = templ.ResolveAttributeValue(OrganizationEnvironmentHTMXSelect(fullPage))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 172, Col: 479}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 174, Col: 479}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var48)
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 57, "\" hx-swap=\"outerHTML show:none focus-scroll:false\" data-dirty-form=\"environment-update\" data-preserve-scroll>")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 58, "\" hx-swap=\"outerHTML show:none focus-scroll:false\" data-dirty-form=\"environment-update\" data-preserve-scroll>")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
 				if fullPage {
-					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 58, "<input type=\"hidden\" name=\"return_to\" value=\"full\"> ")
+					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 59, "<input type=\"hidden\" name=\"return_to\" value=\"full\"> ")
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
 				}
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 59, "<label class=\"form-control w-full\"><div class=\"label py-1\"><span class=\"label-text text-xs\">Name</span></div><input class=\"input input-bordered input-sm w-full\" type=\"text\" name=\"name\" value=\"")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 60, "<label class=\"form-control w-full\"><div class=\"label py-1\"><span class=\"label-text text-xs\">Name</span></div><input class=\"input input-bordered input-sm w-full\" type=\"text\" name=\"name\" value=\"")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
 				var templ_7745c5c3_Var49 string
 				templ_7745c5c3_Var49, templ_7745c5c3_Err = templ.ResolveAttributeValue(environment.Name)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 178, Col: 107}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 180, Col: 107}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var49)
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 60, "\" required></label> <label class=\"form-control w-full\"><div class=\"label py-1\"><span class=\"label-text text-xs\">Description</span></div><input class=\"input input-bordered input-sm w-full\" type=\"text\" name=\"description\" value=\"")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 61, "\" required></label> <label class=\"form-control w-full\"><div class=\"label py-1\"><span class=\"label-text text-xs\">Description</span></div><input class=\"input input-bordered input-sm w-full\" type=\"text\" name=\"description\" value=\"")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
 				var templ_7745c5c3_Var50 string
 				templ_7745c5c3_Var50, templ_7745c5c3_Err = templ.ResolveAttributeValue(EnvironmentDescriptionValue(environment.Description))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 182, Col: 150}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 184, Col: 150}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var50)
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 61, "\"></label> <label class=\"form-control w-full\"><div class=\"label py-1\"><span class=\"label-text text-xs\">Color</span></div><select class=\"select select-bordered select-sm w-full\" name=\"color\" required>")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 62, "\"></label> <label class=\"form-control w-full\"><div class=\"label py-1\"><span class=\"label-text text-xs\">Color</span></div><select class=\"select select-bordered select-sm w-full\" name=\"color\" required>")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
 				for _, option := range EnvironmentColorOptions(string(environment.Color)) {
-					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 62, "<option value=\"")
+					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 63, "<option value=\"")
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
 					var templ_7745c5c3_Var51 string
 					templ_7745c5c3_Var51, templ_7745c5c3_Err = templ.ResolveAttributeValue(option.Value)
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 188, Col: 37}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 190, Col: 37}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var51)
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
-					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 63, "\"")
+					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 64, "\"")
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
 					if option.Selected {
-						templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 64, " selected")
+						templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 65, " selected")
 						if templ_7745c5c3_Err != nil {
 							return templ_7745c5c3_Err
 						}
 					}
-					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 65, ">")
+					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 66, ">")
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
 					var templ_7745c5c3_Var52 string
 					templ_7745c5c3_Var52, templ_7745c5c3_Err = templ.JoinStringErrs(option.Label)
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 188, Col: 84}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 190, Col: 84}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var52))
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
-					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 66, "</option>")
+					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 67, "</option>")
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
 				}
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 67, "</select></label> <label class=\"label cursor-pointer justify-start gap-2\"><input class=\"checkbox checkbox-sm\" type=\"checkbox\" name=\"protected\"")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 68, "</select></label> <label class=\"label cursor-pointer justify-start gap-2\"><input class=\"checkbox checkbox-sm\" type=\"checkbox\" name=\"protected\"")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
 				if environment.Protected {
-					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 68, " checked")
+					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 69, " checked")
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
 				}
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 69, "> <span class=\"label-text text-sm\">Protected</span></label> ")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 70, "> <span class=\"label-text text-sm\">Protected</span></label> ")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
 				if environment.Protected {
-					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 70, "<div></div>")
+					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 71, "<div></div>")
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
 				}
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 71, "<div class=\"lg:col-span-2\">")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 72, "<div class=\"lg:col-span-2\">")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
 				if environment.Protected {
-					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 72, "<button class=\"btn btn-primary btn-sm\" type=\"button\" data-protected-action-trigger=\"")
+					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 73, "<button class=\"btn btn-primary btn-sm\" type=\"button\" data-protected-action-trigger=\"")
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
 					var templ_7745c5c3_Var53 string
 					templ_7745c5c3_Var53, templ_7745c5c3_Err = templ.ResolveAttributeValue("organization-protected-env-" + string(environment.Slug) + "-save")
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 201, Col: 159}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 203, Col: 159}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var53)
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
-					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 73, "\" data-dirty-submit disabled>Save environment</button>")
+					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 74, "\" data-dirty-submit disabled>Save environment</button>")
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
 				} else {
-					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 74, "<button class=\"btn btn-primary btn-sm\" type=\"submit\" data-dirty-submit disabled>Save environment</button>")
+					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 75, "<button class=\"btn btn-primary btn-sm\" type=\"submit\" data-dirty-submit disabled>Save environment</button>")
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
 				}
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 75, "</div></form>")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 76, "</div></form>")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
@@ -1027,20 +1033,20 @@ func OrganizationEnvironmentDetailContent(orgSlug string, environment api.Enviro
 				}
 			}
 			if permissions.Can("environments", "delete") {
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 76, "<div class=\"mt-3\"><button class=\"btn btn-error btn-sm\" type=\"button\" data-protected-action-trigger=\"")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 77, "<div class=\"mt-3\"><button class=\"btn btn-error btn-sm\" type=\"button\" data-protected-action-trigger=\"")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
 				var templ_7745c5c3_Var54 string
 				templ_7745c5c3_Var54, templ_7745c5c3_Err = templ.ResolveAttributeValue("organization-env-" + string(environment.Slug) + "-delete")
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 213, Col: 147}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 215, Col: 147}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var54)
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 77, "\">Delete</button></div>")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 78, "\">Delete</button></div>")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
@@ -1049,7 +1055,7 @@ func OrganizationEnvironmentDetailContent(orgSlug string, environment api.Enviro
 					return templ_7745c5c3_Err
 				}
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 78, "</section>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 79, "</section>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -1066,7 +1072,7 @@ func OrganizationEnvironmentDetailContent(orgSlug string, environment api.Enviro
 				return templ_7745c5c3_Err
 			}
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 79, "</div>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 80, "</div>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -1096,33 +1102,33 @@ func OrganizationProtectedEnvironmentSaveModal(formID string, environmentSlug st
 		}
 		ctx = templ.ClearChildren(ctx)
 		modalID := "organization-protected-env-" + environmentSlug + "-save"
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 80, "<dialog class=\"modal\" id=\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 81, "<dialog class=\"modal\" id=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var56 string
 		templ_7745c5c3_Var56, templ_7745c5c3_Err = templ.ResolveAttributeValue(modalID)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 230, Col: 35}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 232, Col: 35}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var56)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 81, "\" data-protected-action-modal data-confirm-slug=\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 82, "\" data-protected-action-modal data-confirm-slug=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var57 string
 		templ_7745c5c3_Var57, templ_7745c5c3_Err = templ.ResolveAttributeValue(environmentSlug)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 230, Col: 101}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 232, Col: 101}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var57)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 82, "\"><div class=\"modal-box max-w-lg border border-error/35 bg-base-100 p-0\"><div class=\"border-b border-error/25 bg-error/10 px-5 py-4\"><div class=\"flex flex-wrap items-start justify-between gap-3\"><div><h3 class=\"text-lg font-semibold text-base-content\">Confirm protected action</h3><p class=\"mt-1 text-sm text-base-content/70\">Save changes for this protected runtime target.</p></div>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 83, "\"><div class=\"modal-box max-w-lg border border-error/35 bg-base-100 p-0\"><div class=\"border-b border-error/25 bg-error/10 px-5 py-4\"><div class=\"flex flex-wrap items-start justify-between gap-3\"><div><h3 class=\"text-lg font-semibold text-base-content\">Confirm protected action</h3><p class=\"mt-1 text-sm text-base-content/70\">Save changes for this protected runtime target.</p></div>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -1131,7 +1137,7 @@ func OrganizationProtectedEnvironmentSaveModal(formID string, environmentSlug st
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 83, "<span class=\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 84, "<span class=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -1144,124 +1150,124 @@ func OrganizationProtectedEnvironmentSaveModal(formID string, environmentSlug st
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 84, "\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 85, "\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var60 string
 		templ_7745c5c3_Var60, templ_7745c5c3_Err = templ.JoinStringErrs(environmentSlug)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 238, Col: 53}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 240, Col: 53}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var60))
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 85, "</span></div></div><div class=\"px-5 py-4\"><div class=\"rounded-lg border border-base-300 bg-base-200/35 p-3\"><p class=\"text-sm font-semibold text-base-content\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 86, "</span></div></div><div class=\"px-5 py-4\"><div class=\"rounded-lg border border-base-300 bg-base-200/35 p-3\"><p class=\"text-sm font-semibold text-base-content\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var61 string
 		templ_7745c5c3_Var61, templ_7745c5c3_Err = templ.JoinStringErrs(environmentName)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 243, Col: 73}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 245, Col: 73}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var61))
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 86, "</p><p class=\"mt-1 text-xs text-base-content/60\">This changes runtime target settings for <span class=\"font-mono\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 87, "</p><p class=\"mt-1 text-xs text-base-content/60\">This changes runtime target settings for <span class=\"font-mono\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var62 string
 		templ_7745c5c3_Var62, templ_7745c5c3_Err = templ.JoinStringErrs(environmentSlug)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 244, Col: 132}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 246, Col: 132}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var62))
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 87, "</span>.</p></div><label class=\"form-control mt-4 w-full\"><div class=\"label py-1\"><span class=\"label-text text-xs\">Type <span class=\"font-mono font-semibold text-error\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 88, "</span>.</p></div><label class=\"form-control mt-4 w-full\"><div class=\"label py-1\"><span class=\"label-text text-xs\">Type <span class=\"font-mono font-semibold text-error\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var63 string
 		templ_7745c5c3_Var63, templ_7745c5c3_Err = templ.JoinStringErrs(environmentSlug)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 248, Col: 110}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 250, Col: 110}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var63))
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 88, "</span> to confirm</span></div><input class=\"input input-bordered w-full font-mono\" type=\"text\" name=\"protected_environment_confirmation\" form=\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 89, "</span> to confirm</span></div><input class=\"input input-bordered w-full font-mono\" type=\"text\" name=\"protected_environment_confirmation\" form=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var64 string
 		templ_7745c5c3_Var64, templ_7745c5c3_Err = templ.ResolveAttributeValue(formID)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 254, Col: 19}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 256, Col: 19}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var64)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 89, "\" autocomplete=\"off\" placeholder=\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 90, "\" autocomplete=\"off\" placeholder=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var65 string
 		templ_7745c5c3_Var65, templ_7745c5c3_Err = templ.ResolveAttributeValue(environmentSlug)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 256, Col: 35}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 258, Col: 35}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var65)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 90, "\" required data-protected-confirm-input data-confirm-slug=\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 91, "\" required data-protected-confirm-input data-confirm-slug=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var66 string
 		templ_7745c5c3_Var66, templ_7745c5c3_Err = templ.ResolveAttributeValue(environmentSlug)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 259, Col: 41}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 261, Col: 41}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var66)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 91, "\"></label><div class=\"modal-action mt-5\"><button class=\"btn btn-ghost btn-sm\" type=\"button\" data-protected-action-close=\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 92, "\"></label><div class=\"modal-action mt-5\"><button class=\"btn btn-ghost btn-sm\" type=\"button\" data-protected-action-close=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var67 string
 		templ_7745c5c3_Var67, templ_7745c5c3_Err = templ.ResolveAttributeValue(modalID)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 263, Col: 93}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 265, Col: 93}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var67)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 92, "\">Cancel</button> <button class=\"btn btn-primary btn-sm\" type=\"submit\" form=\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 93, "\">Cancel</button> <button class=\"btn btn-primary btn-sm\" type=\"submit\" form=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var68 string
 		templ_7745c5c3_Var68, templ_7745c5c3_Err = templ.ResolveAttributeValue(formID)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 264, Col: 71}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 266, Col: 71}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var68)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 93, "\" data-protected-confirm-submit disabled aria-disabled=\"true\">Save environment</button></div></div></div><form method=\"dialog\" class=\"modal-backdrop\"><button type=\"submit\">close</button></form></dialog>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 94, "\" data-protected-confirm-submit disabled aria-disabled=\"true\">Save environment</button></div></div></div><form method=\"dialog\" class=\"modal-backdrop\"><button type=\"submit\">close</button></form></dialog>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -1291,48 +1297,48 @@ func OrganizationEnvironmentDeleteModal(orgSlug string, environment api.Environm
 		}
 		ctx = templ.ClearChildren(ctx)
 		modalID := "organization-env-" + string(environment.Slug) + "-delete"
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 94, "<dialog class=\"modal\" id=\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 95, "<dialog class=\"modal\" id=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var70 string
 		templ_7745c5c3_Var70, templ_7745c5c3_Err = templ.ResolveAttributeValue(modalID)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 276, Col: 35}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 278, Col: 35}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var70)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 95, "\" data-protected-action-modal data-confirm-slug=\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 96, "\" data-protected-action-modal data-confirm-slug=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var71 string
 		templ_7745c5c3_Var71, templ_7745c5c3_Err = templ.ResolveAttributeValue(string(environment.Slug))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 276, Col: 110}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 278, Col: 110}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var71)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 96, "\"><div class=\"modal-box max-w-lg border border-error/35 bg-base-100 p-0\"><div class=\"border-b border-error/25 bg-error/10 px-5 py-4\"><div class=\"flex flex-wrap items-start justify-between gap-3\"><div>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 97, "\"><div class=\"modal-box max-w-lg border border-error/35 bg-base-100 p-0\"><div class=\"border-b border-error/25 bg-error/10 px-5 py-4\"><div class=\"flex flex-wrap items-start justify-between gap-3\"><div>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		if environment.Protected {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 97, "<h3 class=\"text-lg font-semibold text-base-content\">Confirm protected action</h3><p class=\"mt-1 text-sm text-base-content/70\">Delete this protected organization runtime target.</p>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 98, "<h3 class=\"text-lg font-semibold text-base-content\">Confirm protected action</h3><p class=\"mt-1 text-sm text-base-content/70\">Delete this protected organization runtime target.</p>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 		} else {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 98, "<h3 class=\"text-lg font-semibold text-base-content\">Delete runtime target</h3><p class=\"mt-1 text-sm text-base-content/70\">Delete this organization runtime target.</p>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 99, "<h3 class=\"text-lg font-semibold text-base-content\">Delete runtime target</h3><p class=\"mt-1 text-sm text-base-content/70\">Delete this organization runtime target.</p>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 99, "</div>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 100, "</div>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -1341,7 +1347,7 @@ func OrganizationEnvironmentDeleteModal(orgSlug string, environment api.Environm
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 100, "<span class=\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 101, "<span class=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -1354,160 +1360,160 @@ func OrganizationEnvironmentDeleteModal(orgSlug string, environment api.Environm
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 101, "\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 102, "\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var74 string
 		templ_7745c5c3_Var74, templ_7745c5c3_Err = templ.JoinStringErrs(environment.Slug)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 289, Col: 54}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 291, Col: 54}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var74))
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 102, "</span></div></div><form class=\"px-5 py-4\" method=\"post\" action=\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 103, "</span></div></div><form class=\"px-5 py-4\" method=\"post\" action=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var75 templ.SafeURL
 		templ_7745c5c3_Var75, templ_7745c5c3_Err = templ.JoinURLErrs(templ.URL(organizationEnvironmentAction(ctx, "/organizations/"+orgSlug+"/environments/"+string(environment.Slug)+"/delete", fullPage)))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 295, Col: 147}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 297, Col: 147}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var75))
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 103, "\" hx-post=\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 104, "\" hx-post=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var76 string
 		templ_7745c5c3_Var76, templ_7745c5c3_Err = templ.ResolveAttributeValue(organizationEnvironmentAction(ctx, "/organizations/"+orgSlug+"/environments/"+string(environment.Slug)+"/delete", fullPage))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 296, Col: 137}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 298, Col: 137}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var76)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 104, "\" hx-target=\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 105, "\" hx-target=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var77 string
 		templ_7745c5c3_Var77, templ_7745c5c3_Err = templ.ResolveAttributeValue(OrganizationEnvironmentHTMXTarget(fullPage))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 297, Col: 59}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 299, Col: 59}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var77)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 105, "\" hx-select=\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 106, "\" hx-select=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var78 string
 		templ_7745c5c3_Var78, templ_7745c5c3_Err = templ.ResolveAttributeValue(OrganizationEnvironmentHTMXSelect(fullPage))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 298, Col: 59}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 300, Col: 59}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var78)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 106, "\" hx-swap=\"outerHTML show:none focus-scroll:false\" data-preserve-scroll>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 107, "\" hx-swap=\"outerHTML show:none focus-scroll:false\" data-preserve-scroll>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		if fullPage {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 107, "<input type=\"hidden\" name=\"return_to\" value=\"full\">")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 108, "<input type=\"hidden\" name=\"return_to\" value=\"full\">")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 108, "<div class=\"rounded-lg border border-base-300 bg-base-200/35 p-3\"><p class=\"text-sm font-semibold text-base-content\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 109, "<div class=\"rounded-lg border border-base-300 bg-base-200/35 p-3\"><p class=\"text-sm font-semibold text-base-content\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var79 string
 		templ_7745c5c3_Var79, templ_7745c5c3_Err = templ.JoinStringErrs(environment.Name)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 306, Col: 74}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 308, Col: 74}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var79))
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 109, "</p><p class=\"mt-1 text-xs text-base-content/60\">This deletes runtime target <span class=\"font-mono\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 110, "</p><p class=\"mt-1 text-xs text-base-content/60\">This deletes runtime target <span class=\"font-mono\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var80 string
 		templ_7745c5c3_Var80, templ_7745c5c3_Err = templ.JoinStringErrs(environment.Slug)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 307, Col: 120}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 309, Col: 120}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var80))
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 110, "</span>.</p></div><label class=\"form-control mt-4 w-full\"><div class=\"label py-1\"><span class=\"label-text text-xs\">Type <span class=\"font-mono font-semibold text-error\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 111, "</span>.</p></div><label class=\"form-control mt-4 w-full\"><div class=\"label py-1\"><span class=\"label-text text-xs\">Type <span class=\"font-mono font-semibold text-error\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var81 string
 		templ_7745c5c3_Var81, templ_7745c5c3_Err = templ.JoinStringErrs(environment.Slug)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 311, Col: 111}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 313, Col: 111}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var81))
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 111, "</span> to confirm</span></div><input class=\"input input-bordered w-full font-mono\" type=\"text\" name=\"confirm_slug\" autocomplete=\"off\" placeholder=\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 112, "</span> to confirm</span></div><input class=\"input input-bordered w-full font-mono\" type=\"text\" name=\"confirm_slug\" autocomplete=\"off\" placeholder=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var82 string
 		templ_7745c5c3_Var82, templ_7745c5c3_Err = templ.ResolveAttributeValue(string(environment.Slug))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 318, Col: 44}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 320, Col: 44}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var82)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 112, "\" required data-protected-confirm-input data-confirm-slug=\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 113, "\" required data-protected-confirm-input data-confirm-slug=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var83 string
 		templ_7745c5c3_Var83, templ_7745c5c3_Err = templ.ResolveAttributeValue(string(environment.Slug))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 321, Col: 50}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 323, Col: 50}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var83)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 113, "\"></label> <label class=\"form-control mt-4 w-full\"><div class=\"label py-1\"><span class=\"label-text text-xs\">Delete reason</span></div><input class=\"input input-bordered w-full\" type=\"text\" name=\"delete_reason\"></label><div class=\"modal-action mt-5\"><button class=\"btn btn-ghost btn-sm\" type=\"button\" data-protected-action-close=\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 114, "\"></label> <label class=\"form-control mt-4 w-full\"><div class=\"label py-1\"><span class=\"label-text text-xs\">Delete reason</span></div><input class=\"input input-bordered w-full\" type=\"text\" name=\"delete_reason\"></label><div class=\"modal-action mt-5\"><button class=\"btn btn-ghost btn-sm\" type=\"button\" data-protected-action-close=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var84 string
 		templ_7745c5c3_Var84, templ_7745c5c3_Err = templ.ResolveAttributeValue(modalID)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 329, Col: 93}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 331, Col: 93}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var84)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 114, "\">Cancel</button> <button class=\"btn btn-error btn-sm\" type=\"submit\" data-protected-confirm-submit disabled aria-disabled=\"true\">Delete</button></div></form></div><form method=\"dialog\" class=\"modal-backdrop\"><button type=\"submit\">close</button></form></dialog>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 115, "\">Cancel</button> <button class=\"btn btn-error btn-sm\" type=\"submit\" data-protected-confirm-submit disabled aria-disabled=\"true\">Delete</button></div></form></div><form method=\"dialog\" class=\"modal-backdrop\"><button type=\"submit\">close</button></form></dialog>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -1537,35 +1543,35 @@ func OrganizationRuntimeVariablesPanel(orgSlug string, environment api.Environme
 		}
 		ctx = templ.ClearChildren(ctx)
 		variableFormID := "organization-runtime-variable-" + string(environment.Slug) + "-create"
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 115, "<section id=\"runtime-variables\" class=\"rounded-xl border border-base-300 bg-base-100 p-4\"><div class=\"flex flex-wrap items-start justify-between gap-3\"><div><h2 class=\"text-base font-semibold text-base-content\">Runtime variables</h2><p class=\"mt-1 text-xs text-base-content/65\">Non-secret overrides scoped to this runtime target.</p></div><span class=\"badge badge-outline\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 116, "<section id=\"runtime-variables\" class=\"rounded-xl border border-base-300 bg-base-100 p-4\"><div class=\"flex flex-wrap items-start justify-between gap-3\"><div><h2 class=\"text-base font-semibold text-base-content\">Runtime variables</h2><p class=\"mt-1 text-xs text-base-content/65\">Non-secret overrides scoped to this runtime target.</p></div><span class=\"badge badge-outline\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var86 string
 		templ_7745c5c3_Var86, templ_7745c5c3_Err = templ.JoinStringErrs(fmt.Sprintf("%d overrides", len(runtimeVariables)))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 348, Col: 89}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 350, Col: 89}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var86))
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 116, "</span></div>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 117, "</span></div>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		if runtimeVariablesUnavailable {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 117, "<div class=\"alert alert-warning mt-4\"><span>Runtime variables are unavailable.</span></div>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 118, "<div class=\"alert alert-warning mt-4\"><span>Runtime variables are unavailable.</span></div>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 		} else if len(runtimeVariables) == 0 {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 118, "<div class=\"mt-4 rounded-lg border border-dashed border-base-300 bg-base-200/30 px-4 py-3 text-sm text-base-content/70\">No overrides for this target.</div>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 119, "<div class=\"mt-4 rounded-lg border border-dashed border-base-300 bg-base-200/30 px-4 py-3 text-sm text-base-content/70\">No overrides for this target.</div>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 		} else {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 119, "<div class=\"mt-4 space-y-2\">")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 120, "<div class=\"mt-4 space-y-2\">")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -1573,222 +1579,222 @@ func OrganizationRuntimeVariablesPanel(orgSlug string, environment api.Environme
 				updateFormID := "organization-runtime-variable-" + string(environment.Slug) + "-" + variable.Key + "-update"
 				updateModalID := updateFormID + "-confirm"
 				editPanelID := updateFormID + "-panel"
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 120, "<div class=\"rounded-lg border border-base-300 bg-base-200/40 p-3\"><div class=\"grid items-center gap-3 md:grid-cols-[1fr_1fr_1.2fr_1fr_auto]\"><button class=\"min-w-0 cursor-pointer text-left\" type=\"button\" aria-controls=\"")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 121, "<div class=\"rounded-lg border border-base-300 bg-base-200/40 p-3\"><div class=\"grid items-center gap-3 md:grid-cols-[1fr_1fr_1.2fr_1fr_auto]\"><button class=\"min-w-0 cursor-pointer text-left\" type=\"button\" aria-controls=\"")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
 				var templ_7745c5c3_Var87 string
 				templ_7745c5c3_Var87, templ_7745c5c3_Err = templ.ResolveAttributeValue(editPanelID)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 364, Col: 97}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 366, Col: 97}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var87)
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 121, "\" aria-expanded=\"false\" data-toggle-target=\"")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 122, "\" aria-expanded=\"false\" data-toggle-target=\"")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
 				var templ_7745c5c3_Var88 string
 				templ_7745c5c3_Var88, templ_7745c5c3_Err = templ.ResolveAttributeValue(editPanelID)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 364, Col: 154}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 366, Col: 154}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var88)
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 122, "\"><span class=\"block text-[0.65rem] font-semibold uppercase text-base-content/45\">Key</span> <span class=\"mt-1 flex min-w-0 items-center gap-2\"><span class=\"truncate font-mono text-sm font-semibold text-base-content\">")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 123, "\"><span class=\"block text-[0.65rem] font-semibold uppercase text-base-content/45\">Key</span> <span class=\"mt-1 flex min-w-0 items-center gap-2\"><span class=\"truncate font-mono text-sm font-semibold text-base-content\">")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
 				var templ_7745c5c3_Var89 string
 				templ_7745c5c3_Var89, templ_7745c5c3_Err = templ.JoinStringErrs(variable.Key)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 367, Col: 96}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 369, Col: 96}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var89))
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 123, "</span> <span class=\"badge badge-outline badge-sm shrink-0\">")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 124, "</span> <span class=\"badge badge-outline badge-sm shrink-0\">")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
 				var templ_7745c5c3_Var90 string
 				templ_7745c5c3_Var90, templ_7745c5c3_Err = templ.JoinStringErrs(string(variable.ValueType))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 368, Col: 89}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 370, Col: 89}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var90))
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 124, "</span></span></button> <button class=\"min-w-0 cursor-pointer text-left\" type=\"button\" aria-controls=\"")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 125, "</span></span></button> <button class=\"min-w-0 cursor-pointer text-left\" type=\"button\" aria-controls=\"")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
 				var templ_7745c5c3_Var91 string
 				templ_7745c5c3_Var91, templ_7745c5c3_Err = templ.ResolveAttributeValue(editPanelID)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 371, Col: 97}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 373, Col: 97}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var91)
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 125, "\" aria-expanded=\"false\" data-toggle-target=\"")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 126, "\" aria-expanded=\"false\" data-toggle-target=\"")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
 				var templ_7745c5c3_Var92 string
 				templ_7745c5c3_Var92, templ_7745c5c3_Err = templ.ResolveAttributeValue(editPanelID)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 371, Col: 154}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 373, Col: 154}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var92)
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 126, "\"><span class=\"block text-[0.65rem] font-semibold uppercase text-base-content/45\">Value</span> <span class=\"mt-1 block truncate font-mono text-sm text-base-content\">")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 127, "\"><span class=\"block text-[0.65rem] font-semibold uppercase text-base-content/45\">Value</span> <span class=\"mt-1 block truncate font-mono text-sm text-base-content\">")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
 				var templ_7745c5c3_Var93 string
 				templ_7745c5c3_Var93, templ_7745c5c3_Err = templ.JoinStringErrs(variable.Value)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 373, Col: 94}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 375, Col: 94}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var93))
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 127, "</span></button> <button class=\"min-w-0 cursor-pointer text-left\" type=\"button\" aria-controls=\"")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 128, "</span></button> <button class=\"min-w-0 cursor-pointer text-left\" type=\"button\" aria-controls=\"")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
 				var templ_7745c5c3_Var94 string
 				templ_7745c5c3_Var94, templ_7745c5c3_Err = templ.ResolveAttributeValue(editPanelID)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 375, Col: 97}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 377, Col: 97}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var94)
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 128, "\" aria-expanded=\"false\" data-toggle-target=\"")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 129, "\" aria-expanded=\"false\" data-toggle-target=\"")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
 				var templ_7745c5c3_Var95 string
 				templ_7745c5c3_Var95, templ_7745c5c3_Err = templ.ResolveAttributeValue(editPanelID)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 375, Col: 154}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 377, Col: 154}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var95)
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 129, "\"><span class=\"block text-[0.65rem] font-semibold uppercase text-base-content/45\">Runtime key</span> <span class=\"mt-1 block truncate font-mono text-xs text-base-content/70\">")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 130, "\"><span class=\"block text-[0.65rem] font-semibold uppercase text-base-content/45\">Runtime key</span> <span class=\"mt-1 block truncate font-mono text-xs text-base-content/70\">")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
 				var templ_7745c5c3_Var96 string
 				templ_7745c5c3_Var96, templ_7745c5c3_Err = templ.JoinStringErrs("{{runtime.env." + variable.Key + "}}")
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 377, Col: 121}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 379, Col: 121}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var96))
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 130, "</span></button> <button class=\"min-w-0 cursor-pointer text-left\" type=\"button\" aria-controls=\"")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 131, "</span></button> <button class=\"min-w-0 cursor-pointer text-left\" type=\"button\" aria-controls=\"")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
 				var templ_7745c5c3_Var97 string
 				templ_7745c5c3_Var97, templ_7745c5c3_Err = templ.ResolveAttributeValue(editPanelID)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 379, Col: 97}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 381, Col: 97}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var97)
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 131, "\" aria-expanded=\"false\" data-toggle-target=\"")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 132, "\" aria-expanded=\"false\" data-toggle-target=\"")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
 				var templ_7745c5c3_Var98 string
 				templ_7745c5c3_Var98, templ_7745c5c3_Err = templ.ResolveAttributeValue(editPanelID)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 379, Col: 154}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 381, Col: 154}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var98)
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 132, "\"><span class=\"block text-[0.65rem] font-semibold uppercase text-base-content/45\">Description</span> ")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 133, "\"><span class=\"block text-[0.65rem] font-semibold uppercase text-base-content/45\">Description</span> ")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
 				if variable.Description != nil && *variable.Description != "" {
-					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 133, "<span class=\"mt-1 block truncate text-sm text-base-content/70\">")
+					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 134, "<span class=\"mt-1 block truncate text-sm text-base-content/70\">")
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
 					var templ_7745c5c3_Var99 string
 					templ_7745c5c3_Var99, templ_7745c5c3_Err = templ.JoinStringErrs(*variable.Description)
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 382, Col: 95}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 384, Col: 95}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var99))
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
-					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 134, "</span>")
+					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 135, "</span>")
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
 				} else {
-					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 135, "<span class=\"mt-1 block text-sm text-base-content/40\">None</span>")
+					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 136, "<span class=\"mt-1 block text-sm text-base-content/40\">None</span>")
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
 				}
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 136, "</button><div class=\"flex items-center justify-end gap-2\">")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 137, "</button><div class=\"flex items-center justify-end gap-2\">")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
 				if permissions.Can("environments", "update") {
-					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 137, "<button class=\"btn btn-ghost btn-xs\" type=\"button\" aria-controls=\"")
+					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 138, "<button class=\"btn btn-ghost btn-xs\" type=\"button\" aria-controls=\"")
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
 					var templ_7745c5c3_Var100 string
 					templ_7745c5c3_Var100, templ_7745c5c3_Err = templ.ResolveAttributeValue(editPanelID)
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 389, Col: 87}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 391, Col: 87}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var100)
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
-					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 138, "\" aria-expanded=\"false\" data-toggle-target=\"")
+					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 139, "\" aria-expanded=\"false\" data-toggle-target=\"")
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
 					var templ_7745c5c3_Var101 string
 					templ_7745c5c3_Var101, templ_7745c5c3_Err = templ.ResolveAttributeValue(editPanelID)
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 389, Col: 144}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 391, Col: 144}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var101)
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
-					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 139, "\">Edit</button> ")
+					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 140, "\">Edit</button> ")
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
@@ -1800,363 +1806,363 @@ func OrganizationRuntimeVariablesPanel(orgSlug string, environment api.Environme
 							return templ_7745c5c3_Err
 						}
 					} else {
-						templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 140, "<form method=\"post\" action=\"")
+						templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 141, "<form method=\"post\" action=\"")
 						if templ_7745c5c3_Err != nil {
 							return templ_7745c5c3_Err
 						}
 						var templ_7745c5c3_Var102 templ.SafeURL
 						templ_7745c5c3_Var102, templ_7745c5c3_Err = templ.JoinURLErrs(templ.URL(organizationEnvironmentAction(ctx, "/organizations/"+orgSlug+"/environments/"+string(environment.Slug)+"/runtime-variables/"+variable.Key+"/delete", fullPage)))
 						if templ_7745c5c3_Err != nil {
-							return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 395, Col: 208}
+							return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 397, Col: 208}
 						}
 						_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var102))
 						if templ_7745c5c3_Err != nil {
 							return templ_7745c5c3_Err
 						}
-						templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 141, "\" hx-post=\"")
+						templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 142, "\" hx-post=\"")
 						if templ_7745c5c3_Err != nil {
 							return templ_7745c5c3_Err
 						}
 						var templ_7745c5c3_Var103 string
 						templ_7745c5c3_Var103, templ_7745c5c3_Err = templ.ResolveAttributeValue(organizationEnvironmentAction(ctx, "/organizations/"+orgSlug+"/environments/"+string(environment.Slug)+"/runtime-variables/"+variable.Key+"/delete", fullPage))
 						if templ_7745c5c3_Err != nil {
-							return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 395, Col: 379}
+							return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 397, Col: 379}
 						}
 						_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var103)
 						if templ_7745c5c3_Err != nil {
 							return templ_7745c5c3_Err
 						}
-						templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 142, "\" hx-target=\"")
+						templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 143, "\" hx-target=\"")
 						if templ_7745c5c3_Err != nil {
 							return templ_7745c5c3_Err
 						}
 						var templ_7745c5c3_Var104 string
 						templ_7745c5c3_Var104, templ_7745c5c3_Err = templ.ResolveAttributeValue(OrganizationEnvironmentHTMXTarget(fullPage))
 						if templ_7745c5c3_Err != nil {
-							return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 395, Col: 437}
+							return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 397, Col: 437}
 						}
 						_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var104)
 						if templ_7745c5c3_Err != nil {
 							return templ_7745c5c3_Err
 						}
-						templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 143, "\" hx-select=\"")
+						templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 144, "\" hx-select=\"")
 						if templ_7745c5c3_Err != nil {
 							return templ_7745c5c3_Err
 						}
 						var templ_7745c5c3_Var105 string
 						templ_7745c5c3_Var105, templ_7745c5c3_Err = templ.ResolveAttributeValue(OrganizationEnvironmentHTMXSelect(fullPage))
 						if templ_7745c5c3_Err != nil {
-							return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 395, Col: 495}
+							return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 397, Col: 495}
 						}
 						_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var105)
 						if templ_7745c5c3_Err != nil {
 							return templ_7745c5c3_Err
 						}
-						templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 144, "\" hx-swap=\"outerHTML show:none focus-scroll:false\" data-preserve-scroll hx-confirm=\"")
+						templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 145, "\" hx-swap=\"outerHTML show:none focus-scroll:false\" data-preserve-scroll hx-confirm=\"")
 						if templ_7745c5c3_Err != nil {
 							return templ_7745c5c3_Err
 						}
 						var templ_7745c5c3_Var106 string
 						templ_7745c5c3_Var106, templ_7745c5c3_Err = templ.ResolveAttributeValue(DestructiveConfirmation("Delete", "runtime variable", variable.Key, "Pipelines using this variable will no longer resolve it."))
 						if templ_7745c5c3_Err != nil {
-							return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 395, Col: 708}
+							return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 397, Col: 708}
 						}
 						_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var106)
 						if templ_7745c5c3_Err != nil {
 							return templ_7745c5c3_Err
 						}
-						templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 145, "\" data-destructive-confirm=\"")
+						templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 146, "\" data-destructive-confirm=\"")
 						if templ_7745c5c3_Err != nil {
 							return templ_7745c5c3_Err
 						}
 						var templ_7745c5c3_Var107 string
 						templ_7745c5c3_Var107, templ_7745c5c3_Err = templ.ResolveAttributeValue(DestructiveConfirmation("Delete", "runtime variable", variable.Key, "Pipelines using this variable will no longer resolve it."))
 						if templ_7745c5c3_Err != nil {
-							return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 395, Col: 865}
+							return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 397, Col: 865}
 						}
 						_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var107)
 						if templ_7745c5c3_Err != nil {
 							return templ_7745c5c3_Err
 						}
-						templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 146, "\">")
+						templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 147, "\">")
 						if templ_7745c5c3_Err != nil {
 							return templ_7745c5c3_Err
 						}
 						if fullPage {
-							templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 147, "<input type=\"hidden\" name=\"return_to\" value=\"full\"> ")
+							templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 148, "<input type=\"hidden\" name=\"return_to\" value=\"full\"> ")
 							if templ_7745c5c3_Err != nil {
 								return templ_7745c5c3_Err
 							}
 						}
-						templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 148, "<button class=\"btn btn-error btn-outline btn-xs\" type=\"submit\">Delete</button></form>")
+						templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 149, "<button class=\"btn btn-error btn-outline btn-xs\" type=\"submit\">Delete</button></form>")
 						if templ_7745c5c3_Err != nil {
 							return templ_7745c5c3_Err
 						}
 					}
 				}
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 149, "</div></div>")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 150, "</div></div>")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
 				if permissions.Can("environments", "update") {
-					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 150, "<form id=\"")
+					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 151, "<form id=\"")
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
 					var templ_7745c5c3_Var108 string
 					templ_7745c5c3_Var108, templ_7745c5c3_Err = templ.ResolveAttributeValue(editPanelID)
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 406, Col: 29}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 408, Col: 29}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var108)
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
-					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 151, "\" class=\"mt-3 hidden grid gap-3 border-t border-base-300 pt-3 lg:grid-cols-[minmax(0,10rem)_minmax(0,1fr)]\" method=\"post\" action=\"")
+					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 152, "\" class=\"mt-3 hidden grid gap-3 border-t border-base-300 pt-3 lg:grid-cols-[minmax(0,10rem)_minmax(0,1fr)]\" method=\"post\" action=\"")
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
 					var templ_7745c5c3_Var109 templ.SafeURL
 					templ_7745c5c3_Var109, templ_7745c5c3_Err = templ.JoinURLErrs(templ.URL(organizationEnvironmentAction(ctx, "/organizations/"+orgSlug+"/environments/"+string(environment.Slug)+"/runtime-variables", fullPage)))
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 406, Col: 306}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 408, Col: 306}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var109))
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
-					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 152, "\" hx-post=\"")
+					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 153, "\" hx-post=\"")
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
 					var templ_7745c5c3_Var110 string
 					templ_7745c5c3_Var110, templ_7745c5c3_Err = templ.ResolveAttributeValue(organizationEnvironmentAction(ctx, "/organizations/"+orgSlug+"/environments/"+string(environment.Slug)+"/runtime-variables", fullPage))
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 406, Col: 453}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 408, Col: 453}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var110)
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
-					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 153, "\" hx-target=\"")
+					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 154, "\" hx-target=\"")
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
 					var templ_7745c5c3_Var111 string
 					templ_7745c5c3_Var111, templ_7745c5c3_Err = templ.ResolveAttributeValue(OrganizationEnvironmentHTMXTarget(fullPage))
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 406, Col: 511}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 408, Col: 511}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var111)
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
-					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 154, "\" hx-select=\"")
+					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 155, "\" hx-select=\"")
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
 					var templ_7745c5c3_Var112 string
 					templ_7745c5c3_Var112, templ_7745c5c3_Err = templ.ResolveAttributeValue(OrganizationEnvironmentHTMXSelect(fullPage))
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 406, Col: 569}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 408, Col: 569}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var112)
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
-					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 155, "\" hx-swap=\"outerHTML show:none focus-scroll:false\" data-preserve-scroll>")
+					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 156, "\" hx-swap=\"outerHTML show:none focus-scroll:false\" data-preserve-scroll>")
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
 					if fullPage {
-						templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 156, "<input type=\"hidden\" name=\"return_to\" value=\"full\"> ")
+						templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 157, "<input type=\"hidden\" name=\"return_to\" value=\"full\"> ")
 						if templ_7745c5c3_Err != nil {
 							return templ_7745c5c3_Err
 						}
 					}
-					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 157, "<input type=\"hidden\" name=\"key\" value=\"")
+					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 158, "<input type=\"hidden\" name=\"key\" value=\"")
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
 					var templ_7745c5c3_Var113 string
 					templ_7745c5c3_Var113, templ_7745c5c3_Err = templ.ResolveAttributeValue(variable.Key)
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 410, Col: 60}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 412, Col: 60}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var113)
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
-					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 158, "\"> <label class=\"form-control w-full\"><div class=\"label py-1\"><span class=\"label-text text-xs\">Type</span></div><select class=\"select select-bordered select-sm w-full\" name=\"value_type\" required><option value=\"")
+					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 159, "\"> <label class=\"form-control w-full\"><div class=\"label py-1\"><span class=\"label-text text-xs\">Type</span></div><select class=\"select select-bordered select-sm w-full\" name=\"value_type\" required><option value=\"")
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
 					var templ_7745c5c3_Var114 string
 					templ_7745c5c3_Var114, templ_7745c5c3_Err = templ.ResolveAttributeValue(string(api.RuntimeVariableValueTypeText))
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 414, Col: 66}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 416, Col: 66}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var114)
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
-					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 159, "\"")
+					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 160, "\"")
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
 					if variable.ValueType == api.RuntimeVariableValueTypeText {
-						templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 160, " selected")
+						templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 161, " selected")
 						if templ_7745c5c3_Err != nil {
 							return templ_7745c5c3_Err
 						}
 					}
-					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 161, ">text</option> <option value=\"")
+					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 162, ">text</option> <option value=\"")
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
 					var templ_7745c5c3_Var115 string
 					templ_7745c5c3_Var115, templ_7745c5c3_Err = templ.ResolveAttributeValue(string(api.RuntimeVariableValueTypeInteger))
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 415, Col: 69}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 417, Col: 69}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var115)
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
-					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 162, "\"")
+					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 163, "\"")
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
 					if variable.ValueType == api.RuntimeVariableValueTypeInteger {
-						templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 163, " selected")
+						templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 164, " selected")
 						if templ_7745c5c3_Err != nil {
 							return templ_7745c5c3_Err
 						}
 					}
-					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 164, ">integer</option> <option value=\"")
+					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 165, ">integer</option> <option value=\"")
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
 					var templ_7745c5c3_Var116 string
 					templ_7745c5c3_Var116, templ_7745c5c3_Err = templ.ResolveAttributeValue(string(api.RuntimeVariableValueTypeBoolean))
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 416, Col: 69}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 418, Col: 69}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var116)
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
-					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 165, "\"")
+					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 166, "\"")
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
 					if variable.ValueType == api.RuntimeVariableValueTypeBoolean {
-						templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 166, " selected")
+						templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 167, " selected")
 						if templ_7745c5c3_Err != nil {
 							return templ_7745c5c3_Err
 						}
 					}
-					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 167, ">boolean</option> <option value=\"")
+					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 168, ">boolean</option> <option value=\"")
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
 					var templ_7745c5c3_Var117 string
 					templ_7745c5c3_Var117, templ_7745c5c3_Err = templ.ResolveAttributeValue(string(api.RuntimeVariableValueTypeDate))
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 417, Col: 66}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 419, Col: 66}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var117)
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
-					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 168, "\"")
+					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 169, "\"")
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
 					if variable.ValueType == api.RuntimeVariableValueTypeDate {
-						templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 169, " selected")
+						templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 170, " selected")
 						if templ_7745c5c3_Err != nil {
 							return templ_7745c5c3_Err
 						}
 					}
-					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 170, ">date</option> <option value=\"")
+					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 171, ">date</option> <option value=\"")
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
 					var templ_7745c5c3_Var118 string
 					templ_7745c5c3_Var118, templ_7745c5c3_Err = templ.ResolveAttributeValue(string(api.RuntimeVariableValueTypeUUID))
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 418, Col: 66}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 420, Col: 66}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var118)
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
-					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 171, "\"")
+					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 172, "\"")
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
 					if variable.ValueType == api.RuntimeVariableValueTypeUUID {
-						templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 172, " selected")
+						templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 173, " selected")
 						if templ_7745c5c3_Err != nil {
 							return templ_7745c5c3_Err
 						}
 					}
-					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 173, ">uuid</option></select></label> <label class=\"form-control w-full\"><div class=\"label py-1\"><span class=\"label-text text-xs\">Value</span></div><input class=\"input input-bordered input-sm w-full font-mono\" type=\"text\" name=\"value\" value=\"")
+					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 174, ">uuid</option></select></label> <label class=\"form-control w-full\"><div class=\"label py-1\"><span class=\"label-text text-xs\">Value</span></div><input class=\"input input-bordered input-sm w-full font-mono\" type=\"text\" name=\"value\" value=\"")
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
 					var templ_7745c5c3_Var119 string
 					templ_7745c5c3_Var119, templ_7745c5c3_Err = templ.ResolveAttributeValue(variable.Value)
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 423, Col: 118}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 425, Col: 118}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var119)
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
-					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 174, "\" required></label> <label class=\"form-control w-full lg:col-span-2\"><div class=\"label py-1\"><span class=\"label-text text-xs\">Description</span></div><input class=\"input input-bordered input-sm w-full\" type=\"text\" name=\"description\" value=\"")
+					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 175, "\" required></label> <label class=\"form-control w-full lg:col-span-2\"><div class=\"label py-1\"><span class=\"label-text text-xs\">Description</span></div><input class=\"input input-bordered input-sm w-full\" type=\"text\" name=\"description\" value=\"")
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
 					var templ_7745c5c3_Var120 string
 					templ_7745c5c3_Var120, templ_7745c5c3_Err = templ.ResolveAttributeValue(RuntimeVariableDescriptionValue(variable.Description))
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 427, Col: 153}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 429, Col: 153}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var120)
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
-					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 175, "\"></label><div class=\"lg:col-span-2\">")
+					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 176, "\"></label><div class=\"lg:col-span-2\">")
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
 					if environment.Protected {
-						templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 176, "<button class=\"btn btn-primary btn-sm\" type=\"button\" data-protected-action-trigger=\"")
+						templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 177, "<button class=\"btn btn-primary btn-sm\" type=\"button\" data-protected-action-trigger=\"")
 						if templ_7745c5c3_Err != nil {
 							return templ_7745c5c3_Err
 						}
 						var templ_7745c5c3_Var121 string
 						templ_7745c5c3_Var121, templ_7745c5c3_Err = templ.ResolveAttributeValue(updateModalID)
 						if templ_7745c5c3_Err != nil {
-							return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 431, Col: 108}
+							return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 433, Col: 108}
 						}
 						_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var121)
 						if templ_7745c5c3_Err != nil {
 							return templ_7745c5c3_Err
 						}
-						templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 177, "\">Update variable</button>")
+						templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 178, "\">Update variable</button>")
 						if templ_7745c5c3_Err != nil {
 							return templ_7745c5c3_Err
 						}
 					} else {
-						templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 178, "<button class=\"btn btn-primary btn-sm\" type=\"submit\">Update variable</button>")
+						templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 179, "<button class=\"btn btn-primary btn-sm\" type=\"submit\">Update variable</button>")
 						if templ_7745c5c3_Err != nil {
 							return templ_7745c5c3_Err
 						}
 					}
-					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 179, "</div></form>")
+					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 180, "</div></form>")
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
@@ -2167,186 +2173,186 @@ func OrganizationRuntimeVariablesPanel(orgSlug string, environment api.Environme
 						}
 					}
 				}
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 180, "</div>")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 181, "</div>")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 181, "</div>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 182, "</div>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 		}
 		if permissions.Can("environments", "update") {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 182, "<form id=\"")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 183, "<form id=\"")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 			var templ_7745c5c3_Var122 string
 			templ_7745c5c3_Var122, templ_7745c5c3_Err = templ.ResolveAttributeValue(variableFormID)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 446, Col: 28}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 448, Col: 28}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var122)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 183, "\" class=\"mt-4 grid gap-3 lg:grid-cols-[minmax(0,12rem)_minmax(0,10rem)_minmax(0,1fr)]\" method=\"post\" action=\"")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 184, "\" class=\"mt-4 grid gap-3 lg:grid-cols-[minmax(0,12rem)_minmax(0,10rem)_minmax(0,1fr)]\" method=\"post\" action=\"")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 			var templ_7745c5c3_Var123 templ.SafeURL
 			templ_7745c5c3_Var123, templ_7745c5c3_Err = templ.JoinURLErrs(templ.URL(organizationEnvironmentAction(ctx, "/organizations/"+orgSlug+"/environments/"+string(environment.Slug)+"/runtime-variables", fullPage)))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 446, Col: 284}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 448, Col: 284}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var123))
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 184, "\" hx-post=\"")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 185, "\" hx-post=\"")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 			var templ_7745c5c3_Var124 string
 			templ_7745c5c3_Var124, templ_7745c5c3_Err = templ.ResolveAttributeValue(organizationEnvironmentAction(ctx, "/organizations/"+orgSlug+"/environments/"+string(environment.Slug)+"/runtime-variables", fullPage))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 446, Col: 431}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 448, Col: 431}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var124)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 185, "\" hx-target=\"")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 186, "\" hx-target=\"")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 			var templ_7745c5c3_Var125 string
 			templ_7745c5c3_Var125, templ_7745c5c3_Err = templ.ResolveAttributeValue(OrganizationEnvironmentHTMXTarget(fullPage))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 446, Col: 489}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 448, Col: 489}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var125)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 186, "\" hx-select=\"")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 187, "\" hx-select=\"")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 			var templ_7745c5c3_Var126 string
 			templ_7745c5c3_Var126, templ_7745c5c3_Err = templ.ResolveAttributeValue(OrganizationEnvironmentHTMXSelect(fullPage))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 446, Col: 547}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 448, Col: 547}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var126)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 187, "\" hx-swap=\"outerHTML show:none focus-scroll:false\" data-preserve-scroll>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 188, "\" hx-swap=\"outerHTML show:none focus-scroll:false\" data-preserve-scroll>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 			if fullPage {
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 188, "<input type=\"hidden\" name=\"return_to\" value=\"full\"> ")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 189, "<input type=\"hidden\" name=\"return_to\" value=\"full\"> ")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 189, "<label class=\"form-control w-full\"><div class=\"label py-1\"><span class=\"label-text text-xs\">Key</span></div><input class=\"input input-bordered input-sm w-full font-mono\" type=\"text\" name=\"key\" placeholder=\"s3_prefix\" required></label> <label class=\"form-control w-full\"><div class=\"label py-1\"><span class=\"label-text text-xs\">Type</span></div><select class=\"select select-bordered select-sm w-full\" name=\"value_type\" required><option value=\"")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 190, "<label class=\"form-control w-full\"><div class=\"label py-1\"><span class=\"label-text text-xs\">Key</span></div><input class=\"input input-bordered input-sm w-full font-mono\" type=\"text\" name=\"key\" placeholder=\"s3_prefix\" required></label> <label class=\"form-control w-full\"><div class=\"label py-1\"><span class=\"label-text text-xs\">Type</span></div><select class=\"select select-bordered select-sm w-full\" name=\"value_type\" required><option value=\"")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 			var templ_7745c5c3_Var127 string
 			templ_7745c5c3_Var127, templ_7745c5c3_Err = templ.ResolveAttributeValue(string(api.RuntimeVariableValueTypeText))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 457, Col: 62}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 459, Col: 62}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var127)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 190, "\">text</option> <option value=\"")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 191, "\">text</option> <option value=\"")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 			var templ_7745c5c3_Var128 string
 			templ_7745c5c3_Var128, templ_7745c5c3_Err = templ.ResolveAttributeValue(string(api.RuntimeVariableValueTypeInteger))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 458, Col: 65}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 460, Col: 65}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var128)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 191, "\">integer</option> <option value=\"")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 192, "\">integer</option> <option value=\"")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 			var templ_7745c5c3_Var129 string
 			templ_7745c5c3_Var129, templ_7745c5c3_Err = templ.ResolveAttributeValue(string(api.RuntimeVariableValueTypeBoolean))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 459, Col: 65}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 461, Col: 65}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var129)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 192, "\">boolean</option> <option value=\"")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 193, "\">boolean</option> <option value=\"")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 			var templ_7745c5c3_Var130 string
 			templ_7745c5c3_Var130, templ_7745c5c3_Err = templ.ResolveAttributeValue(string(api.RuntimeVariableValueTypeDate))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 460, Col: 62}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 462, Col: 62}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var130)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 193, "\">date</option> <option value=\"")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 194, "\">date</option> <option value=\"")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 			var templ_7745c5c3_Var131 string
 			templ_7745c5c3_Var131, templ_7745c5c3_Err = templ.ResolveAttributeValue(string(api.RuntimeVariableValueTypeUUID))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 461, Col: 62}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 463, Col: 62}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var131)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 194, "\">uuid</option></select></label> <label class=\"form-control w-full\"><div class=\"label py-1\"><span class=\"label-text text-xs\">Value</span></div><input class=\"input input-bordered input-sm w-full font-mono\" type=\"text\" name=\"value\" required></label> <label class=\"form-control w-full lg:col-span-2\"><div class=\"label py-1\"><span class=\"label-text text-xs\">Description</span></div><input class=\"input input-bordered input-sm w-full\" type=\"text\" name=\"description\"></label><div class=\"lg:col-span-3\">")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 195, "\">uuid</option></select></label> <label class=\"form-control w-full\"><div class=\"label py-1\"><span class=\"label-text text-xs\">Value</span></div><input class=\"input input-bordered input-sm w-full font-mono\" type=\"text\" name=\"value\" required></label> <label class=\"form-control w-full lg:col-span-2\"><div class=\"label py-1\"><span class=\"label-text text-xs\">Description</span></div><input class=\"input input-bordered input-sm w-full\" type=\"text\" name=\"description\"></label><div class=\"lg:col-span-3\">")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 			if environment.Protected {
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 195, "<button class=\"btn btn-primary btn-sm\" type=\"button\" data-protected-action-trigger=\"")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 196, "<button class=\"btn btn-primary btn-sm\" type=\"button\" data-protected-action-trigger=\"")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
 				var templ_7745c5c3_Var132 string
 				templ_7745c5c3_Var132, templ_7745c5c3_Err = templ.ResolveAttributeValue("organization-runtime-variable-" + string(environment.Slug) + "-save")
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 474, Col: 160}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 476, Col: 160}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var132)
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 196, "\">Save variable</button>")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 197, "\">Save variable</button>")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
 			} else {
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 197, "<button class=\"btn btn-primary btn-sm\" type=\"submit\">Save variable</button>")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 198, "<button class=\"btn btn-primary btn-sm\" type=\"submit\">Save variable</button>")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 198, "</div></form>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 199, "</div></form>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -2357,7 +2363,7 @@ func OrganizationRuntimeVariablesPanel(orgSlug string, environment api.Environme
 				}
 			}
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 199, "</section>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 200, "</section>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -2387,35 +2393,35 @@ func OrganizationEnvironmentSecretsPanel(orgSlug string, environment api.Environ
 		}
 		ctx = templ.ClearChildren(ctx)
 		secretFormID := "organization-environment-secret-" + string(environment.Slug) + "-create"
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 200, "<section id=\"environment-secrets\" class=\"rounded-xl border border-base-300 bg-base-100 p-4\"><div class=\"flex flex-wrap items-start justify-between gap-3\"><div><h2 class=\"text-base font-semibold text-base-content\">Environment secrets</h2><p class=\"mt-1 text-xs text-base-content/65\">Write-only sensitive values scoped to this runtime target.</p></div><span class=\"badge badge-outline\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 201, "<section id=\"environment-secrets\" class=\"rounded-xl border border-base-300 bg-base-100 p-4\"><div class=\"flex flex-wrap items-start justify-between gap-3\"><div><h2 class=\"text-base font-semibold text-base-content\">Environment secrets</h2><p class=\"mt-1 text-xs text-base-content/65\">Write-only sensitive values scoped to this runtime target.</p></div><span class=\"badge badge-outline\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var134 string
 		templ_7745c5c3_Var134, templ_7745c5c3_Err = templ.JoinStringErrs(fmt.Sprintf("%d secrets", len(environmentSecrets)))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 495, Col: 89}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 497, Col: 89}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var134))
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 201, "</span></div>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 202, "</span></div>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		if environmentSecretsUnavailable {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 202, "<div class=\"alert alert-warning mt-4\"><span>Environment secrets are unavailable.</span></div>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 203, "<div class=\"alert alert-warning mt-4\"><span>Environment secrets are unavailable.</span></div>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 		} else if len(environmentSecrets) == 0 {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 203, "<div class=\"mt-4 rounded-lg border border-dashed border-base-300 bg-base-200/30 px-4 py-3 text-sm text-base-content/70\">No environment secrets for this target.</div>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 204, "<div class=\"mt-4 rounded-lg border border-dashed border-base-300 bg-base-200/30 px-4 py-3 text-sm text-base-content/70\">No environment secrets for this target.</div>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 		} else {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 204, "<div class=\"mt-4 space-y-2\">")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 205, "<div class=\"mt-4 space-y-2\">")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -2423,170 +2429,170 @@ func OrganizationEnvironmentSecretsPanel(orgSlug string, environment api.Environ
 				updateFormID := "organization-environment-secret-" + string(environment.Slug) + "-" + secret.Key + "-update"
 				updateModalID := updateFormID + "-confirm"
 				editPanelID := updateFormID + "-panel"
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 205, "<div class=\"rounded-lg border border-base-300 bg-base-200/40 p-3\"><div class=\"grid items-center gap-3 md:grid-cols-[1fr_1.25fr_1.2fr_auto]\"><button class=\"min-w-0 cursor-pointer text-left\" type=\"button\" aria-controls=\"")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 206, "<div class=\"rounded-lg border border-base-300 bg-base-200/40 p-3\"><div class=\"grid items-center gap-3 md:grid-cols-[1fr_1.25fr_1.2fr_auto]\"><button class=\"min-w-0 cursor-pointer text-left\" type=\"button\" aria-controls=\"")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
 				var templ_7745c5c3_Var135 string
 				templ_7745c5c3_Var135, templ_7745c5c3_Err = templ.ResolveAttributeValue(editPanelID)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 511, Col: 97}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 513, Col: 97}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var135)
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 206, "\" aria-expanded=\"false\" data-toggle-target=\"")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 207, "\" aria-expanded=\"false\" data-toggle-target=\"")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
 				var templ_7745c5c3_Var136 string
 				templ_7745c5c3_Var136, templ_7745c5c3_Err = templ.ResolveAttributeValue(editPanelID)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 511, Col: 154}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 513, Col: 154}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var136)
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 207, "\"><span class=\"block text-[0.65rem] font-semibold uppercase text-base-content/45\">Key</span> <span class=\"mt-1 flex min-w-0 items-center gap-2\"><span class=\"truncate font-mono text-sm font-semibold text-base-content\">")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 208, "\"><span class=\"block text-[0.65rem] font-semibold uppercase text-base-content/45\">Key</span> <span class=\"mt-1 flex min-w-0 items-center gap-2\"><span class=\"truncate font-mono text-sm font-semibold text-base-content\">")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
 				var templ_7745c5c3_Var137 string
 				templ_7745c5c3_Var137, templ_7745c5c3_Err = templ.JoinStringErrs(secret.Key)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 514, Col: 94}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 516, Col: 94}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var137))
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 208, "</span> <span class=\"badge badge-error badge-outline badge-sm shrink-0\">secret</span></span></button> <button class=\"min-w-0 cursor-pointer text-left\" type=\"button\" aria-controls=\"")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 209, "</span> <span class=\"badge badge-error badge-outline badge-sm shrink-0\">secret</span></span></button> <button class=\"min-w-0 cursor-pointer text-left\" type=\"button\" aria-controls=\"")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
 				var templ_7745c5c3_Var138 string
 				templ_7745c5c3_Var138, templ_7745c5c3_Err = templ.ResolveAttributeValue(editPanelID)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 518, Col: 97}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 520, Col: 97}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var138)
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 209, "\" aria-expanded=\"false\" data-toggle-target=\"")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 210, "\" aria-expanded=\"false\" data-toggle-target=\"")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
 				var templ_7745c5c3_Var139 string
 				templ_7745c5c3_Var139, templ_7745c5c3_Err = templ.ResolveAttributeValue(editPanelID)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 518, Col: 154}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 520, Col: 154}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var139)
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 210, "\"><span class=\"block text-[0.65rem] font-semibold uppercase text-base-content/45\">Runtime key</span> <span class=\"mt-1 block truncate font-mono text-xs text-base-content/70\">")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 211, "\"><span class=\"block text-[0.65rem] font-semibold uppercase text-base-content/45\">Runtime key</span> <span class=\"mt-1 block truncate font-mono text-xs text-base-content/70\">")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
 				var templ_7745c5c3_Var140 string
 				templ_7745c5c3_Var140, templ_7745c5c3_Err = templ.JoinStringErrs("{{runtime.secrets." + secret.Key + "}}")
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 520, Col: 123}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 522, Col: 123}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var140))
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 211, "</span></button> <button class=\"min-w-0 cursor-pointer text-left\" type=\"button\" aria-controls=\"")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 212, "</span></button> <button class=\"min-w-0 cursor-pointer text-left\" type=\"button\" aria-controls=\"")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
 				var templ_7745c5c3_Var141 string
 				templ_7745c5c3_Var141, templ_7745c5c3_Err = templ.ResolveAttributeValue(editPanelID)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 522, Col: 97}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 524, Col: 97}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var141)
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 212, "\" aria-expanded=\"false\" data-toggle-target=\"")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 213, "\" aria-expanded=\"false\" data-toggle-target=\"")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
 				var templ_7745c5c3_Var142 string
 				templ_7745c5c3_Var142, templ_7745c5c3_Err = templ.ResolveAttributeValue(editPanelID)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 522, Col: 154}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 524, Col: 154}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var142)
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 213, "\"><span class=\"block text-[0.65rem] font-semibold uppercase text-base-content/45\">Description</span> ")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 214, "\"><span class=\"block text-[0.65rem] font-semibold uppercase text-base-content/45\">Description</span> ")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
 				if secret.Description != nil && *secret.Description != "" {
-					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 214, "<span class=\"mt-1 block truncate text-sm text-base-content/70\">")
+					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 215, "<span class=\"mt-1 block truncate text-sm text-base-content/70\">")
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
 					var templ_7745c5c3_Var143 string
 					templ_7745c5c3_Var143, templ_7745c5c3_Err = templ.JoinStringErrs(*secret.Description)
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 525, Col: 93}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 527, Col: 93}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var143))
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
-					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 215, "</span>")
+					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 216, "</span>")
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
 				} else {
-					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 216, "<span class=\"mt-1 block text-sm text-base-content/40\">None</span>")
+					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 217, "<span class=\"mt-1 block text-sm text-base-content/40\">None</span>")
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
 				}
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 217, "</button><div class=\"flex items-center justify-end gap-2\">")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 218, "</button><div class=\"flex items-center justify-end gap-2\">")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
 				if permissions.Can("environments", "update") {
-					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 218, "<button class=\"btn btn-ghost btn-xs\" type=\"button\" aria-controls=\"")
+					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 219, "<button class=\"btn btn-ghost btn-xs\" type=\"button\" aria-controls=\"")
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
 					var templ_7745c5c3_Var144 string
 					templ_7745c5c3_Var144, templ_7745c5c3_Err = templ.ResolveAttributeValue(editPanelID)
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 532, Col: 87}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 534, Col: 87}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var144)
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
-					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 219, "\" aria-expanded=\"false\" data-toggle-target=\"")
+					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 220, "\" aria-expanded=\"false\" data-toggle-target=\"")
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
 					var templ_7745c5c3_Var145 string
 					templ_7745c5c3_Var145, templ_7745c5c3_Err = templ.ResolveAttributeValue(editPanelID)
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 532, Col: 144}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 534, Col: 144}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var145)
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
-					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 220, "\">Edit</button> ")
+					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 221, "\">Edit</button> ")
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
@@ -2598,235 +2604,235 @@ func OrganizationEnvironmentSecretsPanel(orgSlug string, environment api.Environ
 							return templ_7745c5c3_Err
 						}
 					} else {
-						templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 221, "<form method=\"post\" action=\"")
+						templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 222, "<form method=\"post\" action=\"")
 						if templ_7745c5c3_Err != nil {
 							return templ_7745c5c3_Err
 						}
 						var templ_7745c5c3_Var146 templ.SafeURL
 						templ_7745c5c3_Var146, templ_7745c5c3_Err = templ.JoinURLErrs(templ.URL(organizationEnvironmentAction(ctx, "/organizations/"+orgSlug+"/environments/"+string(environment.Slug)+"/secrets/"+secret.Key+"/delete", fullPage)))
 						if templ_7745c5c3_Err != nil {
-							return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 538, Col: 196}
+							return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 540, Col: 196}
 						}
 						_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var146))
 						if templ_7745c5c3_Err != nil {
 							return templ_7745c5c3_Err
 						}
-						templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 222, "\" hx-post=\"")
+						templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 223, "\" hx-post=\"")
 						if templ_7745c5c3_Err != nil {
 							return templ_7745c5c3_Err
 						}
 						var templ_7745c5c3_Var147 string
 						templ_7745c5c3_Var147, templ_7745c5c3_Err = templ.ResolveAttributeValue(organizationEnvironmentAction(ctx, "/organizations/"+orgSlug+"/environments/"+string(environment.Slug)+"/secrets/"+secret.Key+"/delete", fullPage))
 						if templ_7745c5c3_Err != nil {
-							return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 538, Col: 355}
+							return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 540, Col: 355}
 						}
 						_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var147)
 						if templ_7745c5c3_Err != nil {
 							return templ_7745c5c3_Err
 						}
-						templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 223, "\" hx-target=\"")
+						templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 224, "\" hx-target=\"")
 						if templ_7745c5c3_Err != nil {
 							return templ_7745c5c3_Err
 						}
 						var templ_7745c5c3_Var148 string
 						templ_7745c5c3_Var148, templ_7745c5c3_Err = templ.ResolveAttributeValue(OrganizationEnvironmentHTMXTarget(fullPage))
 						if templ_7745c5c3_Err != nil {
-							return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 538, Col: 413}
+							return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 540, Col: 413}
 						}
 						_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var148)
 						if templ_7745c5c3_Err != nil {
 							return templ_7745c5c3_Err
 						}
-						templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 224, "\" hx-select=\"")
+						templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 225, "\" hx-select=\"")
 						if templ_7745c5c3_Err != nil {
 							return templ_7745c5c3_Err
 						}
 						var templ_7745c5c3_Var149 string
 						templ_7745c5c3_Var149, templ_7745c5c3_Err = templ.ResolveAttributeValue(OrganizationEnvironmentHTMXSelect(fullPage))
 						if templ_7745c5c3_Err != nil {
-							return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 538, Col: 471}
+							return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 540, Col: 471}
 						}
 						_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var149)
 						if templ_7745c5c3_Err != nil {
 							return templ_7745c5c3_Err
 						}
-						templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 225, "\" hx-swap=\"outerHTML show:none focus-scroll:false\" data-preserve-scroll hx-confirm=\"")
+						templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 226, "\" hx-swap=\"outerHTML show:none focus-scroll:false\" data-preserve-scroll hx-confirm=\"")
 						if templ_7745c5c3_Err != nil {
 							return templ_7745c5c3_Err
 						}
 						var templ_7745c5c3_Var150 string
 						templ_7745c5c3_Var150, templ_7745c5c3_Err = templ.ResolveAttributeValue(DestructiveConfirmation("Delete", "environment secret", secret.Key, "Pipelines using this secret will no longer resolve it."))
 						if templ_7745c5c3_Err != nil {
-							return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 538, Col: 682}
+							return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 540, Col: 682}
 						}
 						_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var150)
 						if templ_7745c5c3_Err != nil {
 							return templ_7745c5c3_Err
 						}
-						templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 226, "\" data-destructive-confirm=\"")
+						templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 227, "\" data-destructive-confirm=\"")
 						if templ_7745c5c3_Err != nil {
 							return templ_7745c5c3_Err
 						}
 						var templ_7745c5c3_Var151 string
 						templ_7745c5c3_Var151, templ_7745c5c3_Err = templ.ResolveAttributeValue(DestructiveConfirmation("Delete", "environment secret", secret.Key, "Pipelines using this secret will no longer resolve it."))
 						if templ_7745c5c3_Err != nil {
-							return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 538, Col: 837}
+							return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 540, Col: 837}
 						}
 						_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var151)
 						if templ_7745c5c3_Err != nil {
 							return templ_7745c5c3_Err
 						}
-						templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 227, "\">")
+						templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 228, "\">")
 						if templ_7745c5c3_Err != nil {
 							return templ_7745c5c3_Err
 						}
 						if fullPage {
-							templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 228, "<input type=\"hidden\" name=\"return_to\" value=\"full\"> ")
+							templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 229, "<input type=\"hidden\" name=\"return_to\" value=\"full\"> ")
 							if templ_7745c5c3_Err != nil {
 								return templ_7745c5c3_Err
 							}
 						}
-						templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 229, "<button class=\"btn btn-error btn-outline btn-xs\" type=\"submit\">Delete</button></form>")
+						templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 230, "<button class=\"btn btn-error btn-outline btn-xs\" type=\"submit\">Delete</button></form>")
 						if templ_7745c5c3_Err != nil {
 							return templ_7745c5c3_Err
 						}
 					}
 				}
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 230, "</div></div>")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 231, "</div></div>")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
 				if permissions.Can("environments", "update") {
-					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 231, "<form id=\"")
+					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 232, "<form id=\"")
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
 					var templ_7745c5c3_Var152 string
 					templ_7745c5c3_Var152, templ_7745c5c3_Err = templ.ResolveAttributeValue(editPanelID)
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 549, Col: 29}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 551, Col: 29}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var152)
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
-					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 232, "\" class=\"mt-3 hidden grid gap-3 border-t border-base-300 pt-3 lg:grid-cols-[minmax(0,12rem)_minmax(0,1fr)]\" method=\"post\" action=\"")
+					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 233, "\" class=\"mt-3 hidden grid gap-3 border-t border-base-300 pt-3 lg:grid-cols-[minmax(0,12rem)_minmax(0,1fr)]\" method=\"post\" action=\"")
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
 					var templ_7745c5c3_Var153 templ.SafeURL
 					templ_7745c5c3_Var153, templ_7745c5c3_Err = templ.JoinURLErrs(templ.URL(organizationEnvironmentAction(ctx, "/organizations/"+orgSlug+"/environments/"+string(environment.Slug)+"/secrets", fullPage)))
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 549, Col: 296}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 551, Col: 296}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var153))
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
-					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 233, "\" hx-post=\"")
+					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 234, "\" hx-post=\"")
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
 					var templ_7745c5c3_Var154 string
 					templ_7745c5c3_Var154, templ_7745c5c3_Err = templ.ResolveAttributeValue(organizationEnvironmentAction(ctx, "/organizations/"+orgSlug+"/environments/"+string(environment.Slug)+"/secrets", fullPage))
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 549, Col: 433}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 551, Col: 433}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var154)
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
-					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 234, "\" hx-target=\"")
+					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 235, "\" hx-target=\"")
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
 					var templ_7745c5c3_Var155 string
 					templ_7745c5c3_Var155, templ_7745c5c3_Err = templ.ResolveAttributeValue(OrganizationEnvironmentHTMXTarget(fullPage))
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 549, Col: 491}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 551, Col: 491}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var155)
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
-					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 235, "\" hx-select=\"")
+					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 236, "\" hx-select=\"")
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
 					var templ_7745c5c3_Var156 string
 					templ_7745c5c3_Var156, templ_7745c5c3_Err = templ.ResolveAttributeValue(OrganizationEnvironmentHTMXSelect(fullPage))
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 549, Col: 549}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 551, Col: 549}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var156)
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
-					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 236, "\" hx-swap=\"outerHTML show:none focus-scroll:false\" data-preserve-scroll>")
+					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 237, "\" hx-swap=\"outerHTML show:none focus-scroll:false\" data-preserve-scroll>")
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
 					if fullPage {
-						templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 237, "<input type=\"hidden\" name=\"return_to\" value=\"full\"> ")
+						templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 238, "<input type=\"hidden\" name=\"return_to\" value=\"full\"> ")
 						if templ_7745c5c3_Err != nil {
 							return templ_7745c5c3_Err
 						}
 					}
-					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 238, "<input type=\"hidden\" name=\"key\" value=\"")
+					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 239, "<input type=\"hidden\" name=\"key\" value=\"")
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
 					var templ_7745c5c3_Var157 string
 					templ_7745c5c3_Var157, templ_7745c5c3_Err = templ.ResolveAttributeValue(secret.Key)
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 553, Col: 58}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 555, Col: 58}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var157)
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
-					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 239, "\"> <label class=\"form-control w-full\"><div class=\"label py-1\"><span class=\"label-text text-xs\">Replacement value</span></div><textarea class=\"textarea textarea-bordered textarea-sm min-h-20 w-full font-mono\" name=\"value\" autocomplete=\"new-password\" required></textarea></label> <label class=\"form-control w-full\"><div class=\"label py-1\"><span class=\"label-text text-xs\">Description</span></div><input class=\"input input-bordered input-sm w-full\" type=\"text\" name=\"description\" value=\"")
+					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 240, "\"> <label class=\"form-control w-full\"><div class=\"label py-1\"><span class=\"label-text text-xs\">Replacement value</span></div><textarea class=\"textarea textarea-bordered textarea-sm min-h-20 w-full font-mono\" name=\"value\" autocomplete=\"new-password\" required></textarea></label> <label class=\"form-control w-full\"><div class=\"label py-1\"><span class=\"label-text text-xs\">Description</span></div><input class=\"input input-bordered input-sm w-full\" type=\"text\" name=\"description\" value=\"")
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
 					var templ_7745c5c3_Var158 string
 					templ_7745c5c3_Var158, templ_7745c5c3_Err = templ.ResolveAttributeValue(EnvironmentSecretDescriptionValue(secret.Description))
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 560, Col: 153}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 562, Col: 153}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var158)
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
-					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 240, "\"></label><div class=\"lg:col-span-2\">")
+					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 241, "\"></label><div class=\"lg:col-span-2\">")
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
 					if environment.Protected {
-						templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 241, "<button class=\"btn btn-primary btn-sm\" type=\"button\" data-protected-action-trigger=\"")
+						templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 242, "<button class=\"btn btn-primary btn-sm\" type=\"button\" data-protected-action-trigger=\"")
 						if templ_7745c5c3_Err != nil {
 							return templ_7745c5c3_Err
 						}
 						var templ_7745c5c3_Var159 string
 						templ_7745c5c3_Var159, templ_7745c5c3_Err = templ.ResolveAttributeValue(updateModalID)
 						if templ_7745c5c3_Err != nil {
-							return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 564, Col: 108}
+							return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 566, Col: 108}
 						}
 						_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var159)
 						if templ_7745c5c3_Err != nil {
 							return templ_7745c5c3_Err
 						}
-						templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 242, "\">Update secret</button>")
+						templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 243, "\">Update secret</button>")
 						if templ_7745c5c3_Err != nil {
 							return templ_7745c5c3_Err
 						}
 					} else {
-						templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 243, "<button class=\"btn btn-primary btn-sm\" type=\"submit\">Update secret</button>")
+						templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 244, "<button class=\"btn btn-primary btn-sm\" type=\"submit\">Update secret</button>")
 						if templ_7745c5c3_Err != nil {
 							return templ_7745c5c3_Err
 						}
 					}
-					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 244, "</div></form>")
+					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 245, "</div></form>")
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
@@ -2837,121 +2843,121 @@ func OrganizationEnvironmentSecretsPanel(orgSlug string, environment api.Environ
 						}
 					}
 				}
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 245, "</div>")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 246, "</div>")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 246, "</div>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 247, "</div>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 		}
 		if permissions.Can("environments", "update") {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 247, "<form id=\"")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 248, "<form id=\"")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 			var templ_7745c5c3_Var160 string
 			templ_7745c5c3_Var160, templ_7745c5c3_Err = templ.ResolveAttributeValue(secretFormID)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 579, Col: 26}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 581, Col: 26}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var160)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 248, "\" class=\"mt-4 grid gap-3 lg:grid-cols-[minmax(0,12rem)_minmax(0,1fr)]\" method=\"post\" action=\"")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 249, "\" class=\"mt-4 grid gap-3 lg:grid-cols-[minmax(0,12rem)_minmax(0,1fr)]\" method=\"post\" action=\"")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 			var templ_7745c5c3_Var161 templ.SafeURL
 			templ_7745c5c3_Var161, templ_7745c5c3_Err = templ.JoinURLErrs(templ.URL(organizationEnvironmentAction(ctx, "/organizations/"+orgSlug+"/environments/"+string(environment.Slug)+"/secrets", fullPage)))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 579, Col: 256}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 581, Col: 256}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var161))
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 249, "\" hx-post=\"")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 250, "\" hx-post=\"")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 			var templ_7745c5c3_Var162 string
 			templ_7745c5c3_Var162, templ_7745c5c3_Err = templ.ResolveAttributeValue(organizationEnvironmentAction(ctx, "/organizations/"+orgSlug+"/environments/"+string(environment.Slug)+"/secrets", fullPage))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 579, Col: 393}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 581, Col: 393}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var162)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 250, "\" hx-target=\"")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 251, "\" hx-target=\"")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 			var templ_7745c5c3_Var163 string
 			templ_7745c5c3_Var163, templ_7745c5c3_Err = templ.ResolveAttributeValue(OrganizationEnvironmentHTMXTarget(fullPage))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 579, Col: 451}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 581, Col: 451}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var163)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 251, "\" hx-select=\"")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 252, "\" hx-select=\"")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 			var templ_7745c5c3_Var164 string
 			templ_7745c5c3_Var164, templ_7745c5c3_Err = templ.ResolveAttributeValue(OrganizationEnvironmentHTMXSelect(fullPage))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 579, Col: 509}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 581, Col: 509}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var164)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 252, "\" hx-swap=\"outerHTML show:none focus-scroll:false\" data-preserve-scroll>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 253, "\" hx-swap=\"outerHTML show:none focus-scroll:false\" data-preserve-scroll>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 			if fullPage {
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 253, "<input type=\"hidden\" name=\"return_to\" value=\"full\"> ")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 254, "<input type=\"hidden\" name=\"return_to\" value=\"full\"> ")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 254, "<label class=\"form-control w-full\"><div class=\"label py-1\"><span class=\"label-text text-xs\">Key</span></div><input class=\"input input-bordered input-sm w-full font-mono\" type=\"text\" name=\"key\" placeholder=\"API_TOKEN\" required></label> <label class=\"form-control w-full\"><div class=\"label py-1\"><span class=\"label-text text-xs\">Value</span></div><textarea class=\"textarea textarea-bordered textarea-sm min-h-20 w-full font-mono\" name=\"value\" autocomplete=\"new-password\" required></textarea></label> <label class=\"form-control w-full lg:col-span-2\"><div class=\"label py-1\"><span class=\"label-text text-xs\">Description</span></div><input class=\"input input-bordered input-sm w-full\" type=\"text\" name=\"description\"></label><div class=\"lg:col-span-2\">")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 255, "<label class=\"form-control w-full\"><div class=\"label py-1\"><span class=\"label-text text-xs\">Key</span></div><input class=\"input input-bordered input-sm w-full font-mono\" type=\"text\" name=\"key\" placeholder=\"API_TOKEN\" required></label> <label class=\"form-control w-full\"><div class=\"label py-1\"><span class=\"label-text text-xs\">Value</span></div><textarea class=\"textarea textarea-bordered textarea-sm min-h-20 w-full font-mono\" name=\"value\" autocomplete=\"new-password\" required></textarea></label> <label class=\"form-control w-full lg:col-span-2\"><div class=\"label py-1\"><span class=\"label-text text-xs\">Description</span></div><input class=\"input input-bordered input-sm w-full\" type=\"text\" name=\"description\"></label><div class=\"lg:col-span-2\">")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 			if environment.Protected {
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 255, "<button class=\"btn btn-primary btn-sm\" type=\"button\" data-protected-action-trigger=\"")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 256, "<button class=\"btn btn-primary btn-sm\" type=\"button\" data-protected-action-trigger=\"")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
 				var templ_7745c5c3_Var165 string
 				templ_7745c5c3_Var165, templ_7745c5c3_Err = templ.ResolveAttributeValue("organization-environment-secret-" + string(environment.Slug) + "-save")
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 597, Col: 162}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 599, Col: 162}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var165)
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 256, "\">Save secret</button>")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 257, "\">Save secret</button>")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
 			} else {
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 257, "<button class=\"btn btn-primary btn-sm\" type=\"submit\">Save secret</button>")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 258, "<button class=\"btn btn-primary btn-sm\" type=\"submit\">Save secret</button>")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 258, "</div></form>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 259, "</div></form>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -2962,7 +2968,7 @@ func OrganizationEnvironmentSecretsPanel(orgSlug string, environment api.Environ
 				}
 			}
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 259, "</section>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 260, "</section>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -2991,46 +2997,46 @@ func OrganizationRuntimeProtectedSecretSaveModal(formID string, modalID string, 
 			templ_7745c5c3_Var166 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 260, "<dialog class=\"modal\" id=\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 261, "<dialog class=\"modal\" id=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var167 string
 		templ_7745c5c3_Var167, templ_7745c5c3_Err = templ.ResolveAttributeValue(modalID)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 611, Col: 35}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 613, Col: 35}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var167)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 261, "\" data-protected-action-modal data-confirm-slug=\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 262, "\" data-protected-action-modal data-confirm-slug=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var168 string
 		templ_7745c5c3_Var168, templ_7745c5c3_Err = templ.ResolveAttributeValue(string(environment.Slug))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 611, Col: 110}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 613, Col: 110}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var168)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 262, "\"><div class=\"modal-box max-w-lg border border-error/35 bg-base-100 p-0\"><div class=\"border-b border-error/25 bg-error/10 px-5 py-4\"><div class=\"flex flex-wrap items-start justify-between gap-3\"><div><h3 class=\"text-lg font-semibold text-base-content\">Confirm protected action</h3><p class=\"mt-1 text-sm text-base-content/70\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 263, "\"><div class=\"modal-box max-w-lg border border-error/35 bg-base-100 p-0\"><div class=\"border-b border-error/25 bg-error/10 px-5 py-4\"><div class=\"flex flex-wrap items-start justify-between gap-3\"><div><h3 class=\"text-lg font-semibold text-base-content\">Confirm protected action</h3><p class=\"mt-1 text-sm text-base-content/70\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var169 string
 		templ_7745c5c3_Var169, templ_7745c5c3_Err = templ.JoinStringErrs(actionDescription)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 617, Col: 70}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 619, Col: 70}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var169))
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 263, "</p></div>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 264, "</p></div>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -3039,7 +3045,7 @@ func OrganizationRuntimeProtectedSecretSaveModal(formID string, modalID string, 
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 264, "<span class=\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 265, "<span class=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -3052,137 +3058,137 @@ func OrganizationRuntimeProtectedSecretSaveModal(formID string, modalID string, 
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 265, "\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 266, "\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var172 string
 		templ_7745c5c3_Var172, templ_7745c5c3_Err = templ.JoinStringErrs(environment.Slug)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 619, Col: 54}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 621, Col: 54}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var172))
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 266, "</span></div></div><div class=\"px-5 py-4\"><div class=\"rounded-lg border border-base-300 bg-base-200/35 p-3\"><p class=\"text-sm font-semibold text-base-content\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 267, "</span></div></div><div class=\"px-5 py-4\"><div class=\"rounded-lg border border-base-300 bg-base-200/35 p-3\"><p class=\"text-sm font-semibold text-base-content\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var173 string
 		templ_7745c5c3_Var173, templ_7745c5c3_Err = templ.JoinStringErrs(environment.Name)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 624, Col: 74}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 626, Col: 74}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var173))
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 267, "</p><p class=\"mt-1 text-xs text-base-content/60\">This changes environment secrets for <span class=\"font-mono\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 268, "</p><p class=\"mt-1 text-xs text-base-content/60\">This changes environment secrets for <span class=\"font-mono\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var174 string
 		templ_7745c5c3_Var174, templ_7745c5c3_Err = templ.JoinStringErrs(environment.Slug)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 625, Col: 129}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 627, Col: 129}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var174))
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 268, "</span>.</p></div><label class=\"form-control mt-4 w-full\"><div class=\"label py-1\"><span class=\"label-text text-xs\">Type <span class=\"font-mono font-semibold text-error\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 269, "</span>.</p></div><label class=\"form-control mt-4 w-full\"><div class=\"label py-1\"><span class=\"label-text text-xs\">Type <span class=\"font-mono font-semibold text-error\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var175 string
 		templ_7745c5c3_Var175, templ_7745c5c3_Err = templ.JoinStringErrs(environment.Slug)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 629, Col: 111}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 631, Col: 111}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var175))
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 269, "</span> to confirm</span></div><input class=\"input input-bordered w-full font-mono\" type=\"text\" name=\"protected_environment_confirmation\" form=\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 270, "</span> to confirm</span></div><input class=\"input input-bordered w-full font-mono\" type=\"text\" name=\"protected_environment_confirmation\" form=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var176 string
 		templ_7745c5c3_Var176, templ_7745c5c3_Err = templ.ResolveAttributeValue(formID)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 635, Col: 19}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 637, Col: 19}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var176)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 270, "\" autocomplete=\"off\" placeholder=\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 271, "\" autocomplete=\"off\" placeholder=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var177 string
 		templ_7745c5c3_Var177, templ_7745c5c3_Err = templ.ResolveAttributeValue(string(environment.Slug))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 637, Col: 44}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 639, Col: 44}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var177)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 271, "\" required data-protected-confirm-input data-confirm-slug=\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 272, "\" required data-protected-confirm-input data-confirm-slug=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var178 string
 		templ_7745c5c3_Var178, templ_7745c5c3_Err = templ.ResolveAttributeValue(string(environment.Slug))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 640, Col: 50}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 642, Col: 50}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var178)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 272, "\"></label><div class=\"modal-action mt-5\"><button class=\"btn btn-ghost btn-sm\" type=\"button\" data-protected-action-close=\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 273, "\"></label><div class=\"modal-action mt-5\"><button class=\"btn btn-ghost btn-sm\" type=\"button\" data-protected-action-close=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var179 string
 		templ_7745c5c3_Var179, templ_7745c5c3_Err = templ.ResolveAttributeValue(modalID)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 644, Col: 93}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 646, Col: 93}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var179)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 273, "\">Cancel</button> <button class=\"btn btn-primary btn-sm\" type=\"submit\" form=\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 274, "\">Cancel</button> <button class=\"btn btn-primary btn-sm\" type=\"submit\" form=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var180 string
 		templ_7745c5c3_Var180, templ_7745c5c3_Err = templ.ResolveAttributeValue(formID)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 645, Col: 71}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 647, Col: 71}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var180)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 274, "\" data-protected-confirm-submit disabled aria-disabled=\"true\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 275, "\" data-protected-confirm-submit disabled aria-disabled=\"true\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var181 string
 		templ_7745c5c3_Var181, templ_7745c5c3_Err = templ.JoinStringErrs(actionLabel)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 645, Col: 147}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 647, Col: 147}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var181))
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 275, "</button></div></div></div><form method=\"dialog\" class=\"modal-backdrop\"><button type=\"submit\">close</button></form></dialog>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 276, "</button></div></div></div><form method=\"dialog\" class=\"modal-backdrop\"><button type=\"submit\">close</button></form></dialog>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -3212,46 +3218,46 @@ func OrganizationRuntimeProtectedSecretDeleteButton(orgSlug string, environment 
 		}
 		ctx = templ.ClearChildren(ctx)
 		modalID := "organization-environment-secret-" + string(environment.Slug) + "-" + secret.Key + "-delete"
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 276, "<button class=\"btn btn-error btn-outline btn-xs\" type=\"button\" data-protected-action-trigger=\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 277, "<button class=\"btn btn-error btn-outline btn-xs\" type=\"button\" data-protected-action-trigger=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var183 string
 		templ_7745c5c3_Var183, templ_7745c5c3_Err = templ.ResolveAttributeValue(modalID)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 657, Col: 103}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 659, Col: 103}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var183)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 277, "\">Delete</button> <dialog class=\"modal\" id=\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 278, "\">Delete</button> <dialog class=\"modal\" id=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var184 string
 		templ_7745c5c3_Var184, templ_7745c5c3_Err = templ.ResolveAttributeValue(modalID)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 658, Col: 35}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 660, Col: 35}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var184)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 278, "\" data-protected-action-modal data-confirm-slug=\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 279, "\" data-protected-action-modal data-confirm-slug=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var185 string
 		templ_7745c5c3_Var185, templ_7745c5c3_Err = templ.ResolveAttributeValue(string(environment.Slug))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 658, Col: 110}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 660, Col: 110}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var185)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 279, "\"><div class=\"modal-box max-w-lg border border-error/35 bg-base-100 p-0\"><div class=\"border-b border-error/25 bg-error/10 px-5 py-4\"><div class=\"flex flex-wrap items-start justify-between gap-3\"><div><h3 class=\"text-lg font-semibold text-base-content\">Confirm protected action</h3><p class=\"mt-1 text-sm text-base-content/70\">Delete this environment secret from a protected target.</p></div>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 280, "\"><div class=\"modal-box max-w-lg border border-error/35 bg-base-100 p-0\"><div class=\"border-b border-error/25 bg-error/10 px-5 py-4\"><div class=\"flex flex-wrap items-start justify-between gap-3\"><div><h3 class=\"text-lg font-semibold text-base-content\">Confirm protected action</h3><p class=\"mt-1 text-sm text-base-content/70\">Delete this environment secret from a protected target.</p></div>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -3260,7 +3266,7 @@ func OrganizationRuntimeProtectedSecretDeleteButton(orgSlug string, environment 
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 280, "<span class=\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 281, "<span class=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -3273,160 +3279,160 @@ func OrganizationRuntimeProtectedSecretDeleteButton(orgSlug string, environment 
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 281, "\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 282, "\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var188 string
 		templ_7745c5c3_Var188, templ_7745c5c3_Err = templ.JoinStringErrs(environment.Slug)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 666, Col: 54}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 668, Col: 54}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var188))
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 282, "</span></div></div><form class=\"px-5 py-4\" method=\"post\" action=\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 283, "</span></div></div><form class=\"px-5 py-4\" method=\"post\" action=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var189 templ.SafeURL
 		templ_7745c5c3_Var189, templ_7745c5c3_Err = templ.JoinURLErrs(templ.URL(organizationEnvironmentAction(ctx, "/organizations/"+orgSlug+"/environments/"+string(environment.Slug)+"/secrets/"+secret.Key+"/delete", fullPage)))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 672, Col: 170}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 674, Col: 170}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var189))
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 283, "\" hx-post=\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 284, "\" hx-post=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var190 string
 		templ_7745c5c3_Var190, templ_7745c5c3_Err = templ.ResolveAttributeValue(organizationEnvironmentAction(ctx, "/organizations/"+orgSlug+"/environments/"+string(environment.Slug)+"/secrets/"+secret.Key+"/delete", fullPage))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 673, Col: 160}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 675, Col: 160}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var190)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 284, "\" hx-target=\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 285, "\" hx-target=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var191 string
 		templ_7745c5c3_Var191, templ_7745c5c3_Err = templ.ResolveAttributeValue(OrganizationEnvironmentHTMXTarget(fullPage))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 674, Col: 59}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 676, Col: 59}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var191)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 285, "\" hx-select=\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 286, "\" hx-select=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var192 string
 		templ_7745c5c3_Var192, templ_7745c5c3_Err = templ.ResolveAttributeValue(OrganizationEnvironmentHTMXSelect(fullPage))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 675, Col: 59}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 677, Col: 59}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var192)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 286, "\" hx-swap=\"outerHTML show:none focus-scroll:false\" data-preserve-scroll>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 287, "\" hx-swap=\"outerHTML show:none focus-scroll:false\" data-preserve-scroll>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		if fullPage {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 287, "<input type=\"hidden\" name=\"return_to\" value=\"full\">")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 288, "<input type=\"hidden\" name=\"return_to\" value=\"full\">")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 288, "<div class=\"rounded-lg border border-base-300 bg-base-200/35 p-3\"><p class=\"font-mono text-sm font-semibold text-base-content\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 289, "<div class=\"rounded-lg border border-base-300 bg-base-200/35 p-3\"><p class=\"font-mono text-sm font-semibold text-base-content\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var193 string
 		templ_7745c5c3_Var193, templ_7745c5c3_Err = templ.JoinStringErrs(secret.Key)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 683, Col: 78}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 685, Col: 78}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var193))
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 289, "</p><p class=\"mt-1 text-xs text-base-content/60\">This removes the environment secret from <span class=\"font-mono\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 290, "</p><p class=\"mt-1 text-xs text-base-content/60\">This removes the environment secret from <span class=\"font-mono\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var194 string
 		templ_7745c5c3_Var194, templ_7745c5c3_Err = templ.JoinStringErrs(environment.Slug)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 684, Col: 133}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 686, Col: 133}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var194))
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 290, "</span>.</p></div><label class=\"form-control mt-4 w-full\"><div class=\"label py-1\"><span class=\"label-text text-xs\">Type <span class=\"font-mono font-semibold text-error\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 291, "</span>.</p></div><label class=\"form-control mt-4 w-full\"><div class=\"label py-1\"><span class=\"label-text text-xs\">Type <span class=\"font-mono font-semibold text-error\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var195 string
 		templ_7745c5c3_Var195, templ_7745c5c3_Err = templ.JoinStringErrs(environment.Slug)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 688, Col: 111}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 690, Col: 111}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var195))
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 291, "</span> to confirm</span></div><input class=\"input input-bordered w-full font-mono\" type=\"text\" name=\"protected_environment_confirmation\" autocomplete=\"off\" placeholder=\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 292, "</span> to confirm</span></div><input class=\"input input-bordered w-full font-mono\" type=\"text\" name=\"protected_environment_confirmation\" autocomplete=\"off\" placeholder=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var196 string
 		templ_7745c5c3_Var196, templ_7745c5c3_Err = templ.ResolveAttributeValue(string(environment.Slug))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 695, Col: 44}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 697, Col: 44}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var196)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 292, "\" required data-protected-confirm-input data-confirm-slug=\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 293, "\" required data-protected-confirm-input data-confirm-slug=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var197 string
 		templ_7745c5c3_Var197, templ_7745c5c3_Err = templ.ResolveAttributeValue(string(environment.Slug))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 698, Col: 50}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 700, Col: 50}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var197)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 293, "\"></label><div class=\"modal-action mt-5\"><button class=\"btn btn-ghost btn-sm\" type=\"button\" data-protected-action-close=\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 294, "\"></label><div class=\"modal-action mt-5\"><button class=\"btn btn-ghost btn-sm\" type=\"button\" data-protected-action-close=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var198 string
 		templ_7745c5c3_Var198, templ_7745c5c3_Err = templ.ResolveAttributeValue(modalID)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 702, Col: 93}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 704, Col: 93}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var198)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 294, "\">Cancel</button> <button class=\"btn btn-error btn-sm\" type=\"submit\" data-protected-confirm-submit disabled aria-disabled=\"true\">Delete</button></div></form></div><form method=\"dialog\" class=\"modal-backdrop\"><button type=\"submit\">close</button></form></dialog>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 295, "\">Cancel</button> <button class=\"btn btn-error btn-sm\" type=\"submit\" data-protected-confirm-submit disabled aria-disabled=\"true\">Delete</button></div></form></div><form method=\"dialog\" class=\"modal-backdrop\"><button type=\"submit\">close</button></form></dialog>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -3455,46 +3461,46 @@ func OrganizationRuntimeProtectedVariableSaveModal(formID string, modalID string
 			templ_7745c5c3_Var199 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 295, "<dialog class=\"modal\" id=\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 296, "<dialog class=\"modal\" id=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var200 string
 		templ_7745c5c3_Var200, templ_7745c5c3_Err = templ.ResolveAttributeValue(modalID)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 714, Col: 35}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 716, Col: 35}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var200)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 296, "\" data-protected-action-modal data-confirm-slug=\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 297, "\" data-protected-action-modal data-confirm-slug=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var201 string
 		templ_7745c5c3_Var201, templ_7745c5c3_Err = templ.ResolveAttributeValue(string(environment.Slug))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 714, Col: 110}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 716, Col: 110}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var201)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 297, "\"><div class=\"modal-box max-w-lg border border-error/35 bg-base-100 p-0\"><div class=\"border-b border-error/25 bg-error/10 px-5 py-4\"><div class=\"flex flex-wrap items-start justify-between gap-3\"><div><h3 class=\"text-lg font-semibold text-base-content\">Confirm protected action</h3><p class=\"mt-1 text-sm text-base-content/70\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 298, "\"><div class=\"modal-box max-w-lg border border-error/35 bg-base-100 p-0\"><div class=\"border-b border-error/25 bg-error/10 px-5 py-4\"><div class=\"flex flex-wrap items-start justify-between gap-3\"><div><h3 class=\"text-lg font-semibold text-base-content\">Confirm protected action</h3><p class=\"mt-1 text-sm text-base-content/70\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var202 string
 		templ_7745c5c3_Var202, templ_7745c5c3_Err = templ.JoinStringErrs(actionDescription)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 720, Col: 70}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 722, Col: 70}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var202))
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 298, "</p></div>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 299, "</p></div>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -3503,7 +3509,7 @@ func OrganizationRuntimeProtectedVariableSaveModal(formID string, modalID string
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 299, "<span class=\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 300, "<span class=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -3516,137 +3522,137 @@ func OrganizationRuntimeProtectedVariableSaveModal(formID string, modalID string
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 300, "\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 301, "\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var205 string
 		templ_7745c5c3_Var205, templ_7745c5c3_Err = templ.JoinStringErrs(environment.Slug)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 722, Col: 54}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 724, Col: 54}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var205))
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 301, "</span></div></div><div class=\"px-5 py-4\"><div class=\"rounded-lg border border-base-300 bg-base-200/35 p-3\"><p class=\"text-sm font-semibold text-base-content\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 302, "</span></div></div><div class=\"px-5 py-4\"><div class=\"rounded-lg border border-base-300 bg-base-200/35 p-3\"><p class=\"text-sm font-semibold text-base-content\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var206 string
 		templ_7745c5c3_Var206, templ_7745c5c3_Err = templ.JoinStringErrs(environment.Name)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 727, Col: 74}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 729, Col: 74}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var206))
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 302, "</p><p class=\"mt-1 text-xs text-base-content/60\">This changes runtime variables for <span class=\"font-mono\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 303, "</p><p class=\"mt-1 text-xs text-base-content/60\">This changes runtime variables for <span class=\"font-mono\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var207 string
 		templ_7745c5c3_Var207, templ_7745c5c3_Err = templ.JoinStringErrs(environment.Slug)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 728, Col: 127}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 730, Col: 127}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var207))
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 303, "</span>.</p></div><label class=\"form-control mt-4 w-full\"><div class=\"label py-1\"><span class=\"label-text text-xs\">Type <span class=\"font-mono font-semibold text-error\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 304, "</span>.</p></div><label class=\"form-control mt-4 w-full\"><div class=\"label py-1\"><span class=\"label-text text-xs\">Type <span class=\"font-mono font-semibold text-error\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var208 string
 		templ_7745c5c3_Var208, templ_7745c5c3_Err = templ.JoinStringErrs(environment.Slug)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 732, Col: 111}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 734, Col: 111}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var208))
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 304, "</span> to confirm</span></div><input class=\"input input-bordered w-full font-mono\" type=\"text\" name=\"protected_environment_confirmation\" form=\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 305, "</span> to confirm</span></div><input class=\"input input-bordered w-full font-mono\" type=\"text\" name=\"protected_environment_confirmation\" form=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var209 string
 		templ_7745c5c3_Var209, templ_7745c5c3_Err = templ.ResolveAttributeValue(formID)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 738, Col: 19}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 740, Col: 19}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var209)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 305, "\" autocomplete=\"off\" placeholder=\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 306, "\" autocomplete=\"off\" placeholder=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var210 string
 		templ_7745c5c3_Var210, templ_7745c5c3_Err = templ.ResolveAttributeValue(string(environment.Slug))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 740, Col: 44}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 742, Col: 44}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var210)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 306, "\" required data-protected-confirm-input data-confirm-slug=\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 307, "\" required data-protected-confirm-input data-confirm-slug=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var211 string
 		templ_7745c5c3_Var211, templ_7745c5c3_Err = templ.ResolveAttributeValue(string(environment.Slug))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 743, Col: 50}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 745, Col: 50}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var211)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 307, "\"></label><div class=\"modal-action mt-5\"><button class=\"btn btn-ghost btn-sm\" type=\"button\" data-protected-action-close=\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 308, "\"></label><div class=\"modal-action mt-5\"><button class=\"btn btn-ghost btn-sm\" type=\"button\" data-protected-action-close=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var212 string
 		templ_7745c5c3_Var212, templ_7745c5c3_Err = templ.ResolveAttributeValue(modalID)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 747, Col: 93}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 749, Col: 93}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var212)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 308, "\">Cancel</button> <button class=\"btn btn-primary btn-sm\" type=\"submit\" form=\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 309, "\">Cancel</button> <button class=\"btn btn-primary btn-sm\" type=\"submit\" form=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var213 string
 		templ_7745c5c3_Var213, templ_7745c5c3_Err = templ.ResolveAttributeValue(formID)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 748, Col: 71}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 750, Col: 71}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var213)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 309, "\" data-protected-confirm-submit disabled aria-disabled=\"true\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 310, "\" data-protected-confirm-submit disabled aria-disabled=\"true\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var214 string
 		templ_7745c5c3_Var214, templ_7745c5c3_Err = templ.JoinStringErrs(actionLabel)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 748, Col: 147}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 750, Col: 147}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var214))
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 310, "</button></div></div></div><form method=\"dialog\" class=\"modal-backdrop\"><button type=\"submit\">close</button></form></dialog>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 311, "</button></div></div></div><form method=\"dialog\" class=\"modal-backdrop\"><button type=\"submit\">close</button></form></dialog>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -3676,46 +3682,46 @@ func OrganizationRuntimeProtectedVariableDeleteButton(orgSlug string, environmen
 		}
 		ctx = templ.ClearChildren(ctx)
 		modalID := "organization-runtime-variable-" + string(environment.Slug) + "-" + variable.Key + "-delete"
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 311, "<button class=\"btn btn-error btn-outline btn-xs\" type=\"button\" data-protected-action-trigger=\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 312, "<button class=\"btn btn-error btn-outline btn-xs\" type=\"button\" data-protected-action-trigger=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var216 string
 		templ_7745c5c3_Var216, templ_7745c5c3_Err = templ.ResolveAttributeValue(modalID)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 760, Col: 103}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 762, Col: 103}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var216)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 312, "\">Delete</button> <dialog class=\"modal\" id=\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 313, "\">Delete</button> <dialog class=\"modal\" id=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var217 string
 		templ_7745c5c3_Var217, templ_7745c5c3_Err = templ.ResolveAttributeValue(modalID)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 761, Col: 35}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 763, Col: 35}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var217)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 313, "\" data-protected-action-modal data-confirm-slug=\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 314, "\" data-protected-action-modal data-confirm-slug=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var218 string
 		templ_7745c5c3_Var218, templ_7745c5c3_Err = templ.ResolveAttributeValue(string(environment.Slug))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 761, Col: 110}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 763, Col: 110}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var218)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 314, "\"><div class=\"modal-box max-w-lg border border-error/35 bg-base-100 p-0\"><div class=\"border-b border-error/25 bg-error/10 px-5 py-4\"><div class=\"flex flex-wrap items-start justify-between gap-3\"><div><h3 class=\"text-lg font-semibold text-base-content\">Confirm protected action</h3><p class=\"mt-1 text-sm text-base-content/70\">Delete this runtime variable from a protected target.</p></div>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 315, "\"><div class=\"modal-box max-w-lg border border-error/35 bg-base-100 p-0\"><div class=\"border-b border-error/25 bg-error/10 px-5 py-4\"><div class=\"flex flex-wrap items-start justify-between gap-3\"><div><h3 class=\"text-lg font-semibold text-base-content\">Confirm protected action</h3><p class=\"mt-1 text-sm text-base-content/70\">Delete this runtime variable from a protected target.</p></div>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -3724,7 +3730,7 @@ func OrganizationRuntimeProtectedVariableDeleteButton(orgSlug string, environmen
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 315, "<span class=\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 316, "<span class=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -3737,160 +3743,160 @@ func OrganizationRuntimeProtectedVariableDeleteButton(orgSlug string, environmen
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 316, "\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 317, "\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var221 string
 		templ_7745c5c3_Var221, templ_7745c5c3_Err = templ.JoinStringErrs(environment.Slug)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 769, Col: 54}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 771, Col: 54}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var221))
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 317, "</span></div></div><form class=\"px-5 py-4\" method=\"post\" action=\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 318, "</span></div></div><form class=\"px-5 py-4\" method=\"post\" action=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var222 templ.SafeURL
 		templ_7745c5c3_Var222, templ_7745c5c3_Err = templ.JoinURLErrs(templ.URL(organizationEnvironmentAction(ctx, "/organizations/"+orgSlug+"/environments/"+string(environment.Slug)+"/runtime-variables/"+variable.Key+"/delete", fullPage)))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 775, Col: 182}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 777, Col: 182}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var222))
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 318, "\" hx-post=\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 319, "\" hx-post=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var223 string
 		templ_7745c5c3_Var223, templ_7745c5c3_Err = templ.ResolveAttributeValue(organizationEnvironmentAction(ctx, "/organizations/"+orgSlug+"/environments/"+string(environment.Slug)+"/runtime-variables/"+variable.Key+"/delete", fullPage))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 776, Col: 172}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 778, Col: 172}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var223)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 319, "\" hx-target=\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 320, "\" hx-target=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var224 string
 		templ_7745c5c3_Var224, templ_7745c5c3_Err = templ.ResolveAttributeValue(OrganizationEnvironmentHTMXTarget(fullPage))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 777, Col: 59}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 779, Col: 59}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var224)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 320, "\" hx-select=\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 321, "\" hx-select=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var225 string
 		templ_7745c5c3_Var225, templ_7745c5c3_Err = templ.ResolveAttributeValue(OrganizationEnvironmentHTMXSelect(fullPage))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 778, Col: 59}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 780, Col: 59}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var225)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 321, "\" hx-swap=\"outerHTML show:none focus-scroll:false\" data-preserve-scroll>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 322, "\" hx-swap=\"outerHTML show:none focus-scroll:false\" data-preserve-scroll>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		if fullPage {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 322, "<input type=\"hidden\" name=\"return_to\" value=\"full\">")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 323, "<input type=\"hidden\" name=\"return_to\" value=\"full\">")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 323, "<div class=\"rounded-lg border border-base-300 bg-base-200/35 p-3\"><p class=\"font-mono text-sm font-semibold text-base-content\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 324, "<div class=\"rounded-lg border border-base-300 bg-base-200/35 p-3\"><p class=\"font-mono text-sm font-semibold text-base-content\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var226 string
 		templ_7745c5c3_Var226, templ_7745c5c3_Err = templ.JoinStringErrs(variable.Key)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 786, Col: 80}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 788, Col: 80}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var226))
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 324, "</p><p class=\"mt-1 text-xs text-base-content/60\">This removes the runtime variable from <span class=\"font-mono\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 325, "</p><p class=\"mt-1 text-xs text-base-content/60\">This removes the runtime variable from <span class=\"font-mono\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var227 string
 		templ_7745c5c3_Var227, templ_7745c5c3_Err = templ.JoinStringErrs(environment.Slug)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 787, Col: 131}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 789, Col: 131}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var227))
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 325, "</span>.</p></div><label class=\"form-control mt-4 w-full\"><div class=\"label py-1\"><span class=\"label-text text-xs\">Type <span class=\"font-mono font-semibold text-error\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 326, "</span>.</p></div><label class=\"form-control mt-4 w-full\"><div class=\"label py-1\"><span class=\"label-text text-xs\">Type <span class=\"font-mono font-semibold text-error\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var228 string
 		templ_7745c5c3_Var228, templ_7745c5c3_Err = templ.JoinStringErrs(environment.Slug)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 791, Col: 111}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 793, Col: 111}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var228))
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 326, "</span> to confirm</span></div><input class=\"input input-bordered w-full font-mono\" type=\"text\" name=\"protected_environment_confirmation\" autocomplete=\"off\" placeholder=\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 327, "</span> to confirm</span></div><input class=\"input input-bordered w-full font-mono\" type=\"text\" name=\"protected_environment_confirmation\" autocomplete=\"off\" placeholder=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var229 string
 		templ_7745c5c3_Var229, templ_7745c5c3_Err = templ.ResolveAttributeValue(string(environment.Slug))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 798, Col: 44}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 800, Col: 44}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var229)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 327, "\" required data-protected-confirm-input data-confirm-slug=\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 328, "\" required data-protected-confirm-input data-confirm-slug=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var230 string
 		templ_7745c5c3_Var230, templ_7745c5c3_Err = templ.ResolveAttributeValue(string(environment.Slug))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 801, Col: 50}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 803, Col: 50}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var230)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 328, "\"></label><div class=\"modal-action mt-5\"><button class=\"btn btn-ghost btn-sm\" type=\"button\" data-protected-action-close=\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 329, "\"></label><div class=\"modal-action mt-5\"><button class=\"btn btn-ghost btn-sm\" type=\"button\" data-protected-action-close=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var231 string
 		templ_7745c5c3_Var231, templ_7745c5c3_Err = templ.ResolveAttributeValue(modalID)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 805, Col: 93}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 807, Col: 93}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var231)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 329, "\">Cancel</button> <button class=\"btn btn-error btn-sm\" type=\"submit\" data-protected-confirm-submit disabled aria-disabled=\"true\">Delete</button></div></form></div><form method=\"dialog\" class=\"modal-backdrop\"><button type=\"submit\">close</button></form></dialog>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 330, "\">Cancel</button> <button class=\"btn btn-error btn-sm\" type=\"submit\" data-protected-confirm-submit disabled aria-disabled=\"true\">Delete</button></div></form></div><form method=\"dialog\" class=\"modal-backdrop\"><button type=\"submit\">close</button></form></dialog>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -3919,46 +3925,46 @@ func OrganizationEnvironmentCreateCard(orgSlug string, formData EnvironmentCreat
 			templ_7745c5c3_Var232 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 330, "<div class=\"rounded-xl border border-base-300 bg-base-100 p-5\"><div class=\"flex flex-wrap items-start justify-between gap-3\"><div><h2 class=\"text-base font-semibold text-base-content\">Create environment</h2><p class=\"mt-1 text-xs text-base-content/65\">Add runtime targets before a project can enable them.</p></div><span class=\"badge badge-outline\">runtime target</span></div><form class=\"mt-4 grid gap-3 lg:grid-cols-[minmax(0,1fr)_minmax(0,14rem)]\" method=\"post\" action=\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 331, "<div class=\"rounded-xl border border-base-300 bg-base-100 p-5\"><div class=\"flex flex-wrap items-start justify-between gap-3\"><div><h2 class=\"text-base font-semibold text-base-content\">Create environment</h2><p class=\"mt-1 text-xs text-base-content/65\">Add runtime targets before a project can enable them.</p></div><span class=\"badge badge-outline\">runtime target</span></div><form class=\"mt-4 grid gap-3 lg:grid-cols-[minmax(0,1fr)_minmax(0,14rem)]\" method=\"post\" action=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var233 templ.SafeURL
 		templ_7745c5c3_Var233, templ_7745c5c3_Err = templ.JoinURLErrs(templ.URL("/organizations/" + orgSlug + "/environments"))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 825, Col: 156}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 827, Col: 156}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var233))
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 331, "\" hx-post=\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 332, "\" hx-post=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var234 string
 		templ_7745c5c3_Var234, templ_7745c5c3_Err = templ.ResolveAttributeValue("/organizations/" + orgSlug + "/environments")
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 825, Col: 214}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 827, Col: 214}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var234)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 332, "\" hx-target=\"#organization-environments-content\" hx-select=\"#organization-environments-content\" hx-swap=\"outerHTML show:none focus-scroll:false\" data-preserve-scroll><label class=\"form-control w-full\"><div class=\"label py-1\"><span class=\"label-text text-xs\">Name</span></div><input class=\"input input-bordered input-sm w-full\" type=\"text\" name=\"name\" value=\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 333, "\" hx-target=\"#organization-environments-content\" hx-select=\"#organization-environments-content\" hx-swap=\"outerHTML show:none focus-scroll:false\" data-preserve-scroll><label class=\"form-control w-full\"><div class=\"label py-1\"><span class=\"label-text text-xs\">Name</span></div><input class=\"input input-bordered input-sm w-full\" type=\"text\" name=\"name\" value=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var235 string
 		templ_7745c5c3_Var235, templ_7745c5c3_Err = templ.ResolveAttributeValue(formData.Name)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 828, Col: 101}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 830, Col: 101}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var235)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 333, "\" required></label>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 334, "\" required></label>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -3966,76 +3972,76 @@ func OrganizationEnvironmentCreateCard(orgSlug string, formData EnvironmentCreat
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 334, "<label class=\"form-control w-full lg:col-span-2\"><div class=\"label py-1\"><span class=\"label-text text-xs\">Description</span></div><textarea class=\"textarea textarea-bordered textarea-sm min-h-20 w-full\" name=\"description\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 335, "<label class=\"form-control w-full lg:col-span-2\"><div class=\"label py-1\"><span class=\"label-text text-xs\">Description</span></div><textarea class=\"textarea textarea-bordered textarea-sm min-h-20 w-full\" name=\"description\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var236 string
 		templ_7745c5c3_Var236, templ_7745c5c3_Err = templ.JoinStringErrs(formData.Description)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 833, Col: 118}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 835, Col: 118}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var236))
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 335, "</textarea></label> <label class=\"form-control w-full\"><div class=\"label py-1\"><span class=\"label-text text-xs\">Color</span></div><select class=\"select select-bordered select-sm w-full\" name=\"color\" required>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 336, "</textarea></label> <label class=\"form-control w-full\"><div class=\"label py-1\"><span class=\"label-text text-xs\">Color</span></div><select class=\"select select-bordered select-sm w-full\" name=\"color\" required>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		for _, option := range EnvironmentColorOptions(formData.Color) {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 336, "<option value=\"")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 337, "<option value=\"")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 			var templ_7745c5c3_Var237 string
 			templ_7745c5c3_Var237, templ_7745c5c3_Err = templ.ResolveAttributeValue(option.Value)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 839, Col: 34}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 841, Col: 34}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var237)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 337, "\"")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 338, "\"")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 			if option.Selected {
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 338, " selected")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 339, " selected")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 339, ">")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 340, ">")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 			var templ_7745c5c3_Var238 string
 			templ_7745c5c3_Var238, templ_7745c5c3_Err = templ.JoinStringErrs(option.Label)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 839, Col: 81}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 841, Col: 81}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var238))
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 340, "</option>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 341, "</option>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 341, "</select></label> <label class=\"label cursor-pointer justify-start gap-2 lg:col-span-2\"><input class=\"checkbox checkbox-sm\" type=\"checkbox\" name=\"protected\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 342, "</select></label> <label class=\"label cursor-pointer justify-start gap-2 lg:col-span-2\"><input class=\"checkbox checkbox-sm\" type=\"checkbox\" name=\"protected\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		if formData.Protected {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 342, " checked")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 343, " checked")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 343, "> <span class=\"label-text text-sm\">Protected</span></label><div class=\"lg:col-span-2\"><button class=\"btn btn-primary btn-sm\" type=\"submit\">Create environment</button></div></form></div>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 344, "> <span class=\"label-text text-sm\">Protected</span></label><div class=\"lg:col-span-2\"><button class=\"btn btn-primary btn-sm\" type=\"submit\">Create environment</button></div></form></div>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -4093,97 +4099,97 @@ func ProjectEnvironmentsPageContent(orgSlug string, projectSlug string, activeEn
 			templ_7745c5c3_Var240 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 344, "<div id=\"project-environments-workspace\"><div class=\"flex flex-wrap items-center justify-end gap-3\"><a class=\"btn btn-outline btn-sm w-full sm:w-auto\" href=\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 345, "<div id=\"project-environments-workspace\"><div class=\"flex flex-wrap items-center justify-end gap-3\"><a class=\"btn btn-outline btn-sm w-full sm:w-auto\" href=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var241 templ.SafeURL
 		templ_7745c5c3_Var241, templ_7745c5c3_Err = templ.JoinURLErrs(templ.URL(buildEnvironmentProjectPipelinesListHref(orgSlug, projectSlug, activeEnvironmentSlug, "", "")))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 861, Col: 165}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 863, Col: 165}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var241))
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 345, "\">Back to pipelines</a></div><div class=\"mt-5 grid gap-3 md:grid-cols-4\"><div class=\"rounded-lg border border-base-300 bg-base-200/40 p-4\"><p class=\"text-xs font-semibold uppercase tracking-wide text-base-content/60\">Available</p><p class=\"mt-2 text-2xl font-semibold text-base-content\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 346, "\">Back to pipelines</a></div><div class=\"mt-5 grid gap-3 md:grid-cols-4\"><div class=\"rounded-lg border border-base-300 bg-base-200/40 p-4\"><p class=\"text-xs font-semibold uppercase tracking-wide text-base-content/60\">Available</p><p class=\"mt-2 text-2xl font-semibold text-base-content\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var242 string
 		templ_7745c5c3_Var242, templ_7745c5c3_Err = templ.JoinStringErrs(fmt.Sprintf("%d", len(catalog)))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 866, Col: 94}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 868, Col: 94}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var242))
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 346, "</p><p class=\"mt-1 text-xs text-base-content/65\">Organization-scoped targets</p></div><div class=\"rounded-lg border border-base-300 bg-base-200/40 p-4\"><p class=\"text-xs font-semibold uppercase tracking-wide text-base-content/60\">Enabled</p><p class=\"mt-2 text-2xl font-semibold text-base-content\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 347, "</p><p class=\"mt-1 text-xs text-base-content/65\">Organization-scoped targets</p></div><div class=\"rounded-lg border border-base-300 bg-base-200/40 p-4\"><p class=\"text-xs font-semibold uppercase tracking-wide text-base-content/60\">Enabled</p><p class=\"mt-2 text-2xl font-semibold text-base-content\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var243 string
 		templ_7745c5c3_Var243, templ_7745c5c3_Err = templ.JoinStringErrs(fmt.Sprintf("%d", len(environments)))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 871, Col: 99}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 873, Col: 99}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var243))
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 347, "</p><p class=\"mt-1 text-xs text-base-content/65\">Project runtime targets</p></div><div class=\"rounded-lg border border-error/35 bg-error/10 p-4\"><p class=\"text-xs font-semibold uppercase tracking-wide text-base-content/60\">Protected</p><p class=\"mt-2 text-2xl font-semibold text-error\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 348, "</p><p class=\"mt-1 text-xs text-base-content/65\">Project runtime targets</p></div><div class=\"rounded-lg border border-error/35 bg-error/10 p-4\"><p class=\"text-xs font-semibold uppercase tracking-wide text-base-content/60\">Protected</p><p class=\"mt-2 text-2xl font-semibold text-error\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var244 string
 		templ_7745c5c3_Var244, templ_7745c5c3_Err = templ.JoinStringErrs(fmt.Sprintf("%d", ProtectedProjectEnvironmentCount(environments)))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 876, Col: 121}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 878, Col: 121}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var244))
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 348, "</p><p class=\"mt-1 text-xs text-base-content/65\">Enabled targets with protected mutation guards</p></div><div class=\"rounded-lg border border-warning/35 bg-warning/10 p-4\"><p class=\"text-xs font-semibold uppercase tracking-wide text-base-content/60\">Missing bindings</p>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 349, "</p><p class=\"mt-1 text-xs text-base-content/65\">Enabled targets with protected mutation guards</p></div><div class=\"rounded-lg border border-warning/35 bg-warning/10 p-4\"><p class=\"text-xs font-semibold uppercase tracking-wide text-base-content/60\">Missing bindings</p>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		if bindingsUnavailable {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 349, "<p class=\"mt-2 text-sm font-semibold text-warning\">Unavailable</p>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 350, "<p class=\"mt-2 text-sm font-semibold text-warning\">Unavailable</p>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 		} else {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 350, "<p class=\"mt-2 text-2xl font-semibold text-warning\">")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 351, "<p class=\"mt-2 text-2xl font-semibold text-warning\">")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 			var templ_7745c5c3_Var245 string
 			templ_7745c5c3_Var245, templ_7745c5c3_Err = templ.JoinStringErrs(fmt.Sprintf("%d", MissingBindingCount(refs, environments, bindings)))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 884, Col: 127}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 886, Col: 127}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var245))
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 351, "</p>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 352, "</p>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 352, "<p class=\"mt-1 text-xs text-base-content/65\">Logical refs without targets</p></div></div>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 353, "<p class=\"mt-1 text-xs text-base-content/65\">Logical refs without targets</p></div></div>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		if environmentsUnavailable {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 353, "<div class=\"alert alert-warning mt-6\"><span>Project environments are unavailable.</span></div>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 354, "<div class=\"alert alert-warning mt-6\"><span>Project environments are unavailable.</span></div>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 		} else if len(environments) == 0 {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 354, "<div class=\"mt-6 rounded-xl border border-dashed border-base-300 bg-base-200/30 p-8 text-center\"><h2 class=\"text-lg font-semibold text-base-content\">No environments enabled</h2><p class=\"mt-2 text-sm text-base-content/70\">Enable a project environment before validating, deploying, or running pipelines.</p></div>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 355, "<div class=\"mt-6 rounded-xl border border-dashed border-base-300 bg-base-200/30 p-8 text-center\"><h2 class=\"text-lg font-semibold text-base-content\">No environments enabled</h2><p class=\"mt-2 text-sm text-base-content/70\">Enable a project environment before validating, deploying, or running pipelines.</p></div>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -4207,20 +4213,20 @@ func ProjectEnvironmentsPageContent(orgSlug string, projectSlug string, activeEn
 					}()
 				}
 				ctx = templ.InitializeContext(ctx)
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 355, "<section class=\"min-w-0 rounded-xl border border-base-300 bg-base-100 p-4\"><div class=\"flex flex-wrap items-start justify-between gap-3\"><div><h2 class=\"text-base font-semibold text-base-content\">Project enablement</h2><p class=\"mt-1 text-xs text-base-content/65\">Disabled targets are visible until this project opts in.</p></div><span class=\"badge badge-outline\">")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 356, "<section class=\"min-w-0 rounded-xl border border-base-300 bg-base-100 p-4\"><div class=\"flex flex-wrap items-start justify-between gap-3\"><div><h2 class=\"text-base font-semibold text-base-content\">Project enablement</h2><p class=\"mt-1 text-xs text-base-content/65\">Disabled targets are visible until this project opts in.</p></div><span class=\"badge badge-outline\">")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
 				var templ_7745c5c3_Var247 string
 				templ_7745c5c3_Var247, templ_7745c5c3_Err = templ.JoinStringErrs(fmt.Sprintf("%d available", len(AvailableCatalogEnvironments(catalog, environments))))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 910, Col: 127}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 912, Col: 127}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var247))
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 356, "</span></div><div class=\"mt-4 space-y-3\">")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 357, "</span></div><div class=\"mt-4 space-y-3\">")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
@@ -4237,46 +4243,46 @@ func ProjectEnvironmentsPageContent(orgSlug string, projectSlug string, activeEn
 							}()
 						}
 						ctx = templ.InitializeContext(ctx)
-						templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 357, "<div class=\"flex flex-wrap items-start justify-between gap-3\"><div class=\"min-w-0 flex-1 basis-full sm:basis-auto\"><h3 class=\"break-words text-base font-semibold text-base-content\"><a class=\"relative z-10 hover:underline\" href=\"")
+						templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 358, "<div class=\"flex flex-wrap items-start justify-between gap-3\"><div class=\"min-w-0 flex-1 basis-full sm:basis-auto\"><h3 class=\"break-words text-base font-semibold text-base-content\"><a class=\"relative z-10 hover:underline\" href=\"")
 						if templ_7745c5c3_Err != nil {
 							return templ_7745c5c3_Err
 						}
 						var templ_7745c5c3_Var249 templ.SafeURL
 						templ_7745c5c3_Var249, templ_7745c5c3_Err = templ.JoinURLErrs(templ.URL(ProjectEnvironmentConfigurationHref(orgSlug, projectSlug, activeEnvironmentSlug, environment.Slug)))
 						if templ_7745c5c3_Err != nil {
-							return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 917, Col: 233}
+							return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 919, Col: 233}
 						}
 						_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var249))
 						if templ_7745c5c3_Err != nil {
 							return templ_7745c5c3_Err
 						}
-						templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 358, "\">")
+						templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 359, "\">")
 						if templ_7745c5c3_Err != nil {
 							return templ_7745c5c3_Err
 						}
 						var templ_7745c5c3_Var250 string
 						templ_7745c5c3_Var250, templ_7745c5c3_Err = templ.JoinStringErrs(environment.Name)
 						if templ_7745c5c3_Err != nil {
-							return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 917, Col: 254}
+							return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 919, Col: 254}
 						}
 						_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var250))
 						if templ_7745c5c3_Err != nil {
 							return templ_7745c5c3_Err
 						}
-						templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 359, "</a></h3><p class=\"mt-1 break-all font-mono text-xs text-base-content/70\">")
+						templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 360, "</a></h3><p class=\"mt-1 break-all font-mono text-xs text-base-content/70\">")
 						if templ_7745c5c3_Err != nil {
 							return templ_7745c5c3_Err
 						}
 						var templ_7745c5c3_Var251 string
 						templ_7745c5c3_Var251, templ_7745c5c3_Err = templ.JoinStringErrs(environment.Slug)
 						if templ_7745c5c3_Err != nil {
-							return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 918, Col: 93}
+							return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 920, Col: 93}
 						}
 						_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var251))
 						if templ_7745c5c3_Err != nil {
 							return templ_7745c5c3_Err
 						}
-						templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 360, "</p></div><div class=\"flex flex-wrap gap-2\">")
+						templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 361, "</p></div><div class=\"flex flex-wrap gap-2\">")
 						if templ_7745c5c3_Err != nil {
 							return templ_7745c5c3_Err
 						}
@@ -4285,7 +4291,7 @@ func ProjectEnvironmentsPageContent(orgSlug string, projectSlug string, activeEn
 						if templ_7745c5c3_Err != nil {
 							return templ_7745c5c3_Err
 						}
-						templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 361, "<span class=\"")
+						templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 362, "<span class=\"")
 						if templ_7745c5c3_Err != nil {
 							return templ_7745c5c3_Err
 						}
@@ -4298,20 +4304,20 @@ func ProjectEnvironmentsPageContent(orgSlug string, projectSlug string, activeEn
 						if templ_7745c5c3_Err != nil {
 							return templ_7745c5c3_Err
 						}
-						templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 362, "\">")
+						templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 363, "\">")
 						if templ_7745c5c3_Err != nil {
 							return templ_7745c5c3_Err
 						}
 						var templ_7745c5c3_Var254 string
 						templ_7745c5c3_Var254, templ_7745c5c3_Err = templ.JoinStringErrs(EnvironmentRiskLabel(string(environment.Slug), environment.Protected))
 						if templ_7745c5c3_Err != nil {
-							return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 921, Col: 151}
+							return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 923, Col: 151}
 						}
 						_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var254))
 						if templ_7745c5c3_Err != nil {
 							return templ_7745c5c3_Err
 						}
-						templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 363, "</span> ")
+						templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 364, "</span> ")
 						if templ_7745c5c3_Err != nil {
 							return templ_7745c5c3_Err
 						}
@@ -4321,7 +4327,7 @@ func ProjectEnvironmentsPageContent(orgSlug string, projectSlug string, activeEn
 							if templ_7745c5c3_Err != nil {
 								return templ_7745c5c3_Err
 							}
-							templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 364, "<span class=\"")
+							templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 365, "<span class=\"")
 							if templ_7745c5c3_Err != nil {
 								return templ_7745c5c3_Err
 							}
@@ -4334,7 +4340,7 @@ func ProjectEnvironmentsPageContent(orgSlug string, projectSlug string, activeEn
 							if templ_7745c5c3_Err != nil {
 								return templ_7745c5c3_Err
 							}
-							templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 365, "\">protected</span> ")
+							templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 366, "\">protected</span> ")
 							if templ_7745c5c3_Err != nil {
 								return templ_7745c5c3_Err
 							}
@@ -4345,7 +4351,7 @@ func ProjectEnvironmentsPageContent(orgSlug string, projectSlug string, activeEn
 							if templ_7745c5c3_Err != nil {
 								return templ_7745c5c3_Err
 							}
-							templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 366, "<span class=\"")
+							templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 367, "<span class=\"")
 							if templ_7745c5c3_Err != nil {
 								return templ_7745c5c3_Err
 							}
@@ -4358,7 +4364,7 @@ func ProjectEnvironmentsPageContent(orgSlug string, projectSlug string, activeEn
 							if templ_7745c5c3_Err != nil {
 								return templ_7745c5c3_Err
 							}
-							templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 367, "\">enabled</span>")
+							templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 368, "\">enabled</span>")
 							if templ_7745c5c3_Err != nil {
 								return templ_7745c5c3_Err
 							}
@@ -4368,7 +4374,7 @@ func ProjectEnvironmentsPageContent(orgSlug string, projectSlug string, activeEn
 							if templ_7745c5c3_Err != nil {
 								return templ_7745c5c3_Err
 							}
-							templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 368, "<span class=\"")
+							templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 369, "<span class=\"")
 							if templ_7745c5c3_Err != nil {
 								return templ_7745c5c3_Err
 							}
@@ -4381,25 +4387,25 @@ func ProjectEnvironmentsPageContent(orgSlug string, projectSlug string, activeEn
 							if templ_7745c5c3_Err != nil {
 								return templ_7745c5c3_Err
 							}
-							templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 369, "\">not enabled</span>")
+							templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 370, "\">not enabled</span>")
 							if templ_7745c5c3_Err != nil {
 								return templ_7745c5c3_Err
 							}
 						}
-						templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 370, "</div></div><p class=\"mt-2 text-sm text-base-content/70\">")
+						templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 371, "</div></div><p class=\"mt-2 text-sm text-base-content/70\">")
 						if templ_7745c5c3_Err != nil {
 							return templ_7745c5c3_Err
 						}
 						var templ_7745c5c3_Var261 string
 						templ_7745c5c3_Var261, templ_7745c5c3_Err = templ.JoinStringErrs(EnvironmentRiskSummary(string(environment.Slug), environment.Protected))
 						if templ_7745c5c3_Err != nil {
-							return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 932, Col: 126}
+							return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 934, Col: 126}
 						}
 						_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var261))
 						if templ_7745c5c3_Err != nil {
 							return templ_7745c5c3_Err
 						}
-						templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 371, "</p>")
+						templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 372, "</p>")
 						if templ_7745c5c3_Err != nil {
 							return templ_7745c5c3_Err
 						}
@@ -4410,7 +4416,7 @@ func ProjectEnvironmentsPageContent(orgSlug string, projectSlug string, activeEn
 						return templ_7745c5c3_Err
 					}
 				}
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 372, "</div></section>")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 373, "</div></section>")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
@@ -4422,20 +4428,20 @@ func ProjectEnvironmentsPageContent(orgSlug string, projectSlug string, activeEn
 			}
 		}
 		if !environmentsUnavailable && projectEnvironmentConfiguration(ctx) {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 373, "<a class=\"btn btn-outline btn-sm mt-4\" href=\"")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 374, "<a class=\"btn btn-outline btn-sm mt-4\" href=\"")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 			var templ_7745c5c3_Var262 templ.SafeURL
 			templ_7745c5c3_Var262, templ_7745c5c3_Err = templ.JoinURLErrs(templ.URL(entityBackHref(ctx, ProjectEnvironmentSelectionHref(orgSlug, projectSlug, activeEnvironmentSlug, selectedEnvironmentSlug))))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 940, Col: 182}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 942, Col: 182}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var262))
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 374, "\">Back to environments</a>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 375, "\">Back to environments</a>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -4443,110 +4449,110 @@ func ProjectEnvironmentsPageContent(orgSlug string, projectSlug string, activeEn
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 375, " ")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 376, " ")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 			if SelectedCatalogEnvironmentSlug(catalog, selectedEnvironmentSlug) != "" {
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 376, "<a class=\"btn btn-ghost btn-sm mt-3\" href=\"")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 377, "<a class=\"btn btn-ghost btn-sm mt-3\" href=\"")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
 				var templ_7745c5c3_Var263 templ.SafeURL
 				templ_7745c5c3_Var263, templ_7745c5c3_Err = templ.JoinURLErrs(templ.URL(OrganizationEnvironmentDetailHref(orgSlug, selectedEnvironmentSlug)))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 943, Col: 126}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 945, Col: 126}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var263))
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 377, "\">Organization target settings</a> ")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 378, "\">Organization target settings</a> ")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
 			}
 		}
 		if !environmentsUnavailable && projectEnvironmentConfiguration(ctx) && len(environments) > 0 {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 378, "<div class=\"mt-8 scroll-mt-6 rounded-xl border border-base-300 bg-base-100 p-4\" id=\"project-binding-matrix\"><div class=\"flex flex-wrap items-end justify-between gap-3\"><div><h2 class=\"text-xl font-semibold text-base-content\">Project binding matrix</h2><p class=\"mt-1 text-sm text-base-content/70\">Project logical data-source references resolve per enabled runtime environment. Data sources remain organization-scoped.</p></div><a class=\"btn btn-outline btn-sm\" href=\"")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 379, "<div class=\"mt-8 scroll-mt-6 rounded-xl border border-base-300 bg-base-100 p-4\" id=\"project-binding-matrix\"><div class=\"flex flex-wrap items-end justify-between gap-3\"><div><h2 class=\"text-xl font-semibold text-base-content\">Project binding matrix</h2><p class=\"mt-1 text-sm text-base-content/70\">Project logical data-source references resolve per enabled runtime environment. Data sources remain organization-scoped.</p></div><a class=\"btn btn-outline btn-sm\" href=\"")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 			var templ_7745c5c3_Var264 templ.SafeURL
 			templ_7745c5c3_Var264, templ_7745c5c3_Err = templ.JoinURLErrs(templ.URL(projectSectionHref(ctx, orgSlug, projectSlug, "environments")))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 953, Col: 118}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 955, Col: 118}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var264))
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 379, "\">Configure bindings</a> <a class=\"btn btn-ghost btn-sm\" href=\"")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 380, "\">Configure bindings</a> <a class=\"btn btn-ghost btn-sm\" href=\"")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 			var templ_7745c5c3_Var265 templ.SafeURL
 			templ_7745c5c3_Var265, templ_7745c5c3_Err = templ.JoinURLErrs(templ.URL(DataSourcesListHref(orgSlug, activeEnvironmentSlug, "")))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 954, Col: 110}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 956, Col: 110}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var265))
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 380, "\">Manage data sources</a></div>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 381, "\">Manage data sources</a></div>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 			if bindingsUnavailable {
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 381, "<div class=\"alert alert-warning mt-4\"><span>Binding matrix is unavailable.</span></div>")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 382, "<div class=\"alert alert-warning mt-4\"><span>Binding matrix is unavailable.</span></div>")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
 			} else if len(refs) == 0 {
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 382, "<div class=\"mt-4 rounded-xl border border-dashed border-base-300 bg-base-200/30 p-8 text-center\"><h3 class=\"text-base font-semibold text-base-content\">No logical references yet</h3><p class=\"mt-2 text-sm text-base-content/70\">Create project data-source references before configuring per-environment bindings.</p></div>")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 383, "<div class=\"mt-4 rounded-xl border border-dashed border-base-300 bg-base-200/30 p-8 text-center\"><h3 class=\"text-base font-semibold text-base-content\">No logical references yet</h3><p class=\"mt-2 text-sm text-base-content/70\">Create project data-source references before configuring per-environment bindings.</p></div>")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
 			} else {
 				if MissingBindingCount(refs, environments, bindings) > 0 {
-					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 383, "<div class=\"alert alert-warning mt-4\"><span>")
+					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 384, "<div class=\"alert alert-warning mt-4\"><span>")
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
 					var templ_7745c5c3_Var266 string
 					templ_7745c5c3_Var266, templ_7745c5c3_Err = templ.JoinStringErrs(fmt.Sprintf("%d missing project environment bindings need a data source target.", MissingBindingCount(refs, environments, bindings)))
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 968, Col: 147}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 970, Col: 147}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var266))
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
-					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 384, "</span></div>")
+					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 385, "</span></div>")
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
 				}
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 385, " <div class=\"mt-4 hidden overflow-x-auto rounded-xl border border-base-300 bg-base-100 lg:block\"><table class=\"table table-sm\"><thead><tr><th>Reference</th>")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 386, " <div class=\"mt-4 hidden overflow-x-auto rounded-xl border border-base-300 bg-base-100 lg:block\"><table class=\"table table-sm\"><thead><tr><th>Reference</th>")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
 				for _, environment := range environments {
-					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 386, "<th><div class=\"font-semibold\">")
+					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 387, "<th><div class=\"font-semibold\">")
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
 					var templ_7745c5c3_Var267 string
 					templ_7745c5c3_Var267, templ_7745c5c3_Err = templ.JoinStringErrs(environment.EnvironmentName)
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 978, Col: 67}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 980, Col: 67}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var267))
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
-					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 387, "</div><div class=\"mt-1 flex flex-wrap gap-1\">")
+					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 388, "</div><div class=\"mt-1 flex flex-wrap gap-1\">")
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
@@ -4555,7 +4561,7 @@ func ProjectEnvironmentsPageContent(orgSlug string, projectSlug string, activeEn
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
-					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 388, "<span class=\"")
+					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 389, "<span class=\"")
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
@@ -4568,20 +4574,20 @@ func ProjectEnvironmentsPageContent(orgSlug string, projectSlug string, activeEn
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
-					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 389, "\">")
+					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 390, "\">")
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
 					var templ_7745c5c3_Var270 string
 					templ_7745c5c3_Var270, templ_7745c5c3_Err = templ.JoinStringErrs(string(environment.EnvironmentSlug))
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 980, Col: 130}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 982, Col: 130}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var270))
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
-					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 390, "</span> ")
+					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 391, "</span> ")
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
@@ -4591,7 +4597,7 @@ func ProjectEnvironmentsPageContent(orgSlug string, projectSlug string, activeEn
 						if templ_7745c5c3_Err != nil {
 							return templ_7745c5c3_Err
 						}
-						templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 391, "<span class=\"")
+						templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 392, "<span class=\"")
 						if templ_7745c5c3_Err != nil {
 							return templ_7745c5c3_Err
 						}
@@ -4604,22 +4610,22 @@ func ProjectEnvironmentsPageContent(orgSlug string, projectSlug string, activeEn
 						if templ_7745c5c3_Err != nil {
 							return templ_7745c5c3_Err
 						}
-						templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 392, "\">default</span>")
+						templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 393, "\">default</span>")
 						if templ_7745c5c3_Err != nil {
 							return templ_7745c5c3_Err
 						}
 					}
-					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 393, "</div></th>")
+					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 394, "</div></th>")
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
 				}
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 394, "</tr></thead> <tbody>")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 395, "</tr></thead> <tbody>")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
 				for _, row := range EnvironmentBindingMatrixRows(refs, environments, bindings) {
-					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 395, "<tr><td>")
+					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 396, "<tr><td>")
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
@@ -4628,66 +4634,66 @@ func ProjectEnvironmentsPageContent(orgSlug string, projectSlug string, activeEn
 						return templ_7745c5c3_Err
 					}
 					if row.PipelineSlug != "" {
-						templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 396, "<p class=\"mt-1 break-all text-xs text-base-content/60\">Pipeline <span class=\"font-mono\">")
+						templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 397, "<p class=\"mt-1 break-all text-xs text-base-content/60\">Pipeline <span class=\"font-mono\">")
 						if templ_7745c5c3_Err != nil {
 							return templ_7745c5c3_Err
 						}
 						var templ_7745c5c3_Var273 string
 						templ_7745c5c3_Var273, templ_7745c5c3_Err = templ.JoinStringErrs(row.PipelineSlug)
 						if templ_7745c5c3_Err != nil {
-							return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 995, Col: 118}
+							return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 997, Col: 118}
 						}
 						_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var273))
 						if templ_7745c5c3_Err != nil {
 							return templ_7745c5c3_Err
 						}
-						templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 397, "</span></p>")
+						templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 398, "</span></p>")
 						if templ_7745c5c3_Err != nil {
 							return templ_7745c5c3_Err
 						}
 					}
-					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 398, "<div class=\"mt-2 flex flex-wrap gap-1\"><span class=\"badge badge-outline\">")
+					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 399, "<div class=\"mt-2 flex flex-wrap gap-1\"><span class=\"badge badge-outline\">")
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
 					var templ_7745c5c3_Var274 string
 					templ_7745c5c3_Var274, templ_7745c5c3_Err = templ.JoinStringErrs(row.DataSourceType)
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 998, Col: 66}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 1000, Col: 66}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var274))
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
-					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 399, "</span> ")
+					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 400, "</span> ")
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
 					for _, capability := range row.Capabilities {
-						templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 400, "<span class=\"badge badge-ghost\">")
+						templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 401, "<span class=\"badge badge-ghost\">")
 						if templ_7745c5c3_Err != nil {
 							return templ_7745c5c3_Err
 						}
 						var templ_7745c5c3_Var275 string
 						templ_7745c5c3_Var275, templ_7745c5c3_Err = templ.JoinStringErrs(capability)
 						if templ_7745c5c3_Err != nil {
-							return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 1000, Col: 57}
+							return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 1002, Col: 57}
 						}
 						_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var275))
 						if templ_7745c5c3_Err != nil {
 							return templ_7745c5c3_Err
 						}
-						templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 401, "</span>")
+						templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 402, "</span>")
 						if templ_7745c5c3_Err != nil {
 							return templ_7745c5c3_Err
 						}
 					}
-					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 402, "</div></td>")
+					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 403, "</div></td>")
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
 					for _, cell := range row.Cells {
-						templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 403, "<td>")
+						templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 404, "<td>")
 						if templ_7745c5c3_Err != nil {
 							return templ_7745c5c3_Err
 						}
@@ -4695,22 +4701,22 @@ func ProjectEnvironmentsPageContent(orgSlug string, projectSlug string, activeEn
 						if templ_7745c5c3_Err != nil {
 							return templ_7745c5c3_Err
 						}
-						templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 404, "</td>")
+						templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 405, "</td>")
 						if templ_7745c5c3_Err != nil {
 							return templ_7745c5c3_Err
 						}
 					}
-					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 405, "</tr>")
+					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 406, "</tr>")
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
 				}
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 406, "</tbody></table></div><div class=\"mt-4 space-y-3 lg:hidden\">")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 407, "</tbody></table></div><div class=\"mt-4 space-y-3 lg:hidden\">")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
 				for _, row := range EnvironmentBindingMatrixRows(refs, environments, bindings) {
-					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 407, "<div class=\"rounded-xl border border-base-300 bg-base-200/30 p-4\"><div class=\"flex flex-wrap items-start justify-between gap-3\"><div>")
+					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 408, "<div class=\"rounded-xl border border-base-300 bg-base-200/30 p-4\"><div class=\"flex flex-wrap items-start justify-between gap-3\"><div>")
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
@@ -4719,56 +4725,56 @@ func ProjectEnvironmentsPageContent(orgSlug string, projectSlug string, activeEn
 						return templ_7745c5c3_Err
 					}
 					if row.PipelineSlug != "" {
-						templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 408, "<p class=\"mt-1 break-all text-xs text-base-content/60\">Pipeline <span class=\"font-mono\">")
+						templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 409, "<p class=\"mt-1 break-all text-xs text-base-content/60\">Pipeline <span class=\"font-mono\">")
 						if templ_7745c5c3_Err != nil {
 							return templ_7745c5c3_Err
 						}
 						var templ_7745c5c3_Var276 string
 						templ_7745c5c3_Var276, templ_7745c5c3_Err = templ.JoinStringErrs(row.PipelineSlug)
 						if templ_7745c5c3_Err != nil {
-							return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 1021, Col: 117}
+							return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 1023, Col: 117}
 						}
 						_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var276))
 						if templ_7745c5c3_Err != nil {
 							return templ_7745c5c3_Err
 						}
-						templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 409, "</span></p>")
+						templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 410, "</span></p>")
 						if templ_7745c5c3_Err != nil {
 							return templ_7745c5c3_Err
 						}
 					}
-					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 410, "</div><span class=\"badge badge-outline\">")
+					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 411, "</div><span class=\"badge badge-outline\">")
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
 					var templ_7745c5c3_Var277 string
 					templ_7745c5c3_Var277, templ_7745c5c3_Err = templ.JoinStringErrs(row.DataSourceType)
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 1024, Col: 63}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 1026, Col: 63}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var277))
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
-					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 411, "</span></div><div class=\"mt-4 space-y-3\">")
+					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 412, "</span></div><div class=\"mt-4 space-y-3\">")
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
 					for _, cell := range row.Cells {
-						templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 412, "<div class=\"rounded-lg border border-base-300 bg-base-200/40 p-3\"><p class=\"text-xs font-semibold uppercase tracking-wide text-base-content/60\">")
+						templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 413, "<div class=\"rounded-lg border border-base-300 bg-base-200/40 p-3\"><p class=\"text-xs font-semibold uppercase tracking-wide text-base-content/60\">")
 						if templ_7745c5c3_Err != nil {
 							return templ_7745c5c3_Err
 						}
 						var templ_7745c5c3_Var278 string
 						templ_7745c5c3_Var278, templ_7745c5c3_Err = templ.JoinStringErrs(cell.EnvironmentSlug)
 						if templ_7745c5c3_Err != nil {
-							return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 1029, Col: 111}
+							return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 1031, Col: 111}
 						}
 						_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var278))
 						if templ_7745c5c3_Err != nil {
 							return templ_7745c5c3_Err
 						}
-						templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 413, "</p><div class=\"mt-2\">")
+						templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 414, "</p><div class=\"mt-2\">")
 						if templ_7745c5c3_Err != nil {
 							return templ_7745c5c3_Err
 						}
@@ -4776,27 +4782,27 @@ func ProjectEnvironmentsPageContent(orgSlug string, projectSlug string, activeEn
 						if templ_7745c5c3_Err != nil {
 							return templ_7745c5c3_Err
 						}
-						templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 414, "</div></div>")
+						templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 415, "</div></div>")
 						if templ_7745c5c3_Err != nil {
 							return templ_7745c5c3_Err
 						}
 					}
-					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 415, "</div></div>")
+					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 416, "</div></div>")
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
 				}
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 416, "</div>")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 417, "</div>")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 417, "</div>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 418, "</div>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 418, "</div>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 419, "</div>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -4826,40 +4832,40 @@ func ProjectEnvironmentFocusPanel(orgSlug string, projectSlug string, activeEnvi
 		}
 		ctx = templ.ClearChildren(ctx)
 		if SelectedCatalogEnvironmentSlug(catalog, selectedEnvironmentSlug) == "" {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 419, "<div class=\"mt-4 rounded-lg border border-warning/45 bg-warning/15 px-4 py-3 text-sm text-base-content\"><span>Select a runtime target to inspect enablement, protection, and binding context.</span></div>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 420, "<div class=\"mt-4 rounded-lg border border-warning/45 bg-warning/15 px-4 py-3 text-sm text-base-content\"><span>Select a runtime target to inspect enablement, protection, and binding context.</span></div>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 		} else {
 			for _, catalogEnvironment := range catalog {
 				if string(catalogEnvironment.Slug) == SelectedCatalogEnvironmentSlug(catalog, selectedEnvironmentSlug) {
-					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 420, "<div class=\"mt-4 rounded-lg border border-base-300 bg-base-200/30 p-4\"><div class=\"flex flex-wrap items-start justify-between gap-3\"><div><h3 class=\"font-semibold text-base-content\">")
+					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 421, "<div class=\"mt-4 rounded-lg border border-base-300 bg-base-200/30 p-4\"><div class=\"flex flex-wrap items-start justify-between gap-3\"><div><h3 class=\"font-semibold text-base-content\">")
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
 					var templ_7745c5c3_Var280 string
 					templ_7745c5c3_Var280, templ_7745c5c3_Err = templ.JoinStringErrs(catalogEnvironment.Name)
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 1056, Col: 76}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 1058, Col: 76}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var280))
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
-					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 421, "</h3><p class=\"mt-1 font-mono text-xs text-base-content/70\">")
+					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 422, "</h3><p class=\"mt-1 font-mono text-xs text-base-content/70\">")
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
 					var templ_7745c5c3_Var281 string
 					templ_7745c5c3_Var281, templ_7745c5c3_Err = templ.JoinStringErrs(catalogEnvironment.Slug)
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 1057, Col: 87}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 1059, Col: 87}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var281))
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
-					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 422, "</p></div><div class=\"flex flex-wrap gap-2\">")
+					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 423, "</p></div><div class=\"flex flex-wrap gap-2\">")
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
@@ -4868,7 +4874,7 @@ func ProjectEnvironmentFocusPanel(orgSlug string, projectSlug string, activeEnvi
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
-					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 423, "<span class=\"")
+					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 424, "<span class=\"")
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
@@ -4881,20 +4887,20 @@ func ProjectEnvironmentFocusPanel(orgSlug string, projectSlug string, activeEnvi
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
-					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 424, "\">")
+					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 425, "\">")
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
 					var templ_7745c5c3_Var284 string
 					templ_7745c5c3_Var284, templ_7745c5c3_Err = templ.JoinStringErrs(EnvironmentRiskLabel(string(catalogEnvironment.Slug), catalogEnvironment.Protected))
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 1060, Col: 169}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 1062, Col: 169}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var284))
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
-					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 425, "</span> ")
+					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 426, "</span> ")
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
@@ -4904,7 +4910,7 @@ func ProjectEnvironmentFocusPanel(orgSlug string, projectSlug string, activeEnvi
 						if templ_7745c5c3_Err != nil {
 							return templ_7745c5c3_Err
 						}
-						templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 426, "<span class=\"")
+						templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 427, "<span class=\"")
 						if templ_7745c5c3_Err != nil {
 							return templ_7745c5c3_Err
 						}
@@ -4917,7 +4923,7 @@ func ProjectEnvironmentFocusPanel(orgSlug string, projectSlug string, activeEnvi
 						if templ_7745c5c3_Err != nil {
 							return templ_7745c5c3_Err
 						}
-						templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 427, "\">protected</span> ")
+						templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 428, "\">protected</span> ")
 						if templ_7745c5c3_Err != nil {
 							return templ_7745c5c3_Err
 						}
@@ -4928,7 +4934,7 @@ func ProjectEnvironmentFocusPanel(orgSlug string, projectSlug string, activeEnvi
 						if templ_7745c5c3_Err != nil {
 							return templ_7745c5c3_Err
 						}
-						templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 428, "<span class=\"")
+						templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 429, "<span class=\"")
 						if templ_7745c5c3_Err != nil {
 							return templ_7745c5c3_Err
 						}
@@ -4941,7 +4947,7 @@ func ProjectEnvironmentFocusPanel(orgSlug string, projectSlug string, activeEnvi
 						if templ_7745c5c3_Err != nil {
 							return templ_7745c5c3_Err
 						}
-						templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 429, "\">enabled</span>")
+						templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 430, "\">enabled</span>")
 						if templ_7745c5c3_Err != nil {
 							return templ_7745c5c3_Err
 						}
@@ -4951,7 +4957,7 @@ func ProjectEnvironmentFocusPanel(orgSlug string, projectSlug string, activeEnvi
 						if templ_7745c5c3_Err != nil {
 							return templ_7745c5c3_Err
 						}
-						templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 430, "<span class=\"")
+						templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 431, "<span class=\"")
 						if templ_7745c5c3_Err != nil {
 							return templ_7745c5c3_Err
 						}
@@ -4964,32 +4970,32 @@ func ProjectEnvironmentFocusPanel(orgSlug string, projectSlug string, activeEnvi
 						if templ_7745c5c3_Err != nil {
 							return templ_7745c5c3_Err
 						}
-						templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 431, "\">not enabled</span>")
+						templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 432, "\">not enabled</span>")
 						if templ_7745c5c3_Err != nil {
 							return templ_7745c5c3_Err
 						}
 					}
-					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 432, "</div></div><p class=\"mt-3 text-sm text-base-content/70\">")
+					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 433, "</div></div><p class=\"mt-3 text-sm text-base-content/70\">")
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
 					var templ_7745c5c3_Var291 string
 					templ_7745c5c3_Var291, templ_7745c5c3_Err = templ.JoinStringErrs(EnvironmentRiskSummary(string(catalogEnvironment.Slug), catalogEnvironment.Protected))
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 1071, Col: 137}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 1073, Col: 137}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var291))
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
-					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 433, "</p>")
+					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 434, "</p>")
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
 					if ProjectEnvironmentEnabled(string(catalogEnvironment.Slug), environments) {
 						for _, environment := range environments {
 							if environment.EnvironmentSlug == string(catalogEnvironment.Slug) {
-								templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 434, "<div class=\"mt-4 flex flex-wrap gap-2\">")
+								templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 435, "<div class=\"mt-4 flex flex-wrap gap-2\">")
 								if templ_7745c5c3_Err != nil {
 									return templ_7745c5c3_Err
 								}
@@ -4999,7 +5005,7 @@ func ProjectEnvironmentFocusPanel(orgSlug string, projectSlug string, activeEnvi
 									if templ_7745c5c3_Err != nil {
 										return templ_7745c5c3_Err
 									}
-									templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 435, "<span class=\"")
+									templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 436, "<span class=\"")
 									if templ_7745c5c3_Err != nil {
 										return templ_7745c5c3_Err
 									}
@@ -5012,7 +5018,7 @@ func ProjectEnvironmentFocusPanel(orgSlug string, projectSlug string, activeEnvi
 									if templ_7745c5c3_Err != nil {
 										return templ_7745c5c3_Err
 									}
-									templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 436, "\">default runtime</span> ")
+									templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 437, "\">default runtime</span> ")
 									if templ_7745c5c3_Err != nil {
 										return templ_7745c5c3_Err
 									}
@@ -5034,46 +5040,46 @@ func ProjectEnvironmentFocusPanel(orgSlug string, projectSlug string, activeEnvi
 											return templ_7745c5c3_Err
 										}
 									} else {
-										templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 437, "<form method=\"post\" action=\"")
+										templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 438, "<form method=\"post\" action=\"")
 										if templ_7745c5c3_Err != nil {
 											return templ_7745c5c3_Err
 										}
 										var templ_7745c5c3_Var294 templ.SafeURL
 										templ_7745c5c3_Var294, templ_7745c5c3_Err = templ.JoinURLErrs(templ.URL(projectEnvironmentAction(ctx, "/orgs/"+orgSlug+"/projects/"+projectSlug+"/environments/"+string(environment.EnvironmentSlug)+"/default")))
 										if templ_7745c5c3_Err != nil {
-											return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 1093, Col: 187}
+											return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 1095, Col: 187}
 										}
 										_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var294))
 										if templ_7745c5c3_Err != nil {
 											return templ_7745c5c3_Err
 										}
-										templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 438, "\" hx-post=\"")
+										templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 439, "\" hx-post=\"")
 										if templ_7745c5c3_Err != nil {
 											return templ_7745c5c3_Err
 										}
 										var templ_7745c5c3_Var295 string
 										templ_7745c5c3_Var295, templ_7745c5c3_Err = templ.ResolveAttributeValue(projectEnvironmentAction(ctx, "/orgs/"+orgSlug+"/projects/"+projectSlug+"/environments/"+string(environment.EnvironmentSlug)+"/default"))
 										if templ_7745c5c3_Err != nil {
-											return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 1093, Col: 336}
+											return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 1095, Col: 336}
 										}
 										_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var295)
 										if templ_7745c5c3_Err != nil {
 											return templ_7745c5c3_Err
 										}
-										templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 439, "\" hx-target=\"#project-environments-workspace\" hx-select=\"#project-environments-workspace\" hx-swap=\"outerHTML show:none focus-scroll:false\" data-preserve-scroll><input type=\"hidden\" name=\"active_environment_slug\" value=\"")
+										templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 440, "\" hx-target=\"#project-environments-workspace\" hx-select=\"#project-environments-workspace\" hx-swap=\"outerHTML show:none focus-scroll:false\" data-preserve-scroll><input type=\"hidden\" name=\"active_environment_slug\" value=\"")
 										if templ_7745c5c3_Err != nil {
 											return templ_7745c5c3_Err
 										}
 										var templ_7745c5c3_Var296 string
 										templ_7745c5c3_Var296, templ_7745c5c3_Err = templ.ResolveAttributeValue(activeEnvironmentSlug)
 										if templ_7745c5c3_Err != nil {
-											return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 1094, Col: 93}
+											return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 1096, Col: 93}
 										}
 										_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var296)
 										if templ_7745c5c3_Err != nil {
 											return templ_7745c5c3_Err
 										}
-										templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 440, "\"> <button class=\"btn btn-outline btn-xs\" type=\"submit\">Set default</button></form>")
+										templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 441, "\"> <button class=\"btn btn-outline btn-xs\" type=\"submit\">Set default</button></form>")
 										if templ_7745c5c3_Err != nil {
 											return templ_7745c5c3_Err
 										}
@@ -5097,78 +5103,78 @@ func ProjectEnvironmentFocusPanel(orgSlug string, projectSlug string, activeEnvi
 											return templ_7745c5c3_Err
 										}
 									} else {
-										templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 441, "<form method=\"post\" action=\"")
+										templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 442, "<form method=\"post\" action=\"")
 										if templ_7745c5c3_Err != nil {
 											return templ_7745c5c3_Err
 										}
 										var templ_7745c5c3_Var297 templ.SafeURL
 										templ_7745c5c3_Var297, templ_7745c5c3_Err = templ.JoinURLErrs(templ.URL(projectEnvironmentAction(ctx, "/orgs/"+orgSlug+"/projects/"+projectSlug+"/environments/"+string(environment.EnvironmentSlug)+"/disable")))
 										if templ_7745c5c3_Err != nil {
-											return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 1114, Col: 187}
+											return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 1116, Col: 187}
 										}
 										_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var297))
 										if templ_7745c5c3_Err != nil {
 											return templ_7745c5c3_Err
 										}
-										templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 442, "\" hx-post=\"")
+										templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 443, "\" hx-post=\"")
 										if templ_7745c5c3_Err != nil {
 											return templ_7745c5c3_Err
 										}
 										var templ_7745c5c3_Var298 string
 										templ_7745c5c3_Var298, templ_7745c5c3_Err = templ.ResolveAttributeValue(projectEnvironmentAction(ctx, "/orgs/"+orgSlug+"/projects/"+projectSlug+"/environments/"+string(environment.EnvironmentSlug)+"/disable"))
 										if templ_7745c5c3_Err != nil {
-											return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 1114, Col: 336}
+											return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 1116, Col: 336}
 										}
 										_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var298)
 										if templ_7745c5c3_Err != nil {
 											return templ_7745c5c3_Err
 										}
-										templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 443, "\" hx-target=\"#project-environments-workspace\" hx-select=\"#project-environments-workspace\" hx-swap=\"outerHTML show:none focus-scroll:false\" data-preserve-scroll hx-confirm=\"")
+										templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 444, "\" hx-target=\"#project-environments-workspace\" hx-select=\"#project-environments-workspace\" hx-swap=\"outerHTML show:none focus-scroll:false\" data-preserve-scroll hx-confirm=\"")
 										if templ_7745c5c3_Err != nil {
 											return templ_7745c5c3_Err
 										}
 										var templ_7745c5c3_Var299 string
 										templ_7745c5c3_Var299, templ_7745c5c3_Err = templ.ResolveAttributeValue(DestructiveConfirmation("Disable", "project runtime target", DestructiveResourceLabel(string(environment.EnvironmentName), string(environment.EnvironmentSlug)), "The project will stop using this runtime target."))
 										if templ_7745c5c3_Err != nil {
-											return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 1114, Col: 722}
+											return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 1116, Col: 722}
 										}
 										_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var299)
 										if templ_7745c5c3_Err != nil {
 											return templ_7745c5c3_Err
 										}
-										templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 444, "\" data-destructive-confirm=\"")
+										templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 445, "\" data-destructive-confirm=\"")
 										if templ_7745c5c3_Err != nil {
 											return templ_7745c5c3_Err
 										}
 										var templ_7745c5c3_Var300 string
 										templ_7745c5c3_Var300, templ_7745c5c3_Err = templ.ResolveAttributeValue(DestructiveConfirmation("Disable", "project runtime target", DestructiveResourceLabel(string(environment.EnvironmentName), string(environment.EnvironmentSlug)), "The project will stop using this runtime target."))
 										if templ_7745c5c3_Err != nil {
-											return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 1114, Col: 964}
+											return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 1116, Col: 964}
 										}
 										_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var300)
 										if templ_7745c5c3_Err != nil {
 											return templ_7745c5c3_Err
 										}
-										templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 445, "\"><input type=\"hidden\" name=\"active_environment_slug\" value=\"")
+										templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 446, "\"><input type=\"hidden\" name=\"active_environment_slug\" value=\"")
 										if templ_7745c5c3_Err != nil {
 											return templ_7745c5c3_Err
 										}
 										var templ_7745c5c3_Var301 string
 										templ_7745c5c3_Var301, templ_7745c5c3_Err = templ.ResolveAttributeValue(activeEnvironmentSlug)
 										if templ_7745c5c3_Err != nil {
-											return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 1115, Col: 93}
+											return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 1117, Col: 93}
 										}
 										_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var301)
 										if templ_7745c5c3_Err != nil {
 											return templ_7745c5c3_Err
 										}
-										templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 446, "\"> <button class=\"btn btn-ghost btn-xs\" type=\"submit\">Disable</button></form>")
+										templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 447, "\"> <button class=\"btn btn-ghost btn-xs\" type=\"submit\">Disable</button></form>")
 										if templ_7745c5c3_Err != nil {
 											return templ_7745c5c3_Err
 										}
 									}
 								}
-								templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 447, "</div>")
+								templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 448, "</div>")
 								if templ_7745c5c3_Err != nil {
 									return templ_7745c5c3_Err
 								}
@@ -5176,7 +5182,7 @@ func ProjectEnvironmentFocusPanel(orgSlug string, projectSlug string, activeEnvi
 						}
 					} else if permissions.Can("environments", "update") {
 						if catalogEnvironment.Protected {
-							templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 448, "<div class=\"mt-4\">")
+							templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 449, "<div class=\"mt-4\">")
 							if templ_7745c5c3_Err != nil {
 								return templ_7745c5c3_Err
 							}
@@ -5195,70 +5201,70 @@ func ProjectEnvironmentFocusPanel(orgSlug string, projectSlug string, activeEnvi
 							if templ_7745c5c3_Err != nil {
 								return templ_7745c5c3_Err
 							}
-							templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 449, "</div>")
+							templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 450, "</div>")
 							if templ_7745c5c3_Err != nil {
 								return templ_7745c5c3_Err
 							}
 						} else {
-							templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 450, "<form class=\"mt-4 grid gap-3 sm:grid-cols-[minmax(0,1fr)_auto]\" method=\"post\" action=\"")
+							templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 451, "<form class=\"mt-4 grid gap-3 sm:grid-cols-[minmax(0,1fr)_auto]\" method=\"post\" action=\"")
 							if templ_7745c5c3_Err != nil {
 								return templ_7745c5c3_Err
 							}
 							var templ_7745c5c3_Var302 templ.SafeURL
 							templ_7745c5c3_Var302, templ_7745c5c3_Err = templ.JoinURLErrs(templ.URL(projectEnvironmentAction(ctx, "/orgs/"+orgSlug+"/projects/"+projectSlug+"/environments/enable")))
 							if templ_7745c5c3_Err != nil {
-								return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 1140, Col: 200}
+								return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 1142, Col: 200}
 							}
 							_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var302))
 							if templ_7745c5c3_Err != nil {
 								return templ_7745c5c3_Err
 							}
-							templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 451, "\" hx-post=\"")
+							templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 452, "\" hx-post=\"")
 							if templ_7745c5c3_Err != nil {
 								return templ_7745c5c3_Err
 							}
 							var templ_7745c5c3_Var303 string
 							templ_7745c5c3_Var303, templ_7745c5c3_Err = templ.ResolveAttributeValue(projectEnvironmentAction(ctx, "/orgs/"+orgSlug+"/projects/"+projectSlug+"/environments/enable"))
 							if templ_7745c5c3_Err != nil {
-								return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 1140, Col: 308}
+								return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 1142, Col: 308}
 							}
 							_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var303)
 							if templ_7745c5c3_Err != nil {
 								return templ_7745c5c3_Err
 							}
-							templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 452, "\" hx-target=\"#project-environments-workspace\" hx-select=\"#project-environments-workspace\" hx-swap=\"outerHTML show:none focus-scroll:false\" data-preserve-scroll><input type=\"hidden\" name=\"environment_slug\" value=\"")
+							templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 453, "\" hx-target=\"#project-environments-workspace\" hx-select=\"#project-environments-workspace\" hx-swap=\"outerHTML show:none focus-scroll:false\" data-preserve-scroll><input type=\"hidden\" name=\"environment_slug\" value=\"")
 							if templ_7745c5c3_Err != nil {
 								return templ_7745c5c3_Err
 							}
 							var templ_7745c5c3_Var304 string
 							templ_7745c5c3_Var304, templ_7745c5c3_Err = templ.ResolveAttributeValue(string(catalogEnvironment.Slug))
 							if templ_7745c5c3_Err != nil {
-								return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 1141, Col: 92}
+								return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 1143, Col: 92}
 							}
 							_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var304)
 							if templ_7745c5c3_Err != nil {
 								return templ_7745c5c3_Err
 							}
-							templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 453, "\"> <input type=\"hidden\" name=\"active_environment_slug\" value=\"")
+							templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 454, "\"> <input type=\"hidden\" name=\"active_environment_slug\" value=\"")
 							if templ_7745c5c3_Err != nil {
 								return templ_7745c5c3_Err
 							}
 							var templ_7745c5c3_Var305 string
 							templ_7745c5c3_Var305, templ_7745c5c3_Err = templ.ResolveAttributeValue(activeEnvironmentSlug)
 							if templ_7745c5c3_Err != nil {
-								return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 1142, Col: 89}
+								return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 1144, Col: 89}
 							}
 							_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var305)
 							if templ_7745c5c3_Err != nil {
 								return templ_7745c5c3_Err
 							}
-							templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 454, "\"> <button class=\"btn btn-primary btn-sm\" type=\"submit\">Enable for project</button></form>")
+							templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 455, "\"> <button class=\"btn btn-primary btn-sm\" type=\"submit\">Enable for project</button></form>")
 							if templ_7745c5c3_Err != nil {
 								return templ_7745c5c3_Err
 							}
 						}
 					}
-					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 455, "</div>")
+					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 456, "</div>")
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
@@ -5297,7 +5303,7 @@ func ProjectRuntimeProtectedEnvironmentActionButton(environmentSlug string, envi
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 456, "<button class=\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 457, "<button class=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -5310,72 +5316,72 @@ func ProjectRuntimeProtectedEnvironmentActionButton(environmentSlug string, envi
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 457, "\" type=\"button\" data-protected-action-trigger=\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 458, "\" type=\"button\" data-protected-action-trigger=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var309 string
 		templ_7745c5c3_Var309, templ_7745c5c3_Err = templ.ResolveAttributeValue(modalID)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 1156, Col: 85}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 1158, Col: 85}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var309)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 458, "\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 459, "\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var310 string
 		templ_7745c5c3_Var310, templ_7745c5c3_Err = templ.JoinStringErrs(actionLabel)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 1156, Col: 101}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 1158, Col: 101}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var310))
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 459, "</button> <dialog class=\"modal\" id=\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 460, "</button> <dialog class=\"modal\" id=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var311 string
 		templ_7745c5c3_Var311, templ_7745c5c3_Err = templ.ResolveAttributeValue(modalID)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 1157, Col: 35}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 1159, Col: 35}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var311)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 460, "\" data-protected-action-modal data-confirm-slug=\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 461, "\" data-protected-action-modal data-confirm-slug=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var312 string
 		templ_7745c5c3_Var312, templ_7745c5c3_Err = templ.ResolveAttributeValue(environmentSlug)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 1157, Col: 101}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 1159, Col: 101}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var312)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 461, "\"><div class=\"modal-box max-w-lg border border-error/35 bg-base-100 p-0\"><div class=\"border-b border-error/25 bg-error/10 px-5 py-4\"><div class=\"flex flex-wrap items-start justify-between gap-3\"><div><h3 class=\"text-lg font-semibold text-base-content\">Confirm protected action</h3><p class=\"mt-1 text-sm text-base-content/70\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 462, "\"><div class=\"modal-box max-w-lg border border-error/35 bg-base-100 p-0\"><div class=\"border-b border-error/25 bg-error/10 px-5 py-4\"><div class=\"flex flex-wrap items-start justify-between gap-3\"><div><h3 class=\"text-lg font-semibold text-base-content\">Confirm protected action</h3><p class=\"mt-1 text-sm text-base-content/70\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var313 string
 		templ_7745c5c3_Var313, templ_7745c5c3_Err = templ.JoinStringErrs(actionDescription)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 1163, Col: 70}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 1165, Col: 70}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var313))
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 462, "</p></div>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 463, "</p></div>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -5384,7 +5390,7 @@ func ProjectRuntimeProtectedEnvironmentActionButton(environmentSlug string, envi
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 463, "<span class=\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 464, "<span class=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -5397,160 +5403,160 @@ func ProjectRuntimeProtectedEnvironmentActionButton(environmentSlug string, envi
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 464, "\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 465, "\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var316 string
 		templ_7745c5c3_Var316, templ_7745c5c3_Err = templ.JoinStringErrs(environmentSlug)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 1165, Col: 53}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 1167, Col: 53}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var316))
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 465, "</span></div></div><form class=\"px-5 py-4\" method=\"post\" action=\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 466, "</span></div></div><form class=\"px-5 py-4\" method=\"post\" action=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var317 templ.SafeURL
 		templ_7745c5c3_Var317, templ_7745c5c3_Err = templ.JoinURLErrs(templ.URL(actionURL))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 1171, Col: 33}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 1173, Col: 33}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var317))
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 466, "\" hx-post=\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 467, "\" hx-post=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var318 string
 		templ_7745c5c3_Var318, templ_7745c5c3_Err = templ.ResolveAttributeValue(actionURL)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 1172, Col: 23}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 1174, Col: 23}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var318)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 467, "\" hx-target=\"#project-environments-workspace\" hx-select=\"#project-environments-workspace\" hx-swap=\"outerHTML show:none focus-scroll:false\" data-preserve-scroll><input type=\"hidden\" name=\"active_environment_slug\" value=\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 468, "\" hx-target=\"#project-environments-workspace\" hx-select=\"#project-environments-workspace\" hx-swap=\"outerHTML show:none focus-scroll:false\" data-preserve-scroll><input type=\"hidden\" name=\"active_environment_slug\" value=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var319 string
 		templ_7745c5c3_Var319, templ_7745c5c3_Err = templ.ResolveAttributeValue(activeEnvironmentSlug)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 1178, Col: 85}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 1180, Col: 85}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var319)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 468, "\"> ")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 469, "\"> ")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		if includeEnvironmentSlug {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 469, "<input type=\"hidden\" name=\"environment_slug\" value=\"")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 470, "<input type=\"hidden\" name=\"environment_slug\" value=\"")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 			var templ_7745c5c3_Var320 string
 			templ_7745c5c3_Var320, templ_7745c5c3_Err = templ.ResolveAttributeValue(environmentSlug)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 1180, Col: 73}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 1182, Col: 73}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var320)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 470, "\">")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 471, "\">")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 471, "<div class=\"rounded-lg border border-base-300 bg-base-200/35 p-3\"><p class=\"text-sm font-semibold text-base-content\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 472, "<div class=\"rounded-lg border border-base-300 bg-base-200/35 p-3\"><p class=\"text-sm font-semibold text-base-content\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var321 string
 		templ_7745c5c3_Var321, templ_7745c5c3_Err = templ.JoinStringErrs(environmentName)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 1183, Col: 73}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 1185, Col: 73}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var321))
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 472, "</p><p class=\"mt-1 text-xs text-base-content/60\">This changes project environment access for <span class=\"font-mono\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 473, "</p><p class=\"mt-1 text-xs text-base-content/60\">This changes project environment access for <span class=\"font-mono\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var322 string
 		templ_7745c5c3_Var322, templ_7745c5c3_Err = templ.JoinStringErrs(environmentSlug)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 1184, Col: 135}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 1186, Col: 135}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var322))
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 473, "</span>.</p></div><label class=\"form-control mt-4 w-full\"><div class=\"label py-1\"><span class=\"label-text text-xs\">Type <span class=\"font-mono font-semibold text-error\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 474, "</span>.</p></div><label class=\"form-control mt-4 w-full\"><div class=\"label py-1\"><span class=\"label-text text-xs\">Type <span class=\"font-mono font-semibold text-error\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var323 string
 		templ_7745c5c3_Var323, templ_7745c5c3_Err = templ.JoinStringErrs(environmentSlug)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 1188, Col: 110}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 1190, Col: 110}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var323))
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 474, "</span> to confirm</span></div><input class=\"input input-bordered w-full font-mono\" type=\"text\" name=\"protected_environment_confirmation\" autocomplete=\"off\" placeholder=\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 475, "</span> to confirm</span></div><input class=\"input input-bordered w-full font-mono\" type=\"text\" name=\"protected_environment_confirmation\" autocomplete=\"off\" placeholder=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var324 string
 		templ_7745c5c3_Var324, templ_7745c5c3_Err = templ.ResolveAttributeValue(environmentSlug)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 1195, Col: 35}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 1197, Col: 35}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var324)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 475, "\" required data-protected-confirm-input data-confirm-slug=\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 476, "\" required data-protected-confirm-input data-confirm-slug=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var325 string
 		templ_7745c5c3_Var325, templ_7745c5c3_Err = templ.ResolveAttributeValue(environmentSlug)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 1198, Col: 41}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 1200, Col: 41}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var325)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 476, "\"></label><div class=\"modal-action mt-5\"><button class=\"btn btn-ghost btn-sm\" type=\"button\" data-protected-action-close=\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 477, "\"></label><div class=\"modal-action mt-5\"><button class=\"btn btn-ghost btn-sm\" type=\"button\" data-protected-action-close=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var326 string
 		templ_7745c5c3_Var326, templ_7745c5c3_Err = templ.ResolveAttributeValue(modalID)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 1202, Col: 93}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 1204, Col: 93}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var326)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 477, "\">Cancel</button> ")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 478, "\">Cancel</button> ")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -5559,7 +5565,7 @@ func ProjectRuntimeProtectedEnvironmentActionButton(environmentSlug string, envi
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 478, "<button class=\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 479, "<button class=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -5572,20 +5578,20 @@ func ProjectRuntimeProtectedEnvironmentActionButton(environmentSlug string, envi
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 479, "\" type=\"submit\" data-protected-confirm-submit disabled aria-disabled=\"true\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 480, "\" type=\"submit\" data-protected-confirm-submit disabled aria-disabled=\"true\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var329 string
 		templ_7745c5c3_Var329, templ_7745c5c3_Err = templ.JoinStringErrs(actionLabel)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 1203, Col: 122}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 1205, Col: 122}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var329))
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 480, "</button></div></form></div><form method=\"dialog\" class=\"modal-backdrop\"><button type=\"submit\">close</button></form></dialog>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 481, "</button></div></form></div><form method=\"dialog\" class=\"modal-backdrop\"><button type=\"submit\">close</button></form></dialog>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -5615,7 +5621,7 @@ func EnvironmentBindingCell(cell EnvironmentBindingMatrixCell) templ.Component {
 		}
 		ctx = templ.ClearChildren(ctx)
 		if cell.IsBound {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 481, "<div class=\"space-y-1\">")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 482, "<div class=\"space-y-1\">")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -5623,20 +5629,20 @@ func EnvironmentBindingCell(cell EnvironmentBindingMatrixCell) templ.Component {
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 482, "<div class=\"flex flex-wrap gap-1 pt-1\"><span class=\"badge badge-outline\">")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 483, "<div class=\"flex flex-wrap gap-1 pt-1\"><span class=\"badge badge-outline\">")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 			var templ_7745c5c3_Var331 string
 			templ_7745c5c3_Var331, templ_7745c5c3_Err = templ.JoinStringErrs(cell.DataSourceType)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 1218, Col: 59}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 1220, Col: 59}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var331))
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 483, "</span> ")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 484, "</span> ")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -5646,7 +5652,7 @@ func EnvironmentBindingCell(cell EnvironmentBindingMatrixCell) templ.Component {
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 484, "<span class=\"")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 485, "<span class=\"")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
@@ -5659,7 +5665,7 @@ func EnvironmentBindingCell(cell EnvironmentBindingMatrixCell) templ.Component {
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 485, "\">active</span> ")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 486, "\">active</span> ")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
@@ -5669,7 +5675,7 @@ func EnvironmentBindingCell(cell EnvironmentBindingMatrixCell) templ.Component {
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 486, "<span class=\"")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 487, "<span class=\"")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
@@ -5682,7 +5688,7 @@ func EnvironmentBindingCell(cell EnvironmentBindingMatrixCell) templ.Component {
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 487, "\">inactive</span> ")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 488, "\">inactive</span> ")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
@@ -5693,7 +5699,7 @@ func EnvironmentBindingCell(cell EnvironmentBindingMatrixCell) templ.Component {
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 488, "<span class=\"")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 489, "<span class=\"")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
@@ -5706,17 +5712,17 @@ func EnvironmentBindingCell(cell EnvironmentBindingMatrixCell) templ.Component {
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 489, "\">read only</span>")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 490, "\">read only</span>")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 490, "</div></div>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 491, "</div></div>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 		} else {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 491, "<div class=\"rounded-lg border border-warning/35 bg-warning/10 px-3 py-2\"><p class=\"text-sm font-semibold text-warning\">missing binding</p><p class=\"mt-1 text-xs text-base-content/70\">Choose an organization data source for this logical reference.</p></div>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 492, "<div class=\"rounded-lg border border-warning/35 bg-warning/10 px-3 py-2\"><p class=\"text-sm font-semibold text-warning\">missing binding</p><p class=\"mt-1 text-xs text-base-content/70\">Choose an organization data source for this logical reference.</p></div>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -5790,20 +5796,20 @@ func ProjectEnvironmentQuickLook(orgSlug string, projectSlug string, activeEnvir
 									}()
 								}
 								ctx = templ.InitializeContext(ctx)
-								templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 492, "<span class=\"break-all\">")
+								templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 493, "<span class=\"break-all\">")
 								if templ_7745c5c3_Err != nil {
 									return templ_7745c5c3_Err
 								}
 								var templ_7745c5c3_Var342 string
 								templ_7745c5c3_Var342, templ_7745c5c3_Err = templ.JoinStringErrs(projectSlug)
 								if templ_7745c5c3_Err != nil {
-									return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 1246, Col: 44}
+									return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 1248, Col: 44}
 								}
 								_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var342))
 								if templ_7745c5c3_Err != nil {
 									return templ_7745c5c3_Err
 								}
-								templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 493, "</span>")
+								templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 494, "</span>")
 								if templ_7745c5c3_Err != nil {
 									return templ_7745c5c3_Err
 								}
@@ -5813,7 +5819,7 @@ func ProjectEnvironmentQuickLook(orgSlug string, projectSlug string, activeEnvir
 							if templ_7745c5c3_Err != nil {
 								return templ_7745c5c3_Err
 							}
-							templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 494, " ")
+							templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 495, " ")
 							if templ_7745c5c3_Err != nil {
 								return templ_7745c5c3_Err
 							}
@@ -5835,7 +5841,7 @@ func ProjectEnvironmentQuickLook(orgSlug string, projectSlug string, activeEnvir
 									if templ_7745c5c3_Err != nil {
 										return templ_7745c5c3_Err
 									}
-									templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 495, "<span class=\"")
+									templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 496, "<span class=\"")
 									if templ_7745c5c3_Err != nil {
 										return templ_7745c5c3_Err
 									}
@@ -5848,12 +5854,12 @@ func ProjectEnvironmentQuickLook(orgSlug string, projectSlug string, activeEnvir
 									if templ_7745c5c3_Err != nil {
 										return templ_7745c5c3_Err
 									}
-									templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 496, "\">Protected; changes require confirmation</span>")
+									templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 497, "\">Protected; changes require confirmation</span>")
 									if templ_7745c5c3_Err != nil {
 										return templ_7745c5c3_Err
 									}
 								} else {
-									templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 497, "<span>Unprotected</span>")
+									templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 498, "<span>Unprotected</span>")
 									if templ_7745c5c3_Err != nil {
 										return templ_7745c5c3_Err
 									}
@@ -5864,7 +5870,7 @@ func ProjectEnvironmentQuickLook(orgSlug string, projectSlug string, activeEnvir
 							if templ_7745c5c3_Err != nil {
 								return templ_7745c5c3_Err
 							}
-							templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 498, " ")
+							templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 499, " ")
 							if templ_7745c5c3_Err != nil {
 								return templ_7745c5c3_Err
 							}
@@ -5886,7 +5892,7 @@ func ProjectEnvironmentQuickLook(orgSlug string, projectSlug string, activeEnvir
 									if templ_7745c5c3_Err != nil {
 										return templ_7745c5c3_Err
 									}
-									templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 499, "<span class=\"")
+									templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 500, "<span class=\"")
 									if templ_7745c5c3_Err != nil {
 										return templ_7745c5c3_Err
 									}
@@ -5899,7 +5905,7 @@ func ProjectEnvironmentQuickLook(orgSlug string, projectSlug string, activeEnvir
 									if templ_7745c5c3_Err != nil {
 										return templ_7745c5c3_Err
 									}
-									templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 500, "\">Enabled</span> ")
+									templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 501, "\">Enabled</span> ")
 									if templ_7745c5c3_Err != nil {
 										return templ_7745c5c3_Err
 									}
@@ -5909,7 +5915,7 @@ func ProjectEnvironmentQuickLook(orgSlug string, projectSlug string, activeEnvir
 									if templ_7745c5c3_Err != nil {
 										return templ_7745c5c3_Err
 									}
-									templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 501, "<span class=\"")
+									templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 502, "<span class=\"")
 									if templ_7745c5c3_Err != nil {
 										return templ_7745c5c3_Err
 									}
@@ -5922,7 +5928,7 @@ func ProjectEnvironmentQuickLook(orgSlug string, projectSlug string, activeEnvir
 									if templ_7745c5c3_Err != nil {
 										return templ_7745c5c3_Err
 									}
-									templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 502, "\">Disabled</span> ")
+									templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 503, "\">Disabled</span> ")
 									if templ_7745c5c3_Err != nil {
 										return templ_7745c5c3_Err
 									}
@@ -5934,7 +5940,7 @@ func ProjectEnvironmentQuickLook(orgSlug string, projectSlug string, activeEnvir
 										if templ_7745c5c3_Err != nil {
 											return templ_7745c5c3_Err
 										}
-										templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 503, "<span class=\"")
+										templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 504, "<span class=\"")
 										if templ_7745c5c3_Err != nil {
 											return templ_7745c5c3_Err
 										}
@@ -5947,7 +5953,7 @@ func ProjectEnvironmentQuickLook(orgSlug string, projectSlug string, activeEnvir
 										if templ_7745c5c3_Err != nil {
 											return templ_7745c5c3_Err
 										}
-										templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 504, "\">Default</span>")
+										templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 505, "\">Default</span>")
 										if templ_7745c5c3_Err != nil {
 											return templ_7745c5c3_Err
 										}
@@ -5959,7 +5965,7 @@ func ProjectEnvironmentQuickLook(orgSlug string, projectSlug string, activeEnvir
 							if templ_7745c5c3_Err != nil {
 								return templ_7745c5c3_Err
 							}
-							templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 505, " ")
+							templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 506, " ")
 							if templ_7745c5c3_Err != nil {
 								return templ_7745c5c3_Err
 							}
@@ -5981,7 +5987,7 @@ func ProjectEnvironmentQuickLook(orgSlug string, projectSlug string, activeEnvir
 									if templ_7745c5c3_Err != nil {
 										return templ_7745c5c3_Err
 									}
-									templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 506, "<span class=\"")
+									templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 507, "<span class=\"")
 									if templ_7745c5c3_Err != nil {
 										return templ_7745c5c3_Err
 									}
@@ -5994,12 +6000,12 @@ func ProjectEnvironmentQuickLook(orgSlug string, projectSlug string, activeEnvir
 									if templ_7745c5c3_Err != nil {
 										return templ_7745c5c3_Err
 									}
-									templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 507, "\">Readiness unavailable</span>")
+									templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 508, "\">Readiness unavailable</span>")
 									if templ_7745c5c3_Err != nil {
 										return templ_7745c5c3_Err
 									}
 								} else if !ProjectEnvironmentEnabled(environment.Slug, environments) {
-									templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 508, "<span>Enable this target before configuring bindings.</span>")
+									templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 509, "<span>Enable this target before configuring bindings.</span>")
 									if templ_7745c5c3_Err != nil {
 										return templ_7745c5c3_Err
 									}
@@ -6012,7 +6018,7 @@ func ProjectEnvironmentQuickLook(orgSlug string, projectSlug string, activeEnvir
 												if templ_7745c5c3_Err != nil {
 													return templ_7745c5c3_Err
 												}
-												templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 509, "<span class=\"")
+												templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 510, "<span class=\"")
 												if templ_7745c5c3_Err != nil {
 													return templ_7745c5c3_Err
 												}
@@ -6025,25 +6031,25 @@ func ProjectEnvironmentQuickLook(orgSlug string, projectSlug string, activeEnvir
 												if templ_7745c5c3_Err != nil {
 													return templ_7745c5c3_Err
 												}
-												templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 510, "\">")
+												templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 511, "\">")
 												if templ_7745c5c3_Err != nil {
 													return templ_7745c5c3_Err
 												}
 												var templ_7745c5c3_Var358 string
 												templ_7745c5c3_Var358, templ_7745c5c3_Err = templ.JoinStringErrs(fmt.Sprintf("%d missing bindings", MissingBindingCount(refs, []api.ProjectEnvironment{enabled}, bindings)))
 												if templ_7745c5c3_Err != nil {
-													return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 1276, Col: 152}
+													return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 1278, Col: 152}
 												}
 												_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var358))
 												if templ_7745c5c3_Err != nil {
 													return templ_7745c5c3_Err
 												}
-												templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 511, "</span>")
+												templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 512, "</span>")
 												if templ_7745c5c3_Err != nil {
 													return templ_7745c5c3_Err
 												}
 											}
-											templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 512, " ")
+											templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 513, " ")
 											if templ_7745c5c3_Err != nil {
 												return templ_7745c5c3_Err
 											}
@@ -6053,7 +6059,7 @@ func ProjectEnvironmentQuickLook(orgSlug string, projectSlug string, activeEnvir
 												if templ_7745c5c3_Err != nil {
 													return templ_7745c5c3_Err
 												}
-												templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 513, "<span class=\"")
+												templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 514, "<span class=\"")
 												if templ_7745c5c3_Err != nil {
 													return templ_7745c5c3_Err
 												}
@@ -6066,35 +6072,35 @@ func ProjectEnvironmentQuickLook(orgSlug string, projectSlug string, activeEnvir
 												if templ_7745c5c3_Err != nil {
 													return templ_7745c5c3_Err
 												}
-												templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 514, "\">")
+												templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 515, "\">")
 												if templ_7745c5c3_Err != nil {
 													return templ_7745c5c3_Err
 												}
 												var templ_7745c5c3_Var361 string
 												templ_7745c5c3_Var361, templ_7745c5c3_Err = templ.JoinStringErrs(fmt.Sprintf("%d inactive bindings", inactiveEnvironmentBindingCount(refs, enabled, bindings)))
 												if templ_7745c5c3_Err != nil {
-													return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 1279, Col: 139}
+													return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/environments.templ`, Line: 1281, Col: 139}
 												}
 												_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var361))
 												if templ_7745c5c3_Err != nil {
 													return templ_7745c5c3_Err
 												}
-												templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 515, "</span>")
+												templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 516, "</span>")
 												if templ_7745c5c3_Err != nil {
 													return templ_7745c5c3_Err
 												}
 											}
-											templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 516, " ")
+											templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 517, " ")
 											if templ_7745c5c3_Err != nil {
 												return templ_7745c5c3_Err
 											}
 											if len(refs) == 0 {
-												templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 517, "<span>No logical references</span>")
+												templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 518, "<span>No logical references</span>")
 												if templ_7745c5c3_Err != nil {
 													return templ_7745c5c3_Err
 												}
 											} else if MissingBindingCount(refs, []api.ProjectEnvironment{enabled}, bindings) == 0 && inactiveEnvironmentBindingCount(refs, enabled, bindings) == 0 {
-												templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 518, "<span>All references bound to active sources</span>")
+												templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 519, "<span>All references bound to active sources</span>")
 												if templ_7745c5c3_Err != nil {
 													return templ_7745c5c3_Err
 												}

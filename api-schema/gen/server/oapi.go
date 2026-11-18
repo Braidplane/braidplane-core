@@ -18715,6 +18715,9 @@ type UpsertRuntimeVariable struct {
 
 // UpsertRuntimeVariableDefinition defines model for UpsertRuntimeVariableDefinition.
 type UpsertRuntimeVariableDefinition struct {
+	// CreateOnly Reject the write if a definition for this key already exists.
+	CreateOnly *bool `json:"create_only,omitempty"`
+
 	// DefaultValue Scalar represented as text. Omit to leave the key without a default.
 	DefaultValue *string `json:"default_value,omitempty"`
 
@@ -20096,6 +20099,7 @@ type CompareRuntimeVariablesParams struct {
 
 // DeleteRuntimeVariableDefinitionParams defines parameters for DeleteRuntimeVariableDefinition.
 type DeleteRuntimeVariableDefinitionParams struct {
+	// ProtectedEnvironmentConfirmations Supply the exact slugs of every active protected environment. Retry with those slugs if confirmation is rejected.
 	ProtectedEnvironmentConfirmations *[]Slug `form:"protected_environment_confirmations,omitempty" json:"protected_environment_confirmations,omitempty"`
 }
 
@@ -49901,6 +49905,15 @@ type DeleteRuntimeVariableDefinition204Response struct {
 func (response DeleteRuntimeVariableDefinition204Response) VisitDeleteRuntimeVariableDefinitionResponse(ctx fiber.Ctx) error {
 	ctx.Status(204)
 	return nil
+}
+
+type DeleteRuntimeVariableDefinition400JSONResponse ErrorResponse
+
+func (response DeleteRuntimeVariableDefinition400JSONResponse) VisitDeleteRuntimeVariableDefinitionResponse(ctx fiber.Ctx) error {
+	ctx.Response().Header.Set("Content-Type", "application/json")
+	ctx.Status(400)
+
+	return ctx.JSON(&response)
 }
 
 type UpsertRuntimeVariableDefinitionRequestObject struct {

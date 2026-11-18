@@ -3,6 +3,7 @@ package http
 import (
 	"context"
 	"net/http"
+	"sync/atomic"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -25,11 +26,14 @@ func (s *runtimeVariableComparisonService) CompareRuntimeVariables(_ context.Con
 
 func TestCompareRuntimeVariablesScopesAndReturnsBlockers(t *testing.T) {
 	t.Parallel()
+	var authorized atomic.Bool
 	app, store := newTestApp(t, testServerConfig{
 		authService: fakeAuthService{
 			CanFn: func(_ context.Context, input authorization.Input) (bool, error) {
 				assert.Equal(t, model.ResourceEnvironments, input.Resource)
 				assert.Equal(t, model.Read, input.Action)
+				assert.Equal(t, new(slug.Slug("acme")), input.OrgSlug)
+				authorized.Store(true)
 				return true, nil
 			},
 		},
@@ -45,6 +49,7 @@ func TestCompareRuntimeVariablesScopesAndReturnsBlockers(t *testing.T) {
 	resp := authenticatedRequest(t, app, store, "johndoe", req)
 	defer func() { require.NoError(t, resp.Body.Close()) }()
 	require.Equal(t, http.StatusOK, resp.StatusCode)
+	require.True(t, authorized.Load())
 	missing := api.RuntimeVariableComparisonCell{
 		Source: api.RuntimeVariableSourceMissing, Required: true, Blocked: true,
 	}

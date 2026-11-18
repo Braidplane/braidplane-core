@@ -15,6 +15,7 @@ type UpsertRuntimeVariable struct {
 }
 
 type RuntimeVariableDefinition struct {
+	CreateOnly   bool
 	Key          string
 	ValueType    RuntimeVariableValueType
 	Description  *string

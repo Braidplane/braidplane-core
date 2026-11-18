@@ -181,6 +181,10 @@ func (f *fakeEnvironmentsRepo) FindRuntimeVariable(
 	return f.findRuntimeVariableFn(ctx, tx, orgSlug, environmentSlug, key)
 }
 
+func (f *fakeEnvironmentsRepo) LockRuntimeVariableOrganization(context.Context, postgres.DBTX, slug.Slug) error {
+	return nil
+}
+
 func (f *fakeEnvironmentsRepo) FindRuntimeVariableDefinition(context.Context, postgres.DBTX, slug.Slug, string) (*model.RuntimeVariableDefinition, error) {
 	if f.runtimeVariableDefinition == nil {
 		return nil, environments.ErrRuntimeVariableNotFound

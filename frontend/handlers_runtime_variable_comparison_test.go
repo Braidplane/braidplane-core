@@ -7,6 +7,7 @@ import (
 	"net/http/httptest"
 	"net/url"
 	"strings"
+	"sync/atomic"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -28,6 +29,7 @@ func TestRuntimeVariableComparisonUsesSelectedVersionAndSavesDefinition(t *testi
 		"steps":[{"kind":"query","slug":"source","query":{"parameters":{"limit":"{{runtime.env.batch_size}}"}}}]
 	}`), &spec))
 	comparisonURL := views.RuntimeVariableComparisonHref(org, "default", pipeline, bindingSetupHash)
+	var puts atomic.Int32
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		if handleTestAdminRolePermissions(w, r) {
@@ -43,10 +45,12 @@ func TestRuntimeVariableComparisonUsesSelectedVersionAndSavesDefinition(t *testi
 			writeJSON(w, `{"environments":["prod"],"rows":[{"key":"batch_size","used":true,"cells":[{"source":"missing","required":true,"type_mismatch":false,"blocked":true}]}]}`)
 		case prefix + "/runtime-variable-definitions/batch_size":
 			assert.Equal(t, http.MethodPut, r.Method)
+			puts.Add(1)
 			var definition api.UpsertRuntimeVariableDefinition
 			assert.NoError(t, json.NewDecoder(r.Body).Decode(&definition))
 			assert.Equal(t, api.RuntimeVariableValueTypeInteger, definition.ValueType)
 			assert.Equal(t, new("200"), definition.DefaultValue)
+			assert.Equal(t, new(true), definition.CreateOnly)
 			assert.Equal(t, &[]api.Slug{"prod"}, definition.ProtectedEnvironmentConfirmations)
 			writeJSON(w, `{"key":"batch_size","value_type":"integer","required":false,"default_value":"200"}`)
 		default:
@@ -80,4 +84,5 @@ func TestRuntimeVariableComparisonUsesSelectedVersionAndSavesDefinition(t *testi
 	defer func() { _ = response.Body.Close() }()
 	require.Equal(t, http.StatusSeeOther, response.StatusCode)
 	require.Equal(t, comparisonURL, response.Header.Get("Location"))
+	require.EqualValues(t, 1, puts.Load())
 }

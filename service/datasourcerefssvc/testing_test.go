@@ -344,18 +344,8 @@ func (r *fakeDataSourceRefsRepository) ResolveEnvironmentBinding(
 	return r.FindEnvironmentBinding(ctx, tx, orgSlug, projectSlug, pipelineSlug, environmentSlug, refSlug)
 }
 
-func (r *fakeDataSourceRefsRepository) ListRuntimeVariableDefinitions(context.Context, postgres.DBTX, slug.Slug) ([]model.RuntimeVariableDefinition, error) {
-	return r.runtimeVariableDefinitions, nil
-}
-
-func (r *fakeDataSourceRefsRepository) ListRuntimeVariables(
-	context.Context,
-	postgres.DBTX,
-	slug.Slug,
-	slug.Slug,
-	slug.Slug,
-) ([]model.RuntimeVariable, error) {
-	return append([]model.RuntimeVariable(nil), r.runtimeVariables...), nil
+func (r *fakeDataSourceRefsRepository) ListRuntimeVariableResolutionInputs(context.Context, postgres.DBTX, slug.Slug, slug.Slug) ([]model.RuntimeVariable, []model.RuntimeVariableDefinition, error) {
+	return r.runtimeVariables, r.runtimeVariableDefinitions, nil
 }
 
 func (r *fakeDataSourceRefsRepository) DeleteEnvironmentBinding(

@@ -42,6 +42,30 @@ func (s *service) UpsertRuntimeVariableDefinition(ctx context.Context, orgSlug s
 		if err := s.confirmRuntimeVariableDefinitionChange(ctx, tx, orgSlug, confirmations); err != nil {
 			return nil, err
 		}
+		// Serialize definition and override type checks for this organization.
+		if err := s.environments.LockRuntimeVariableOrganization(ctx, tx, orgSlug); err != nil {
+			return nil, err
+		}
+		if definition.CreateOnly {
+			existing, err := s.environments.FindRuntimeVariableDefinition(ctx, tx, orgSlug, definition.Key)
+			if err != nil && !xerror.Is(err, ErrRuntimeVariableNotFound) {
+				return nil, err
+			}
+			if existing != nil {
+				return nil, xerror.AlreadyExists(xerror.RuntimeVariable).
+					WithPublicDetail("A definition already exists for this key. Open Edit definition to change it.")
+			}
+		}
+		overrides, err := s.environments.ListRuntimeVariableOverridesByOrganization(ctx, tx, orgSlug)
+		if err != nil {
+			return nil, err
+		}
+		for _, override := range overrides {
+			if override.Key == definition.Key && override.ValueType != definition.ValueType {
+				return nil, ErrInvalidRuntimeVariable.WithPublicDetail("Remove overrides with a different type before changing this definition.").
+					Detailf("runtime variable %s has a different override type in %s", definition.Key, override.EnvironmentSlug)
+			}
+		}
 		saved, err := s.environments.UpsertRuntimeVariableDefinition(ctx, tx, orgSlug, definition)
 		if err != nil {
 			return nil, err

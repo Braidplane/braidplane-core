@@ -58,11 +58,15 @@ func (r *Router) renderRuntimeVariableComparison(c fiber.Ctx, status int, messag
 	resp, err := r.apiClient.CompareRuntimeVariablesWithResponse(ctx, org.String(), params, frontendRequestEditor(ctx, cookie))
 	switch {
 	case err != nil:
-		message, status = "Runtime variables could not be loaded.", http.StatusBadGateway
+		if message == "" {
+			message, status = "Runtime variables could not be loaded.", http.StatusBadGateway
+		}
 	case resp.StatusCode() == http.StatusUnauthorized:
 		return redirectToLogin(c, c.OriginalURL())
 	case resp.JSON200 == nil:
-		message, status = "Runtime variables could not be loaded.", resp.StatusCode()
+		if message == "" {
+			message, status = "Runtime variables could not be loaded.", resp.StatusCode()
+		}
 	default:
 		data.Comparison = resp.JSON200
 	}
@@ -80,13 +84,17 @@ func (r *Router) renderRuntimeVariableComparison(c fiber.Ctx, status int, messag
 			}
 			if data.Editing && data.Form.Key == "" {
 				data.Form = nil
-				message, status = "The runtime variable definition could not be found.", http.StatusNotFound
+				if data.Comparison != nil && message == "" {
+					message, status = "The runtime variable definition could not be found.", http.StatusNotFound
+				}
 			}
 		}
 		environments, code, _, err := r.listEnvironmentsViaAPI(ctx, cookie, org.String())
 		if err != nil {
 			data.Form = nil
-			message, status = "Environment protection could not be loaded.", code
+			if message == "" {
+				message, status = "Environment protection could not be loaded.", code
+			}
 		} else {
 			for _, environment := range catalogEnvironments(environments) {
 				if environment.Protected {
@@ -118,11 +126,11 @@ func (r *Router) handleRuntimeVariableDefinitionSubmit(c fiber.Ctx) error {
 		ValueType: api.RuntimeVariableValueType(c.FormValue("value_type")),
 		Required:  c.FormValue("required") == "1",
 	}
-	if description := c.FormValue("description"); description != "" {
+	if description := normalizeDefinitionFormText(c.FormValue("description")); description != "" {
 		form.Description = &description
 	}
 	if c.FormValue("has_default") == "1" {
-		value := c.FormValue("default_value")
+		value := normalizeDefinitionFormText(c.FormValue("default_value"))
 		form.DefaultValue = &value
 	}
 	confirmations := strings.Fields(c.FormValue("protected_environment_confirmations"))
@@ -141,7 +149,7 @@ func (r *Router) handleRuntimeVariableDefinitionSubmit(c fiber.Ctx) error {
 	} else {
 		resp, err := r.apiClient.UpsertRuntimeVariableDefinitionWithResponse(ctx, org.String(), key,
 			api.UpsertRuntimeVariableDefinition{
-				ValueType: form.ValueType, Required: form.Required, DefaultValue: form.DefaultValue,
+				CreateOnly: new(c.Query("key") == ""), ValueType: form.ValueType, Required: form.Required, DefaultValue: form.DefaultValue,
 				Description: form.Description, ProtectedEnvironmentConfirmations: &confirmations,
 			}, frontendRequestEditor(ctx, cookie))
 		if err == nil {
@@ -156,12 +164,13 @@ func (r *Router) handleRuntimeVariableDefinitionSubmit(c fiber.Ctx) error {
 	if status == http.StatusUnauthorized {
 		return redirectToLogin(c, c.OriginalURL())
 	}
-	message := messageFromErrorResponse(parseAPIErrorResponse(body))
-	if message == "" {
-		message = "The runtime variable definition could not be saved."
-	}
+	message := formFeedbackFromErrorResponse(parseAPIErrorResponse(body), "The runtime variable definition could not be saved.")
 	if c.FormValue("action") == "delete" {
 		form = nil
 	}
 	return r.renderRuntimeVariableComparison(c, status, message, form)
+}
+
+func normalizeDefinitionFormText(value string) string {
+	return strings.ReplaceAll(strings.ReplaceAll(value, "\r\n", "\n"), "\r", "\n")
 }

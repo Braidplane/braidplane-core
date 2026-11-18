@@ -17792,72 +17792,6 @@ func (q *Queries) ListAllPermissions(ctx context.Context) ([]Permission, error) 
 	return items, nil
 }
 
-const listAllRuntimeVariables = `-- name: ListAllRuntimeVariables :many
-SELECT
-    rv.id, rv.organization_id, rv.environment_id, rv.key, rv.value_type, rv.value_text, rv.description, rv.created_at, rv.updated_at,
-    e.slug AS environment_slug
-FROM
-    environment_runtime_variables rv
-    JOIN organizations o ON o.id = rv.organization_id
-    JOIN environments e ON e.id = rv.environment_id
-        AND e.organization_id = o.id
-WHERE
-    o.slug = $1
-    AND e.slug = $2
-    AND e.deleted_at IS NULL
-ORDER BY
-    rv.key ASC
-`
-
-type ListAllRuntimeVariablesParams struct {
-	OrgSlug         slug.Slug
-	EnvironmentSlug slug.Slug
-}
-
-type ListAllRuntimeVariablesRow struct {
-	ID              int
-	OrganizationID  int64
-	EnvironmentID   int64
-	Key             string
-	ValueType       string
-	ValueText       string
-	Description     pgtype.Text
-	CreatedAt       pgtype.Timestamptz
-	UpdatedAt       pgtype.Timestamptz
-	EnvironmentSlug slug.Slug
-}
-
-func (q *Queries) ListAllRuntimeVariables(ctx context.Context, arg ListAllRuntimeVariablesParams) ([]ListAllRuntimeVariablesRow, error) {
-	rows, err := q.db.Query(ctx, listAllRuntimeVariables, arg.OrgSlug, arg.EnvironmentSlug)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	var items []ListAllRuntimeVariablesRow
-	for rows.Next() {
-		var i ListAllRuntimeVariablesRow
-		if err := rows.Scan(
-			&i.ID,
-			&i.OrganizationID,
-			&i.EnvironmentID,
-			&i.Key,
-			&i.ValueType,
-			&i.ValueText,
-			&i.Description,
-			&i.CreatedAt,
-			&i.UpdatedAt,
-			&i.EnvironmentSlug,
-		); err != nil {
-			return nil, err
-		}
-		items = append(items, i)
-	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-	return items, nil
-}
-
 const listCheckpointFiles = `-- name: ListCheckpointFiles :many
 SELECT pin.step_slug, f.request_id, f.size_bytes, f.sha256
 FROM pipeline_checkpoint_file_retention pin
@@ -24136,6 +24070,71 @@ func (q *Queries) ListRuntimeVariableOverridesByOrganization(ctx context.Context
 	return items, nil
 }
 
+const listRuntimeVariableResolutionInputs = `-- name: ListRuntimeVariableResolutionInputs :many
+WITH target AS (
+    SELECT e.slug, e.id, e.organization_id
+    FROM organizations o
+    JOIN environments e ON e.organization_id = o.id
+    WHERE o.slug = $1 AND e.slug = $2
+        AND e.deleted_at IS NULL
+)
+SELECT rv.key, rv.value_type, rv.value_text, rv.description, rv.created_at, rv.updated_at,
+    false AS is_definition, true AS has_value
+FROM target
+JOIN environment_runtime_variables rv ON rv.environment_id = target.id AND rv.organization_id = target.organization_id
+UNION ALL
+SELECT d.key, d.value_type, COALESCE(d.default_value, '') AS value_text, d.description, d.created_at, d.updated_at,
+    true AS is_definition, d.default_value IS NOT NULL AS has_value
+FROM target
+JOIN runtime_variable_definitions d ON d.organization_id = target.organization_id
+ORDER BY key
+`
+
+type ListRuntimeVariableResolutionInputsParams struct {
+	OrgSlug         slug.Slug
+	EnvironmentSlug slug.Slug
+}
+
+type ListRuntimeVariableResolutionInputsRow struct {
+	Key          string
+	ValueType    string
+	ValueText    string
+	Description  pgtype.Text
+	CreatedAt    pgtype.Timestamptz
+	UpdatedAt    pgtype.Timestamptz
+	IsDefinition bool
+	HasValue     bool
+}
+
+func (q *Queries) ListRuntimeVariableResolutionInputs(ctx context.Context, arg ListRuntimeVariableResolutionInputsParams) ([]ListRuntimeVariableResolutionInputsRow, error) {
+	rows, err := q.db.Query(ctx, listRuntimeVariableResolutionInputs, arg.OrgSlug, arg.EnvironmentSlug)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ListRuntimeVariableResolutionInputsRow
+	for rows.Next() {
+		var i ListRuntimeVariableResolutionInputsRow
+		if err := rows.Scan(
+			&i.Key,
+			&i.ValueType,
+			&i.ValueText,
+			&i.Description,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+			&i.IsDefinition,
+			&i.HasValue,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listRuntimeVariables = `-- name: ListRuntimeVariables :many
 SELECT
     rv.id, rv.organization_id, rv.environment_id, rv.key, rv.value_type, rv.value_text, rv.description, rv.created_at, rv.updated_at,
@@ -25920,6 +25919,19 @@ func (q *Queries) LockRunRecencyScope(ctx context.Context, arg LockRunRecencySco
 		arg.PipelineSlug,
 	)
 	return err
+}
+
+const lockRuntimeVariableOrganization = `-- name: LockRuntimeVariableOrganization :one
+SELECT o.slug FROM organizations o
+WHERE o.slug = $1
+FOR NO KEY UPDATE OF o
+`
+
+func (q *Queries) LockRuntimeVariableOrganization(ctx context.Context, orgSlug slug.Slug) (slug.Slug, error) {
+	row := q.db.QueryRow(ctx, lockRuntimeVariableOrganization, orgSlug)
+	var slug slug.Slug
+	err := row.Scan(&slug)
+	return slug, err
 }
 
 const lockSnowflakeWIFConnection = `-- name: LockSnowflakeWIFConnection :one

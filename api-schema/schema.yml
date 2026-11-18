@@ -2424,6 +2424,7 @@ paths:
       parameters:
         - name: protected_environment_confirmations
           in: query
+          description: Supply the exact slugs of every active protected environment. Retry with those slugs if confirmation is rejected.
           schema:
             type: array
             items:
@@ -2431,6 +2432,12 @@ paths:
       responses:
         '204':
           description: Runtime variable definition deleted
+        '400':
+          description: Invalid request or missing protected environment confirmation
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
 
   /organizations/{slug}/environments/{environment_slug}/runtime-variables:
     get:
@@ -11813,6 +11820,9 @@ components:
         - $ref: '#/components/schemas/RuntimeVariableDefinitionSettings'
         - type: object
           properties:
+            create_only:
+              type: boolean
+              description: Reject the write if a definition for this key already exists.
             protected_environment_confirmations:
               type: array
               description: Exact slug of every protected environment affected by organization-wide settings.

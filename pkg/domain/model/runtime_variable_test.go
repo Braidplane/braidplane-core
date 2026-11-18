@@ -54,11 +54,14 @@ func TestCompareRuntimeVariables(t *testing.T) {
 	}
 	for i, source := range []RuntimeVariableSource{RuntimeVariableOverride, RuntimeVariableDefault, RuntimeVariableOverride} {
 		cell := comparison.Rows[0].Cells[i]
-		if cell.Source != source || cell.Blocked() {
+		if cell.Source != source || cell.Blocked() || cell.Variable == nil || cell.Variable.EnvironmentSlug != comparison.Environments[i] || cell.Variable.Value != []string{"100", "200", "500"}[i] {
 			t.Fatalf("limit in %s = %+v", comparison.Environments[i], cell)
 		}
 	}
 	for _, row := range comparison.Rows[1:] {
+		if len(row.Cells) != len(comparison.Environments) {
+			t.Fatalf("%s has %d cells", row.Key, len(row.Cells))
+		}
 		for _, cell := range row.Cells {
 			if cell.Source != RuntimeVariableMissing || !cell.Blocked() {
 				t.Fatalf("%s cell = %+v", row.Key, cell)

@@ -10,6 +10,9 @@ import (
 	"github.com/Braidplane/braidplane-core/pkg/domain/model"
 	"github.com/Braidplane/braidplane-core/pkg/slug"
 	"github.com/Braidplane/braidplane-core/pkg/testutil/e2edb"
+	"github.com/Braidplane/braidplane-core/pkg/xerror"
+	"github.com/Braidplane/braidplane-core/postgres/datasourcerefs"
+	"github.com/Braidplane/braidplane-core/service/environmentssvc"
 	"github.com/Braidplane/braidplane-core/service/protectedenv"
 )
 
@@ -35,6 +38,11 @@ func TestRuntimeVariableDefinitionsInheritAndStayOrganizationScoped(t *testing.T
 	require.ErrorIs(t, err, protectedenv.ErrConfirmationRequired)
 	_, err = env.UpsertRuntimeVariableDefinition(ctx, org, definition, []slug.Slug{prod}, actor)
 	require.NoError(t, err)
+	duplicate := definition
+	duplicate.CreateOnly = true
+	_, err = env.UpsertRuntimeVariableDefinition(ctx, org, duplicate, []slug.Slug{prod}, actor)
+	require.ErrorIs(t, err, xerror.AlreadyExists(xerror.RuntimeVariable))
+
 	_, err = env.CreateEnvironment(ctx, org, model.NewEnvironment{Name: "QA", Slug: "qa", Color: model.EnvironmentColorGray}, actor)
 	require.NoError(t, err)
 	_, err = env.UpsertRuntimeVariable(ctx, org, "dev", model.UpsertRuntimeVariable{
@@ -45,7 +53,12 @@ func TestRuntimeVariableDefinitionsInheritAndStayOrganizationScoped(t *testing.T
 	_, err = env.UpsertRuntimeVariable(ctx, org, "dev", model.UpsertRuntimeVariable{
 		Key: definition.Key, ValueType: model.RuntimeVariableValueTypeText, Value: "wrong type",
 	}, actor)
-	require.Error(t, err)
+	require.ErrorIs(t, err, environmentssvc.ErrInvalidRuntimeVariable)
+
+	changedType := definition
+	changedType.ValueType = model.RuntimeVariableValueTypeText
+	_, err = env.UpsertRuntimeVariableDefinition(ctx, org, changedType, []slug.Slug{prod}, actor)
+	require.ErrorIs(t, err, environmentssvc.ErrInvalidRuntimeVariable)
 
 	comparison, err := env.CompareRuntimeVariables(ctx, org, []string{"region"})
 	require.NoError(t, err)
@@ -61,6 +74,12 @@ func TestRuntimeVariableDefinitionsInheritAndStayOrganizationScoped(t *testing.T
 	require.Equal(t, model.RuntimeVariableDefault, row.Cells[qa].Source)
 	require.Equal(t, "200", row.Cells[qa].Variable.Value)
 	require.True(t, comparison.Rows[1].Cells[qa].Blocked())
+
+	overrides, definitions, err := datasourcerefs.NewRepository().ListRuntimeVariableResolutionInputs(ctx, pool, org, "qa")
+	require.NoError(t, err)
+	require.Empty(t, overrides)
+	require.Len(t, definitions, 1)
+	require.Equal(t, new("200"), definitions[0].DefaultValue)
 
 	other, err := env.CompareRuntimeVariables(ctx, otherOrg, []string{definition.Key})
 	require.NoError(t, err)

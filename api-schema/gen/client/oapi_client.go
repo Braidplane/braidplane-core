@@ -18716,6 +18716,9 @@ type UpsertRuntimeVariable struct {
 
 // UpsertRuntimeVariableDefinition defines model for UpsertRuntimeVariableDefinition.
 type UpsertRuntimeVariableDefinition struct {
+	// CreateOnly Reject the write if a definition for this key already exists.
+	CreateOnly *bool `json:"create_only,omitempty"`
+
 	// DefaultValue Scalar represented as text. Omit to leave the key without a default.
 	DefaultValue *string `json:"default_value,omitempty"`
 
@@ -20097,6 +20100,7 @@ type CompareRuntimeVariablesParams struct {
 
 // DeleteRuntimeVariableDefinitionParams defines parameters for DeleteRuntimeVariableDefinition.
 type DeleteRuntimeVariableDefinitionParams struct {
+	// ProtectedEnvironmentConfirmations Supply the exact slugs of every active protected environment. Retry with those slugs if confirmation is rejected.
 	ProtectedEnvironmentConfirmations *[]Slug `form:"protected_environment_confirmations,omitempty" json:"protected_environment_confirmations,omitempty"`
 }
 
@@ -67051,6 +67055,13 @@ func (r CompareRuntimeVariablesResponse) ContentType() string {
 type DeleteRuntimeVariableDefinitionResponse struct {
 	Body         []byte
 	HTTPResponse *http.Response
+	// JSON400 the response for an HTTP 400 `application/json` response
+	JSON400 *ErrorResponse
+}
+
+// GetJSON400 returns the response for an HTTP 400 `application/json` response
+func (r DeleteRuntimeVariableDefinitionResponse) GetJSON400() *ErrorResponse {
+	return r.JSON400
 }
 
 // GetBody returns the raw response body bytes
@@ -82764,6 +82775,19 @@ func ParseDeleteRuntimeVariableDefinitionResponse(rsp *http.Response) (*DeleteRu
 	response := &DeleteRuntimeVariableDefinitionResponse{
 		Body:         bodyBytes,
 		HTTPResponse: rsp,
+	}
+
+	switch {
+	case rsp.StatusCode == 204:
+		break // No content-type
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 400:
+		var dest ErrorResponse
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON400 = &dest
+
 	}
 
 	return response, nil

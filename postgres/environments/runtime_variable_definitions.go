@@ -11,6 +11,17 @@ import (
 	"github.com/Braidplane/braidplane-core/postgres/dbgen"
 )
 
+func (r *repository) LockRuntimeVariableOrganization(ctx context.Context, tx postgres.DBTX, orgSlug slug.Slug) error {
+	_, err := dbgen.New(tx).LockRuntimeVariableOrganization(ctx, orgSlug)
+	if xerror.Is(err, sql.ErrNoRows) {
+		return xerror.NotFound(xerror.Organization)
+	}
+	if err != nil {
+		return xerror.Unexpected().With(err)
+	}
+	return nil
+}
+
 func (r *repository) FindRuntimeVariableDefinition(ctx context.Context, tx postgres.DBTX, orgSlug slug.Slug, key string) (*model.RuntimeVariableDefinition, error) {
 	row, err := dbgen.New(tx).FindRuntimeVariableDefinition(ctx, dbgen.FindRuntimeVariableDefinitionParams{
 		OrgSlug: orgSlug, VariableKey: key,

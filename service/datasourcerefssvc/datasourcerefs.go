@@ -408,11 +408,7 @@ func (s *service) resolvePipelineDataSourceRefs(
 	inputs := []deploymentplan.Input{}
 	variables := make([]model.RuntimeVariable, 0, len(keys))
 	if len(keys) > 0 {
-		overrides, err := s.repo.ListRuntimeVariables(ctx, tx, orgSlug, projectSlug, environmentSlug)
-		if err != nil {
-			return nil, err
-		}
-		definitions, err := s.repo.ListRuntimeVariableDefinitions(ctx, tx, orgSlug)
+		overrides, definitions, err := s.repo.ListRuntimeVariableResolutionInputs(ctx, tx, orgSlug, environmentSlug)
 		if err != nil {
 			return nil, err
 		}

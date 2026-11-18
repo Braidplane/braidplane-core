@@ -52,6 +52,9 @@ func (s *service) UpsertRuntimeVariable(
 		if err := protectedenv.ConfirmEnvironment(toEnvironment(environment), params.ProtectedEnvironmentConfirmation); err != nil {
 			return err
 		}
+		if err := s.environments.LockRuntimeVariableOrganization(ctx, tx, orgSlug); err != nil {
+			return err
+		}
 		definition, err := s.environments.FindRuntimeVariableDefinition(ctx, tx, orgSlug, params.Key)
 		if err != nil && !xerror.Is(err, ErrRuntimeVariableNotFound) {
 			return xerror.Wrapf("get runtime variable definition: %w", err)

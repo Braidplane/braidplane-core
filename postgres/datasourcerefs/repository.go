@@ -89,12 +89,7 @@ type Repository interface {
 		tx postgres.DBTX,
 		orgSlug, projectSlug, pipelineSlug, environmentSlug, dataSourceRefSlug slug.Slug,
 	) (*DataSourceBinding, error)
-	ListRuntimeVariableDefinitions(ctx context.Context, tx postgres.DBTX, orgSlug slug.Slug) ([]model.RuntimeVariableDefinition, error)
-	ListRuntimeVariables(
-		ctx context.Context,
-		tx postgres.DBTX,
-		orgSlug, projectSlug, environmentSlug slug.Slug,
-	) ([]model.RuntimeVariable, error)
+	ListRuntimeVariableResolutionInputs(ctx context.Context, tx postgres.DBTX, orgSlug, environmentSlug slug.Slug) ([]model.RuntimeVariable, []model.RuntimeVariableDefinition, error)
 	DeleteEnvironmentBinding(
 		ctx context.Context,
 		tx postgres.DBTX,

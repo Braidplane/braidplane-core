@@ -13,7 +13,9 @@ templ OrganizationEnvironmentsPage(shellData AuthenticatedShellData, orgSlug str
 templ OrganizationEnvironmentsPageContent(orgSlug string, environments []api.Environment, selectedEnvironmentSlug string, runtimeVariables []api.RuntimeVariable, runtimeVariablesUnavailable bool, environmentSecrets []api.EnvironmentSecret, environmentSecretsUnavailable bool, formData EnvironmentCreateFormData, permissions OrganizationPermissions) {
 	<div id="organization-environments-content">
 		<div class="flex flex-wrap items-center justify-end gap-3">
-			<a class="btn btn-outline btn-sm w-full sm:w-auto" href={ templ.URL(RuntimeVariableComparisonHref(orgSlug, "", "", "")) }>Compare runtime variables</a>
+			if permissions.Can("environments", "read") {
+				<a class="btn btn-outline btn-sm w-full sm:w-auto" href={ templ.URL(RuntimeVariableComparisonHref(orgSlug, "", "", "")) }>Compare runtime variables</a>
+			}
 			if permissions.Can("environments", "create") {
 				<button
 					class="btn btn-primary btn-sm w-full sm:w-auto"

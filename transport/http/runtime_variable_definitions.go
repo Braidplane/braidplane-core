@@ -63,9 +63,15 @@ func (s *server) UpsertRuntimeVariableDefinition(c fiber.Ctx, org api.SlugParam,
 	if err := s.canOrg(c, orgSlug, model.Update, model.ResourceEnvironments); err != nil {
 		return err
 	}
-	var req api.UpsertRuntimeVariableDefinition
+	var req struct {
+		api.UpsertRuntimeVariableDefinition
+		Required *bool `json:"required"`
+	}
 	if err := c.Bind().Body(&req); err != nil {
 		return apierror.InvalidRequestBody()
+	}
+	if req.Required == nil {
+		return apierror.ValidationFailed("Required must be supplied as true or false")
 	}
 	valueType, err := model.RuntimeVariableValueTypeString(string(req.ValueType))
 	if err != nil {
@@ -76,7 +82,7 @@ func (s *server) UpsertRuntimeVariableDefinition(c fiber.Ctx, org api.SlugParam,
 		return err
 	}
 	definition, err := s.environmentsService.UpsertRuntimeVariableDefinition(c.Context(), orgSlug, model.RuntimeVariableDefinition{
-		Key: key, ValueType: valueType, Description: req.Description, Required: req.Required, DefaultValue: req.DefaultValue,
+		Key: key, CreateOnly: req.CreateOnly != nil && *req.CreateOnly, ValueType: valueType, Description: req.Description, Required: *req.Required, DefaultValue: req.DefaultValue,
 	}, confirmations, s.eventActor(c))
 	if err != nil {
 		return mapServiceError(err)

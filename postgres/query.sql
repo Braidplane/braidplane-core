@@ -1512,21 +1512,24 @@ ORDER BY
     END DESC
 LIMIT sqlc.arg ('limit_count');
 
--- name: ListAllRuntimeVariables :many
-SELECT
-    rv.*,
-    e.slug AS environment_slug
-FROM
-    environment_runtime_variables rv
-    JOIN organizations o ON o.id = rv.organization_id
-    JOIN environments e ON e.id = rv.environment_id
-        AND e.organization_id = o.id
-WHERE
-    o.slug = sqlc.arg ('org_slug')
-    AND e.slug = sqlc.arg ('environment_slug')
-    AND e.deleted_at IS NULL
-ORDER BY
-    rv.key ASC;
+-- name: ListRuntimeVariableResolutionInputs :many
+WITH target AS (
+    SELECT e.slug, e.id, e.organization_id
+    FROM organizations o
+    JOIN environments e ON e.organization_id = o.id
+    WHERE o.slug = sqlc.arg('org_slug') AND e.slug = sqlc.arg('environment_slug')
+        AND e.deleted_at IS NULL
+)
+SELECT rv.key, rv.value_type, rv.value_text, rv.description, rv.created_at, rv.updated_at,
+    false AS is_definition, true AS has_value
+FROM target
+JOIN environment_runtime_variables rv ON rv.environment_id = target.id AND rv.organization_id = target.organization_id
+UNION ALL
+SELECT d.key, d.value_type, COALESCE(d.default_value, '') AS value_text, d.description, d.created_at, d.updated_at,
+    true AS is_definition, d.default_value IS NOT NULL AS has_value
+FROM target
+JOIN runtime_variable_definitions d ON d.organization_id = target.organization_id
+ORDER BY key;
 
 -- name: DeleteRuntimeVariable :execrows
 DELETE FROM environment_runtime_variables rv
@@ -13585,3 +13588,8 @@ SELECT d.*
 FROM runtime_variable_definitions d
 JOIN organizations o ON o.id = d.organization_id
 WHERE o.slug = sqlc.arg('org_slug') AND d.key = sqlc.arg('variable_key');
+
+-- name: LockRuntimeVariableOrganization :one
+SELECT o.slug FROM organizations o
+WHERE o.slug = sqlc.arg('org_slug')
+FOR NO KEY UPDATE OF o;
