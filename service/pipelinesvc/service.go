@@ -3209,6 +3209,11 @@ func (s *service) completeQueuedRunFailure(
 	summary, requestedDiagnostics := requestedIncrementalState(args.Incremental)
 	var replayOfRunSlug, replayFromStep *string
 	timeline := failedQueuedPipelineRunTimeline(args, startedAt, endedAt, errorSummary)
+	var prevalidation *pipelineruntime.UnpersistedPrevalidationError
+	if xerror.As(runErr, &prevalidation) {
+		failure := prevalidation.Failure
+		timeline.Failure = &failure
+	}
 	if xerror.Is(runErr, errWorkerOwnershipLost) {
 		timeline.Failure.ReasonCode = pipelinerun.FailureReasonCodeWorkerOwnershipLost
 		timeline.Failure.ActionHint = "After native queue rescue, recover retained inputs only when ownership is fenced and every sink is repeat-safe. Reconcile provider outcomes if repair inputs are unavailable."
@@ -3249,13 +3254,6 @@ func (s *service) completeQueuedRunFailure(
 			if timeline.Failure.OutcomeUncertain {
 				timeline.Failure.AutomaticRetryProhibited = true
 			}
-			errorSummary = timeline.Failure.Error
-			if timeline.Failure.Kind != "" {
-				failureKind = timeline.Failure.Kind
-			}
-			if timeline.Failure.Side != "" {
-				failureSide = &timeline.Failure.Side
-			}
 			timeline.Events = append(timeline.Events, pipelinerun.TimelineEvent{At: endedAt, Type: pipelineRunEventCompleted, Status: pipelineRunStatusFailed})
 		}
 		if len(previous.StructuralChecks) > 0 {
@@ -3267,6 +3265,13 @@ func (s *service) completeQueuedRunFailure(
 		return nil
 	}); err != nil {
 		return err
+	}
+	errorSummary = timeline.Failure.Error
+	if timeline.Failure.Kind != "" {
+		failureKind = timeline.Failure.Kind
+	}
+	if timeline.Failure.Side != "" {
+		failureSide = &timeline.Failure.Side
 	}
 	timelineJSON, err := json.Marshal(timeline)
 	if err != nil {
@@ -3296,7 +3301,7 @@ func (s *service) completeQueuedRunFailure(
 			Incremental:            summary,
 			IncrementalDiagnostics: incrementalDiagnosticsJSON,
 		})
-		if xerror.Is(err, pipelineruns.ErrRunNotFound) {
+		if xerror.Is(err, pipelineruns.ErrRunNotFound) && prevalidation == nil {
 			return nil
 		}
 		if err != nil {

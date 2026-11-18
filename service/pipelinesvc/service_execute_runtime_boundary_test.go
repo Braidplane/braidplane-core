@@ -2210,3 +2210,38 @@ func (f *fakePipelineRuntime) PrepareCheckpointBootstrap(ctx context.Context, re
 	}
 	return nil, errFakeRepositoryMethodNotUsed
 }
+
+func TestQueuedRunCompletesUnpersistedPrevalidationFailure(t *testing.T) {
+	now := time.Now().UTC()
+	args := jobs.PipelineRunExecutionArgs{RunSlug: "run-one", OrganizationSlug: "acme", ProjectSlug: "etl", EnvironmentSlug: "staging", PipelineSlug: "orders", Actor: model.UserEventActor("alice")}
+	row := &pipelineruns.PipelineRun{RunSlug: args.RunSlug.String(), StartedAt: now, Timeline: mustJSON(t, pipelinerun.RunTimeline{Revision: 1, Status: "running"})}
+	writeErr := error(pipelineruns.ErrRunNotFound)
+	repo := &fakeRunRepository{
+		findRunBySlugFn: func(context.Context, postgres.DBTX, slug.Slug, slug.Slug, slug.Slug, string) (*pipelineruns.PipelineRun, error) {
+			return row, nil
+		},
+		completeRunFn: func(_ context.Context, _ postgres.DBTX, _, _, _ slug.Slug, _ string, params *pipelineruns.CompleteRunParams) (*pipelineruns.PipelineRun, error) {
+			if writeErr != nil {
+				return nil, writeErr
+			}
+			row.Timeline = params.Timeline
+			row.Status = params.Status
+			row.ErrorSummary = params.ErrorSummary
+			return row, nil
+		},
+	}
+	svc := &service{executionClock: fixedClock{at: now}, txm: &recordingPipelineGitTxManager{}, runRepo: repo, eventProducer: eventtest.NewProducer(&fakePipelineEventRecorder{})}
+	diagnosis := pipelinerun.FailureContext{Step: "fetch", Side: "source", Kind: "platform", ReasonCode: pipelinerun.FailureReasonCodeSourceResultShapeMismatch, Error: "Source schema pre-execution validation failed."}
+	err := ErrPipelineExecutionFailed.With(&pipelineruntime.UnpersistedPrevalidationError{Failure: diagnosis, Err: xerror.Unexpected()})
+	require.ErrorIs(t, svc.completeQueuedRunFailure(t.Context(), args, now, err), writeErr)
+	writeErr = nil
+	require.NoError(t, svc.completeQueuedRunFailure(t.Context(), args, now, err))
+	var timeline pipelinerun.RunTimeline
+	require.NoError(t, json.Unmarshal(row.Timeline, &timeline))
+	require.Equal(t, "failed", row.Status)
+	require.Equal(t, diagnosis.Error, *row.ErrorSummary)
+	require.NotNil(t, timeline.Failure)
+	require.True(t, timeline.Failure.AutomaticRetryProhibited)
+	require.Equal(t, diagnosis.Step, timeline.Failure.Step)
+	require.Equal(t, diagnosis.ReasonCode, timeline.Failure.ReasonCode)
+}
