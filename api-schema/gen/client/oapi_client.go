@@ -66027,6 +66027,8 @@ type GetPipelineReadinessResponse struct {
 	JSON200 *ReadinessReport
 	// JSON400 the response for an HTTP 400 `application/json` response
 	JSON400 *ErrorResponse
+	// JSON401 the response for an HTTP 401 `application/json` response
+	JSON401 *ErrorResponse
 	// JSON403 the response for an HTTP 403 `application/json` response
 	JSON403 *ErrorResponse
 	// JSON404 the response for an HTTP 404 `application/json` response
@@ -66041,6 +66043,11 @@ func (r GetPipelineReadinessResponse) GetJSON200() *ReadinessReport {
 // GetJSON400 returns the response for an HTTP 400 `application/json` response
 func (r GetPipelineReadinessResponse) GetJSON400() *ErrorResponse {
 	return r.JSON400
+}
+
+// GetJSON401 returns the response for an HTTP 401 `application/json` response
+func (r GetPipelineReadinessResponse) GetJSON401() *ErrorResponse {
+	return r.JSON401
 }
 
 // GetJSON403 returns the response for an HTTP 403 `application/json` response
@@ -66351,6 +66358,8 @@ type GetProjectReadinessResponse struct {
 	JSON200 *ReadinessReport
 	// JSON400 the response for an HTTP 400 `application/json` response
 	JSON400 *ErrorResponse
+	// JSON401 the response for an HTTP 401 `application/json` response
+	JSON401 *ErrorResponse
 	// JSON403 the response for an HTTP 403 `application/json` response
 	JSON403 *ErrorResponse
 	// JSON404 the response for an HTTP 404 `application/json` response
@@ -66365,6 +66374,11 @@ func (r GetProjectReadinessResponse) GetJSON200() *ReadinessReport {
 // GetJSON400 returns the response for an HTTP 400 `application/json` response
 func (r GetProjectReadinessResponse) GetJSON400() *ErrorResponse {
 	return r.JSON400
+}
+
+// GetJSON401 returns the response for an HTTP 401 `application/json` response
+func (r GetProjectReadinessResponse) GetJSON401() *ErrorResponse {
+	return r.JSON401
 }
 
 // GetJSON403 returns the response for an HTTP 403 `application/json` response
@@ -82255,6 +82269,13 @@ func ParseGetPipelineReadinessResponse(rsp *http.Response) (*GetPipelineReadines
 		}
 		response.JSON400 = &dest
 
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+		var dest ErrorResponse
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON401 = &dest
+
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 403:
 		var dest ErrorResponse
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
@@ -82509,6 +82530,13 @@ func ParseGetProjectReadinessResponse(rsp *http.Response) (*GetProjectReadinessR
 			return nil, err
 		}
 		response.JSON400 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+		var dest ErrorResponse
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON401 = &dest
 
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 403:
 		var dest ErrorResponse
