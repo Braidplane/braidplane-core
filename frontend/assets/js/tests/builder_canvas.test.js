@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 // Side-effect imports: register builder helper namespaces before the canvas IIFE.
 await import("../builder_canvas_shared.js");
@@ -3683,4 +3683,67 @@ describe("S3 delivery configuration", () => {
         sink.originalStep = { sink: { config: { key: "delivery.csv" } } };
         expect(t.validateNodes([sink])).toEqual([]);
     });
+});
+
+it("expires an open proposal review when a pending pipeline switch completes", async () => {
+    document.body.innerHTML = `
+        <select data-org-switcher><option selected>acme</option></select>
+        <div id="root"><div id="grid"></div><svg id="edges"></svg><div id="data"></div></div>
+        <div id="builder-palette-body"></div><button id="builder-publish-btn"></button>
+        <dialog id="builder-proposal-review-modal"><div id="builder-proposal-review-state"></div>
+            <div id="builder-proposal-review-error"></div><div id="builder-proposal-structural-diff"></div>
+            <button id="builder-proposal-review-confirm"></button><button id="builder-proposal-review-cancel"></button>
+        </dialog>`;
+    const dialog = document.querySelector("#builder-proposal-review-modal");
+    dialog.showModal = () => dialog.setAttribute("open", "");
+    dialog.close = () => dialog.removeAttribute("open");
+    const load = Promise.withResolvers();
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockImplementation(async (url) => {
+        if (url.endsWith("/pipelines")) return Response.json({ pipelines: [{ slug: "b" }] });
+        if (url.endsWith("/pipelines/b")) return load.promise;
+        if (url.endsWith("/builder/import")) return Response.json({ nodes: [], edges: [] });
+        if (url.endsWith("/proposal-review")) {
+            return Response.json({ provider_supported: true, structural_diff: url.split("/").at(-2) });
+        }
+        return Response.json({});
+    });
+    try {
+        window.braidplaneBuilderCanvas.init({
+            gridId: "grid",
+            rootId: "root",
+            edgesLayerId: "edges",
+            edgesDataId: "data",
+            pipeline: { projectSlug: "ops", slug: "a", hasDraft: true },
+        });
+        const propose = document.querySelector("#builder-publish-btn");
+        const confirm = document.querySelector("#builder-proposal-review-confirm");
+        const diff = document.querySelector("#builder-proposal-structural-diff");
+        const switchButton = await vi.waitFor(() => {
+            const button = document.querySelector("#builder-pipeline-list-items button");
+            expect(button).toBeTruthy();
+            return button;
+        });
+        switchButton.click();
+        expect(switchButton.disabled).toBe(true);
+        propose.click();
+        await vi.waitFor(() => expect(diff.textContent).toBe("a"));
+        expect(confirm.disabled).toBe(false);
+        load.resolve(Response.json({ pipeline: { slug: "b", spec: {}, draft: {} } }));
+        await vi.waitFor(() => expect(document.querySelector("#root").dataset.pipelineSlug).toBe("b"));
+        expect(confirm.disabled).toBe(true);
+        expect(document.querySelector("#builder-proposal-review-error").textContent).toContain("Reopen");
+        confirm.dispatchEvent(new MouseEvent("click"));
+        const publishes = () => fetchMock.mock.calls.filter(([url]) => url.endsWith("/publish"));
+        expect(publishes()).toHaveLength(0);
+        document.querySelector("#builder-proposal-review-cancel").click();
+        propose.click();
+        await vi.waitFor(() => expect(diff.textContent).toBe("b"));
+        confirm.click();
+        expect(publishes()).toEqual([
+            ["/orgs/acme/projects/ops/pipelines/b/publish", expect.objectContaining({ method: "POST" })],
+        ]);
+    } finally {
+        fetchMock.mockRestore();
+        window.history.replaceState({}, "", "/");
+    }
 });
