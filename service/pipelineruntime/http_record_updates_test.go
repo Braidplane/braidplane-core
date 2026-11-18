@@ -96,7 +96,7 @@ func TestHTTPRecordUpdatesRecoverSecondAcknowledgement(t *testing.T) {
 	pipeline := incrementalCheckpointPipeline()
 	sink := pipeline.Steps[1].Sink
 	sink.OperationType, sink.OperationRef = "http", ""
-	sink.OperationInline = map[string]any{"type": "http", "method": "PUT", "path": prefix + "{{record_id}}", "body": "{{input}}"}
+	sink.OperationInline = map[string]any{"type": "http", "method": "PUT", "path": prefix + "{{runtime.sink.record_id}}", "body": "{{input}}"}
 	sink.Config = map[string]any{"record_updates": map[string]any{"identity_field": "cursor", "readback": map[string]any{"identity_field": "recordKey"}, "fields": map[string]any{"label": "name"}, "max_records": 2}}
 	request := RunRequest{OrgSlug: "acme", ProjectSlug: "default", EnvironmentSlug: "prod", RunSlug: "original", PipelineVersionID: 42, Pipeline: pipeline}
 	original, err := runner.Run(t.Context(), request)
@@ -152,7 +152,7 @@ func TestRecordUpdatesCanceledAfterFirstConfirmation(t *testing.T) {
 	}}
 	input := sinkEffectTestInput(pipelinespec.SinkIdempotencyClassDeduplicatedByLedger)
 	input.SinkBackend, input.SinkOperationType, input.SinkOperationRef = model.SinkBackendHTTP, "http", ""
-	input.SinkOperationInline = map[string]any{"method": "PATCH", "path": "/items/{{record_id}}", "body": "{{input}}"}
+	input.SinkOperationInline = map[string]any{"method": "PATCH", "path": "/items/{{runtime.sink.record_id}}", "body": "{{input}}"}
 	input.SinkConfig = map[string]any{"record_updates": map[string]any{"identity_field": "cursor", "readback": map[string]any{"identity_field": "key"}, "fields": map[string]any{"updated_at": "lastSync"}, "max_records": 2}}
 	input.SourceResult = pipelinerun.NewStepResult(successfulSQLResult(2))
 	err := NewSinkRuntime(executor, ledger).Execute(ctx, input)

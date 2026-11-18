@@ -3,7 +3,7 @@ package sinkbinding
 import "testing"
 
 func TestRecordUpdatePathAndProjection(t *testing.T) {
-	const target = "{{record_id}}"
+	const target = "{{runtime.sink.record_id}}"
 	for _, path := range []string{"/records/" + target, "api/v2/items/" + target, "/" + target} {
 		for _, body := range []any{"{{input}}", map[string]any{"values": "{{input}}"}} {
 			if !ValidRecordUpdateOperation(map[string]any{"type": "http", "method": "PUT", "path": path, "body": body}) {
@@ -11,7 +11,7 @@ func TestRecordUpdatePathAndProjection(t *testing.T) {
 			}
 		}
 	}
-	for _, path := range []string{"https://other/records/" + target, "//other/" + target, "/a/../" + target, "/./" + target, "/a%2fb/" + target, "/a\\b/" + target, "/{{prefix}}/" + target, "/a?key=/" + target, "/a#f/" + target, "/a/" + target + "/suffix", "/a//" + target} {
+	for _, path := range []string{"/records/{{record_id}}", "https://other/records/" + target, "//other/" + target, "/a/../" + target, "/./" + target, "/a%2fb/" + target, "/a\\b/" + target, "/{{prefix}}/" + target, "/a?key=/" + target, "/a#f/" + target, "/a/" + target + "/suffix", "/a//" + target} {
 		if ValidRecordUpdateOperation(map[string]any{"method": "PATCH", "path": path, "body": "{{input}}"}) {
 			t.Errorf("unsafe path accepted: %q", path)
 		}

@@ -33,7 +33,7 @@ steps:
       operation_inline:
         type: http
         method: PATCH
-        path: "/inventory/items/{{record_id}}"
+        path: "/inventory/items/{{runtime.sink.record_id}}"
         body: "{{input}}"
       config:
         record_updates:

@@ -18,7 +18,7 @@ import (
 )
 
 func TestRecordUpdateWithholdsUnconfirmedResponses(t *testing.T) {
-	const operation = `{"type":"http","method":"PATCH","path":"/crm/v3/objects/companies/{{record_id}}","body":{"properties":"{{input}}"}}`
+	const operation = `{"type":"http","method":"PATCH","path":"/crm/v3/objects/companies/{{runtime.sink.record_id}}","body":{"properties":"{{input}}"}}`
 	for _, tc := range []struct {
 		name string
 		code int
@@ -60,7 +60,7 @@ func TestRecordUpdateWithholdsUnconfirmedResponses(t *testing.T) {
 }
 
 func TestRecordUpdateFlatPUT(t *testing.T) {
-	const operation = `{"type":"http","method":"PUT","path":"inventory/v2/items/{{record_id}}","body":"{{input}}"}`
+	const operation = `{"type":"http","method":"PUT","path":"inventory/v2/items/{{runtime.sink.record_id}}","body":"{{input}}"}`
 	var writes, reads atomic.Int64
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		assert.Equal(t, "/api/inventory/v2/items/part%3F1", r.URL.EscapedPath())
@@ -98,7 +98,7 @@ func TestRecordUpdateFlatPUT(t *testing.T) {
 }
 
 func TestRecordWriteWithoutContentReadsBackOnce(t *testing.T) {
-	const operation = `{"method":"PUT","path":"/assets/{{record_id}}","body":"{{input}}"}`
+	const operation = `{"method":"PUT","path":"/assets/{{runtime.sink.record_id}}","body":"{{input}}"}`
 	for _, tc := range []struct {
 		name      string
 		status    int

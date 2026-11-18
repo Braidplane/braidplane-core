@@ -76,7 +76,7 @@ func testHTTPRecordUpdateCredentials(t *testing.T, stack *testStack) {
 				_, err = stack.datasourcesSvc.CompleteProviderOAuthCallback(t.Context(), credentialssvc.CompleteOAuthCallbackParams{Provider: "http", State: authURL.Query().Get("state"), Code: "fixture-code", Issuer: server.URL, Actor: actor})
 				require.NoError(t, err)
 			}
-			operation := map[string]any{"type": "http", "method": "PATCH", "path": "/crm/v3/objects/companies/{{record_id}}", "body": map[string]any{"properties": "{{input}}"}}
+			operation := map[string]any{"type": "http", "method": "PATCH", "path": "/crm/v3/objects/companies/{{runtime.sink.record_id}}", "body": map[string]any{"properties": "{{input}}"}}
 			statement, err := json.Marshal(operation)
 			require.NoError(t, err)
 			data, err := json.Marshal(map[string]any{"statement": string(statement)})

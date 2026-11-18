@@ -511,7 +511,7 @@ func TestRecordEffectRetainsIdentityAcrossPinnedWindowEncoding(t *testing.T) {
 
 func configureRecordUpdateRecoverySink(sink *pipelinespec.SinkSpec) {
 	sink.OperationType, sink.OperationRef = "http", ""
-	sink.OperationInline = map[string]any{"type": "http", "method": "PATCH", "path": "/crm/v3/objects/companies/{{record_id}}", "body": map[string]any{"properties": "{{input}}"}}
+	sink.OperationInline = map[string]any{"type": "http", "method": "PATCH", "path": "/crm/v3/objects/companies/{{runtime.sink.record_id}}", "body": map[string]any{"properties": "{{input}}"}}
 	sink.Config = map[string]any{"record_updates": map[string]any{"identity_field": "id", "max_records": 2, "fields": map[string]any{"updated_at": "sync_time"}, "readback": map[string]any{"identity_field": "id", "fields_object": "properties"}}}
 }
 

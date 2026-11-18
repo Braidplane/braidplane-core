@@ -436,7 +436,7 @@ import (
 			operation_inline: close({
 				type?: "http"
 				method: "PATCH" | "PUT"
-				path:   string & !~"(^|/)\\.{1,2}/" & =~"^(/|/?[A-Za-z0-9._~-]+/)([A-Za-z0-9._~-]+/)*\\{\\{record_id\\}\\}$"
+				path:   string & !~"(^|/)\\.{1,2}/" & =~"^(/|/?[A-Za-z0-9._~-]+/)([A-Za-z0-9._~-]+/)*\\{\\{runtime\\.sink\\.record_id\\}\\}$"
 				body:   "{{input}}" | (({[#RecordField]: "{{input}}"}) & struct.MinFields(1) & struct.MaxFields(1))
 			})
 		}

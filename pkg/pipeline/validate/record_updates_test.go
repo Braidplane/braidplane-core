@@ -19,7 +19,7 @@ func TestRecordUpdatesDefinition(t *testing.T) {
 	p, err := spec.Load(path, source)
 	require.NoError(t, err)
 	sink := p.Steps[1].Sink
-	sink.OperationInline = map[string]any{"method": "PUT", "path": "/v2/inventory/{{record_id}}", "body": map[string]any{"attributes": "{{input}}"}}
+	sink.OperationInline = map[string]any{"method": "PUT", "path": "/v2/inventory/{{runtime.sink.record_id}}", "body": map[string]any{"attributes": "{{input}}"}}
 	cfg := sink.Config["record_updates"].(map[string]any)
 	cfg["readback"] = map[string]any{"identity_field": "recordID", "fields_object": "attributes"}
 	cfg["fields"] = map[string]string{"label": "Display-Name"}
@@ -32,6 +32,7 @@ func TestRecordUpdatesDefinition(t *testing.T) {
 		name string
 		edit func(*spec.SinkSpec)
 	}{
+		{"missing record mode", func(s *spec.SinkSpec) { delete(s.Config, "record_updates") }},
 		{"unbounded", func(s *spec.SinkSpec) { s.Config["record_updates"].(map[string]any)["max_records"] = 101 }},
 		{"missing identity", func(s *spec.SinkSpec) { delete(s.Config["record_updates"].(map[string]any), "identity_field") }},
 		{"duplicate mapping", func(s *spec.SinkSpec) {

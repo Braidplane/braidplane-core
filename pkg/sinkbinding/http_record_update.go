@@ -7,6 +7,8 @@ import (
 	"strings"
 )
 
+const RecordIDParam = "runtime.sink.record_id"
+
 // RecordReadback describes a JSON response containing the record identity and mapped field values.
 type RecordReadback struct {
 	IdentityField   string `json:"identity_field"`
@@ -67,7 +69,7 @@ func ValidRecordUpdateOperation(operation map[string]any) bool {
 		return false
 	}
 	path, ok := operation["path"].(string)
-	if !ok || !strings.HasSuffix(path, "/{{record_id}}") {
+	if !ok || !strings.HasSuffix(path, "/{{"+RecordIDParam+"}}") {
 		return false
 	}
 	segments := strings.Split(strings.TrimPrefix(path, "/"), "/")

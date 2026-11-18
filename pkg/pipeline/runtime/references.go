@@ -6,6 +6,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/Braidplane/braidplane-core/pkg/sinkbinding"
 	"github.com/Braidplane/braidplane-core/pkg/xerror"
 )
 
@@ -26,24 +27,32 @@ func ValidateOperationReferences(statement string, sink, incremental bool) error
 // ValidateRuntimeReferences checks authored syntax, never resolved values.
 // Dynamic keys and checkpoint fields are checked against their execution context later.
 func ValidateRuntimeReferences(value any, expressions, sink, incremental bool) error {
+	// Only the complete HTTP operation can bind a per-record path at dispatch.
+	if op, ok := value.(map[string]any); ok && sink && !expressions && sinkbinding.ValidRecordUpdateOperation(op) {
+		return nil
+	}
+	return validateRuntimeReferences(value, expressions, sink, incremental)
+}
+
+func validateRuntimeReferences(value any, expressions, sink, incremental bool) error {
 	switch v := value.(type) {
 	case LiteralTemplate:
 		for _, part := range fragments(v) {
 			if !part.literal {
-				if err := ValidateRuntimeReferences(part.text, expressions, sink, incremental); err != nil {
+				if err := validateRuntimeReferences(part.text, expressions, sink, incremental); err != nil {
 					return err
 				}
 			}
 		}
 	case map[string]any:
 		for key, item := range v {
-			if err := ValidateRuntimeReferences(item, expressions, sink, incremental); err != nil {
+			if err := validateRuntimeReferences(item, expressions, sink, incremental); err != nil {
 				return xerror.Wrapf("runtime field %q: %w", key, err)
 			}
 		}
 	case []any:
 		for _, item := range v {
-			if err := ValidateRuntimeReferences(item, expressions, sink, incremental); err != nil {
+			if err := validateRuntimeReferences(item, expressions, sink, incremental); err != nil {
 				return err
 			}
 		}

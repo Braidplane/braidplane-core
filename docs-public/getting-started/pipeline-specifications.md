@@ -199,6 +199,7 @@ parameters, and the `runtime.` prefix is reserved.
 | `{{runtime.run.slug}}` | Current attempt's run slug. | Available throughout pipeline execution in parameter/config fields and supported connector bindings. Standalone queries have no pipeline run slug. Retries and recovery use their own attempt slug; use `runtime.sink.replay_identity` when the key must retain the original effect identity. |
 | `{{runtime.sink.idempotency_key}}` | Resolved sink idempotency key. | Injected only while a sink operation executes, when a non-empty key is configured. |
 | `{{runtime.sink.idempotency_class}}` | Declared sink idempotency class as text. | Injected only while a sink operation executes, when the class is known. It describes the declared delivery contract, not proof of provider behavior. |
+| `{{runtime.sink.record_id}}` | Destination record ID from the current row. | Available only in the URL path of a bounded HTTP record update. The source column is selected by `record_updates.identity_field`. |
 | `{{runtime.sink.replay_identity}}` | Stable sink effect identity, normally the run slug. | Injected only while a sink operation executes. Authorized recovery reuses the original run's identity, so a deterministic sink key can target the same external effect. It is not a general source or transform parameter. |
 
 In **Environments → Compare runtime variables**, define each key's type,
@@ -360,8 +361,8 @@ null or literal text.
 
 Runtime fields use an entity namespace followed by a field name. The replacement
 names are `runtime.run.date`, `runtime.run.datetime`, `runtime.run.slug`,
-`runtime.sink.idempotency_key`, `runtime.sink.idempotency_class`, and
-`runtime.sink.replay_identity`. Flat run/sink names have no aliases for new
+`runtime.sink.idempotency_key`, `runtime.sink.idempotency_class`,
+`runtime.sink.record_id`, and `runtime.sink.replay_identity`. Flat run/sink names have no aliases for new
 authoring. Historical inspection retains the exact executed definition.
 
 One lookup selects the most recently finished successful attempt strictly before
@@ -480,7 +481,7 @@ manually and verify the destination before starting another write.
 An HTTP sink normally sends its upstream payload in one request. Set
 `sink.config.record_updates` to send one update per row to an existing record.
 Use an inline `PATCH` or `PUT` operation with a fixed path ending in
-`/{{record_id}}`. The source column named by `identity_field` supplies the
+`/{{runtime.sink.record_id}}`. The source column named by `identity_field` supplies the
 destination's stable record ID as a string. The sink checks every ID before
 the first write, rejects duplicates, and encodes each ID as one path segment.
 IDs must be nonblank, at most 256 bytes, and free of surrounding whitespace.
@@ -497,7 +498,7 @@ sink:
   operation_inline:
     type: http
     method: PATCH
-    path: "/inventory/items/{{record_id}}"
+    path: "/inventory/items/{{runtime.sink.record_id}}"
     body: "{{input}}"
   config:
     record_updates:

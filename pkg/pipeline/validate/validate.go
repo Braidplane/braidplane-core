@@ -467,7 +467,9 @@ func validateSinkOperationContract(sink *pipelinespec.SinkSpec) error {
 		)
 	}
 
-	if _, present := sink.Config["record_updates"]; present {
+	if _, present := sink.Config["record_updates"]; !present && sinkbinding.ValidRecordUpdateOperation(sink.OperationInline) {
+		return xerror.InvalidInput(xerror.Pipeline).Detail("runtime.sink.record_id requires record_updates")
+	} else if present {
 		if _, err := pipelinespec.ParseRecordUpdates(sink.Config); err != nil {
 			return err
 		}

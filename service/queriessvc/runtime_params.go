@@ -81,7 +81,9 @@ func withReservedRuntimeParams(
 ) (map[string]types.TypedParam, error) {
 	merged := make(map[string]types.TypedParam, len(params)+2)
 	for key, value := range params {
-		merged[key] = value
+		if key != sinkbinding.RecordIDParam {
+			merged[key] = value
+		}
 	}
 
 	runtimeNow := now.UTC()

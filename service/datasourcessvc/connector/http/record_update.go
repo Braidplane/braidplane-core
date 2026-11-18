@@ -52,7 +52,7 @@ func (c *Connector) recordUpdateRequest(ctx context.Context, statement json.RawM
 	if err != nil || target.ForceQuery || target.RawQuery != "" || target.Fragment != "" {
 		return invalid()
 	}
-	path, err := substitutePath(operation["path"].(string), map[string]any{"record_id": update.RecordID})
+	path, err := substitutePath(operation["path"].(string), map[string]any{sinkbinding.RecordIDParam: update.RecordID})
 	if err != nil {
 		return invalid()
 	}
