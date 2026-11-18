@@ -72,7 +72,10 @@ before build and after publication approval. It runs release tooling from the
 reviewed workflow checkout and builds from a separate checkout of the admitted
 source. The approval digest binds the CI admission receipt to the candidate.
 The signing certificate identifies the workflow revision, and the signed
-provenance identifies the candidate source revision.
+provenance identifies the candidate source revision. Its main-ref dependency
+records the workflow commit. When the candidate differs, the signed release
+parameters also record its exact commit in `source_sha`. Verification checks
+both values against the release identity.
 
 Candidate builds select the version when their job starts. Already-published
 or `release:none` changes can skip the build. Publication shares a queue with

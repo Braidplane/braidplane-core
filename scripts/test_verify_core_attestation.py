@@ -84,14 +84,14 @@ class VerifyAttestationTest(unittest.TestCase):
                                                                      "path": ".github/workflows/release.yml", "ref": "refs/heads/main"}},
                                 "internalParameters": {"github": {"event_name": "workflow_dispatch", "repository_id": "456",
                                                                   "repository_owner_id": "789", "runner_environment": "github-hosted"},
-                                                       "release": {"version": "v1.0.0", "platform": "linux/amd64"}},
+                                                       "release": {"version": "v1.0.0", "platform": "linux/amd64", "source_sha": "b" * 40}},
                                 "resolvedDependencies": [{"uri": "git+https://github.com/Example/core@refs/heads/main",
-                                                          "digest": {"gitCommit": "b" * 40}}]},
+                                                          "digest": {"gitCommit": "c" * 40}}]},
             "runDetails": {"builder": {"id": url + "@refs/heads/main"},
                            "metadata": {"invocationId": "https://github.com/Example/core/actions/runs/123/attempts/1"}}}
         with patch("scripts.verify_core_attestation.subprocess.check_output", return_value=json.dumps(value).encode()):
             verify(*ARGS[:8], PROVENANCE, *ARGS[9:])
-        for field, bad in (("version", "v2.0.0"), ("platform", "linux/arm64")):
+        for field, bad in (("version", "v2.0.0"), ("platform", "linux/arm64"), ("source_sha", "c" * 40)):
             changed = copy.deepcopy(value)
             changed[0]["verificationResult"]["statement"]["predicate"]["buildDefinition"]["internalParameters"]["release"][field] = bad
             with self.subTest(field=field), patch("scripts.verify_core_attestation.subprocess.check_output", return_value=json.dumps(changed).encode()):

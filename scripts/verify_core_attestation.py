@@ -60,15 +60,18 @@ def verify(subject, digest, repository, workflow, source_sha, signer_sha, run_id
                 definition = claim["buildDefinition"]
                 details = claim["runDetails"]
                 github = definition["internalParameters"]["github"]
+                release_parameters = {"version": version, "platform": platform}
+                if source_sha != signer_sha:
+                    release_parameters["source_sha"] = source_sha
                 if (definition["buildType"] != "https://actions.github.io/buildtypes/workflow/v1" or
                         definition["externalParameters"] != {"workflow": {"repository": "https://github.com/" + repository,
                                                                           "path": workflow, "ref": "refs/heads/main"}} or
-                        definition["internalParameters"]["release"] != {"version": version, "platform": platform} or
+                        definition["internalParameters"]["release"] != release_parameters or
                         github["event_name"] != "workflow_dispatch" or github["runner_environment"] != "github-hosted" or
                         not re.fullmatch(r"[1-9][0-9]*", github["repository_id"]) or
                         not re.fullmatch(r"[1-9][0-9]*", github["repository_owner_id"]) or
                         definition["resolvedDependencies"] != [{"uri": f"git+https://github.com/{repository}@refs/heads/main",
-                                                                "digest": {"gitCommit": source_sha}}] or
+                                                                "digest": {"gitCommit": signer_sha}}] or
                         details["builder"]["id"] != workflow_url + "@refs/heads/main" or
                         details["metadata"]["invocationId"] != invocation):
                     continue

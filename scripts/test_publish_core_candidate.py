@@ -55,7 +55,9 @@ class PublishCoreCandidateTest(ValidateCoreCandidateTest):
             self.assertNotIn(":", command[-1])
         entries = [json.loads(line) for line in (self.output / "publication.jsonl").read_text().splitlines()]
         self.assertEqual([entry["status"] for entry in entries], ["attempted", "verified"] * 4)
-        self.assertEqual(json.loads((self.output / "provenance.json").read_text())["buildDefinition"]["resolvedDependencies"][0]["digest"]["gitCommit"], "a" * 40)
+        definition = json.loads((self.output / "provenance.json").read_text())["buildDefinition"]
+        self.assertEqual(definition["resolvedDependencies"][0]["digest"]["gitCommit"], "b" * 40)
+        self.assertEqual(definition["internalParameters"]["release"]["source_sha"], "a" * 40)
         self.assertFalse(Path(calls[0][1]["env"]["DOCKER_CONFIG"]).exists())
 
     def test_publication_rejects_a_different_ci_receipt_before_registry_writes(self):
