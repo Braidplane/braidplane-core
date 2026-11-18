@@ -67098,11 +67098,25 @@ type UpsertRuntimeVariableDefinitionResponse struct {
 	HTTPResponse *http.Response
 	// JSON200 the response for an HTTP 200 `application/json` response
 	JSON200 *RuntimeVariableDefinition
+	// JSON400 the response for an HTTP 400 `application/json` response
+	JSON400 *ErrorResponse
+	// JSON409 the response for an HTTP 409 `application/json` response
+	JSON409 *ErrorResponse
 }
 
 // GetJSON200 returns the response for an HTTP 200 `application/json` response
 func (r UpsertRuntimeVariableDefinitionResponse) GetJSON200() *RuntimeVariableDefinition {
 	return r.JSON200
+}
+
+// GetJSON400 returns the response for an HTTP 400 `application/json` response
+func (r UpsertRuntimeVariableDefinitionResponse) GetJSON400() *ErrorResponse {
+	return r.JSON400
+}
+
+// GetJSON409 returns the response for an HTTP 409 `application/json` response
+func (r UpsertRuntimeVariableDefinitionResponse) GetJSON409() *ErrorResponse {
+	return r.JSON409
 }
 
 // GetBody returns the raw response body bytes
@@ -82813,6 +82827,20 @@ func ParseUpsertRuntimeVariableDefinitionResponse(rsp *http.Response) (*UpsertRu
 			return nil, err
 		}
 		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 400:
+		var dest ErrorResponse
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON400 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 409:
+		var dest ErrorResponse
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON409 = &dest
 
 	}
 

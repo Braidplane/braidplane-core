@@ -25934,6 +25934,40 @@ func (q *Queries) LockRuntimeVariableOrganization(ctx context.Context, orgSlug s
 	return slug, err
 }
 
+const lockRuntimeVariableProtectedEnvironments = `-- name: LockRuntimeVariableProtectedEnvironments :many
+SELECT e.slug, e.protected
+FROM environments e
+JOIN organizations o ON o.id = e.organization_id
+WHERE o.slug = $1 AND e.deleted_at IS NULL
+ORDER BY e.slug
+FOR SHARE OF e
+`
+
+type LockRuntimeVariableProtectedEnvironmentsRow struct {
+	Slug      slug.Slug
+	Protected bool
+}
+
+func (q *Queries) LockRuntimeVariableProtectedEnvironments(ctx context.Context, orgSlug slug.Slug) ([]LockRuntimeVariableProtectedEnvironmentsRow, error) {
+	rows, err := q.db.Query(ctx, lockRuntimeVariableProtectedEnvironments, orgSlug)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []LockRuntimeVariableProtectedEnvironmentsRow
+	for rows.Next() {
+		var i LockRuntimeVariableProtectedEnvironmentsRow
+		if err := rows.Scan(&i.Slug, &i.Protected); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const lockSnowflakeWIFConnection = `-- name: LockSnowflakeWIFConnection :one
 
 SELECT ds.id

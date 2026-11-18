@@ -2416,6 +2416,18 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/RuntimeVariableDefinition'
+        '400':
+          description: Invalid definition or missing protected environment confirmation
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          description: A definition with this key already exists and create_only was requested
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
     delete:
       summary: Delete an organization runtime variable definition
       description: Existing environment overrides for this key are preserved.

@@ -3,6 +3,7 @@ package environmentssvc
 import (
 	"context"
 	"slices"
+	"strings"
 	"unicode/utf8"
 
 	"github.com/Braidplane/braidplane-core/pkg/domain/model"
@@ -40,10 +41,6 @@ func (s *service) UpsertRuntimeVariableDefinition(ctx context.Context, orgSlug s
 	}
 	return postgres.InTx(ctx, s.txm, func(ctx context.Context, tx postgres.DBTX) (*model.RuntimeVariableDefinition, error) {
 		if err := s.confirmRuntimeVariableDefinitionChange(ctx, tx, orgSlug, confirmations); err != nil {
-			return nil, err
-		}
-		// Serialize definition and override type checks for this organization.
-		if err := s.environments.LockRuntimeVariableOrganization(ctx, tx, orgSlug); err != nil {
 			return nil, err
 		}
 		if definition.CreateOnly {
@@ -98,7 +95,11 @@ func (s *service) recordRuntimeVariableDefinitionEvent(ctx context.Context, tx p
 }
 
 func (s *service) confirmRuntimeVariableDefinitionChange(ctx context.Context, tx postgres.DBTX, orgSlug slug.Slug, confirmations []slug.Slug) error {
-	environments, err := s.environments.ListRuntimeVariableComparisonEnvironments(ctx, tx, orgSlug)
+	// Lock the organization before checking override types or environment protection.
+	if err := s.environments.LockRuntimeVariableOrganization(ctx, tx, orgSlug); err != nil {
+		return err
+	}
+	environments, err := s.environments.LockRuntimeVariableProtectedEnvironments(ctx, tx, orgSlug)
 	if err != nil {
 		return err
 	}
@@ -119,6 +120,9 @@ func validateRuntimeVariableDefinition(definition model.RuntimeVariableDefinitio
 	if len(definition.Key) > 100 {
 		return ErrInvalidRuntimeVariable.Detail("runtime variable key must be at most 100 characters")
 	}
+	if definition.Description != nil && strings.ContainsRune(*definition.Description, 0) {
+		return ErrInvalidRuntimeVariable.Detail("runtime variable description cannot contain a NUL character")
+	}
 	if definition.Description != nil && utf8.RuneCountInString(*definition.Description) > 2000 {
 		return ErrInvalidRuntimeVariable.Detail("runtime variable description must be at most 2000 characters")
 	}
@@ -127,6 +131,9 @@ func validateRuntimeVariableDefinition(definition model.RuntimeVariableDefinitio
 	}
 	if definition.DefaultValue == nil {
 		return nil
+	}
+	if strings.ContainsRune(*definition.DefaultValue, 0) {
+		return ErrInvalidRuntimeVariable.Detail("runtime variable default cannot contain a NUL character")
 	}
 	if utf8.RuneCountInString(*definition.DefaultValue) > 4000 {
 		return ErrInvalidRuntimeVariable.Detail("runtime variable default must be at most 4000 characters")

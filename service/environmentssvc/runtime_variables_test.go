@@ -234,6 +234,7 @@ func TestValidateRuntimeVariableDefinition(t *testing.T) {
 		{"integer", "batch_size", model.RuntimeVariableValueTypeInteger, new("100"), true},
 		{"wrong integer", "batch_size", model.RuntimeVariableValueTypeInteger, new("large"), false},
 		{"no default", "batch_size", model.RuntimeVariableValueTypeInteger, nil, true},
+		{"NUL default", "prefix", model.RuntimeVariableValueTypeText, new("\x00"), false},
 		{"empty text default", "prefix", model.RuntimeVariableValueTypeText, new(""), true},
 		{"invalid date", "start_date", model.RuntimeVariableValueTypeDate, new("2026-02-29"), false},
 		{"invalid uuid", "region_id", model.RuntimeVariableValueTypeUUID, new("invalid"), false},

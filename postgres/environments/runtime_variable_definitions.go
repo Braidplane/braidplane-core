@@ -11,6 +11,18 @@ import (
 	"github.com/Braidplane/braidplane-core/postgres/dbgen"
 )
 
+func (r *repository) LockRuntimeVariableProtectedEnvironments(ctx context.Context, tx postgres.DBTX, orgSlug slug.Slug) ([]RuntimeVariableComparisonEnvironment, error) {
+	rows, err := dbgen.New(tx).LockRuntimeVariableProtectedEnvironments(ctx, orgSlug)
+	if err != nil {
+		return nil, xerror.Unexpected().With(err)
+	}
+	result := make([]RuntimeVariableComparisonEnvironment, len(rows))
+	for i, row := range rows {
+		result[i] = RuntimeVariableComparisonEnvironment{Slug: row.Slug, Protected: row.Protected}
+	}
+	return result, nil
+}
+
 func (r *repository) LockRuntimeVariableOrganization(ctx context.Context, tx postgres.DBTX, orgSlug slug.Slug) error {
 	_, err := dbgen.New(tx).LockRuntimeVariableOrganization(ctx, orgSlug)
 	if xerror.Is(err, sql.ErrNoRows) {

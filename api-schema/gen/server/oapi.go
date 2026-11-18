@@ -49935,6 +49935,24 @@ func (response UpsertRuntimeVariableDefinition200JSONResponse) VisitUpsertRuntim
 	return ctx.JSON(&response)
 }
 
+type UpsertRuntimeVariableDefinition400JSONResponse ErrorResponse
+
+func (response UpsertRuntimeVariableDefinition400JSONResponse) VisitUpsertRuntimeVariableDefinitionResponse(ctx fiber.Ctx) error {
+	ctx.Response().Header.Set("Content-Type", "application/json")
+	ctx.Status(400)
+
+	return ctx.JSON(&response)
+}
+
+type UpsertRuntimeVariableDefinition409JSONResponse ErrorResponse
+
+func (response UpsertRuntimeVariableDefinition409JSONResponse) VisitUpsertRuntimeVariableDefinitionResponse(ctx fiber.Ctx) error {
+	ctx.Response().Header.Set("Content-Type", "application/json")
+	ctx.Status(409)
+
+	return ctx.JSON(&response)
+}
+
 type ListSecurityAuditEventsRequestObject struct {
 	Slug   SlugParam `json:"slug"`
 	Params ListSecurityAuditEventsParams

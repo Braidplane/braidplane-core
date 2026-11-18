@@ -13593,3 +13593,11 @@ WHERE o.slug = sqlc.arg('org_slug') AND d.key = sqlc.arg('variable_key');
 SELECT o.slug FROM organizations o
 WHERE o.slug = sqlc.arg('org_slug')
 FOR NO KEY UPDATE OF o;
+
+-- name: LockRuntimeVariableProtectedEnvironments :many
+SELECT e.slug, e.protected
+FROM environments e
+JOIN organizations o ON o.id = e.organization_id
+WHERE o.slug = sqlc.arg('org_slug') AND e.deleted_at IS NULL
+ORDER BY e.slug
+FOR SHARE OF e;
