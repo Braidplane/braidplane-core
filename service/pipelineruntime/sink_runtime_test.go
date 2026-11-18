@@ -787,12 +787,12 @@ func TestSinkRuntime_ExecuteHubSpotSinkBindsRowsAndAcceptsUpsertResult(t *testin
 }
 
 func TestSinkRuntime_HubSpotCompanyPartialUpsert(t *testing.T) {
-	state := map[string]string{"name": "old", "phone": "keep", "city": "keep", "domain": "keep", "industry": "keep", "notes": "old"}
+	state := map[string]string{"name": "old", "phone": "keep", "city": "keep", "domain": "keep", "industry": "keep", "region": "keep", "notes": "old"}
 	var bodies []string
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.Method + " " + r.URL.Path {
 		case "GET /crm/properties/2026-03/companies":
-			fmt.Fprint(w, `{"results":[{"name":"key","hasUniqueValue":true},{"name":"name"},{"name":"phone"},{"name":"city"},{"name":"domain"},{"name":"notes"},{"name":"day","type":"date"},{"name":"instant","type":"datetime"}]}`)
+			fmt.Fprint(w, `{"results":[{"name":"key","hasUniqueValue":true},{"name":"name"},{"name":"phone"},{"name":"city"},{"name":"domain"},{"name":"notes"},{"name":"region"},{"name":"day","type":"date"},{"name":"instant","type":"datetime"}]}`)
 		case "POST /crm/objects/2026-03/companies/batch/upsert":
 			body, err := io.ReadAll(r.Body)
 			bodies = append(bodies, string(body))
@@ -822,7 +822,7 @@ func TestSinkRuntime_HubSpotCompanyPartialUpsert(t *testing.T) {
 	conn, err := hubspot.New(transportsecurity.WithPlaintext(t.Context()), crm.Config{BaseURL: server.URL, AllowPrivateHosts: true}, hubspot.Credentials{PrivateAppToken: "synthetic-token"})
 	require.NoError(t, err)
 	defer conn.Close()
-	const operation = `{"type":"hubspot","object_type":"companies","operation":"upsert","id_property":"key","property_mapping":{"id":"key","label":"name","phone":"phone","city":"city","domain":"domain","notes":"notes","day":"day","instant":"instant"},"rows":"{{input}}"}`
+	const operation = `{"type":"hubspot","object_type":"companies","operation":"upsert","id_property":"key","property_mapping":{"id":"key","label":"name","phone":"phone","city":"city","domain":"domain","notes":"notes","region":"region","day":"day","instant":"instant"},"rows":"{{input}}"}`
 	runtime := NewSinkRuntime(&fakeSinkQueryExecutor{executeFn: func(ctx context.Context, _, _, _ slug.Slug, _ model.EventActor, params map[string]any, _ ...queriessvc.ExecuteOption) (*result.ExecutionResult, error) {
 		return conn.Execute(ctx, json.RawMessage(operation), map[string]types.TypedParam{"input": {Value: params[sinkbinding.Input]}})
 	}})
@@ -839,12 +839,12 @@ func TestSinkRuntime_HubSpotCompanyPartialUpsert(t *testing.T) {
 		})
 	}
 	instant := time.Date(2026, 1, 2, 3, 4, 5, 0, time.UTC)
-	row := map[string]any{"day": instant, "instant": instant, "id": "company-1", "label": "New name", "city": nil, "domain": "", "notes": map[string]any{"$clear": true}}
+	row := map[string]any{"day": instant, "instant": instant, "id": "company-1", "label": "New name", "city": nil, "domain": "", "region": " \t ", "notes": map[string]any{"$clear": true}}
 	for i := 1; i <= 2; i++ {
 		require.NoError(t, run(row))
 		require.Len(t, bodies, i)
 		require.JSONEq(t, `{"inputs":[{"id":"company-1","idProperty":"key","properties":{"day":"2026-01-02","instant":"2026-01-02T03:04:05Z","name":"New name","notes":""}}]}`, bodies[i-1])
-		require.Equal(t, map[string]string{"day": "2026-01-02", "instant": "2026-01-02T03:04:05Z", "name": "New name", "phone": "keep", "city": "keep", "domain": "keep", "industry": "keep"}, state)
+		require.Equal(t, map[string]string{"day": "2026-01-02", "instant": "2026-01-02T03:04:05Z", "name": "New name", "phone": "keep", "city": "keep", "domain": "keep", "industry": "keep", "region": "keep"}, state)
 	}
 	for _, invalid := range []map[string]any{{}, {"id": nil}, {"id": ""}, {"id": "  "}, {"id": map[string]any{"$clear": true}}, {"id": "company-2", "label": []any{"private-value"}}, {"id": "company-2", "notes": map[string]any{"$clear": "private-value"}}} {
 		err := run(row, invalid)
