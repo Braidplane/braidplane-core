@@ -115,3 +115,21 @@ func TestLoadSelectedPipeline(t *testing.T) {
 		})
 	}
 }
+
+type pipelineWithoutVariables struct{ pipelinesvc.Service }
+
+func (pipelineWithoutVariables) Get(context.Context, slug.Slug, slug.Slug, slug.Slug, slug.Slug) (*pipelinesvc.PipelineDetail, error) {
+	return &pipelinesvc.PipelineDetail{Spec: &pipelinespec.Pipeline{Metadata: pipelinespec.Metadata{Slug: "selected"}}}, nil
+}
+
+type environmentsWithoutComparison struct{ loadEnvironments }
+
+func (e environmentsWithoutComparison) CompareRuntimeVariables(context.Context, slug.Slug, []string) (model.RuntimeVariableComparison, error) {
+	return model.RuntimeVariableComparison{}, xerror.Unexpected().Detail("unexpected comparison")
+}
+
+func TestLoadWithoutVariables(t *testing.T) {
+	report, err := Load(t.Context(), pipelineWithoutVariables{}, environmentsWithoutComparison{loadEnvironments{t: t}}, &loadRefs{t: t}, "tenant", "project", "selected")
+	require.NoError(t, err)
+	require.Equal(t, "ready", report.Status)
+}

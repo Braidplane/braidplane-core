@@ -2,6 +2,7 @@ package readinesssvc
 
 import (
 	"context"
+	"slices"
 
 	"github.com/Braidplane/braidplane-core/pkg/domain/model"
 	"github.com/Braidplane/braidplane-core/pkg/pipeline/runtime"
@@ -62,6 +63,11 @@ func Load(ctx context.Context, pipelines pipelinesvc.Service, environments envir
 	}
 	if err != nil {
 		return Report{}, err
+	}
+	if !slices.ContainsFunc(inputs, func(p PipelineInput) bool {
+		return len(runtime.ExtractRequirements(p.Spec).EnvironmentVariables) > 0
+	}) {
+		return Evaluate(inputs, envs), nil
 	}
 	comparison, err := environments.CompareRuntimeVariables(ctx, org, nil)
 	if err != nil {
