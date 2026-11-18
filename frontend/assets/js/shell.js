@@ -94,7 +94,10 @@
         }
         onboarding.hidden = true;
         const resume = document.querySelector("[data-dashboard-onboarding-resume]");
-        if (resume instanceof HTMLElement) resume.hidden = false;
+        if (resume instanceof HTMLElement) {
+            resume.hidden = false;
+            resume.querySelector("[data-dashboard-onboarding-show]")?.focus();
+        }
     }
 
     function braidplaneShowDashboardOnboarding() {
@@ -193,6 +196,24 @@
         return source.closest("[data-org-switcher]");
     }
 
+    document.addEventListener("focusout", (event) => {
+        const switcher = orgSwitcherFromEventSource(event.target);
+        if (!switcher || !(event.relatedTarget instanceof Node) || switcher.contains(event.relatedTarget)) return;
+        switcher.querySelector("[popover]:popover-open")?.hidePopover();
+    });
+
+    document.addEventListener("htmx:beforeSwap", (event) => {
+        const detail = event.detail;
+        if (
+            detail?.target?.id === "pipeline-git-workflow" &&
+            detail.xhr?.status === 403 &&
+            detail.xhr.getResponseHeader("X-Braidplane-Pipeline-Access-Denied") === "true"
+        ) {
+            detail.shouldSwap = true;
+            detail.isError = false;
+        }
+    });
+
     document.addEventListener("htmx:beforeRequest", (event) => {
         const switcher = orgSwitcherFromEventSource(event.detail?.elt || event.target);
         if (!(switcher instanceof HTMLElement)) {
@@ -215,9 +236,10 @@
      * @param {Event} event
      * @returns {undefined}
      */
-    function braidplaneHandleRuntimeSwitcherChange(event) {
-        var switcher = event.target;
-        if (!(switcher instanceof HTMLSelectElement) || !switcher.matches("[data-runtime-switcher]")) {
+    function braidplaneHandleRuntimeSwitch(event) {
+        var button = event.target instanceof Element ? event.target.closest("[data-runtime-switch]") : null;
+        var switcher = button?.closest("[data-runtime-target-control]")?.querySelector("[data-runtime-switcher]");
+        if (!(switcher instanceof HTMLSelectElement)) {
             return undefined;
         }
 
@@ -231,5 +253,5 @@
         return undefined;
     }
 
-    document.addEventListener("change", braidplaneHandleRuntimeSwitcherChange);
+    document.addEventListener("click", braidplaneHandleRuntimeSwitch);
 })();

@@ -10337,6 +10337,9 @@ type GitHubAppConnectionRepositorySelection string
 // GitHubAppExistingInstallationAuthorizationRequest defines model for GitHubAppExistingInstallationAuthorizationRequest.
 type GitHubAppExistingInstallationAuthorizationRequest struct {
 	AccountLogin string `json:"account_login"`
+
+	// MoreTime Allow 100 minutes for the Core callback instead of 10.
+	MoreTime *bool `json:"more_time,omitempty"`
 }
 
 // GitHubAppInstallStart defines model for GitHubAppInstallStart.
@@ -18061,11 +18064,17 @@ type StartProviderConnectorInstallRequest struct {
 	//
 	// Example: create_grant
 	Intent ProviderInstallIntent `json:"intent"`
+
+	// MoreTime Allow 100 minutes for the Core callback instead of 10. The provider controls its own authorization deadlines.
+	MoreTime *bool `json:"more_time,omitempty"`
 }
 
 // StartProviderDataSourceInstallRequest Starts OAuth-first onboarding for a new provider-backed data source.
 type StartProviderDataSourceInstallRequest struct {
 	Config StartProviderDataSourceInstallRequest_Config `json:"config"`
+
+	// MoreTime Allow 100 minutes for the Core callback instead of 10. The provider controls its own authorization deadlines.
+	MoreTime *bool `json:"more_time,omitempty"`
 
 	// Name Human-readable display name
 	//
@@ -19172,10 +19181,22 @@ type UserSlugParam = Slug
 // Example: acme-corp
 type ValidationSlugParam = Slug
 
+// InitiateGoogleAuthParams defines parameters for InitiateGoogleAuth.
+type InitiateGoogleAuthParams struct {
+	// MoreTime Allow 100 minutes instead of 10 for a new Google authorization to return to Core.
+	MoreTime *bool `form:"more_time,omitempty" json:"more_time,omitempty"`
+}
+
 // RegisterGoogleAccountFormdataBody defines parameters for RegisterGoogleAccount.
 type RegisterGoogleAccountFormdataBody struct {
 	// UnderscoreCsrf Browser form CSRF token. Required when completing a pending signup.
 	UnderscoreCsrf *string `form:"_csrf,omitempty" json:"_csrf,omitempty"`
+}
+
+// RegisterGoogleAccountParams defines parameters for RegisterGoogleAccount.
+type RegisterGoogleAccountParams struct {
+	// MoreTime Allow 100 minutes instead of 10 for a new Google authorization to return to Core.
+	MoreTime *bool `form:"more_time,omitempty" json:"more_time,omitempty"`
 }
 
 // HandleGoogleCallbackParams defines parameters for HandleGoogleCallback.
@@ -19406,6 +19427,12 @@ type ListGoogleWorkspaceFilesParams struct {
 	PageToken *string `form:"page_token,omitempty" json:"page_token,omitempty"`
 }
 
+// ConnectDataSourceHTTPOAuthParams defines parameters for ConnectDataSourceHTTPOAuth.
+type ConnectDataSourceHTTPOAuthParams struct {
+	// MoreTime Allow 100 minutes for the Core callback instead of 10.
+	MoreTime *bool `form:"more_time,omitempty" json:"more_time,omitempty"`
+}
+
 // RotateDataSourceProviderGrantParams defines parameters for RotateDataSourceProviderGrant.
 type RotateDataSourceProviderGrantParams struct {
 	// AccessMode Workspace file access mode. Defaults to selected_files. Other providers reject this parameter.
@@ -19604,10 +19631,19 @@ type ListEventsParamsOrder string
 // ListEventsParamsDirection defines parameters for ListEvents.
 type ListEventsParamsDirection string
 
+// StartOrganizationGitHubAppInstallParams defines parameters for StartOrganizationGitHubAppInstall.
+type StartOrganizationGitHubAppInstallParams struct {
+	// MoreTime Allow 100 minutes for the Core callback instead of 10.
+	MoreTime *bool `form:"more_time,omitempty" json:"more_time,omitempty"`
+}
+
 // StartOrganizationGitLabAuthorizationJSONBody defines parameters for StartOrganizationGitLabAuthorization.
 type StartOrganizationGitLabAuthorizationJSONBody struct {
 	// IncludeWriteScopes Explicitly authorize Git writes; data-source read-only restrictions still apply.
 	IncludeWriteScopes bool `json:"include_write_scopes"`
+
+	// MoreTime Allow 100 minutes for the Core callback instead of 10.
+	MoreTime *bool `json:"more_time,omitempty"`
 }
 
 // ListMemberInvitationsParams defines parameters for ListMemberInvitations.
@@ -20059,6 +20095,12 @@ type DeleteDataSourceBindingParams struct {
 type CompilePipelineVersionParams struct {
 	// EnvironmentSlug Environment whose bindings select saved-operation definitions for this explicit compilation. Required when the retained version references saved operations. Captured operation content remains portable; deployment resolves its own targets.
 	EnvironmentSlug *Slug `form:"environment_slug,omitempty" json:"environment_slug,omitempty"`
+}
+
+// CreateProjectRepositoryParams defines parameters for CreateProjectRepository.
+type CreateProjectRepositoryParams struct {
+	// MoreTime Allow 100 minutes for the Core callback instead of 10 if provider authorization is required. May change when retrying the same saved setup.
+	MoreTime *bool `form:"more_time,omitempty" json:"more_time,omitempty"`
 }
 
 // ListRolesParams defines parameters for ListRoles.
@@ -27983,7 +28025,7 @@ type ClientInterface interface {
 	// After the user authenticates with Google, they will be redirected back to the backend callback endpoint.
 	//
 	// Corresponds with GET /auth/google (the `InitiateGoogleAuth` operationId).
-	InitiateGoogleAuth(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
+	InitiateGoogleAuth(ctx context.Context, params *InitiateGoogleAuthParams, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// RegisterGoogleAccountWithBody Start or complete Google account registration
 	//
@@ -27992,7 +28034,7 @@ type ClientInterface interface {
 	// Takes any type of body and a specified content type.
 	//
 	// Corresponds with POST /auth/google (the `RegisterGoogleAccount` operationId).
-	RegisterGoogleAccountWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+	RegisterGoogleAccountWithBody(ctx context.Context, params *RegisterGoogleAccountParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// RegisterGoogleAccountWithFormdataBody Start or complete Google account registration
 	//
@@ -28001,7 +28043,7 @@ type ClientInterface interface {
 	// Takes a body of the `application/x-www-form-urlencoded` content type.
 	//
 	// Corresponds with POST /auth/google (the `RegisterGoogleAccount` operationId).
-	RegisterGoogleAccountWithFormdataBody(ctx context.Context, body RegisterGoogleAccountFormdataRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+	RegisterGoogleAccountWithFormdataBody(ctx context.Context, params *RegisterGoogleAccountParams, body RegisterGoogleAccountFormdataRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// HandleGoogleCallback Handle Google OAuth callback
 	//
@@ -28549,7 +28591,7 @@ type ClientInterface interface {
 	// Uses the encrypted app settings saved on this source. Authorization-code apps return a single-use consent URL. Client-credentials apps acquire a token and test the destination before returning. No stored app settings or token material are returned.
 	//
 	// Corresponds with POST /organizations/{slug}/data-sources/{ds_slug}/http-oauth/connect (the `ConnectDataSourceHTTPOAuth` operationId).
-	ConnectDataSourceHTTPOAuth(ctx context.Context, slug SlugParam, dsSlug DataSourceSlugParam, reqEditors ...RequestEditorFn) (*http.Response, error)
+	ConnectDataSourceHTTPOAuth(ctx context.Context, slug SlugParam, dsSlug DataSourceSlugParam, params *ConnectDataSourceHTTPOAuthParams, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// GetDataSourceProofConfiguration Get a data source's Proof settings and available assessment targets
 	//
@@ -28933,7 +28975,7 @@ type ClientInterface interface {
 	// StartOrganizationGitHubAppInstall Start managed GitHub App installation
 	//
 	// Corresponds with POST /organizations/{slug}/github-app-connection/install (the `StartOrganizationGitHubAppInstall` operationId).
-	StartOrganizationGitHubAppInstall(ctx context.Context, slug SlugParam, reqEditors ...RequestEditorFn) (*http.Response, error)
+	StartOrganizationGitHubAppInstall(ctx context.Context, slug SlugParam, params *StartOrganizationGitHubAppInstallParams, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// DisconnectOrganizationGitLabConnection Revoke the shared GitLab connection for all attached data sources
 	//
@@ -30114,7 +30156,7 @@ type ClientInterface interface {
 	// Takes any type of body and a specified content type.
 	//
 	// Corresponds with POST /organizations/{slug}/projects/{project_slug}/repository-setup (the `CreateProjectRepository` operationId).
-	CreateProjectRepositoryWithBody(ctx context.Context, slug SlugParam, projectSlug ProjectSlugParam, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+	CreateProjectRepositoryWithBody(ctx context.Context, slug SlugParam, projectSlug ProjectSlugParam, params *CreateProjectRepositoryParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// CreateProjectRepository Create and attach a private pipeline repository
 	//
@@ -30130,7 +30172,7 @@ type ClientInterface interface {
 	// Takes a body of the `application/json` content type.
 	//
 	// Corresponds with POST /organizations/{slug}/projects/{project_slug}/repository-setup (the `CreateProjectRepository` operationId).
-	CreateProjectRepository(ctx context.Context, slug SlugParam, projectSlug ProjectSlugParam, body CreateProjectRepositoryJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+	CreateProjectRepository(ctx context.Context, slug SlugParam, projectSlug ProjectSlugParam, params *CreateProjectRepositoryParams, body CreateProjectRepositoryJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// AbandonProjectRepositorySetupWithBody Keep existing resources and choose a new repository target
 	//
@@ -30650,8 +30692,8 @@ func (c *Client) VerifyEmail(ctx context.Context, body VerifyEmailJSONRequestBod
 // After the user authenticates with Google, they will be redirected back to the backend callback endpoint.
 //
 // Corresponds with GET /auth/google (the `InitiateGoogleAuth` operationId).
-func (c *Client) InitiateGoogleAuth(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error) {
-	req, err := NewInitiateGoogleAuthRequest(c.Server)
+func (c *Client) InitiateGoogleAuth(ctx context.Context, params *InitiateGoogleAuthParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewInitiateGoogleAuthRequest(c.Server, params)
 	if err != nil {
 		return nil, err
 	}
@@ -30669,8 +30711,8 @@ func (c *Client) InitiateGoogleAuth(ctx context.Context, reqEditors ...RequestEd
 // Takes any type of body and a specified content type.
 //
 // Corresponds with POST /auth/google (the `RegisterGoogleAccount` operationId).
-func (c *Client) RegisterGoogleAccountWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
-	req, err := NewRegisterGoogleAccountRequestWithBody(c.Server, contentType, body)
+func (c *Client) RegisterGoogleAccountWithBody(ctx context.Context, params *RegisterGoogleAccountParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewRegisterGoogleAccountRequestWithBody(c.Server, params, contentType, body)
 	if err != nil {
 		return nil, err
 	}
@@ -30688,8 +30730,8 @@ func (c *Client) RegisterGoogleAccountWithBody(ctx context.Context, contentType 
 // Takes a body of the `application/x-www-form-urlencoded` content type.
 //
 // Corresponds with POST /auth/google (the `RegisterGoogleAccount` operationId).
-func (c *Client) RegisterGoogleAccountWithFormdataBody(ctx context.Context, body RegisterGoogleAccountFormdataRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
-	req, err := NewRegisterGoogleAccountRequestWithFormdataBody(c.Server, body)
+func (c *Client) RegisterGoogleAccountWithFormdataBody(ctx context.Context, params *RegisterGoogleAccountParams, body RegisterGoogleAccountFormdataRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewRegisterGoogleAccountRequestWithFormdataBody(c.Server, params, body)
 	if err != nil {
 		return nil, err
 	}
@@ -31916,8 +31958,8 @@ func (c *Client) GetGoogleWorkspaceWorksheets(ctx context.Context, slug SlugPara
 // Uses the encrypted app settings saved on this source. Authorization-code apps return a single-use consent URL. Client-credentials apps acquire a token and test the destination before returning. No stored app settings or token material are returned.
 //
 // Corresponds with POST /organizations/{slug}/data-sources/{ds_slug}/http-oauth/connect (the `ConnectDataSourceHTTPOAuth` operationId).
-func (c *Client) ConnectDataSourceHTTPOAuth(ctx context.Context, slug SlugParam, dsSlug DataSourceSlugParam, reqEditors ...RequestEditorFn) (*http.Response, error) {
-	req, err := NewConnectDataSourceHTTPOAuthRequest(c.Server, slug, dsSlug)
+func (c *Client) ConnectDataSourceHTTPOAuth(ctx context.Context, slug SlugParam, dsSlug DataSourceSlugParam, params *ConnectDataSourceHTTPOAuthParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewConnectDataSourceHTTPOAuthRequest(c.Server, slug, dsSlug, params)
 	if err != nil {
 		return nil, err
 	}
@@ -32800,8 +32842,8 @@ func (c *Client) AuthorizeOrganizationGitHubAppConnection(ctx context.Context, s
 // StartOrganizationGitHubAppInstall Start managed GitHub App installation
 //
 // Corresponds with POST /organizations/{slug}/github-app-connection/install (the `StartOrganizationGitHubAppInstall` operationId).
-func (c *Client) StartOrganizationGitHubAppInstall(ctx context.Context, slug SlugParam, reqEditors ...RequestEditorFn) (*http.Response, error) {
-	req, err := NewStartOrganizationGitHubAppInstallRequest(c.Server, slug)
+func (c *Client) StartOrganizationGitHubAppInstall(ctx context.Context, slug SlugParam, params *StartOrganizationGitHubAppInstallParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewStartOrganizationGitHubAppInstallRequest(c.Server, slug, params)
 	if err != nil {
 		return nil, err
 	}
@@ -35461,8 +35503,8 @@ func (c *Client) GetProjectRepositorySetup(ctx context.Context, slug SlugParam, 
 // Takes any type of body and a specified content type.
 //
 // Corresponds with POST /organizations/{slug}/projects/{project_slug}/repository-setup (the `CreateProjectRepository` operationId).
-func (c *Client) CreateProjectRepositoryWithBody(ctx context.Context, slug SlugParam, projectSlug ProjectSlugParam, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
-	req, err := NewCreateProjectRepositoryRequestWithBody(c.Server, slug, projectSlug, contentType, body)
+func (c *Client) CreateProjectRepositoryWithBody(ctx context.Context, slug SlugParam, projectSlug ProjectSlugParam, params *CreateProjectRepositoryParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewCreateProjectRepositoryRequestWithBody(c.Server, slug, projectSlug, params, contentType, body)
 	if err != nil {
 		return nil, err
 	}
@@ -35487,8 +35529,8 @@ func (c *Client) CreateProjectRepositoryWithBody(ctx context.Context, slug SlugP
 // Takes a body of the `application/json` content type.
 //
 // Corresponds with POST /organizations/{slug}/projects/{project_slug}/repository-setup (the `CreateProjectRepository` operationId).
-func (c *Client) CreateProjectRepository(ctx context.Context, slug SlugParam, projectSlug ProjectSlugParam, body CreateProjectRepositoryJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
-	req, err := NewCreateProjectRepositoryRequest(c.Server, slug, projectSlug, body)
+func (c *Client) CreateProjectRepository(ctx context.Context, slug SlugParam, projectSlug ProjectSlugParam, params *CreateProjectRepositoryParams, body CreateProjectRepositoryJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewCreateProjectRepositoryRequest(c.Server, slug, projectSlug, params, body)
 	if err != nil {
 		return nil, err
 	}
@@ -36541,7 +36583,7 @@ func NewVerifyEmailRequestWithBody(server string, contentType string, body io.Re
 }
 
 // NewInitiateGoogleAuthRequest constructs an http.Request for the InitiateGoogleAuth method
-func NewInitiateGoogleAuthRequest(server string) (*http.Request, error) {
+func NewInitiateGoogleAuthRequest(server string, params *InitiateGoogleAuthParams) (*http.Request, error) {
 	var err error
 
 	serverURL, err := url.Parse(server)
@@ -36557,6 +36599,33 @@ func NewInitiateGoogleAuthRequest(server string) (*http.Request, error) {
 	queryURL, err := serverURL.Parse(operationPath)
 	if err != nil {
 		return nil, err
+	}
+
+	if params != nil {
+		// queryValues collects non-styled parameters (passthrough, JSON)
+		// that are safe to round-trip through url.Values.Encode().
+		queryValues := queryURL.Query()
+		// rawQueryFragments collects pre-encoded query fragments from
+		// styled parameters, preserving literal commas as delimiters
+		// per the OpenAPI spec (e.g. "color=blue,black,brown").
+		var rawQueryFragments []string
+
+		if params.MoreTime != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "more_time", *params.MoreTime, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "boolean", Format: ""}); err != nil {
+				return nil, err
+			} else {
+				for _, qp := range strings.Split(queryFrag, "&") {
+					rawQueryFragments = append(rawQueryFragments, qp)
+				}
+			}
+
+		}
+
+		if encoded := queryValues.Encode(); encoded != "" {
+			rawQueryFragments = append(rawQueryFragments, encoded)
+		}
+		queryURL.RawQuery = strings.Join(rawQueryFragments, "&")
 	}
 
 	req, err := http.NewRequest(http.MethodGet, queryURL.String(), nil)
@@ -36568,18 +36637,18 @@ func NewInitiateGoogleAuthRequest(server string) (*http.Request, error) {
 }
 
 // NewRegisterGoogleAccountRequestWithFormdataBody calls the generic RegisterGoogleAccount builder with application/x-www-form-urlencoded body
-func NewRegisterGoogleAccountRequestWithFormdataBody(server string, body RegisterGoogleAccountFormdataRequestBody) (*http.Request, error) {
+func NewRegisterGoogleAccountRequestWithFormdataBody(server string, params *RegisterGoogleAccountParams, body RegisterGoogleAccountFormdataRequestBody) (*http.Request, error) {
 	var bodyReader io.Reader
 	bodyStr, err := runtime.MarshalForm(body, nil)
 	if err != nil {
 		return nil, err
 	}
 	bodyReader = strings.NewReader(bodyStr.Encode())
-	return NewRegisterGoogleAccountRequestWithBody(server, "application/x-www-form-urlencoded", bodyReader)
+	return NewRegisterGoogleAccountRequestWithBody(server, params, "application/x-www-form-urlencoded", bodyReader)
 }
 
 // NewRegisterGoogleAccountRequestWithBody constructs an http.Request for the RegisterGoogleAccount method, with any body, and a specified content type
-func NewRegisterGoogleAccountRequestWithBody(server string, contentType string, body io.Reader) (*http.Request, error) {
+func NewRegisterGoogleAccountRequestWithBody(server string, params *RegisterGoogleAccountParams, contentType string, body io.Reader) (*http.Request, error) {
 	var err error
 
 	serverURL, err := url.Parse(server)
@@ -36595,6 +36664,33 @@ func NewRegisterGoogleAccountRequestWithBody(server string, contentType string, 
 	queryURL, err := serverURL.Parse(operationPath)
 	if err != nil {
 		return nil, err
+	}
+
+	if params != nil {
+		// queryValues collects non-styled parameters (passthrough, JSON)
+		// that are safe to round-trip through url.Values.Encode().
+		queryValues := queryURL.Query()
+		// rawQueryFragments collects pre-encoded query fragments from
+		// styled parameters, preserving literal commas as delimiters
+		// per the OpenAPI spec (e.g. "color=blue,black,brown").
+		var rawQueryFragments []string
+
+		if params.MoreTime != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "more_time", *params.MoreTime, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "boolean", Format: ""}); err != nil {
+				return nil, err
+			} else {
+				for _, qp := range strings.Split(queryFrag, "&") {
+					rawQueryFragments = append(rawQueryFragments, qp)
+				}
+			}
+
+		}
+
+		if encoded := queryValues.Encode(); encoded != "" {
+			rawQueryFragments = append(rawQueryFragments, encoded)
+		}
+		queryURL.RawQuery = strings.Join(rawQueryFragments, "&")
 	}
 
 	req, err := http.NewRequest(http.MethodPost, queryURL.String(), body)
@@ -39364,7 +39460,7 @@ func NewGetGoogleWorkspaceWorksheetsRequest(server string, slug SlugParam, dsSlu
 }
 
 // NewConnectDataSourceHTTPOAuthRequest constructs an http.Request for the ConnectDataSourceHTTPOAuth method
-func NewConnectDataSourceHTTPOAuthRequest(server string, slug SlugParam, dsSlug DataSourceSlugParam) (*http.Request, error) {
+func NewConnectDataSourceHTTPOAuthRequest(server string, slug SlugParam, dsSlug DataSourceSlugParam, params *ConnectDataSourceHTTPOAuthParams) (*http.Request, error) {
 	var err error
 
 	var pathParam0 string
@@ -39394,6 +39490,33 @@ func NewConnectDataSourceHTTPOAuthRequest(server string, slug SlugParam, dsSlug 
 	queryURL, err := serverURL.Parse(operationPath)
 	if err != nil {
 		return nil, err
+	}
+
+	if params != nil {
+		// queryValues collects non-styled parameters (passthrough, JSON)
+		// that are safe to round-trip through url.Values.Encode().
+		queryValues := queryURL.Query()
+		// rawQueryFragments collects pre-encoded query fragments from
+		// styled parameters, preserving literal commas as delimiters
+		// per the OpenAPI spec (e.g. "color=blue,black,brown").
+		var rawQueryFragments []string
+
+		if params.MoreTime != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "more_time", *params.MoreTime, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "boolean", Format: ""}); err != nil {
+				return nil, err
+			} else {
+				for _, qp := range strings.Split(queryFrag, "&") {
+					rawQueryFragments = append(rawQueryFragments, qp)
+				}
+			}
+
+		}
+
+		if encoded := queryValues.Encode(); encoded != "" {
+			rawQueryFragments = append(rawQueryFragments, encoded)
+		}
+		queryURL.RawQuery = strings.Join(rawQueryFragments, "&")
 	}
 
 	req, err := http.NewRequest(http.MethodPost, queryURL.String(), nil)
@@ -41827,7 +41950,7 @@ func NewAuthorizeOrganizationGitHubAppConnectionRequestWithBody(server string, s
 }
 
 // NewStartOrganizationGitHubAppInstallRequest constructs an http.Request for the StartOrganizationGitHubAppInstall method
-func NewStartOrganizationGitHubAppInstallRequest(server string, slug SlugParam) (*http.Request, error) {
+func NewStartOrganizationGitHubAppInstallRequest(server string, slug SlugParam, params *StartOrganizationGitHubAppInstallParams) (*http.Request, error) {
 	var err error
 
 	var pathParam0 string
@@ -41850,6 +41973,33 @@ func NewStartOrganizationGitHubAppInstallRequest(server string, slug SlugParam) 
 	queryURL, err := serverURL.Parse(operationPath)
 	if err != nil {
 		return nil, err
+	}
+
+	if params != nil {
+		// queryValues collects non-styled parameters (passthrough, JSON)
+		// that are safe to round-trip through url.Values.Encode().
+		queryValues := queryURL.Query()
+		// rawQueryFragments collects pre-encoded query fragments from
+		// styled parameters, preserving literal commas as delimiters
+		// per the OpenAPI spec (e.g. "color=blue,black,brown").
+		var rawQueryFragments []string
+
+		if params.MoreTime != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "more_time", *params.MoreTime, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "boolean", Format: ""}); err != nil {
+				return nil, err
+			} else {
+				for _, qp := range strings.Split(queryFrag, "&") {
+					rawQueryFragments = append(rawQueryFragments, qp)
+				}
+			}
+
+		}
+
+		if encoded := queryValues.Encode(); encoded != "" {
+			rawQueryFragments = append(rawQueryFragments, encoded)
+		}
+		queryURL.RawQuery = strings.Join(rawQueryFragments, "&")
 	}
 
 	req, err := http.NewRequest(http.MethodPost, queryURL.String(), nil)
@@ -48994,18 +49144,18 @@ func NewGetProjectRepositorySetupRequest(server string, slug SlugParam, projectS
 }
 
 // NewCreateProjectRepositoryRequest calls the generic CreateProjectRepository builder with application/json body
-func NewCreateProjectRepositoryRequest(server string, slug SlugParam, projectSlug ProjectSlugParam, body CreateProjectRepositoryJSONRequestBody) (*http.Request, error) {
+func NewCreateProjectRepositoryRequest(server string, slug SlugParam, projectSlug ProjectSlugParam, params *CreateProjectRepositoryParams, body CreateProjectRepositoryJSONRequestBody) (*http.Request, error) {
 	var bodyReader io.Reader
 	buf, err := json.Marshal(body)
 	if err != nil {
 		return nil, err
 	}
 	bodyReader = bytes.NewReader(buf)
-	return NewCreateProjectRepositoryRequestWithBody(server, slug, projectSlug, "application/json", bodyReader)
+	return NewCreateProjectRepositoryRequestWithBody(server, slug, projectSlug, params, "application/json", bodyReader)
 }
 
 // NewCreateProjectRepositoryRequestWithBody constructs an http.Request for the CreateProjectRepository method, with any body, and a specified content type
-func NewCreateProjectRepositoryRequestWithBody(server string, slug SlugParam, projectSlug ProjectSlugParam, contentType string, body io.Reader) (*http.Request, error) {
+func NewCreateProjectRepositoryRequestWithBody(server string, slug SlugParam, projectSlug ProjectSlugParam, params *CreateProjectRepositoryParams, contentType string, body io.Reader) (*http.Request, error) {
 	var err error
 
 	var pathParam0 string
@@ -49035,6 +49185,33 @@ func NewCreateProjectRepositoryRequestWithBody(server string, slug SlugParam, pr
 	queryURL, err := serverURL.Parse(operationPath)
 	if err != nil {
 		return nil, err
+	}
+
+	if params != nil {
+		// queryValues collects non-styled parameters (passthrough, JSON)
+		// that are safe to round-trip through url.Values.Encode().
+		queryValues := queryURL.Query()
+		// rawQueryFragments collects pre-encoded query fragments from
+		// styled parameters, preserving literal commas as delimiters
+		// per the OpenAPI spec (e.g. "color=blue,black,brown").
+		var rawQueryFragments []string
+
+		if params.MoreTime != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "more_time", *params.MoreTime, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "boolean", Format: ""}); err != nil {
+				return nil, err
+			} else {
+				for _, qp := range strings.Split(queryFrag, "&") {
+					rawQueryFragments = append(rawQueryFragments, qp)
+				}
+			}
+
+		}
+
+		if encoded := queryValues.Encode(); encoded != "" {
+			rawQueryFragments = append(rawQueryFragments, encoded)
+		}
+		queryURL.RawQuery = strings.Join(rawQueryFragments, "&")
 	}
 
 	req, err := http.NewRequest(http.MethodPost, queryURL.String(), body)
@@ -51239,7 +51416,7 @@ type ClientWithResponsesInterface interface {
 	// Returns a wrapper object for the known response body format(s).
 	//
 	// Corresponds with GET /auth/google (the `InitiateGoogleAuth` operationId).
-	InitiateGoogleAuthWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*InitiateGoogleAuthResponse, error)
+	InitiateGoogleAuthWithResponse(ctx context.Context, params *InitiateGoogleAuthParams, reqEditors ...RequestEditorFn) (*InitiateGoogleAuthResponse, error)
 
 	// RegisterGoogleAccountWithBodyWithResponse Start or complete Google account registration
 	//
@@ -51248,7 +51425,7 @@ type ClientWithResponsesInterface interface {
 	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
 	//
 	// Corresponds with POST /auth/google (the `RegisterGoogleAccount` operationId).
-	RegisterGoogleAccountWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*RegisterGoogleAccountResponse, error)
+	RegisterGoogleAccountWithBodyWithResponse(ctx context.Context, params *RegisterGoogleAccountParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*RegisterGoogleAccountResponse, error)
 
 	// RegisterGoogleAccountWithFormdataBodyWithResponse Start or complete Google account registration
 	//
@@ -51257,7 +51434,7 @@ type ClientWithResponsesInterface interface {
 	// Takes a body of the `application/x-www-form-urlencoded` content type, and returns a wrapper object for the known response body format(s).
 	//
 	// Corresponds with POST /auth/google (the `RegisterGoogleAccount` operationId).
-	RegisterGoogleAccountWithFormdataBodyWithResponse(ctx context.Context, body RegisterGoogleAccountFormdataRequestBody, reqEditors ...RequestEditorFn) (*RegisterGoogleAccountResponse, error)
+	RegisterGoogleAccountWithFormdataBodyWithResponse(ctx context.Context, params *RegisterGoogleAccountParams, body RegisterGoogleAccountFormdataRequestBody, reqEditors ...RequestEditorFn) (*RegisterGoogleAccountResponse, error)
 
 	// HandleGoogleCallbackWithResponse Handle Google OAuth callback
 	//
@@ -51869,7 +52046,7 @@ type ClientWithResponsesInterface interface {
 	// Returns a wrapper object for the known response body format(s).
 	//
 	// Corresponds with POST /organizations/{slug}/data-sources/{ds_slug}/http-oauth/connect (the `ConnectDataSourceHTTPOAuth` operationId).
-	ConnectDataSourceHTTPOAuthWithResponse(ctx context.Context, slug SlugParam, dsSlug DataSourceSlugParam, reqEditors ...RequestEditorFn) (*ConnectDataSourceHTTPOAuthResponse, error)
+	ConnectDataSourceHTTPOAuthWithResponse(ctx context.Context, slug SlugParam, dsSlug DataSourceSlugParam, params *ConnectDataSourceHTTPOAuthParams, reqEditors ...RequestEditorFn) (*ConnectDataSourceHTTPOAuthResponse, error)
 
 	// GetDataSourceProofConfigurationWithResponse Get a data source's Proof settings and available assessment targets
 	//
@@ -52313,7 +52490,7 @@ type ClientWithResponsesInterface interface {
 	// Returns a wrapper object for the known response body format(s).
 	//
 	// Corresponds with POST /organizations/{slug}/github-app-connection/install (the `StartOrganizationGitHubAppInstall` operationId).
-	StartOrganizationGitHubAppInstallWithResponse(ctx context.Context, slug SlugParam, reqEditors ...RequestEditorFn) (*StartOrganizationGitHubAppInstallResponse, error)
+	StartOrganizationGitHubAppInstallWithResponse(ctx context.Context, slug SlugParam, params *StartOrganizationGitHubAppInstallParams, reqEditors ...RequestEditorFn) (*StartOrganizationGitHubAppInstallResponse, error)
 
 	// DisconnectOrganizationGitLabConnectionWithResponse Revoke the shared GitLab connection for all attached data sources
 	//
@@ -53640,7 +53817,7 @@ type ClientWithResponsesInterface interface {
 	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
 	//
 	// Corresponds with POST /organizations/{slug}/projects/{project_slug}/repository-setup (the `CreateProjectRepository` operationId).
-	CreateProjectRepositoryWithBodyWithResponse(ctx context.Context, slug SlugParam, projectSlug ProjectSlugParam, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*CreateProjectRepositoryResponse, error)
+	CreateProjectRepositoryWithBodyWithResponse(ctx context.Context, slug SlugParam, projectSlug ProjectSlugParam, params *CreateProjectRepositoryParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*CreateProjectRepositoryResponse, error)
 
 	// CreateProjectRepositoryWithResponse Create and attach a private pipeline repository
 	//
@@ -53656,7 +53833,7 @@ type ClientWithResponsesInterface interface {
 	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
 	//
 	// Corresponds with POST /organizations/{slug}/projects/{project_slug}/repository-setup (the `CreateProjectRepository` operationId).
-	CreateProjectRepositoryWithResponse(ctx context.Context, slug SlugParam, projectSlug ProjectSlugParam, body CreateProjectRepositoryJSONRequestBody, reqEditors ...RequestEditorFn) (*CreateProjectRepositoryResponse, error)
+	CreateProjectRepositoryWithResponse(ctx context.Context, slug SlugParam, projectSlug ProjectSlugParam, params *CreateProjectRepositoryParams, body CreateProjectRepositoryJSONRequestBody, reqEditors ...RequestEditorFn) (*CreateProjectRepositoryResponse, error)
 
 	// AbandonProjectRepositorySetupWithBodyWithResponse Keep existing resources and choose a new repository target
 	//
@@ -54208,10 +54385,17 @@ type InitiateGoogleAuthResponse302Headers struct {
 type InitiateGoogleAuthResponse struct {
 	Body         []byte
 	HTTPResponse *http.Response
+	// JSON400 the response for an HTTP 400 `application/json` response
+	JSON400 *ErrorResponse
 	// JSON503 the response for an HTTP 503 `application/json` response
 	JSON503 *ErrorResponse
 	// Headers302 the parsed response headers for an HTTP 302 response
 	Headers302 *InitiateGoogleAuthResponse302Headers
+}
+
+// GetJSON400 returns the response for an HTTP 400 `application/json` response
+func (r InitiateGoogleAuthResponse) GetJSON400() *ErrorResponse {
+	return r.JSON400
 }
 
 // GetJSON503 returns the response for an HTTP 503 `application/json` response
@@ -68177,8 +68361,8 @@ func (c *ClientWithResponses) VerifyEmailWithResponse(ctx context.Context, body 
 // Returns a wrapper object for the known response body format(s).
 //
 // Corresponds with GET /auth/google (the `InitiateGoogleAuth` operationId).
-func (c *ClientWithResponses) InitiateGoogleAuthWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*InitiateGoogleAuthResponse, error) {
-	rsp, err := c.InitiateGoogleAuth(ctx, reqEditors...)
+func (c *ClientWithResponses) InitiateGoogleAuthWithResponse(ctx context.Context, params *InitiateGoogleAuthParams, reqEditors ...RequestEditorFn) (*InitiateGoogleAuthResponse, error) {
+	rsp, err := c.InitiateGoogleAuth(ctx, params, reqEditors...)
 	if err != nil {
 		return nil, err
 	}
@@ -68192,8 +68376,8 @@ func (c *ClientWithResponses) InitiateGoogleAuthWithResponse(ctx context.Context
 // Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
 //
 // Corresponds with POST /auth/google (the `RegisterGoogleAccount` operationId).
-func (c *ClientWithResponses) RegisterGoogleAccountWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*RegisterGoogleAccountResponse, error) {
-	rsp, err := c.RegisterGoogleAccountWithBody(ctx, contentType, body, reqEditors...)
+func (c *ClientWithResponses) RegisterGoogleAccountWithBodyWithResponse(ctx context.Context, params *RegisterGoogleAccountParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*RegisterGoogleAccountResponse, error) {
+	rsp, err := c.RegisterGoogleAccountWithBody(ctx, params, contentType, body, reqEditors...)
 	if err != nil {
 		return nil, err
 	}
@@ -68207,8 +68391,8 @@ func (c *ClientWithResponses) RegisterGoogleAccountWithBodyWithResponse(ctx cont
 // Takes a body of the `application/x-www-form-urlencoded` content type, and returns a wrapper object for the known response body format(s).
 //
 // Corresponds with POST /auth/google (the `RegisterGoogleAccount` operationId).
-func (c *ClientWithResponses) RegisterGoogleAccountWithFormdataBodyWithResponse(ctx context.Context, body RegisterGoogleAccountFormdataRequestBody, reqEditors ...RequestEditorFn) (*RegisterGoogleAccountResponse, error) {
-	rsp, err := c.RegisterGoogleAccountWithFormdataBody(ctx, body, reqEditors...)
+func (c *ClientWithResponses) RegisterGoogleAccountWithFormdataBodyWithResponse(ctx context.Context, params *RegisterGoogleAccountParams, body RegisterGoogleAccountFormdataRequestBody, reqEditors ...RequestEditorFn) (*RegisterGoogleAccountResponse, error) {
+	rsp, err := c.RegisterGoogleAccountWithFormdataBody(ctx, params, body, reqEditors...)
 	if err != nil {
 		return nil, err
 	}
@@ -69227,8 +69411,8 @@ func (c *ClientWithResponses) GetGoogleWorkspaceWorksheetsWithResponse(ctx conte
 // Returns a wrapper object for the known response body format(s).
 //
 // Corresponds with POST /organizations/{slug}/data-sources/{ds_slug}/http-oauth/connect (the `ConnectDataSourceHTTPOAuth` operationId).
-func (c *ClientWithResponses) ConnectDataSourceHTTPOAuthWithResponse(ctx context.Context, slug SlugParam, dsSlug DataSourceSlugParam, reqEditors ...RequestEditorFn) (*ConnectDataSourceHTTPOAuthResponse, error) {
-	rsp, err := c.ConnectDataSourceHTTPOAuth(ctx, slug, dsSlug, reqEditors...)
+func (c *ClientWithResponses) ConnectDataSourceHTTPOAuthWithResponse(ctx context.Context, slug SlugParam, dsSlug DataSourceSlugParam, params *ConnectDataSourceHTTPOAuthParams, reqEditors ...RequestEditorFn) (*ConnectDataSourceHTTPOAuthResponse, error) {
+	rsp, err := c.ConnectDataSourceHTTPOAuth(ctx, slug, dsSlug, params, reqEditors...)
 	if err != nil {
 		return nil, err
 	}
@@ -69971,8 +70155,8 @@ func (c *ClientWithResponses) AuthorizeOrganizationGitHubAppConnectionWithRespon
 // Returns a wrapper object for the known response body format(s).
 //
 // Corresponds with POST /organizations/{slug}/github-app-connection/install (the `StartOrganizationGitHubAppInstall` operationId).
-func (c *ClientWithResponses) StartOrganizationGitHubAppInstallWithResponse(ctx context.Context, slug SlugParam, reqEditors ...RequestEditorFn) (*StartOrganizationGitHubAppInstallResponse, error) {
-	rsp, err := c.StartOrganizationGitHubAppInstall(ctx, slug, reqEditors...)
+func (c *ClientWithResponses) StartOrganizationGitHubAppInstallWithResponse(ctx context.Context, slug SlugParam, params *StartOrganizationGitHubAppInstallParams, reqEditors ...RequestEditorFn) (*StartOrganizationGitHubAppInstallResponse, error) {
+	rsp, err := c.StartOrganizationGitHubAppInstall(ctx, slug, params, reqEditors...)
 	if err != nil {
 		return nil, err
 	}
@@ -72186,8 +72370,8 @@ func (c *ClientWithResponses) GetProjectRepositorySetupWithResponse(ctx context.
 // Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
 //
 // Corresponds with POST /organizations/{slug}/projects/{project_slug}/repository-setup (the `CreateProjectRepository` operationId).
-func (c *ClientWithResponses) CreateProjectRepositoryWithBodyWithResponse(ctx context.Context, slug SlugParam, projectSlug ProjectSlugParam, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*CreateProjectRepositoryResponse, error) {
-	rsp, err := c.CreateProjectRepositoryWithBody(ctx, slug, projectSlug, contentType, body, reqEditors...)
+func (c *ClientWithResponses) CreateProjectRepositoryWithBodyWithResponse(ctx context.Context, slug SlugParam, projectSlug ProjectSlugParam, params *CreateProjectRepositoryParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*CreateProjectRepositoryResponse, error) {
+	rsp, err := c.CreateProjectRepositoryWithBody(ctx, slug, projectSlug, params, contentType, body, reqEditors...)
 	if err != nil {
 		return nil, err
 	}
@@ -72208,8 +72392,8 @@ func (c *ClientWithResponses) CreateProjectRepositoryWithBodyWithResponse(ctx co
 // Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
 //
 // Corresponds with POST /organizations/{slug}/projects/{project_slug}/repository-setup (the `CreateProjectRepository` operationId).
-func (c *ClientWithResponses) CreateProjectRepositoryWithResponse(ctx context.Context, slug SlugParam, projectSlug ProjectSlugParam, body CreateProjectRepositoryJSONRequestBody, reqEditors ...RequestEditorFn) (*CreateProjectRepositoryResponse, error) {
-	rsp, err := c.CreateProjectRepository(ctx, slug, projectSlug, body, reqEditors...)
+func (c *ClientWithResponses) CreateProjectRepositoryWithResponse(ctx context.Context, slug SlugParam, projectSlug ProjectSlugParam, params *CreateProjectRepositoryParams, body CreateProjectRepositoryJSONRequestBody, reqEditors ...RequestEditorFn) (*CreateProjectRepositoryResponse, error) {
+	rsp, err := c.CreateProjectRepository(ctx, slug, projectSlug, params, body, reqEditors...)
 	if err != nil {
 		return nil, err
 	}
@@ -73055,6 +73239,13 @@ func ParseInitiateGoogleAuthResponse(rsp *http.Response) (*InitiateGoogleAuthRes
 	switch {
 	case rsp.StatusCode == 302:
 		break // No content-type
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 400:
+		var dest ErrorResponse
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON400 = &dest
 
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 503:
 		var dest ErrorResponse

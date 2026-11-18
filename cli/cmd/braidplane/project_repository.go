@@ -54,7 +54,7 @@ func (c *createProjectRepositoryCommand) Run(output *cliOutput, runtime *cliRunt
 		ctx, cancel = context.WithTimeout(ctx, time.Duration(c.TimeoutSec)*time.Second)
 		defer cancel()
 	}
-	resp, err := client.openapi.CreateProjectRepositoryWithResponse(ctx, client.organization, c.ProjectSlug, api.CreateProjectRepositoryRequest{
+	resp, err := client.openapi.CreateProjectRepositoryWithResponse(ctx, client.organization, c.ProjectSlug, nil, api.CreateProjectRepositoryRequest{
 		Provider: provider, Owner: c.Owner, RepositoryName: c.RepositoryName, TrackedBranch: &c.TrackedBranch, PipelineDir: &c.PipelineDir, CreatePrivateRepository: api.CreateProjectRepositoryRequestCreatePrivateRepository(true),
 	})
 	if err != nil {

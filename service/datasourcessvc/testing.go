@@ -194,7 +194,7 @@ func (noopService) GetGoogleWorkspacePicker(context.Context, slug.Slug, slug.Slu
 	return nil, errNoopServiceUnavailable
 }
 
-func (f noopService) ConnectHTTPOAuth(ctx context.Context, org, source slug.Slug, actor model.EventActor) (*HTTPOAuthConnection, error) {
+func (f noopService) ConnectHTTPOAuth(ctx context.Context, org, source slug.Slug, actor model.EventActor, moreTime bool) (*HTTPOAuthConnection, error) {
 	return nil, xerror.Unavailable(xerror.DataSource)
 }
 

@@ -261,6 +261,14 @@ templ DataSourceBindingCellControl(orgSlug string, projectSlug string, pipelineS
 	}}
 	{{ upsertAction = pipelineBindingSetupAction(ctx, upsertAction) }}
 	{{ deleteAction = pipelineBindingSetupAction(ctx, deleteAction) }}
+	{{ setup := isPipelineBindingSetup(ctx) }}
+	{{
+		htmxTarget := DataSourceBindingHTMXTarget(pipelineSlug, fullPage, embedded)
+		htmxSelect := DataSourceBindingHTMXSelect(pipelineSlug, fullPage, embedded)
+		if setup {
+			htmxTarget, htmxSelect = "#pipeline-binding-setup", "#pipeline-binding-setup"
+		}
+	}}
 	<div id={ pipelineBindingCellID(row, cell) } tabindex="-1" class="min-w-0 space-y-2">
 		<div class="flex flex-wrap items-center gap-2">
 			<span class={ cell.StateClass }>{ cell.StateLabel }</span>
@@ -288,16 +296,17 @@ templ DataSourceBindingCellControl(orgSlug string, projectSlug string, pipelineS
 			<p class="text-xs text-base-content/70">{ cell.StateDescription }</p>
 		}
 		if row.RefAvailable && !row.CapabilityMismatch && cell.State != "unavailable" {
+			{{ removeLabel := "Remove " + row.RefSlug + " binding in " + cell.EnvironmentSlug + " for " + bindingScopeSlug }}
 			<form
 				id={ upsertFormID }
 				class="grid min-w-0 gap-2 overflow-hidden"
 				method="post"
 				action={ templ.URL(upsertAction) }
 				hx-post={ upsertAction }
-				hx-target={ DataSourceBindingHTMXTarget(pipelineSlug, fullPage, embedded) }
-				hx-select={ DataSourceBindingHTMXSelect(pipelineSlug, fullPage, embedded) }
+				hx-target={ htmxTarget }
+				hx-select={ htmxSelect }
 				hx-swap="outerHTML show:none focus-scroll:false"
-				data-preserve-scroll
+				data-preserve-scroll?={ !setup }
 			>
 				<select class="select select-bordered select-xs w-full min-w-0 max-w-full truncate" name="data_source_slug" aria-label={ "Data source for " + row.RefSlug + " in " + cell.EnvironmentSlug } required disabled?={ !canUpdate || dataSourcesUnavailable || len(cell.Options) == 0 }>
 					<option value="">Select data source</option>
@@ -321,10 +330,10 @@ templ DataSourceBindingCellControl(orgSlug string, projectSlug string, pipelineS
 				}
 				if cell.HasBinding {
 					if cell.EnvironmentProtected {
-						<button class="btn btn-error btn-outline btn-xs" type="button" data-protected-action-trigger={ deleteModalID } disabled?={ !canDelete }>Remove</button>
+						<button class="btn btn-error btn-outline btn-xs" type="button" aria-label={ removeLabel } data-protected-action-trigger={ deleteModalID } disabled?={ !canDelete }>Remove</button>
 					} else {
-						<form method="post" action={ templ.URL(deleteAction) } hx-post={ deleteAction } hx-target={ DataSourceBindingHTMXTarget(pipelineSlug, fullPage, embedded) } hx-select={ DataSourceBindingHTMXSelect(pipelineSlug, fullPage, embedded) } hx-swap="outerHTML show:none focus-scroll:false" data-preserve-scroll hx-confirm={ DestructiveConfirmation("Remove", "data-source binding", DestructiveResourceLabel(row.RefSlug, cell.EnvironmentSlug), "Pipelines using this ref in the runtime target will lose the binding.") } data-destructive-confirm={ DestructiveConfirmation("Remove", "data-source binding", DestructiveResourceLabel(row.RefSlug, cell.EnvironmentSlug), "Pipelines using this ref in the runtime target will lose the binding.") }>
-							<button class="btn btn-error btn-outline btn-xs" type="submit" disabled?={ !canDelete }>Remove</button>
+						<form method="post" action={ templ.URL(deleteAction) } hx-post={ deleteAction } hx-target={ htmxTarget } hx-select={ htmxSelect } hx-swap="outerHTML show:none focus-scroll:false" data-preserve-scroll?={ !setup } hx-confirm={ DestructiveConfirmation("Remove", "data-source binding", DestructiveResourceLabel(row.RefSlug, cell.EnvironmentSlug), "Pipelines using this ref in the runtime target will lose the binding.") } data-destructive-confirm={ DestructiveConfirmation("Remove", "data-source binding", DestructiveResourceLabel(row.RefSlug, cell.EnvironmentSlug), "Pipelines using this ref in the runtime target will lose the binding.") }>
+							<button class="btn btn-error btn-outline btn-xs" type="submit" aria-label={ removeLabel } disabled?={ !canDelete }>Remove</button>
 						</form>
 					}
 				}
@@ -334,7 +343,7 @@ templ DataSourceBindingCellControl(orgSlug string, projectSlug string, pipelineS
 			}
 			if cell.HasBinding {
 				if cell.EnvironmentProtected {
-					@DataSourceBindingProtectedDeleteModal(deleteModalID, deleteAction, DataSourceBindingHTMXTarget(pipelineSlug, fullPage, embedded), DataSourceBindingHTMXSelect(pipelineSlug, fullPage, embedded), cell.EnvironmentSlug, row.RefSlug)
+					@DataSourceBindingProtectedDeleteModal(deleteModalID, deleteAction, htmxTarget, htmxSelect, cell.EnvironmentSlug, row.RefSlug)
 				}
 				if !canDelete {
 					<p class="text-xs text-base-content/60">Removal is disabled for your role.</p>
@@ -345,13 +354,13 @@ templ DataSourceBindingCellControl(orgSlug string, projectSlug string, pipelineS
 }
 
 templ DataSourceBindingProtectedSubmitModal(formID string, modalID string, environmentSlug string, refSlug string, actionLabel string, actionDescription string, submitClass string) {
-	<dialog class="modal" id={ modalID } data-protected-action-modal data-confirm-slug={ environmentSlug }>
+	<dialog class="modal" id={ modalID } data-protected-action-modal data-confirm-slug={ environmentSlug } aria-labelledby={ modalID + "-title" } aria-describedby={ modalID + "-description" }>
 		<div class="modal-box max-w-lg border border-error/35 bg-base-100 p-0">
 			<div class="border-b border-error/25 bg-error/10 px-5 py-4">
 				<div class="flex flex-wrap items-start justify-between gap-3">
 					<div>
-						<h3 class="text-lg font-semibold text-base-content">Confirm protected action</h3>
-						<p class="mt-1 text-sm text-base-content/70">{ actionDescription }</p>
+						<h3 class="text-lg font-semibold text-base-content" id={ modalID + "-title" }>Confirm protected action</h3>
+						<p class="mt-1 text-sm text-base-content/70" id={ modalID + "-description" }>{ actionDescription }</p>
 					</div>
 					<span class={ badgeErrorSoft }>{ environmentSlug }</span>
 				</div>
@@ -373,30 +382,26 @@ templ DataSourceBindingProtectedSubmitModal(formID string, modalID string, envir
 				</div>
 			</div>
 		</div>
-		<form method="dialog" class="modal-backdrop">
-			<button type="submit">close</button>
+		<form method="dialog" class="modal-backdrop" aria-hidden="true">
+			<button type="submit" tabindex="-1" aria-label="Dismiss dialog"></button>
 		</form>
 	</dialog>
 }
 
 templ DataSourceBindingProtectedDeleteModal(modalID string, actionURL string, htmxTarget string, htmxSelect string, environmentSlug string, refSlug string) {
-	<dialog class="modal" id={ modalID } data-protected-action-modal data-confirm-slug={ environmentSlug }>
+	<dialog class="modal" id={ modalID } data-protected-action-modal data-confirm-slug={ environmentSlug } aria-labelledby={ modalID + "-title" } aria-describedby={ modalID + "-description" }>
 		<div class="modal-box max-w-lg border border-error/35 bg-base-100 p-0">
 			<div class="border-b border-error/25 bg-error/10 px-5 py-4">
 				<div class="flex flex-wrap items-start justify-between gap-3">
 					<div>
-						<h3 class="text-lg font-semibold text-base-content">Confirm protected action</h3>
-						<p class="mt-1 text-sm text-base-content/70">Remove this binding from a protected runtime target.</p>
+						<h3 class="text-lg font-semibold text-base-content" id={ modalID + "-title" }>Confirm protected action</h3>
+						<p class="mt-1 text-sm text-base-content/70" id={ modalID + "-description" }>Remove the <span class="font-mono break-all">{ refSlug }</span> binding from <span class="font-mono break-all">{ environmentSlug }</span>. The pipeline will lose this data-source binding in this target.</p>
 					</div>
 					<span class={ badgeErrorSoft }>{ environmentSlug }</span>
 				</div>
 			</div>
-			<form class="px-5 py-4" method="post" action={ templ.URL(actionURL) } hx-post={ actionURL } hx-target={ htmxTarget } hx-select={ htmxSelect } hx-swap="outerHTML show:none focus-scroll:false" data-preserve-scroll>
-				<div class="rounded-lg border border-base-300 bg-base-200/35 p-3">
-					<p class="text-sm font-semibold text-base-content">{ refSlug }</p>
-					<p class="mt-1 text-xs text-base-content/60">This removes the binding for <span class="font-mono">{ environmentSlug }</span>.</p>
-				</div>
-				<label class="form-control mt-4 w-full">
+			<form class="px-5 py-4" method="post" action={ templ.URL(actionURL) } hx-post={ actionURL } hx-target={ htmxTarget } hx-select={ htmxSelect } hx-swap="outerHTML show:none focus-scroll:false" data-preserve-scroll?={ !isPipelineBindingSetup(ctx) }>
+				<label class="form-control w-full">
 					<div class="label py-1">
 						<span class="label-text text-xs">Type <span class="font-mono font-semibold text-error">{ environmentSlug }</span> to confirm</span>
 					</div>
@@ -408,8 +413,8 @@ templ DataSourceBindingProtectedDeleteModal(modalID string, actionURL string, ht
 				</div>
 			</form>
 		</div>
-		<form method="dialog" class="modal-backdrop">
-			<button type="submit">close</button>
+		<form method="dialog" class="modal-backdrop" aria-hidden="true">
+			<button type="submit" tabindex="-1" aria-label="Dismiss dialog"></button>
 		</form>
 	</dialog>
 }

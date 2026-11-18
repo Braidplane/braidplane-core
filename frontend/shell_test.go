@@ -473,6 +473,15 @@ func TestEnvironmentSwitcherHrefDropsPaginationState(t *testing.T) {
 	)
 }
 
+func TestEnvironmentSwitcherHrefReviewsNewDeploymentTarget(t *testing.T) {
+	t.Parallel()
+
+	require.Equal(t,
+		"/orgs/acme/projects/ops/pipelines/orders/deploy?compiled_plan_digest=plan&environment_slug=staging&review_from_environment=dev&spec_hash=version",
+		environmentSwitcherHref("/orgs/acme/projects/ops/pipelines/orders/deploy?spec_hash=version&environment_slug=dev&compiled_plan_digest=plan&rollback_selection_cleared=true", "staging"),
+	)
+}
+
 func TestProofReceiptEnvironmentSwitchReturnsToScopedHistory(t *testing.T) {
 	t.Parallel()
 	require.Equal(t, "/orgs/acme/projects/ops/proof-receipts?environment_slug=stage", environmentSwitcherHref("/orgs/acme/projects/ops/environments/prod/proof-receipts/receipt-one?cursor=old&direction=next", "stage"))

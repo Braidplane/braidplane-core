@@ -60,6 +60,8 @@ type QueryKeyValueFormData struct {
 
 // QueryEditorFormData stores sticky values for create/edit query forms.
 type QueryEditorFormData struct {
+	SubmitError            string
+	SubmitErrorDetails     string
 	WorkspaceResource      string
 	WorkspaceSpreadsheetID string
 	WorkspaceFileID        string

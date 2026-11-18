@@ -1222,7 +1222,7 @@ func responseError(response encryptedResponse) error {
 	case errorCodeDataSourceTimeout:
 		return xerror.Timeout(xerror.DataSource)
 	case errorCodeQueryInvalid:
-		return xerror.SourceQueryInvalid()
+		return xerror.SourceQueryInvalid().WithPublicDetail(response.PublicDetail)
 	case errorCodeSchemaReferenceInvalid:
 		return xerror.SourceSchemaReferenceInvalid()
 	case errorCodeDestinationConstraint:

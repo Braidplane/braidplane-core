@@ -1,17 +1,15 @@
 package views
 
-templ AuthErrorPage(title string, message string) {
-	@AuthPage(title, false, AuthErrorPageContent(message))
+templ AuthErrorPage(title string, message string, returnTo string) {
+	@AuthPage(title, false, AuthErrorPageContent(message, returnTo))
 }
 
-templ AuthErrorPageContent(message string) {
-	if message != "" {
-		@ErrorPopup("auth-error-popup", message, "")
-	}
+templ AuthErrorPageContent(message string, returnTo string) {
 	<div class="space-y-5 text-center">
-		<div class="mx-auto grid h-12 w-12 place-items-center rounded-full bg-error/15 text-lg font-semibold text-error" aria-hidden="true">!</div>
 		<h1 class="text-2xl font-semibold">Authentication failed</h1>
-		<p class="text-sm text-base-content/70">Return to sign in and try again.</p>
-		<a class="btn btn-primary w-full" href="/auth/login">Try again</a>
+		<div data-form-feedback>
+			@FormError("auth-error-feedback", message, true)
+		</div>
+		<a class="btn btn-primary w-full" href={ templ.URL(AuthReturnURL("/auth/login", returnTo)) }>Back to sign in</a>
 	</div>
 }

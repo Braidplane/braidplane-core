@@ -370,8 +370,8 @@ func (r *Router) handleMFASubmit(c fiber.Ctx) error {
 
 	errorResponse := parseAPIErrorResponse(resp.Body)
 	message := messageFromErrorResponse(errorResponse)
-	if message == "" {
-		message = "Invalid or expired code."
+	if message == "" || (errorResponse != nil && errorResponse.Error.Code == "INVALID_TOKEN") {
+		message = "Invalid or expired code. Try again, or sign in again for a new code."
 	}
 
 	setHTMXAwareErrorStatus(c, resp.StatusCode())
@@ -411,7 +411,7 @@ func loginErrorMessage(status int, payload *api.ErrorResponse) string {
 func (r *Router) handleAuthErrorPage(c fiber.Ctx) error {
 	errCode := strings.TrimSpace(c.Query("error"))
 	message := mapAuthErrorMessage(errCode)
-	return renderTempl(c, views.AuthErrorPage("Authentication error", message))
+	return renderTempl(c, views.AuthErrorPage("Authentication error", message, safeReturnTo(c.Query("return_to"))))
 }
 
 func mapAuthErrorMessage(errCode string) string {
@@ -440,7 +440,6 @@ func mapAuthErrorMessage(errCode string) string {
 func (r *Router) handleSignupPage(c fiber.Ctx) error {
 	returnTo := safeReturnTo(c.Query("return_to"))
 	terms := r.signupState()
-	pageError := ""
 	sess, err := r.sessionStore.Get(c)
 	if err != nil {
 		return xerror.Unexpected().With(err)
@@ -449,14 +448,15 @@ func (r *Router) handleSignupPage(c fiber.Ctx) error {
 	pending, _ := sess.Get(reqctx.SessionGoogleSignupKey).(string)
 	expires, _ := sess.Get(reqctx.SessionGoogleSignupExpiresKey).(int64)
 	terms.GoogleSignupPending = pending != "" && time.Now().Unix() < expires
-	if pending != "" && !terms.GoogleSignupPending {
+	expiredPending := pending != "" && !terms.GoogleSignupPending
+	terms.GoogleSignupExpired = expiredPending || (pending == "" && c.Query("google_signup_expired") == "true")
+	if expiredPending {
 		sess.Delete(reqctx.SessionGoogleSignupKey)
 		sess.Delete(reqctx.SessionGoogleSignupExpiresKey)
 		sess.Delete("oauth_return_to")
 		if err := sess.Save(); err != nil {
 			return xerror.Unexpected().With(err)
 		}
-		pageError = "Your Google sign-in expired. Please sign in again."
 	}
 	return renderTempl(
 		c,
@@ -464,7 +464,7 @@ func (r *Router) handleSignupPage(c fiber.Ctx) error {
 			"Create account",
 			"",
 			"",
-			pageError,
+			"",
 			"",
 			returnTo,
 			r.selfServiceRegistrationEnabled,
@@ -578,7 +578,7 @@ func (r *Router) handleSignupSubmit(c fiber.Ctx) error {
 
 	return renderTempl(
 		c,
-		views.EmailVerificationPage("Verify your email", email, "", returnTo),
+		views.EmailVerificationPage("Verify your email", email, "", "", returnTo),
 	)
 }
 
@@ -655,6 +655,8 @@ func (r *Router) handleForgotPasswordSubmit(c fiber.Ctx) error {
 	)
 }
 
+const resetLinkUnavailable = "This password reset code is invalid or expired."
+
 func (r *Router) handleResetPasswordSubmit(c fiber.Ctx) error {
 	setAccountCodeResponseHeaders(c)
 	form := c.Request().PostArgs()
@@ -713,6 +715,10 @@ func (r *Router) handleResetPasswordSubmit(c fiber.Ctx) error {
 
 	if resp.StatusCode() != http.StatusNoContent {
 		errorResponse := parseAPIErrorResponse(resp.Body)
+		if errorResponse != nil && errorResponse.Error.Code == xerror.InvalidToken().Code() {
+			setHTMXAwareErrorStatus(c, resp.StatusCode())
+			return renderTempl(c, views.ResetPasswordPage("Reset password", resetLinkUnavailable, "", ""))
+		}
 		message := messageFromErrorResponse(errorResponse)
 		if message == "" {
 			message = fmt.Sprintf("Password reset failed with status %d.", resp.StatusCode())
@@ -745,7 +751,7 @@ func (r *Router) handleResendVerificationEmail(c fiber.Ctx) error {
 	email := strings.TrimSpace(c.FormValue("email"))
 	returnTo := safeReturnTo(c.FormValue("return_to"))
 
-	validationMessage := validateForgotPasswordInput(email)
+	validationMessage := validateInput(forgotPasswordInput{Email: email}, "Enter a valid email address.")
 	if validationMessage != "" {
 		setHTMXAwareErrorStatus(c, fiber.StatusBadRequest)
 		return renderTempl(
@@ -753,6 +759,7 @@ func (r *Router) handleResendVerificationEmail(c fiber.Ctx) error {
 			views.EmailVerificationPage(
 				"Verify your email",
 				email,
+				"",
 				validationMessage,
 				returnTo,
 			),
@@ -772,6 +779,7 @@ func (r *Router) handleResendVerificationEmail(c fiber.Ctx) error {
 			views.EmailVerificationPage(
 				"Verify your email",
 				email,
+				"",
 				"Resend verification failed with status 500.",
 				returnTo,
 			),
@@ -788,7 +796,7 @@ func (r *Router) handleResendVerificationEmail(c fiber.Ctx) error {
 		setHTMXAwareErrorStatus(c, resp.StatusCode())
 		return renderTempl(
 			c,
-			views.EmailVerificationPage("Verify your email", email, message, returnTo),
+			views.EmailVerificationPage("Verify your email", email, "", message, returnTo),
 		)
 	}
 
@@ -797,7 +805,8 @@ func (r *Router) handleResendVerificationEmail(c fiber.Ctx) error {
 		views.EmailVerificationPage(
 			"Verify your email",
 			email,
-			"Verification link resent. Please check your inbox.",
+			"If this address has an unverified account, a new verification link has been sent.",
+			"",
 			returnTo,
 		),
 	)

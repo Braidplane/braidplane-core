@@ -14,6 +14,7 @@ import (
 	"github.com/Braidplane/braidplane-core/pkg/domain/model"
 	"github.com/Braidplane/braidplane-core/pkg/gitprovider"
 	githubprovider "github.com/Braidplane/braidplane-core/pkg/gitprovider/github"
+	"github.com/Braidplane/braidplane-core/pkg/oauthflow"
 	"github.com/Braidplane/braidplane-core/pkg/slug"
 	"github.com/Braidplane/braidplane-core/pkg/xerror"
 	"github.com/Braidplane/braidplane-core/postgres"
@@ -24,10 +25,7 @@ import (
 	workerproducer "github.com/Braidplane/braidplane-core/service/worker/producer"
 )
 
-const (
-	installTTL                = 10 * time.Minute
-	bindingTransactionTimeout = 30 * time.Second
-)
+const bindingTransactionTimeout = 30 * time.Second
 
 var ErrInvalidInstall = xerror.New(xerror.KindInvalidInput, "GITHUB_APP_INSTALL_INVALID", "GitHub App installation could not be verified")
 
@@ -84,26 +82,26 @@ func New(txm postgres.TransactionManager, repo githubapps.Repository, provider P
 	return &Service{txm: txm, repo: repo, provider: provider, events: events, audit: eventrecorder.New(eventssvc.New(txm, repoevents.New(), nil)), installURL: installURL, now: time.Now}, nil
 }
 
-func (s *Service) Start(ctx context.Context, org slug.Slug, actor model.EventActor) (string, error) {
-	return s.start(ctx, org, actor, "", "")
+func (s *Service) Start(ctx context.Context, org slug.Slug, actor model.EventActor, moreTime bool) (string, error) {
+	return s.start(ctx, org, actor, "", "", moreTime)
 }
 
-func (s *Service) StartRepositorySetup(ctx context.Context, org slug.Slug, actor model.EventActor, setup slug.Slug) (string, error) {
+func (s *Service) StartRepositorySetup(ctx context.Context, org slug.Slug, actor model.EventActor, setup slug.Slug, moreTime bool) (string, error) {
 	if setup == "" {
 		return "", ErrInvalidInstall
 	}
-	return s.start(ctx, org, actor, setup, "")
+	return s.start(ctx, org, actor, setup, "", moreTime)
 }
 
-func (s *Service) StartExistingAuthorization(ctx context.Context, org slug.Slug, actor model.EventActor, accountLogin string) (string, error) {
+func (s *Service) StartExistingAuthorization(ctx context.Context, org slug.Slug, actor model.EventActor, accountLogin string, moreTime bool) (string, error) {
 	accountLogin = strings.TrimSpace(accountLogin)
 	if !githubAccountLogin.MatchString(accountLogin) {
 		return "", ErrInvalidInstall.Detail("GitHub account login is invalid")
 	}
-	return s.start(ctx, org, actor, "", strings.ToLower(accountLogin))
+	return s.start(ctx, org, actor, "", strings.ToLower(accountLogin), moreTime)
 }
 
-func (s *Service) start(ctx context.Context, org slug.Slug, actor model.EventActor, setup slug.Slug, requestedAccountLogin string) (string, error) {
+func (s *Service) start(ctx context.Context, org slug.Slug, actor model.EventActor, setup slug.Slug, requestedAccountLogin string, moreTime bool) (string, error) {
 	if s.installURL == "" {
 		return "", xerror.Unavailable(xerror.Organization).Detail("GitHub App is not configured")
 	}
@@ -126,7 +124,7 @@ func (s *Service) start(ctx context.Context, org slug.Slug, actor model.EventAct
 	}
 	hash := sha256.Sum256([]byte(state))
 	err := s.txm.RunInTx(ctx, func(ctx context.Context, tx postgres.DBTX) error {
-		return s.repo.CreateIntent(ctx, tx, org, actorSlug.String(), hex.EncodeToString(hash[:]), s.now().Add(installTTL), setup, requestedAccountLogin)
+		return s.repo.CreateIntent(ctx, tx, org, actorSlug.String(), hex.EncodeToString(hash[:]), s.now().Add(oauthflow.CallbackWindow(moreTime)), setup, requestedAccountLogin)
 	})
 	if err != nil {
 		return "", err
@@ -269,6 +267,9 @@ func (s *Service) bindInstallation(ctx context.Context, actor model.EventActor, 
 
 func (s *Service) OrganizationForState(ctx context.Context, actor model.EventActor, state string) (slug.Slug, error) {
 	org, _, err := s.RepositorySetupForState(ctx, actor, state)
+	if err != nil {
+		return "", err
+	}
 	return org, err
 }
 
@@ -287,6 +288,9 @@ func (s *Service) RepositorySetupForState(ctx context.Context, actor model.Event
 		return "", "", err
 	}
 	if err := s.validateIntent(intent, actor); err != nil {
+		if intent.RepositorySetupSlug != "" && xerror.Is(err, oauthflow.ErrOAuthStateExpired) {
+			return intent.Organization, intent.RepositorySetupSlug, err
+		}
 		return "", "", err
 	}
 	return intent.Organization, intent.RepositorySetupSlug, nil
@@ -439,8 +443,11 @@ func (s *Service) Token(ctx context.Context, org slug.Slug, repositoryIDs []int6
 }
 
 func (s *Service) validateIntent(intent githubapps.Intent, actor model.EventActor) error {
-	if intent.Consumed || !s.now().Before(intent.ExpiresAt) || intent.Actor != actor.UserSlugValue().String() {
+	if intent.Consumed || intent.Actor != actor.UserSlugValue().String() {
 		return ErrInvalidInstall
+	}
+	if !s.now().Before(intent.ExpiresAt) {
+		return ErrInvalidInstall.With(oauthflow.ErrOAuthStateExpired)
 	}
 	return nil
 }

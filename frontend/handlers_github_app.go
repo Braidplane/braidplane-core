@@ -2,6 +2,7 @@ package frontend
 
 import (
 	"net/http"
+	"net/url"
 	"strconv"
 	"strings"
 	"time"
@@ -11,6 +12,7 @@ import (
 	api "github.com/Braidplane/braidplane-core/api-schema/gen/client"
 	"github.com/Braidplane/braidplane-core/frontend/views"
 	"github.com/Braidplane/braidplane-core/pkg/httpsecurity"
+	"github.com/Braidplane/braidplane-core/pkg/oauthflow"
 	"github.com/Braidplane/braidplane-core/pkg/slug"
 )
 
@@ -66,6 +68,9 @@ func (r *Router) handleOrganizationGitHubPage(c fiber.Ctx) error {
 	case fiber.Query[bool](c, "connect_failed"):
 		feedback = "GitHub connection could not be completed. Try connecting again."
 		feedbackError = true
+	case fiber.Query[bool](c, "disconnect_failed"):
+		feedback = "Could not disconnect GitHub. Check your access and retry."
+		feedbackError = true
 	}
 	return renderTempl(c, views.OrganizationGitHubPage(shell, *organization, connection, feedback, feedbackError))
 }
@@ -84,11 +89,20 @@ func (r *Router) handleOrganizationGitHubConnect(c fiber.Ctx) error {
 		return fiber.ErrBadRequest
 	}
 	r.setGitHubInstallCookie(c, githubInstallProjectCookie, "", -1)
-	resp, err := r.apiClient.StartOrganizationGitHubAppInstallWithResponse(c.Context(), orgSlug.String(), frontendRequestEditor(c.Context(), c.Get(fiber.HeaderCookie)))
-	if err != nil || resp.StatusCode() != http.StatusOK || resp.JSON200 == nil {
-		return fiber.ErrServiceUnavailable
+	returnURL := "/organizations/" + orgSlug.String() + "/github"
+	moreTime := c.FormValue("more_time") == "true"
+	var params *api.StartOrganizationGitHubAppInstallParams
+	if moreTime {
+		params = &api.StartOrganizationGitHubAppInstallParams{MoreTime: &moreTime}
 	}
-	r.setGitHubInstallCookie(c, githubInstallOrganizationCookie, orgSlug.String(), 600)
+	resp, err := r.apiClient.StartOrganizationGitHubAppInstallWithResponse(c.Context(), orgSlug.String(), params, frontendRequestEditor(c.Context(), c.Get(fiber.HeaderCookie)))
+	if err == nil && resp.StatusCode() == http.StatusUnauthorized {
+		return redirectToLogin(c, returnURL)
+	}
+	if err != nil || resp.StatusCode() != http.StatusOK || resp.JSON200 == nil {
+		return providerConnectionFailure(c, returnURL+"?connect_failed=true", "Could not start GitHub authorization. Try connecting again.")
+	}
+	r.setGitHubInstallCookie(c, githubInstallOrganizationCookie, orgSlug.String(), int(oauthflow.CallbackWindow(moreTime).Seconds()))
 	return redirectHTMXOrSeeOther(c, resp.JSON200.AuthorizationUrl)
 }
 
@@ -98,18 +112,20 @@ func (r *Router) handleOrganizationGitHubAuthorizeExisting(c fiber.Ctx) error {
 		return fiber.ErrBadRequest
 	}
 	r.setGitHubInstallCookie(c, githubInstallProjectCookie, "", -1)
-	resp, err := r.apiClient.AuthorizeOrganizationGitHubAppConnectionWithResponse(c.Context(), orgSlug.String(), api.AuthorizeOrganizationGitHubAppConnectionJSONRequestBody{AccountLogin: c.FormValue("account_login")}, frontendRequestEditor(c.Context(), c.Get(fiber.HeaderCookie)))
-	if err != nil {
-		return fiber.ErrServiceUnavailable
+	returnURL := "/organizations/" + orgSlug.String() + "/github"
+	moreTime := c.FormValue("more_time") == "true"
+	request := api.AuthorizeOrganizationGitHubAppConnectionJSONRequestBody{AccountLogin: c.FormValue("account_login")}
+	if moreTime {
+		request.MoreTime = &moreTime
 	}
-	switch resp.StatusCode() {
-	case http.StatusBadRequest, http.StatusUnauthorized, http.StatusForbidden, http.StatusNotFound:
-		return c.SendStatus(resp.StatusCode())
+	resp, err := r.apiClient.AuthorizeOrganizationGitHubAppConnectionWithResponse(c.Context(), orgSlug.String(), request, frontendRequestEditor(c.Context(), c.Get(fiber.HeaderCookie)))
+	if err == nil && resp.StatusCode() == http.StatusUnauthorized {
+		return redirectToLogin(c, returnURL)
 	}
-	if resp.StatusCode() != http.StatusOK || resp.JSON200 == nil {
-		return fiber.ErrServiceUnavailable
+	if err != nil || resp.StatusCode() != http.StatusOK || resp.JSON200 == nil {
+		return providerConnectionFailure(c, returnURL+"?connect_failed=true", "GitHub could not authorize the installation. Check the account or organization and try again.")
 	}
-	r.setGitHubInstallCookie(c, githubInstallOrganizationCookie, orgSlug.String(), 600)
+	r.setGitHubInstallCookie(c, githubInstallOrganizationCookie, orgSlug.String(), int(oauthflow.CallbackWindow(moreTime).Seconds()))
 	return redirectHTMXOrSeeOther(c, resp.JSON200.AuthorizationUrl)
 }
 
@@ -161,7 +177,7 @@ func (r *Router) handleOrganizationGitHubCallback(c fiber.Ctx) error {
 
 func repositorySetupFailureRedirect(raw, currentHost string) string {
 	local := safeCurrentRequestPath(raw, currentHost)
-	path, _, _ := strings.Cut(local, "?")
+	path, query, _ := strings.Cut(local, "?")
 	parts := strings.Split(strings.TrimPrefix(path, "/"), "/")
 	if len(parts) != 4 || parts[0] != "organizations" || parts[2] != "projects" {
 		return ""
@@ -171,7 +187,11 @@ func repositorySetupFailureRedirect(raw, currentHost string) string {
 	if orgErr != nil || projectErr != nil {
 		return ""
 	}
-	return "/organizations/" + org.String() + "/projects/" + project.String() + "?section=repository&repository_path=create&repository_setup=failed"
+	status := "failed"
+	if values, err := url.ParseQuery(query); err == nil && values.Get("repository_setup") == "expired" {
+		status = "expired"
+	}
+	return "/organizations/" + org.String() + "/projects/" + project.String() + "?section=repository&repository_path=create&repository_setup=" + status
 }
 
 func (r *Router) handleOrganizationGitHubDisconnect(c fiber.Ctx) error {
@@ -179,9 +199,13 @@ func (r *Router) handleOrganizationGitHubDisconnect(c fiber.Ctx) error {
 	if err != nil {
 		return fiber.ErrBadRequest
 	}
+	returnURL := "/organizations/" + orgSlug.String() + "/github"
 	resp, err := r.apiClient.DisconnectOrganizationGitHubAppConnectionWithResponse(c.Context(), orgSlug.String(), frontendRequestEditor(c.Context(), c.Get(fiber.HeaderCookie)))
-	if err != nil || resp.StatusCode() != http.StatusNoContent {
-		return fiber.ErrServiceUnavailable
+	if err == nil && resp.StatusCode() == http.StatusUnauthorized {
+		return redirectToLogin(c, returnURL)
 	}
-	return c.Redirect().Status(fiber.StatusSeeOther).To("/organizations/" + orgSlug.String() + "/github?disconnected=true")
+	if err != nil || resp.StatusCode() != http.StatusNoContent {
+		return redirectHTMXOrSeeOther(c, returnURL+"?disconnect_failed=true")
+	}
+	return redirectHTMXOrSeeOther(c, returnURL+"?disconnected=true")
 }

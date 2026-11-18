@@ -6,9 +6,6 @@ templ WorkspaceGatePage(title string, usageType string, organizationWorkspaceNam
 
 templ WorkspaceGatePageContent(usageType string, organizationWorkspaceName string, personalWorkspaceName string, returnTo string, pageError string, pageErrorDetails string, customSlug string) {
 	<div class="space-y-5">
-		if pageError != "" {
-			@ErrorPopup("workspace-gate-error-popup", pageError, pageErrorDetails)
-		}
 		<div>
 			<p class="text-xs font-semibold uppercase tracking-wide text-primary">Workspace setup</p>
 			<h1 class="mt-2 text-2xl font-semibold text-base-content">Set up your workspace</h1>
@@ -19,7 +16,7 @@ templ WorkspaceGatePageContent(usageType string, organizationWorkspaceName strin
                 @AccountNotice(ctx)
             </div>
         }
-		<form class="space-y-4" method="post" action="/workspace" hx-post="/workspace" hx-target="body" hx-select="body" hx-swap="outerHTML">
+		<form class="space-y-4" method="post" action="/workspace" hx-post="/workspace" hx-target="#main-content" hx-select="#main-content" hx-swap="outerHTML" data-form-feedback>
 			<input type="hidden" name="usage_type" value={ usageType }/>
 			if returnTo != "" {
 				<input type="hidden" name="return_to" value={ returnTo }/>
@@ -45,6 +42,11 @@ templ WorkspaceGatePageContent(usageType string, organizationWorkspaceName strin
 				</div>
 			}
 			@CustomizeIdentifier(customSlug)
+			@FormError("workspace-gate-feedback", pageError, true)
+			if pageErrorDetails != "" {
+				<details class="text-sm"><summary>More details</summary><p class="whitespace-pre-wrap break-words">{ pageErrorDetails }</p></details>
+			}
+			@FormRequestError()
 			<button class="btn btn-primary w-full" type="submit">Create workspace</button>
 		</form>
 		<a class="btn btn-outline btn-sm w-full" href="/account">Account settings</a>

@@ -58,25 +58,19 @@ func EmailVerificationResultPageContent(verified bool, message string, details s
 			templ_7745c5c3_Var2 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		if !verified && message != "" {
-			templ_7745c5c3_Err = ErrorPopup("email-verification-error-popup", message, details).Render(ctx, templ_7745c5c3_Buffer)
-			if templ_7745c5c3_Err != nil {
-				return templ_7745c5c3_Err
-			}
-		}
 		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 1, "<div class=\"space-y-5 text-center\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		if verified {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 2, "<div class=\"mx-auto grid h-12 w-12 place-items-center rounded-full bg-success/15 text-lg font-semibold text-success\" aria-hidden=\"true\">✓</div><h1 class=\"text-2xl font-semibold\">Email verified</h1><div class=\"alert alert-success\"><span>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 2, "<div class=\"mx-auto grid h-12 w-12 place-items-center rounded-full bg-success/15 text-lg font-semibold text-success\" aria-hidden=\"true\">✓</div><h1 class=\"text-2xl font-semibold\">Email verified</h1><div class=\"alert alert-success\" role=\"status\"><span>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 			var templ_7745c5c3_Var3 string
 			templ_7745c5c3_Var3, templ_7745c5c3_Err = templ.JoinStringErrs(message)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/email_verification_result.templ`, Line: 16, Col: 19}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/email_verification_result.templ`, Line: 13, Col: 19}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var3))
 			if templ_7745c5c3_Err != nil {
@@ -87,30 +81,38 @@ func EmailVerificationResultPageContent(verified bool, message string, details s
 				return templ_7745c5c3_Err
 			}
 		} else {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 4, "<div class=\"mx-auto grid h-12 w-12 place-items-center rounded-full bg-error/15 text-lg font-semibold text-error\" aria-hidden=\"true\">!</div><h1 class=\"text-2xl font-semibold\">Verification failed</h1>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 4, "<div class=\"mx-auto grid h-12 w-12 place-items-center rounded-full bg-error/15 text-lg font-semibold text-error\" aria-hidden=\"true\">!</div><h1 class=\"text-2xl font-semibold\">Verification failed</h1><form class=\"space-y-3 text-left\" method=\"post\" action=\"/auth/resend-verification\" hx-post=\"/auth/resend-verification\" hx-target=\"#main-content\" hx-select=\"#main-content\" hx-swap=\"outerHTML\" data-form-feedback><label class=\"form-control w-full\"><div class=\"label\"><span class=\"label-text\">Account email</span></div><input class=\"input input-bordered w-full\" type=\"email\" name=\"email\" autocomplete=\"email\" required></label>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			if message != "" {
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 5, "<p class=\"text-sm text-base-content/70\">")
+			templ_7745c5c3_Err = FormError("verification-link-feedback", message, true).Render(ctx, templ_7745c5c3_Buffer)
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			if details != "" {
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 5, "<details class=\"text-sm\"><summary>More details</summary><p class=\"whitespace-pre-wrap break-words\">")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
 				var templ_7745c5c3_Var4 string
-				templ_7745c5c3_Var4, templ_7745c5c3_Err = templ.JoinStringErrs(message)
+				templ_7745c5c3_Var4, templ_7745c5c3_Err = templ.JoinStringErrs(details)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/email_verification_result.templ`, Line: 23, Col: 53}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/email_verification_result.templ`, Line: 26, Col: 113}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var4))
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 6, "</p>")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 6, "</p></details>")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 7, " <form class=\"space-y-3 text-left\" method=\"post\" action=\"/auth/resend-verification\" hx-post=\"/auth/resend-verification\" hx-target=\"main\" hx-select=\"main\" hx-swap=\"innerHTML\"><label class=\"form-control w-full\"><div class=\"label\"><span class=\"label-text\">Account email</span></div><input class=\"input input-bordered w-full\" type=\"email\" name=\"email\" autocomplete=\"email\" required></label> <button class=\"btn btn-primary w-full\" type=\"submit\">Send a new verification code</button></form><p class=\"text-xs text-base-content/60\">For privacy, the response is the same whether or not the address has an account.</p><a class=\"btn btn-ghost w-full\" href=\"/auth/login\">Back to sign in</a>")
+			templ_7745c5c3_Err = FormRequestError().Render(ctx, templ_7745c5c3_Buffer)
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 7, "<button class=\"btn btn-primary h-auto min-h-10 w-full py-2\" type=\"submit\">Send a new verification code</button></form><p class=\"text-xs text-base-content/60\">For privacy, the response is the same whether or not the address has an account.</p><a class=\"btn btn-ghost w-full\" href=\"/auth/login\">Back to sign in</a>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}

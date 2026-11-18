@@ -105,7 +105,7 @@ async function deleteE2EOrganization(page, organizationSlug) {
         .not.toBe(409);
 }
 
-async function waitForMailpitCode(page, recipientEmail, pathname) {
+async function waitForMailpitCode(page, recipientEmail, pathname, previousCode = "") {
     let found;
     await expect
         .poll(
@@ -129,7 +129,7 @@ async function waitForMailpitCode(page, recipientEmail, pathname) {
                     const text = String(detail.Text || "");
                     const link = text.match(/https?:\/\/[^\s]+/)?.[0];
                     const code = text.match(/^(?:Code|Kod): ([a-f0-9]{64})\s*$/m)?.[1];
-                    if (!link || !code) continue;
+                    if (!link || !code || code === previousCode) continue;
                     const url = new URL(link);
                     if (url.pathname === pathname && !url.search && !url.hash) {
                         found = { link, code };

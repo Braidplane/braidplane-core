@@ -5,11 +5,13 @@ import (
 	"encoding/json"
 	"io"
 	"net/http"
+	"net/url"
 	"strconv"
 	"strings"
 
 	api "github.com/Braidplane/braidplane-core/api-schema/gen/client"
 	"github.com/Braidplane/braidplane-core/frontend/views"
+	"github.com/Braidplane/braidplane-core/pkg/apierror"
 	"github.com/Braidplane/braidplane-core/pkg/odcs"
 	"github.com/Braidplane/braidplane-core/pkg/slug"
 	"github.com/gofiber/fiber/v3"
@@ -22,7 +24,8 @@ func (r *Router) handlePipelineSync(c fiber.Ctx) error {
 	}
 	permissions := r.resolveOrganizationPermissions(c.Context(), c.Get(fiber.HeaderCookie), org.String())
 	if !permissions.Can("pipelines", "update") {
-		return c.SendStatus(http.StatusForbidden)
+		return r.renderPipelineGitAccessDenied(c, org.String(), project.String(), permissions.Can("pipelines", "read"),
+			"You need permission to update pipelines to sync from Git.")
 	}
 	data := views.PipelineSyncView{Org: org.String(), Project: project.String(), Environment: c.Query("environment_slug")}
 	data.Pipeline = c.Query("pipeline_slug")
@@ -98,6 +101,33 @@ func pipelineActionError(response *api.ErrorResponse, fallback string) string {
 	return fallback
 }
 
+func (r *Router) renderPipelineGitAccessDenied(c fiber.Ctx, org, project string, canRead bool, message string) error {
+	backHref, backLabel := organizationsPath, "Back to organizations"
+	shellProject := ""
+	if canRead {
+		shellProject = project
+		backHref = "/orgs/" + org + "/projects/" + project + "/pipelines"
+		backLabel = "Back to pipelines"
+	}
+	shell := r.buildPipelineShellData(c, org, shellProject, "", "")
+	shell.Title = "Access denied"
+	shell.Subtitle = ""
+	c.Set(fiber.HeaderCacheControl, "no-store")
+	setPipelineGitAccessDeniedStatus(c)
+	return renderTempl(c, views.PipelineGitAccessDenied(shell, message, backHref, backLabel))
+}
+
+func setPipelineGitAccessDeniedStatus(c fiber.Ctx) {
+	if isHTMXRequest(c) {
+		c.Set("X-Braidplane-Pipeline-Access-Denied", "true")
+	}
+	c.Status(http.StatusForbidden)
+}
+
+func pipelineGitAuthorizationRefused(status int, response *api.ErrorResponse) bool {
+	return status == http.StatusForbidden && response != nil && response.Error.Code == apierror.CodeAuthForbidden
+}
+
 func (r *Router) handlePipelineDeploy(c fiber.Ctx) error {
 	c.Set(fiber.HeaderCacheControl, "no-store")
 	org, project, ok := projectActionSlugs(c)
@@ -107,9 +137,12 @@ func (r *Router) handlePipelineDeploy(c fiber.Ctx) error {
 	}
 	permissions := r.resolveOrganizationPermissions(c.Context(), c.Get(fiber.HeaderCookie), org.String())
 	canUpdate := permissions.Can("pipelines", "update")
-	if !permissions.Can("pipelines", "read") || c.Method() == http.MethodPost && !canUpdate {
-		return c.SendStatus(http.StatusForbidden)
+	if !permissions.Can("pipelines", "read") {
+		return r.renderPipelineGitAccessDenied(c, org.String(), project.String(), false, "You need permission to read pipelines to inspect deployments.")
 	}
+	const updateRequired = "You need permission to update pipelines to compile or deploy a version."
+	updateDenied := c.Method() == http.MethodPost && !canUpdate
+	backendDenied := false
 	data := views.PipelineDeployView{CanCompile: canUpdate, Org: org.String(), Project: project.String(), Pipeline: pipeline.String()}
 	hash := c.Query("spec_hash")
 	data.Environment = c.Query("environment_slug")
@@ -118,7 +151,12 @@ func (r *Router) handlePipelineDeploy(c fiber.Ctx) error {
 		data.Environment = c.FormValue("environment_slug")
 	}
 	if strings.TrimSpace(hash) == "" {
-		return c.Status(http.StatusBadRequest).SendString("select a pipeline version")
+		if updateDenied {
+			return r.renderPipelineGitAccessDenied(c, data.Org, data.Project, true, updateRequired)
+		}
+		data.Error = "Select an immutable version from the pipeline details."
+		c.Status(http.StatusBadRequest)
+		return renderTempl(c, views.PipelineDeployPage(r.buildPipelineShellData(c, data.Org, data.Project, "", ""), data))
 	}
 	ctx, cookie := c.Context(), c.Get(fiber.HeaderCookie)
 	version, status, apiError, err := r.getPipelineVersionViaAPI(ctx, cookie, data.Org, data.Project, data.Pipeline, hash)
@@ -126,11 +164,13 @@ func (r *Router) handlePipelineDeploy(c fiber.Ctx) error {
 		if status == http.StatusUnauthorized {
 			return redirectToLogin(c, c.OriginalURL())
 		}
+		if updateDenied {
+			return r.renderPipelineGitAccessDenied(c, data.Org, data.Project, true, updateRequired)
+		}
 		data.Error = pipelineActionError(apiError, "The selected pipeline version is unavailable.")
-	} else {
-		data.Version = version
-		data.CanCompile = canUpdate
+		return renderTempl(c, views.PipelineDeployPage(r.buildPipelineShellData(c, data.Org, data.Project, "", ""), data))
 	}
+	data.Version = version
 	environments, status, apiError, err := r.listProjectEnvironmentsViaAPI(ctx, cookie, data.Org, data.Project)
 	if err != nil {
 		if status == http.StatusUnauthorized {
@@ -142,7 +182,8 @@ func (r *Router) handlePipelineDeploy(c fiber.Ctx) error {
 		if data.Environment == "" && c.Method() == http.MethodGet {
 			data.Environment = selectDefaultProjectEnvironmentSlug(data.Environments)
 		}
-		if !projectEnvironmentSlugIsEnabled(data.Environments, data.Environment) {
+		data.TargetEnabled = projectEnvironmentSlugIsEnabled(data.Environments, data.Environment)
+		if !data.TargetEnabled {
 			data.Error = "Choose an environment enabled for this project."
 		} else {
 			for _, environment := range data.Environments {
@@ -170,6 +211,20 @@ func (r *Router) handlePipelineDeploy(c fiber.Ctx) error {
 	data.CompiledDigest, data.ResolutionDigest = c.Query("compiled_plan_digest"), c.Query("resolution_digest")
 	if c.Method() == http.MethodPost {
 		data.CompiledDigest, data.ResolutionDigest = c.FormValue("compiled_plan_digest"), c.FormValue("resolution_digest")
+	} else if c.Request().URI().QueryArgs().Has("review_from_environment") {
+		data.ReviewTarget = true
+		from := c.Query("review_from_environment")
+		if from != data.Environment {
+			if data.Error == "" && data.ResolutionDigest != "" {
+				query := url.Values{"review_from_environment": {from}, "rollback_selection_cleared": {"true"}}
+				if data.CompiledDigest != "" {
+					query.Set("compiled_plan_digest", data.CompiledDigest)
+				}
+				target := views.PipelineDeployHref(data.Org, data.Project, data.Environment, data.Pipeline, data.Version.SpecHash)
+				return c.Redirect().Status(http.StatusSeeOther).To(target + "&" + query.Encode())
+			}
+			data.RollbackSelectionCleared = c.Query("rollback_selection_cleared") == "true"
+		}
 	}
 	if data.CanDeploy && c.Method() == http.MethodPost && c.FormValue("action") == "compile" && !data.CanCompile {
 		data.Error = "New contract compilation is disabled. Retained plans remain inspectable."
@@ -184,6 +239,7 @@ func (r *Router) handlePipelineDeploy(c fiber.Ctx) error {
 			decoder.DisallowUnknownFields()
 			if len(data.ProjectionJSON) > odcs.MaxDocumentBytes || odcs.CheckRequestJSON([]byte(data.ProjectionJSON)) != nil || decoder.Decode(body.Projection) != nil || decoder.Decode(new(any)) != io.EOF {
 				data.Error = "Enter one valid projection selection JSON object within the 1 MiB limit. Documents and source provenance cannot be supplied."
+				data.InvalidCompileField = "projection"
 				data.CanDeploy = false
 				return renderTempl(c, views.PipelineDeployPage(r.buildPipelineShellData(c, data.Org, data.Project, "", ""), data))
 			}
@@ -194,6 +250,7 @@ func (r *Router) handlePipelineDeploy(c fiber.Ctx) error {
 			decoder.DisallowUnknownFields()
 			if len(data.ResourceScopesJSON) > odcs.MaxDocumentBytes || odcs.CheckRequestJSON([]byte(data.ResourceScopesJSON)) != nil || decoder.Decode(&scopes) != nil || decoder.Decode(new(any)) != io.EOF || scopes == nil || len(scopes) > 128 {
 				data.Error = "Enter one valid resource scope JSON array within the 1 MiB limit, with at most 128 selections. Use non-secret policy values only."
+				data.InvalidCompileField = "resource_scopes"
 				data.CanDeploy = false
 				return renderTempl(c, views.PipelineDeployPage(r.buildPipelineShellData(c, data.Org, data.Project, "", ""), data))
 			}
@@ -209,10 +266,15 @@ func (r *Router) handlePipelineDeploy(c fiber.Ctx) error {
 			data.Compiled, data.CompiledDigest = resp.JSON200, resp.JSON200.Digest
 			data.ResolutionDigest = ""
 		default:
-			data.Error = pipelineActionError(parseAPIErrorResponse(resp.Body), "Compilation is unavailable for this retained version.")
+			apiErr := parseAPIErrorResponse(resp.Body)
+			backendDenied = pipelineGitAuthorizationRefused(resp.StatusCode(), apiErr)
+			data.Error = pipelineActionError(apiErr, "Compilation is unavailable for this retained version.")
 		}
 	}
-	if data.CompiledDigest != "" && data.Compiled == nil {
+	if data.Error == "" && data.CompiledDigest != "" && data.ResolutionDigest != "" {
+		data.Error = "Select a compiled plan or a rollback resolution, one at a time."
+	}
+	if data.ResolutionDigest == "" && data.CompiledDigest != "" && data.Compiled == nil {
 		resp, callErr := r.apiClient.GetPipelineCompiledPlanWithResponse(ctx, data.Org, data.Project, data.Pipeline, data.CompiledDigest, frontendRequestEditor(ctx, cookie))
 		switch {
 		case callErr != nil:
@@ -256,12 +318,15 @@ func (r *Router) handlePipelineDeploy(c fiber.Ctx) error {
 		}
 		if data.Error == "" && c.FormValue("expected_current_spec_hash") != currentHash {
 			data.Error = "Deployment changed since this form was opened. Review the current version before retrying."
+			data.CanDeploy = false
+			data.ReviewDeployment = true
 		} else if data.Error == "" {
 			resp, callErr := r.apiClient.DeployPipelineWithResponse(ctx, data.Org, data.Project, data.Environment, data.Pipeline, req, frontendRequestEditor(ctx, cookie))
 			switch {
 			case callErr != nil:
 				data.Error = "Deployment outcome could not be confirmed. Refresh deployment state before retrying."
 				data.CanDeploy = false
+				data.ReviewDeployment = true
 			case resp.StatusCode() == http.StatusUnauthorized:
 				return redirectToLogin(c, c.OriginalURL())
 			case resp.StatusCode() == http.StatusOK && resp.JSON200 != nil:
@@ -269,10 +334,21 @@ func (r *Router) handlePipelineDeploy(c fiber.Ctx) error {
 			case resp.StatusCode() == http.StatusConflict:
 				data.Error = "Deployment changed. Refresh deployment state before retrying."
 				data.CanDeploy = false
+				data.ReviewDeployment = true
 			default:
-				data.Error = pipelineActionError(parseAPIErrorResponse(resp.Body), "Deployment failed. Check environment bindings and retry the selected version.")
+				apiErr := parseAPIErrorResponse(resp.Body)
+				backendDenied = pipelineGitAuthorizationRefused(resp.StatusCode(), apiErr)
+				data.Error = pipelineActionError(apiErr, "Deployment failed. Check environment bindings and retry the selected version.")
 			}
 		}
+	}
+	if updateDenied {
+		data.Error = strings.TrimSpace(updateRequired + " " + data.Error)
+	}
+	if updateDenied || backendDenied {
+		setPipelineGitAccessDeniedStatus(c)
+		data.CanCompile, data.CanDeploy = false, false
+		data.ReviewDeployment = true
 	}
 	shell := r.buildPipelineShellData(c, data.Org, data.Project, "", "")
 	return renderTempl(c, views.PipelineDeployPage(shell, data))

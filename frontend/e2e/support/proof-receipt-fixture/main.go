@@ -10,6 +10,7 @@ import (
 	"net/http/httptest"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/gofiber/fiber/v3"
 	"github.com/gofiber/fiber/v3/middleware/session"
@@ -21,10 +22,23 @@ import (
 	"github.com/Braidplane/braidplane-core/pkg/slug"
 )
 
+var (
+	proofHandoffMissingDeployment, proofHandoffMissingRun bool
+	proofHistoryOlderEmpty                                bool
+)
+
 const receiptPrefix = "/api/organizations/acme/projects/ops/environments/prod/proof-receipts/"
 
+type gitLabConnectionFixture struct {
+	mu               sync.Mutex
+	refuseConnect    bool
+	refuseDisconnect bool
+	disconnected     bool
+}
+
 func main() {
-	apiServer := httptest.NewServer(http.HandlerFunc(handleAPI))
+	gitLab := &gitLabConnectionFixture{}
+	apiServer := httptest.NewServer(http.HandlerFunc(gitLab.handleAPI))
 	defer apiServer.Close()
 
 	store := session.NewStore()
@@ -37,6 +51,26 @@ func main() {
 	app.Use(func(c fiber.Ctx) error {
 		c.Set("Content-Security-Policy", "form-action 'self'")
 		return c.Next()
+	})
+	app.Post("/_test/gitlab/refuse-actions", func(c fiber.Ctx) error {
+		gitLab.mu.Lock()
+		defer gitLab.mu.Unlock()
+		gitLab.refuseConnect = true
+		gitLab.refuseDisconnect = true
+		return c.SendStatus(http.StatusNoContent)
+	})
+	app.Post("/_test/proof/handoff", func(c fiber.Ctx) error {
+		proofMu.Lock()
+		defer proofMu.Unlock()
+		proofHandoffMissingDeployment = fiber.Query[bool](c, "missing_deployment")
+		proofHandoffMissingRun = fiber.Query[bool](c, "missing_run")
+		return c.SendStatus(http.StatusNoContent)
+	})
+	app.Post("/_test/proof/history/prune-older", func(c fiber.Ctx) error {
+		proofMu.Lock()
+		defer proofMu.Unlock()
+		proofHistoryOlderEmpty = true
+		return c.SendStatus(http.StatusNoContent)
 	})
 	app.Post("/_test/proof/reset", func(c fiber.Ctx) error {
 		proofMu.Lock()
@@ -78,18 +112,46 @@ func main() {
 	}
 }
 
-func handleAPI(w http.ResponseWriter, r *http.Request) {
+func (gitLab *gitLabConnectionFixture) handleAPI(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	switch r.URL.Path {
 	case "/api/users/profile":
 		write(w, `{"slug":"test-user"}`)
 	case "/api/organizations/acme/gitlab-connection":
+		gitLab.mu.Lock()
+		defer gitLab.mu.Unlock()
+		const revoked = `{"kind":"oauth2_grant","status":"revoked","updated_at":"2026-09-27T00:00:00Z","oauth":{"provider":"gitlab"}}`
+		if r.Method == http.MethodDelete {
+			if gitLab.refuseDisconnect {
+				gitLab.refuseDisconnect = false
+				w.WriteHeader(http.StatusConflict)
+				return
+			}
+			gitLab.disconnected = true
+		}
+		if gitLab.disconnected {
+			write(w, revoked)
+			return
+		}
 		write(w, `{"kind":"oauth2_grant","status":"active","updated_at":"2026-09-27T00:00:00Z","oauth":{"provider":"gitlab","account":{"name":"Acme GitLab"},"scopes":["read_user","read_api","read_repository"]}}`)
 	case "/api/organizations/acme/gitlab-connection/authorization":
+		gitLab.mu.Lock()
+		defer gitLab.mu.Unlock()
+		if gitLab.refuseConnect {
+			gitLab.refuseConnect = false
+			w.WriteHeader(http.StatusServiceUnavailable)
+			return
+		}
 		w.WriteHeader(http.StatusCreated)
 		write(w, `{"slug":"install","provider":"gitlab","authorization_url":"https://gitlab.com/oauth/authorize?state=fixture","expires_at":"2026-09-27T00:10:00Z","intent":"rotate_grant","requested_scopes":["read_user","read_api","read_repository"]}`)
 	case "/api/organizations/acme/roles/admin":
 		write(w, `{"slug":"admin","name":"Admin","permissions":[{"resource":"*","action":"*"}]}`)
+	case "/api/organizations/acme/data-sources/missing/proof":
+		w.WriteHeader(http.StatusNotFound)
+		write(w, `{"error":{"code":"NOT_FOUND","message":"Data source not found."}}`)
+	case "/api/organizations/acme/data-sources/restricted/proof":
+		w.WriteHeader(http.StatusForbidden)
+		write(w, `{"error":{"code":"FORBIDDEN","message":"Access denied."}}`)
 	case "/api/organizations/acme/proof-configurations", "/api/organizations/acme/data-sources/github/proof", "/api/organizations/acme/data-sources/gitlab/proof":
 		proofMu.Lock()
 		defer proofMu.Unlock()
@@ -101,7 +163,7 @@ func handleAPI(w http.ResponseWriter, r *http.Request) {
 			}
 			if settings.Enabled && settings.ExpectedRepositoryId != proofSettings.RepositoryId {
 				w.WriteHeader(400)
-				write(w, `{"error":{"code":"PROOF_CONFIGURATION_INVALID","message":"Repository changed. Reload and confirm the new repository."}}`)
+				write(w, `{"error":{"code":"PROOF_CONFIGURATION_INVALID","message":"Proof configuration is invalid","detailed_error":"Repository changed. Reload and confirm the new repository."}}`)
 				return
 			}
 			if settings.Enabled && len(settings.Targets) == 0 {
@@ -144,7 +206,20 @@ func handleAPI(w http.ResponseWriter, r *http.Request) {
 		write(w, `{"name":"Acme","slug":"connected"}`)
 	case "/api/organizations/disconnected/github-app-connection":
 		w.WriteHeader(http.StatusNoContent)
+	case "/api/organizations/disconnected/github-app-connection/authorize":
+		var input api.AuthorizeOrganizationGitHubAppConnectionJSONRequestBody
+		if err := json.NewDecoder(r.Body).Decode(&input); err != nil || input.AccountLogin != "synthetic-valid" {
+			w.WriteHeader(http.StatusNotFound)
+			write(w, `{"error":{"code":"NOT_FOUND","message":"App installation not found."}}`)
+			return
+		}
+		write(w, `{"authorization_url":"https://github.com/login/oauth/authorize?state=fixture"}`)
 	case "/api/organizations/acme/github-app-connection":
+		if r.Method == http.MethodDelete {
+			w.WriteHeader(http.StatusForbidden)
+			write(w, `{"error":{"code":"FORBIDDEN","message":"Organization management permission is required."}}`)
+			return
+		}
 		write(w, `{"account_login":"acme","repositories":[{"id":123,"full_name":"acme/pipelines"}]}`)
 	case "/api/organizations/connected/github-app-connection":
 		write(w, `{"account_login":"acme","repositories":[]}`)
@@ -156,11 +231,43 @@ func handleAPI(w http.ResponseWriter, r *http.Request) {
 		write(w, `{"projects":[{"name":"Ops","slug":"ops","created_at":"2026-09-02T00:00:00Z","updated_at":"2026-09-02T00:00:00Z"}],"has_more":false,"next_cursor":null,"prev_cursor":null}`)
 	case "/api/organizations/acme/projects/ops/environments":
 		write(w, `{"project_environments":[{"environment_slug":"prod","environment_name":"Production","is_default":true},{"environment_slug":"empty","environment_name":"Empty","is_default":false},{"environment_slug":"denied","environment_name":"Denied","is_default":false}],"has_more":false,"next_cursor":null,"prev_cursor":null}`)
+	case "/api/organizations/acme/projects/ops/environments/prod/runs/recorded-run":
+		proofMu.Lock()
+		defer proofMu.Unlock()
+		if proofHandoffMissingRun {
+			w.WriteHeader(http.StatusNotFound)
+			write(w, `{"error":{"code":"RUN_NOT_FOUND","message":"The recorded run is no longer retained."}}`)
+			return
+		}
+		write(w, `{"metadata":{"run_slug":"recorded-run","pipeline_slug":"orders","environment_slug":"prod","status":"succeeded","pipeline_version_spec_hash":"sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd","source":{"type":"manual","attempt_number":2,"root_run_slug":"parent-run","retry_of_run_slug":"parent-run"}},"timeline":{"run_slug":"recorded-run","pipeline_slug":"orders","status":"succeeded","events":[],"snapshots":[]},"proof_link":{"kind":"run","receipt_id":"operational-available","identifier":"recorded-run","status":"matched"}}`)
+	case "/api/organizations/acme/projects/ops/pipelines/orders":
+		write(w, `{"slug":"orders","name":"Orders","current_version_spec_hash":"sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"}`)
+	case "/api/organizations/acme/projects/ops/environments/prod/pipelines/orders/deployment":
+		proofMu.Lock()
+		defer proofMu.Unlock()
+		if proofHandoffMissingDeployment {
+			w.WriteHeader(http.StatusNotFound)
+			write(w, `{"error":{"code":"DEPLOYMENT_NOT_FOUND","message":"The current deployment is unavailable."}}`)
+			return
+		}
+		write(w, `{"pipeline_slug":"orders","project_slug":"ops","environment_slug":"prod","current_version_spec_hash":"sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd","current_version_short_spec_hash":"dddddddd","revision":9,"proof_link":{"kind":"deployment","receipt_id":"mismatch-partial","identifier":"orders:old","status":"version_mismatch"}}`)
 	case "/api/organizations/acme/projects/ops/environments/prod/proof-receipts":
+		proofMu.Lock()
+		defer proofMu.Unlock()
+		if r.URL.Query().Get("cursor") == "invalid" {
+			w.WriteHeader(http.StatusBadRequest)
+			write(w, `{"error":{"code":"VALIDATION_FAILED","message":"Invalid cursor."}}`)
+			return
+		}
 		if r.URL.Query().Get("cursor") != "" && r.URL.Query().Get("direction") == "next" {
-			write(w, `{"receipts":[`+staleReceipt+`,`+strings.ReplaceAll(noEvidenceReceipt, `"unverified"`, `"superseded"`)+`],"has_more":false,"next_cursor":null,"prev_cursor":"newer"}`)
+			if proofHistoryOlderEmpty {
+				write(w, `{"receipts":[],"has_more":false,"next_cursor":null,"prev_cursor":null}`)
+				return
+			}
+			denied := strings.NewReplacer(`"no-evidence"`, `"denied"`, `"change_request_id":"42"`, `"change_request_id":"41"`).Replace(noEvidenceReceipt)
+			write(w, `{"receipts":[`+staleReceipt+`,`+strings.ReplaceAll(noEvidenceReceipt, `"unverified"`, `"superseded"`)+`,`+denied+`],"has_more":false,"next_cursor":null,"prev_cursor":"newer"}`)
 		} else {
-			write(w, `{"receipts":[`+metadataReceipt+`],"has_more":false,"next_cursor":null,"prev_cursor":null}`)
+			write(w, `{"receipts":[`+metadataReceipt+`],"has_more":true,"next_cursor":"older","prev_cursor":null}`)
 		}
 	case "/api/organizations/acme/projects/ops/environments/empty/proof-receipts":
 		write(w, `{"receipts":[],"has_more":false,"next_cursor":null,"prev_cursor":null}`)
@@ -172,7 +279,8 @@ func handleAPI(w http.ResponseWriter, r *http.Request) {
 			w.WriteHeader(http.StatusNotFound)
 			return
 		}
-		switch strings.TrimPrefix(r.URL.Path, receiptPrefix) {
+		receiptSlug := strings.TrimPrefix(r.URL.Path, receiptPrefix)
+		switch receiptSlug {
 		case "mismatch-partial":
 			write(w, mismatchPartialReceipt)
 		case "stale":
@@ -181,19 +289,36 @@ func handleAPI(w http.ResponseWriter, r *http.Request) {
 			write(w, noEvidenceReceipt)
 		case "metadata":
 			write(w, metadataReceipt)
-		case "operational-pruned":
+		case "operational-pruned", "operational-expired", "operational-available", "operational-changed":
 			var receipt api.ProofReceipt
 			if err := json.Unmarshal([]byte(metadataReceipt), &receipt); err != nil {
 				panic(err)
 			}
-			receipt.Id = "operational-pruned"
+			receipt.Id = receiptSlug
 			receipt.Claims[0].Description = "Retained structural conformance"
 			receipt.Claims[0].RequiredEvidenceLevel = api.ProofEvidenceLevelOperational
 			receipt.Claims[0].ActualEvidenceLevel = new(api.ProofEvidenceLevelOperational)
 			receipt.OperationalAdmissionEnabled = new(true)
-			receipt.OperationalEvidenceStatus = new(api.ProofReceiptOperationalEvidenceStatus("missing"))
-			receipt.OperationalCurrentVerdict = new(api.ProofVerdictUnverified)
+			status := strings.TrimPrefix(receiptSlug, "operational-")
+			verdict := api.ProofVerdictUnverified
+			switch status {
+			case "pruned":
+				status = "missing"
+			case "expired":
+				verdict = api.ProofVerdictStale
+			case "available":
+				verdict = receipt.AggregateVerdict
+			case "changed":
+				verdict = api.ProofVerdictInconclusive
+			}
+			receipt.OperationalEvidenceStatus = new(api.ProofReceiptOperationalEvidenceStatus(status))
+			receipt.OperationalCurrentVerdict = &verdict
 			receipt.Operational = &api.ProofOperationalCapture{SourceReceiptId: "static-receipt", PolicyVersion: "operational-policy-v1", RecordDigest: "sha256:captured-record", ExpiresAt: receipt.CreatedAt, Selection: api.ProofOperationalSelection{Run: "recorded-run", Attempt: 2, Step: "store", Input: "orders", Origin: "operation", Phase: "pre_sink", Declaration: "operation/pre_sink", ProjectionDigest: "sha256:recorded-projection", CompiledPlanDigest: "sha256:recorded-plan", DeploymentResolutionDigest: "sha256:recorded-resolution"}}
+			if status == "available" || status == "changed" {
+				receipt.CreatedAt = proofFixtureAt
+				receipt.RetainUntil = receipt.CreatedAt.Add(30 * 24 * time.Hour)
+				receipt.Operational.ExpiresAt = receipt.CreatedAt.Add(7 * 24 * time.Hour)
+			}
 			if err := json.NewEncoder(w).Encode(receipt); err != nil {
 				panic(err)
 			}
@@ -214,7 +339,7 @@ func handleAPI(w http.ResponseWriter, r *http.Request) {
 				panic(err)
 			}
 		case "superseded":
-			write(w, strings.ReplaceAll(noEvidenceReceipt, `"unverified"`, `"superseded"`))
+			write(w, strings.NewReplacer(`"no-evidence"`, `"superseded"`, `"unverified"`, `"superseded"`).Replace(noEvidenceReceipt))
 		case "denied":
 			w.WriteHeader(http.StatusForbidden)
 			write(w, `{"error":{"code":"FORBIDDEN","message":"You do not have permission to view this receipt."}}`)
@@ -239,6 +364,7 @@ var (
 	proofMu         sync.Mutex
 	proofSetupFails bool
 	proofSettings   = initialProofSettings()
+	proofFixtureAt  = time.Now().UTC().Truncate(time.Second)
 )
 
 func initialProofSettings() api.DataSourceProofConfiguration {
@@ -247,4 +373,10 @@ func initialProofSettings() api.DataSourceProofConfiguration {
 
 const metadataReceipt = `{"schema_version":1,"id":"metadata",` + candidate + `,"claims":[{"identity":{"family":"fields_types","pipeline_version_hash":"sha256:static","semantic_path":"/source"},"description":"Metadata compatibility","required_evidence_level":"static","actual_evidence_level":"static","observed_at":null,"expires_at":null,"verdict":"passed","evidence":[],"diagnostics":[]}],"aggregate_verdict":"passed","created_at":"2026-09-02T00:00:00Z","retain_until":"2026-12-01T00:00:00Z","lifecycle_links":[]}`
 
-var liveReceipt = strings.ReplaceAll(strings.ReplaceAll(strings.ReplaceAll(metadataReceipt, `"metadata"`, `"live"`), `"static"`, `"live_read_only"`), `"observed_at":null`, `"observed_at":"2026-09-02T00:00:00Z"`)
+var liveReceipt = strings.NewReplacer(
+	`"metadata"`, `"live"`,
+	`"Metadata compatibility"`, `"Read-only connection assessment"`,
+	`"static"`, `"live_read_only"`,
+	`"observed_at":null`, `"observed_at":"2026-09-02T00:00:00Z"`,
+	`"evidence":[]`, `"evidence":[{"kind":"validation","digest":"sha256:read-only-observation"}]`,
+).Replace(metadataReceipt)

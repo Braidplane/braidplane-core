@@ -42,9 +42,9 @@ templ PipelineRunCompletionPanel(org, project, environment, run string, inspecti
 			if evidence.DecisionReason != nil {
 				<p class="break-words text-sm">Closure reason: { *evidence.DecisionReason }</p>
 			}
-			<div class="overflow-x-auto">
-				<table class="table table-sm min-w-[40rem]">
-					<caption class="pb-2 text-left text-sm font-semibold">Recorded attempts</caption>
+			<h3 id="recorded-attempts-heading" class="text-sm font-semibold">Recorded attempts</h3>
+			<div class="overflow-x-auto focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary" tabindex="0" role="region" aria-label="Recorded attempt details">
+				<table class="table table-sm min-w-[40rem]" aria-labelledby="recorded-attempts-heading">
 					<thead><tr><th>Attempt</th><th>Status</th><th>Executed version</th><th>Deployment revision</th></tr></thead>
 					<tbody>
 						for _, attempt := range evidence.Attempts {
@@ -72,7 +72,7 @@ templ PipelineRunCompletionPanel(org, project, environment, run string, inspecti
 				for _, trigger:=range inspection.CurrentSubscriptions {
 					<div class="min-w-0 border-b border-base-300 pb-2 text-sm">
 						<a class="link link-primary break-all" href={ templ.URL(scheduleDetailHref(org, project, environment, trigger.Slug)) }>{ trigger.Slug }</a>
-						<p class="break-all font-mono">{ trigger.Completion.UpstreamPipelineSlug } → { string(trigger.Completion.Condition) } → { trigger.PipelineSlug }</p>
+						<p class="break-words">From <code class="break-all">{ trigger.Completion.UpstreamPipelineSlug }</code> to <code class="break-all">{ trigger.PipelineSlug }</code> · Condition { string(trigger.Completion.Condition) }</p>
 						<p>{ completionSubscriptionState(trigger,evidence) }</p>
 						<p class="break-all">Revision { fmt.Sprint(trigger.Revision) } · { scheduleVersionPolicyLabel(trigger.VersionPolicy) }</p>
 					</div>
@@ -92,7 +92,7 @@ templ PipelineRunCompletionPanel(org, project, environment, run string, inspecti
 
 templ PipelineCompletionDecisionDetails(org, project, environment string, decision api.PipelineCompletionDecision) {
 	<div class="min-w-0 space-y-2 border-b border-base-300 pb-4 text-sm">
-		<p class="break-all font-mono">{ decision.UpstreamPipelineSlug } → { completionCondition(decision.Condition) } → { decision.DownstreamPipelineSlug }</p>
+		<p class="break-words">From <code class="break-all">{ decision.UpstreamPipelineSlug }</code> to <code class="break-all">{ decision.DownstreamPipelineSlug }</code> · Condition { completionCondition(decision.Condition) }</p>
 		<p class="break-all">Trigger { decision.TriggerSlug } · revision { fmt.Sprint(decision.TriggerRevision) }</p>
 		<p class="break-all">Dispatch: <span class="badge badge-outline">{ decision.State }</span></p>
 		if decision.DecisionReason!=nil {

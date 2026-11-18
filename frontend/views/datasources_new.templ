@@ -64,10 +64,10 @@ type DataSourceFormFields struct {
 	AllowPrivateDataSourceHosts bool
 }
 
-templ postgresSSLModeField(mode string) {
-	<label class="form-control w-full">
-		<div class="label py-1"><span class="label-text text-xs">SSL mode</span></div>
-		<select class="select select-bordered select-sm w-full" name="sslmode">
+templ postgresSSLModeField(id string, mode string) {
+	<div class="form-control w-full">
+		<label class="label py-1" for={ id }><span class="label-text text-xs">SSL mode</span></label>
+		<select class="select select-bordered select-sm w-full" id={ id } aria-describedby={ id + "-help" } name="sslmode">
 			<option value="" selected?={ mode == "" }>Default (verify-full)</option>
 			<option value="verify-full" selected?={ mode == "verify-full" }>verify-full</option>
 			<option value="verify-ca" selected?={ mode == "verify-ca" }>verify-ca</option>
@@ -76,6 +76,6 @@ templ postgresSSLModeField(mode string) {
 			<option value="allow" selected?={ mode == "allow" }>allow</option>
 			<option value="disable" selected?={ mode == "disable" }>disable</option>
 		</select>
-		<span class="label-text-alt mt-1">Modes other than verify-full require the local development transport exception.</span>
-	</label>
+		<span class="label-text-alt mt-1" id={ id + "-help" }>Modes other than verify-full require the local development transport exception.</span>
+	</div>
 }

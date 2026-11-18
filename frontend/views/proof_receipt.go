@@ -167,18 +167,21 @@ func proofReceiptSection(ctx context.Context) string {
 	}
 }
 
-func proofHistoryBackHref(ctx context.Context, receipt *api.ProofReceipt) string {
-	fallback := ProofHistoryHref(receipt.Candidate.OrganizationSlug, receipt.Candidate.ProjectSlug, receipt.Candidate.EnvironmentSlug, "", "")
+func proofHistoryBackHref(ctx context.Context, orgSlug, projectSlug, environmentSlug string) string {
+	fallback := ProofHistoryHref(orgSlug, projectSlug, environmentSlug, "", "")
 	candidate := entityBackHref(ctx, fallback)
 	u, err := url.Parse(candidate)
-	if err != nil || u.Query().Get("environment_slug") != receipt.Candidate.EnvironmentSlug {
+	if err != nil || u.Query().Get("environment_slug") != environmentSlug {
 		return fallback
 	}
-	return ProofHistoryHref(receipt.Candidate.OrganizationSlug, receipt.Candidate.ProjectSlug, receipt.Candidate.EnvironmentSlug, u.Query().Get("cursor"), u.Query().Get("direction"))
+	return ProofHistoryHref(orgSlug, projectSlug, environmentSlug, u.Query().Get("cursor"), u.Query().Get("direction"))
 }
 
 func proofReceiptSectionHref(ctx context.Context, receipt *api.ProofReceipt, section string) string {
-	return entityDetailHref(entitySectionHref(ctx, ProofReceiptHref(receipt.Candidate.OrganizationSlug, receipt.Candidate.ProjectSlug, receipt.Candidate.EnvironmentSlug, receipt.Id), section), proofHistoryBackHref(ctx, receipt))
+	candidate := receipt.Candidate
+	detail := ProofReceiptHref(candidate.OrganizationSlug, candidate.ProjectSlug, candidate.EnvironmentSlug, receipt.Id)
+	history := proofHistoryBackHref(ctx, candidate.OrganizationSlug, candidate.ProjectSlug, candidate.EnvironmentSlug)
+	return entityDetailHref(entitySectionHref(ctx, detail, section), history)
 }
 
 func proofHistoryReceiptHref(ctx context.Context, shell AuthenticatedShellData, receipt api.ProofReceipt) string {

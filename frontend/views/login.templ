@@ -39,6 +39,8 @@ templ LoginPageContent(email string, pageError string, pageErrorDetails string, 
 		if googleSignInEnabled(ctx) {
 			<div class="divider text-xs uppercase tracking-wide text-base-content/50">or</div>
 			<a class="btn btn-outline w-full" href={ templ.URL(AuthReturnURL("/api/auth/google", returnTo)) }>Continue with Google</a>
+			<p class="text-sm text-base-content/70">Core allows 10 minutes for Google sign-in by default.</p>
+			<a class="btn btn-outline h-auto min-h-10 w-full whitespace-normal py-2" href={ templ.URL(googleAuthMoreTimeURL(returnTo)) }>Continue with Google (100 minutes)</a>
 		}
 		if selfServiceRegistrationEnabled {
 			<p class="text-center text-sm text-base-content/70">

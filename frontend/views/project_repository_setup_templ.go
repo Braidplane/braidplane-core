@@ -188,14 +188,14 @@ func ManagedProjectRepositoryForm(organization api.Organization, project api.Pro
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 19, "\" hx-swap=\"outerHTML show:none focus-scroll:false\" data-preserve-scroll><input type=\"hidden\" name=\"mode\" value=\"managed_create\"> <input type=\"hidden\" name=\"project_slug\" value=\"")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 19, "\" hx-swap=\"outerHTML show:none focus-scroll:false\"><input type=\"hidden\" name=\"mode\" value=\"managed_create\"> <input type=\"hidden\" name=\"project_slug\" value=\"")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 			var templ_7745c5c3_Var9 string
 			templ_7745c5c3_Var9, templ_7745c5c3_Err = templ.ResolveAttributeValue(string(project.Slug))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/project_repository_setup.templ`, Line: 45, Col: 72}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/project_repository_setup.templ`, Line: 44, Col: 72}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var9)
 			if templ_7745c5c3_Err != nil {
@@ -224,7 +224,7 @@ func ManagedProjectRepositoryForm(organization api.Organization, project api.Pro
 							var templ_7745c5c3_Var10 templ.SafeURL
 							templ_7745c5c3_Var10, templ_7745c5c3_Err = templ.JoinURLErrs(templ.URL(DataSourceDetailHref(string(organization.Slug), entityPageURL(ctx).Query().Get("environment_slug"), string(controls.RepositorySetup.DataSourceSlug))))
 							if templ_7745c5c3_Err != nil {
-								return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/project_repository_setup.templ`, Line: 58, Col: 225}
+								return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/project_repository_setup.templ`, Line: 57, Col: 225}
 							}
 							_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var10))
 							if templ_7745c5c3_Err != nil {
@@ -274,7 +274,7 @@ func ManagedProjectRepositoryForm(organization api.Organization, project api.Pro
 			var templ_7745c5c3_Var11 templ.SafeURL
 			templ_7745c5c3_Var11, templ_7745c5c3_Err = templ.JoinURLErrs(templ.URL(projectRepositoryHref(ctx, string(organization.Slug), string(project.Slug), "existing")))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/project_repository_setup.templ`, Line: 78, Col: 126}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/project_repository_setup.templ`, Line: 77, Col: 126}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var11))
 			if templ_7745c5c3_Err != nil {
@@ -292,7 +292,7 @@ func ManagedProjectRepositoryForm(organization api.Organization, project api.Pro
 				var templ_7745c5c3_Var12 string
 				templ_7745c5c3_Var12, templ_7745c5c3_Err = templ.ResolveAttributeValue(controls.RepositoryProvider)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/project_repository_setup.templ`, Line: 84, Col: 88}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/project_repository_setup.templ`, Line: 83, Col: 88}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var12)
 				if templ_7745c5c3_Err != nil {
@@ -340,7 +340,7 @@ func ManagedProjectRepositoryForm(organization api.Organization, project api.Pro
 			var templ_7745c5c3_Var13 string
 			templ_7745c5c3_Var13, templ_7745c5c3_Err = templ.ResolveAttributeValue(controls.ProviderOwner)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/project_repository_setup.templ`, Line: 94, Col: 121}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/project_repository_setup.templ`, Line: 93, Col: 121}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var13)
 			if templ_7745c5c3_Err != nil {
@@ -363,7 +363,7 @@ func ManagedProjectRepositoryForm(organization api.Organization, project api.Pro
 			var templ_7745c5c3_Var14 string
 			templ_7745c5c3_Var14, templ_7745c5c3_Err = templ.ResolveAttributeValue(controls.RepositoryName)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/project_repository_setup.templ`, Line: 98, Col: 123}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/project_repository_setup.templ`, Line: 97, Col: 123}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var14)
 			if templ_7745c5c3_Err != nil {
@@ -386,7 +386,7 @@ func ManagedProjectRepositoryForm(organization api.Organization, project api.Pro
 			var templ_7745c5c3_Var15 templ.SafeURL
 			templ_7745c5c3_Var15, templ_7745c5c3_Err = templ.JoinURLErrs(templ.URL("/organizations/" + string(organization.Slug) + "/connections"))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/project_repository_setup.templ`, Line: 101, Col: 357}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/project_repository_setup.templ`, Line: 100, Col: 357}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var15))
 			if templ_7745c5c3_Err != nil {
@@ -409,7 +409,7 @@ func ManagedProjectRepositoryForm(organization api.Organization, project api.Pro
 			var templ_7745c5c3_Var16 string
 			templ_7745c5c3_Var16, templ_7745c5c3_Err = templ.ResolveAttributeValue(controls.CreationBranch)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/project_repository_setup.templ`, Line: 105, Col: 231}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/project_repository_setup.templ`, Line: 104, Col: 231}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var16)
 			if templ_7745c5c3_Err != nil {
@@ -432,7 +432,7 @@ func ManagedProjectRepositoryForm(organization api.Organization, project api.Pro
 			var templ_7745c5c3_Var17 string
 			templ_7745c5c3_Var17, templ_7745c5c3_Err = templ.ResolveAttributeValue(controls.PipelineDir)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/project_repository_setup.templ`, Line: 106, Col: 225}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/project_repository_setup.templ`, Line: 105, Col: 225}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var17)
 			if templ_7745c5c3_Err != nil {
@@ -448,22 +448,30 @@ func ManagedProjectRepositoryForm(organization api.Organization, project api.Pro
 					return templ_7745c5c3_Err
 				}
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 56, "></label></div></details> <label class=\"flex cursor-pointer items-start gap-3 text-sm\"><input class=\"checkbox checkbox-sm mt-0.5 shrink-0\" type=\"checkbox\" name=\"create_private_repository\" required> <span>Create this private repository and add the Braidplane template.</span></label><div class=\"flex flex-wrap gap-2\"><button class=\"btn btn-primary btn-sm\" type=\"submit\">")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 56, "></label></div></details> <label class=\"flex cursor-pointer items-start gap-3 text-sm\"><input class=\"checkbox checkbox-sm mt-0.5 shrink-0\" type=\"checkbox\" name=\"create_private_repository\" required> <span>Create this private repository and add the Braidplane template.</span></label>")
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			templ_7745c5c3_Err = OAuthCallbackTimeOption(controls.RepositoryOAuthMoreTime).Render(ctx, templ_7745c5c3_Buffer)
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 57, "<div class=\"flex flex-wrap gap-2\"><button class=\"btn btn-primary btn-sm\" type=\"submit\">")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 			if controls.RepositorySetup != nil {
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 57, "<span>Resume setup</span>")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 58, "<span>Resume setup</span>")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
 			} else {
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 58, "<span>Create and connect</span>")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 59, "<span>Create and connect</span>")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 59, "</button> <a class=\"btn btn-outline btn-sm\" href=\"")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 60, "</button> <a class=\"btn btn-outline btn-sm\" href=\"")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -476,12 +484,12 @@ func ManagedProjectRepositoryForm(organization api.Organization, project api.Pro
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 60, "\">Cancel</a></div></form>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 61, "\">Cancel</a></div></form>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 			if controls.RepositorySetup != nil {
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 61, "<details class=\"mt-6 max-w-3xl border-t border-base-300 pt-5\"><summary class=\"cursor-pointer text-sm text-base-content/70\">Choose a different target</summary><form class=\"mt-4 grid gap-4\" method=\"post\" action=\"")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 62, "<details class=\"mt-6 max-w-3xl border-t border-base-300 pt-5\"><summary class=\"cursor-pointer text-sm text-base-content/70\">Choose a different target</summary><form class=\"mt-4 grid gap-4\" method=\"post\" action=\"")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
@@ -494,7 +502,7 @@ func ManagedProjectRepositoryForm(organization api.Organization, project api.Pro
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 62, "\" hx-post=\"")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 63, "\" hx-post=\"")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
@@ -507,7 +515,7 @@ func ManagedProjectRepositoryForm(organization api.Organization, project api.Pro
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 63, "\" hx-disabled-elt=\"find button[type=submit]\" hx-target=\"")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 64, "\" hx-disabled-elt=\"find button[type=submit]\" hx-target=\"")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
@@ -520,7 +528,7 @@ func ManagedProjectRepositoryForm(organization api.Organization, project api.Pro
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 64, "\" hx-select=\"")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 65, "\" hx-select=\"")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
@@ -533,7 +541,7 @@ func ManagedProjectRepositoryForm(organization api.Organization, project api.Pro
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 65, "\" hx-swap=\"outerHTML show:none focus-scroll:false\"><input type=\"hidden\" name=\"mode\" value=\"managed_abandon\"> <input type=\"hidden\" name=\"setup_slug\" value=\"")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 66, "\" hx-swap=\"outerHTML show:none focus-scroll:false\"><input type=\"hidden\" name=\"mode\" value=\"managed_abandon\"> <input type=\"hidden\" name=\"setup_slug\" value=\"")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
@@ -546,7 +554,7 @@ func ManagedProjectRepositoryForm(organization api.Organization, project api.Pro
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 66, "\"><p class=\"text-sm text-base-content/70\">Use this after a naming conflict or when you want another account or repository. The saved attempt stops here; any resources already created stay in place.</p><label class=\"flex cursor-pointer items-start gap-3 text-sm\"><input class=\"checkbox checkbox-sm mt-0.5 shrink-0\" type=\"checkbox\" name=\"preserve_resources\" required> <span>Keep any existing repository and connection from this attempt.</span></label><div><button class=\"btn btn-outline btn-sm\" type=\"submit\">Change target</button></div></form></details>")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 67, "\"><p class=\"text-sm text-base-content/70\">Use this after a naming conflict or when you want another account or repository. The saved attempt stops here; any resources already created stay in place.</p><label class=\"flex cursor-pointer items-start gap-3 text-sm\"><input class=\"checkbox checkbox-sm mt-0.5 shrink-0\" type=\"checkbox\" name=\"preserve_resources\" required> <span>Keep any existing repository and connection from this attempt.</span></label><div><button class=\"btn btn-outline btn-sm\" type=\"submit\">Change target</button></div></form></details>")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}

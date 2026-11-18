@@ -83,18 +83,14 @@ func (r *Router) handleCreateQuerySubmit(c fiber.Ctx) error {
 	}
 
 	selectedDataSource := strings.TrimSpace(c.FormValue("ds"))
+	renderFailure := func(status int, message, details string) error {
+		form := queryEditorFormDataFromRequest(c)
+		form.SubmitError = message
+		form.SubmitErrorDetails = details
+		return r.renderQueriesPage(c, orgSlug, selectedDataSource, status, "", "", form, nil, "")
+	}
 	if selectedDataSource == "" {
-		return r.renderQueriesPage(
-			c,
-			orgSlug,
-			"",
-			http.StatusBadRequest,
-			"Select a data source before creating a query.",
-			"",
-			queryEditorFormDataFromRequest(c),
-			nil,
-			"",
-		)
+		return renderFailure(http.StatusBadRequest, "Select a data source before creating a query.", "")
 	}
 
 	dataSource, status, errorResponse, getErr := r.getDataSourceViaAPI(
@@ -113,32 +109,12 @@ func (r *Router) handleCreateQuerySubmit(c fiber.Ctx) error {
 			pageError = "Something went wrong while loading the selected data source."
 		}
 
-		return r.renderQueriesPage(
-			c,
-			orgSlug,
-			selectedDataSource,
-			status,
-			pageError,
-			errorPopupDetails(errorResponse, fmt.Sprintf("get data source: %v", getErr)),
-			queryEditorFormDataFromRequest(c),
-			nil,
-			"",
-		)
+		return renderFailure(status, pageError, errorPopupDetails(errorResponse, fmt.Sprintf("get data source: %v", getErr)))
 	}
 
 	payload, validationErr := buildCreateQueryPayload(c, dataSource.Type)
 	if validationErr != "" {
-		return r.renderQueriesPage(
-			c,
-			orgSlug,
-			selectedDataSource,
-			http.StatusBadRequest,
-			validationErr,
-			"",
-			queryEditorFormDataFromRequest(c),
-			nil,
-			"",
-		)
+		return renderFailure(http.StatusBadRequest, validationErr, "")
 	}
 
 	created, createStatus, createErrorResponse, createErr := r.createQueryViaAPI(
@@ -158,17 +134,7 @@ func (r *Router) handleCreateQuerySubmit(c fiber.Ctx) error {
 			pageError = "Something went wrong while creating the query."
 		}
 
-		return r.renderQueriesPage(
-			c,
-			orgSlug,
-			selectedDataSource,
-			createStatus,
-			pageError,
-			errorPopupDetails(createErrorResponse, fmt.Sprintf("create query: %v", createErr)),
-			queryEditorFormDataFromRequest(c),
-			nil,
-			"",
-		)
+		return renderFailure(createStatus, pageError, errorPopupDetails(createErrorResponse, fmt.Sprintf("create query: %v", createErr)))
 	}
 
 	_ = created
@@ -194,6 +160,16 @@ func (r *Router) handleUpdateQuerySubmit(c fiber.Ctx) error {
 		return c.Status(fiber.StatusBadRequest).SendString("invalid query slug")
 	}
 
+	renderFailure := func(status int, message, details string) error {
+		form := queryEditorFormDataFromRequest(c)
+		if queryShouldRenderSidePanel(c) {
+			return r.renderQuerySidePanel(c, orgSlug, dataSourceSlug, querySlug, status, message, "error", details, &form, nil, "", "")
+		}
+		form.SubmitError = message
+		form.SubmitErrorDetails = details
+		return r.renderQueryDetailPage(c, orgSlug, dataSourceSlug, querySlug, status, "", "", &form, nil, "", "")
+	}
+
 	dataSource, status, errorResponse, getErr := r.getDataSourceViaAPI(
 		c.Context(),
 		c.Get(fiber.HeaderCookie),
@@ -209,72 +185,12 @@ func (r *Router) handleUpdateQuerySubmit(c fiber.Ctx) error {
 		if message == "" {
 			message = "Something went wrong while loading the selected data source."
 		}
-		if queryShouldRenderSidePanel(c) {
-			formData := queryEditorFormDataFromRequest(c)
-			return r.renderQuerySidePanel(
-				c,
-				orgSlug,
-				dataSourceSlug,
-				querySlug,
-				status,
-				message,
-				"error",
-				errorPopupDetails(errorResponse, fmt.Sprintf("get data source: %v", getErr)),
-				&formData,
-				nil,
-				"",
-				"",
-			)
-		}
-
-		formData := queryEditorFormDataFromRequest(c)
-		return r.renderQueryDetailPage(
-			c,
-			orgSlug,
-			dataSourceSlug,
-			querySlug,
-			status,
-			message,
-			errorPopupDetails(errorResponse, fmt.Sprintf("get data source: %v", getErr)),
-			&formData,
-			nil,
-			"",
-			"",
-		)
+		return renderFailure(status, message, errorPopupDetails(errorResponse, fmt.Sprintf("get data source: %v", getErr)))
 	}
 
 	payload, validationErr := buildUpdateQueryPayload(c, dataSource.Type)
 	if validationErr != "" {
-		formData := queryEditorFormDataFromRequest(c)
-		if queryShouldRenderSidePanel(c) {
-			return r.renderQuerySidePanel(
-				c,
-				orgSlug,
-				dataSourceSlug,
-				querySlug,
-				http.StatusBadRequest,
-				validationErr,
-				"error",
-				"",
-				&formData,
-				nil,
-				"",
-				"",
-			)
-		}
-		return r.renderQueryDetailPage(
-			c,
-			orgSlug,
-			dataSourceSlug,
-			querySlug,
-			http.StatusBadRequest,
-			validationErr,
-			"",
-			&formData,
-			nil,
-			"",
-			"",
-		)
+		return renderFailure(http.StatusBadRequest, validationErr, "")
 	}
 
 	// The editor owns statements and parameters; preserve API-authored contracts
@@ -297,36 +213,7 @@ func (r *Router) handleUpdateQuerySubmit(c fiber.Ctx) error {
 			message = "Something went wrong while updating the query."
 		}
 
-		formData := queryEditorFormDataFromRequest(c)
-		if queryShouldRenderSidePanel(c) {
-			return r.renderQuerySidePanel(
-				c,
-				orgSlug,
-				dataSourceSlug,
-				querySlug,
-				updateStatus,
-				message,
-				"error",
-				errorPopupDetails(updateErrorResponse, fmt.Sprintf("update query: %v", updateErr)),
-				&formData,
-				nil,
-				"",
-				"",
-			)
-		}
-		return r.renderQueryDetailPage(
-			c,
-			orgSlug,
-			dataSourceSlug,
-			querySlug,
-			updateStatus,
-			message,
-			errorPopupDetails(updateErrorResponse, fmt.Sprintf("update query: %v", updateErr)),
-			&formData,
-			nil,
-			"",
-			"",
-		)
+		return renderFailure(updateStatus, message, errorPopupDetails(updateErrorResponse, fmt.Sprintf("update query: %v", updateErr)))
 	}
 
 	if queryShouldRenderSidePanel(c) {
@@ -622,6 +509,9 @@ func (r *Router) handleExecuteQuerySubmit(c fiber.Ctx) error {
 		}
 
 		message := messageFromErrorResponse(executeErrorResponse)
+		if executeStatus == http.StatusBadRequest {
+			message = formFeedbackFromErrorResponse(executeErrorResponse, "Query execution failed.")
+		}
 		if message == "" {
 			message = "Query execution failed."
 		}

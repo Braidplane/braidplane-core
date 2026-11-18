@@ -145,7 +145,8 @@ func (s *Service) Set(ctx context.Context, org, ds slug.Slug, actor model.EventA
 			return nil, ErrConfiguration.Detail(status)
 		}
 		if current.Source.RepositoryID != settings.ExpectedRepositoryID {
-			return nil, ErrConfiguration.Detail("Repository changed. Reload and confirm the new repository.")
+			const message = "Repository changed. Reload and confirm the new repository."
+			return nil, ErrConfiguration.Detail(message).WithPublicDetail(message)
 		}
 		if err := validateTargets(targets, current.Contexts); err != nil {
 			return nil, err
@@ -179,7 +180,8 @@ func (s *Service) Set(ctx context.Context, org, ds slug.Slug, actor model.EventA
 		source := sources[0]
 		if settings.Enabled {
 			if source.RepositoryID != settings.ExpectedRepositoryID || source.ConnectionID != current.Source.ConnectionID {
-				return ErrConfiguration.Detail("Repository connection changed. Reload and confirm the configuration.")
+				const message = "Repository connection changed. Reload and confirm the configuration."
+				return ErrConfiguration.Detail(message).WithPublicDetail(message)
 			}
 			if status := eligibility(source); status != "" {
 				return ErrConfiguration.Detail(status)

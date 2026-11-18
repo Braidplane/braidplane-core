@@ -108,14 +108,14 @@ func ProofOperationalContext(receipt *api.ProofReceipt) templ.Component {
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 4, "</dl><a class=\"link link-primary inline-block text-sm\" href=\"")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 4, "</dl><a class=\"link link-primary inline-block min-h-6 text-sm\" href=\"")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 			var templ_7745c5c3_Var2 templ.SafeURL
 			templ_7745c5c3_Var2, templ_7745c5c3_Err = templ.JoinURLErrs(templ.URL(buildEnvironmentRunDetailHref(receipt.Candidate.OrganizationSlug, receipt.Candidate.ProjectSlug, receipt.Candidate.EnvironmentSlug, capture.Selection.Run)))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/proof_operational.templ`, Line: 34, Col: 225}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/proof_operational.templ`, Line: 34, Col: 233}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var2))
 			if templ_7745c5c3_Err != nil {

@@ -6,13 +6,15 @@ import (
 )
 
 templ ProofReceiptPage(shellData AuthenticatedShellData, receipt *api.ProofReceipt, changeURL string) {
-	@AuthenticatedShell(shellData, ProofReceiptPageContent(receipt, changeURL))
+	{{ content := ProofReceiptPageContent(shellData, receipt, changeURL) }}
+	{{ shellData.PageError, shellData.PageErrorDetails = "", "" }}
+	@AuthenticatedShell(shellData, content)
 }
 
-templ ProofReceiptPageContent(receipt *api.ProofReceipt, changeURL string) {
+templ ProofReceiptPageContent(shell AuthenticatedShellData, receipt *api.ProofReceipt, changeURL string) {
 	{{ section := proofReceiptSection(ctx) }}
 	if receipt != nil {
-		<a class="link link-primary mb-4 inline-block" href={ templ.URL(proofHistoryBackHref(ctx, receipt)) }>Receipt history</a>
+		<a class="link link-primary mb-4 inline-block" href={ templ.URL(proofHistoryBackHref(ctx, receipt.Candidate.OrganizationSlug, receipt.Candidate.ProjectSlug, receipt.Candidate.EnvironmentSlug)) }>Receipt history</a>
 	}
 	<div class="flex flex-wrap items-start justify-between gap-3">
 		<div>
@@ -24,7 +26,14 @@ templ ProofReceiptPageContent(receipt *api.ProofReceipt, changeURL string) {
 		}
 	</div>
 	if receipt == nil {
-		<div class="alert alert-warning mt-6" role="status"><span>The receipt could not be displayed. Check the protected error details above.</span></div>
+		if shell.PageError != "" {
+			@EntityLoadError("proof-receipt-feedback", shell.PageError, shell.PageErrorDetails)
+		} else {
+			<div class="alert alert-warning mt-6" role="status"><span>The receipt could not be displayed.</span></div>
+		}
+		if shell.ActiveOrganizationSlug != "" && shell.ActiveProjectSlug != "" && shell.ActiveEnvironmentSlug != "" {
+			<a class="link link-primary mt-4 inline-block" href={ templ.URL(proofHistoryBackHref(ctx, shell.ActiveOrganizationSlug, shell.ActiveProjectSlug, shell.ActiveEnvironmentSlug)) }>Receipt history</a>
+		}
 	}
 	if receipt != nil {
 		@EntitySectionNavigation("Proof receipt sections") {
@@ -110,15 +119,21 @@ templ ProofReceiptClaims(receipt *api.ProofReceipt) {
 		<div class="flex flex-wrap items-end justify-between gap-3">
 			<div>
 				<h3 id="proof-claims-heading" class="text-base font-semibold text-base-content">Promise clauses</h3>
-				<p class="mt-1 text-sm text-base-content/70">Every clause remains visible, including missing, stale, and inconclusive evidence.</p>
+				if len(receipt.Claims) == 0 {
+					<p class="mt-1 text-sm text-base-content/70" role="status">No promise clauses were recorded for this receipt.</p>
+				} else {
+					<p class="mt-1 text-sm text-base-content/70">Every clause remains visible, including missing, stale, and inconclusive evidence.</p>
+				}
 			</div>
 		</div>
 		<div class="mt-3 grid gap-3">
-			for _, claim := range receipt.Claims {
-				<article class={ ProofClaimClass(claim.Verdict) }>
+			for index, claim := range receipt.Claims {
+				{{ headingID := fmt.Sprintf("proof-claim-%d", index) }}
+				{{ detailsID := headingID + "-details" }}
+				<article class={ ProofClaimClass(claim.Verdict) } aria-labelledby={ headingID }>
 					<div class="flex flex-wrap items-start justify-between gap-3">
 						<div class="min-w-0">
-							<p class="font-medium text-base-content">{ claim.Description }</p>
+							<h4 id={ headingID } class="break-words font-medium text-base-content">{ claim.Description }</h4>
 						</div>
 						<span class={ ProofVerdictBadgeClass(claim.Verdict) }>{ ProofVerdictLabel(claim.Verdict) }</span>
 					</div>
@@ -134,17 +149,19 @@ templ ProofReceiptClaims(receipt *api.ProofReceipt) {
 					</dl>
 					@ProofDiagnostics(claim)
 					<details class="mt-3">
-						<summary class="cursor-pointer text-xs text-base-content/65 focus-visible:outline focus-visible:outline-2">Evidence details</summary>
+						<summary id={ detailsID } class="min-h-6 cursor-pointer py-1 text-xs text-base-content/65 focus-visible:outline focus-visible:outline-2" aria-labelledby={ detailsID + " " + headingID }>Evidence details</summary>
 						for _, diagnostic := range claim.Diagnostics {
 							<p class="mt-1 break-all font-mono text-xs">{ diagnostic.Code }</p>
 						}
 						<p class="mt-2 break-all font-mono text-xs text-base-content/60">{ string(claim.Identity.Family) } · { claim.Identity.SemanticPath } · { claim.Identity.PipelineVersionHash }</p>
 						if len(claim.Evidence) > 0 {
-							<ul class="mt-3 space-y-1 text-xs text-base-content/65" aria-label="Sanitized evidence references">
+							<ul class="mt-3 space-y-1 text-xs text-base-content/65" role="list" aria-label="Sanitized evidence references">
 								for _, evidence := range claim.Evidence {
 									<li><span class="font-medium">{ string(evidence.Kind) }</span> <span class="break-all font-mono">{ evidence.Digest }</span></li>
 								}
 							</ul>
+						} else {
+							<p class="mt-2 text-xs text-base-content/70">No evidence references were recorded for this clause.</p>
 						}
 					</details>
 				</article>
@@ -168,7 +185,16 @@ templ ProofReceiptLifecycle(receipt *api.ProofReceipt, technical bool) {
 							<div class="min-w-0">
 								<p class="text-xs font-semibold uppercase tracking-wide text-base-content/60">{ string(link.Kind) }</p>
 								if href := ProofLifecycleHref(receipt, link); href != "" {
-									<a class="link link-primary mt-1 inline-block break-all font-mono text-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2" href={ templ.URL(href) }>{ link.Identifier }</a>
+									if link.RunSlug == nil {
+										<p class="mt-1 break-all font-mono text-sm">{ link.Identifier }</p>
+									}
+									<a class="link link-primary mt-1 inline-block min-h-6 break-words text-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2" href={ templ.URL(href) }>
+										if link.RunSlug != nil {
+											Inspect run <span class="break-all font-mono">{ link.Identifier }</span>
+										} else if link.PipelineSlug != nil {
+											View current deployment for <span class="break-all font-mono">{ string(*link.PipelineSlug) }</span>
+										}
+									</a>
 								} else {
 									<p class="mt-1 break-all font-mono text-sm">{ link.Identifier }</p>
 								}

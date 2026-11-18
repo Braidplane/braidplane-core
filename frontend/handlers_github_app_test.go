@@ -72,6 +72,8 @@ func TestRepositorySetupFailureRedirectOnlyUsesLocalProjectIdentity(t *testing.T
 	for _, target := range []string{"/organizations/acme/projects/pipelines?token=private", "https://app.example.test/organizations/acme/projects/pipelines"} {
 		require.Equal(t, want, repositorySetupFailureRedirect(target, "app.example.test:8443"))
 	}
+	require.Equal(t, "/organizations/acme/projects/pipelines?section=repository&repository_path=create&repository_setup=expired",
+		repositorySetupFailureRedirect("/organizations/acme/projects/pipelines?repository_setup=expired&token=private", "app.example.test"))
 	for _, target := range []string{"https://evil.test/organizations/acme/projects/pipelines", "//evil.test/organizations/acme/projects/pipelines", "/account", "/organizations/acme/projects/pipelines/delete", "/organizations/acme/projects/Invalid", "/organizations/acme/projects/../account"} {
 		require.Empty(t, repositorySetupFailureRedirect(target, "app.example.test"), target)
 	}
@@ -134,9 +136,11 @@ func TestOrganizationGitHubAuthorizeExistingPostsAccountLogin(t *testing.T) {
 		assert.Equal(t, "/organizations/acme/github-app-connection/authorize", request.URL.Path)
 		var body struct {
 			AccountLogin string `json:"account_login"`
+			MoreTime     bool   `json:"more_time"`
 		}
 		assert.NoError(t, json.NewDecoder(request.Body).Decode(&body))
 		assert.Equal(t, "Acme", body.AccountLogin)
+		assert.True(t, body.MoreTime)
 		w.Header().Set("Content-Type", "application/json")
 		_, _ = w.Write([]byte(`{"authorization_url":"https://github.com/login/oauth/authorize?state=state"}`))
 	}))
@@ -146,25 +150,33 @@ func TestOrganizationGitHubAuthorizeExistingPostsAccountLogin(t *testing.T) {
 	router := &Router{apiClient: client, secureCookies: true}
 	app := fiber.New()
 	app.Post("/organizations/:slug/github/authorize-existing", router.handleOrganizationGitHubAuthorizeExisting)
-	req := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/organizations/acme/github/authorize-existing", strings.NewReader("account_login=Acme"))
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/organizations/acme/github/authorize-existing", strings.NewReader("account_login=Acme&more_time=true"))
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 	response, err := app.Test(req)
 	require.NoError(t, err)
 	defer func() { require.NoError(t, response.Body.Close()) }()
 	require.Equal(t, http.StatusSeeOther, response.StatusCode)
 	require.Equal(t, "https://github.com/login/oauth/authorize?state=state", response.Header.Get("Location"))
+	var projectCookie, organizationCookie *http.Cookie
 	for _, cookie := range response.Cookies() {
 		if cookie.Name == "__Secure-"+githubInstallProjectCookie {
-			require.Negative(t, cookie.MaxAge)
-			require.True(t, cookie.HttpOnly)
-			require.True(t, cookie.Secure)
-			return
+			projectCookie = cookie
+		}
+		if cookie.Name == "__Secure-"+githubInstallOrganizationCookie {
+			organizationCookie = cookie
 		}
 	}
-	t.Fatal("existing-install authorization must clear stale repository setup context")
+	require.NotNil(t, projectCookie, "existing-install authorization must clear stale repository setup context")
+	require.Negative(t, projectCookie.MaxAge)
+	require.True(t, projectCookie.HttpOnly)
+	require.True(t, projectCookie.Secure)
+	require.NotNil(t, organizationCookie)
+	require.Equal(t, 6000, organizationCookie.MaxAge)
+	require.True(t, organizationCookie.HttpOnly)
+	require.True(t, organizationCookie.Secure)
 }
 
-func TestOrganizationGitHubAuthorizeExistingPreservesClientErrors(t *testing.T) {
+func TestOrganizationGitHubAuthorizeExistingReturnsToSettingsAfterFailure(t *testing.T) {
 	t.Parallel()
 	for _, status := range []int{http.StatusBadRequest, http.StatusUnauthorized, http.StatusForbidden, http.StatusNotFound, http.StatusInternalServerError} {
 		t.Run(http.StatusText(status), func(t *testing.T) {
@@ -182,11 +194,12 @@ func TestOrganizationGitHubAuthorizeExistingPreservesClientErrors(t *testing.T) 
 			response, err := app.Test(req)
 			require.NoError(t, err)
 			defer func() { require.NoError(t, response.Body.Close()) }()
-			want := status
-			if status == http.StatusInternalServerError {
-				want = http.StatusServiceUnavailable
+			location := "/organizations/acme/github?connect_failed=true"
+			if status == http.StatusUnauthorized {
+				location = loginRedirectPath("/organizations/acme/github")
 			}
-			require.Equal(t, want, response.StatusCode)
+			require.Equal(t, http.StatusSeeOther, response.StatusCode)
+			require.Equal(t, location, response.Header.Get("Location"))
 		})
 	}
 }

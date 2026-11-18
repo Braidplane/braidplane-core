@@ -22,6 +22,7 @@ test("discovers a Proof receipt and inspects its recorded claims", async ({ page
         await page.setViewportSize({ width, height: 844 });
         const switcher = page.getByRole("combobox", { name: "Switch project runtime target", exact: true });
         await switcher.selectOption({ label: environment === "empty" ? "Target: Empty" : "Target: Production" });
+        await page.getByRole("button", { name: "Switch runtime target", exact: true }).click();
         await expect(page).toHaveURL(new RegExp(`/proof-receipts\\?environment_slug=${environment}$`));
         await expect(
             page.getByRole("heading", { name: environment === "empty" ? "No Proof receipts" : "Proof", exact: true }),

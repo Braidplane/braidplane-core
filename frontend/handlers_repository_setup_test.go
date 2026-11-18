@@ -28,6 +28,7 @@ func TestRouter_ManagedRepositoryCreateForwardsRequestAndStartsGitHubAuthorizati
 		}
 		switch r.Method + " " + r.URL.Path {
 		case "POST /api/organizations/acme-hq/projects/default/repository-setup":
+			assert.Equal(t, "true", r.URL.Query().Get("more_time"))
 			assert.NoError(t, json.NewDecoder(r.Body).Decode(&created))
 			writeJSON(w, `{"slug":"repo-setup","project_slug":"default","data_source_slug":"repo-setup","status":"pending","request":{"provider":"github","owner":"acme","repository_name":"pipelines","tracked_branch":"main","pipeline_dir":"pipelines","create_private_repository":true},"authorization_url":"https://github.com/apps/braidplane/installations/new?state=safe"}`)
 		default:
@@ -43,7 +44,7 @@ func TestRouter_ManagedRepositoryCreateForwardsRequestAndStartsGitHubAuthorizati
 	registerTestSessionRoute(app, store)
 	router.RegisterRoutes(app, CommunityPresentation{})
 
-	form := strings.NewReader("mode=managed_create&repository_provider=github&provider_owner=acme&repository_name=pipelines&tracked_branch=main&pipeline_dir=pipelines&create_private_repository=on")
+	form := strings.NewReader("mode=managed_create&repository_provider=github&provider_owner=acme&repository_name=pipelines&tracked_branch=main&pipeline_dir=pipelines&create_private_repository=on&more_time=true")
 	req := httptest.NewRequestWithContext(context.Background(), http.MethodPost, "/organizations/acme-hq/projects/default/settings/pipeline-backend?return_to=full&section=repository&repository_path=create", form)
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 	req.Header.Set("Cookie", getAuthenticatedSessionCookie(t, app))
@@ -65,6 +66,11 @@ func TestRouter_ManagedRepositoryCreateForwardsRequestAndStartsGitHubAuthorizati
 	cookies := strings.Join(resp.Header.Values("Set-Cookie"), "\n")
 	require.Contains(t, cookies, githubInstallOrganizationCookie+"=acme-hq")
 	require.Contains(t, cookies, githubInstallProjectCookie+"=default")
+	for _, cookie := range resp.Cookies() {
+		if cookie.Name == githubInstallOrganizationCookie || cookie.Name == githubInstallProjectCookie {
+			require.Equal(t, 6000, cookie.MaxAge)
+		}
+	}
 }
 
 func TestRouter_ManagedGitLabCreateRedirectsToConsentWithoutGitHubCookies(t *testing.T) {
@@ -74,6 +80,7 @@ func TestRouter_ManagedGitLabCreateRedirectsToConsentWithoutGitHubCookies(t *tes
 			return
 		}
 		assert.Equal(t, "POST /api/organizations/acme-hq/projects/default/repository-setup", r.Method+" "+r.URL.Path)
+		assert.Empty(t, r.URL.Query().Get("more_time"))
 		var request api.CreateProjectRepositoryRequest
 		assert.NoError(t, json.NewDecoder(r.Body).Decode(&request))
 		assert.Equal(t, api.CreateProjectRepositoryRequestProviderGitlab, request.Provider)
@@ -220,7 +227,7 @@ func TestRouter_ManagedRepositoryCreatePreservesFormValuesOnProviderError(t *tes
 	app := fiber.New()
 	registerTestSessionRoute(app, store)
 	router.RegisterRoutes(app, CommunityPresentation{})
-	form := strings.NewReader("mode=managed_create&repository_provider=gitlab&provider_owner=acme%2Fteam&repository_name=customer-pipelines&tracked_branch=release&pipeline_dir=definitions%2Fpipelines&create_private_repository=on")
+	form := strings.NewReader("mode=managed_create&repository_provider=gitlab&provider_owner=acme%2Fteam&repository_name=customer-pipelines&tracked_branch=release&pipeline_dir=definitions%2Fpipelines&create_private_repository=on&more_time=true")
 	req := httptest.NewRequestWithContext(context.Background(), http.MethodPost, "/organizations/acme-hq/projects/default/settings/pipeline-backend?return_to=full&section=repository&repository_path=create", form)
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 	req.Header.Set("Cookie", getAuthenticatedSessionCookie(t, app))
@@ -237,6 +244,7 @@ func TestRouter_ManagedRepositoryCreatePreservesFormValuesOnProviderError(t *tes
 	require.Contains(t, string(body), `value="customer-pipelines"`)
 	require.Contains(t, string(body), `value="release"`)
 	require.Contains(t, string(body), `value="definitions/pipelines"`)
+	require.Contains(t, string(body), `name="more_time" value="true" checked`)
 }
 
 func TestRouter_RepositorySetupProgressRendersSavedTargetOrStopsCreation(t *testing.T) {

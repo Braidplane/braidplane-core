@@ -6,6 +6,7 @@ import (
 	"encoding/base64"
 	"encoding/hex"
 	"strings"
+	"time"
 
 	"github.com/Braidplane/braidplane-core/pkg/xerror"
 )
@@ -20,6 +21,16 @@ var (
 	ErrOAuthStateConsumed = xerror.New(xerror.KindInvalidInput, "OAUTH_STATE_CONSUMED", "oauth state consumed")
 	ErrOAuthStateExpired  = xerror.New(xerror.KindInvalidInput, "OAUTH_STATE_EXPIRED", "oauth state expired")
 )
+
+const DefaultCallbackWindow = 10 * time.Minute
+
+// CallbackWindow returns the Core deadline window selected before provider authorization.
+func CallbackWindow(moreTime bool) time.Duration {
+	if moreTime {
+		return 10 * DefaultCallbackWindow
+	}
+	return DefaultCallbackWindow
+}
 
 // HashState returns a stable non-secret digest for a raw OAuth state value.
 func HashState(state string) string {

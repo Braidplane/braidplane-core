@@ -12,14 +12,17 @@ import (
 )
 
 var (
-	repositorySetupEnabled    bool
-	repositorySetup           *api.ProjectRepositorySetup
-	repositorySetupAttached   bool
-	repositorySetupAttempts   int
-	repositorySetupSequence   int
-	repositorySetupHistory    map[string]*api.ProjectRepositorySetup
-	repositoryGitLabConsent   bool
-	repositoryExistingBackend *api.ProjectPipelineBackend
+	repositorySetupEnabled     bool
+	repositorySetup            *api.ProjectRepositorySetup
+	repositorySetupAttached    bool
+	repositorySetupAttempts    int
+	repositorySetupSequence    int
+	repositorySetupHistory     map[string]*api.ProjectRepositorySetup
+	repositoryGitLabConsent    bool
+	repositoryExistingBackend  *api.ProjectPipelineBackend
+	repositoryBranchesFail     bool
+	repositoryRefuseTimedStart bool
+	repositoryGitHubExpired    bool
 )
 
 func registerRepositorySetupFixture(app *fiber.App) {
@@ -34,10 +37,19 @@ func registerRepositorySetupFixture(app *fiber.App) {
 		repositorySetupSequence = 0
 		repositorySetupHistory = map[string]*api.ProjectRepositorySetup{}
 		repositoryGitLabConsent = c.Query("gitlab_consent") == "required"
+		repositoryBranchesFail = false
+		repositoryRefuseTimedStart = c.Query("refuse_timed_start") == "true"
+		repositoryGitHubExpired = c.Query("github_consent") == "expired"
 		if c.Query("source_test") == "required" {
 			failure, branch, directory := "source_test_required", "main", "pipelines"
 			repositorySetup = &api.ProjectRepositorySetup{Slug: "repo-fixture", ProjectSlug: "ops", DataSourceSlug: "repo-fixture", Status: api.ProjectRepositorySetupStatusSourceCreated, FailureCode: &failure, Request: api.CreateProjectRepositoryRequest{Provider: api.CreateProjectRepositoryRequestProviderGitlab, Owner: "customer-team", RepositoryName: "data-pipelines", TrackedBranch: &branch, PipelineDir: &directory, CreatePrivateRepository: true}}
 		}
+		return c.SendStatus(fiber.StatusNoContent)
+	})
+	app.Post("/_test/repository-branches", func(c fiber.Ctx) error {
+		mu.Lock()
+		defer mu.Unlock()
+		repositoryBranchesFail = c.Query("unavailable") == "true"
 		return c.SendStatus(fiber.StatusNoContent)
 	})
 	app.Get("/_test/gitlab-consent/callback", func(c fiber.Ctx) error {
@@ -67,6 +79,15 @@ func handleRepositorySetupAPI(w http.ResponseWriter, r *http.Request) bool {
 		}
 	}
 	switch r.URL.Path {
+	case "/api/organizations/acme/data-sources/git-source/branches":
+		if repositoryBranchesFail {
+			w.WriteHeader(http.StatusBadGateway)
+			write(map[string]any{"error": map[string]string{"message": "Branch discovery is temporarily unavailable."}})
+			return true
+		}
+		write(map[string]any{"branches": []map[string]any{
+			{"name": "main", "is_default": true}, {"name": "release", "is_default": false},
+		}})
 	case "/api/organizations/acme/roles/admin":
 		write(map[string]any{"slug": "admin", "permissions": []map[string]string{
 			{"resource": "projects", "action": "read"}, {"resource": "projects", "action": "update"}, {"resource": "organizations", "action": "update"}, {"resource": "datasources", "action": "read"}, {"resource": "datasources", "action": "create"}, {"resource": "pipelines", "action": "read"},
@@ -115,6 +136,12 @@ func handleRepositorySetupAPI(w http.ResponseWriter, r *http.Request) bool {
 			}
 			repositorySetup = &api.ProjectRepositorySetup{Slug: setupSlug, ProjectSlug: "ops", DataSourceSlug: setupSlug, Request: request, Status: api.ProjectRepositorySetupStatusPending}
 		}
+		if repositoryRefuseTimedStart && r.URL.Query().Get("more_time") == "true" {
+			repositoryRefuseTimedStart = false
+			w.WriteHeader(http.StatusServiceUnavailable)
+			write(map[string]any{"error": map[string]string{"message": "Authorization could not start. Try again."}})
+			return true
+		}
 		if request.Provider == api.CreateProjectRepositoryRequestProviderGithub {
 			repositorySetup.FailureCode = nil
 			response := *repositorySetup
@@ -160,6 +187,13 @@ func handleRepositorySetupAPI(w http.ResponseWriter, r *http.Request) bool {
 	case "/api/github-app-connection/callback":
 		if repositorySetup == nil {
 			w.WriteHeader(http.StatusBadRequest)
+			return true
+		}
+		if repositoryGitHubExpired {
+			repositoryGitHubExpired = false
+			w.Header().Set("Location", "/organizations/acme/projects/ops?section=repository&repository_path=create&repository_setup=expired")
+			w.WriteHeader(http.StatusBadRequest)
+			write(map[string]any{"error": map[string]string{"message": "GitHub authorization expired."}})
 			return true
 		}
 		if providerError := r.URL.Query().Get("error"); providerError != "" {

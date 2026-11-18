@@ -318,10 +318,17 @@ window.braidplaneDsInitCreateForms = (root) => {
         const parseURIToggleButton = form.querySelector("#data-source-uri-toggle-btn");
         const parseURIPanel = form.querySelector("#data-source-uri-panel");
         const parseURIMessage = form.querySelector("#data-source-uri-parse-message");
+        const databasePassword = form.querySelector("#data-source-create-database-password");
 
         const updateVisibility = () => {
             const selectedType = typeSelect.value;
             const hasType = selectedType !== "";
+
+            if (selectedType === "mysql") {
+                databasePassword?.setAttribute("aria-describedby", "data-source-create-mysql-password-help");
+            } else {
+                databasePassword?.removeAttribute("aria-describedby");
+            }
 
             form.querySelectorAll("[data-ds-requires-type]").forEach((group) => {
                 group.classList.toggle("hidden", !hasType);
@@ -684,28 +691,12 @@ window.braidplaneInitProtectedSelectForms = (root) => {
     });
 };
 
-window.braidplaneInitSuccessPopups = (root) => {
-    braidplaneSelectWithRoot(root, "[data-success-popup][data-auto-dismiss-ms]").forEach((popup) => {
-        if (!(popup instanceof HTMLElement) || popup.dataset.autoDismissBound === "true") {
-            return;
-        }
-
-        popup.dataset.autoDismissBound = "true";
-        const delay = Number(popup.dataset.autoDismissMs || "5000");
-        window.setTimeout(() => {
-            if (popup.isConnected) {
-                popup.remove();
-            }
-        }, delay);
-    });
-};
-
 window.braidplaneDismissPopup = (trigger) => {
     if (!(trigger instanceof Element)) {
         return;
     }
     const selector = trigger.getAttribute("data-popup-dismiss");
-    const popup = selector ? trigger.closest(selector) : trigger.closest("[data-error-popup], [data-success-popup]");
+    const popup = selector ? trigger.closest(selector) : trigger.closest("[data-error-popup]");
     if (popup instanceof HTMLElement) {
         popup.remove();
     }
@@ -782,7 +773,7 @@ window.braidplanePersistQueryDetailScroll = () => {
     }
 };
 
-const braidplaneRestoreQueryDetailScroll = (callback) => {
+const braidplaneRestoreQueryDetailScroll = (restore, callback) => {
     let raw = null;
     try {
         raw = sessionStorage.getItem(braidplaneQueryDetailScrollKey());
@@ -799,7 +790,7 @@ const braidplaneRestoreQueryDetailScroll = (callback) => {
         // The in-page restore can still proceed if storage cleanup is blocked.
     }
     const y = Number(raw);
-    if (!Number.isFinite(y)) {
+    if (!restore || !Number.isFinite(y)) {
         if (callback) callback(false);
         return;
     }
@@ -849,7 +840,7 @@ window.braidplaneInitQueryDetail = (root) => {
 
     window.braidplaneQueryParamEditor?.initAll(detailRoot);
 
-    braidplaneRestoreQueryDetailScroll((wasRestored) => {
+    braidplaneRestoreQueryDetailScroll(!detailRoot.querySelector("#query-update-error"), (wasRestored) => {
         const executionFeedback = detailRoot.querySelector('[data-query-execution-feedback="true"]');
         if (executionFeedback instanceof HTMLElement && !wasRestored) {
             requestAnimationFrame(() => {
@@ -905,13 +896,13 @@ const braidplaneInitSharedForms = (root) => {
     window.braidplaneInitDirtyForms(root);
     window.braidplaneInitProtectedActionModals(root);
     window.braidplaneInitProtectedSelectForms(root);
-    window.braidplaneInitSuccessPopups(root);
     window.braidplaneInitQueryDetail(root);
     window.braidplaneInitTransientQueryFeedback(root);
     braidplaneSelectWithRoot(root, "[data-form-feedback]").some((form) => {
-        const target = form.querySelector("[data-form-error-focus]:not(:disabled)");
+        const target = form.querySelector("[data-form-error-focus]:not(:disabled), [data-form-feedback-focus]");
         if (!(target instanceof HTMLElement)) return false;
         target.removeAttribute("data-form-error-focus");
+        target.removeAttribute("data-form-feedback-focus");
         target.focus();
         return true;
     });
@@ -932,6 +923,8 @@ document.body?.addEventListener("htmx:afterSwap", (event) => {
         }
     }
 });
+
+document.addEventListener("htmx:afterSettle", () => braidplaneInitSharedForms(document));
 
 document.addEventListener("click", (event) => {
     const target = event.target;
@@ -1002,6 +995,38 @@ document.addEventListener("htmx:afterSwap", (event) => {
         window.braidplaneFocusQueryExecutionFeedback(target);
     }
 });
+
+const braidplaneBranchRefreshSelection = new WeakMap();
+document.addEventListener("htmx:beforeRequest", ({ detail }) => {
+    if (detail?.elt?.id !== "project-branch-refresh" || !detail.xhr) return;
+    const select = detail.target?.querySelector("#project-tracked-branch");
+    if (select) braidplaneBranchRefreshSelection.set(detail.xhr, select.value);
+});
+
+document.addEventListener("htmx:beforeSwap", ({ detail }) => {
+    if (detail?.target?.id !== "project-backend-branches" || !detail.shouldSwap) return;
+    const requestedBranch = braidplaneBranchRefreshSelection.get(detail.xhr);
+    const select = detail.target.querySelector("#project-tracked-branch");
+    if (requestedBranch === undefined || !select || select.value === requestedBranch) return;
+    detail.shouldSwap = false;
+    const status = detail.target.querySelector("#project-branch-status");
+    if (status) status.textContent = "Branch selection changed. Refresh again to update the branch list.";
+});
+
+for (const eventName of ["htmx:responseError", "htmx:sendError", "htmx:timeout"]) {
+    document.addEventListener(eventName, (event) => {
+        const target = event.detail?.target;
+        if (!(target instanceof HTMLElement) || target.id !== "project-backend-branches") return;
+        const status = target.querySelector("#project-branch-status");
+        const retry = target.querySelector("#project-branch-refresh");
+        if (!status || !retry) return;
+        status.setAttribute("role", "alert");
+        status.textContent = "Could not load branches. Retry to check the selected data source.";
+        retry.textContent = "Retry branches";
+        const loadingOption = target.querySelector("[data-branch-loading]");
+        if (loadingOption) loadingOption.textContent = "No branches available";
+    });
+}
 
 const BRAIDPLANE_PRESERVED_SCROLL_KEY = "braidplane:preserved-scroll-y";
 let braidplanePreservedScrollY = null;
@@ -1140,6 +1165,7 @@ window.addEventListener("load", () => {
         )
             return;
         sessionStorage.removeItem(BRAIDPLANE_ENTITY_LIST_SCROLL_KEY);
+        if (document.activeElement?.matches("[data-provider-oauth-feedback]")) return;
         window.scrollTo(window.scrollX, saved.y);
     } catch {
         // A malformed or unavailable stored position must not block the page.

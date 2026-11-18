@@ -25,6 +25,7 @@ type CreateProjectRepository struct {
 	TrackedBranch           string         `json:"tracked_branch"`
 	PipelineDir             string         `json:"pipeline_dir"`
 	CreatePrivateRepository bool           `json:"create_private_repository"`
+	MoreTime                bool           `json:"-"` // Applies only to this authorization attempt.
 }
 
 // GitHubRepositoryAuthorization is request-only and must never be persisted.

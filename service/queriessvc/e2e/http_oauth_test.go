@@ -83,7 +83,7 @@ func testRenewsHTTPOAuthForSavedQueriesAndPipelineReads(t *testing.T, stack *tes
 			created, err := stack.datasourcesSvc.Create(t.Context(), org.Slug, model.UserEventActor(user.Slug), &datasourcessvc.CreateParams{Name: "HTTP OAuth", Slug: source, Type: model.DataSourceTypeHTTP, ConfigJSON: config, ReadOnly: true, Credentials: map[string]any{"oauth": map[string]any{"issuer": provider.URL, "authorization_endpoint": provider.URL + "/authorize", "token_endpoint": provider.URL + "/token", "client_id": "fixture-app", "client_secret": "fixture-app-secret", "grant_type": grantType, "scopes": []string{"read"}}}})
 			require.NoError(t, err)
 			require.False(t, created.IsActive)
-			connection, err := stack.datasourcesSvc.ConnectHTTPOAuth(t.Context(), org.Slug, source, model.UserEventActor(user.Slug))
+			connection, err := stack.datasourcesSvc.ConnectHTTPOAuth(t.Context(), org.Slug, source, model.UserEventActor(user.Slug), false)
 			require.NoError(t, err)
 			if grantType == "authorization_code" {
 				require.NotNil(t, connection.Install)

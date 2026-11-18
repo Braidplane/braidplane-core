@@ -18,7 +18,9 @@ templ WorkspaceSelection(org string, source *api.DataSource, privacyURL string) 
 	<div class="space-y-3 border-b border-base-300 pb-4" data-workspace-selection data-org={ org } data-source={ string(source.Slug) }>
 		<p class="text-sm font-semibold">Connected Workspace</p>
 		@WorkspaceDataDisclosure(privacyURL)
-		<form method="post" action={ templ.URL("/orgs/" + org + "/data-sources/" + string(source.Slug) + "/google_workspace/oauth") } hx-post={ "/orgs/" + org + "/data-sources/" + string(source.Slug) + "/google_workspace/oauth" } hx-swap="none" class="flex flex-wrap gap-2">
+		{{ action := entitySectionHref(ctx, "/orgs/"+org+"/data-sources/"+string(source.Slug)+"/google_workspace/oauth", "settings") }}
+		<form method="post" action={ templ.URL(action) } hx-post={ action } hx-swap="none" class="space-y-2">
+			@OAuthCallbackTimeOption(entityPageURL(ctx).Query().Get("more_time") == "true")
 			<button type="submit" class="btn btn-outline btn-sm self-end">Connect / reconnect Google</button>
 		</form>
 	</div>
@@ -32,7 +34,11 @@ templ WorkspaceOperationFields(form QueryEditorFormData, org string, source stri
 		<select class="select select-bordered select-sm min-w-0 w-full hidden md:col-span-2" aria-label="Authorized Workspace files" data-workspace-files></select>
 		<p class="text-sm md:col-span-2" role="status" data-workspace-feedback></p>
 		<div data-workspace-fields="sheet"><input type="hidden" name="workspace_spreadsheet_id" value={ form.WorkspaceSpreadsheetID }/><p class="text-xs">Spreadsheet: <span data-workspace-target-name>{ form.WorkspaceSpreadsheetID }</span></p><p class="text-xs text-base-content/70 break-all">File ID: <span data-workspace-target-id>{ form.WorkspaceSpreadsheetID }</span></p></div>
-		<label class="form-control" data-workspace-fields="sheet"><span class="label-text text-xs">Worksheet</span><select class="select select-bordered select-sm" name="workspace_worksheet_id" aria-label="Worksheet"><option value={ form.WorkspaceWorksheetID }>Loading worksheets…</option></select><span class="block text-xs text-base-content/70 break-all">Worksheet ID: <span data-workspace-worksheet-id>{ form.WorkspaceWorksheetID }</span></span></label>
+		<div class="space-y-2" data-workspace-fields="sheet">
+			<label class="form-control"><span class="label-text text-xs">Worksheet</span><select class="select select-bordered select-sm" name="workspace_worksheet_id" aria-label="Worksheet"><option value={ form.WorkspaceWorksheetID }>Loading worksheets…</option></select><span class="block text-xs text-base-content/70 break-all">Worksheet ID: <span data-workspace-worksheet-id>{ form.WorkspaceWorksheetID }</span></span></label>
+			<p class="text-sm" role="status" data-workspace-worksheet-status></p>
+			<button class="btn btn-outline btn-sm h-auto min-h-8 max-w-full whitespace-normal" type="button" data-workspace-worksheet-retry hidden>Retry loading worksheets</button>
+		</div>
 		<label class="form-control" data-workspace-fields="sheet"><span class="label-text text-xs">Bounded A1 range, e.g. A1:C10</span><input class="input input-bordered input-sm font-mono" name="workspace_range" value={ form.WorkspaceRange }/></label>
 		<div data-workspace-fields="file-target"><input type="hidden" name="workspace_file_id" value={ form.WorkspaceFileID }/><p class="text-xs">File: <span data-workspace-target-name>{ form.WorkspaceFileID }</span></p><p class="text-xs text-base-content/70 break-all">File ID: <span data-workspace-target-id>{ form.WorkspaceFileID }</span></p></div>
 		<label class="form-control" data-workspace-fields="folder"><span class="label-text text-xs">Authorized folder ID (required to create; optional list filter)</span><input class="input input-bordered input-sm font-mono" name="workspace_folder_id" value={ form.WorkspaceFolderID }/></label>

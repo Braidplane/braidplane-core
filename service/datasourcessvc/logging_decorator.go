@@ -91,7 +91,7 @@ func (_d ServiceWithLogging) CompleteProviderOAuthCallback(ctx context.Context, 
 }
 
 // ConnectHTTPOAuth implements Service.
-func (_d ServiceWithLogging) ConnectHTTPOAuth(ctx context.Context, s1 slug.Slug, s2 slug.Slug, e1 model.EventActor) (hp1 *HTTPOAuthConnection, err error) {
+func (_d ServiceWithLogging) ConnectHTTPOAuth(ctx context.Context, s1 slug.Slug, s2 slug.Slug, e1 model.EventActor, b1 bool) (hp1 *HTTPOAuthConnection, err error) {
 	_startedAt := time.Now()
 	_ctx := ctx
 	_ctx, _span := tracing.StartMethodSpan(_ctx, tracing.MethodSpan{
@@ -115,7 +115,7 @@ func (_d ServiceWithLogging) ConnectHTTPOAuth(ctx context.Context, s1 slug.Slug,
 			Err:         err,
 		})
 	}()
-	hp1, err = _d._base.ConnectHTTPOAuth(_ctx, s1, s2, e1)
+	hp1, err = _d._base.ConnectHTTPOAuth(_ctx, s1, s2, e1, b1)
 	return
 }
 

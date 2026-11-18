@@ -556,6 +556,7 @@ func (r *Router) handleStartProviderDataSourceOAuthSubmit(c fiber.Ctx, provider,
 		config, validationErr := parseBigQueryConfigForm(c)
 		if validationErr == "" && (config.DefaultDataset == nil || strings.TrimSpace(*config.DefaultDataset) == "") {
 			validationErr = "Validation: choose a BigQuery dataset."
+			formData.InvalidField = "default_dataset"
 		}
 		if validationErr != "" {
 			formData.TestMessage = validationErr
@@ -574,6 +575,9 @@ func (r *Router) handleStartProviderDataSourceOAuthSubmit(c fiber.Ctx, provider,
 		Type:     api.StartProviderDataSourceInstallRequestType(provider),
 		Config:   providerConfig,
 		ReadOnly: &readOnly,
+	}
+	if formData.MoreTime {
+		payload.MoreTime = &formData.MoreTime
 	}
 
 	install, status, errorResponse, startErr := r.startProviderDataSourceOAuthViaAPI(
@@ -621,6 +625,11 @@ func (r *Router) handleStartExistingProviderOAuthSubmit(c fiber.Ctx, provider st
 	if err != nil {
 		return c.Status(fiber.StatusBadRequest).SendString("invalid data source slug")
 	}
+	moreTime := c.FormValue("more_time") == "true"
+	returnURL := dataSourceReturnURL(c, orgSlug.String(), dataSourceSlug.String())
+	if moreTime {
+		returnURL = appendDataSourceReturnQuery(returnURL, "more_time", "true")
+	}
 
 	dataSource, status, errorResponse, getErr := r.getDataSourceViaAPI(
 		c.Context(),
@@ -635,7 +644,7 @@ func (r *Router) handleStartExistingProviderOAuthSubmit(c fiber.Ctx, provider st
 		message := formFeedbackFromErrorResponse(errorResponse, "Failed to load the provider data source.")
 		r.logRenderedBackendAPIFailure(c, "get data source", getErr, orgSlug.String(), dataSourceSlug.String())
 		return redirectHTMXOrSeeOther(c, appendDataSourceReturnQuery(
-			dataSourceReturnURL(c, orgSlug.String(), dataSourceSlug.String()),
+			returnURL,
 			"error",
 			message,
 		))
@@ -648,11 +657,14 @@ func (r *Router) handleStartExistingProviderOAuthSubmit(c fiber.Ctx, provider st
 		DataSourceSlug: dataSourceSlug.String(),
 		Intent:         views.DataSourceProviderOAuthIntent(*dataSource),
 	}
+	if moreTime {
+		payload.MoreTime = &moreTime
+	}
 	if provider == "google_workspace" {
 		_, err := dataSource.Config.AsGoogleWorkspaceConfig()
 		if err != nil {
 			return redirectHTMXOrSeeOther(c, appendDataSourceReturnQuery(
-				dataSourceReturnURL(c, orgSlug.String(), dataSourceSlug.String()),
+				returnURL,
 				"error",
 				"Failed to load the Workspace configuration.",
 			))
@@ -688,7 +700,7 @@ func (r *Router) handleStartExistingProviderOAuthSubmit(c fiber.Ctx, provider st
 			)
 		}
 		return redirectHTMXOrSeeOther(c, appendDataSourceReturnQuery(
-			dataSourceReturnURL(c, orgSlug.String(), dataSourceSlug.String()),
+			returnURL,
 			"error",
 			message,
 		))
@@ -913,14 +925,15 @@ func (r *Router) handleDataSourceDetailPage(c fiber.Ctx) error {
 		)
 	}
 
-	pageError := strings.TrimSpace(c.Query("error"))
 	pageFeedback := strings.TrimSpace(c.Query("notice"))
 	pageFeedbackKind := "success"
 	schemaRefreshError := strings.TrimSpace(c.Query("schema_error"))
-	pageErrorDetails := ""
+	pageError := schemaRefreshError
 	schemaPanel := dataSourceSchemaPanelData(dataSource, schemaRefreshError)
-	if schemaRefreshError != "" && pageError == "" {
-		pageError = schemaRefreshError
+	if message := strings.TrimSpace(c.Query("error")); message != "" {
+		pageFeedback = message
+		pageFeedbackKind = feedbackKindError
+		pageError = ""
 	}
 
 	shellData := r.buildShellDataForOrganizationPage(
@@ -928,7 +941,7 @@ func (r *Router) handleDataSourceDetailPage(c fiber.Ctx) error {
 		"Data source details",
 		orgSlug.String(),
 		pageError,
-		pageErrorDetails,
+		"",
 		c.Get(fiber.HeaderCookie),
 	)
 	shellData.Subtitle = "Inspect connection metadata and browse introspected schema."
@@ -1084,25 +1097,32 @@ func (r *Router) handleUpdateDataSourceSubmit(c fiber.Ctx) error {
 		return c.Status(fiber.StatusBadRequest).SendString("invalid data source slug")
 	}
 
-	payload, validationErr := buildUpdateDataSourcePayloadWithPrivateHosts(c, r.allowPrivateDataSourceHosts)
-	if validationErr != "" {
+	returnURL := dataSourceReturnURL(c, orgSlug.String(), dataSourceSlug.String())
+	reject := func(message string, status int) error {
 		if dataSourceShouldRenderSidePanel(c) {
 			return r.renderDataSourceSidePanel(
 				c,
 				orgSlug,
 				dataSourceSlug.String(),
 				dataSourceActiveEnvironmentSlug(c),
-				validationErr,
+				message,
 				"error",
-				http.StatusBadRequest,
+				status,
 			)
 		}
-		redirectURL := appendDataSourceReturnQuery(
-			dataSourceReturnURL(c, orgSlug.String(), dataSourceSlug.String()),
-			"error",
-			validationErr,
-		)
-		return redirectHTMXOrSeeOther(c, redirectURL)
+		if isHTMXRequest(c) && c.Query("section") == "settings" {
+			const target = "#data-source-settings-feedback"
+			c.Set("HX-Retarget", target)
+			c.Set("HX-Reselect", target)
+			c.Set("HX-Reswap", "outerHTML")
+			setHTMLResponseStatus(c, http.StatusOK)
+			return renderTempl(c, views.DataSourceSettingsFeedback(message))
+		}
+		return redirectHTMXOrSeeOther(c, appendDataSourceReturnQuery(returnURL, "error", message))
+	}
+	payload, validationErr := buildUpdateDataSourcePayloadWithPrivateHosts(c, r.allowPrivateDataSourceHosts)
+	if validationErr != "" {
+		return reject(validationErr, http.StatusBadRequest)
 	}
 
 	_, status, errorResponse, updateErr := r.updateDataSourceViaAPI(
@@ -1122,41 +1142,23 @@ func (r *Router) handleUpdateDataSourceSubmit(c fiber.Ctx) error {
 			message = "Failed to update data source settings."
 		}
 		r.logRenderedBackendAPIFailure(c, "update data source", updateErr, orgSlug.String(), dataSourceSlug.String())
-		if dataSourceShouldRenderSidePanel(c) {
-			return r.renderDataSourceSidePanel(
-				c,
-				orgSlug,
-				dataSourceSlug.String(),
-				dataSourceActiveEnvironmentSlug(c),
-				message,
-				"error",
-				status,
-			)
-		}
-		redirectURL := appendDataSourceReturnQuery(
-			dataSourceReturnURL(c, orgSlug.String(), dataSourceSlug.String()),
-			"error",
-			message,
-		)
-		return redirectHTMXOrSeeOther(c, redirectURL)
+		return reject(message, status)
 	}
 
+	const saved = "Connection settings saved."
 	if dataSourceShouldRenderSidePanel(c) {
 		return r.renderDataSourceSidePanel(
 			c,
 			orgSlug,
 			dataSourceSlug.String(),
 			dataSourceActiveEnvironmentSlug(c),
-			"Connection settings saved.",
+			saved,
 			"success",
 			http.StatusOK,
 		)
 	}
 
-	return redirectHTMXOrSeeOther(
-		c,
-		dataSourceReturnURL(c, orgSlug.String(), dataSourceSlug.String()),
-	)
+	return redirectHTMXOrSeeOther(c, appendDataSourceReturnQuery(returnURL, "notice", saved))
 }
 
 func (r *Router) handleUpdateDataSourceCredentialsSubmit(c fiber.Ctx) error {
@@ -1168,6 +1170,30 @@ func (r *Router) handleUpdateDataSourceCredentialsSubmit(c fiber.Ctx) error {
 	dataSourceSlug, err := slug.New(c.Params("dsSlug"))
 	if err != nil {
 		return c.Status(fiber.StatusBadRequest).SendString("invalid data source slug")
+	}
+
+	returnURL := dataSourceReturnURL(c, orgSlug.String(), dataSourceSlug.String())
+	reject := func(message string, status int) error {
+		if dataSourceShouldRenderSidePanel(c) {
+			return r.renderDataSourceSidePanel(
+				c,
+				orgSlug,
+				dataSourceSlug.String(),
+				dataSourceActiveEnvironmentSlug(c),
+				message,
+				feedbackKindError,
+				status,
+			)
+		}
+		if isHTMXRequest(c) && c.Query("section") == "settings" {
+			const target = "#data-source-credentials-feedback"
+			c.Set("HX-Retarget", target)
+			c.Set("HX-Reselect", target)
+			c.Set("HX-Reswap", "outerHTML")
+			setHTMLResponseStatus(c, http.StatusOK)
+			return renderTempl(c, views.DataSourceCredentialsFeedback(message))
+		}
+		return redirectHTMXOrSeeOther(c, appendDataSourceReturnQuery(returnURL, "error", message))
 	}
 
 	dataSource, status, errorResponse, getErr := r.getDataSourceViaAPI(
@@ -1186,44 +1212,12 @@ func (r *Router) handleUpdateDataSourceCredentialsSubmit(c fiber.Ctx) error {
 			message = "Failed to load data source."
 		}
 		r.logRenderedBackendAPIFailure(c, "get data source", getErr, orgSlug.String(), dataSourceSlug.String())
-		if dataSourceShouldRenderSidePanel(c) {
-			return r.renderDataSourceSidePanel(
-				c,
-				orgSlug,
-				dataSourceSlug.String(),
-				dataSourceActiveEnvironmentSlug(c),
-				message,
-				"error",
-				status,
-			)
-		}
-		redirectURL := appendDataSourceReturnQuery(
-			dataSourceReturnURL(c, orgSlug.String(), dataSourceSlug.String()),
-			"error",
-			message,
-		)
-		return redirectHTMXOrSeeOther(c, redirectURL)
+		return reject(message, status)
 	}
 
 	payload, validationErr := buildUpdateDataSourceCredentialsPayloadForDataSource(c, dataSource)
 	if validationErr != "" {
-		if dataSourceShouldRenderSidePanel(c) {
-			return r.renderDataSourceSidePanel(
-				c,
-				orgSlug,
-				dataSourceSlug.String(),
-				dataSourceActiveEnvironmentSlug(c),
-				validationErr,
-				"error",
-				http.StatusBadRequest,
-			)
-		}
-		redirectURL := appendDataSourceReturnQuery(
-			dataSourceReturnURL(c, orgSlug.String(), dataSourceSlug.String()),
-			"error",
-			validationErr,
-		)
-		return redirectHTMXOrSeeOther(c, redirectURL)
+		return reject(validationErr, http.StatusBadRequest)
 	}
 
 	_, status, errorResponse, updateErr := r.updateDataSourceCredentialsViaAPI(
@@ -1243,41 +1237,23 @@ func (r *Router) handleUpdateDataSourceCredentialsSubmit(c fiber.Ctx) error {
 			message = "Failed to update credentials."
 		}
 		r.logRenderedBackendAPIFailure(c, "update data source credentials", updateErr, orgSlug.String(), dataSourceSlug.String())
-		if dataSourceShouldRenderSidePanel(c) {
-			return r.renderDataSourceSidePanel(
-				c,
-				orgSlug,
-				dataSourceSlug.String(),
-				dataSourceActiveEnvironmentSlug(c),
-				message,
-				"error",
-				status,
-			)
-		}
-		redirectURL := appendDataSourceReturnQuery(
-			dataSourceReturnURL(c, orgSlug.String(), dataSourceSlug.String()),
-			"error",
-			message,
-		)
-		return redirectHTMXOrSeeOther(c, redirectURL)
+		return reject(message, status)
 	}
 
+	const saved = "Credentials updated."
 	if dataSourceShouldRenderSidePanel(c) {
 		return r.renderDataSourceSidePanel(
 			c,
 			orgSlug,
 			dataSourceSlug.String(),
 			dataSourceActiveEnvironmentSlug(c),
-			"Credentials updated.",
+			saved,
 			"success",
 			http.StatusOK,
 		)
 	}
 
-	return redirectHTMXOrSeeOther(
-		c,
-		dataSourceReturnURL(c, orgSlug.String(), dataSourceSlug.String()),
-	)
+	return redirectHTMXOrSeeOther(c, appendDataSourceReturnQuery(returnURL, "notice", saved))
 }
 
 func (r *Router) listDataSourcesViaAPI(
@@ -4090,6 +4066,7 @@ func dataSourceCreateFormDataFromRequest(c fiber.Ctx) views.DataSourceCreateForm
 		GitHubReadOnly:            strings.TrimSpace(c.FormValue("github_access_mode")) != "write",
 		HubSpotAuthType:           hubSpotAuthType,
 		BigQueryReadOnly:          strings.TrimSpace(c.FormValue("bigquery_access_mode")) != "write",
+		MoreTime:                  c.FormValue("more_time") == "true",
 		HubSpotReadOnly:           strings.TrimSpace(c.FormValue(hubSpotAccessModeField)) != hubSpotAccessModeWrite,
 		SnowflakeAuthType:         snowflakeAuthType,
 		SnowflakeSelectTables:     c.FormValue("snowflake_select_tables"),
@@ -4407,9 +4384,15 @@ func (r *Router) handleConnectHTTPOAuthSubmit(c fiber.Ctx) error {
 	if err != nil {
 		return c.SendStatus(fiber.StatusBadRequest)
 	}
-	response, err := r.apiClient.ConnectDataSourceHTTPOAuthWithResponse(c.Context(), org.String(), source.String(), frontendRequestEditor(c.Context(), c.Get(fiber.HeaderCookie)))
+	returnURL := dataSourceReturnURL(c, org.String(), source.String())
+	var params *api.ConnectDataSourceHTTPOAuthParams
+	if moreTime := c.FormValue("more_time") == "true"; moreTime {
+		params = &api.ConnectDataSourceHTTPOAuthParams{MoreTime: &moreTime}
+		returnURL = appendDataSourceReturnQuery(returnURL, "more_time", "true")
+	}
+	response, err := r.apiClient.ConnectDataSourceHTTPOAuthWithResponse(c.Context(), org.String(), source.String(), params, frontendRequestEditor(c.Context(), c.Get(fiber.HeaderCookie)))
 	if err != nil {
-		return redirectHTMXOrSeeOther(c, appendDataSourceReturnQuery(dataSourceReturnURL(c, org.String(), source.String()), "error", "Could not connect the HTTP API. Try again."))
+		return redirectHTMXOrSeeOther(c, appendDataSourceReturnQuery(returnURL, "error", "Could not connect the HTTP API. Try again."))
 	}
 	if response.StatusCode() == http.StatusUnauthorized {
 		return redirectToLogin(c, c.OriginalURL())
@@ -4417,7 +4400,7 @@ func (r *Router) handleConnectHTTPOAuthSubmit(c fiber.Ctx) error {
 	if response.StatusCode() != http.StatusOK || response.JSON200 == nil {
 		errorResponse := parseAPIErrorResponse(response.Body)
 		message := formFeedbackFromErrorResponse(errorResponse, "Could not connect the HTTP API. Check the app settings and try again.")
-		return redirectHTMXOrSeeOther(c, appendDataSourceReturnQuery(dataSourceReturnURL(c, org.String(), source.String()), "error", message))
+		return redirectHTMXOrSeeOther(c, appendDataSourceReturnQuery(returnURL, "error", message))
 	}
 	if response.JSON200.Install != nil {
 		return redirectHTMXOrSeeOther(c, response.JSON200.Install.AuthorizationUrl)

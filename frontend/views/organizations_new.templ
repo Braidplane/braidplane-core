@@ -1,21 +1,23 @@
 package views
 
 templ OrganizationNewPage(shellData AuthenticatedShellData, formData OrganizationCreateFormData) {
-	@AuthenticatedShell(shellData, OrganizationNewPageContent(formData))
+	{{ content := OrganizationNewPageContent(formData, shellData.PageError, shellData.PageErrorDetails) }}
+	{{ shellData.PageError, shellData.PageErrorDetails = "", "" }}
+	@AuthenticatedShell(shellData, content)
 }
 
-templ OrganizationNewPageContent(formData OrganizationCreateFormData) {
+templ OrganizationNewPageContent(formData OrganizationCreateFormData, pageError string, pageErrorDetails string) {
 	<div class="mx-auto w-full max-w-3xl py-2">
 		<div class="card w-full rounded-xl border border-base-300 bg-base-100 shadow-sm">
 			<div class="card-body gap-4">
 				<h2 class="text-2xl font-semibold">Create organization</h2>
 				<p class="text-sm text-base-content/70">Set up a new workspace for your team.</p>
-				<form class="space-y-3" method="post" action="/organizations" hx-post="/organizations" hx-target="body" hx-select="body" hx-swap="outerHTML">
+				<form class="space-y-3" method="post" action="/organizations" hx-post="/organizations" hx-target="#main-content" hx-select="#main-content" hx-swap="outerHTML" data-form-feedback>
 					<label class="form-control w-full">
 						<div class="label">
 							<span class="label-text">Organization name</span>
 						</div>
-						<input class="input input-bordered input-lg w-full" type="text" name="name" placeholder="Acme HQ" value={ formData.Name }/>
+						<input class="input input-bordered input-lg w-full" type="text" name="name" placeholder="Acme HQ" value={ formData.Name } autocomplete="organization" maxlength="255" required/>
 					</label>
 					<label class="form-control w-full">
 						<div class="label">
@@ -24,6 +26,11 @@ templ OrganizationNewPageContent(formData OrganizationCreateFormData) {
 						<textarea class="textarea textarea-bordered textarea-lg w-full resize-y" rows="4" name="description" placeholder="Optional workspace context.">{ formData.Description }</textarea>
 					</label>
 					@CustomizeIdentifier(formData.Slug)
+					@FormError("organization-create-feedback", pageError, true)
+					if pageErrorDetails != "" {
+						<details class="text-sm"><summary>More details</summary><p class="whitespace-pre-wrap break-words">{ pageErrorDetails }</p></details>
+					}
+					@FormRequestError()
 					<div class="flex flex-col gap-2 pt-1 sm:flex-row sm:justify-end">
 						<a class="btn btn-outline w-full sm:w-auto" href="/dashboard">Cancel</a>
 						<button class="btn btn-primary w-full sm:w-auto" type="submit">Create Organization</button>

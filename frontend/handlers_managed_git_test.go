@@ -22,11 +22,12 @@ func TestManagedGitActionsForwardSettingsAndPreserveContext(t *testing.T) {
 		backendStatus, status                   int
 	}{
 		{"connect", "/organizations/acme/connect", "include_write_scopes=on", "/api/organizations/acme/gitlab-connection/authorization", "https://gitlab.com/oauth/authorize", 201, 303},
-		{"connect failure", "/organizations/acme/connect", "", "/api/organizations/acme/gitlab-connection/authorization", "", 403, 503},
+		{"connect failure", "/organizations/acme/connect", "", "/api/organizations/acme/gitlab-connection/authorization", "/organizations/acme/connections?provider_oauth=connect_failed", 403, 303},
 		{"disconnect", "/organizations/acme/disconnect", "", "/api/organizations/acme/gitlab-connection", "/organizations/acme/connections?provider_oauth=disconnected", 200, 303},
-		{"disconnect forbidden", "/organizations/acme/disconnect", "", "/api/organizations/acme/gitlab-connection", "", 403, 403},
-		{"attach", "/orgs/acme/data-sources/repo/attach", "environment_slug=prod", "/api/organizations/acme/data-sources/repo/gitlab-connection", "/orgs/acme/data-sources/repo?environment_slug=prod", 204, 303},
-		{"attach conflict", "/orgs/acme/data-sources/repo/attach", "", "/api/organizations/acme/data-sources/repo/gitlab-connection", "", 409, 409},
+		{"disconnect forbidden", "/organizations/acme/disconnect", "", "/api/organizations/acme/gitlab-connection", "/organizations/acme/connections?provider_oauth=disconnect_failed", 403, 303},
+		{"attach", "/orgs/acme/data-sources/repo/attach?section=settings&list_return=%2Forgs%2Facme%2Fdata-sources", "environment_slug=prod", "/api/organizations/acme/data-sources/repo/gitlab-connection", "/orgs/acme/data-sources/repo?environment_slug=prod&list_return=%2Forgs%2Facme%2Fdata-sources&section=settings&notice=Organization+GitLab+connection+attached.", 204, 303},
+		{"attach conflict", "/orgs/acme/data-sources/repo/attach?section=settings", "environment_slug=prod", "/api/organizations/acme/data-sources/repo/gitlab-connection", "/orgs/acme/data-sources/repo?environment_slug=prod&section=settings&error=Repository+changed", 409, 303},
+		{"attach session expired", "/orgs/acme/data-sources/repo/attach?section=settings", "environment_slug=prod", "/api/organizations/acme/data-sources/repo/gitlab-connection", loginRedirectPath("/orgs/acme/data-sources/repo?environment_slug=prod&section=settings"), 401, 303},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			called := false
@@ -45,7 +46,7 @@ func TestManagedGitActionsForwardSettingsAndPreserveContext(t *testing.T) {
 				if tc.backendStatus == 201 {
 					_, _ = io.WriteString(w, `{"authorization_url":"https://gitlab.com/oauth/authorize"}`)
 				} else if tc.backendStatus != 204 {
-					_, _ = io.WriteString(w, `{"message":"Repository changed"}`)
+					_, _ = io.WriteString(w, `{"error":{"message":"Repository changed"}}`)
 				}
 			}))
 			defer backend.Close()

@@ -556,6 +556,12 @@ paths:
                     type: boolean
 
   /auth/google:
+    parameters:
+      - in: query
+        name: more_time
+        description: Allow 100 minutes instead of 10 for a new Google authorization to return to Core.
+        schema:
+          type: boolean
     post:
       summary: Start or complete Google account registration
       description: Resumes a verified, unexpired pending Google signup in the browser session without another authorization; otherwise starts Google authorization.
@@ -576,7 +582,7 @@ paths:
                   description: Browser form CSRF token. Required when completing a pending signup.
       responses:
         '302':
-          description: Redirect to Google authorization, authenticated workspace setup after completing signup, or the authentication retry page if the pending signup is invalid or expired.
+          description: Redirect to Google authorization, authenticated workspace setup after completing signup, the signup page with retry feedback if the pending signup expired, or the authentication retry page if it is invalid.
         '400':
           description: Invalid registration input
           content:
@@ -614,6 +620,12 @@ paths:
                 type: string
                 format: uri
                 example: "https://accounts.google.com/o/oauth2/v2/auth?client_id=..."
+        '400':
+          description: Invalid query parameter
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
         '503':
           description: Google sign-in is not configured or its provider is unavailable.
           content:
@@ -1068,6 +1080,9 @@ paths:
                 include_write_scopes:
                   type: boolean
                   description: Explicitly authorize Git writes; data-source read-only restrictions still apply.
+                more_time:
+                  type: boolean
+                  description: Allow 100 minutes for the Core callback instead of 10.
       responses:
         '201':
           description: Single-use authorization flow
@@ -1385,6 +1400,11 @@ paths:
         - SessionAuth: []
       parameters:
         - $ref: '#/components/parameters/SlugParam'
+        - in: query
+          name: more_time
+          description: Allow 100 minutes for the Core callback instead of 10.
+          schema:
+            type: boolean
       responses:
         '200':
           description: GitHub-hosted installation URL
@@ -1495,7 +1515,7 @@ paths:
           description: Invalid or expired installation state
           headers:
             Location:
-              description: Relative project recovery URL only after an authorized repository setup failure was recorded.
+              description: Relative project recovery URL after a recorded repository setup failure or when Core can identify an active setup from the initiating user's expired authorization.
               schema: { type: string }
           content:
             application/json:
@@ -2035,6 +2055,11 @@ paths:
       parameters:
         - $ref: '#/components/parameters/SlugParam'
         - $ref: '#/components/parameters/ProjectSlugParam'
+        - in: query
+          name: more_time
+          description: Allow 100 minutes for the Core callback instead of 10 if provider authorization is required. May change when retrying the same saved setup.
+          schema:
+            type: boolean
       requestBody:
         required: true
         content:
@@ -4722,6 +4747,11 @@ paths:
       parameters:
         - $ref: '#/components/parameters/SlugParam'
         - $ref: '#/components/parameters/DataSourceSlugParam'
+        - in: query
+          name: more_time
+          description: Allow 100 minutes for the Core callback instead of 10.
+          schema:
+            type: boolean
       responses:
         '200':
           description: Consent required or machine connection tested
@@ -11129,6 +11159,9 @@ components:
           minLength: 1
           maxLength: 39
           pattern: '^[A-Za-z0-9](?:[A-Za-z0-9-]{0,37}[A-Za-z0-9])?$'
+        more_time:
+          type: boolean
+          description: Allow 100 minutes for the Core callback instead of 10.
       required: [account_login]
 
     GitHubAppRepository:
@@ -13799,6 +13832,9 @@ components:
           allOf:
             - $ref: '#/components/schemas/GoogleWorkspaceAccessMode'
           description: Explicit Workspace consent mode. Required when reconnecting. Changing it starts fresh consent bound to the source revision; failed consent preserves the current source. Other providers reject this field.
+        more_time:
+          type: boolean
+          description: Allow 100 minutes for the Core callback instead of 10. The provider controls its own authorization deadlines.
       required:
         - data_source_slug
         - intent
@@ -13831,6 +13867,9 @@ components:
           type: boolean
           description: Whether direct mutating operations and pipeline sink use are blocked for this data source.
           default: true
+        more_time:
+          type: boolean
+          description: Allow 100 minutes for the Core callback instead of 10. The provider controls its own authorization deadlines.
       required:
         - name
         - type

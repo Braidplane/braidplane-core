@@ -355,9 +355,11 @@ test("sets up three secret HTTP headers and reads every numbered page", async ({
             `/orgs/${e2eOrgSlug}/data-sources/${source}?section=schema&environment_slug=${e2eEnvironmentSlug}`,
         );
         const schemaCard = page.locator("#data-source-schema-browser");
+        await page.clock.install();
         await schemaCard.getByRole("button", { name: "Import schema", exact: true }).click();
         await expect(schemaCard.getByRole("button", { name: "Importing…", exact: true })).toBeDisabled();
-        await expect(schemaCard).toContainText("This panel updates automatically.");
+        const checkImport = schemaCard.getByRole("button", { name: "Check import status", exact: true });
+        await expect(checkImport).toBeVisible();
         await expect(schemaCard).not.toContainText("No tables discovered.");
         if (process.env.PLAYWRIGHT_E2E_EVIDENCE === "1")
             await captureE2EEvidenceScreenshot(schemaCard, testInfo, "schema-import-pending.png");
@@ -369,7 +371,15 @@ test("sets up three secret HTTP headers and reads every numbered page", async ({
             await captureE2EEvidenceScreenshot(schemaCard, testInfo, "schema-import-pending-compact.png");
         await page.setViewportSize(schemaViewport);
         releaseSchema();
-        await expect(schemaCard.getByText("ready", { exact: true })).toBeVisible({ timeout: 15000 });
+        await page.clock.fastForward(6000);
+        await expect(checkImport).toBeVisible();
+        await expect(async () => {
+            if (await checkImport.isVisible()) {
+                await checkImport.press("Enter");
+            }
+            await expect(schemaCard.getByText("ready", { exact: true })).toBeVisible({ timeout: 1000 });
+        }).toPass({ timeout: 15000 });
+        await expect(schemaCard.getByRole("heading", { name: "Schema browser", exact: true })).toBeFocused();
         await expect(schemaCard).toContainText("listItems");
         await expect(schemaCard).not.toHaveAttribute("hx-get");
         await expect(schemaCard.getByRole("button", { name: "Refresh schema", exact: true })).toBeEnabled();

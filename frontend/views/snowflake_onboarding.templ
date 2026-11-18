@@ -44,13 +44,13 @@ templ SnowflakeOnboardingPanel(org, environment, ds string, onboarding *api.Snow
 			<p class="text-xs text-base-content/70">Disable revokes the Braidplane identity for new logins. For immediate removal, your Snowflake administrator must also terminate already-open sessions.</p>
 		}
 		<div class="flex flex-wrap gap-2">
-			<button type="button" class="btn btn-outline btn-sm" hx-get={ SnowflakeOnboardingHref(org, environment, ds) } hx-target="closest [data-snowflake-onboarding]" hx-swap="outerHTML">Retry status</button>
+			<button id="snowflake-onboarding-retry" type="button" class="btn btn-outline btn-sm" hx-get={ entitySectionHref(ctx, SnowflakeOnboardingHref(org, environment, ds), "settings") } hx-target="closest [data-snowflake-onboarding]" hx-swap="outerHTML focus-scroll:true">Retry status</button>
 			if canUpdate {
-				<form method="post" action={ templ.URL(DataSourceTestHref(org, environment, ds)) }>
+				<form method="post" action={ templ.URL(entitySectionHref(ctx, DataSourceTestHref(org, environment, ds), "settings")) }>
 					<input type="hidden" name="environment_slug" value={ environment }/>
 					<button type="submit" class="btn btn-primary btn-sm" disabled?={ onboarding == nil || onboarding.IdentityState != api.SnowflakeOnboardingIdentityStateReady }>Verify</button>
 				</form>
-				<form method="post" action={ templ.URL(dataSourceMutationHref(org, environment, ds, "snowflake-identity")) }>
+				<form method="post" action={ templ.URL(entitySectionHref(ctx, dataSourceMutationHref(org, environment, ds, "snowflake-identity"), "settings")) }>
 					<input type="hidden" name="environment_slug" value={ environment }/>
 					if onboarding != nil && (onboarding.IdentityState == api.SnowflakeOnboardingIdentityStateDisabled || onboarding.IdentityState == api.SnowflakeOnboardingIdentityStateRevoking) {
 						<input type="hidden" name="enabled" value="true"/>

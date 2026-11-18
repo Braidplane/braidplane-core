@@ -19,7 +19,7 @@ var errFakeDataSourceServiceFnNotSet = xerror.Unexpected().Detail(
 // DataSourceService is a test double for datasourcessvc.Service.
 type DataSourceService struct {
 	CreateProvisionedFn              func(context.Context, slug.Slug, model.EventActor, *datasourcessvc.CreateParams, datasourcessvc.SourceProvisioner) (*datasourcessvc.DataSource, error)
-	ConnectHTTPOAuthFn               func(context.Context, slug.Slug, slug.Slug, model.EventActor) (*datasourcessvc.HTTPOAuthConnection, error)
+	ConnectHTTPOAuthFn               func(context.Context, slug.Slug, slug.Slug, model.EventActor, bool) (*datasourcessvc.HTTPOAuthConnection, error)
 	CreateFn                         func(ctx context.Context, orgSlug slug.Slug, actor model.EventActor, params *datasourcessvc.CreateParams) (*datasourcessvc.DataSource, error)
 	StartProviderDataSourceInstallFn func(ctx context.Context, orgSlug slug.Slug, actor model.EventActor, provider string, params *datasourcessvc.StartProviderDataSourceInstallParams) (*datasourcessvc.ProviderDataSourceInstall, error)
 	TestConnectionFn                 func(ctx context.Context, orgSlug slug.Slug, params *datasourcessvc.TestConnectionParams) error
@@ -310,11 +310,11 @@ func (*DataSourceService) GetGoogleWorkspacePicker(context.Context, slug.Slug, s
 	return nil, errFakeDataSourceServiceFnNotSet
 }
 
-func (f *DataSourceService) ConnectHTTPOAuth(ctx context.Context, org, source slug.Slug, actor model.EventActor) (*datasourcessvc.HTTPOAuthConnection, error) {
+func (f *DataSourceService) ConnectHTTPOAuth(ctx context.Context, org, source slug.Slug, actor model.EventActor, moreTime bool) (*datasourcessvc.HTTPOAuthConnection, error) {
 	if f.ConnectHTTPOAuthFn == nil {
 		return nil, xerror.Unexpected().Detail("unexpected ConnectHTTPOAuth call")
 	}
-	return f.ConnectHTTPOAuthFn(ctx, org, source, actor)
+	return f.ConnectHTTPOAuthFn(ctx, org, source, actor, moreTime)
 }
 
 func (f *DataSourceService) CreateProvisioned(ctx context.Context, org slug.Slug, actor model.EventActor, params *datasourcessvc.CreateParams, provisioner datasourcessvc.SourceProvisioner) (*datasourcessvc.DataSource, error) {

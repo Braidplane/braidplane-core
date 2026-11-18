@@ -16,6 +16,7 @@ source, credentials, infrastructure or an installed agent skill.
 | API schema | Edit `api-schema/schema.yml`, run `task generate-api`, test affected handlers and CLI consumers |
 | SQL/schema | `task generate-sqlc` against a disposable core-only database; it generates and vets SQLC queries |
 | Runtime/browser journey | Relevant actual Playwright cases using owned fixtures; follow [browser coverage](../frontend/e2e/README.md#community-coverage-policy) |
+| Accessibility assessment | `task test-accessibility` against an owned local runtime; record rule results and remaining manual checks using the [WCAG assessment](../frontend/accessibility/README.md) |
 | API runtime journey | `task test-bruno` for smoke coverage; `task bruno-ci` for all candidate-local collections with owned connector/Git fixtures; see [Bruno fixtures](../api-schema/bruno/README.md) |
 | Build inputs or dependency boundary | `task build`; `task containers` for all four core image targets |
 | CI workflow or local action | `bash scripts/go-toolchain.sh test -short ./ci`; review [CI trust boundary](CI_TRUST_BOUNDARY.md) and run affected script checks |

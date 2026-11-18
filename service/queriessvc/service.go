@@ -1230,7 +1230,7 @@ func (s *service) executePrepared(
 		if prepared.resourceScope != nil {
 			return nil, resourcescope.ErrInvalid
 		}
-		return nil, ErrInvalidInput.With(err)
+		return nil, err
 	}
 	if err := enforceReadOnlyDirectExecution(ds, dsSlug, prepared.statementJSON); err != nil {
 		return nil, err
@@ -1291,6 +1291,9 @@ func (s *service) executePrepared(
 		}
 		if isPreservedExecutionError(err) {
 			return nil, err
+		}
+		if xerror.Is(err, xerror.SourceQueryInvalid()) {
+			return nil, ErrQueryExecutionFailed.With(err)
 		}
 		return nil, ErrDataSourceUnavailable.With(err).Detail("connector execution failed")
 	}
@@ -1720,7 +1723,8 @@ func validateQueryParams(data json.RawMessage, params map[string]types.TypedPara
 
 	for _, name := range paramNames {
 		if _, ok := params[name]; !ok {
-			return ErrInvalidInput.Detailf("missing required parameter %q", name)
+			return ErrInvalidInput.Detailf("missing required parameter %q", name).
+				WithPublicDetail(fmt.Sprintf("Parameter %s is required.", name))
 		}
 	}
 

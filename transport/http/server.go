@@ -53,6 +53,7 @@ type compiledPlanService interface {
 }
 
 type projectRepositorySetupService interface {
+	ProjectForSetup(context.Context, slug.Slug, slug.Slug) (slug.Slug, error)
 	RejectGitHubAuthorization(context.Context, slug.Slug, slug.Slug, model.EventActor, string, string) (*model.ProjectRepositorySetup, error)
 	RejectGitLabAuthorization(context.Context, slug.Slug, slug.Slug, slug.Slug, model.EventActor, string, string) (*model.ProjectRepositorySetup, error)
 	CompleteGitLab(context.Context, slug.Slug, slug.Slug, slug.Slug, model.EventActor, model.GitLabRepositoryAuthorization) (*model.ProjectRepositorySetup, error)

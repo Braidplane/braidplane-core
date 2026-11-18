@@ -60,7 +60,7 @@ type narrowGitLabBootstrapper interface {
 
 type repositorySetupGitHub interface {
 	ConsumeRejectedInstall(context.Context, slug.Slug, slug.Slug, model.EventActor, string) error
-	StartRepositorySetup(context.Context, slug.Slug, model.EventActor, slug.Slug) (string, error)
+	StartRepositorySetup(context.Context, slug.Slug, model.EventActor, slug.Slug, bool) (string, error)
 	RepositorySetupForState(context.Context, model.EventActor, string) (slug.Slug, slug.Slug, error)
 	CompleteRepositorySetup(context.Context, slug.Slug, slug.Slug, model.EventActor, string, string, int64, gitprovider.RepositoryBootstrapRequest) (*gitprovider.RepositoryBootstrapResult, error)
 }
@@ -160,7 +160,7 @@ func (s *RepositorySetupService) Create(ctx context.Context, org, project slug.S
 		return nil, xerror.AlreadyExists(xerror.Project).Detail("project repository setup already exists with a different target")
 	}
 
-	return s.runSetup(ctx, org, project, stored, actor, nil)
+	return s.runSetup(ctx, org, project, stored, actor, nil, request.MoreTime)
 }
 
 func (s *RepositorySetupService) GetAttempt(ctx context.Context, org, project, setup slug.Slug) (*model.ProjectRepositorySetup, error) {
@@ -219,9 +219,7 @@ func (s *RepositorySetupService) CompleteGitHub(ctx context.Context, org, setup 
 	if intentOrg != org || intentSetup != setup || setup == "" {
 		return nil, xerror.ValidationFailed().Detail("GitHub authorization does not match this project repository setup")
 	}
-	project, err := postgres.InRead(ctx, s.txm, func(ctx context.Context, db postgres.DBTX) (slug.Slug, error) {
-		return s.repo.ProjectForSetup(ctx, db, org, setup)
-	})
+	project, err := s.ProjectForSetup(ctx, org, setup)
 	if err != nil {
 		return nil, err
 	}
@@ -232,7 +230,7 @@ func (s *RepositorySetupService) CompleteGitHub(ctx context.Context, org, setup 
 	if stored == nil || stored.Slug != setup || stored.Request.Provider != model.DataSourceTypeGithub {
 		return nil, xerror.ValidationFailed().Detail("GitHub repository setup is not pending")
 	}
-	return s.runSetup(ctx, org, project, stored, actor, &authorization)
+	return s.runSetup(ctx, org, project, stored, actor, &authorization, false)
 }
 
 func (s *RepositorySetupService) RejectGitHubAuthorization(ctx context.Context, org, setup slug.Slug, actor model.EventActor, state, providerError string) (*model.ProjectRepositorySetup, error) {
@@ -243,13 +241,18 @@ func (s *RepositorySetupService) RejectGitHubAuthorization(ctx context.Context, 
 	if intentOrg != org || intentSetup != setup || setup == "" {
 		return nil, xerror.ValidationFailed().Detail("GitHub authorization does not match this repository setup")
 	}
-	project, err := postgres.InRead(ctx, s.txm, func(ctx context.Context, db postgres.DBTX) (slug.Slug, error) {
-		return s.repo.ProjectForSetup(ctx, db, org, setup)
-	})
+	project, err := s.ProjectForSetup(ctx, org, setup)
 	if err != nil {
 		return nil, err
 	}
 	return s.rejectAuthorization(ctx, org, project, setup, actor, model.DataSourceTypeGithub, state, providerError)
+}
+
+// ProjectForSetup resolves the active attempt within its organization.
+func (s *RepositorySetupService) ProjectForSetup(ctx context.Context, org, setup slug.Slug) (slug.Slug, error) {
+	return postgres.InRead(ctx, s.txm, func(ctx context.Context, db postgres.DBTX) (slug.Slug, error) {
+		return s.repo.ProjectForSetup(ctx, db, org, setup)
+	})
 }
 
 func (s *RepositorySetupService) RejectGitLabAuthorization(ctx context.Context, org, project, setup slug.Slug, actor model.EventActor, state, providerError string) (*model.ProjectRepositorySetup, error) {
@@ -303,7 +306,7 @@ func (s *RepositorySetupService) rejectAuthorization(ctx context.Context, org, p
 	return stored, nil
 }
 
-func (s *RepositorySetupService) runSetup(ctx context.Context, org, project slug.Slug, stored *model.ProjectRepositorySetup, actor model.EventActor, authorization *model.GitHubRepositoryAuthorization) (*model.ProjectRepositorySetup, error) {
+func (s *RepositorySetupService) runSetup(ctx context.Context, org, project slug.Slug, stored *model.ProjectRepositorySetup, actor model.EventActor, authorization *model.GitHubRepositoryAuthorization, moreTime bool) (*model.ProjectRepositorySetup, error) {
 	if err := s.preparationPolicy.CheckSetup(ctx, org, project); err != nil {
 		return nil, err
 	}
@@ -353,12 +356,12 @@ func (s *RepositorySetupService) runSetup(ctx context.Context, org, project slug
 		return nil, xerror.AlreadyExists(xerror.Project).Detail("project already has an unrelated pipeline backend")
 	}
 	if request.Provider == model.DataSourceTypeGitlab {
-		stored.AuthorizationURL, err = s.prepareGitLabAuthorization(opCtx, org, project, stored.Slug, actor)
+		stored.AuthorizationURL, err = s.prepareGitLabAuthorization(opCtx, org, project, stored.Slug, actor, moreTime)
 		if err != nil {
 			return stored, err
 		}
 	} else if stored.Status == model.ProjectRepositorySetupStatusPending && authorization == nil {
-		stored.AuthorizationURL, err = s.github.StartRepositorySetup(opCtx, org, actor, stored.Slug)
+		stored.AuthorizationURL, err = s.github.StartRepositorySetup(opCtx, org, actor, stored.Slug, moreTime)
 		if err != nil {
 			return stored, err
 		}
@@ -473,7 +476,7 @@ func (s *RepositorySetupService) CompleteGitLab(ctx context.Context, org, projec
 		return stored, err
 	}
 	released = true
-	return s.runSetup(ctx, org, project, stored, actor, nil)
+	return s.runSetup(ctx, org, project, stored, actor, nil, false)
 }
 
 func (s *RepositorySetupService) releaseSetupLease(ctx context.Context, org, project slug.Slug, leaseOwner string) error {
@@ -484,7 +487,7 @@ func (s *RepositorySetupService) releaseSetupLease(ctx context.Context, org, pro
 	})
 }
 
-func (s *RepositorySetupService) prepareGitLabAuthorization(ctx context.Context, org, project, setup slug.Slug, actor model.EventActor) (string, error) {
+func (s *RepositorySetupService) prepareGitLabAuthorization(ctx context.Context, org, project, setup slug.Slug, actor model.EventActor, moreTime bool) (string, error) {
 	connection, err := s.credentials.GetOrganizationGitLabConnection(ctx, org)
 	if err != nil && !xerror.Is(err, credentialssvc.ErrCredentialNotFound) {
 		return "", err
@@ -505,7 +508,7 @@ func (s *RepositorySetupService) prepareGitLabAuthorization(ctx context.Context,
 	}
 	install, err := s.credentials.StartOAuthInstall(ctx, credentialssvc.StartOAuthInstallParams{
 		Owner:               credentialssvc.CredentialOwner{Kind: credentialssvc.CredentialOwnerKindOrganizationGitLab, OrgSlug: org},
-		RepositorySetupSlug: setup, RepositorySetupProjectSlug: project, Provider: "gitlab", IncludeWriteScopes: true, Intent: intent, Actor: actor,
+		RepositorySetupSlug: setup, RepositorySetupProjectSlug: project, Provider: "gitlab", IncludeWriteScopes: true, Intent: intent, Actor: actor, MoreTime: moreTime,
 	})
 	if err != nil {
 		return "", err

@@ -53,9 +53,11 @@ templ QueryDetailPageContent(orgSlug string, dataSourceSlug string, query api.Qu
 					hx-swap={ htmxScrollPreserveSwap }
 					data-query-detail-scroll-form
 					data-dirty-form="query-update"
-					data-preserve-scroll
+					data-form-feedback
 				>
 					<p class="text-sm font-semibold text-base-content">Edit query definition</p>
+					@querySubmitError("query-update-error", editFormData)
+					@FormRequestError()
 					<input type="hidden" name="statement_type" value={ editFormData.StatementType }/>
 					<div class="mt-3 grid gap-3 md:grid-cols-2">
 						<label class="form-control w-full">
@@ -372,11 +374,7 @@ templ QueryDetailPageContent(orgSlug string, dataSourceSlug string, query api.Qu
 						<summary class="cursor-pointer text-sm font-semibold">Advanced limits</summary>
 						<div class={ "mt-3 grid gap-2 md:grid-cols-2" }>
 							if editFormData.StatementType != "http" {
-								<label class="form-control w-full">
-									<div class="label py-1"><span class="label-text text-xs">Row limit</span></div>
-									<input class="input input-bordered input-sm w-full" type="number" min="0" name="row_limit" value={ editFormData.RowLimit } required/>
-									<span class="label-text-alt">0 uses the operator’s row policy.</span>
-								</label>
+								@queryRowLimit("query-update-row-limit", editFormData.RowLimit)
 							}
 							<label class="form-control w-full">
 								<div class="label py-1"><span class="label-text text-xs">Timeout (seconds)</span></div>
@@ -394,51 +392,20 @@ templ QueryDetailPageContent(orgSlug string, dataSourceSlug string, query api.Qu
 						</div>
 						<div class="mt-2 space-y-2" data-param-rows>
 							for _, param := range editFormData.Parameters {
-								<div class="grid gap-2 xl:grid-cols-[1.2fr_0.8fr_0.8fr_1fr_1.4fr_auto_auto]" data-param-row>
-									<input class="input input-bordered input-sm" type="text" name="param_name" placeholder="name" value={ param.Name }/>
-									<select class="select select-bordered select-sm" name="param_type">
-										<option selected?={ param.Type == string(api.QueryParameterDataTypeText) } value={ string(api.QueryParameterDataTypeText) }>text</option>
-										<option selected?={ param.Type == string(api.QueryParameterDataTypeInteger) } value={ string(api.QueryParameterDataTypeInteger) }>integer</option>
-										<option selected?={ param.Type == string(api.QueryParameterDataTypeBoolean) } value={ string(api.QueryParameterDataTypeBoolean) }>boolean</option>
-										<option selected?={ param.Type == string(api.QueryParameterDataTypeDate) } value={ string(api.QueryParameterDataTypeDate) }>date</option>
-										<option selected?={ param.Type == string(api.QueryParameterDataTypeUuid) } value={ string(api.QueryParameterDataTypeUuid) }>uuid</option>
-									</select>
-									<select class="select select-bordered select-sm" name="param_required">
-										<option selected?={ param.Required } value="true">required</option>
-										<option selected?={ !param.Required } value="false">optional</option>
-									</select>
-									<input class="input input-bordered input-sm" type="text" name="param_default" placeholder="default" value={ param.DefaultValue }/>
-									<input class="input input-bordered input-sm" type="text" name="param_description" placeholder="description" value={ param.Description }/>
-									<input type="hidden" name="param_source" value={ param.Source } data-param-source/>
-									<span class="badge badge-outline badge-sm self-center" data-param-source-badge>{ param.Source }</span>
-									<button class="btn btn-ghost btn-xs self-center" type="button" data-remove-param>Remove</button>
-								</div>
+								@queryParameterEditorRow(param)
 							}
 						</div>
 						<template data-param-row-template>
-							<div class="grid gap-2 xl:grid-cols-[1.2fr_0.8fr_0.8fr_1fr_1.4fr_auto_auto]" data-param-row>
-								<input class="input input-bordered input-sm" type="text" name="param_name" placeholder="name" value=""/>
-								<select class="select select-bordered select-sm" name="param_type">
-									<option selected value={ string(api.QueryParameterDataTypeText) }>text</option>
-									<option value={ string(api.QueryParameterDataTypeInteger) }>integer</option>
-									<option value={ string(api.QueryParameterDataTypeBoolean) }>boolean</option>
-									<option value={ string(api.QueryParameterDataTypeDate) }>date</option>
-									<option value={ string(api.QueryParameterDataTypeUuid) }>uuid</option>
-								</select>
-								<select class="select select-bordered select-sm" name="param_required">
-									<option value="true">required</option>
-									<option selected value="false">optional</option>
-								</select>
-								<input class="input input-bordered input-sm" type="text" name="param_default" placeholder="default" value=""/>
-								<input class="input input-bordered input-sm" type="text" name="param_description" placeholder="description" value=""/>
-								<input type="hidden" name="param_source" value="manual" data-param-source/>
-								<span class="badge badge-outline badge-sm self-center" data-param-source-badge>manual</span>
-								<button class="btn btn-ghost btn-xs self-center" type="button" data-remove-param>Remove</button>
-							</div>
+							@queryParameterEditorRow(QueryParameterFormData{Type: string(api.QueryParameterDataTypeText), Source: "manual"})
 						</template>
 					</div>
 				</form>
 			} else {
+				if editFormData.SubmitError != "" {
+					<div data-form-feedback>
+						@querySubmitError("query-update-error", editFormData)
+					</div>
+				}
 				<div class="mt-4 rounded-xl border border-base-300 bg-base-100 p-4">
 					<div class="flex flex-wrap items-center justify-between gap-2">
 						<p class="text-sm font-semibold text-base-content">Query definition (read-only)</p>
@@ -749,20 +716,30 @@ templ QueryExecutionFeedbackSlot(executionResult *QueryExecutionResultView, exec
 			@EntityState("No results yet", "Run the saved query to see results here.")
 		}
 		if executionError != "" || executionResult != nil {
-			<div id="query-execution-feedback" data-query-execution-feedback="true" tabindex="-1">
+			<div id="query-execution-feedback" data-query-execution-feedback="true" role="group" tabindex="-1"
 				if executionError != "" {
-					if executionErrorDetails != "" {
-						@ErrorPopup("query-execution-error-popup", executionError, executionErrorDetails)
-					} else {
-						<div class="alert alert-warning mt-4 py-2 text-sm text-base-content">
-							<span>{ executionError }</span>
+					aria-labelledby="query-execution-error-summary"
+				} else {
+					aria-labelledby="query-execution-result-heading"
+				}
+			>
+				if executionError != "" {
+					<div id="query-execution-error" class="alert alert-error mt-4 items-start py-2 text-sm" role="alert">
+						<div class="min-w-0 space-y-2 break-words">
+							<p id="query-execution-error-summary">{ executionError }</p>
+							if executionErrorDetails != "" {
+								<details>
+									<summary class="cursor-pointer text-xs font-semibold">More details</summary>
+									<pre class="mt-2 whitespace-pre-wrap break-all text-xs">{ executionErrorDetails }</pre>
+								</details>
+							}
 						</div>
-					}
+					</div>
 				}
 				if executionResult != nil {
 					<div class="mt-4 rounded-xl border border-base-300 bg-base-100 p-4">
 						<div class="flex flex-wrap items-center justify-between gap-2">
-							<h3 class="text-sm font-semibold text-base-content">Result</h3>
+								<h3 id="query-execution-result-heading" class="text-sm font-semibold text-base-content">Result</h3>
 							<p class="text-xs text-base-content/70">Duration: { executionResult.DurationMs }ms</p>
 						</div>
 						<div class="mt-2 flex flex-wrap items-center gap-2 text-xs text-base-content/70">
@@ -773,7 +750,7 @@ templ QueryExecutionFeedbackSlot(executionResult *QueryExecutionResultView, exec
 								<div class="badge badge-warning">failed</div>
 							}
 							for _, line := range executionResult.Summary {
-								<div>{ line }</div>
+									<div class="min-w-0 [overflow-wrap:anywhere]">{ line }</div>
 							}
 						</div>
 						if executionResult.Error != "" {
@@ -783,7 +760,7 @@ templ QueryExecutionFeedbackSlot(executionResult *QueryExecutionResultView, exec
 							@EntityState("No rows returned", "Execution completed successfully.")
 						}
 						if len(executionResult.Columns) > 0 {
-							<div class="mt-3 overflow-x-auto rounded-lg border border-base-300">
+							<div class="mt-3 overflow-x-auto rounded-lg border border-base-300" tabindex="0" role="region" aria-label="Query result table">
 								<table class="table table-zebra w-full min-w-[640px]">
 									<thead>
 										<tr>
@@ -805,7 +782,7 @@ templ QueryExecutionFeedbackSlot(executionResult *QueryExecutionResultView, exec
 							</div>
 						}
 						if executionResult.Raw != "" {
-							<pre class="mt-3 overflow-x-auto rounded-lg border border-base-300 bg-base-200 p-3 text-xs">{ executionResult.Raw }</pre>
+							<pre class="mt-3 whitespace-pre-wrap [overflow-wrap:anywhere] rounded-lg border border-base-300 bg-base-200 p-3 text-xs">{ executionResult.Raw }</pre>
 						}
 					</div>
 				}

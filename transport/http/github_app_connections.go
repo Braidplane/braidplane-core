@@ -8,7 +8,10 @@ import (
 	api "github.com/Braidplane/braidplane-core/api-schema/gen/server"
 	"github.com/Braidplane/braidplane-core/pkg/apierror"
 	"github.com/Braidplane/braidplane-core/pkg/domain/model"
+	"github.com/Braidplane/braidplane-core/pkg/oauthflow"
+	"github.com/Braidplane/braidplane-core/pkg/ptr"
 	"github.com/Braidplane/braidplane-core/pkg/slug"
+	"github.com/Braidplane/braidplane-core/pkg/xerror"
 	"github.com/Braidplane/braidplane-core/service/githubappsvc"
 )
 
@@ -30,7 +33,7 @@ func (s *server) GetOrganizationGitHubAppConnection(c fiber.Ctx, slugParam api.S
 	return c.JSON(githubAppConnectionToHTTP(connection))
 }
 
-func (s *server) StartOrganizationGitHubAppInstall(c fiber.Ctx, slugParam api.SlugParam) error {
+func (s *server) StartOrganizationGitHubAppInstall(c fiber.Ctx, slugParam api.SlugParam, params api.StartOrganizationGitHubAppInstallParams) error {
 	if s.githubAppService == nil {
 		return fiber.ErrNotFound
 	}
@@ -38,7 +41,7 @@ func (s *server) StartOrganizationGitHubAppInstall(c fiber.Ctx, slugParam api.Sl
 	if err != nil {
 		return err
 	}
-	authorizationURL, err := s.githubAppService.Start(c.Context(), org, s.eventActor(c))
+	authorizationURL, err := s.githubAppService.Start(c.Context(), org, s.eventActor(c), ptr.Value(params.MoreTime))
 	if err != nil {
 		return mapServiceError(err)
 	}
@@ -57,7 +60,7 @@ func (s *server) AuthorizeOrganizationGitHubAppConnection(c fiber.Ctx, slugParam
 	if err := c.Bind().Body(&request); err != nil {
 		return apierror.InvalidRequestBody()
 	}
-	authorizationURL, err := s.githubAppService.StartExistingAuthorization(c.Context(), org, s.eventActor(c), request.AccountLogin)
+	authorizationURL, err := s.githubAppService.StartExistingAuthorization(c.Context(), org, s.eventActor(c), request.AccountLogin, ptr.Value(request.MoreTime))
 	if err != nil {
 		return mapServiceError(err)
 	}
@@ -70,7 +73,8 @@ func (s *server) CompleteOrganizationGitHubAppInstall(c fiber.Ctx, params api.Co
 	}
 	actor := s.eventActor(c)
 	org, setupSlug, err := s.githubAppService.RepositorySetupForState(c.Context(), actor, params.State)
-	if err != nil {
+	expiredSetup := setupSlug != "" && xerror.Is(err, oauthflow.ErrOAuthStateExpired)
+	if err != nil && !expiredSetup {
 		return mapServiceError(err)
 	}
 	if err := s.canOrgUserSession(c, org, model.Update, model.ResourceOrganizations); err != nil {
@@ -89,9 +93,15 @@ func (s *server) CompleteOrganizationGitHubAppInstall(c fiber.Ctx, params api.Co
 		if err := s.canOrg(c, org, model.Create, model.ResourceDataSources); err != nil {
 			return err
 		}
+		if expiredSetup {
+			return s.expiredGitHubRepositoryAuthorization(c, org, setupSlug)
+		}
 		if params.Error != nil {
 			setup, err := s.repositorySetupService.RejectGitHubAuthorization(c.Context(), org, setupSlug, actor, params.State, string(*params.Error))
 			if err != nil {
+				if xerror.Is(err, oauthflow.ErrOAuthStateExpired) {
+					return s.expiredGitHubRepositoryAuthorization(c, org, setupSlug)
+				}
 				return mapServiceError(err)
 			}
 			c.Set(fiber.HeaderLocation, fmt.Sprintf("/organizations/%s/projects/%s?section=repository&repository_path=create&repository_setup=failed", org, setup.ProjectSlug))
@@ -102,6 +112,9 @@ func (s *server) CompleteOrganizationGitHubAppInstall(c fiber.Ctx, params api.Co
 		}
 		setup, err := s.repositorySetupService.CompleteGitHub(c.Context(), org, setupSlug, actor, model.GitHubRepositoryAuthorization{State: params.State, Code: *params.Code, InstallationID: *params.InstallationId})
 		if err != nil {
+			if xerror.Is(err, oauthflow.ErrOAuthStateExpired) {
+				return s.expiredGitHubRepositoryAuthorization(c, org, setupSlug)
+			}
 			return mapServiceError(err)
 		}
 		connection, err := s.githubAppService.Get(c.Context(), org)
@@ -131,6 +144,14 @@ func (s *server) CompleteOrganizationGitHubAppInstall(c fiber.Ctx, params api.Co
 		return mapServiceError(err)
 	}
 	return c.JSON(githubAppConnectionToHTTP(connection))
+}
+
+func (s *server) expiredGitHubRepositoryAuthorization(c fiber.Ctx, org, setup slug.Slug) error {
+	project, err := s.repositorySetupService.ProjectForSetup(c.Context(), org, setup)
+	if err == nil {
+		c.Set(fiber.HeaderLocation, fmt.Sprintf("/organizations/%s/projects/%s?section=repository&repository_path=create&repository_setup=expired", org, project))
+	}
+	return apierror.ValidationFailed("GitHub authorization expired. Start authorization again.")
 }
 
 func (s *server) DisconnectOrganizationGitHubAppConnection(c fiber.Ctx, slugParam api.SlugParam) error {

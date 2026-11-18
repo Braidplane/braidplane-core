@@ -2821,6 +2821,8 @@ func TestProjectBackendBranchesFragment(t *testing.T) {
 				require.Contains(t, string(body), "main (default)")
 			} else {
 				require.Contains(t, string(body), "Retry branches")
+				require.Contains(t, string(body), "release (saved; could not verify)")
+				require.Contains(t, string(body), `role="alert"`)
 			}
 		})
 	}

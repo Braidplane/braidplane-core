@@ -96,7 +96,7 @@ func (s *service) replaceHTTPOAuth(ctx context.Context, tx postgres.DBTX, org sl
 	return ds, s.recordDataSourceEvent(ctx, tx, org, actor, ds, model.EventActionRotate)
 }
 
-func (s *service) ConnectHTTPOAuth(ctx context.Context, org, source slug.Slug, actor model.EventActor) (*HTTPOAuthConnection, error) {
+func (s *service) ConnectHTTPOAuth(ctx context.Context, org, source slug.Slug, actor model.EventActor, moreTime bool) (*HTTPOAuthConnection, error) {
 	ds, err := s.FindBySlug(ctx, org, source)
 	if err != nil {
 		return nil, err
@@ -108,7 +108,7 @@ func (s *service) ConnectHTTPOAuth(ctx context.Context, org, source slug.Slug, a
 	if ds.Credential.Status == credentialssvc.CredentialStatusPending {
 		intent = credentialssvc.OAuthInstallIntentCreate
 	}
-	install, err := s.credentials.ConnectHTTPOAuth(ctx, credentialssvc.StartOAuthInstallParams{Owner: dataSourceCredentialOwner(org, source), Provider: "http", Intent: intent, Actor: actor})
+	install, err := s.credentials.ConnectHTTPOAuth(ctx, credentialssvc.StartOAuthInstallParams{Owner: dataSourceCredentialOwner(org, source), Provider: "http", Intent: intent, Actor: actor, MoreTime: moreTime})
 	if err != nil {
 		return nil, err
 	}

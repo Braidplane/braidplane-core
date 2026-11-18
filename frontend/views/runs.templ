@@ -77,6 +77,7 @@ templ PipelineRunsPageContent(
 			hx-swap="outerHTML show:none focus-scroll:false"
 			hx-push-url="true"
 			hx-indicator="#pipeline-runs-loading"
+			data-entity-focus="run-results-heading"
 		>
 			<input type="hidden" name="environment_slug" value={ environmentSlug }/>
 			<div class="flex flex-wrap items-end gap-2">
@@ -116,6 +117,7 @@ templ PipelineRunsPageContent(
 						hx-swap="outerHTML show:none focus-scroll:false"
 						hx-push-url="true"
 						data-preserve-scroll
+						data-entity-focus="run-results-heading"
 					>Reset</a>
 				</div>
 			</div>
@@ -136,7 +138,7 @@ templ PipelineRunsPageContent(
 			if len(runs) == 0 {
 				<div class="rounded-xl border border-dashed border-base-300 bg-base-100 p-8 text-center">
 					if runFiltersActive(statusFilter, pipelineSlugFilter, modeFilter, backfillSeriesFilter) {
-						<h2 class="text-lg font-semibold text-base-content">No runs match these filters</h2>
+						<h2 id="run-results-heading" tabindex="-1" class="text-lg font-semibold text-base-content focus:outline-none focus:ring-2 focus:ring-primary">No runs match these filters</h2>
 						<p class="mt-2 text-sm text-base-content/70">Adjust the status or pipeline filter to see other project runs.</p>
 						<a
 							class="btn btn-outline btn-sm mt-4"
@@ -147,9 +149,10 @@ templ PipelineRunsPageContent(
 							hx-swap="outerHTML show:none focus-scroll:false"
 							hx-push-url="true"
 							data-preserve-scroll
+							data-entity-focus="run-results-heading"
 						>Clear filters</a>
 					} else {
-						<h2 class="text-lg font-semibold text-base-content">No project runs yet</h2>
+						<h2 id="run-results-heading" tabindex="-1" class="text-lg font-semibold text-base-content focus:outline-none focus:ring-2 focus:ring-primary">No project runs yet</h2>
 						<p class="mt-2 text-sm text-base-content/70">Runs will appear here after a pipeline executes in this runtime target.</p>
 						<a class="btn btn-primary btn-sm mt-4" href={ templ.URL(buildEnvironmentProjectPipelinesListHref(orgSlug, activeProjectSlug, environmentSlug, "", "")) }>{ runtimeTargetActionLabel("View pipelines", environmentSlug) }</a>
 					}
@@ -159,7 +162,7 @@ templ PipelineRunsPageContent(
 					<section class="min-h-0 rounded-xl border border-base-300 bg-base-100 p-4">
 						<div class="flex flex-wrap items-start justify-between gap-3">
 							<div>
-								<h2 class="text-base font-semibold text-base-content">{ runStatusFilterLabel(statusFilter) }</h2>
+								<h2 id="run-results-heading" tabindex="-1" class="text-base font-semibold text-base-content focus:outline-none focus:ring-2 focus:ring-primary">{ runStatusFilterLabel(statusFilter) }</h2>
 								<p class="mt-1 text-xs text-base-content/70">{ fmt.Sprintf("%d", len(runs)) } visible runs in target { environmentSlug }</p>
 							</div>
 						</div>
@@ -275,6 +278,7 @@ templ PipelineRunDetailPageContent(
 	{{ sourceView := apiRunSourceView(run.Metadata.Source) }}
 	{{ section := runDetailSection(ctx) }}
 	{{ detailHref := buildEnvironmentRunDetailHref(orgSlug, activeProjectSlug, environmentSlug, string(run.Metadata.RunSlug)) }}
+	{{ hasExecutedDefinition := definitionInspection(ctx).Spec != nil }}
 	<span hidden data-run-section-compat></span>
 	@EntityDetailHeader("Run", string(run.Metadata.RunSlug)) {
 		<a class="btn btn-outline btn-sm" href={ templ.URL(pipelineDetailHrefWithEnvironment(orgSlug, activeProjectSlug, environmentSlug, string(run.Metadata.PipelineSlug))) }>Open pipeline</a>
@@ -314,6 +318,12 @@ templ PipelineRunDetailPageContent(
 			}
 		}
 	}
+	if runProgressInspection(ctx).Poll || (section == "completion" && completionPending(completion.Evidence)) || (section == "connected" && connectedPending(completion.Connected)) {
+		<div class="my-3 flex flex-wrap items-center gap-3 text-sm" data-run-updates={ detailHref } hidden>
+			<button class="btn btn-outline btn-sm" type="button" data-run-updates-toggle aria-pressed="false">Pause live updates</button>
+			<span data-run-updates-state role="status">Live updates enabled.</span>
+		</div>
+	}
 	@PipelineRunProgressPanel(detailHref, runProgressInspection(ctx))
 	<div id="run-live-content" class="min-w-0 space-y-6">
 		if section == "definition" {
@@ -349,13 +359,17 @@ templ PipelineRunDetailPageContent(
 					<p class="break-all font-semibold text-error">{ runFailureLocation(run.Timeline.Failure) }</p>
 					@PipelineRunFailureDiagnostic(run.Timeline.Failure)
 					<p class="break-words text-xs">Recorded { formatRunTimestamp(run.Timeline.Failure.At) } · { failureKindLabel(string(run.Timeline.Failure.Kind)) } · { failureSideLabel(string(run.Timeline.Failure.Side)) }</p>
-					<a class="link link-primary text-sm" data-entity-focus="definition-inspector" href={ templ.URL(DefinitionHref(detailHref, string(run.Timeline.Failure.Step), "", "", "structured")) }>
-						if strings.TrimSpace(string(run.Timeline.Failure.Step)) != "" {
-							Inspect failing step
-						} else {
-							Inspect executed definition
-						}
-					</a>
+					if hasExecutedDefinition {
+						<a class="link link-primary text-sm" data-entity-focus="definition-inspector" href={ templ.URL(DefinitionHref(detailHref, string(run.Timeline.Failure.Step), "", "", "structured")) }>
+							if strings.TrimSpace(string(run.Timeline.Failure.Step)) != "" {
+								Inspect failing step
+							} else {
+								Inspect executed definition
+							}
+						</a>
+					} else {
+						<a class="link link-primary inline-flex min-h-6 items-center text-sm" href={ templ.URL(runSectionHref(ctx, detailHref, "steps") + "#run-execution-timeline") }>Review recorded timeline</a>
+					}
 				} else if run.Metadata.ErrorSummary != nil && *run.Metadata.ErrorSummary != "" {
 					<p class="break-all text-sm text-error">{ *run.Metadata.ErrorSummary }</p>
 					<p class="text-xs text-base-content/70">Step-level failure provenance was not recorded.</p>
@@ -373,6 +387,10 @@ templ PipelineRunDetailPageContent(
 		if section == "steps" {
 			<section id="run-steps" class="min-w-0" aria-labelledby="run-steps-heading">
 				<h2 id="run-steps-heading" class="text-lg font-semibold">Steps</h2>
+				<nav class="mt-2 flex flex-wrap gap-3" aria-label="Run evidence">
+					<a class="link link-primary flex min-h-8 items-center text-sm" href="#run-execution-timeline">Go to execution timeline</a>
+					<a class="link link-primary flex min-h-8 items-center text-sm" href="#run-sink-delivery-heading">Go to sink delivery</a>
+				</nav>
 				if run.Timeline.Failure != nil {
 					<p class="mt-2 text-sm font-semibold text-error">{ runFailureLocation(run.Timeline.Failure) } · { runFailureSummary(run.Timeline.Failure) }</p>
 					if !lineage.Available {
@@ -391,7 +409,9 @@ templ PipelineRunDetailPageContent(
 				for _, snapshot := range run.Timeline.Snapshots {
 					<details data-run-details-key={ "snapshot-" + snapshot.Step } class="mt-3 min-w-0 border-t border-base-300 pt-3">
 						<summary class="cursor-pointer break-all text-sm font-semibold">Step { string(snapshot.Step) }</summary>
-						<a class="link link-primary text-sm" data-entity-focus="definition-inspector" href={ templ.URL(DefinitionHref(detailHref, string(snapshot.Step), "", "", "structured")) }>Inspect this step</a>
+						if hasExecutedDefinition {
+							<a class="link link-primary text-sm" data-entity-focus="definition-inspector" href={ templ.URL(DefinitionHref(detailHref, string(snapshot.Step), "", "", "structured")) }>Inspect this step</a>
+						}
 						@EntityFacts() {
 							@EntityFact("Data source") {
 								{ lineageDataSourceLabel(&snapshot) }
@@ -409,12 +429,12 @@ templ PipelineRunDetailPageContent(
 					</details>
 				}
 				<details open data-run-details-key="timeline">
-					<summary class="mt-4 cursor-pointer text-sm font-semibold">Execution timeline</summary>
+					<summary id="run-execution-timeline" class="mt-4 cursor-pointer text-sm font-semibold">Execution timeline</summary>
 					<div class="mt-6 rounded-xl border border-base-300 bg-base-100 p-4 shadow-sm">
 						if len(run.Timeline.Events) == 0 {
 							<p class="mt-3 text-sm text-base-content/70">No events recorded.</p>
 						} else {
-							<ul class="timeline timeline-vertical timeline-compact mt-4">
+							<ul class="timeline timeline-vertical timeline-compact mt-4" role="list">
 								for i, event := range runlineage.ChronologicalEvents(run.Timeline.Events) {
 									<li>
 										if i > 0 {
@@ -428,14 +448,15 @@ templ PipelineRunDetailPageContent(
 											<div class="flex flex-wrap items-center gap-2">
 												<span class={ runEventBadgeClass(event.Type, event.Status) }>{ runEventTypeLabel(event.Type) }</span>
 												if event.Step != nil {
-													<a
-														class="link link-primary font-mono text-xs"
-														data-entity-focus="definition-inspector"
-														href={ templ.URL(DefinitionHref(detailHref, string(*event.Step), "", "", "structured")) }
-														if selected := lineageSelectedNode(lineage); selected != nil && selected.Slug == string(*event.Step) {
-															aria-current="true"
-														}
-													>{ string(*event.Step) }</a>
+													if hasExecutedDefinition {
+														<a
+															class="link link-primary font-mono text-xs"
+															data-entity-focus="definition-inspector"
+															href={ templ.URL(DefinitionHref(detailHref, string(*event.Step), "", "", "structured")) }
+														>{ string(*event.Step) }</a>
+													} else {
+														<span class="break-all font-mono text-xs">{ string(*event.Step) }</span>
+													}
 												}
 											</div>
 											if event.Type == "step_failed" && run.Timeline.Failure != nil && event.Step != nil && string(*event.Step) == string(run.Timeline.Failure.Step) {
@@ -485,15 +506,17 @@ templ PipelineRunDetailPageContent(
 				<p class="mt-2 text-sm">Trigger retries create another attempt in the run group. Retained-input recovery reuses the recorded version and inputs. A new run uses its selected deployment and reads inputs again; it does not resolve an earlier uncertain write.</p>
 				<p class="mt-2 text-xs text-base-content/70">Later successful attempts do not change this run’s recorded failure or effects.</p>
 				@PipelineRunSinkDeliveryPanel(run, lineage)
+				@FormError("run-recovery-feedback", entityPageURL(ctx).Query().Get("recovery_error"), true)
 				if run.Metadata.Status == "failed" && run.Timeline.Failure != nil && (run.Timeline.Failure.Side == "sink" || (run.Timeline.Failure.ReasonCode != nil && *run.Timeline.Failure.ReasonCode == api.WorkerOwnershipLost)) {
 					<p class="mt-3 text-sm">Recovery requests retained inputs and the original version. The API checks retention, environment protection and replay safety. Worker loss also requires fenced queue ownership; missing inputs and unsafe deliveries remain blocked.</p>
 					if permissions.Can("pipelines", "execute") {
 						<form method="post" action={ templ.URL(fmt.Sprintf("/orgs/%s/projects/%s/runs/%s/recover", orgSlug, activeProjectSlug, run.Metadata.RunSlug)) } class="mt-3 flex flex-wrap items-end gap-3">
 							<input type="hidden" name="environment_slug" value={ environmentSlug }/>
-							<label class="form-control max-w-sm">
-								<span class="label-text">Environment confirmation (if protected)</span>
-								<input id="run-recovery-confirmation" hx-preserve class="input input-bordered input-sm" name="protected_environment_confirmation" placeholder={ environmentSlug }/>
-							</label>
+							<div class="form-control max-w-sm">
+								<label for="run-recovery-confirmation" class="label-text">Environment confirmation (if protected)</label>
+								<p id="run-recovery-confirmation-help" class="label-text-alt mb-1">For a protected environment, enter <code>{ environmentSlug }</code>.</p>
+								<input id="run-recovery-confirmation" hx-preserve class="input input-bordered input-sm" name="protected_environment_confirmation" aria-describedby="run-recovery-confirmation-help"/>
+							</div>
 							<button type="submit" class="btn btn-primary btn-sm">Recover sink delivery</button>
 						</form>
 					} else {
@@ -502,57 +525,61 @@ templ PipelineRunDetailPageContent(
 				}
 				@PipelineRunRetryAttemptsPanel(orgSlug, activeProjectSlug, environmentSlug, retryAttempts, retryAttemptsUnavailable, retryAttemptsErrorSummary)
 				if runIncrementalDiagnosticsVisible(run) {
-					<div class="mt-6 rounded-xl border border-base-300 bg-base-100 p-4 shadow-sm">
+					<section aria-labelledby="run-incremental-heading" class="mt-6 rounded-xl border border-base-300 bg-base-100 p-4 shadow-sm">
 						<div class="flex flex-wrap items-center gap-2">
-							<p class="text-sm font-semibold text-base-content">Incremental diagnostics</p>
-							<span class={ runModeBadgeClass(run.Metadata.Incremental.Mode) }>{ string(run.Metadata.Incremental.Mode) }</span>
+							<h3 id="run-incremental-heading" class="text-sm font-semibold text-base-content">Incremental diagnostics</h3>
+							if run.Metadata.Incremental.Mode != "" {
+								<span class={ runModeBadgeClass(run.Metadata.Incremental.Mode) }>{ string(run.Metadata.Incremental.Mode) }</span>
+							}
 							if runCheckpointStatusVisible(run.Metadata.Incremental.CheckpointStatus) {
 								<span class={ checkpointStatusBadgeClass(run.Metadata.Incremental.CheckpointStatus) }>{ string(run.Metadata.Incremental.CheckpointStatus) }</span>
 							}
 						</div>
 						if run.Metadata.Incremental.BlockedReason != "" {
 							<div class="alert alert-warning mt-3 py-2">
-								<span class="text-xs">{ run.Metadata.Incremental.BlockedReason }</span>
+								<span class="min-w-0 break-words text-xs">{ run.Metadata.Incremental.BlockedReason }</span>
 							</div>
 						}
 						if run.Metadata.Incremental.ReplayBlockedReason != "" {
 							<div class="alert alert-error mt-3 py-2">
-								<span class="text-xs">Replay blocked: { run.Metadata.Incremental.ReplayBlockedReason }</span>
+								<span class="min-w-0 break-words text-xs">Replay blocked: { run.Metadata.Incremental.ReplayBlockedReason }</span>
 							</div>
 						}
 						if len(run.IncrementalDiagnostics.Sources) == 0 {
 							<p class="mt-3 text-sm text-base-content/70">No incremental source diagnostics recorded.</p>
 						} else {
-							<div class="mt-4 space-y-3">
+							<ul role="list" aria-label="Source checkpoints" class="mt-4 space-y-3">
 								for _, source := range run.IncrementalDiagnostics.Sources {
-									<div class="rounded-lg border border-base-300 p-3">
+									<li class="rounded-lg border border-base-300 p-3">
 										<div class="flex flex-wrap items-center gap-2">
-											<code class="font-mono text-sm text-base-content">{ source.SourceStepSlug }</code>
+											<h4 class="min-w-0 break-words font-mono text-sm text-base-content">{ source.SourceStepSlug }</h4>
 											<span class="badge badge-ghost badge-sm">{ source.CheckpointKind }</span>
-											<span class={ checkpointStatusBadgeClass(source.CommitResult.Status) }>{ string(source.CommitResult.Status) }</span>
+											if source.CommitResult.Status != "" {
+												<span class={ checkpointStatusBadgeClass(source.CommitResult.Status) }>{ string(source.CommitResult.Status) }</span>
+											}
 										</div>
-										<div class="mt-3 grid gap-3 md:grid-cols-3">
-											<div>
-												<p class="text-xs uppercase tracking-wide text-base-content/60">Previous checkpoint</p>
-												<p class="mt-1 text-sm text-base-content">{ source.PreviousCheckpoint.Summary }</p>
+										<dl class="mt-3 grid gap-3 md:grid-cols-3">
+											<div class="min-w-0">
+												<dt class="text-xs uppercase tracking-wide text-base-content/60">Previous checkpoint</dt>
+												<dd class="mt-1 break-words text-sm text-base-content">{ source.PreviousCheckpoint.Summary }</dd>
 											</div>
-											<div>
-												<p class="text-xs uppercase tracking-wide text-base-content/60">Source window</p>
-												<p class="mt-1 text-sm text-base-content">{ source.Window.Summary }</p>
+											<div class="min-w-0">
+												<dt class="text-xs uppercase tracking-wide text-base-content/60">Source window</dt>
+												<dd class="mt-1 break-words text-sm text-base-content">{ source.Window.Summary }</dd>
 											</div>
-											<div>
-												<p class="text-xs uppercase tracking-wide text-base-content/60">Observed checkpoint</p>
-												<p class="mt-1 text-sm text-base-content">{ source.ObservedCheckpoint.Summary }</p>
+											<div class="min-w-0">
+												<dt class="text-xs uppercase tracking-wide text-base-content/60">Observed checkpoint</dt>
+												<dd class="mt-1 break-words text-sm text-base-content">{ source.ObservedCheckpoint.Summary }</dd>
 											</div>
-										</div>
+										</dl>
 										if source.CommitResult.BlockedReason != "" {
-											<p class="mt-3 text-xs text-error">Blocked by { source.CommitResult.BlockedByStep }: { source.CommitResult.BlockedReason }</p>
+											<p class="mt-3 break-words text-xs text-error">Blocked by { source.CommitResult.BlockedByStep }: { source.CommitResult.BlockedReason }</p>
 										}
-									</div>
+									</li>
 								}
-							</div>
+							</ul>
 						}
-					</div>
+					</section>
 				}
 			</section>
 		}
@@ -709,41 +736,41 @@ templ PipelineRunSinkOutputPanel(output PipelineRunSinkOutputView) {
 				<p class="text-sm font-semibold text-base-content">Sink output metadata</p>
 				<span class="badge badge-ghost badge-sm">metadata only</span>
 			</div>
-			<div class="mt-3 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+			<dl class="mt-3 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
 				<div>
-					<p class="text-xs uppercase tracking-wide text-base-content/60">Sink step</p>
-					<code class="mt-1 block break-all font-mono text-sm text-base-content">{ output.Step }</code>
+					<dt class="text-xs uppercase tracking-wide text-base-content/60">Sink step</dt>
+					<dd class="mt-1 block break-all font-mono text-sm text-base-content"><code>{ output.Step }</code></dd>
 				</div>
 				<div>
-					<p class="text-xs uppercase tracking-wide text-base-content/60">Data source</p>
-					<code class="mt-1 block break-all font-mono text-sm text-base-content">{ output.DataSource }</code>
+					<dt class="text-xs uppercase tracking-wide text-base-content/60">Data source</dt>
+					<dd class="mt-1 block break-all font-mono text-sm text-base-content"><code>{ output.DataSource }</code></dd>
 				</div>
 				<div>
-					<p class="text-xs uppercase tracking-wide text-base-content/60">Operation</p>
-					<p class="mt-1 break-all text-sm text-base-content">{ output.Operation }</p>
+					<dt class="text-xs uppercase tracking-wide text-base-content/60">Operation</dt>
+					<dd class="mt-1 break-all text-sm text-base-content">{ output.Operation }</dd>
 				</div>
 				if output.RowCount != nil {
 					<div>
-						<p class="text-xs uppercase tracking-wide text-base-content/60">Rows written</p>
-						<p class="mt-1 text-sm text-base-content">{ strconv.Itoa(*output.RowCount) }</p>
+						<dt class="text-xs uppercase tracking-wide text-base-content/60">Rows written</dt>
+						<dd class="mt-1 text-sm text-base-content">{ strconv.Itoa(*output.RowCount) }</dd>
 					</div>
 				} else {
 					<div>
-						<p class="text-xs uppercase tracking-wide text-base-content/60">{ output.LocationLabel }</p>
+						<dt class="text-xs uppercase tracking-wide text-base-content/60">{ output.LocationLabel }</dt>
 						if output.Available {
-							<code class="mt-1 block break-all font-mono text-sm text-base-content">{ output.TargetPath }</code>
+							<dd class="mt-1 block break-all font-mono text-sm text-base-content"><code>{ output.TargetPath }</code></dd>
 						} else {
-							<p class="mt-1 text-sm text-warning">Output location was not captured for this run.</p>
+							<dd class="mt-1 text-sm text-warning">Output location was not captured for this run.</dd>
 						}
 					</div>
 				}
 				if output.FileMetadata != "" {
 					<div class="md:col-span-2 xl:col-span-4">
-						<p class="text-xs uppercase tracking-wide text-base-content/60">File payload</p>
-						<p class="mt-1 break-all text-sm text-base-content">{ output.FileMetadata }</p>
+						<dt class="text-xs uppercase tracking-wide text-base-content/60">File payload</dt>
+						<dd class="mt-1 break-all text-sm text-base-content">{ output.FileMetadata }</dd>
 					</div>
 				}
-			</div>
+			</dl>
 			<p class="mt-3 text-xs text-base-content/60">Object body and credential values are not shown.</p>
 		</div>
 	}
@@ -832,15 +859,15 @@ templ PipelineRunDetailUnavailablePage(
 	runSlug string,
 	message string,
 ) {
-	@AuthenticatedShell(shellData, PipelineRunDetailUnavailablePageContent(orgSlug, activeProjectSlug, environmentSlug, runSlug, message))
+	{{ content := PipelineRunDetailUnavailablePageContent(orgSlug, activeProjectSlug, environmentSlug, runSlug, message, shellData.PageErrorDetails) }}
+	{{ shellData.PageError, shellData.PageErrorDetails = "", "" }}
+	@AuthenticatedShell(shellData, content)
 }
 
-templ PipelineRunDetailUnavailablePageContent(orgSlug string, activeProjectSlug string, environmentSlug string, runSlug string, message string) {
+templ PipelineRunDetailUnavailablePageContent(orgSlug string, activeProjectSlug string, environmentSlug string, runSlug string, message string, details string) {
 	<div class="rounded-xl border border-base-300 bg-base-100 p-5">
 		<p class="text-sm text-base-content/70">The full run details are unavailable.</p>
-		<div class="alert alert-warning mt-4">
-			<span>{ message }</span>
-		</div>
+		@EntityLoadError("run-detail-error", message, details)
 		<div class="mt-4 flex flex-wrap gap-2">
 			<a class="btn btn-outline btn-sm" href={ templ.URL(entityBackHref(ctx, buildEnvironmentRunsListHrefWithProject(orgSlug, activeProjectSlug, environmentSlug, "", "", "", "", "", ""))) }>Back to runs</a>
 			<div class="badge badge-outline">{ runSlug }</div>
@@ -851,29 +878,31 @@ templ PipelineRunDetailUnavailablePageContent(orgSlug string, activeProjectSlug 
 // PipelineRunSinkDeliveryPanel shows delivery evidence independently of the overall run status.
 templ PipelineRunSinkDeliveryPanel(run api.PipelineRunRecord, lineage runlineage.View) {
 	{{ sinks := runSinkSnapshots(run, lineage) }}
-	if len(sinks) > 0 {
-		<section class="mt-3 min-w-0" aria-label="Sink delivery outcomes">
-			<h3 class="text-sm font-semibold">Sink delivery</h3>
-			for _, snapshot := range sinks {
-				<div class="mt-2 min-w-0 border-t border-base-300 pt-2">
-					if runSinkBlocked(lineage, snapshot.Step) {
-						<p class="text-sm"><code>{ snapshot.Step }</code> · <strong>Not executed</strong></p>
-						<p class="mt-1 text-xs text-base-content/70">Blocked by a failed dependency before this sink started.</p>
-					} else {
-						<p class="break-words text-sm"><code>{ string(snapshot.Step) }</code> · <strong>{ runSinkDeliveryLabel(snapshot.Input) }</strong></p>
-						@PipelineRunSinkOutputPanel(runSinkOutputView(&snapshot))
-						if snapshot.Input.SinkDeliveryOutcome != nil && *snapshot.Input.SinkDeliveryOutcome == api.PipelineRunStepInputSnapshotSinkDeliveryOutcomeConfirmed {
-							<p class="mt-1 text-xs text-base-content/70">A sink acknowledgement is not independent delivery readback.</p>
+	<section class="mt-3 min-w-0" aria-labelledby="run-sink-delivery-heading">
+		<h3 id="run-sink-delivery-heading" class="text-sm font-semibold" tabindex="-1">Sink delivery outcomes</h3>
+		if len(sinks) > 0 {
+			<ul role="list">
+				for _, snapshot := range sinks {
+					<li class="mt-2 min-w-0 border-t border-base-300 pt-2">
+						if runSinkBlocked(lineage, snapshot.Step) {
+							<p class="text-sm"><code>{ snapshot.Step }</code> · <strong>Not executed</strong></p>
+							<p class="mt-1 text-xs text-base-content/70">Blocked by a failed dependency before this sink started.</p>
+						} else {
+							<p class="break-words text-sm"><code>{ string(snapshot.Step) }</code> · <strong>{ runSinkDeliveryLabel(snapshot.Input) }</strong></p>
+							@PipelineRunSinkOutputPanel(runSinkOutputView(&snapshot))
+							if snapshot.Input.SinkDeliveryOutcome != nil && *snapshot.Input.SinkDeliveryOutcome == api.PipelineRunStepInputSnapshotSinkDeliveryOutcomeConfirmed {
+								<p class="mt-1 text-xs text-base-content/70">A sink acknowledgement is not independent delivery readback.</p>
+							}
+							if snapshot.Input.SinkDeliveryOutcome != nil && *snapshot.Input.SinkDeliveryOutcome == api.PipelineRunStepInputSnapshotSinkDeliveryOutcomeUnknown {
+								<p class="mt-1 text-sm font-semibold text-warning">The provider may have applied this write. Reconcile its outcome before repeating it.</p>
+							}
+							<p class="mt-1 break-words text-xs text-base-content/70">{ runSinkRecoveryHint(snapshot.Input) }</p>
 						}
-						if snapshot.Input.SinkDeliveryOutcome != nil && *snapshot.Input.SinkDeliveryOutcome == api.PipelineRunStepInputSnapshotSinkDeliveryOutcomeUnknown {
-							<p class="mt-1 text-sm font-semibold text-warning">The provider may have applied this write. Reconcile its outcome before repeating it.</p>
-						}
-						<p class="mt-1 break-words text-xs text-base-content/70">{ runSinkRecoveryHint(snapshot.Input) }</p>
-					}
-				</div>
-			}
-		</section>
-	} else {
-		<p class="mt-3 text-sm text-base-content/70">Sink effects unavailable: no sink snapshots or exact sink definitions are available.</p>
-	}
+					</li>
+				}
+			</ul>
+		} else {
+			<p class="mt-3 text-sm text-base-content/70">Sink effects unavailable: no sink snapshots or exact sink definitions are available.</p>
+		}
+	</section>
 }

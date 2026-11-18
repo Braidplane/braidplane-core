@@ -21,10 +21,14 @@ var (
 	runInspectionHistory           bool
 	runInspectionDeploymentChanged bool
 	runInspectionEnabled           bool
-	runInspectionLarge             bool
+	runInspectionTopology          string
 	runInspectionContractFailure   bool
+	runInspectionProtectedRecovery bool
+	runInspectionCheckpoint        string
 	runInspectionStatus            = "succeeded"
 	runInspectionFailure           string
+	runInspectionDelivery          string
+	runInspectionDefinitionPruned  bool
 	runInspectionTimezone          string
 	runInspectionS3Statement       = json.RawMessage(`{"type":"s3","operation":"write","key":"exports/orders.csv","format":"csv","content":"{{input}}","overwrite":false,"metadata":{"source":"fixture"}}`)
 )
@@ -58,9 +62,13 @@ func registerRunInspectionFixture(app *fiber.App) {
 		}
 		runInspectionHistory = c.Query("history") == "true"
 		runInspectionDeploymentChanged = c.Query("deployment") == "changed"
-		runInspectionLarge = c.Query("topology") == "large"
+		runInspectionTopology = strings.Clone(c.Query("topology"))
 		runInspectionContractFailure = c.Query("contract_failure") == "true"
+		runInspectionProtectedRecovery = c.Query("protected_recovery") == "true"
+		runInspectionCheckpoint = strings.Clone(c.Query("checkpoint"))
 		runInspectionFailure = strings.Clone(c.Query("failure"))
+		runInspectionDelivery = strings.Clone(c.Query("delivery"))
+		runInspectionDefinitionPruned = c.Query("definition") == "pruned"
 		runInspectionTimezone = strings.Clone(c.Query("timezone", "Europe/Warsaw"))
 		runInspectionPhase = phase
 		runInspectionRevision++
@@ -120,6 +128,14 @@ func handleRunInspectionAPI(w http.ResponseWriter, r *http.Request) bool {
 	if completionInspectionScenario != "" {
 		metadata["pipeline_version_spec_hash"] = "immutable-upstream-v1"
 	}
+	if runInspectionCheckpoint != "" {
+		metadata["incremental"] = api.PipelineRunIncrementalSummary{
+			Mode:                api.Incremental,
+			CheckpointStatus:    api.PipelineRunCheckpointStatusBlocked,
+			BlockedReason:       "The sink did not confirm delivery.",
+			ReplayBlockedReason: "Verify the provider outcome before retrying.",
+		}
+	}
 	timeline := map[string]any{
 		"compiled_plan_digest":         "sha256:executed-plan",
 		"deployment_resolution_digest": "sha256:recorded-resolution",
@@ -128,6 +144,29 @@ func handleRunInspectionAPI(w http.ResponseWriter, r *http.Request) bool {
 		}},
 		"events":    []any{map[string]any{"at": "2026-10-01T10:00:00Z", "type": "step_succeeded", "step": "store", "status": "succeeded"}},
 		"snapshots": []any{map[string]any{"step": "store", "kind": "sink", "input": map[string]any{"data_source_slug": "warehouse", "operation_type": "sql", "operation_ref": "upsert-customers", "parameter_keys": []string{"tenant_id"}, "sink_delivery_outcome": "confirmed", "sink_replay_strategy": "naturally_idempotent"}}},
+	}
+	if runInspectionTopology == "branched" {
+		metadata["step_count"], metadata["ended_at"], metadata["duration_ms"] = 6, "2026-10-01T10:00:03Z", 3000
+		timeline["structural_checks"] = []any{}
+		start := time.Date(2026, 10, 1, 10, 0, 0, 0, time.UTC)
+		events := make([]any, 0, 12)
+		for _, step := range []struct {
+			slug          string
+			start, finish time.Duration
+		}{
+			{"read-0", 0, 300 * time.Millisecond},
+			{"normalize-0", 300 * time.Millisecond, 1100 * time.Millisecond},
+			{"read-1", 100 * time.Millisecond, 500 * time.Millisecond},
+			{"normalize-1", 500 * time.Millisecond, 1500 * time.Millisecond},
+			{"combine", 1500 * time.Millisecond, 2500 * time.Millisecond},
+			{"store", 2500 * time.Millisecond, 3000 * time.Millisecond},
+		} {
+			events = append(events,
+				map[string]any{"at": start.Add(step.start), "type": "step_started", "step": step.slug, "status": "running"},
+				map[string]any{"at": start.Add(step.finish), "type": "step_succeeded", "step": step.slug, "status": "succeeded"},
+			)
+		}
+		timeline["events"] = events
 	}
 	if runInspectionStatus == "failed" {
 		metadata["ended_at"] = "2026-10-01T10:00:02Z"
@@ -142,6 +181,21 @@ func handleRunInspectionAPI(w http.ResponseWriter, r *http.Request) bool {
 		}
 		timeline["snapshots"].([]any)[0].(map[string]any)["input"].(map[string]any)["sink_delivery_outcome"] = "unknown"
 	}
+	switch runInspectionDelivery {
+	case "acknowledged", "no_op", "failed":
+		snapshot := timeline["snapshots"].([]any)[0].(map[string]any)
+		input := snapshot["input"].(map[string]any)
+		if runInspectionDelivery == "acknowledged" {
+			snapshot["output"] = map[string]any{"result_type": "SQL", "vendor_type": "postgres", "duration_ms": 125, "details": map[string]any{"kind": "rows", "row_count": 3}}
+		} else {
+			input["sink_delivery_outcome"] = runInspectionDelivery
+			if failure, ok := timeline["failure"].(map[string]any); ok && runInspectionDelivery == "failed" {
+				metadata["error_summary"] = "Sink configuration was rejected before dispatch"
+				failure["error"] = metadata["error_summary"]
+				delete(failure, "reason_code")
+			}
+		}
+	}
 	if runInspectionContractFailure {
 		metadata["source"] = map[string]any{"type": "manual", "summary": "Manual run", "attempt_number": 1}
 		timeline["structural_checks"].([]any)[0].(map[string]any)["status"] = "failed"
@@ -152,6 +206,9 @@ func handleRunInspectionAPI(w http.ResponseWriter, r *http.Request) bool {
 		timeline["failure"] = nil
 		timeline["snapshots"] = []any{}
 		metadata["error_summary"] = ""
+	}
+	if runInspectionDelivery == "unavailable" {
+		timeline["snapshots"], timeline["events"], timeline["structural_checks"] = []any{}, []any{}, []any{}
 	}
 	if runInspectionFailure != "" {
 		step, side, field, rule, reason, phase := "fetch", "source", "customer_id", "required", "source_result_shape_mismatch", "producer_output"
@@ -314,7 +371,7 @@ func handleRunInspectionAPI(w http.ResponseWriter, r *http.Request) bool {
 		}
 		encode(api.ODCSRevisionImpact{FromRevisionSlug: "v1", ToRevisionSlug: "v2", FromDigest: "sha256:original", ToDigest: "sha256:updated", FromPlan: request.FromPlan, ToPlan: request.ToPlan, ExternalConsumers: "unknown", Objects: []api.ODCSObjectImpact{{SchemaObjectId: "row", Comparison: "supported", ComparisonScope: new(api.ODCSObjectImpactComparisonScope("selected_projection")), Changes: []api.ODCSImpactChange{{Kind: "data_path_changed", Path: `$["renamed"]`, Before: `$["id"]`, After: `$["renamed"]`, Severity: "breaking", ReasonCode: "structural_data_path_changed"}}}}, Consumers: []api.ODCSConsumerImpact{{PipelineSlug: "daily-sync", StepSlug: "normalize", Port: "input:orders", Comparison: "supported", Origin: "deployed"}}})
 	case runs:
-		if runInspectionHistory {
+		if runInspectionHistory || r.URL.Query().Get("cursor") == "page-2" {
 			old := map[string]any{}
 			for key, value := range metadata {
 				old[key] = value
@@ -322,10 +379,14 @@ func handleRunInspectionAPI(w http.ResponseWriter, r *http.Request) bool {
 			old["run_slug"] = "run-older"
 			old["status"] = "failed"
 			old["error_summary"] = "Historical failure"
-			encode(map[string]any{"runs": []any{metadata, old}, "has_more": false})
+			if runInspectionHistory {
+				encode(map[string]any{"runs": []any{metadata, old}, "has_more": false})
+			} else {
+				encode(map[string]any{"runs": []any{old}, "has_more": false, "prev_cursor": "page-1"})
+			}
 			return true
 		}
-		encode(map[string]any{"runs": []any{metadata}, "has_more": true, "next_cursor": "page-2", "prev_cursor": "page-1"})
+		encode(map[string]any{"runs": []any{metadata}, "has_more": true, "next_cursor": "page-2"})
 	case runs + "/run-older":
 		metadata["run_slug"] = "run-older"
 		metadata["status"] = "failed"
@@ -333,24 +394,81 @@ func handleRunInspectionAPI(w http.ResponseWriter, r *http.Request) bool {
 		metadata["source"] = map[string]any{"type": "manual", "summary": "Manual retry", "attempt_number": 2, "root_run_slug": "run-root", "retry_of_run_slug": "run-root"}
 		encode(map[string]any{"metadata": metadata, "timeline": timeline})
 	case runs + "/run-inspection":
-		encode(map[string]any{"metadata": metadata, "timeline": timeline, "composition": map[string]any{
+		record := map[string]any{"metadata": metadata, "timeline": timeline, "composition": map[string]any{
 			"status": "available", "template_digest": "sha256:portable-template", "compiled_plan_digest": "sha256:executed-plan", "deployment_resolution_digest": "sha256:recorded-resolution", "source_commit": version,
 			"pins":       []any{map[string]any{"step": "store", "port": "input:orders", "origin": "operation", "contract_slug": "orders", "revision_slug": "historical-v1", "schema_object_id": "row", "digest": "sha256:exact-pin", "compiler_id": "compiler-v1", "representation": "rows", "root_shape": ""}},
 			"operations": []any{map[string]any{"step": "store", "role": "sink", "operation_slug": "upsert-customers", "revision": "old-operation", "digest": "sha256:operation", "resource_scope": map[string]any{"policy_id": "s3/relative-key/v1", "data_source": "sink", "operation": "upsert-customers", "contract": "customers", "revision": "v1", "object_id": "row", "representation": "rows"}}},
 			"targets":    []any{map[string]any{"step": "store", "role": "sink", "reference": "warehouse", "data_source_slug": "original-warehouse", "binding_revision": "old-binding"}},
-		}})
+		}}
+		if runInspectionCheckpoint == "recorded" {
+			record["incremental_diagnostics"] = api.PipelineRunIncrementalDiagnostics{
+				Sources: []api.PipelineRunIncrementalSourceDiagnostic{
+					{
+						SourceStepSlug:     "fetch-partitioned-customer-orders-from-primary-warehouse",
+						CheckpointKind:     "watermark",
+						PreviousCheckpoint: api.PipelineRunCheckpointSummary{Summary: "2026-10-01"},
+						Window:             api.PipelineRunSourceWindowSummary{Summary: "2026-10-01 to 2026-10-02"},
+						ObservedCheckpoint: api.PipelineRunCheckpointSummary{Summary: strings.Repeat("synthetic", 8)},
+						CommitResult:       api.PipelineRunCheckpointCommitResult{Status: api.PipelineRunCheckpointStatusBlocked, BlockedByStep: "store", BlockedReason: "Sink acknowledgement is unavailable."},
+					},
+					{
+						SourceStepSlug:     "fetch-updates",
+						CheckpointKind:     "cursor",
+						PreviousCheckpoint: api.PipelineRunCheckpointSummary{Summary: "redacted cursor"},
+						Window:             api.PipelineRunSourceWindowSummary{Summary: "bounded source"},
+						ObservedCheckpoint: api.PipelineRunCheckpointSummary{Summary: "not observed"},
+						CommitResult:       api.PipelineRunCheckpointCommitResult{Status: api.PipelineRunCheckpointStatusSkipped},
+					},
+				},
+			}
+		}
+		encode(record)
 	case runs + "/run-inspection/trigger-retry-attempts":
 		encode(map[string]any{"retry_attempts": []any{}})
 	case runs + "/run-inspection:recover":
+		if runInspectionProtectedRecovery {
+			var request api.RecoverPipelineRunRequest
+			if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
+				w.WriteHeader(http.StatusBadRequest)
+				return true
+			}
+			if request.ProtectedEnvironmentConfirmation == nil || *request.ProtectedEnvironmentConfirmation != "dev" {
+				w.WriteHeader(http.StatusForbidden)
+				encode(map[string]any{"error": map[string]any{"code": "protected_environment_confirmation_required", "message": "Protected environment confirmation required"}})
+				return true
+			}
+			encode(recoveredRunInspectionRecord(metadata))
+			return true
+		}
 		w.WriteHeader(http.StatusConflict)
 		encode(map[string]any{"error": map[string]any{"code": "replay_unavailable", "message": "Retained inputs were pruned; recovery refused."}})
+	case runs + "/run-recovered":
+		if !runInspectionProtectedRecovery {
+			return false
+		}
+		encode(recoveredRunInspectionRecord(metadata))
 	case prefix + "/pipelines/daily-sync/versions/" + version:
+		if runInspectionDelivery == "unavailable" || runInspectionDefinitionPruned {
+			w.WriteHeader(http.StatusNotFound)
+			return true
+		}
 		p := runInspectionPipeline()
 		encode(map[string]any{"pipeline_slug": "daily-sync", "spec_hash": version, "spec": p["spec"]})
 	default:
 		return false
 	}
 	return true
+}
+
+func recoveredRunInspectionRecord(metadata map[string]any) map[string]any {
+	return map[string]any{
+		"metadata": map[string]any{
+			"pipeline_slug": metadata["pipeline_slug"], "environment_slug": metadata["environment_slug"],
+			"pipeline_version_spec_hash": metadata["pipeline_version_spec_hash"],
+			"run_slug":                   "run-recovered", "status": "queued", "replay_of_run_slug": "run-inspection", "replay_from_step": "store",
+		},
+		"timeline": map[string]any{"events": []any{}, "snapshots": []any{}},
+	}
 }
 
 func runInspectionPipeline() map[string]any {
@@ -370,10 +488,17 @@ func runInspectionPipeline() map[string]any {
 		customers := map[string]any{"kind": "query", "slug": "customers", "name": "Read customers", "query": map[string]any{"data_source_ref": "source", "operation_type": "sql", "operation_ref": "customers"}}
 		historical["steps"] = append([]any{steps[0], customers}, steps[1:]...)
 	}
-	if runInspectionLarge {
-		steps := make([]any, 0, 22)
-		inputs := make(map[string]string)
-		branches := make([]string, 10)
+	branchCount := 0
+	switch runInspectionTopology {
+	case "branched":
+		branchCount = 2
+	case "large":
+		branchCount = 10
+	}
+	if branchCount > 0 {
+		steps := make([]any, 0, 2*branchCount+2)
+		inputs := make(map[string]string, branchCount)
+		branches := make([]string, branchCount)
 		for i := range branches {
 			read, normalize, input := fmt.Sprintf("read-%d", i), fmt.Sprintf("normalize-%d", i), fmt.Sprintf("supplier_%d", i)
 			steps = append(steps,

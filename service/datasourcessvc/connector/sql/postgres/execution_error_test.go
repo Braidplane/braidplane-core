@@ -69,3 +69,10 @@ func TestPostgresExecutionErrorClassification(t *testing.T) {
 		})
 	}
 }
+
+func TestPostgresDivisionByZeroExposesCorrectiveFeedback(t *testing.T) {
+	err := mapPostgresError(&pgconn.PgError{Code: "22012", Message: "private-expression"})
+	require.ErrorIs(t, err, xerror.SourceQueryInvalid())
+	require.Equal(t, "Division by zero. Check values used as divisors and try again.", xerror.PublicDetail(err))
+	require.NotContains(t, err.Error(), "private-expression")
+}

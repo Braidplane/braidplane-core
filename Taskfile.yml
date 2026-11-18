@@ -187,6 +187,13 @@ tasks:
       BRAIDPLANE_BROWSER_PROFILE: '{{default "critical" .BRAIDPLANE_BROWSER_PROFILE}}'
     cmds:
       - bash scripts/node-toolchain.sh npm --prefix frontend run test:e2e -- {{.CLI_ARGS}}
+  test-accessibility:
+    desc: Assess WCAG A/AA rules and keyboard access against an owned local runtime
+    deps: [frontend-install]
+    env:
+      BRAIDPLANE_SEED_SCOPE: core
+    cmds:
+      - bash scripts/node-toolchain.sh npm --prefix frontend run test:e2e -- --config playwright.accessibility.config.cjs {{.CLI_ARGS}}
   migrate-run:
     desc: Apply the core catalog using the explicit DB_* configuration
     cmds:

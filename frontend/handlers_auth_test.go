@@ -1824,41 +1824,60 @@ func TestRouter_HandleResetPasswordSubmit_InvalidToken(t *testing.T) {
 	body, err := io.ReadAll(resp.Body)
 	require.NoError(t, err)
 	require.Equal(t, http.StatusBadRequest, resp.StatusCode)
-	require.Contains(t, string(body), "invalid token")
+	require.Contains(t, string(body), "This password reset code is invalid or expired.")
+	require.Contains(t, string(body), `href="/auth/forgot-password"`)
+	require.Contains(t, string(body), `name="token" autocomplete="one-time-code"`)
+	require.NotContains(t, string(body), `name="token" value=`)
 	require.Contains(t, string(body), `href="/auth/login"`)
 	require.NotContains(t, string(body), "Password reset successful")
 }
 
-func TestRouter_HandleResendVerificationEmail_Success(t *testing.T) {
+func TestRouter_HandleResendVerificationEmail_Feedback(t *testing.T) {
 	t.Parallel()
 
-	apiServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		assert.Equal(t, http.MethodPost, r.Method)
-		assert.Equal(t, "/api/auth/email/resend-verification", r.URL.Path)
-		w.WriteHeader(http.StatusNoContent)
-	}))
-	defer apiServer.Close()
+	for _, tc := range []struct {
+		name       string
+		apiStatus  int
+		htmlStatus int
+		feedback   string
+		role       string
+	}{
+		{"accepted", http.StatusNoContent, http.StatusOK, "If this address has an unverified account, a new verification link has been sent.", "status"},
+		{"throttled", http.StatusTooManyRequests, http.StatusTooManyRequests, "Resend verification failed with status 429.", "alert"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			apiServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				assert.Equal(t, http.MethodPost, r.Method)
+				assert.Equal(t, "/api/auth/email/resend-verification", r.URL.Path)
+				w.WriteHeader(tc.apiStatus)
+			}))
+			defer apiServer.Close()
 
-	router, err := newHandlerTestRouter(apiServer.URL, slog.New(slog.DiscardHandler), session.NewStore())
-	require.NoError(t, err)
+			router, err := newHandlerTestRouter(apiServer.URL, slog.New(slog.DiscardHandler), session.NewStore())
+			require.NoError(t, err)
 
-	app := fiber.New()
-	router.RegisterRoutes(app, CommunityPresentation{})
+			app := fiber.New()
+			router.RegisterRoutes(app, CommunityPresentation{})
 
-	form := strings.NewReader("email=test%40example.com")
-	req := httptest.NewRequestWithContext(context.Background(), http.MethodPost, "/auth/resend-verification", form)
-	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
-	addCSRFToken(t, app, req)
+			form := strings.NewReader("email=test%40example.com&return_to=%2Fdashboard")
+			req := httptest.NewRequestWithContext(context.Background(), http.MethodPost, "/auth/resend-verification", form)
+			req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+			addCSRFToken(t, app, req)
 
-	resp, err := app.Test(req)
-	require.NoError(t, err)
-	defer func() { _ = resp.Body.Close() }()
+			resp, err := app.Test(req)
+			require.NoError(t, err)
+			defer func() { _ = resp.Body.Close() }()
 
-	body, err := io.ReadAll(resp.Body)
-	require.NoError(t, err)
+			body, err := io.ReadAll(resp.Body)
+			require.NoError(t, err)
 
-	require.Equal(t, http.StatusOK, resp.StatusCode)
-	require.Contains(t, string(body), "Verification link resent")
+			require.Equal(t, tc.htmlStatus, resp.StatusCode)
+			require.Contains(t, string(body), tc.feedback)
+			require.Contains(t, string(body), `role="`+tc.role+`"`)
+			require.Contains(t, string(body), `name="return_to" value="/dashboard"`)
+			require.NotContains(t, string(body), "We sent a verification link to your inbox.")
+		})
+	}
 }
 
 func activeSessionCookieHeader(t *testing.T, resp *http.Response) string {

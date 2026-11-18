@@ -29,10 +29,10 @@ func (r *Router) handleProofConfigurationPage(c fiber.Ctx) error {
 	}
 	response, err := r.apiClient.GetDataSourceProofConfigurationWithResponse(c.Context(), org.String(), ds, frontendRequestEditor(c.Context(), c.Get(fiber.HeaderCookie)))
 	if err != nil {
-		return fiber.ErrServiceUnavailable
+		return r.renderUnavailableProofConfiguration(c, org, ds, http.StatusServiceUnavailable)
 	}
 	if response.StatusCode() != http.StatusOK || response.JSON200 == nil {
-		return c.SendStatus(response.StatusCode())
+		return r.renderUnavailableProofConfiguration(c, org, ds, response.StatusCode())
 	}
 	configurations := []api.DataSourceProofConfiguration{*response.JSON200}
 	feedback := ""
@@ -40,6 +40,21 @@ func (r *Router) handleProofConfigurationPage(c fiber.Ctx) error {
 		feedback = "Proof configuration saved."
 	}
 	return r.renderProofConfigurations(c, org, ds, configurations, feedback, false)
+}
+
+func (r *Router) renderUnavailableProofConfiguration(c fiber.Ctx, org slug.Slug, ds string, status int) error {
+	if status == http.StatusUnauthorized {
+		return redirectToLogin(c, c.OriginalURL())
+	}
+	message := "Proof configuration is unavailable. Try again or return to Git integrations."
+	if status == http.StatusForbidden {
+		message = "You do not have permission to view this Proof configuration."
+	}
+	if status == http.StatusOK {
+		status = http.StatusBadGateway
+	}
+	c.Status(status)
+	return r.renderProofConfigurations(c, org, ds, nil, message, true)
 }
 
 func (r *Router) renderProofConfigurations(c fiber.Ctx, org slug.Slug, ds string, configurations []api.DataSourceProofConfiguration, feedback string, failed bool) error {
@@ -63,10 +78,10 @@ func (r *Router) handleProofConfigurationSave(c fiber.Ctx) error {
 	}
 	current, err := r.apiClient.GetDataSourceProofConfigurationWithResponse(c.Context(), org.String(), ds.String(), frontendRequestEditor(c.Context(), c.Get(fiber.HeaderCookie)))
 	if err != nil {
-		return fiber.ErrServiceUnavailable
+		return r.renderUnavailableProofConfiguration(c, org, ds.String(), http.StatusServiceUnavailable)
 	}
 	if current.StatusCode() != http.StatusOK || current.JSON200 == nil {
-		return c.SendStatus(current.StatusCode())
+		return r.renderUnavailableProofConfiguration(c, org, ds.String(), current.StatusCode())
 	}
 	settings := api.DataSourceProofSettings{Enabled: c.FormValue("enabled") == "on", PublishChecks: c.FormValue("publish_checks") == "on", ExpectedRepositoryId: c.FormValue("expected_repository_id"), Targets: []api.ProofAssessmentTarget{}}
 	for _, target := range current.JSON200.AvailableTargets {
@@ -84,10 +99,10 @@ func (r *Router) handleProofConfigurationSave(c fiber.Ctx) error {
 		return fiber.ErrServiceUnavailable
 	}
 	if response.StatusCode() != http.StatusOK {
-		message := messageFromErrorResponse(cmp.Or(response.JSON400, response.JSON401, response.JSON403, response.JSON404, response.JSON409, response.JSONDefault))
-		if message == "" {
-			message = "Proof configuration could not be saved. Check repository access and assessment targets."
-		}
+		message := formFeedbackFromErrorResponse(
+			cmp.Or(response.JSON400, response.JSON401, response.JSON403, response.JSON404, response.JSON409, response.JSONDefault),
+			"Proof configuration could not be saved. Check repository access and assessment targets.",
+		)
 		draft := *current.JSON200
 		draft.RepositoryId = settings.ExpectedRepositoryId
 		draft.Enabled = settings.Enabled

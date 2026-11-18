@@ -9,23 +9,27 @@ templ DataSourcesPage(shellData AuthenticatedShellData, dataSources []api.DataSo
 
 templ DataSourcesPageContent(dataSources []api.DataSource, summaryDataSources []api.DataSource, hasMore bool, nextCursor string, prevCursor string, orgSlug string, activeEnvironmentSlug string, activeFilter string, selectedDataSource *api.DataSource, schemaPanel DataSourceSchemaPanelData, connectionInfo *ConnectionInfo, updateFormData DataSourceUpdateFormData, formData DataSourceCreateFormData, permissions OrganizationPermissions, selectedFeedbackMessage string, selectedFeedbackKind string, pageFeedback DataSourcePageFeedback) {
 	if pageFeedback.Message != "" {
-		<div
-			class={ "alert mb-5 py-3 text-sm " + func() string {
-			switch pageFeedback.Kind {
-			case "success":
-				return "alert-success"
-			case "error":
-				return "alert-error"
-			default:
-				return "alert-warning"
-			}
-		}() }
-			role="status"
-			data-provider-oauth-feedback
-			data-consume-query-param="provider_oauth"
-		>
-			<div class="w-full">
-				<span>{ pageFeedback.Message }</span>
+		<div data-form-feedback>
+			<div
+				class={ "alert mb-5 py-3 text-sm " + func() string {
+				switch pageFeedback.Kind {
+				case "success":
+					return "alert-success"
+				case "error":
+					return "alert-error"
+				default:
+					return "alert-warning"
+				}
+			}() }
+				role={ func() string { if pageFeedback.Kind == "error" { return "alert" }; return "status" }() }
+				tabindex="-1"
+				data-form-feedback-focus
+				data-provider-oauth-feedback
+				data-consume-query-param="provider_oauth"
+			>
+				<div class="w-full">
+					<span>{ pageFeedback.Message }</span>
+				</div>
 			</div>
 		</div>
 	}
@@ -146,8 +150,11 @@ templ DataSourcesPageContent(dataSources []api.DataSource, summaryDataSources []
 				<div class="mt-2 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
 					<div class="min-w-0 space-y-3 md:col-span-2 xl:col-span-3" data-ds-fields="google_workspace">
 						@WorkspaceDataDisclosure(formData.WorkspacePrivacyURL)
-						<label class="label items-start justify-start gap-2 whitespace-normal"><input class="checkbox checkbox-sm" type="checkbox" name="workspace_write" value="true" checked?={ !formData.WorkspaceReadOnly }/><span>Allow file writes and exact-range spreadsheet updates</span></label>
-						<button class="btn btn-primary btn-sm" type="submit" formaction={ templ.URL("/orgs/" + orgSlug + "/data-sources/google_workspace/oauth") } formmethod="post" formnovalidate hx-post={ "/orgs/" + orgSlug + "/data-sources/google_workspace/oauth" } hx-target="#create-data-source" hx-select="#create-data-source" hx-swap="outerHTML">Connect Google</button>
+						<div class="flex flex-col items-start gap-3">
+							<label class="label items-start justify-start gap-2 whitespace-normal"><input class="checkbox checkbox-sm" type="checkbox" name="workspace_write" value="true" checked?={ !formData.WorkspaceReadOnly }/><span>Allow file writes and exact-range spreadsheet updates</span></label>
+							@OAuthCallbackTimeOption(formData.MoreTime)
+							<button class="btn btn-primary btn-sm" type="submit" formaction={ templ.URL("/orgs/" + orgSlug + "/data-sources/google_workspace/oauth") } formmethod="post" formnovalidate hx-post={ "/orgs/" + orgSlug + "/data-sources/google_workspace/oauth" } hx-target="#create-data-source" hx-select="#create-data-source" hx-swap="outerHTML">Connect Google</button>
+						</div>
 					</div>
 					<label class="form-control w-full md:col-span-2 xl:col-span-3" data-ds-fields="hubspot">
 						<div class="label py-1">
@@ -158,16 +165,9 @@ templ DataSourcesPageContent(dataSources []api.DataSource, summaryDataSources []
 							<option value="private_app" selected?={ formData.HubSpotAuthType == "private_app" }>Private app token</option>
 						</select>
 					</label>
-					<label class="form-control w-full md:col-span-2 xl:col-span-3" data-ds-fields="hubspot">
-						<div class="label py-1">
-							<span class="label-text text-xs">Access mode</span>
-						</div>
-						<select class="select select-bordered select-sm w-full" name="hubspot_access_mode">
-							<option value="read" selected?={ formData.HubSpotReadOnly }>Read-only source</option>
-							<option value="write" selected?={ !formData.HubSpotReadOnly }>Write-enabled upsert destination</option>
-						</select>
-						<div class="label py-1"><span class="label-text-alt text-base-content/60">Write mode still requires the matching HubSpot object read and write scopes.</span></div>
-					</label>
+					<div class="min-w-0 w-full md:col-span-2 xl:col-span-3" data-ds-fields="hubspot">
+						@hubSpotAccessModeField("hubspot-create-access-mode", formData.HubSpotReadOnly, "Write mode still requires the matching HubSpot object read and write scopes.")
+					</div>
 					<div class="rounded-lg border border-primary/30 bg-primary/5 p-3 md:col-span-2 xl:col-span-3" data-ds-fields="hubspot" data-provider="hubspot" data-provider-auth-fields="oauth2">
 						<p class="text-xs font-semibold uppercase tracking-wide text-primary">OAuth 2.0</p>
 						<p class="mt-1 text-xs text-base-content/70">Connect your HubSpot account securely. You will review Braidplane's requested CRM permissions in HubSpot before the data source becomes active.</p>
@@ -209,13 +209,24 @@ templ DataSourcesPageContent(dataSources []api.DataSource, summaryDataSources []
 					</label>
 					<label class="form-control w-full" data-ds-fields="postgres,mysql,mongodb,snowflake" data-snowflake-auth-fields="password">
 						<div class="label py-1">
-							<span class="label-text text-xs">Password</span>
+							<span class="label-text text-xs" id="data-source-create-database-password-label">Password</span>
 						</div>
-						<input class="input input-bordered input-sm w-full" type="password" name="password" id="data-source-create-database-password" hx-preserve data-required-for="postgres,mongodb,snowflake"/>
-						<span class="label-text-alt mt-1" data-ds-fields="mysql">Leave blank only for an account configured without a password.</span>
+						<input
+							class="input input-bordered input-sm w-full"
+							type="password"
+							name="password"
+							id="data-source-create-database-password"
+							aria-labelledby="data-source-create-database-password-label"
+							if formData.Type == "mysql" {
+								aria-describedby="data-source-create-mysql-password-help"
+							}
+							hx-preserve
+							data-required-for="postgres,mongodb,snowflake"
+						/>
+						<span class="label-text-alt mt-1" id="data-source-create-mysql-password-help" data-ds-fields="mysql">Leave blank only for an account configured without a password.</span>
 					</label>
 					<div data-ds-fields="postgres">
-						@postgresSSLModeField(formData.SSLMode)
+						@postgresSSLModeField("data-source-create-sslmode", formData.SSLMode)
 					</div>
 					<label class="form-control w-full" data-ds-fields="postgres,mysql,mongodb,snowflake">
 						<div class="label py-1">
@@ -235,7 +246,7 @@ templ DataSourcesPageContent(dataSources []api.DataSource, summaryDataSources []
 						</div>
 						<input class="input input-bordered input-sm w-full" type="text" name="auth_database" value={ formData.AuthDatabase }/>
 					</label>
-					<div class="sm:col-span-2" data-ds-fields="snowflake">
+					<div class="sm:col-span-2" data-ds-fields="snowflake" data-snowflake-auth-fields="workload_identity">
 						@SnowflakeObjectFields(formData.SnowflakeSelectTables, formData.SnowflakeInsertTables)
 					</div>
 					<label class="form-control w-full" data-ds-fields="bigquery">
@@ -264,10 +275,11 @@ templ DataSourcesPageContent(dataSources []api.DataSource, summaryDataSources []
 						<div class="label py-1"><span class="label-text text-xs">Schema</span></div>
 						<input class="input input-bordered input-sm w-full font-mono" type="text" name="schema" value={ formData.Schema } data-required-for="snowflake"/>
 					</label>
-					<label class="form-control w-full" data-ds-fields="snowflake">
-						<div class="label py-1"><span class="label-text text-xs">Dedicated role (required for WIF)</span></div>
-						<input class="input input-bordered input-sm w-full font-mono" type="text" name="role" value={ formData.Role }/>
-					</label>
+					<div class="form-control w-full" data-ds-fields="snowflake">
+						<label class="label py-1" for="data-source-create-snowflake-role"><span class="label-text text-xs">Role</span></label>
+						<input class="input input-bordered input-sm w-full font-mono" type="text" name="role" id="data-source-create-snowflake-role" value={ formData.Role } aria-describedby="data-source-create-snowflake-role-help"/>
+						<p class="label-text-alt mt-1" id="data-source-create-snowflake-role-help">Optional for password authentication. Workload identity requires a dedicated role.</p>
+					</div>
 					<label class="form-control w-full" data-ds-fields="bigquery">
 						<div class="label py-1">
 							<span class="label-text text-xs">Location</span>
@@ -278,7 +290,7 @@ templ DataSourcesPageContent(dataSources []api.DataSource, summaryDataSources []
 						<div class="label py-1">
 							<span class="label-text text-xs">Default dataset</span>
 						</div>
-						<input class="input input-bordered input-sm w-full font-mono" type="text" name="default_dataset" value={ formData.DefaultDataset } placeholder="analytics"/>
+						<input class="input input-bordered input-sm w-full font-mono" type="text" name="default_dataset" value={ formData.DefaultDataset } placeholder="analytics" data-required-for="bigquery" { FormFieldError(formData.InvalidField == "default_dataset", "data-source-create-feedback")... }/>
 					</label>
 					<label class="form-control w-full md:col-span-2 xl:col-span-3" data-ds-fields="http">
 						<div class="label py-1">
@@ -479,16 +491,17 @@ templ DataSourcesPageContent(dataSources []api.DataSource, summaryDataSources []
 						</label>
 						<label class="form-control w-full md:col-span-2 xl:col-span-3" data-git-auth-fields="ssh">
 							<div class="label py-1">
-								<span class="label-text text-xs">SSH private key</span>
+								<span class="label-text text-xs">SSH private key (required)</span>
 							</div>
-							<textarea class="textarea textarea-bordered textarea-sm w-full min-h-24" id="data-source-create-git-private-key" name="git_ssh_private_key" placeholder="-----BEGIN OPENSSH PRIVATE KEY-----" hx-preserve></textarea>
+							<textarea class="textarea textarea-bordered textarea-sm w-full min-h-24" id="data-source-create-git-private-key" name="git_ssh_private_key" placeholder="-----BEGIN OPENSSH PRIVATE KEY-----" aria-required="true" hx-preserve></textarea>
 						</label>
-						<label class="form-control w-full md:col-span-2 xl:col-span-3" data-git-auth-fields="ssh">
-							<div class="label py-1">
-								<span class="label-text text-xs">SSH known_hosts</span>
-							</div>
-							<textarea class="textarea textarea-bordered textarea-sm w-full min-h-20 font-mono" name="git_ssh_known_hosts" placeholder="github.com ssh-ed25519 AAAAC3...">{ formData.GitKnownHosts }</textarea>
-						</label>
+						<div class="form-control w-full md:col-span-2 xl:col-span-3" data-git-auth-fields="ssh">
+							<label class="label py-1" for="data-source-create-git-known-hosts">
+								<span class="label-text text-xs">SSH known_hosts (required)</span>
+							</label>
+							<textarea class="textarea textarea-bordered textarea-sm w-full min-h-20 font-mono" id="data-source-create-git-known-hosts" name="git_ssh_known_hosts" aria-required="true" aria-describedby="data-source-create-git-known-hosts-help">{ formData.GitKnownHosts }</textarea>
+							<p class="label-text-alt mt-1" id="data-source-create-git-known-hosts-help">Paste the trusted known_hosts entry for the repository host.</p>
+						</div>
 						<label class="form-control w-full" data-git-auth-fields="ssh">
 							<div class="label py-1">
 								<span class="label-text text-xs">SSH passphrase</span>
@@ -504,6 +517,11 @@ templ DataSourcesPageContent(dataSources []api.DataSource, summaryDataSources []
 					</div>
 				</div>
 			</div>
+			if formData.TestSuccess && formData.TestMessage != "" {
+				<div class="alert alert-success mt-3 py-2 text-sm" role="status" tabindex="-1" autofocus data-form-feedback-focus>
+					<span>{ formData.TestMessage }</span>
+				</div>
+			}
 			<div
 				class={ "mt-4 flex flex-col gap-2 sm:flex-row sm:items-center" + func() string {
 				if formData.Type == "" || formData.Type == "bigquery" || (formData.Type == "github" && !formData.GitHubConnectionAvailable) || (formData.Type == "hubspot" && formData.HubSpotAuthType != "private_app") || (formData.Type == "gitlab" && !formData.GitLabConnectionAvailable) {
@@ -529,6 +547,7 @@ templ DataSourcesPageContent(dataSources []api.DataSource, summaryDataSources []
 				data-provider="hubspot"
 				data-provider-auth-fields="oauth2"
 			>
+				@OAuthCallbackTimeOption(formData.MoreTime)
 				<button class="btn btn-primary btn-sm w-full sm:w-auto" type="submit" formnovalidate formaction={ templ.URL(DataSourceHubSpotOAuthHref(orgSlug, activeEnvironmentSlug)) } hx-post={ DataSourceHubSpotOAuthHref(orgSlug, activeEnvironmentSlug) } hx-target="#create-data-source" hx-select="#create-data-source" hx-swap="outerHTML">Connect HubSpot</button>
 				<span class="text-xs text-base-content/70">You will continue in HubSpot to approve access.</span>
 			</div>
@@ -540,17 +559,12 @@ templ DataSourcesPageContent(dataSources []api.DataSource, summaryDataSources []
 				data-ds-fields="bigquery"
 				data-provider="bigquery"
 			>
+				@OAuthCallbackTimeOption(formData.MoreTime)
 				<button class="btn btn-primary btn-sm w-full sm:w-auto" type="submit" formnovalidate formaction={ templ.URL(DataSourceBigQueryOAuthHref(orgSlug, activeEnvironmentSlug)) } hx-post={ DataSourceBigQueryOAuthHref(orgSlug, activeEnvironmentSlug) } hx-target="#create-data-source" hx-select="#create-data-source" hx-swap="outerHTML">Connect with Google</button>
 				<span class="text-xs text-base-content/70">Review access in Google. No client secret or JSON key is needed.</span>
 			</div>
-			if formData.TestMessage != "" {
-				if formData.TestSuccess {
-					<div class="alert alert-success mt-3 py-2 text-sm">
-						<span>{ formData.TestMessage }</span>
-					</div>
-				} else {
-					@FormError("data-source-create-feedback", formData.TestMessage, formData.InvalidField == "")
-				}
+			if !formData.TestSuccess {
+				@FormError("data-source-create-feedback", formData.TestMessage, formData.InvalidField == "")
 			}
 			@FormRequestError()
 		</form>
@@ -669,4 +683,23 @@ templ DataSourcesPageContent(dataSources []api.DataSource, summaryDataSources []
 			}
 		</div>
 	}
+}
+
+
+templ OAuthCallbackTimeOption(checked bool) {
+	<label class="label items-start justify-start gap-2 whitespace-normal text-sm text-base-content">
+		<input class="checkbox checkbox-sm" type="checkbox" name="more_time" value="true" checked?={ checked }/>
+		<span>Allow 100 minutes to return to Core (10 minutes by default)</span>
+	</label>
+}
+
+templ hubSpotAccessModeField(id string, readOnly bool, help string) {
+	<div class="form-control min-w-0 w-full">
+		<label class="label py-1" for={ id }><span class="label-text text-xs">Access mode</span></label>
+		<select class="select select-bordered select-sm min-w-0 w-full" id={ id } name="hubspot_access_mode" aria-describedby={ id + "-help" }>
+			<option value="read" selected?={ readOnly }>Read-only source</option>
+			<option value="write" selected?={ !readOnly }>Write-enabled upsert destination</option>
+		</select>
+		<p class="py-1 text-xs text-base-content/60" id={ id + "-help" }>{ help }</p>
+	</div>
 }

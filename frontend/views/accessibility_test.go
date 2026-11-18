@@ -21,15 +21,17 @@ func TestErrorPopupIsAnnouncedAsAlert(t *testing.T) {
 	require.Contains(t, out.String(), `aria-live="assertive"`)
 }
 
-func TestSuccessPopupAutoDismisses(t *testing.T) {
+func TestSuccessFeedbackRemainsAsStatus(t *testing.T) {
 	t.Parallel()
 
 	var out bytes.Buffer
 	require.NoError(t, SuccessPopup("test-success", "Saved").Render(context.Background(), &out))
 
 	html := out.String()
-	require.Contains(t, html, `data-success-popup`)
-	require.Contains(t, html, `data-auto-dismiss-ms="5000"`)
+	require.Contains(t, html, `role="status"`)
+	require.Contains(t, html, "Saved")
+	require.NotContains(t, html, `data-auto-dismiss-ms`)
+	require.NotContains(t, html, `data-popup-dismiss`)
 	require.NotContains(t, html, `window.setTimeout`)
 }
 

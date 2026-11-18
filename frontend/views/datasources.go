@@ -47,6 +47,7 @@ type DataSourceCreateFormData struct {
 	WorkspacePrivacyURL         string
 	WorkspaceReadOnly           bool
 	BigQueryReadOnly            bool
+	MoreTime                    bool
 	Name                        string
 	Slug                        string
 	Type                        string
@@ -203,7 +204,7 @@ func DataSourceSchemaEmptyMessage(status api.DataSourceSchemaStatus) string {
 	case api.DataSourceSchemaStatusReady:
 		return "Imported schema contains no browseable metadata."
 	case api.DataSourceSchemaStatusImporting:
-		return "Schema import is running. This panel updates automatically."
+		return "Schema import is running. Check the status when you are ready."
 	case api.DataSourceSchemaStatusFailed:
 		return "Schema import failed."
 	default:
@@ -497,10 +498,11 @@ func DataSourceStatusLabel(ds api.DataSource) string {
 
 // DataSourceStatusBadgeClass maps data-source state to DaisyUI badge classes.
 func DataSourceStatusBadgeClass(ds api.DataSource) string {
+	const badge = "badge h-auto min-h-5 min-w-0 py-0.5 text-center [overflow-wrap:anywhere]"
 	if DataSourceStatusLabel(ds) != "ready" {
-		return "badge border-warning/50 bg-warning/15 text-warning"
+		return badge + " border-warning/50 bg-warning/15 text-warning"
 	}
-	return "badge border-success/50 bg-success/15 text-success"
+	return badge + " border-success/50 bg-success/15 text-success"
 }
 
 // DataSourceCapabilityLabel summarizes whether a data source can participate in sink writes.
@@ -516,7 +518,7 @@ func DataSourceCapabilityBadgeClass(ds api.DataSource) string {
 	if ds.ReadOnly {
 		return "badge border-info/50 bg-info/15 text-info"
 	}
-	return "badge border-primary/50 bg-primary/15 text-primary"
+	return "badge border-primary/50 bg-base-100 text-primary"
 }
 
 // DataSourceCardClass returns the clickable inventory card styling for selected and operational states.

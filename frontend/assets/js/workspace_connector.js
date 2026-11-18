@@ -64,8 +64,13 @@
             panel.dataset.bound = "true";
             const base = `/orgs/${encodeURIComponent(panel.dataset.org)}/data-sources/${encodeURIComponent(panel.dataset.source)}/google_workspace`;
             const feedback = panel.querySelector("[data-workspace-feedback]");
+            let selectionRevision = 0;
+            panel.querySelector('[name="workspace_folder_id"]')?.addEventListener("input", () => {
+                selectionRevision++;
+            });
             const choose = (file) => {
                 if (!file) return;
+                selectionRevision++;
                 const key =
                     file.mime_type === "application/vnd.google-apps.folder"
                         ? "workspace_folder_id"
@@ -73,14 +78,7 @@
                           ? "workspace_spreadsheet_id"
                           : "workspace_file_id";
                 const input = panel.querySelector(`[name="${key}"]`);
-                if (input) {
-                    if (key === "workspace_spreadsheet_id" && input.value !== file.file_id) {
-                        panel
-                            .querySelector('[name="workspace_worksheet_id"]')
-                            .replaceChildren(new Option("Loading worksheets…", ""));
-                    }
-                    input.value = file.file_id;
-                }
+                if (input) input.value = file.file_id;
                 if (key !== "workspace_folder_id") {
                     const resource = panel.querySelector('[name="workspace_resource"]');
                     resource.value =
@@ -108,15 +106,19 @@
                     .then(([config]) => {
                         if (!panel.isConnected) return;
                         let browserAuthorized = false;
+                        const finishSelection = (message) => {
+                            if (!panel.isConnected) return;
+                            pickButton.disabled = false;
+                            feedback.textContent = message;
+                            if (document.activeElement === document.body) pickButton.focus();
+                        };
                         const tokenClient = window.google.accounts.oauth2.initTokenClient({
                             client_id: config.client_id,
                             scope: fileScope,
                             include_granted_scopes: false,
                             login_hint: config.account_email,
-                            error_callback: () => {
-                                pickButton.disabled = false;
-                                feedback.textContent = "Google selection was cancelled or could not open. Try again.";
-                            },
+                            error_callback: () =>
+                                finishSelection("Google selection was cancelled or could not open. Try again."),
                             callback: (response) => {
                                 const scopes = (response.scope || "").split(/\s+/).filter(Boolean);
                                 if (
@@ -125,9 +127,9 @@
                                     scopes.length !== 1 ||
                                     scopes[0] !== fileScope
                                 ) {
-                                    pickButton.disabled = false;
-                                    feedback.textContent =
-                                        "Reconnect Google with selected-file access before choosing files.";
+                                    finishSelection(
+                                        "Reconnect Google with selected-file access before choosing files.",
+                                    );
                                     return;
                                 }
                                 browserAuthorized = true;
@@ -158,10 +160,10 @@
                                             return;
                                         picker.dispose();
                                         if (selection.action === window.google.picker.Action.CANCEL) {
-                                            pickButton.disabled = false;
-                                            feedback.textContent = "Selection cancelled. The operation is unchanged.";
+                                            finishSelection("Selection cancelled. The operation is unchanged.");
                                             return;
                                         }
+                                        const revision = selectionRevision;
                                         try {
                                             const id = selection.docs?.[0]?.id;
                                             if (!id) throw new Error("Choose a file or folder.");
@@ -170,12 +172,18 @@
                                                 expected_revision: config.expected_revision,
                                             });
                                             if (!panel.isConnected) return;
+                                            if (revision !== selectionRevision) {
+                                                finishSelection("Kept the newer file selection.");
+                                                return;
+                                            }
                                             choose(verified.files[0]);
-                                            feedback.textContent = "File access verified for the connected account.";
+                                            finishSelection("File access verified for the connected account.");
                                         } catch (error) {
-                                            feedback.textContent = error.message;
-                                        } finally {
-                                            pickButton.disabled = false;
+                                            finishSelection(
+                                                revision === selectionRevision
+                                                    ? error.message
+                                                    : "Kept the newer file selection.",
+                                            );
                                         }
                                     })
                                     .build();
@@ -196,12 +204,17 @@
             }
             let listed = [];
             let next = "";
+            let discoveryRequest = 0;
+            const browseButton = panel.querySelector("[data-workspace-discover]");
+            const nextButton = panel.querySelector("[data-workspace-next]");
+            const files = panel.querySelector("[data-workspace-files]");
             const discover = async (pageToken = "") => {
+                const request = ++discoveryRequest;
                 try {
                     const page = await jsonRequest(
                         `${base}/files${pageToken ? `?page_token=${encodeURIComponent(pageToken)}` : ""}`,
                     );
-                    const files = panel.querySelector("[data-workspace-files]");
+                    if (!panel.isConnected || request !== discoveryRequest) return;
                     listed = page.files;
                     files.replaceChildren(
                         new Option("Choose a target…", ""),
@@ -209,19 +222,22 @@
                     );
                     files.classList.remove("hidden");
                     next = page.next_page_token || "";
-                    panel.querySelector("[data-workspace-next]").classList.toggle("hidden", !next);
-                    feedback.textContent = page.files.length ? "" : "No accessible files on this page.";
+                    const moveFocus = !next && document.activeElement === nextButton;
+                    nextButton.classList.toggle("hidden", !next);
+                    const count = listed.length;
+                    feedback.textContent = count
+                        ? `${count} accessible ${count === 1 ? "file" : "files"} on this page.`
+                        : "No accessible files on this page.";
+                    if (moveFocus) (count ? files : browseButton).focus();
                 } catch (error) {
-                    feedback.textContent = error.message;
+                    if (panel.isConnected && request === discoveryRequest) feedback.textContent = error.message;
                 }
             };
-            panel.querySelector("[data-workspace-discover]")?.addEventListener("click", () => void discover());
-            panel.querySelector("[data-workspace-next]")?.addEventListener("click", () => void discover(next));
-            panel
-                .querySelector("[data-workspace-files]")
-                ?.addEventListener("change", (event) =>
-                    choose(listed.find((file) => file.file_id === event.target.value)),
-                );
+            browseButton?.addEventListener("click", () => void discover());
+            nextButton?.addEventListener("click", () => void discover(next));
+            files?.addEventListener("change", (event) =>
+                choose(listed.find((file) => file.file_id === event.target.value)),
+            );
         });
         root.querySelectorAll("[data-workspace-operation]").forEach((fields) => {
             if (fields.dataset.controlsBound) return;
@@ -273,41 +289,64 @@
             update();
             const target = fields.querySelector('[name="workspace_spreadsheet_id"]');
             const worksheet = fields.querySelector('[name="workspace_worksheet_id"]');
+            const status = fields.querySelector("[data-workspace-worksheet-status]");
+            const retry = fields.querySelector("[data-workspace-worksheet-retry]");
             let previousTarget = target.value;
+            let worksheetRequest = 0;
             const worksheetMetadata = () => {
                 fields.querySelector("[data-workspace-worksheet-id]").textContent = worksheet.value;
             };
             worksheet.addEventListener("change", worksheetMetadata);
             const loadWorksheets = async () => {
-                const feedback = fields.querySelector("[data-workspace-feedback]");
                 const spreadsheetID = target.value;
+                const request = ++worksheetRequest;
                 if (!spreadsheetID) return;
                 const selected = spreadsheetID === previousTarget ? worksheet.value : "";
-                if (!selected) {
-                    worksheet.replaceChildren(new Option("Loading worksheets…", ""));
-                    worksheetMetadata();
-                }
+                previousTarget = spreadsheetID;
+                worksheet.replaceChildren(new Option("Loading worksheets…", selected));
+                worksheetMetadata();
+                if (status) status.textContent = "Loading worksheets…";
+                retry?.setAttribute("aria-disabled", "true");
+                const isCurrent = () =>
+                    fields.isConnected && request === worksheetRequest && target.value === spreadsheetID;
                 try {
                     const schema = await jsonRequest(
                         `/orgs/${encodeURIComponent(fields.dataset.org)}/data-sources/${encodeURIComponent(fields.dataset.source)}/google_workspace/worksheets?spreadsheet_id=${encodeURIComponent(spreadsheetID)}`,
                     );
-                    if (!fields.isConnected || target.value !== spreadsheetID) return;
-                    previousTarget = spreadsheetID;
+                    if (!isCurrent()) return;
+                    const worksheets = schema.worksheets || [];
                     worksheet.replaceChildren(
-                        ...(schema.worksheets || []).map(
-                            (sheet) => new Option(sheet.title, String(sheet.worksheet_id)),
-                        ),
+                        ...worksheets.map((sheet) => new Option(sheet.title, String(sheet.worksheet_id))),
                     );
+                    if (!selected && !worksheets.length) worksheet.add(new Option("No worksheets available", ""));
                     if (selected && ![...worksheet.options].some((option) => option.value === selected))
                         worksheet.add(new Option("Unavailable worksheet", selected));
                     if (selected) worksheet.value = selected;
                     worksheetMetadata();
                     if (worksheet.value !== selected) worksheet.dispatchEvent(new Event("change", { bubbles: true }));
+                    if (status)
+                        status.textContent = worksheets.length
+                            ? `${worksheets.length} ${worksheets.length === 1 ? "worksheet" : "worksheets"} loaded.`
+                            : "No worksheets available.";
+                    if (retry && document.activeElement === retry) worksheet.focus();
+                    if (retry) retry.hidden = true;
                 } catch (error) {
-                    feedback.textContent = error.message;
+                    if (!isCurrent()) return;
+                    worksheet.replaceChildren(
+                        new Option(selected ? "Selected worksheet (unverified)" : "Worksheets unavailable", selected),
+                    );
+                    const feedback = status || fields.querySelector("[data-workspace-feedback]");
+                    if (feedback) feedback.textContent = `Could not load worksheets. ${error.message}`;
+                    if (retry) retry.hidden = false;
+                } finally {
+                    if (isCurrent()) retry?.removeAttribute("aria-disabled");
                 }
             };
-            target.addEventListener("change", loadWorksheets);
+            retry?.addEventListener("click", () => {
+                if (retry.getAttribute("aria-disabled") !== "true") void loadWorksheets();
+            });
+            // Clear the old worksheet before the Builder reads the new spreadsheet.
+            target.addEventListener("change", loadWorksheets, true);
             if (target.value) void loadWorksheets();
         });
     };

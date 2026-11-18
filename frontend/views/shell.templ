@@ -1,9 +1,11 @@
 package views
 
+import "cmp"
+
 templ AuthenticatedShell(data AuthenticatedShellData, content templ.Component) {
 	<!DOCTYPE html>
 	<html lang="en" data-theme="control-room">
-		@AppHead(data.Title, true)
+		@AppHead(cmp.Or(data.DocumentTitle, data.Title), true)
 		<body class={ "min-h-screen bg-base-200", templ.KV("builder-page", data.CurrentPath == "/builder") }>
 			<style>
 
@@ -100,7 +102,7 @@ templ AuthenticatedShell(data AuthenticatedShellData, content templ.Component) {
 							</form>
 						</div>
 					</aside>
-					<section class={ ShellContentClass(data.CurrentPath) } id="main-content">
+					<section class={ ShellContentClass(data.CurrentPath) } id="main-content" tabindex="-1">
 						<div class="shell-topbar mb-5 grid gap-4 border-b border-base-300 pb-5 xl:grid-cols-[minmax(0,1fr)_minmax(0,37rem)] xl:items-start">
 							<div class="flex min-w-0 items-start gap-3">
 								<div class="lg:hidden">
@@ -129,7 +131,7 @@ templ AuthenticatedShell(data AuthenticatedShellData, content templ.Component) {
 									}
 									<div class="shell-title-row flex min-w-0 items-center gap-2">
 										<h1 class="min-w-0 truncate text-2xl font-semibold text-base-content">{ ShellTopbarTitle(data.CurrentPath, data.NavItems, data.Title) }</h1>
-										<span class="shrink-0 text-xs font-normal text-base-content/60" aria-label="Product stage">Alpha</span>
+										<span class="shrink-0 text-xs font-normal text-base-content/60" role="group" aria-label="Product stage">Alpha</span>
 									</div>
 									if data.Subtitle != "" {
 										<p class="mt-1 max-w-3xl text-sm text-base-content/65">{ data.Subtitle }</p>
@@ -139,7 +141,7 @@ templ AuthenticatedShell(data AuthenticatedShellData, content templ.Component) {
 							<div class={ ShellTopbarControlsClass(data) }>
 								@ShellOrganizationSwitcher(data)
 								if !ShellIsCommandCenter(data.CurrentPath) && data.ActiveProjectSlug != "" && len(data.Environments) > 0 {
-									<div class="flex w-fit min-w-0 max-w-full items-center gap-2">
+									<div class="flex w-fit min-w-0 max-w-full flex-wrap items-center gap-2" data-runtime-target-control>
 										<div class="min-w-0 flex-1">
 											<label class="sr-only" for="environment-switcher">Runtime target</label>
 											<select
@@ -157,6 +159,7 @@ templ AuthenticatedShell(data AuthenticatedShellData, content templ.Component) {
 												}
 											</select>
 										</div>
+										<button class="btn btn-outline h-11 shrink-0" type="button" data-runtime-switch aria-label="Switch runtime target">Switch</button>
 										if data.ActiveEnvironmentSlug != "" {
 											<span class={ ShellEnvironmentBadgeClass(data.ActiveEnvironmentColor) }>{ data.ActiveEnvironmentSlug }</span>
 											<span class="hidden text-xs font-medium text-base-content/60 2xl:inline">{ ShellEnvironmentRiskLabel(data.ActiveEnvironmentSlug, data.ActiveEnvironmentProtected) }</span>
@@ -184,23 +187,23 @@ templ AuthenticatedShell(data AuthenticatedShellData, content templ.Component) {
 
 templ ShellOrganizationSwitcher(data AuthenticatedShellData) {
 	<div class="w-full min-w-0 max-w-full sm:w-fit" data-org-switcher-root>
-		<div class="dropdown dropdown-end w-full min-w-0 max-w-full sm:w-fit" data-org-switcher>
+		<div class="w-full min-w-0 max-w-full sm:w-fit" data-org-switcher>
 			<button
 				class="btn btn-outline h-11 min-h-11 min-w-0 w-full max-w-full justify-between gap-2 bg-base-200/30 px-3 normal-case"
 				type="button"
-				tabindex="0"
-				aria-haspopup="menu"
+				style="anchor-name: --shell-organization"
+				popovertarget="shell-organization-menu"
 			>
 				<span class="sr-only">Switch organization: </span>
 				<span class="flex min-w-0 items-center gap-2">
-					<span class="grid h-6 w-6 shrink-0 place-items-center rounded-full bg-primary/10 text-xs font-semibold text-primary" aria-hidden="true">{ ShellContextInitial(data.ActiveOrganizationName, data.ActiveOrganizationSlug, "Org") }</span>
+					<span class="grid h-6 w-6 shrink-0 place-items-center rounded-full bg-primary/10 text-xs font-semibold text-base-content" aria-hidden="true">{ ShellContextInitial(data.ActiveOrganizationName, data.ActiveOrganizationSlug, "Org") }</span>
 					<span class="min-w-0 truncate text-left" title={ ShellContextDisplay(data.ActiveOrganizationName, data.ActiveOrganizationSlug, "No organization") }>{ ShellOrganizationDisplayName(data) }</span>
 				</span>
 				<svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 shrink-0 text-base-content/60" width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" aria-hidden="true">
 					<path stroke-linecap="round" stroke-linejoin="round" d="M6 9l6 6 6-6"></path>
 				</svg>
 			</button>
-			<div class="dropdown-content z-[10] mt-2 w-80 max-w-[calc(100vw-2rem)] rounded-xl border border-base-300 bg-base-100 p-2 shadow-xl" tabindex="0" aria-label="Organization menu">
+			<div id="shell-organization-menu" popover="auto" style="position-anchor: --shell-organization; background-color: var(--color-base-100)" class="dropdown dropdown-bottom dropdown-end dropdown-content mt-2 max-h-[70vh] max-w-[calc(100vw-2rem)] overflow-y-auto rounded-xl border border-base-300 p-2" role="group" aria-label="Organization menu">
 				if len(data.Organizations) == 0 {
 					<div class="rounded-lg px-3 py-3 text-sm text-base-content/60">No organizations available.</div>
 				} else {
@@ -210,7 +213,7 @@ templ ShellOrganizationSwitcher(data AuthenticatedShellData) {
 								<div class="flex items-center gap-3 rounded-lg bg-primary/10 px-3 py-2 text-sm font-semibold text-primary" aria-current="true">
 									<span class="grid h-7 w-7 shrink-0 place-items-center rounded-full bg-primary text-xs font-bold text-primary-content">{ ShellContextInitial(org.Name, org.Slug, "Org") }</span>
 									<span class="min-w-0 flex-1 truncate">{ org.Name }</span>
-									<span class="text-xs font-medium text-primary/80">Active</span>
+									<span class="text-xs font-medium text-base-content/75">Active</span>
 								</div>
 							} else {
 								<form
@@ -243,7 +246,7 @@ templ ShellOrganizationSwitcher(data AuthenticatedShellData) {
 						<span>Organization settings</span>
 					</a>
 				} else {
-					<span class="flex items-center gap-3 rounded-lg px-3 py-2 text-sm text-base-content/40" aria-disabled="true">
+					<span class="flex items-center gap-3 rounded-lg px-3 py-2 text-sm text-base-content/40" role="link" aria-disabled="true">
 						@ShellNavIcon("environment")
 						<span>Organization settings</span>
 					</span>
@@ -267,7 +270,7 @@ templ ShellNavigation(data AuthenticatedShellData) {
 						<span class="shell-nav-label">{ item.Label }</span>
 					</a>
 				} else {
-					<span class="shell-nav-link flex min-h-11 items-center gap-2 rounded-md px-3 py-2 text-base-content/40" title={ item.Label + ShellNavScopeRequirement(data) } aria-label={ item.Label + ShellNavScopeRequirement(data) } aria-disabled="true">
+					<span class="shell-nav-link flex min-h-11 items-center gap-2 rounded-md px-3 py-2 text-base-content/40" role="link" title={ item.Label + ShellNavScopeRequirement(data) } aria-label={ item.Label + ShellNavScopeRequirement(data) } aria-disabled="true">
 						@ShellNavIcon(item.Icon)
 						<span class="shell-nav-label">{ item.Label }</span>
 					</span>

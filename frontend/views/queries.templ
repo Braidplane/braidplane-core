@@ -9,6 +9,11 @@ templ QueriesPage(shellData AuthenticatedShellData, dataSources []api.DataSource
 
 templ QueriesPageContent(dataSources []api.DataSource, selectedDataSource string, selectedDataSourceType string, queries []api.Query, selectedQuery *api.Query, selectedQueryFormData QueryEditorFormData, hasMore bool, nextCursor string, prevCursor string, orgSlug string, createFormData QueryEditorFormData, executionResult *QueryExecutionResultView, executionError string, focusQuerySlug string, showDeleted bool, permissions OrganizationPermissions) {
 	<div id="queries-workspace">
+		if createFormData.SubmitError != "" && (selectedDataSource == "" || showDeleted || !permissions.Can("queries", "create")) {
+			<div data-form-feedback>
+				@querySubmitError("query-create-error", createFormData)
+			</div>
+		}
 		if selectedDataSource != "" {
 			<div class="flex min-h-8 flex-wrap items-center justify-end gap-3">
 				if !showDeleted && permissions.Can("queries", "create") {
@@ -16,14 +21,25 @@ templ QueriesPageContent(dataSources []api.DataSource, selectedDataSource string
 						class="btn btn-primary btn-sm w-full sm:w-auto"
 						type="button"
 						aria-controls="create-query-form"
-						aria-expanded={ func() string { if createFormData.Name != "" { return "true" }; return "false" }() }
+						aria-expanded={ func() string { if createFormData.Name != "" || createFormData.SubmitError != "" { return "true" }; return "false" }() }
 						data-toggle-target="create-query-form"
 					>New query</button>
 				}
 			</div>
 		}
 		<div class="mt-5 max-w-md">
-			<form id="queries-filter-form" class="rounded-xl border border-base-300 bg-base-100 p-4" method="get" action={ templ.URL("/orgs/" + orgSlug + "/queries") }>
+			<form
+				id="queries-filter-form"
+				class="rounded-xl border border-base-300 bg-base-100 p-4"
+				method="get"
+				action={ templ.URL("/orgs/" + orgSlug + "/queries") }
+				hx-get={ "/orgs/" + orgSlug + "/queries" }
+				hx-target="#queries-workspace"
+				hx-select="#queries-workspace"
+				hx-swap="outerHTML show:none focus-scroll:false"
+				hx-push-url="true"
+				data-preserve-scroll
+			>
 				if showDeleted {
 					<input type="hidden" name="deleted" value="true"/>
 				}
@@ -34,14 +50,6 @@ templ QueriesPageContent(dataSources []api.DataSource, selectedDataSource string
 					<select
 						class="select select-bordered select-sm w-full"
 						name="ds"
-						hx-get={ "/orgs/" + orgSlug + "/queries" }
-						hx-trigger="change"
-						hx-include="#queries-filter-form"
-						hx-target="#queries-workspace"
-						hx-select="#queries-workspace"
-						hx-swap="outerHTML show:none focus-scroll:false"
-						hx-push-url="true"
-						data-preserve-scroll
 					>
 						if len(dataSources) == 0 {
 							<option value="">No data sources</option>
@@ -52,6 +60,9 @@ templ QueriesPageContent(dataSources []api.DataSource, selectedDataSource string
 						}
 					</select>
 				</label>
+				if len(dataSources) > 1 {
+					<button id="queries-apply-filter" class="btn btn-outline btn-sm mt-3" type="submit">Filter queries</button>
+				}
 				<div class="mt-3 flex flex-wrap items-center gap-2">
 					if selectedDataSourceType != "" {
 						@DataSourceIcon(selectedDataSourceType, "sm")
@@ -90,7 +101,7 @@ templ QueriesPageContent(dataSources []api.DataSource, selectedDataSource string
 				<div
 					id="create-query-form"
 					class={ "mt-6 rounded-xl border border-base-300 bg-base-100 p-5 scroll-mt-6" + func() string {
-	if createFormData.Name != "" {
+	if createFormData.Name != "" || createFormData.SubmitError != "" {
 		return ""
 	}
 	return " hidden"
@@ -108,8 +119,10 @@ templ QueriesPageContent(dataSources []api.DataSource, selectedDataSource string
 						hx-target="#queries-workspace"
 						hx-select="#queries-workspace"
 						hx-swap="outerHTML show:none focus-scroll:false"
-						data-preserve-scroll
+						data-form-feedback
 					>
+						@querySubmitError("query-create-error", createFormData)
+						@FormRequestError()
 						<input type="hidden" name="ds" value={ selectedDataSource }/>
 						<input type="hidden" name="statement_type" value={ queryStatementTypeValue(selectedDataSourceType) }/>
 						<div class="grid gap-3 md:grid-cols-2">
@@ -457,11 +470,7 @@ templ QueriesPageContent(dataSources []api.DataSource, selectedDataSource string
 						}
 						<div class="grid gap-3 md:grid-cols-2">
 							if selectedDataSourceType != "http" {
-								<label class="form-control w-full">
-									<div class="label py-1"><span class="label-text text-xs">Row limit</span></div>
-									<input class="input input-bordered input-sm w-full" type="number" min="0" name="row_limit" value={ createFormData.RowLimit } required/>
-									<span class="label-text-alt">0 uses the operator’s row policy.</span>
-								</label>
+								@queryRowLimit("query-create-row-limit", createFormData.RowLimit)
 							}
 							<label class="form-control w-full">
 								<div class="label py-1"><span class="label-text text-xs">Timeout (seconds)</span></div>
@@ -476,47 +485,11 @@ templ QueriesPageContent(dataSources []api.DataSource, selectedDataSource string
 							</div>
 							<div class="mt-2 space-y-2" data-param-rows>
 								for _, param := range createFormData.Parameters {
-									<div class="grid gap-2 xl:grid-cols-[1.2fr_0.8fr_0.8fr_1fr_1.4fr_auto_auto]" data-param-row>
-										<input class="input input-bordered input-sm" type="text" name="param_name" placeholder="name" value={ param.Name }/>
-										<select class="select select-bordered select-sm" name="param_type">
-											<option selected?={ param.Type == string(api.QueryParameterDataTypeText) } value={ string(api.QueryParameterDataTypeText) }>text</option>
-											<option selected?={ param.Type == string(api.QueryParameterDataTypeInteger) } value={ string(api.QueryParameterDataTypeInteger) }>integer</option>
-											<option selected?={ param.Type == string(api.QueryParameterDataTypeBoolean) } value={ string(api.QueryParameterDataTypeBoolean) }>boolean</option>
-											<option selected?={ param.Type == string(api.QueryParameterDataTypeDate) } value={ string(api.QueryParameterDataTypeDate) }>date</option>
-											<option selected?={ param.Type == string(api.QueryParameterDataTypeUuid) } value={ string(api.QueryParameterDataTypeUuid) }>uuid</option>
-										</select>
-										<select class="select select-bordered select-sm" name="param_required">
-											<option selected?={ param.Required } value="true">required</option>
-											<option selected?={ !param.Required } value="false">optional</option>
-										</select>
-										<input class="input input-bordered input-sm" type="text" name="param_default" placeholder="default" value={ param.DefaultValue }/>
-										<input class="input input-bordered input-sm" type="text" name="param_description" placeholder="description" value={ param.Description }/>
-										<input type="hidden" name="param_source" value={ param.Source } data-param-source/>
-										<span class="badge badge-outline badge-sm self-center" data-param-source-badge>{ param.Source }</span>
-										<button class="btn btn-ghost btn-xs self-center" type="button" data-remove-param>Remove</button>
-									</div>
+									@queryParameterEditorRow(param)
 								}
 							</div>
 							<template data-param-row-template>
-								<div class="grid gap-2 xl:grid-cols-[1.2fr_0.8fr_0.8fr_1fr_1.4fr_auto_auto]" data-param-row>
-									<input class="input input-bordered input-sm" type="text" name="param_name" placeholder="name" value=""/>
-									<select class="select select-bordered select-sm" name="param_type">
-										<option selected value={ string(api.QueryParameterDataTypeText) }>text</option>
-										<option value={ string(api.QueryParameterDataTypeInteger) }>integer</option>
-										<option value={ string(api.QueryParameterDataTypeBoolean) }>boolean</option>
-										<option value={ string(api.QueryParameterDataTypeDate) }>date</option>
-										<option value={ string(api.QueryParameterDataTypeUuid) }>uuid</option>
-									</select>
-									<select class="select select-bordered select-sm" name="param_required">
-										<option value="true">required</option>
-										<option selected value="false">optional</option>
-									</select>
-									<input class="input input-bordered input-sm" type="text" name="param_default" placeholder="default" value=""/>
-									<input class="input input-bordered input-sm" type="text" name="param_description" placeholder="description" value=""/>
-									<input type="hidden" name="param_source" value="manual" data-param-source/>
-									<span class="badge badge-outline badge-sm self-center" data-param-source-badge>manual</span>
-									<button class="btn btn-ghost btn-xs self-center" type="button" data-remove-param>Remove</button>
-								</div>
+								@queryParameterEditorRow(QueryParameterFormData{Type: string(api.QueryParameterDataTypeText), Source: "manual"})
 							</template>
 						</div>
 						<button class="btn btn-primary btn-sm" type="submit">Save query</button>
@@ -545,7 +518,7 @@ templ QueriesPageContent(dataSources []api.DataSource, selectedDataSource string
 								<div class={ QueryCardClass(query, focusQuerySlug) }>
 									<div class="flex items-start justify-between gap-3">
 										<div class="min-w-0">
-											<a class="break-words text-base font-semibold link link-hover" href={ templ.URL(entityListHref(ctx, QueriesListHref(orgSlug, selectedDataSource, "", true), "query", string(query.Slug))) } id={ "query-opener-" + string(query.Slug) }>{ query.Name }</a>
+											<a class="inline-block min-h-6 break-words text-base font-semibold link link-hover" href={ templ.URL(entityListHref(ctx, QueriesListHref(orgSlug, selectedDataSource, "", true), "query", string(query.Slug))) } id={ "query-opener-" + string(query.Slug) }>{ query.Name }</a>
 											<p class="mt-0.5 truncate font-mono text-xs text-base-content/55" title={ string(query.Slug) }>{ string(query.Slug) }</p>
 											<p class="mt-2 text-sm text-base-content/65">{ QueryDescriptionLabel(query) }</p>
 										</div>
@@ -602,7 +575,7 @@ templ QueriesPageContent(dataSources []api.DataSource, selectedDataSource string
 									data-query-card
 									data-selected?={ selectedQuery != nil && selectedQuery.Slug == query.Slug }
 								>
-									<a class="relative z-10 break-words text-base font-semibold link link-hover" href={ templ.URL(entityDetailHref("/orgs/"+orgSlug+"/data-sources/"+selectedDataSource+"/queries/"+string(query.Slug), entityListHref(ctx, QueriesListHref(orgSlug, selectedDataSource, "", false), "query", string(query.Slug)))) }>{ query.Name }</a>
+									<a class="relative z-10 inline-block min-h-6 break-words text-base font-semibold link link-hover" href={ templ.URL(entityDetailHref("/orgs/"+orgSlug+"/data-sources/"+selectedDataSource+"/queries/"+string(query.Slug), entityListHref(ctx, QueriesListHref(orgSlug, selectedDataSource, "", false), "query", string(query.Slug)))) }>{ query.Name }</a>
 									<a
 										class="absolute inset-0 rounded-xl focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"
 										aria-label={ "Preview " + query.Name }
@@ -722,4 +695,60 @@ templ QueryQuickLook(orgSlug string, dataSourceSlug string, query api.Query) {
 			@EntityState("Deleted query", "Restore it before editing or execution.")
 		}
 	}
+}
+
+templ queryParameterEditorRow(param QueryParameterFormData) {
+	<fieldset class="grid gap-2 xl:grid-cols-[1.2fr_0.8fr_0.8fr_1fr_1.4fr_auto_auto]" data-param-row>
+		<legend class="sr-only">Query parameter</legend>
+		<label class="form-control min-w-0">
+			<span class="label-text mb-1 text-xs">Name</span>
+			<input class="input input-bordered input-sm w-full" type="text" name="param_name" value={ param.Name }/>
+		</label>
+		<label class="form-control min-w-0">
+			<span class="label-text mb-1 text-xs">Type</span>
+			<select class="select select-bordered select-sm w-full" name="param_type">
+				<option selected?={ param.Type == string(api.QueryParameterDataTypeText) } value={ string(api.QueryParameterDataTypeText) }>text</option>
+				<option selected?={ param.Type == string(api.QueryParameterDataTypeInteger) } value={ string(api.QueryParameterDataTypeInteger) }>integer</option>
+				<option selected?={ param.Type == string(api.QueryParameterDataTypeBoolean) } value={ string(api.QueryParameterDataTypeBoolean) }>boolean</option>
+				<option selected?={ param.Type == string(api.QueryParameterDataTypeDate) } value={ string(api.QueryParameterDataTypeDate) }>date</option>
+				<option selected?={ param.Type == string(api.QueryParameterDataTypeUuid) } value={ string(api.QueryParameterDataTypeUuid) }>uuid</option>
+			</select>
+		</label>
+		<label class="form-control min-w-0">
+			<span class="label-text mb-1 text-xs">Required</span>
+			<select class="select select-bordered select-sm w-full" name="param_required">
+				<option selected?={ param.Required } value="true">required</option>
+				<option selected?={ !param.Required } value="false">optional</option>
+			</select>
+		</label>
+		<label class="form-control min-w-0">
+			<span class="label-text mb-1 text-xs">Default value</span>
+			<input class="input input-bordered input-sm w-full" type="text" name="param_default" value={ param.DefaultValue }/>
+		</label>
+		<label class="form-control min-w-0">
+			<span class="label-text mb-1 text-xs">Description</span>
+			<input class="input input-bordered input-sm w-full" type="text" name="param_description" value={ param.Description }/>
+		</label>
+		<input type="hidden" name="param_source" value={ param.Source } data-param-source/>
+		<span class="badge badge-outline badge-sm self-end" data-param-source-badge>{ param.Source }</span>
+		<button class="btn btn-ghost btn-xs self-end" type="button" data-remove-param>Remove</button>
+	</fieldset>
+}
+
+templ querySubmitError(id string, form QueryEditorFormData) {
+	@FormError(id, form.SubmitError, true)
+	if form.SubmitErrorDetails != "" {
+		<details>
+			<summary class="cursor-pointer text-xs font-semibold">More details</summary>
+			<pre class="mt-2 whitespace-pre-wrap break-all text-xs">{ form.SubmitErrorDetails }</pre>
+		</details>
+	}
+}
+
+templ queryRowLimit(id string, value string) {
+	<div class="form-control w-full">
+		<label class="label py-1" for={ id }><span class="label-text text-xs">Row limit</span></label>
+		<input class="input input-bordered input-sm w-full" id={ id } type="number" min="0" name="row_limit" value={ value } aria-describedby={ id + "-help" } required/>
+		<span class="label-text-alt" id={ id + "-help" }>0 uses the operator’s row policy.</span>
+	</div>
 }

@@ -19,7 +19,7 @@ func TestProofReceiptContentKeepsNonPassingEvidenceVisible(t *testing.T) {
 	receipt := &api.ProofReceipt{Id: "proof-123", AggregateVerdict: api.ProofVerdictStale, CreatedAt: now, Candidate: api.ProofCandidateIdentity{RepositoryId: "repo", ChangeRequestId: "42", HeadSha: "abcdef1", PipelinePath: "pipelines/orders.yaml", ProjectSlug: "ops", EnvironmentSlug: "prod", TargetRef: "main", SpecHash: "sha256:spec", BindingFingerprint: "sha256:binding", CompilerVersion: "v1", PolicyVersion: "v1"}, Claims: []api.ProofClaim{{Identity: api.ProofClaimIdentity{Family: api.ProofClaimFamilyFieldsTypes, SemanticPath: "/source"}, Description: "fields and types match", RequiredEvidenceLevel: api.ProofEvidenceLevelLiveReadOnly, ActualEvidenceLevel: &actual, Verdict: api.ProofVerdictStale, ObservedAt: &now, ExpiresAt: &now, Evidence: []api.ProofEvidenceReference{{Kind: api.ProofEvidenceReferenceKindIntrospection, Digest: "sha256:evidence"}}, Diagnostics: []api.ProofDiagnostic{{Code: "EVIDENCE_STALE", Summary: "Schema evidence expired", Remediation: "Refresh introspection"}}}}}
 
 	var out bytes.Buffer
-	require.NoError(t, ProofReceiptPageContent(receipt, "").Render(WithEntityPageURL(context.Background(), "/?section=claims"), &out))
+	require.NoError(t, ProofReceiptPageContent(AuthenticatedShellData{}, receipt, "").Render(WithEntityPageURL(context.Background(), "/?section=claims"), &out))
 	html := out.String()
 	for _, text := range []string{"stale", "Cached observed", "Live read only", "Schema evidence expired", "Next: Refresh introspection", "sha256:evidence", "sm:grid-cols-2"} {
 		require.Contains(t, html, text)
@@ -50,12 +50,13 @@ func TestProofReceiptContentShowsTargetMismatchPartialEvidenceAndSafeLinks(t *te
 
 	var out bytes.Buffer
 	for _, section := range []string{"overview", "claims", "technical"} {
-		require.NoError(t, ProofReceiptPageContent(receipt, "").Render(WithEntityPageURL(t.Context(), "/?section="+section), &out))
+		require.NoError(t, ProofReceiptPageContent(AuthenticatedShellData{}, receipt, "").Render(WithEntityPageURL(t.Context(), "/?section="+section), &out))
 	}
 	html := out.String()
 	for _, text := range []string{
 		"Provider connection", "github-prod", "version mismatch", "Candidate version", "sha256:candidate", "Selected version", "sha256:selected",
 		"Provider connection failed", "not observed", "Referenced deployment and run records", "sm:grid-cols-2", "focus-visible:outline",
+		"orders:old", "View current deployment for", "Inspect run",
 		"/orgs/acme/projects/ops/pipelines/orders/deployment?environment_slug=prod", "/orgs/acme/projects/ops/runs/run-123?environment_slug=prod",
 	} {
 		require.Contains(t, html, text)
@@ -65,7 +66,7 @@ func TestProofReceiptContentShowsTargetMismatchPartialEvidenceAndSafeLinks(t *te
 func TestProofReceiptContentShowsNoLifecycleEvidence(t *testing.T) {
 	receipt := &api.ProofReceipt{Id: "proof-123", Candidate: api.ProofCandidateIdentity{}, Claims: []api.ProofClaim{}}
 	var out bytes.Buffer
-	require.NoError(t, ProofReceiptPageContent(receipt, "").Render(context.Background(), &out))
+	require.NoError(t, ProofReceiptPageContent(AuthenticatedShellData{}, receipt, "").Render(context.Background(), &out))
 	require.Contains(t, out.String(), "No deployment or run records reference this receipt yet.")
 }
 
@@ -90,7 +91,7 @@ func TestProofFreshnessLabel(t *testing.T) {
 
 func TestProofReceiptContentShowsUnavailableState(t *testing.T) {
 	var out bytes.Buffer
-	require.NoError(t, ProofReceiptPageContent(nil, "").Render(context.Background(), &out))
+	require.NoError(t, ProofReceiptPageContent(AuthenticatedShellData{}, nil, "").Render(context.Background(), &out))
 	require.Contains(t, out.String(), "receipt could not be displayed")
 }
 
@@ -98,7 +99,7 @@ func TestProofReceiptMatchingEvidenceUsesOneLabel(t *testing.T) {
 	level := api.ProofEvidenceLevelLiveReadOnly
 	receipt := &api.ProofReceipt{Claims: []api.ProofClaim{{RequiredEvidenceLevel: level, ActualEvidenceLevel: &level, Verdict: api.ProofVerdictPassed}}}
 	var out bytes.Buffer
-	require.NoError(t, ProofReceiptPageContent(receipt, "").Render(WithEntityPageURL(t.Context(), "/?section=claims"), &out))
+	require.NoError(t, ProofReceiptPageContent(AuthenticatedShellData{}, receipt, "").Render(WithEntityPageURL(t.Context(), "/?section=claims"), &out))
 	require.Contains(t, out.String(), "Live read only")
 	require.NotContains(t, out.String(), "Required evidence")
 	require.NotContains(t, out.String(), "Actual evidence")
@@ -110,7 +111,7 @@ func TestProofReceiptSectionsAndScopedReturn(t *testing.T) {
 	list := ProofHistoryHref("acme", "ops", "prod", "a+b", "next")
 	for _, section := range []string{"", "unknown", "overview", "claims", "technical"} {
 		ctx := WithEntityPageURL(t.Context(), "/receipt?section="+section+"&list_return="+url.QueryEscape(list))
-		require.Equal(t, list, proofHistoryBackHref(ctx, receipt))
+		require.Equal(t, list, proofHistoryBackHref(ctx, "acme", "ops", "prod"))
 		for _, next := range []string{"overview", "claims", "technical"} {
 			parsed, err := url.Parse(proofReceiptSectionHref(ctx, receipt, next))
 			require.NoError(t, err)
@@ -118,7 +119,7 @@ func TestProofReceiptSectionsAndScopedReturn(t *testing.T) {
 			require.Equal(t, next, parsed.Query().Get("section"))
 		}
 		var out bytes.Buffer
-		require.NoError(t, ProofReceiptPageContent(receipt, "").Render(ctx, &out))
+		require.NoError(t, ProofReceiptPageContent(AuthenticatedShellData{}, receipt, "").Render(ctx, &out))
 		html := out.String()
 		require.Equal(t, section == "technical", strings.Contains(html, "private-repository"))
 		require.Equal(t, section == "claims", strings.Contains(html, "evidence-digest"))
@@ -135,7 +136,7 @@ func TestProofReceiptSectionsAndScopedReturn(t *testing.T) {
 	}
 	for _, invalid := range []string{"https://example.com" + list, "/orgs/other/projects/ops/proof-receipts?environment_slug=prod", ProofHistoryHref("acme", "ops", "stage", "token", "next"), list + "#fragment"} {
 		ctx := WithEntityPageURL(t.Context(), "/receipt?list_return="+url.QueryEscape(invalid))
-		require.Equal(t, ProofHistoryHref("acme", "ops", "prod", "", ""), proofHistoryBackHref(ctx, receipt))
+		require.Equal(t, ProofHistoryHref("acme", "ops", "prod", "", ""), proofHistoryBackHref(ctx, "acme", "ops", "prod"))
 	}
 }
 
@@ -155,7 +156,7 @@ func TestProofHistoryPreservesPaginationAndAllVerdictsWithoutTechnicalIDs(t *tes
 	}
 	list := ProofHistoryHref("acme", "ops", "prod", "older", "next")
 	var out bytes.Buffer
-	require.NoError(t, ProofHistoryContent(shell, history).Render(WithEntityPageURL(t.Context(), list), &out))
+	require.NoError(t, ProofHistoryContent(shell, history, false).Render(WithEntityPageURL(t.Context(), list), &out))
 	html := out.String()
 	for _, verdict := range []string{"passed", "failed", "stale", "inconclusive", "unverified", "superseded"} {
 		require.Contains(t, html, verdict)

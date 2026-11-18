@@ -1164,7 +1164,7 @@ func (f *fakeRolesService) ListRolePermissions(
 }
 
 type fakeDataSourcesService struct {
-	ConnectHTTPOAuthFn                   func(context.Context, slug.Slug, slug.Slug, model.EventActor) (*datasourcessvc.HTTPOAuthConnection, error)
+	ConnectHTTPOAuthFn                   func(context.Context, slug.Slug, slug.Slug, model.EventActor, bool) (*datasourcessvc.HTTPOAuthConnection, error)
 	VerifyGoogleWorkspaceFilesFn         func(context.Context, slug.Slug, slug.Slug, model.EventActor, datasourcessvc.WorkspaceVerificationParams) (*workspace.Discovery, error)
 	ListGoogleWorkspaceFilesFn           func(context.Context, slug.Slug, slug.Slug, workspace.ListOptions) (*workspace.Discovery, error)
 	GetSnowflakeOnboardingFn             func(context.Context, slug.Slug, slug.Slug) (*datasourcessvc.SnowflakeOnboarding, error)
@@ -3330,11 +3330,11 @@ func (f *fakeCredentialsService) AcquireHTTPOAuthTestCredential(ctx context.Cont
 	return f.AcquireHTTPOAuthTestCredentialFn(ctx, p)
 }
 
-func (f *fakeDataSourcesService) ConnectHTTPOAuth(ctx context.Context, org, source slug.Slug, actor model.EventActor) (*datasourcessvc.HTTPOAuthConnection, error) {
+func (f *fakeDataSourcesService) ConnectHTTPOAuth(ctx context.Context, org, source slug.Slug, actor model.EventActor, moreTime bool) (*datasourcessvc.HTTPOAuthConnection, error) {
 	if f.ConnectHTTPOAuthFn == nil {
 		return nil, xerror.Unexpected().Detail("unexpected ConnectHTTPOAuth call")
 	}
-	return f.ConnectHTTPOAuthFn(ctx, org, source, actor)
+	return f.ConnectHTTPOAuthFn(ctx, org, source, actor, moreTime)
 }
 
 func (f *fakePipelinesService) StartBackfill(ctx context.Context, org, project, environment, pipeline slug.Slug, run, confirmation *slug.Slug, actor model.EventActor, source pipelinerun.RunSourceSummary, input map[string]any, windows map[slug.Slug]pipelinerun.IncrementalSourceWindow) (*pipelinesvc.PipelineRunDetail, error) {

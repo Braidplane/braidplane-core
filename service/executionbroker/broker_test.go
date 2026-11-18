@@ -555,7 +555,7 @@ func TestProcessQueryPreservesOnlyPublicDetail(t *testing.T) {
 		code        string
 	}{
 		{name: "missing column or relation", outcome: xerror.SourceSchemaReferenceInvalid(), code: errorCodeSchemaReferenceInvalid},
-		{name: "invalid query", outcome: xerror.SourceQueryInvalid(), code: errorCodeQueryInvalid},
+		{name: "invalid query", outcome: xerror.SourceQueryInvalid(), code: errorCodeQueryInvalid, detail: "Division by zero. Check values used as divisors and try again."},
 		{name: "permission result", fromFactory: false, outcome: xerror.Forbidden(xerror.DataSource), code: errorCodeDataSourcePermission},
 		{name: "permission factory", fromFactory: true, outcome: xerror.Forbidden(xerror.DataSource), code: errorCodeDataSourcePermission},
 		{name: "authentication result", fromFactory: false, outcome: xerror.InvalidCredentials(), code: errorCodeDataSourceCredentials},

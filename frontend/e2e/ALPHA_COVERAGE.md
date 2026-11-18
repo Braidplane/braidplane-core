@@ -104,7 +104,7 @@ tests listed beside it do not prove its CSS, focus or browser navigation.
 
 | Area (retained logical cases) | Decision and proving layer |
 | --- | --- |
-| Sign-in/recovery (2), Google consent/lifecycle (3) | Consent/auth are critical Chromium. The upstream idle-preconnection lifecycle regression remains broader Chromium. Preserve actual session/link and cross-site consent handoffs. Auth, authorization, CSRF and throttle contracts remain in Go/Bruno. |
+| Sign-in/recovery (2), Google signup/callback/lifecycle (4) | Auth is critical Chromium. The idle-preconnection lifecycle regression remains broader Chromium. Preserve actual session/link and cross-site authorization handoffs. Auth, authorization, CSRF and throttle contracts remain in Go/Bruno. |
 | HTTP OAuth (3), Slack (2), Proof (3) | Canonical OAuth, Slack, Proof discovery and Reconnect are critical. OAuth focus/no-JS feedback, notification evidence navigation and remaining Proof authorization navigation stay broader. `ui_utils.test.js`, notification handlers, `views/proof_receipt_test.go` and service/HTTP tests prove state and permissions. |
 | Owned query (1), HTTP acknowledgement/headers and MySQL/HubSpot setup (4) | Owned SQL preview/save, acknowledgement editing and secret-header/pagination authoring are critical. MySQL password retention and HubSpot setup stay broader. UI save/reopen, invalid-value recovery and compact acknowledgement layout remain browser exceptions. `TestHTTPAcknowledgementFormValidation` and `TestHTTPAcknowledgementFormRoundTrip` prove scalar/serialization permutations. |
 | Acknowledgement execution outcomes inside the authoring journey | Moved all five CLI outcomes to `cmd/braidplane/e2e/cli_e2e_test.go:SavedHTTPQueryAcknowledgementOutcomes`. It builds once, uses saved login, creates/updates through CLI and verifies accepted, rejected, recursive-error, missing and malformed responses, exit status/stdout/stderr and private-body redaction. Retire repeated browser-driven `go run` and three UI outcome permutations; keep visible success/rejection feedback in the browser. API error mapping remains in `transport/http/queries_test.go:TestExecuteQuery`. |
@@ -244,14 +244,14 @@ worker-loss acceptance remains required for run inspection and execution recover
 
 ## Google signup addition
 
-Two Chromium journeys cover Google signup with consent before authorization and
-Google login followed by signup consent. Each uses a disposable PostgreSQL
-fixture under `transport/http/e2e/google-signup-fixture`, production auth and OIDC
-verification, and a signed local issuer on a different site. They assert one
-authorization/exchange, persisted presented agreement version and timestamp,
-one agreement email job, and the authenticated workspace screen. Each test owns
-its fixture, including when workers are limited to one. Real Google and hosted
-acceptance remain separate.
+Three Chromium journeys cover Google account creation from the signup and login
+pages and keyboard recovery from an expired OAuth callback. Each uses a
+disposable PostgreSQL fixture under `transport/http/e2e/google-signup-fixture`,
+production auth and OIDC verification, and a signed local issuer running on a
+separate origin. They verify the number of authorization requests and code
+exchanges and check the resulting account and authenticated workspace. The
+expiry case also verifies that the retry retains the original destination.
+Each test owns its fixture. Real Google and hosted acceptance remain separate.
 
 A fixture lifecycle regression holds an unanswered TCP preconnection open while
 stopping the server. It verifies shutdown under the existing test timeout and

@@ -17845,6 +17845,10 @@
           },
           "intent": {
             "$ref": "#/components/schemas/ProviderInstallIntent"
+          },
+          "more_time": {
+            "description": "",
+            "type": "boolean"
           }
         },
         "required": [
@@ -17869,6 +17873,10 @@
                 "$ref": "#/components/schemas/GoogleWorkspacePendingInstallConfig"
               }
             ]
+          },
+          "more_time": {
+            "description": "",
+            "type": "boolean"
           },
           "name": {
             "$ref": "#/components/schemas/Name"
@@ -21310,6 +21318,14 @@
           },
           {
             "$ref": "#/components/parameters/DataSourceSlugParam"
+          },
+          {
+            "description": "",
+            "in": "query",
+            "name": "more_time",
+            "schema": {
+              "type": "boolean"
+            }
           }
         ],
         "responses": {
@@ -29713,6 +29729,14 @@
           },
           {
             "$ref": "#/components/parameters/ProjectSlugParam"
+          },
+          {
+            "description": "",
+            "in": "query",
+            "name": "more_time",
+            "schema": {
+              "type": "boolean"
+            }
           }
         ],
         "requestBody": {

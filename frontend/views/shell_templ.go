@@ -8,6 +8,8 @@ package views
 import "github.com/a-h/templ"
 import templruntime "github.com/a-h/templ/runtime"
 
+import "cmp"
+
 func AuthenticatedShell(data AuthenticatedShellData, content templ.Component) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
@@ -33,7 +35,7 @@ func AuthenticatedShell(data AuthenticatedShellData, content templ.Component) te
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = AppHead(data.Title, true).Render(ctx, templ_7745c5c3_Buffer)
+		templ_7745c5c3_Err = AppHead(cmp.Or(data.DocumentTitle, data.Title), true).Render(ctx, templ_7745c5c3_Buffer)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -89,7 +91,7 @@ func AuthenticatedShell(data AuthenticatedShellData, content templ.Component) te
 			var templ_7745c5c3_Var4 templ.SafeURL
 			templ_7745c5c3_Var4, templ_7745c5c3_Err = templ.JoinURLErrs(templ.URL(data.DocumentationURL))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/shell.templ`, Line: 83, Col: 230}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/shell.templ`, Line: 85, Col: 230}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var4))
 			if templ_7745c5c3_Err != nil {
@@ -115,7 +117,7 @@ func AuthenticatedShell(data AuthenticatedShellData, content templ.Component) te
 		var templ_7745c5c3_Var5 string
 		templ_7745c5c3_Var5, templ_7745c5c3_Err = templ.JoinStringErrs(ShellUserInitial(data.User))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/shell.templ`, Line: 91, Col: 172}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/shell.templ`, Line: 93, Col: 172}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var5))
 		if templ_7745c5c3_Err != nil {
@@ -128,7 +130,7 @@ func AuthenticatedShell(data AuthenticatedShellData, content templ.Component) te
 		var templ_7745c5c3_Var6 string
 		templ_7745c5c3_Var6, templ_7745c5c3_Err = templ.JoinStringErrs(ShellUserDisplay(data.User))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/shell.templ`, Line: 92, Col: 59}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/shell.templ`, Line: 94, Col: 59}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var6))
 		if templ_7745c5c3_Err != nil {
@@ -141,7 +143,7 @@ func AuthenticatedShell(data AuthenticatedShellData, content templ.Component) te
 		var templ_7745c5c3_Var7 string
 		templ_7745c5c3_Var7, templ_7745c5c3_Err = templ.JoinStringErrs(ShellUserDisplay(data.User))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/shell.templ`, Line: 94, Col: 89}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/shell.templ`, Line: 96, Col: 89}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var7))
 		if templ_7745c5c3_Err != nil {
@@ -169,7 +171,7 @@ func AuthenticatedShell(data AuthenticatedShellData, content templ.Component) te
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 14, "\" id=\"main-content\"><div class=\"shell-topbar mb-5 grid gap-4 border-b border-base-300 pb-5 xl:grid-cols-[minmax(0,1fr)_minmax(0,37rem)] xl:items-start\"><div class=\"flex min-w-0 items-start gap-3\"><div class=\"lg:hidden\"><button class=\"btn btn-outline btn-sm btn-square\" style=\"anchor-name: --shell-navigation\" type=\"button\" aria-label=\"Open navigation menu\" popovertarget=\"shell-mobile-navigation\"><svg xmlns=\"http://www.w3.org/2000/svg\" class=\"shell-menu-icon h-5 w-5\" width=\"20\" height=\"20\" fill=\"none\" viewBox=\"0 0 24 24\" stroke=\"currentColor\" stroke-width=\"2\" aria-hidden=\"true\"><path stroke-linecap=\"round\" stroke-linejoin=\"round\" d=\"M4 6h16M4 12h16M4 18h16\"></path></svg></button><div id=\"shell-mobile-navigation\" popover=\"auto\" style=\"position-anchor: --shell-navigation; background-color: var(--color-base-100)\" class=\"dropdown dropdown-bottom mt-2 max-h-[70vh] overflow-y-auto w-64 rounded-xl border border-base-300 p-3 shadow-lg\"><nav class=\"space-y-1 text-sm\" aria-label=\"Mobile primary\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 14, "\" id=\"main-content\" tabindex=\"-1\"><div class=\"shell-topbar mb-5 grid gap-4 border-b border-base-300 pb-5 xl:grid-cols-[minmax(0,1fr)_minmax(0,37rem)] xl:items-start\"><div class=\"flex min-w-0 items-start gap-3\"><div class=\"lg:hidden\"><button class=\"btn btn-outline btn-sm btn-square\" style=\"anchor-name: --shell-navigation\" type=\"button\" aria-label=\"Open navigation menu\" popovertarget=\"shell-mobile-navigation\"><svg xmlns=\"http://www.w3.org/2000/svg\" class=\"shell-menu-icon h-5 w-5\" width=\"20\" height=\"20\" fill=\"none\" viewBox=\"0 0 24 24\" stroke=\"currentColor\" stroke-width=\"2\" aria-hidden=\"true\"><path stroke-linecap=\"round\" stroke-linejoin=\"round\" d=\"M4 6h16M4 12h16M4 18h16\"></path></svg></button><div id=\"shell-mobile-navigation\" popover=\"auto\" style=\"position-anchor: --shell-navigation; background-color: var(--color-base-100)\" class=\"dropdown dropdown-bottom mt-2 max-h-[70vh] overflow-y-auto w-64 rounded-xl border border-base-300 p-3 shadow-lg\"><nav class=\"space-y-1 text-sm\" aria-label=\"Mobile primary\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -185,7 +187,7 @@ func AuthenticatedShell(data AuthenticatedShellData, content templ.Component) te
 			var templ_7745c5c3_Var10 templ.SafeURL
 			templ_7745c5c3_Var10, templ_7745c5c3_Err = templ.JoinURLErrs(templ.URL(data.DocumentationURL))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/shell.templ`, Line: 116, Col: 201}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/shell.templ`, Line: 118, Col: 201}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var10))
 			if templ_7745c5c3_Err != nil {
@@ -208,7 +210,7 @@ func AuthenticatedShell(data AuthenticatedShellData, content templ.Component) te
 			var templ_7745c5c3_Var11 templ.SafeURL
 			templ_7745c5c3_Var11, templ_7745c5c3_Err = templ.JoinURLErrs(templ.URL(data.NotificationReturnHref))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/shell.templ`, Line: 128, Col: 79}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/shell.templ`, Line: 130, Col: 79}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var11))
 			if templ_7745c5c3_Err != nil {
@@ -226,13 +228,13 @@ func AuthenticatedShell(data AuthenticatedShellData, content templ.Component) te
 		var templ_7745c5c3_Var12 string
 		templ_7745c5c3_Var12, templ_7745c5c3_Err = templ.JoinStringErrs(ShellTopbarTitle(data.CurrentPath, data.NavItems, data.Title))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/shell.templ`, Line: 131, Col: 143}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/shell.templ`, Line: 133, Col: 143}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var12))
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 21, "</h1><span class=\"shrink-0 text-xs font-normal text-base-content/60\" aria-label=\"Product stage\">Alpha</span></div>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 21, "</h1><span class=\"shrink-0 text-xs font-normal text-base-content/60\" role=\"group\" aria-label=\"Product stage\">Alpha</span></div>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -244,7 +246,7 @@ func AuthenticatedShell(data AuthenticatedShellData, content templ.Component) te
 			var templ_7745c5c3_Var13 string
 			templ_7745c5c3_Var13, templ_7745c5c3_Err = templ.JoinStringErrs(data.Subtitle)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/shell.templ`, Line: 135, Col: 80}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/shell.templ`, Line: 137, Col: 80}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var13))
 			if templ_7745c5c3_Err != nil {
@@ -286,7 +288,7 @@ func AuthenticatedShell(data AuthenticatedShellData, content templ.Component) te
 			return templ_7745c5c3_Err
 		}
 		if !ShellIsCommandCenter(data.CurrentPath) && data.ActiveProjectSlug != "" && len(data.Environments) > 0 {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 27, "<div class=\"flex w-fit min-w-0 max-w-full items-center gap-2\"><div class=\"min-w-0 flex-1\"><label class=\"sr-only\" for=\"environment-switcher\">Runtime target</label> <select class=\"select select-bordered h-11 min-h-11 w-full truncate bg-base-200/30\" id=\"environment-switcher\" data-runtime-switcher aria-label=\"Switch project runtime target\">")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 27, "<div class=\"flex w-fit min-w-0 max-w-full flex-wrap items-center gap-2\" data-runtime-target-control><div class=\"min-w-0 flex-1\"><label class=\"sr-only\" for=\"environment-switcher\">Runtime target</label> <select class=\"select select-bordered h-11 min-h-11 w-full truncate bg-base-200/30\" id=\"environment-switcher\" data-runtime-switcher aria-label=\"Switch project runtime target\">")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -299,7 +301,7 @@ func AuthenticatedShell(data AuthenticatedShellData, content templ.Component) te
 					var templ_7745c5c3_Var16 string
 					templ_7745c5c3_Var16, templ_7745c5c3_Err = templ.ResolveAttributeValue(environment.Href)
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/shell.templ`, Line: 153, Col: 55}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/shell.templ`, Line: 155, Col: 55}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var16)
 					if templ_7745c5c3_Err != nil {
@@ -312,7 +314,7 @@ func AuthenticatedShell(data AuthenticatedShellData, content templ.Component) te
 					var templ_7745c5c3_Var17 string
 					templ_7745c5c3_Var17, templ_7745c5c3_Err = templ.JoinStringErrs(ShellRuntimeTargetDisplay(environment.Name, environment.Slug))
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/shell.templ`, Line: 153, Col: 121}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/shell.templ`, Line: 155, Col: 121}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var17))
 					if templ_7745c5c3_Err != nil {
@@ -330,7 +332,7 @@ func AuthenticatedShell(data AuthenticatedShellData, content templ.Component) te
 					var templ_7745c5c3_Var18 string
 					templ_7745c5c3_Var18, templ_7745c5c3_Err = templ.ResolveAttributeValue(environment.Href)
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/shell.templ`, Line: 155, Col: 46}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/shell.templ`, Line: 157, Col: 46}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var18)
 					if templ_7745c5c3_Err != nil {
@@ -343,7 +345,7 @@ func AuthenticatedShell(data AuthenticatedShellData, content templ.Component) te
 					var templ_7745c5c3_Var19 string
 					templ_7745c5c3_Var19, templ_7745c5c3_Err = templ.JoinStringErrs(ShellRuntimeTargetDisplay(environment.Name, environment.Slug))
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/shell.templ`, Line: 155, Col: 112}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/shell.templ`, Line: 157, Col: 112}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var19))
 					if templ_7745c5c3_Err != nil {
@@ -355,7 +357,7 @@ func AuthenticatedShell(data AuthenticatedShellData, content templ.Component) te
 					}
 				}
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 34, "</select></div>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 34, "</select></div><button class=\"btn btn-outline h-11 shrink-0\" type=\"button\" data-runtime-switch aria-label=\"Switch runtime target\">Switch</button> ")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -385,7 +387,7 @@ func AuthenticatedShell(data AuthenticatedShellData, content templ.Component) te
 				var templ_7745c5c3_Var22 string
 				templ_7745c5c3_Var22, templ_7745c5c3_Err = templ.JoinStringErrs(data.ActiveEnvironmentSlug)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/shell.templ`, Line: 161, Col: 111}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/shell.templ`, Line: 164, Col: 111}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var22))
 				if templ_7745c5c3_Err != nil {
@@ -398,7 +400,7 @@ func AuthenticatedShell(data AuthenticatedShellData, content templ.Component) te
 				var templ_7745c5c3_Var23 string
 				templ_7745c5c3_Var23, templ_7745c5c3_Err = templ.JoinStringErrs(ShellEnvironmentRiskLabel(data.ActiveEnvironmentSlug, data.ActiveEnvironmentProtected))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/shell.templ`, Line: 162, Col: 172}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/shell.templ`, Line: 165, Col: 172}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var23))
 				if templ_7745c5c3_Err != nil {
@@ -448,7 +450,7 @@ func AuthenticatedShell(data AuthenticatedShellData, content templ.Component) te
 		var templ_7745c5c3_Var24 string
 		templ_7745c5c3_Var24, templ_7745c5c3_Err = templ.ResolveAttributeValue(versionedAssetPath("/assets/js/shell.js"))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/shell.templ`, Line: 179, Col: 58}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/shell.templ`, Line: 182, Col: 58}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var24)
 		if templ_7745c5c3_Err != nil {
@@ -461,7 +463,7 @@ func AuthenticatedShell(data AuthenticatedShellData, content templ.Component) te
 		var templ_7745c5c3_Var25 string
 		templ_7745c5c3_Var25, templ_7745c5c3_Err = templ.ResolveAttributeValue(versionedAssetPath("/assets/js/run-lineage.js"))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/shell.templ`, Line: 180, Col: 64}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/shell.templ`, Line: 183, Col: 64}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var25)
 		if templ_7745c5c3_Err != nil {
@@ -496,14 +498,14 @@ func ShellOrganizationSwitcher(data AuthenticatedShellData) templ.Component {
 			templ_7745c5c3_Var26 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 47, "<div class=\"w-full min-w-0 max-w-full sm:w-fit\" data-org-switcher-root><div class=\"dropdown dropdown-end w-full min-w-0 max-w-full sm:w-fit\" data-org-switcher><button class=\"btn btn-outline h-11 min-h-11 min-w-0 w-full max-w-full justify-between gap-2 bg-base-200/30 px-3 normal-case\" type=\"button\" tabindex=\"0\" aria-haspopup=\"menu\"><span class=\"sr-only\">Switch organization: </span> <span class=\"flex min-w-0 items-center gap-2\"><span class=\"grid h-6 w-6 shrink-0 place-items-center rounded-full bg-primary/10 text-xs font-semibold text-primary\" aria-hidden=\"true\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 47, "<div class=\"w-full min-w-0 max-w-full sm:w-fit\" data-org-switcher-root><div class=\"w-full min-w-0 max-w-full sm:w-fit\" data-org-switcher><button class=\"btn btn-outline h-11 min-h-11 min-w-0 w-full max-w-full justify-between gap-2 bg-base-200/30 px-3 normal-case\" type=\"button\" style=\"anchor-name: --shell-organization\" popovertarget=\"shell-organization-menu\"><span class=\"sr-only\">Switch organization: </span> <span class=\"flex min-w-0 items-center gap-2\"><span class=\"grid h-6 w-6 shrink-0 place-items-center rounded-full bg-primary/10 text-xs font-semibold text-base-content\" aria-hidden=\"true\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var27 string
 		templ_7745c5c3_Var27, templ_7745c5c3_Err = templ.JoinStringErrs(ShellContextInitial(data.ActiveOrganizationName, data.ActiveOrganizationSlug, "Org"))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/shell.templ`, Line: 196, Col: 227}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/shell.templ`, Line: 199, Col: 232}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var27))
 		if templ_7745c5c3_Err != nil {
@@ -516,7 +518,7 @@ func ShellOrganizationSwitcher(data AuthenticatedShellData) templ.Component {
 		var templ_7745c5c3_Var28 string
 		templ_7745c5c3_Var28, templ_7745c5c3_Err = templ.ResolveAttributeValue(ShellContextDisplay(data.ActiveOrganizationName, data.ActiveOrganizationSlug, "No organization"))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/shell.templ`, Line: 197, Col: 150}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/shell.templ`, Line: 200, Col: 150}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var28)
 		if templ_7745c5c3_Err != nil {
@@ -529,13 +531,13 @@ func ShellOrganizationSwitcher(data AuthenticatedShellData) templ.Component {
 		var templ_7745c5c3_Var29 string
 		templ_7745c5c3_Var29, templ_7745c5c3_Err = templ.JoinStringErrs(ShellOrganizationDisplayName(data))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/shell.templ`, Line: 197, Col: 189}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/shell.templ`, Line: 200, Col: 189}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var29))
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 50, "</span></span> <svg xmlns=\"http://www.w3.org/2000/svg\" class=\"h-4 w-4 shrink-0 text-base-content/60\" width=\"16\" height=\"16\" fill=\"none\" viewBox=\"0 0 24 24\" stroke=\"currentColor\" stroke-width=\"2\" aria-hidden=\"true\"><path stroke-linecap=\"round\" stroke-linejoin=\"round\" d=\"M6 9l6 6 6-6\"></path></svg></button><div class=\"dropdown-content z-[10] mt-2 w-80 max-w-[calc(100vw-2rem)] rounded-xl border border-base-300 bg-base-100 p-2 shadow-xl\" tabindex=\"0\" aria-label=\"Organization menu\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 50, "</span></span> <svg xmlns=\"http://www.w3.org/2000/svg\" class=\"h-4 w-4 shrink-0 text-base-content/60\" width=\"16\" height=\"16\" fill=\"none\" viewBox=\"0 0 24 24\" stroke=\"currentColor\" stroke-width=\"2\" aria-hidden=\"true\"><path stroke-linecap=\"round\" stroke-linejoin=\"round\" d=\"M6 9l6 6 6-6\"></path></svg></button><div id=\"shell-organization-menu\" popover=\"auto\" style=\"position-anchor: --shell-organization; background-color: var(--color-base-100)\" class=\"dropdown dropdown-bottom dropdown-end dropdown-content mt-2 max-h-[70vh] max-w-[calc(100vw-2rem)] overflow-y-auto rounded-xl border border-base-300 p-2\" role=\"group\" aria-label=\"Organization menu\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -558,7 +560,7 @@ func ShellOrganizationSwitcher(data AuthenticatedShellData) templ.Component {
 					var templ_7745c5c3_Var30 string
 					templ_7745c5c3_Var30, templ_7745c5c3_Err = templ.JoinStringErrs(ShellContextInitial(org.Name, org.Slug, "Org"))
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/shell.templ`, Line: 211, Col: 175}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/shell.templ`, Line: 214, Col: 175}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var30))
 					if templ_7745c5c3_Err != nil {
@@ -571,13 +573,13 @@ func ShellOrganizationSwitcher(data AuthenticatedShellData) templ.Component {
 					var templ_7745c5c3_Var31 string
 					templ_7745c5c3_Var31, templ_7745c5c3_Err = templ.JoinStringErrs(org.Name)
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/shell.templ`, Line: 212, Col: 57}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/shell.templ`, Line: 215, Col: 57}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var31))
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
-					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 55, "</span> <span class=\"text-xs font-medium text-primary/80\">Active</span></div>")
+					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 55, "</span> <span class=\"text-xs font-medium text-base-content/75\">Active</span></div>")
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
@@ -589,7 +591,7 @@ func ShellOrganizationSwitcher(data AuthenticatedShellData) templ.Component {
 					var templ_7745c5c3_Var32 templ.SafeURL
 					templ_7745c5c3_Var32, templ_7745c5c3_Err = templ.JoinURLErrs(templ.URL(ShellOrganizationSwitchHref(org.Slug, data.CurrentPath)))
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/shell.templ`, Line: 218, Col: 84}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/shell.templ`, Line: 221, Col: 84}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var32))
 					if templ_7745c5c3_Err != nil {
@@ -602,7 +604,7 @@ func ShellOrganizationSwitcher(data AuthenticatedShellData) templ.Component {
 					var templ_7745c5c3_Var33 string
 					templ_7745c5c3_Var33, templ_7745c5c3_Err = templ.ResolveAttributeValue(ShellOrganizationSwitchHref(org.Slug, data.CurrentPath))
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/shell.templ`, Line: 219, Col: 74}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/shell.templ`, Line: 222, Col: 74}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var33)
 					if templ_7745c5c3_Err != nil {
@@ -615,7 +617,7 @@ func ShellOrganizationSwitcher(data AuthenticatedShellData) templ.Component {
 					var templ_7745c5c3_Var34 string
 					templ_7745c5c3_Var34, templ_7745c5c3_Err = templ.JoinStringErrs(ShellContextInitial(org.Name, org.Slug, "Org"))
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/shell.templ`, Line: 223, Col: 174}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/shell.templ`, Line: 226, Col: 174}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var34))
 					if templ_7745c5c3_Err != nil {
@@ -628,7 +630,7 @@ func ShellOrganizationSwitcher(data AuthenticatedShellData) templ.Component {
 					var templ_7745c5c3_Var35 string
 					templ_7745c5c3_Var35, templ_7745c5c3_Err = templ.JoinStringErrs(org.Name)
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/shell.templ`, Line: 224, Col: 58}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/shell.templ`, Line: 227, Col: 58}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var35))
 					if templ_7745c5c3_Err != nil {
@@ -673,7 +675,7 @@ func ShellOrganizationSwitcher(data AuthenticatedShellData) templ.Component {
 			var templ_7745c5c3_Var36 templ.SafeURL
 			templ_7745c5c3_Var36, templ_7745c5c3_Err = templ.JoinURLErrs(templ.URL(ShellOrganizationSettingsHref(data.ActiveOrganizationSlug)))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/shell.templ`, Line: 241, Col: 287}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/shell.templ`, Line: 244, Col: 287}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var36))
 			if templ_7745c5c3_Err != nil {
@@ -692,7 +694,7 @@ func ShellOrganizationSwitcher(data AuthenticatedShellData) templ.Component {
 				return templ_7745c5c3_Err
 			}
 		} else {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 68, "<span class=\"flex items-center gap-3 rounded-lg px-3 py-2 text-sm text-base-content/40\" aria-disabled=\"true\">")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 68, "<span class=\"flex items-center gap-3 rounded-lg px-3 py-2 text-sm text-base-content/40\" role=\"link\" aria-disabled=\"true\">")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -743,7 +745,7 @@ func ShellNavigation(data AuthenticatedShellData) templ.Component {
 				var templ_7745c5c3_Var38 string
 				templ_7745c5c3_Var38, templ_7745c5c3_Err = templ.JoinStringErrs(group)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/shell.templ`, Line: 260, Col: 123}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/shell.templ`, Line: 263, Col: 123}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var38))
 				if templ_7745c5c3_Err != nil {
@@ -782,7 +784,7 @@ func ShellNavigation(data AuthenticatedShellData) templ.Component {
 						var templ_7745c5c3_Var41 templ.SafeURL
 						templ_7745c5c3_Var41, templ_7745c5c3_Err = templ.JoinURLErrs(templ.URL(item.Href))
 						if templ_7745c5c3_Err != nil {
-							return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/shell.templ`, Line: 265, Col: 297}
+							return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/shell.templ`, Line: 268, Col: 297}
 						}
 						_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var41))
 						if templ_7745c5c3_Err != nil {
@@ -795,7 +797,7 @@ func ShellNavigation(data AuthenticatedShellData) templ.Component {
 						var templ_7745c5c3_Var42 string
 						templ_7745c5c3_Var42, templ_7745c5c3_Err = templ.ResolveAttributeValue(item.Label)
 						if templ_7745c5c3_Err != nil {
-							return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/shell.templ`, Line: 265, Col: 318}
+							return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/shell.templ`, Line: 268, Col: 318}
 						}
 						_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var42)
 						if templ_7745c5c3_Err != nil {
@@ -808,7 +810,7 @@ func ShellNavigation(data AuthenticatedShellData) templ.Component {
 						var templ_7745c5c3_Var43 string
 						templ_7745c5c3_Var43, templ_7745c5c3_Err = templ.ResolveAttributeValue(item.Label)
 						if templ_7745c5c3_Err != nil {
-							return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/shell.templ`, Line: 265, Col: 344}
+							return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/shell.templ`, Line: 268, Col: 344}
 						}
 						_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var43)
 						if templ_7745c5c3_Err != nil {
@@ -826,7 +828,7 @@ func ShellNavigation(data AuthenticatedShellData) templ.Component {
 							return "false"
 						}())
 						if templ_7745c5c3_Err != nil {
-							return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/shell.templ`, Line: 265, Col: 432}
+							return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/shell.templ`, Line: 268, Col: 432}
 						}
 						_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var44)
 						if templ_7745c5c3_Err != nil {
@@ -847,7 +849,7 @@ func ShellNavigation(data AuthenticatedShellData) templ.Component {
 						var templ_7745c5c3_Var45 string
 						templ_7745c5c3_Var45, templ_7745c5c3_Err = templ.JoinStringErrs(item.Label)
 						if templ_7745c5c3_Err != nil {
-							return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/shell.templ`, Line: 267, Col: 48}
+							return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/shell.templ`, Line: 270, Col: 48}
 						}
 						_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var45))
 						if templ_7745c5c3_Err != nil {
@@ -858,14 +860,14 @@ func ShellNavigation(data AuthenticatedShellData) templ.Component {
 							return templ_7745c5c3_Err
 						}
 					} else {
-						templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 81, "<span class=\"shell-nav-link flex min-h-11 items-center gap-2 rounded-md px-3 py-2 text-base-content/40\" title=\"")
+						templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 81, "<span class=\"shell-nav-link flex min-h-11 items-center gap-2 rounded-md px-3 py-2 text-base-content/40\" role=\"link\" title=\"")
 						if templ_7745c5c3_Err != nil {
 							return templ_7745c5c3_Err
 						}
 						var templ_7745c5c3_Var46 string
 						templ_7745c5c3_Var46, templ_7745c5c3_Err = templ.ResolveAttributeValue(item.Label + ShellNavScopeRequirement(data))
 						if templ_7745c5c3_Err != nil {
-							return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/shell.templ`, Line: 270, Col: 160}
+							return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/shell.templ`, Line: 273, Col: 172}
 						}
 						_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var46)
 						if templ_7745c5c3_Err != nil {
@@ -878,7 +880,7 @@ func ShellNavigation(data AuthenticatedShellData) templ.Component {
 						var templ_7745c5c3_Var47 string
 						templ_7745c5c3_Var47, templ_7745c5c3_Err = templ.ResolveAttributeValue(item.Label + ShellNavScopeRequirement(data))
 						if templ_7745c5c3_Err != nil {
-							return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/shell.templ`, Line: 270, Col: 219}
+							return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/shell.templ`, Line: 273, Col: 231}
 						}
 						_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var47)
 						if templ_7745c5c3_Err != nil {
@@ -899,7 +901,7 @@ func ShellNavigation(data AuthenticatedShellData) templ.Component {
 						var templ_7745c5c3_Var48 string
 						templ_7745c5c3_Var48, templ_7745c5c3_Err = templ.JoinStringErrs(item.Label)
 						if templ_7745c5c3_Err != nil {
-							return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/shell.templ`, Line: 272, Col: 48}
+							return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/shell.templ`, Line: 275, Col: 48}
 						}
 						_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var48))
 						if templ_7745c5c3_Err != nil {

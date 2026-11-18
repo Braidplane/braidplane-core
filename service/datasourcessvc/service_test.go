@@ -625,6 +625,7 @@ func TestStartProviderDataSourceInstallCreatesPendingHubSpotSource(t *testing.T)
 		assert.Equal(t, "hubspot", params.Provider)
 		assert.Equal(t, credentialssvc.OAuthInstallIntentCreate, params.Intent)
 		assert.False(t, params.IncludeWriteScopes)
+		assert.True(t, params.MoreTime)
 		return credentialssvc.ProviderConnectorInstall{
 			Slug:             must.Slug("oauth-install-crm"),
 			Provider:         "hubspot",
@@ -653,6 +654,7 @@ func TestStartProviderDataSourceInstallCreatesPendingHubSpotSource(t *testing.T)
 		Slug:       dsSlug,
 		Type:       model.DataSourceTypeHubSpot,
 		ConfigJSON: []byte(`{"timeout_seconds":5}`),
+		MoreTime:   true,
 	})
 	require.NoError(t, err)
 	require.NotNil(t, got)

@@ -50,6 +50,9 @@ describe("builder canvas API adapter", () => {
                         { field: "steps[0].query", message: "Invalid query" },
                         { field: "spec", message: 'edge "unknown->store" incompatible contracts' },
                         { field: "graph.edges[0].from_step", message: "Invalid port" },
+                        { field: "pipeline_spec.steps[0].query", message: "Invalid draft query" },
+                        { field: "spec.steps[0].query", message: "Invalid submitted query" },
+                        { field: "pipeline_spec.steps[4].query", message: "Unavailable step" },
                     ],
                 },
             },
@@ -60,6 +63,9 @@ describe("builder canvas API adapter", () => {
         expect(targets[1].step).toBe("fetch");
         expect(targets[2].edge).toBeNull();
         expect(targets[3].edge).toEqual(targets[0].edge);
+        expect(targets[4].step).toBe("fetch");
+        expect(targets[5].step).toBe("fetch");
+        expect(targets[6].step).toBeUndefined();
         expect(t.builderValidationTargets(null, state)).toEqual([]);
     });
 

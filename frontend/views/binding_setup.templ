@@ -6,11 +6,12 @@ import (
 )
 
 templ PipelineBindingSetupPage(shell AuthenticatedShellData, data PipelineBindingSetupView) {
+	{{ shell.DocumentTitle = "Resolve pipeline bindings" }}
 	@AuthenticatedShell(shell, pipelineBindingSetupContent(data))
 }
 
 templ pipelineBindingSetupContent(data PipelineBindingSetupView) {
-	<section class="min-w-0 space-y-4" id="pipeline-binding-setup">
+	<section class="min-w-0 space-y-4" id="pipeline-binding-setup" data-form-feedback>
 		<div class="flex flex-wrap items-start justify-between gap-3">
 			<div class="min-w-0">
 				<h2 class="text-xl font-semibold">Resolve pipeline bindings</h2>
@@ -31,9 +32,7 @@ templ pipelineBindingSetupContent(data PipelineBindingSetupView) {
 		} else {
 			<p class="text-sm">No stored validation evidence for this environment.</p>
 		}
-		if data.Error != "" {
-			<div role="alert" class="alert alert-error">{ data.Error }</div>
-		}
+		@FormError("pipeline-binding-feedback", data.Error, true)
 		if data.Definition != nil && data.Permissions.Can("environments", "read") {
 			<a class="btn btn-outline btn-sm" href={ templ.URL(RuntimeVariableComparisonHref(data.Org, data.Project, data.Pipeline, data.SpecHash)) }>Compare runtime variables for this version</a>
 		}
@@ -48,7 +47,7 @@ templ pipelineBindingSetupContent(data PipelineBindingSetupView) {
 templ PipelineBindingAttentionSummary(environment string, pipeline *api.Pipeline, bindings PipelineBindingContext) {
 	{{ rows := PipelineBindingRows(pipeline, bindings) }}
 	{{ attention := pipelineBindingAttentionRows(rows, environment) }}
-	<div class="mt-4 space-y-3" aria-label="Selected environment binding attention">
+	<div class="mt-4 space-y-3" role="group" aria-label="Selected environment binding attention">
 		<h4 class="text-sm font-semibold">Selected target bindings</h4>
 		if pipeline == nil {
 			<p role="status" class="text-sm text-warning">Pipeline requirements are unavailable.</p>
@@ -68,7 +67,10 @@ templ PipelineBindingAttentionSummary(environment string, pipeline *api.Pipeline
 					for _, cell := range row.Cells {
 						<li class="flex min-w-0 flex-wrap items-start justify-between gap-3 py-3">
 							<div class="min-w-0 flex-1">
-								<p class="break-all font-mono text-sm">{ row.RefSlug } <span class={ cell.StateClass }>{ cell.StateLabel }</span></p>
+								<p class="flex flex-wrap items-center gap-x-2 gap-y-1 font-mono text-sm">
+									<span class="min-w-0 break-all">{ row.RefSlug }</span>
+									<span class={ cell.StateClass, "h-auto min-h-6 max-w-full py-1 break-words" }>{ cell.StateLabel }</span>
+								</p>
 								<p class="text-xs text-base-content/70">{ cell.StateDescription }</p>
 							</div>
 							if pipeline != nil {

@@ -31,7 +31,7 @@ templ ProofOperationalContext(receipt *api.ProofReceipt) {
 				@ProofDefinition("Admission policy", capture.PolicyVersion)
 				@ProofDefinition("Evidence expiry", ProofTimestampLabel(&capture.ExpiresAt))
 			</dl>
-			<a class="link link-primary inline-block text-sm" href={ templ.URL(buildEnvironmentRunDetailHref(receipt.Candidate.OrganizationSlug, receipt.Candidate.ProjectSlug, receipt.Candidate.EnvironmentSlug, capture.Selection.Run)) }>Inspect recorded attempt</a>
+			<a class="link link-primary inline-block min-h-6 text-sm" href={ templ.URL(buildEnvironmentRunDetailHref(receipt.Candidate.OrganizationSlug, receipt.Candidate.ProjectSlug, receipt.Candidate.EnvironmentSlug, capture.Selection.Run)) }>Inspect recorded attempt</a>
 			<p class="text-sm text-base-content/70">Captured claims stay historical. Pruned or expired evidence cannot be reconstructed from current operations. Run-history retention and the seven-day Proof cap are independent. Structural conformance does not establish sink delivery, quality or freshness.</p>
 		}
 	</section>

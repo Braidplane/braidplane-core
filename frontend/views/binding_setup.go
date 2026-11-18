@@ -59,11 +59,16 @@ func pipelineBindingEnvironmentEnabled(bindings PipelineBindingContext, environm
 	return false
 }
 
-func pipelineBindingSetupAction(ctx context.Context, action string) string {
+func isPipelineBindingSetup(ctx context.Context) bool {
 	current := entityPageURL(ctx)
-	if !strings.HasSuffix(current.Path, "/bindings") && current.Query().Get("binding_setup") != "1" {
+	return strings.HasSuffix(current.Path, "/bindings") || current.Query().Get("binding_setup") == "1"
+}
+
+func pipelineBindingSetupAction(ctx context.Context, action string) string {
+	if !isPipelineBindingSetup(ctx) {
 		return action
 	}
+	current := entityPageURL(ctx)
 	u, _ := url.Parse(action)
 	values := u.Query()
 	values.Set("binding_setup", "1")

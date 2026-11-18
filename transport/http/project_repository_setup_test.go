@@ -16,14 +16,19 @@ import (
 )
 
 type repositorySetupFake struct {
-	rejectGitHub   func(context.Context, slug.Slug, slug.Slug, model.EventActor, string, string) (*model.ProjectRepositorySetup, error)
-	rejectGitLab   func(context.Context, slug.Slug, slug.Slug, slug.Slug, model.EventActor, string, string) (*model.ProjectRepositorySetup, error)
-	completeGitLab func(context.Context, slug.Slug, slug.Slug, slug.Slug, model.EventActor, model.GitLabRepositoryAuthorization) (*model.ProjectRepositorySetup, error)
-	attempt        func(context.Context, slug.Slug, slug.Slug, slug.Slug) (*model.ProjectRepositorySetup, error)
-	abandon        func(context.Context, slug.Slug, slug.Slug, slug.Slug, bool, model.EventActor) (*model.ProjectRepositorySetup, error)
-	complete       func(context.Context, slug.Slug, slug.Slug, model.EventActor, model.GitHubRepositoryAuthorization) (*model.ProjectRepositorySetup, error)
-	get            func(context.Context, slug.Slug, slug.Slug) (*model.ProjectRepositorySetup, error)
-	create         func(context.Context, slug.Slug, slug.Slug, model.CreateProjectRepository, model.EventActor) (*model.ProjectRepositorySetup, error)
+	projectForSetup func(context.Context, slug.Slug, slug.Slug) (slug.Slug, error)
+	rejectGitHub    func(context.Context, slug.Slug, slug.Slug, model.EventActor, string, string) (*model.ProjectRepositorySetup, error)
+	rejectGitLab    func(context.Context, slug.Slug, slug.Slug, slug.Slug, model.EventActor, string, string) (*model.ProjectRepositorySetup, error)
+	completeGitLab  func(context.Context, slug.Slug, slug.Slug, slug.Slug, model.EventActor, model.GitLabRepositoryAuthorization) (*model.ProjectRepositorySetup, error)
+	attempt         func(context.Context, slug.Slug, slug.Slug, slug.Slug) (*model.ProjectRepositorySetup, error)
+	abandon         func(context.Context, slug.Slug, slug.Slug, slug.Slug, bool, model.EventActor) (*model.ProjectRepositorySetup, error)
+	complete        func(context.Context, slug.Slug, slug.Slug, model.EventActor, model.GitHubRepositoryAuthorization) (*model.ProjectRepositorySetup, error)
+	get             func(context.Context, slug.Slug, slug.Slug) (*model.ProjectRepositorySetup, error)
+	create          func(context.Context, slug.Slug, slug.Slug, model.CreateProjectRepository, model.EventActor) (*model.ProjectRepositorySetup, error)
+}
+
+func (f repositorySetupFake) ProjectForSetup(ctx context.Context, org, setup slug.Slug) (slug.Slug, error) {
+	return f.projectForSetup(ctx, org, setup)
 }
 
 func (f repositorySetupFake) RejectGitHubAuthorization(ctx context.Context, org, setup slug.Slug, actor model.EventActor, state, providerError string) (*model.ProjectRepositorySetup, error) {
@@ -65,6 +70,7 @@ func TestCreateRepositoryChecksEveryRequiredPermissionBeforeMutation(t *testing.
 					require.Equal(t, slug.Slug("acme"), o)
 					require.Equal(t, slug.Slug("default"), p)
 					require.True(t, r.CreatePrivateRepository)
+					require.True(t, r.MoreTime)
 					require.Equal(t, model.DataSourceTypeGitlab, r.Provider)
 					return &model.ProjectRepositorySetup{Slug: "repo-isolated", ProjectSlug: p, DataSourceSlug: "repo-isolated", Request: r, Status: model.ProjectRepositorySetupStatusAttached, RepositoryID: "42"}, nil
 				}},
@@ -78,7 +84,7 @@ func TestCreateRepositoryChecksEveryRequiredPermissionBeforeMutation(t *testing.
 					return in.Resource != denied, nil
 				}},
 			})
-			req := jsonRequest(t, http.MethodPost, "/organizations/acme/projects/default/repository-setup", map[string]any{"provider": "gitlab", "owner": "alice", "repository_name": "pipelines", "create_private_repository": true})
+			req := jsonRequest(t, http.MethodPost, "/organizations/acme/projects/default/repository-setup?more_time=true", map[string]any{"provider": "gitlab", "owner": "alice", "repository_name": "pipelines", "create_private_repository": true})
 			resp := authenticatedRequest(t, app, store, must.Slug("johndoe"), req)
 			defer func() { require.NoError(t, resp.Body.Close()) }()
 			if denied == model.ResourceUnknown {

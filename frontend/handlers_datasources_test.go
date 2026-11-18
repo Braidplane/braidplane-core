@@ -2116,6 +2116,20 @@ func TestRouter_HandleDataSourceDetailPage_RendersSQLSchema(t *testing.T) {
 	require.Contains(t, string(body), "Schema type: SQL (postgres)")
 	require.Contains(t, string(body), "table users")
 	require.Contains(t, string(body), "email (text)")
+
+	req = httptest.NewRequestWithContext(t.Context(), http.MethodGet,
+		"/orgs/acme-hq/data-sources/prod-db?section=settings&error=Connection+test+failed.", nil)
+	req.Header.Set("Cookie", authCookie)
+	addCSRFToken(t, app, req)
+
+	failure, err := app.Test(req)
+	require.NoError(t, err)
+	defer func() { _ = failure.Body.Close() }()
+	body, err = io.ReadAll(failure.Body)
+	require.NoError(t, err)
+	require.Equal(t, http.StatusOK, failure.StatusCode)
+	require.Contains(t, string(body), `id="data-source-operation-error" class="alert alert-error mt-3 py-2 text-sm" role="alert" tabindex="-1" autofocus data-form-error-focus`)
+	require.Contains(t, string(body), "Connection test failed.")
 }
 
 func TestDataSourceSchemaPanelDataKeepsAPIStatusAuthoritative(t *testing.T) {
@@ -3089,6 +3103,9 @@ func TestRouter_HandleStartHubSpotDataSourceOAuthSubmit_RedirectsToProvider(t *t
 			form.Set("hubspot_auth_type", "oauth2")
 			form.Set("hubspot_access_mode", "write")
 			form.Set("timeout_seconds", "15")
+			if htmx {
+				form.Set("more_time", "true")
+			}
 			req := httptest.NewRequestWithContext(
 				context.Background(),
 				http.MethodPost,
@@ -3118,6 +3135,11 @@ func TestRouter_HandleStartHubSpotDataSourceOAuthSubmit_RedirectsToProvider(t *t
 			require.Equal(t, "hubspot-crm", captured["slug"])
 			require.Equal(t, "hubspot", captured["type"])
 			require.Equal(t, false, captured["read_only"])
+			if htmx {
+				require.Equal(t, true, captured["more_time"])
+			} else {
+				require.NotContains(t, captured, "more_time")
+			}
 			require.NotContains(t, captured, "credentials")
 			config, ok := captured["config"].(map[string]any)
 			require.True(t, ok)
@@ -3329,6 +3351,7 @@ func TestRouter_HandleStartExistingHubSpotOAuthSubmit_ConvertsStaticCredential(t
 	require.Equal(t, authorizationURL, resp.Header.Get("HX-Redirect"))
 	require.Equal(t, "hubspot-crm", captured.DataSourceSlug)
 	require.Equal(t, api.RotateGrant, captured.Intent)
+	require.Nil(t, captured.MoreTime)
 }
 
 func TestRouter_HandleCreateDataSourceSubmit_HTTPSendsOpenAPIImportConfig(t *testing.T) {
@@ -4485,7 +4508,7 @@ func TestRouter_HandleUpdateDataSourceSubmit_RedirectsToDetail(t *testing.T) {
 	defer func() { _ = resp.Body.Close() }()
 
 	require.Equal(t, http.StatusSeeOther, resp.StatusCode)
-	require.Equal(t, "/orgs/acme-hq/data-sources/prod-db", resp.Header.Get("Location"))
+	require.Equal(t, "/orgs/acme-hq/data-sources/prod-db?notice=Connection+settings+saved.", resp.Header.Get("Location"))
 	require.Equal(t, "Production DB Updated", captured["name"])
 
 	config, ok := captured["config"].(map[string]any)
@@ -4544,7 +4567,7 @@ func TestRouter_HandleUpdateDataSourceSubmit_HTMXRedirectHeader(t *testing.T) {
 	defer func() { _ = resp.Body.Close() }()
 
 	require.Equal(t, http.StatusOK, resp.StatusCode)
-	require.Equal(t, "/orgs/acme-hq/data-sources/prod-db", resp.Header.Get("HX-Redirect"))
+	require.Equal(t, "/orgs/acme-hq/data-sources/prod-db?notice=Connection+settings+saved.", resp.Header.Get("HX-Redirect"))
 	require.Empty(t, resp.Header.Get("Location"))
 }
 
@@ -4604,7 +4627,7 @@ func TestRouter_HandleUpdateDataSourceSubmit_HTTPSendsOpenAPIImportConfig(t *tes
 	defer func() { _ = resp.Body.Close() }()
 
 	require.Equal(t, http.StatusSeeOther, resp.StatusCode)
-	require.Equal(t, "/orgs/acme-hq/data-sources/customer-api", resp.Header.Get("Location"))
+	require.Equal(t, "/orgs/acme-hq/data-sources/customer-api?notice=Connection+settings+saved.", resp.Header.Get("Location"))
 	require.Equal(t, "Customer API Updated", captured["name"])
 
 	config, ok := captured["config"].(map[string]any)
@@ -4674,7 +4697,7 @@ func TestRouter_HandleUpdateDataSourceCredentialsSubmit_RedirectsToDetail(t *tes
 	defer func() { _ = resp.Body.Close() }()
 
 	require.Equal(t, http.StatusSeeOther, resp.StatusCode)
-	require.Equal(t, "/orgs/acme-hq/data-sources/prod-db", resp.Header.Get("Location"))
+	require.Equal(t, "/orgs/acme-hq/data-sources/prod-db?notice=Credentials+updated.", resp.Header.Get("Location"))
 
 	credentials, ok := captured["credentials"].(map[string]any)
 	require.True(t, ok)
@@ -4735,7 +4758,7 @@ func TestRouter_HandleUpdateDataSourceCredentialsSubmit_HTMXRedirectHeader(t *te
 	defer func() { _ = resp.Body.Close() }()
 
 	require.Equal(t, http.StatusOK, resp.StatusCode)
-	require.Equal(t, "/orgs/acme-hq/data-sources/prod-db", resp.Header.Get("HX-Redirect"))
+	require.Equal(t, "/orgs/acme-hq/data-sources/prod-db?notice=Credentials+updated.", resp.Header.Get("HX-Redirect"))
 	require.Empty(t, resp.Header.Get("Location"))
 }
 
@@ -5399,6 +5422,10 @@ func TestRouter_HandleStartBigQueryDataSourceOAuthSubmit_RedirectsToProvider(t *
 				"data_source":{"slug":"bigquery-crm","name":"BigQuery CRM","type":"bigquery","config":{"timeout_seconds":15},"is_active":false,"read_only":true,"last_tested_at":null,"test_error":null,"created_at":"2026-03-01T00:00:00Z","updated_at":"2026-03-01T00:00:00Z"},
 				"install":{"authorization_url":"` + authorizationURL + `","expires_at":"2026-03-01T00:10:00Z","intent":"create_grant","provider":"bigquery","requested_scopes":["crm.objects.contacts.read"],"slug":"bigquery-install"}
 			}`))
+		case r.Method == http.MethodGet && r.URL.Path == "/api/organizations/acme-hq/data-sources":
+			_, _ = w.Write([]byte(`{"data_sources":[],"has_more":false}`))
+		case r.Method == http.MethodGet && r.URL.Path == "/api/organizations":
+			writeJSON(w, `{"organizations":[{"slug":"acme-hq","name":"Acme HQ","member_role":"admin"}],"has_more":false}`)
 		default:
 			w.WriteHeader(http.StatusNotFound)
 		}
@@ -5448,6 +5475,21 @@ func TestRouter_HandleStartBigQueryDataSourceOAuthSubmit_RedirectsToProvider(t *
 	require.InDelta(t, 15, config["timeout_seconds"], 0.000001)
 	require.Equal(t, "fixture", config["project_id"])
 	require.Equal(t, "crm", config["default_dataset"])
+
+	form.Del("default_dataset")
+	invalid := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/orgs/acme-hq/data-sources/bigquery/oauth", strings.NewReader(form.Encode()))
+	invalid.Header.Set("Cookie", req.Header.Get("Cookie"))
+	invalid.Header.Set("Content-Type", fiber.MIMEApplicationForm)
+	invalid.Header.Set("HX-Request", "true")
+	addCSRFToken(t, app, invalid)
+	rejected, err := app.Test(invalid)
+	require.NoError(t, err)
+	defer func() { _ = rejected.Body.Close() }()
+	require.Empty(t, rejected.Header.Get("HX-Redirect"))
+	body, err := io.ReadAll(rejected.Body)
+	require.NoError(t, err)
+	require.Contains(t, string(body), "choose a BigQuery dataset.")
+	require.Contains(t, string(body), `aria-errormessage="data-source-create-feedback"`)
 }
 
 func TestSnowflakeObjectSelectionRoundTrip(t *testing.T) {
@@ -5513,6 +5555,11 @@ func TestSnowflakeOnboardingFragmentUsesBackendAuthenticationState(t *testing.T)
 			defer func() { require.NoError(t, resp.Body.Close()) }()
 			body, err := io.ReadAll(resp.Body)
 			require.NoError(t, err)
+			if status != http.StatusNotFound {
+				require.Contains(t, string(body), `id="snowflake-onboarding-retry"`)
+				require.Contains(t, string(body), `/snowflake-onboarding?section=settings"`)
+				require.Contains(t, string(body), `hx-swap="outerHTML focus-scroll:true"`)
+			}
 			switch status {
 			case http.StatusOK:
 				require.Contains(t, string(body), "Provisioning")

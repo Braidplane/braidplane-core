@@ -37,6 +37,7 @@ func connectedSelectionHref(base, root, target string) string {
 	q := u.Query()
 	q.Set("connected_run", root)
 	u.RawQuery = q.Encode()
+	u.Fragment = "connected-run-evidence"
 	return u.String()
 }
 

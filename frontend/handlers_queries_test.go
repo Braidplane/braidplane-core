@@ -514,7 +514,7 @@ func TestRouter_HandleExecuteQuerySubmit_RendersBackendErrorInPopup(t *testing.T
 			require.NotContains(t, string(body), "Execution result (")
 			require.NotContains(t, string(body), "Duration: 0ms")
 			if tc.status == http.StatusUnprocessableEntity {
-				require.Contains(t, string(body), "query-execution-error-popup")
+				require.Contains(t, string(body), "query-execution-error")
 			}
 		})
 	}
@@ -585,7 +585,7 @@ func TestRouter_HandleExecuteQuerySubmit_HTMXRendersBackendErrorInSlot(t *testin
 	require.Contains(t, string(body), "syntax error at or near FROM")
 	require.Contains(t, string(body), "query-execution-feedback-slot")
 	require.NotContains(t, string(body), "alert alert-warning mt-4 py-2 text-sm")
-	require.Contains(t, string(body), "query-execution-error-popup")
+	require.Contains(t, string(body), "query-execution-error")
 	require.Regexp(t, `id="query-results-tab"[^>]*aria-selected="true"`, string(body))
 	require.NotContains(t, string(body), "Execution result (")
 	require.NotContains(t, string(body), "Duration: 0ms")
@@ -643,7 +643,7 @@ func TestRouter_HandleExecuteQuerySubmit_HTMXQueryLoadFailureRendersFeedbackSlot
 
 	require.Equal(t, http.StatusOK, resp.StatusCode)
 	require.Contains(t, bodyText, `id="query-execution-feedback-slot"`)
-	require.Contains(t, bodyText, `id="query-execution-error-popup"`)
+	require.Contains(t, bodyText, `id="query-execution-error"`)
 	require.Contains(t, bodyText, "query load failed")
 	require.Contains(t, bodyText, "safe query load detail")
 	require.NotContains(t, bodyText, `id="queries-workspace"`)
@@ -801,7 +801,7 @@ func TestRouter_HandleCreateQuerySubmit_HTMXRedirectHeader(t *testing.T) {
 	require.Empty(t, resp.Header.Get("Location"))
 }
 
-func TestRouter_HandleCreateQuerySubmit_HTMXRendersBackendValidationError(t *testing.T) {
+func TestRouter_QuerySubmit_HTMXRendersBackendValidationError(t *testing.T) {
 	t.Parallel()
 
 	apiServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -829,7 +829,10 @@ func TestRouter_HandleCreateQuerySubmit_HTMXRendersBackendValidationError(t *tes
 					`{"data_sources":[{"slug":"prod-db","name":"Production DB","type":"postgres","config":{"host":"db","port":5432,"database":"app"},"is_active":true,"last_tested_at":null,"test_error":null,"created_at":"2026-03-01T00:00:00Z","updated_at":"2026-03-01T00:00:00Z"}],"has_more":false,"next_cursor":null,"prev_cursor":null}`,
 				),
 			)
-		case r.Method == http.MethodPost && r.URL.Path == "/api/organizations/acme-hq/data-sources/prod-db/queries":
+		case r.Method == http.MethodGet && r.URL.Path == "/api/organizations/acme-hq/data-sources/prod-db/queries/top-users":
+			_, _ = w.Write([]byte(`{"slug":"top-users","name":"Saved name","data_source_slug":"prod-db","query_statement":{"type":"postgres","sql":"select 1"}}`))
+		case r.Method == http.MethodPost && r.URL.Path == "/api/organizations/acme-hq/data-sources/prod-db/queries",
+			r.Method == http.MethodPut && r.URL.Path == "/api/organizations/acme-hq/data-sources/prod-db/queries/top-users":
 			w.WriteHeader(http.StatusBadRequest)
 			_, _ = w.Write(
 				[]byte(
@@ -851,31 +854,41 @@ func TestRouter_HandleCreateQuerySubmit_HTMXRendersBackendValidationError(t *tes
 	router.RegisterRoutes(app, CommunityPresentation{})
 
 	authCookie := getAuthenticatedSessionCookie(t, app)
-	form := strings.NewReader(strings.Join([]string{
-		"ds=prod-db",
-		"statement_type=postgres",
-		"name=Top+users",
-		"description=top+users",
-		"statement=select+1",
-		"row_limit=100",
-		"timeout_seconds=30",
-	}, "&"))
-	req := httptest.NewRequestWithContext(context.Background(), http.MethodPost, "/orgs/acme-hq/queries", form)
-	req.Header.Set("Content-Type", fiber.MIMEApplicationForm)
-	req.Header.Set("Cookie", authCookie)
-	req.Header.Set("HX-Request", "true")
-	addCSRFToken(t, app, req)
+	for _, tc := range []struct{ path, errorID string }{
+		{"/orgs/acme-hq/queries", "query-create-error"},
+		{"/orgs/acme-hq/data-sources/prod-db/queries/top-users/update", "query-update-error"},
+	} {
+		t.Run(tc.errorID, func(t *testing.T) {
+			form := strings.NewReader(strings.Join([]string{
+				"ds=prod-db",
+				"statement_type=postgres",
+				"name=Top+users",
+				"description=top+users",
+				"statement=select+1",
+				"row_limit=100",
+				"timeout_seconds=30",
+			}, "&"))
+			req := httptest.NewRequestWithContext(context.Background(), http.MethodPost, tc.path, form)
+			req.Header.Set("Content-Type", fiber.MIMEApplicationForm)
+			req.Header.Set("Cookie", authCookie)
+			req.Header.Set("HX-Request", "true")
+			addCSRFToken(t, app, req)
 
-	resp, err := app.Test(req)
-	require.NoError(t, err)
-	defer func() { _ = resp.Body.Close() }()
+			resp, err := app.Test(req)
+			require.NoError(t, err)
+			defer func() { _ = resp.Body.Close() }()
 
-	body, err := io.ReadAll(resp.Body)
-	require.NoError(t, err)
+			body, err := io.ReadAll(resp.Body)
+			require.NoError(t, err)
 
-	require.Equal(t, http.StatusOK, resp.StatusCode)
-	require.Contains(t, string(body), "query SQL is required")
-	require.Empty(t, resp.Header.Get("Location"))
+			require.Equal(t, http.StatusOK, resp.StatusCode)
+			require.Contains(t, string(body), `id="`+tc.errorID+`"`)
+			require.Contains(t, string(body), `role="alert" tabindex="-1" autofocus data-form-error-focus`)
+			require.Contains(t, string(body), "query SQL is required")
+			require.Contains(t, string(body), `name="name" value="Top users"`)
+			require.Empty(t, resp.Header.Get("Location"))
+		})
+	}
 }
 
 func TestRouter_HandleUpdateQuerySubmit_HTMXRedirectHeader(t *testing.T) {

@@ -77,6 +77,7 @@ func TestStartProviderConnectorInstall_UsesCredentialService(t *testing.T) {
 	req := jsonRequest(t, http.MethodPost, "/organizations/acme/provider-connectors/hubspot/installs", map[string]any{
 		"data_source_slug": "crm",
 		"intent":           "create_grant",
+		"more_time":        true,
 	})
 	resp := authenticatedRequest(t, app, store, slug.Slug("alice"), req)
 	defer func() { _ = resp.Body.Close() }()
@@ -93,6 +94,7 @@ func TestStartProviderConnectorInstall_UsesCredentialService(t *testing.T) {
 	assert.Equal(t, credentialssvc.OAuthInstallIntentCreate, got.Intent)
 	assert.Empty(t, got.RequestedScopes)
 	assert.True(t, got.IncludeWriteScopes)
+	assert.True(t, got.MoreTime)
 	assertUserEventActor(t, got.Actor, slug.Slug("alice"))
 }
 
@@ -385,6 +387,7 @@ func TestStartProviderDataSourceInstallCreatesPendingSourceWithoutCredentials(t 
 		"type":      "hubspot",
 		"config":    map[string]any{"timeout_seconds": 5},
 		"read_only": false,
+		"more_time": true,
 	})
 	resp := authenticatedRequest(t, app, store, must.Slug("alice"), req)
 	defer func() { _ = resp.Body.Close() }()
@@ -407,6 +410,7 @@ func TestStartProviderDataSourceInstallCreatesPendingSourceWithoutCredentials(t 
 	assert.JSONEq(t, `{"timeout_seconds":5}`, string(got.ConfigJSON))
 	require.NotNil(t, got.ReadOnly)
 	assert.False(t, *got.ReadOnly)
+	assert.True(t, got.MoreTime)
 	assert.True(t, checkedEntitlement)
 }
 
@@ -1090,15 +1094,16 @@ func TestConnectDataSourceHTTPOAuthRequiresUpdateAndReturnsSafeInstall(t *testin
 					require.Equal(t, model.ResourceDataSources, input.Resource)
 					return allowed, nil
 				}},
-				datasourcesService: &fakeDataSourcesService{ConnectHTTPOAuthFn: func(_ context.Context, org, source slug.Slug, actor model.EventActor) (*datasourcessvc.HTTPOAuthConnection, error) {
+				datasourcesService: &fakeDataSourcesService{ConnectHTTPOAuthFn: func(_ context.Context, org, source slug.Slug, actor model.EventActor, moreTime bool) (*datasourcessvc.HTTPOAuthConnection, error) {
 					calls++
 					require.Equal(t, slug.Slug("acme"), org)
 					require.Equal(t, slug.Slug("http-app"), source)
+					require.True(t, moreTime)
 					assertUserEventActor(t, actor, "alice")
 					return &datasourcessvc.HTTPOAuthConnection{DataSource: &datasourcessvc.DataSource{Slug: source, Name: "HTTP app", Type: model.DataSourceTypeHTTP, Config: []byte(`{"base_url":"https://api.example/v1"}`)}, Install: &credentialssvc.ProviderConnectorInstall{Provider: "http", AuthorizationURL: "https://issuer.example/authorize?state=opaque"}}, nil
 				}},
 			})
-			resp := authenticatedRequest(t, app, store, "alice", jsonRequest(t, http.MethodPost, "/organizations/acme/data-sources/http-app/http-oauth/connect", nil))
+			resp := authenticatedRequest(t, app, store, "alice", jsonRequest(t, http.MethodPost, "/organizations/acme/data-sources/http-app/http-oauth/connect?more_time=true", nil))
 			defer func() { _ = resp.Body.Close() }()
 			if !allowed {
 				require.Equal(t, http.StatusForbidden, resp.StatusCode)

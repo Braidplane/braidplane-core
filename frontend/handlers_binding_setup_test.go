@@ -69,13 +69,13 @@ func TestPipelineBindingSetupSelectedVersionAndFailures(t *testing.T) {
 	require.NoError(t, json.Unmarshal(specBytes, &spec))
 	pipeline := spec.Metadata.Slug
 	prefix := "/api/organizations/acme-hq/projects/default"
-	for _, scenario := range []string{"missing", "invalid", "bound", "disabled", "no target", "denied", "read-only", "load failure", "version failure", "version expired", "binding expired", "validation expired", "validation failure", "no requirements", "save", "save error", "save expired", "delete", "delete error"} {
+	for _, scenario := range []string{"missing", "invalid", "bound", "disabled", "no target", "denied", "read-only", "load failure", "version failure", "version expired", "binding expired", "validation expired", "validation failure", "no requirements", "save", "save error", "save expired", "save no read", "delete", "delete error"} {
 		t.Run(scenario, func(t *testing.T) {
 			t.Parallel()
 			mutations, currentReads := 0, 0
 			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				w.Header().Set("Content-Type", "application/json")
-				if r.URL.Path == "/api/organizations/acme-hq/roles/admin" && (scenario == "denied" || scenario == "read-only") {
+				if r.URL.Path == "/api/organizations/acme-hq/roles/admin" && (scenario == "denied" || scenario == "read-only" || scenario == "save no read") {
 					permissions := []map[string]string{{"resource": "projects", "action": "read"}}
 					if scenario == "read-only" {
 						permissions = append(permissions, map[string]string{"resource": "pipelines", "action": "read"})
@@ -139,7 +139,7 @@ func TestPipelineBindingSetupSelectedVersionAndFailures(t *testing.T) {
 						w.WriteHeader(http.StatusUnauthorized)
 						return
 					}
-					if strings.HasSuffix(scenario, "error") {
+					if strings.HasSuffix(scenario, "error") || scenario == "save no read" {
 						w.WriteHeader(http.StatusForbidden)
 						writeJSON(w, `{"error":{"message":"Binding change denied"}}`)
 						return
@@ -197,6 +197,9 @@ func TestPipelineBindingSetupSelectedVersionAndFailures(t *testing.T) {
 			switch scenario {
 			case "denied":
 				require.Equal(t, http.StatusForbidden, resp.StatusCode)
+				require.Contains(t, html, "You need permission to read pipelines to inspect bindings.")
+				require.Contains(t, html, `href="/organizations"`)
+				require.NotContains(t, html, bindingSetupHash)
 			case "save expired", "version expired", "binding expired", "validation expired":
 				header := "HX-Redirect"
 				if method == http.MethodGet {
@@ -219,6 +222,13 @@ func TestPipelineBindingSetupSelectedVersionAndFailures(t *testing.T) {
 				require.Equal(t, bindingSetupHash, target.Query().Get("spec_hash"))
 				require.Equal(t, back, target.Query().Get("binding_return"))
 				require.Equal(t, "binding-cell-"+pipeline+"-orders-api-prod", target.Fragment)
+			case "save no read":
+				require.Equal(t, http.StatusOK, resp.StatusCode)
+				target, err := url.Parse(resp.Header.Get("HX-Redirect"))
+				require.NoError(t, err)
+				require.Equal(t, "/orgs/acme-hq/projects/default/pipelines/"+pipeline+"/bindings", target.Path)
+				require.Equal(t, bindingSetupHash, target.Query().Get("spec_hash"))
+				require.NotContains(t, html, bindingSetupHash)
 			default:
 				require.Equal(t, http.StatusOK, resp.StatusCode)
 				require.Contains(t, html, bindingSetupHash)
@@ -253,6 +263,8 @@ func TestPipelineBindingSetupSelectedVersionAndFailures(t *testing.T) {
 					require.Contains(t, html, "No data-source requirements")
 				case "save error", "delete error":
 					require.Contains(t, html, "Binding change denied")
+					require.Contains(t, html, `id="pipeline-binding-feedback"`)
+					require.Contains(t, html, `hx-target="#pipeline-binding-setup"`)
 					require.Contains(t, html, "spec_hash=")
 				}
 				if scenario != "validation failure" && scenario != "disabled" && scenario != "no target" {

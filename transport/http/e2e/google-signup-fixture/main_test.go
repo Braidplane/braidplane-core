@@ -15,6 +15,7 @@ import (
 	"os/signal"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"syscall"
 	"testing"
 	"time"
@@ -24,6 +25,7 @@ import (
 	"github.com/gofiber/fiber/v3"
 	"github.com/gofiber/fiber/v3/middleware/proxy"
 	"github.com/gofiber/fiber/v3/middleware/session"
+	"github.com/gofiber/fiber/v3/middleware/static"
 	sessionstore "github.com/gofiber/storage/postgres/v3"
 	"github.com/jackc/pgx/v5/pgxpool"
 
@@ -117,6 +119,32 @@ func TestFixtureServer(t *testing.T) {
 	defer proxy.WithSecurityPolicy(previousPolicy)
 	// Idle browser preconnections must expire before the five-second shutdown deadline.
 	app := fiber.New(fiber.Config{ReadTimeout: 2 * time.Second, DisableKeepalive: true})
+	app.Get("/assets/icons/*", static.New("brand/icons"))
+	app.Get("/assets/*", static.New("frontend/assets"))
+	var delayNextCallback atomic.Bool
+	app.Post("/_test/delay-next-oauth-callback", func(c fiber.Ctx) error {
+		delayNextCallback.Store(true)
+		return c.SendStatus(fiber.StatusNoContent)
+	})
+	app.Get("/api/auth/google/callback", func(c fiber.Ctx) error {
+		if !delayNextCallback.Swap(false) {
+			return c.Next()
+		}
+		sess, err := store.Get(c)
+		if err != nil {
+			return err
+		}
+		defer sess.Release()
+		expires, _ := sess.Get("oauth_expires_at").(int64)
+		if expires == 0 {
+			return c.SendStatus(fiber.StatusConflict)
+		}
+		sess.Set("oauth_expires_at", expires-int64((11*time.Minute)/time.Second))
+		if err := sess.Save(); err != nil {
+			return err
+		}
+		return c.Next()
+	})
 	app.Use("/api", func(c fiber.Ctx) error { return proxy.Do(c, "http://"+backendListener.Addr().String()+c.OriginalURL()) })
 	app.Get("/_test/assert", fixtureAssertions(pool, issuer))
 	router.RegisterRoutes(app, frontend.CommunityPresentation{})
@@ -167,7 +195,7 @@ func newIssuer(t *testing.T) (*issuerFixture, func()) {
 	mux.HandleFunc("/keys", issuer.keys)
 	mux.HandleFunc("/authorize", issuer.authorize)
 	mux.HandleFunc("/token", issuer.token)
-	server := &http.Server{Handler: mux, ReadHeaderTimeout: 5 * time.Second}
+	server := &http.Server{Handler: mux, ReadHeaderTimeout: 2 * time.Second}
 	go func() { _ = server.Serve(listener) }()
 	return issuer, func() {
 		ctx, cancel := context.WithTimeout(context.Background(), fixtureShutdownTimeout)

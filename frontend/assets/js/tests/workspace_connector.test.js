@@ -23,6 +23,8 @@ const workspacePanel = ({ spreadsheetID = "", worksheetID = "", operation = "rea
         <p data-workspace-feedback></p>
         <div data-workspace-fields="sheet"><input name="workspace_spreadsheet_id" value="${spreadsheetID}" /></div>
         <div data-workspace-fields="sheet"><select name="workspace_worksheet_id"><option value="${worksheetID}" selected>Loading worksheets…</option></select><span data-workspace-worksheet-id></span></div>
+        <p data-workspace-worksheet-status role="status"></p>
+        <button type="button" data-workspace-worksheet-retry hidden>Retry loading worksheets</button>
         <div data-workspace-fields="sheet-update"><input name="workspace_columns" /></div>
         <div data-workspace-fields="file-target"><input name="workspace_file_id" /></div>
         <div data-workspace-fields="folder"><input name="workspace_folder_id" /></div>
@@ -93,6 +95,81 @@ describe("workspace connector", () => {
             expect(document.querySelector('[name="workspace_folder_id"]').disabled).toBe(false);
         },
     );
+
+    it("Retries worksheet loading and preserves a saved selection and keyboard focus", async () => {
+        const fetchMock = vi
+            .fn()
+            .mockResolvedValueOnce(response({}, 403))
+            .mockResolvedValueOnce(response({}, 503))
+            .mockResolvedValueOnce(response({ worksheets: [{ worksheet_id: 19, title: "Details" }] }));
+        vi.stubGlobal("fetch", fetchMock);
+        document.body.innerHTML = workspacePanel({ spreadsheetID: "sheet-1", worksheetID: "19" });
+        document.querySelector('[name="workspace_resource"]').value = "spreadsheet";
+        window.BraidplaneWorkspace.init(document);
+        const worksheet = document.querySelector('[name="workspace_worksheet_id"]');
+        const status = document.querySelector("[data-workspace-worksheet-status]");
+        const retry = document.querySelector("[data-workspace-worksheet-retry]");
+        await vi.waitFor(() => expect(retry.hidden).toBe(false));
+        expect(status.textContent).toContain("check file access");
+        expect(worksheet.value).toBe("19");
+        expect(worksheet.selectedOptions[0].text).toBe("Selected worksheet (unverified)");
+        retry.focus();
+        retry.click();
+        retry.click();
+        await vi.waitFor(() => expect(status.textContent).toContain("try again"));
+        expect(fetchMock).toHaveBeenCalledTimes(2);
+        expect(document.activeElement).toBe(retry);
+        retry.click();
+        await vi.waitFor(() => expect(retry.hidden).toBe(true));
+        expect(fetchMock).toHaveBeenCalledTimes(3);
+        expect(status.textContent).toBe("1 worksheet loaded.");
+        expect(worksheet.value).toBe("19");
+        expect(worksheet.selectedOptions[0].text).toBe("Details");
+        expect(document.activeElement).toBe(worksheet);
+    });
+
+    it("Ignores a worksheet failure after changing spreadsheets", async () => {
+        let finishOldRequest;
+        vi.stubGlobal(
+            "fetch",
+            vi
+                .fn()
+                .mockImplementationOnce(
+                    () =>
+                        new Promise((resolve) => {
+                            finishOldRequest = resolve;
+                        }),
+                )
+                .mockResolvedValueOnce(response({ worksheets: [{ worksheet_id: 12, title: "Orders" }] })),
+        );
+        document.body.innerHTML = workspacePanel({ spreadsheetID: "old" });
+        document.querySelector('[name="workspace_resource"]').value = "spreadsheet";
+        window.BraidplaneWorkspace.init(document);
+        const target = document.querySelector('[name="workspace_spreadsheet_id"]');
+        target.value = "new";
+        target.dispatchEvent(new Event("change", { bubbles: true }));
+        const worksheet = document.querySelector('[name="workspace_worksheet_id"]');
+        await vi.waitFor(() => expect(worksheet.value).toBe("12"));
+        finishOldRequest(response({}, 403));
+        await new Promise((resolve) => setTimeout(resolve, 0));
+        expect(document.querySelector("[data-workspace-worksheet-retry]").hidden).toBe(true);
+        expect(document.querySelector("[data-workspace-worksheet-status]").textContent).toBe("1 worksheet loaded.");
+    });
+
+    it("clears the old worksheet before draft listeners record a spreadsheet change", async () => {
+        vi.stubGlobal("fetch", vi.fn().mockResolvedValue(response({}, 403)));
+        document.body.innerHTML = workspacePanel({ spreadsheetID: "old", worksheetID: "19" });
+        const target = document.querySelector('[name="workspace_spreadsheet_id"]');
+        const worksheet = document.querySelector('[name="workspace_worksheet_id"]');
+        const record = vi.fn();
+        target.addEventListener("change", () => record(target.value, worksheet.value));
+        window.BraidplaneWorkspace.init(document);
+        target.value = "new";
+        target.dispatchEvent(new Event("change", { bubbles: true }));
+        expect(record).toHaveBeenCalledExactlyOnceWith("new", "");
+        await vi.waitFor(() => expect(document.querySelector("[data-workspace-worksheet-retry]").hidden).toBe(false));
+        expect(worksheet.value).toBe("");
+    });
 
     it("LoadsFirstActualWorksheetWhenSelectingSpreadsheetFile", async () => {
         const fetchMock = vi
@@ -203,6 +280,33 @@ describe("workspace connector", () => {
                 "Use the connected Google account and check file access.",
             ),
         );
+    });
+
+    it.each([
+        [[], "[data-workspace-discover]", "No accessible files on this page."],
+        [
+            [{ file_id: "sheet-2", name: "Orders", mime_type: "application/vnd.google-apps.spreadsheet" }],
+            "[data-workspace-files]",
+            "1 accessible file on this page.",
+        ],
+    ])("moves focus when the final page removes the Next page button", async (results, target, message) => {
+        vi.stubGlobal(
+            "fetch",
+            vi
+                .fn()
+                .mockResolvedValueOnce(response({ files: [], next_page_token: "page-2" }))
+                .mockResolvedValueOnce(response({ files: results })),
+        );
+        document.body.innerHTML = workspacePanel();
+        window.BraidplaneWorkspace.init(document);
+        const next = document.querySelector("[data-workspace-next]");
+        document.querySelector("[data-workspace-discover]").click();
+        await vi.waitFor(() => expect(next.classList.contains("hidden")).toBe(false));
+        next.focus();
+        next.click();
+        await vi.waitFor(() => expect(document.activeElement).toBe(document.querySelector(target)));
+        expect(next.classList.contains("hidden")).toBe(true);
+        expect(document.querySelector("[data-workspace-feedback]").textContent).toBe(message);
     });
 });
 
@@ -325,6 +429,22 @@ describe("selected-file authorization", () => {
         expect(options.headers["X-CSRF-Token"]).toBe("csrf-test");
         expect(JSON.stringify(fixture.fetchMock.mock.calls)).not.toContain("browser-only-token");
     });
+    it("keeps a typed folder ID while a picker selection is being verified", async () => {
+        const fixture = setup();
+        await vi.waitFor(() => expect(fixture.tokenConfig()).toBeDefined());
+        fixture.tokenConfig().callback({ scope, access_token: "browser-only-token" });
+        fixture.fetchMock.mockResolvedValueOnce(
+            response({ files: [{ file_id: "picked", mime_type: "application/vnd.google-apps.folder" }] }),
+        );
+        const verification = fixture.callback({ action: "picked", docs: [{ id: "picked" }] });
+        const folder = document.querySelector('[name="workspace_folder_id"]');
+        folder.value = "typed";
+        folder.dispatchEvent(new Event("input", { bubbles: true }));
+        await verification;
+        expect(folder.value).toBe("typed");
+        expect(document.querySelector("[data-workspace-feedback]").textContent).toContain("Kept the newer");
+    });
+
     it("retries library loading for a later panel after a failure", async () => {
         vi.stubGlobal("google", undefined);
         vi.stubGlobal("fetch", vi.fn().mockResolvedValue(response(settings)));
@@ -363,5 +483,27 @@ describe("selected-file authorization", () => {
         await fixture.callback({ action: "cancel" });
         expect(fixture.fetchMock).toHaveBeenCalledTimes(2);
         expect(document.querySelector("[data-workspace-feedback]").textContent).toContain("cancelled");
+    });
+    it("restores focus after Picker closes and preserves focus already moved elsewhere", async () => {
+        const fixture = setup();
+        const button = document.querySelector("[data-workspace-pick]");
+        const browse = document.querySelector("[data-workspace-discover]");
+        await vi.waitFor(() => expect(button.disabled).toBe(false));
+        button.focus();
+        button.click();
+        fixture.tokenConfig().callback({ scope, access_token: "browser-only-token" });
+        const pickerControl = document.createElement("button");
+        document.body.append(pickerControl);
+        pickerControl.focus();
+        pickerControl.remove();
+        expect(document.activeElement).toBe(document.body);
+        await fixture.callback({ action: "cancel" });
+        expect(document.activeElement).toBe(button);
+
+        button.click();
+        browse.focus();
+        fixture.tokenConfig().error_callback();
+        expect(document.activeElement).toBe(browse);
+        expect(button.disabled).toBe(false);
     });
 });

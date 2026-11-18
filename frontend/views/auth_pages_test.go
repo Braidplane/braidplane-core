@@ -17,13 +17,13 @@ func TestAuthPagesUseSharedControlRoomShell(t *testing.T) {
 		"login":                      LoginPage("Sign in", "", "", "", "/dashboard", true, ""),
 		"signup":                     SignupPage("Sign up", "", "", "", "", "/dashboard", true, SignupState{}),
 		"signup registration closed": SignupPage("Sign up", "", "", "", "", "", false, SignupState{}),
-		"email verification":         EmailVerificationPage("Verify email", "operator@example.com", "", "/dashboard"),
+		"email verification":         EmailVerificationPage("Verify email", "operator@example.com", "", "", "/dashboard"),
 		"email confirmation":         EmailVerificationConfirmationPage(),
 		"verification success":       EmailVerificationResultPage("Email verified", true, "Email verified.", ""),
 		"verification failure":       EmailVerificationResultPage("Verification failed", false, "Link expired.", ""),
 		"forgot password":            ForgotPasswordPage("Forgot password", "", "", "", ""),
 		"reset password":             ResetPasswordPage("Reset password", "", "", ""),
-		"auth error":                 AuthErrorPage("Authentication failed", "Access denied."),
+		"auth error":                 AuthErrorPage("Authentication failed", "Access denied.", ""),
 		"mfa":                        MFAPage("Check your email", "challenge-token", "/dashboard", "", ""),
 		"workspace setup":            WorkspaceGatePage("Set up workspace", "personal", "", "Operator's workspace", "/dashboard", "", "", ""),
 	}
@@ -72,7 +72,7 @@ func TestSignupAndVerificationRecoveryKeepNativeFormSemantics(t *testing.T) {
 	require.Contains(t, html, "Create account")
 
 	var verification bytes.Buffer
-	require.NoError(t, EmailVerificationPage("Verify email", "operator@example.com", "", "/dashboard").Render(context.Background(), &verification))
+	require.NoError(t, EmailVerificationPage("Verify email", "operator@example.com", "", "", "/dashboard").Render(context.Background(), &verification))
 	verificationHTML := verification.String()
 	require.NotContains(t, verificationHTML, ">mail</div>")
 	require.NotContains(t, verificationHTML, "Check your email.")

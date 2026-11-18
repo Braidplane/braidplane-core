@@ -123,6 +123,65 @@ func TestAuthorizeExistingGitHubAppInstallationRequiresOrganizationUpdate(t *tes
 	}
 }
 
+func TestExpiredGitHubRepositoryAuthorizationRecoversOnlyTheAuthorizedSetup(t *testing.T) {
+	for _, scenario := range []string{"expired", "wrong-user", "deny-project", "consumed", "missing-setup", "unknown-state"} {
+		t.Run(scenario, func(t *testing.T) {
+			state := strings.Repeat("s", 40)
+			intent := githubapps.Intent{ID: 1, Organization: "acme", RepositorySetupSlug: "setup-one", Actor: "alice", ExpiresAt: time.Now().Add(-time.Minute)}
+			intent.Consumed = scenario == "consumed"
+			repo := &callbackIntentRepository{stateHash: fmt.Sprintf("%x", sha256.Sum256([]byte(state))), intent: intent}
+			provider := &blockedCallbackProvider{}
+			svc, err := githubappsvc.New(testutil.FakeTransactionManager{}, repo, provider, eventtest.NewProducer(nil), "https://github.com/apps/fixture/installations/new")
+			require.NoError(t, err)
+			lookups := 0
+			app, store := newTestApp(t, testServerConfig{
+				githubAppService: svc,
+				authService: fakeAuthService{CanFn: func(_ context.Context, input authorization.Input) (bool, error) {
+					require.Equal(t, slug.Slug("acme"), *input.OrgSlug)
+					return scenario != "deny-project" || input.Resource != model.ResourceProjects, nil
+				}},
+				repositorySetupService: repositorySetupFake{projectForSetup: func(_ context.Context, org, setup slug.Slug) (slug.Slug, error) {
+					lookups++
+					require.Equal(t, slug.Slug("acme"), org)
+					require.Equal(t, slug.Slug("setup-one"), setup)
+					if scenario == "missing-setup" {
+						return "", fmt.Errorf("setup unavailable")
+					}
+					return "project-one", nil
+				}},
+			})
+			user := slug.Slug("alice")
+			if scenario == "wrong-user" {
+				user = "other"
+			}
+			if scenario == "unknown-state" {
+				state = strings.Repeat("x", 40)
+			}
+			path := "/github-app-connection/callback?state=" + state + "&code=synthetic-code&installation_id=9"
+			response := authenticatedRequest(t, app, store, user, jsonRequest(t, http.MethodGet, path, nil))
+			require.NoError(t, response.Body.Close())
+			status := http.StatusBadRequest
+			if scenario == "deny-project" {
+				status = http.StatusForbidden
+			}
+			require.Equal(t, status, response.StatusCode)
+			switch scenario {
+			case "expired":
+				require.Equal(t, "/organizations/acme/projects/project-one?section=repository&repository_path=create&repository_setup=expired", response.Header.Get("Location"))
+				require.Equal(t, 1, lookups)
+			case "missing-setup":
+				require.Empty(t, response.Header.Get("Location"))
+				require.Equal(t, 1, lookups)
+			default:
+				require.Empty(t, response.Header.Get("Location"))
+				require.Zero(t, lookups)
+			}
+			require.Zero(t, provider.calls)
+			require.Equal(t, intent.Consumed, repo.intent.Consumed)
+		})
+	}
+}
+
 func TestGitHubCallbackOnlyAllowsMissingInstallationIDForExistingAuthorization(t *testing.T) {
 	for _, tc := range []struct {
 		name             string
