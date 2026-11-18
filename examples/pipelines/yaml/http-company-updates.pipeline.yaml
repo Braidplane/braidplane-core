@@ -1,0 +1,38 @@
+metadata:
+  slug: mirror-company-names
+  name: Mirror company names to HubSpot
+steps:
+  - kind: query
+    slug: changed-companies
+    query:
+      data_source_ref: source-postgres
+      operation_type: sql
+      operation_ref: changed-company-names
+      output_contract:
+        representation: rows
+        fields:
+          - name: hubspot_company_id
+            type: string
+            required: true
+          - name: company_name
+            type: string
+            required: true
+  - kind: sink
+    slug: update-companies
+    sink:
+      input: changed-companies
+      data_source_ref: hubspot-http
+      operation_type: http
+      idempotency_class: deduplicated_by_ledger
+      operation_inline:
+        type: http
+        method: PATCH
+        path: "/crm/v3/objects/companies/{{record_id}}"
+        body:
+          properties: "{{input}}"
+      config:
+        record_updates:
+          identity_field: hubspot_company_id
+          fields:
+            company_name: name
+          max_records: 25

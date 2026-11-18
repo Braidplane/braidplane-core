@@ -53,8 +53,11 @@ Accepted records, failed-before-execution records, and completed runs retain the
 diagnostics. Exact request windows are persisted with the queued execution job;
 request input values and raw cursor tokens stay out of audit metadata and user
 visible summaries. A required `backfill_requested` security-audit event is atomic
-with run acceptance. Backfill execution and retained-payload recovery never advance
-normal committed checkpoints. Automatic chunk scheduling, checkpoint reset, and
+with run acceptance. Backfill execution and recovery of a backfill leave normal committed checkpoints
+unchanged. A normal incremental source feeding a bounded HTTP record update
+can commit its retained window after recovery confirms all dependent sinks.
+The original predecessor checkpoint must still be current. Other retained-payload
+recoveries skip checkpoint promotion. Automatic chunk scheduling, checkpoint reset, and
 backfill endpoint promotion remain deferred. Numeric bounds
 follow the pipeline numeric contract. UI, CLI, and API requests preserve exact
 numeric tokens when passing checkpoint values to connectors.

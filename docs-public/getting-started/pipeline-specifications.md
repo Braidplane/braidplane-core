@@ -475,6 +475,41 @@ example, the S3 walkthrough uses `naturally_idempotent` because it overwrites a
 deterministic object key. If a sink cannot be replayed safely, recover it
 manually and verify the destination before starting another write.
 
+## Update HubSpot companies from rows
+
+An HTTP sink normally sends the upstream payload in one request. To update existing
+HubSpot companies individually, set `sink.config.record_updates` and use the inline
+company PATCH operation shown in the [example pipeline](https://github.com/Braidplane/braidplane-core/blob/main/examples/pipelines/yaml/http-company-updates.pipeline.yaml).
+Configure the writable HTTP data source with the HubSpot API base URL and either a
+static bearer token or an existing OAuth grant with company read and write access.
+
+The `identity_field` supplies each company's HubSpot record ID as a string. The
+sink checks all IDs before the first write and encodes each ID as one path segment.
+Each row must have a distinct, nonblank ID of at most 256 bytes. Leading and
+trailing whitespace and the path segments `.` and `..` are invalid.
+Map source column names to the internal names of properties this pipeline owns
+in `fields`. Supply strings for all mapped values. Other properties keep their
+destination values. Choose properties for which the source is authoritative
+and use the same stable source window when recovering a failed delivery.
+[HubSpot company update API](https://developers.hubspot.com/docs/api-reference/legacy/crm/objects/companies/update-company).
+
+Set `max_records` between 1 and 100. The sink accepts up to 100 property
+mappings, caps the projected batch at 1 MiB and has a 60-second deadline.
+The example reads up to 25 changed companies per source window and sets only
+the company name. The source query must enforce the window size. An oversized
+batch fails before dispatch.
+
+Before the first write, the runner must retain every source and transform output
+needed for recovery. The complete repair checkpoint, including the pipeline and
+intermediate outputs, must fit within 10 MiB. Event-input runs and pipelines
+that resolve environment secrets cannot retain these repair inputs. Configure
+provider credentials on the data source.
+
+Use `idempotency_class: deduplicated_by_ledger`. Recovery skips confirmed
+records and reads the mapped properties of a company whose write outcome is
+uncertain. A later delivery can still update the same company. An incremental
+source commits its checkpoint only after confirmation of every required update.
+
 ## Incremental query sources
 
 An incremental query reads from the last successfully committed position instead

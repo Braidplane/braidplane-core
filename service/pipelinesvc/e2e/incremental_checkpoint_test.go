@@ -1120,3 +1120,40 @@ func TestPipelineServiceBootstrapInitialCheckpoints(t *testing.T) {
 	require.NotEqual(t, first == nil, second == nil, "exactly one concurrent bootstrap must succeed")
 	require.Equal(t, 1, countIncrementalCheckpointsByStatus(t, pool, org, incrementalCheckpointProjectSlug, incrementalCheckpointEnvironmentSlug, concurrentPipeline.Metadata.Slug, "committed"))
 }
+
+func TestRecoveredCheckpointCannotSupersedeANewerCommit(t *testing.T) {
+	t.Parallel()
+	if testing.Short() {
+		t.Skip("requires disposable PostgreSQL")
+	}
+	ctx := t.Context()
+	pool := openE2EPool(t)
+	org := must.Slug(fmt.Sprintf("recovery-cursor-%d", time.Now().UnixNano()))
+	member := createIncrementalCheckpointServiceOrgProject(t, pool, org)
+	executor := &incrementalCheckpointServiceQueryExecutor{sourceObservations: []json.RawMessage{json.RawMessage(`{"value":"seed"}`)}}
+	svc, store := newIncrementalCheckpointService(t, pool, executor, eventtest.NewProducer(nil), noopPipelineRunProducer{})
+	pipeline := incrementalCheckpointServicePipeline("recovery-cursor")
+	createAndDeployIncrementalCheckpointPipeline(t, ctx, svc, store, org, member, pipeline)
+	actor := model.UserEventActor(member)
+	_, err := svc.Execute(ctx, org, incrementalCheckpointProjectSlug, incrementalCheckpointEnvironmentSlug, pipeline.Metadata.Slug, ptrSlug("seed"), nil, actor, e2eRunSource(actor), nil)
+	require.NoError(t, err)
+
+	lookup := executor.checkpointInputs[0].Lookup
+	repo := incrementalcheckpoints.New()
+	txm := postgres.NewTransactionManager(pool)
+	previous := "seed"
+	commit := func(run string) error {
+		return txm.RunInTx(ctx, func(ctx context.Context, tx postgres.DBTX) error {
+			return repo.CommitObservation(ctx, tx, org, incrementalCheckpointProjectSlug, incrementalCheckpointEnvironmentSlug, pipelinerun.IncrementalCheckpointTransition{
+				Lookup: lookup, CheckpointKind: lookup.CheckpointKind, RecoveryPredecessor: &previous, ObservedRunSlug: run, CommittingRunSlug: run,
+				ObservedUpperBound: json.RawMessage(fmt.Sprintf(`{"value":%q}`, run)),
+			})
+		})
+	}
+	require.NoError(t, commit("confirmed"))
+	require.ErrorIs(t, commit("stale"), pipelinerun.ErrRecoveryCheckpointChanged)
+	current, err := repo.GetCurrentCommitted(ctx, pool, org, incrementalCheckpointProjectSlug, incrementalCheckpointEnvironmentSlug, lookup)
+	require.NoError(t, err)
+	require.Equal(t, "confirmed", current.CommittingRunSlug)
+	require.JSONEq(t, `{"value":"confirmed"}`, string(current.ObservedUpperBound))
+}

@@ -399,6 +399,12 @@ import (
 	}
 }
 
+#RecordUpdates: {
+	identity_field: string & != ""
+	fields: ({[string]: string & =~"^[a-z][a-z0-9_]*$" & != "hs_object_id"}) & struct.MinFields(1) & struct.MaxFields(100)
+	max_records: int & >=1 & <=100
+}
+
 #SinkStep: {
 	kind:  "sink"
 	slug:  #Slug
@@ -413,7 +419,21 @@ import (
 		backend?:         "noop" | "ftp" | "db" | "http" | "mongo" | "s3"
 		data_source_ref:  #Slug
 		operation_type:   #SinkOperationType
-		config?: [string]: _
+		config?: {
+			record_updates?: #RecordUpdates
+			[string]: _
+		}
+		if config.record_updates != _|_ {
+			operation_type: "http"
+			idempotency_class: "deduplicated_by_ledger"
+			input_contract?: {representation: "rows"}
+			operation_inline: close({
+				type?: "http"
+				method: "PATCH"
+				path:   "/crm/v3/objects/companies/{{record_id}}"
+				body:   close({properties: "{{input}}"})
+			})
+		}
 		empty_input_policy?: "skip" | "reject"
 		idempotency_class: "naturally_idempotent" | "idempotent_with_key" | "deduplicated_by_ledger" | "unsafe"
 		if operation_type != "http" {

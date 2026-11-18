@@ -210,6 +210,9 @@ type ConnectorExecutionRequest struct {
 	StatementJSON           json.RawMessage             `json:"statement_json"`
 	Parameters              map[string]types.TypedParam `json:"parameters"`
 	Limits                  types.ExecutionLimits       `json:"limits"`
+
+	// Older workers reject the fixed operation because its record parameters are unbound.
+	HTTPRecordUpdate *sinkbinding.HTTPRecordUpdate `json:"http_record_update,omitempty"`
 }
 
 // ConnectorExecutor crosses the connector-capable execution boundary.
@@ -441,6 +444,9 @@ func (e localConnectorExecutor) ExecuteConnector(
 	defer func() { _ = release() }()
 	if request.SinkExecution {
 		ctx = sinkbinding.WithSinkExecution(ctx)
+	}
+	if update := request.HTTPRecordUpdate; update != nil {
+		ctx = sinkbinding.WithHTTPRecordUpdate(ctx, update.RecordID, update.Properties, update.Reconcile)
 	}
 	return connector.Execute(ctx, conn, request.StatementJSON, request.Parameters, request.ResourceScope, request.Limits)
 }
@@ -1226,7 +1232,15 @@ func (s *service) executePrepared(
 	for name, value := range pipelineruntime.LiteralBindingsFrom(ctx) {
 		typedParams[name] = types.TypedParam{Value: value, DataType: ParameterDataTypeText.String()}
 	}
-	if err := validateQueryParams(prepared.statementJSON, typedParams); err != nil {
+	update := sinkbinding.HTTPRecordUpdateFrom(ctx)
+	if update != nil {
+		var operation map[string]any
+		if !sinkbinding.IsSinkExecution(ctx) || ds.Type != model.DataSourceTypeHTTP || json.Unmarshal(prepared.statementJSON, &operation) != nil || !sinkbinding.ValidRecordUpdateOperation(operation) {
+			return nil, ErrInvalidInput.Detail("invalid HTTP record update operation")
+		}
+		// A worker that cannot interpret the record-update protocol must fail closed on the unbound path.
+		typedParams = nil
+	} else if err := validateQueryParams(prepared.statementJSON, typedParams); err != nil {
 		if prepared.resourceScope != nil {
 			return nil, resourcescope.ErrInvalid
 		}
@@ -1260,6 +1274,7 @@ func (s *service) executePrepared(
 	connectorLimits := s.effectiveConnectorLimits(prepared)
 	connectorLimits.ReadOnly = ds.ReadOnly
 	execResult, err := s.connectorExecutor.ExecuteConnector(execCtx, ConnectorExecutionRequest{
+		HTTPRecordUpdate:        update,
 		SinkExecution:           sinkbinding.IsSinkExecution(ctx),
 		PinnedConfigDigest:      pinnedConfig,
 		CredentialReference:     credentialReference,

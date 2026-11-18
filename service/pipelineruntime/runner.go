@@ -1203,7 +1203,7 @@ func (r *Runner) Replay(
 		ReplayFromStep: &replayFromStep, executionContext: timeline.ExecutionContext, pinnedResults: cloneStepResults(checkpoint.Results),
 		Incremental: pipelinerun.IncrementalRunOptions{
 			SourceWindows: cloneIncrementalSourceWindows(checkpoint.IncrementalSourceWindows),
-			// Recovery never advances a source checkpoint from retained payloads.
+			// Only explicitly retained record-update windows may release their checkpoint.
 			SkipCheckpointCommit: true,
 		},
 	})
@@ -1377,6 +1377,31 @@ func (r *Runner) Run(
 		return nil, xerror.Wrapf("normalize original pipeline graph: %w", err)
 	}
 	req.Pipeline = workingPipeline
+	pinnedLookups := make(map[slug.Slug]pipelinerun.IncrementalCheckpointLookup)
+	for _, step := range req.Pipeline.Steps {
+		window, ok := req.Incremental.SourceWindows[step.Slug]
+		if !ok || req.pinnedResults[step.Slug] == nil || step.Sink != nil {
+			continue
+		}
+		operationRef, operationInline, usesInline, err := resolveQueryOperationForStep(step)
+		if err != nil {
+			return nil, xerror.Wrapf("resolve pinned source operation: %w", err)
+		}
+		lookup, _, err := incrementalCheckpointLookupForStep(req.Pipeline.Metadata.Slug, req.PipelineVersionID, incrementalCheckpointNamespace(req.Incremental), step, operationRef, operationInline, usesInline)
+		if err != nil {
+			return nil, xerror.Wrapf("resolve pinned source checkpoint identity: %w", err)
+		}
+		pinnedLookups[step.Slug] = lookup
+		if window.RecoveryPredecessor != nil {
+			current, err := r.store.GetCurrentIncrementalCheckpoint(ctx, req.OrgSlug, req.ProjectSlug, req.EnvironmentSlug, lookup)
+			if err != nil && !xerror.Is(err, pipelinerun.ErrIncrementalCheckpointNotFound) {
+				return nil, err
+			}
+			if err := pipelinerun.CheckRecoveryPredecessor(*window.RecoveryPredecessor, current); err != nil {
+				return nil, err
+			}
+		}
+	}
 
 	workerObservedAt := runStartedAt.UTC()
 	timeline := pipelinerun.RunTimeline{
@@ -1630,14 +1655,27 @@ func (r *Runner) Run(
 	incrementalObservations := make(map[slug.Slug]*pipelinerun.IncrementalCheckpointObservation)
 	incrementalLookups := make(map[slug.Slug]pipelinerun.IncrementalCheckpointLookup)
 	incrementalInputs := make(map[slug.Slug]*pipelinerun.IncrementalCheckpointInput)
+	recoveryPredecessors := make(map[slug.Slug]*string)
 	succeededSinks := make(map[slug.Slug]bool)
 	failedSinks := make(map[slug.Slug]error)
 	var failedStep *slug.Slug
 	var lastCompletedOutputStep slug.Slug
-	saveCheckpoint := func(ctx context.Context, beforeSink bool) error {
+	saveCheckpoint := func(ctx context.Context, sink *pipelinespec.SinkSpec) error {
+		beforeSink := sink != nil
+		var unavailable error
+		if beforeSink {
+			if _, ok := sink.Config["record_updates"]; ok {
+				unavailable = errSinkConfigurationInvalid.WithPublicDetail("Record updates require complete, retainable repair inputs before dispatch.")
+				for _, step := range checkpointPipeline.Steps {
+					if step.Sink == nil && completedResults[step.Slug] == nil {
+						return unavailable
+					}
+				}
+			}
+		}
 		// Event payloads are never retained; secret-bearing runs cannot retain exact repair inputs.
 		if len(completedResults) == 0 || req.EventInput != nil || (beforeSink && !secretRedactor.Empty()) {
-			return nil
+			return unavailable
 		}
 		checkpoint := pipelinerun.ReplayCheckpoint{
 			RunSlug: timeline.RunSlug, OrgSlug: req.OrgSlug, ProjectSlug: req.ProjectSlug, EnvironmentSlug: req.EnvironmentSlug,
@@ -1647,17 +1685,23 @@ func (r *Runner) Run(
 			Results:                  cloneStepResultsForStorage(completedResults, secretRedactor),
 			IncrementalSourceWindows: incrementalSourceWindowsFromObservations(incrementalObservations),
 		}
+		for source, predecessor := range recoveryPredecessors {
+			if window, ok := checkpoint.IncrementalSourceWindows[source]; ok {
+				window.RecoveryPredecessor = predecessor
+				checkpoint.IncrementalSourceWindows[source] = window
+			}
+		}
 		encoded, err := json.Marshal(checkpoint)
 		if err != nil {
 			if beforeSink {
 				// Nonserializable legacy outputs are dispatchable but ineligible for early retention.
-				return nil
+				return unavailable
 			}
 			return xerror.Unexpected().With(err)
 		}
 		// Bound the complete retained artifact, including plans and all intermediate outputs.
 		if beforeSink && len(encoded) > 10*1024*1024 {
-			return nil
+			return unavailable
 		}
 		return r.store.SaveCheckpoint(ctx, req.OrgSlug, req.ProjectSlug, req.EnvironmentSlug, timeline.RunSlug, checkpoint)
 	}
@@ -1689,15 +1733,11 @@ func (r *Runner) Run(
 			timeline.Snapshots = append(timeline.Snapshots, replaySnapshotsFromResults(req.Pipeline, req.OrgSlug, req.ProjectSlug, req.EnvironmentSlug, map[slug.Slug]*pipelinerun.StepResult{step.Slug: pinned})...)
 			timeline.Events = append(timeline.Events, pipelinerun.TimelineEvent{At: r.clock.Now(), Type: "step_reused", Step: step.Slug, Status: "succeeded"})
 			if window, ok := req.Incremental.SourceWindows[step.Slug]; ok {
-				operationRef, operationInline, usesInline, err := resolveQueryOperationForStep(step)
-				if err != nil {
-					return nil, xerror.Wrapf("resolve pinned source operation: %w", err)
-				}
-				lookup, _, err := incrementalCheckpointLookupForStep(req.Pipeline.Metadata.Slug, req.PipelineVersionID, incrementalCheckpointNamespace(req.Incremental), step, operationRef, operationInline, usesInline)
-				if err != nil {
-					return nil, xerror.Wrapf("resolve pinned source checkpoint identity: %w", err)
-				}
+				lookup := pinnedLookups[step.Slug]
 				incrementalLookups[step.Slug] = lookup
+				if window.RecoveryPredecessor != nil {
+					recoveryPredecessors[step.Slug] = window.RecoveryPredecessor
+				}
 				incrementalObservations[step.Slug] = &pipelinerun.IncrementalCheckpointObservation{
 					SourceStepSlug: step.Slug, CheckpointNamespace: lookup.CheckpointNamespace,
 					CheckpointKind: lookup.CheckpointKind, ObservedAt: r.clock.Now(), ObservedLowerBound: window.LowerBound,
@@ -1707,7 +1747,7 @@ func (r *Runner) Run(
 			continue
 		}
 		if step.Sink != nil {
-			if err := saveCheckpoint(ctx, true); err != nil {
+			if err := saveCheckpoint(ctx, step.Sink); err != nil {
 				timeline.Failure = &pipelinerun.FailureContext{
 					Step: step.Slug, At: r.clock.Now(), Kind: failureKindPlatform, Side: failureSideSink,
 					Error:      "Sink repair inputs could not be retained before dispatch.",
@@ -2436,6 +2476,16 @@ func (r *Runner) Run(
 			}
 			incrementalLookups[step.Slug] = incrementalLookup
 			incrementalInputs[step.Slug] = checkpointInput
+			if !hasSourceWindow && !shouldSkipIncrementalCheckpointCommit(req.Incremental) && incrementalLookup.CheckpointNamespace == pipelinerun.DefaultIncrementalCheckpointNamespace {
+				for _, sink := range dependentSinkSteps(originalGraph, step.Slug) {
+					dependent, _ := originalGraph.Step(sink)
+					if _, ok := dependent.Sink.Config["record_updates"]; ok {
+						previous := currentCheckpoint.RecoveryPredecessor()
+						recoveryPredecessors[step.Slug] = &previous
+						break
+					}
+				}
+			}
 			journal.observeWindow(step.Slug, checkpointInput)
 
 			if op, ok := operations[step.Slug]; ok {
@@ -2655,23 +2705,11 @@ func (r *Runner) Run(
 		failedSinks,
 		timeline.Failure,
 		req.Incremental,
+		recoveryPredecessors,
+		req.pinnedResults != nil,
 	)
-	incrementalSummary, incrementalDiagnostics := incrementalRunVisibility(
-		req.Pipeline,
-		req.Incremental,
-		incrementalInputs,
-		incrementalObservations,
-		transitions,
-		timeline.Failure,
-		originalGraph,
-		succeededSinks,
-	)
-	timeline.Events = append(timeline.Events, checkpointTimelineEvents(runCompletedAt, transitions, incrementalDiagnostics)...)
 	pipelinerun.FinalizeStructuralChecks(timeline.StructuralChecks, runCompletedAt)
 	timeline.Status = overallStatus
-	timeline.Events = append(timeline.Events,
-		pipelinerun.TimelineEvent{At: runCompletedAt, Type: "run_completed", Status: overallStatus},
-	)
 	finalized = true
 	edgeDiagnostics = finalizeRunEdgeDiagnostics(diagnosticPipeline, diagnosticResults, edgeDiagnostics)
 
@@ -2691,27 +2729,40 @@ func (r *Runner) Run(
 			FailedStep:                 failedStep,
 			ReplayOfRunSlug:            req.ReplayOfRunSlug,
 			ReplayFromStep:             req.ReplayFromStep,
-			Incremental:                incrementalSummary,
 		},
 		Timeline:                         timeline,
 		StepResults:                      completedResults,
 		EdgeDiagnostics:                  edgeDiagnostics,
 		IncrementalCheckpointTransitions: transitions,
-		IncrementalDiagnostics:           incrementalDiagnostics,
 	}
 
 	runResult.Timeline.Revision++
 	runResult.Timeline.DeploymentResolutionDigest = req.DeploymentResolutionDigest
 	runResult.Timeline.Admissions = deploymentplan.Admissions(ctx)
-	redactRunResultSecrets(runResult, secretRedactor)
-	persistErr := r.store.PersistRun(
-		ctx,
-		req.OrgSlug,
-		req.ProjectSlug,
-		req.EnvironmentSlug,
-		originalPipeline,
-		runResult,
-	)
+	persistTerminal := func() error {
+		runResult.Metadata.Incremental, runResult.IncrementalDiagnostics = incrementalRunVisibility(
+			req.Pipeline, req.Incremental, incrementalInputs, incrementalObservations, transitions,
+			timeline.Failure, originalGraph, succeededSinks,
+		)
+		runResult.Timeline.Events = timeline.Events
+		runResult.Timeline.Events = append(runResult.Timeline.Events, checkpointTimelineEvents(runCompletedAt, transitions, runResult.IncrementalDiagnostics)...)
+		runResult.Timeline.Events = append(runResult.Timeline.Events,
+			pipelinerun.TimelineEvent{At: runCompletedAt, Type: "run_completed", Status: overallStatus})
+		redactRunResultSecrets(runResult, secretRedactor)
+		return r.store.PersistRun(ctx, req.OrgSlug, req.ProjectSlug, req.EnvironmentSlug, originalPipeline, runResult)
+	}
+	persistErr := persistTerminal()
+	if xerror.Is(persistErr, pipelinerun.ErrRecoveryCheckpointChanged) {
+		// The transaction rolled back. Persist confirmed sink outcomes without promoting stale windows.
+		for i := range transitions {
+			if transitions[i].Status == pipelinerun.IncrementalCheckpointTransitionCommitted && transitions[i].RecoveryPredecessor != nil {
+				transitions[i].Status = pipelinerun.IncrementalCheckpointTransitionBlocked
+				transitions[i].CommittingRunSlug = ""
+				transitions[i].BlockedReason = "source checkpoint changed during recovery"
+			}
+		}
+		persistErr = persistTerminal()
+	}
 	if persistErr != nil {
 		// Recovery may return a failed run only after its diagnostics are durable.
 		runResult = nil
@@ -2725,7 +2776,7 @@ func (r *Runner) Run(
 	if persistErr != nil {
 		return runResult, xerror.Wrapf("persist pipeline run: %w", persistErr)
 	}
-	if err := saveCheckpoint(ctx, false); err != nil {
+	if err := saveCheckpoint(ctx, nil); err != nil {
 		logging.LogError(ctx, "save checkpoint", err)
 	}
 	return runResult, runErr
@@ -3817,6 +3868,8 @@ func incrementalCheckpointTransitions(
 	failedSinks map[slug.Slug]error,
 	failure *pipelinerun.FailureContext,
 	options pipelinerun.IncrementalRunOptions,
+	predecessors map[slug.Slug]*string,
+	recovering bool,
 ) []pipelinerun.IncrementalCheckpointTransition {
 	if len(observations) == 0 {
 		return nil
@@ -3853,7 +3906,10 @@ func incrementalCheckpointTransitions(
 			transition.BlockedByStep = blockedBy
 			transition.BlockedReason = blockedReason
 		}
-		if shouldSkipIncrementalCheckpointCommit(options) && !blocked {
+		if recovering {
+			transition.RecoveryPredecessor = predecessors[sourceSlug]
+		}
+		if shouldSkipIncrementalCheckpointCommit(options) && transition.RecoveryPredecessor == nil && !blocked {
 			transition.Status = pipelinerun.IncrementalCheckpointTransitionBlocked
 			transition.CommittingRunSlug = ""
 			transition.BlockedReason = "checkpoint promotion skipped for this run"
@@ -4566,9 +4622,10 @@ func cloneIncrementalSourceWindows(
 	cloned := make(map[slug.Slug]pipelinerun.IncrementalSourceWindow, len(windows))
 	for sourceSlug, window := range windows {
 		cloned[sourceSlug] = pipelinerun.IncrementalSourceWindow{
-			LowerBound:      cloneRawMessage(window.LowerBound),
-			UpperBound:      cloneRawMessage(window.UpperBound),
-			DisplayMetadata: cloneRawMessage(window.DisplayMetadata),
+			RecoveryPredecessor: window.RecoveryPredecessor,
+			LowerBound:          cloneRawMessage(window.LowerBound),
+			UpperBound:          cloneRawMessage(window.UpperBound),
+			DisplayMetadata:     cloneRawMessage(window.DisplayMetadata),
 		}
 	}
 	return cloned
