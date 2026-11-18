@@ -34,6 +34,7 @@ Public user guides live under `docs-public/` with separate MkDocs navigation.
 - [Large SQL transfer and recovery qualification](LARGE_SQL_RECOVERY_QUALIFICATION.md)
 - [Local instance administrator provisioning](INSTANCE_ADMIN.md)
 - [Credential encryption operations](CREDENTIAL_ENCRYPTION.md)
+- [Credential security audit](SECURITY_AUDIT.md)
 - [Self-hosted custody and network boundaries](SELF_HOSTED_CUSTODY.md)
 - [OpenTelemetry collector export](OPENTELEMETRY.md)
 - [Package Boundaries](PACKAGE_BOUNDARIES.md)
