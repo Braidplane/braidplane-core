@@ -1,0 +1,202 @@
+package views
+
+import (
+	api "github.com/Braidplane/braidplane-core/api-schema/gen/client"
+	"github.com/Braidplane/braidplane-core/pkg/ptr"
+	"strings"
+)
+
+templ RuntimeVariableComparisonPage(shell AuthenticatedShellData, data RuntimeVariableComparisonView) {
+	@AuthenticatedShell(shell, runtimeVariableComparisonContent(data))
+}
+
+templ runtimeVariableComparisonContent(data RuntimeVariableComparisonView) {
+	<section class="min-w-0 space-y-4">
+		<div class="flex flex-wrap items-center justify-between gap-3">
+			<a class="btn btn-ghost btn-sm" href={ templ.URL(EnvironmentSelectionHref(data.Organization, "")) }>Back to environments</a>
+			if data.Comparison != nil && data.Permissions.Can("environments", "update") && data.Form == nil {
+				<a class="btn btn-primary btn-sm" href={ templ.URL(data.EditHref("")) }>Define variable</a>
+			}
+		</div>
+		if data.Pipeline != "" {
+			<p class="text-sm">Required includes keys used by the selected version of <strong>{ data.Pipeline }</strong>.</p>
+		}
+		if data.Form != nil {
+			@runtimeVariableDefinitionForm(data)
+			if data.Editing && data.Permissions.Can("environments", "delete") {
+				@runtimeVariableDefinitionDeleteForm(data)
+			}
+		}
+		if data.Comparison == nil {
+			@EntityState("Comparison unavailable", "Runtime variables could not be loaded.")
+		} else if len(data.Comparison.Rows) == 0 {
+			@EntityState("No runtime variables", "Define a variable to share its type and optional default across environments.")
+		} else {
+			<div class="overflow-x-auto rounded-lg border border-base-300" tabindex="0" role="region" aria-label="Runtime variable comparison">
+				<table class="table table-sm">
+					<thead>
+						<tr>
+							<th scope="col">Variable</th>
+							for _, environment := range data.Comparison.Environments {
+								<th scope="col"><a class="link" href={ templ.URL(OrganizationEnvironmentDetailHref(data.Organization, environment) + "?section=variables") }>{ environment }</a></th>
+							}
+						</tr>
+					</thead>
+					<tbody>
+						for _, row := range data.Comparison.Rows {
+							<tr>
+								<th scope="row" class="min-w-40 align-top">
+									<span class="break-all font-mono">{ row.Key }</span>
+									if row.Used {
+										<span class="ml-2 text-xs font-normal">Used</span>
+									}
+									if row.Definition != nil {
+										<p class="text-xs font-normal text-base-content/70">
+											{ string(row.Definition.ValueType) }
+										</p>
+										if row.Definition.Description != nil {
+											<p class="max-w-xs break-words whitespace-normal text-xs font-normal">{ *row.Definition.Description }</p>
+										}
+									}
+									if row.Used || (row.Definition != nil && row.Definition.Required) {
+										<span class="text-xs font-normal">Required</span>
+									}
+									if data.Permissions.Can("environments", "update") && row.Definition != nil {
+										<a class="link text-xs font-normal" href={ templ.URL(data.EditHref(row.Key)) } aria-label={ "Edit definition for " + row.Key }>Edit definition</a>
+									}
+								</th>
+								for _, cell := range row.Cells {
+									<td class="min-w-32 align-top">
+										@runtimeVariableComparisonCell(cell)
+									</td>
+								}
+							</tr>
+						}
+					</tbody>
+				</table>
+			</div>
+		}
+	</section>
+}
+
+templ runtimeVariableComparisonCell(cell api.RuntimeVariableComparisonCell) {
+	<span class={ "badge badge-sm", templ.KV("badge-error", cell.Blocked), templ.KV("badge-outline", !cell.Blocked) }>
+		switch cell.Source {
+			case api.RuntimeVariableSourceOverride:
+				Override
+			case api.RuntimeVariableSourceDefault:
+				Default
+			default:
+				if cell.Blocked {
+					Missing required value
+				} else {
+					Missing
+				}
+		}
+	</span>
+	if cell.TypeMismatch {
+		<p class="text-xs text-error">Type mismatch
+			if cell.Variable != nil {
+				<span> · { string(cell.Variable.ValueType) }</span>
+			}
+		</p>
+	}
+	if cell.Variable != nil {
+		if cell.Variable.Value == "" {
+			<p class="text-xs text-base-content/70">Empty text</p>
+		} else {
+			<p class="max-w-xs break-all whitespace-pre-wrap font-mono text-xs">{ cell.Variable.Value }</p>
+		}
+	}
+}
+
+templ runtimeVariableDefinitionForm(data RuntimeVariableComparisonView) {
+	<form
+		method="post"
+		action={ templ.URL(data.EditHref(func() string { if data.Editing { return data.Form.Key }; return "" }())) }
+		class="space-y-3 rounded-lg border border-base-300 bg-base-100 p-4"
+		if data.Editing {
+			data-dirty-form
+		}
+		if data.Unsaved {
+			data-dirty-unsaved
+		}
+	>
+		<h2 class="font-semibold">
+			if data.Editing {
+				Edit { data.Form.Key }
+			} else {
+				Define runtime variable
+			}
+		</h2>
+		<div class="grid gap-3 sm:grid-cols-2">
+			if !data.Editing {
+				<label class="grid gap-1 text-sm">
+					Key
+					<input class="input input-sm w-full" name="key" required maxlength="100" pattern="[A-Za-z_][A-Za-z0-9_]*" value={ data.Form.Key }/>
+				</label>
+			}
+			<label class="grid gap-1 text-sm">
+				Type
+				<select class="select select-sm w-full" name="value_type" required>
+					for _, valueType := range []api.RuntimeVariableValueType{api.RuntimeVariableValueTypeText, api.RuntimeVariableValueTypeInteger, api.RuntimeVariableValueTypeBoolean, api.RuntimeVariableValueTypeDate, api.RuntimeVariableValueTypeUUID} {
+						<option value={ string(valueType) } selected?={ data.Form.ValueType == valueType }>{ string(valueType) }</option>
+					}
+				</select>
+			</label>
+			<label class="grid gap-1 text-sm">
+				Description
+				<textarea class="textarea textarea-sm w-full" name="description" rows="2">{ "\n" + ptr.Value(data.Form.Description) }</textarea>
+			</label>
+			<label class="flex items-center gap-2 text-sm">
+				<input type="checkbox" class="checkbox checkbox-sm" name="required" value="1" checked?={ data.Form.Required }/>
+				Required in every environment
+			</label>
+			<label class="flex items-center gap-2 text-sm">
+				<input type="checkbox" class="checkbox checkbox-sm" name="has_default" value="1" checked?={ data.Form.DefaultValue != nil }/>
+				Use a default value
+			</label>
+			<label class="grid gap-1 text-sm">
+				Default value
+				<textarea class="textarea textarea-sm w-full" name="default_value" rows="2">{ "\n" + ptr.Value(data.Form.DefaultValue) }</textarea>
+			</label>
+		</div>
+		@runtimeVariableDefinitionProtectedConfirmation(data.Protected)
+		<div class="flex flex-wrap items-center gap-2">
+			if data.Editing {
+				<button class="btn btn-primary btn-sm" type="submit" data-dirty-submit disabled>Save definition</button>
+			} else {
+				<button class="btn btn-primary btn-sm" type="submit">Create definition</button>
+			}
+			<a class="btn btn-ghost btn-sm" href={ templ.URL(data.Href()) }>Cancel</a>
+		</div>
+	</form>
+}
+
+templ runtimeVariableDefinitionDeleteForm(data RuntimeVariableComparisonView) {
+	<details class="rounded-lg border border-base-300 p-4">
+		<summary class="cursor-pointer text-sm text-error">Delete definition</summary>
+		<form
+			method="post"
+			action={ templ.URL(data.EditHref(data.Form.Key)) }
+			class="mt-3 space-y-3"
+			data-destructive-confirm={ DestructiveConfirmation("Delete", "runtime variable definition", data.Form.Key, "This removes the shared default and keeps existing environment overrides.") }
+		>
+			<input type="hidden" name="action" value="delete"/>
+			<p class="text-sm">Deleting the definition removes its default. Environment overrides stay in place.</p>
+			@runtimeVariableDefinitionProtectedConfirmation(data.Protected)
+			<button class="btn btn-outline btn-error btn-sm" type="submit">Delete definition</button>
+		</form>
+	</details>
+}
+
+templ runtimeVariableDefinitionProtectedConfirmation(protected []string) {
+	if len(protected) > 0 {
+		<label class="grid gap-1 text-sm">
+			Confirm protected environments
+			<span class="text-xs text-base-content/70">Enter these slugs separated by spaces to confirm this organization-wide change.</span>
+			<span class="font-mono text-xs">{ strings.Join(protected, " ") }</span>
+			<input class="input input-sm w-full" name="protected_environment_confirmations" required autocomplete="off"/>
+		</label>
+	}
+}

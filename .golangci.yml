@@ -71,6 +71,7 @@ linters:
           allow:
             - github.com/Braidplane/braidplane-core/pkg/sinkbinding$
             - github.com/Braidplane/braidplane-core/pkg/connector/googleworkspace$
+            - github.com/Braidplane/braidplane-core/pkg/pipeline/runtime$
           deny:
             - pkg: github.com/Braidplane/braidplane-core/pkg/eventtest
               desc: frontend must not depend on backend provider or tooling internals

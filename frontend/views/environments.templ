@@ -13,6 +13,9 @@ templ OrganizationEnvironmentsPage(shellData AuthenticatedShellData, orgSlug str
 templ OrganizationEnvironmentsPageContent(orgSlug string, environments []api.Environment, selectedEnvironmentSlug string, runtimeVariables []api.RuntimeVariable, runtimeVariablesUnavailable bool, environmentSecrets []api.EnvironmentSecret, environmentSecretsUnavailable bool, formData EnvironmentCreateFormData, permissions OrganizationPermissions) {
 	<div id="organization-environments-content">
 		<div class="flex flex-wrap items-center justify-end gap-3">
+			if permissions.Can("environments", "read") {
+				<a class="btn btn-outline btn-sm w-full sm:w-auto" href={ templ.URL(RuntimeVariableComparisonHref(orgSlug, "", "", "")) }>Compare runtime variables</a>
+			}
 			if permissions.Can("environments", "create") {
 				<button
 					class="btn btn-primary btn-sm w-full sm:w-auto"
@@ -342,16 +345,16 @@ templ OrganizationRuntimeVariablesPanel(orgSlug string, environment api.Environm
 		<div class="flex flex-wrap items-start justify-between gap-3">
 			<div>
 				<h2 class="text-base font-semibold text-base-content">Runtime variables</h2>
-				<p class="mt-1 text-xs text-base-content/65">Non-secret values scoped to this organization runtime target.</p>
+				<p class="mt-1 text-xs text-base-content/65">Non-secret overrides scoped to this runtime target.</p>
 			</div>
-			<span class="badge badge-outline">{ fmt.Sprintf("%d variables", len(runtimeVariables)) }</span>
+			<span class="badge badge-outline">{ fmt.Sprintf("%d overrides", len(runtimeVariables)) }</span>
 		</div>
 		if runtimeVariablesUnavailable {
 			<div class="alert alert-warning mt-4">
 				<span>Runtime variables are unavailable.</span>
 			</div>
 		} else if len(runtimeVariables) == 0 {
-			<div class="mt-4 rounded-lg border border-dashed border-base-300 bg-base-200/30 px-4 py-3 text-sm text-base-content/70">No runtime variables for this target.</div>
+			<div class="mt-4 rounded-lg border border-dashed border-base-300 bg-base-200/30 px-4 py-3 text-sm text-base-content/70">No overrides for this target.</div>
 		} else {
 			<div class="mt-4 space-y-2">
 				for _, variable := range runtimeVariables {

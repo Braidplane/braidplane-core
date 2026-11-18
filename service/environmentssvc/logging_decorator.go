@@ -29,6 +29,35 @@ func NewServiceWithLogging(base Service, logger *slog.Logger) Service {
 	}
 }
 
+// CompareRuntimeVariables implements Service.
+func (_d ServiceWithLogging) CompareRuntimeVariables(ctx context.Context, orgSlug slug.Slug, usedKeys []string) (r1 model.RuntimeVariableComparison, err error) {
+	_startedAt := time.Now()
+	_ctx := ctx
+	_ctx, _span := tracing.StartMethodSpan(_ctx, tracing.MethodSpan{
+		Layer:     "service",
+		Package:   "service/environmentssvc",
+		Interface: "Service",
+		Method:    "CompareRuntimeVariables",
+	})
+	defer _span.End()
+	defer func() {
+		if err != nil {
+			tracing.RecordError(_span, err)
+		}
+		logging.LogMethodCompletion(_ctx, _d._logger, logging.MethodCompletion{
+			Layer:       "service",
+			Package:     "service/environmentssvc",
+			Interface:   "Service",
+			Method:      "CompareRuntimeVariables",
+			StartedAt:   _startedAt,
+			CompletedAt: time.Now(),
+			Err:         err,
+		})
+	}()
+	r1, err = _d._base.CompareRuntimeVariables(_ctx, orgSlug, usedKeys)
+	return
+}
+
 // CreateDefaultEnvironments implements Service.
 func (_d ServiceWithLogging) CreateDefaultEnvironments(ctx context.Context, orgSlug slug.Slug) (err error) {
 	_startedAt := time.Now()
@@ -171,6 +200,35 @@ func (_d ServiceWithLogging) DeleteRuntimeVariable(ctx context.Context, orgSlug 
 		})
 	}()
 	err = _d._base.DeleteRuntimeVariable(_ctx, orgSlug, environmentSlug, key, confirmation, actor)
+	return
+}
+
+// DeleteRuntimeVariableDefinition implements Service.
+func (_d ServiceWithLogging) DeleteRuntimeVariableDefinition(ctx context.Context, orgSlug slug.Slug, key string, confirmations []slug.Slug, actor model.EventActor) (err error) {
+	_startedAt := time.Now()
+	_ctx := ctx
+	_ctx, _span := tracing.StartMethodSpan(_ctx, tracing.MethodSpan{
+		Layer:     "service",
+		Package:   "service/environmentssvc",
+		Interface: "Service",
+		Method:    "DeleteRuntimeVariableDefinition",
+	})
+	defer _span.End()
+	defer func() {
+		if err != nil {
+			tracing.RecordError(_span, err)
+		}
+		logging.LogMethodCompletion(_ctx, _d._logger, logging.MethodCompletion{
+			Layer:       "service",
+			Package:     "service/environmentssvc",
+			Interface:   "Service",
+			Method:      "DeleteRuntimeVariableDefinition",
+			StartedAt:   _startedAt,
+			CompletedAt: time.Now(),
+			Err:         err,
+		})
+	}()
+	err = _d._base.DeleteRuntimeVariableDefinition(_ctx, orgSlug, key, confirmations, actor)
 	return
 }
 
@@ -548,5 +606,34 @@ func (_d ServiceWithLogging) UpsertRuntimeVariable(ctx context.Context, orgSlug 
 		})
 	}()
 	rp1, err = _d._base.UpsertRuntimeVariable(_ctx, orgSlug, environmentSlug, params, actor)
+	return
+}
+
+// UpsertRuntimeVariableDefinition implements Service.
+func (_d ServiceWithLogging) UpsertRuntimeVariableDefinition(ctx context.Context, orgSlug slug.Slug, definition model.RuntimeVariableDefinition, confirmations []slug.Slug, actor model.EventActor) (rp1 *model.RuntimeVariableDefinition, err error) {
+	_startedAt := time.Now()
+	_ctx := ctx
+	_ctx, _span := tracing.StartMethodSpan(_ctx, tracing.MethodSpan{
+		Layer:     "service",
+		Package:   "service/environmentssvc",
+		Interface: "Service",
+		Method:    "UpsertRuntimeVariableDefinition",
+	})
+	defer _span.End()
+	defer func() {
+		if err != nil {
+			tracing.RecordError(_span, err)
+		}
+		logging.LogMethodCompletion(_ctx, _d._logger, logging.MethodCompletion{
+			Layer:       "service",
+			Package:     "service/environmentssvc",
+			Interface:   "Service",
+			Method:      "UpsertRuntimeVariableDefinition",
+			StartedAt:   _startedAt,
+			CompletedAt: time.Now(),
+			Err:         err,
+		})
+	}()
+	rp1, err = _d._base.UpsertRuntimeVariableDefinition(_ctx, orgSlug, definition, confirmations, actor)
 	return
 }

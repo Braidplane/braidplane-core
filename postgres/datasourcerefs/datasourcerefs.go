@@ -576,35 +576,34 @@ func (r *repository) ResolveEnvironmentBinding(
 	return r.FindEnvironmentBinding(ctx, tx, orgSlug, projectSlug, pipelineSlug, environmentSlug, dataSourceRefSlug)
 }
 
-func (r *repository) ListRuntimeVariables(
-	ctx context.Context,
-	tx postgres.DBTX,
-	orgSlug, projectSlug, environmentSlug slug.Slug,
-) ([]model.RuntimeVariable, error) {
-	rows, err := dbgen.New(tx).ListAllRuntimeVariables(ctx, dbgen.ListAllRuntimeVariablesParams{
-		OrgSlug:         orgSlug,
-		EnvironmentSlug: environmentSlug,
+func (r *repository) ListRuntimeVariableResolutionInputs(ctx context.Context, tx postgres.DBTX, orgSlug, environmentSlug slug.Slug) ([]model.RuntimeVariable, []model.RuntimeVariableDefinition, error) {
+	rows, err := dbgen.New(tx).ListRuntimeVariableResolutionInputs(ctx, dbgen.ListRuntimeVariableResolutionInputsParams{
+		OrgSlug: orgSlug, EnvironmentSlug: environmentSlug,
 	})
 	if err != nil {
-		return nil, xerror.Unexpected().With(err)
+		return nil, nil, xerror.Unexpected().With(err)
 	}
-	result := make([]model.RuntimeVariable, len(rows))
-	for i, row := range rows {
-		variable, err := toRuntimeVariable(
-			row.EnvironmentSlug,
-			row.Key,
-			row.ValueType,
-			row.ValueText,
-			row.Description,
-			row.CreatedAt,
-			row.UpdatedAt,
-		)
+	var overrides []model.RuntimeVariable
+	var definitions []model.RuntimeVariableDefinition
+	for _, row := range rows {
+		variable, err := toRuntimeVariable(environmentSlug, row.Key, row.ValueType, row.ValueText, row.Description, row.CreatedAt, row.UpdatedAt)
 		if err != nil {
-			return nil, err
+			return nil, nil, err
 		}
-		result[i] = variable
+		if !row.IsDefinition {
+			overrides = append(overrides, variable)
+			continue
+		}
+		definition := model.RuntimeVariableDefinition{
+			Key: variable.Key, ValueType: variable.ValueType, Description: variable.Description,
+			CreatedAt: variable.CreatedAt, UpdatedAt: variable.UpdatedAt,
+		}
+		if row.HasValue {
+			definition.DefaultValue = &variable.Value
+		}
+		definitions = append(definitions, definition)
 	}
-	return result, nil
+	return overrides, definitions, nil
 }
 
 func (r *repository) DeleteEnvironmentBinding(

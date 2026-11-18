@@ -5413,6 +5413,27 @@ func (e Role) Valid() bool {
 	}
 }
 
+// Defines values for RuntimeVariableComparisonCellSource.
+const (
+	RuntimeVariableSourceDefault  RuntimeVariableComparisonCellSource = "default"
+	RuntimeVariableSourceMissing  RuntimeVariableComparisonCellSource = "missing"
+	RuntimeVariableSourceOverride RuntimeVariableComparisonCellSource = "override"
+)
+
+// Valid indicates whether the value is a known member of the RuntimeVariableComparisonCellSource enum.
+func (e RuntimeVariableComparisonCellSource) Valid() bool {
+	switch e {
+	case RuntimeVariableSourceDefault:
+		return true
+	case RuntimeVariableSourceMissing:
+		return true
+	case RuntimeVariableSourceOverride:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for RuntimeVariableValueType.
 const (
 	RuntimeVariableValueTypeBoolean RuntimeVariableValueType = "boolean"
@@ -17357,6 +17378,78 @@ type RuntimeVariable struct {
 	ValueType RuntimeVariableValueType `json:"value_type"`
 }
 
+// RuntimeVariableComparison defines model for RuntimeVariableComparison.
+type RuntimeVariableComparison struct {
+	Environments []Slug                         `json:"environments"`
+	Rows         []RuntimeVariableComparisonRow `json:"rows"`
+}
+
+// RuntimeVariableComparisonCell defines model for RuntimeVariableComparisonCell.
+type RuntimeVariableComparisonCell struct {
+	Blocked      bool                                `json:"blocked"`
+	Required     bool                                `json:"required"`
+	Source       RuntimeVariableComparisonCellSource `json:"source"`
+	TypeMismatch bool                                `json:"type_mismatch"`
+
+	// Variable Non-secret runtime variable scoped to one organization runtime environment.
+	Variable *RuntimeVariable `json:"variable,omitempty"`
+}
+
+// RuntimeVariableComparisonCellSource defines model for RuntimeVariableComparisonCell.Source.
+type RuntimeVariableComparisonCellSource string
+
+// RuntimeVariableComparisonRow defines model for RuntimeVariableComparisonRow.
+type RuntimeVariableComparisonRow struct {
+	// Cells One cell per environment in the same order as environments.
+	Cells      []RuntimeVariableComparisonCell `json:"cells"`
+	Definition *RuntimeVariableDefinition      `json:"definition,omitempty"`
+
+	// Key Runtime variable key referenced as `{{runtime.env.key}}` in pipeline specs.
+	//
+	// Example: s3_prefix
+	Key  RuntimeVariableKey `json:"key"`
+	Used bool               `json:"used"`
+}
+
+// RuntimeVariableDefinition defines model for RuntimeVariableDefinition.
+type RuntimeVariableDefinition struct {
+	// DefaultValue Scalar represented as text. Omit to leave the key without a default.
+	DefaultValue *string `json:"default_value,omitempty"`
+
+	// Description Optional operator description for a non-secret runtime variable.
+	//
+	// Example: S3 prefix used by this project environment
+	Description *RuntimeVariableDescription `json:"description,omitempty"`
+
+	// Key Runtime variable key referenced as `{{runtime.env.key}}` in pipeline specs.
+	//
+	// Example: s3_prefix
+	Key      RuntimeVariableKey `json:"key"`
+	Required bool               `json:"required"`
+
+	// ValueType Scalar runtime variable value type.
+	//
+	// Example: text
+	ValueType RuntimeVariableValueType `json:"value_type"`
+}
+
+// RuntimeVariableDefinitionSettings defines model for RuntimeVariableDefinitionSettings.
+type RuntimeVariableDefinitionSettings struct {
+	// DefaultValue Scalar represented as text. Omit to leave the key without a default.
+	DefaultValue *string `json:"default_value,omitempty"`
+
+	// Description Optional operator description for a non-secret runtime variable.
+	//
+	// Example: S3 prefix used by this project environment
+	Description *RuntimeVariableDescription `json:"description,omitempty"`
+	Required    bool                        `json:"required"`
+
+	// ValueType Scalar runtime variable value type.
+	//
+	// Example: text
+	ValueType RuntimeVariableValueType `json:"value_type"`
+}
+
 // RuntimeVariableDescription Optional operator description for a non-secret runtime variable.
 //
 // Example: S3 prefix used by this project environment
@@ -18614,6 +18707,29 @@ type UpsertRuntimeVariable struct {
 	//
 	// Example: dev/dir
 	Value string `json:"value"`
+
+	// ValueType Scalar runtime variable value type.
+	//
+	// Example: text
+	ValueType RuntimeVariableValueType `json:"value_type"`
+}
+
+// UpsertRuntimeVariableDefinition defines model for UpsertRuntimeVariableDefinition.
+type UpsertRuntimeVariableDefinition struct {
+	// CreateOnly Reject the write if a definition for this key already exists.
+	CreateOnly *bool `json:"create_only,omitempty"`
+
+	// DefaultValue Scalar represented as text. Omit to leave the key without a default.
+	DefaultValue *string `json:"default_value,omitempty"`
+
+	// Description Optional operator description for a non-secret runtime variable.
+	//
+	// Example: S3 prefix used by this project environment
+	Description *RuntimeVariableDescription `json:"description,omitempty"`
+
+	// ProtectedEnvironmentConfirmations Exact slug of every protected environment affected by organization-wide settings.
+	ProtectedEnvironmentConfirmations *[]Slug `json:"protected_environment_confirmations,omitempty"`
+	Required                          bool    `json:"required"`
 
 	// ValueType Scalar runtime variable value type.
 	//
@@ -19976,6 +20092,18 @@ type ListRolesParamsOrder string
 // ListRolesParamsDirection defines parameters for ListRoles.
 type ListRolesParamsDirection string
 
+// CompareRuntimeVariablesParams defines parameters for CompareRuntimeVariables.
+type CompareRuntimeVariablesParams struct {
+	// UsedKey Keys used by the pipeline under review, including keys absent from every environment.
+	UsedKey *[]RuntimeVariableKey `form:"used_key,omitempty" json:"used_key,omitempty"`
+}
+
+// DeleteRuntimeVariableDefinitionParams defines parameters for DeleteRuntimeVariableDefinition.
+type DeleteRuntimeVariableDefinitionParams struct {
+	// ProtectedEnvironmentConfirmations Supply the exact slugs of every active protected environment. Retry with those slugs if confirmation is rejected.
+	ProtectedEnvironmentConfirmations *[]Slug `form:"protected_environment_confirmations,omitempty" json:"protected_environment_confirmations,omitempty"`
+}
+
 // ListSecurityAuditEventsParams defines parameters for ListSecurityAuditEvents.
 type ListSecurityAuditEventsParams struct {
 	// Limit Maximum number of items to return (default 20, max 100)
@@ -20331,6 +20459,9 @@ type CreateRoleJSONRequestBody = NewOrgRole
 
 // UpdateRoleJSONRequestBody defines body for UpdateRole for application/json ContentType.
 type UpdateRoleJSONRequestBody = UpdateOrgRole
+
+// UpsertRuntimeVariableDefinitionJSONRequestBody defines body for UpsertRuntimeVariableDefinition for application/json ContentType.
+type UpsertRuntimeVariableDefinitionJSONRequestBody = UpsertRuntimeVariableDefinition
 
 // CreateSessionJSONRequestBody defines body for CreateSession for application/json ContentType.
 type CreateSessionJSONRequestBody = NewSession
@@ -30190,6 +30321,32 @@ type ClientInterface interface {
 	// Corresponds with POST /organizations/{slug}/roles/{role_slug}/restore (the `RestoreRole` operationId).
 	RestoreRole(ctx context.Context, slug SlugParam, roleSlug RoleSlugParam, reqEditors ...RequestEditorFn) (*http.Response, error)
 
+	// CompareRuntimeVariables Compare runtime variables across organization environments
+	//
+	// Corresponds with GET /organizations/{slug}/runtime-variable-comparison (the `CompareRuntimeVariables` operationId).
+	CompareRuntimeVariables(ctx context.Context, slug SlugParam, params *CompareRuntimeVariablesParams, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// DeleteRuntimeVariableDefinition Delete an organization runtime variable definition
+	//
+	// Existing environment overrides for this key are preserved.
+	//
+	// Corresponds with DELETE /organizations/{slug}/runtime-variable-definitions/{runtime_variable_key} (the `DeleteRuntimeVariableDefinition` operationId).
+	DeleteRuntimeVariableDefinition(ctx context.Context, slug SlugParam, runtimeVariableKey RuntimeVariableKeyParam, params *DeleteRuntimeVariableDefinitionParams, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// UpsertRuntimeVariableDefinitionWithBody Create or replace an organization runtime variable definition
+	//
+	// Takes any type of body and a specified content type.
+	//
+	// Corresponds with PUT /organizations/{slug}/runtime-variable-definitions/{runtime_variable_key} (the `UpsertRuntimeVariableDefinition` operationId).
+	UpsertRuntimeVariableDefinitionWithBody(ctx context.Context, slug SlugParam, runtimeVariableKey RuntimeVariableKeyParam, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// UpsertRuntimeVariableDefinition Create or replace an organization runtime variable definition
+	//
+	// Takes a body of the `application/json` content type.
+	//
+	// Corresponds with PUT /organizations/{slug}/runtime-variable-definitions/{runtime_variable_key} (the `UpsertRuntimeVariableDefinition` operationId).
+	UpsertRuntimeVariableDefinition(ctx context.Context, slug SlugParam, runtimeVariableKey RuntimeVariableKeyParam, body UpsertRuntimeVariableDefinitionJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
 	// ListSecurityAuditEvents List organization security audit events
 	//
 	// List tenant-scoped security and administrative audit events retained in the online event history. Generic pre-prune archive and export workflows remain outside this endpoint.
@@ -35751,6 +35908,72 @@ func (c *Client) UpdateRole(ctx context.Context, slug SlugParam, roleSlug RoleSl
 // Corresponds with POST /organizations/{slug}/roles/{role_slug}/restore (the `RestoreRole` operationId).
 func (c *Client) RestoreRole(ctx context.Context, slug SlugParam, roleSlug RoleSlugParam, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewRestoreRoleRequest(c.Server, slug, roleSlug)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// CompareRuntimeVariables Compare runtime variables across organization environments
+//
+// Corresponds with GET /organizations/{slug}/runtime-variable-comparison (the `CompareRuntimeVariables` operationId).
+func (c *Client) CompareRuntimeVariables(ctx context.Context, slug SlugParam, params *CompareRuntimeVariablesParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewCompareRuntimeVariablesRequest(c.Server, slug, params)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// DeleteRuntimeVariableDefinition Delete an organization runtime variable definition
+//
+// Existing environment overrides for this key are preserved.
+//
+// Corresponds with DELETE /organizations/{slug}/runtime-variable-definitions/{runtime_variable_key} (the `DeleteRuntimeVariableDefinition` operationId).
+func (c *Client) DeleteRuntimeVariableDefinition(ctx context.Context, slug SlugParam, runtimeVariableKey RuntimeVariableKeyParam, params *DeleteRuntimeVariableDefinitionParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewDeleteRuntimeVariableDefinitionRequest(c.Server, slug, runtimeVariableKey, params)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// UpsertRuntimeVariableDefinitionWithBody Create or replace an organization runtime variable definition
+//
+// Takes any type of body and a specified content type.
+//
+// Corresponds with PUT /organizations/{slug}/runtime-variable-definitions/{runtime_variable_key} (the `UpsertRuntimeVariableDefinition` operationId).
+func (c *Client) UpsertRuntimeVariableDefinitionWithBody(ctx context.Context, slug SlugParam, runtimeVariableKey RuntimeVariableKeyParam, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewUpsertRuntimeVariableDefinitionRequestWithBody(c.Server, slug, runtimeVariableKey, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// UpsertRuntimeVariableDefinition Create or replace an organization runtime variable definition
+//
+// Takes a body of the `application/json` content type.
+//
+// Corresponds with PUT /organizations/{slug}/runtime-variable-definitions/{runtime_variable_key} (the `UpsertRuntimeVariableDefinition` operationId).
+func (c *Client) UpsertRuntimeVariableDefinition(ctx context.Context, slug SlugParam, runtimeVariableKey RuntimeVariableKeyParam, body UpsertRuntimeVariableDefinitionJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewUpsertRuntimeVariableDefinitionRequest(c.Server, slug, runtimeVariableKey, body)
 	if err != nil {
 		return nil, err
 	}
@@ -49626,6 +49849,189 @@ func NewRestoreRoleRequest(server string, slug SlugParam, roleSlug RoleSlugParam
 	return req, nil
 }
 
+// NewCompareRuntimeVariablesRequest constructs an http.Request for the CompareRuntimeVariables method
+func NewCompareRuntimeVariablesRequest(server string, slug SlugParam, params *CompareRuntimeVariablesParams) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "slug", slug, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: ""})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/organizations/%s/runtime-variable-comparison", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	if params != nil {
+		// queryValues collects non-styled parameters (passthrough, JSON)
+		// that are safe to round-trip through url.Values.Encode().
+		queryValues := queryURL.Query()
+		// rawQueryFragments collects pre-encoded query fragments from
+		// styled parameters, preserving literal commas as delimiters
+		// per the OpenAPI spec (e.g. "color=blue,black,brown").
+		var rawQueryFragments []string
+
+		if params.UsedKey != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "used_key", *params.UsedKey, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "array", Format: ""}); err != nil {
+				return nil, err
+			} else {
+				for _, qp := range strings.Split(queryFrag, "&") {
+					rawQueryFragments = append(rawQueryFragments, qp)
+				}
+			}
+
+		}
+
+		if encoded := queryValues.Encode(); encoded != "" {
+			rawQueryFragments = append(rawQueryFragments, encoded)
+		}
+		queryURL.RawQuery = strings.Join(rawQueryFragments, "&")
+	}
+
+	req, err := http.NewRequest(http.MethodGet, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewDeleteRuntimeVariableDefinitionRequest constructs an http.Request for the DeleteRuntimeVariableDefinition method
+func NewDeleteRuntimeVariableDefinitionRequest(server string, slug SlugParam, runtimeVariableKey RuntimeVariableKeyParam, params *DeleteRuntimeVariableDefinitionParams) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "slug", slug, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: ""})
+	if err != nil {
+		return nil, err
+	}
+
+	var pathParam1 string
+
+	pathParam1, err = runtime.StyleParamWithOptions("simple", false, "runtime_variable_key", runtimeVariableKey, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: ""})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/organizations/%s/runtime-variable-definitions/%s", pathParam0, pathParam1)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	if params != nil {
+		// queryValues collects non-styled parameters (passthrough, JSON)
+		// that are safe to round-trip through url.Values.Encode().
+		queryValues := queryURL.Query()
+		// rawQueryFragments collects pre-encoded query fragments from
+		// styled parameters, preserving literal commas as delimiters
+		// per the OpenAPI spec (e.g. "color=blue,black,brown").
+		var rawQueryFragments []string
+
+		if params.ProtectedEnvironmentConfirmations != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "protected_environment_confirmations", *params.ProtectedEnvironmentConfirmations, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "array", Format: ""}); err != nil {
+				return nil, err
+			} else {
+				for _, qp := range strings.Split(queryFrag, "&") {
+					rawQueryFragments = append(rawQueryFragments, qp)
+				}
+			}
+
+		}
+
+		if encoded := queryValues.Encode(); encoded != "" {
+			rawQueryFragments = append(rawQueryFragments, encoded)
+		}
+		queryURL.RawQuery = strings.Join(rawQueryFragments, "&")
+	}
+
+	req, err := http.NewRequest(http.MethodDelete, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewUpsertRuntimeVariableDefinitionRequest calls the generic UpsertRuntimeVariableDefinition builder with application/json body
+func NewUpsertRuntimeVariableDefinitionRequest(server string, slug SlugParam, runtimeVariableKey RuntimeVariableKeyParam, body UpsertRuntimeVariableDefinitionJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewUpsertRuntimeVariableDefinitionRequestWithBody(server, slug, runtimeVariableKey, "application/json", bodyReader)
+}
+
+// NewUpsertRuntimeVariableDefinitionRequestWithBody constructs an http.Request for the UpsertRuntimeVariableDefinition method, with any body, and a specified content type
+func NewUpsertRuntimeVariableDefinitionRequestWithBody(server string, slug SlugParam, runtimeVariableKey RuntimeVariableKeyParam, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "slug", slug, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: ""})
+	if err != nil {
+		return nil, err
+	}
+
+	var pathParam1 string
+
+	pathParam1, err = runtime.StyleParamWithOptions("simple", false, "runtime_variable_key", runtimeVariableKey, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: ""})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/organizations/%s/runtime-variable-definitions/%s", pathParam0, pathParam1)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPut, queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
 // NewListSecurityAuditEventsRequest constructs an http.Request for the ListSecurityAuditEvents method
 func NewListSecurityAuditEventsRequest(server string, slug SlugParam, params *ListSecurityAuditEventsParams) (*http.Request, error) {
 	var err error
@@ -53458,6 +53864,36 @@ type ClientWithResponsesInterface interface {
 	//
 	// Corresponds with POST /organizations/{slug}/roles/{role_slug}/restore (the `RestoreRole` operationId).
 	RestoreRoleWithResponse(ctx context.Context, slug SlugParam, roleSlug RoleSlugParam, reqEditors ...RequestEditorFn) (*RestoreRoleResponse, error)
+
+	// CompareRuntimeVariablesWithResponse Compare runtime variables across organization environments
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with GET /organizations/{slug}/runtime-variable-comparison (the `CompareRuntimeVariables` operationId).
+	CompareRuntimeVariablesWithResponse(ctx context.Context, slug SlugParam, params *CompareRuntimeVariablesParams, reqEditors ...RequestEditorFn) (*CompareRuntimeVariablesResponse, error)
+
+	// DeleteRuntimeVariableDefinitionWithResponse Delete an organization runtime variable definition
+	//
+	// Existing environment overrides for this key are preserved.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with DELETE /organizations/{slug}/runtime-variable-definitions/{runtime_variable_key} (the `DeleteRuntimeVariableDefinition` operationId).
+	DeleteRuntimeVariableDefinitionWithResponse(ctx context.Context, slug SlugParam, runtimeVariableKey RuntimeVariableKeyParam, params *DeleteRuntimeVariableDefinitionParams, reqEditors ...RequestEditorFn) (*DeleteRuntimeVariableDefinitionResponse, error)
+
+	// UpsertRuntimeVariableDefinitionWithBodyWithResponse Create or replace an organization runtime variable definition
+	//
+	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with PUT /organizations/{slug}/runtime-variable-definitions/{runtime_variable_key} (the `UpsertRuntimeVariableDefinition` operationId).
+	UpsertRuntimeVariableDefinitionWithBodyWithResponse(ctx context.Context, slug SlugParam, runtimeVariableKey RuntimeVariableKeyParam, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*UpsertRuntimeVariableDefinitionResponse, error)
+
+	// UpsertRuntimeVariableDefinitionWithResponse Create or replace an organization runtime variable definition
+	//
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with PUT /organizations/{slug}/runtime-variable-definitions/{runtime_variable_key} (the `UpsertRuntimeVariableDefinition` operationId).
+	UpsertRuntimeVariableDefinitionWithResponse(ctx context.Context, slug SlugParam, runtimeVariableKey RuntimeVariableKeyParam, body UpsertRuntimeVariableDefinitionJSONRequestBody, reqEditors ...RequestEditorFn) (*UpsertRuntimeVariableDefinitionResponse, error)
 
 	// ListSecurityAuditEventsWithResponse List organization security audit events
 	//
@@ -66575,6 +67011,143 @@ func (r RestoreRoleResponse) ContentType() string {
 	return ""
 }
 
+type CompareRuntimeVariablesResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *RuntimeVariableComparison
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r CompareRuntimeVariablesResponse) GetJSON200() *RuntimeVariableComparison {
+	return r.JSON200
+}
+
+// GetBody returns the raw response body bytes
+func (r CompareRuntimeVariablesResponse) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r CompareRuntimeVariablesResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r CompareRuntimeVariablesResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r CompareRuntimeVariablesResponse) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type DeleteRuntimeVariableDefinitionResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON400 the response for an HTTP 400 `application/json` response
+	JSON400 *ErrorResponse
+}
+
+// GetJSON400 returns the response for an HTTP 400 `application/json` response
+func (r DeleteRuntimeVariableDefinitionResponse) GetJSON400() *ErrorResponse {
+	return r.JSON400
+}
+
+// GetBody returns the raw response body bytes
+func (r DeleteRuntimeVariableDefinitionResponse) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r DeleteRuntimeVariableDefinitionResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r DeleteRuntimeVariableDefinitionResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r DeleteRuntimeVariableDefinitionResponse) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type UpsertRuntimeVariableDefinitionResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *RuntimeVariableDefinition
+	// JSON400 the response for an HTTP 400 `application/json` response
+	JSON400 *ErrorResponse
+	// JSON409 the response for an HTTP 409 `application/json` response
+	JSON409 *ErrorResponse
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r UpsertRuntimeVariableDefinitionResponse) GetJSON200() *RuntimeVariableDefinition {
+	return r.JSON200
+}
+
+// GetJSON400 returns the response for an HTTP 400 `application/json` response
+func (r UpsertRuntimeVariableDefinitionResponse) GetJSON400() *ErrorResponse {
+	return r.JSON400
+}
+
+// GetJSON409 returns the response for an HTTP 409 `application/json` response
+func (r UpsertRuntimeVariableDefinitionResponse) GetJSON409() *ErrorResponse {
+	return r.JSON409
+}
+
+// GetBody returns the raw response body bytes
+func (r UpsertRuntimeVariableDefinitionResponse) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r UpsertRuntimeVariableDefinitionResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r UpsertRuntimeVariableDefinitionResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r UpsertRuntimeVariableDefinitionResponse) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
 type ListSecurityAuditEventsResponse struct {
 	Body         []byte
 	HTTPResponse *http.Response
@@ -71986,6 +72559,60 @@ func (c *ClientWithResponses) RestoreRoleWithResponse(ctx context.Context, slug 
 		return nil, err
 	}
 	return ParseRestoreRoleResponse(rsp)
+}
+
+// CompareRuntimeVariablesWithResponse Compare runtime variables across organization environments
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with GET /organizations/{slug}/runtime-variable-comparison (the `CompareRuntimeVariables` operationId).
+func (c *ClientWithResponses) CompareRuntimeVariablesWithResponse(ctx context.Context, slug SlugParam, params *CompareRuntimeVariablesParams, reqEditors ...RequestEditorFn) (*CompareRuntimeVariablesResponse, error) {
+	rsp, err := c.CompareRuntimeVariables(ctx, slug, params, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseCompareRuntimeVariablesResponse(rsp)
+}
+
+// DeleteRuntimeVariableDefinitionWithResponse Delete an organization runtime variable definition
+//
+// Existing environment overrides for this key are preserved.
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with DELETE /organizations/{slug}/runtime-variable-definitions/{runtime_variable_key} (the `DeleteRuntimeVariableDefinition` operationId).
+func (c *ClientWithResponses) DeleteRuntimeVariableDefinitionWithResponse(ctx context.Context, slug SlugParam, runtimeVariableKey RuntimeVariableKeyParam, params *DeleteRuntimeVariableDefinitionParams, reqEditors ...RequestEditorFn) (*DeleteRuntimeVariableDefinitionResponse, error) {
+	rsp, err := c.DeleteRuntimeVariableDefinition(ctx, slug, runtimeVariableKey, params, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseDeleteRuntimeVariableDefinitionResponse(rsp)
+}
+
+// UpsertRuntimeVariableDefinitionWithBodyWithResponse Create or replace an organization runtime variable definition
+//
+// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with PUT /organizations/{slug}/runtime-variable-definitions/{runtime_variable_key} (the `UpsertRuntimeVariableDefinition` operationId).
+func (c *ClientWithResponses) UpsertRuntimeVariableDefinitionWithBodyWithResponse(ctx context.Context, slug SlugParam, runtimeVariableKey RuntimeVariableKeyParam, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*UpsertRuntimeVariableDefinitionResponse, error) {
+	rsp, err := c.UpsertRuntimeVariableDefinitionWithBody(ctx, slug, runtimeVariableKey, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseUpsertRuntimeVariableDefinitionResponse(rsp)
+}
+
+// UpsertRuntimeVariableDefinitionWithResponse Create or replace an organization runtime variable definition
+//
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with PUT /organizations/{slug}/runtime-variable-definitions/{runtime_variable_key} (the `UpsertRuntimeVariableDefinition` operationId).
+func (c *ClientWithResponses) UpsertRuntimeVariableDefinitionWithResponse(ctx context.Context, slug SlugParam, runtimeVariableKey RuntimeVariableKeyParam, body UpsertRuntimeVariableDefinitionJSONRequestBody, reqEditors ...RequestEditorFn) (*UpsertRuntimeVariableDefinitionResponse, error) {
+	rsp, err := c.UpsertRuntimeVariableDefinition(ctx, slug, runtimeVariableKey, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseUpsertRuntimeVariableDefinitionResponse(rsp)
 }
 
 // ListSecurityAuditEventsWithResponse List organization security audit events
@@ -82119,6 +82746,101 @@ func ParseRestoreRoleResponse(rsp *http.Response) (*RestoreRoleResponse, error) 
 			return nil, err
 		}
 		response.JSON404 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseCompareRuntimeVariablesResponse parses an HTTP response from a CompareRuntimeVariablesWithResponse call
+func ParseCompareRuntimeVariablesResponse(rsp *http.Response) (*CompareRuntimeVariablesResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &CompareRuntimeVariablesResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest RuntimeVariableComparison
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseDeleteRuntimeVariableDefinitionResponse parses an HTTP response from a DeleteRuntimeVariableDefinitionWithResponse call
+func ParseDeleteRuntimeVariableDefinitionResponse(rsp *http.Response) (*DeleteRuntimeVariableDefinitionResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &DeleteRuntimeVariableDefinitionResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case rsp.StatusCode == 204:
+		break // No content-type
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 400:
+		var dest ErrorResponse
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON400 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseUpsertRuntimeVariableDefinitionResponse parses an HTTP response from a UpsertRuntimeVariableDefinitionWithResponse call
+func ParseUpsertRuntimeVariableDefinitionResponse(rsp *http.Response) (*UpsertRuntimeVariableDefinitionResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &UpsertRuntimeVariableDefinitionResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest RuntimeVariableDefinition
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 400:
+		var dest ErrorResponse
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON400 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 409:
+		var dest ErrorResponse
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON409 = &dest
 
 	}
 

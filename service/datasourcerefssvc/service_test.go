@@ -1017,7 +1017,10 @@ func TestService_ResolvePipelineDataSourceRefsResolvesEnvironmentVariablesBefore
 		},
 		runtimeVariables: []model.RuntimeVariable{
 			{Key: "s3_prefix", ValueType: model.RuntimeVariableValueTypeText, Value: "prod/dir"},
-			{Key: "batch_size", ValueType: model.RuntimeVariableValueTypeInteger, Value: "1000"},
+		},
+		runtimeVariableDefinitions: []model.RuntimeVariableDefinition{
+			{Key: "s3_prefix", ValueType: model.RuntimeVariableValueTypeText, DefaultValue: new("fallback/dir")},
+			{Key: "batch_size", ValueType: model.RuntimeVariableValueTypeInteger, DefaultValue: new("1000")},
 		},
 	})
 	pipeline := newPipelineWithLogicalRef(must.Slug("users-source"))
@@ -1063,5 +1066,25 @@ func TestService_ResolvePipelineDataSourceRefsReturnsDiagnosticErrorForMissingBi
 
 	require.ErrorIs(t, err, ErrDataSourceBindingNotFound)
 	require.True(t, xerror.Is(err, ErrDataSourceBindingNotFound))
+	require.Nil(t, got)
+}
+
+func TestService_ResolvePipelineDataSourceRefsRejectsMismatchedOverride(t *testing.T) {
+	t.Parallel()
+
+	svc := newTestService(t, testServiceConfig{
+		runtimeVariables: []model.RuntimeVariable{
+			{Key: "batch_size", ValueType: model.RuntimeVariableValueTypeText, Value: "100"},
+		},
+		runtimeVariableDefinitions: []model.RuntimeVariableDefinition{
+			{Key: "batch_size", ValueType: model.RuntimeVariableValueTypeInteger, DefaultValue: new("200")},
+		},
+	})
+	pipeline := newPipelineWithLogicalRef(must.Slug("users-source"))
+	pipeline.Steps[0].Query.Parameters = map[string]any{"limit": "{{runtime.env.batch_size}}"}
+
+	got, err := svc.ResolvePipelineDataSourceRefs(t.Context(), "acme", "operations", "prod", pipeline)
+	require.ErrorIs(t, err, xerror.InvalidInput(xerror.RuntimeVariable))
+	require.ErrorContains(t, err, "different type from its definition")
 	require.Nil(t, got)
 }

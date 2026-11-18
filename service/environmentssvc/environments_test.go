@@ -26,6 +26,8 @@ import (
 var errUnexpectedEnvironmentRepoCall = fmt.Errorf("unexpected environment repository call")
 
 type fakeEnvironmentsRepo struct {
+	environments.Repository
+	runtimeVariableDefinition                 *model.RuntimeVariableDefinition
 	createFn                                  func(ctx context.Context, tx postgres.DBTX, orgSlug slug.Slug, params *environments.CreateParams) (*environments.Environment, error)
 	findBySlugFn                              func(ctx context.Context, tx postgres.DBTX, orgSlug, environmentSlug slug.Slug) (*environments.Environment, error)
 	findAnyBySlugFn                           func(ctx context.Context, tx postgres.DBTX, orgSlug, environmentSlug slug.Slug) (*environments.Environment, error)
@@ -177,6 +179,17 @@ func (f *fakeEnvironmentsRepo) FindRuntimeVariable(
 	key string,
 ) (*model.RuntimeVariable, error) {
 	return f.findRuntimeVariableFn(ctx, tx, orgSlug, environmentSlug, key)
+}
+
+func (f *fakeEnvironmentsRepo) LockRuntimeVariableOrganization(context.Context, postgres.DBTX, slug.Slug) error {
+	return nil
+}
+
+func (f *fakeEnvironmentsRepo) FindRuntimeVariableDefinition(context.Context, postgres.DBTX, slug.Slug, string) (*model.RuntimeVariableDefinition, error) {
+	if f.runtimeVariableDefinition == nil {
+		return nil, environments.ErrRuntimeVariableNotFound
+	}
+	return f.runtimeVariableDefinition, nil
 }
 
 func (f *fakeEnvironmentsRepo) ListRuntimeVariables(

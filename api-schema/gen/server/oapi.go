@@ -5412,6 +5412,27 @@ func (e Role) Valid() bool {
 	}
 }
 
+// Defines values for RuntimeVariableComparisonCellSource.
+const (
+	RuntimeVariableSourceDefault  RuntimeVariableComparisonCellSource = "default"
+	RuntimeVariableSourceMissing  RuntimeVariableComparisonCellSource = "missing"
+	RuntimeVariableSourceOverride RuntimeVariableComparisonCellSource = "override"
+)
+
+// Valid indicates whether the value is a known member of the RuntimeVariableComparisonCellSource enum.
+func (e RuntimeVariableComparisonCellSource) Valid() bool {
+	switch e {
+	case RuntimeVariableSourceDefault:
+		return true
+	case RuntimeVariableSourceMissing:
+		return true
+	case RuntimeVariableSourceOverride:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for RuntimeVariableValueType.
 const (
 	RuntimeVariableValueTypeBoolean RuntimeVariableValueType = "boolean"
@@ -17356,6 +17377,78 @@ type RuntimeVariable struct {
 	ValueType RuntimeVariableValueType `json:"value_type"`
 }
 
+// RuntimeVariableComparison defines model for RuntimeVariableComparison.
+type RuntimeVariableComparison struct {
+	Environments []Slug                         `json:"environments"`
+	Rows         []RuntimeVariableComparisonRow `json:"rows"`
+}
+
+// RuntimeVariableComparisonCell defines model for RuntimeVariableComparisonCell.
+type RuntimeVariableComparisonCell struct {
+	Blocked      bool                                `json:"blocked"`
+	Required     bool                                `json:"required"`
+	Source       RuntimeVariableComparisonCellSource `json:"source"`
+	TypeMismatch bool                                `json:"type_mismatch"`
+
+	// Variable Non-secret runtime variable scoped to one organization runtime environment.
+	Variable *RuntimeVariable `json:"variable,omitempty"`
+}
+
+// RuntimeVariableComparisonCellSource defines model for RuntimeVariableComparisonCell.Source.
+type RuntimeVariableComparisonCellSource string
+
+// RuntimeVariableComparisonRow defines model for RuntimeVariableComparisonRow.
+type RuntimeVariableComparisonRow struct {
+	// Cells One cell per environment in the same order as environments.
+	Cells      []RuntimeVariableComparisonCell `json:"cells"`
+	Definition *RuntimeVariableDefinition      `json:"definition,omitempty"`
+
+	// Key Runtime variable key referenced as `{{runtime.env.key}}` in pipeline specs.
+	//
+	// Example: s3_prefix
+	Key  RuntimeVariableKey `json:"key"`
+	Used bool               `json:"used"`
+}
+
+// RuntimeVariableDefinition defines model for RuntimeVariableDefinition.
+type RuntimeVariableDefinition struct {
+	// DefaultValue Scalar represented as text. Omit to leave the key without a default.
+	DefaultValue *string `json:"default_value,omitempty"`
+
+	// Description Optional operator description for a non-secret runtime variable.
+	//
+	// Example: S3 prefix used by this project environment
+	Description *RuntimeVariableDescription `json:"description,omitempty"`
+
+	// Key Runtime variable key referenced as `{{runtime.env.key}}` in pipeline specs.
+	//
+	// Example: s3_prefix
+	Key      RuntimeVariableKey `json:"key"`
+	Required bool               `json:"required"`
+
+	// ValueType Scalar runtime variable value type.
+	//
+	// Example: text
+	ValueType RuntimeVariableValueType `json:"value_type"`
+}
+
+// RuntimeVariableDefinitionSettings defines model for RuntimeVariableDefinitionSettings.
+type RuntimeVariableDefinitionSettings struct {
+	// DefaultValue Scalar represented as text. Omit to leave the key without a default.
+	DefaultValue *string `json:"default_value,omitempty"`
+
+	// Description Optional operator description for a non-secret runtime variable.
+	//
+	// Example: S3 prefix used by this project environment
+	Description *RuntimeVariableDescription `json:"description,omitempty"`
+	Required    bool                        `json:"required"`
+
+	// ValueType Scalar runtime variable value type.
+	//
+	// Example: text
+	ValueType RuntimeVariableValueType `json:"value_type"`
+}
+
 // RuntimeVariableDescription Optional operator description for a non-secret runtime variable.
 //
 // Example: S3 prefix used by this project environment
@@ -18613,6 +18706,29 @@ type UpsertRuntimeVariable struct {
 	//
 	// Example: dev/dir
 	Value string `json:"value"`
+
+	// ValueType Scalar runtime variable value type.
+	//
+	// Example: text
+	ValueType RuntimeVariableValueType `json:"value_type"`
+}
+
+// UpsertRuntimeVariableDefinition defines model for UpsertRuntimeVariableDefinition.
+type UpsertRuntimeVariableDefinition struct {
+	// CreateOnly Reject the write if a definition for this key already exists.
+	CreateOnly *bool `json:"create_only,omitempty"`
+
+	// DefaultValue Scalar represented as text. Omit to leave the key without a default.
+	DefaultValue *string `json:"default_value,omitempty"`
+
+	// Description Optional operator description for a non-secret runtime variable.
+	//
+	// Example: S3 prefix used by this project environment
+	Description *RuntimeVariableDescription `json:"description,omitempty"`
+
+	// ProtectedEnvironmentConfirmations Exact slug of every protected environment affected by organization-wide settings.
+	ProtectedEnvironmentConfirmations *[]Slug `json:"protected_environment_confirmations,omitempty"`
+	Required                          bool    `json:"required"`
 
 	// ValueType Scalar runtime variable value type.
 	//
@@ -19975,6 +20091,18 @@ type ListRolesParamsOrder string
 // ListRolesParamsDirection defines parameters for ListRoles.
 type ListRolesParamsDirection string
 
+// CompareRuntimeVariablesParams defines parameters for CompareRuntimeVariables.
+type CompareRuntimeVariablesParams struct {
+	// UsedKey Keys used by the pipeline under review, including keys absent from every environment.
+	UsedKey *[]RuntimeVariableKey `form:"used_key,omitempty" json:"used_key,omitempty"`
+}
+
+// DeleteRuntimeVariableDefinitionParams defines parameters for DeleteRuntimeVariableDefinition.
+type DeleteRuntimeVariableDefinitionParams struct {
+	// ProtectedEnvironmentConfirmations Supply the exact slugs of every active protected environment. Retry with those slugs if confirmation is rejected.
+	ProtectedEnvironmentConfirmations *[]Slug `form:"protected_environment_confirmations,omitempty" json:"protected_environment_confirmations,omitempty"`
+}
+
 // ListSecurityAuditEventsParams defines parameters for ListSecurityAuditEvents.
 type ListSecurityAuditEventsParams struct {
 	// Limit Maximum number of items to return (default 20, max 100)
@@ -20330,6 +20458,9 @@ type CreateRoleJSONRequestBody = NewOrgRole
 
 // UpdateRoleJSONRequestBody defines body for UpdateRole for application/json ContentType.
 type UpdateRoleJSONRequestBody = UpdateOrgRole
+
+// UpsertRuntimeVariableDefinitionJSONRequestBody defines body for UpsertRuntimeVariableDefinition for application/json ContentType.
+type UpsertRuntimeVariableDefinitionJSONRequestBody = UpsertRuntimeVariableDefinition
 
 // CreateSessionJSONRequestBody defines body for CreateSession for application/json ContentType.
 type CreateSessionJSONRequestBody = NewSession
@@ -28394,6 +28525,15 @@ type ServerInterface interface {
 	// RestoreRole Restore a role
 	// (POST /organizations/{slug}/roles/{role_slug}/restore)
 	RestoreRole(c fiber.Ctx, slug SlugParam, roleSlug RoleSlugParam) error
+	// CompareRuntimeVariables Compare runtime variables across organization environments
+	// (GET /organizations/{slug}/runtime-variable-comparison)
+	CompareRuntimeVariables(c fiber.Ctx, slug SlugParam, params CompareRuntimeVariablesParams) error
+	// DeleteRuntimeVariableDefinition Delete an organization runtime variable definition
+	// (DELETE /organizations/{slug}/runtime-variable-definitions/{runtime_variable_key})
+	DeleteRuntimeVariableDefinition(c fiber.Ctx, slug SlugParam, runtimeVariableKey RuntimeVariableKeyParam, params DeleteRuntimeVariableDefinitionParams) error
+	// UpsertRuntimeVariableDefinition Create or replace an organization runtime variable definition
+	// (PUT /organizations/{slug}/runtime-variable-definitions/{runtime_variable_key})
+	UpsertRuntimeVariableDefinition(c fiber.Ctx, slug SlugParam, runtimeVariableKey RuntimeVariableKeyParam) error
 	// ListSecurityAuditEvents List organization security audit events
 	// (GET /organizations/{slug}/security-audit-events)
 	ListSecurityAuditEvents(c fiber.Ctx, slug SlugParam, params ListSecurityAuditEventsParams) error
@@ -38804,6 +38944,141 @@ func (siw *ServerInterfaceWrapper) RestoreRole(c fiber.Ctx) error {
 	return handler(c)
 }
 
+// CompareRuntimeVariables operation middleware
+func (siw *ServerInterfaceWrapper) CompareRuntimeVariables(c fiber.Ctx) error {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "slug" -------------
+	var slug SlugParam
+
+	err = runtime.BindStyledParameterWithOptions("simple", "slug", c.Params("slug"), &slug, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: ""})
+	if err != nil {
+		return fiber.NewError(fiber.StatusBadRequest, fmt.Errorf("Invalid format for parameter slug: %w", err).Error())
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params CompareRuntimeVariablesParams
+
+	var query url.Values
+	query, err = url.ParseQuery(string(c.Request().URI().QueryString()))
+	if err != nil {
+		return fiber.NewError(fiber.StatusBadRequest, fmt.Errorf("Invalid format for query string: %w", err).Error())
+	}
+
+	// ------------- Optional query parameter "used_key" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "used_key", query, &params.UsedKey, runtime.BindQueryParameterOptions{Type: "array", Format: ""})
+	if err != nil {
+		return fiber.NewError(fiber.StatusBadRequest, fmt.Errorf("Invalid format for parameter used_key: %w", err).Error())
+	}
+
+	handler := func(c fiber.Ctx) error {
+		return siw.Handler.CompareRuntimeVariables(c, slug, params)
+	}
+
+	for i := len(siw.HandlerMiddlewares) - 1; i >= 0; i-- {
+		m := siw.HandlerMiddlewares[i]
+		next := handler
+		handler = func(c fiber.Ctx) error {
+			return m(c, next)
+		}
+	}
+
+	return handler(c)
+}
+
+// DeleteRuntimeVariableDefinition operation middleware
+func (siw *ServerInterfaceWrapper) DeleteRuntimeVariableDefinition(c fiber.Ctx) error {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "slug" -------------
+	var slug SlugParam
+
+	err = runtime.BindStyledParameterWithOptions("simple", "slug", c.Params("slug"), &slug, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: ""})
+	if err != nil {
+		return fiber.NewError(fiber.StatusBadRequest, fmt.Errorf("Invalid format for parameter slug: %w", err).Error())
+	}
+
+	// ------------- Path parameter "runtime_variable_key" -------------
+	var runtimeVariableKey RuntimeVariableKeyParam
+
+	err = runtime.BindStyledParameterWithOptions("simple", "runtime_variable_key", c.Params("runtime_variable_key"), &runtimeVariableKey, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: ""})
+	if err != nil {
+		return fiber.NewError(fiber.StatusBadRequest, fmt.Errorf("Invalid format for parameter runtime_variable_key: %w", err).Error())
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params DeleteRuntimeVariableDefinitionParams
+
+	var query url.Values
+	query, err = url.ParseQuery(string(c.Request().URI().QueryString()))
+	if err != nil {
+		return fiber.NewError(fiber.StatusBadRequest, fmt.Errorf("Invalid format for query string: %w", err).Error())
+	}
+
+	// ------------- Optional query parameter "protected_environment_confirmations" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "protected_environment_confirmations", query, &params.ProtectedEnvironmentConfirmations, runtime.BindQueryParameterOptions{Type: "array", Format: ""})
+	if err != nil {
+		return fiber.NewError(fiber.StatusBadRequest, fmt.Errorf("Invalid format for parameter protected_environment_confirmations: %w", err).Error())
+	}
+
+	handler := func(c fiber.Ctx) error {
+		return siw.Handler.DeleteRuntimeVariableDefinition(c, slug, runtimeVariableKey, params)
+	}
+
+	for i := len(siw.HandlerMiddlewares) - 1; i >= 0; i-- {
+		m := siw.HandlerMiddlewares[i]
+		next := handler
+		handler = func(c fiber.Ctx) error {
+			return m(c, next)
+		}
+	}
+
+	return handler(c)
+}
+
+// UpsertRuntimeVariableDefinition operation middleware
+func (siw *ServerInterfaceWrapper) UpsertRuntimeVariableDefinition(c fiber.Ctx) error {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "slug" -------------
+	var slug SlugParam
+
+	err = runtime.BindStyledParameterWithOptions("simple", "slug", c.Params("slug"), &slug, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: ""})
+	if err != nil {
+		return fiber.NewError(fiber.StatusBadRequest, fmt.Errorf("Invalid format for parameter slug: %w", err).Error())
+	}
+
+	// ------------- Path parameter "runtime_variable_key" -------------
+	var runtimeVariableKey RuntimeVariableKeyParam
+
+	err = runtime.BindStyledParameterWithOptions("simple", "runtime_variable_key", c.Params("runtime_variable_key"), &runtimeVariableKey, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: ""})
+	if err != nil {
+		return fiber.NewError(fiber.StatusBadRequest, fmt.Errorf("Invalid format for parameter runtime_variable_key: %w", err).Error())
+	}
+
+	handler := func(c fiber.Ctx) error {
+		return siw.Handler.UpsertRuntimeVariableDefinition(c, slug, runtimeVariableKey)
+	}
+
+	for i := len(siw.HandlerMiddlewares) - 1; i >= 0; i-- {
+		m := siw.HandlerMiddlewares[i]
+		next := handler
+		handler = func(c fiber.Ctx) error {
+			return m(c, next)
+		}
+	}
+
+	return handler(c)
+}
+
 // ListSecurityAuditEvents operation middleware
 func (siw *ServerInterfaceWrapper) ListSecurityAuditEvents(c fiber.Ctx) error {
 
@@ -40021,6 +40296,12 @@ func RegisterHandlersWithOptions(router fiber.Router, si ServerInterface, option
 	router.Put(options.BaseURL+"/organizations/:slug/roles/:role_slug", wrapper.UpdateRole)
 
 	router.Post(options.BaseURL+"/organizations/:slug/roles/:role_slug/restore", wrapper.RestoreRole)
+
+	router.Get(options.BaseURL+"/organizations/:slug/runtime-variable-comparison", wrapper.CompareRuntimeVariables)
+
+	router.Delete(options.BaseURL+"/organizations/:slug/runtime-variable-definitions/:runtime_variable_key", wrapper.DeleteRuntimeVariableDefinition)
+
+	router.Put(options.BaseURL+"/organizations/:slug/runtime-variable-definitions/:runtime_variable_key", wrapper.UpsertRuntimeVariableDefinition)
 
 	router.Get(options.BaseURL+"/organizations/:slug/security-audit-events", wrapper.ListSecurityAuditEvents)
 
@@ -49590,6 +49871,88 @@ func (response RestoreRole404JSONResponse) VisitRestoreRoleResponse(ctx fiber.Ct
 	return ctx.JSON(&response)
 }
 
+type CompareRuntimeVariablesRequestObject struct {
+	Slug   SlugParam `json:"slug"`
+	Params CompareRuntimeVariablesParams
+}
+
+type CompareRuntimeVariablesResponseObject interface {
+	VisitCompareRuntimeVariablesResponse(ctx fiber.Ctx) error
+}
+
+type CompareRuntimeVariables200JSONResponse RuntimeVariableComparison
+
+func (response CompareRuntimeVariables200JSONResponse) VisitCompareRuntimeVariablesResponse(ctx fiber.Ctx) error {
+	ctx.Response().Header.Set("Content-Type", "application/json")
+	ctx.Status(200)
+
+	return ctx.JSON(&response)
+}
+
+type DeleteRuntimeVariableDefinitionRequestObject struct {
+	Slug               SlugParam               `json:"slug"`
+	RuntimeVariableKey RuntimeVariableKeyParam `json:"runtime_variable_key"`
+	Params             DeleteRuntimeVariableDefinitionParams
+}
+
+type DeleteRuntimeVariableDefinitionResponseObject interface {
+	VisitDeleteRuntimeVariableDefinitionResponse(ctx fiber.Ctx) error
+}
+
+type DeleteRuntimeVariableDefinition204Response struct {
+}
+
+func (response DeleteRuntimeVariableDefinition204Response) VisitDeleteRuntimeVariableDefinitionResponse(ctx fiber.Ctx) error {
+	ctx.Status(204)
+	return nil
+}
+
+type DeleteRuntimeVariableDefinition400JSONResponse ErrorResponse
+
+func (response DeleteRuntimeVariableDefinition400JSONResponse) VisitDeleteRuntimeVariableDefinitionResponse(ctx fiber.Ctx) error {
+	ctx.Response().Header.Set("Content-Type", "application/json")
+	ctx.Status(400)
+
+	return ctx.JSON(&response)
+}
+
+type UpsertRuntimeVariableDefinitionRequestObject struct {
+	Slug               SlugParam               `json:"slug"`
+	RuntimeVariableKey RuntimeVariableKeyParam `json:"runtime_variable_key"`
+	Body               *UpsertRuntimeVariableDefinitionJSONRequestBody
+}
+
+type UpsertRuntimeVariableDefinitionResponseObject interface {
+	VisitUpsertRuntimeVariableDefinitionResponse(ctx fiber.Ctx) error
+}
+
+type UpsertRuntimeVariableDefinition200JSONResponse RuntimeVariableDefinition
+
+func (response UpsertRuntimeVariableDefinition200JSONResponse) VisitUpsertRuntimeVariableDefinitionResponse(ctx fiber.Ctx) error {
+	ctx.Response().Header.Set("Content-Type", "application/json")
+	ctx.Status(200)
+
+	return ctx.JSON(&response)
+}
+
+type UpsertRuntimeVariableDefinition400JSONResponse ErrorResponse
+
+func (response UpsertRuntimeVariableDefinition400JSONResponse) VisitUpsertRuntimeVariableDefinitionResponse(ctx fiber.Ctx) error {
+	ctx.Response().Header.Set("Content-Type", "application/json")
+	ctx.Status(400)
+
+	return ctx.JSON(&response)
+}
+
+type UpsertRuntimeVariableDefinition409JSONResponse ErrorResponse
+
+func (response UpsertRuntimeVariableDefinition409JSONResponse) VisitUpsertRuntimeVariableDefinitionResponse(ctx fiber.Ctx) error {
+	ctx.Response().Header.Set("Content-Type", "application/json")
+	ctx.Status(409)
+
+	return ctx.JSON(&response)
+}
+
 type ListSecurityAuditEventsRequestObject struct {
 	Slug   SlugParam `json:"slug"`
 	Params ListSecurityAuditEventsParams
@@ -50973,6 +51336,15 @@ type StrictServerInterface interface {
 	// RestoreRole Restore a role
 	// (POST /organizations/{slug}/roles/{role_slug}/restore)
 	RestoreRole(ctx context.Context, request RestoreRoleRequestObject) (RestoreRoleResponseObject, error)
+	// CompareRuntimeVariables Compare runtime variables across organization environments
+	// (GET /organizations/{slug}/runtime-variable-comparison)
+	CompareRuntimeVariables(ctx context.Context, request CompareRuntimeVariablesRequestObject) (CompareRuntimeVariablesResponseObject, error)
+	// DeleteRuntimeVariableDefinition Delete an organization runtime variable definition
+	// (DELETE /organizations/{slug}/runtime-variable-definitions/{runtime_variable_key})
+	DeleteRuntimeVariableDefinition(ctx context.Context, request DeleteRuntimeVariableDefinitionRequestObject) (DeleteRuntimeVariableDefinitionResponseObject, error)
+	// UpsertRuntimeVariableDefinition Create or replace an organization runtime variable definition
+	// (PUT /organizations/{slug}/runtime-variable-definitions/{runtime_variable_key})
+	UpsertRuntimeVariableDefinition(ctx context.Context, request UpsertRuntimeVariableDefinitionRequestObject) (UpsertRuntimeVariableDefinitionResponseObject, error)
 	// ListSecurityAuditEvents List organization security audit events
 	// (GET /organizations/{slug}/security-audit-events)
 	ListSecurityAuditEvents(ctx context.Context, request ListSecurityAuditEventsRequestObject) (ListSecurityAuditEventsResponseObject, error)
@@ -57774,6 +58146,97 @@ func (sh *strictHandler) RestoreRole(ctx fiber.Ctx, slug SlugParam, roleSlug Rol
 		return err
 	} else if validResponse, ok := response.(RestoreRoleResponseObject); ok {
 		if err := validResponse.VisitRestoreRoleResponse(ctx); err != nil {
+			return err
+		}
+	} else if response != nil {
+		return fmt.Errorf("unexpected response type: %T", response)
+	}
+	return nil
+}
+
+// CompareRuntimeVariables operation middleware
+func (sh *strictHandler) CompareRuntimeVariables(ctx fiber.Ctx, slug SlugParam, params CompareRuntimeVariablesParams) error {
+	var request CompareRuntimeVariablesRequestObject
+
+	request.Slug = slug
+	request.Params = params
+
+	handler := func(ctx fiber.Ctx, request interface{}) (interface{}, error) {
+		return sh.ssi.CompareRuntimeVariables(ctx.Context(), request.(CompareRuntimeVariablesRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "CompareRuntimeVariables")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		return err
+	} else if validResponse, ok := response.(CompareRuntimeVariablesResponseObject); ok {
+		if err := validResponse.VisitCompareRuntimeVariablesResponse(ctx); err != nil {
+			return err
+		}
+	} else if response != nil {
+		return fmt.Errorf("unexpected response type: %T", response)
+	}
+	return nil
+}
+
+// DeleteRuntimeVariableDefinition operation middleware
+func (sh *strictHandler) DeleteRuntimeVariableDefinition(ctx fiber.Ctx, slug SlugParam, runtimeVariableKey RuntimeVariableKeyParam, params DeleteRuntimeVariableDefinitionParams) error {
+	var request DeleteRuntimeVariableDefinitionRequestObject
+
+	request.Slug = slug
+	request.RuntimeVariableKey = runtimeVariableKey
+	request.Params = params
+
+	handler := func(ctx fiber.Ctx, request interface{}) (interface{}, error) {
+		return sh.ssi.DeleteRuntimeVariableDefinition(ctx.Context(), request.(DeleteRuntimeVariableDefinitionRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "DeleteRuntimeVariableDefinition")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		return err
+	} else if validResponse, ok := response.(DeleteRuntimeVariableDefinitionResponseObject); ok {
+		if err := validResponse.VisitDeleteRuntimeVariableDefinitionResponse(ctx); err != nil {
+			return err
+		}
+	} else if response != nil {
+		return fmt.Errorf("unexpected response type: %T", response)
+	}
+	return nil
+}
+
+// UpsertRuntimeVariableDefinition operation middleware
+func (sh *strictHandler) UpsertRuntimeVariableDefinition(ctx fiber.Ctx, slug SlugParam, runtimeVariableKey RuntimeVariableKeyParam) error {
+	var request UpsertRuntimeVariableDefinitionRequestObject
+
+	request.Slug = slug
+	request.RuntimeVariableKey = runtimeVariableKey
+
+	var body UpsertRuntimeVariableDefinitionJSONRequestBody
+	if err := ctx.Bind().Body(&body); err != nil {
+		return fiber.NewError(fiber.StatusBadRequest, err.Error())
+	}
+	request.Body = &body
+
+	handler := func(ctx fiber.Ctx, request interface{}) (interface{}, error) {
+		return sh.ssi.UpsertRuntimeVariableDefinition(ctx.Context(), request.(UpsertRuntimeVariableDefinitionRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "UpsertRuntimeVariableDefinition")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		return err
+	} else if validResponse, ok := response.(UpsertRuntimeVariableDefinitionResponseObject); ok {
+		if err := validResponse.VisitUpsertRuntimeVariableDefinitionResponse(ctx); err != nil {
 			return err
 		}
 	} else if response != nil {

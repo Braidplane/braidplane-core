@@ -175,6 +175,35 @@ func (_d RepositoryWithLogging) DeleteRuntimeVariable(ctx context.Context, tx po
 	return
 }
 
+// DeleteRuntimeVariableDefinition implements Repository.
+func (_d RepositoryWithLogging) DeleteRuntimeVariableDefinition(ctx context.Context, tx postgres.DBTX, orgSlug slug.Slug, key string) (err error) {
+	_startedAt := time.Now()
+	_ctx := ctx
+	_ctx, _span := tracing.StartMethodSpan(_ctx, tracing.MethodSpan{
+		Layer:     "repository",
+		Package:   "postgres/environments",
+		Interface: "Repository",
+		Method:    "DeleteRuntimeVariableDefinition",
+	})
+	defer _span.End()
+	defer func() {
+		if err != nil {
+			tracing.RecordError(_span, err)
+		}
+		logging.LogMethodCompletion(_ctx, _d._logger, logging.MethodCompletion{
+			Layer:       "repository",
+			Package:     "postgres/environments",
+			Interface:   "Repository",
+			Method:      "DeleteRuntimeVariableDefinition",
+			StartedAt:   _startedAt,
+			CompletedAt: time.Now(),
+			Err:         err,
+		})
+	}()
+	err = _d._base.DeleteRuntimeVariableDefinition(_ctx, tx, orgSlug, key)
+	return
+}
+
 // DisableProjectEnvironment implements Repository.
 func (_d RepositoryWithLogging) DisableProjectEnvironment(ctx context.Context, tx postgres.DBTX, orgSlug slug.Slug, projectSlug slug.Slug, environmentSlug slug.Slug) (err error) {
 	_startedAt := time.Now()
@@ -407,6 +436,35 @@ func (_d RepositoryWithLogging) FindRuntimeVariable(ctx context.Context, tx post
 	return
 }
 
+// FindRuntimeVariableDefinition implements Repository.
+func (_d RepositoryWithLogging) FindRuntimeVariableDefinition(ctx context.Context, tx postgres.DBTX, orgSlug slug.Slug, key string) (rp1 *model.RuntimeVariableDefinition, err error) {
+	_startedAt := time.Now()
+	_ctx := ctx
+	_ctx, _span := tracing.StartMethodSpan(_ctx, tracing.MethodSpan{
+		Layer:     "repository",
+		Package:   "postgres/environments",
+		Interface: "Repository",
+		Method:    "FindRuntimeVariableDefinition",
+	})
+	defer _span.End()
+	defer func() {
+		if err != nil {
+			tracing.RecordError(_span, err)
+		}
+		logging.LogMethodCompletion(_ctx, _d._logger, logging.MethodCompletion{
+			Layer:       "repository",
+			Package:     "postgres/environments",
+			Interface:   "Repository",
+			Method:      "FindRuntimeVariableDefinition",
+			StartedAt:   _startedAt,
+			CompletedAt: time.Now(),
+			Err:         err,
+		})
+	}()
+	rp1, err = _d._base.FindRuntimeVariableDefinition(_ctx, tx, orgSlug, key)
+	return
+}
+
 // ListAllEnvironmentSecrets implements Repository.
 func (_d RepositoryWithLogging) ListAllEnvironmentSecrets(ctx context.Context, tx postgres.DBTX, orgSlug slug.Slug, environmentSlug slug.Slug) (epa1 []*model.EnvironmentSecret, err error) {
 	_startedAt := time.Now()
@@ -523,6 +581,93 @@ func (_d RepositoryWithLogging) ListProjectEnvironments(ctx context.Context, tx 
 	return
 }
 
+// ListRuntimeVariableComparisonEnvironments implements Repository.
+func (_d RepositoryWithLogging) ListRuntimeVariableComparisonEnvironments(ctx context.Context, tx postgres.DBTX, orgSlug slug.Slug) (ra1 []RuntimeVariableComparisonEnvironment, err error) {
+	_startedAt := time.Now()
+	_ctx := ctx
+	_ctx, _span := tracing.StartMethodSpan(_ctx, tracing.MethodSpan{
+		Layer:     "repository",
+		Package:   "postgres/environments",
+		Interface: "Repository",
+		Method:    "ListRuntimeVariableComparisonEnvironments",
+	})
+	defer _span.End()
+	defer func() {
+		if err != nil {
+			tracing.RecordError(_span, err)
+		}
+		logging.LogMethodCompletion(_ctx, _d._logger, logging.MethodCompletion{
+			Layer:       "repository",
+			Package:     "postgres/environments",
+			Interface:   "Repository",
+			Method:      "ListRuntimeVariableComparisonEnvironments",
+			StartedAt:   _startedAt,
+			CompletedAt: time.Now(),
+			Err:         err,
+		})
+	}()
+	ra1, err = _d._base.ListRuntimeVariableComparisonEnvironments(_ctx, tx, orgSlug)
+	return
+}
+
+// ListRuntimeVariableDefinitions implements Repository.
+func (_d RepositoryWithLogging) ListRuntimeVariableDefinitions(ctx context.Context, tx postgres.DBTX, orgSlug slug.Slug) (ra1 []model.RuntimeVariableDefinition, err error) {
+	_startedAt := time.Now()
+	_ctx := ctx
+	_ctx, _span := tracing.StartMethodSpan(_ctx, tracing.MethodSpan{
+		Layer:     "repository",
+		Package:   "postgres/environments",
+		Interface: "Repository",
+		Method:    "ListRuntimeVariableDefinitions",
+	})
+	defer _span.End()
+	defer func() {
+		if err != nil {
+			tracing.RecordError(_span, err)
+		}
+		logging.LogMethodCompletion(_ctx, _d._logger, logging.MethodCompletion{
+			Layer:       "repository",
+			Package:     "postgres/environments",
+			Interface:   "Repository",
+			Method:      "ListRuntimeVariableDefinitions",
+			StartedAt:   _startedAt,
+			CompletedAt: time.Now(),
+			Err:         err,
+		})
+	}()
+	ra1, err = _d._base.ListRuntimeVariableDefinitions(_ctx, tx, orgSlug)
+	return
+}
+
+// ListRuntimeVariableOverridesByOrganization implements Repository.
+func (_d RepositoryWithLogging) ListRuntimeVariableOverridesByOrganization(ctx context.Context, tx postgres.DBTX, orgSlug slug.Slug) (ra1 []model.RuntimeVariable, err error) {
+	_startedAt := time.Now()
+	_ctx := ctx
+	_ctx, _span := tracing.StartMethodSpan(_ctx, tracing.MethodSpan{
+		Layer:     "repository",
+		Package:   "postgres/environments",
+		Interface: "Repository",
+		Method:    "ListRuntimeVariableOverridesByOrganization",
+	})
+	defer _span.End()
+	defer func() {
+		if err != nil {
+			tracing.RecordError(_span, err)
+		}
+		logging.LogMethodCompletion(_ctx, _d._logger, logging.MethodCompletion{
+			Layer:       "repository",
+			Package:     "postgres/environments",
+			Interface:   "Repository",
+			Method:      "ListRuntimeVariableOverridesByOrganization",
+			StartedAt:   _startedAt,
+			CompletedAt: time.Now(),
+			Err:         err,
+		})
+	}()
+	ra1, err = _d._base.ListRuntimeVariableOverridesByOrganization(_ctx, tx, orgSlug)
+	return
+}
+
 // ListRuntimeVariables implements Repository.
 func (_d RepositoryWithLogging) ListRuntimeVariables(ctx context.Context, tx postgres.DBTX, orgSlug slug.Slug, environmentSlug slug.Slug, req model.ListRequest) (rpa1 []*model.RuntimeVariable, err error) {
 	_startedAt := time.Now()
@@ -549,6 +694,64 @@ func (_d RepositoryWithLogging) ListRuntimeVariables(ctx context.Context, tx pos
 		})
 	}()
 	rpa1, err = _d._base.ListRuntimeVariables(_ctx, tx, orgSlug, environmentSlug, req)
+	return
+}
+
+// LockRuntimeVariableOrganization implements Repository.
+func (_d RepositoryWithLogging) LockRuntimeVariableOrganization(ctx context.Context, tx postgres.DBTX, orgSlug slug.Slug) (err error) {
+	_startedAt := time.Now()
+	_ctx := ctx
+	_ctx, _span := tracing.StartMethodSpan(_ctx, tracing.MethodSpan{
+		Layer:     "repository",
+		Package:   "postgres/environments",
+		Interface: "Repository",
+		Method:    "LockRuntimeVariableOrganization",
+	})
+	defer _span.End()
+	defer func() {
+		if err != nil {
+			tracing.RecordError(_span, err)
+		}
+		logging.LogMethodCompletion(_ctx, _d._logger, logging.MethodCompletion{
+			Layer:       "repository",
+			Package:     "postgres/environments",
+			Interface:   "Repository",
+			Method:      "LockRuntimeVariableOrganization",
+			StartedAt:   _startedAt,
+			CompletedAt: time.Now(),
+			Err:         err,
+		})
+	}()
+	err = _d._base.LockRuntimeVariableOrganization(_ctx, tx, orgSlug)
+	return
+}
+
+// LockRuntimeVariableProtectedEnvironments implements Repository.
+func (_d RepositoryWithLogging) LockRuntimeVariableProtectedEnvironments(ctx context.Context, tx postgres.DBTX, orgSlug slug.Slug) (ra1 []RuntimeVariableComparisonEnvironment, err error) {
+	_startedAt := time.Now()
+	_ctx := ctx
+	_ctx, _span := tracing.StartMethodSpan(_ctx, tracing.MethodSpan{
+		Layer:     "repository",
+		Package:   "postgres/environments",
+		Interface: "Repository",
+		Method:    "LockRuntimeVariableProtectedEnvironments",
+	})
+	defer _span.End()
+	defer func() {
+		if err != nil {
+			tracing.RecordError(_span, err)
+		}
+		logging.LogMethodCompletion(_ctx, _d._logger, logging.MethodCompletion{
+			Layer:       "repository",
+			Package:     "postgres/environments",
+			Interface:   "Repository",
+			Method:      "LockRuntimeVariableProtectedEnvironments",
+			StartedAt:   _startedAt,
+			CompletedAt: time.Now(),
+			Err:         err,
+		})
+	}()
+	ra1, err = _d._base.LockRuntimeVariableProtectedEnvironments(_ctx, tx, orgSlug)
 	return
 }
 
@@ -636,5 +839,34 @@ func (_d RepositoryWithLogging) UpsertRuntimeVariable(ctx context.Context, tx po
 		})
 	}()
 	rp1, err = _d._base.UpsertRuntimeVariable(_ctx, tx, orgSlug, environmentSlug, params)
+	return
+}
+
+// UpsertRuntimeVariableDefinition implements Repository.
+func (_d RepositoryWithLogging) UpsertRuntimeVariableDefinition(ctx context.Context, tx postgres.DBTX, orgSlug slug.Slug, definition model.RuntimeVariableDefinition) (rp1 *model.RuntimeVariableDefinition, err error) {
+	_startedAt := time.Now()
+	_ctx := ctx
+	_ctx, _span := tracing.StartMethodSpan(_ctx, tracing.MethodSpan{
+		Layer:     "repository",
+		Package:   "postgres/environments",
+		Interface: "Repository",
+		Method:    "UpsertRuntimeVariableDefinition",
+	})
+	defer _span.End()
+	defer func() {
+		if err != nil {
+			tracing.RecordError(_span, err)
+		}
+		logging.LogMethodCompletion(_ctx, _d._logger, logging.MethodCompletion{
+			Layer:       "repository",
+			Package:     "postgres/environments",
+			Interface:   "Repository",
+			Method:      "UpsertRuntimeVariableDefinition",
+			StartedAt:   _startedAt,
+			CompletedAt: time.Now(),
+			Err:         err,
+		})
+	}()
+	rp1, err = _d._base.UpsertRuntimeVariableDefinition(_ctx, tx, orgSlug, definition)
 	return
 }

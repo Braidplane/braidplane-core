@@ -111,3 +111,24 @@ func projectEnvironmentEntitySlug(projectSlug, environmentSlug slug.Slug) (slug.
 	}
 	return entitySlug, nil
 }
+
+type runtimeVariableDefinitionEvent struct {
+	orgSlug   slug.Slug
+	key       string
+	operation string
+}
+
+func (e runtimeVariableDefinitionEvent) EventRecord() (eventrecorder.Record, error) {
+	return eventrecorder.Record{
+		SlugPrefix:    "evt-runtime-variable-definition",
+		EventClass:    model.EventClassSecurityAudit,
+		SchemaVersion: model.CurrentEventSchemaVersion,
+		EntityType:    model.EventEntityTypeOrganization,
+		EntitySlug:    e.orgSlug,
+		Action:        model.EventActionUpdate,
+		Metadata: map[string]any{
+			"runtime_variable_key": e.key,
+			"definition_operation": e.operation,
+		},
+	}, nil
+}

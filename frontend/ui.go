@@ -423,6 +423,8 @@ func (r *Router) RegisterRoutes(app *fiber.App, presentation RoutePresentation) 
 	protected.Get("/organizations/:slug/retention", r.handleOrganizationRetentionPage)
 	protected.Post("/organizations/:slug/retention", r.handleOrganizationRetentionSubmit)
 	protected.Get("/organizations/:slug/environments", r.handleOrganizationEnvironmentsPage)
+	protected.Get("/organizations/:slug/runtime-variables", r.handleRuntimeVariableComparison)
+	protected.Post("/organizations/:slug/runtime-variables", r.handleRuntimeVariableDefinitionSubmit)
 	protected.Get("/organizations/:slug/environments/:environmentSlug", r.handleOrganizationEnvironmentDetailPage)
 	protected.Post("/organizations/:slug/environments", r.handleCreateEnvironmentSubmit)
 	protected.Post(

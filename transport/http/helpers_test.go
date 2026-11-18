@@ -508,6 +508,7 @@ func (f *fakeProjectsService) SetProjectPipelineBackend(
 }
 
 type fakeEnvironmentsService struct {
+	environmentssvc.Service
 	CreateDefaultEnvironmentsFn func(ctx context.Context, orgSlug slug.Slug) error
 	CreateEnvironmentFn         func(ctx context.Context, orgSlug slug.Slug, newEnvironment model.NewEnvironment, actor model.EventActor) (*model.Environment, error)
 	GetEnvironmentFn            func(ctx context.Context, orgSlug, environmentSlug slug.Slug) (*model.Environment, error)

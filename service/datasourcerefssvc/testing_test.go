@@ -24,12 +24,13 @@ import (
 )
 
 type testServiceConfig struct {
-	dataSourceRefs       map[string]*model.DataSourceRef
-	bindings             map[string]*model.DataSourceBinding
-	runtimeVariables     []model.RuntimeVariable
-	concreteDataSources  map[string]*datasourcessvc.DataSource
-	projectEnvEnabled    *bool
-	protectedBindingEnvs []model.ProjectEnvironmentProtection
+	dataSourceRefs             map[string]*model.DataSourceRef
+	bindings                   map[string]*model.DataSourceBinding
+	runtimeVariables           []model.RuntimeVariable
+	runtimeVariableDefinitions []model.RuntimeVariableDefinition
+	concreteDataSources        map[string]*datasourcessvc.DataSource
+	projectEnvEnabled          *bool
+	protectedBindingEnvs       []model.ProjectEnvironmentProtection
 }
 
 type failingEventRecorder struct {
@@ -92,12 +93,13 @@ func newPipelineWithLogicalRef(refSlug slug.Slug) *pipelinespec.Pipeline {
 }
 
 type fakeDataSourceRefsRepository struct {
-	refs                 map[string]*model.DataSourceRef
-	bindings             map[string]*model.DataSourceBinding
-	runtimeVariables     []model.RuntimeVariable
-	concreteDataSources  map[string]*datasourcessvc.DataSource
-	projectEnvEnabled    bool
-	protectedBindingEnvs []model.ProjectEnvironmentProtection
+	refs                       map[string]*model.DataSourceRef
+	bindings                   map[string]*model.DataSourceBinding
+	runtimeVariables           []model.RuntimeVariable
+	runtimeVariableDefinitions []model.RuntimeVariableDefinition
+	concreteDataSources        map[string]*datasourcessvc.DataSource
+	projectEnvEnabled          bool
+	protectedBindingEnvs       []model.ProjectEnvironmentProtection
 }
 
 func newFakeDataSourceRefsRepository(cfg testServiceConfig) *fakeDataSourceRefsRepository {
@@ -106,12 +108,13 @@ func newFakeDataSourceRefsRepository(cfg testServiceConfig) *fakeDataSourceRefsR
 		enabled = *cfg.projectEnvEnabled
 	}
 	return &fakeDataSourceRefsRepository{
-		refs:                 cloneRefMap(cfg.dataSourceRefs),
-		bindings:             cloneBindingMap(cfg.bindings),
-		runtimeVariables:     append([]model.RuntimeVariable(nil), cfg.runtimeVariables...),
-		concreteDataSources:  cloneConcreteDataSourceMap(cfg.concreteDataSources),
-		projectEnvEnabled:    enabled,
-		protectedBindingEnvs: append([]model.ProjectEnvironmentProtection(nil), cfg.protectedBindingEnvs...),
+		refs:                       cloneRefMap(cfg.dataSourceRefs),
+		bindings:                   cloneBindingMap(cfg.bindings),
+		runtimeVariables:           append([]model.RuntimeVariable(nil), cfg.runtimeVariables...),
+		runtimeVariableDefinitions: cfg.runtimeVariableDefinitions,
+		concreteDataSources:        cloneConcreteDataSourceMap(cfg.concreteDataSources),
+		projectEnvEnabled:          enabled,
+		protectedBindingEnvs:       append([]model.ProjectEnvironmentProtection(nil), cfg.protectedBindingEnvs...),
 	}
 }
 
@@ -341,14 +344,8 @@ func (r *fakeDataSourceRefsRepository) ResolveEnvironmentBinding(
 	return r.FindEnvironmentBinding(ctx, tx, orgSlug, projectSlug, pipelineSlug, environmentSlug, refSlug)
 }
 
-func (r *fakeDataSourceRefsRepository) ListRuntimeVariables(
-	context.Context,
-	postgres.DBTX,
-	slug.Slug,
-	slug.Slug,
-	slug.Slug,
-) ([]model.RuntimeVariable, error) {
-	return append([]model.RuntimeVariable(nil), r.runtimeVariables...), nil
+func (r *fakeDataSourceRefsRepository) ListRuntimeVariableResolutionInputs(context.Context, postgres.DBTX, slug.Slug, slug.Slug) ([]model.RuntimeVariable, []model.RuntimeVariableDefinition, error) {
+	return r.runtimeVariables, r.runtimeVariableDefinitions, nil
 }
 
 func (r *fakeDataSourceRefsRepository) DeleteEnvironmentBinding(

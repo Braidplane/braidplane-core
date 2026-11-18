@@ -1529,6 +1529,17 @@ type RolePermission struct {
 	CreatedAt    pgtype.Timestamp
 }
 
+type RuntimeVariableDefinition struct {
+	OrganizationID int32
+	Key            string
+	ValueType      string
+	Description    pgtype.Text
+	Required       bool
+	DefaultValue   pgtype.Text
+	CreatedAt      pgtype.Timestamptz
+	UpdatedAt      pgtype.Timestamptz
+}
+
 type SchemaMetadatum struct {
 	ID           int
 	Slug         slug.Slug

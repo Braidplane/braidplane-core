@@ -1512,21 +1512,24 @@ ORDER BY
     END DESC
 LIMIT sqlc.arg ('limit_count');
 
--- name: ListAllRuntimeVariables :many
-SELECT
-    rv.*,
-    e.slug AS environment_slug
-FROM
-    environment_runtime_variables rv
-    JOIN organizations o ON o.id = rv.organization_id
-    JOIN environments e ON e.id = rv.environment_id
-        AND e.organization_id = o.id
-WHERE
-    o.slug = sqlc.arg ('org_slug')
-    AND e.slug = sqlc.arg ('environment_slug')
-    AND e.deleted_at IS NULL
-ORDER BY
-    rv.key ASC;
+-- name: ListRuntimeVariableResolutionInputs :many
+WITH target AS (
+    SELECT e.slug, e.id, e.organization_id
+    FROM organizations o
+    JOIN environments e ON e.organization_id = o.id
+    WHERE o.slug = sqlc.arg('org_slug') AND e.slug = sqlc.arg('environment_slug')
+        AND e.deleted_at IS NULL
+)
+SELECT rv.key, rv.value_type, rv.value_text, rv.description, rv.created_at, rv.updated_at,
+    false AS is_definition, true AS has_value
+FROM target
+JOIN environment_runtime_variables rv ON rv.environment_id = target.id AND rv.organization_id = target.organization_id
+UNION ALL
+SELECT d.key, d.value_type, COALESCE(d.default_value, '') AS value_text, d.description, d.created_at, d.updated_at,
+    true AS is_definition, d.default_value IS NOT NULL AS has_value
+FROM target
+JOIN runtime_variable_definitions d ON d.organization_id = target.organization_id
+ORDER BY key;
 
 -- name: DeleteRuntimeVariable :execrows
 DELETE FROM environment_runtime_variables rv
@@ -13534,3 +13537,67 @@ WHERE pin.checkpoint_id=pc.id AND pc.project_environment_id=pe.id
     AND o.slug=sqlc.arg('org_slug') AND p.slug=sqlc.arg('project_slug')
     AND e.slug=sqlc.arg('environment_slug') AND pc.run_slug=sqlc.arg('run_slug')
     AND NOT (pin.step_slug = ANY(sqlc.arg('steps')::text[]));
+
+-- name: ListRuntimeVariableDefinitions :many
+SELECT d.*
+FROM runtime_variable_definitions d
+JOIN organizations o ON o.id = d.organization_id
+WHERE o.slug = sqlc.arg('org_slug')
+ORDER BY d.key;
+
+-- name: UpsertRuntimeVariableDefinition :one
+INSERT INTO runtime_variable_definitions (
+    organization_id, key, value_type, description, required, default_value
+)
+SELECT o.id, sqlc.arg('variable_key'), sqlc.arg('value_type'), sqlc.narg('description'),
+    sqlc.arg('required'), sqlc.narg('default_value')
+FROM organizations o
+WHERE o.slug = sqlc.arg('org_slug')
+ON CONFLICT (organization_id, key) DO UPDATE
+SET value_type = excluded.value_type,
+    description = excluded.description,
+    required = excluded.required,
+    default_value = excluded.default_value,
+    updated_at = CURRENT_TIMESTAMP
+RETURNING *;
+
+-- name: DeleteRuntimeVariableDefinition :execrows
+DELETE FROM runtime_variable_definitions d
+USING organizations o
+WHERE d.organization_id = o.id
+    AND o.slug = sqlc.arg('org_slug')
+    AND d.key = sqlc.arg('variable_key');
+
+-- name: ListRuntimeVariableComparisonEnvironments :many
+SELECT e.slug, e.protected
+FROM environments e
+JOIN organizations o ON o.id = e.organization_id
+WHERE o.slug = sqlc.arg('org_slug') AND e.deleted_at IS NULL
+ORDER BY e.slug;
+
+-- name: ListRuntimeVariableOverridesByOrganization :many
+SELECT rv.*, e.slug AS environment_slug
+FROM environment_runtime_variables rv
+JOIN organizations o ON o.id = rv.organization_id
+JOIN environments e ON e.id = rv.environment_id AND e.organization_id = o.id
+WHERE o.slug = sqlc.arg('org_slug') AND e.deleted_at IS NULL
+ORDER BY e.slug, rv.key;
+
+-- name: FindRuntimeVariableDefinition :one
+SELECT d.*
+FROM runtime_variable_definitions d
+JOIN organizations o ON o.id = d.organization_id
+WHERE o.slug = sqlc.arg('org_slug') AND d.key = sqlc.arg('variable_key');
+
+-- name: LockRuntimeVariableOrganization :one
+SELECT o.slug FROM organizations o
+WHERE o.slug = sqlc.arg('org_slug')
+FOR NO KEY UPDATE OF o;
+
+-- name: LockRuntimeVariableProtectedEnvironments :many
+SELECT e.slug, e.protected
+FROM environments e
+JOIN organizations o ON o.id = e.organization_id
+WHERE o.slug = sqlc.arg('org_slug') AND e.deleted_at IS NULL
+ORDER BY e.slug
+FOR SHARE OF e;

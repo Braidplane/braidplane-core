@@ -2373,6 +2373,84 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
 
+  /organizations/{slug}/runtime-variable-comparison:
+    get:
+      summary: Compare runtime variables across organization environments
+      tags: [environments]
+      operationId: compareRuntimeVariables
+      parameters:
+        - $ref: '#/components/parameters/SlugParam'
+        - name: used_key
+          in: query
+          description: Keys used by the pipeline under review, including keys absent from every environment.
+          schema:
+            type: array
+            items:
+              $ref: '#/components/schemas/RuntimeVariableKey'
+      responses:
+        '200':
+          description: Runtime variable comparison
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RuntimeVariableComparison'
+
+  /organizations/{slug}/runtime-variable-definitions/{runtime_variable_key}:
+    parameters:
+      - $ref: '#/components/parameters/SlugParam'
+      - $ref: '#/components/parameters/RuntimeVariableKeyParam'
+    put:
+      summary: Create or replace an organization runtime variable definition
+      tags: [environments]
+      operationId: upsertRuntimeVariableDefinition
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpsertRuntimeVariableDefinition'
+      responses:
+        '200':
+          description: Saved definition
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RuntimeVariableDefinition'
+        '400':
+          description: Invalid definition or missing protected environment confirmation
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          description: A definition with this key already exists and create_only was requested
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+    delete:
+      summary: Delete an organization runtime variable definition
+      description: Existing environment overrides for this key are preserved.
+      tags: [environments]
+      operationId: deleteRuntimeVariableDefinition
+      parameters:
+        - name: protected_environment_confirmations
+          in: query
+          description: Supply the exact slugs of every active protected environment. Retry with those slugs if confirmation is rejected.
+          schema:
+            type: array
+            items:
+              $ref: '#/components/schemas/Slug'
+      responses:
+        '204':
+          description: Runtime variable definition deleted
+        '400':
+          description: Invalid request or missing protected environment confirmation
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
   /organizations/{slug}/environments/{environment_slug}/runtime-variables:
     get:
       summary: List environment runtime variables
@@ -11733,6 +11811,93 @@ components:
       description: Optional operator description for a non-secret runtime variable.
       maxLength: 2000
       example: "S3 prefix used by this project environment"
+
+    RuntimeVariableDefinitionSettings:
+      type: object
+      required: [value_type, required]
+      properties:
+        value_type:
+          $ref: '#/components/schemas/RuntimeVariableValueType'
+        description:
+          $ref: '#/components/schemas/RuntimeVariableDescription'
+        required:
+          type: boolean
+        default_value:
+          type: string
+          maxLength: 4000
+          description: Scalar represented as text. Omit to leave the key without a default.
+
+    UpsertRuntimeVariableDefinition:
+      allOf:
+        - $ref: '#/components/schemas/RuntimeVariableDefinitionSettings'
+        - type: object
+          properties:
+            create_only:
+              type: boolean
+              description: Reject the write if a definition for this key already exists.
+            protected_environment_confirmations:
+              type: array
+              description: Exact slug of every protected environment affected by organization-wide settings.
+              items:
+                $ref: '#/components/schemas/Slug'
+
+    RuntimeVariableDefinition:
+      allOf:
+        - $ref: '#/components/schemas/RuntimeVariableDefinitionSettings'
+        - type: object
+          required: [key]
+          properties:
+            key:
+              $ref: '#/components/schemas/RuntimeVariableKey'
+
+    RuntimeVariableComparison:
+      type: object
+      required: [environments, rows]
+      properties:
+        environments:
+          type: array
+          items:
+            $ref: '#/components/schemas/Slug'
+        rows:
+          type: array
+          items:
+            $ref: '#/components/schemas/RuntimeVariableComparisonRow'
+
+    RuntimeVariableComparisonRow:
+      type: object
+      required: [key, used, cells]
+      properties:
+        key:
+          $ref: '#/components/schemas/RuntimeVariableKey'
+        used:
+          type: boolean
+        definition:
+          $ref: '#/components/schemas/RuntimeVariableDefinition'
+        cells:
+          type: array
+          description: One cell per environment in the same order as environments.
+          items:
+            $ref: '#/components/schemas/RuntimeVariableComparisonCell'
+
+    RuntimeVariableComparisonCell:
+      type: object
+      required: [source, required, type_mismatch, blocked]
+      properties:
+        source:
+          type: string
+          enum: [override, default, missing]
+          x-enum-varnames:
+            - RuntimeVariableSourceOverride
+            - RuntimeVariableSourceDefault
+            - RuntimeVariableSourceMissing
+        required:
+          type: boolean
+        type_mismatch:
+          type: boolean
+        blocked:
+          type: boolean
+        variable:
+          $ref: '#/components/schemas/RuntimeVariable'
 
     UpsertRuntimeVariable:
       type: object
