@@ -42,10 +42,10 @@ func TestAdapterSupportsGitLabGrantLifecycle(t *testing.T) {
 		case "/api/v4/projects":
 			assert.Equal(t, "Bearer access", r.Header.Get("Authorization"))
 			assert.Equal(t, "true", r.URL.Query().Get("membership"))
-			_, _ = fmt.Fprintf(w, `[{"id":42,"name":"Pipelines","path_with_namespace":"acme/pipelines","web_url":%q,"http_url_to_repo":"https://gitlab.example/acme/pipelines.git","default_branch":"main"}]`, fixtureOrigin+"/acme/pipelines")
+			_, _ = fmt.Fprintf(w, `[{"id":42,"name":"Pipelines","path_with_namespace":"acme/pipelines","web_url":%q,"http_url_to_repo":%q,"default_branch":"main"}]`, fixtureOrigin+"/acme/pipelines", fixtureOrigin+"/acme/pipelines.git")
 		case "/api/v4/projects/42":
 			assert.Equal(t, "Bearer access", r.Header.Get("Authorization"))
-			_, _ = fmt.Fprintf(w, `{"id":42,"name":"Pipelines","path_with_namespace":"acme/pipelines","web_url":%q,"http_url_to_repo":"https://gitlab.example/acme/pipelines.git","default_branch":"main"}`, fixtureOrigin+"/acme/pipelines")
+			_, _ = fmt.Fprintf(w, `{"id":42,"name":"Pipelines","path_with_namespace":"acme/pipelines","web_url":%q,"http_url_to_repo":%q,"default_branch":"main"}`, fixtureOrigin+"/acme/pipelines", fixtureOrigin+"/acme/pipelines.git")
 		case "/oauth/revoke":
 			body, err := io.ReadAll(r.Body)
 			if !assert.NoError(t, err) {
@@ -100,7 +100,7 @@ func TestAdapterSupportsGitLabGrantLifecycle(t *testing.T) {
 	selected, err := adapter.ResolveRepository(t.Context(), "access", "42")
 	require.NoError(t, err)
 	assert.Equal(t, server.URL+"/acme/pipelines", selected.WebURL)
-	assert.Equal(t, "https://gitlab.example/acme/pipelines.git", selected.CloneURL)
+	assert.Equal(t, server.URL+"/acme/pipelines.git", selected.CloneURL)
 }
 
 func TestAdapterMapsInvalidGrantWithoutLeakingToken(t *testing.T) {

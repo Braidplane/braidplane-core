@@ -39,12 +39,14 @@ func isMongoStructuredField(name string) bool {
 }
 
 type mongoBindingPosition struct {
-	wholeField bool
-	data       bool
-	expression bool
-	insert     bool
-	update     bool
-	setFields  bool
+	wholeField   bool
+	data         bool
+	expression   bool
+	insert       bool
+	update       bool
+	setFields    bool
+	appendFields bool
+	appendValue  bool
 }
 
 func validateMongoBindings(statement map[string]any, definitions map[string]types.TypedParam, values map[string]any) error {
@@ -85,13 +87,19 @@ func validateMongoBindingValue(value any, position mongoBindingPosition, definit
 			}
 		}
 	case map[string]any:
+		appendModifiers := position.appendValue && hasMongoModifierKeys(v)
 		for key, child := range v {
 			nested := position
 			nested.wholeField = false
 			nested.update = false
 			nested.setFields = position.update && (key == "$set" || key == "$setOnInsert")
-			if position.setFields {
+			nested.appendFields = position.update && (key == "$push" || key == "$addToSet")
+			nested.appendValue = position.appendFields
+			if position.setFields || position.appendValue && !appendModifiers {
 				nested.data = true
+			}
+			if appendModifiers && key == "$each" {
+				_, nested.data = child.([]any)
 			}
 			if !nested.data {
 				switch key {
@@ -111,6 +119,10 @@ func validateMongoBindingValue(value any, position mongoBindingPosition, definit
 		}
 	case []any:
 		position.wholeField = false
+		if position.appendValue {
+			position.data = true
+			position.appendValue = false
+		}
 		for _, child := range v {
 			if err := validateMongoBindingValue(child, position, definitions, values); err != nil {
 				return err
@@ -132,8 +144,13 @@ func validMongoBinding(name, dataType string, value any, exact bool, position mo
 		isBoolean = true
 	case int, int8, int16, int32, int64, uint, uint8, uint16, uint32, uint64, float32, float64, json.Number:
 	default:
+		if position.appendValue {
+			if document, ok := value.(map[string]any); ok && hasMongoModifierKeys(document) {
+				return false
+			}
+		}
 		// Legacy saved sinks declare input as text for their whole document payload.
-		return exact && ((dataType == "" || dataType == "json") && (position.wholeField || position.data) ||
+		return exact && ((dataType == "" || dataType == "json") && (position.wholeField || position.data || position.appendValue) ||
 			dataType == "text" && name == sinkbinding.Input && position.wholeField && position.insert)
 	}
 	switch dataType {
@@ -146,4 +163,13 @@ func validMongoBinding(name, dataType string, value any, exact bool, position mo
 	default:
 		return false
 	}
+}
+
+func hasMongoModifierKeys(document map[string]any) bool {
+	for key := range document {
+		if strings.HasPrefix(key, "$") {
+			return true
+		}
+	}
+	return false
 }

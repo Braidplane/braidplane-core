@@ -4,6 +4,7 @@ import (
 	"context"
 	"io/fs"
 	"net/url"
+	"os"
 	"strconv"
 	"strings"
 	"time"
@@ -41,14 +42,8 @@ func ApplyMigrationCatalog(databaseURL string, catalog fs.FS) (bool, error) {
 	if err != nil {
 		return false, err
 	}
-	plain := migrate.FilterCustomQuery(parsed)
-	// pgx decodes URL query spaces as %20. FilterCustomQuery encodes them as +.
-	plain.RawQuery = strings.ReplaceAll(plain.RawQuery, "+", "%20")
-	connection, err := pgx.ParseConfig(plain.String())
+	connection, err := parseMigrationConnection(parsed)
 	if err != nil {
-		return false, xerror.ValidationFailed().Detail("invalid migration connection configuration")
-	}
-	if err := dbpool.RestrictAuthentication(&connection.Config); err != nil {
 		return false, err
 	}
 	source, err := iofs.New(catalog, ".")
@@ -80,6 +75,24 @@ func ApplyMigrationCatalog(databaseURL string, catalog fs.FS) (bool, error) {
 		return false, xerror.Unexpected().Detailf("apply migrations: %s", sanitizeMigrationError(err, databaseURL))
 	}
 	return true, nil
+}
+
+func parseMigrationConnection(databaseURL *url.URL) (*pgx.ConnConfig, error) {
+	plain := migrate.FilterCustomQuery(databaseURL)
+	query := plain.Query()
+	if query.Get("sslmode") == "" && os.Getenv("PGSSLMODE") == "" {
+		query.Set("sslmode", "require")
+	}
+	// pgx decodes URL query spaces as %20.
+	plain.RawQuery = strings.ReplaceAll(query.Encode(), "+", "%20")
+	connection, err := pgx.ParseConfig(plain.String())
+	if err != nil {
+		return nil, xerror.ValidationFailed().Detail("invalid migration connection configuration")
+	}
+	if err := dbpool.RestrictAuthentication(&connection.Config); err != nil {
+		return nil, err
+	}
+	return connection, nil
 }
 
 // sanitizeMigrationError removes the configured database URL and password from

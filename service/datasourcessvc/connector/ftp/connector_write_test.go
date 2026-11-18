@@ -204,7 +204,7 @@ func TestApplyWriteParamOverrides(t *testing.T) {
 		Format:    QueryFormatAuto,
 	}
 
-	applyWriteParamOverrides(qd, map[string]any{
+	require.NoError(t, applyWriteParamOverrides(qd, map[string]any{
 		sinkbinding.Input: []any{map[string]any{"id": 1}},
 		"format":          "json",
 		"delimiter":       ";",
@@ -212,7 +212,7 @@ func TestApplyWriteParamOverrides(t *testing.T) {
 		"overwrite":       false,
 		"sheet":           "Orders",
 		"range":           "B2:C10",
-	})
+	}))
 
 	require.Equal(t, QueryFormatJSON, qd.Format)
 	require.Equal(t, ";", qd.Delimiter)
@@ -237,10 +237,10 @@ func TestApplyWriteParamOverridesReservedBindingsOverrideInlineContent(t *testin
 		Content:   "stale-inline-content",
 	}
 
-	applyWriteParamOverrides(qd, map[string]any{
+	require.NoError(t, applyWriteParamOverrides(qd, map[string]any{
 		sinkbinding.Input: []any{map[string]any{"id": 1}},
 		"path":            "runtime/users.csv",
-	})
+	}))
 
 	require.True(t, qd.ContentSet)
 	require.Equal(t, "runtime/users.csv", qd.Path)
@@ -257,9 +257,9 @@ func TestApplyWriteParamOverridesUsesSingleReservedInput(t *testing.T) {
 		Operation: ftpOperationWrite,
 	}
 
-	applyWriteParamOverrides(qd, map[string]any{
+	require.NoError(t, applyWriteParamOverrides(qd, map[string]any{
 		sinkbinding.Input: "id,email\n1,alice@example.com\n",
-	})
+	}))
 
 	content, ok := qd.Content.(string)
 	require.True(t, ok)
@@ -275,9 +275,9 @@ func TestApplyWriteParamOverridesPreservesExplicitNullInput(t *testing.T) {
 		Format:    QueryFormatJSON,
 	}
 
-	applyWriteParamOverrides(qd, map[string]any{
+	require.NoError(t, applyWriteParamOverrides(qd, map[string]any{
 		sinkbinding.Input: nil,
-	})
+	}))
 
 	require.True(t, qd.ContentSet)
 	require.Nil(t, qd.Content)
@@ -351,4 +351,13 @@ func TestConnectorExecute_WriteRuntimePathOverridesInlinePath(t *testing.T) {
 	require.NoError(t, execErr)
 	require.NotNil(t, execResult)
 	require.ErrorContains(t, execResult.Error(), "scalar and null content")
+}
+
+func TestFTPWritePathOverrideDoesNotFallBackToSavedPath(t *testing.T) {
+	t.Parallel()
+
+	statement := ftpQueryData{Path: "saved.json"}
+	require.ErrorIs(t, applyWriteParamOverrides(&statement, map[string]any{"path": "\t"}), xerror.InvalidInput(xerror.Query))
+	require.NoError(t, applyWriteParamOverrides(&statement, map[string]any{"path": "  "}))
+	require.Equal(t, "  ", statement.Path)
 }

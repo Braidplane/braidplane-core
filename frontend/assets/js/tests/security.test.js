@@ -1,14 +1,18 @@
+import { readFileSync } from "node:fs";
+import { fileURLToPath } from "node:url";
+import { JSDOM, VirtualConsole } from "jsdom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 await import("../security.js");
 await import("../ui-utils.js");
 
 describe("browser session cleanup", () => {
-    it("clears authenticated data before the logout form is sent and keeps its CSRF field", () => {
+    it("clears the submitting tab and waits for logout confirmation before clearing shared data", () => {
         const draftKey = "braidplane.builder.canvas.state.v6/user/org/project/draft-pipeline";
         window.localStorage.setItem(draftKey, "synthetic draft");
         window.localStorage.setItem("braidplane.sidebar.collapsed", "1");
         window.sessionStorage.setItem("braidplane.lineage.view", "synthetic lineage");
+        window.sessionStorage.setItem(draftKey, "synthetic tab draft");
         window.sessionStorage.setItem("htmx-history-cache", "synthetic history");
         document.body.innerHTML = `
             <main>Authenticated workspace</main>
@@ -17,9 +21,11 @@ describe("browser session cleanup", () => {
         const logout = document.querySelector("form");
         try {
             expect(logout.dispatchEvent(new Event("submit", { bubbles: true, cancelable: true }))).toBe(true);
-            expect(window.localStorage.getItem(draftKey)).toBeNull();
+            expect(window.localStorage.getItem(draftKey)).toBe("synthetic draft");
+            expect(window.localStorage.getItem("braidplane.session.ended")).toBeNull();
             expect(window.localStorage.getItem("braidplane.sidebar.collapsed")).toBe("1");
             expect(window.sessionStorage.getItem("braidplane.lineage.view")).toBeNull();
+            expect(window.sessionStorage.getItem(draftKey)).toBeNull();
             expect(window.sessionStorage.getItem("htmx-history-cache")).toBeNull();
             expect(document.querySelector("main")).toBeNull();
             expect(logout.isConnected).toBe(true);
@@ -28,6 +34,68 @@ describe("browser session cleanup", () => {
             window.localStorage.clear();
             window.sessionStorage.clear();
             delete document.documentElement.dataset.braidplaneSessionEnded;
+        }
+    });
+});
+
+describe("session monitoring across tabs", () => {
+    const securityScript = readFileSync(fileURLToPath(import.meta.resolve("../security.js")), "utf8");
+
+    function tab(currentGeneration, response) {
+        const dom = new JSDOM(
+            '<meta name="braidplane-authenticated-page"><meta name="braidplane-session-expiry" content="old:60000"><main>Workspace</main>',
+            {
+                url: "https://core.example.test/workspace",
+                runScripts: "outside-only",
+                virtualConsole: new VirtualConsole(),
+            },
+        );
+        dom.window.fetch = vi.fn().mockResolvedValue(response);
+        dom.window.localStorage.setItem("braidplane.session.generation", currentGeneration);
+        return dom.window;
+    }
+
+    it("honors logout recorded before the page started monitoring", () => {
+        const browser = tab("new");
+        try {
+            browser.localStorage.setItem("braidplane.session.ended", "old:1");
+            browser.eval(securityScript);
+            expect(browser.document.querySelector("main")).toBeNull();
+            expect(browser.localStorage.getItem("braidplane.session.generation")).toBe("new");
+        } finally {
+            browser.close();
+        }
+    });
+
+    it("checks a delayed page's generation against the server before publishing it", async () => {
+        const browser = tab("new", {
+            status: 204,
+            headers: new Headers({ "X-Braidplane-Session-Expiry": "new:60000" }),
+        });
+        try {
+            browser.eval(securityScript);
+            expect(browser.localStorage.getItem("braidplane.session.generation")).toBe("new");
+            await vi.waitFor(() => expect(browser.document.querySelector("main")).toBeNull());
+            expect(browser.localStorage.getItem("braidplane.session.generation")).toBe("new");
+        } finally {
+            browser.close();
+        }
+    });
+
+    it("checks a peer's expiry signal with the server and shares a confirmed session end", async () => {
+        const browser = tab("old", { status: 401, headers: new Headers({ "X-Braidplane-Session-Ended": "1" }) });
+        try {
+            browser.eval(securityScript);
+            browser.dispatchEvent(
+                new browser.StorageEvent("storage", {
+                    key: "braidplane.session.expiry",
+                    newValue: "old:100000000000000",
+                }),
+            );
+            await vi.waitFor(() => expect(browser.document.querySelector("main")).toBeNull());
+            expect(browser.localStorage.getItem("braidplane.session.ended")).toMatch(/^old:/);
+        } finally {
+            browser.close();
         }
     });
 });

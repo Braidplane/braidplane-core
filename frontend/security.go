@@ -75,9 +75,15 @@ func (r *Router) handleBrowserSessionStatus(c fiber.Ctx) error {
 	if err != nil {
 		return c.SendStatus(fiber.StatusServiceUnavailable)
 	}
-	if observation == "" {
+	status := fiber.StatusUnauthorized
+	if observation != "" {
+		status = r.backendSessionStatus(c, reqctx.GetUserSlug(c, r.sessionStore))
+	}
+	if status == fiber.StatusUnauthorized {
 		c.Set(browserSessionEndedHeader, "1")
-		return c.SendStatus(fiber.StatusUnauthorized)
+	}
+	if status != fiber.StatusOK {
+		return c.SendStatus(status)
 	}
 	c.Set(browserSessionTTLHeader, observation)
 	return c.SendStatus(fiber.StatusNoContent)
@@ -158,15 +164,19 @@ func (r *Router) securityMiddleware() fiber.Handler {
 				metadata := `<meta name="braidplane-authenticated-page">`
 				if r.browserSessionExpiry != nil {
 					observation, err := r.browserSessionObservation(c)
-					if err != nil {
-						c.Response().ResetBody()
-						return c.SendStatus(fiber.StatusServiceUnavailable)
-					}
-					if observation == "" {
+					switch {
+					case err != nil:
+						// A successful mutation may have returned a one-time result.
+						if httpsecurity.SafeMethod(c.Method()) {
+							c.Response().ResetBody()
+							return c.SendStatus(fiber.StatusServiceUnavailable)
+						}
+					case observation == "":
 						c.Response().ResetBody()
 						return r.rejectBrowserSession(c)
+					default:
+						metadata += `<meta name="braidplane-session-expiry" content="` + observation + `">`
 					}
-					metadata += `<meta name="braidplane-session-expiry" content="` + observation + `">`
 				}
 				body = strings.Replace(body, "</head>", metadata+"</head>", 1)
 			}
@@ -188,7 +198,7 @@ func frontendRouteNeedsSecuritySession(c fiber.Ctx) bool {
 
 	path := strings.TrimRight(c.Path(), "/")
 	switch path {
-	case "", "/privacy", "/solutions", "/solutions/data-engineers", "/solutions/engineering-leaders", "/solutions/business-teams", "/solutions/settlement-review", "/solutions/supplier-price-desk", "/pricing", "/robots.txt", "/sitemap.xml":
+	case "", browserSessionStatusPath, "/privacy", "/solutions", "/solutions/data-engineers", "/solutions/engineering-leaders", "/solutions/business-teams", "/solutions/settlement-review", "/solutions/supplier-price-desk", "/pricing", "/robots.txt", "/sitemap.xml":
 		return false
 	default:
 		return true

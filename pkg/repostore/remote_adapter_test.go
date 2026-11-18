@@ -38,6 +38,7 @@ func TestFileReadFetchAndCheckoutHaveSeparateLimits(t *testing.T) {
 
 	_, cleanup, err = CloneReadFileRemote(ctx, source, "main", "selected.txt", 512, nil)
 	require.ErrorIs(t, err, xerror.ExecutionResponseSizeExceeded())
+	require.ErrorContains(t, err, "before checkout")
 	require.Nil(t, cleanup)
 
 	store, root, cleanup, err := cloneRemoteFile(ctx, source, "main", nil, checkout)

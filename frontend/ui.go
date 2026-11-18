@@ -516,16 +516,27 @@ func (r *Router) requireAuth(c fiber.Ctx) error {
 }
 
 func (r *Router) requireBackendSession(c fiber.Ctx, userSlug slug.Slug) error {
+	switch status := r.backendSessionStatus(c, userSlug); status {
+	case fiber.StatusUnauthorized:
+		return r.rejectBrowserSession(c)
+	case fiber.StatusOK:
+		return c.Next()
+	default:
+		return c.SendStatus(status)
+	}
+}
+
+func (r *Router) backendSessionStatus(c fiber.Ctx, userSlug slug.Slug) int {
 	user, status, _, err := r.getProfileViaAPI(c.Context(), c.Get(fiber.HeaderCookie))
 	switch status {
 	case fiber.StatusUnauthorized, fiber.StatusForbidden, fiber.StatusNotFound:
-		return r.rejectBrowserSession(c)
+		return fiber.StatusUnauthorized
 	}
 	if err != nil || user == nil || user.Slug != userSlug.String() {
 		r.logger.Warn("backend session validation failed", slog.Int("status", status))
-		return c.SendStatus(fiber.StatusServiceUnavailable)
+		return fiber.StatusServiceUnavailable
 	}
-	return c.Next()
+	return fiber.StatusOK
 }
 
 // authenticatedReturnTo maps protected POST-only account actions back to their GET-able recovery pages.

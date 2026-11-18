@@ -407,7 +407,7 @@ need to approve the app. See Slack notification lifecycle.
 | GitLab OAuth Client ID | `gitlab.oauth_client_id` | `GITLAB_OAUTH_CLIENT_ID` | `--gitlab-oauth-client-id` | `` | string | Deployment-owned GitLab OAuth application ID. |
 | GitLab OAuth Client Secret | `gitlab.oauth_client_secret` | `GITLAB_OAUTH_CLIENT_SECRET` | `--gitlab-oauth-client-secret` | `` | string | Deployment-owned GitLab OAuth application secret; never expose it in API responses or logs. |
 | GitLab OAuth Redirect URI | `gitlab.oauth_redirect_uri` | `GITLAB_OAUTH_REDIRECT_URI` | `--gitlab-oauth-redirect-uri` | `` | string | Exact callback URI ending in `/provider-connectors/gitlab/callback`; non-local deployments require public HTTPS. |
-| GitLab OAuth Base URL | `gitlab.oauth_base_url` | `GITLAB_OAUTH_BASE_URL` | `--gitlab-oauth-base-url` | `` | string | GitLab instance base URL. Leave empty for `https://gitlab.com`; non-local overrides require public HTTPS. |
+| GitLab OAuth Base URL | `gitlab.oauth_base_url` | `GITLAB_OAUTH_BASE_URL` | `--gitlab-oauth-base-url` | `` | string | Canonical GitLab instance URL for API, project web links, and HTTPS clone URLs. Leave empty for `https://gitlab.com`. Non-local overrides require public HTTPS. |
 
 ### BigQuery Connector Configuration
 

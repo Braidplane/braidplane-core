@@ -34,9 +34,9 @@
         return key.startsWith("braidplane.builder.canvas.state.");
     }
 
-    function clearAuthenticatedStorage(generation = pageGeneration) {
-        let clearShared = true;
-        if (generation) {
+    function clearAuthenticatedStorage(generation = pageGeneration, submittingLogout = false) {
+        let clearShared = !submittingLogout;
+        if (clearShared && generation) {
             try {
                 const current = window.localStorage.getItem(BROWSER_GENERATION_KEY);
                 clearShared = !current || current === generation;
@@ -60,7 +60,8 @@
                 isDraftKey(key) ||
                 key === "htmx-history-cache" ||
                 key === "braidplane.lineage.view" ||
-                key.startsWith("braidplane:") ||
+                (key.startsWith("braidplane:") &&
+                    !(submittingLogout && (key === ACTIVE_TAB_KEY || key === TAB_GENERATION_KEY))) ||
                 key.startsWith("query-detail-scroll:"),
         );
     }
@@ -112,15 +113,30 @@
         let refreshTimer;
         let refreshing = false;
 
-        clearStorage("localStorage", isDraftKey);
+        let confirmGeneration = false;
         try {
-            if (window.sessionStorage.getItem(TAB_GENERATION_KEY) !== generation) {
-                clearStorage("sessionStorage", isDraftKey);
-                window.sessionStorage.setItem(TAB_GENERATION_KEY, generation);
+            const ended = window.localStorage.getItem(SESSION_ENDED_KEY)?.split(":")[0];
+            if (ended === generation) {
+                endBrowserSession("/auth/login", generation);
+                return;
             }
-            window.localStorage.setItem(BROWSER_GENERATION_KEY, generation);
+            const current = window.localStorage.getItem(BROWSER_GENERATION_KEY);
+            confirmGeneration = Boolean((current || ended) && current !== generation);
         } catch (_) {
             // The timer remains active without browser storage.
+        }
+
+        function publishGeneration() {
+            try {
+                if (window.sessionStorage.getItem(TAB_GENERATION_KEY) !== generation) {
+                    clearStorage("sessionStorage", isDraftKey);
+                    clearStorage("localStorage", isDraftKey);
+                    window.sessionStorage.setItem(TAB_GENERATION_KEY, generation);
+                }
+                window.localStorage.setItem(BROWSER_GENERATION_KEY, generation);
+            } catch (_) {
+                // The timer remains active without browser storage.
+            }
         }
 
         function active() {
@@ -144,20 +160,20 @@
         }
 
         function observe(value, sampledAt, propagate = true) {
-            if (expiry && sampledAt.monotonic < expiry.monotonic) return;
+            if (expiry && sampledAt.monotonic < expiry.monotonic) return false;
             const [observedGeneration, valueMs] = (value || "").split(":");
             const remaining = Number(valueMs);
-            if (!Number.isSafeInteger(remaining) || remaining <= 0) return;
+            if (!Number.isSafeInteger(remaining) || remaining <= 0) return false;
             if (observedGeneration !== generation) {
                 endBrowserSession("/auth/login", generation);
-                return;
+                return false;
             }
             expiry = { ...sampledAt, remaining };
             expireWhenDue();
             clearTimeout(refreshTimer);
             const delay = timeLeft();
-            if (delay > 6000) refreshTimer = setTimeout(refresh, delay - 5000);
-            if (propagate && delay > 0) {
+            if (delay > 6000) refreshTimer = setTimeout(() => refresh(), delay - 5000);
+            if (propagate && delay > 0 && !confirmGeneration) {
                 try {
                     const deadline = Math.floor(sampledAt.wall + remaining);
                     window.localStorage.setItem(SESSION_EXPIRY_KEY, `${generation}:${deadline}`);
@@ -165,12 +181,20 @@
                     // Other tabs still observe their own deadline.
                 }
             }
+            return true;
         }
 
-        async function refresh() {
+        async function refresh(propagate = true) {
             if (!active() || refreshing || !nativeFetch) return;
             const sampledAt = sampleClock();
+            let previousBrowserGeneration;
+            try {
+                previousBrowserGeneration = window.localStorage.getItem(BROWSER_GENERATION_KEY);
+            } catch (_) {
+                // Another tab cannot publish a generation without storage.
+            }
             refreshing = true;
+            let observed = false;
             try {
                 const response = await nativeFetch("/auth/session-status", {
                     cache: "no-store",
@@ -178,14 +202,28 @@
                 });
                 if (!active()) return;
                 if (response.status === 401 && response.headers.get(SESSION_ENDED_HEADER) === "1") {
+                    notifyOtherTabs(generation);
                     endBrowserSession("/auth/login", generation);
                 } else if (response.status === 204) {
-                    observe(response.headers.get(SESSION_EXPIRY_HEADER), sampledAt);
+                    if (
+                        confirmGeneration &&
+                        window.localStorage.getItem(BROWSER_GENERATION_KEY) !== previousBrowserGeneration
+                    )
+                        return;
+                    observed = observe(response.headers.get(SESSION_EXPIRY_HEADER), sampledAt, propagate);
+                    if (observed && confirmGeneration && active()) {
+                        confirmGeneration = false;
+                        publishGeneration();
+                    }
                 }
             } catch (_) {
                 // The last confirmed deadline still applies offline.
             } finally {
                 refreshing = false;
+                if (!observed && active() && expiry && timeLeft() > 1000) {
+                    clearTimeout(refreshTimer);
+                    refreshTimer = setTimeout(() => refresh(propagate), Math.min(5000, (timeLeft() - 1000) / 2));
+                }
             }
         }
 
@@ -195,22 +233,20 @@
             initialSample.wall -= initialSample.monotonic - navigation.requestStart;
             initialSample.monotonic = navigation.requestStart;
         }
+        if (!confirmGeneration) publishGeneration();
         observe(initial, initialSample);
-        if (!expiry) return;
+        if (!expiry || !active()) return;
+        if (confirmGeneration) refresh();
         document.addEventListener("visibilitychange", () => {
             if (document.visibilityState !== "visible") return;
             expireWhenDue();
             refresh();
         });
-        window.addEventListener("online", refresh);
+        window.addEventListener("online", () => refresh());
         window.addEventListener("storage", (event) => {
             if (event.key !== SESSION_EXPIRY_KEY || !event.newValue || !active()) return;
-            const [updatedGeneration, wallExpiry] = event.newValue.split(":");
-            const sampledAt = sampleClock();
-            const remaining = Number(wallExpiry) - sampledAt.wall;
-            if (updatedGeneration === generation && remaining > timeLeft() + 1000) {
-                observe(`${generation}:${remaining}`, sampledAt, false);
-            }
+            const [updatedGeneration] = event.newValue.split(":");
+            if (updatedGeneration === generation) refresh(false);
         });
     }
 
@@ -221,9 +257,8 @@
             if (!(form instanceof HTMLFormElement) || form.method !== "post" || event.defaultPrevented) return;
             const action = new URL(form.action);
             if (action.origin !== window.location.origin || action.pathname !== "/auth/logout") return;
-            clearAuthenticatedStorage();
+            clearAuthenticatedStorage(pageGeneration, true);
             discardAuthenticatedPage(form);
-            notifyOtherTabs();
         },
         true,
     );

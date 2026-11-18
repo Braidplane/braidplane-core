@@ -263,7 +263,9 @@ func (c *Connector) Execute(
 
 	operation := remotefile.OperationOrDefault(qd.Operation)
 	if operation == remotefile.OperationWrite {
-		applyWriteParamOverrides(&qd, normalized)
+		if err := applyWriteParamOverrides(&qd, normalized); err != nil {
+			return result.NewFTPResult(nil, time.Since(start).Milliseconds(), err), nil
+		}
 	}
 
 	if err := substituteSpreadsheetParams(&qd, normalized); err != nil {
@@ -307,12 +309,20 @@ func (c *Connector) Execute(
 }
 
 // applyWriteParamOverrides applies shared FTP sink runtime overrides.
-func applyWriteParamOverrides(qd *ftpQueryData, params map[string]any) {
+func applyWriteParamOverrides(qd *ftpQueryData, params map[string]any) error {
+	if value, supplied := params["path"]; supplied {
+		target, ok := value.(string)
+		if !ok || target == "" || !validFTPPathText(target) {
+			return xerror.InvalidInput(xerror.Query).WithPublicDetail("FTP write path must be non-empty text without control characters or backslashes.")
+		}
+		qd.Path = target
+	}
 	remotefile.ApplyWriteParamOverrides(
 		qd,
 		params,
 		remotefile.WriteOverrideOptions{TargetParamName: "path"},
 	)
+	return nil
 }
 
 // substituteSpreadsheetParams resolves sheet and range placeholders for spreadsheet operations.

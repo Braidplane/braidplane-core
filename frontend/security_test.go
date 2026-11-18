@@ -101,7 +101,15 @@ func TestProtectedDashboardRedirectPreservesReturnTo(t *testing.T) {
 func TestBrowserSessionStatusReadsExpiryWithoutSaving(t *testing.T) {
 	t.Parallel()
 	store := session.NewStore()
-	router, err := newHandlerTestRouter("http://127.0.0.1:1", slog.New(slog.DiscardHandler), store)
+	var profileStatus atomic.Int64
+	profileStatus.Store(http.StatusOK)
+	backend := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(int(profileStatus.Load()))
+		_, _ = io.WriteString(w, `{"slug":"test-user"}`)
+	}))
+	t.Cleanup(backend.Close)
+	router, err := NewRouter(backend.URL, slog.New(slog.DiscardHandler), store)
 	require.NoError(t, err)
 	app := fiber.New()
 	registerTestSessionRoute(app, store)
@@ -128,6 +136,25 @@ func TestBrowserSessionStatusReadsExpiryWithoutSaving(t *testing.T) {
 	require.InDelta(t, (30 * time.Minute).Milliseconds(), remaining, 5000)
 	require.NotContains(t, expiry, id)
 
+	for _, tc := range []struct {
+		backendStatus, wantStatus int
+		wantEnded                 string
+	}{
+		{http.StatusUnauthorized, http.StatusUnauthorized, "1"},
+		{http.StatusServiceUnavailable, http.StatusServiceUnavailable, ""},
+	} {
+		profileStatus.Store(int64(tc.backendStatus))
+		req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, browserSessionStatusPath, nil)
+		req.Header.Set("Cookie", cookie)
+		response, err := app.Test(req)
+		require.NoError(t, err)
+		_ = response.Body.Close()
+		require.Equal(t, tc.wantStatus, response.StatusCode)
+		require.Equal(t, tc.wantEnded, response.Header.Get(browserSessionEndedHeader))
+		require.Empty(t, response.Header.Get(browserSessionTTLHeader))
+		require.Empty(t, response.Header.Values(fiber.HeaderSetCookie))
+	}
+
 	req = httptest.NewRequestWithContext(t.Context(), http.MethodGet, browserSessionStatusPath, nil)
 	anonymous, err := app.Test(req)
 	require.NoError(t, err)
@@ -136,6 +163,44 @@ func TestBrowserSessionStatusReadsExpiryWithoutSaving(t *testing.T) {
 	require.Equal(t, "1", anonymous.Header.Get(browserSessionEndedHeader))
 	require.Empty(t, anonymous.Header.Get(browserSessionTTLHeader))
 	require.Empty(t, anonymous.Header.Values(fiber.HeaderSetCookie))
+}
+
+func TestExpiryLookupFailurePreservesAuthorizedMutationResult(t *testing.T) {
+	t.Parallel()
+	store := session.NewStore()
+	router, err := newHandlerTestRouter("http://127.0.0.1:1", slog.New(slog.DiscardHandler), store)
+	require.NoError(t, err)
+	router.SetBrowserSessionExpiry(func(context.Context, string) (int64, error) {
+		return 0, assert.AnError
+	})
+
+	app := fiber.New()
+	registerTestSessionRoute(app, store)
+	router.RegisterRoutes(app, CommunityPresentation{})
+	app.All("/_test/mutation", router.requireAuth, func(c fiber.Ctx) error {
+		return c.Type("html").SendString("<html><head></head><body>Synthetic result</body></html>")
+	})
+	cookie := getAuthenticatedSessionCookie(t, app)
+
+	for _, method := range []string{http.MethodGet, http.MethodPost} {
+		req := httptest.NewRequestWithContext(t.Context(), method, "/_test/mutation", nil)
+		req.Header.Set("Cookie", cookie)
+		if method == http.MethodPost {
+			addCSRFToken(t, app, req)
+		}
+		response, err := app.Test(req)
+		require.NoError(t, err)
+		body, err := io.ReadAll(response.Body)
+		require.NoError(t, err)
+		require.NoError(t, response.Body.Close())
+		if method == http.MethodGet {
+			require.Equal(t, http.StatusServiceUnavailable, response.StatusCode)
+			require.NotContains(t, string(body), "Synthetic result")
+			continue
+		}
+		require.Equal(t, http.StatusOK, response.StatusCode)
+		require.Contains(t, string(body), "Synthetic result")
+	}
 }
 
 func TestFrontendRouteNeedsSecuritySession(t *testing.T) {
