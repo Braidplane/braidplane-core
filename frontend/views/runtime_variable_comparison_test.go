@@ -19,9 +19,14 @@ func TestRuntimeVariableComparisonRendersSourcesAndBlockers(t *testing.T) {
 				{Source: api.RuntimeVariableSourceDefault, Variable: &api.RuntimeVariable{Value: "200"}},
 				{Source: api.RuntimeVariableSourceOverride, Variable: &api.RuntimeVariable{Value: "500"}},
 			}},
-			{Key: "region", Used: true, Cells: []api.RuntimeVariableComparisonCell{
+			{Key: "region", Used: true, Definition: &api.RuntimeVariableDefinition{ValueType: api.RuntimeVariableValueTypeText}, Cells: []api.RuntimeVariableComparisonCell{
 				{Source: api.RuntimeVariableSourceMissing, Required: true, Blocked: true},
-				{Source: api.RuntimeVariableSourceOverride, TypeMismatch: true, Blocked: true},
+				{Source: api.RuntimeVariableSourceOverride, Required: true, TypeMismatch: true, Blocked: true, Variable: &api.RuntimeVariable{ValueType: api.RuntimeVariableValueTypeInteger, Value: "1"}},
+				{Source: api.RuntimeVariableSourceMissing, Required: true, Blocked: true},
+			}},
+			{Key: "optional", Definition: &api.RuntimeVariableDefinition{ValueType: api.RuntimeVariableValueTypeText}, Cells: []api.RuntimeVariableComparisonCell{
+				{Source: api.RuntimeVariableSourceMissing},
+				{Source: api.RuntimeVariableSourceMissing},
 				{Source: api.RuntimeVariableSourceMissing},
 			}},
 		},
@@ -36,5 +41,8 @@ func TestRuntimeVariableComparisonRendersSourcesAndBlockers(t *testing.T) {
 	require.Contains(t, html.String(), "Default")
 	require.Contains(t, html.String(), "Override")
 	require.Contains(t, html.String(), ">500<")
-	require.Equal(t, 2, strings.Count(html.String(), "badge-error"))
+	require.Contains(t, html.String(), ">1<")
+	require.Equal(t, 2, strings.Count(html.String(), "Missing required value"))
+	require.Equal(t, 3, strings.Count(html.String(), ">Missing<"))
+	require.Equal(t, 3, strings.Count(html.String(), "badge-error"))
 }
