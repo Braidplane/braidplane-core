@@ -5047,6 +5047,51 @@ func (e QueryParameterDataType) Valid() bool {
 	}
 }
 
+// Defines values for ReadinessDiagnosticSeverity.
+const (
+	ReadinessDiagnosticSeverityError         ReadinessDiagnosticSeverity = "error"
+	ReadinessDiagnosticSeverityInformational ReadinessDiagnosticSeverity = "informational"
+	ReadinessDiagnosticSeverityWarning       ReadinessDiagnosticSeverity = "warning"
+)
+
+// Valid indicates whether the value is a known member of the ReadinessDiagnosticSeverity enum.
+func (e ReadinessDiagnosticSeverity) Valid() bool {
+	switch e {
+	case ReadinessDiagnosticSeverityError:
+		return true
+	case ReadinessDiagnosticSeverityInformational:
+		return true
+	case ReadinessDiagnosticSeverityWarning:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ReadinessStatus.
+const (
+	ReadinessStatusBlocked       ReadinessStatus = "blocked"
+	ReadinessStatusInformational ReadinessStatus = "informational"
+	ReadinessStatusReady         ReadinessStatus = "ready"
+	ReadinessStatusWarning       ReadinessStatus = "warning"
+)
+
+// Valid indicates whether the value is a known member of the ReadinessStatus enum.
+func (e ReadinessStatus) Valid() bool {
+	switch e {
+	case ReadinessStatusBlocked:
+		return true
+	case ReadinessStatusInformational:
+		return true
+	case ReadinessStatusReady:
+		return true
+	case ReadinessStatusWarning:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for Role.
 const (
 	RoleSuperAdmin Role = "super_admin"
@@ -10497,6 +10542,7 @@ type PipelineReconcileResponse struct {
 	DryRun                 bool                               `json:"dry_run"`
 	Failures               []PipelineReconcileFailure         `json:"failures"`
 	PipelineDir            string                             `json:"pipeline_dir"`
+	ReadinessWarning       *string                            `json:"readiness_warning,omitempty"`
 	RequestedPipelineSlugs []Slug                             `json:"requested_pipeline_slugs"`
 	Skipped                []PipelineReconcileSkippedPipeline `json:"skipped"`
 	Source                 PipelineReconcileSourceMetadata    `json:"source"`
@@ -10534,9 +10580,10 @@ type PipelineReconcileSummary struct {
 
 // PipelineReconcileSyncedPipeline defines model for PipelineReconcileSyncedPipeline.
 type PipelineReconcileSyncedPipeline struct {
-	PipelineSlug Slug   `json:"pipeline_slug"`
-	SourcePath   string `json:"source_path"`
-	SpecHash     string `json:"spec_hash"`
+	PipelineSlug Slug             `json:"pipeline_slug"`
+	Readiness    *ReadinessReport `json:"readiness,omitempty"`
+	SourcePath   string           `json:"source_path"`
+	SpecHash     string           `json:"spec_hash"`
 }
 
 // PipelineRef defines model for PipelineRef.
@@ -12149,6 +12196,37 @@ type QueryParameterDataType string
 type QueryStatement struct {
 	union json.RawMessage
 }
+
+// ReadinessDiagnostic defines model for ReadinessDiagnostic.
+type ReadinessDiagnostic struct {
+	Code            string                      `json:"code"`
+	EnvironmentSlug Slug                        `json:"environment_slug"`
+	FieldPath       string                      `json:"field_path"`
+	NextAction      string                      `json:"next_action"`
+	PipelineSlug    Slug                        `json:"pipeline_slug"`
+	RequirementKey  string                      `json:"requirement_key"`
+	Severity        ReadinessDiagnosticSeverity `json:"severity"`
+	StepSlug        string                      `json:"step_slug"`
+}
+
+// ReadinessDiagnosticSeverity defines model for ReadinessDiagnostic.Severity.
+type ReadinessDiagnosticSeverity string
+
+// ReadinessEnvironment defines model for ReadinessEnvironment.
+type ReadinessEnvironment struct {
+	Diagnostics     []ReadinessDiagnostic `json:"diagnostics"`
+	EnvironmentSlug Slug                  `json:"environment_slug"`
+	Status          ReadinessStatus       `json:"status"`
+}
+
+// ReadinessReport defines model for ReadinessReport.
+type ReadinessReport struct {
+	Environments []ReadinessEnvironment `json:"environments"`
+	Status       ReadinessStatus        `json:"status"`
+}
+
+// ReadinessStatus defines model for ReadinessStatus.
+type ReadinessStatus string
 
 // RecoverPipelineRunRequest defines model for RecoverPipelineRunRequest.
 type RecoverPipelineRunRequest struct {

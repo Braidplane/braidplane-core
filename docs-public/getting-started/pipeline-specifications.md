@@ -573,6 +573,16 @@ complete query-transform-sink example.
 
 ## Check readiness across environments
 
+Run `braidplane pipeline apply --project PROJECT --dry-run` to preview the
+readiness of the Git definitions before importing them. Omit `--dry-run` to
+import them. In both reports, each assessed definition in `synced` includes
+a `readiness` object with a status for each enabled environment. For example,
+a pipeline can sync successfully while production reports `missing_binding`
+for a data-source ref or `missing_variable` for an organization runtime
+variable key. The diagnostic includes the next action and omits variable
+values and credentials. Import failures appear in `failures`. If the service
+cannot assess readiness, check the report's `readiness_warning`.
+
 Use `GET /api/organizations/{slug}/projects/{project_slug}/readiness` to check the
 current persisted pipelines in every enabled project environment. To check one
 pipeline, use `GET /api/organizations/{slug}/projects/{project_slug}/pipelines/{pipeline_slug}/readiness`.

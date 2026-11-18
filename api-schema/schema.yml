@@ -18082,6 +18082,9 @@ components:
       type: object
       description: Result of a synchronous git pipeline reconciliation operation.
       properties:
+        readiness_warning:
+          type: string
+          description: Reason readiness could not be reported for this reconciliation.
         dry_run:
           type: boolean
           description: Whether the operation was executed without mutations.
@@ -18206,6 +18209,8 @@ components:
       type: object
       description: Pipeline synchronized from git into DB-canonical storage.
       properties:
+        readiness:
+          $ref: '#/components/schemas/ReadinessReport'
         pipeline_slug:
           $ref: '#/components/schemas/Slug'
         source_path:

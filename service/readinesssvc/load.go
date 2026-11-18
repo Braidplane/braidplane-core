@@ -6,6 +6,7 @@ import (
 
 	"github.com/Braidplane/braidplane-core/pkg/domain/model"
 	"github.com/Braidplane/braidplane-core/pkg/pipeline/runtime"
+	pipelinespec "github.com/Braidplane/braidplane-core/pkg/pipeline/spec"
 	"github.com/Braidplane/braidplane-core/pkg/slug"
 	"github.com/Braidplane/braidplane-core/pkg/xerror"
 	"github.com/Braidplane/braidplane-core/service/datasourcerefssvc"
@@ -29,7 +30,6 @@ func Load(ctx context.Context, pipelines pipelinesvc.Service, environments envir
 		}
 	}
 	inputs := make([]PipelineInput, len(slugs))
-	bySlug := make(map[slug.Slug]*PipelineInput, len(slugs))
 	for i, s := range slugs {
 		detail, err := pipelines.Get(ctx, org, project, s, "")
 		if err != nil {
@@ -39,13 +39,43 @@ func Load(ctx context.Context, pipelines pipelinesvc.Service, environments envir
 			return Report{}, xerror.Unexpected().Detail("missing persisted pipeline spec")
 		}
 		inputs[i].Spec = detail.Spec
-		bySlug[s] = &inputs[i]
 	}
+	envs, err := loadSetup(ctx, environments, refs, org, project, pipeline, inputs)
+	if err != nil {
+		return Report{}, err
+	}
+	return Evaluate(inputs, envs), nil
+}
+
+// LoadSpecs evaluates incoming pipeline specs against the project's current setup.
+func LoadSpecs(ctx context.Context, environments environmentssvc.Service, refs datasourcerefssvc.Service, org, project slug.Slug, specs []*pipelinespec.Pipeline) ([]Report, error) {
+	reports := make([]Report, len(specs))
+	if len(specs) == 0 {
+		return reports, nil
+	}
+	inputs := make([]PipelineInput, len(specs))
+	for i, spec := range specs {
+		if spec == nil {
+			return nil, xerror.Unexpected().Detail("missing incoming pipeline spec")
+		}
+		inputs[i].Spec = spec
+	}
+	envs, err := loadSetup(ctx, environments, refs, org, project, "", inputs)
+	if err != nil {
+		return nil, err
+	}
+	for i := range specs {
+		reports[i] = Evaluate(inputs[i:i+1], envs)
+	}
+	return reports, nil
+}
+
+func loadSetup(ctx context.Context, environments environmentssvc.Service, refs datasourcerefssvc.Service, org, project, pipeline slug.Slug, inputs []PipelineInput) ([]EnvironmentInput, error) {
 	enabled, err := pages(func(req model.ListRequest) (model.ListResponse[model.ProjectEnvironment], error) {
 		return environments.ListProjectEnvironments(ctx, org, project, req)
 	})
 	if err != nil {
-		return Report{}, err
+		return nil, err
 	}
 	envs := make([]EnvironmentInput, len(enabled))
 	vars := make(map[slug.Slug]map[string]bool, len(enabled))
@@ -54,24 +84,29 @@ func Load(ctx context.Context, pipelines pipelinesvc.Service, environments envir
 		vars[e.Environment.Slug] = envs[i].Variables
 	}
 	if len(inputs) == 0 || len(envs) == 0 {
-		return Evaluate(inputs, envs), nil
+		return envs, nil
 	}
 	if pipeline == "" {
+		bySlug := make(map[slug.Slug][]*PipelineInput, len(inputs))
+		for i := range inputs {
+			s := inputs[i].Spec.Metadata.Slug
+			bySlug[s] = append(bySlug[s], &inputs[i])
+		}
 		err = loadProjectRefs(ctx, refs, org, project, bySlug, envs)
 	} else {
 		err = loadPipelineRefs(ctx, refs, org, project, pipeline, &inputs[0], envs)
 	}
 	if err != nil {
-		return Report{}, err
+		return nil, err
 	}
 	if !slices.ContainsFunc(inputs, func(p PipelineInput) bool {
 		return len(runtime.ExtractRequirements(p.Spec).EnvironmentVariables) > 0
 	}) {
-		return Evaluate(inputs, envs), nil
+		return envs, nil
 	}
 	comparison, err := environments.CompareRuntimeVariables(ctx, org, nil)
 	if err != nil {
-		return Report{}, err
+		return nil, err
 	}
 	for _, row := range comparison.Rows {
 		for i, cell := range row.Cells {
@@ -80,7 +115,7 @@ func Load(ctx context.Context, pipelines pipelinesvc.Service, environments envir
 			}
 		}
 	}
-	return Evaluate(inputs, envs), nil
+	return envs, nil
 }
 
 func loadPipelineRefs(ctx context.Context, refs datasourcerefssvc.Service, org, project, pipeline slug.Slug, input *PipelineInput, envs []EnvironmentInput) error {
@@ -112,7 +147,7 @@ func loadPipelineRefs(ctx context.Context, refs datasourcerefssvc.Service, org, 
 	return nil
 }
 
-func loadProjectRefs(ctx context.Context, refs datasourcerefssvc.Service, org, project slug.Slug, bySlug map[slug.Slug]*PipelineInput, envs []EnvironmentInput) error {
+func loadProjectRefs(ctx context.Context, refs datasourcerefssvc.Service, org, project slug.Slug, bySlug map[slug.Slug][]*PipelineInput, envs []EnvironmentInput) error {
 	logical, err := pages(func(req model.ListRequest) (model.ListResponse[model.DataSourceRef], error) {
 		return refs.ListDataSourceRefs(ctx, org, project, req)
 	})
@@ -120,7 +155,7 @@ func loadProjectRefs(ctx context.Context, refs datasourcerefssvc.Service, org, p
 		return err
 	}
 	for _, r := range logical {
-		if p := bySlug[r.PipelineSlug]; p != nil {
+		for _, p := range bySlug[r.PipelineSlug] {
 			p.Refs = append(p.Refs, r)
 		}
 	}
@@ -132,7 +167,7 @@ func loadProjectRefs(ctx context.Context, refs datasourcerefssvc.Service, org, p
 			return err
 		}
 		for _, b := range bindings {
-			if p := bySlug[b.PipelineSlug]; p != nil {
+			for _, p := range bySlug[b.PipelineSlug] {
 				p.Bindings = append(p.Bindings, b)
 			}
 		}

@@ -133,3 +133,51 @@ func TestLoadWithoutVariables(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, "ready", report.Status)
 }
+
+type projectRefs struct {
+	datasourcerefssvc.Service
+	t     *testing.T
+	lists int
+	envs  []slug.Slug
+}
+
+func (r *projectRefs) ListDataSourceRefs(_ context.Context, org, project slug.Slug, _ model.ListRequest) (model.ListResponse[model.DataSourceRef], error) {
+	require.Equal(r.t, []slug.Slug{"tenant", "project"}, []slug.Slug{org, project})
+	r.lists++
+	return model.ListResponse[model.DataSourceRef]{Items: []model.DataSourceRef{{PipelineSlug: "selected", Slug: "ledger", DataSourceType: model.DataSourceTypePostgres, RequiredCapabilities: []model.DataSourceRefCapability{model.DataSourceRefCapabilityPipelineSource}}}}, nil
+}
+
+func (r *projectRefs) ListEnvironmentBindings(_ context.Context, org, project, env slug.Slug, _ model.ListRequest) (model.ListResponse[model.DataSourceBinding], error) {
+	require.Equal(r.t, []slug.Slug{"tenant", "project"}, []slug.Slug{org, project})
+	r.envs = append(r.envs, env)
+	var bindings []model.DataSourceBinding
+	if env == "dev" {
+		bindings = []model.DataSourceBinding{{PipelineSlug: "selected", EnvironmentSlug: env, DataSourceRefSlug: "ledger", DataSourceType: model.DataSourceTypePostgres, DataSourceActive: true}}
+	}
+	return model.ListResponse[model.DataSourceBinding]{Items: bindings}, nil
+}
+
+func TestLoadSpecsEvaluatesIncomingRequirementsInOrder(t *testing.T) {
+	refs := &projectRefs{t: t}
+	detail, err := (loadPipelines{t: t}).Get(t.Context(), "tenant", "project", "selected", "")
+	require.NoError(t, err)
+	first := detail.Spec
+	second := *first
+	second.Steps = nil
+	third := *first
+	third.Steps = []pipelinespec.Step{{Slug: "read", Kind: "query", Query: &pipelinespec.QueryRef{DataSourceSlug: "ledger", OperationType: "sql"}}}
+	reports, err := LoadSpecs(t.Context(), loadEnvironments{t: t}, refs, "tenant", "project", []*pipelinespec.Pipeline{first, &second, &third})
+	require.NoError(t, err)
+	require.Len(t, reports, 3)
+	require.Equal(t, 1, refs.lists)
+	require.Equal(t, []slug.Slug{"dev", "prod"}, refs.envs)
+	require.Equal(t, "ready", reports[0].Environments[0].Status)
+	prod := reports[0].Environments[1]
+	require.Len(t, prod.Diagnostics, 2)
+	require.Equal(t, "missing_binding", prod.Diagnostics[0].Code)
+	require.Equal(t, "missing_variable", prod.Diagnostics[1].Code)
+	require.Equal(t, "batch", prod.Diagnostics[1].RequirementKey)
+	require.Equal(t, "ready", reports[1].Status)
+	require.Equal(t, "ready", reports[2].Environments[0].Status)
+	require.Len(t, reports[2].Environments[1].Diagnostics, 1)
+}

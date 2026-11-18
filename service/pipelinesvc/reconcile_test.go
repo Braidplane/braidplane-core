@@ -9,6 +9,7 @@ import (
 	"github.com/Braidplane/braidplane-core/pkg/domain/model"
 	"github.com/Braidplane/braidplane-core/pkg/eventtest"
 	"github.com/Braidplane/braidplane-core/pkg/must"
+	pipelinespec "github.com/Braidplane/braidplane-core/pkg/pipeline/spec"
 	"github.com/Braidplane/braidplane-core/pkg/repostore"
 	"github.com/Braidplane/braidplane-core/pkg/slug"
 	"github.com/Braidplane/braidplane-core/pkg/xerror"
@@ -36,6 +37,8 @@ func TestService_ReconcilePipelines_UsesResolvedGitSource(t *testing.T) {
 	sourceRef := "refs/heads/main"
 	lastCommit := "abc123"
 	repoStore := &fakeRepoStore{}
+	incoming := testPipelineSpec()
+	incoming.Metadata.Slug = "daily-sync"
 	var cleanupCalled bool
 	var reconcileRepoStore repostore.RepoStore
 	var reconcileParams ReconcileFromGitParams
@@ -55,6 +58,7 @@ func TestService_ReconcilePipelines_UsesResolvedGitSource(t *testing.T) {
 				reconcileRepoStore = store
 				reconcileParams = params
 				return &ReconcileFromGitResult{
+					Specs:   []*pipelinespec.Pipeline{incoming},
 					Scanned: 1,
 					Synced:  1,
 					SyncedPipelines: []ReconcileFromGitSynced{
@@ -100,6 +104,7 @@ func TestService_ReconcilePipelines_UsesResolvedGitSource(t *testing.T) {
 	)
 
 	require.NoError(t, err)
+	require.Equal(t, []*pipelinespec.Pipeline{incoming}, result.Specs)
 	require.True(t, cleanupCalled)
 	require.Same(t, repoStore, reconcileRepoStore)
 	require.Equal(t, ReconcileFromGitParams{

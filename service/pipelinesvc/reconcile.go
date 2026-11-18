@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"github.com/Braidplane/braidplane-core/pkg/domain/model"
+	pipelinespec "github.com/Braidplane/braidplane-core/pkg/pipeline/spec"
 	"github.com/Braidplane/braidplane-core/pkg/ptr"
 	"github.com/Braidplane/braidplane-core/pkg/slug"
 	"github.com/Braidplane/braidplane-core/pkg/xerror"
@@ -34,6 +35,7 @@ type ReconcilePipelinesExpectedSource struct {
 
 // ReconcilePipelinesResult reports the effect of one API-driven reconcile operation.
 type ReconcilePipelinesResult struct {
+	Specs                  []*pipelinespec.Pipeline `json:"-"`
 	DryRun                 bool
 	PipelineDir            string
 	RequestedPipelineSlugs []slug.Slug
@@ -283,6 +285,7 @@ func toReconcilePipelinesResult(
 	}
 
 	return &ReconcilePipelinesResult{
+		Specs:                  result.Specs,
 		DryRun:                 dryRun,
 		PipelineDir:            pipelineDir,
 		RequestedPipelineSlugs: append([]slug.Slug(nil), requestedPipelineSlugs...),

@@ -34,7 +34,7 @@ type pipelineCommand struct {
 	Run          runPipelineCommand                  `cmd:"" help:"Start, inspect, and recover pipeline runs through the Braidplane API."`
 	Trigger      triggerPipelineCommand              `cmd:"" help:"Manage environment-scoped pipeline triggers through the Braidplane API."`
 	Version      versionPipelineCommand              `cmd:"" help:"Inspect immutable pipeline versions through the Braidplane API."`
-	Apply        applyPipelineCommand                `cmd:"" help:"Materialize Git-authored pipelines from the project backend into Braidplane."`
+	Apply        applyPipelineCommand                `cmd:"" help:"Import Git-authored pipelines and report readiness across enabled environments."`
 	Deploy       deployPipelineCommand               `cmd:"" help:"Deploy an immutable pipeline version to an environment."`
 	Deployment   pipelineDeploymentCommand           `cmd:"" help:"Inspect environment deployment state and history."`
 	Validation   pipelineValidationHistoryCommand    `cmd:"" help:"Inspect and refresh persisted validation history."`
