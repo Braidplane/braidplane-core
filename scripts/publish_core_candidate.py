@@ -42,11 +42,13 @@ def publish(directory, approved_digest, checkout, output, ci_run_id, ci_attempt,
         approval = json.loads((directory / "approval.json").read_bytes())
         if json.loads(data) != ci or hashlib.sha256(data).hexdigest() != approval["ci_admission_sha256"]:
             raise ValueError("CI admission differs from the approved candidate")
+    else:
+        data = (json.dumps(ci, indent=2) + "\n").encode()
     output = output.resolve()
     if output.is_relative_to(checkout) or output.is_relative_to(directory):
         raise ValueError("publication evidence must be outside the checkout and candidate directory")
     output.mkdir(parents=False, exist_ok=False)
-    (output / "ci-admission.json").write_text(json.dumps(ci, indent=2) + "\n")
+    (output / "ci-admission.json").write_bytes(data)
     (output / "provenance.json").write_text(json.dumps(provenance, indent=2) + "\n")
     with tempfile.TemporaryDirectory(prefix="core-release-publisher-") as docker_dir:
         docker_env = dict(env, DOCKER_CONFIG=docker_dir)

@@ -115,11 +115,12 @@ class BuildCoreCandidateTest(unittest.TestCase):
         with patch("scripts.build_core_candidate.subprocess.check_output", side_effect=["a" * 40 + "\n", b""]), \
              patch("scripts.build_core_candidate.subprocess.run", side_effect=run), \
              patch("scripts.build_core_candidate.verify_archive") as verify, \
-             patch("scripts.build_core_candidate.package"), patch("scripts.build_core_candidate.record", return_value={}):
+             patch("scripts.build_core_candidate.package") as package, patch("scripts.build_core_candidate.record", return_value={}):
             build(self.args, self.env, self.event)
         images = [cmd for cmd in calls if "--metadata-file" in cmd]
         self.assertEqual(len(images), 4)
         self.assertEqual(verify.call_count, 4)
+        self.assertEqual(package.call_args.kwargs["checkout"], self.args.checkout)
         for cmd in images:
             self.assertIn("--no-cache", cmd)
             self.assertEqual(cmd[cmd.index("--label") + 1],

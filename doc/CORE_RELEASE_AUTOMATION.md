@@ -188,6 +188,8 @@ expires. Tags retain identity, not downloadable archive bytes or run receipts.
    failed publication job in the same run while its original candidate is
    available. It validates those same bytes automatically. Digest copies can be repeated;
    verification requires the new attempt's signatures before completion.
+   If a newer source completes first, retain the older run and any draft for
+   audit. The older run can no longer finalize publication.
 3. A new build may produce different bytes. Never replace a reserved identity,
    delete tags or weaken checks. If the candidate was lost, prepare a
    newly reviewed version from the latest successful main source; the old

@@ -80,7 +80,7 @@ def build(args, env, event):
             manifest = output / "release.json"
             manifest.write_text(json.dumps(release, indent=2, sort_keys=True) + "\n")
             archive = output / "installation.tar.gz"
-            package(manifest, archive, {name: (output / name).read_bytes() for name in release_files})
+            package(manifest, archive, {name: (output / name).read_bytes() for name in release_files}, checkout=checkout)
             record_path = output / "record.json"
             record_path.write_text(json.dumps(record(release, archive, checkout), indent=2, sort_keys=True) + "\n")
             images = {}

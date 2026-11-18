@@ -181,8 +181,10 @@ class PrepareCoreReleaseTest(unittest.TestCase):
     def test_retry_dispatches_only_missing_platform(self):
         metadata = {'release-plan.json': json.dumps(dict(version='v0.0.1-rc.1'))}
         config = dict(self.config, platforms=['linux/amd64', 'linux/arm64'])
-        runs = [dict(workflow_runs=[dict(head_sha='c' * 40,
-                     display_title=f"Core release candidate (linux/amd64, {'b' * 40})")])]
+        runs = [dict(workflow_runs=[dict(head_sha='c' * 40, event='workflow_dispatch', head_branch='main',
+                     display_title=f"Core release candidate (linux/amd64, {'b' * 40})"),
+                     dict(head_sha='d' * 40, event='workflow_dispatch', head_branch='other',
+                     display_title=f"Core release candidate (linux/arm64, {'b' * 40})")])]
         with patch('scripts.prepare_core_release.api') as api, \
              patch('scripts.prepare_core_release.admit'), \
              patch('scripts.prepare_core_release.require_main'), \

@@ -188,7 +188,8 @@ def prepare(checkout, env, event):
 
     endpoint = f"repos/{repository}/actions/workflows/core-release.yml/runs?per_page=100"
     raw = subprocess.check_output(["gh", "api", endpoint, "--paginate", "--slurp"])
-    titles = {item["display_title"] for page in json.loads(raw) for item in page["workflow_runs"]}
+    titles = {item["display_title"] for page in json.loads(raw) for item in page["workflow_runs"]
+              if item["event"] == "workflow_dispatch" and item["head_branch"] == "main"}
     inputs = {key: config[key] for key in ("platform", "edge", "postgres")}
     inputs.update(source_sha=source, ci_run_id=str(run["id"]), ci_attempt=str(run["run_attempt"]))
     for platform in config["platforms"]:

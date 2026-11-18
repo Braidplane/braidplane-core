@@ -1,6 +1,7 @@
 import hashlib
 import json
 import os
+import shutil
 from pathlib import Path
 import subprocess
 import sys
@@ -26,6 +27,22 @@ class InstallationPackageTest(unittest.TestCase):
             metadata["CHANGELOG.md"] += b" changed"
             with self.assertRaisesRegex(ValueError, "archive metadata"):
                 check_archive_manifest(first, manifest(), metadata)
+
+    def test_archive_uses_installation_files_from_candidate_checkout(self):
+        with tempfile.TemporaryDirectory() as directory:
+            candidate = Path(directory)
+            current = Path(__file__).resolve().parents[1]
+            shutil.copytree(current / "scripts/installation", candidate / "scripts/installation")
+            for name in ("LICENSE", "NOTICE", "scripts/self-hosted-runtime-grants.sql"):
+                shutil.copyfile(current / name, candidate / name)
+            (candidate / "scripts/installation/INSTALL.md").write_bytes(b"Candidate instructions")
+            release = candidate / "release.json"
+            release.write_text(json.dumps(manifest()))
+            output = candidate / "bundle.tar.gz"
+            package(release, output, checkout=candidate)
+            with tarfile.open(output) as archive:
+                install = next(member for member in archive.getmembers() if member.name.endswith("/INSTALL.md"))
+                self.assertEqual(archive.extractfile(install).read(), b"Candidate instructions")
 
     def test_deterministic_archive_checksums_and_checkout_independent_preparation(self):
         with tempfile.TemporaryDirectory() as directory:

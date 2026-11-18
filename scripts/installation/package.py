@@ -11,29 +11,29 @@ import tempfile
 from cli.scripts.release import add_tar_file
 from .release import read_manifest
 
-SOURCE = Path(__file__).resolve().parent
-ROOT = SOURCE.parent.parent
+ROOT = Path(__file__).resolve().parents[2]
 TOOLS = ("release.py", "prepare.py", "preflight.py", "lifecycle.py", "upgrade.py", "backup.py", "restore_probe.py", "restore.py", "compose.json", "Caddyfile", "execution-grants.sql")
 
 
-def package(manifest_path, output, release_metadata=None):
+def package(manifest_path, output, release_metadata=None, *, checkout=ROOT):
+    source = checkout / "scripts/installation"
     manifest = read_manifest(manifest_path)
     prefix = f"braidplane-{manifest['version']}-{manifest['platform'].replace('/', '-')}"
-    files = {f"scripts/installation/{name}": (SOURCE / name).read_bytes() for name in TOOLS}
+    files = {f"scripts/installation/{name}": (source / name).read_bytes() for name in TOOLS}
     files.update({
         "scripts/__init__.py": b"", "scripts/installation/__init__.py": b"",
-        "scripts/self-hosted-runtime-grants.sql": (SOURCE.parent / "self-hosted-runtime-grants.sql").read_bytes(),
+        "scripts/self-hosted-runtime-grants.sql": (source.parent / "self-hosted-runtime-grants.sql").read_bytes(),
         "release.json": (json.dumps(manifest, indent=2, sort_keys=True) + "\n").encode(),
-        "INSTALL.md": (SOURCE / "INSTALL.md").read_bytes(),
-        "RECOVERY.md": (SOURCE / "RECOVERY.md").read_bytes(),
-        "LICENSE": (ROOT / "LICENSE").read_bytes(), "NOTICE": (ROOT / "NOTICE").read_bytes(),
+        "INSTALL.md": (source / "INSTALL.md").read_bytes(),
+        "RECOVERY.md": (source / "RECOVERY.md").read_bytes(),
+        "LICENSE": (checkout / "LICENSE").read_bytes(), "NOTICE": (checkout / "NOTICE").read_bytes(),
     })
     if release_metadata is not None:
         if set(release_metadata) != {"release-plan.json", "release-inputs.json", "CHANGELOG.md"}:
             raise ValueError("incomplete candidate release metadata")
         files.update(release_metadata)
     for name in ("first-result.pipeline.json", "input.json", "expected.json", "write-operation.json"):
-        files[f"first-result/{name}"] = (SOURCE / "first-result" / name).read_bytes()
+        files[f"first-result/{name}"] = (source / "first-result" / name).read_bytes()
     files["SHA256SUMS"] = "".join(f"{hashlib.sha256(data).hexdigest()}  {name}\n" for name, data in sorted(files.items())).encode()
     output = Path(output)
     # Build beside the destination, then publish without replacing an existing artifact.
