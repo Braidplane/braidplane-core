@@ -11349,6 +11349,9 @@
             onOverwrite,
             flow,
         }) => {
+            const config = activeConflictDialogConfig;
+            const modal = document.getElementById("builder-conflict-modal");
+            const isCurrent = () => modal?.open && config === activeConflictDialogConfig;
             applyImportedStateToCanvas(mergedState);
             const savePayload = prepareConflictResolutionSaveState(mergedState, buildExportBody(), {
                 source_format: pipelineSourceFormat,
@@ -11372,8 +11375,10 @@
                 body: JSON.stringify(savePayload),
             });
 
+            if (!isCurrent()) return false;
             if (!response.ok) {
                 const payload = await readAPIJSON(response);
+                if (!isCurrent()) return false;
                 if (response.status === 409 && payload?.error) {
                     showDraftConflictDialog({
                         conflict: payload,
@@ -11414,6 +11419,7 @@
             }
 
             const savedPipeline = await readAPIJSON(response);
+            if (!isCurrent()) return false;
             if (!savedPipeline) {
                 setStatusMessage("Saving the merged draft failed: unexpected server response.", TONE_ERROR);
                 return false;
@@ -11893,6 +11899,7 @@
                     setStatusMessage("Proposal review is unavailable.", TONE_ERROR);
                     return;
                 }
+                if (proposalReviewModal.open) return;
                 if (proposalReviewError instanceof HTMLElement) {
                     proposalReviewError.textContent = "";
                 }
@@ -11912,7 +11919,6 @@
                     proposalReviewConfirm.disabled = true;
                 }
                 proposalReviewCanPublish = false;
-                if (proposalReviewModal.open) return;
                 const request = ++proposalReviewRequest;
                 proposalReviewModal.showModal();
 
