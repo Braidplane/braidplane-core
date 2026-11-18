@@ -1063,7 +1063,7 @@ func (b *Broker) submitAndWait(
 	}
 	if executionMayHaveExternalSideEffects(kind) && !cancelledBeforeExecution {
 		recordBrokerOutcome(kind, "ambiguous", startedAt)
-		if xerror.Is(waitCtx.Err(), context.DeadlineExceeded) {
+		if xerror.Is(waitErr, context.DeadlineExceeded) {
 			return encryptedResponse{}, ErrAmbiguousExecution.WithPublicDetail("execution.request_timeout or caller deadline elapsed during execution; inspect the destination before retrying.")
 		}
 		return encryptedResponse{}, ErrAmbiguousExecution
@@ -1072,7 +1072,7 @@ func (b *Broker) submitAndWait(
 		metrics.RecordConnectorAdmission(contextOutcome(waitErr))
 	}
 	recordBrokerOutcome(kind, contextOutcome(waitErr), startedAt)
-	if xerror.Is(waitCtx.Err(), context.DeadlineExceeded) {
+	if xerror.Is(waitErr, context.DeadlineExceeded) {
 		return encryptedResponse{}, xerror.Timeout(xerror.DataSource).With(waitErr).WithPublicDetail("execution.request_timeout or caller deadline exceeded.")
 	}
 	return encryptedResponse{}, waitErr
