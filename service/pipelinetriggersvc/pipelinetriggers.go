@@ -8,10 +8,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/robfig/cron/v3"
-
 	"github.com/Braidplane/braidplane-core/pkg/domain/model"
 	pipelineruntimevars "github.com/Braidplane/braidplane-core/pkg/pipeline/runtime"
+	pipelineschedule "github.com/Braidplane/braidplane-core/pkg/pipeline/schedule"
 	"github.com/Braidplane/braidplane-core/pkg/slug"
 	"github.com/Braidplane/braidplane-core/pkg/validate"
 	"github.com/Braidplane/braidplane-core/pkg/xerror"
@@ -665,11 +664,16 @@ func validateScheduleConfig(config *model.PipelineTriggerScheduleConfig) error {
 	if config == nil {
 		return nil
 	}
-	if _, err := cron.ParseStandard(config.Cron); err != nil {
+	schedule, err := pipelineschedule.ParseCron(config.Cron)
+	if err != nil {
 		return ErrInvalidPipelineTriggerInput.Detailf("schedule cron is invalid: %w", err)
 	}
-	if _, err := time.LoadLocation(config.Timezone); err != nil {
+	location, err := time.LoadLocation(config.Timezone)
+	if err != nil {
 		return ErrInvalidPipelineTriggerInput.Detailf("schedule timezone is invalid: %w", err)
+	}
+	if !pipelineschedule.HasCalendarMatch(schedule, location) {
+		return ErrInvalidPipelineTriggerInput.Detail("schedule cron has no matching calendar time")
 	}
 	switch config.MisfirePolicy {
 	case model.PipelineTriggerScheduleMisfirePolicySkip, model.PipelineTriggerScheduleMisfirePolicyFireOnce:

@@ -694,6 +694,10 @@ func TestCreatePipelineTriggerRejectsInvalidDefinitions(t *testing.T) {
 			},
 		},
 		{
+			name:   "NoCalendarMatch",
+			mutate: func(trigger *model.NewPipelineTrigger) { trigger.ScheduleConfig.Cron = "0 0 31 4 *" },
+		},
+		{
 			name: "InvalidScheduleTimezone",
 			mutate: func(trigger *model.NewPipelineTrigger) {
 				trigger.ScheduleConfig.Timezone = "Mars/Base"

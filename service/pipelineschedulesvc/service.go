@@ -7,12 +7,11 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/robfig/cron/v3"
-
 	"github.com/Braidplane/braidplane-core/pkg/clock"
 	"github.com/Braidplane/braidplane-core/pkg/domain/model"
 	"github.com/Braidplane/braidplane-core/pkg/logging"
 	pipelinerun "github.com/Braidplane/braidplane-core/pkg/pipeline/run"
+	pipelineschedule "github.com/Braidplane/braidplane-core/pkg/pipeline/schedule"
 	"github.com/Braidplane/braidplane-core/pkg/queue"
 	"github.com/Braidplane/braidplane-core/pkg/slug"
 	"github.com/Braidplane/braidplane-core/pkg/xerror"
@@ -49,6 +48,7 @@ type DispatchResult struct {
 	Scanned         int
 	Claimed         int
 	Enqueued        int
+	SkippedInvalid  int
 	SkippedDisabled int
 	SkippedMisfire  int
 	AlreadyClaimed  int
@@ -568,8 +568,13 @@ func (s *Service) claimDueTrigger(
 	}
 
 	decision, due, err := dueScheduleDecision(trigger, now)
-	if err != nil || !due {
-		return claimedScheduleFire{}, false, err
+	if err != nil {
+		result.SkippedInvalid++
+		slog.WarnContext(ctx, "Skipping invalid schedule", "org_slug", trigger.OrgSlug, "project_slug", trigger.ProjectSlug, "environment_slug", trigger.EnvironmentSlug, "trigger_slug", trigger.TriggerSlug, "trigger_revision", trigger.TriggerRevision)
+		return claimedScheduleFire{}, false, nil
+	}
+	if !due {
+		return claimedScheduleFire{}, false, nil
 	}
 
 	claim := ScheduleFireClaim{
@@ -643,7 +648,7 @@ func dueScheduleDecision(
 	if err != nil {
 		return scheduleDecision{}, false, xerror.InvalidInput(xerror.PipelineTrigger).With(err).Detail(fmt.Sprintf("schedule timezone %q is invalid", trigger.ScheduleConfig.Timezone))
 	}
-	schedule, err := cron.ParseStandard(trigger.ScheduleConfig.Cron)
+	schedule, err := pipelineschedule.ParseCron(trigger.ScheduleConfig.Cron)
 	if err != nil {
 		return scheduleDecision{}, false, xerror.InvalidInput(xerror.PipelineTrigger).With(err).Detail(fmt.Sprintf("schedule cron %q is invalid", trigger.ScheduleConfig.Cron))
 	}
@@ -653,6 +658,12 @@ func dueScheduleDecision(
 	var latest time.Time
 	for {
 		next := schedule.Next(cursor)
+		if next.IsZero() || !next.After(cursor) {
+			if next.IsZero() && (!latest.IsZero() || pipelineschedule.HasCalendarMatch(schedule, location)) {
+				break // The next occurrence can exceed cron's search horizon.
+			}
+			return scheduleDecision{}, false, xerror.InvalidInput(xerror.PipelineTrigger).Detail("schedule cron did not produce a later fire time")
+		}
 		if next.After(nowInLocation) {
 			break
 		}

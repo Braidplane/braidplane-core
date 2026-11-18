@@ -71,6 +71,39 @@ func TestDispatchDueSchedulesClaimsTimezoneAwareFireAndEnqueuesExecutionJob(t *t
 	}, producer.calls[0].args)
 }
 
+func TestDispatchDueSchedulesIsolatesInvalidSchedule(t *testing.T) {
+	t.Parallel()
+
+	now := time.Date(2096, time.February, 29, 12, 0, 0, 0, time.UTC)
+	repo := &recordingScheduleRepository{
+		pending: []pipelinetriggers.PendingRunFinalization{{ReceiverID: "receiver", DeliveryID: "delivery", AttemptNumber: 1}},
+		triggers: []DueScheduleTrigger{
+			newDueScheduleTrigger("acme-a", "prod", "invalid", "sync", true, "invalid", "UTC", nil),
+			newDueScheduleTrigger("acme-b", "prod", "leap-day", "sync", true, "0 12 29 2 *", "UTC", nil),
+		},
+		claimResults: []ScheduleFireClaimResult{{Claimed: true, FireSlug: must.Slug("leap-fire")}},
+	}
+	producer := &recordingScheduleFireProducer{}
+	svc := New(testutil.FakeTransactionManager{}, repo, &recordingPipelineExecutor{}, producer, nil)
+
+	result, err := svc.DispatchDueSchedules(context.Background(), now)
+	require.NoError(t, err)
+	require.Equal(t, DispatchResult{Scanned: 2, SkippedInvalid: 1, Claimed: 1, Enqueued: 1}, result)
+	require.Len(t, producer.calls, 1)
+	require.Equal(t, must.Slug("acme-b"), producer.calls[0].args.OrganizationSlug)
+	require.Equal(t, now, producer.calls[0].args.ScheduledFireAt)
+	require.Equal(t, []queue.JobArgs{jobs.PipelineWebhookDeliveryArgs{FinalizeOnly: true, ReceiverID: "receiver", DeliveryID: "delivery", RunAttempt: 1}}, producer.finalizations)
+}
+
+func TestLeapDayOutsideCronSearchHorizonIsNotDue(t *testing.T) {
+	t.Parallel()
+
+	trigger := newDueScheduleTrigger("acme", "prod", "leap-day", "sync", true, "0 12 29 2 *", "UTC", nil)
+	_, due, err := dueScheduleDecision(trigger, time.Date(2097, time.January, 1, 0, 0, 0, 0, time.UTC))
+	require.NoError(t, err)
+	require.False(t, due)
+}
+
 func TestDispatchDueSchedulesSkipsDisabledTriggersAndScopesClaimsByTenant(t *testing.T) {
 	t.Parallel()
 
@@ -1511,6 +1544,7 @@ func newDueScheduleTrigger(
 }
 
 type recordingScheduleRepository struct {
+	pending                    []pipelinetriggers.PendingRunFinalization
 	delayedFires               []pipelinetriggers.DelayedScheduleFire
 	triggers                   []DueScheduleTrigger
 	claimResults               []ScheduleFireClaimResult
@@ -1673,9 +1707,10 @@ func (r *recordingScheduleRepository) CompleteTriggerRetryAttempt(
 }
 
 type recordingScheduleFireProducer struct {
-	calls  []scheduleFireProducerCall
-	queued queue.QueuedJob
-	err    error
+	finalizations []queue.JobArgs
+	calls         []scheduleFireProducerCall
+	queued        queue.QueuedJob
+	err           error
 }
 
 type scheduleFireProducerCall struct {
@@ -1935,10 +1970,11 @@ func TestRecoveredScheduleFinalizesStoredAttemptWithoutExecuting(t *testing.T) {
 }
 
 func (r *recordingScheduleRepository) ListPendingRunFinalizationsForSystem(context.Context, postgres.DBTX) ([]pipelinetriggers.PendingRunFinalization, error) {
-	return nil, nil
+	return r.pending, nil
 }
 
-func (p *recordingScheduleFireProducer) EnqueueRunFinalization(context.Context, postgres.DBTX, queue.JobArgs) (queue.QueuedJob, error) {
+func (p *recordingScheduleFireProducer) EnqueueRunFinalization(_ context.Context, _ postgres.DBTX, args queue.JobArgs) (queue.QueuedJob, error) {
+	p.finalizations = append(p.finalizations, args)
 	return queue.QueuedJob{}, nil
 }
 
