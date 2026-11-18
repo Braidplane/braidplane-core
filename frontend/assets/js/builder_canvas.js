@@ -3671,6 +3671,7 @@
             }
         };
 
+        let invalidateProposalReview;
         const setActivePipelineContext = (
             organizationSlug,
             projectSlug,
@@ -3695,6 +3696,13 @@
             const creationForm = document.getElementById("builder-creation-form");
             if (creationForm) creationForm.hidden = true;
 
+            if (
+                normalizedOrgSlug !== getActiveOrganizationSlug() ||
+                normalizedProjectSlug !== getActiveProjectSlug() ||
+                normalizedPipelineSlug !== (options.pipeline.slug || "").trim()
+            ) {
+                invalidateProposalReview?.();
+            }
             options.pipeline.projectSlug = normalizedProjectSlug;
             options.pipeline.slug = normalizedPipelineSlug;
             options.pipeline.name = normalizedPipelineName;
@@ -11749,12 +11757,15 @@
         }
 
         if (publishButton instanceof HTMLButtonElement) {
-            const publishDraft = async (force = false, conflict = null) => {
-                const organizationSlug = getActiveOrganizationSlug();
-                const projectSlug = getActiveProjectSlug();
-                const pipelineSlug = (options?.pipeline?.slug || "").trim();
-                if (!organizationSlug || !projectSlug || !pipelineSlug || pipelineSlug === DRAFT_PIPELINE_SLUG) {
-                    setStatusMessage("Propose is unavailable until this draft has a real pipeline slug.", TONE_ERROR);
+            const reopenReviewMessage = "The active pipeline changed. Reopen the proposal review to publish.";
+            const publishDraft = async (target, force = false, conflict = null) => {
+                const { organizationSlug, projectSlug, pipelineSlug } = target;
+                if (
+                    organizationSlug !== getActiveOrganizationSlug() ||
+                    projectSlug !== getActiveProjectSlug() ||
+                    pipelineSlug !== (options.pipeline.slug || "").trim()
+                ) {
+                    setStatusMessage(reopenReviewMessage, TONE_ERROR);
                     return;
                 }
 
@@ -11791,7 +11802,7 @@
                                 draftStateJson: buildConflictDiffStateJSON(),
                                 draftState,
                                 onOverwrite: () => {
-                                    publishDraft(true, payload).catch(() => {
+                                    publishDraft(target, true, payload).catch(() => {
                                         setStatusMessage("Publish failed: network or server error.", TONE_ERROR);
                                     });
                                 },
@@ -11802,7 +11813,7 @@
                                         projectSlug,
                                         pipelineSlug,
                                         onOverwrite: () => {
-                                            publishDraft(true, latestConflict).catch(() => {
+                                            publishDraft(target, true, latestConflict).catch(() => {
                                                 setStatusMessage(
                                                     "Publish failed: network or server error.",
                                                     TONE_ERROR,
@@ -11872,7 +11883,7 @@
             const proposalReviewLink = document.getElementById("builder-proposal-review-link");
             const proposalReviewConfirm = document.getElementById("builder-proposal-review-confirm");
             const proposalReviewCancel = document.getElementById("builder-proposal-review-cancel");
-            let proposalReviewCanPublish = false;
+            let reviewedTarget = null;
             let proposalPublishPending = false;
 
             const proposalFact = (label, value) => {
@@ -11889,6 +11900,14 @@
             };
 
             let proposalReviewRequest = 0;
+            invalidateProposalReview = () => {
+                if (!proposalReviewModal?.open) return;
+                ++proposalReviewRequest;
+                reviewedTarget = null;
+                proposalReviewConfirm.disabled = true;
+                proposalReviewState.textContent = "Review expired";
+                proposalReviewError.textContent = reopenReviewMessage;
+            };
             const openProposalReview = async () => {
                 const organizationSlug = getActiveOrganizationSlug();
                 const projectSlug = getActiveProjectSlug();
@@ -11923,7 +11942,7 @@
                 if (proposalReviewConfirm instanceof HTMLButtonElement) {
                     proposalReviewConfirm.disabled = true;
                 }
-                proposalReviewCanPublish = false;
+                reviewedTarget = null;
                 const request = ++proposalReviewRequest;
                 proposalReviewModal.showModal();
 
@@ -11995,8 +12014,10 @@
                             review.source_diff || review.proposed_source || "No source differences.";
                     }
                     if (proposalReviewConfirm instanceof HTMLButtonElement) {
-                        proposalReviewCanPublish = Boolean(review.provider_supported);
-                        proposalReviewConfirm.disabled = !proposalReviewCanPublish;
+                        reviewedTarget = review.provider_supported
+                            ? { organizationSlug, projectSlug, pipelineSlug }
+                            : null;
+                        proposalReviewConfirm.disabled = !reviewedTarget;
                     }
                     if (!review.provider_supported && proposalReviewError instanceof HTMLElement) {
                         proposalReviewError.textContent =
@@ -12025,7 +12046,7 @@
             }
             if (proposalReviewConfirm instanceof HTMLButtonElement) {
                 proposalReviewConfirm.addEventListener("click", async () => {
-                    if (proposalPublishPending) {
+                    if (!proposalReviewModal?.open || !reviewedTarget || proposalPublishPending) {
                         return;
                     }
                     proposalPublishPending = true;
@@ -12034,10 +12055,10 @@
                         proposalReviewModal.close();
                     }
                     try {
-                        await publishDraft(false, null);
+                        await publishDraft(reviewedTarget);
                     } finally {
                         proposalPublishPending = false;
-                        proposalReviewConfirm.disabled = !proposalReviewCanPublish;
+                        proposalReviewConfirm.disabled = !reviewedTarget;
                     }
                 });
             }
