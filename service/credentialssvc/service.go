@@ -14,11 +14,15 @@ import (
 	"github.com/Braidplane/braidplane-core/pkg/httpoauth"
 	"github.com/Braidplane/braidplane-core/pkg/oauthflow"
 	"github.com/Braidplane/braidplane-core/pkg/proofevidence"
+	"github.com/Braidplane/braidplane-core/pkg/reqctx"
 	"github.com/Braidplane/braidplane-core/pkg/slug"
 	"github.com/Braidplane/braidplane-core/pkg/validate"
 	"github.com/Braidplane/braidplane-core/pkg/xerror"
 	"github.com/Braidplane/braidplane-core/postgres"
 	repocredentials "github.com/Braidplane/braidplane-core/postgres/credentials"
+	repoevents "github.com/Braidplane/braidplane-core/postgres/events"
+	"github.com/Braidplane/braidplane-core/service/eventrecorder"
+	"github.com/Braidplane/braidplane-core/service/eventssvc"
 )
 
 type Service interface {
@@ -175,7 +179,11 @@ func (s *service) CreatePendingOAuthCredential(
 		}
 		metadata = metadataFromRecord(fromRepoCredentialRecord(record))
 		metadata.OAuth.Provider = params.Provider
-		return nil
+		action := model.EventActionCreate
+		if params.Replace {
+			action = model.EventActionRotate
+		}
+		return s.recordCredentialLifecycle(ctx, params.Owner, params.Actor, action, metadata, "pending")
 	})
 	if err != nil {
 		return CredentialMetadata{}, err
@@ -215,7 +223,7 @@ func (s *service) CreateOrganizationGitLabConnection(ctx context.Context, params
 		metadata := metadataFromRecord(fromRepoCredentialRecord(record))
 		metadata.OAuth.Provider = params.Provider
 		result = OrganizationGitLabConnection{OrganizationSlug: owner.OrgSlug, Credential: metadata}
-		return nil
+		return s.recordCredentialLifecycle(ctx, owner, params.Actor, model.EventActionCreate, metadata, "pending")
 	})
 	return result, err
 }
@@ -264,6 +272,7 @@ func (s *service) GetOrganizationGitLabConnection(ctx context.Context, orgSlug s
 type service struct {
 	txm                         postgres.TransactionManager
 	repo                        repocredentials.Repository
+	audit                       eventrecorder.Recorder
 	enc                         crypto.CredentialCipher
 	providers                   ProviderRegistry
 	clock                       clock.Clock
@@ -294,6 +303,7 @@ func New(
 	return &service{
 		txm:                         txm,
 		repo:                        repo,
+		audit:                       eventrecorder.New(eventssvc.New(txm, repoevents.New(), clock)),
 		enc:                         enc,
 		providers:                   providers,
 		clock:                       clock,
@@ -575,6 +585,28 @@ func (s *service) ResolveRuntimeCredential(
 	if err := validateCredentialOwner(params.Owner); err != nil {
 		return RuntimeCredential{}, err
 	}
+	runtime, err := s.resolveRuntimeCredential(ctx, params)
+	outcome := "released"
+	if err != nil {
+		outcome = "denied"
+	}
+	actor := params.Actor
+	if actor.Type == model.EventActorTypeUnknown {
+		actor = reqctx.AuditActor(ctx)
+	}
+	auditErr := s.recordCredentialRelease(ctx, params.Owner, actor, "runtime", runtimeAuditOperation(ctx), runtime.Version, outcome)
+	if err != nil {
+		clear(runtime.PlaintextJSON)
+		return RuntimeCredential{}, err
+	}
+	if auditErr != nil {
+		clear(runtime.PlaintextJSON)
+		return RuntimeCredential{}, auditErr
+	}
+	return runtime, nil
+}
+
+func (s *service) resolveRuntimeCredential(ctx context.Context, params ResolveRuntimeCredentialParams) (RuntimeCredential, error) {
 	if params.Owner.Kind == CredentialOwnerKindDataSource || params.Owner.Kind == CredentialOwnerKindOrganizationGitLab || params.Owner.Kind == CredentialOwnerKindNotificationConnection {
 		for attempt := range 2 {
 			grant, err := postgres.InRead(
@@ -592,7 +624,7 @@ func (s *service) ResolveRuntimeCredential(
 				runtime, err := s.resolveGrant(postgres.WithoutTransaction(ctx), grant)
 				if xerror.Is(err, ErrOAuthGrantConflict) {
 					if attempt == 1 {
-						return RuntimeCredential{}, err
+						return runtime, err
 					}
 					continue
 				}
@@ -608,26 +640,23 @@ func (s *service) ResolveRuntimeCredential(
 	if params.Owner.Kind == CredentialOwnerKindNotificationConnection {
 		return RuntimeCredential{}, ErrCredentialNotFound
 	}
-	return postgres.InRead(
+	stored, err := postgres.InRead(
 		postgres.WithoutTransaction(ctx),
 		s.txm,
-		func(ctx context.Context, db postgres.DBTX) (RuntimeCredential, error) {
-			repoRecord, err := s.findStaticSecret(ctx, db, params.Owner)
-			if err != nil {
-				return RuntimeCredential{}, err
-			}
-			record := fromRepoCredentialRecord(repoRecord)
-			plaintext, err := s.decryptPayload(credentialScope(record.Owner.OrgSlug, record.Slug, "static-secret"), record.EncryptedPayload)
-			if err != nil {
-				return RuntimeCredential{}, err
-			}
-			return RuntimeCredential{
-				Kind:          CredentialKindStaticSecret,
-				Version:       runtimeCredentialVersion(record.Slug, record.UpdatedAt),
-				PlaintextJSON: plaintext,
-			}, nil
+		func(ctx context.Context, db postgres.DBTX) (repocredentials.CredentialRecord, error) {
+			return s.findStaticSecret(ctx, db, params.Owner)
 		},
 	)
+	if err != nil {
+		return RuntimeCredential{}, err
+	}
+	record := fromRepoCredentialRecord(stored)
+	plaintext, err := s.decryptPayload(credentialScope(record.Owner.OrgSlug, record.Slug, "static-secret"), record.EncryptedPayload)
+	return RuntimeCredential{
+		Kind:          CredentialKindStaticSecret,
+		Version:       runtimeCredentialVersion(record.Slug, record.UpdatedAt),
+		PlaintextJSON: plaintext,
+	}, err
 }
 
 // Refresh forces an OAuth grant refresh and returns safe updated credential metadata.
@@ -659,7 +688,7 @@ func (s *service) Refresh(ctx context.Context, params RefreshGrantParams) (Crede
 	if grant.Owner.Kind != params.Owner.Kind {
 		return CredentialMetadata{}, ErrInvalidInput.Detail("Manage the shared GitLab connection in organization settings.")
 	}
-	refreshed, err := s.refreshGrant(postgres.WithoutTransaction(ctx), grant, s.now())
+	refreshed, err := s.refreshGrant(postgres.WithoutTransaction(ctx), grant, s.now(), params.Actor)
 	if err != nil {
 		return CredentialMetadata{}, err
 	}
@@ -784,7 +813,7 @@ func (s *service) revokeDataSourceOAuthGrant(ctx context.Context, params RevokeP
 			return err
 		}
 		stored = fromRepoCredentialGrant(repoStored)
-		return nil
+		return s.recordCredentialLifecycle(ctx, stored.Owner, params.Actor, model.EventActionRevoke, metadataFromGrant(stored), "revoked_locally")
 	})
 	if err != nil {
 		return CredentialMetadata{}, err
@@ -814,7 +843,7 @@ func (s *service) revokeStaticEnvironmentSecret(ctx context.Context, params Revo
 		}
 		record := fromRepoCredentialRecord(repoRecord)
 		metadata = metadataFromRecord(record)
-		return nil
+		return s.recordCredentialLifecycle(ctx, record.Owner, params.Actor, model.EventActionRevoke, metadata, "revoked_locally")
 	})
 	if err != nil {
 		return CredentialMetadata{}, err
@@ -866,18 +895,30 @@ func (s *service) createStaticSecret(
 		return CredentialMetadata{}, xerror.Wrapf("create static credential: %w", err)
 	}
 	stored := fromRepoCredentialRecord(repoStored)
+	action := model.EventActionCreate
+	if params.Replace {
+		action = model.EventActionRotate
+	}
 	if params.Owner.Kind == CredentialOwnerKindEnvironmentSecret {
-		if _, err := s.repo.MarkStaticEnvironmentSecretRotated(
+		rotated, err := s.repo.MarkStaticEnvironmentSecretRotated(
 			ctx,
 			tx,
 			toRepoResolveParams(ResolveRuntimeCredentialParams{Owner: params.Owner}),
 			stored.Slug,
 			now,
-		); err != nil {
+		)
+		if err != nil {
 			return CredentialMetadata{}, xerror.Wrapf("rotate previous environment secret credential: %w", err)
 		}
+		if len(rotated) > 0 {
+			action = model.EventActionRotate
+		}
 	}
-	return metadataFromRecord(stored), nil
+	metadata := metadataFromRecord(stored)
+	if err := s.recordCredentialLifecycle(ctx, params.Owner, params.Actor, action, metadata, "active"); err != nil {
+		return CredentialMetadata{}, err
+	}
+	return metadata, nil
 }
 
 // finalizeOAuthCallback revalidates the intent before storing the exchanged grant.
@@ -923,6 +964,9 @@ func (s *service) finalizeOAuthCallback(
 		return CompleteOAuthCallbackResult{}, xerror.Wrapf("create oauth grant: %w", err)
 	}
 	stored := fromRepoCredentialGrant(repoStored)
+	if err := s.recordOAuthLifecycle(ctx, install, install.Actor, metadataFromGrant(stored), "active"); err != nil {
+		return CompleteOAuthCallbackResult{}, err
+	}
 
 	return CompleteOAuthCallbackResult{
 		InstallSlug: install.Slug,
@@ -1067,6 +1111,10 @@ func (s *service) startOAuthInstall(
 		return ProviderConnectorInstall{}, xerror.Wrapf("create oauth install: %w", err)
 	}
 	stored := fromRepoCredentialInstall(repoStored)
+	revision := CredentialMetadata{Slug: stored.Slug, UpdatedAt: stored.UpdatedAt}
+	if err := s.recordOAuthLifecycle(ctx, stored, stored.Actor, revision, "authorization_pending"); err != nil {
+		return ProviderConnectorInstall{}, err
+	}
 	return ProviderConnectorInstall{
 		Slug:             stored.Slug,
 		Provider:         stored.Provider,
@@ -1082,16 +1130,17 @@ func (s *service) resolveGrant(
 	ctx context.Context,
 	grant CredentialGrant,
 ) (RuntimeCredential, error) {
+	revision := RuntimeCredential{Version: runtimeCredentialVersion(grant.Slug, grant.UpdatedAt)}
 	if grant.Status == CredentialStatusRevoked {
-		return RuntimeCredential{}, ErrProviderGrantRevoked
+		return revision, ErrProviderGrantRevoked
 	}
 	if grant.Status != CredentialStatusActive {
-		return RuntimeCredential{}, ErrCredentialNotFound
+		return revision, ErrCredentialNotFound
 	}
 
 	tokenSet, err := s.decryptTokenSet(grant)
 	if err != nil {
-		return RuntimeCredential{}, err
+		return revision, err
 	}
 
 	now := s.now()
@@ -1102,25 +1151,26 @@ func (s *service) resolveGrant(
 	if grant.AccessTokenExpires.IsZero() || grant.AccessTokenExpires.After(refreshBefore) {
 		runtime, err := grantRuntimeCredential(grant, tokenSet)
 		if err != nil {
-			return RuntimeCredential{}, err
+			return revision, err
 		}
-		runtime.Version = runtimeCredentialVersion(grant.Slug, grant.UpdatedAt)
+		runtime.Version = revision.Version
 		return runtime, nil
 	}
 
-	updated, err := s.refreshGrant(ctx, grant, now)
+	updated, err := s.refreshGrant(ctx, grant, now, reqctx.AuditActor(ctx))
 	if err != nil {
-		return RuntimeCredential{}, err
+		return revision, err
 	}
+	revision.Version = runtimeCredentialVersion(updated.Slug, updated.UpdatedAt)
 	refreshed, err := s.decryptTokenSet(updated)
 	if err != nil {
-		return RuntimeCredential{}, err
+		return revision, err
 	}
 	runtime, err := grantRuntimeCredential(updated, refreshed)
 	if err != nil {
-		return RuntimeCredential{}, err
+		return revision, err
 	}
-	runtime.Version = runtimeCredentialVersion(updated.Slug, updated.UpdatedAt)
+	runtime.Version = revision.Version
 	return runtime, nil
 }
 
@@ -1128,6 +1178,7 @@ func (s *service) refreshGrantUnlocked(
 	ctx context.Context,
 	grant CredentialGrant,
 	now time.Time,
+	actor model.EventActor,
 ) (CredentialGrant, error) {
 	if grant.Status == CredentialStatusRevoked {
 		return CredentialGrant{}, ErrProviderGrantRevoked
@@ -1158,8 +1209,11 @@ func (s *service) refreshGrantUnlocked(
 			finalizeCtx, cancel := credentialFinalizeContext(ctx)
 			defer cancel()
 			updateErr := s.txm.RunInTx(finalizeCtx, func(ctx context.Context, tx postgres.DBTX) error {
-				_, updateErr := s.repo.MarkOAuthGrantRevoked(ctx, tx, toRepoCredentialGrant(revoked))
-				return updateErr
+				stored, updateErr := s.repo.MarkOAuthGrantRevoked(ctx, tx, toRepoCredentialGrant(revoked))
+				if updateErr != nil {
+					return updateErr
+				}
+				return s.recordCredentialLifecycle(ctx, grant.Owner, actor, model.EventActionRevoke, metadataFromGrant(fromRepoCredentialGrant(stored)), "provider_invalid_grant")
 			})
 			if updateErr != nil {
 				return CredentialGrant{}, updateErr
@@ -1186,7 +1240,10 @@ func (s *service) refreshGrantUnlocked(
 	err = s.txm.RunInTx(finalizeCtx, func(ctx context.Context, tx postgres.DBTX) error {
 		var updateErr error
 		repoUpdated, updateErr = s.repo.UpsertOAuthGrant(ctx, tx, toRepoCredentialGrant(updated))
-		return updateErr
+		if updateErr != nil {
+			return updateErr
+		}
+		return s.recordCredentialLifecycle(ctx, grant.Owner, actor, model.EventActionRefresh, metadataFromGrant(fromRepoCredentialGrant(repoUpdated)), "active")
 	})
 	if err != nil {
 		return CredentialGrant{}, err

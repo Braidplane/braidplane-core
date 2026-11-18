@@ -248,6 +248,7 @@ func (s *service) StartProviderDataSourceInstall(
 		}
 		credential, err := s.credentials.CreatePendingOAuthCredential(ctx, credentialssvc.CreatePendingOAuthCredentialParams{
 			Owner:    owner,
+			Actor:    actor,
 			Provider: provider,
 		})
 		if err != nil {
@@ -524,13 +525,14 @@ type ConnectionTestExecutor interface {
 // live connector schema read. Remote implementations must encrypt it before
 // persistence and must not place credentials in queue arguments.
 type SchemaIntrospectionRequest struct {
-	OrganizationSlug slug.Slug            `json:"organization_slug"`
-	DataSourceSlug   slug.Slug            `json:"data_source_slug"`
-	DataSourceType   model.DataSourceType `json:"data_source_type"`
-	ConfigJSON       []byte               `json:"config_json"`
-	CredentialsJSON  []byte               `json:"credentials_json"`
-	MaxResultBytes   int                  `json:"max_result_bytes"`
-	MaxResultItems   int                  `json:"max_result_items"`
+	CredentialReference string               `json:"credential_reference,omitempty"`
+	OrganizationSlug    slug.Slug            `json:"organization_slug"`
+	DataSourceSlug      slug.Slug            `json:"data_source_slug"`
+	DataSourceType      model.DataSourceType `json:"data_source_type"`
+	ConfigJSON          []byte               `json:"config_json"`
+	CredentialsJSON     []byte               `json:"credentials_json"`
+	MaxResultBytes      int                  `json:"max_result_bytes"`
+	MaxResultItems      int                  `json:"max_result_items"`
 }
 
 // SchemaIntrospectionExecutor crosses the connector-capable execution boundary.
@@ -1393,6 +1395,7 @@ func (s *service) UpdateCredentials(
 				OrgSlug:        orgSlug,
 				DataSourceSlug: repoDS.Slug,
 			},
+			Replace:        true,
 			CredentialType: staticCredentialTypeForDataSource(repoDS.Type),
 			PlaintextJSON:  credentialsJSON,
 			Actor:          actor,
@@ -1633,6 +1636,9 @@ func (s *service) Delete(
 	actor model.EventActor,
 ) error {
 	err := s.txm.RunInTx(ctx, func(ctx context.Context, tx postgres.DBTX) error {
+		if err := s.repo.LockDataSourceForUpdate(ctx, tx, orgSlug, dsSlug); err != nil {
+			return err
+		}
 		repoDS, err := s.repo.FindBySlug(ctx, tx, orgSlug, dsSlug)
 		if err != nil {
 			return xerror.Wrapf("find data source for delete in repo: %w", err)
@@ -2395,10 +2401,15 @@ func (s *service) recordDataSourceEvent(
 		return xerror.InvalidInput(xerror.Event).Detail("unsupported data source event action")
 	}
 
+	var version string
+	if action == model.EventActionDelete && ds.Credential != nil {
+		version = credentialssvc.AuditCredentialVersion(ds.Credential.Slug, ds.Credential.UpdatedAt)
+	}
 	if _, err := s.eventProducer.EnqueueRequired(ctx, tx, orgSlug, actor, dataSourceEvent{
 		dataSourceSlug: ds.Slug,
 		dataSourceType: ds.Type,
 		action:         action,
+		version:        version,
 	}); err != nil {
 		return xerror.Wrapf("enqueue required data source audit event: %w", err)
 	}
@@ -2612,6 +2623,9 @@ func (s *service) resolveRuntimeConnectorPayload(
 	runtimeDS := *ds
 	credentialsJSON, installationToken, err := s.resolveManagedProviderGitConfig(ctx, orgSlug, &runtimeDS, credentialsJSON)
 	if err != nil {
+		if xerror.Is(err, credentialssvc.ErrCredentialAuditUnavailable) {
+			return nil, nil, "", nil, err
+		}
 		if markErr := s.markProviderRepositoryUnavailable(ctx, orgSlug, ds); markErr != nil {
 			return nil, nil, "", nil, xerror.Join(err, markErr)
 		}
@@ -2662,6 +2676,9 @@ func (s *service) snapshotDataSourceAndCredentials(
 		if before.ConnectionTestRevision == after.ConnectionTestRevision {
 			credentialsJSON, _, err = s.resolveManagedProviderGitConfig(ctx, orgSlug, after, credentialsJSON)
 			if err != nil {
+				if xerror.Is(err, credentialssvc.ErrCredentialAuditUnavailable) {
+					return nil, nil, err
+				}
 				if markErr := s.markProviderRepositoryUnavailable(ctx, orgSlug, after); markErr != nil {
 					return nil, nil, xerror.Join(err, markErr)
 				}
@@ -2811,19 +2828,20 @@ func (s *service) introspectSchema(
 	orgSlug slug.Slug,
 	ds *repods.DataSource,
 ) (SchemaResult, error) {
-	runtimeConfig, decryptedCreds, _, _, err := s.resolveRuntimeConnectorPayload(ctx, orgSlug, ds)
+	runtimeConfig, decryptedCreds, reference, _, err := s.resolveRuntimeConnectorPayload(ctx, orgSlug, ds)
 	if err != nil {
 		return nil, err
 	}
 
 	encoded, err := s.schemaIntrospector.IntrospectSchema(ctx, SchemaIntrospectionRequest{
-		OrganizationSlug: orgSlug,
-		DataSourceSlug:   ds.Slug,
-		DataSourceType:   ds.Type,
-		ConfigJSON:       runtimeConfig,
-		CredentialsJSON:  decryptedCreds,
-		MaxResultBytes:   s.schemaMaxBytes,
-		MaxResultItems:   s.schemaMaxItems,
+		OrganizationSlug:    orgSlug,
+		DataSourceSlug:      ds.Slug,
+		DataSourceType:      ds.Type,
+		ConfigJSON:          runtimeConfig,
+		CredentialsJSON:     decryptedCreds,
+		CredentialReference: reference,
+		MaxResultBytes:      s.schemaMaxBytes,
+		MaxResultItems:      s.schemaMaxItems,
 	})
 	if err != nil {
 		if isSchemaDiagnosticError(err) {

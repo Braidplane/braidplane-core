@@ -26,7 +26,7 @@ func newHTTPTestService(t *testing.T, handler http.HandlerFunc, grantType string
 	http.DefaultTransport = server.Client().Transport
 	t.Cleanup(func() { http.DefaultTransport = transport })
 	repo := newCredentialRepo()
-	svc, err := New(testutil.FakeTransactionManager{}, repo, testutil.NewFakeEncryptor(), nil, testutil.FakeClock{NowFn: time.Now}, true)
+	svc, err := newUnitCredentialService(testutil.FakeTransactionManager{}, repo, testutil.NewFakeEncryptor(), nil, testutil.FakeClock{NowFn: time.Now}, true)
 	require.NoError(t, err)
 	app := HTTPOAuthApp{Config: httpoauth.Config{Issuer: server.URL, AuthorizationEndpoint: server.URL + "/authorize", TokenEndpoint: server.URL + "/token", RevocationEndpoint: server.URL + "/revoke", ClientID: "client", GrantType: grantType, Scopes: []string{"read"}}, ClientSecret: "app-secret", Destination: "https://api.example/v1", RedirectURI: "https://braidplane.example/callback", AllowPrivateHosts: true}
 	return svc.(*service), repo, app

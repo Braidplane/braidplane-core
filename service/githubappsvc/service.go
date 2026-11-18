@@ -17,8 +17,10 @@ import (
 	"github.com/Braidplane/braidplane-core/pkg/slug"
 	"github.com/Braidplane/braidplane-core/pkg/xerror"
 	"github.com/Braidplane/braidplane-core/postgres"
+	repoevents "github.com/Braidplane/braidplane-core/postgres/events"
 	"github.com/Braidplane/braidplane-core/postgres/githubapps"
 	"github.com/Braidplane/braidplane-core/service/eventrecorder"
+	"github.com/Braidplane/braidplane-core/service/eventssvc"
 	workerproducer "github.com/Braidplane/braidplane-core/service/worker/producer"
 )
 
@@ -61,6 +63,7 @@ type Connection struct {
 	Repositories        []githubapps.RepositoryBinding
 	SuspendedAt         *time.Time
 	DeletedAt           *time.Time
+	updatedAt           time.Time
 }
 
 type Service struct {
@@ -68,6 +71,7 @@ type Service struct {
 	repo       githubapps.Repository
 	provider   Provider
 	events     workerproducer.EventProducer
+	audit      eventrecorder.Recorder
 	installURL string
 	now        func() time.Time
 }
@@ -77,7 +81,7 @@ func New(txm postgres.TransactionManager, repo githubapps.Repository, provider P
 	if txm == nil || repo == nil || provider == nil || events == nil || err != nil || (installURL != "" && (parsed.Scheme != "https" || parsed.Hostname() != "github.com")) {
 		return nil, xerror.Unexpected().Detail("GitHub App connection dependencies are invalid")
 	}
-	return &Service{txm: txm, repo: repo, provider: provider, events: events, installURL: installURL, now: time.Now}, nil
+	return &Service{txm: txm, repo: repo, provider: provider, events: events, audit: eventrecorder.New(eventssvc.New(txm, repoevents.New(), nil)), installURL: installURL, now: time.Now}, nil
 }
 
 func (s *Service) Start(ctx context.Context, org slug.Slug, actor model.EventActor) (string, error) {
@@ -255,8 +259,7 @@ func (s *Service) bindInstallation(ctx context.Context, actor model.EventActor, 
 		if err := s.repo.ConsumeIntent(ctx, tx, locked.ID); err != nil {
 			return err
 		}
-		_, err = s.events.EnqueueRequired(ctx, tx, locked.Organization, actor, githubAppConnectionChangedEvent{organization: locked.Organization})
-		return err
+		return s.recordConnectionChange(ctx, tx, locked.Organization, actor, "authorized")
 	})
 	if err != nil {
 		return nil, err
@@ -329,7 +332,7 @@ func (s *Service) Get(ctx context.Context, org slug.Slug) (*Connection, error) {
 			InstallationID: installation.InstallationID, AccountID: installation.AccountID,
 			AccountLogin: installation.AccountLogin, AccountType: installation.AccountType,
 			RepositorySelection: installation.RepositorySelection, Repositories: repos,
-			SuspendedAt: installation.SuspendedAt, DeletedAt: installation.DeletedAt,
+			SuspendedAt: installation.SuspendedAt, DeletedAt: installation.DeletedAt, updatedAt: installation.UpdatedAt,
 		}, nil
 	})
 }
@@ -339,8 +342,7 @@ func (s *Service) Disconnect(ctx context.Context, org slug.Slug, actor model.Eve
 		if err := s.repo.Disconnect(ctx, tx, org); err != nil {
 			return err
 		}
-		_, err := s.events.EnqueueRequired(ctx, tx, org, actor, githubAppConnectionChangedEvent{organization: org})
-		return err
+		return s.recordConnectionChange(ctx, tx, org, actor, "disconnected")
 	})
 }
 
@@ -360,6 +362,7 @@ func (s *Service) ApplyLifecycle(ctx context.Context, event githubprovider.Insta
 			return err
 		}
 		changed := false
+		change := event.Action
 		if event.Action == "suspend" || event.Action == "unsuspend" || event.Action == "deleted" {
 			if err := s.repo.UpdateLifecycle(ctx, tx, event.Action, event.InstallationID); err != nil {
 				if xerror.Is(err, githubapps.ErrNotFound) {
@@ -369,6 +372,7 @@ func (s *Service) ApplyLifecycle(ctx context.Context, event githubprovider.Insta
 			}
 			changed = true
 		} else {
+			change = "repositories_changed"
 			for _, repository := range event.Added {
 				binding := githubapps.RepositoryBinding{ID: repository.ID, FullName: repository.FullName, OwnerLogin: repository.OwnerLogin, Name: repository.Name}
 				if err := s.repo.AddRepository(ctx, tx, event.InstallationID, binding); err != nil {
@@ -392,8 +396,7 @@ func (s *Service) ApplyLifecycle(ctx context.Context, event githubprovider.Insta
 		if !changed {
 			return nil
 		}
-		_, err = s.events.EnqueueRequired(ctx, tx, org, model.SystemEventActor(), githubAppConnectionChangedEvent{organization: org})
-		return err
+		return s.recordConnectionChange(ctx, tx, org, model.SystemEventActor(), change)
 	})
 }
 
@@ -402,10 +405,15 @@ func (s *Service) Token(ctx context.Context, org slug.Slug, repositoryIDs []int6
 	if err != nil {
 		return InstallationToken{}, err
 	}
-	if connection == nil || connection.DeletedAt != nil || connection.SuspendedAt != nil {
+	if connection == nil {
+		return InstallationToken{}, ErrInvalidInstall
+	}
+	if connection.DeletedAt != nil || connection.SuspendedAt != nil {
+		_ = s.recordTokenUse(ctx, connection, repositoryIDs, "denied")
 		return InstallationToken{}, ErrInvalidInstall
 	}
 	if len(repositoryIDs) == 0 {
+		_ = s.recordTokenUse(ctx, connection, repositoryIDs, "denied")
 		return InstallationToken{}, ErrInvalidInstall.Detail("at least one bound repository is required")
 	}
 	bound := make(map[int64]struct{}, len(connection.Repositories))
@@ -414,11 +422,15 @@ func (s *Service) Token(ctx context.Context, org slug.Slug, repositoryIDs []int6
 	}
 	for _, repositoryID := range repositoryIDs {
 		if _, ok := bound[repositoryID]; !ok {
+			_ = s.recordTokenUse(ctx, connection, repositoryIDs, "denied")
 			return InstallationToken{}, ErrInvalidInstall.Detail("repository is not bound to the organization")
 		}
 	}
 	token, err := s.provider.InstallationToken(ctx, connection.InstallationID, repositoryIDs)
 	if err != nil {
+		return InstallationToken{}, err
+	}
+	if err := s.recordTokenUse(ctx, connection, repositoryIDs, "released"); err != nil {
 		return InstallationToken{}, err
 	}
 	token.InstallationID = connection.InstallationID
@@ -440,10 +452,4 @@ func connection(org slug.Slug, v githubapps.VerifiedInstallation, suspended, del
 		AccountType: v.AccountType, RepositorySelection: v.RepositorySelection, Repositories: v.Repositories,
 		SuspendedAt: suspended, DeletedAt: deleted,
 	}
-}
-
-type githubAppConnectionChangedEvent struct{ organization slug.Slug }
-
-func (e githubAppConnectionChangedEvent) EventRecord() (eventrecorder.Record, error) {
-	return eventrecorder.Record{SlugPrefix: "evt-github-app-connection-update", EventClass: model.EventClassSecurityAudit, SchemaVersion: model.CurrentEventSchemaVersion, EntityType: model.EventEntityTypeOrganization, EntitySlug: e.organization, Action: model.EventActionUpdate}, nil
 }

@@ -77,6 +77,10 @@ func ContextAttrs(ctx context.Context) []slog.Attr {
 		attrs = append(attrs, slog.String("request_id", *requestID))
 	}
 
+	if operation := reqctx.AuditOperation(ctx); operation != "" {
+		attrs = append(attrs, slog.String("audit_operation_id", operation))
+	}
+
 	spanContext := trace.SpanContextFromContext(ctx)
 	if spanContext.IsValid() {
 		attrs = append(

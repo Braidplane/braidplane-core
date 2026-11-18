@@ -174,6 +174,7 @@ type RuntimeCredential struct {
 }
 
 type CreateStaticSecretParams struct {
+	Replace        bool
 	Owner          CredentialOwner `validate:"required"`
 	CredentialType StaticCredentialType
 	PlaintextJSON  []byte `validate:"required"`
@@ -195,6 +196,8 @@ type ResolvePipelineWebhookSecretParams struct {
 }
 
 type CreatePendingOAuthCredentialParams struct {
+	Replace  bool
+	Actor    model.EventActor
 	Owner    CredentialOwner `validate:"required"`
 	Provider string          `validate:"required"`
 }
@@ -205,6 +208,7 @@ type (
 		Credential       CredentialMetadata
 	}
 	CreateOrganizationGitLabConnectionParams struct {
+		Actor            model.EventActor
 		OrganizationSlug slug.Slug `validate:"required"`
 		Provider         string    `validate:"required"`
 	}
@@ -271,6 +275,7 @@ type CompleteOAuthCallbackResult struct {
 }
 
 type ResolveRuntimeCredentialParams struct {
+	Actor model.EventActor
 	Owner CredentialOwner `validate:"required"`
 }
 
@@ -398,6 +403,7 @@ type NotificationConnection struct {
 }
 
 type CreateNotificationConnectionParams struct {
+	Actor    model.EventActor
 	Provider string    `validate:"required,oneof=slack"`
 	OrgSlug  slug.Slug `validate:"required"`
 	Slug     slug.Slug

@@ -65,7 +65,7 @@ func TestServiceIssuePipelineWebhookSecretReturnsExactASCIIOnceAndStoresOnlyEncr
 		encryptedPlaintext = append([]byte(nil), plaintext...)
 		return []byte("stored-ciphertext"), nil
 	}
-	svc, err := New(testutil.FakeTransactionManager{}, repo, enc, nil, testutil.FakeClock{}, false)
+	svc, err := newUnitCredentialService(testutil.FakeTransactionManager{}, repo, enc, nil, testutil.FakeClock{}, false)
 	require.NoError(t, err)
 	issued, err := svc.IssuePipelineWebhookSecret(context.Background(), PipelineWebhookSecretParams{
 		OrgSlug: must.Slug("acme"), ProjectSlug: must.Slug("ops"), EnvironmentSlug: must.Slug("prod"), TriggerSlug: must.Slug("incoming"),
@@ -90,7 +90,7 @@ func TestServiceResolvePipelineWebhookSecretUsesExactOwnerAndKeyVersion(t *testi
 		require.Equal(t, []byte("ciphertext"), ciphertext)
 		return issuedSecret, nil
 	}
-	svc, err := New(testutil.FakeTransactionManager{}, repo, enc, nil, testutil.FakeClock{}, false)
+	svc, err := newUnitCredentialService(testutil.FakeTransactionManager{}, repo, enc, nil, testutil.FakeClock{}, false)
 	require.NoError(t, err)
 	params := ResolvePipelineWebhookSecretParams{
 		OrgSlug: must.Slug("acme"), ProjectSlug: must.Slug("ops"), EnvironmentSlug: must.Slug("prod"),
@@ -155,7 +155,7 @@ func TestServiceResolvePipelineWebhookSecretPropagatesRepositoryAndDecryptErrors
 		decryptErr := xerror.Unexpected().Detail("decrypt webhook credential")
 		enc := testutil.NewFakeEncryptor()
 		enc.DecryptFn = func([]byte) ([]byte, error) { return nil, decryptErr }
-		svc, err := New(testutil.FakeTransactionManager{}, repo, enc, nil, testutil.FakeClock{}, false)
+		svc, err := newUnitCredentialService(testutil.FakeTransactionManager{}, repo, enc, nil, testutil.FakeClock{}, false)
 		require.NoError(t, err)
 		_, err = svc.ResolvePipelineWebhookSecret(t.Context(), params)
 		require.ErrorIs(t, err, decryptErr)
@@ -581,7 +581,7 @@ func TestServiceCompleteOAuthCallbackExchangesCodeOutsideTransaction(t *testing.
 			require.False(t, txm.inTx, "provider exchange must run outside database transactions")
 		},
 	}
-	svc, err := New(
+	svc, err := newUnitCredentialService(
 		txm,
 		repo,
 		testutil.NewFakeEncryptor(),
@@ -660,7 +660,7 @@ func TestServiceCompleteOAuthCallbackRejectsInstallExpiredDuringExchange(t *test
 			currentTime = now.Add(2 * time.Minute)
 		},
 	}
-	svc, err := New(
+	svc, err := newUnitCredentialService(
 		testutil.FakeTransactionManager{},
 		repo,
 		testutil.NewFakeEncryptor(),
@@ -912,7 +912,7 @@ func TestServiceCompleteOAuthCallbackFinalizesAfterCallerCancellation(t *testing
 			Account:      ProviderAccount{ID: "acct-1"},
 		},
 	}
-	svc, err := New(
+	svc, err := newUnitCredentialService(
 		cancelAwareTransactionManager{},
 		repo,
 		testutil.NewFakeEncryptor(),
@@ -1012,7 +1012,7 @@ func newTestServiceAt(
 	now time.Time,
 ) FullService {
 	t.Helper()
-	svc, err := New(
+	svc, err := newUnitCredentialService(
 		testutil.FakeTransactionManager{},
 		repo,
 		testutil.NewFakeEncryptor(),

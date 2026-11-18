@@ -576,6 +576,9 @@ func webhookSecretParams(org, project, environment, trigger slug.Slug) credentia
 func (s *service) RotatePipelineWebhookSecret(ctx context.Context, orgSlug, projectSlug, environmentSlug, triggerSlug slug.Slug, actor model.EventActor) (model.PipelineWebhookSecret, error) {
 	var result model.PipelineWebhookSecret
 	err := s.txm.RunInTx(ctx, func(ctx context.Context, tx postgres.DBTX) error {
+		if _, err := s.repo.LockPipelineTriggerTopology(ctx, tx, orgSlug, projectSlug, environmentSlug); err != nil {
+			return err
+		}
 		trigger, err := s.repo.FindPipelineTriggerBySlug(ctx, tx, orgSlug, projectSlug, environmentSlug, triggerSlug)
 		if err != nil {
 			return err
@@ -587,10 +590,18 @@ func (s *service) RotatePipelineWebhookSecret(ctx context.Context, orgSlug, proj
 		if err != nil {
 			return err
 		}
+		audited := toModelTrigger(trigger)
+		audited.WebhookConfig = &model.PipelineTriggerWebhookConfig{EnabledKeyVersions: []int{issued.KeyVersion}}
+		if err := s.recordPipelineTriggerEvent(ctx, tx, orgSlug, projectSlug, environmentSlug, actor, audited, model.EventActionRotate); err != nil {
+			return err
+		}
 		result = model.PipelineWebhookSecret{KeyVersion: issued.KeyVersion, Value: issued.Value}
 		return nil
 	})
-	return result, err
+	if err != nil {
+		return model.PipelineWebhookSecret{}, err
+	}
+	return result, nil
 }
 
 func validateVersionPolicy(policy model.PipelineTriggerVersionPolicy) error {

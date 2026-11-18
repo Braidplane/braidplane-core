@@ -16,6 +16,7 @@ import (
 	"github.com/gofiber/fiber/v3/middleware/cors"
 	recovermiddleware "github.com/gofiber/fiber/v3/middleware/recover"
 	"github.com/gofiber/fiber/v3/middleware/session"
+	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/riverqueue/river"
 
@@ -250,6 +251,7 @@ func newBackendOperationalApp(
 			c.SetContext(reqctx.WithRequestID(c.Context(), requestID))
 		}
 
+		c.SetContext(reqctx.WithAuditOperation(c.Context(), uuid.NewString()))
 		return c.Next()
 	})
 

@@ -41,7 +41,7 @@ func (s *server) StartOrganizationGitLabAuthorization(c fiber.Ctx, orgParam api.
 	if err := chargeAuthorizedOrganizationAbuseControl(c, org.String(), "credential.mutation", true); err != nil {
 		return err
 	}
-	connection, err := s.credentialsService.CreateOrganizationGitLabConnection(c.Context(), credentialssvc.CreateOrganizationGitLabConnectionParams{OrganizationSlug: org, Provider: "gitlab"})
+	connection, err := s.credentialsService.CreateOrganizationGitLabConnection(c.Context(), credentialssvc.CreateOrganizationGitLabConnectionParams{OrganizationSlug: org, Provider: "gitlab", Actor: s.eventActor(c)})
 	if err != nil {
 		return mapServiceError(err)
 	}

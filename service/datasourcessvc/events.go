@@ -10,9 +10,14 @@ type dataSourceEvent struct {
 	dataSourceSlug slug.Slug
 	dataSourceType model.DataSourceType
 	action         model.EventAction
+	version        string
 }
 
 func (e dataSourceEvent) EventRecord() (eventrecorder.Record, error) {
+	metadata := map[string]any{"data_source_type": e.dataSourceType.String()}
+	if e.version != "" {
+		metadata["version"] = e.version
+	}
 	return eventrecorder.Record{
 		SlugPrefix:    "evt-data-source-" + slug.Slug(e.action.String()),
 		EventClass:    model.EventClassSecurityAudit,
@@ -20,8 +25,6 @@ func (e dataSourceEvent) EventRecord() (eventrecorder.Record, error) {
 		EntitySlug:    e.dataSourceSlug,
 		Action:        e.action,
 		SchemaVersion: model.CurrentEventSchemaVersion,
-		Metadata: map[string]any{
-			"data_source_type": e.dataSourceType.String(),
-		},
+		Metadata:      metadata,
 	}, nil
 }

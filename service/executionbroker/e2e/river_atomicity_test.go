@@ -11,7 +11,9 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/Braidplane/braidplane-core/pkg/crypto"
+	"github.com/Braidplane/braidplane-core/pkg/domain/model"
 	"github.com/Braidplane/braidplane-core/pkg/queue"
+	"github.com/Braidplane/braidplane-core/pkg/reqctx"
 	"github.com/Braidplane/braidplane-core/pkg/slug"
 	"github.com/Braidplane/braidplane-core/pkg/testutil"
 	"github.com/Braidplane/braidplane-core/pkg/testutil/e2edb"
@@ -20,6 +22,7 @@ import (
 	"github.com/Braidplane/braidplane-core/postgres"
 	"github.com/Braidplane/braidplane-core/service/datasourcessvc"
 	"github.com/Braidplane/braidplane-core/service/executionbroker"
+	"github.com/Braidplane/braidplane-core/service/queriessvc"
 )
 
 const (
@@ -96,6 +99,16 @@ func TestRiverSubmissionCommitsEnvelopeAndJobAtomically(t *testing.T) { // Share
 		_, cleanupErr = pool.Exec(context.Background(), `DELETE FROM organizations WHERE slug = $1`, org)
 		require.NoError(t, cleanupErr)
 	})
+
+	_, err = pool.Exec(ctx, `
+        WITH c AS (
+            INSERT INTO credentials (organization_id, slug, kind, credential_type, status, encrypted_payload)
+            SELECT id, 'broker-credential', 'static_secret', 'postgres', 'active', decode('66697874757265', 'hex')
+            FROM organizations WHERE slug = $1 RETURNING id, organization_id
+        )
+        INSERT INTO data_sources (organization_id, credential_id, name, slug, type, config, is_active)
+        SELECT organization_id, id, 'Broker fixture', 'broker-source', 'postgres', '{}'::jsonb, true FROM c`, org)
+	require.NoError(t, err)
 
 	queueClient, err := queue.NewEnqueueOnly(pool)
 	require.NoError(t, err)
@@ -189,6 +202,47 @@ func TestRiverSubmissionCommitsEnvelopeAndJobAtomically(t *testing.T) { // Share
 		})
 		require.NoError(t, err)
 	})
+
+	for _, failDispatch := range []bool{false, true} {
+		t.Run(fmt.Sprintf("credential audit with dispatch failure %t", failDispatch), func(t *testing.T) {
+			ctx := reqctx.WithAuditActor(ctx, model.UserEventActor("broker-operator"))
+			dispatcher := &capturingExecutionDispatcher{delegate: riverDispatcher}
+			if failDispatch {
+				dispatcher.afterEnqueue = xerror.Unexpected().Detail("synthetic dispatch failure")
+			}
+			broker, err := executionbroker.New(postgres.NewTransactionManager(pool), cipher, dispatcher, brokerAtomicityRequestTimeout, nil, nil, testutil.FakeOperationAdmission{})
+			require.NoError(t, err)
+			const marker = "synthetic-broker-audit-credential"
+			_, err = broker.ExecuteConnector(ctx, queriessvc.ConnectorExecutionRequest{
+				OrganizationSlug: org, DataSourceSlug: "broker-source", DataSourceType: model.DataSourceTypePostgres,
+				CredentialReference: "broker-credential/2026-06-01T12:00:00Z", CredentialsJSON: []byte(marker),
+				ConcurrencyLimit: 1, ConcurrencyQueueLimit: 1, ConcurrencyQueueTimeout: time.Second,
+			})
+			require.NotEqual(t, uuid.Nil, dispatcher.requestID)
+			requestID := dispatcher.requestID.String()
+			var count int
+			require.NoError(t, pool.QueryRow(ctx, `SELECT count(*) FROM events e
+                JOIN organizations o ON o.id = e.organization_id WHERE o.slug = $1 AND e.request_id = $2`,
+				org, requestID).Scan(&count))
+			if failDispatch {
+				require.ErrorIs(t, err, dispatcher.afterEnqueue)
+				assertCounts(t, dispatcher.requestID, 0, 0)
+				require.Zero(t, count)
+				return
+			}
+			t.Cleanup(func() { cleanupRequest(t, dispatcher.requestID) })
+			require.ErrorIs(t, err, context.DeadlineExceeded)
+			assertCounts(t, dispatcher.requestID, 1, 1)
+			require.Equal(t, 1, count)
+			var version, metadata string
+			require.NoError(t, pool.QueryRow(ctx, `SELECT metadata->>'version', metadata::text FROM events
+                WHERE request_id = $1 AND event_class = 'security_audit' AND entity_slug = 'broker-source'
+                  AND action = 'read' AND actor_slug = 'broker-operator' AND metadata->>'outcome' = 'enveloped'`,
+				requestID).Scan(&version, &metadata))
+			require.Len(t, version, 64)
+			require.NotContains(t, metadata, marker)
+		})
+	}
 
 	t.Run("dispatch failure rolls back both envelope and job", func(t *testing.T) { // Shared transaction fixture.
 		dispatchErr := xerror.Unexpected().Detail("dispatch failed after River insert")

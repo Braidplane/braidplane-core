@@ -17,6 +17,7 @@ type Event interface {
 }
 
 type Record struct {
+	Slug          slug.Slug
 	SlugPrefix    slug.Slug
 	EventClass    model.EventClass
 	EntityType    model.EventEntityType
@@ -81,9 +82,15 @@ func createEventParams(
 	actor model.EventActor,
 	record Record,
 ) (eventssvc.CreateEventParams, error) {
-	eventSlug, err := slug.WithRandomSuffix(record.SlugPrefix, 12)
+	var eventSlug slug.Slug
+	var err error
+	if record.Slug != "" {
+		eventSlug, err = slug.New(record.Slug.String())
+	} else {
+		eventSlug, err = slug.WithRandomSuffix(record.SlugPrefix, 12)
+	}
 	if err != nil {
-		return eventssvc.CreateEventParams{}, xerror.Wrapf("generate event slug: %w", err)
+		return eventssvc.CreateEventParams{}, xerror.Wrapf("prepare event slug: %w", err)
 	}
 
 	return eventssvc.CreateEventParams{

@@ -28,7 +28,7 @@ type pipelineTriggerEvent struct {
 // EventRecord converts a trigger change into a durable, sanitized event record.
 func (e pipelineTriggerEvent) EventRecord() (eventrecorder.Record, error) {
 	switch e.action {
-	case model.EventActionCreate, model.EventActionUpdate, model.EventActionDelete:
+	case model.EventActionCreate, model.EventActionUpdate, model.EventActionDelete, model.EventActionRotate:
 	default:
 		return eventrecorder.Record{}, xerror.InvalidInput(xerror.Event).
 			Detail("unsupported pipeline trigger event action")
@@ -61,7 +61,16 @@ func (e pipelineTriggerEvent) EventRecord() (eventrecorder.Record, error) {
 		metadata["schedule_misfire_policy"] = e.trigger.ScheduleConfig.MisfirePolicy.String()
 	}
 
+	class := model.EventClassActivity
+	if e.trigger.Type == model.PipelineTriggerTypeWebhook {
+		class = model.EventClassSecurityAudit
+		if e.trigger.WebhookConfig != nil {
+			metadata["key_versions"] = e.trigger.WebhookConfig.EnabledKeyVersions
+		}
+	}
+
 	return eventrecorder.Record{
+		EventClass: class,
 		SlugPrefix: "evt-pipeline-trigger-" + slug.Slug(e.action.String()),
 		EntityType: model.EventEntityTypePipelineTrigger,
 		EntitySlug: entitySlug,
@@ -96,11 +105,16 @@ func (s *service) recordPipelineTriggerEvent(
 	if trigger == nil {
 		return xerror.Unexpected().Detail("pipeline trigger event requires trigger")
 	}
-	s.eventProducer.EnqueueRecord(ctx, tx, orgSlug, actor, pipelineTriggerEvent{
+	event := pipelineTriggerEvent{
 		projectSlug:     projectSlug,
 		environmentSlug: environmentSlug,
 		trigger:         trigger,
 		action:          action,
-	})
+	}
+	if trigger.Type == model.PipelineTriggerTypeWebhook {
+		_, err := s.eventProducer.EnqueueRequired(ctx, tx, orgSlug, actor, event)
+		return err
+	}
+	s.eventProducer.EnqueueRecord(ctx, tx, orgSlug, actor, event)
 	return nil
 }

@@ -495,7 +495,7 @@ func (s *RepositorySetupService) prepareGitLabAuthorization(ctx context.Context,
 	if actor.UserSlugValue() == "" {
 		return "", xerror.ValidationFailed().Detail("Authorize the organization GitLab connection using a user session or personal access token, then resume this setup with your organization API key.")
 	}
-	connection, err = s.credentials.CreateOrganizationGitLabConnection(ctx, credentialssvc.CreateOrganizationGitLabConnectionParams{OrganizationSlug: org, Provider: "gitlab"})
+	connection, err = s.credentials.CreateOrganizationGitLabConnection(ctx, credentialssvc.CreateOrganizationGitLabConnectionParams{OrganizationSlug: org, Provider: "gitlab", Actor: actor})
 	if err != nil {
 		return "", err
 	}

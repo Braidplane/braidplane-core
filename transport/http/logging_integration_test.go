@@ -27,8 +27,12 @@ import (
 	"github.com/Braidplane/braidplane-core/pkg/must"
 	"github.com/Braidplane/braidplane-core/pkg/reqctx"
 	"github.com/Braidplane/braidplane-core/pkg/slug"
+	testfakes "github.com/Braidplane/braidplane-core/pkg/testutil/fakes"
 	"github.com/Braidplane/braidplane-core/pkg/tracing"
+	"github.com/Braidplane/braidplane-core/pkg/xerror"
 	"github.com/Braidplane/braidplane-core/service/authorization"
+	"github.com/Braidplane/braidplane-core/service/credentialssvc"
+	"github.com/Braidplane/braidplane-core/service/datasourcessvc"
 	"github.com/Braidplane/braidplane-core/service/projectssvc"
 )
 
@@ -125,6 +129,72 @@ func TestRequestLoggingCorrelatesHTTPAndServiceEvents(t *testing.T) {
 
 	logs := logBuffer.String()
 	assert.NotContains(t, logs, "access_token=secret")
+}
+
+func TestCredentialAuditFailureResponseLogsAndTraceExcludeSecret(t *testing.T) { // Installs a process-wide tracer.
+	const marker = "synthetic-password-marker"
+	recorder := tracetest.NewSpanRecorder()
+	provider := sdktrace.NewTracerProvider(sdktrace.WithSpanProcessor(recorder))
+	oldProvider := otel.GetTracerProvider()
+	otel.SetTracerProvider(provider)
+	t.Cleanup(func() {
+		otel.SetTracerProvider(oldProvider)
+		require.NoError(t, provider.Shutdown(context.Background()))
+	})
+
+	var logs bytes.Buffer
+	logger := slog.New(slog.NewJSONHandler(&logs, &slog.HandlerOptions{Level: slog.LevelDebug}))
+	store := session.NewStore()
+	app := fiber.New(fiber.Config{ErrorHandler: apierror.Middleware()})
+	const fixtureOperation = "server-owned-fixture-operation"
+	expectedOperation := reqctx.AuditOperation(reqctx.WithAuditOperation(t.Context(), fixtureOperation))
+	app.Use(func(c fiber.Ctx) error {
+		c.SetContext(reqctx.WithAuditOperation(c.Context(), fixtureOperation))
+		return c.Next()
+	})
+	app.Use(tracing.HTTPMiddleware("backend"), obslogging.HTTPMiddleware(logger, true))
+	api.RegisterHandlers(app, &server{
+		sessionStore:         store,
+		authorizationService: &fakeAuthService{CanFn: allowAuth},
+		admissionService:     &testfakes.AdmissionService{},
+		datasourcesService: &fakeDataSourcesService{TestConnectionFn: func(_ context.Context, org slug.Slug, params *datasourcessvc.TestConnectionParams) error {
+			require.Equal(t, slug.Slug("acme"), org)
+			require.Equal(t, marker, params.Credentials["password"])
+			return credentialssvc.ErrCredentialAuditUnavailable.Detail(marker)
+		}},
+	})
+
+	var payload api.TestDataSourceConnectionRequest
+	require.NoError(t, payload.FromTestPostgresDataSourceConnectionRequest(api.TestPostgresDataSourceConnectionRequest{
+		Config:      api.PostgresConfig{Host: "localhost", Port: 5432, Database: "fixtures"},
+		Credentials: api.PostgresCredentials{Username: "postgres", Password: marker},
+	}))
+	req := jsonRequest(t, http.MethodPost, "/organizations/acme/data-sources/test-connection", payload)
+	res := authenticatedRequest(t, app, store, "audit-user", req)
+	defer func() { require.NoError(t, res.Body.Close()) }()
+	raw, err := io.ReadAll(res.Body)
+	require.NoError(t, err)
+	require.Equal(t, xerror.KindUnavailable.HTTPStatus(), res.StatusCode)
+	require.Contains(t, string(raw), "CREDENTIAL_AUDIT_UNAVAILABLE")
+	require.NotContains(t, string(raw), marker)
+	require.Contains(t, logs.String(), "CREDENTIAL_AUDIT_UNAVAILABLE")
+	require.Contains(t, logs.String(), expectedOperation)
+	require.NotContains(t, logs.String(), marker)
+
+	var classificationFound, correlationFound bool
+	for _, span := range recorder.Ended() {
+		for _, attr := range span.Attributes() {
+			if attr.Key == "http.response.status_code" && attr.Value.AsInt64() == int64(res.StatusCode) {
+				classificationFound = true
+			}
+			if attr.Key == "audit_operation_id" && attr.Value.AsString() == expectedOperation {
+				correlationFound = true
+			}
+		}
+		require.NotContains(t, fmt.Sprint(span.Attributes(), span.Events(), span.Status()), marker)
+	}
+	require.True(t, classificationFound, "the trace must carry the safe failure classification")
+	require.True(t, correlationFound, "the trace must carry the server-owned audit correlation")
 }
 
 func allowAuth(context.Context, authorization.Input) (bool, error) {

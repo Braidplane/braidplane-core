@@ -15,6 +15,7 @@ import (
 	"github.com/Braidplane/braidplane-core/pkg/crypto"
 	"github.com/Braidplane/braidplane-core/pkg/domain/model"
 	"github.com/Braidplane/braidplane-core/pkg/oauthflow"
+	"github.com/Braidplane/braidplane-core/pkg/reqctx"
 	"github.com/Braidplane/braidplane-core/pkg/slug"
 	"github.com/Braidplane/braidplane-core/pkg/testutil"
 	"github.com/Braidplane/braidplane-core/pkg/testutil/e2edb"
@@ -138,10 +139,22 @@ func TestOAuthGrantLifecyclePersistsAndRefreshesProviderCredential(t *testing.T)
 	require.NoError(t, err)
 	assert.Equal(t, credentialssvc.CredentialStatusRevoked, revokedAgain.Status)
 
-	_, err = svc.ResolveRuntimeCredential(ctx, credentialssvc.ResolveRuntimeCredentialParams{
-		Owner: credentialOwner(orgSlug, dsSlug),
-	})
-	require.ErrorIs(t, err, credentialssvc.ErrProviderGrantRevoked)
+	ctx = reqctx.WithAuditOperation(ctx, "revoked-grant-resolution")
+	for range 2 {
+		denied, err := svc.ResolveRuntimeCredential(ctx, credentialssvc.ResolveRuntimeCredentialParams{
+			Owner: credentialOwner(orgSlug, dsSlug),
+		})
+		require.ErrorIs(t, err, credentialssvc.ErrProviderGrantRevoked)
+		require.Empty(t, denied)
+	}
+	var count int
+	require.NoError(t, pool.QueryRow(ctx, `SELECT count(*) FROM events e
+        JOIN organizations o ON o.id = e.organization_id
+        WHERE o.slug = $1 AND e.entity_slug = $2 AND e.request_id = $3
+          AND e.event_class = 'security_audit' AND e.action = 'read'
+          AND e.metadata->>'outcome' = 'denied' AND e.metadata->>'version' = $4`,
+		orgSlug, dsSlug, reqctx.AuditOperation(ctx), credentialssvc.AuditCredentialVersion(revoked.Slug, revoked.UpdatedAt)).Scan(&count))
+	require.Equal(t, 1, count)
 }
 
 func TestOAuthCallbackActivatesAttachedPendingCredentialInPlace(t *testing.T) {

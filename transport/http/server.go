@@ -457,7 +457,12 @@ func (s *server) canWithInput(c fiber.Ctx, input authorization.Input) error {
 		}
 	}
 
-	c.SetContext(executiondelivery.WithInitiatingUser(c.Context(), input.UserSlug))
+	ctx := executiondelivery.WithInitiatingUser(c.Context(), input.UserSlug)
+	actor := model.UserEventActor(input.UserSlug)
+	if input.APIKeySlug != "" {
+		actor = model.APIKeyEventActor(input.APIKeySlug)
+	}
+	c.SetContext(reqctx.WithAuditActor(ctx, actor))
 	return nil
 }
 

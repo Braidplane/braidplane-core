@@ -785,8 +785,9 @@ func TestRotatePipelineWebhookSecret(t *testing.T) {
 	t.Parallel()
 	org, project, environment, trigger := must.Slug("acme"), must.Slug("ops"), must.Slug("prod"), must.Slug("incoming")
 	actor := model.UserEventActor(must.Slug("alice"))
-	repo := &fakeTriggerRepository{existing: &pipelinetriggers.PipelineTrigger{Type: model.PipelineTriggerTypeWebhook}}
+	repo := &fakeTriggerRepository{existing: &pipelinetriggers.PipelineTrigger{Slug: trigger, Type: model.PipelineTriggerTypeWebhook}}
 	secrets := fakeWebhookSecrets{issueFn: func(_ context.Context, params credentialssvc.PipelineWebhookSecretParams) (credentialssvc.IssuedPipelineWebhookSecret, error) {
+		require.Equal(t, 1, repo.topologyLocks)
 		require.Equal(t, credentialssvc.PipelineWebhookSecretParams{
 			OrgSlug: org, ProjectSlug: project, EnvironmentSlug: environment, TriggerSlug: trigger,
 		}, params)
@@ -908,6 +909,7 @@ func (f fakeWebhookSecrets) RevokePipelineWebhookSecrets(ctx context.Context, pa
 }
 
 type fakeTriggerRepository struct {
+	topologyLocks             int
 	snapshot                  *model.PipelineCompletionSnapshot
 	refusalReason             string
 	protected                 bool
@@ -1248,6 +1250,7 @@ func (r *fakeTriggerRepository) ListDelayedScheduleFiresForSystem(context.Contex
 }
 
 func (r *fakeTriggerRepository) LockPipelineTriggerTopology(context.Context, postgres.DBTX, slug.Slug, slug.Slug, slug.Slug) (bool, error) {
+	r.topologyLocks++
 	return r.protected, nil
 }
 

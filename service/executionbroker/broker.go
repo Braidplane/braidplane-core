@@ -28,11 +28,15 @@ import (
 	"github.com/Braidplane/braidplane-core/pkg/uuid"
 	"github.com/Braidplane/braidplane-core/pkg/xerror"
 	"github.com/Braidplane/braidplane-core/postgres"
+	eventrepo "github.com/Braidplane/braidplane-core/postgres/events"
 	requestrepo "github.com/Braidplane/braidplane-core/postgres/executionrequests"
 	"github.com/Braidplane/braidplane-core/postgres/retainedfiles"
+	"github.com/Braidplane/braidplane-core/service/credentialssvc"
 	"github.com/Braidplane/braidplane-core/service/datasourcessvc"
 	"github.com/Braidplane/braidplane-core/service/datasourcessvc/connector"
 	connectortypes "github.com/Braidplane/braidplane-core/service/datasourcessvc/connector/types"
+	"github.com/Braidplane/braidplane-core/service/eventrecorder"
+	"github.com/Braidplane/braidplane-core/service/eventssvc"
 	"github.com/Braidplane/braidplane-core/service/filetransfersvc"
 	"github.com/Braidplane/braidplane-core/service/pipelinegit"
 	"github.com/Braidplane/braidplane-core/service/pipelineruntime"
@@ -105,6 +109,7 @@ type operationAdmission interface {
 // factory is required only in compositions that process execution requests.
 type Broker struct {
 	admission        operationAdmission
+	audit            eventrecorder.Recorder
 	txm              postgres.TransactionManager
 	repo             requestRepository
 	cipher           crypto.AES256
@@ -158,6 +163,7 @@ func New(
 	}
 	broker := &Broker{
 		admission: admission,
+		audit:     eventrecorder.New(eventssvc.New(txm, eventrepo.New(), nil)),
 		txm:       txm, repo: requestrepo.New(), cipher: cipher,
 		dispatcher: dispatcher, requestTimeout: requestTimeout,
 		factory: factory, logger: logger, heartbeatEvery: heartbeatInterval,
@@ -183,6 +189,9 @@ func (b *Broker) Close() error {
 
 func (b *Broker) TestConnection(ctx context.Context, request datasourcessvc.ConnectionTestRequest) error {
 	_, err := b.submitAndWait(ctx, request.OrganizationSlug.String(), kindConnectionTest, request)
+	if xerror.Is(err, credentialssvc.ErrCredentialAuditUnavailable) {
+		return executiondelivery.MarkNotExecuted(err)
+	}
 	if err != nil {
 		if code, ok := b.admission.EncodeOperationError(err); ok && code != "" {
 			return executiondelivery.MarkNotExecuted(err)
@@ -978,6 +987,9 @@ func (b *Broker) submitAndWait(
 					return err
 				}
 			}
+		}
+		if err := b.recordCredentialHandoff(ctx, slug.Slug(organizationSlug), id, kind, payload); err != nil {
+			return err
 		}
 		return b.dispatcher.Dispatch(ctx, tx, id)
 	})

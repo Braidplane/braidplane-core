@@ -120,6 +120,7 @@ func TestTokenRejectsRepositoryOutsideOrganizationBinding(t *testing.T) {
 	provider := &fakeProvider{}
 	svc, err := New(testutil.FakeTransactionManager{}, repo, provider, &fakeEvents{}, "https://github.com/apps/braidplane/installations/new")
 	require.NoError(t, err)
+	svc.audit = successfulGithubAudit
 
 	_, err = svc.Token(t.Context(), must.Slug("acme"), []int64{99})
 	require.ErrorIs(t, err, ErrInvalidInstall)
@@ -133,6 +134,7 @@ func TestTokenPreservesProviderContentsPermission(t *testing.T) {
 		installation: &githubapps.Installation{InstallationID: 9, AccountID: 2}, repositories: []githubapps.RepositoryBinding{{ID: 42}},
 	}, provider, &fakeEvents{}, "https://github.com/apps/braidplane/installations/new")
 	require.NoError(t, err)
+	svc.audit = successfulGithubAudit
 
 	token, err := svc.Token(t.Context(), must.Slug("acme"), []int64{42})
 	require.NoError(t, err)
@@ -218,6 +220,7 @@ func TestTokenRejectsInactiveInstallation(t *testing.T) {
 		provider := &fakeProvider{}
 		svc, err := New(testutil.FakeTransactionManager{}, &fakeRepository{installation: installation, repositories: []githubapps.RepositoryBinding{{ID: 42}}}, provider, &fakeEvents{}, "https://github.com/apps/braidplane/installations/new")
 		require.NoError(t, err)
+		svc.audit = successfulGithubAudit
 		_, err = svc.Token(t.Context(), must.Slug("acme"), []int64{42})
 		require.ErrorIs(t, err, ErrInvalidInstall)
 		require.Zero(t, provider.tokenCalls)
@@ -289,7 +292,7 @@ func TestDisconnectDoesNotAuditMissingConnection(t *testing.T) {
 
 func TestApplyLifecycleAuditsConnectedOrganizationAsSystem(t *testing.T) {
 	t.Parallel()
-	repo := &fakeRepository{organization: must.Slug("acme")}
+	repo := &fakeRepository{organization: must.Slug("acme"), installation: &githubapps.Installation{InstallationID: 9}}
 	events := &fakeEvents{}
 	svc, err := New(testutil.FakeTransactionManager{}, repo, &fakeProvider{}, events, "https://github.com/apps/braidplane/installations/new")
 	require.NoError(t, err)
@@ -300,6 +303,8 @@ func TestApplyLifecycleAuditsConnectedOrganizationAsSystem(t *testing.T) {
 	require.Equal(t, 1, events.required)
 	require.Equal(t, must.Slug("acme"), events.organization)
 	require.Equal(t, model.SystemEventActor(), events.actor)
+	require.Equal(t, "suspend", events.record.Metadata["change"])
+	require.Len(t, events.record.Metadata["version"], 64)
 }
 
 func TestApplyLifecycleIgnoresUnconnectedInstallation(t *testing.T) {
@@ -412,6 +417,9 @@ func (r *fakeRepository) ConsumeIntent(_ context.Context, _ postgres.DBTX, _ int
 
 func (r *fakeRepository) UpsertInstallation(_ context.Context, _ postgres.DBTX, _ githubapps.Intent, verified githubapps.VerifiedInstallation) (int64, error) {
 	r.verified = verified
+	if r.upsertErr == nil {
+		r.installation = &githubapps.Installation{InstallationID: verified.InstallationID}
+	}
 	return 1, r.upsertErr
 }
 
@@ -461,17 +469,20 @@ type fakeEvents struct {
 	required     int
 	organization slug.Slug
 	actor        model.EventActor
+	record       eventrecorder.Record
 }
 
 func (*fakeEvents) EnqueueRecord(context.Context, postgres.DBTX, slug.Slug, model.EventActor, eventrecorder.Event) (workerproducer.EventRecordJob, bool) {
 	return workerproducer.EventRecordJob{}, true
 }
 
-func (e *fakeEvents) EnqueueRequired(_ context.Context, _ postgres.DBTX, organization slug.Slug, actor model.EventActor, _ eventrecorder.Event) (workerproducer.EventRecordJob, error) {
+func (e *fakeEvents) EnqueueRequired(_ context.Context, _ postgres.DBTX, organization slug.Slug, actor model.EventActor, event eventrecorder.Event) (workerproducer.EventRecordJob, error) {
 	e.required++
 	e.organization = organization
 	e.actor = actor
-	return workerproducer.EventRecordJob{}, nil
+	record, err := event.EventRecord()
+	e.record = record
+	return workerproducer.EventRecordJob{}, err
 }
 
 func (p *fakeProvider) VerifyRepositoryInstallation(ctx context.Context, code string, id int64, request gitprovider.RepositoryBootstrapRequest) (githubapps.VerifiedInstallation, *gitprovider.RepositoryBootstrapResult, error) {

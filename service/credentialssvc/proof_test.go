@@ -58,7 +58,7 @@ func TestResolveProofCredentialRequiresExactActiveStaticVersionBeforeDecrypt(t *
 			decrypts := 0
 			enc := testutil.NewFakeEncryptor()
 			enc.DecryptFn = func(b []byte) ([]byte, error) { decrypts++; return b, nil }
-			svc, err := New(testutil.FakeTransactionManager{}, repo, enc, nil, testutil.FakeClock{}, false)
+			svc, err := newUnitCredentialService(testutil.FakeTransactionManager{}, repo, enc, nil, testutil.FakeClock{}, false)
 			require.NoError(t, err)
 			checkErr := svc.CheckProofCredential(t.Context(), grant)
 			require.Zero(t, decrypts, "authorization monitoring must not decrypt credentials")
@@ -136,7 +136,7 @@ func TestResolveProofCredentialNeverRefreshesOrFallsBackFromOAuth(t *testing.T) 
 					decrypts := 0
 					enc := testutil.NewFakeEncryptor()
 					enc.DecryptFn = func(b []byte) ([]byte, error) { decrypts++; return b, nil }
-					svc, err := New(testutil.FakeTransactionManager{}, repo, enc, nil, testutil.FakeClock{}, false)
+					svc, err := newUnitCredentialService(testutil.FakeTransactionManager{}, repo, enc, nil, testutil.FakeClock{}, false)
 					require.NoError(t, err)
 					got, err := svc.ResolveProofCredential(t.Context(), grant)
 					if scenario == "Exact" {
@@ -180,7 +180,7 @@ func TestNativeProofCredentialsCannotUseAnotherConnectorOrTenant(t *testing.T) {
 				decrypts := 0
 				cipher := testutil.NewFakeEncryptor()
 				cipher.DecryptFn = func(raw []byte) ([]byte, error) { decrypts++; return raw, nil }
-				service, err := New(testutil.FakeTransactionManager{}, repo, cipher, nil, testutil.FakeClock{}, false)
+				service, err := newUnitCredentialService(testutil.FakeTransactionManager{}, repo, cipher, nil, testutil.FakeClock{}, false)
 				require.NoError(t, err)
 				got, err := service.ResolveProofCredential(t.Context(), grant)
 				if mismatch == "none" {
