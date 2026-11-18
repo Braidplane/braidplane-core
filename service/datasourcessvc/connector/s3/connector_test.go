@@ -108,6 +108,28 @@ func TestConnectorExecuteReadCSVUsesBucketPrefixAndLimits(t *testing.T) {
 	assert.Equal(t, "Ada", fileResult.Rows[0]["name"])
 }
 
+func TestSupplierCSVRejectsDuplicatePricesDuringSamplingAndRead(t *testing.T) {
+	t.Parallel()
+
+	conn := newWithClient(Config{Bucket: "fixtures"}, &fakeProviderClient{
+		listObjectsFunc: func(context.Context, s3client.ListObjectsRequest) ([]s3client.Object, error) {
+			return []s3client.Object{{Key: "supplier.csv"}}, nil
+		},
+		getObjectFunc: func(_ context.Context, req s3client.GetObjectRequest) (*s3client.ObjectContent, error) {
+			require.Equal(t, "supplier.csv", req.Key)
+			return &s3client.ObjectContent{Key: req.Key, Content: []byte("sku,price,price\nA,12,21\n")}, nil
+		},
+	})
+	schema, err := conn.IntrospectSchema(t.Context())
+	require.NoError(t, err)
+	require.Len(t, schema.Files, 1)
+	require.Empty(t, schema.Files[0].Fields)
+
+	read, err := conn.Execute(t.Context(), json.RawMessage(`{"type":"s3","operation":"read","key":"supplier.csv","format":"csv"}`), nil)
+	require.NoError(t, err)
+	require.Equal(t, "CSV header contains a duplicate column name.", xerror.PublicDetail(read.Error()))
+}
+
 func TestConnectorExecuteWriteBindsContentKeyBucketMetadataAndOverwrite(t *testing.T) {
 	t.Parallel()
 
