@@ -96,8 +96,8 @@ else
         ./transport/http/e2e/google-signup-fixture
     bash scripts/node-toolchain.sh node scripts/check-browser-inventory.cjs
     browser_id=$(docker run -d --rm --init --network host --shm-size=1g \
-        -v "$PWD/frontend/node_modules:/modules:ro" "${CI_PLAYWRIGHT_IMAGE:?}" \
-        node /modules/playwright/cli.js run-server --host 127.0.0.1 --port 39323)
+        -v "$PWD/frontend/node_modules:/work/node_modules:ro" "${CI_PLAYWRIGHT_IMAGE:?}" \
+        node /work/node_modules/playwright/cli.js run-server --host 127.0.0.1 --port 39323)
     export PW_TEST_CONNECT_WS_ENDPOINT=ws://127.0.0.1:39323/
     for attempt in {1..30}; do
         if curl -fsS http://127.0.0.1:39323/ >/dev/null 2>&1; then break; fi
