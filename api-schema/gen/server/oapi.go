@@ -49199,6 +49199,15 @@ func (response GetPipelineReadiness200JSONResponse) VisitGetPipelineReadinessRes
 	return ctx.JSON(&response)
 }
 
+type GetPipelineReadiness400JSONResponse ErrorResponse
+
+func (response GetPipelineReadiness400JSONResponse) VisitGetPipelineReadinessResponse(ctx fiber.Ctx) error {
+	ctx.Response().Header.Set("Content-Type", "application/json")
+	ctx.Status(400)
+
+	return ctx.JSON(&response)
+}
+
 type GetPipelineReadiness403JSONResponse ErrorResponse
 
 func (response GetPipelineReadiness403JSONResponse) VisitGetPipelineReadinessResponse(ctx fiber.Ctx) error {
@@ -49438,6 +49447,15 @@ type GetProjectReadiness200JSONResponse ReadinessReport
 func (response GetProjectReadiness200JSONResponse) VisitGetProjectReadinessResponse(ctx fiber.Ctx) error {
 	ctx.Response().Header.Set("Content-Type", "application/json")
 	ctx.Status(200)
+
+	return ctx.JSON(&response)
+}
+
+type GetProjectReadiness400JSONResponse ErrorResponse
+
+func (response GetProjectReadiness400JSONResponse) VisitGetProjectReadinessResponse(ctx fiber.Ctx) error {
+	ctx.Response().Header.Set("Content-Type", "application/json")
+	ctx.Status(400)
 
 	return ctx.JSON(&response)
 }

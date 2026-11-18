@@ -6405,6 +6405,12 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ReadinessReport'
+        '400':
+          description: Invalid path parameter
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
         '403':
           description: Forbidden
           content:
@@ -6436,6 +6442,12 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ReadinessReport'
+        '400':
+          description: Invalid path parameter
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
         '403':
           description: Forbidden
           content:
