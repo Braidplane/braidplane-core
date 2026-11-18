@@ -1003,46 +1003,19 @@ func (b *Broker) submitAndWait(
 
 	ticker := time.NewTicker(pollInterval)
 	defer ticker.Stop()
-	for {
+	var waitErr error
+	for waitErr == nil {
 		select {
 		case <-waitCtx.Done():
-			cancelledBeforeExecution, cancelErr := b.cancel(ctx, id)
-			if cancelErr != nil {
-				if executionMayHaveExternalSideEffects(kind) {
-					recordBrokerOutcome(kind, "ambiguous", startedAt)
-					return encryptedResponse{}, xerror.Wrapf(
-						"%w: cancel execution request: %w",
-						ErrAmbiguousExecution,
-						cancelErr,
-					)
-				}
-				recordBrokerOutcome(kind, "error", startedAt)
-				return encryptedResponse{}, xerror.Wrapf(
-					"cancel execution request: %w",
-					cancelErr,
-				)
-			}
-			if executionMayHaveExternalSideEffects(kind) && !cancelledBeforeExecution {
-				recordBrokerOutcome(kind, "ambiguous", startedAt)
-				if xerror.Is(waitCtx.Err(), context.DeadlineExceeded) {
-					return encryptedResponse{}, ErrAmbiguousExecution.WithPublicDetail("execution.request_timeout or caller deadline elapsed during execution; inspect the destination before retrying.")
-				}
-				return encryptedResponse{}, ErrAmbiguousExecution
-			}
-			if kind == kindQuery {
-				metrics.RecordConnectorAdmission(contextOutcome(waitCtx.Err()))
-			}
-			recordBrokerOutcome(kind, contextOutcome(waitCtx.Err()), startedAt)
-			if xerror.Is(waitCtx.Err(), context.DeadlineExceeded) {
-				return encryptedResponse{}, xerror.Timeout(xerror.DataSource).With(waitCtx.Err()).WithPublicDetail("execution.request_timeout or caller deadline exceeded.")
-			}
-			return encryptedResponse{}, waitCtx.Err()
+			waitErr = waitCtx.Err()
 		case <-ticker.C:
 			response, done, readErr := b.readResponse(waitCtx, id, organizationSlug)
 			if readErr != nil {
-				if waitCtx.Err() != nil {
-					// Polling can race with cancellation; persist it through the
-					// cancellation branch before returning an uncertain outcome.
+				if !done {
+					waitErr = readErr
+					if ctxErr := waitCtx.Err(); ctxErr != nil {
+						waitErr = ctxErr
+					}
 					continue
 				}
 				if kind == kindQuery &&
@@ -1072,6 +1045,37 @@ func (b *Broker) submitAndWait(
 			}
 		}
 	}
+	cancelledBeforeExecution, cancelErr := b.cancel(ctx, id)
+	if cancelErr != nil {
+		if executionMayHaveExternalSideEffects(kind) {
+			recordBrokerOutcome(kind, "ambiguous", startedAt)
+			return encryptedResponse{}, xerror.Wrapf(
+				"%w: cancel execution request: %w",
+				ErrAmbiguousExecution,
+				cancelErr,
+			)
+		}
+		recordBrokerOutcome(kind, "error", startedAt)
+		return encryptedResponse{}, xerror.Wrapf(
+			"cancel execution request: %w",
+			cancelErr,
+		)
+	}
+	if executionMayHaveExternalSideEffects(kind) && !cancelledBeforeExecution {
+		recordBrokerOutcome(kind, "ambiguous", startedAt)
+		if xerror.Is(waitErr, context.DeadlineExceeded) {
+			return encryptedResponse{}, ErrAmbiguousExecution.WithPublicDetail("execution.request_timeout or caller deadline elapsed during execution; inspect the destination before retrying.")
+		}
+		return encryptedResponse{}, ErrAmbiguousExecution
+	}
+	if kind == kindQuery {
+		metrics.RecordConnectorAdmission(contextOutcome(waitErr))
+	}
+	recordBrokerOutcome(kind, contextOutcome(waitErr), startedAt)
+	if xerror.Is(waitErr, context.DeadlineExceeded) {
+		return encryptedResponse{}, xerror.Timeout(xerror.DataSource).With(waitErr).WithPublicDetail("execution.request_timeout or caller deadline exceeded.")
+	}
+	return encryptedResponse{}, waitErr
 }
 
 func recordBrokerOutcome(kind, outcome string, startedAt time.Time) {
