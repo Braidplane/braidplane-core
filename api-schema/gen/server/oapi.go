@@ -5394,6 +5394,51 @@ func (e QueryParameterDataType) Valid() bool {
 	}
 }
 
+// Defines values for ReadinessDiagnosticSeverity.
+const (
+	ReadinessDiagnosticSeverityError         ReadinessDiagnosticSeverity = "error"
+	ReadinessDiagnosticSeverityInformational ReadinessDiagnosticSeverity = "informational"
+	ReadinessDiagnosticSeverityWarning       ReadinessDiagnosticSeverity = "warning"
+)
+
+// Valid indicates whether the value is a known member of the ReadinessDiagnosticSeverity enum.
+func (e ReadinessDiagnosticSeverity) Valid() bool {
+	switch e {
+	case ReadinessDiagnosticSeverityError:
+		return true
+	case ReadinessDiagnosticSeverityInformational:
+		return true
+	case ReadinessDiagnosticSeverityWarning:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ReadinessStatus.
+const (
+	ReadinessStatusBlocked       ReadinessStatus = "blocked"
+	ReadinessStatusInformational ReadinessStatus = "informational"
+	ReadinessStatusReady         ReadinessStatus = "ready"
+	ReadinessStatusWarning       ReadinessStatus = "warning"
+)
+
+// Valid indicates whether the value is a known member of the ReadinessStatus enum.
+func (e ReadinessStatus) Valid() bool {
+	switch e {
+	case ReadinessStatusBlocked:
+		return true
+	case ReadinessStatusInformational:
+		return true
+	case ReadinessStatusReady:
+		return true
+	case ReadinessStatusWarning:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for Role.
 const (
 	RoleSuperAdmin Role = "super_admin"
@@ -17317,6 +17362,53 @@ type QueryStatement struct {
 	union json.RawMessage
 }
 
+// ReadinessDiagnostic defines model for ReadinessDiagnostic.
+type ReadinessDiagnostic struct {
+	Code string `json:"code"`
+
+	// EnvironmentSlug URL-friendly identifier
+	//
+	// Example: acme-corp
+	EnvironmentSlug Slug   `json:"environment_slug"`
+	FieldPath       string `json:"field_path"`
+
+	// NextAction Machine-readable action to address this diagnostic.
+	NextAction string `json:"next_action"`
+
+	// PipelineSlug URL-friendly identifier
+	//
+	// Example: acme-corp
+	PipelineSlug   Slug                        `json:"pipeline_slug"`
+	RequirementKey string                      `json:"requirement_key"`
+	Severity       ReadinessDiagnosticSeverity `json:"severity"`
+
+	// StepSlug Step containing the requirement, or an empty string for a pipeline-level requirement.
+	StepSlug string `json:"step_slug"`
+}
+
+// ReadinessDiagnosticSeverity defines model for ReadinessDiagnostic.Severity.
+type ReadinessDiagnosticSeverity string
+
+// ReadinessEnvironment defines model for ReadinessEnvironment.
+type ReadinessEnvironment struct {
+	Diagnostics []ReadinessDiagnostic `json:"diagnostics"`
+
+	// EnvironmentSlug URL-friendly identifier
+	//
+	// Example: acme-corp
+	EnvironmentSlug Slug            `json:"environment_slug"`
+	Status          ReadinessStatus `json:"status"`
+}
+
+// ReadinessReport defines model for ReadinessReport.
+type ReadinessReport struct {
+	Environments []ReadinessEnvironment `json:"environments"`
+	Status       ReadinessStatus        `json:"status"`
+}
+
+// ReadinessStatus defines model for ReadinessStatus.
+type ReadinessStatus string
+
 // RecoverPipelineRunRequest defines model for RecoverPipelineRunRequest.
 type RecoverPipelineRunRequest struct {
 	ProtectedEnvironmentConfirmation *NullableSlug `json:"protected_environment_confirmation,omitempty"`
@@ -28503,6 +28595,9 @@ type ServerInterface interface {
 	// UpsertDataSourceBinding Upsert a data source binding
 	// (PUT /organizations/{slug}/projects/{project_slug}/pipelines/{pipeline_slug}/environments/{environment_slug}/data-source-bindings/{data_source_ref_slug})
 	UpsertDataSourceBinding(c fiber.Ctx, slug SlugParam, projectSlug ProjectSlugParam, pipelineSlug PipelineSlugParam, environmentSlug EnvironmentSlugParam, dataSourceRefSlug DataSourceRefSlugParam) error
+	// GetPipelineReadiness Get pipeline environment readiness
+	// (GET /organizations/{slug}/projects/{project_slug}/pipelines/{pipeline_slug}/readiness)
+	GetPipelineReadiness(c fiber.Ctx, slug SlugParam, projectSlug ProjectSlugParam, pipelineSlug PipelineSlugParam) error
 	// ListPipelineVersions List pipeline versions
 	// (GET /organizations/{slug}/projects/{project_slug}/pipelines/{pipeline_slug}/versions)
 	ListPipelineVersions(c fiber.Ctx, slug SlugParam, projectSlug ProjectSlugParam, pipelineSlug PipelineSlugParam) error
@@ -28515,6 +28610,9 @@ type ServerInterface interface {
 	// ReconcilePipelines Reconcile Git-authored pipelines
 	// (POST /organizations/{slug}/projects/{project_slug}/pipelines:reconcile)
 	ReconcilePipelines(c fiber.Ctx, slug SlugParam, projectSlug ProjectSlugParam) error
+	// GetProjectReadiness Get project environment readiness
+	// (GET /organizations/{slug}/projects/{project_slug}/readiness)
+	GetProjectReadiness(c fiber.Ctx, slug SlugParam, projectSlug ProjectSlugParam) error
 	// GetProjectRepositorySetup Inspect resumable project repository setup
 	// (GET /organizations/{slug}/projects/{project_slug}/repository-setup)
 	GetProjectRepositorySetup(c fiber.Ctx, slug SlugParam, projectSlug ProjectSlugParam) error
@@ -38178,6 +38276,51 @@ func (siw *ServerInterfaceWrapper) UpsertDataSourceBinding(c fiber.Ctx) error {
 	return handler(c)
 }
 
+// GetPipelineReadiness operation middleware
+func (siw *ServerInterfaceWrapper) GetPipelineReadiness(c fiber.Ctx) error {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "slug" -------------
+	var slug SlugParam
+
+	err = runtime.BindStyledParameterWithOptions("simple", "slug", c.Params("slug"), &slug, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: ""})
+	if err != nil {
+		return fiber.NewError(fiber.StatusBadRequest, fmt.Errorf("Invalid format for parameter slug: %w", err).Error())
+	}
+
+	// ------------- Path parameter "project_slug" -------------
+	var projectSlug ProjectSlugParam
+
+	err = runtime.BindStyledParameterWithOptions("simple", "project_slug", c.Params("project_slug"), &projectSlug, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: ""})
+	if err != nil {
+		return fiber.NewError(fiber.StatusBadRequest, fmt.Errorf("Invalid format for parameter project_slug: %w", err).Error())
+	}
+
+	// ------------- Path parameter "pipeline_slug" -------------
+	var pipelineSlug PipelineSlugParam
+
+	err = runtime.BindStyledParameterWithOptions("simple", "pipeline_slug", c.Params("pipeline_slug"), &pipelineSlug, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: ""})
+	if err != nil {
+		return fiber.NewError(fiber.StatusBadRequest, fmt.Errorf("Invalid format for parameter pipeline_slug: %w", err).Error())
+	}
+
+	handler := func(c fiber.Ctx) error {
+		return siw.Handler.GetPipelineReadiness(c, slug, projectSlug, pipelineSlug)
+	}
+
+	for i := len(siw.HandlerMiddlewares) - 1; i >= 0; i-- {
+		m := siw.HandlerMiddlewares[i]
+		next := handler
+		handler = func(c fiber.Ctx) error {
+			return m(c, next)
+		}
+	}
+
+	return handler(c)
+}
+
 // ListPipelineVersions operation middleware
 func (siw *ServerInterfaceWrapper) ListPipelineVersions(c fiber.Ctx) error {
 
@@ -38369,6 +38512,43 @@ func (siw *ServerInterfaceWrapper) ReconcilePipelines(c fiber.Ctx) error {
 
 	handler := func(c fiber.Ctx) error {
 		return siw.Handler.ReconcilePipelines(c, slug, projectSlug)
+	}
+
+	for i := len(siw.HandlerMiddlewares) - 1; i >= 0; i-- {
+		m := siw.HandlerMiddlewares[i]
+		next := handler
+		handler = func(c fiber.Ctx) error {
+			return m(c, next)
+		}
+	}
+
+	return handler(c)
+}
+
+// GetProjectReadiness operation middleware
+func (siw *ServerInterfaceWrapper) GetProjectReadiness(c fiber.Ctx) error {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "slug" -------------
+	var slug SlugParam
+
+	err = runtime.BindStyledParameterWithOptions("simple", "slug", c.Params("slug"), &slug, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: ""})
+	if err != nil {
+		return fiber.NewError(fiber.StatusBadRequest, fmt.Errorf("Invalid format for parameter slug: %w", err).Error())
+	}
+
+	// ------------- Path parameter "project_slug" -------------
+	var projectSlug ProjectSlugParam
+
+	err = runtime.BindStyledParameterWithOptions("simple", "project_slug", c.Params("project_slug"), &projectSlug, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: ""})
+	if err != nil {
+		return fiber.NewError(fiber.StatusBadRequest, fmt.Errorf("Invalid format for parameter project_slug: %w", err).Error())
+	}
+
+	handler := func(c fiber.Ctx) error {
+		return siw.Handler.GetProjectReadiness(c, slug, projectSlug)
 	}
 
 	for i := len(siw.HandlerMiddlewares) - 1; i >= 0; i-- {
@@ -40383,6 +40563,8 @@ func RegisterHandlersWithOptions(router fiber.Router, si ServerInterface, option
 
 	router.Put(options.BaseURL+"/organizations/:slug/projects/:project_slug/pipelines/:pipeline_slug/environments/:environment_slug/data-source-bindings/:data_source_ref_slug", wrapper.UpsertDataSourceBinding)
 
+	router.Get(options.BaseURL+"/organizations/:slug/projects/:project_slug/pipelines/:pipeline_slug/readiness", wrapper.GetPipelineReadiness)
+
 	router.Get(options.BaseURL+"/organizations/:slug/projects/:project_slug/pipelines/:pipeline_slug/versions", wrapper.ListPipelineVersions)
 
 	router.Get(options.BaseURL+"/organizations/:slug/projects/:project_slug/pipelines/:pipeline_slug/versions/:spec_hash", wrapper.GetPipelineVersion)
@@ -40390,6 +40572,8 @@ func RegisterHandlersWithOptions(router fiber.Router, si ServerInterface, option
 	router.Post(options.BaseURL+"/organizations/:slug/projects/:project_slug/pipelines/:pipeline_slug/versions/:spec_hash/compiled-plans", wrapper.CompilePipelineVersion)
 
 	router.Post(options.BaseURL+"/organizations/:slug/projects/:project_slug/pipelines\\:reconcile", wrapper.ReconcilePipelines)
+
+	router.Get(options.BaseURL+"/organizations/:slug/projects/:project_slug/readiness", wrapper.GetProjectReadiness)
 
 	router.Get(options.BaseURL+"/organizations/:slug/projects/:project_slug/repository-setup", wrapper.GetProjectRepositorySetup)
 
@@ -49139,6 +49323,61 @@ func (response UpsertDataSourceBinding422JSONResponse) VisitUpsertDataSourceBind
 	return ctx.JSON(&response)
 }
 
+type GetPipelineReadinessRequestObject struct {
+	Slug         SlugParam         `json:"slug"`
+	ProjectSlug  ProjectSlugParam  `json:"project_slug"`
+	PipelineSlug PipelineSlugParam `json:"pipeline_slug"`
+}
+
+type GetPipelineReadinessResponseObject interface {
+	VisitGetPipelineReadinessResponse(ctx fiber.Ctx) error
+}
+
+type GetPipelineReadiness200JSONResponse ReadinessReport
+
+func (response GetPipelineReadiness200JSONResponse) VisitGetPipelineReadinessResponse(ctx fiber.Ctx) error {
+	ctx.Response().Header.Set("Content-Type", "application/json")
+	ctx.Status(200)
+
+	return ctx.JSON(&response)
+}
+
+type GetPipelineReadiness400JSONResponse ErrorResponse
+
+func (response GetPipelineReadiness400JSONResponse) VisitGetPipelineReadinessResponse(ctx fiber.Ctx) error {
+	ctx.Response().Header.Set("Content-Type", "application/json")
+	ctx.Status(400)
+
+	return ctx.JSON(&response)
+}
+
+type GetPipelineReadiness401JSONResponse ErrorResponse
+
+func (response GetPipelineReadiness401JSONResponse) VisitGetPipelineReadinessResponse(ctx fiber.Ctx) error {
+	ctx.Response().Header.Set("Content-Type", "application/json")
+	ctx.Status(401)
+
+	return ctx.JSON(&response)
+}
+
+type GetPipelineReadiness403JSONResponse ErrorResponse
+
+func (response GetPipelineReadiness403JSONResponse) VisitGetPipelineReadinessResponse(ctx fiber.Ctx) error {
+	ctx.Response().Header.Set("Content-Type", "application/json")
+	ctx.Status(403)
+
+	return ctx.JSON(&response)
+}
+
+type GetPipelineReadiness404JSONResponse ErrorResponse
+
+func (response GetPipelineReadiness404JSONResponse) VisitGetPipelineReadinessResponse(ctx fiber.Ctx) error {
+	ctx.Response().Header.Set("Content-Type", "application/json")
+	ctx.Status(404)
+
+	return ctx.JSON(&response)
+}
+
 type ListPipelineVersionsRequestObject struct {
 	Slug         SlugParam         `json:"slug"`
 	ProjectSlug  ProjectSlugParam  `json:"project_slug"`
@@ -49342,6 +49581,60 @@ type ReconcilePipelines500JSONResponse ErrorResponse
 func (response ReconcilePipelines500JSONResponse) VisitReconcilePipelinesResponse(ctx fiber.Ctx) error {
 	ctx.Response().Header.Set("Content-Type", "application/json")
 	ctx.Status(500)
+
+	return ctx.JSON(&response)
+}
+
+type GetProjectReadinessRequestObject struct {
+	Slug        SlugParam        `json:"slug"`
+	ProjectSlug ProjectSlugParam `json:"project_slug"`
+}
+
+type GetProjectReadinessResponseObject interface {
+	VisitGetProjectReadinessResponse(ctx fiber.Ctx) error
+}
+
+type GetProjectReadiness200JSONResponse ReadinessReport
+
+func (response GetProjectReadiness200JSONResponse) VisitGetProjectReadinessResponse(ctx fiber.Ctx) error {
+	ctx.Response().Header.Set("Content-Type", "application/json")
+	ctx.Status(200)
+
+	return ctx.JSON(&response)
+}
+
+type GetProjectReadiness400JSONResponse ErrorResponse
+
+func (response GetProjectReadiness400JSONResponse) VisitGetProjectReadinessResponse(ctx fiber.Ctx) error {
+	ctx.Response().Header.Set("Content-Type", "application/json")
+	ctx.Status(400)
+
+	return ctx.JSON(&response)
+}
+
+type GetProjectReadiness401JSONResponse ErrorResponse
+
+func (response GetProjectReadiness401JSONResponse) VisitGetProjectReadinessResponse(ctx fiber.Ctx) error {
+	ctx.Response().Header.Set("Content-Type", "application/json")
+	ctx.Status(401)
+
+	return ctx.JSON(&response)
+}
+
+type GetProjectReadiness403JSONResponse ErrorResponse
+
+func (response GetProjectReadiness403JSONResponse) VisitGetProjectReadinessResponse(ctx fiber.Ctx) error {
+	ctx.Response().Header.Set("Content-Type", "application/json")
+	ctx.Status(403)
+
+	return ctx.JSON(&response)
+}
+
+type GetProjectReadiness404JSONResponse ErrorResponse
+
+func (response GetProjectReadiness404JSONResponse) VisitGetProjectReadinessResponse(ctx fiber.Ctx) error {
+	ctx.Response().Header.Set("Content-Type", "application/json")
+	ctx.Status(404)
 
 	return ctx.JSON(&response)
 }
@@ -51414,6 +51707,9 @@ type StrictServerInterface interface {
 	// UpsertDataSourceBinding Upsert a data source binding
 	// (PUT /organizations/{slug}/projects/{project_slug}/pipelines/{pipeline_slug}/environments/{environment_slug}/data-source-bindings/{data_source_ref_slug})
 	UpsertDataSourceBinding(ctx context.Context, request UpsertDataSourceBindingRequestObject) (UpsertDataSourceBindingResponseObject, error)
+	// GetPipelineReadiness Get pipeline environment readiness
+	// (GET /organizations/{slug}/projects/{project_slug}/pipelines/{pipeline_slug}/readiness)
+	GetPipelineReadiness(ctx context.Context, request GetPipelineReadinessRequestObject) (GetPipelineReadinessResponseObject, error)
 	// ListPipelineVersions List pipeline versions
 	// (GET /organizations/{slug}/projects/{project_slug}/pipelines/{pipeline_slug}/versions)
 	ListPipelineVersions(ctx context.Context, request ListPipelineVersionsRequestObject) (ListPipelineVersionsResponseObject, error)
@@ -51426,6 +51722,9 @@ type StrictServerInterface interface {
 	// ReconcilePipelines Reconcile Git-authored pipelines
 	// (POST /organizations/{slug}/projects/{project_slug}/pipelines:reconcile)
 	ReconcilePipelines(ctx context.Context, request ReconcilePipelinesRequestObject) (ReconcilePipelinesResponseObject, error)
+	// GetProjectReadiness Get project environment readiness
+	// (GET /organizations/{slug}/projects/{project_slug}/readiness)
+	GetProjectReadiness(ctx context.Context, request GetProjectReadinessRequestObject) (GetProjectReadinessResponseObject, error)
 	// GetProjectRepositorySetup Inspect resumable project repository setup
 	// (GET /organizations/{slug}/projects/{project_slug}/repository-setup)
 	GetProjectRepositorySetup(ctx context.Context, request GetProjectRepositorySetupRequestObject) (GetProjectRepositorySetupResponseObject, error)
@@ -57627,6 +57926,35 @@ func (sh *strictHandler) UpsertDataSourceBinding(ctx fiber.Ctx, slug SlugParam, 
 	return nil
 }
 
+// GetPipelineReadiness operation middleware
+func (sh *strictHandler) GetPipelineReadiness(ctx fiber.Ctx, slug SlugParam, projectSlug ProjectSlugParam, pipelineSlug PipelineSlugParam) error {
+	var request GetPipelineReadinessRequestObject
+
+	request.Slug = slug
+	request.ProjectSlug = projectSlug
+	request.PipelineSlug = pipelineSlug
+
+	handler := func(ctx fiber.Ctx, request interface{}) (interface{}, error) {
+		return sh.ssi.GetPipelineReadiness(ctx.Context(), request.(GetPipelineReadinessRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "GetPipelineReadiness")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		return err
+	} else if validResponse, ok := response.(GetPipelineReadinessResponseObject); ok {
+		if err := validResponse.VisitGetPipelineReadinessResponse(ctx); err != nil {
+			return err
+		}
+	} else if response != nil {
+		return fmt.Errorf("unexpected response type: %T", response)
+	}
+	return nil
+}
+
 // ListPipelineVersions operation middleware
 func (sh *strictHandler) ListPipelineVersions(ctx fiber.Ctx, slug SlugParam, projectSlug ProjectSlugParam, pipelineSlug PipelineSlugParam) error {
 	var request ListPipelineVersionsRequestObject
@@ -57749,6 +58077,34 @@ func (sh *strictHandler) ReconcilePipelines(ctx fiber.Ctx, slug SlugParam, proje
 		return err
 	} else if validResponse, ok := response.(ReconcilePipelinesResponseObject); ok {
 		if err := validResponse.VisitReconcilePipelinesResponse(ctx); err != nil {
+			return err
+		}
+	} else if response != nil {
+		return fmt.Errorf("unexpected response type: %T", response)
+	}
+	return nil
+}
+
+// GetProjectReadiness operation middleware
+func (sh *strictHandler) GetProjectReadiness(ctx fiber.Ctx, slug SlugParam, projectSlug ProjectSlugParam) error {
+	var request GetProjectReadinessRequestObject
+
+	request.Slug = slug
+	request.ProjectSlug = projectSlug
+
+	handler := func(ctx fiber.Ctx, request interface{}) (interface{}, error) {
+		return sh.ssi.GetProjectReadiness(ctx.Context(), request.(GetProjectReadinessRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "GetProjectReadiness")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		return err
+	} else if validResponse, ok := response.(GetProjectReadinessResponseObject); ok {
+		if err := validResponse.VisitGetProjectReadinessResponse(ctx); err != nil {
 			return err
 		}
 	} else if response != nil {

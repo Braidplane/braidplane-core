@@ -5395,6 +5395,51 @@ func (e QueryParameterDataType) Valid() bool {
 	}
 }
 
+// Defines values for ReadinessDiagnosticSeverity.
+const (
+	ReadinessDiagnosticSeverityError         ReadinessDiagnosticSeverity = "error"
+	ReadinessDiagnosticSeverityInformational ReadinessDiagnosticSeverity = "informational"
+	ReadinessDiagnosticSeverityWarning       ReadinessDiagnosticSeverity = "warning"
+)
+
+// Valid indicates whether the value is a known member of the ReadinessDiagnosticSeverity enum.
+func (e ReadinessDiagnosticSeverity) Valid() bool {
+	switch e {
+	case ReadinessDiagnosticSeverityError:
+		return true
+	case ReadinessDiagnosticSeverityInformational:
+		return true
+	case ReadinessDiagnosticSeverityWarning:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ReadinessStatus.
+const (
+	ReadinessStatusBlocked       ReadinessStatus = "blocked"
+	ReadinessStatusInformational ReadinessStatus = "informational"
+	ReadinessStatusReady         ReadinessStatus = "ready"
+	ReadinessStatusWarning       ReadinessStatus = "warning"
+)
+
+// Valid indicates whether the value is a known member of the ReadinessStatus enum.
+func (e ReadinessStatus) Valid() bool {
+	switch e {
+	case ReadinessStatusBlocked:
+		return true
+	case ReadinessStatusInformational:
+		return true
+	case ReadinessStatusReady:
+		return true
+	case ReadinessStatusWarning:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for Role.
 const (
 	RoleSuperAdmin Role = "super_admin"
@@ -17317,6 +17362,53 @@ type QueryParameterDataType string
 type QueryStatement struct {
 	union json.RawMessage
 }
+
+// ReadinessDiagnostic defines model for ReadinessDiagnostic.
+type ReadinessDiagnostic struct {
+	Code string `json:"code"`
+
+	// EnvironmentSlug URL-friendly identifier
+	//
+	// Example: acme-corp
+	EnvironmentSlug Slug   `json:"environment_slug"`
+	FieldPath       string `json:"field_path"`
+
+	// NextAction Machine-readable action to address this diagnostic.
+	NextAction string `json:"next_action"`
+
+	// PipelineSlug URL-friendly identifier
+	//
+	// Example: acme-corp
+	PipelineSlug   Slug                        `json:"pipeline_slug"`
+	RequirementKey string                      `json:"requirement_key"`
+	Severity       ReadinessDiagnosticSeverity `json:"severity"`
+
+	// StepSlug Step containing the requirement, or an empty string for a pipeline-level requirement.
+	StepSlug string `json:"step_slug"`
+}
+
+// ReadinessDiagnosticSeverity defines model for ReadinessDiagnostic.Severity.
+type ReadinessDiagnosticSeverity string
+
+// ReadinessEnvironment defines model for ReadinessEnvironment.
+type ReadinessEnvironment struct {
+	Diagnostics []ReadinessDiagnostic `json:"diagnostics"`
+
+	// EnvironmentSlug URL-friendly identifier
+	//
+	// Example: acme-corp
+	EnvironmentSlug Slug            `json:"environment_slug"`
+	Status          ReadinessStatus `json:"status"`
+}
+
+// ReadinessReport defines model for ReadinessReport.
+type ReadinessReport struct {
+	Environments []ReadinessEnvironment `json:"environments"`
+	Status       ReadinessStatus        `json:"status"`
+}
+
+// ReadinessStatus defines model for ReadinessStatus.
+type ReadinessStatus string
 
 // RecoverPipelineRunRequest defines model for RecoverPipelineRunRequest.
 type RecoverPipelineRunRequest struct {
@@ -30081,6 +30173,13 @@ type ClientInterface interface {
 	// Corresponds with PUT /organizations/{slug}/projects/{project_slug}/pipelines/{pipeline_slug}/environments/{environment_slug}/data-source-bindings/{data_source_ref_slug} (the `UpsertDataSourceBinding` operationId).
 	UpsertDataSourceBinding(ctx context.Context, slug SlugParam, projectSlug ProjectSlugParam, pipelineSlug PipelineSlugParam, environmentSlug EnvironmentSlugParam, dataSourceRefSlug DataSourceRefSlugParam, body UpsertDataSourceBindingJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
+	// GetPipelineReadiness Get pipeline environment readiness
+	//
+	// Evaluates persisted pipeline requirements across enabled project environments.
+	//
+	// Corresponds with GET /organizations/{slug}/projects/{project_slug}/pipelines/{pipeline_slug}/readiness (the `GetPipelineReadiness` operationId).
+	GetPipelineReadiness(ctx context.Context, slug SlugParam, projectSlug ProjectSlugParam, pipelineSlug PipelineSlugParam, reqEditors ...RequestEditorFn) (*http.Response, error)
+
 	// ListPipelineVersions List pipeline versions
 	//
 	// Lists persisted versions for a pipeline, newest first.
@@ -30136,6 +30235,13 @@ type ClientInterface interface {
 	//
 	// Corresponds with POST /organizations/{slug}/projects/{project_slug}/pipelines:reconcile (the `ReconcilePipelines` operationId).
 	ReconcilePipelines(ctx context.Context, slug SlugParam, projectSlug ProjectSlugParam, body ReconcilePipelinesJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// GetProjectReadiness Get project environment readiness
+	//
+	// Evaluates persisted project requirements across enabled project environments.
+	//
+	// Corresponds with GET /organizations/{slug}/projects/{project_slug}/readiness (the `GetProjectReadiness` operationId).
+	GetProjectReadiness(ctx context.Context, slug SlugParam, projectSlug ProjectSlugParam, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// GetProjectRepositorySetup Inspect resumable project repository setup
 	//
@@ -35358,6 +35464,23 @@ func (c *Client) UpsertDataSourceBinding(ctx context.Context, slug SlugParam, pr
 	return c.Client.Do(req)
 }
 
+// GetPipelineReadiness Get pipeline environment readiness
+//
+// Evaluates persisted pipeline requirements across enabled project environments.
+//
+// Corresponds with GET /organizations/{slug}/projects/{project_slug}/pipelines/{pipeline_slug}/readiness (the `GetPipelineReadiness` operationId).
+func (c *Client) GetPipelineReadiness(ctx context.Context, slug SlugParam, projectSlug ProjectSlugParam, pipelineSlug PipelineSlugParam, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewGetPipelineReadinessRequest(c.Server, slug, projectSlug, pipelineSlug)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
 // ListPipelineVersions List pipeline versions
 //
 // Lists persisted versions for a pipeline, newest first.
@@ -35464,6 +35587,23 @@ func (c *Client) ReconcilePipelinesWithBody(ctx context.Context, slug SlugParam,
 // Corresponds with POST /organizations/{slug}/projects/{project_slug}/pipelines:reconcile (the `ReconcilePipelines` operationId).
 func (c *Client) ReconcilePipelines(ctx context.Context, slug SlugParam, projectSlug ProjectSlugParam, body ReconcilePipelinesJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewReconcilePipelinesRequest(c.Server, slug, projectSlug, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// GetProjectReadiness Get project environment readiness
+//
+// Evaluates persisted project requirements across enabled project environments.
+//
+// Corresponds with GET /organizations/{slug}/projects/{project_slug}/readiness (the `GetProjectReadiness` operationId).
+func (c *Client) GetProjectReadiness(ctx context.Context, slug SlugParam, projectSlug ProjectSlugParam, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewGetProjectReadinessRequest(c.Server, slug, projectSlug)
 	if err != nil {
 		return nil, err
 	}
@@ -48850,6 +48990,54 @@ func NewUpsertDataSourceBindingRequestWithBody(server string, slug SlugParam, pr
 	return req, nil
 }
 
+// NewGetPipelineReadinessRequest constructs an http.Request for the GetPipelineReadiness method
+func NewGetPipelineReadinessRequest(server string, slug SlugParam, projectSlug ProjectSlugParam, pipelineSlug PipelineSlugParam) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "slug", slug, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: ""})
+	if err != nil {
+		return nil, err
+	}
+
+	var pathParam1 string
+
+	pathParam1, err = runtime.StyleParamWithOptions("simple", false, "project_slug", projectSlug, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: ""})
+	if err != nil {
+		return nil, err
+	}
+
+	var pathParam2 string
+
+	pathParam2, err = runtime.StyleParamWithOptions("simple", false, "pipeline_slug", pipelineSlug, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: ""})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/organizations/%s/projects/%s/pipelines/%s/readiness", pathParam0, pathParam1, pathParam2)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodGet, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
 // NewListPipelineVersionsRequest constructs an http.Request for the ListPipelineVersions method
 func NewListPipelineVersionsRequest(server string, slug SlugParam, projectSlug ProjectSlugParam, pipelineSlug PipelineSlugParam) (*http.Request, error) {
 	var err error
@@ -49098,6 +49286,47 @@ func NewReconcilePipelinesRequestWithBody(server string, slug SlugParam, project
 	}
 
 	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
+// NewGetProjectReadinessRequest constructs an http.Request for the GetProjectReadiness method
+func NewGetProjectReadinessRequest(server string, slug SlugParam, projectSlug ProjectSlugParam) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "slug", slug, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: ""})
+	if err != nil {
+		return nil, err
+	}
+
+	var pathParam1 string
+
+	pathParam1, err = runtime.StyleParamWithOptions("simple", false, "project_slug", projectSlug, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: ""})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/organizations/%s/projects/%s/readiness", pathParam0, pathParam1)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodGet, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
 
 	return req, nil
 }
@@ -53736,6 +53965,15 @@ type ClientWithResponsesInterface interface {
 	// Corresponds with PUT /organizations/{slug}/projects/{project_slug}/pipelines/{pipeline_slug}/environments/{environment_slug}/data-source-bindings/{data_source_ref_slug} (the `UpsertDataSourceBinding` operationId).
 	UpsertDataSourceBindingWithResponse(ctx context.Context, slug SlugParam, projectSlug ProjectSlugParam, pipelineSlug PipelineSlugParam, environmentSlug EnvironmentSlugParam, dataSourceRefSlug DataSourceRefSlugParam, body UpsertDataSourceBindingJSONRequestBody, reqEditors ...RequestEditorFn) (*UpsertDataSourceBindingResponse, error)
 
+	// GetPipelineReadinessWithResponse Get pipeline environment readiness
+	//
+	// Evaluates persisted pipeline requirements across enabled project environments.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with GET /organizations/{slug}/projects/{project_slug}/pipelines/{pipeline_slug}/readiness (the `GetPipelineReadiness` operationId).
+	GetPipelineReadinessWithResponse(ctx context.Context, slug SlugParam, projectSlug ProjectSlugParam, pipelineSlug PipelineSlugParam, reqEditors ...RequestEditorFn) (*GetPipelineReadinessResponse, error)
+
 	// ListPipelineVersionsWithResponse List pipeline versions
 	//
 	// Lists persisted versions for a pipeline, newest first.
@@ -53795,6 +54033,15 @@ type ClientWithResponsesInterface interface {
 	//
 	// Corresponds with POST /organizations/{slug}/projects/{project_slug}/pipelines:reconcile (the `ReconcilePipelines` operationId).
 	ReconcilePipelinesWithResponse(ctx context.Context, slug SlugParam, projectSlug ProjectSlugParam, body ReconcilePipelinesJSONRequestBody, reqEditors ...RequestEditorFn) (*ReconcilePipelinesResponse, error)
+
+	// GetProjectReadinessWithResponse Get project environment readiness
+	//
+	// Evaluates persisted project requirements across enabled project environments.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with GET /organizations/{slug}/projects/{project_slug}/readiness (the `GetProjectReadiness` operationId).
+	GetProjectReadinessWithResponse(ctx context.Context, slug SlugParam, projectSlug ProjectSlugParam, reqEditors ...RequestEditorFn) (*GetProjectReadinessResponse, error)
 
 	// GetProjectRepositorySetupWithResponse Inspect resumable project repository setup
 	//
@@ -65959,6 +66206,75 @@ func (r UpsertDataSourceBindingResponse) ContentType() string {
 	return ""
 }
 
+type GetPipelineReadinessResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *ReadinessReport
+	// JSON400 the response for an HTTP 400 `application/json` response
+	JSON400 *ErrorResponse
+	// JSON401 the response for an HTTP 401 `application/json` response
+	JSON401 *ErrorResponse
+	// JSON403 the response for an HTTP 403 `application/json` response
+	JSON403 *ErrorResponse
+	// JSON404 the response for an HTTP 404 `application/json` response
+	JSON404 *ErrorResponse
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r GetPipelineReadinessResponse) GetJSON200() *ReadinessReport {
+	return r.JSON200
+}
+
+// GetJSON400 returns the response for an HTTP 400 `application/json` response
+func (r GetPipelineReadinessResponse) GetJSON400() *ErrorResponse {
+	return r.JSON400
+}
+
+// GetJSON401 returns the response for an HTTP 401 `application/json` response
+func (r GetPipelineReadinessResponse) GetJSON401() *ErrorResponse {
+	return r.JSON401
+}
+
+// GetJSON403 returns the response for an HTTP 403 `application/json` response
+func (r GetPipelineReadinessResponse) GetJSON403() *ErrorResponse {
+	return r.JSON403
+}
+
+// GetJSON404 returns the response for an HTTP 404 `application/json` response
+func (r GetPipelineReadinessResponse) GetJSON404() *ErrorResponse {
+	return r.JSON404
+}
+
+// GetBody returns the raw response body bytes
+func (r GetPipelineReadinessResponse) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r GetPipelineReadinessResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r GetPipelineReadinessResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r GetPipelineReadinessResponse) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
 type ListPipelineVersionsResponse struct {
 	Body         []byte
 	HTTPResponse *http.Response
@@ -66215,6 +66531,75 @@ func (r ReconcilePipelinesResponse) StatusCode() int {
 
 // ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
 func (r ReconcilePipelinesResponse) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type GetProjectReadinessResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *ReadinessReport
+	// JSON400 the response for an HTTP 400 `application/json` response
+	JSON400 *ErrorResponse
+	// JSON401 the response for an HTTP 401 `application/json` response
+	JSON401 *ErrorResponse
+	// JSON403 the response for an HTTP 403 `application/json` response
+	JSON403 *ErrorResponse
+	// JSON404 the response for an HTTP 404 `application/json` response
+	JSON404 *ErrorResponse
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r GetProjectReadinessResponse) GetJSON200() *ReadinessReport {
+	return r.JSON200
+}
+
+// GetJSON400 returns the response for an HTTP 400 `application/json` response
+func (r GetProjectReadinessResponse) GetJSON400() *ErrorResponse {
+	return r.JSON400
+}
+
+// GetJSON401 returns the response for an HTTP 401 `application/json` response
+func (r GetProjectReadinessResponse) GetJSON401() *ErrorResponse {
+	return r.JSON401
+}
+
+// GetJSON403 returns the response for an HTTP 403 `application/json` response
+func (r GetProjectReadinessResponse) GetJSON403() *ErrorResponse {
+	return r.JSON403
+}
+
+// GetJSON404 returns the response for an HTTP 404 `application/json` response
+func (r GetProjectReadinessResponse) GetJSON404() *ErrorResponse {
+	return r.JSON404
+}
+
+// GetBody returns the raw response body bytes
+func (r GetProjectReadinessResponse) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r GetProjectReadinessResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r GetProjectReadinessResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r GetProjectReadinessResponse) ContentType() string {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.Header.Get("Content-Type")
 	}
@@ -72247,6 +72632,21 @@ func (c *ClientWithResponses) UpsertDataSourceBindingWithResponse(ctx context.Co
 	return ParseUpsertDataSourceBindingResponse(rsp)
 }
 
+// GetPipelineReadinessWithResponse Get pipeline environment readiness
+//
+// Evaluates persisted pipeline requirements across enabled project environments.
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with GET /organizations/{slug}/projects/{project_slug}/pipelines/{pipeline_slug}/readiness (the `GetPipelineReadiness` operationId).
+func (c *ClientWithResponses) GetPipelineReadinessWithResponse(ctx context.Context, slug SlugParam, projectSlug ProjectSlugParam, pipelineSlug PipelineSlugParam, reqEditors ...RequestEditorFn) (*GetPipelineReadinessResponse, error) {
+	rsp, err := c.GetPipelineReadiness(ctx, slug, projectSlug, pipelineSlug, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseGetPipelineReadinessResponse(rsp)
+}
+
 // ListPipelineVersionsWithResponse List pipeline versions
 //
 // Lists persisted versions for a pipeline, newest first.
@@ -72341,6 +72741,21 @@ func (c *ClientWithResponses) ReconcilePipelinesWithResponse(ctx context.Context
 		return nil, err
 	}
 	return ParseReconcilePipelinesResponse(rsp)
+}
+
+// GetProjectReadinessWithResponse Get project environment readiness
+//
+// Evaluates persisted project requirements across enabled project environments.
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with GET /organizations/{slug}/projects/{project_slug}/readiness (the `GetProjectReadiness` operationId).
+func (c *ClientWithResponses) GetProjectReadinessWithResponse(ctx context.Context, slug SlugParam, projectSlug ProjectSlugParam, reqEditors ...RequestEditorFn) (*GetProjectReadinessResponse, error) {
+	rsp, err := c.GetProjectReadiness(ctx, slug, projectSlug, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseGetProjectReadinessResponse(rsp)
 }
 
 // GetProjectRepositorySetupWithResponse Inspect resumable project repository setup
@@ -82019,6 +82434,60 @@ func ParseUpsertDataSourceBindingResponse(rsp *http.Response) (*UpsertDataSource
 	return response, nil
 }
 
+// ParseGetPipelineReadinessResponse parses an HTTP response from a GetPipelineReadinessWithResponse call
+func ParseGetPipelineReadinessResponse(rsp *http.Response) (*GetPipelineReadinessResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &GetPipelineReadinessResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest ReadinessReport
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 400:
+		var dest ErrorResponse
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON400 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+		var dest ErrorResponse
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 403:
+		var dest ErrorResponse
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON403 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+		var dest ErrorResponse
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON404 = &dest
+
+	}
+
+	return response, nil
+}
+
 // ParseListPipelineVersionsResponse parses an HTTP response from a ListPipelineVersionsWithResponse call
 func ParseListPipelineVersionsResponse(rsp *http.Response) (*ListPipelineVersionsResponse, error) {
 	bodyBytes, err := io.ReadAll(rsp.Body)
@@ -82221,6 +82690,60 @@ func ParseReconcilePipelinesResponse(rsp *http.Response) (*ReconcilePipelinesRes
 			return nil, err
 		}
 		response.JSON500 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseGetProjectReadinessResponse parses an HTTP response from a GetProjectReadinessWithResponse call
+func ParseGetProjectReadinessResponse(rsp *http.Response) (*GetProjectReadinessResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &GetProjectReadinessResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest ReadinessReport
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 400:
+		var dest ErrorResponse
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON400 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+		var dest ErrorResponse
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 403:
+		var dest ErrorResponse
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON403 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+		var dest ErrorResponse
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON404 = &dest
 
 	}
 

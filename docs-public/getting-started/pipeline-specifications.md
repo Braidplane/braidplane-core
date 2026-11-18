@@ -570,3 +570,16 @@ validation, and Git reconciliation reject additional documents or values.
 Start from the downloadable
 [PostgreSQL-to-S3 specification](files/joined-orders.pipeline.yaml) for a
 complete query-transform-sink example.
+
+## Check readiness across environments
+
+Use `GET /api/organizations/{slug}/projects/{project_slug}/readiness` to check the
+current persisted pipelines in every enabled project environment. To check one
+pipeline, use `GET /api/organizations/{slug}/projects/{project_slug}/pipelines/{pipeline_slug}/readiness`.
+Both endpoints require read access to pipelines, environments and data sources.
+
+Each blocked environment lists the affected pipeline, step, field path and
+next action for each unmet requirement. Readiness checks logical refs, bindings,
+source and sink suitability, and effective organization runtime variable values
+without running a connector. An empty project with enabled environments returns
+`informational`. A project with no enabled environments returns `warning`.
