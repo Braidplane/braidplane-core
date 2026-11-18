@@ -11,6 +11,7 @@ import (
 	"github.com/Braidplane/braidplane-core/pkg/xerror"
 	"github.com/Braidplane/braidplane-core/postgres"
 	"github.com/Braidplane/braidplane-core/postgres/dbgen"
+	"github.com/Braidplane/braidplane-core/postgres/environments"
 )
 
 type repository struct{}
@@ -574,6 +575,10 @@ func (r *repository) ResolveEnvironmentBinding(
 		return nil, ErrProjectEnvironmentNotEnabled
 	}
 	return r.FindEnvironmentBinding(ctx, tx, orgSlug, projectSlug, pipelineSlug, environmentSlug, dataSourceRefSlug)
+}
+
+func (r *repository) ListRuntimeVariableDefinitions(ctx context.Context, tx postgres.DBTX, orgSlug slug.Slug) ([]model.RuntimeVariableDefinition, error) {
+	return environments.NewRepository().ListRuntimeVariableDefinitions(ctx, tx, orgSlug)
 }
 
 func (r *repository) ListRuntimeVariables(

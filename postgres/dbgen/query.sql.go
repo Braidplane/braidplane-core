@@ -9074,6 +9074,27 @@ func (q *Queries) DeleteRuntimeVariable(ctx context.Context, arg DeleteRuntimeVa
 	return result.RowsAffected(), nil
 }
 
+const deleteRuntimeVariableDefinition = `-- name: DeleteRuntimeVariableDefinition :execrows
+DELETE FROM runtime_variable_definitions d
+USING organizations o
+WHERE d.organization_id = o.id
+    AND o.slug = $1
+    AND d.key = $2
+`
+
+type DeleteRuntimeVariableDefinitionParams struct {
+	OrgSlug     slug.Slug
+	VariableKey string
+}
+
+func (q *Queries) DeleteRuntimeVariableDefinition(ctx context.Context, arg DeleteRuntimeVariableDefinitionParams) (int64, error) {
+	result, err := q.db.Exec(ctx, deleteRuntimeVariableDefinition, arg.OrgSlug, arg.VariableKey)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
 const deleteSchemaMetadataByDataSourceSlug = `-- name: DeleteSchemaMetadataByDataSourceSlug :exec
 DELETE FROM schema_metadata sm
 USING data_sources ds, organizations o
@@ -14771,6 +14792,34 @@ func (q *Queries) FindRuntimeVariable(ctx context.Context, arg FindRuntimeVariab
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.EnvironmentSlug,
+	)
+	return i, err
+}
+
+const findRuntimeVariableDefinition = `-- name: FindRuntimeVariableDefinition :one
+SELECT d.organization_id, d.key, d.value_type, d.description, d.required, d.default_value, d.created_at, d.updated_at
+FROM runtime_variable_definitions d
+JOIN organizations o ON o.id = d.organization_id
+WHERE o.slug = $1 AND d.key = $2
+`
+
+type FindRuntimeVariableDefinitionParams struct {
+	OrgSlug     slug.Slug
+	VariableKey string
+}
+
+func (q *Queries) FindRuntimeVariableDefinition(ctx context.Context, arg FindRuntimeVariableDefinitionParams) (RuntimeVariableDefinition, error) {
+	row := q.db.QueryRow(ctx, findRuntimeVariableDefinition, arg.OrgSlug, arg.VariableKey)
+	var i RuntimeVariableDefinition
+	err := row.Scan(
+		&i.OrganizationID,
+		&i.Key,
+		&i.ValueType,
+		&i.Description,
+		&i.Required,
+		&i.DefaultValue,
+		&i.CreatedAt,
+		&i.UpdatedAt,
 	)
 	return i, err
 }
@@ -23953,6 +24002,129 @@ func (q *Queries) ListRunRecencyExpectationsForSystem(ctx context.Context) ([]Li
 			&i.SuccessRunSlug,
 			&i.SucceededAt,
 			&i.ScopeDisabled,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listRuntimeVariableComparisonEnvironments = `-- name: ListRuntimeVariableComparisonEnvironments :many
+SELECT e.slug, e.protected
+FROM environments e
+JOIN organizations o ON o.id = e.organization_id
+WHERE o.slug = $1 AND e.deleted_at IS NULL
+ORDER BY e.slug
+`
+
+type ListRuntimeVariableComparisonEnvironmentsRow struct {
+	Slug      slug.Slug
+	Protected bool
+}
+
+func (q *Queries) ListRuntimeVariableComparisonEnvironments(ctx context.Context, orgSlug slug.Slug) ([]ListRuntimeVariableComparisonEnvironmentsRow, error) {
+	rows, err := q.db.Query(ctx, listRuntimeVariableComparisonEnvironments, orgSlug)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ListRuntimeVariableComparisonEnvironmentsRow
+	for rows.Next() {
+		var i ListRuntimeVariableComparisonEnvironmentsRow
+		if err := rows.Scan(&i.Slug, &i.Protected); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listRuntimeVariableDefinitions = `-- name: ListRuntimeVariableDefinitions :many
+SELECT d.organization_id, d.key, d.value_type, d.description, d.required, d.default_value, d.created_at, d.updated_at
+FROM runtime_variable_definitions d
+JOIN organizations o ON o.id = d.organization_id
+WHERE o.slug = $1
+ORDER BY d.key
+`
+
+func (q *Queries) ListRuntimeVariableDefinitions(ctx context.Context, orgSlug slug.Slug) ([]RuntimeVariableDefinition, error) {
+	rows, err := q.db.Query(ctx, listRuntimeVariableDefinitions, orgSlug)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []RuntimeVariableDefinition
+	for rows.Next() {
+		var i RuntimeVariableDefinition
+		if err := rows.Scan(
+			&i.OrganizationID,
+			&i.Key,
+			&i.ValueType,
+			&i.Description,
+			&i.Required,
+			&i.DefaultValue,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listRuntimeVariableOverridesByOrganization = `-- name: ListRuntimeVariableOverridesByOrganization :many
+SELECT rv.id, rv.organization_id, rv.environment_id, rv.key, rv.value_type, rv.value_text, rv.description, rv.created_at, rv.updated_at, e.slug AS environment_slug
+FROM environment_runtime_variables rv
+JOIN organizations o ON o.id = rv.organization_id
+JOIN environments e ON e.id = rv.environment_id AND e.organization_id = o.id
+WHERE o.slug = $1 AND e.deleted_at IS NULL
+ORDER BY e.slug, rv.key
+`
+
+type ListRuntimeVariableOverridesByOrganizationRow struct {
+	ID              int
+	OrganizationID  int64
+	EnvironmentID   int64
+	Key             string
+	ValueType       string
+	ValueText       string
+	Description     pgtype.Text
+	CreatedAt       pgtype.Timestamptz
+	UpdatedAt       pgtype.Timestamptz
+	EnvironmentSlug slug.Slug
+}
+
+func (q *Queries) ListRuntimeVariableOverridesByOrganization(ctx context.Context, orgSlug slug.Slug) ([]ListRuntimeVariableOverridesByOrganizationRow, error) {
+	rows, err := q.db.Query(ctx, listRuntimeVariableOverridesByOrganization, orgSlug)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ListRuntimeVariableOverridesByOrganizationRow
+	for rows.Next() {
+		var i ListRuntimeVariableOverridesByOrganizationRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.OrganizationID,
+			&i.EnvironmentID,
+			&i.Key,
+			&i.ValueType,
+			&i.ValueText,
+			&i.Description,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+			&i.EnvironmentSlug,
 		); err != nil {
 			return nil, err
 		}
@@ -33580,6 +33752,55 @@ func (q *Queries) UpsertRuntimeVariable(ctx context.Context, arg UpsertRuntimeVa
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.EnvironmentSlug,
+	)
+	return i, err
+}
+
+const upsertRuntimeVariableDefinition = `-- name: UpsertRuntimeVariableDefinition :one
+INSERT INTO runtime_variable_definitions (
+    organization_id, key, value_type, description, required, default_value
+)
+SELECT o.id, $1, $2, $3,
+    $4, $5
+FROM organizations o
+WHERE o.slug = $6
+ON CONFLICT (organization_id, key) DO UPDATE
+SET value_type = excluded.value_type,
+    description = excluded.description,
+    required = excluded.required,
+    default_value = excluded.default_value,
+    updated_at = CURRENT_TIMESTAMP
+RETURNING organization_id, key, value_type, description, required, default_value, created_at, updated_at
+`
+
+type UpsertRuntimeVariableDefinitionParams struct {
+	VariableKey  string
+	ValueType    string
+	Description  pgtype.Text
+	Required     bool
+	DefaultValue pgtype.Text
+	OrgSlug      slug.Slug
+}
+
+func (q *Queries) UpsertRuntimeVariableDefinition(ctx context.Context, arg UpsertRuntimeVariableDefinitionParams) (RuntimeVariableDefinition, error) {
+	row := q.db.QueryRow(ctx, upsertRuntimeVariableDefinition,
+		arg.VariableKey,
+		arg.ValueType,
+		arg.Description,
+		arg.Required,
+		arg.DefaultValue,
+		arg.OrgSlug,
+	)
+	var i RuntimeVariableDefinition
+	err := row.Scan(
+		&i.OrganizationID,
+		&i.Key,
+		&i.ValueType,
+		&i.Description,
+		&i.Required,
+		&i.DefaultValue,
+		&i.CreatedAt,
+		&i.UpdatedAt,
 	)
 	return i, err
 }

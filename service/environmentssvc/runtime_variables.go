@@ -52,6 +52,14 @@ func (s *service) UpsertRuntimeVariable(
 		if err := protectedenv.ConfirmEnvironment(toEnvironment(environment), params.ProtectedEnvironmentConfirmation); err != nil {
 			return err
 		}
+		definition, err := s.environments.FindRuntimeVariableDefinition(ctx, tx, orgSlug, params.Key)
+		if err != nil && !xerror.Is(err, ErrRuntimeVariableNotFound) {
+			return xerror.Wrapf("get runtime variable definition: %w", err)
+		}
+		if definition != nil && definition.ValueType != params.ValueType {
+			return ErrInvalidRuntimeVariable.WithPublicDetail("The override type must match the organization variable definition.").
+				Detailf("runtime variable %s must have type %s", params.Key, definition.ValueType)
+		}
 		variable, err := s.environments.UpsertRuntimeVariable(
 			ctx,
 			tx,

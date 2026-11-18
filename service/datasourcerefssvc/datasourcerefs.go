@@ -404,16 +404,38 @@ func (s *service) resolvePipelineDataSourceRefs(
 	if err := s.requireEnabledProjectEnvironment(ctx, tx, orgSlug, projectSlug, environmentSlug); err != nil {
 		return nil, err
 	}
-	variables, err := s.repo.ListRuntimeVariables(ctx, tx, orgSlug, projectSlug, environmentSlug)
-	if err != nil {
-		return nil, err
-	}
+	keys := pipelineruntime.EnvironmentKeys(resolved)
 	inputs := []deploymentplan.Input{}
-	for _, key := range pipelineruntime.EnvironmentKeys(resolved) {
-		for _, variable := range variables {
-			if variable.Key == key {
-				inputs = append(inputs, deploymentplan.Input{Key: key, Type: variable.ValueType, Value: variable.Value, Revision: variable.UpdatedAt.UTC().Format(time.RFC3339Nano)})
+	variables := make([]model.RuntimeVariable, 0, len(keys))
+	if len(keys) > 0 {
+		overrides, err := s.repo.ListRuntimeVariables(ctx, tx, orgSlug, projectSlug, environmentSlug)
+		if err != nil {
+			return nil, err
+		}
+		definitions, err := s.repo.ListRuntimeVariableDefinitions(ctx, tx, orgSlug)
+		if err != nil {
+			return nil, err
+		}
+		overridesByKey := make(map[string]*model.RuntimeVariable, len(overrides))
+		for i := range overrides {
+			overridesByKey[overrides[i].Key] = &overrides[i]
+		}
+		definitionsByKey := make(map[string]*model.RuntimeVariableDefinition, len(definitions))
+		for i := range definitions {
+			definitionsByKey[definitions[i].Key] = &definitions[i]
+		}
+		for _, key := range keys {
+			resolution := model.ResolveRuntimeVariable(environmentSlug, definitionsByKey[key], overridesByKey[key], true)
+			if resolution.TypeMismatch {
+				return nil, xerror.InvalidInput(xerror.RuntimeVariable).
+					Detailf("runtime variable %s in environment %s has a different type from its definition", key, environmentSlug)
 			}
+			if resolution.Variable == nil {
+				continue
+			}
+			variable := *resolution.Variable
+			variables = append(variables, variable)
+			inputs = append(inputs, deploymentplan.Input{Key: key, Type: variable.ValueType, Value: variable.Value, Revision: variable.UpdatedAt.UTC().Format(time.RFC3339Nano)})
 		}
 	}
 	if err := pipelineruntime.ResolvePipeline(resolved, variables); err != nil {

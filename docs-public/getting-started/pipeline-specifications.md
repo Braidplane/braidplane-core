@@ -201,6 +201,16 @@ parameters, and the `runtime.` prefix is reserved.
 | `{{runtime.sink.idempotency_class}}` | Declared sink idempotency class as text. | Injected only while a sink operation executes, when the class is known. It describes the declared delivery contract, not proof of provider behavior. |
 | `{{runtime.sink.replay_identity}}` | Stable sink effect identity, normally the run slug. | Injected only while a sink operation executes. Authorized recovery reuses the original run's identity, so a deterministic sink key can target the same external effect. It is not a general source or transform parameter. |
 
+In **Environments → Compare runtime variables**, define each key's type,
+description, required status, and optional default. An environment uses its
+override first and otherwise inherits the organization default. New
+environments inherit defaults as soon as they are created.
+
+The comparison shows the value source for each environment. It flags missing
+required values and type mismatches. Valid values can differ across targets.
+Open the comparison from a pipeline's binding setup to include every runtime
+variable referenced by that exact version.
+
 All fields are reserved bindings rather than saved-query parameter declarations.
 Use whole-value placeholders to retain their declared type; interpolation produces
 text and rejects null. Run dates may appear in pipeline query parameters, sink

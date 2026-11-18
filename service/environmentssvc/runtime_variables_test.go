@@ -220,3 +220,35 @@ func TestService_ListRuntimeVariablesReturnsNotFoundForMissingEnvironment(t *tes
 	require.Empty(t, got.Items)
 	require.True(t, xerror.Is(err, ErrEnvironmentNotFound))
 }
+
+func TestValidateRuntimeVariableDefinition(t *testing.T) {
+	t.Parallel()
+
+	for _, tc := range []struct {
+		name      string
+		key       string
+		valueType model.RuntimeVariableValueType
+		value     *string
+		valid     bool
+	}{
+		{"integer", "batch_size", model.RuntimeVariableValueTypeInteger, new("100"), true},
+		{"wrong integer", "batch_size", model.RuntimeVariableValueTypeInteger, new("large"), false},
+		{"no default", "batch_size", model.RuntimeVariableValueTypeInteger, nil, true},
+		{"empty text default", "prefix", model.RuntimeVariableValueTypeText, new(""), true},
+		{"invalid date", "start_date", model.RuntimeVariableValueTypeDate, new("2026-02-29"), false},
+		{"invalid uuid", "region_id", model.RuntimeVariableValueTypeUUID, new("invalid"), false},
+		{"unsupported type", "region", model.RuntimeVariableValueTypeUnknown, nil, false},
+		{"secret key", "api_token", model.RuntimeVariableValueTypeText, nil, false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			err := validateRuntimeVariableDefinition(model.RuntimeVariableDefinition{
+				Key: tc.key, ValueType: tc.valueType, DefaultValue: tc.value,
+			})
+			if tc.valid {
+				require.NoError(t, err)
+			} else {
+				require.ErrorIs(t, err, ErrInvalidRuntimeVariable)
+			}
+		})
+	}
+}

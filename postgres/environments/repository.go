@@ -70,6 +70,12 @@ type Repository interface {
 		tx postgres.DBTX,
 		orgSlug, projectSlug, environmentSlug slug.Slug,
 	) error
+	ListRuntimeVariableComparisonEnvironments(ctx context.Context, tx postgres.DBTX, orgSlug slug.Slug) ([]RuntimeVariableComparisonEnvironment, error)
+	ListRuntimeVariableOverridesByOrganization(ctx context.Context, tx postgres.DBTX, orgSlug slug.Slug) ([]model.RuntimeVariable, error)
+	FindRuntimeVariableDefinition(ctx context.Context, tx postgres.DBTX, orgSlug slug.Slug, key string) (*model.RuntimeVariableDefinition, error)
+	ListRuntimeVariableDefinitions(ctx context.Context, tx postgres.DBTX, orgSlug slug.Slug) ([]model.RuntimeVariableDefinition, error)
+	UpsertRuntimeVariableDefinition(ctx context.Context, tx postgres.DBTX, orgSlug slug.Slug, definition model.RuntimeVariableDefinition) (*model.RuntimeVariableDefinition, error)
+	DeleteRuntimeVariableDefinition(ctx context.Context, tx postgres.DBTX, orgSlug slug.Slug, key string) error
 	UpsertRuntimeVariable(
 		ctx context.Context,
 		tx postgres.DBTX,

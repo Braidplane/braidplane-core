@@ -34,6 +34,9 @@ templ pipelineBindingSetupContent(data PipelineBindingSetupView) {
 		if data.Error != "" {
 			<div role="alert" class="alert alert-error">{ data.Error }</div>
 		}
+		if data.Definition != nil && data.Permissions.Can("environments", "read") {
+			<a class="btn btn-outline btn-sm" href={ templ.URL(RuntimeVariableComparisonHref(data.Org, data.Project, data.Pipeline, data.SpecHash)) }>Compare runtime variables for this version</a>
+		}
 		if data.Definition != nil {
 			@PipelineDataSourceBindingsPanel(data.Org, data.Project, data.Environment, data.Definition, data.Bindings, data.Permissions, false)
 		} else {

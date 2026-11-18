@@ -54,6 +54,9 @@ type Service interface {
 		confirmation *slug.Slug,
 		actor model.EventActor,
 	) error
+	CompareRuntimeVariables(ctx context.Context, orgSlug slug.Slug, usedKeys []string) (model.RuntimeVariableComparison, error)
+	UpsertRuntimeVariableDefinition(ctx context.Context, orgSlug slug.Slug, definition model.RuntimeVariableDefinition, confirmations []slug.Slug, actor model.EventActor) (*model.RuntimeVariableDefinition, error)
+	DeleteRuntimeVariableDefinition(ctx context.Context, orgSlug slug.Slug, key string, confirmations []slug.Slug, actor model.EventActor) error
 	UpsertRuntimeVariable(
 		ctx context.Context,
 		orgSlug, environmentSlug slug.Slug,
