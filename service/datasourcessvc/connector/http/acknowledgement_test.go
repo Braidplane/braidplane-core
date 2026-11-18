@@ -71,7 +71,7 @@ func TestInvalidAcknowledgementNeverDispatches(t *testing.T) {
 	defer server.Close()
 	c, err := New(transportsecurity.WithPlaintext(t.Context()), Config{BaseURL: server.URL, AllowPrivateHosts: true}, Credentials{})
 	require.NoError(t, err)
-	for _, raw := range []string{`null`, `{}`, `{"status_codes":[200],"success":[]}`, `{"status_codes":[500],"success":[{"path":"ok","equals":true}]}`, `{"status_codes":[200,200],"success":[{"path":"ok","equals":true}]}`, `{"status_codes":[200],"success":[{"path":"ok"}]}`, `{"status_codes":[200],"success":[{"path":"ok","equals":null}]}`, `{"status_codes":[200],"success":[{"path":"items.*.ok","equals":true}]}`, `{"status_codes":[200],"success":[{"path":"ok","equals":true,"unknown":1}]}`} {
+	for _, raw := range []string{`null`, `{}`, `{"status_codes":[200]}`, `{"status_codes":[200],"success":null}`, `{"status_codes":[500],"success":[{"path":"ok","equals":true}]}`, `{"status_codes":[200,200],"success":[{"path":"ok","equals":true}]}`, `{"status_codes":[200],"success":[{"path":"ok"}]}`, `{"status_codes":[200],"success":[{"path":"ok","equals":null}]}`, `{"status_codes":[200],"success":[{"path":"items.*.ok","equals":true}]}`, `{"status_codes":[200],"success":[{"path":"ok","equals":true,"unknown":1}]}`} {
 		execution, err := c.Execute(transportsecurity.WithPlaintext(t.Context()), []byte(`{"method":"POST","path":"/records","acknowledgement":`+raw+`}`), nil)
 		require.NoError(t, err)
 		require.ErrorIs(t, execution.Error(), xerror.InvalidInput(xerror.Query))

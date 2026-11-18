@@ -49,7 +49,7 @@ func TestHTTPStreamsNativeFilesAndReopensRetainedInputForKeyedRetry(t *testing.T
 	require.NoError(t, err)
 	t.Cleanup(func() { require.NoError(t, connector.Close()) })
 	limits := types.ExecutionLimits{MaxResponseBytes: 1024, HTTPMaxResponseBytes: 1024, HTTPMaxRequestBytes: 1024, MaxFileBytes: int64(len(content)), HTTPRetryAttempts: 2}
-	source, err := connector.Execute(ctx, []byte(`{"method":"GET","path":"/file"}`), nil, limits)
+	source, err := connector.Execute(ctx, []byte(`{"method":"GET","path":"/file","acknowledgement":{"status_codes":[200],"success":[]}}`), nil, limits)
 	require.NoError(t, err)
 	require.NoError(t, source.Error())
 	file, ok := source.HTTP()
@@ -70,6 +70,25 @@ func TestHTTPStreamsNativeFilesAndReopensRetainedInputForKeyedRetry(t *testing.T
 	failed, err := connector.Execute(ctx, []byte(`{"method":"GET","path":"/file"}`), nil, limits)
 	require.NoError(t, err)
 	require.ErrorIs(t, failed.Error(), xerror.ExecutionResponseSizeExceeded())
+}
+
+func TestHTTPStreamingWriteInterruptedAfterAcceptedStatus(t *testing.T) {
+	var calls atomic.Int32
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		calls.Add(1)
+		w.Header().Set("Content-Type", "application/octet-stream")
+		w.Header().Set("Content-Length", "20")
+		_, _ = io.WriteString(w, "short")
+	}))
+	t.Cleanup(server.Close)
+	ctx := filestream.WithStore(transportsecurity.WithPlaintext(t.Context()), filestreamfixture.New())
+	connector, err := New(ctx, Config{BaseURL: server.URL, AllowPrivateHosts: true}, Credentials{})
+	require.NoError(t, err)
+	t.Cleanup(func() { require.NoError(t, connector.Close()) })
+	output, err := connector.Execute(ctx, []byte(`{"method":"POST","path":"/file","acknowledgement":{"status_codes":[200],"success":[]}}`), nil, types.ExecutionLimits{MaxFileBytes: 1024})
+	require.NoError(t, err)
+	require.ErrorIs(t, output.Error(), xerror.HTTPAcknowledgementUncertain())
+	require.Equal(t, int32(1), calls.Load())
 }
 
 func TestHTTPStreamingWithholdsEscapedCredentialEcho(t *testing.T) {

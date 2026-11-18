@@ -86,7 +86,7 @@ func httpResponseHeaders(headers http.Header) map[string]string {
 	return output
 }
 
-func (c *Connector) streamFileResponse(ctx context.Context, response *http.Response, method string, limits types.ExecutionLimits, start time.Time) (*result.ExecutionResult, error) {
+func (c *Connector) streamFileResponse(ctx context.Context, response *http.Response, method string, limits types.ExecutionLimits, start time.Time, acknowledgementRequired bool) (*result.ExecutionResult, error) {
 	fail := func(err error) (*result.ExecutionResult, error) {
 		return result.NewHTTPResult(nil, time.Since(start).Milliseconds(), err), nil
 	}
@@ -114,6 +114,9 @@ func (c *Connector) streamFileResponse(ctx context.Context, response *http.Respo
 		return metadata, nil
 	})
 	if err != nil {
+		if acknowledgementRequired && !isIdempotentHTTPMethod(method) {
+			return fail(xerror.HTTPAcknowledgementUncertain().With(err).WithPublicDetail("HTTP write response could not be retained. Verify remote state before retrying."))
+		}
 		return fail(err)
 	}
 	headers := httpResponseHeaders(response.Header)

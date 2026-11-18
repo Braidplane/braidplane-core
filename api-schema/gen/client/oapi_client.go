@@ -10651,9 +10651,11 @@ type GoogleWorkspaceWorksheet struct {
 // HTTPAcknowledgement Opt-in response acknowledgement. All status and JSON checks must pass before execution succeeds. Failed or missing evidence never proves a write had no effect.
 type HTTPAcknowledgement struct {
 	// EmptyFields Field names checked recursively throughout the JSON response, including records in objects or arrays. Each occurrence must be null, an empty object or an empty array. Absent fields are allowed; nonempty or scalar values reject acknowledgement.
-	EmptyFields *[]string                  `json:"empty_fields,omitempty"`
-	StatusCodes []int                      `json:"status_codes"`
-	Success     []HTTPAcknowledgementCheck `json:"success"`
+	EmptyFields *[]string `json:"empty_fields,omitempty"`
+	StatusCodes []int     `json:"status_codes"`
+
+	// Success Use an empty array with no empty_fields to confirm delivery by status alone.
+	Success []HTTPAcknowledgementCheck `json:"success"`
 }
 
 // HTTPAcknowledgementCheck defines model for HTTPAcknowledgementCheck.

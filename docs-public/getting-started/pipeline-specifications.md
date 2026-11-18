@@ -482,6 +482,10 @@ of reading the full source every time. The checkpoint belongs to the deployed
 pipeline version and source step. Braidplane commits a new checkpoint only after
 all dependent sinks succeed, so a failed run reads the same window again.
 
+An HTTP sink can require a terminal response before its dependent checkpoint advances.
+For an endpoint that returns 204 on completion and 202 when queued, set
+`"acknowledgement": {"status_codes": [204], "success": []}` on the HTTP operation.
+
 Use `checkpoint_kind: watermark` for a comparable source value such as an
 `updated_at` timestamp or increasing ID:
 

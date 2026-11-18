@@ -701,10 +701,15 @@ func (c *Connector) executeSingle(
 		}
 	}
 	if execLimits.MaxFileBytes > 0 && responseBodyIsNativeFile(httpResponseHeaders(resp.Header)) {
-		if qd.Acknowledgement != nil || cursor != nil {
+		if cursor != nil || (qd.Acknowledgement != nil && !qd.Acknowledgement.statusOnly()) {
 			return result.NewHTTPResult(nil, time.Since(start).Milliseconds(), xerror.InvalidInput(xerror.Query).WithPublicDetail("Streaming file responses do not support JSON acknowledgement checks or pagination.")), nil
 		}
-		return c.streamFileResponse(ctx, resp, qd.Method, execLimits, start)
+		if qd.Acknowledgement != nil {
+			if err := qd.Acknowledgement.evaluate(resp.StatusCode, nil); err != nil {
+				return result.NewHTTPResult(nil, time.Since(start).Milliseconds(), err), nil
+			}
+		}
+		return c.streamFileResponse(ctx, resp, qd.Method, execLimits, start, qd.Acknowledgement != nil)
 	}
 	maxResponseBytes := effectiveHTTPMaxResponseBytes(execLimits)
 	limitedBody := io.LimitReader(resp.Body, maxResponseBytes+1)
