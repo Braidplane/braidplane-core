@@ -72,6 +72,25 @@ func TestHTTPStreamsNativeFilesAndReopensRetainedInputForKeyedRetry(t *testing.T
 	require.ErrorIs(t, failed.Error(), xerror.ExecutionResponseSizeExceeded())
 }
 
+func TestHTTPStreamingWriteInterruptedAfterAcceptedStatus(t *testing.T) {
+	var calls atomic.Int32
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		calls.Add(1)
+		w.Header().Set("Content-Type", "application/octet-stream")
+		w.Header().Set("Content-Length", "20")
+		_, _ = io.WriteString(w, "short")
+	}))
+	t.Cleanup(server.Close)
+	ctx := filestream.WithStore(transportsecurity.WithPlaintext(t.Context()), filestreamfixture.New())
+	connector, err := New(ctx, Config{BaseURL: server.URL, AllowPrivateHosts: true}, Credentials{})
+	require.NoError(t, err)
+	t.Cleanup(func() { require.NoError(t, connector.Close()) })
+	output, err := connector.Execute(ctx, []byte(`{"method":"POST","path":"/file","acknowledgement":{"status_codes":[200],"success":[]}}`), nil, types.ExecutionLimits{MaxFileBytes: 1024})
+	require.NoError(t, err)
+	require.ErrorIs(t, output.Error(), xerror.HTTPAcknowledgementUncertain())
+	require.Equal(t, int32(1), calls.Load())
+}
+
 func TestHTTPStreamingWithholdsEscapedCredentialEcho(t *testing.T) {
 	t.Parallel()
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

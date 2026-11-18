@@ -709,7 +709,7 @@ func (c *Connector) executeSingle(
 				return result.NewHTTPResult(nil, time.Since(start).Milliseconds(), err), nil
 			}
 		}
-		return c.streamFileResponse(ctx, resp, qd.Method, execLimits, start)
+		return c.streamFileResponse(ctx, resp, qd.Method, execLimits, start, qd.Acknowledgement != nil)
 	}
 	maxResponseBytes := effectiveHTTPMaxResponseBytes(execLimits)
 	limitedBody := io.LimitReader(resp.Body, maxResponseBytes+1)
