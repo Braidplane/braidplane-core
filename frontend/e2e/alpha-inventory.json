@@ -9,8 +9,8 @@
           "runner_seconds": 240
         },
         "full": {
-          "logical": 64,
-          "executions": 174,
+          "logical": 67,
+          "executions": 177,
           "runner_seconds": 660
         }
       },
@@ -42,6 +42,27 @@
           "tier": "critical",
           "cross_browser": false,
           "reason": "Login reaches workspace setup when registration is enabled."
+        },
+        {
+          "file": "google-signup.spec.cjs",
+          "title": "allows more time for Google authorization from login",
+          "tier": "extended",
+          "cross_browser": false,
+          "reason": "Google authorization timing and keyboard recovery on the local issuer."
+        },
+        {
+          "file": "google-signup.spec.cjs",
+          "title": "allows more time for Google authorization from signup",
+          "tier": "extended",
+          "cross_browser": false,
+          "reason": "Google authorization timing and keyboard recovery on the local issuer."
+        },
+        {
+          "file": "google-signup.spec.cjs",
+          "title": "recovers from an expired Google callback with the keyboard",
+          "tier": "extended",
+          "cross_browser": false,
+          "reason": "Google authorization timing and keyboard recovery on the local issuer."
         },
         {
           "file": "google-signup.spec.cjs",

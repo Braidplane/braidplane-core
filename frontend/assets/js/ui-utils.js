@@ -996,6 +996,23 @@ document.addEventListener("htmx:afterSwap", (event) => {
     }
 });
 
+const braidplaneBranchRefreshSelection = new WeakMap();
+document.addEventListener("htmx:beforeRequest", ({ detail }) => {
+    if (detail?.elt?.id !== "project-branch-refresh" || !detail.xhr) return;
+    const select = detail.target?.querySelector("#project-tracked-branch");
+    if (select) braidplaneBranchRefreshSelection.set(detail.xhr, select.value);
+});
+
+document.addEventListener("htmx:beforeSwap", ({ detail }) => {
+    if (detail?.target?.id !== "project-backend-branches" || !detail.shouldSwap) return;
+    const requestedBranch = braidplaneBranchRefreshSelection.get(detail.xhr);
+    const select = detail.target.querySelector("#project-tracked-branch");
+    if (requestedBranch === undefined || !select || select.value === requestedBranch) return;
+    detail.shouldSwap = false;
+    const status = detail.target.querySelector("#project-branch-status");
+    if (status) status.textContent = "Branch selection changed. Refresh again to update the branch list.";
+});
+
 for (const eventName of ["htmx:responseError", "htmx:sendError", "htmx:timeout"]) {
     document.addEventListener(eventName, (event) => {
         const target = event.detail?.target;

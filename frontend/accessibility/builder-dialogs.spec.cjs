@@ -157,7 +157,12 @@ test("Builder proposal and conflict dialogs support keyboard review and dismissa
         await page.keyboard.type("Merged inventry");
         await page.keyboard.press("ArrowLeft");
         await page.keyboard.press("ArrowLeft");
-        await page.keyboard.type("o");
+        await editor.evaluate((element) => {
+            const caret = element.selectionStart;
+            element.setRangeText("o", caret, caret, "end");
+            element.dispatchEvent(new InputEvent("input", { bubbles: true, isComposing: true }));
+            element.dispatchEvent(new CompositionEvent("compositionend", { bubbles: true, data: "o" }));
+        });
         await expect(editor).toBeFocused();
         await expect(editor).toHaveValue("Merged inventory");
         await expect(apply).toBeEnabled();

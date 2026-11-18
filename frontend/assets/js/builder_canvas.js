@@ -11020,7 +11020,7 @@
                 );
 
                 root.querySelectorAll("[data-conflict-manual-input][data-conflict-manual-field]").forEach((input) => {
-                    input.addEventListener("input", (event) => {
+                    const syncManualValue = (event) => {
                         if (event.isComposing) {
                             return;
                         }
@@ -11035,7 +11035,9 @@
                             input.selectionEnd,
                             input.selectionDirection,
                         ]);
-                    });
+                    };
+                    input.addEventListener("input", syncManualValue);
+                    input.addEventListener("compositionend", syncManualValue);
                 });
             };
 

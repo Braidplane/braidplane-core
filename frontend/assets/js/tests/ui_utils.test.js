@@ -1129,3 +1129,27 @@ describe("alert policy review", () => {
         expect(review.textContent).toContain("Resolved");
     });
 });
+
+describe("project branch refresh", () => {
+    it("keeps a branch selected while the refresh is pending", () => {
+        document.body.innerHTML = `
+            <div id="project-backend-branches">
+                <button id="project-branch-refresh">Refresh branches</button>
+                <p id="project-branch-status" role="status"></p>
+                <select id="project-tracked-branch">
+                    <option>main</option><option>staging</option>
+                </select>
+            </div>`;
+        const target = document.querySelector("#project-backend-branches");
+        const elt = target.querySelector("button");
+        const select = target.querySelector("select");
+        const xhr = {};
+        elt.dispatchEvent(new CustomEvent("htmx:beforeRequest", { bubbles: true, detail: { elt, target, xhr } }));
+        select.value = "staging";
+        const detail = { target, xhr, shouldSwap: true };
+        target.dispatchEvent(new CustomEvent("htmx:beforeSwap", { bubbles: true, detail }));
+        expect(detail.shouldSwap).toBe(false);
+        expect(select.value).toBe("staging");
+        expect(target.querySelector("[role=status]").textContent).toContain("Refresh again");
+    });
+});

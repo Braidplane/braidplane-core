@@ -64,8 +64,10 @@
             panel.dataset.bound = "true";
             const base = `/orgs/${encodeURIComponent(panel.dataset.org)}/data-sources/${encodeURIComponent(panel.dataset.source)}/google_workspace`;
             const feedback = panel.querySelector("[data-workspace-feedback]");
+            let selectionRevision = 0;
             const choose = (file) => {
                 if (!file) return;
+                selectionRevision++;
                 const key =
                     file.mime_type === "application/vnd.google-apps.folder"
                         ? "workspace_folder_id"
@@ -158,6 +160,7 @@
                                             finishSelection("Selection cancelled. The operation is unchanged.");
                                             return;
                                         }
+                                        const revision = selectionRevision;
                                         try {
                                             const id = selection.docs?.[0]?.id;
                                             if (!id) throw new Error("Choose a file or folder.");
@@ -166,10 +169,18 @@
                                                 expected_revision: config.expected_revision,
                                             });
                                             if (!panel.isConnected) return;
+                                            if (revision !== selectionRevision) {
+                                                finishSelection("Kept the newer file selection.");
+                                                return;
+                                            }
                                             choose(verified.files[0]);
                                             finishSelection("File access verified for the connected account.");
                                         } catch (error) {
-                                            finishSelection(error.message);
+                                            finishSelection(
+                                                revision === selectionRevision
+                                                    ? error.message
+                                                    : "Kept the newer file selection.",
+                                            );
                                         }
                                     })
                                     .build();
