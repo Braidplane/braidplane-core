@@ -41,10 +41,10 @@ steps:
             required: true
           - name: first_name
             type: string
-            required: false
+            required: false nullable: true
           - name: last_name
             type: string
-            required: false
+            required: false nullable: true
   - kind: sink
     slug: upsert-hubspot-contacts
     name: Upsert contacts into HubSpot
@@ -63,10 +63,10 @@ steps:
             required: true
           - name: first_name
             type: string
-            required: false
+            required: false nullable: true
           - name: last_name
             type: string
-            required: false
+            required: false nullable: true
       data_source_ref: hubspot-destination
       operation_type: hubspot
       operation_ref: upsert-contacts-by-customer-id
