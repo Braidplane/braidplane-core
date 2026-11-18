@@ -3,7 +3,6 @@ package pipelineruntime
 import (
 	"bytes"
 	"context"
-	"encoding/csv"
 	"encoding/json"
 	"fmt"
 	"maps"
@@ -21,6 +20,8 @@ import (
 	"github.com/Braidplane/braidplane-core/pkg/slug"
 	"github.com/Braidplane/braidplane-core/pkg/testutil"
 	"github.com/Braidplane/braidplane-core/pkg/testutil/supplierfixture"
+	"github.com/Braidplane/braidplane-core/pkg/xerror"
+	"github.com/Braidplane/braidplane-core/service/datasourcessvc/connector/filedata"
 	"github.com/stretchr/testify/require"
 )
 
@@ -86,17 +87,15 @@ func TestSupplierPriceDeskUnionAllBaselineRepeatAndCedarUpdate(t *testing.T) {
 				if provider == "cedar" && variant == "update" {
 					name = "updates/cedar.csv"
 				}
-				records, err := csv.NewReader(bytes.NewReader(read(name))).ReadAll()
-				require.NoError(t, err)
-				rows := make([]map[string]any, 0, len(records)-1)
-				for _, record := range records[1:] {
-					row := make(map[string]any, len(record))
-					for i, value := range record {
-						row[records[0][i]] = value
-					}
-					rows = append(rows, row)
+				content := read(name)
+				if provider == "cedar" && variant == "duplicate" {
+					content = []byte("sku,price,price\nA,12,21\n")
 				}
-				return result.NewS3Result(&result.FileResult{Rows: rows, ColumnNames: records[0], RowCount: len(rows), Format: "csv"}, 0, nil), nil
+				file, err := filedata.ParseCSV(content, filedata.ParseCSVOptions{})
+				if err != nil {
+					return nil, err
+				}
+				return result.NewS3Result(file, 0, nil), nil
 			}
 			executor := adaptTestQueryExecutor(&testutil.FakeQueryExecutor{
 				ExecuteFn: execute,
@@ -150,6 +149,10 @@ func TestSupplierPriceDeskUnionAllBaselineRepeatAndCedarUpdate(t *testing.T) {
 					}
 				}
 			}
+			variant = "duplicate"
+			_, err = runner.Run(t.Context(), RunRequest{OrgSlug: "acme", ProjectSlug: "etl", EnvironmentSlug: "local", RunSlug: "supplier-demo-duplicate", Pipeline: pipeline, CompiledPlan: compiled, CompiledPlanDigest: planDigest})
+			require.ErrorIs(t, err, xerror.InvalidInput(xerror.Query))
+			require.Equal(t, 3, writes, "invalid supplier input must stop before catalog dispatch")
 			require.Equal(t, "2.2000", fmt.Sprint(destination["cedar/000104"]["unit_price"]))
 			require.Equal(t, "1.5000", fmt.Sprint(destination["packworks/000104"]["unit_price"]))
 		})

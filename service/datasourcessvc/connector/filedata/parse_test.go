@@ -37,6 +37,29 @@ func TestParseCSV_HeadlessDetection(t *testing.T) {
 	require.Contains(t, r.Rows[0], "csv_row")
 }
 
+func TestParseCSV_AmbiguousHeaders(t *testing.T) {
+	t.Parallel()
+
+	for _, tc := range []struct{ header, problem string }{
+		{"sku,price,price", "duplicate"},
+		{"sku,,price", "blank"},
+		{"sku,   ,price", "blank"},
+	} {
+		content := []byte(tc.header + "\nprivate-sku,12,21\n")
+		for _, header := range []*bool{nil, new(true)} {
+			r, err := ParseCSV(content, ParseCSVOptions{HasHeader: header})
+			require.Nil(t, r)
+			require.ErrorIs(t, err, xerror.InvalidInput(xerror.Query))
+			require.Equal(t, "CSV header contains a "+tc.problem+" column name.", xerror.PublicDetail(err))
+			require.NotContains(t, err.Error(), "private-sku")
+		}
+		r, err := ParseCSV(content, ParseCSVOptions{HasHeader: new(false)})
+		require.NoError(t, err)
+		require.Equal(t, 2, r.RowCount)
+		require.Equal(t, []any{"private-sku", "12", "21"}, r.Rows[1]["csv_row"])
+	}
+}
+
 func TestParseCSV_EmptyContent(t *testing.T) {
 	t.Parallel()
 

@@ -69,6 +69,16 @@ func ParseCSV(content []byte, opts ParseCSVOptions) (*result.FileResult, error) 
 		for i := len(records[0]); i < width; i++ {
 			headers[i] = fmt.Sprintf("col_%d", i)
 		}
+		seen := make(map[string]struct{}, width)
+		for _, header := range headers {
+			if strings.TrimSpace(header) == "" {
+				return nil, xerror.InvalidInput(xerror.Query).WithPublicDetail("CSV header contains a blank column name.")
+			}
+			if _, exists := seen[header]; exists {
+				return nil, xerror.InvalidInput(xerror.Query).WithPublicDetail("CSV header contains a duplicate column name.")
+			}
+			seen[header] = struct{}{}
+		}
 		startDataRow = 1
 	} else {
 		isHeadless = true
