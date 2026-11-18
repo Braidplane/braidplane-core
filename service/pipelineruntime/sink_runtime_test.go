@@ -7,19 +7,16 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
-
-	"github.com/Braidplane/braidplane-core/pkg/connector/transportsecurity"
-	"github.com/Braidplane/braidplane-core/pkg/hubspot/crm"
-	"github.com/Braidplane/braidplane-core/service/datasourcessvc/connector/hubspot"
-	"github.com/Braidplane/braidplane-core/service/datasourcessvc/connector/types"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/require"
 
 	"github.com/Braidplane/braidplane-core/pkg/connector/result"
+	"github.com/Braidplane/braidplane-core/pkg/connector/transportsecurity"
 	"github.com/Braidplane/braidplane-core/pkg/connector/writegate"
 	"github.com/Braidplane/braidplane-core/pkg/domain/model"
+	"github.com/Braidplane/braidplane-core/pkg/hubspot/crm"
 	"github.com/Braidplane/braidplane-core/pkg/must"
 	filepayload "github.com/Braidplane/braidplane-core/pkg/payload/file"
 	formpayload "github.com/Braidplane/braidplane-core/pkg/payload/form"
@@ -29,6 +26,8 @@ import (
 	"github.com/Braidplane/braidplane-core/pkg/sinkbinding"
 	"github.com/Braidplane/braidplane-core/pkg/slug"
 	"github.com/Braidplane/braidplane-core/pkg/xerror"
+	"github.com/Braidplane/braidplane-core/service/datasourcessvc/connector/hubspot"
+	"github.com/Braidplane/braidplane-core/service/datasourcessvc/connector/types"
 	"github.com/Braidplane/braidplane-core/service/queriessvc"
 )
 
@@ -792,7 +791,10 @@ func TestSinkRuntime_HubSpotCompanyPartialUpsert(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.Method + " " + r.URL.Path {
 		case "GET /crm/properties/2026-03/companies":
-			fmt.Fprint(w, `{"results":[{"name":"key","hasUniqueValue":true},{"name":"name"},{"name":"phone"},{"name":"city"},{"name":"domain"},{"name":"notes"},{"name":"region"},{"name":"day","type":"date"},{"name":"instant","type":"datetime"}]}`)
+			_, writeErr := fmt.Fprint(w, `{"results":[{"name":"key","hasUniqueValue":true},{"name":"name"},{"name":"phone"},{"name":"city"},{"name":"domain"},{"name":"notes"},{"name":"region"},{"name":"day","type":"date"},{"name":"instant","type":"datetime"}]}`)
+			if writeErr != nil {
+				t.Error(writeErr)
+			}
 		case "POST /crm/objects/2026-03/companies/batch/upsert":
 			body, err := io.ReadAll(r.Body)
 			bodies = append(bodies, string(body))
@@ -813,7 +815,10 @@ func TestSinkRuntime_HubSpotCompanyPartialUpsert(t *testing.T) {
 					state[key] = value
 				}
 			}
-			fmt.Fprint(w, `{"status":"COMPLETE","results":[{"id":"101"}]}`)
+			_, writeErr := fmt.Fprint(w, `{"status":"COMPLETE","results":[{"id":"101"}]}`)
+			if writeErr != nil {
+				t.Error(writeErr)
+			}
 		default:
 			http.NotFound(w, r)
 		}
@@ -821,7 +826,7 @@ func TestSinkRuntime_HubSpotCompanyPartialUpsert(t *testing.T) {
 	defer server.Close()
 	conn, err := hubspot.New(transportsecurity.WithPlaintext(t.Context()), crm.Config{BaseURL: server.URL, AllowPrivateHosts: true}, hubspot.Credentials{PrivateAppToken: "synthetic-token"})
 	require.NoError(t, err)
-	defer conn.Close()
+	defer func() { require.NoError(t, conn.Close()) }()
 	const operation = `{"type":"hubspot","object_type":"companies","operation":"upsert","id_property":"key","property_mapping":{"id":"key","label":"name","phone":"phone","city":"city","domain":"domain","notes":"notes","region":"region","day":"day","instant":"instant"},"rows":"{{input}}"}`
 	runtime := NewSinkRuntime(&fakeSinkQueryExecutor{executeFn: func(ctx context.Context, _, _, _ slug.Slug, _ model.EventActor, params map[string]any, _ ...queriessvc.ExecuteOption) (*result.ExecutionResult, error) {
 		return conn.Execute(ctx, json.RawMessage(operation), map[string]types.TypedParam{"input": {Value: params[sinkbinding.Input]}})
