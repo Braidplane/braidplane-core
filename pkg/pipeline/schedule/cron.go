@@ -1,20 +1,25 @@
 package schedule
 
 import (
-	"errors"
 	"strings"
 	"time"
 
 	"github.com/robfig/cron/v3"
+
+	"github.com/Braidplane/braidplane-core/pkg/xerror"
 )
 
 // ParseCron accepts standard cron schedules, including descriptors and timezone prefixes.
 func ParseCron(spec string) (cron.Schedule, error) {
 	// The cron parser expects a space after an inline timezone.
 	if (strings.HasPrefix(spec, "TZ=") || strings.HasPrefix(spec, "CRON_TZ=")) && !strings.Contains(spec, " ") {
-		return nil, errors.New("schedule expression required after timezone")
+		return nil, xerror.ValidationFailed().Detail("schedule expression required after timezone")
 	}
-	return cron.ParseStandard(spec)
+	schedule, err := cron.ParseStandard(spec)
+	if err != nil {
+		return nil, xerror.ValidationFailed().With(err)
+	}
+	return schedule, nil
 }
 
 // HasCalendarMatch probes a fixed window containing a leap day so cron's

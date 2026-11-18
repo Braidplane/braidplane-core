@@ -571,7 +571,7 @@ func (s *Service) claimDueTrigger(
 	if err != nil {
 		result.SkippedInvalid++
 		slog.WarnContext(ctx, "Skipping invalid schedule", "org_slug", trigger.OrgSlug, "project_slug", trigger.ProjectSlug, "environment_slug", trigger.EnvironmentSlug, "trigger_slug", trigger.TriggerSlug, "trigger_revision", trigger.TriggerRevision)
-		return claimedScheduleFire{}, false, nil
+		return claimedScheduleFire{}, false, nil //nolint:nilerr // A malformed trigger must not roll back the dispatch transaction.
 	}
 	if !due {
 		return claimedScheduleFire{}, false, nil
