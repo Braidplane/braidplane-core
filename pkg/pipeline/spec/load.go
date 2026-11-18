@@ -3,6 +3,7 @@ package spec
 import (
 	"bytes"
 	"encoding/json"
+	"io"
 	"path/filepath"
 	"strings"
 
@@ -19,7 +20,7 @@ const (
 	jsonFileExt = ".json"
 )
 
-// Load decodes a YAML or JSON pipeline spec from data. path is used only to
+// Load decodes one YAML or JSON pipeline spec from data. path is used only to
 // detect file format and produce useful error messages. Semantic validation
 // belongs to pipeline/validate.
 func Load(path string, data []byte) (*Pipeline, error) {
@@ -47,14 +48,20 @@ func parseYAMLOrJSON(path string, data []byte, ext string) (*Pipeline, error) {
 		if err := decoder.Decode(&p); err != nil {
 			return nil, xerror.Wrapf("parse %s: decode pipeline: %w", path, err)
 		}
-		normalizeYAMLDynamicValues(&p)
-	case jsonFileExt:
-		decoder := json.NewDecoder(bytes.NewReader(data))
-		decoder.DisallowUnknownFields()
-		decoder.UseNumber()
-		if err := decoder.Decode(&p); err != nil {
+		var trailing yaml.Node
+		if err := decoder.Decode(&trailing); !xerror.Is(err, io.EOF) {
+			if err == nil {
+				err = xerror.InvalidInput(xerror.Pipeline).Detail("multiple YAML documents")
+			}
 			return nil, xerror.Wrapf("parse %s: decode pipeline: %w", path, err)
 		}
+		normalizeYAMLDynamicValues(&p)
+	case jsonFileExt:
+		decoded, err := DecodeJSON(data)
+		if err != nil {
+			return nil, xerror.Wrapf("parse %s: decode pipeline: %w", path, err)
+		}
+		p = *decoded
 		for _, step := range p.Steps {
 			var maps []map[string]any
 			if step.Query != nil {
@@ -74,6 +81,26 @@ func parseYAMLOrJSON(path string, data []byte, ext string) (*Pipeline, error) {
 	}
 
 	return &p, nil
+}
+
+// DecodeJSON decodes exactly one pipeline, preserving numbers for formatting.
+// Use Load when preparing a pipeline for validation or execution.
+func DecodeJSON(data []byte) (*Pipeline, error) {
+	decoder := json.NewDecoder(bytes.NewReader(data))
+	decoder.DisallowUnknownFields()
+	decoder.UseNumber()
+	var pipeline Pipeline
+	if err := decoder.Decode(&pipeline); err != nil {
+		return nil, err
+	}
+	var trailing json.RawMessage
+	if err := decoder.Decode(&trailing); !xerror.Is(err, io.EOF) {
+		if err == nil {
+			err = xerror.InvalidInput(xerror.Pipeline).Detail("multiple JSON values")
+		}
+		return nil, err
+	}
+	return &pipeline, nil
 }
 
 func normalizeYAMLDynamicValues(p *Pipeline) {

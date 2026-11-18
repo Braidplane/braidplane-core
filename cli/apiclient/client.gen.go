@@ -5719,6 +5719,21 @@ func (e TestSnowflakeDataSourceConnectionRequestType) Valid() bool {
 	}
 }
 
+// Defines values for UnavailableGitConfigRepoUrl.
+const (
+	Empty UnavailableGitConfigRepoUrl = ""
+)
+
+// Valid indicates whether the value is a known member of the UnavailableGitConfigRepoUrl enum.
+func (e UnavailableGitConfigRepoUrl) Valid() bool {
+	switch e {
+	case Empty:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for UpdateODCSContractStatus.
 const (
 	UpdateODCSContractStatusActive   UpdateODCSContractStatus = "active"
@@ -7595,6 +7610,9 @@ type AbandonProjectRepositorySetupRequest struct {
 
 // AbandonProjectRepositorySetupRequestPreserveResources defines model for AbandonProjectRepositorySetupRequest.PreserveResources.
 type AbandonProjectRepositorySetupRequestPreserveResources bool
+
+// AccountFullName defines model for AccountFullName.
+type AccountFullName = string
 
 // AlertDeliveryAttempt defines model for AlertDeliveryAttempt.
 type AlertDeliveryAttempt struct {
@@ -12650,6 +12668,17 @@ type TestSnowflakeDataSourceConnectionRequestType string
 // Timestamp defines model for Timestamp.
 type Timestamp = time.Time
 
+// UnavailableGitConfig defines model for UnavailableGitConfig.
+type UnavailableGitConfig struct {
+	AllowPrivateHosts *bool                       `json:"allow_private_hosts,omitempty"`
+	BasePath          *string                     `json:"base_path,omitempty"`
+	DefaultBranch     *string                     `json:"default_branch,omitempty"`
+	RepoUrl           UnavailableGitConfigRepoUrl `json:"repo_url"`
+}
+
+// UnavailableGitConfigRepoUrl defines model for UnavailableGitConfig.RepoUrl.
+type UnavailableGitConfigRepoUrl string
+
 // UpdateAPIKey defines model for UpdateAPIKey.
 type UpdateAPIKey struct {
 	CanManageApiKeys *bool              `json:"can_manage_api_keys,omitempty"`
@@ -12785,13 +12814,13 @@ type UpdateQuery struct {
 
 // UpdateUserProfile defines model for UpdateUserProfile.
 type UpdateUserProfile struct {
-	AvatarUrl       *string `json:"avatar_url,omitempty"`
-	FullName        *Name   `json:"full_name,omitempty"`
-	JobTitle        *string `json:"job_title,omitempty"`
-	Locale          *string `json:"locale,omitempty"`
-	MfaEmailEnabled *bool   `json:"mfa_email_enabled,omitempty"`
-	PhoneNumber     *string `json:"phone_number,omitempty"`
-	Timezone        *string `json:"timezone,omitempty"`
+	AvatarUrl       *string          `json:"avatar_url,omitempty"`
+	FullName        *AccountFullName `json:"full_name,omitempty"`
+	JobTitle        *string          `json:"job_title,omitempty"`
+	Locale          *string          `json:"locale,omitempty"`
+	MfaEmailEnabled *bool            `json:"mfa_email_enabled,omitempty"`
+	PhoneNumber     *string          `json:"phone_number,omitempty"`
+	Timezone        *string          `json:"timezone,omitempty"`
 }
 
 // UpsertDataSourceBinding defines model for UpsertDataSourceBinding.
@@ -14978,6 +15007,32 @@ func (t *DataSource_Config) FromGitConfig(v GitConfig) error {
 
 // MergeGitConfig performs a merge with any union data inside the DataSource_Config, using the provided GitConfig
 func (t *DataSource_Config) MergeGitConfig(v GitConfig) error {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+
+	merged, err := runtime.JSONMerge(t.union, b)
+	t.union = merged
+	return err
+}
+
+// AsUnavailableGitConfig returns the union data inside the DataSource_Config as a UnavailableGitConfig
+func (t DataSource_Config) AsUnavailableGitConfig() (UnavailableGitConfig, error) {
+	var body UnavailableGitConfig
+	err := json.Unmarshal(t.union, &body)
+	return body, err
+}
+
+// FromUnavailableGitConfig overwrites any union data inside the DataSource_Config as the provided UnavailableGitConfig
+func (t *DataSource_Config) FromUnavailableGitConfig(v UnavailableGitConfig) error {
+	b, err := json.Marshal(v)
+	t.union = b
+	return err
+}
+
+// MergeUnavailableGitConfig performs a merge with any union data inside the DataSource_Config, using the provided UnavailableGitConfig
+func (t *DataSource_Config) MergeUnavailableGitConfig(v UnavailableGitConfig) error {
 	b, err := json.Marshal(v)
 	if err != nil {
 		return err

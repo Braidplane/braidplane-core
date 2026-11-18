@@ -32,7 +32,7 @@ func TestShellPreservesValidatedProjectAndRuntimeScope(t *testing.T) {
 		}
 	}))
 	defer apiServer.Close()
-	router, err := NewRouter(apiServer.URL, slog.New(slog.DiscardHandler), session.NewStore())
+	router, err := newHandlerTestRouter(apiServer.URL, slog.New(slog.DiscardHandler), session.NewStore())
 	require.NoError(t, err)
 	for _, tc := range []struct {
 		name, projectCookie, environmentCookie, explicitProject, query, wantProject, wantEnvironment string
@@ -95,6 +95,58 @@ func TestShellPreservesValidatedProjectAndRuntimeScope(t *testing.T) {
 	}
 }
 
+func TestSecureDashboardCookiesPreserveScopeAcrossRoutes(t *testing.T) {
+	t.Parallel()
+	router, err := NewRouter("http://backend.example.test", slog.New(slog.DiscardHandler), session.NewStore(session.Config{CookieSecure: true}))
+	require.NoError(t, err)
+	app := fiber.New()
+	app.Get("/dashboard", func(c fiber.Ctx) error {
+		router.rememberDashboardProjectScope(c, "acme", "ingest")
+		router.rememberDashboardEnvironmentScope(c, "acme", "ingest", "prod")
+		return c.SendStatus(fiber.StatusNoContent)
+	})
+	app.Delete("/catalog/scope", func(c fiber.Ctx) error {
+		org, project := router.dashboardRememberedProjectScope(c)
+		require.Equal(t, "acme", org)
+		require.Equal(t, "ingest", project)
+		org, project, environment := router.dashboardRememberedEnvironmentScope(c)
+		require.Equal(t, "acme", org)
+		require.Equal(t, "ingest", project)
+		require.Equal(t, "prod", environment)
+		router.expireDashboardScopeCookie(c, dashboardScopeProjectCookieName)
+		router.expireDashboardScopeCookie(c, dashboardScopeEnvironmentCookieName)
+		return c.SendStatus(fiber.StatusNoContent)
+	})
+
+	selected, err := app.Test(httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/dashboard", nil))
+	require.NoError(t, err)
+	defer func() { _ = selected.Body.Close() }()
+	require.Equal(t, http.StatusNoContent, selected.StatusCode)
+	selectedCookies := selected.Cookies()
+	require.Len(t, selectedCookies, 2)
+	clearRequest := httptest.NewRequestWithContext(t.Context(), http.MethodDelete, "/catalog/scope", nil)
+	for _, cookie := range selectedCookies {
+		clearRequest.AddCookie(cookie)
+	}
+	cleared, err := app.Test(clearRequest)
+	require.NoError(t, err)
+	defer func() { _ = cleared.Body.Close() }()
+	require.Equal(t, http.StatusNoContent, cleared.StatusCode)
+	clearedCookies := cleared.Cookies()
+	require.Len(t, clearedCookies, 2)
+	for _, cookie := range clearedCookies {
+		require.Negative(t, cookie.MaxAge)
+	}
+	for _, cookie := range append(selectedCookies, clearedCookies...) {
+		require.Contains(t, []string{"__Host-" + dashboardScopeProjectCookieName, "__Host-" + dashboardScopeEnvironmentCookieName}, cookie.Name)
+		require.Equal(t, "/", cookie.Path)
+		require.Empty(t, cookie.Domain)
+		require.True(t, cookie.Secure)
+		require.True(t, cookie.HttpOnly)
+		require.Equal(t, http.SameSiteLaxMode, cookie.SameSite)
+	}
+}
+
 func TestRouter_CanReadEventsForRoleUsesAuthoritativeEndpointForCustomRoles(t *testing.T) {
 	t.Parallel()
 
@@ -122,7 +174,7 @@ func TestRouter_CanReadEventsForRoleUsesAuthoritativeEndpointForCustomRoles(t *t
 			}))
 			defer apiServer.Close()
 
-			router, err := NewRouter(
+			router, err := newHandlerTestRouter(
 				apiServer.URL,
 				slog.New(slog.DiscardHandler),
 				session.NewStore(),

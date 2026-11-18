@@ -95,6 +95,8 @@ func TestBackendSessionConfigUsesHostOnlyCookie(t *testing.T) {
 	require.Equal(t, "Lax", got.CookieSameSite)
 	require.True(t, got.CookieHTTPOnly)
 	require.True(t, got.CookieSecure)
+	require.Equal(t, "__Host-session_id", got.Extractor.Key)
+	require.Equal(t, "session_id", backendSessionConfig(nil, backendconfig.SessionConfig{}).Extractor.Key)
 }
 
 func TestBackendCORSConfigDisablesCredentialedCrossOriginRequests(t *testing.T) {

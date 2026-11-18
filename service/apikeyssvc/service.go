@@ -29,14 +29,16 @@ type Service interface {
 		ctx context.Context,
 		orgSlug, apiKeySlug slug.Slug,
 		actor model.EventActor,
+		callerRole *slug.Slug,
 		update model.UpdateAPIKey,
 	) (*model.APIKey, error)
-	RevokeAPIKey(ctx context.Context, orgSlug, apiKeySlug slug.Slug, actor model.EventActor) error
+	RevokeAPIKey(ctx context.Context, orgSlug, apiKeySlug slug.Slug, actor model.EventActor, callerRole *slug.Slug) error
 	DeleteRevokedAPIKey(ctx context.Context, orgSlug, apiKeySlug slug.Slug, actor model.EventActor) error
 	RotateAPIKey(
 		ctx context.Context,
 		orgSlug, apiKeySlug slug.Slug,
 		actor model.EventActor,
+		callerRole *slug.Slug,
 	) (*model.APIKeyWithToken, error)
 	Authenticate(ctx context.Context, token string) (*model.APIKeyPrincipal, error)
 }

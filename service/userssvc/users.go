@@ -15,6 +15,7 @@ import (
 	mailchecker "github.com/FGRibreau/mailchecker/v6/platform/go"
 
 	"github.com/Braidplane/braidplane-core/pkg/domain/model"
+	"github.com/Braidplane/braidplane-core/pkg/passwordpolicy"
 	slugpkg "github.com/Braidplane/braidplane-core/pkg/slug"
 	"github.com/Braidplane/braidplane-core/pkg/validate"
 	"github.com/Braidplane/braidplane-core/pkg/xerror"
@@ -57,6 +58,9 @@ func (s *usersService) CreateUser(ctx context.Context, newUser model.NewUser) (*
 	}
 	if mailchecker.IsBlacklisted(strings.ToLower(newUser.Email)) {
 		return nil, ErrInvalidInput.Detail("signup email domain is disposable")
+	}
+	if err := passwordpolicy.CheckCommon(newUser.Password); err != nil {
+		return nil, err
 	}
 
 	hashedPassword, err := s.hasher.Hash(newUser.Password)
@@ -226,6 +230,17 @@ func (s *usersService) BeginLogin(
 		if !u.MFAEmailEnabled {
 			ret = &model.SessionLoginResult{User: user}
 			return nil
+		}
+		if s.mfaEmailLimiter != nil {
+			budget := s.mfaEmailBudget
+			budget.Key = user.Slug.String()
+			decision, err := s.mfaEmailLimiter.Attempt(ctx, tx, budget)
+			if err != nil {
+				return xerror.Wrapf("charge MFA email delivery budget: %w", err)
+			}
+			if !decision.Allowed {
+				return errMFAEmailRateLimited.With(&MFAEmailRateLimitError{ResetAt: decision.ResetAt})
+			}
 		}
 
 		challengeToken, challengeTokenHash, err := generateToken()
@@ -541,6 +556,9 @@ func (s *usersService) ResetPassword(ctx context.Context, token, password string
 			return xerror.Wrapf("find user by password reset token: %w", err)
 		}
 
+		if err := passwordpolicy.CheckCommon(password); err != nil {
+			return err
+		}
 		hashedPassword, err := s.hasher.Hash(password)
 		if err != nil {
 			return xerror.Wrapf("hash password: %w", err)
@@ -586,6 +604,9 @@ func (s *usersService) ChangePassword(
 			return ErrInvalidUsernameOrPassword
 		}
 
+		if err := passwordpolicy.CheckCommon(newPassword); err != nil {
+			return err
+		}
 		hashedPassword, err := s.hasher.Hash(newPassword)
 		if err != nil {
 			return xerror.Wrapf("hash new password: %w", err)

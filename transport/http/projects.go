@@ -289,7 +289,7 @@ func projectPipelineBackendToHTTP(
 
 	return &api.ProjectPipelineBackend{
 		DataSourceSlug: value.DataSourceSlug.String(),
-		Repo:           value.Repo,
+		Repo:           publicGitRepositoryIdentity(value.Repo),
 		TrackedBranch:  value.TrackedBranch,
 		PipelineDir:    value.PipelineDir,
 		FirstCommitSha: value.FirstCommitSHA,

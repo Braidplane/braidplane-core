@@ -4,6 +4,13 @@
 // Switch to the Braidplane fixture database.
 db = db.getSiblingDB('braidplane');
 
+db.createUser({
+    user: 'metadata-fixture',
+    pwd: 'fixture:p@ss/word',
+    roles: [{ role: 'read', db: 'braidplane' }],
+    mechanisms: ['SCRAM-SHA-256']
+});
+
 // Users collection with common BSON types
 db.users.insertMany([
     {

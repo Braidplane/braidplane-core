@@ -90,7 +90,7 @@ script:pre-request {
   // Mailpit snippets may truncate the verification or reset link.
   const message = await axios.get(`${mailpitUrl}/api/v1/message/${latestEmail.ID}`);
   const content = message.data.Text;
-  const tokenMatch = content.match(/token=([a-f0-9]{64})/);
+  const tokenMatch = content.match(/^(?:Code|Kod): ([a-f0-9]{64})\s*$/m);
   if (!tokenMatch || !tokenMatch[1]) {
     bru.runner.stopExecution();
     throw new Error("Could not extract verification token from email");

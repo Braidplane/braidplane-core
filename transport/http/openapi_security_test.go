@@ -37,7 +37,7 @@ func TestOpenAPISecurityMatchesRuntimeRoutes(t *testing.T) {
 		"authorizeOrganizationGitHubAppConnection":  true,
 		"deleteRevokedAPIKey":                       true,
 	}
-	require.Equal(t, "session_id", document.Components.SecuritySchemes["SessionAuth"].Value.Name)
+	require.Equal(t, "__Host-session_id", document.Components.SecuritySchemes["SessionAuth"].Value.Name)
 	require.Equal(t, "cookie", document.Components.SecuritySchemes["SessionAuth"].Value.In)
 	require.Equal(t, "bearer", document.Components.SecuritySchemes["BearerAuth"].Value.Scheme)
 	require.Equal(t, "Braidplane-Webhook-Signature", document.Components.SecuritySchemes["WebhookSignature"].Value.Name)

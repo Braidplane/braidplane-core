@@ -64,7 +64,7 @@ func ForgotPasswordPageContent(email string, pageError string, pageErrorDetails 
 				return templ_7745c5c3_Err
 			}
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 1, "<div class=\"space-y-5\"><header><p class=\"text-xs font-semibold uppercase tracking-wide text-primary\">Account recovery</p><h1 class=\"mt-2 text-2xl font-semibold\">Forgot password</h1><p class=\"mt-2 text-sm text-base-content/70\">Enter your email and we will send a reset link.</p></header>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 1, "<div class=\"space-y-5\"><header><p class=\"text-xs font-semibold uppercase tracking-wide text-primary\">Account recovery</p><h1 class=\"mt-2 text-2xl font-semibold\">Forgot password</h1><p class=\"mt-2 text-sm text-base-content/70\">Enter your email and we will send a reset code.</p></header>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -100,7 +100,7 @@ func ForgotPasswordPageContent(email string, pageError string, pageErrorDetails 
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 5, "\"></label> <button class=\"btn btn-primary w-full\" type=\"submit\">Send reset link</button></form><p class=\"text-center text-sm text-base-content/70\">Remembered your password? <a class=\"link link-primary\" href=\"/auth/login\">Back to sign in</a></p></div>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 5, "\"></label> <button class=\"btn btn-primary w-full\" type=\"submit\">Send reset code</button></form><p class=\"text-center text-sm text-base-content/70\">Remembered your password? <a class=\"link link-primary\" href=\"/auth/login\">Back to sign in</a></p></div>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

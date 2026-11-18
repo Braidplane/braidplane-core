@@ -105,7 +105,7 @@ func TestBuilderRunEvidence(t *testing.T) {
 				assert.NoError(t, json.NewEncoder(w).Encode(response))
 			}))
 			defer backend.Close()
-			router, err := NewRouter(backend.URL, slog.New(slog.DiscardHandler), session.NewStore())
+			router, err := newHandlerTestRouter(backend.URL, slog.New(slog.DiscardHandler), session.NewStore())
 			require.NoError(t, err)
 			app := fiber.New()
 			app.Get("/builder/run-evidence", router.handleBuilderRunEvidence)

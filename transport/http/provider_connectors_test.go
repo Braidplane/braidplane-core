@@ -583,6 +583,7 @@ func TestHandleProviderConnectorCallback_DenialUsesAuthorizedOrganizationRedirec
 	completed := false
 	consumed := false
 	install := credentialssvc.CredentialInstall{
+		Actor: model.UserEventActor("alice"),
 		Owner: credentialssvc.CredentialOwner{
 			OrgSlug:        slug.Slug("acme"),
 			DataSourceSlug: slug.Slug("crm"),
@@ -607,6 +608,7 @@ func TestHandleProviderConnectorCallback_DenialUsesAuthorizedOrganizationRedirec
 			) (credentialssvc.CredentialInstall, error) {
 				require.Equal(t, "fakecrm", params.Provider)
 				require.Equal(t, "state-1", params.State)
+				require.Equal(t, model.UserEventActor("alice"), params.Actor)
 				consumed = true
 				return install, nil
 			},

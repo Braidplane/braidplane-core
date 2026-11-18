@@ -138,7 +138,7 @@ test("edits Builder event and named ODCS agreements without changing pinned sibl
         expect(requirements.incoming_events).toEqual({ contract: agreement });
         expect(steps.find((step) => step.slug === "normalize").transform.inputs.incoming_events).toBe("event");
         expect(requirements.customers.contract_ref.revision_slug).toBe("rev-customers-two");
-        await page.evaluate(() => localStorage.clear());
+        await page.evaluate(() => sessionStorage.clear());
         await page.reload();
         await page.locator('.builder-node[data-node-slug="normalize"] .builder-node-content').click();
         await page.locator("#builder-odcs-port").selectOption("transform.input.incoming_events");
@@ -1298,7 +1298,7 @@ test("builds a new SQL pipeline using an authoring connection before runtime bin
         await expect
             .poll(() =>
                 page.evaluate(() =>
-                    localStorage.getItem("braidplane.builder.canvas.state.v6/test-user/acme/ops/draft-pipeline"),
+                    sessionStorage.getItem("braidplane.builder.canvas.state.v6/test-user/acme/ops/draft-pipeline"),
                 ),
             )
             .not.toBeNull();
@@ -1525,7 +1525,7 @@ test("authors supplier field mapping and catches a fixture regression before sav
         expect(saved.output_contract_ref).toEqual(reference);
         expect(saved).not.toHaveProperty("output_contract");
         expect(saved.sql).toMatch(/DECIMAL\(18,\s*2\)/);
-        await page.evaluate(() => localStorage.clear());
+        await page.evaluate(() => sessionStorage.clear());
         await page.goto(url);
         await page.locator('.builder-node[data-node-slug="normalize"] .builder-node-content').click();
         await expect(page.locator("#builder-field-transform-sql")).toHaveValue(saved.sql);

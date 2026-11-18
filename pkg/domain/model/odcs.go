@@ -69,6 +69,7 @@ type PinnedODCSPort struct {
 
 // ODCSArtifact retains original bytes independently of semantic revision identity.
 type ODCSArtifact struct {
+	PublicID       string    `json:"-"`
 	ContractSlug   slug.Slug `json:"contract_slug"`
 	RevisionSlug   slug.Slug `json:"revision_slug"`
 	Path           string    `json:"path"`

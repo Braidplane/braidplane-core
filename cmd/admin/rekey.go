@@ -11,6 +11,7 @@ import (
 
 	backendconfig "github.com/Braidplane/braidplane-core/config/backend"
 	"github.com/Braidplane/braidplane-core/pkg/clock"
+	"github.com/Braidplane/braidplane-core/pkg/dbpool"
 	"github.com/Braidplane/braidplane-core/pkg/reqctx"
 	"github.com/Braidplane/braidplane-core/pkg/uuid"
 	"github.com/Braidplane/braidplane-core/pkg/xerror"
@@ -19,7 +20,6 @@ import (
 	"github.com/Braidplane/braidplane-core/postgres/events"
 	"github.com/Braidplane/braidplane-core/service/credentialrekeysvc"
 	"github.com/Braidplane/braidplane-core/service/eventssvc"
-	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 func runCredentialRekeyCLI(configArgs []string, command rekeyCommand, stdout io.Writer) error {
@@ -43,7 +43,7 @@ func runCredentialRekeyCLI(configArgs []string, command rekeyCommand, stdout io.
 	defer stop()
 	runID := uuid.New().String()
 	ctx = reqctx.WithRequestID(ctx, runID)
-	pool, err := pgxpool.New(ctx, cfg.Database.ConnectionString())
+	pool, err := dbpool.New(ctx, cfg.Database.ConnectionString())
 	if err != nil {
 		return xerror.Unexpected().Detail("connect credential rekey database")
 	}

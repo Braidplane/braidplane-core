@@ -11,6 +11,7 @@ func TestReadBootstrapPassword(t *testing.T) {
 	for _, tc := range []struct {
 		input, want string
 		invalid     bool
+		raw         bool
 	}{
 		{input: "safe password\n", want: "safe password"},
 		{input: "safe password\r\n", want: "safe password"},
@@ -18,8 +19,13 @@ func TestReadBootstrapPassword(t *testing.T) {
 		{input: "short", invalid: true},
 		{input: strings.Repeat("x", 1025), invalid: true},
 		{input: "first-password\nsecond-password", invalid: true},
+		{input: "  first\nsecond\r\n", want: "  first\nsecond\r\n", raw: true},
+		{input: strings.Repeat("🔑", 1024), want: strings.Repeat("🔑", 1024), raw: true},
+		{input: strings.Repeat("🔑", 1025), invalid: true, raw: true},
+		{input: "fixture\xff", invalid: true, raw: true},
+		{input: "short", invalid: true, raw: true},
 	} {
-		got, err := readBootstrapPassword(strings.NewReader(tc.input))
+		got, err := readBootstrapPassword(strings.NewReader(tc.input), tc.raw)
 		if tc.invalid {
 			require.Error(t, err)
 			require.Empty(t, got)

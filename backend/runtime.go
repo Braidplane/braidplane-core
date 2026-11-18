@@ -321,6 +321,7 @@ func backendSessionConfig(storage fiber.Storage, cfg backendconfig.SessionConfig
 		CookieHTTPOnly: true,
 		CookieSameSite: "Lax",
 		CookiePath:     "/",
+		Extractor:      httpsecurity.SessionCookieExtractor(cfg.CookieSecure),
 	}
 }
 
@@ -853,6 +854,9 @@ func Run(cfg *backendconfig.Config, mode Mode, createDistribution DistributionFa
 	pipelineStore = pipelinesvc.NewPipelineStoreWithLogging(pipelineStore, backendLogger)
 
 	accountPolicy := distribution.AccountPolicy(emailProducer)
+	userOptions := append([]userssvc.Option{
+		userssvc.WithMFAEmailBudget(abusecontrols.New(), cfg.AbuseControls.AuthAttempts, cfg.AbuseControls.AuthWindow.TimeDuration()),
+	}, accountPolicy.Users...)
 	usersService := userssvc.NewUsersServiceWithLogging(
 		userssvc.New(
 			txm,
@@ -860,7 +864,7 @@ func Run(cfg *backendconfig.Config, mode Mode, createDistribution DistributionFa
 			usersRepo,
 			emailProducer,
 			eventProducer,
-			cfg.FrontendURL, accountPolicy.Users...,
+			cfg.FrontendURL, userOptions...,
 		),
 		backendLogger,
 	)

@@ -92,10 +92,15 @@ duplicates; it is not an upsert.
 | `projection` | Field names mapped to inclusion/exclusion flags |
 | `document` | Write document; ignored by reads |
 
-Parameters use `{{name}}`. Structured object/array placeholders keep their native
-shape where the operation supports them; do not assemble JSON by string
-concatenation. See the [API schema](../api/index.md) for the public statement
-contract before choosing aggregation or bulk-write forms.
+Parameters use `{{name}}`. Declared scalar parameters bind scalar values. To pass
+an object or array, use an undeclared parameter as the entire value of a supported
+field such as `filter`, `pipeline`, or `documents`. Set `operation` in the
+statement. Use `$literal` for parameter text beginning with `$` in an expression.
+See the [API schema](../api/index.md) for aggregation and bulk-write forms.
+
+Use native MongoDB query and aggregation operators. Core rejects server-side
+JavaScript and MongoDB internal operators in query expressions, including
+expressions supplied through parameters.
 
 ## Pipeline behavior
 

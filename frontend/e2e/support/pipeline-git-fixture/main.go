@@ -86,6 +86,10 @@ func handleAPI(w http.ResponseWriter, r *http.Request) {
 	defer mu.Unlock()
 	w.Header().Set("Content-Type", "application/json")
 	write := func(body string) { _, _ = w.Write([]byte(body)) }
+	if r.URL.Path == "/api/users/profile" && !runInspectionEnabled {
+		write(`{"slug":"test-user"}`)
+		return
+	}
 	if handleModerationAPI(w, r) {
 		return
 	}

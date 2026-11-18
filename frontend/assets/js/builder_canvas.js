@@ -2239,7 +2239,7 @@
     };
 
     const saveState = (storageKey, gridElement, edgesDataElement, bindings, pipelineMeta) => {
-        if (!storageKey) return;
+        if (!storageKey || document.documentElement.dataset.braidplaneSessionEnded === "true") return;
         try {
             const normalizedSourceFormat = normalizePipelineFormat(pipelineMeta?.sourceFormat, FORMAT_YAML);
             const normalizedExportFormat = normalizePipelineFormat(pipelineMeta?.exportFormat, normalizedSourceFormat);
@@ -2260,7 +2260,7 @@
                     export_format: normalizedExportFormat,
                 },
             };
-            window.localStorage.setItem(storageKey, JSON.stringify(state));
+            window.sessionStorage.setItem(storageKey, JSON.stringify(state));
         } catch (_) {
             // Ignore storage failures (private mode, quota, etc.).
         }
@@ -2269,7 +2269,7 @@
     const loadState = (storageKey) => {
         if (!storageKey) return null;
         try {
-            const raw = window.localStorage.getItem(storageKey);
+            const raw = window.sessionStorage.getItem(storageKey);
             if (!raw) {
                 return null;
             }
@@ -10438,9 +10438,9 @@
                     throw new Error("The proposal returned an unexpected response. Retry the same definition.");
                 }
                 try {
-                    window.localStorage.removeItem(storageKey);
+                    window.sessionStorage.removeItem(storageKey);
                 } catch (_) {
-                    // A queued proposal must remain reachable when local storage is unavailable.
+                    // A queued proposal must remain reachable when browser storage is unavailable.
                 }
                 window.location.assign(result.progress_url);
             } catch (error) {
@@ -12100,7 +12100,7 @@
         window.addEventListener("pagehide", () => {
             if (creationForm && !creationForm.hidden) return;
             try {
-                window.localStorage.removeItem(storageKey);
+                window.sessionStorage.removeItem(storageKey);
             } catch (_) {
                 // Ignore storage failures.
             }

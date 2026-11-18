@@ -1,6 +1,7 @@
 package gitlab
 
 import (
+	"fmt"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -18,7 +19,8 @@ func TestAdapterSupportsGitLabGrantLifecycle(t *testing.T) {
 
 	var grants []url.Values
 	var revoked string
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	var fixtureOrigin string
+	server := httptest.NewUnstartedServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case "/oauth/token":
 			body, err := io.ReadAll(r.Body)
@@ -40,10 +42,10 @@ func TestAdapterSupportsGitLabGrantLifecycle(t *testing.T) {
 		case "/api/v4/projects":
 			assert.Equal(t, "Bearer access", r.Header.Get("Authorization"))
 			assert.Equal(t, "true", r.URL.Query().Get("membership"))
-			_, _ = w.Write([]byte(`[{"id":42,"name":"Pipelines","path_with_namespace":"acme/pipelines","web_url":"https://gitlab.example/acme/pipelines","http_url_to_repo":"https://gitlab.example/acme/pipelines.git","default_branch":"main"}]`))
+			_, _ = fmt.Fprintf(w, `[{"id":42,"name":"Pipelines","path_with_namespace":"acme/pipelines","web_url":%q,"http_url_to_repo":"https://gitlab.example/acme/pipelines.git","default_branch":"main"}]`, fixtureOrigin+"/acme/pipelines")
 		case "/api/v4/projects/42":
 			assert.Equal(t, "Bearer access", r.Header.Get("Authorization"))
-			_, _ = w.Write([]byte(`{"id":42,"name":"Pipelines","path_with_namespace":"acme/pipelines","web_url":"https://gitlab.example/acme/pipelines","http_url_to_repo":"https://gitlab.example/acme/pipelines.git","default_branch":"main"}`))
+			_, _ = fmt.Fprintf(w, `{"id":42,"name":"Pipelines","path_with_namespace":"acme/pipelines","web_url":%q,"http_url_to_repo":"https://gitlab.example/acme/pipelines.git","default_branch":"main"}`, fixtureOrigin+"/acme/pipelines")
 		case "/oauth/revoke":
 			body, err := io.ReadAll(r.Body)
 			if !assert.NoError(t, err) {
@@ -58,6 +60,8 @@ func TestAdapterSupportsGitLabGrantLifecycle(t *testing.T) {
 			http.NotFound(w, r)
 		}
 	}))
+	fixtureOrigin = "http://" + server.Listener.Addr().String()
+	server.Start()
 	t.Cleanup(server.Close)
 
 	adapter, err := New(Config{ClientID: "client-id", ClientSecret: "client-secret", RedirectURI: "http://localhost/provider-connectors/gitlab/callback", BaseURL: server.URL, AllowPlaintext: true})
@@ -95,6 +99,7 @@ func TestAdapterSupportsGitLabGrantLifecycle(t *testing.T) {
 	assert.Equal(t, "acme/pipelines", repositories[0].FullName)
 	selected, err := adapter.ResolveRepository(t.Context(), "access", "42")
 	require.NoError(t, err)
+	assert.Equal(t, server.URL+"/acme/pipelines", selected.WebURL)
 	assert.Equal(t, "https://gitlab.example/acme/pipelines.git", selected.CloneURL)
 }
 

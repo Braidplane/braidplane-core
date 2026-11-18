@@ -39,7 +39,8 @@ func TestEmailSendWorkerSendsVerificationEmail(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, 1, emailSvc.verificationCalls)
 	require.Equal(t, args.User.ToUser(), emailSvc.verificationUser)
-	require.Equal(t, "https://app.example.com/verify-email?token=raw-email-verification-token", emailSvc.verificationLink)
+	require.Equal(t, "https://app.example.com/verify-email", emailSvc.verificationLink)
+	require.Equal(t, "raw-email-verification-token", emailSvc.verificationCode)
 	require.Equal(t, 0, emailSvc.passwordResetCalls)
 }
 
@@ -66,7 +67,8 @@ func TestEmailSendWorkerSendsPasswordResetEmail(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, 1, emailSvc.passwordResetCalls)
 	require.Equal(t, args.User.ToUser(), emailSvc.passwordResetUser)
-	require.Equal(t, "https://app.example.com/reset-password?token=raw-password-reset-token", emailSvc.passwordResetLink)
+	require.Equal(t, "https://app.example.com/reset-password", emailSvc.passwordResetLink)
+	require.Equal(t, "raw-password-reset-token", emailSvc.passwordResetCode)
 	require.Equal(t, 0, emailSvc.verificationCalls)
 }
 
@@ -332,11 +334,13 @@ type recordingEmailService struct {
 	verificationCalls int
 	verificationUser  model.User
 	verificationLink  string
+	verificationCode  string
 	verificationErr   error
 
 	passwordResetCalls int
 	passwordResetUser  model.User
 	passwordResetLink  string
+	passwordResetCode  string
 	passwordResetErr   error
 
 	sessionMFACalls int
@@ -403,22 +407,22 @@ func (r *recordingAlertDeliveryAttemptRecorder) MarkAlertDeliveryAttemptFailed(
 func (s *recordingEmailService) EmailVerification(
 	_ context.Context,
 	user *model.User,
-	verificationLink string,
+	verificationLink, code string,
 ) error {
 	s.verificationCalls++
 	s.verificationUser = *user
-	s.verificationLink = verificationLink
+	s.verificationLink, s.verificationCode = verificationLink, code
 	return s.verificationErr
 }
 
 func (s *recordingEmailService) PasswordReset(
 	_ context.Context,
 	user *model.User,
-	resetLink string,
+	resetLink, code string,
 ) error {
 	s.passwordResetCalls++
 	s.passwordResetUser = *user
-	s.passwordResetLink = resetLink
+	s.passwordResetLink, s.passwordResetCode = resetLink, code
 	return s.passwordResetErr
 }
 

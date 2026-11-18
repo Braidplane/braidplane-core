@@ -37,9 +37,7 @@ describe("builder canvas shared helpers", () => {
             headers: { get: () => "text/html" },
         };
 
-        expect(t.saveResponseProblem(response)).toBe(
-            "Saved locally, but your session expired. Sign in again and retry.",
-        );
+        expect(t.saveResponseProblem(response)).toBe("Your session expired. Sign in again to continue.");
     });
 
     it("runStatusMessage_RefusesUnknownOrDeniedExecutePermission", () => {

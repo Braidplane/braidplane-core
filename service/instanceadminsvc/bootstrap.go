@@ -6,6 +6,7 @@ import (
 
 	"github.com/Braidplane/braidplane-core/pkg/crypto"
 	"github.com/Braidplane/braidplane-core/pkg/domain/model"
+	"github.com/Braidplane/braidplane-core/pkg/passwordpolicy"
 	"github.com/Braidplane/braidplane-core/pkg/slug"
 	"github.com/Braidplane/braidplane-core/pkg/validate"
 	"github.com/Braidplane/braidplane-core/pkg/xerror"
@@ -37,6 +38,9 @@ func (s *Bootstrapper) Bootstrap(ctx context.Context, userSlug slug.Slug, name, 
 	input := model.NewUser{FullName: name, Email: email, Password: password, Role: model.RoleUser}
 	if err := validate.Default().Struct(input); err != nil {
 		return xerror.ValidationFailed().Detail("invalid bootstrap account name, email or password")
+	}
+	if err := passwordpolicy.CheckCommon(password); err != nil {
+		return err
 	}
 	hash, err := s.hasher.Hash(password)
 	if err != nil {

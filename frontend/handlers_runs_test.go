@@ -64,7 +64,7 @@ func TestRouter_HandlePipelineRunsPage_RendersList(t *testing.T) {
 	defer apiServer.Close()
 
 	store := session.NewStore()
-	router, err := NewRouter(apiServer.URL, slog.New(slog.DiscardHandler), store)
+	router, err := newHandlerTestRouter(apiServer.URL, slog.New(slog.DiscardHandler), store)
 	require.NoError(t, err)
 
 	app := fiber.New()
@@ -186,7 +186,7 @@ func TestRouter_HandlePipelineRunsPage_UsesDefaultEnvironmentWhenEnvironmentSlug
 	defer apiServer.Close()
 
 	store := session.NewStore()
-	router, err := NewRouter(apiServer.URL, slog.New(slog.DiscardHandler), store)
+	router, err := newHandlerTestRouter(apiServer.URL, slog.New(slog.DiscardHandler), store)
 	require.NoError(t, err)
 
 	app := fiber.New()
@@ -245,7 +245,7 @@ func TestRouter_HandlePipelineRunsPage_DefaultEnvironmentLookupFailureRendersErr
 	defer apiServer.Close()
 
 	store := session.NewStore()
-	router, err := NewRouter(apiServer.URL, slog.New(slog.DiscardHandler), store)
+	router, err := newHandlerTestRouter(apiServer.URL, slog.New(slog.DiscardHandler), store)
 	require.NoError(t, err)
 
 	app := fiber.New()
@@ -281,7 +281,7 @@ func TestRouter_HandlePipelineRunsPage_RejectsMalformedEnvironmentSlug(t *testin
 	defer apiServer.Close()
 
 	store := session.NewStore()
-	router, err := NewRouter(apiServer.URL, slog.New(slog.DiscardHandler), store)
+	router, err := newHandlerTestRouter(apiServer.URL, slog.New(slog.DiscardHandler), store)
 	require.NoError(t, err)
 
 	app := fiber.New()
@@ -353,7 +353,7 @@ func TestRouter_HandlePipelineRunsPage_RendersProjectDashboardTriageAffordances(
 	defer apiServer.Close()
 
 	store := session.NewStore()
-	router, err := NewRouter(apiServer.URL, slog.New(slog.DiscardHandler), store)
+	router, err := newHandlerTestRouter(apiServer.URL, slog.New(slog.DiscardHandler), store)
 	require.NoError(t, err)
 
 	app := fiber.New()
@@ -422,7 +422,7 @@ func TestRouter_HandlePipelineRunsPage_RendersEmptyDashboardState(t *testing.T) 
 	defer apiServer.Close()
 
 	store := session.NewStore()
-	router, err := NewRouter(apiServer.URL, slog.New(slog.DiscardHandler), store)
+	router, err := newHandlerTestRouter(apiServer.URL, slog.New(slog.DiscardHandler), store)
 	require.NoError(t, err)
 
 	app := fiber.New()
@@ -484,7 +484,7 @@ func TestRouter_HandlePipelineRunsPage_RendersFilteredEmptyDashboardState(t *tes
 	defer apiServer.Close()
 
 	store := session.NewStore()
-	router, err := NewRouter(apiServer.URL, slog.New(slog.DiscardHandler), store)
+	router, err := newHandlerTestRouter(apiServer.URL, slog.New(slog.DiscardHandler), store)
 	require.NoError(t, err)
 
 	app := fiber.New()
@@ -550,7 +550,7 @@ func TestRouter_HandlePipelineRunDetailPage_RendersTimeline(t *testing.T) {
 	defer apiServer.Close()
 
 	store := session.NewStore()
-	router, err := NewRouter(apiServer.URL, slog.New(slog.DiscardHandler), store)
+	router, err := newHandlerTestRouter(apiServer.URL, slog.New(slog.DiscardHandler), store)
 	require.NoError(t, err)
 
 	app := fiber.New()
@@ -616,7 +616,7 @@ func TestRouter_HandlePipelineRunDetailPage_RendersSinkOutputMetadata(t *testing
 	defer apiServer.Close()
 
 	store := session.NewStore()
-	router, err := NewRouter(apiServer.URL, slog.New(slog.DiscardHandler), store)
+	router, err := newHandlerTestRouter(apiServer.URL, slog.New(slog.DiscardHandler), store)
 	require.NoError(t, err)
 
 	app := fiber.New()
@@ -687,7 +687,7 @@ func TestRouter_HandlePipelineRunDetailPage_RendersFailureTriageView(t *testing.
 	defer apiServer.Close()
 
 	store := session.NewStore()
-	router, err := NewRouter(apiServer.URL, slog.New(slog.DiscardHandler), store)
+	router, err := newHandlerTestRouter(apiServer.URL, slog.New(slog.DiscardHandler), store)
 	require.NoError(t, err)
 
 	app := fiber.New()
@@ -793,7 +793,7 @@ func TestRouter_HandlePipelineRunDetailPage_NotFoundRendersUnavailable(t *testin
 	defer apiServer.Close()
 
 	store := session.NewStore()
-	router, err := NewRouter(apiServer.URL, slog.New(slog.DiscardHandler), store)
+	router, err := newHandlerTestRouter(apiServer.URL, slog.New(slog.DiscardHandler), store)
 	require.NoError(t, err)
 
 	app := fiber.New()
@@ -868,7 +868,7 @@ func TestHandleRecoverPipelineRunSubmit(t *testing.T) {
 			}))
 			defer apiServer.Close()
 			store := session.NewStore()
-			router, err := NewRouter(apiServer.URL, slog.New(slog.DiscardHandler), store)
+			router, err := newHandlerTestRouter(apiServer.URL, slog.New(slog.DiscardHandler), store)
 			require.NoError(t, err)
 			app := fiber.New()
 			registerTestSessionRoute(app, store)

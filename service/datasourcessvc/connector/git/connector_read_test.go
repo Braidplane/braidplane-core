@@ -19,6 +19,14 @@ type fakeRepoStore struct {
 	lastReadMax int64
 }
 
+func TestPublicRepoIdentity(t *testing.T) {
+	t.Parallel()
+	assert.Equal(t, "github.com/acme/reports", PublicRepoIdentity("github.com/acme/reports"))
+	assert.Equal(t, "gitlab.com/acme/subgroup/reports", PublicRepoIdentity("gitlab.com/acme/subgroup/reports"))
+	assert.Equal(t, "https://git.example.com/acme/reports.git", PublicRepoIdentity("https://git.example.com/acme/reports.git?label=fixture"))
+	assert.Empty(t, PublicRepoIdentity("unsupported:fixture"))
+}
+
 func newFakeRepoStore() *fakeRepoStore {
 	return &fakeRepoStore{files: map[string][]byte{}}
 }
@@ -91,7 +99,7 @@ func TestValidateRepoURLScheme(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 
-			err := validateRepoURLScheme(tt.repoURL)
+			_, _, err := parseRepoURL(tt.repoURL)
 			if tt.wantErr != nil {
 				require.Error(t, err)
 				require.ErrorIs(t, err, tt.wantErr)
@@ -103,6 +111,36 @@ func TestValidateRepoURLScheme(t *testing.T) {
 			require.NoError(t, err)
 		})
 	}
+}
+
+func TestValidateRemoteAuthenticationMatchesTransport(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		remote string
+		auth   AuthType
+		detail string
+	}{
+		{"https://git.example.com/group/repo.git", AuthTypeHTTPS, ""},
+		{"ssh://git@git.example.com:2222/group/repo.git", AuthTypeSSH, ""},
+		{"git@git.example.com:group/repo.git", AuthTypeSSH, ""},
+		{"https://git.example.com/group/repo.git", AuthTypeSSH, "authentication must match"},
+		{"git@git.example.com:group/repo.git", AuthTypeHTTPS, "authentication must match"},
+		{"https://test-user@git.example.com/group/repo.git", AuthTypeHTTPS, "embedded credentials"},
+		{"ssh://git@git.example.com/group/repo.git?ref=main", AuthTypeSSH, "query, fragment"},
+	} {
+		err := ValidateRemoteAuth(&Config{RepoURL: tc.remote}, Credentials{
+			AuthType: tc.auth, SSHPrivateKey: "fixture-key", SSHKnownHosts: "fixture-host",
+		})
+		if tc.detail == "" {
+			require.NoError(t, err)
+		} else {
+			require.ErrorContains(t, err, tc.detail)
+			require.NotContains(t, err.Error(), tc.remote)
+		}
+	}
+	ssh := &Config{RepoURL: "git@git.example.com:group/repo.git"}
+	require.ErrorContains(t, ValidateRemoteAuth(ssh, Credentials{AuthType: AuthTypeSSH}), "ssh_private_key")
+	require.ErrorContains(t, ValidateRemoteAuth(ssh, Credentials{AuthType: AuthTypeSSH, SSHPrivateKey: "fixture-key"}), "ssh_known_hosts")
 }
 
 func TestNewAndClose(t *testing.T) {

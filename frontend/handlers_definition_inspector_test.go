@@ -63,7 +63,7 @@ func TestDefinitionAuthoritiesNeverReplaceRequestedContent(t *testing.T) {
 				assert.NoError(t, json.NewEncoder(w).Encode(api.PipelineVersion{SpecHash: oldHash, Spec: oldSpec}))
 			}))
 			defer apiServer.Close()
-			router, err := NewRouter(apiServer.URL, slog.New(slog.DiscardHandler), session.NewStore())
+			router, err := newHandlerTestRouter(apiServer.URL, slog.New(slog.DiscardHandler), session.NewStore())
 			require.NoError(t, err)
 			app := fiber.New()
 			app.Get("/inspect", func(c fiber.Ctx) error {

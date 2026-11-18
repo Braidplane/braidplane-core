@@ -121,7 +121,7 @@ func TestRouter_HandleProjectEnvironmentsPage_RendersBindingMatrix(t *testing.T)
 	defer apiServer.Close()
 
 	store := session.NewStore()
-	router, err := NewRouter(apiServer.URL, slog.New(slog.DiscardHandler), store)
+	router, err := newHandlerTestRouter(apiServer.URL, slog.New(slog.DiscardHandler), store)
 	require.NoError(t, err)
 
 	app := fiber.New()
@@ -243,7 +243,7 @@ func TestRouter_HandleProjectEnvironmentsPage_BindingLookupFailureOmitsMatrix(t 
 	defer apiServer.Close()
 
 	store := session.NewStore()
-	router, err := NewRouter(apiServer.URL, slog.New(slog.DiscardHandler), store)
+	router, err := newHandlerTestRouter(apiServer.URL, slog.New(slog.DiscardHandler), store)
 	require.NoError(t, err)
 
 	app := fiber.New()
@@ -324,7 +324,7 @@ func TestRouter_HandleProjectEnvironmentsPage_HidesMutationFormsWithoutPermissio
 	defer apiServer.Close()
 
 	store := session.NewStore()
-	router, err := NewRouter(apiServer.URL, slog.New(slog.DiscardHandler), store)
+	router, err := newHandlerTestRouter(apiServer.URL, slog.New(slog.DiscardHandler), store)
 	require.NoError(t, err)
 
 	app := fiber.New()
@@ -409,7 +409,7 @@ func TestRouter_HandleOrganizationEnvironmentsPage_RendersRuntimeTargetManagemen
 	defer apiServer.Close()
 
 	store := session.NewStore()
-	router, err := NewRouter(apiServer.URL, slog.New(slog.DiscardHandler), store)
+	router, err := newHandlerTestRouter(apiServer.URL, slog.New(slog.DiscardHandler), store)
 	require.NoError(t, err)
 
 	app := fiber.New()
@@ -617,7 +617,7 @@ func TestRouter_HandleOrganizationEnvironmentsPage_HidesMutationFormsWithoutPerm
 	defer apiServer.Close()
 
 	store := session.NewStore()
-	router, err := NewRouter(apiServer.URL, slog.New(slog.DiscardHandler), store)
+	router, err := newHandlerTestRouter(apiServer.URL, slog.New(slog.DiscardHandler), store)
 	require.NoError(t, err)
 
 	app := fiber.New()
@@ -674,7 +674,7 @@ func TestRouter_HandleCreateEnvironmentSubmit_CreatesCatalogEntry(t *testing.T) 
 	defer apiServer.Close()
 
 	store := session.NewStore()
-	router, err := NewRouter(apiServer.URL, slog.New(slog.DiscardHandler), store)
+	router, err := newHandlerTestRouter(apiServer.URL, slog.New(slog.DiscardHandler), store)
 	require.NoError(t, err)
 
 	app := fiber.New()
@@ -729,7 +729,7 @@ func TestRouter_HandleCreateEnvironmentSubmit_RendersFailureWithStickyForm(t *te
 	defer apiServer.Close()
 
 	store := session.NewStore()
-	router, err := NewRouter(apiServer.URL, slog.New(slog.DiscardHandler), store)
+	router, err := newHandlerTestRouter(apiServer.URL, slog.New(slog.DiscardHandler), store)
 	require.NoError(t, err)
 
 	app := fiber.New()
@@ -817,7 +817,7 @@ func TestRouter_HandleOrganizationEnvironmentSubmit_UpdatesAndDeletesCatalogEntr
 	defer apiServer.Close()
 
 	store := session.NewStore()
-	router, err := NewRouter(apiServer.URL, slog.New(slog.DiscardHandler), store)
+	router, err := newHandlerTestRouter(apiServer.URL, slog.New(slog.DiscardHandler), store)
 	require.NoError(t, err)
 
 	app := fiber.New()
@@ -920,7 +920,7 @@ func TestRouter_HandleProjectEnvironmentSubmit_UpdatesEnablement(t *testing.T) {
 	defer apiServer.Close()
 
 	store := session.NewStore()
-	router, err := NewRouter(apiServer.URL, slog.New(slog.DiscardHandler), store)
+	router, err := newHandlerTestRouter(apiServer.URL, slog.New(slog.DiscardHandler), store)
 	require.NoError(t, err)
 
 	app := fiber.New()
@@ -1013,7 +1013,7 @@ func TestRouter_HandleEnvironmentRuntimeVariableSubmit_UpdatesVariables(t *testi
 	defer apiServer.Close()
 
 	store := session.NewStore()
-	router, err := NewRouter(apiServer.URL, slog.New(slog.DiscardHandler), store)
+	router, err := newHandlerTestRouter(apiServer.URL, slog.New(slog.DiscardHandler), store)
 	require.NoError(t, err)
 
 	app := fiber.New()
@@ -1088,7 +1088,7 @@ func TestRouter_HandleEnvironmentSecretSubmit_UpdatesWriteOnlySecrets(t *testing
 	defer apiServer.Close()
 
 	store := session.NewStore()
-	router, err := NewRouter(apiServer.URL, slog.New(slog.DiscardHandler), store)
+	router, err := newHandlerTestRouter(apiServer.URL, slog.New(slog.DiscardHandler), store)
 	require.NoError(t, err)
 
 	app := fiber.New()
@@ -1177,7 +1177,7 @@ func TestRouter_HandleEnvironmentRuntimeVariableSubmit_ClearsDescription(t *test
 			defer apiServer.Close()
 
 			store := session.NewStore()
-			router, err := NewRouter(apiServer.URL, slog.New(slog.DiscardHandler), store)
+			router, err := newHandlerTestRouter(apiServer.URL, slog.New(slog.DiscardHandler), store)
 			require.NoError(t, err)
 
 			app := fiber.New()
@@ -1239,7 +1239,7 @@ func TestRouter_HandleProjectEnvironmentsPage_RefLookupFailureMarksMatrixUnavail
 	defer apiServer.Close()
 
 	store := session.NewStore()
-	router, err := NewRouter(apiServer.URL, slog.New(slog.DiscardHandler), store)
+	router, err := newHandlerTestRouter(apiServer.URL, slog.New(slog.DiscardHandler), store)
 	require.NoError(t, err)
 
 	app := fiber.New()
@@ -1302,7 +1302,7 @@ func TestRouter_HandleProjectEnvironmentsPage_ProjectEnvironmentLookupFailureMar
 	defer apiServer.Close()
 
 	store := session.NewStore()
-	router, err := NewRouter(apiServer.URL, slog.New(slog.DiscardHandler), store)
+	router, err := newHandlerTestRouter(apiServer.URL, slog.New(slog.DiscardHandler), store)
 	require.NoError(t, err)
 
 	app := fiber.New()

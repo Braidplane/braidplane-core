@@ -11,6 +11,7 @@ import (
 type Repository interface {
 	Create(ctx context.Context, tx postgres.DBTX, params CreateParams) (*APIKey, error)
 	FindBySlug(ctx context.Context, tx postgres.DBTX, orgSlug, apiKeySlug slug.Slug) (*APIKey, error)
+	LockRoleBySlug(ctx context.Context, tx postgres.DBTX, orgSlug, apiKeySlug slug.Slug) (slug.Slug, error)
 	ListByOrganization(
 		ctx context.Context,
 		tx postgres.DBTX,

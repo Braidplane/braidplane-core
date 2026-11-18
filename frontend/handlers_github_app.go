@@ -10,13 +10,30 @@ import (
 
 	api "github.com/Braidplane/braidplane-core/api-schema/gen/client"
 	"github.com/Braidplane/braidplane-core/frontend/views"
+	"github.com/Braidplane/braidplane-core/pkg/httpsecurity"
 	"github.com/Braidplane/braidplane-core/pkg/slug"
 )
 
 const (
 	githubInstallOrganizationCookie = "github_install_organization"
 	githubInstallProjectCookie      = "github_install_project"
+	githubInstallCookiePath         = "/github/callback"
 )
+
+func (r *Router) githubInstallCookieName(name string) string {
+	return httpsecurity.BrowserCookieName(name, githubInstallCookiePath, r.secureCookies)
+}
+
+func (r *Router) setGitHubInstallCookie(c fiber.Ctx, name, value string, maxAge int) {
+	cookie := &fiber.Cookie{
+		Name: r.githubInstallCookieName(name), Value: value, Path: githubInstallCookiePath, MaxAge: maxAge,
+		HTTPOnly: true, Secure: r.secureCookies, SameSite: fiber.CookieSameSiteLaxMode,
+	}
+	if maxAge < 0 {
+		cookie.Expires = time.Now().Add(-time.Hour)
+	}
+	c.Cookie(cookie)
+}
 
 func (r *Router) handleOrganizationGitHubPage(c fiber.Ctx) error {
 	orgSlug, err := slug.New(c.Params("slug"))
@@ -66,12 +83,12 @@ func (r *Router) handleOrganizationGitHubConnect(c fiber.Ctx) error {
 	if err != nil {
 		return fiber.ErrBadRequest
 	}
-	c.Cookie(&fiber.Cookie{Name: githubInstallProjectCookie, Value: "", Path: "/github/callback", MaxAge: -1, HTTPOnly: true, Secure: r.secureCookies, SameSite: fiber.CookieSameSiteLaxMode})
+	r.setGitHubInstallCookie(c, githubInstallProjectCookie, "", -1)
 	resp, err := r.apiClient.StartOrganizationGitHubAppInstallWithResponse(c.Context(), orgSlug.String(), frontendRequestEditor(c.Context(), c.Get(fiber.HeaderCookie)))
 	if err != nil || resp.StatusCode() != http.StatusOK || resp.JSON200 == nil {
 		return fiber.ErrServiceUnavailable
 	}
-	c.Cookie(&fiber.Cookie{Name: githubInstallOrganizationCookie, Value: orgSlug.String(), Path: "/github/callback", MaxAge: 600, HTTPOnly: true, Secure: r.secureCookies, SameSite: fiber.CookieSameSiteLaxMode})
+	r.setGitHubInstallCookie(c, githubInstallOrganizationCookie, orgSlug.String(), 600)
 	return redirectHTMXOrSeeOther(c, resp.JSON200.AuthorizationUrl)
 }
 
@@ -80,7 +97,7 @@ func (r *Router) handleOrganizationGitHubAuthorizeExisting(c fiber.Ctx) error {
 	if err != nil {
 		return fiber.ErrBadRequest
 	}
-	c.Cookie(&fiber.Cookie{Name: githubInstallProjectCookie, Value: "", Path: "/github/callback", MaxAge: -1, HTTPOnly: true, Secure: r.secureCookies, SameSite: fiber.CookieSameSiteLaxMode})
+	r.setGitHubInstallCookie(c, githubInstallProjectCookie, "", -1)
 	resp, err := r.apiClient.AuthorizeOrganizationGitHubAppConnectionWithResponse(c.Context(), orgSlug.String(), api.AuthorizeOrganizationGitHubAppConnectionJSONRequestBody{AccountLogin: c.FormValue("account_login")}, frontendRequestEditor(c.Context(), c.Get(fiber.HeaderCookie)))
 	if err != nil {
 		return fiber.ErrServiceUnavailable
@@ -92,7 +109,7 @@ func (r *Router) handleOrganizationGitHubAuthorizeExisting(c fiber.Ctx) error {
 	if resp.StatusCode() != http.StatusOK || resp.JSON200 == nil {
 		return fiber.ErrServiceUnavailable
 	}
-	c.Cookie(&fiber.Cookie{Name: githubInstallOrganizationCookie, Value: orgSlug.String(), Path: "/github/callback", MaxAge: 600, HTTPOnly: true, Secure: r.secureCookies, SameSite: fiber.CookieSameSiteLaxMode})
+	r.setGitHubInstallCookie(c, githubInstallOrganizationCookie, orgSlug.String(), 600)
 	return redirectHTMXOrSeeOther(c, resp.JSON200.AuthorizationUrl)
 }
 
@@ -112,10 +129,10 @@ func (r *Router) handleOrganizationGitHubCallback(c fiber.Ctx) error {
 			params.InstallationId = &installationID
 		}
 	}
-	org, orgErr := slug.New(c.Cookies(githubInstallOrganizationCookie))
-	project, projectErr := slug.New(c.Cookies(githubInstallProjectCookie))
-	c.Cookie(&fiber.Cookie{Name: githubInstallProjectCookie, Value: "", Path: "/github/callback", Expires: time.Now().Add(-time.Hour), MaxAge: -1, HTTPOnly: true, Secure: r.secureCookies, SameSite: fiber.CookieSameSiteLaxMode})
-	c.Cookie(&fiber.Cookie{Name: githubInstallOrganizationCookie, Value: "", Path: "/github/callback", Expires: time.Now().Add(-time.Hour), MaxAge: -1, HTTPOnly: true, Secure: r.secureCookies, SameSite: fiber.CookieSameSiteLaxMode})
+	org, orgErr := slug.New(c.Cookies(r.githubInstallCookieName(githubInstallOrganizationCookie)))
+	project, projectErr := slug.New(c.Cookies(r.githubInstallCookieName(githubInstallProjectCookie)))
+	r.setGitHubInstallCookie(c, githubInstallProjectCookie, "", -1)
+	r.setGitHubInstallCookie(c, githubInstallOrganizationCookie, "", -1)
 	failurePath := organizationsPath
 	if orgErr == nil {
 		failurePath = "/organizations/" + org.String() + "/github?connect_failed=true"

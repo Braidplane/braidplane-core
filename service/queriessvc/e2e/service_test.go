@@ -893,7 +893,7 @@ func createOrgUserAndPostgresDataSourceWithReadOnly(
 	user, err := stack.usersService.CreateUser(ctx, model.NewUser{
 		FullName: fmt.Sprintf("E2E User %d", userSlugSuffix),
 		Email:    fmt.Sprintf("e2e-user-%d@example.com", userSlugSuffix),
-		Password: "password123",
+		Password: "core-service-fixture-passphrase",
 		Role:     model.RoleUser,
 		Locale:   "en",
 	})
@@ -960,7 +960,7 @@ func createOrgAndMySQLDataSourceWithReadOnly(
 	user, err := stack.usersService.CreateUser(ctx, model.NewUser{
 		FullName: fmt.Sprintf("E2E MySQL User %d", userSlugSuffix),
 		Email:    fmt.Sprintf("e2e-mysql-user-%d@example.com", userSlugSuffix),
-		Password: "password123",
+		Password: "core-service-fixture-passphrase",
 		Role:     model.RoleUser,
 		Locale:   "en",
 	})
@@ -1053,7 +1053,7 @@ func createOrgAndMongoDataSource(
 	user, err := stack.usersService.CreateUser(ctx, model.NewUser{
 		FullName: fmt.Sprintf("E2E Mongo User %d", userSlugSuffix),
 		Email:    fmt.Sprintf("e2e-mongo-user-%d@example.com", userSlugSuffix),
-		Password: "password123",
+		Password: "core-service-fixture-passphrase",
 		Role:     model.RoleUser,
 		Locale:   "en",
 	})

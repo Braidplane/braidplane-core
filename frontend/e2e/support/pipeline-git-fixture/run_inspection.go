@@ -297,7 +297,7 @@ func handleRunInspectionAPI(w http.ResponseWriter, r *http.Request) bool {
 		p["spec"].(map[string]any)["steps"].([]any)[2].(map[string]any)["transform"].(map[string]any)["sql"] = "SELECT amount_cents FROM orders /* current authoring */"
 		encode(p)
 	case "/api/users/profile":
-		encode(map[string]any{"slug": "fixture-user", "timezone": runInspectionTimezone})
+		encode(map[string]any{"slug": "test-user", "timezone": runInspectionTimezone})
 	case prefix + "/environments/dev/pipeline-deployments":
 		if runInspectionDeploymentChanged {
 			encode(map[string]any{"deployments": []any{map[string]any{"pipeline_slug": "daily-sync", "environment_slug": "dev", "current_version_spec_hash": strings.Repeat("b", 64), "current_version_short_spec_hash": strings.Repeat("b", 12)}}})

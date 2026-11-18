@@ -57,7 +57,7 @@ func TestAccountDeletionSubmission(t *testing.T) {
 			}))
 			defer backend.Close()
 			store := session.NewStore()
-			router, err := NewRouter(backend.URL, slog.New(slog.DiscardHandler), store)
+			router, err := newHandlerTestRouter(backend.URL, slog.New(slog.DiscardHandler), store)
 			require.NoError(t, err)
 			app := fiber.New()
 			registerTestSessionRoute(app, store)
@@ -79,6 +79,13 @@ func TestAccountDeletionSubmission(t *testing.T) {
 			html, err := io.ReadAll(response.Body)
 			require.NoError(t, err)
 			require.Contains(t, string(html), tc.message)
+			if tc.name == "Removed" || tc.name == "Pending" {
+				require.Equal(t, "1", response.Header.Get(browserSessionEndedHeader))
+				require.Contains(t, string(html), `name="braidplane-session-ended"`)
+				require.Contains(t, string(html), "/assets/js/security.js")
+			} else {
+				require.Empty(t, response.Header.Get(browserSessionEndedHeader))
+			}
 			if tc.apiStatus == 0 {
 				require.Zero(t, calls.Load())
 			} else {

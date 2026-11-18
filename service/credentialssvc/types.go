@@ -147,6 +147,15 @@ type CredentialInstall struct {
 	UpdatedAt                  time.Time
 }
 
+// AllowsCallbackActor checks user continuity for an OAuth install.
+func (install CredentialInstall) AllowsCallbackActor(actor model.EventActor) bool {
+	if install.Actor.Type != model.EventActorTypeUser && install.RepositorySetupSlug == "" && install.RepositorySetupProjectSlug == "" {
+		return true
+	}
+	user := install.Actor.UserSlugValue()
+	return user != "" && user == actor.UserSlugValue()
+}
+
 type CredentialGrant struct {
 	Slug               slug.Slug
 	Owner              CredentialOwner
@@ -260,6 +269,7 @@ type FindOAuthInstallParams struct {
 type ConsumeOAuthInstallParams struct {
 	Provider string `validate:"required"`
 	State    string `validate:"required"`
+	Actor    model.EventActor
 }
 
 type CompleteOAuthCallbackResult struct {

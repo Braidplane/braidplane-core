@@ -49,7 +49,7 @@ func TestRouter_HandleNotificationsPage_RendersNotificationInbox(t *testing.T) {
 	t.Cleanup(apiServer.Close)
 
 	store := session.NewStore()
-	router, err := NewRouter(apiServer.URL, slog.New(slog.DiscardHandler), store)
+	router, err := newHandlerTestRouter(apiServer.URL, slog.New(slog.DiscardHandler), store)
 	require.NoError(t, err)
 
 	app := fiber.New()
@@ -127,7 +127,7 @@ func TestRouter_HandleNotificationsPage_RendersWorkspaceError(t *testing.T) {
 			t.Cleanup(apiServer.Close)
 
 			store := session.NewStore()
-			router, err := NewRouter(apiServer.URL, slog.New(slog.DiscardHandler), store)
+			router, err := newHandlerTestRouter(apiServer.URL, slog.New(slog.DiscardHandler), store)
 			require.NoError(t, err)
 
 			app := fiber.New()
@@ -197,7 +197,7 @@ func TestRouter_HandleAcknowledgeNotificationSubmit_RedirectsToFilteredList(t *t
 	defer apiServer.Close()
 
 	store := session.NewStore()
-	router, err := NewRouter(apiServer.URL, slog.New(slog.DiscardHandler), store)
+	router, err := newHandlerTestRouter(apiServer.URL, slog.New(slog.DiscardHandler), store)
 	require.NoError(t, err)
 
 	app := fiber.New()
@@ -242,7 +242,7 @@ func TestRouter_HandleResolveNotificationSubmit_RedirectsToFilteredList(t *testi
 	defer apiServer.Close()
 
 	store := session.NewStore()
-	router, err := NewRouter(apiServer.URL, slog.New(slog.DiscardHandler), store)
+	router, err := newHandlerTestRouter(apiServer.URL, slog.New(slog.DiscardHandler), store)
 	require.NoError(t, err)
 
 	app := fiber.New()
@@ -297,7 +297,7 @@ func TestNotificationsRecencyCapability(t *testing.T) {
 			}))
 			defer backend.Close()
 			store := session.NewStore()
-			router, err := NewRouter(backend.URL, slog.New(slog.DiscardHandler), store)
+			router, err := newHandlerTestRouter(backend.URL, slog.New(slog.DiscardHandler), store)
 			require.NoError(t, err)
 			app := fiber.New()
 			registerTestSessionRoute(app, store)

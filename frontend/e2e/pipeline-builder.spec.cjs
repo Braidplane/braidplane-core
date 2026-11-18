@@ -146,7 +146,7 @@ test("saves a materialized pipeline draft and reloads it", async ({ page }, test
         expect(savedSteps.find((step) => step.slug === sinkSlug).sink.idempotency_class).toBe("deduplicated_by_ledger");
         expect(savedSteps.find((step) => step.slug === "fetch-users").query.output_contract).toBeUndefined();
         // Exclude the local draft cache from the server-persistence assertion.
-        await page.evaluate(() => localStorage.clear());
+        await page.evaluate(() => sessionStorage.clear());
         await page.reload();
         await expect(node).toHaveAttribute("data-step-name", label);
         await page.locator(`.builder-node[data-node-slug="${sinkSlug}"] .builder-node-content`).click();
@@ -246,7 +246,7 @@ test("saves a materialized pipeline draft and reloads it", async ({ page }, test
         await node.locator(".builder-node-content").click();
         await page.locator("#builder-field-step-name").fill("Local unsaved edit");
         await expect(matchingNotice).toHaveCount(0);
-        await page.evaluate(() => localStorage.clear());
+        await page.evaluate(() => sessionStorage.clear());
         await page.reload();
         await matchingNotice.getByRole("link", { name: "Review saved draft", exact: true }).click();
         await expect(page).toHaveURL(/section=git/);

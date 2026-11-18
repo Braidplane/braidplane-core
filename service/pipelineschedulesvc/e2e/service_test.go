@@ -1247,7 +1247,7 @@ func seedScheduleE2EProjectEnvironment(
 	user, err := stack.users.CreateUser(ctx, model.NewUser{
 		FullName: "Schedule Dispatch Owner",
 		Email:    userSlug.String() + "@example.test",
-		Password: "password123",
+		Password: "core-service-fixture-passphrase",
 		Role:     model.RoleSuperAdmin,
 		Locale:   "en",
 	})

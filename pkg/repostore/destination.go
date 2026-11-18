@@ -205,6 +205,21 @@ func withPinnedSSHDestination(env []string, hostname, port, ip string) ([]string
 	return withGitEnvOverrides(env, "GIT_SSH_COMMAND="+sshCommand), nil
 }
 
+// SSHAuthEnv supplies temporary credential paths to OpenSSH through the process environment.
+func SSHAuthEnv(env []string, keyPath, knownHostsPath string) []string {
+	// OpenSSH expands the fixed references once, after parsing its option values.
+	command := joinSSHCommand([]string{
+		"ssh", "-o", "IdentityFile=${BRAIDPLANE_GIT_IDENTITY_FILE}", "-o", "StrictHostKeyChecking=yes",
+		"-o", "UserKnownHostsFile=${BRAIDPLANE_GIT_KNOWN_HOSTS_FILE}",
+		"-o", "ConnectTimeout=10", "-o", "BatchMode=yes", "-o", "IdentitiesOnly=yes",
+	})
+	return withGitEnvOverrides(env,
+		"BRAIDPLANE_GIT_IDENTITY_FILE="+keyPath,
+		"BRAIDPLANE_GIT_KNOWN_HOSTS_FILE="+knownHostsPath,
+		"GIT_SSH_COMMAND="+command,
+	)
+}
+
 // curlResolveAddress formats literal IPv6 values for libcurl's HOST:PORT:ADDRESS syntax.
 func curlResolveAddress(ip string) string {
 	parsed := net.ParseIP(ip)
@@ -238,7 +253,19 @@ func withoutSSHDestinationOptions(command string) (string, error) {
 		}
 		filtered = append(filtered, field)
 	}
-	return strings.Join(filtered, " "), nil
+	return joinSSHCommand(filtered), nil
+}
+
+func joinSSHCommand(args []string) string {
+	const shellWordChars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_@%+=:,./-"
+	for i, arg := range args {
+		if arg == "" || strings.ContainsFunc(arg, func(char rune) bool {
+			return !strings.ContainsRune(shellWordChars, char)
+		}) {
+			args[i] = shellQuote(arg)
+		}
+	}
+	return strings.Join(args, " ")
 }
 
 // splitSSHCommand accepts only simple shell words so inherited routing cannot hide in ambiguous syntax.
@@ -293,10 +320,12 @@ func splitSSHCommand(command string) ([]string, error) {
 
 // isSSHDestinationOverride reports whether an SSH -o value can replace a pinned route or identity.
 func isSSHDestinationOverride(option string) bool {
-	name, _, ok := strings.Cut(option, "=")
-	if !ok {
+	option = strings.TrimSpace(option)
+	end := strings.IndexAny(option, "= \t\r\n")
+	if end < 0 {
 		return false
 	}
+	name := option[:end]
 	return strings.EqualFold(name, "ProxyCommand") ||
 		strings.EqualFold(name, "ProxyJump") ||
 		strings.EqualFold(name, "HostName") ||

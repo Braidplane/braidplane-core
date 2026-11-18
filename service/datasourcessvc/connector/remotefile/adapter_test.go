@@ -446,23 +446,43 @@ func TestAdapterIntrospectionKeepsOpaqueFilesWithoutReadingBytes(t *testing.T) {
 	require.Empty(t, schema.Diagnostics)
 }
 
-func TestAdapterIntrospectionInfersExtensionlessData(t *testing.T) {
-	for _, content := range []string{"id,name\n1,Ada\n", `[{"id":1,"name":"Ada"}]`} {
-		provider := &fakeProvider{files: map[string]fakeFile{"users": {content: []byte(content)}}, listed: []SchemaFile{{Name: "users", Target: "users"}}}
-		schema, err := (Adapter{}).IntrospectSchema(context.Background(), provider, SchemaOptions{MaxBytes: 1024})
-		require.NoError(t, err)
-		require.Len(t, schema.Files, 1)
-		require.Len(t, schema.Files[0].Fields, 2)
-	}
+func TestAdapterIntrospectionKeepsExtensionlessFilesWithoutSampling(t *testing.T) {
+	provider := &fakeProvider{listed: []SchemaFile{{Name: "users", Target: "users"}}}
+	schema, err := (Adapter{}).IntrospectSchema(t.Context(), provider, SchemaOptions{MaxBytes: 1024})
+	require.NoError(t, err)
+	require.Len(t, schema.Files, 1)
+	require.Empty(t, schema.Files[0].Fields)
+	require.Empty(t, schema.Diagnostics)
 }
 
-func TestAdapterIntrospectionKeepsExtensionlessOpaqueContent(t *testing.T) {
-	for _, content := range [][]byte{{0, 1, 2, 3}, {0xff, 0xfe, 'a', 0}, {0x80, 0x81}, []byte("%PDF-1.7\nopaque"), []byte("<html>opaque</html>")} {
-		provider := &fakeProvider{files: map[string]fakeFile{"blob": {content: content}}, listed: []SchemaFile{{Name: "blob", Target: "blob"}}}
-		schema, err := (Adapter{}).IntrospectSchema(context.Background(), provider, SchemaOptions{MaxBytes: 1024})
-		require.NoError(t, err)
-		require.Len(t, schema.Files, 1)
-		require.Empty(t, schema.Files[0].Fields)
-		require.Empty(t, schema.Diagnostics)
+func TestAdapterExecuteReadValidatesFormatBeforeFetching(t *testing.T) {
+	provider := &fakeProvider{}
+	_, err := (Adapter{}).ExecuteRead(t.Context(), provider, "users.csv", Statement{Format: filedata.QueryFormatJSON}, types.ExecutionLimits{})
+	require.ErrorIs(t, err, xerror.InvalidInput(xerror.Query))
+	_, err = (Adapter{}).ExecuteRead(t.Context(), provider, "users.txt", Statement{Format: filedata.QueryFormatAuto}, types.ExecutionLimits{})
+	require.ErrorIs(t, err, xerror.InvalidInput(xerror.Query))
+}
+
+func TestAdapterRejectsMalformedStructuredText(t *testing.T) {
+	provider := &fakeProvider{
+		files: map[string]fakeFile{
+			"binary.csv":   {content: []byte("id\n1\x00\n")},
+			"invalid.json": {content: []byte("{\"name\":\"\xff\"}")},
+		},
+		listed: []SchemaFile{{Name: "binary.csv", Target: "binary.csv"}, {Name: "invalid.json", Target: "invalid.json"}},
+	}
+	adapter := Adapter{}
+	for _, candidate := range provider.listed {
+		_, err := adapter.ExecuteRead(t.Context(), provider, candidate.Target, Statement{}, types.ExecutionLimits{})
+		require.ErrorIs(t, err, xerror.InvalidInput(xerror.Query))
+	}
+	schema, err := adapter.IntrospectSchema(t.Context(), provider, SchemaOptions{})
+	require.NoError(t, err)
+	require.Len(t, schema.Diagnostics, 2)
+	for _, diagnostic := range schema.Diagnostics {
+		require.Equal(t, "parse_failed", diagnostic.Code)
+	}
+	for _, file := range schema.Files {
+		require.Empty(t, file.Fields)
 	}
 }

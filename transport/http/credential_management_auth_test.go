@@ -12,6 +12,7 @@ import (
 	"github.com/Braidplane/braidplane-core/pkg/domain/model"
 	"github.com/Braidplane/braidplane-core/pkg/reqctx"
 	"github.com/Braidplane/braidplane-core/pkg/slug"
+	"github.com/Braidplane/braidplane-core/service/apikeyssvc"
 	"github.com/Braidplane/braidplane-core/service/authorization"
 	"github.com/Braidplane/braidplane-core/service/patssvc"
 )
@@ -161,6 +162,58 @@ func TestAPIKeyManagerCannotReadDifferentRoleOrPermanentlyDelete(t *testing.T) {
 	defer func() { _ = deleteResp.Body.Close() }()
 	require.Equal(t, http.StatusUnauthorized, deleteResp.StatusCode)
 	assertErrorResponse(t, deleteResp, apierror.Unauthorized())
+}
+
+func TestAPIKeyManagerPassesRoleToMutation(t *testing.T) {
+	t.Parallel()
+	role := slug.FromString("viewer")
+	assertMutationRole := func(org, target slug.Slug, actor model.EventActor, callerRole *slug.Slug) {
+		t.Helper()
+		require.Equal(t, slug.FromString("acme"), org)
+		require.Equal(t, slug.FromString("target"), target)
+		require.Equal(t, model.APIKeyEventActor("manager"), actor)
+		require.NotNil(t, callerRole)
+		require.Equal(t, role, *callerRole)
+	}
+	app, _ := newTestApp(t, testServerConfig{
+		middleware: []fiber.Handler{apiKeyPrincipalMiddleware(reqctx.APIKeyPrincipal{
+			Slug: "manager", OrgSlug: "acme", Role: role, CanManageAPIKeys: true,
+		})},
+		apiKeysService: &fakeAPIKeysService{
+			GetAPIKeyFn: func(context.Context, slug.Slug, slug.Slug) (*model.APIKey, error) {
+				key := testAPIKey("target")
+				key.Role = role
+				return &key, nil
+			},
+			UpdateAPIKeyFn: func(_ context.Context, org, target slug.Slug, actor model.EventActor, callerRole *slug.Slug, _ model.UpdateAPIKey) (*model.APIKey, error) {
+				assertMutationRole(org, target, actor, callerRole)
+				return nil, apikeyssvc.ErrAPIKeyRoleMismatch
+			},
+			RevokeAPIKeyFn: func(_ context.Context, org, target slug.Slug, actor model.EventActor, callerRole *slug.Slug) error {
+				assertMutationRole(org, target, actor, callerRole)
+				return apikeyssvc.ErrAPIKeyRoleMismatch
+			},
+			RotateAPIKeyFn: func(_ context.Context, org, target slug.Slug, actor model.EventActor, callerRole *slug.Slug) (*model.APIKeyWithToken, error) {
+				assertMutationRole(org, target, actor, callerRole)
+				return nil, apikeyssvc.ErrAPIKeyRoleMismatch
+			},
+		},
+		authService: allowAuthorizationService(),
+	})
+	const path = "/organizations/acme/api-keys/target"
+	for _, mutation := range []struct {
+		method, path, action string
+		body                 any
+	}{
+		{http.MethodPut, path, "update", map[string]string{"name": "Target"}},
+		{http.MethodDelete, path, "delete", nil},
+		{http.MethodPost, path + "/rotate", "update", nil},
+	} {
+		resp, err := app.Test(jsonRequest(t, mutation.method, mutation.path, mutation.body))
+		require.NoError(t, err)
+		assertErrorResponse(t, resp, apierror.Forbidden("api_keys", mutation.action))
+		require.NoError(t, resp.Body.Close())
+	}
 }
 
 func TestPATManagerUpdatesMetadataButCannotToggleCapability(t *testing.T) {

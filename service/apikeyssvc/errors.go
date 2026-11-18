@@ -10,6 +10,7 @@ var (
 	ErrAPIKeyAlreadyExists = apikeys.ErrSlugAlreadyExists
 	ErrInvalidInput        = xerror.ValidationFailed()
 	ErrInvalidToken        = xerror.InvalidCredentials()
+	ErrAPIKeyRoleMismatch  = xerror.Forbidden(xerror.APIKey)
 	ErrAPIKeyNotRevoked    = xerror.InvalidInput(xerror.APIKey).
 				WithPublicDetail("API key must be revoked before deletion.")
 )

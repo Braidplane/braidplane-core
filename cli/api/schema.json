@@ -872,6 +872,12 @@
         ],
         "type": "object"
       },
+      "AccountFullName": {
+        "description": "",
+        "maxLength": 100,
+        "minLength": 1,
+        "type": "string"
+      },
       "AlertDeliveryAttempt": {
         "additionalProperties": false,
         "description": "",
@@ -2485,6 +2491,9 @@
               },
               {
                 "$ref": "#/components/schemas/GitConfig"
+              },
+              {
+                "$ref": "#/components/schemas/UnavailableGitConfig"
               },
               {
                 "$ref": "#/components/schemas/ProviderGitConfig"
@@ -7516,6 +7525,7 @@
             "type": "string"
           },
           "source_repo": {
+            "description": "",
             "type": "string"
           }
         },
@@ -18523,6 +18533,31 @@
         "format": "date-time",
         "type": "string"
       },
+      "UnavailableGitConfig": {
+        "additionalProperties": false,
+        "description": "",
+        "properties": {
+          "allow_private_hosts": {
+            "type": "boolean"
+          },
+          "base_path": {
+            "type": "string"
+          },
+          "default_branch": {
+            "type": "string"
+          },
+          "repo_url": {
+            "enum": [
+              ""
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "repo_url"
+        ],
+        "type": "object"
+      },
       "UpdateAPIKey": {
         "additionalProperties": false,
         "properties": {
@@ -19047,7 +19082,7 @@
             "type": "string"
           },
           "full_name": {
-            "$ref": "#/components/schemas/Name"
+            "$ref": "#/components/schemas/AccountFullName"
           },
           "job_title": {
             "description": "",
@@ -19373,7 +19408,7 @@
       "SessionAuth": {
         "description": "",
         "in": "cookie",
-        "name": "session_id",
+        "name": "__Host-session_id",
         "type": "apiKey"
       }
     }

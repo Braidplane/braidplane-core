@@ -100,7 +100,7 @@ script:pre-request {
 
   const latestEmail = await fetchVerificationEmail(mailpitUrl, userEmail);
   const content = await fetchMessageContent(mailpitUrl, latestEmail);
-  const tokenMatch = content.match(/token=([a-f0-9]{64})/);
+  const tokenMatch = content.match(/^(?:Code|Kod): ([a-f0-9]{64})\s*$/m);
   if (!tokenMatch || !tokenMatch[1]) {
     throw new Error("Could not extract verification token");
   }

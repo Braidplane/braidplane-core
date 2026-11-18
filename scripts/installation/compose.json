@@ -93,7 +93,7 @@
         "-ec"
       ],
       "command": [
-        "export PGHOST=$$DB_HOST PGPORT=$$DB_PORT PGUSER=$$DB_USER PGPASSWORD=$$DB_PASSWORD PGDATABASE=$$DB_DATABASE PGSSLMODE=$$DB_SSL_MODE PGSSLROOTCERT=$$DB_SSL_ROOT_CERT; exec psql -v ON_ERROR_STOP=1 -v runtime_role=braidplane_runtime -v migrator_role=braidplane_migrator -v executor_role=braidplane_executor -f /bundle/runtime-grants.sql -f /bundle/execution-grants.sql"
+        "export PGREQUIREAUTH='scram-sha-256' PGHOST=$$DB_HOST PGPORT=$$DB_PORT PGUSER=$$DB_USER PGPASSWORD=$$DB_PASSWORD PGDATABASE=$$DB_DATABASE PGSSLMODE=$$DB_SSL_MODE PGSSLROOTCERT=$$DB_SSL_ROOT_CERT; exec psql -v ON_ERROR_STOP=1 -v runtime_role=braidplane_runtime -v migrator_role=braidplane_migrator -v executor_role=braidplane_executor -f /bundle/runtime-grants.sql -f /bundle/execution-grants.sql"
       ],
       "volumes": [
         "./certificates/ca.pem:/etc/braidplane/ca.pem:ro",
@@ -117,9 +117,15 @@
           "max-file": "3"
         }
       },
-      "networks": [
-        "private"
-      ],
+      "networks": {
+        "private": null,
+        "proxy": {
+          "ipv4_address": "10.254.249.4",
+          "aliases": [
+            "api-proxy"
+          ]
+        }
+      },
       "command": [
         "api"
       ],
@@ -129,7 +135,9 @@
       "environment": {
         "CONFIG_PATH": "/etc/braidplane/customer.toml",
         "EXECUTION_BACKEND": "poller",
-        "DEPLOYMENT_PROFILE": "self-hosted"
+        "DEPLOYMENT_PROFILE": "self-hosted",
+        "SERVER_PROXY_HEADER": "X-Forwarded-For",
+        "SERVER_TRUSTED_PROXIES": "10.254.249.3"
       },
       "volumes": [
         "./config.toml:/etc/braidplane/customer.toml:ro",
@@ -288,9 +296,12 @@
           "max-file": "3"
         }
       },
-      "networks": [
-        "private"
-      ],
+      "networks": {
+        "private": null,
+        "proxy": {
+          "ipv4_address": "10.254.249.3"
+        }
+      },
       "env_file": [
         "runtime.env"
       ],
@@ -298,8 +309,10 @@
         "CONFIG_PATH": "/etc/braidplane/customer.toml",
         "EXECUTION_BACKEND": "poller",
         "DEPLOYMENT_PROFILE": "self-hosted",
-        "BACKEND_API_URL": "http://api:3001",
-        "FRONTEND_SERVER_PORT": "3002"
+        "BACKEND_API_URL": "http://api-proxy:3001",
+        "FRONTEND_SERVER_PORT": "3002",
+        "FRONTEND_SERVER_PROXY_HEADER": "X-Forwarded-For",
+        "FRONTEND_SERVER_TRUSTED_PROXIES": "10.254.249.2"
       },
       "volumes": [
         "./config.toml:/etc/braidplane/customer.toml:ro",
@@ -344,9 +357,11 @@
           "max-file": "3"
         }
       },
-      "networks": [
-        "private"
-      ],
+      "networks": {
+        "proxy": {
+          "ipv4_address": "10.254.249.2"
+        }
+      },
       "volumes": [
         "./Caddyfile:/etc/caddy/Caddyfile:ro",
         "./certificates/edge.pem:/certificates/edge.pem:ro",
@@ -450,6 +465,15 @@
     "database": {}
   },
   "networks": {
-    "private": {}
+    "private": {},
+    "proxy": {
+      "ipam": {
+        "config": [
+          {
+            "subnet": "10.254.249.0/29"
+          }
+        ]
+      }
+    }
   }
 }

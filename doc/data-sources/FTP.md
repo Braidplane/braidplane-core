@@ -26,6 +26,11 @@ for the canonical cross-connector contract.
 | `connect_timeout` | no | integer | 5 | Connection and TLS/login timeout in seconds (1 to 300); later transfers are not capped by this setting |
 | `allow_private_hosts` | no | boolean | `false` | Requires private host access to be enabled for the deployment; hosted/default deployments reject `true` |
 
+Core resolves `base_path` from the FTP root for both discovery and transfers.
+Use slash-separated UTF-8 paths. Spaces in filenames are preserved. Core
+rejects control characters and backslashes in paths and skips discovered
+names that cannot be used as file or folder names.
+
 Operation cancellation and deadlines interrupt control commands, passive data
 dials, transfers and final replies. Operations sharing a connection run one at a
 time. Canceling an active operation closes that connection; the next operation
@@ -72,7 +77,7 @@ previous schema cache unchanged rather than persisting a partial result.
 
 A query defines a file operation:
 
-**Read** (`operation: read`): retrieves the file at the given path and returns its contents as rows for `csv`, `json`, and `spreadsheet`, or as a native `file` payload for `format: file`. Format is detected from the file extension unless specified explicitly. CSV supports a configurable delimiter and an optional header row flag. Spreadsheet mode supports Excel workbook files, selects one worksheet, optionally crops to an A1 range, and normalizes the selected cells into rows.
+**Read** (`operation: read`): retrieves the file at the given path and returns its contents as rows for `csv`, `json`, and `spreadsheet`, or as a native `file` payload for `format: file`. Structured formats require matching file extensions. `auto` uses the extension. CSV supports a configurable delimiter and an optional header row flag. Spreadsheet mode supports Excel workbook files, selects one worksheet, optionally crops to an A1 range, and normalizes the selected cells into rows.
 
 **Write** (`operation: write`): for pipeline sinks, serializes the runtime-provided `input` payload to the file at the given path; direct (non-pipeline) saved queries may alternatively provide inline `content`. When reserved runtime `path` or `input` bindings are present they override the saved query's inline path/content values. CSV output includes a header row and preserves raw `input` bytes when the upstream payload is already CSV. JSON output accepts structured payloads only: row arrays and document payloads are written as JSON, while scalar and null content are rejected. Spreadsheet output accepts row-object arrays and writes an Excel workbook with a stable header order. Native file output uses `format: file` and writes bytes without CSV/JSON/spreadsheet parsing. In pipeline terms, CSV-to-JSON or CSV-to-spreadsheet requires an explicit transform instead of a hidden sink-side conversion. An `overwrite` flag controls whether the file is replaced or the operation fails if the file exists.
 

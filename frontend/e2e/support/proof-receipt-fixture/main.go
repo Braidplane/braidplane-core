@@ -81,6 +81,8 @@ func main() {
 func handleAPI(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	switch r.URL.Path {
+	case "/api/users/profile":
+		write(w, `{"slug":"test-user"}`)
 	case "/api/organizations/acme/gitlab-connection":
 		write(w, `{"kind":"oauth2_grant","status":"active","updated_at":"2026-09-27T00:00:00Z","oauth":{"provider":"gitlab","account":{"name":"Acme GitLab"},"scopes":["read_user","read_api","read_repository"]}}`)
 	case "/api/organizations/acme/gitlab-connection/authorization":

@@ -8,7 +8,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/Braidplane/braidplane-core/pkg/dbpool"
 
 	"github.com/Braidplane/braidplane-core/pkg/domain/model"
 	"github.com/Braidplane/braidplane-core/pkg/slug"
@@ -79,7 +79,7 @@ func seedScheduleFiresFromReader(ctx context.Context, input io.Reader, connectio
 	ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
 	defer cancel()
 
-	pool, err := pgxpool.New(ctx, connectionString)
+	pool, err := dbpool.New(ctx, connectionString)
 	if err != nil {
 		return xerror.Unexpected().Detailf("open database pool: %w", err)
 	}

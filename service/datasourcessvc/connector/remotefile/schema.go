@@ -3,15 +3,13 @@ package remotefile
 import (
 	"context"
 	"fmt"
-	"net/http"
-	"path/filepath"
 	"sort"
 	"strings"
-	"unicode/utf8"
 
 	"github.com/Braidplane/braidplane-core/pkg/connector/result"
 	"github.com/Braidplane/braidplane-core/pkg/connector/schemaquota"
 	"github.com/Braidplane/braidplane-core/pkg/nativetype"
+	"github.com/Braidplane/braidplane-core/pkg/xerror"
 	"github.com/Braidplane/braidplane-core/service/datasourcessvc/connector/filedata"
 )
 
@@ -81,9 +79,8 @@ func (adapter Adapter) introspectFile(
 	candidate SchemaFile,
 	opts SchemaOptions,
 ) (filedata.File, filedata.SchemaDiagnostic, bool) {
-	ext := strings.ToLower(filepath.Ext(candidate.Target))
-	if strings.HasSuffix(candidate.Target, "/") ||
-		(ext != "" && ext != ".csv" && ext != ".json" && !filedata.IsSpreadsheetExtension(candidate.Target)) {
+	format, err := filedata.DetectFormat(filedata.QueryFormatAuto, candidate.Target)
+	if err != nil || strings.HasSuffix(candidate.Target, "/") {
 		return filedata.File{Name: candidate.Name, Fields: []filedata.Field{}}, filedata.SchemaDiagnostic{}, true
 	}
 	readLimit := opts.MaxBytes
@@ -113,12 +110,7 @@ func (adapter Adapter) introspectFile(
 		return filedata.File{}, schemaDiagnostic(candidate, "budget_exhausted", "Fields were not inferred because the schema byte budget was exhausted."), false
 	}
 
-	if ext == "" && (!utf8.Valid(content.Content) ||
-		!strings.HasPrefix(http.DetectContentType(content.Content), "text/plain")) {
-		return filedata.File{Name: candidate.Name, Fields: []filedata.Field{}}, filedata.SchemaDiagnostic{}, true
-	}
-
-	fields, ok, err := adapter.inferSchemaFields(candidate.Target, content.Content, readLimit)
+	fields, err := adapter.inferSchemaFields(candidate.Target, content.Content, format, readLimit)
 	if err != nil {
 		return filedata.File{}, schemaDiagnostic(
 			candidate,
@@ -126,57 +118,33 @@ func (adapter Adapter) introspectFile(
 			"Fields were not inferred because the sample could not be parsed.",
 		), false
 	}
-	if !ok {
-		diagnostic := schemaDiagnostic(
-			candidate,
-			"unsupported_format",
-			"File sample did not match a supported schema inference format.",
-		)
-		return filedata.File{}, diagnostic, false
-	}
-
 	return filedata.File{Name: candidate.Name, Fields: fields}, filedata.SchemaDiagnostic{}, true
 }
 
-// inferSchemaFields detects a sample format and infers file fields for schema views.
+// inferSchemaFields parses a sample using the format selected from its extension.
 func (adapter Adapter) inferSchemaFields(
 	target string,
 	content []byte,
+	format filedata.QueryFormat,
 	maxBytes int64,
-) ([]filedata.Field, bool, error) {
-	format, ok := detectSchemaFormat(target, content)
-	if !ok {
-		return nil, false, nil
-	}
-
+) ([]filedata.Field, error) {
 	if adapter.SchemaParsedColumns {
 		return adapter.inferParsedColumnFields(target, content, format, maxBytes)
 	}
 
 	switch format {
 	case filedata.QueryFormatCSV:
-		fields, err := filedata.InferCSVFields(content)
-		return fields, true, err
+		return filedata.InferCSVFields(content)
 	case filedata.QueryFormatJSON:
-		fields, err := filedata.InferJSONFields(content)
-		return fields, true, err
+		return filedata.InferJSONFields(content)
 	case filedata.QueryFormatSpreadsheet:
-		fields, err := filedata.InferSpreadsheetFields(
+		return filedata.InferSpreadsheetFields(
 			content,
-			filedata.SpreadsheetOptions{FilePath: adapter.spreadsheetPath(target), MaxBytes: maxBytes},
+			filedata.SpreadsheetOptions{FilePath: target, MaxBytes: maxBytes},
 		)
-		return fields, true, err
-	case filedata.QueryFormatFile:
-		return nil, false, nil
 	default:
-		return nil, false, nil
+		return nil, xerror.Unexpected().Detail("unsupported schema sample format")
 	}
-}
-
-// detectSchemaFormat reports whether a file sample has a supported detectable format.
-func detectSchemaFormat(target string, content []byte) (filedata.QueryFormat, bool) {
-	format, err := filedata.DetectFormat(filedata.QueryFormatAuto, target, content)
-	return format, err == nil
 }
 
 // inferParsedColumnFields preserves connectors whose schema fields come from normalized result columns.
@@ -185,7 +153,7 @@ func (adapter Adapter) inferParsedColumnFields(
 	content []byte,
 	format filedata.QueryFormat,
 	maxBytes int64,
-) ([]filedata.Field, bool, error) {
+) ([]filedata.Field, error) {
 	var fileResult *result.FileResult
 	var err error
 	switch format {
@@ -196,15 +164,13 @@ func (adapter Adapter) inferParsedColumnFields(
 	case filedata.QueryFormatSpreadsheet:
 		fileResult, err = filedata.ParseSpreadsheet(
 			content,
-			filedata.SpreadsheetOptions{FilePath: adapter.spreadsheetPath(target), MaxBytes: maxBytes},
+			filedata.SpreadsheetOptions{FilePath: target, MaxBytes: maxBytes},
 		)
-	case filedata.QueryFormatFile:
-		return nil, false, nil
 	default:
-		return nil, false, nil
+		return nil, xerror.Unexpected().Detail("unsupported schema sample format")
 	}
 	if err != nil {
-		return nil, false, err
+		return nil, err
 	}
 
 	fields := make([]filedata.Field, 0, len(fileResult.ColumnNames))
@@ -212,7 +178,7 @@ func (adapter Adapter) inferParsedColumnFields(
 		fields = append(fields, filedata.Field{Name: name, Type: nativetype.TypeString})
 	}
 
-	return fields, true, nil
+	return fields, nil
 }
 
 // schemaDiagnostic builds a safe non-fatal schema sampling warning for one candidate.

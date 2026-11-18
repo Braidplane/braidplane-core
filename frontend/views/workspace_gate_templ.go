@@ -237,7 +237,7 @@ func WorkspaceGatePageContent(usageType string, organizationWorkspaceName string
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 20, "<button class=\"btn btn-primary w-full\" type=\"submit\">Create workspace</button></form><a class=\"btn btn-outline btn-sm w-full\" href=\"/account\">Account settings</a><form method=\"post\" action=\"/auth/logout\" hx-post=\"/auth/logout\" hx-target=\"body\" hx-select=\"body\" hx-swap=\"outerHTML\"><button class=\"btn btn-ghost btn-sm w-full\" type=\"submit\">Sign out</button></form></div>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 20, "<button class=\"btn btn-primary w-full\" type=\"submit\">Create workspace</button></form><a class=\"btn btn-outline btn-sm w-full\" href=\"/account\">Account settings</a><form method=\"post\" action=\"/auth/logout\"><button class=\"btn btn-ghost btn-sm w-full\" type=\"submit\">Sign out</button></form></div>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

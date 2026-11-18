@@ -467,7 +467,7 @@ func createEventsServiceOrganization(t *testing.T, pool *pgxpool.Pool, orgSlug s
 	user, err := usersSvc.CreateUser(ctx, model.NewUser{
 		FullName: "Events Service Test User",
 		Email:    userSlug.String() + "@example.test",
-		Password: "password123",
+		Password: "core-service-fixture-passphrase",
 		Role:     model.RoleSuperAdmin,
 		Locale:   "en",
 	})

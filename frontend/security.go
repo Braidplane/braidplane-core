@@ -1,9 +1,13 @@
 package frontend
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
 	"html"
 	"log/slog"
+	"mime"
 	"regexp"
+	"strconv"
 	"strings"
 	"time"
 
@@ -11,14 +15,87 @@ import (
 
 	"github.com/Braidplane/braidplane-core/pkg/httpsecurity"
 	"github.com/Braidplane/braidplane-core/pkg/reqctx"
+	"github.com/Braidplane/braidplane-core/pkg/slug"
+	"github.com/Braidplane/braidplane-core/pkg/xerror"
 )
 
 const (
 	defaultAuthThrottleMax    = 5
 	defaultAuthThrottleWindow = time.Minute
+	browserSessionEndedHeader = "X-Braidplane-Session-Ended"
+	browserSessionTTLHeader   = "X-Braidplane-Session-Expiry"
+	browserSessionStatusPath  = "/auth/session-status"
 )
 
+type browserPageContextKey struct{}
+
+var authenticatedBrowserPage browserPageContextKey
+
+func (r *Router) setBrowserSessionEnded(c fiber.Ctx) {
+	c.Set(fiber.HeaderCacheControl, "no-store")
+	c.Set(browserSessionEndedHeader, "1")
+	r.expireDashboardScopeCookie(c, dashboardScopeProjectCookieName)
+	r.expireDashboardScopeCookie(c, dashboardScopeEnvironmentCookieName)
+	r.setGitHubInstallCookie(c, githubInstallProjectCookie, "", -1)
+	r.setGitHubInstallCookie(c, githubInstallOrganizationCookie, "", -1)
+}
+
+func (r *Router) rejectBrowserSession(c fiber.Ctx) error {
+	r.setBrowserSessionEnded(c)
+	return redirectToLogin(c, authenticatedReturnTo(c))
+}
+
+func (r *Router) browserSessionObservation(c fiber.Ctx) (string, error) {
+	sess, err := r.sessionStore.Get(c)
+	if err != nil {
+		return "", xerror.Wrapf("read browser session: %w", err)
+	}
+	defer sess.Release()
+	raw, _ := sess.Get(reqctx.SessionUserKey).(string)
+	user, err := slug.New(raw)
+	if err != nil || user == "" {
+		return "", nil
+	}
+	expiry, err := r.browserSessionExpiry(c.Context(), sess.ID())
+	remaining := time.Until(time.Unix(expiry, 0)).Milliseconds()
+	if err != nil || remaining <= 0 {
+		return "", err
+	}
+	// The browser needs to distinguish consecutive logins without receiving the session ID.
+	generation := sha256.Sum256([]byte("braidplane browser session " + sess.ID()))
+	return hex.EncodeToString(generation[:16]) + ":" + strconv.FormatInt(remaining, 10), nil
+}
+
+func (r *Router) handleBrowserSessionStatus(c fiber.Ctx) error {
+	c.Set(fiber.HeaderCacheControl, "no-store")
+	if r.browserSessionExpiry == nil {
+		return c.SendStatus(fiber.StatusServiceUnavailable)
+	}
+	observation, err := r.browserSessionObservation(c)
+	if err != nil {
+		return c.SendStatus(fiber.StatusServiceUnavailable)
+	}
+	if observation == "" {
+		c.Set(browserSessionEndedHeader, "1")
+		return c.SendStatus(fiber.StatusUnauthorized)
+	}
+	c.Set(browserSessionTTLHeader, observation)
+	return c.SendStatus(fiber.StatusNoContent)
+}
+
 var postFormPattern = regexp.MustCompile(`(?i)<form\b[^>]*\bmethod=["']post["'][^>]*>`)
+
+// requireTopLevelHTML adds the Community browser policy to rendered HTML.
+func requireTopLevelHTML(c fiber.Ctx) error {
+	if err := c.Next(); err != nil {
+		return err
+	}
+	mediaType, _, _ := mime.ParseMediaType(c.GetRespHeader(fiber.HeaderContentType))
+	if mediaType == "text/html" {
+		c.Append(fiber.HeaderContentSecurityPolicy, "frame-ancestors 'none'")
+	}
+	return nil
+}
 
 // securityMiddleware owns frontend browser protections: it creates the session
 // CSRF token, validates unsafe form requests, throttles auth attempts, and
@@ -52,14 +129,15 @@ func (r *Router) securityMiddleware() fiber.Handler {
 			}
 		}
 
-		if !httpsecurity.SafeMethod(c.Method()) && shouldThrottleFrontendAuth(c) {
-			routeKey := c.Method() + " " + c.Path()
+		authPath := strings.ToLower(strings.TrimRight(c.Path(), "/"))
+		if shouldThrottleFrontendAuth(c.Method(), authPath) {
+			routeKey := c.Method() + " " + authPath
 			clientKey := routeKey + "|ip:" + c.IP()
 			if !ipThrottle.Allow(clientKey, time.Now()) {
 				r.logAuthSecurityEvent(c, slog.LevelWarn, "auth.rate_limited", "rate_limited", fiber.StatusTooManyRequests, clientKey)
 				return frontendRateLimited(c)
 			}
-			if subject := frontendAuthThrottleSubject(c); subject != "" {
+			if subject := frontendAuthThrottleSubject(c, authPath); subject != "" {
 				subjectKey := routeKey + "|subject:" + subject
 				if !emailThrottle.Allow(subjectKey, time.Now()) {
 					r.logAuthSecurityEvent(c, slog.LevelWarn, "auth.rate_limited", "rate_limited", fiber.StatusTooManyRequests, subjectKey)
@@ -74,6 +152,24 @@ func (r *Router) securityMiddleware() fiber.Handler {
 
 		if shouldInjectCSRF(c) {
 			body := string(c.Response().Body())
+			if c.GetRespHeader(browserSessionEndedHeader) == "1" {
+				body = strings.Replace(body, "</head>", `<meta name="braidplane-session-ended"></head>`, 1)
+			} else if state, _ := c.Locals(authenticatedBrowserPage).(bool); state && strings.Contains(body, "</head>") {
+				metadata := `<meta name="braidplane-authenticated-page">`
+				if r.browserSessionExpiry != nil {
+					observation, err := r.browserSessionObservation(c)
+					if err != nil {
+						c.Response().ResetBody()
+						return c.SendStatus(fiber.StatusServiceUnavailable)
+					}
+					if observation == "" {
+						c.Response().ResetBody()
+						return r.rejectBrowserSession(c)
+					}
+					metadata += `<meta name="braidplane-session-expiry" content="` + observation + `">`
+				}
+				body = strings.Replace(body, "</head>", metadata+"</head>", 1)
+			}
 			c.Response().SetBodyString(injectCSRFTokenIntoHTML(body, token))
 		}
 		return nil
@@ -118,8 +214,8 @@ func isRetiredPublicPath(path string) bool {
 
 // shouldThrottleFrontendAuth mirrors the backend auth throttle on browser form
 // endpoints so abuse is slowed before the frontend calls the API.
-func shouldThrottleFrontendAuth(c fiber.Ctx) bool {
-	switch c.Method() + " " + c.Path() {
+func shouldThrottleFrontendAuth(method, path string) bool {
+	switch method + " " + path {
 	case "POST /auth/login",
 		"POST /auth/mfa",
 		"POST /account/security/password",
@@ -136,7 +232,10 @@ func shouldThrottleFrontendAuth(c fiber.Ctx) bool {
 
 // frontendAuthThrottleSubject mirrors the backend second throttle key while
 // hashing MFA challenge tokens before they are retained in memory.
-func frontendAuthThrottleSubject(c fiber.Ctx) string {
+func frontendAuthThrottleSubject(c fiber.Ctx, path string) string {
+	if path == "/auth/login" {
+		return ""
+	}
 	if email := httpsecurity.NormalizeEmail(c.FormValue("email")); email != "" {
 		return "email:" + email
 	}

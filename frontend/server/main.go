@@ -23,6 +23,7 @@ import (
 	recovermiddleware "github.com/gofiber/fiber/v3/middleware/recover"
 	"github.com/gofiber/fiber/v3/middleware/session"
 	"github.com/gofiber/fiber/v3/middleware/static"
+	"github.com/jackc/pgx/v5"
 	"go.opentelemetry.io/otel/propagation"
 
 	sessionstore "github.com/gofiber/storage/postgres/v3"
@@ -31,6 +32,7 @@ import (
 	"github.com/Braidplane/braidplane-core/frontend"
 	"github.com/Braidplane/braidplane-core/pkg/apierror"
 	"github.com/Braidplane/braidplane-core/pkg/dbpool"
+	"github.com/Braidplane/braidplane-core/pkg/httpsecurity"
 	"github.com/Braidplane/braidplane-core/pkg/lifecycle"
 	"github.com/Braidplane/braidplane-core/pkg/logging"
 	"github.com/Braidplane/braidplane-core/pkg/metrics"
@@ -77,7 +79,9 @@ func apiProxyCorrelationHeaders() []string {
 // injectAPIProxyHeaders replaces caller-controlled client identity before proxying and preserves request correlation headers.
 func injectAPIProxyHeaders(ctx context.Context, c fiber.Ctx) {
 	// c.IP() has already applied Fiber's trusted-proxy policy on the frontend edge.
-	c.Request().Header.Set(fiber.HeaderXForwardedFor, c.IP())
+	clientIP := strings.Clone(c.IP())
+	c.Request().Header.Del(fiber.HeaderXForwardedFor)
+	c.Request().Header.Set(fiber.HeaderXForwardedFor, clientIP)
 
 	if requestID := reqctx.GetRequestID(ctx); requestID != nil {
 		c.Request().Header.Set(fiber.HeaderXRequestID, *requestID)
@@ -178,6 +182,7 @@ func frontendSessionConfig(cfg *frontendconfig.Config) session.Config {
 		CookieHTTPOnly: true,
 		CookieSameSite: "Lax",
 		CookiePath:     "/",
+		Extractor:      httpsecurity.SessionCookieExtractor(cfg.Session.CookieSecure),
 	}
 }
 
@@ -265,7 +270,11 @@ func RunWithConfig(cfg *frontendconfig.Config, newRoutePresentation func(string)
 		return pool.Stat()
 	})
 
-	sessionStore := sessionstore.New(sessionstore.Config{DB: pool, Table: cfg.Session.TableName})
+	sessionTable := cfg.Session.TableName
+	if sessionTable == "" {
+		sessionTable = sessionstore.ConfigDefault.Table
+	}
+	sessionStore := sessionstore.New(sessionstore.Config{DB: pool, Table: sessionTable})
 	defer func() {
 		if err := sessionStore.Close(); err != nil {
 			frontendLogger.Error("failed to close session store", logging.ErrorAttr(err))
@@ -289,6 +298,18 @@ func RunWithConfig(cfg *frontendconfig.Config, newRoutePresentation func(string)
 	if err != nil {
 		return xerror.Wrapf("failed to initialize frontend router: %w", err)
 	}
+	expiryQuery := "SELECT e FROM " + pgx.Identifier(strings.Split(strings.ToLower(sessionTable), ".")).Sanitize() + " WHERE k = $1"
+	frontendRouter.SetBrowserSessionExpiry(func(ctx context.Context, id string) (int64, error) {
+		var expiry int64
+		err := pool.QueryRow(ctx, expiryQuery, id).Scan(&expiry)
+		if xerror.Is(err, pgx.ErrNoRows) {
+			return 0, nil
+		}
+		if err != nil {
+			return 0, xerror.Wrapf("read browser session expiry: %w", err)
+		}
+		return expiry, nil
+	})
 	presentation, err := newRoutePresentation(backendAPIBaseURL)
 	if err != nil {
 		return xerror.Wrapf("failed to initialize frontend route presentation: %w", err)
@@ -390,15 +411,33 @@ func registerStaticAssetRoutes(app *fiber.App, staticCacheMaxAge int) {
 
 // registerStaticAssetRoutesFromRoots mounts static assets from explicit roots for runtime and test use.
 func registerStaticAssetRoutesFromRoots(app *fiber.App, staticCacheMaxAge int, iconRoot, frontendAssetRoot string) {
-	app.Get("/favicon.ico", func(c fiber.Ctx) error {
+	methods := []string{fiber.MethodGet, fiber.MethodHead}
+	app.Add(methods, "/favicon.ico", func(c fiber.Ctx) error {
 		return c.SendFile(filepath.Join(iconRoot, "app", "favicon.ico"))
 	})
-	app.Get("/apple-touch-icon.png", func(c fiber.Ctx) error {
+	app.Add(methods, "/apple-touch-icon.png", func(c fiber.Ctx) error {
 		return c.SendFile(filepath.Join(iconRoot, "app", "apple-touch-icon.png"))
 	})
 	app.Use("/assets", staticAssetCachePolicy(staticCacheMaxAge, iconRoot, frontendAssetRoot))
-	app.Get("/assets/icons/*", static.New(iconRoot, static.Config{MaxAge: staticCacheMaxAge}))
-	app.Get("/assets/*", static.New(frontendAssetRoot, static.Config{MaxAge: staticCacheMaxAge, ByteRange: true}))
+	app.Add(methods, "/assets/icons/*", static.New(iconRoot, static.Config{
+		MaxAge: staticCacheMaxAge, ModifyResponse: setStaticAssetContentType,
+	}))
+	app.Add(methods, "/assets/*", static.New(frontendAssetRoot, static.Config{
+		MaxAge: staticCacheMaxAge, ByteRange: true, ModifyResponse: setStaticAssetContentType,
+	}))
+	app.Add(methods, "/assets/*", func(_ fiber.Ctx) error { return fiber.ErrNotFound })
+}
+
+func setStaticAssetContentType(c fiber.Ctx) error {
+	if !isCacheableStaticAssetStatus(c.Response().StatusCode()) {
+		return nil
+	}
+	if string(c.Request().URI().Path()) == "/assets/site.webmanifest" {
+		c.Set(fiber.HeaderContentType, "application/manifest+json")
+	} else if c.GetRespHeader(fiber.HeaderContentType) == "image/svg+xml" {
+		c.Set(fiber.HeaderContentType, "image/svg+xml; charset=utf-8")
+	}
+	return nil
 }
 
 // staticAssetCachePolicy makes only explicitly content-versioned successful assets immutable and prevents cookies from entering the CDN surface.

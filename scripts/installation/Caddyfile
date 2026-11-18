@@ -3,5 +3,12 @@
 }
 https://{$BRAIDPLANE_HOST} {
   tls /certificates/edge.pem /certificates/edge.key
-  reverse_proxy frontend:3002
+  header >Strict-Transport-Security "max-age=31536000"
+  reverse_proxy frontend:3002 {
+    header_up X-Forwarded-For {http.request.remote.host}
+  }
+  handle_errors {
+    header Strict-Transport-Security "max-age=31536000"
+    respond "" {err.status_code}
+  }
 }

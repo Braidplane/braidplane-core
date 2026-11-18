@@ -317,6 +317,17 @@ func TestDecodeConnectorPayloadsReportsCustomerPrivateHostOptIn(t *testing.T) {
 	}
 }
 
+func TestDecodeConnectorPayloadsValidatesFTPBasePath(t *testing.T) {
+	t.Parallel()
+
+	credentials := []byte(`{"username":"fixture","password":"fixture"}`)
+	_, _, err := DecodeConnectorPayloads(model.DataSourceTypeFTP, []byte(`{"base_path":"/exports\t"}`), credentials)
+	require.ErrorIs(t, err, xerror.InvalidInput(xerror.DataSource))
+	_, ok, err := DecodeConnectorPayloads(model.DataSourceTypeFTP, []byte(`{"base_path":"/monthly exports"}`), credentials)
+	require.NoError(t, err)
+	require.True(t, ok)
+}
+
 func TestNormalizeCustomerConfigRejectsInternalProviderOverrideKeys(t *testing.T) {
 	t.Parallel()
 

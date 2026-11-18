@@ -1,10 +1,16 @@
 package git
 
 import (
+	"os"
+	"os/exec"
+	"path/filepath"
 	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/require"
+
+	"github.com/Braidplane/braidplane-core/pkg/hostguard"
+	"github.com/Braidplane/braidplane-core/pkg/repostore"
 )
 
 func TestHTTPSURLModifier_RemovesCredentialsFromGitArgs(t *testing.T) {
@@ -154,9 +160,45 @@ func TestAuthEnv_SSHVerifiesHostKeysWithKnownHosts(t *testing.T) {
 	}
 	require.NotEmpty(t, sshCommand)
 	require.Contains(t, sshCommand, "-o StrictHostKeyChecking=yes")
-	require.Contains(t, sshCommand, "-o UserKnownHostsFile=")
+	require.Contains(t, sshCommand, "UserKnownHostsFile=")
 	require.NotContains(t, sshCommand, "StrictHostKeyChecking=no")
 	require.NotContains(t, sshCommand, "UserKnownHostsFile=/dev/null")
+}
+
+func TestSSHCredentialPathsSurviveDestinationPinning(t *testing.T) {
+	if _, err := exec.LookPath("ssh"); err != nil {
+		t.Skip("requires OpenSSH")
+	}
+	directory := filepath.Join(t.TempDir(), `Owner's  "50% ${HOME}" directory`)
+	require.NoError(t, os.Mkdir(directory, 0o700))
+	t.Setenv("TMPDIR", directory)
+	env, _, cleanup, err := authEnv(Credentials{
+		AuthType: AuthTypeSSH, SSHPrivateKey: "fixture private key", SSHKnownHosts: "fixture known hosts",
+	})
+	t.Cleanup(cleanup)
+	require.NoError(t, err)
+	_, pinnedEnv, err := repostore.PrepareRemote(t.Context(), "ssh://git@127.0.0.1/repo.git", env, hostguard.NewDestinationPolicy(true))
+	require.NoError(t, err)
+	var command string
+	for _, value := range pinnedEnv {
+		if sshCommand, ok := strings.CutPrefix(value, "GIT_SSH_COMMAND="); ok {
+			command = sshCommand
+			break
+		}
+	}
+	require.NotEmpty(t, command)
+	// #nosec G204 -- Run the application-built SSH command in configuration-only mode.
+	cmd := exec.CommandContext(t.Context(), "sh", "-c", "exec "+command+" -G -T fixture.example.test")
+	cmd.Env = repostore.SanitizedGitEnv(os.Environ(), pinnedEnv)
+	output, err := cmd.CombinedOutput()
+	require.NoError(t, err, "%s", output)
+	paths, err := filepath.Glob(filepath.Join(directory, "braidplane-git-known-hosts-*"))
+	require.NoError(t, err)
+	require.Len(t, paths, 1)
+	lines := strings.Split(string(output), "\n")
+	require.Contains(t, lines, "userknownhostsfile "+paths[0])
+	require.Contains(t, lines, "hostname 127.0.0.1")
+	require.Contains(t, lines, "hostkeyalias 127.0.0.1")
 }
 
 func TestAuthEnv_InvalidAuthType(t *testing.T) {

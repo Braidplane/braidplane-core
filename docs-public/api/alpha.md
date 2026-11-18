@@ -42,10 +42,10 @@ database.
 ## Authentication and public entry points
 
 Protected operations inherit OpenAPI alternatives for `Authorization: Bearer`
-(personal access token or organization API key) and the `session_id` browser
-cookie. Organization permissions and principal restrictions still apply:
-organization API keys cannot act as users, and some operations require a user
-session. Unsafe cookie-authenticated requests require `X-CSRF-Token`, obtained
+(personal access token or organization API key) and the `__Host-session_id`
+browser cookie. Local HTTP uses `session_id`. Organization permissions and
+principal restrictions still apply. Organization API keys cannot act as users,
+and some operations require a user session. Unsafe cookie-authenticated requests require `X-CSRF-Token`, obtained
 from an authenticated safe request. Bearer authentication alone does not require
 CSRF. An invalid credential may fail even on an otherwise public route.
 
@@ -54,6 +54,11 @@ verification, authentication-method discovery, Google registration/sign-in and
 its callback, email verification/resend, and password reset/request. Public
 means no existing login is needed; account-creation configuration, passwords,
 MFA challenges, verification tokens and OAuth state are still validated.
+
+Account verification and password reset emails contain a link and a separate
+one-time code. Open the link and paste the code into the form. API clients send
+the code in the JSON `token` field. If you received an older email with the code
+in its link, request a new email from the sign-in page.
 
 Provider installation callbacks remain protected: a valid state resolves the
 organization before user authorization. GitHub App installation and connection management, password changes, account deletion and permanent
@@ -67,6 +72,36 @@ The signature binds the key version, timestamp, delivery ID and exact raw body.
 The server also checks freshness.
 `GET /healthz`, `GET /readyz` and `GET /openapi.json` are public routes outside the
 schema's `/api` resource namespace. Readiness can return `503` without a login.
+
+## Organization permissions and resource scope
+
+Core checks the caller's permission for the operation in the target organization.
+An organization API key uses its own role and is scoped to its organization.
+A browser session or personal access token uses the authenticated user's permissions.
+
+### Pipeline validation and history
+
+The operation names below are OpenAPI operation IDs. The authorization checks
+use the target organization's `resource:action` permissions. Every permission
+listed for an operation is required.
+
+| Operation | Required permissions | Caller and target |
+|---|---|---|
+| `validatePipeline` | `pipelines:read` and `datasources:read`. Add `projects:read` when the draft refers to an ODCS contract. | Browser session, personal access token, or organization API key. The route identifies the project and environment to validate against. |
+| `listPipelineValidationResults` | `pipelines:read` and `datasources:read` | Browser session, personal access token, or organization API key. Results belong to the route's organization, project, and environment. |
+| `getPipelineValidationResult` | `pipelines:read` and `datasources:read` | Same callers and scope as the list. The validation slug identifies a record within that scope. |
+| `revalidatePipeline` | `pipelines:update` and `datasources:read`. Add `projects:read` when the canonical pipeline refers to an ODCS contract. | Browser session or personal access token. The route identifies the canonical pipeline and its project runtime target. Core stores the diagnostic result. |
+
+When draft validation returns an invalid result for a named pipeline, Core
+attempts to record it only if the caller also has `pipelines:update`. The caller
+still receives the validation result when history recording is unavailable.
+
+### Webhook replay and secret rotation
+
+`replayPipelineWebhookDelivery` and `rotatePipelineWebhookSecret` each require
+`pipeline_triggers:update` and `pipelines:execute`. Core resolves the trigger in
+the route's organization, project, and environment. Replay applies to a
+retained delivery for that trigger and still checks replay eligibility.
 
 ## Execution, retries and replay
 

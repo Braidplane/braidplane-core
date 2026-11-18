@@ -64,7 +64,7 @@ def restore(backup, destination):
                               check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, **kwargs)
     compose("config", "--quiet")
     compose("up", "--detach", "--no-deps", "--wait", "--wait-timeout", "90", "database")
-    export = clear_client_overrides + "export PGHOST=$DB_HOST PGPORT=$DB_PORT PGUSER=$DB_USER PGPASSWORD=$DB_PASSWORD PGDATABASE=$DB_DATABASE PGSSLMODE=$DB_SSL_MODE PGSSLROOTCERT=$DB_SSL_ROOT_CERT; "
+    export = clear_client_overrides + "export PGREQUIREAUTH='scram-sha-256' PGHOST=$DB_HOST PGPORT=$DB_PORT PGUSER=$DB_USER PGPASSWORD=$DB_PASSWORD PGDATABASE=$DB_DATABASE PGSSLMODE=$DB_SSL_MODE PGSSLROOTCERT=$DB_SSL_ROOT_CERT; "
     with (backup / "database.dump").open("rb") as source:
         compose("run", "--rm", "--no-deps", "-T", "--entrypoint", "sh", "grants", "-ec",
                 export + "exec pg_restore --dbname=braidplane --exit-on-error --single-transaction --no-owner --no-acl", stdin=source)

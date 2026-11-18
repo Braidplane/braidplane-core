@@ -19,6 +19,18 @@ import (
 	"github.com/Braidplane/braidplane-core/service/datasourcessvc/connector/types"
 )
 
+func TestMongoAuthRequiresSCRAMSHA256(t *testing.T) {
+	t.Parallel()
+	creds := Credentials{Username: "fixture-user", Password: "fixture:p@ss/word"}
+	for _, tc := range []struct{ configured, expected string }{{"", "admin"}, {"custom", "custom"}} {
+		auth := creds.scramAuth(tc.configured)
+		require.Equal(t, "SCRAM-SHA-256", auth.AuthMechanism)
+		require.Equal(t, tc.expected, auth.AuthSource)
+		require.Equal(t, creds.Username, auth.Username)
+		require.Equal(t, creds.Password, auth.Password)
+	}
+}
+
 func TestMapConnectionErrorClassifiesMongoFailuresAndPreservesCause(t *testing.T) {
 	t.Parallel()
 
@@ -163,6 +175,12 @@ func TestExecuteReturnsResultErrorsBeforeDatabaseAccess(t *testing.T) {
 			wantErrSubstr: "invalid MongoDB query data",
 		},
 		{
+			name:          "entire statement must be authored as an object",
+			queryData:     json.RawMessage(`"{{statement}}"`),
+			params:        map[string]types.TypedParam{"statement": {Value: map[string]any{"collection": "users", "operation": "find"}}},
+			wantErrSubstr: "invalid MongoDB query data",
+		},
+		{
 			name:          "missing substituted parameter",
 			queryData:     json.RawMessage(`{"collection":"users","operation":"find","filter":{"age":"{{age}}"}}`),
 			wantErrSubstr: "failed to substitute statement parameters",
@@ -172,6 +190,18 @@ func TestExecuteReturnsResultErrorsBeforeDatabaseAccess(t *testing.T) {
 			queryData:     json.RawMessage(`{"collection":"users","operation":"find","filter":"{{filter}}"}`),
 			params:        map[string]types.TypedParam{"filter": {Value: nil, DataType: "json"}},
 			wantErrSubstr: `MongoDB field "filter" must not resolve to null`,
+		},
+		{
+			name:          "native nil map cannot become an unfiltered query",
+			queryData:     json.RawMessage(`{"collection":"users","operation":"find","filter":"{{filter}}"}`),
+			params:        map[string]types.TypedParam{"filter": {Value: map[string]string(nil)}},
+			wantErrSubstr: `MongoDB field "filter" must not resolve to null`,
+		},
+		{
+			name:          "encoded null cannot become an empty pipeline",
+			queryData:     json.RawMessage(`{"collection":"users","operation":"aggregate","pipeline":"{{pipeline}}"}`),
+			params:        map[string]types.TypedParam{"pipeline": {Value: json.RawMessage("null")}},
+			wantErrSubstr: `MongoDB field "pipeline" must not resolve to null`,
 		},
 		{
 			name:          "missing collection",
@@ -197,6 +227,108 @@ func TestExecuteReturnsResultErrorsBeforeDatabaseAccess(t *testing.T) {
 			require.Contains(t, result.Error().Error(), tt.wantErrSubstr)
 		})
 	}
+}
+
+func TestExecuteRejectsUnsupportedMongoCommandOperators(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		name      string
+		statement string
+		params    map[string]types.TypedParam
+	}{
+		{"filter", `{"collection":"fixture","operation":"find","Filter":{"$where":null}}`, nil},
+		{"projection", `{"collection":"fixture","operation":"find","projection":{"field":{"$function":null}}}`, nil},
+		{"pipeline parameter", `{"collection":"fixture","operation":"aggregate","pipeline":"{{stages}}"}`, map[string]types.TypedParam{
+			"stages": {Value: []any{map[string]any{"$group": map[string]any{"value": map[string]any{"$accumulator": nil}}}}, DataType: "json"},
+		}},
+		{"update predicate", `{"collection":"fixture","operation":"update_one","update":{"$pull":{"values":{"$where":null}}}}`, nil},
+		{"count predicate", `{"collection":"fixture","operation":"count_documents","filter":{"$where":null}}`, nil},
+		{"internal operator", `{"collection":"fixture","operation":"aggregate","pipeline":[{"$_fixture":null}]}`, nil},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			connector := &Connector{}
+			result, err := connector.Execute(t.Context(), []byte(tc.statement), tc.params)
+			require.NoError(t, err)
+			require.ErrorIs(t, result.Error(), xerror.InvalidInput(xerror.Query))
+		})
+	}
+}
+
+func TestMongoCommandOperatorGuardPreservesOrdinaryData(t *testing.T) {
+	t.Parallel()
+	for _, statement := range []mongoQueryData{
+		{Operation: OperationFind, Filter: map[string]any{"name": map[string]any{"$eq": "$function"}}, Sort: map[string]any{"$function": 1}},
+		{Operation: OperationUpdateMany, Update: map[string]any{"$set": map[string]any{"fields": map[string]any{"$where": "fixture field"}}}},
+		{Operation: OperationInsertOne, Document: map[string]any{"$function": "fixture field"}},
+		{Operation: OperationAggregate, Pipeline: []any{map[string]any{"$project": map[string]any{
+			"fields": map[string]any{"$literal": map[string]any{"$function": "fixture field"}},
+		}}}},
+	} {
+		require.False(t, statement.hasUnsupportedCommandOperator())
+	}
+}
+
+func TestMongoParameterBindingPolicy(t *testing.T) {
+	t.Parallel()
+	object := map[string]any{"status": "ready"}
+	for _, tc := range []struct {
+		name, statement, dataType string
+		value                     any
+		allowed                   bool
+	}{
+		{"declared text remains scalar", `{"filter":{"state":"{{value}}"}}`, "text", object, false},
+		{"undeclared nested value remains scalar", `{"filter":{"state":"{{value}}"}}`, "", object, false},
+		{"legacy input remains data only", `{"filter":"{{input}}"}`, "text", object, false},
+		{"native whole filter", `{"Filter":"{{value}}"}`, "", object, true},
+		{"declared whole filter mismatch", `{"filter":"{{value}}"}`, "text", object, false},
+		{"nested insert data", `{"document":{"data":"{{value}}"}}`, "", object, true},
+		{"legacy whole document", `{"document":"{{input}}"}`, "text", object, true},
+		{"classic set data", `{"update":{"$set":{"data":"{{value}}"}}}`, "", object, true},
+		{"classic set field names stay authored", `{"update":{"$set":"{{value}}"}}`, "", object, false},
+		{"dynamic operation selector", `{"operation":"{{value}}"}`, "text", "find", false},
+		{"embedded structure interpolation", `{"collection":"reports_{{value}}"}`, "", object, false},
+		{"boolean default", `{"filter":{"enabled":"{{value}}"}}`, "boolean", "true", true},
+		{"boolean is not text", `{"filter":{"enabled":"{{value}}"}}`, "boolean", "unknown", false},
+		{"text in an expression", `{"filter":{"$expr":{"$eq":["$item","{{value}}"]}}}`, "text", "$label", false},
+		{"explicit literal in an expression", `{"filter":{"$expr":{"$eq":["$item",{"$literal":"{{value}}"}]}}}`, "text", "$label", true},
+		{"text in an aggregation match", `{"pipeline":[{"$match":{"item":"{{value}}"}}]}`, "text", "$label", true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			var statement map[string]any
+			require.NoError(t, json.Unmarshal([]byte(tc.statement), &statement))
+			definition := types.TypedParam{Value: tc.value, DataType: tc.dataType}
+			params := map[string]types.TypedParam{"value": definition, "input": definition}
+			values, err := normalizeParams(params)
+			require.NoError(t, err)
+			err = validateMongoBindings(statement, params, values)
+			if tc.allowed {
+				require.NoError(t, err)
+			} else {
+				require.ErrorIs(t, err, xerror.InvalidInput(xerror.Query))
+			}
+		})
+	}
+}
+
+func TestExecuteValidatesMongoBindingsBeforeDispatch(t *testing.T) {
+	connector := &Connector{}
+	result, err := connector.Execute(t.Context(),
+		[]byte(`{"collection":"fixture","operation":"find","filter":{"state":"{{state}}"}}`),
+		map[string]types.TypedParam{"state": {Value: map[string]any{"fixture": true}, DataType: "text"}},
+	)
+	require.NoError(t, err)
+	require.ErrorIs(t, result.Error(), xerror.InvalidInput(xerror.Query))
+}
+
+func TestMongoReadOnlyRejectsWriteStagesBeforeDispatch(t *testing.T) {
+	connector := &Connector{}
+	result, err := connector.Execute(t.Context(),
+		[]byte(`{"collection":"fixture","operation":"aggregate","pipeline":"{{pipeline}}"}`),
+		map[string]types.TypedParam{"pipeline": {Value: []any{map[string]any{"$out": nil}}}},
+		types.ExecutionLimits{ReadOnly: true},
+	)
+	require.NoError(t, err)
+	require.ErrorIs(t, result.Error(), xerror.DataSourceReadOnly())
 }
 
 func TestIncrementalWatermarkBoundsSubstituteIntoFindAndAggregateStatements(t *testing.T) {

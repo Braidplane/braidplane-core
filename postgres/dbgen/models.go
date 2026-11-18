@@ -491,6 +491,7 @@ type OdcsArtifact struct {
 	ArtifactDigest string
 	Original       []byte
 	CreatedAt      pgtype.Timestamptz
+	PublicID       string
 }
 
 type OdcsContract struct {

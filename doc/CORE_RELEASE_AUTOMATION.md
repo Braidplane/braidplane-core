@@ -122,6 +122,10 @@ The source also binds Dockerfile base/tool pins and dependency lockfiles. The
 publisher reuses the existing OCI copy, image qualification, SBOM, provenance
 and signing steps; contribution output is never promoted.
 
+Review the installed inventory and dated advisory results for the exact
+candidate under the [dependency update policy](../SECURITY.md#dependency-updates).
+Repeat the advisory review against the same digests before promotion.
+
 After signing, verification requires the expected public repository, workflow,
 source/signer revision, hosted runner and current run/attempt for all ten subjects:
 record and archive provenance, plus provenance and SBOM for each of four images.

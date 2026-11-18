@@ -305,7 +305,7 @@ func setupBindingActionTestApp(t *testing.T, apiBaseURL string) (*fiber.App, str
 	t.Helper()
 
 	store := session.NewStore()
-	router, err := NewRouter(apiBaseURL, slog.New(slog.DiscardHandler), store)
+	router, err := newHandlerTestRouter(apiBaseURL, slog.New(slog.DiscardHandler), store)
 	require.NoError(t, err)
 
 	app := fiber.New()

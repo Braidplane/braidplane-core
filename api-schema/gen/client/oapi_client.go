@@ -6067,6 +6067,21 @@ func (e TestSnowflakeDataSourceConnectionRequestType) Valid() bool {
 	}
 }
 
+// Defines values for UnavailableGitConfigRepoUrl.
+const (
+	Empty UnavailableGitConfigRepoUrl = ""
+)
+
+// Valid indicates whether the value is a known member of the UnavailableGitConfigRepoUrl enum.
+func (e UnavailableGitConfigRepoUrl) Valid() bool {
+	switch e {
+	case Empty:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for UpdateODCSContractStatus.
 const (
 	UpdateODCSContractStatusActive   UpdateODCSContractStatus = "active"
@@ -8076,6 +8091,11 @@ type AccountDeletionRequest struct {
 
 // AccountDeletionRequestState defines model for AccountDeletionRequest.State.
 type AccountDeletionRequestState string
+
+// AccountFullName Full display name for an account
+//
+// Example: John Doe
+type AccountFullName = string
 
 // AlertDeliveryAttempt Alert-owned delivery attempt diagnostic row for one notification and destination. Provider response metadata is sanitized and must not contain raw provider responses or secret material.
 type AlertDeliveryAttempt struct {
@@ -11821,10 +11841,10 @@ type NewUser struct {
 	// Email Example: john.doe@example.com
 	Email Email `json:"email"`
 
-	// FullName Human-readable display name
+	// FullName Full display name for an account
 	//
-	// Example: Acme Corp
-	FullName Name `json:"full_name"`
+	// Example: John Doe
+	FullName AccountFullName `json:"full_name"`
 
 	// Password Example: SecurePass123!
 	Password Password `json:"password"`
@@ -12017,7 +12037,9 @@ type ODCSArtifact struct {
 	Original       []byte             `json:"original"`
 	Path           string             `json:"path"`
 	RevisionSlug   string             `json:"revision_slug"`
-	SourceRepo     string             `json:"source_repo"`
+
+	// SourceRepo Public repository identity or an opaque artifact locator when historical provenance cannot be displayed safely.
+	SourceRepo string `json:"source_repo"`
 }
 
 // ODCSArtifactFormat defines model for ODCSArtifact.Format.
@@ -18208,6 +18230,17 @@ type TestSnowflakeDataSourceConnectionRequestType string
 // Timestamp Example: 2025-10-04T12:34:56Z
 type Timestamp = time.Time
 
+// UnavailableGitConfig Read-only configuration returned when a stored Git repository URL cannot be safely displayed.
+type UnavailableGitConfig struct {
+	AllowPrivateHosts *bool                       `json:"allow_private_hosts,omitempty"`
+	BasePath          *string                     `json:"base_path,omitempty"`
+	DefaultBranch     *string                     `json:"default_branch,omitempty"`
+	RepoUrl           UnavailableGitConfigRepoUrl `json:"repo_url"`
+}
+
+// UnavailableGitConfigRepoUrl defines model for UnavailableGitConfig.RepoUrl.
+type UnavailableGitConfigRepoUrl string
+
 // UpdateAPIKey defines model for UpdateAPIKey.
 type UpdateAPIKey struct {
 	// CanManageApiKeys Enables or disables API key management. Bearer API keys cannot change this field.
@@ -18517,10 +18550,10 @@ type UpdateUserProfile struct {
 	// Example: https://example.com/avatar.jpg
 	AvatarUrl *string `json:"avatar_url,omitempty"`
 
-	// FullName Human-readable display name
+	// FullName Full display name for an account
 	//
-	// Example: Acme Corp
-	FullName *Name `json:"full_name,omitempty"`
+	// Example: John Doe
+	FullName *AccountFullName `json:"full_name,omitempty"`
 
 	// JobTitle Optional job title. Send an empty string to clear it.
 	//
@@ -21405,6 +21438,32 @@ func (t *DataSource_Config) FromGitConfig(v GitConfig) error {
 
 // MergeGitConfig performs a merge with any union data inside the DataSource_Config, using the provided GitConfig
 func (t *DataSource_Config) MergeGitConfig(v GitConfig) error {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+
+	merged, err := runtime.JSONMerge(t.union, b)
+	t.union = merged
+	return err
+}
+
+// AsUnavailableGitConfig returns the union data inside the DataSource_Config as a UnavailableGitConfig
+func (t DataSource_Config) AsUnavailableGitConfig() (UnavailableGitConfig, error) {
+	var body UnavailableGitConfig
+	err := json.Unmarshal(t.union, &body)
+	return body, err
+}
+
+// FromUnavailableGitConfig overwrites any union data inside the DataSource_Config as the provided UnavailableGitConfig
+func (t *DataSource_Config) FromUnavailableGitConfig(v UnavailableGitConfig) error {
+	b, err := json.Marshal(v)
+	t.union = b
+	return err
+}
+
+// MergeUnavailableGitConfig performs a merge with any union data inside the DataSource_Config, using the provided UnavailableGitConfig
+func (t *DataSource_Config) MergeUnavailableGitConfig(v UnavailableGitConfig) error {
 	b, err := json.Marshal(v)
 	if err != nil {
 		return err
@@ -29292,7 +29351,7 @@ type ClientInterface interface {
 
 	// ReplayPipelineWebhookDelivery Replay a retained pipeline webhook delivery
 	//
-	// Explicitly enqueues another attempt only when encrypted execution input is retained and no linked run requires the pipeline run replay contract.
+	// Explicitly enqueues another attempt only when encrypted execution input is retained and no linked run requires the pipeline run replay contract. Requires pipeline trigger update and pipeline execute permissions.
 	//
 	// Corresponds with POST /organizations/{slug}/projects/{project_slug}/environments/{environment_slug}/pipeline-triggers/{pipeline_trigger_slug}/deliveries/{delivery_id}/replay (the `ReplayPipelineWebhookDelivery` operationId).
 	ReplayPipelineWebhookDelivery(ctx context.Context, slug SlugParam, projectSlug ProjectSlugParam, environmentSlug EnvironmentSlugParam, pipelineTriggerSlug PipelineTriggerSlugParam, deliveryId PipelineWebhookDeliveryIDParam, reqEditors ...RequestEditorFn) (*http.Response, error)
@@ -29306,7 +29365,7 @@ type ClientInterface interface {
 
 	// RotatePipelineWebhookSecret Rotate pipeline webhook verification secret
 	//
-	// Issues a new webhook verification key version and returns its secret value once.
+	// Issues a new webhook verification key version and returns its secret value once. Requires pipeline trigger update and pipeline execute permissions.
 	//
 	// Corresponds with POST /organizations/{slug}/projects/{project_slug}/environments/{environment_slug}/pipeline-triggers/{pipeline_trigger_slug}/webhook-secret/rotate (the `RotatePipelineWebhookSecret` operationId).
 	RotatePipelineWebhookSecret(ctx context.Context, slug SlugParam, projectSlug ProjectSlugParam, environmentSlug EnvironmentSlugParam, pipelineTriggerSlug PipelineTriggerSlugParam, reqEditors ...RequestEditorFn) (*http.Response, error)
@@ -30147,7 +30206,7 @@ type ClientInterface interface {
 
 	// HandleProviderConnectorCallback Complete provider connector OAuth callback
 	//
-	// Validates the callback state, exchanges the authorization code, stores the encrypted provider grant, and redirects to the product surface. OAuth codes, state values, tokens, provider headers, and raw provider responses are never returned.
+	// Validates the callback state, exchanges the authorization code, stores the encrypted provider grant, and redirects to the product surface. A user-initiated install requires the same authenticated user on callback. OAuth codes, state values, tokens, provider headers, and raw provider responses are never returned.
 	//
 	// Corresponds with GET /provider-connectors/{provider}/callback (the `HandleProviderConnectorCallback` operationId).
 	HandleProviderConnectorCallback(ctx context.Context, provider ProviderKey, params *HandleProviderConnectorCallbackParams, reqEditors ...RequestEditorFn) (*http.Response, error)
@@ -33853,7 +33912,7 @@ func (c *Client) GetPipelineWebhookDelivery(ctx context.Context, slug SlugParam,
 
 // ReplayPipelineWebhookDelivery Replay a retained pipeline webhook delivery
 //
-// Explicitly enqueues another attempt only when encrypted execution input is retained and no linked run requires the pipeline run replay contract.
+// Explicitly enqueues another attempt only when encrypted execution input is retained and no linked run requires the pipeline run replay contract. Requires pipeline trigger update and pipeline execute permissions.
 //
 // Corresponds with POST /organizations/{slug}/projects/{project_slug}/environments/{environment_slug}/pipeline-triggers/{pipeline_trigger_slug}/deliveries/{delivery_id}/replay (the `ReplayPipelineWebhookDelivery` operationId).
 func (c *Client) ReplayPipelineWebhookDelivery(ctx context.Context, slug SlugParam, projectSlug ProjectSlugParam, environmentSlug EnvironmentSlugParam, pipelineTriggerSlug PipelineTriggerSlugParam, deliveryId PipelineWebhookDeliveryIDParam, reqEditors ...RequestEditorFn) (*http.Response, error) {
@@ -33887,7 +33946,7 @@ func (c *Client) ListPipelineScheduleFires(ctx context.Context, slug SlugParam, 
 
 // RotatePipelineWebhookSecret Rotate pipeline webhook verification secret
 //
-// Issues a new webhook verification key version and returns its secret value once.
+// Issues a new webhook verification key version and returns its secret value once. Requires pipeline trigger update and pipeline execute permissions.
 //
 // Corresponds with POST /organizations/{slug}/projects/{project_slug}/environments/{environment_slug}/pipeline-triggers/{pipeline_trigger_slug}/webhook-secret/rotate (the `RotatePipelineWebhookSecret` operationId).
 func (c *Client) RotatePipelineWebhookSecret(ctx context.Context, slug SlugParam, projectSlug ProjectSlugParam, environmentSlug EnvironmentSlugParam, pipelineTriggerSlug PipelineTriggerSlugParam, reqEditors ...RequestEditorFn) (*http.Response, error) {
@@ -35738,7 +35797,7 @@ func (c *Client) ExportSecurityAuditEvents(ctx context.Context, slug SlugParam, 
 
 // HandleProviderConnectorCallback Complete provider connector OAuth callback
 //
-// Validates the callback state, exchanges the authorization code, stores the encrypted provider grant, and redirects to the product surface. OAuth codes, state values, tokens, provider headers, and raw provider responses are never returned.
+// Validates the callback state, exchanges the authorization code, stores the encrypted provider grant, and redirects to the product surface. A user-initiated install requires the same authenticated user on callback. OAuth codes, state values, tokens, provider headers, and raw provider responses are never returned.
 //
 // Corresponds with GET /provider-connectors/{provider}/callback (the `HandleProviderConnectorCallback` operationId).
 func (c *Client) HandleProviderConnectorCallback(ctx context.Context, provider ProviderKey, params *HandleProviderConnectorCallbackParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
@@ -52475,7 +52534,7 @@ type ClientWithResponsesInterface interface {
 
 	// ReplayPipelineWebhookDeliveryWithResponse Replay a retained pipeline webhook delivery
 	//
-	// Explicitly enqueues another attempt only when encrypted execution input is retained and no linked run requires the pipeline run replay contract.
+	// Explicitly enqueues another attempt only when encrypted execution input is retained and no linked run requires the pipeline run replay contract. Requires pipeline trigger update and pipeline execute permissions.
 	//
 	// Returns a wrapper object for the known response body format(s).
 	//
@@ -52493,7 +52552,7 @@ type ClientWithResponsesInterface interface {
 
 	// RotatePipelineWebhookSecretWithResponse Rotate pipeline webhook verification secret
 	//
-	// Issues a new webhook verification key version and returns its secret value once.
+	// Issues a new webhook verification key version and returns its secret value once. Requires pipeline trigger update and pipeline execute permissions.
 	//
 	// Returns a wrapper object for the known response body format(s).
 	//
@@ -53420,7 +53479,7 @@ type ClientWithResponsesInterface interface {
 
 	// HandleProviderConnectorCallbackWithResponse Complete provider connector OAuth callback
 	//
-	// Validates the callback state, exchanges the authorization code, stores the encrypted provider grant, and redirects to the product surface. OAuth codes, state values, tokens, provider headers, and raw provider responses are never returned.
+	// Validates the callback state, exchanges the authorization code, stores the encrypted provider grant, and redirects to the product surface. A user-initiated install requires the same authenticated user on callback. OAuth codes, state values, tokens, provider headers, and raw provider responses are never returned.
 	//
 	// Returns a wrapper object for the known response body format(s).
 	//
@@ -70398,7 +70457,7 @@ func (c *ClientWithResponses) GetPipelineWebhookDeliveryWithResponse(ctx context
 
 // ReplayPipelineWebhookDeliveryWithResponse Replay a retained pipeline webhook delivery
 //
-// Explicitly enqueues another attempt only when encrypted execution input is retained and no linked run requires the pipeline run replay contract.
+// Explicitly enqueues another attempt only when encrypted execution input is retained and no linked run requires the pipeline run replay contract. Requires pipeline trigger update and pipeline execute permissions.
 //
 // Returns a wrapper object for the known response body format(s).
 //
@@ -70428,7 +70487,7 @@ func (c *ClientWithResponses) ListPipelineScheduleFiresWithResponse(ctx context.
 
 // RotatePipelineWebhookSecretWithResponse Rotate pipeline webhook verification secret
 //
-// Issues a new webhook verification key version and returns its secret value once.
+// Issues a new webhook verification key version and returns its secret value once. Requires pipeline trigger update and pipeline execute permissions.
 //
 // Returns a wrapper object for the known response body format(s).
 //
@@ -71961,7 +72020,7 @@ func (c *ClientWithResponses) ExportSecurityAuditEventsWithResponse(ctx context.
 
 // HandleProviderConnectorCallbackWithResponse Complete provider connector OAuth callback
 //
-// Validates the callback state, exchanges the authorization code, stores the encrypted provider grant, and redirects to the product surface. OAuth codes, state values, tokens, provider headers, and raw provider responses are never returned.
+// Validates the callback state, exchanges the authorization code, stores the encrypted provider grant, and redirects to the product surface. A user-initiated install requires the same authenticated user on callback. OAuth codes, state values, tokens, provider headers, and raw provider responses are never returned.
 //
 // Returns a wrapper object for the known response body format(s).
 //

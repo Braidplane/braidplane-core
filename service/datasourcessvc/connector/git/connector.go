@@ -111,13 +111,9 @@ func New(ctx context.Context, config Config, creds Credentials) (*Connector, err
 		return nil, xerror.ValidationFailed().With(err)
 	}
 
-	if err := validateRepoURLScheme(config.RepoURL); err != nil {
-		return nil, err
-	}
-
-	hostname, err := extractHostname(config.RepoURL)
+	hostname, err := validateRemoteAuth(config.RepoURL, creds.AuthType)
 	if err != nil {
-		return nil, xerror.Wrapf("parse Git repo URL: %w", err)
+		return nil, err
 	}
 	if _, err := hostguard.NewDestinationPolicy(config.AllowPrivateHosts).Resolve(ctx, hostname); err != nil {
 		return nil, xerror.Wrapf("connect to Git server: %w", err)
@@ -126,37 +122,122 @@ func New(ctx context.Context, config Config, creds Credentials) (*Connector, err
 	return &Connector{config: config, creds: creds}, nil
 }
 
-func validateRepoURLScheme(repoURL string) error {
+// ValidateRemoteAuth checks the Git remote and credential transport without contacting the host.
+func ValidateRemoteAuth(config *Config, credentials Credentials) error {
+	_, err := validateRemoteAuth(config.RepoURL, credentials.AuthType)
+	if err != nil {
+		return err
+	}
+	if credentials.AuthType == AuthTypeSSH {
+		if strings.TrimSpace(credentials.SSHPrivateKey) == "" {
+			return gitRemoteInputError("SSH authentication requires ssh_private_key")
+		}
+		if strings.TrimSpace(credentials.SSHKnownHosts) == "" {
+			return gitRemoteInputError("SSH authentication requires ssh_known_hosts")
+		}
+	}
+	return nil
+}
+
+func validateRemoteAuth(repoURL string, authType AuthType) (string, error) {
+	host, transport, err := parseRepoURL(repoURL)
+	if err != nil {
+		return "", err
+	}
+	if transport != authType {
+		return "", gitRemoteInputError("Git authentication must match the repository URL transport")
+	}
+	return host, nil
+}
+
+func parseRepoURL(repoURL string) (string, AuthType, error) {
 	repoURL = strings.TrimSpace(repoURL)
 
 	if repoURL == "" {
-		return xerror.ValidationFailed().WithPublicDetail("repo_url is required").Detail("repo_url is required")
+		return "", AuthTypeUnknown, gitRemoteInputError("repo_url is required")
+	}
+	if strings.ContainsAny(repoURL, "?#\\\r\n\x00") {
+		return "", AuthTypeUnknown, gitRemoteInputError("repo_url must not include a query, fragment, or invalid characters")
 	}
 
-	if !strings.Contains(repoURL, "://") && strings.Contains(repoURL, "@") &&
-		strings.Contains(repoURL, ":") {
-		return nil
+	if !strings.Contains(repoURL, "://") {
+		user, remote, at := strings.Cut(repoURL, "@")
+		host, path, colon := strings.Cut(remote, ":")
+		if at && colon {
+			if !validSSHLogin(user) {
+				return "", AuthTypeUnknown, gitRemoteInputError("repo_url must not include embedded credentials")
+			}
+			if host == "" || strings.HasPrefix(host, "-") || strings.ContainsAny(host, "/@[] \t") || path == "" {
+				return "", AuthTypeUnknown, gitRemoteInputError("repo_url must have a valid hostname and repository path")
+			}
+			return host, AuthTypeSSH, nil
+		}
 	}
 
 	u, err := url.Parse(repoURL)
 	if err != nil {
-		return xerror.ValidationFailed().With(err)
+		return "", AuthTypeUnknown, gitRemoteInputError("repo_url is invalid")
 	}
-
-	if u.Scheme == "https" || u.Scheme == "ssh" {
-		// Reject URLs with empty hostname to fail fast with clear validation error.
-		// Prevents URLs like "https:///repo.git" from passing validation.
-		if u.Host == "" {
-			return xerror.ValidationFailed().
-				WithPublicDetail("repo_url must have a valid hostname").
-				Detail("repo_url must have a valid hostname")
+	var transport AuthType
+	switch u.Scheme {
+	case "https":
+		transport = AuthTypeHTTPS
+	case "ssh":
+		transport = AuthTypeSSH
+	default:
+		return "", AuthTypeUnknown, gitRemoteInputError("repo_url must use https or ssh")
+	}
+	if u.Hostname() == "" {
+		return "", AuthTypeUnknown, gitRemoteInputError("repo_url must have a valid hostname")
+	}
+	if u.User != nil {
+		if _, hasPassword := u.User.Password(); transport != AuthTypeSSH || hasPassword || !validSSHLogin(u.User.Username()) {
+			return "", AuthTypeUnknown, gitRemoteInputError("repo_url must not include embedded credentials")
 		}
-		return nil
 	}
+	return u.Hostname(), transport, nil
+}
 
-	return xerror.ValidationFailed().
-		WithPublicDetail("repo_url must use https or ssh").
-		Detail("repo_url must use https or ssh")
+func validSSHLogin(user string) bool {
+	return user != "" && !strings.HasPrefix(user, "-") && !strings.ContainsAny(user, ":/ \t\r\n\x00")
+}
+
+func gitRemoteInputError(message string) error {
+	return xerror.ValidationFailed().WithPublicDetail(message).Detail(message)
+}
+
+// PublicRepoURL returns the safe display form of a stored Git URL.
+func PublicRepoURL(raw string) string {
+	raw = strings.TrimSpace(raw)
+	if strings.Contains(raw, "://") {
+		parsed, err := url.Parse(raw)
+		if err != nil {
+			return ""
+		}
+		if parsed.Scheme == "ssh" && parsed.User != nil && parsed.User.Username() != "" {
+			parsed.User = url.User(parsed.User.Username())
+		} else {
+			parsed.User = nil
+		}
+		parsed.RawQuery, parsed.Fragment, parsed.RawFragment = "", "", ""
+		parsed.ForceQuery = false
+		raw = parsed.String()
+	} else if end := strings.IndexAny(raw, "?#"); end >= 0 {
+		raw = raw[:end]
+	}
+	if _, _, err := parseRepoURL(raw); err != nil {
+		return ""
+	}
+	return raw
+}
+
+// PublicRepoIdentity handles normalized host/path identities as well as Git URLs.
+func PublicRepoIdentity(raw string) string {
+	host, repo, slash := strings.Cut(raw, "/")
+	if slash && repo != "" && strings.Contains(host, ".") && !strings.ContainsAny(host, ":%@?#\\ \t\r\n") {
+		return strings.TrimPrefix(PublicRepoURL("https://"+raw), "https://")
+	}
+	return PublicRepoURL(raw)
 }
 
 // TestConnection verifies the repository is reachable by running git ls-remote.
@@ -271,9 +352,12 @@ func (c *Connector) Execute(
 	var store repostore.RepoStore
 	var repoRoot string
 	var cleanupClone func()
-	if qd.Format == QueryFormatFile {
+	switch {
+	case qd.Format == QueryFormatFile:
 		store, repoRoot, cleanupClone, err = repostore.CloneNativeFileRemote(ctx, repoURL, branch, repoPath, execLimits.MaxFileBytes, env)
-	} else {
+	case operation == gitOperationRead:
+		store, cleanupClone, err = repostore.CloneReadFileRemote(ctx, repoURL, branch, repoPath, execLimits.MaxResponseBytes, env)
+	default:
 		store, repoRoot, cleanupClone, err = repostore.CloneRemote(ctx, repoURL, branch, env)
 	}
 	if err != nil {
@@ -428,30 +512,4 @@ func (provider gitRepoProvider) WriteFile(
 	}
 
 	return &remotefile.WriteResult{WrittenBytes: len(req.Content)}, nil
-}
-
-// extractHostname parses the hostname from a Git repository URL.
-// Supports https://, git@host:path (SCP-style SSH), and ssh:// schemes.
-func extractHostname(repoURL string) (string, error) {
-	repoURL = strings.TrimSpace(repoURL)
-
-	// SCP-style SSH: git@github.com:org/repo.git
-	if !strings.Contains(repoURL, "://") && strings.Contains(repoURL, "@") &&
-		strings.Contains(repoURL, ":") {
-		at := strings.Index(repoURL, "@")
-		colon := strings.Index(repoURL[at:], ":")
-		if colon < 0 {
-			return "", xerror.Unexpected().Detailf("cannot parse SCP-style SSH URL %q", repoURL)
-		}
-		return repoURL[at+1 : at+colon], nil
-	}
-
-	u, err := url.Parse(repoURL)
-	if err != nil {
-		return "", xerror.Unexpected().With(err)
-	}
-	if u.Hostname() == "" {
-		return "", xerror.Unexpected().Detailf("URL %q has no hostname", repoURL)
-	}
-	return u.Hostname(), nil
 }

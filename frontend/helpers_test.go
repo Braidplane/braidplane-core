@@ -3,6 +3,7 @@ package frontend
 import (
 	"context"
 	"io"
+	"log/slog"
 	"net/http"
 	"net/http/httptest"
 	"regexp"
@@ -19,6 +20,15 @@ import (
 )
 
 var csrfTokenTestMu sync.Mutex
+
+// Handler fixtures supply their session independently of the backend endpoints under test.
+func newHandlerTestRouter(url string, logger *slog.Logger, store *session.Store) (*Router, error) {
+	router, err := NewRouter(url, logger, store)
+	if err == nil {
+		router.verifySession = func(c fiber.Ctx, _ slug.Slug) error { return c.Next() }
+	}
+	return router, err
+}
 
 func registerTestSessionRoute(app *fiber.App, store *session.Store) {
 	app.Get("/_test/session", func(c fiber.Ctx) error {

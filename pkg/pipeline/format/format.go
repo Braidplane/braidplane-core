@@ -3,9 +3,7 @@
 package format
 
 import (
-	"bytes"
 	"encoding/json"
-	"io"
 	"sort"
 	"strings"
 
@@ -110,46 +108,12 @@ func FormatData(format string, data []byte) ([]byte, []Diagnostic, error) {
 func loadFormatPipeline(format string, data []byte) (*pipelinespec.Pipeline, error) {
 	switch format {
 	case formatJSON:
-		var pipeline pipelinespec.Pipeline
-		decoder := json.NewDecoder(bytes.NewReader(data))
-		decoder.DisallowUnknownFields()
-		decoder.UseNumber()
-		if err := decoder.Decode(&pipeline); err != nil {
-			return nil, err
-		}
-		var trailing any
-		if err := decoder.Decode(&trailing); err != io.EOF {
-			if err == nil {
-				return nil, xerror.InvalidInput(xerror.Pipeline).Detailf("multiple JSON values")
-			}
-			return nil, err
-		}
-		return &pipeline, nil
+		return pipelinespec.DecodeJSON(data)
 	case formatYAML:
-		if err := rejectExtraYAMLDocuments(data); err != nil {
-			return nil, err
-		}
 		return pipelinespec.Load("pipeline.pipeline."+formatYAML, data)
 	default:
 		return nil, pipelinespec.ErrUnsupportedFormat.Detailf("%q", format)
 	}
-}
-
-func rejectExtraYAMLDocuments(data []byte) error {
-	decoder := yaml.NewDecoder(bytes.NewReader(data))
-	var first yaml.Node
-	if err := decoder.Decode(&first); err != nil {
-		return err
-	}
-
-	var second yaml.Node
-	if err := decoder.Decode(&second); !xerror.Is(err, io.EOF) {
-		if err == nil {
-			return xerror.InvalidInput(xerror.Pipeline).Detailf("multiple YAML documents")
-		}
-		return err
-	}
-	return nil
 }
 
 func clonePipeline(pipeline *pipelinespec.Pipeline) pipelinespec.Pipeline {

@@ -28,6 +28,17 @@ const (
 	dataSourceSidePanelSelector    = "#data-source-side-panel"
 )
 
+func providerRepositoryWebHref(raw string) string {
+	target, err := url.Parse(raw)
+	if err != nil || target.Hostname() == "" || target.User != nil || strings.Contains(raw, "\\") {
+		return ""
+	}
+	if target.Scheme != "http" && target.Scheme != "https" {
+		return ""
+	}
+	return target.String()
+}
+
 // DataSourceCreateFormData stores sticky values for the datasource create form.
 type DataSourceCreateFormData struct {
 	ShowCreateForm              bool

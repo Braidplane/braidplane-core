@@ -43,6 +43,23 @@ var (
 	bootstrapPrivateKey string
 )
 
+func TestGitSSHCredentialPathsWithLiteralSpecialCharacters(t *testing.T) {
+	if testing.Short() {
+		t.Skip("requires the disposable SSH server")
+	}
+	knownHosts, err := scanSoftServeKnownHosts(t.Context(), gitSSHPort())
+	require.NoError(t, err)
+	repoURL, privateKey := ensureBootstrap(t)
+	directory := filepath.Join(t.TempDir(), `Owner's  "50% ${HOME}" directory`)
+	require.NoError(t, os.Mkdir(directory, 0o700))
+	t.Setenv("TMPDIR", directory)
+	conn, err := gitconnector.New(t.Context(), testConfig(repoURL), gitconnector.Credentials{
+		AuthType: authTypeSSH, SSHPrivateKey: privateKey, SSHKnownHosts: knownHosts,
+	})
+	require.NoError(t, err)
+	require.NoError(t, conn.TestConnection(t.Context()))
+}
+
 func TestGitConnector_E2E(t *testing.T) {
 	if testing.Short() {
 		t.Skip("Skipping E2E test in short mode")

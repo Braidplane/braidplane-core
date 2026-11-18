@@ -12,6 +12,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	api "github.com/Braidplane/braidplane-core/api-schema/gen/server"
+	"github.com/Braidplane/braidplane-core/pkg/apierror"
 	"github.com/Braidplane/braidplane-core/pkg/domain/model"
 	"github.com/Braidplane/braidplane-core/pkg/must"
 	"github.com/Braidplane/braidplane-core/pkg/slug"
@@ -60,6 +61,7 @@ func TestPipelineWebhookDeliveryReadAndReplayUseProtectedTriggerPermissions(t *t
 		Status: "failed", MappedInputNames: []string{"customer"}, AttemptNumber: 1, ReceivedAt: now, UpdatedAt: now,
 		ReplayAvailable: true,
 	}
+	replays := 0
 	service := &fakePipelineWebhookService{
 		listFn: func(_ context.Context, orgSlug, projectSlug, environmentSlug, triggerSlug slug.Slug, req model.ListRequest) (model.ListResponse[pipelinewebhooksvc.DeliveryDiagnostic], error) {
 			require.Equal(t, must.Slug("acme"), orgSlug)
@@ -70,16 +72,22 @@ func TestPipelineWebhookDeliveryReadAndReplayUseProtectedTriggerPermissions(t *t
 			return model.ListResponse[pipelinewebhooksvc.DeliveryDiagnostic]{Items: []pipelinewebhooksvc.DeliveryDiagnostic{delivery}}, nil
 		},
 		replayFn: func(context.Context, slug.Slug, slug.Slug, slug.Slug, slug.Slug, string) (pipelinewebhooksvc.DeliveryDiagnostic, error) {
+			replays++
 			delivery.Status = "queued"
 			return delivery, nil
 		},
 	}
-	actions := make([]model.Action, 0, 2)
+	actions := make([]model.Action, 0, 5)
+	allowExecute := false
 	app, store := newTestApp(t, testServerConfig{
 		pipelineWebhookService: service,
 		authService: fakeAuthService{CanFn: func(_ context.Context, input authorization.Input) (bool, error) {
-			require.Equal(t, model.ResourcePipelineTriggers, input.Resource)
 			actions = append(actions, input.Action)
+			if input.Action == model.Execute {
+				require.Equal(t, model.ResourcePipelines, input.Resource)
+				return allowExecute, nil
+			}
+			require.Equal(t, model.ResourcePipelineTriggers, input.Resource)
 			return true, nil
 		}},
 	})
@@ -92,11 +100,19 @@ func TestPipelineWebhookDeliveryReadAndReplayUseProtectedTriggerPermissions(t *t
 	require.Equal(t, "delivery-1", list.Deliveries[0].DeliveryId)
 	require.NotNil(t, list.Deliveries[0].MappedInputNames)
 
-	replayResponse := authenticatedRequest(t, app, store, must.Slug("alice"), jsonRequest(t, http.MethodPost,
-		"/organizations/acme/projects/operations/environments/prod/pipeline-triggers/customer-hook/deliveries/delivery-1/replay", nil))
+	replayPath := "/organizations/acme/projects/operations/environments/prod/pipeline-triggers/customer-hook/deliveries/delivery-1/replay"
+	denied := authenticatedRequest(t, app, store, must.Slug("alice"), jsonRequest(t, http.MethodPost, replayPath, nil))
+	require.Equal(t, http.StatusForbidden, denied.StatusCode)
+	assertErrorResponse(t, denied, apierror.Forbidden("pipelines", "execute"))
+	require.NoError(t, denied.Body.Close())
+	require.Zero(t, replays)
+
+	allowExecute = true
+	replayResponse := authenticatedRequest(t, app, store, must.Slug("alice"), jsonRequest(t, http.MethodPost, replayPath, nil))
 	require.Equal(t, http.StatusOK, replayResponse.StatusCode)
 	require.NoError(t, replayResponse.Body.Close())
-	require.Equal(t, []model.Action{model.Read, model.Update}, actions)
+	require.Equal(t, 1, replays)
+	require.Equal(t, []model.Action{model.Read, model.Update, model.Execute, model.Update, model.Execute}, actions)
 }
 
 func webhookHTTPRequest(body []byte) *http.Request {

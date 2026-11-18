@@ -270,6 +270,8 @@ func TestServiceConsumeOAuthInstallPreventsLaterGrantExchange(t *testing.T) {
 		Provider:       "fakecrm",
 		StateHash:      oauthflow.HashState("denied-state"),
 		Intent:         "create_grant",
+		ActorType:      model.EventActorTypeUser.String(),
+		ActorSlug:      model.UserEventActor("alice").Slug,
 		ExpiresAt:      now.Add(time.Minute),
 	})
 	svc := newTestServiceAt(t, repo, ProviderRegistry{"fakecrm": &fakeProviderAdapter{}}, now)
@@ -277,6 +279,7 @@ func TestServiceConsumeOAuthInstallPreventsLaterGrantExchange(t *testing.T) {
 	install, err := svc.ConsumeOAuthInstall(context.Background(), ConsumeOAuthInstallParams{
 		Provider: "fakecrm",
 		State:    "denied-state",
+		Actor:    model.UserEventActor("alice"),
 	})
 	require.NoError(t, err)
 	assert.Equal(t, testOwner(), install.Owner)
@@ -521,6 +524,8 @@ func TestServiceCompleteOAuthCallbackConsumesStateAndStoresGrant(t *testing.T) {
 		RequestedScopes: []string{"contacts.read"},
 		StateHash:       oauthflow.HashState("raw-state"),
 		Intent:          "create_grant",
+		ActorType:       model.EventActorTypeUser.String(),
+		ActorSlug:       model.UserEventActor("alice").Slug,
 		ExpiresAt:       now.Add(time.Minute),
 	})
 	provider := &fakeProviderAdapter{
@@ -538,6 +543,7 @@ func TestServiceCompleteOAuthCallbackConsumesStateAndStoresGrant(t *testing.T) {
 		Provider: "fakecrm",
 		State:    "raw-state",
 		Code:     "code",
+		Actor:    model.UserEventActor("alice"),
 	})
 	require.NoError(t, err)
 
@@ -555,6 +561,21 @@ func TestServiceCompleteOAuthCallbackConsumesStateAndStoresGrant(t *testing.T) {
 		Code:     "code",
 	})
 	require.ErrorIs(t, err, ErrOAuthStateConsumed)
+}
+
+func TestOAuthInstallCallbackActorPolicy(t *testing.T) {
+	t.Parallel()
+
+	userInstall := CredentialInstall{Actor: model.UserEventActor("alice")}
+	assert.True(t, userInstall.AllowsCallbackActor(model.UserEventActor("alice")))
+	assert.False(t, userInstall.AllowsCallbackActor(model.UserEventActor("bob")))
+	assert.False(t, userInstall.AllowsCallbackActor(model.APIKeyEventActor("alice")))
+	assert.False(t, (CredentialInstall{Actor: model.UserEventActor("")}).AllowsCallbackActor(model.UserEventActor("")))
+
+	handoff := CredentialInstall{Actor: model.APIKeyEventActor("automation")}
+	assert.True(t, handoff.AllowsCallbackActor(model.UserEventActor("alice")))
+	handoff.RepositorySetupSlug = "repository-setup"
+	assert.False(t, handoff.AllowsCallbackActor(model.UserEventActor("alice")))
 }
 
 func TestServiceCompleteOAuthCallbackExchangesCodeOutsideTransaction(t *testing.T) {

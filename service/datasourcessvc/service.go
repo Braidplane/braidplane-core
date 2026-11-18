@@ -1341,6 +1341,15 @@ func (s *service) UpdateCredentials(
 		if err != nil {
 			return xerror.Wrapf("find data source in repo: %w", err)
 		}
+		if repoDS.Type == model.DataSourceTypeGit {
+			if err := s.repo.LockDataSourceForUpdate(ctx, tx, orgSlug, dsSlug); err != nil {
+				return xerror.Wrapf("lock Git data source for credentials update: %w", err)
+			}
+			repoDS, err = s.repo.FindBySlug(ctx, tx, orgSlug, dsSlug)
+			if err != nil {
+				return xerror.Wrapf("find locked Git data source for credentials update: %w", err)
+			}
+		}
 		if repoDS.Type == model.DataSourceTypeGoogleWorkspace {
 			return ErrInvalidInput.Detail("Google Workspace credentials must be changed through provider authorization")
 		}
@@ -1723,6 +1732,11 @@ func (s *service) ResolveGitAuth(
 	if err := json.Unmarshal(runtimeConfig, &cfg); err != nil {
 		return nil, xerror.Unexpected().With(err)
 	}
+	if repoDS.Type == model.DataSourceTypeGit {
+		if err := gitconnector.ValidateRemoteAuth(&cfg, creds); err != nil {
+			return nil, err
+		}
+	}
 	if creds.AuthType == gitconnector.AuthTypeHTTPS && strings.TrimSpace(creds.Username) == "" {
 		if repoDS.Type == model.DataSourceTypeGithub {
 			creds.Username = "x-access-token"
@@ -1837,6 +1851,11 @@ func PrepareGitExecutionAuth(
 	var cfg gitconnector.Config
 	if err := json.Unmarshal(request.ConfigJSON, &cfg); err != nil {
 		return nil, xerror.Unexpected().Detail("invalid Git configuration")
+	}
+	if request.DataSourceType == model.DataSourceTypeGit {
+		if err := gitconnector.ValidateRemoteAuth(&cfg, creds); err != nil {
+			return nil, err
+		}
 	}
 	if creds.AuthType == gitconnector.AuthTypeHTTPS && strings.TrimSpace(creds.Username) == "" {
 		if request.DataSourceType == model.DataSourceTypeGithub {
@@ -2497,6 +2516,11 @@ func (s *service) runConnectionTest(
 	configJSON []byte,
 	credentialsJSON []byte,
 ) error {
+	if dsSlug != "" && dsType == model.DataSourceTypeGit {
+		if _, _, err := connector.DecodeConnectorPayloads(dsType, configJSON, credentialsJSON); err != nil {
+			return err
+		}
+	}
 	err := s.connectionTester.TestConnection(ctx, ConnectionTestRequest{
 		OrganizationSlug: orgSlug,
 		DataSourceSlug:   dsSlug,

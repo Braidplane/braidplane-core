@@ -48,3 +48,40 @@ or guaranteed patch date is promised.
 
 The maintainer monitors contact@braidplane.com for security reports. Mailbox
 delivery has not yet been tested as part of release qualification.
+
+## Dependency updates
+
+The Core maintainer owns dependency triage and the release review. Check security
+advisories weekly and before publishing or promoting a candidate. Review and apply
+compatible routine updates at least every 90 calendar days. For an incompatible
+update or an end-of-support dependency, record a migration or removal plan with
+an owner and review date during that cycle.
+
+Assess each advisory against the installed version, supported platform, enabled
+features and exposure. Use vendor severity as a starting point and record any
+change in priority with evidence. Count calendar days from the earliest public
+advisory or private confirmation that identifies the affected version. Later
+inventory or triage does not restart the clock.
+
+| Risk in Core | Remediation target |
+| --- | --- |
+| Known exploitation that applies to the deployment | Contain within 72 hours and remediate within 7 days |
+| Critical | 7 days |
+| High | 30 days |
+| Medium | 90 days |
+| Low | 180 days |
+
+Remediation means shipping an updated component, removing it, or verifying that
+the affected functionality is disabled in the supported deployment. Record any
+temporary mitigation, missing upstream fix or review exception with the affected
+artifact, rationale, owner, approving maintainer and expiry date. Reassess when
+exploit evidence or a fix becomes available. An exception leaves the original
+deadline and any overdue status visible.
+
+Review the exact release artifacts and their installed inventories before
+approval. Include linked Go modules and standard library, shipped browser assets,
+operating-system packages and installer images. Retain the source revision, image
+digests and platform, SBOM or inventory, dated advisory results, and disposition
+of every applicable advisory. Record unresolved matches or gaps as unverified.
+Resolve overdue items or document an explicit maintainer exception before
+approval. Recheck advisory results at promotion against the same digests.

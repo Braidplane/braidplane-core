@@ -22,7 +22,7 @@ class GoTestGate(unittest.TestCase):
             go = root / "bin/go"
             go.write_text(r"""#!/bin/bash
 case "$1 ${2:-}" in
-  'env GOVERSION') echo go1.26.10 ;;
+  'env GOVERSION') echo go1.26.11 ;;
   'env GOOS') echo linux ;;
   'env GOARCH') echo amd64 ;;
   tool*) exit 0 ;;

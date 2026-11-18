@@ -422,7 +422,11 @@ templ DataSourceDetailPanelContent(orgSlug string, activeEnvironmentSlug string,
 							} else if updateFormData.ManagedProvider {
 								<div class="rounded-lg border border-base-300 bg-base-200/40 p-3 xl:col-span-2">
 									<p class="text-xs font-semibold uppercase tracking-wide text-base-content/60">Selected repository</p>
-									<a class="mt-1 block break-all text-sm font-medium link link-primary" href={ templ.SafeURL(updateFormData.ProviderRepositoryURL) } target="_blank" rel="noopener noreferrer">{ updateFormData.ProviderRepositoryName }</a>
+									if href := providerRepositoryWebHref(updateFormData.ProviderRepositoryURL); href != "" {
+										<a class="mt-1 block break-all text-sm font-medium link link-primary" href={ templ.URL(href) } target="_blank" rel="noopener noreferrer">{ updateFormData.ProviderRepositoryName }</a>
+									} else {
+										<p class="mt-1 block break-all text-sm font-medium">{ updateFormData.ProviderRepositoryName }</p>
+									}
 									<p class="mt-1 text-xs text-base-content/60">Provider ID: { updateFormData.ProviderRepositoryID }</p>
 									if updateFormData.GitBasePath != "" {
 										<p class="mt-1 text-xs text-base-content/60">Base path: { updateFormData.GitBasePath }</p>

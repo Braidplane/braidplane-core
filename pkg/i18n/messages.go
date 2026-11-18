@@ -5,7 +5,7 @@ import "github.com/nicksnyder/go-i18n/v2/i18n"
 var EmailVerification = i18n.Message{
 	ID:          "email_verification",
 	Description: "Email verification message sent to users to verify their email address.",
-	Other:       "Please verify your email address by clicking the link below: {{.VerificationLink}}",
+	Other:       "Open the link and enter the code to confirm your email address.\n\n{{.VerificationLink}}\n\nCode: {{.Code}}",
 }
 
 var EmailVerificationSubject = i18n.Message{
@@ -17,7 +17,7 @@ var EmailVerificationSubject = i18n.Message{
 var PasswordReset = i18n.Message{
 	ID:          "password_reset",
 	Description: "Password reset message sent to users to reset their password.",
-	Other:       "Reset your password by clicking the link below: {{.ResetLink}}",
+	Other:       "Open the link and enter the code to reset your password.\n\n{{.ResetLink}}\n\nCode: {{.Code}}",
 }
 
 var PasswordResetSubject = i18n.Message{

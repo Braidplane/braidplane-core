@@ -52,7 +52,7 @@ func TestRouter_HandleEventsPage_RendersActivity(t *testing.T) {
 	defer apiServer.Close()
 
 	store := session.NewStore()
-	router, err := NewRouter(apiServer.URL, slog.New(slog.DiscardHandler), store)
+	router, err := newHandlerTestRouter(apiServer.URL, slog.New(slog.DiscardHandler), store)
 	require.NoError(t, err)
 
 	app := fiber.New()
@@ -111,7 +111,7 @@ func TestRouter_HandleEventsPage_UsesSecurityAuditContractAndFilters(t *testing.
 	defer apiServer.Close()
 
 	store := session.NewStore()
-	router, err := NewRouter(apiServer.URL, slog.New(slog.DiscardHandler), store)
+	router, err := newHandlerTestRouter(apiServer.URL, slog.New(slog.DiscardHandler), store)
 	require.NoError(t, err)
 	app := fiber.New()
 	registerTestSessionRoute(app, store)
@@ -183,7 +183,7 @@ func TestRouter_HandleSecurityAuditEventsExport_ProxiesCSV(t *testing.T) {
 	defer apiServer.Close()
 
 	store := session.NewStore()
-	router, err := NewRouter(apiServer.URL, slog.New(slog.DiscardHandler), store)
+	router, err := newHandlerTestRouter(apiServer.URL, slog.New(slog.DiscardHandler), store)
 	require.NoError(t, err)
 	app := fiber.New()
 	registerTestSessionRoute(app, store)

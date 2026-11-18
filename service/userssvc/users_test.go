@@ -13,6 +13,7 @@ import (
 
 	"github.com/Braidplane/braidplane-core/pkg/domain/model"
 	"github.com/Braidplane/braidplane-core/pkg/must"
+	"github.com/Braidplane/braidplane-core/pkg/passwordpolicy"
 	"github.com/Braidplane/braidplane-core/pkg/slug"
 	"github.com/Braidplane/braidplane-core/pkg/testutil"
 	"github.com/Braidplane/braidplane-core/pkg/xerror"
@@ -88,9 +89,10 @@ func TestCreateUser(t *testing.T) {
 					assert.False(t, params.EmailVerificationTokenExpiresAt.IsZero())
 					return nil
 				}
-				emailSvc.EmailVerificationFn = func(_ context.Context, user *model.User, link string) error {
+				emailSvc.EmailVerificationFn = func(_ context.Context, user *model.User, link, code string) error {
 					assert.Equal(t, must.Slug("alice-smith"), user.Slug)
-					assert.Contains(t, link, "https://app.example.com/verify-email?token=")
+					assert.Equal(t, "https://app.example.com/verify-email", link)
+					assert.Len(t, code, 64)
 					return nil
 				}
 			},
@@ -980,7 +982,7 @@ func TestRequestPasswordReset(t *testing.T) {
 					assert.Equal(t, "missing@example.com", email)
 					return nil, users.ErrUserNotFound
 				}
-				emailSvc.PasswordResetFn = func(_ context.Context, _ *model.User, _ string) error {
+				emailSvc.PasswordResetFn = func(_ context.Context, _ *model.User, _, _ string) error {
 					t.Fatal("password reset email should not be sent")
 					return nil
 				}
@@ -1005,14 +1007,15 @@ func TestRequestPasswordReset(t *testing.T) {
 					assert.False(t, params.PasswordResetTokenExpiresAt.IsZero())
 					return nil
 				}
-				emailSvc.PasswordResetFn = func(_ context.Context, user *model.User, link string) error {
+				emailSvc.PasswordResetFn = func(_ context.Context, user *model.User, link, code string) error {
 					assert.Equal(t, must.Slug("alice-smith"), user.Slug)
 					resetURL, err := url.Parse(link)
 					require.NoError(t, err)
 					assert.Equal(t, "https", resetURL.Scheme)
 					assert.Equal(t, "app.example.com", resetURL.Host)
 					assert.Equal(t, "/auth/reset-password", resetURL.Path)
-					assert.NotEmpty(t, resetURL.Query().Get("token"))
+					assert.Empty(t, resetURL.RawQuery)
+					assert.Len(t, code, 64)
 					return nil
 				}
 			},
@@ -1047,6 +1050,39 @@ func TestRequestPasswordReset(t *testing.T) {
 			require.NoError(t, err)
 		})
 	}
+}
+
+func TestAccountPasswordMutationsRejectCommonPasswordsBeforePersisting(t *testing.T) {
+	t.Parallel()
+	account := must.Slug("fixture-user")
+	repo := &testutil.FakeUsersRepo{
+		FindByPasswordResetTokenFn: func(context.Context, postgres.DBTX, string) (*users.UserPublic, error) {
+			return testutil.StubUserPublic(account, "Fixture User", "fixture@example.com", model.RoleUser), nil
+		},
+		FindBySlugWithPasswordFn: func(context.Context, postgres.DBTX, slug.Slug) (*users.UserWithPassword, error) {
+			return &users.UserWithPassword{Slug: account, Password: "fixture-hash"}, nil
+		},
+		UpdatePasswordFn: func(context.Context, postgres.DBTX, slug.Slug, string) error {
+			t.Fatal("blocklisted password reached storage")
+			return nil
+		},
+	}
+	hasher := &testutil.FakeHasher{
+		HashFn: func(string) (string, error) {
+			t.Fatal("blocklisted password reached the hasher")
+			return "", nil
+		},
+		CompareHashFn: func(candidate, stored string) (bool, error) {
+			require.Equal(t, "fixture-current-password", candidate)
+			require.Equal(t, "fixture-hash", stored)
+			return true, nil
+		},
+	}
+	svc := newTestService(repo, hasher, nil)
+	_, err := svc.CreateUser(t.Context(), model.NewUser{FullName: "Fixture User", Email: "fixture@example.com", Password: "password", Role: model.RoleUser})
+	require.ErrorIs(t, err, passwordpolicy.ErrCommonPassword)
+	require.ErrorIs(t, svc.ResetPassword(t.Context(), "fixture-reset-token", "password"), passwordpolicy.ErrCommonPassword)
+	require.ErrorIs(t, svc.ChangePassword(t.Context(), account, "fixture-current-password", "password"), passwordpolicy.ErrCommonPassword)
 }
 
 func TestResetPassword(t *testing.T) {
@@ -1145,7 +1181,7 @@ func TestChangePassword(t *testing.T) {
 	}{
 		{
 			name:            "UpdatesPasswordAfterVerifyingCurrentPassword",
-			currentPassword: "currentpass",
+			currentPassword: "password",
 			newPassword:     "newsecurepass",
 			setup: func(repo *testutil.FakeUsersRepo, hasher *testutil.FakeHasher) {
 				repo.FindBySlugWithPasswordFn = func(_ context.Context, _ postgres.DBTX, gotSlug slug.Slug) (*users.UserWithPassword, error) {
@@ -1158,7 +1194,7 @@ func TestChangePassword(t *testing.T) {
 					}, nil
 				}
 				hasher.CompareHashFn = func(input, hash string) (bool, error) {
-					assert.Equal(t, "currentpass", input)
+					assert.Equal(t, "password", input)
 					assert.Equal(t, "stored-current-hash", hash)
 					return true, nil
 				}
@@ -1276,7 +1312,7 @@ func TestResendVerificationEmail(t *testing.T) {
 					assert.Equal(t, "missing@example.com", email)
 					return nil, users.ErrUserNotFound
 				}
-				emailSvc.EmailVerificationFn = func(_ context.Context, _ *model.User, _ string) error {
+				emailSvc.EmailVerificationFn = func(_ context.Context, _ *model.User, _, _ string) error {
 					t.Fatal("verification email should not be sent")
 					return nil
 				}
@@ -1296,7 +1332,7 @@ func TestResendVerificationEmail(t *testing.T) {
 					user.VerifiedAt = time.Now()
 					return user, nil
 				}
-				emailSvc.EmailVerificationFn = func(_ context.Context, _ *model.User, _ string) error {
+				emailSvc.EmailVerificationFn = func(_ context.Context, _ *model.User, _, _ string) error {
 					t.Fatal("verification email should not be sent")
 					return nil
 				}
@@ -1320,9 +1356,10 @@ func TestResendVerificationEmail(t *testing.T) {
 					assert.False(t, params.EmailVerificationTokenExpiresAt.IsZero())
 					return nil
 				}
-				emailSvc.EmailVerificationFn = func(_ context.Context, user *model.User, link string) error {
+				emailSvc.EmailVerificationFn = func(_ context.Context, user *model.User, link, code string) error {
 					assert.Equal(t, must.Slug("alice-smith"), user.Slug)
-					assert.Contains(t, link, "https://app.example.com/verify-email?token=")
+					assert.Equal(t, "https://app.example.com/verify-email", link)
+					assert.Len(t, code, 64)
 					return nil
 				}
 			},

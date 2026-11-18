@@ -22,6 +22,9 @@ braidplane-admin bootstrap --user owner --name 'Instance Owner' \
 ```
 
 Supply one password (8–1024 bytes) on stdin, optionally followed by a newline.
+Use `--password-stdin-raw` to read 8–1024 UTF-8 characters exactly as supplied.
+In this mode, a final newline is part of the password. Use the JSON login API for
+passwords with line breaks, which browser password fields strip.
 Use a protected temporary file or secret-manager pipe; do not place the password
 in command arguments, shell history or logs. Remove the temporary file after use.
 The operator must independently verify ownership of the supplied email address;

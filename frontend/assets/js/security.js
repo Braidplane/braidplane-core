@@ -3,6 +3,259 @@
     // value comes from the server-rendered meta tag and is never persisted.
     const CSRF_HEADER = "X-CSRF-Token";
     const SAFE_METHODS = new Set(["GET", "HEAD", "OPTIONS", "TRACE"]);
+    const SESSION_ENDED_HEADER = "X-Braidplane-Session-Ended";
+    const SESSION_EXPIRY_HEADER = "X-Braidplane-Session-Expiry";
+    const SESSION_ENDED_KEY = "braidplane.session.ended";
+    const SESSION_EXPIRY_KEY = "braidplane.session.expiry";
+    const ACTIVE_TAB_KEY = "braidplane:authenticated-tab";
+    const TAB_GENERATION_KEY = "braidplane:session-generation";
+    const BROWSER_GENERATION_KEY = "braidplane.session.generation";
+    const nativeFetch = typeof window.fetch === "function" ? window.fetch.bind(window) : null;
+    const initialExpiry = document.querySelector('meta[name="braidplane-session-expiry"]')?.content;
+    const pageGeneration = initialExpiry?.split(":")[0];
+
+    function authenticatedPage() {
+        return document.querySelector('meta[name="braidplane-authenticated-page"]') !== null;
+    }
+
+    function clearStorage(storageName, shouldClear) {
+        try {
+            const storage = window[storageName];
+            for (let index = storage.length - 1; index >= 0; index--) {
+                const key = storage.key(index);
+                if (key && shouldClear(key)) storage.removeItem(key);
+            }
+        } catch (_) {
+            // Continue signing out if the browser disables storage.
+        }
+    }
+
+    function isDraftKey(key) {
+        return key.startsWith("braidplane.builder.canvas.state.");
+    }
+
+    function clearAuthenticatedStorage(generation = pageGeneration) {
+        let clearShared = true;
+        if (generation) {
+            try {
+                const current = window.localStorage.getItem(BROWSER_GENERATION_KEY);
+                clearShared = !current || current === generation;
+            } catch (_) {
+                // Storage access may be restricted.
+            }
+        }
+        if (clearShared) {
+            clearStorage(
+                "localStorage",
+                (key) =>
+                    isDraftKey(key) ||
+                    key === BROWSER_GENERATION_KEY ||
+                    key === SESSION_EXPIRY_KEY ||
+                    key.startsWith("braidplane.dashboard.onboarding.hidden."),
+            );
+        }
+        clearStorage(
+            "sessionStorage",
+            (key) =>
+                isDraftKey(key) ||
+                key === "htmx-history-cache" ||
+                key === "braidplane.lineage.view" ||
+                key.startsWith("braidplane:") ||
+                key.startsWith("query-detail-scroll:"),
+        );
+    }
+
+    function discardAuthenticatedPage(...remaining) {
+        document.documentElement.dataset.braidplaneSessionEnded = "true";
+        document.body.replaceChildren(...remaining);
+    }
+
+    function notifyOtherTabs(generation = pageGeneration) {
+        try {
+            window.localStorage.setItem(SESSION_ENDED_KEY, `${generation || ""}:${Date.now()}`);
+        } catch (_) {
+            // This tab is already cleared.
+        }
+    }
+
+    function endBrowserSession(redirect, generation) {
+        if (document.documentElement.dataset.braidplaneSessionEnded === "true") return;
+        clearAuthenticatedStorage(generation);
+        discardAuthenticatedPage();
+        window.location.replace(redirect || "/auth/login");
+    }
+
+    clearStorage("sessionStorage", (key) => key === "htmx-history-cache");
+    let wasAuthenticated = false;
+    let previousGeneration;
+    try {
+        wasAuthenticated = window.sessionStorage.getItem(ACTIVE_TAB_KEY) === "1";
+        previousGeneration = window.sessionStorage.getItem(TAB_GENERATION_KEY);
+        if (authenticatedPage()) window.sessionStorage.setItem(ACTIVE_TAB_KEY, "1");
+    } catch (_) {
+        // Server-confirmed logout and navigation still work.
+    }
+    if (document.querySelector('meta[name="braidplane-session-ended"]')) {
+        clearAuthenticatedStorage(previousGeneration);
+        if (wasAuthenticated || document.querySelector("[data-account-removal-receipt]")) {
+            notifyOtherTabs(previousGeneration);
+        }
+    }
+
+    if (initialExpiry && authenticatedPage()) monitorSessionExpiry(initialExpiry);
+
+    function monitorSessionExpiry(initial) {
+        const [generation] = initial.split(":");
+        const sampleClock = () => ({ wall: Date.now(), monotonic: performance.now() });
+        let expiry;
+        let expiryTimer;
+        let refreshTimer;
+        let refreshing = false;
+
+        clearStorage("localStorage", isDraftKey);
+        try {
+            if (window.sessionStorage.getItem(TAB_GENERATION_KEY) !== generation) {
+                clearStorage("sessionStorage", isDraftKey);
+                window.sessionStorage.setItem(TAB_GENERATION_KEY, generation);
+            }
+            window.localStorage.setItem(BROWSER_GENERATION_KEY, generation);
+        } catch (_) {
+            // The timer remains active without browser storage.
+        }
+
+        function active() {
+            return document.documentElement.dataset.braidplaneSessionEnded !== "true";
+        }
+
+        function timeLeft() {
+            const now = sampleClock();
+            return expiry.remaining - Math.max(now.wall - expiry.wall, now.monotonic - expiry.monotonic);
+        }
+
+        function expireWhenDue() {
+            if (!active()) return;
+            const remaining = timeLeft();
+            if (remaining <= 0) {
+                endBrowserSession("/auth/login", generation);
+                return;
+            }
+            clearTimeout(expiryTimer);
+            expiryTimer = setTimeout(expireWhenDue, remaining);
+        }
+
+        function observe(value, sampledAt, propagate = true) {
+            if (expiry && sampledAt.monotonic < expiry.monotonic) return;
+            const [observedGeneration, valueMs] = (value || "").split(":");
+            const remaining = Number(valueMs);
+            if (!Number.isSafeInteger(remaining) || remaining <= 0) return;
+            if (observedGeneration !== generation) {
+                endBrowserSession("/auth/login", generation);
+                return;
+            }
+            expiry = { ...sampledAt, remaining };
+            expireWhenDue();
+            clearTimeout(refreshTimer);
+            const delay = timeLeft();
+            if (delay > 6000) refreshTimer = setTimeout(refresh, delay - 5000);
+            if (propagate && delay > 0) {
+                try {
+                    const deadline = Math.floor(sampledAt.wall + remaining);
+                    window.localStorage.setItem(SESSION_EXPIRY_KEY, `${generation}:${deadline}`);
+                } catch (_) {
+                    // Other tabs still observe their own deadline.
+                }
+            }
+        }
+
+        async function refresh() {
+            if (!active() || refreshing || !nativeFetch) return;
+            const sampledAt = sampleClock();
+            refreshing = true;
+            try {
+                const response = await nativeFetch("/auth/session-status", {
+                    cache: "no-store",
+                    signal: AbortSignal.timeout(4000),
+                });
+                if (!active()) return;
+                if (response.status === 401 && response.headers.get(SESSION_ENDED_HEADER) === "1") {
+                    endBrowserSession("/auth/login", generation);
+                } else if (response.status === 204) {
+                    observe(response.headers.get(SESSION_EXPIRY_HEADER), sampledAt);
+                }
+            } catch (_) {
+                // The last confirmed deadline still applies offline.
+            } finally {
+                refreshing = false;
+            }
+        }
+
+        const initialSample = sampleClock();
+        const navigation = performance.getEntriesByType?.("navigation")?.[0];
+        if (navigation?.requestStart > 0) {
+            initialSample.wall -= initialSample.monotonic - navigation.requestStart;
+            initialSample.monotonic = navigation.requestStart;
+        }
+        observe(initial, initialSample);
+        if (!expiry) return;
+        document.addEventListener("visibilitychange", () => {
+            if (document.visibilityState !== "visible") return;
+            expireWhenDue();
+            refresh();
+        });
+        window.addEventListener("online", refresh);
+        window.addEventListener("storage", (event) => {
+            if (event.key !== SESSION_EXPIRY_KEY || !event.newValue || !active()) return;
+            const [updatedGeneration, wallExpiry] = event.newValue.split(":");
+            const sampledAt = sampleClock();
+            const remaining = Number(wallExpiry) - sampledAt.wall;
+            if (updatedGeneration === generation && remaining > timeLeft() + 1000) {
+                observe(`${generation}:${remaining}`, sampledAt, false);
+            }
+        });
+    }
+
+    document.addEventListener(
+        "submit",
+        (event) => {
+            const form = event.target;
+            if (!(form instanceof HTMLFormElement) || form.method !== "post" || event.defaultPrevented) return;
+            const action = new URL(form.action);
+            if (action.origin !== window.location.origin || action.pathname !== "/auth/logout") return;
+            clearAuthenticatedStorage();
+            discardAuthenticatedPage(form);
+            notifyOtherTabs();
+        },
+        true,
+    );
+
+    window.addEventListener("storage", (event) => {
+        if (!event.newValue || !authenticatedPage()) return;
+        if (event.key === SESSION_ENDED_KEY) {
+            const [endedGeneration] = event.newValue.split(":");
+            if (!endedGeneration || !pageGeneration || endedGeneration === pageGeneration) endBrowserSession();
+        }
+        if (event.key === BROWSER_GENERATION_KEY && pageGeneration && event.newValue !== pageGeneration) {
+            endBrowserSession("/auth/login", pageGeneration);
+        }
+    });
+
+    window.addEventListener("pageshow", (event) => {
+        if (!event.persisted || !authenticatedPage()) return;
+        discardAuthenticatedPage();
+        window.location.reload();
+    });
+
+    document.addEventListener("htmx:beforeOnLoad", (event) => {
+        if (document.documentElement.dataset.braidplaneSessionEnded === "true") {
+            event.preventDefault();
+            return;
+        }
+        const xhr = event.detail?.xhr;
+        if (xhr?.getResponseHeader(SESSION_ENDED_HEADER) !== "1") return;
+        event.preventDefault();
+        notifyOtherTabs();
+        endBrowserSession(xhr.getResponseHeader("HX-Redirect"));
+    });
 
     function csrfToken() {
         return document.querySelector('meta[name="csrf-token"]')?.getAttribute("content") || "";
@@ -162,17 +415,30 @@
         }
     });
 
-    if (typeof window.fetch === "function") {
-        const nativeFetch = window.fetch.bind(window);
+    if (nativeFetch) {
         window.fetch = (input, init) => {
             const nextInit = init ? { ...init } : {};
             const method = String(nextInit.method || (input instanceof Request ? input.method : "GET")).toUpperCase();
-            if (!SAFE_METHODS.has(method) && sameOriginRequest(input)) {
+            const sameOrigin = sameOriginRequest(input);
+            if (!SAFE_METHODS.has(method) && sameOrigin) {
                 nextInit.headers = headersWithCSRF(
                     nextInit.headers || (input instanceof Request ? input.headers : undefined),
                 );
             }
-            return nativeFetch(input, nextInit);
+            const credentials = nextInit.credentials ?? (input instanceof Request ? input.credentials : "same-origin");
+            return nativeFetch(input, nextInit).then((response) => {
+                if (
+                    sameOrigin &&
+                    credentials !== "omit" &&
+                    authenticatedPage() &&
+                    response.headers.get(SESSION_ENDED_HEADER) === "1" &&
+                    sameOriginRequest(response.url)
+                ) {
+                    notifyOtherTabs();
+                    endBrowserSession(response.redirected ? response.url : "/auth/login");
+                }
+                return response;
+            });
         };
     }
 })();

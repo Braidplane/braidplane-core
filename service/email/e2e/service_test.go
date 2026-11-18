@@ -41,6 +41,6 @@ func TestEmailE2E(t *testing.T) {
 		Locale: "pl",
 	}
 
-	err = s.EmailVerification(t.Context(), user, "http://example.com/verify?token=abc123")
+	err = s.EmailVerification(t.Context(), user, "http://example.com/verify", "abc123")
 	require.NoError(t, err, "Failed to send email verification")
 }

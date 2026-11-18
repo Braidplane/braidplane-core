@@ -36,7 +36,7 @@ func TestRouter_LoadPipelineConnectionsBuildsCurrentComponent(t *testing.T) {
 	}))
 	t.Cleanup(apiServer.Close)
 
-	router, err := NewRouter(apiServer.URL, slog.New(slog.DiscardHandler), session.NewStore())
+	router, err := newHandlerTestRouter(apiServer.URL, slog.New(slog.DiscardHandler), session.NewStore())
 	require.NoError(t, err)
 	app := fiber.New()
 	var gotNodes, gotEdges int
@@ -73,7 +73,7 @@ func TestRouter_LoadPipelineConnectionsMarksRepeatedCursorPartial(t *testing.T) 
 	}))
 	t.Cleanup(apiServer.Close)
 
-	router, err := NewRouter(apiServer.URL, slog.New(slog.DiscardHandler), session.NewStore())
+	router, err := newHandlerTestRouter(apiServer.URL, slog.New(slog.DiscardHandler), session.NewStore())
 	require.NoError(t, err)
 	app := fiber.New()
 	app.Get("/", func(c fiber.Ctx) error {
@@ -106,7 +106,7 @@ func TestRouter_LoadPipelineConnectionsKeepsNearestNodesAtLimit(t *testing.T) {
 		assert.NoError(t, json.NewEncoder(w).Encode(map[string]any{"pipeline_triggers": triggers, "has_more": false}))
 	}))
 	t.Cleanup(apiServer.Close)
-	router, err := NewRouter(apiServer.URL, slog.New(slog.DiscardHandler), session.NewStore())
+	router, err := newHandlerTestRouter(apiServer.URL, slog.New(slog.DiscardHandler), session.NewStore())
 	require.NoError(t, err)
 	app := fiber.New()
 	var result views.PipelineConnections

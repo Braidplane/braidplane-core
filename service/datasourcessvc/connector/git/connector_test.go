@@ -96,7 +96,7 @@ func TestExtractHostname(t *testing.T) {
 		{
 			name:        "EmptyURL",
 			url:         "",
-			wantErrText: "hostname",
+			wantErrText: "required",
 		},
 	}
 
@@ -104,7 +104,7 @@ func TestExtractHostname(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 
-			got, err := extractHostname(tc.url)
+			got, _, err := parseRepoURL(tc.url)
 
 			if tc.wantErrText != "" {
 				require.ErrorContains(t, err, tc.wantErrText)
@@ -153,7 +153,7 @@ func TestTestConnection_LocalFailureHasPublicDetail(t *testing.T) {
 	conn, err := New(
 		context.Background(),
 		Config{
-			RepoURL:           "ssh://git@127.0.0.1:1/acme/repo.git",
+			RepoURL:           "https://127.0.0.1:1/acme/repo.git",
 			AllowPrivateHosts: true,
 		},
 		Credentials{AuthType: AuthTypeHTTPS},

@@ -6,16 +6,17 @@ import (
 	"io"
 	"os"
 	"strings"
+	"unicode/utf8"
 
 	backendconfig "github.com/Braidplane/braidplane-core/config/backend"
 	"github.com/Braidplane/braidplane-core/pkg/crypto"
+	"github.com/Braidplane/braidplane-core/pkg/dbpool"
 	"github.com/Braidplane/braidplane-core/pkg/slug"
 	"github.com/Braidplane/braidplane-core/pkg/xerror"
 	"github.com/Braidplane/braidplane-core/postgres"
 	"github.com/Braidplane/braidplane-core/postgres/instanceadmins"
 	"github.com/Braidplane/braidplane-core/postgres/users"
 	"github.com/Braidplane/braidplane-core/service/instanceadminsvc"
-	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 func runBootstrapCLI(configArgs []string, command bootstrapCommand, stdin io.Reader, stdout io.Writer) error {
@@ -26,7 +27,7 @@ func runBootstrapCLI(configArgs []string, command bootstrapCommand, stdin io.Rea
 	if err != nil {
 		return err
 	}
-	password, err := readBootstrapPassword(stdin)
+	password, err := readBootstrapPassword(stdin, command.PasswordStdinRaw)
 	if err != nil {
 		return err
 	}
@@ -39,7 +40,7 @@ func runBootstrapCLI(configArgs []string, command bootstrapCommand, stdin io.Rea
 		return err
 	}
 	ctx := context.Background()
-	pool, err := pgxpool.New(ctx, cfg.Database.ConnectionString())
+	pool, err := dbpool.New(ctx, cfg.Database.ConnectionString())
 	if err != nil {
 		return xerror.Unexpected().Detail("connect bootstrap database")
 	}
@@ -59,12 +60,22 @@ func runBootstrapCLI(configArgs []string, command bootstrapCommand, stdin io.Rea
 	return nil
 }
 
-func readBootstrapPassword(input io.Reader) (string, error) {
-	data, err := io.ReadAll(io.LimitReader(input, 1027))
+func readBootstrapPassword(input io.Reader, raw bool) (string, error) {
+	var limit int64 = 1027
+	if raw {
+		limit = 1024*utf8.UTFMax + 1
+	}
+	data, err := io.ReadAll(io.LimitReader(input, limit))
 	if err != nil {
 		return "", xerror.Unexpected().Detail("read bootstrap password")
 	}
 	defer clear(data)
+	if raw {
+		if size := utf8.RuneCount(data); size < 8 || size > 1024 || !utf8.Valid(data) {
+			return "", xerror.ValidationFailed().Detail("stdin must contain a UTF-8 password of 8 to 1024 characters")
+		}
+		return string(data), nil
+	}
 	password := strings.TrimSuffix(strings.TrimSuffix(string(data), "\n"), "\r")
 	if len(password) < 8 || len(password) > 1024 || strings.ContainsAny(password, "\r\n") {
 		return "", xerror.ValidationFailed().Detail("stdin must contain one password of 8 to 1024 bytes")

@@ -45,6 +45,8 @@ func main() {
 			}
 		}
 		switch r.URL.Path {
+		case "/api/users/profile":
+			encode(map[string]string{"slug": "test-user"})
 		case "/api/organizations":
 			encode(map[string]any{"organizations": []any{map[string]any{"name": "Acme", "slug": "acme", "member_role": "admin"}}})
 		case "/api/organizations/acme":

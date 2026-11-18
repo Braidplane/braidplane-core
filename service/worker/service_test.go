@@ -655,6 +655,7 @@ func (s *recordingEmailService) EmailVerification(
 	context.Context,
 	*model.User,
 	string,
+	string,
 ) error {
 	return nil
 }
@@ -662,6 +663,7 @@ func (s *recordingEmailService) EmailVerification(
 func (s *recordingEmailService) PasswordReset(
 	context.Context,
 	*model.User,
+	string,
 	string,
 ) error {
 	return nil

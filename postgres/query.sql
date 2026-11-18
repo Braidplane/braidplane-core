@@ -386,7 +386,8 @@ FROM users
 WHERE
     email_verification_token_hash = sqlc.arg('email_verification_token_hash')
     AND deleted_at IS NULL
-    AND email_verification_token_expires_at > NOW();
+    AND email_verification_token_expires_at > NOW()
+FOR UPDATE;
 
 -- name: FindUserByPasswordResetToken :one
 SELECT *
@@ -3290,6 +3291,15 @@ FROM
 WHERE
     o.slug = sqlc.arg ('org_slug')
     AND ak.slug = sqlc.arg ('api_key_slug');
+
+-- name: LockAPIKeyRoleBySlug :one
+SELECT r.slug AS role_slug
+FROM api_keys ak
+JOIN organizations o ON ak.organization_id = o.id
+JOIN roles r ON ak.role_id = r.id
+WHERE o.slug = sqlc.arg ('org_slug')
+    AND ak.slug = sqlc.arg ('api_key_slug')
+FOR UPDATE OF ak;
 
 -- name: ListAPIKeysByOrganization :many
 SELECT
@@ -12432,7 +12442,11 @@ JOIN odcs_contracts c ON c.id = a.contract_id AND c.organization_id = a.organiza
 JOIN projects p ON p.id = a.project_id AND p.organization_id = a.organization_id
 JOIN organizations o ON o.id = a.organization_id
 WHERE o.slug = sqlc.arg('org_slug') AND p.slug = sqlc.arg('project_slug')
-AND a.source_repo = sqlc.arg('source_repo') AND a.source_commit = sqlc.arg('source_commit')
+AND (
+    (sqlc.arg('public_id')::text = '' AND a.source_repo = sqlc.arg('source_repo'))
+    OR a.public_id = sqlc.arg('public_id')
+)
+AND a.source_commit = sqlc.arg('source_commit')
 AND a.source_path = sqlc.arg('source_path');
 
 -- name: SaveHTTPOAuthApp :one

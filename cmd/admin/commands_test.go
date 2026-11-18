@@ -34,6 +34,9 @@ func TestParseAdminCommand(t *testing.T) {
 			require.Equal(t, tc.wantCommand, result.Context.Command())
 		})
 	}
+	parsed, _, err := parseAdminCLI([]string{"bootstrap", "--user", "alice", "--name", "Alice", "--email", "alice@example.test", "--email-ownership-verified", "--password-stdin-raw"}, &bytes.Buffer{}, &bytes.Buffer{})
+	require.NoError(t, err)
+	require.True(t, parsed.CLI.Bootstrap.PasswordStdinRaw)
 	for _, command := range []string{"grant", "revoke"} {
 		require.Error(t, runAdminCLI([]string{command, "--user", "Alice"}, &bytes.Buffer{}, &bytes.Buffer{}))
 	}

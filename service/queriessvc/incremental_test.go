@@ -8,6 +8,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/Braidplane/braidplane-core/pkg/connector/result"
+	"github.com/Braidplane/braidplane-core/pkg/domain/model"
 	pipelinerun "github.com/Braidplane/braidplane-core/pkg/pipeline/run"
 	"github.com/Braidplane/braidplane-core/pkg/slug"
 )
@@ -205,7 +206,7 @@ func TestWithIncrementalParamValuesPreservesExactNumbers(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, json.Number("9007199254740993"), params["runtime.incremental.lower_bound.value"])
 	require.Equal(t, json.Number("9007199254740993.0001"), params["runtime.incremental.upper_bound.value"])
-	typed, err := buildTypedParams(nil, params)
+	typed, err := buildTypedParams(nil, params, model.DataSourceTypePostgres)
 	require.NoError(t, err)
 	require.Equal(t, json.Number("9007199254740993"), typed["runtime.incremental.lower_bound.value"].Value)
 	require.Equal(t, json.Number("9007199254740993.0001"), typed["runtime.incremental.upper_bound.value"].Value)

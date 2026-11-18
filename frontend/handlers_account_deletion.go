@@ -45,8 +45,7 @@ func (r *Router) handleAccountDeletionSubmit(c fiber.Ctx) error {
 		c.Status(status)
 		return renderTempl(c, views.AccountDeletionOutcome(nil, "Account removal could not be confirmed. Contact your instance administrator if the problem persists."))
 	}
-	// The backend already revoked every indexed session. Do not fetch profile or
-	// shell data now; render the receipt even if expiring the browser cookie fails.
+	// Render the receipt even if expiring the browser cookie fails.
 	sess, err := r.sessionStore.Get(c)
 	if err == nil {
 		defer sess.Release()
@@ -55,5 +54,6 @@ func (r *Router) handleAccountDeletionSubmit(c fiber.Ctx) error {
 	if err != nil {
 		r.logger.ErrorContext(c.Context(), "expire removed account session cookie", logging.ErrorAttr(err))
 	}
+	r.setBrowserSessionEnded(c)
 	return renderTempl(c, views.AccountDeletionOutcome(receipt, ""))
 }

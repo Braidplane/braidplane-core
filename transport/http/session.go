@@ -8,6 +8,8 @@ import (
 	api "github.com/Braidplane/braidplane-core/api-schema/gen/server"
 	"github.com/Braidplane/braidplane-core/pkg/apierror"
 	"github.com/Braidplane/braidplane-core/pkg/reqctx"
+	"github.com/Braidplane/braidplane-core/pkg/xerror"
+	"github.com/Braidplane/braidplane-core/service/userssvc"
 )
 
 func (s *server) PostSessions(c fiber.Ctx) error {
@@ -22,6 +24,12 @@ func (s *server) PostSessions(c fiber.Ctx) error {
 		newSession.Password,
 	)
 	if err != nil {
+		var retry *userssvc.MFAEmailRateLimitError
+		if xerror.As(err, &retry) {
+			setAbuseRetryAfter(c, retry.ResetAt)
+			logAuthSecurityEvent(c, s.sessionStore, slog.Default(), slog.LevelWarn, "auth.rate_limited", "rate_limited", fiber.StatusTooManyRequests, "auth.mfa_email.recipient")
+			return apierror.RateLimited()
+		}
 		logAuthSecurityEvent(c, s.sessionStore, slog.Default(), slog.LevelWarn, "auth.login.failed", "error", serviceErrorHTTPStatus(err), "")
 		return mapServiceError(err)
 	}

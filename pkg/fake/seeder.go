@@ -16,7 +16,7 @@ import (
 
 	"github.com/Braidplane/braidplane-core/postgres/odcscontracts"
 
-	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/Braidplane/braidplane-core/pkg/dbpool"
 
 	backendconfig "github.com/Braidplane/braidplane-core/config/backend"
 	"github.com/Braidplane/braidplane-core/pkg/clock"
@@ -127,7 +127,7 @@ func (fakeDataSourceSchemaImportProducer) EnqueueDataSourceSchemaImport(
 	return queue.QueuedJob{Kind: "data_source_schema_import", Queue: jobs.DataSourceSchemaImportQueue, State: "queued"}, nil
 }
 
-const seededUserPassword = "testpass"
+const seededUserPassword = "braidplane-local-seed-passphrase"
 
 var isolatedSeededGitRepoSequence atomic.Uint64
 
@@ -1107,7 +1107,7 @@ func seedNotificationDiagnostics(
 
 // Seed seeds a small, deterministic set of data using service-layer APIs.
 func Seed(ctx context.Context, cfg *backendconfig.Config, coreOnly bool) (*Summary, error) {
-	pool, err := pgxpool.New(ctx, cfg.Database.ConnectionString())
+	pool, err := dbpool.New(ctx, cfg.Database.ConnectionString())
 	if err != nil {
 		return nil, xerror.Unexpected().With(err)
 	}

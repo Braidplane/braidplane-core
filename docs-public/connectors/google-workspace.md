@@ -39,6 +39,9 @@ Explicit file listing supports bounded pages and continuation tokens.
 | `file` | `list`, `read`, `create`, `update` | Drive JSON/CSV/file bytes. Create requires an authorized folder; update requires the exact file ID and changes content only. |
 | `document`, `presentation` | `read`, `create`, `update`, `export` | Structured native content, blank native creation, case-sensitive text replacement, or PDF file export. |
 
+Structured Drive reads require a `.json` or `.csv` extension matching the
+selected format. Use `format: file` to read arbitrary file bytes.
+
 Example source statement, using an already-authorized synthetic spreadsheet:
 
 ```json

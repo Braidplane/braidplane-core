@@ -101,7 +101,7 @@ func TestHandleBuilderBlueprintPage(t *testing.T) {
 	t.Cleanup(apiServer.Close)
 
 	store := session.NewStore()
-	router, err := NewRouter(apiServer.URL, slog.New(slog.DiscardHandler), store)
+	router, err := newHandlerTestRouter(apiServer.URL, slog.New(slog.DiscardHandler), store)
 	require.NoError(t, err)
 
 	app := fiber.New()
@@ -243,7 +243,7 @@ func TestHandleBuilderBlueprintPage_DeepLinkedPipelineCarriesVersionContext(t *t
 	t.Cleanup(apiServer.Close)
 
 	store := session.NewStore()
-	router, err := NewRouter(apiServer.URL, slog.New(slog.DiscardHandler), store)
+	router, err := newHandlerTestRouter(apiServer.URL, slog.New(slog.DiscardHandler), store)
 	require.NoError(t, err)
 
 	app := fiber.New()
@@ -315,7 +315,7 @@ func TestHandleBuilderBlueprintPage_DefaultsRuntimeTargetForDeepLinkedPipelineRu
 			t.Cleanup(apiServer.Close)
 
 			store := session.NewStore()
-			router, err := NewRouter(apiServer.URL, slog.New(slog.DiscardHandler), store)
+			router, err := newHandlerTestRouter(apiServer.URL, slog.New(slog.DiscardHandler), store)
 			require.NoError(t, err)
 
 			app := fiber.New()
@@ -388,7 +388,7 @@ func TestHandleBuilderBlueprintPage_DeepLinkedMaterializedPipelineEnablesDraftAc
 	t.Cleanup(apiServer.Close)
 
 	store := session.NewStore()
-	router, err := NewRouter(apiServer.URL, slog.New(slog.DiscardHandler), store)
+	router, err := newHandlerTestRouter(apiServer.URL, slog.New(slog.DiscardHandler), store)
 	require.NoError(t, err)
 
 	app := fiber.New()
@@ -457,7 +457,7 @@ func TestHandleBuilderBlueprintPage_DeepLinkedPipelineAllowsHashWithoutNumericVe
 	t.Cleanup(apiServer.Close)
 
 	store := session.NewStore()
-	router, err := NewRouter(apiServer.URL, slog.New(slog.DiscardHandler), store)
+	router, err := newHandlerTestRouter(apiServer.URL, slog.New(slog.DiscardHandler), store)
 	require.NoError(t, err)
 
 	app := fiber.New()
@@ -545,7 +545,7 @@ func TestHandleBuilderSave(t *testing.T) {
 	t.Cleanup(apiServer.Close)
 
 	store := session.NewStore()
-	router, err := NewRouter(apiServer.URL, slog.New(slog.DiscardHandler), store)
+	router, err := newHandlerTestRouter(apiServer.URL, slog.New(slog.DiscardHandler), store)
 	require.NoError(t, err)
 
 	app := fiber.New()
@@ -690,7 +690,7 @@ func TestHandleBuilderSave_UnauthorizedReturnsJSONError(t *testing.T) {
 	t.Cleanup(apiServer.Close)
 
 	store := session.NewStore()
-	router, err := NewRouter(apiServer.URL, slog.New(slog.DiscardHandler), store)
+	router, err := newHandlerTestRouter(apiServer.URL, slog.New(slog.DiscardHandler), store)
 	require.NoError(t, err)
 
 	app := fiber.New()
@@ -768,7 +768,7 @@ func TestHandleBuilderSave_ConflictIncludesComparableDiff(t *testing.T) {
 	t.Cleanup(apiServer.Close)
 
 	store := session.NewStore()
-	router, err := NewRouter(apiServer.URL, slog.New(slog.DiscardHandler), store)
+	router, err := newHandlerTestRouter(apiServer.URL, slog.New(slog.DiscardHandler), store)
 	require.NoError(t, err)
 
 	app := fiber.New()
@@ -900,7 +900,7 @@ func TestHandleBuilderSave_RetriesWithCurrentVersionWhenComparableDiffIsEmpty(t 
 	t.Cleanup(apiServer.Close)
 
 	store := session.NewStore()
-	router, err := NewRouter(apiServer.URL, slog.New(slog.DiscardHandler), store)
+	router, err := newHandlerTestRouter(apiServer.URL, slog.New(slog.DiscardHandler), store)
 	require.NoError(t, err)
 
 	app := fiber.New()
@@ -965,7 +965,7 @@ func TestHandleBuilderPublishPipelineDraft_ConflictIncludesComparableDiff(t *tes
 	t.Cleanup(apiServer.Close)
 
 	store := session.NewStore()
-	router, err := NewRouter(apiServer.URL, slog.New(slog.DiscardHandler), store)
+	router, err := newHandlerTestRouter(apiServer.URL, slog.New(slog.DiscardHandler), store)
 	require.NoError(t, err)
 
 	app := fiber.New()
@@ -1027,7 +1027,7 @@ func TestHandleBuilderDiscardPipelineDraft(t *testing.T) {
 		t.Cleanup(apiServer.Close)
 
 		store := session.NewStore()
-		router, err := NewRouter(apiServer.URL, slog.New(slog.DiscardHandler), store)
+		router, err := newHandlerTestRouter(apiServer.URL, slog.New(slog.DiscardHandler), store)
 		require.NoError(t, err)
 
 		app := fiber.New()
@@ -1081,7 +1081,7 @@ func TestHandleBuilderDiscardPipelineDraft(t *testing.T) {
 		t.Cleanup(apiServer.Close)
 
 		store := session.NewStore()
-		router, err := NewRouter(apiServer.URL, slog.New(slog.DiscardHandler), store)
+		router, err := newHandlerTestRouter(apiServer.URL, slog.New(slog.DiscardHandler), store)
 		require.NoError(t, err)
 
 		app := fiber.New()
@@ -1129,7 +1129,7 @@ func TestHandleBuilderDiscardPipelineDraft(t *testing.T) {
 		t.Cleanup(apiServer.Close)
 
 		store := session.NewStore()
-		router, err := NewRouter(apiServer.URL, slog.New(slog.DiscardHandler), store)
+		router, err := newHandlerTestRouter(apiServer.URL, slog.New(slog.DiscardHandler), store)
 		require.NoError(t, err)
 
 		app := fiber.New()
@@ -1174,7 +1174,7 @@ func TestHandleBuilderDiscardPipelineDraft(t *testing.T) {
 		t.Cleanup(apiServer.Close)
 
 		store := session.NewStore()
-		router, err := NewRouter(apiServer.URL, slog.New(slog.DiscardHandler), store)
+		router, err := newHandlerTestRouter(apiServer.URL, slog.New(slog.DiscardHandler), store)
 		require.NoError(t, err)
 
 		app := fiber.New()
@@ -1219,7 +1219,7 @@ func TestValidatePipelineViaAPI(t *testing.T) {
 		}))
 		t.Cleanup(apiServer.Close)
 
-		router, err := NewRouter(apiServer.URL, slog.New(slog.DiscardHandler), session.NewStore())
+		router, err := newHandlerTestRouter(apiServer.URL, slog.New(slog.DiscardHandler), session.NewStore())
 		require.NoError(t, err)
 
 		result, status, errResp, err := router.validatePipelineViaAPI(
@@ -1248,7 +1248,7 @@ func TestValidatePipelineViaAPI(t *testing.T) {
 		}))
 		t.Cleanup(apiServer.Close)
 
-		router, err := NewRouter(apiServer.URL, slog.New(slog.DiscardHandler), session.NewStore())
+		router, err := newHandlerTestRouter(apiServer.URL, slog.New(slog.DiscardHandler), session.NewStore())
 		require.NoError(t, err)
 
 		result, status, errResp, err := router.validatePipelineViaAPI(
@@ -1283,7 +1283,7 @@ func TestValidateBuilderPipelineTargetUsesValidAPIResult(t *testing.T) {
 	}))
 	t.Cleanup(apiServer.Close)
 
-	router, err := NewRouter(apiServer.URL, slog.New(slog.DiscardHandler), session.NewStore())
+	router, err := newHandlerTestRouter(apiServer.URL, slog.New(slog.DiscardHandler), session.NewStore())
 	require.NoError(t, err)
 
 	payload := mustReadPipelineFixture(t, "single-query.pipeline.yaml")
@@ -1341,7 +1341,7 @@ func TestHandleBuilderExport(t *testing.T) {
 	t.Cleanup(apiServer.Close)
 
 	store := session.NewStore()
-	router, err := NewRouter(apiServer.URL, slog.New(slog.DiscardHandler), store)
+	router, err := newHandlerTestRouter(apiServer.URL, slog.New(slog.DiscardHandler), store)
 	require.NoError(t, err)
 
 	app := fiber.New()
@@ -1667,7 +1667,7 @@ func TestHandleBuilderExportPreservesValidationAPIStatus(t *testing.T) {
 	t.Cleanup(apiServer.Close)
 
 	store := session.NewStore()
-	router, err := NewRouter(apiServer.URL, slog.New(slog.DiscardHandler), store)
+	router, err := newHandlerTestRouter(apiServer.URL, slog.New(slog.DiscardHandler), store)
 	require.NoError(t, err)
 
 	app := fiber.New()
@@ -1727,7 +1727,7 @@ func TestHandleBuilderImport(t *testing.T) {
 	t.Cleanup(apiServer.Close)
 
 	store := session.NewStore()
-	router, err := NewRouter(apiServer.URL, slog.New(slog.DiscardHandler), store)
+	router, err := newHandlerTestRouter(apiServer.URL, slog.New(slog.DiscardHandler), store)
 	require.NoError(t, err)
 
 	app := fiber.New()
@@ -1861,7 +1861,7 @@ func TestHandleExecutePipelineSubmit(t *testing.T) {
 	t.Cleanup(apiServer.Close)
 
 	store := session.NewStore()
-	router, err := NewRouter(apiServer.URL, slog.New(slog.DiscardHandler), store)
+	router, err := newHandlerTestRouter(apiServer.URL, slog.New(slog.DiscardHandler), store)
 	require.NoError(t, err)
 
 	app := fiber.New()
@@ -1941,7 +1941,7 @@ func TestHandleExecutePipelineSubmit(t *testing.T) {
 		t.Cleanup(plainTextServer.Close)
 
 		store := session.NewStore()
-		router, err := NewRouter(plainTextServer.URL, slog.New(slog.DiscardHandler), store)
+		router, err := newHandlerTestRouter(plainTextServer.URL, slog.New(slog.DiscardHandler), store)
 		require.NoError(t, err)
 
 		app := fiber.New()
@@ -2001,7 +2001,7 @@ func TestHandleGetCanonicalPipelineState(t *testing.T) {
 	t.Cleanup(apiServer.Close)
 
 	store := session.NewStore()
-	router, err := NewRouter(apiServer.URL, slog.New(slog.DiscardHandler), store)
+	router, err := newHandlerTestRouter(apiServer.URL, slog.New(slog.DiscardHandler), store)
 	require.NoError(t, err)
 
 	app := fiber.New()
@@ -2130,7 +2130,7 @@ func TestHandleGetCanonicalPipelineState(t *testing.T) {
 		t.Cleanup(invalidSpecServer.Close)
 
 		invalidSpecStore := session.NewStore()
-		invalidSpecRouter, err := NewRouter(
+		invalidSpecRouter, err := newHandlerTestRouter(
 			invalidSpecServer.URL,
 			slog.New(slog.DiscardHandler),
 			invalidSpecStore,
@@ -2196,7 +2196,7 @@ func TestHandleGetCanonicalPipelineState(t *testing.T) {
 		t.Cleanup(unauthorizedServer.Close)
 
 		unauthStore := session.NewStore()
-		unauthRouter, err := NewRouter(
+		unauthRouter, err := newHandlerTestRouter(
 			unauthorizedServer.URL,
 			slog.New(slog.DiscardHandler),
 			unauthStore,
@@ -2248,7 +2248,7 @@ func TestHandleBuilderPublishPipelineDraft(t *testing.T) {
 		t.Cleanup(apiServer.Close)
 
 		store := session.NewStore()
-		router, err := NewRouter(apiServer.URL, slog.New(slog.DiscardHandler), store)
+		router, err := newHandlerTestRouter(apiServer.URL, slog.New(slog.DiscardHandler), store)
 		require.NoError(t, err)
 
 		app := fiber.New()
@@ -2298,7 +2298,7 @@ func TestHandleBuilderPublishPipelineDraft(t *testing.T) {
 		t.Cleanup(apiServer.Close)
 
 		store := session.NewStore()
-		router, err := NewRouter(apiServer.URL, slog.New(slog.DiscardHandler), store)
+		router, err := newHandlerTestRouter(apiServer.URL, slog.New(slog.DiscardHandler), store)
 		require.NoError(t, err)
 
 		app := fiber.New()
@@ -2351,7 +2351,7 @@ func TestHandleBuilderPublishPipelineDraft(t *testing.T) {
 		t.Cleanup(apiServer.Close)
 
 		store := session.NewStore()
-		router, err := NewRouter(apiServer.URL, slog.New(slog.DiscardHandler), store)
+		router, err := newHandlerTestRouter(apiServer.URL, slog.New(slog.DiscardHandler), store)
 		require.NoError(t, err)
 
 		app := fiber.New()
@@ -2401,7 +2401,7 @@ func TestHandleBootstrapPipelineCheckpointsSubmit(t *testing.T) {
 	}))
 	t.Cleanup(apiServer.Close)
 	store := session.NewStore()
-	router, err := NewRouter(apiServer.URL, slog.New(slog.DiscardHandler), store)
+	router, err := newHandlerTestRouter(apiServer.URL, slog.New(slog.DiscardHandler), store)
 	require.NoError(t, err)
 	app := fiber.New()
 	registerTestSessionRoute(app, store)

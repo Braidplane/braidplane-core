@@ -20,6 +20,10 @@ streaming operations and operator settings.
 | `connect_timeout` | no | integer | 5 | Connection and TLS/login timeout in seconds (1–300); later transfers are not capped by this setting |
 | `allow_private_hosts` | no | boolean | `false` | Requires private host access to be enabled for the deployment; hosted/default deployments reject `true` |
 
+Core resolves `base_path` from the FTP root. Operation paths are relative to
+that directory. Use slash-separated UTF-8 paths. Spaces in filenames are
+preserved. Paths with control characters or backslashes are rejected.
+
 ## Authentication and permissions
 
 | Field | Required | Notes |
@@ -90,6 +94,10 @@ content being written when the pipeline supplies rows.
 ```
 
 ## Operation reference
+
+Structured reads require a matching filename extension. Use `.csv`, `.json`,
+or a supported Excel extension. Use `format: file` to read bytes from a file
+with a different extension or no extension.
 
 | Field | Meaning |
 |---|---|

@@ -1455,8 +1455,8 @@ func (r *Router) handleUpdateProjectPipelineBackendSubmit(c fiber.Ctx) error {
 				return renderResponse(http.StatusBadGateway, "", "", "Provider authorization is unavailable.", "", "")
 			}
 			if provider == api.CreateProjectRepositoryRequestProviderGithub {
-				c.Cookie(&fiber.Cookie{Name: githubInstallOrganizationCookie, Value: orgSlug.String(), Path: "/github/callback", MaxAge: 600, HTTPOnly: true, Secure: r.secureCookies, SameSite: fiber.CookieSameSiteLaxMode})
-				c.Cookie(&fiber.Cookie{Name: githubInstallProjectCookie, Value: projectSlug.String(), Path: "/github/callback", MaxAge: 600, HTTPOnly: true, Secure: r.secureCookies, SameSite: fiber.CookieSameSiteLaxMode})
+				r.setGitHubInstallCookie(c, githubInstallOrganizationCookie, orgSlug.String(), 600)
+				r.setGitHubInstallCookie(c, githubInstallProjectCookie, projectSlug.String(), 600)
 			}
 			return redirectHTMXOrSeeOther(c, *setup.AuthorizationUrl)
 		}

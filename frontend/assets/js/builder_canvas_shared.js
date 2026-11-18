@@ -205,7 +205,7 @@
     const saveResponseProblem = (response) => {
         const responseURL = typeof response?.url === "string" ? response.url : "";
         if (response?.redirected || responseURL.includes("/auth/login")) {
-            return "Saved locally, but your session expired. Sign in again and retry.";
+            return "Your session expired. Sign in again to continue.";
         }
         if (!isJSONResponse(response)) {
             return "Saved locally, but server save returned an unexpected response.";

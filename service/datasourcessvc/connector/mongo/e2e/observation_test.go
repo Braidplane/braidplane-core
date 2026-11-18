@@ -18,7 +18,8 @@ import (
 
 func TestSelectedCollectionMetadataDoesNotSampleDocuments(t *testing.T) {
 	config := testMongoConfig()
-	creds := testMongoCredentials()
+	config.AuthDatabase = config.Database
+	creds := connector.Credentials{Username: "metadata-fixture", Password: "fixture:p@ss/word"}
 	// Authenticate against the externally mapped fixture before its bounded observation.
 	ready, err := connector.New(transportsecurity.WithPlaintext(t.Context()), config, creds)
 	require.NoError(t, err)

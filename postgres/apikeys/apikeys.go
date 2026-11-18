@@ -74,6 +74,24 @@ func (r *repository) FindBySlug(
 	return apiKeyFromFindRow(row), nil
 }
 
+func (r *repository) LockRoleBySlug(
+	ctx context.Context,
+	tx postgres.DBTX,
+	orgSlug, apiKeySlug slug.Slug,
+) (slug.Slug, error) {
+	role, err := dbgen.New(tx).LockAPIKeyRoleBySlug(ctx, dbgen.LockAPIKeyRoleBySlugParams{
+		OrgSlug:    orgSlug,
+		ApiKeySlug: apiKeySlug,
+	})
+	if err != nil {
+		if xerror.Is(err, sql.ErrNoRows) {
+			return "", ErrNotFound.With(err)
+		}
+		return "", xerror.Unexpected().With(err)
+	}
+	return role, nil
+}
+
 func (r *repository) ListByOrganization(
 	ctx context.Context,
 	tx postgres.DBTX,

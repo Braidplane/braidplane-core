@@ -67,6 +67,14 @@ func ExtractParamNames(template string) []string {
 	return ordered
 }
 
+// ExactParamName returns the name of a placeholder that occupies the whole value.
+func ExactParamName(template string) (string, bool) {
+	if match := exactTemplateParamRegex.FindStringSubmatch(template); len(match) == 2 {
+		return match[1], true
+	}
+	return "", false
+}
+
 // SubstituteParams replaces all {{paramName}} patterns with values from the params map.
 // Returns the substituted string and an ordered slice of values matching parameter order.
 // Returns error if a required parameter (referenced in template) is missing from params.
@@ -180,8 +188,7 @@ func substituteValue(value any, params map[string]any) (any, error) {
 }
 
 func substituteStringValue(template string, params map[string]any) (any, error) {
-	if match := exactTemplateParamRegex.FindStringSubmatch(template); len(match) == 2 {
-		name := match[1]
+	if name, exact := ExactParamName(template); exact {
 		value, ok := params[name]
 		if !ok {
 			return nil, xerror.Unexpected().Detailf("missing required parameter %q", name)

@@ -42,8 +42,9 @@ The collector also retains distinct leading Go/C-style legal comment headers
 from selected dependency source files. This preserves file-level attribution
 and copied-code notices that a module-root license alone can omit. It stops at
 implementation text and rejects source paths outside the module or Go root.
-It also includes ODCS, vendored frontend notices, icon license/disclaimer files,
-and the locked Tailwind CSS and daisyUI input licenses. This is a superset of
+It also includes ODCS, the offline password blocklist, vendored frontend
+notices, icon license/disclaimer files, and the locked Tailwind CSS and daisyUI
+input licenses. This is a superset of
 individual binary dependencies, not an assertion that every listed component
 is embedded in each artifact.
 

@@ -187,6 +187,7 @@ func TestService_UpdateAPIKeyPersistsOptionalExpiration(t *testing.T) {
 		"acme",
 		"deploy-key",
 		model.UserEventActor("owner"),
+		nil,
 		model.UpdateAPIKey{
 			Name:      "Deploy key renamed",
 			ExpiresAt: &expiresAt,
@@ -325,6 +326,7 @@ func TestService_UpdateAPIKeyEmitsUpdateEvent(t *testing.T) {
 		orgSlug,
 		apiKeySlug,
 		model.UserEventActor(actorSlug),
+		nil,
 		model.UpdateAPIKey{Name: "Deploy key renamed"},
 	)
 	require.NoError(t, err)
@@ -361,7 +363,7 @@ func TestService_RevokeAPIKeyEmitsRevokeEvent(t *testing.T) {
 	}
 	svc := New(testutil.FakeTransactionManager{}, repo, nil, eventtest.NewProducer(events))
 
-	err := svc.RevokeAPIKey(context.Background(), orgSlug, apiKeySlug, model.UserEventActor(actorSlug))
+	err := svc.RevokeAPIKey(context.Background(), orgSlug, apiKeySlug, model.UserEventActor(actorSlug), nil)
 	require.NoError(t, err)
 	require.True(t, repo.revokeCalled)
 	require.Len(t, events.calls, 1)
@@ -453,7 +455,7 @@ func TestService_RotateAPIKeyEmitsRotateEventWithoutTokenMetadata(t *testing.T) 
 	}
 	svc := New(testutil.FakeTransactionManager{}, repo, nil, eventtest.NewProducer(events))
 
-	key, err := svc.RotateAPIKey(context.Background(), orgSlug, apiKeySlug, model.UserEventActor(actorSlug))
+	key, err := svc.RotateAPIKey(context.Background(), orgSlug, apiKeySlug, model.UserEventActor(actorSlug), nil)
 	require.NoError(t, err)
 	require.NotEmpty(t, key.Token)
 	require.True(t, repo.rotateCalled)
@@ -504,6 +506,7 @@ func TestService_APIKeyMutationsFailClosedWhenAuditEventCannotBeRecorded(t *test
 					orgSlug,
 					apiKeySlug,
 					model.UserEventActor("owner"),
+					nil,
 					model.UpdateAPIKey{Name: "Deploy key renamed"},
 				)
 				require.True(t, repo.updateCalled)
@@ -518,6 +521,7 @@ func TestService_APIKeyMutationsFailClosedWhenAuditEventCannotBeRecorded(t *test
 					orgSlug,
 					apiKeySlug,
 					model.UserEventActor("owner"),
+					nil,
 				)
 				require.True(t, repo.revokeCalled)
 				return err
@@ -544,6 +548,7 @@ func TestService_APIKeyMutationsFailClosedWhenAuditEventCannotBeRecorded(t *test
 					orgSlug,
 					apiKeySlug,
 					model.UserEventActor("owner"),
+					nil,
 				)
 				require.True(t, repo.rotateCalled)
 				return err
@@ -622,6 +627,64 @@ func (f *fakeAPIKeyEventRecorder) CreateEvent(
 	}, nil
 }
 
+func TestService_APIKeyMutationsCheckLockedTargetRole(t *testing.T) {
+	t.Parallel()
+	callerRole := slug.FromString("operator")
+	for _, scope := range []struct {
+		name       string
+		role       *slug.Slug
+		targetRole slug.Slug
+	}{
+		{"matching", &callerRole, callerRole},
+		{"different", &callerRole, "reader"},
+		{"missing", nil, callerRole},
+	} {
+		t.Run(scope.name, func(t *testing.T) {
+			for _, operation := range []string{"update", "revoke", "rotate"} {
+				t.Run(operation, func(t *testing.T) {
+					locked := false
+					key := &apikeys.APIKey{Slug: "target", Name: "Target", RoleSlug: scope.targetRole}
+					repo := &fakeAPIKeysRepository{
+						lockRoleBySlugFn: func(_ context.Context, _ postgres.DBTX, org, target slug.Slug) (slug.Slug, error) {
+							require.Equal(t, slug.FromString("acme"), org)
+							require.Equal(t, key.Slug, target)
+							locked = true
+							return key.RoleSlug, nil
+						},
+						findBySlugFn: func(context.Context, postgres.DBTX, slug.Slug, slug.Slug) (*apikeys.APIKey, error) { return key, nil },
+						updateFn:     func(context.Context, postgres.DBTX, apikeys.UpdateParams) error { require.True(t, locked); return nil },
+						revokeFn:     func(context.Context, postgres.DBTX, slug.Slug, slug.Slug) error { require.True(t, locked); return nil },
+						rotateFn: func(context.Context, postgres.DBTX, apikeys.RotateParams) (*apikeys.APIKey, error) {
+							require.True(t, locked)
+							return key, nil
+						},
+					}
+					events := &fakeAPIKeyEventRecorder{}
+					svc := New(testutil.FakeTransactionManager{}, repo, nil, eventtest.NewProducer(events))
+					actor := model.APIKeyEventActor("manager")
+					var err error
+					switch operation {
+					case "update":
+						_, err = svc.UpdateAPIKey(t.Context(), "acme", key.Slug, actor, scope.role, model.UpdateAPIKey{Name: key.Name})
+					case "revoke":
+						err = svc.RevokeAPIKey(t.Context(), "acme", key.Slug, actor, scope.role)
+					case "rotate":
+						_, err = svc.RotateAPIKey(t.Context(), "acme", key.Slug, actor, scope.role)
+					}
+					if scope.role != nil && scope.targetRole == *scope.role {
+						require.NoError(t, err)
+						require.Len(t, events.calls, 1)
+						return
+					}
+					require.ErrorIs(t, err, ErrAPIKeyRoleMismatch)
+					require.False(t, repo.updateCalled || repo.revokeCalled || repo.rotateCalled)
+					require.Empty(t, events.calls)
+				})
+			}
+		})
+	}
+}
+
 type fakeAPIKeysRepository struct {
 	principal           *apikeys.Principal
 	findErr             error
@@ -632,6 +695,7 @@ type fakeAPIKeysRepository struct {
 	createCalls         int
 	createParams        apikeys.CreateParams
 	findBySlugFn        func(context.Context, postgres.DBTX, slug.Slug, slug.Slug) (*apikeys.APIKey, error)
+	lockRoleBySlugFn    func(context.Context, postgres.DBTX, slug.Slug, slug.Slug) (slug.Slug, error)
 	updateFn            func(context.Context, postgres.DBTX, apikeys.UpdateParams) error
 	updateCalled        bool
 	updateParams        apikeys.UpdateParams
@@ -668,6 +732,13 @@ func (f *fakeAPIKeysRepository) FindBySlug(
 		return f.findBySlugFn(ctx, tx, orgSlug, apiKeySlug)
 	}
 	return nil, apikeys.ErrNotFound
+}
+
+func (f *fakeAPIKeysRepository) LockRoleBySlug(ctx context.Context, tx postgres.DBTX, org, target slug.Slug) (slug.Slug, error) {
+	if f.lockRoleBySlugFn == nil {
+		return "", apikeys.ErrNotFound
+	}
+	return f.lockRoleBySlugFn(ctx, tx, org, target)
 }
 
 func (f *fakeAPIKeysRepository) ListByOrganization(

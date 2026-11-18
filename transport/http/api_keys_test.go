@@ -70,6 +70,7 @@ func TestUpdateAPIKeyPassesAuthenticatedActor(t *testing.T) {
 				gotOrgSlug slug.Slug,
 				gotAPIKeySlug slug.Slug,
 				actor model.EventActor,
+				callerRole *slug.Slug,
 				update model.UpdateAPIKey,
 			) (*model.APIKey, error) {
 				require.Equal(t, orgSlug, gotOrgSlug)
@@ -112,6 +113,7 @@ func TestDeleteAPIKeyPassesAuthenticatedActor(t *testing.T) {
 				gotOrgSlug slug.Slug,
 				gotAPIKeySlug slug.Slug,
 				actor model.EventActor,
+				callerRole *slug.Slug,
 			) error {
 				require.Equal(t, orgSlug, gotOrgSlug)
 				require.Equal(t, apiKeySlug, gotAPIKeySlug)
@@ -216,6 +218,7 @@ func TestRotateAPIKeyPassesAuthenticatedActor(t *testing.T) {
 				gotOrgSlug slug.Slug,
 				gotAPIKeySlug slug.Slug,
 				actor model.EventActor,
+				callerRole *slug.Slug,
 			) (*model.APIKeyWithToken, error) {
 				require.Equal(t, orgSlug, gotOrgSlug)
 				require.Equal(t, apiKeySlug, gotAPIKeySlug)

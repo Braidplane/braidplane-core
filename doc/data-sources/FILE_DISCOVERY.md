@@ -9,9 +9,12 @@ file connectors use this same discovery and result contract. S3 keys ending in
 
 Discovered entries include the provider-relative path/name, extension-derived MIME
 type, and size when available. Raw entries support explicit `format: file` reads.
-CSV, JSON, and Excel workbooks retain field inference; extensionless samples use
-content inference only when detected as UTF-8 plain text. Detected binary, PDF, HTML,
-and other opaque content remains a raw-file entry. Raw bytes never appear in schema responses.
+Structured reads and field inference use `.csv`, `.json`, or one of the supported
+Excel extensions (`.xlam`, `.xlsm`, `.xlsx`, `.xltm`, `.xltx`). The filename
+extension must match the requested format. `auto` uses the extension. Core parses
+CSV and JSON as UTF-8 and checks the workbook type before reading spreadsheet
+cells. Files with other extensions or no extension remain raw-file entries.
+Raw bytes never appear in schema responses.
 
 Each discovered entry is retained even when it is opaque, unreadable, or its
 sample cannot be parsed. Opaque entries have no inferred fields. Failed samples also have no inferred

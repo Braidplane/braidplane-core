@@ -59,7 +59,7 @@ def upgrade(directory, current, values, release, backup_directory, compose, comm
             private_file(staged, content)
             os.replace(staged, directory / name)
         # Read the candidate SQL from stdin, avoiding stale single-file mounts.
-        apply_grants = "export PGHOST=$DB_HOST PGPORT=$DB_PORT PGUSER=$DB_USER PGPASSWORD=$DB_PASSWORD PGDATABASE=$DB_DATABASE PGSSLMODE=$DB_SSL_MODE PGSSLROOTCERT=$DB_SSL_ROOT_CERT; exec psql -v ON_ERROR_STOP=1 -v runtime_role=braidplane_runtime -v migrator_role=braidplane_migrator -v executor_role=braidplane_executor -f -"
+        apply_grants = "export PGREQUIREAUTH='scram-sha-256' PGHOST=$DB_HOST PGPORT=$DB_PORT PGUSER=$DB_USER PGPASSWORD=$DB_PASSWORD PGDATABASE=$DB_DATABASE PGSSLMODE=$DB_SSL_MODE PGSSLROOTCERT=$DB_SSL_ROOT_CERT; exec psql -v ON_ERROR_STOP=1 -v runtime_role=braidplane_runtime -v migrator_role=braidplane_migrator -v executor_role=braidplane_executor -f -"
         compose("run", "--rm", "--no-deps", "-T", "--entrypoint", "sh", "grants", "-ec", apply_grants,
                 release_env=next_env, input="\n".join(grants.values()))
         compose("up", "--detach", "--no-deps", "--wait", "--wait-timeout", "180", *apps, release_env=next_env)
@@ -97,7 +97,7 @@ def write_backup(directory, current, files, backup, stopped_at, command, environ
     # Both dump and bundled credentials remain protected even after a partial failure.
     dump = backup / "database.dump"
     descriptor = os.open(dump, os.O_CREAT | os.O_EXCL | os.O_WRONLY, 0o600)
-    export = "export PGHOST=$DB_HOST PGPORT=$DB_PORT PGUSER=$DB_USER PGPASSWORD=$DB_PASSWORD PGDATABASE=$DB_DATABASE PGSSLMODE=$DB_SSL_MODE PGSSLROOTCERT=$DB_SSL_ROOT_CERT; exec pg_dump --format=custom --no-owner --no-acl"
+    export = "export PGREQUIREAUTH='scram-sha-256' PGHOST=$DB_HOST PGPORT=$DB_PORT PGUSER=$DB_USER PGPASSWORD=$DB_PASSWORD PGDATABASE=$DB_DATABASE PGSSLMODE=$DB_SSL_MODE PGSSLROOTCERT=$DB_SSL_ROOT_CERT; exec pg_dump --format=custom --no-owner --no-acl"
     with os.fdopen(descriptor, "wb") as output:
         subprocess.run([*command, "run", "--rm", "--no-deps", "-T", "--entrypoint", "sh", "grants", "-ec", export],
                        cwd=directory, env=environment, check=True, stdout=output, stderr=subprocess.PIPE)
@@ -113,7 +113,7 @@ def write_backup(directory, current, files, backup, stopped_at, command, environ
 
 
 def check_backup_space(directory, files, backup, command, environment):
-    export = "export PGHOST=$DB_HOST PGPORT=$DB_PORT PGUSER=$DB_USER PGPASSWORD=$DB_PASSWORD PGDATABASE=$DB_DATABASE PGSSLMODE=$DB_SSL_MODE PGSSLROOTCERT=$DB_SSL_ROOT_CERT; exec psql -At -v ON_ERROR_STOP=1 -c 'SELECT pg_database_size(current_database())'"
+    export = "export PGREQUIREAUTH='scram-sha-256' PGHOST=$DB_HOST PGPORT=$DB_PORT PGUSER=$DB_USER PGPASSWORD=$DB_PASSWORD PGDATABASE=$DB_DATABASE PGSSLMODE=$DB_SSL_MODE PGSSLROOTCERT=$DB_SSL_ROOT_CERT; exec psql -At -v ON_ERROR_STOP=1 -c 'SELECT pg_database_size(current_database())'"
     try:
         result = subprocess.run([*command, "run", "--rm", "--no-deps", "-T", "--entrypoint", "sh", "grants", "-ec", export],
                                 cwd=directory, env=environment, check=True, capture_output=True)

@@ -2748,7 +2748,7 @@ func toAPIPipelineDraft(item *pipelinesvc.PipelineDraftDetail) (api.PipelineDraf
 		BasedOnSpecHash:       item.BasedOnSpecHash,
 		DraftState:            api.PipelineDraftDraftState(item.DraftState),
 		DraftSpecHash:         item.DraftSpecHash,
-		Repository:            item.Repository,
+		Repository:            publicGitRepositoryIdentity(item.Repository),
 		ProposalSupported:     item.ProposalSupported,
 		PublicationMode:       publicationModeToAPI(item.PublicationMode),
 		ProviderActor:         item.ProviderActor,

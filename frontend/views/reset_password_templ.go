@@ -8,7 +8,7 @@ package views
 import "github.com/a-h/templ"
 import templruntime "github.com/a-h/templ/runtime"
 
-func ResetPasswordPage(title string, token string, pageError string, pageErrorDetails string, successMessage string) templ.Component {
+func ResetPasswordPage(title string, pageError string, pageErrorDetails string, successMessage string) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
 		if templ_7745c5c3_CtxErr := ctx.Err(); templ_7745c5c3_CtxErr != nil {
@@ -29,7 +29,7 @@ func ResetPasswordPage(title string, token string, pageError string, pageErrorDe
 			templ_7745c5c3_Var1 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = AuthPage(title, true, ResetPasswordPageContent(token, pageError, pageErrorDetails, successMessage)).Render(ctx, templ_7745c5c3_Buffer)
+		templ_7745c5c3_Err = AuthPage(title, true, ResetPasswordPageContent(pageError, pageErrorDetails, successMessage)).Render(ctx, templ_7745c5c3_Buffer)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -37,7 +37,7 @@ func ResetPasswordPage(title string, token string, pageError string, pageErrorDe
 	})
 }
 
-func ResetPasswordPageContent(token string, pageError string, pageErrorDetails string, successMessage string) templ.Component {
+func ResetPasswordPageContent(pageError string, pageErrorDetails string, successMessage string) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
 		if templ_7745c5c3_CtxErr := ctx.Err(); templ_7745c5c3_CtxErr != nil {
@@ -64,7 +64,7 @@ func ResetPasswordPageContent(token string, pageError string, pageErrorDetails s
 				return templ_7745c5c3_Err
 			}
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 1, "<div class=\"space-y-5\"><header><p class=\"text-xs font-semibold uppercase tracking-wide text-primary\">Account recovery</p><h1 class=\"mt-2 text-2xl font-semibold\">Reset password</h1><p class=\"mt-2 text-sm text-base-content/70\">Set a new password for your account.</p></header>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 1, "<div class=\"space-y-5\"><header><p class=\"text-xs font-semibold uppercase tracking-wide text-primary\">Account recovery</p><h1 class=\"mt-2 text-2xl font-semibold\">Reset password</h1><p class=\"mt-2 text-sm text-base-content/70\">Enter the code from your email and choose a new password.</p></header>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -87,25 +87,12 @@ func ResetPasswordPageContent(token string, pageError string, pageErrorDetails s
 				return templ_7745c5c3_Err
 			}
 		} else {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 4, "<form class=\"space-y-3\" method=\"post\" action=\"/auth/reset-password\" hx-post=\"/auth/reset-password\" hx-target=\"main\" hx-select=\"main\" hx-swap=\"innerHTML\"><input type=\"hidden\" name=\"token\" value=\"")
-			if templ_7745c5c3_Err != nil {
-				return templ_7745c5c3_Err
-			}
-			var templ_7745c5c3_Var4 string
-			templ_7745c5c3_Var4, templ_7745c5c3_Err = templ.ResolveAttributeValue(token)
-			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/reset_password.templ`, Line: 22, Col: 51}
-			}
-			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var4)
-			if templ_7745c5c3_Err != nil {
-				return templ_7745c5c3_Err
-			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 5, "\"> <label class=\"form-control w-full\"><div class=\"label\"><span class=\"label-text\">New password</span></div><input class=\"input input-bordered w-full\" type=\"password\" name=\"password\" placeholder=\"••••••••••••\"></label> <label class=\"form-control w-full\"><div class=\"label\"><span class=\"label-text\">Confirm password</span></div><input class=\"input input-bordered w-full\" type=\"password\" name=\"confirm_password\" placeholder=\"••••••••••••\"></label> <button class=\"btn btn-primary w-full\" type=\"submit\">Reset password</button></form>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 4, "<form class=\"space-y-3\" hx-history=\"false\" method=\"post\" action=\"/auth/reset-password\" hx-post=\"/auth/reset-password\" hx-target=\"main\" hx-select=\"main\" hx-swap=\"innerHTML\"><label class=\"form-control w-full\"><span class=\"label-text\">Reset code</span> <input class=\"input input-bordered w-full\" type=\"text\" name=\"token\" autocomplete=\"one-time-code\" autocapitalize=\"none\" spellcheck=\"false\" required></label> <label class=\"form-control w-full\"><div class=\"label\"><span class=\"label-text\">New password</span></div><input class=\"input input-bordered w-full\" type=\"password\" name=\"password\" placeholder=\"••••••••••••\"></label> <label class=\"form-control w-full\"><div class=\"label\"><span class=\"label-text\">Confirm password</span></div><input class=\"input input-bordered w-full\" type=\"password\" name=\"confirm_password\" placeholder=\"••••••••••••\"></label> <button class=\"btn btn-primary w-full\" type=\"submit\">Reset password</button></form>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 6, "<p class=\"text-center text-sm text-base-content/70\"><a class=\"link link-primary\" href=\"/auth/login\">Back to sign in</a></p></div>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 5, "<p class=\"text-center text-sm text-base-content/70\"><a class=\"link link-primary\" href=\"/auth/login\">Back to sign in</a></p></div>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

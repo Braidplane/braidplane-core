@@ -35,7 +35,7 @@ func setupAuthenticatedDatasourceTestApp(t *testing.T) (*fiber.App, string) {
 	t.Cleanup(apiServer.Close)
 
 	store := session.NewStore()
-	router, err := NewRouter(apiServer.URL, slog.New(slog.DiscardHandler), store)
+	router, err := newHandlerTestRouter(apiServer.URL, slog.New(slog.DiscardHandler), store)
 	require.NoError(t, err)
 
 	app := fiber.New()
@@ -97,7 +97,7 @@ func TestRouter_ListAllDataSourcesViaAPI_ReturnsErrorOnRepeatedCursor(t *testing
 	}))
 	defer apiServer.Close()
 
-	router, err := NewRouter(apiServer.URL, slog.New(slog.DiscardHandler), session.NewStore())
+	router, err := newHandlerTestRouter(apiServer.URL, slog.New(slog.DiscardHandler), session.NewStore())
 	require.NoError(t, err)
 
 	dataSources, status, errorResponse, err := router.listAllDataSourcesViaAPI(
@@ -270,6 +270,41 @@ func TestDataSourceUpdateFormDataFromDataSource_DetectsPendingProviderSelection(
 	})
 	require.False(t, managed.ProviderSelectionPending)
 	require.True(t, managed.ManagedProvider)
+}
+
+func TestManagedRepositorySettingsLinkRequiresAbsoluteWebURL(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		url  string
+		link bool
+	}{
+		{"https://git.example.com:8443/gitlab/acme/reports", true},
+		{"http://localhost:8080/acme/reports", true},
+		{"mailto:git@example.com", false},
+		{"//git.example.com/acme/reports", false},
+		{"https://alice@git.example.com/acme/reports", false},
+	} {
+		var config api.DataSource_Config
+		require.NoError(t, config.FromProviderGitConfig(api.ProviderGitConfig{
+			Repository: api.ProviderRepository{Id: "42", Name: "reports", FullName: "acme/reports", WebUrl: tc.url},
+		}))
+		dataSource := &api.DataSource{Name: "Reports", Slug: "reports", Type: api.DataSourceTypeGitlab, Config: config, IsActive: true}
+		var output strings.Builder
+		err := views.DataSourceDetailPageContent(
+			"acme", "dev", dataSource, views.DefaultDataSourceSchemaPanelData(), nil,
+			dataSourceUpdateFormDataFromDataSource(dataSource), views.NewOrganizationPermissions("datasources:update"),
+			views.DataSourceOperationsPanelData{}, "", "",
+		).Render(views.WithEntityPageURL(t.Context(), "/?section=settings"), &output)
+		require.NoError(t, err)
+		require.Contains(t, output.String(), ">acme/reports<")
+		href := `href="` + tc.url + `"`
+		if tc.link {
+			require.Contains(t, output.String(), href)
+		} else {
+			require.NotContains(t, output.String(), href)
+			require.Contains(t, output.String(), ">acme/reports</p>")
+		}
+	}
 }
 
 func s3DataSourceFormValues() url.Values {
@@ -1597,7 +1632,7 @@ func TestRouter_HandleDataSourcesPage_RendersList(t *testing.T) {
 	defer apiServer.Close()
 
 	store := session.NewStore()
-	router, err := NewRouter(apiServer.URL, slog.New(slog.DiscardHandler), store)
+	router, err := newHandlerTestRouter(apiServer.URL, slog.New(slog.DiscardHandler), store)
 	require.NoError(t, err)
 
 	app := fiber.New()
@@ -1723,7 +1758,7 @@ func TestRouter_HandleDataSourcesPage_FiltersQueryCoverage(t *testing.T) {
 	defer apiServer.Close()
 
 	store := session.NewStore()
-	router, err := NewRouter(apiServer.URL, slog.New(slog.DiscardHandler), store)
+	router, err := newHandlerTestRouter(apiServer.URL, slog.New(slog.DiscardHandler), store)
 	require.NoError(t, err)
 
 	app := fiber.New()
@@ -1808,7 +1843,7 @@ func TestRouter_HandleDataSourcesPage_RendersSelectedLoadFailureInSidePanel(t *t
 
 	var logBuffer bytes.Buffer
 	store := session.NewStore()
-	router, err := NewRouter(apiServer.URL, slog.New(slog.NewJSONHandler(&logBuffer, nil)), store)
+	router, err := newHandlerTestRouter(apiServer.URL, slog.New(slog.NewJSONHandler(&logBuffer, nil)), store)
 	require.NoError(t, err)
 
 	app := fiber.New()
@@ -1872,7 +1907,7 @@ func TestRouter_HandleDataSourcesPage_LogsRenderedListFailureWithCorrelation(t *
 
 	var logBuffer bytes.Buffer
 	store := session.NewStore()
-	router, err := NewRouter(apiServer.URL, slog.New(slog.NewJSONHandler(&logBuffer, nil)), store)
+	router, err := newHandlerTestRouter(apiServer.URL, slog.New(slog.NewJSONHandler(&logBuffer, nil)), store)
 	require.NoError(t, err)
 
 	app := fiber.New()
@@ -1931,7 +1966,7 @@ func TestRouter_HandleDataSourcesPage_LogsFilteredQueryInventoryFailure(t *testi
 
 	var logBuffer bytes.Buffer
 	store := session.NewStore()
-	router, err := NewRouter(apiServer.URL, slog.New(slog.NewJSONHandler(&logBuffer, nil)), store)
+	router, err := newHandlerTestRouter(apiServer.URL, slog.New(slog.NewJSONHandler(&logBuffer, nil)), store)
 	require.NoError(t, err)
 
 	app := fiber.New()
@@ -1991,7 +2026,7 @@ func TestRouter_HandleDataSourcesPage_RendersHTTPOpenAPIImportFields(t *testing.
 	defer apiServer.Close()
 
 	store := session.NewStore()
-	router, err := NewRouter(apiServer.URL, slog.New(slog.DiscardHandler), store)
+	router, err := newHandlerTestRouter(apiServer.URL, slog.New(slog.DiscardHandler), store)
 	require.NoError(t, err)
 
 	app := fiber.New()
@@ -2047,7 +2082,7 @@ func TestRouter_HandleDataSourceDetailPage_RendersSQLSchema(t *testing.T) {
 	defer apiServer.Close()
 
 	store := session.NewStore()
-	router, err := NewRouter(apiServer.URL, slog.New(slog.DiscardHandler), store)
+	router, err := newHandlerTestRouter(apiServer.URL, slog.New(slog.DiscardHandler), store)
 	require.NoError(t, err)
 
 	app := fiber.New()
@@ -2154,7 +2189,7 @@ func TestRouter_HandleDataSourceDetailPage_RendersHubSpotSchema(t *testing.T) {
 	defer apiServer.Close()
 
 	store := session.NewStore()
-	router, err := NewRouter(apiServer.URL, slog.New(slog.DiscardHandler), store)
+	router, err := newHandlerTestRouter(apiServer.URL, slog.New(slog.DiscardHandler), store)
 	require.NoError(t, err)
 
 	app := fiber.New()
@@ -2210,7 +2245,7 @@ func TestRouter_HandleDataSourceDetailPage_RendersHTTPOpenAPIOperationMetadata(t
 	defer apiServer.Close()
 
 	store := session.NewStore()
-	router, err := NewRouter(apiServer.URL, slog.New(slog.DiscardHandler), store)
+	router, err := newHandlerTestRouter(apiServer.URL, slog.New(slog.DiscardHandler), store)
 	require.NoError(t, err)
 
 	app := fiber.New()
@@ -2285,7 +2320,7 @@ func TestRouter_HandleDataSourceDetailPage_RendersColdCacheWithoutSchemaFetch(t 
 	defer apiServer.Close()
 
 	store := session.NewStore()
-	router, err := NewRouter(apiServer.URL, slog.New(slog.DiscardHandler), store)
+	router, err := newHandlerTestRouter(apiServer.URL, slog.New(slog.DiscardHandler), store)
 	require.NoError(t, err)
 
 	app := fiber.New()
@@ -2331,7 +2366,7 @@ func TestRouter_HandleRefreshDataSourceSchemaSubmit_RedirectsToDetail(t *testing
 	defer apiServer.Close()
 
 	store := session.NewStore()
-	router, err := NewRouter(apiServer.URL, slog.New(slog.DiscardHandler), store)
+	router, err := newHandlerTestRouter(apiServer.URL, slog.New(slog.DiscardHandler), store)
 	require.NoError(t, err)
 
 	app := fiber.New()
@@ -2373,7 +2408,7 @@ func TestRouter_HandleRefreshDataSourceSchemaSubmit_HTMXRedirectHeader(t *testin
 	defer apiServer.Close()
 
 	store := session.NewStore()
-	router, err := NewRouter(apiServer.URL, slog.New(slog.DiscardHandler), store)
+	router, err := newHandlerTestRouter(apiServer.URL, slog.New(slog.DiscardHandler), store)
 	require.NoError(t, err)
 
 	app := fiber.New()
@@ -2486,7 +2521,7 @@ func TestRouter_DataSourceReturnToListRedirectsPreserveSelectionAndEnvironment(t
 			defer apiServer.Close()
 
 			store := session.NewStore()
-			router, err := NewRouter(apiServer.URL, slog.New(slog.DiscardHandler), store)
+			router, err := newHandlerTestRouter(apiServer.URL, slog.New(slog.DiscardHandler), store)
 			require.NoError(t, err)
 
 			app := fiber.New()
@@ -2550,7 +2585,7 @@ func TestRouter_HandleRefreshDataSourceSchemaSubmit_PreservesImportDiagnostic(t 
 	defer apiServer.Close()
 
 	store := session.NewStore()
-	router, err := NewRouter(apiServer.URL, slog.New(slog.DiscardHandler), store)
+	router, err := newHandlerTestRouter(apiServer.URL, slog.New(slog.DiscardHandler), store)
 	require.NoError(t, err)
 
 	app := fiber.New()
@@ -2606,7 +2641,7 @@ func TestRouter_HandleDataSourceDetailPage_ShowsPersistedImportDiagnostic(t *tes
 	defer apiServer.Close()
 
 	store := session.NewStore()
-	router, err := NewRouter(apiServer.URL, slog.New(slog.DiscardHandler), store)
+	router, err := newHandlerTestRouter(apiServer.URL, slog.New(slog.DiscardHandler), store)
 	require.NoError(t, err)
 
 	app := fiber.New()
@@ -2670,7 +2705,7 @@ func TestRouter_HandleRefreshDataSourceSchemaSubmit_HTMXShowsFailedSchemaState(t
 	defer apiServer.Close()
 
 	store := session.NewStore()
-	router, err := NewRouter(apiServer.URL, slog.New(slog.DiscardHandler), store)
+	router, err := newHandlerTestRouter(apiServer.URL, slog.New(slog.DiscardHandler), store)
 	require.NoError(t, err)
 
 	app := fiber.New()
@@ -2749,7 +2784,7 @@ func TestRouter_HandleCreateDataSourceSubmit_RedirectsToCreatedSource(t *testing
 	defer apiServer.Close()
 
 	store := session.NewStore()
-	router, err := NewRouter(apiServer.URL, slog.New(slog.DiscardHandler), store)
+	router, err := newHandlerTestRouter(apiServer.URL, slog.New(slog.DiscardHandler), store)
 	require.NoError(t, err)
 
 	app := fiber.New()
@@ -2812,7 +2847,7 @@ func TestRouter_HandleCreateDataSourceSubmit_HTMXRedirectHeader(t *testing.T) {
 	defer apiServer.Close()
 
 	store := session.NewStore()
-	router, err := NewRouter(apiServer.URL, slog.New(slog.DiscardHandler), store)
+	router, err := newHandlerTestRouter(apiServer.URL, slog.New(slog.DiscardHandler), store)
 	require.NoError(t, err)
 
 	app := fiber.New()
@@ -2885,7 +2920,7 @@ func TestRouter_HandleCreateDataSourceSubmit_HTMXBackendValidationShowsDetailedF
 
 	var logBuffer bytes.Buffer
 	store := session.NewStore()
-	router, err := NewRouter(apiServer.URL, slog.New(slog.NewJSONHandler(&logBuffer, nil)), store)
+	router, err := newHandlerTestRouter(apiServer.URL, slog.New(slog.NewJSONHandler(&logBuffer, nil)), store)
 	require.NoError(t, err)
 
 	app := fiber.New()
@@ -2978,7 +3013,7 @@ func TestRouter_HandleCreateDataSourceSubmit_HubSpotSendsHubSpotPayload(t *testi
 	defer apiServer.Close()
 
 	store := session.NewStore()
-	router, err := NewRouter(apiServer.URL, slog.New(slog.DiscardHandler), store)
+	router, err := newHandlerTestRouter(apiServer.URL, slog.New(slog.DiscardHandler), store)
 	require.NoError(t, err)
 
 	app := fiber.New()
@@ -3041,7 +3076,7 @@ func TestRouter_HandleStartHubSpotDataSourceOAuthSubmit_RedirectsToProvider(t *t
 			defer apiServer.Close()
 
 			store := session.NewStore()
-			router, err := NewRouter(apiServer.URL, slog.New(slog.DiscardHandler), store)
+			router, err := newHandlerTestRouter(apiServer.URL, slog.New(slog.DiscardHandler), store)
 			require.NoError(t, err)
 			app := fiber.New()
 			registerTestSessionRoute(app, store)
@@ -3118,7 +3153,7 @@ func TestRouter_HandleStartHubSpotDataSourceOAuthSubmit_RendersMissingNameFeedba
 			defer apiServer.Close()
 
 			store := session.NewStore()
-			router, err := NewRouter(apiServer.URL, slog.New(slog.DiscardHandler), store)
+			router, err := newHandlerTestRouter(apiServer.URL, slog.New(slog.DiscardHandler), store)
 			require.NoError(t, err)
 			app := fiber.New()
 			registerTestSessionRoute(app, store)
@@ -3195,7 +3230,7 @@ func TestRouter_HandleStartHubSpotDataSourceOAuthSubmit_RejectsInvalidSlugBefore
 			defer apiServer.Close()
 
 			store := session.NewStore()
-			router, err := NewRouter(apiServer.URL, slog.New(slog.DiscardHandler), store)
+			router, err := newHandlerTestRouter(apiServer.URL, slog.New(slog.DiscardHandler), store)
 			require.NoError(t, err)
 			app := fiber.New()
 			registerTestSessionRoute(app, store)
@@ -3269,7 +3304,7 @@ func TestRouter_HandleStartExistingHubSpotOAuthSubmit_ConvertsStaticCredential(t
 	defer apiServer.Close()
 
 	store := session.NewStore()
-	router, err := NewRouter(apiServer.URL, slog.New(slog.DiscardHandler), store)
+	router, err := newHandlerTestRouter(apiServer.URL, slog.New(slog.DiscardHandler), store)
 	require.NoError(t, err)
 	app := fiber.New()
 	registerTestSessionRoute(app, store)
@@ -3330,7 +3365,7 @@ func TestRouter_HandleCreateDataSourceSubmit_HTTPSendsOpenAPIImportConfig(t *tes
 	defer apiServer.Close()
 
 	store := session.NewStore()
-	router, err := NewRouter(apiServer.URL, slog.New(slog.DiscardHandler), store)
+	router, err := newHandlerTestRouter(apiServer.URL, slog.New(slog.DiscardHandler), store)
 	require.NoError(t, err)
 
 	app := fiber.New()
@@ -3406,7 +3441,7 @@ func TestRouter_HandleCreateDataSourceSubmit_ValidationErrorPreservesFormValues(
 	defer apiServer.Close()
 
 	store := session.NewStore()
-	router, err := NewRouter(apiServer.URL, slog.New(slog.DiscardHandler), store)
+	router, err := newHandlerTestRouter(apiServer.URL, slog.New(slog.DiscardHandler), store)
 	require.NoError(t, err)
 
 	app := fiber.New()
@@ -3476,7 +3511,7 @@ func TestRouter_HandleCreateDataSourceSubmit_HTMXValidationErrorRendersCreatePan
 	defer apiServer.Close()
 
 	store := session.NewStore()
-	router, err := NewRouter(apiServer.URL, slog.New(slog.DiscardHandler), store)
+	router, err := newHandlerTestRouter(apiServer.URL, slog.New(slog.DiscardHandler), store)
 	require.NoError(t, err)
 
 	app := fiber.New()
@@ -3535,7 +3570,7 @@ func TestRouter_HandleDeleteDataSourceSubmit_RedirectsToList(t *testing.T) {
 	defer apiServer.Close()
 
 	store := session.NewStore()
-	router, err := NewRouter(apiServer.URL, slog.New(slog.DiscardHandler), store)
+	router, err := newHandlerTestRouter(apiServer.URL, slog.New(slog.DiscardHandler), store)
 	require.NoError(t, err)
 
 	app := fiber.New()
@@ -3579,7 +3614,7 @@ func TestRouter_HandleDeleteDataSourceSubmit_PreservesEnvironmentRedirect(t *tes
 	defer apiServer.Close()
 
 	store := session.NewStore()
-	router, err := NewRouter(apiServer.URL, slog.New(slog.DiscardHandler), store)
+	router, err := newHandlerTestRouter(apiServer.URL, slog.New(slog.DiscardHandler), store)
 	require.NoError(t, err)
 
 	app := fiber.New()
@@ -3631,7 +3666,7 @@ func TestRouter_HandleDeleteDataSourceSubmit_HTMXRedirectHeader(t *testing.T) {
 	defer apiServer.Close()
 
 	store := session.NewStore()
-	router, err := NewRouter(apiServer.URL, slog.New(slog.DiscardHandler), store)
+	router, err := newHandlerTestRouter(apiServer.URL, slog.New(slog.DiscardHandler), store)
 	require.NoError(t, err)
 
 	app := fiber.New()
@@ -3683,7 +3718,7 @@ func TestRouter_HandleTestDataSourceConnectionSubmit_ShowsSuccessMessage(t *test
 	defer apiServer.Close()
 
 	store := session.NewStore()
-	router, err := NewRouter(apiServer.URL, slog.New(slog.DiscardHandler), store)
+	router, err := newHandlerTestRouter(apiServer.URL, slog.New(slog.DiscardHandler), store)
 	require.NoError(t, err)
 
 	app := fiber.New()
@@ -3758,7 +3793,7 @@ func TestRouter_HandleTestDataSourceConnectionSubmit_ShowsFailureMessageAndPrese
 	defer apiServer.Close()
 
 	store := session.NewStore()
-	router, err := NewRouter(apiServer.URL, slog.New(slog.DiscardHandler), store)
+	router, err := newHandlerTestRouter(apiServer.URL, slog.New(slog.DiscardHandler), store)
 	require.NoError(t, err)
 
 	app := fiber.New()
@@ -3829,7 +3864,7 @@ func TestRouter_HandleTestDataSourceConnectionSubmit_HTMXSuccessRendersForm(t *t
 	defer apiServer.Close()
 
 	store := session.NewStore()
-	router, err := NewRouter(apiServer.URL, slog.New(slog.DiscardHandler), store)
+	router, err := newHandlerTestRouter(apiServer.URL, slog.New(slog.DiscardHandler), store)
 	require.NoError(t, err)
 
 	app := fiber.New()
@@ -3905,7 +3940,7 @@ func TestRouter_HandleTestDataSourceConnectionSubmit_HTMXGitSSHSuccessDoesNotEch
 	defer apiServer.Close()
 
 	store := session.NewStore()
-	router, err := NewRouter(apiServer.URL, slog.New(slog.DiscardHandler), store)
+	router, err := newHandlerTestRouter(apiServer.URL, slog.New(slog.DiscardHandler), store)
 	require.NoError(t, err)
 
 	app := fiber.New()
@@ -3991,7 +4026,7 @@ func TestRouter_HandleTestDataSourceConnectionSubmit_HTMXFailureRendersError(t *
 	defer apiServer.Close()
 
 	store := session.NewStore()
-	router, err := NewRouter(apiServer.URL, slog.New(slog.DiscardHandler), store)
+	router, err := newHandlerTestRouter(apiServer.URL, slog.New(slog.DiscardHandler), store)
 	require.NoError(t, err)
 
 	app := fiber.New()
@@ -4071,7 +4106,7 @@ func TestRouter_HandleTestDataSourceConnectionSubmit_HTMXGitFailureRendersFormFe
 	defer apiServer.Close()
 
 	store := session.NewStore()
-	router, err := NewRouter(apiServer.URL, slog.New(slog.DiscardHandler), store)
+	router, err := newHandlerTestRouter(apiServer.URL, slog.New(slog.DiscardHandler), store)
 	require.NoError(t, err)
 
 	app := fiber.New()
@@ -4149,7 +4184,7 @@ func TestRouter_HandleTestDataSourceConnectionSubmit_HTTPSendsOpenAPIImportConfi
 	defer apiServer.Close()
 
 	store := session.NewStore()
-	router, err := NewRouter(apiServer.URL, slog.New(slog.DiscardHandler), store)
+	router, err := newHandlerTestRouter(apiServer.URL, slog.New(slog.DiscardHandler), store)
 	require.NoError(t, err)
 
 	app := fiber.New()
@@ -4209,7 +4244,7 @@ func TestRouter_HandleTestExistingDataSourceConnectionSubmit_HTMXFullPageRedirec
 	defer apiServer.Close()
 
 	store := session.NewStore()
-	router, err := NewRouter(apiServer.URL, slog.New(slog.DiscardHandler), store)
+	router, err := newHandlerTestRouter(apiServer.URL, slog.New(slog.DiscardHandler), store)
 	require.NoError(t, err)
 
 	app := fiber.New()
@@ -4274,7 +4309,7 @@ func TestRouter_HandleTestExistingDataSourceConnectionSubmit_HTMXRendersSidePane
 	defer apiServer.Close()
 
 	store := session.NewStore()
-	router, err := NewRouter(apiServer.URL, slog.New(slog.DiscardHandler), store)
+	router, err := newHandlerTestRouter(apiServer.URL, slog.New(slog.DiscardHandler), store)
 	require.NoError(t, err)
 
 	app := fiber.New()
@@ -4353,7 +4388,7 @@ func TestRouter_HandleTestExistingDataSourceConnectionSubmit_HTMXRendersFailureI
 	defer apiServer.Close()
 
 	store := session.NewStore()
-	router, err := NewRouter(apiServer.URL, slog.New(slog.DiscardHandler), store)
+	router, err := newHandlerTestRouter(apiServer.URL, slog.New(slog.DiscardHandler), store)
 	require.NoError(t, err)
 
 	app := fiber.New()
@@ -4420,7 +4455,7 @@ func TestRouter_HandleUpdateDataSourceSubmit_RedirectsToDetail(t *testing.T) {
 	defer apiServer.Close()
 
 	store := session.NewStore()
-	router, err := NewRouter(apiServer.URL, slog.New(slog.DiscardHandler), store)
+	router, err := newHandlerTestRouter(apiServer.URL, slog.New(slog.DiscardHandler), store)
 	require.NoError(t, err)
 
 	app := fiber.New()
@@ -4478,7 +4513,7 @@ func TestRouter_HandleUpdateDataSourceSubmit_HTMXRedirectHeader(t *testing.T) {
 	defer apiServer.Close()
 
 	store := session.NewStore()
-	router, err := NewRouter(apiServer.URL, slog.New(slog.DiscardHandler), store)
+	router, err := newHandlerTestRouter(apiServer.URL, slog.New(slog.DiscardHandler), store)
 	require.NoError(t, err)
 
 	app := fiber.New()
@@ -4536,7 +4571,7 @@ func TestRouter_HandleUpdateDataSourceSubmit_HTTPSendsOpenAPIImportConfig(t *tes
 	defer apiServer.Close()
 
 	store := session.NewStore()
-	router, err := NewRouter(apiServer.URL, slog.New(slog.DiscardHandler), store)
+	router, err := newHandlerTestRouter(apiServer.URL, slog.New(slog.DiscardHandler), store)
 	require.NoError(t, err)
 	router.SetAllowPrivateDataSourceHosts(true)
 
@@ -4612,7 +4647,7 @@ func TestRouter_HandleUpdateDataSourceCredentialsSubmit_RedirectsToDetail(t *tes
 	defer apiServer.Close()
 
 	store := session.NewStore()
-	router, err := NewRouter(apiServer.URL, slog.New(slog.DiscardHandler), store)
+	router, err := newHandlerTestRouter(apiServer.URL, slog.New(slog.DiscardHandler), store)
 	require.NoError(t, err)
 
 	app := fiber.New()
@@ -4672,7 +4707,7 @@ func TestRouter_HandleUpdateDataSourceCredentialsSubmit_HTMXRedirectHeader(t *te
 	defer apiServer.Close()
 
 	store := session.NewStore()
-	router, err := NewRouter(apiServer.URL, slog.New(slog.DiscardHandler), store)
+	router, err := newHandlerTestRouter(apiServer.URL, slog.New(slog.DiscardHandler), store)
 	require.NoError(t, err)
 
 	app := fiber.New()
@@ -4730,7 +4765,7 @@ func TestRouter_HandleUpdateDataSourceCredentialsSubmit_ValidatesGitAuthAgainstS
 	defer apiServer.Close()
 
 	store := session.NewStore()
-	router, err := NewRouter(apiServer.URL, slog.New(slog.DiscardHandler), store)
+	router, err := newHandlerTestRouter(apiServer.URL, slog.New(slog.DiscardHandler), store)
 	require.NoError(t, err)
 
 	app := fiber.New()
@@ -4774,7 +4809,7 @@ func TestRouter_HandleDataSourceNewPage_RequiresAuth(t *testing.T) {
 	}))
 	defer apiServer.Close()
 
-	router, err := NewRouter(apiServer.URL, slog.New(slog.DiscardHandler), session.NewStore())
+	router, err := newHandlerTestRouter(apiServer.URL, slog.New(slog.DiscardHandler), session.NewStore())
 	require.NoError(t, err)
 
 	app := fiber.New()
@@ -5371,7 +5406,7 @@ func TestRouter_HandleStartBigQueryDataSourceOAuthSubmit_RedirectsToProvider(t *
 	defer apiServer.Close()
 
 	store := session.NewStore()
-	router, err := NewRouter(apiServer.URL, slog.New(slog.DiscardHandler), store)
+	router, err := newHandlerTestRouter(apiServer.URL, slog.New(slog.DiscardHandler), store)
 	require.NoError(t, err)
 	app := fiber.New()
 	registerTestSessionRoute(app, store)
@@ -5469,7 +5504,7 @@ func TestSnowflakeOnboardingFragmentUsesBackendAuthenticationState(t *testing.T)
 				}
 			}))
 			defer backend.Close()
-			router, err := NewRouter(backend.URL, slog.New(slog.DiscardHandler), session.NewStore())
+			router, err := newHandlerTestRouter(backend.URL, slog.New(slog.DiscardHandler), session.NewStore())
 			require.NoError(t, err)
 			app := fiber.New()
 			app.Get("/orgs/:slug/data-sources/:dsSlug/snowflake-onboarding", router.handleSnowflakeOnboarding)
@@ -5502,7 +5537,7 @@ func TestManagedGitRepositoryListFailureIsNotMissingConnection(t *testing.T) {
 				w.WriteHeader(http.StatusNoContent)
 			}))
 			defer apiServer.Close()
-			router, err := NewRouter(apiServer.URL, slog.New(slog.DiscardHandler), session.NewStore())
+			router, err := newHandlerTestRouter(apiServer.URL, slog.New(slog.DiscardHandler), session.NewStore())
 			require.NoError(t, err)
 			app := fiber.New()
 			var form views.DataSourceCreateFormData
@@ -5609,7 +5644,7 @@ func TestRouter_DataSourceOperationsLoadsOnlyScopedPermittedQueries(t *testing.T
 			}))
 			defer apiServer.Close()
 			store := session.NewStore()
-			router, err := NewRouter(apiServer.URL, slog.New(slog.DiscardHandler), store)
+			router, err := newHandlerTestRouter(apiServer.URL, slog.New(slog.DiscardHandler), store)
 			require.NoError(t, err)
 			app := fiber.New()
 			registerTestSessionRoute(app, store)

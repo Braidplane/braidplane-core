@@ -1,0 +1,16 @@
+Offline common-password blocklist
+
+common-passwords.sha256 contains 3,000 sorted binary SHA-256 digests from
+the ranked password data in zxcvbn v4.4.2. The source file is
+https://github.com/dropbox/zxcvbn/blob/v4.4.2/data/passwords.txt
+and its SHA-256 is 6313cc5ef683a0461416318ee3b16f3d771a3cd10ea2aae54571d27ff95d951f.
+The upstream license is in LICENSE and the Community third-party notices.
+
+To regenerate, read the first whitespace-delimited field on each source line
+in file order. Lowercase each entry and retain the first 3,000 distinct entries
+between 8 and 1,024 characters. Sort their binary SHA-256 digests and write them
+back to back. The current output SHA-256 is
+57e6fd37520a71d4eaf6b30cce723bd9c1e5793c5d7ac5146b588ca2885463bb.
+
+Core checks the list when setting a new local password. Lowercasing and trimming
+apply only to the comparison. Core hashes the exact accepted password for login.

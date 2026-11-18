@@ -143,6 +143,12 @@ func TestNativeGitFileTransferPreservesBlobBytes(t *testing.T) {
 	converted, err := legacy.ReadFile(ctx, "nested/raw.bin", 100)
 	require.NoError(t, err)
 	require.Contains(t, string(converted), "$Id:", "ordinary checkouts must retain repository conversion behavior")
+	bounded, cleanupBounded, err := repostore.CloneReadFileRemote(ctx, remote, "main", "nested/raw.bin", 100, nil)
+	require.NoError(t, err)
+	t.Cleanup(cleanupBounded)
+	boundedConverted, err := bounded.ReadFile(ctx, "nested/raw.bin", 100)
+	require.NoError(t, err)
+	require.Equal(t, converted, boundedConverted)
 }
 
 func TestCheckoutStreamingPreservesPriorGoodAndRejectsUnsafePaths(t *testing.T) {

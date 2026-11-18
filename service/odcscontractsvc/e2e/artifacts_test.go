@@ -90,6 +90,38 @@ func TestArtifactImportLifecycle(t *testing.T) {
 	require.NotNil(t, artifacts)
 	require.Equal(t, raw, artifacts.Original)
 	require.Equal(t, a.ArtifactDigest, artifacts.ArtifactDigest)
+	require.Equal(t, repoURL, artifacts.SourceRepo)
+	legacy := a
+	legacy.SourceRepo = repoURL + "?label=fixture"
+	require.NoError(t, odcscontracts.NewRepository().CreateArtifact(t.Context(), pool, org, "etl", legacy))
+	projected, err := importer.Get(t.Context(), org, "etl", a.ContractSlug, a.RevisionSlug, legacy.SourceRepo, commit, a.Path)
+	require.NoError(t, err)
+	require.True(t, strings.HasPrefix(projected.SourceRepo, "odcs-artifact:"))
+	byLocator, err := importer.Get(t.Context(), org, "etl", a.ContractSlug, a.RevisionSlug, projected.SourceRepo, commit, a.Path)
+	require.NoError(t, err)
+	require.Equal(t, projected, byLocator)
+	require.Equal(t, raw, byLocator.Original)
+	_, err = pool.Exec(t.Context(), `WITH other_project AS (
+        INSERT INTO projects(organization_id, slug, name)
+        SELECT id, 'other', 'Other' FROM organizations WHERE slug=$1 RETURNING organization_id, id
+    ), other_contract AS (
+        INSERT INTO odcs_contracts(organization_id, project_id, slug, name, odcs_id)
+        SELECT organization_id, id, $2, 'Orders', 'orders' FROM other_project RETURNING organization_id, project_id, id
+    )
+    INSERT INTO odcs_contract_revisions(organization_id, project_id, contract_id, slug, digest, odcs_version, document_version, declared_status, document, schema_objects)
+    SELECT c.organization_id, c.project_id, c.id, r.slug, r.digest, r.odcs_version, r.document_version, r.declared_status, r.document, r.schema_objects
+    FROM other_contract c JOIN odcs_contract_revisions r ON r.organization_id=c.organization_id AND r.slug=$3`, org, a.ContractSlug, a.RevisionSlug)
+	require.NoError(t, err)
+	_, err = catalog.GetRevision(t.Context(), org, "other", a.ContractSlug, a.RevisionSlug)
+	require.NoError(t, err)
+	_, err = importer.Get(t.Context(), org, "other", a.ContractSlug, a.RevisionSlug, projected.SourceRepo, commit, a.Path)
+	require.ErrorIs(t, err, odcscontracts.ErrNotFound)
+	legacy.SourceRepo = "odcs-artifact:historical-fixture"
+	require.NoError(t, odcscontracts.NewRepository().CreateArtifact(t.Context(), pool, org, "etl", legacy))
+	projectedAgain, err := importer.Get(t.Context(), org, "etl", a.ContractSlug, a.RevisionSlug, legacy.SourceRepo, commit, a.Path)
+	require.NoError(t, err)
+	require.NotEqual(t, projected.SourceRepo, projectedAgain.SourceRepo)
+	require.Regexp(t, `^odcs-artifact:[A-Za-z0-9_-]{22}$`, projectedAgain.SourceRepo)
 	_, err = importer.Get(t.Context(), "other", "etl", a.ContractSlug, a.RevisionSlug, repoURL, commit, "contracts/orders.yaml")
 	require.ErrorIs(t, err, odcscontracts.ErrNotFound)
 	// A rename and comment-only change retain semantic revision identity and add provenance.

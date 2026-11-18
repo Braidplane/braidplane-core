@@ -66,8 +66,10 @@ async function signUpAndVerify(page, email, password, fullName) {
     await page.getByRole("button", { name: "Create account" }).click();
     await expect(page.getByRole("heading", { name: "Verify your email" })).toBeVisible();
 
-    const verificationURL = await waitForMailpitLink(page, email, "/verify-email?token=");
-    await page.goto(verificationURL);
+    const { link, code } = await waitForMailpitCode(page, email, "/verify-email");
+    await page.goto(link);
+    await page.getByLabel("Verification code").fill(code);
+    await page.getByRole("button", { name: "Verify email", exact: true }).click();
     await expect(page.getByText("Your email has been verified. You can now sign in.")).toBeVisible();
 }
 
@@ -103,8 +105,8 @@ async function deleteE2EOrganization(page, organizationSlug) {
         .not.toBe(409);
 }
 
-async function waitForMailpitLink(page, recipientEmail, pathFragment) {
-    let foundLink = "";
+async function waitForMailpitCode(page, recipientEmail, pathname) {
+    let found;
     await expect
         .poll(
             async () => {
@@ -124,10 +126,14 @@ async function waitForMailpitLink(page, recipientEmail, pathFragment) {
                         continue;
                     }
                     const detail = await messageResponse.json();
-                    const match = String(detail.Text || "").match(/https?:\/\/[^\s]+/);
-                    if (match?.[0].includes(pathFragment)) {
-                        foundLink = match[0];
-                        return foundLink;
+                    const text = String(detail.Text || "");
+                    const link = text.match(/https?:\/\/[^\s]+/)?.[0];
+                    const code = text.match(/^(?:Code|Kod): ([a-f0-9]{64})\s*$/m)?.[1];
+                    if (!link || !code) continue;
+                    const url = new URL(link);
+                    if (url.pathname === pathname && !url.search && !url.hash) {
+                        found = { link, code };
+                        return "found";
                     }
                 }
                 return "";
@@ -135,7 +141,7 @@ async function waitForMailpitLink(page, recipientEmail, pathFragment) {
             { timeout: 10_000 },
         )
         .not.toBe("");
-    return foundLink;
+    return found;
 }
 
 async function csrfHeaders(page) {
@@ -535,7 +541,7 @@ module.exports = {
     signUpAndVerify,
     deleteE2EAccount,
     deleteE2EOrganization,
-    waitForMailpitLink,
+    waitForMailpitCode,
     csrfHeaders,
     uniqueE2ESlug,
     unsafeRequest,
