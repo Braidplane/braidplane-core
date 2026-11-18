@@ -137,7 +137,7 @@ Execution returns the shared `object_rows` result family with:
 - `has_more`
 
 Upsert execution returns `hs_object_id`, `created`, and the aggregate row count.
-It never returns submitted property values.
+It never returns submitted property values. See the [partial update and clear rules](../../docs-public/connectors/hubspot.md#partial-updates-and-clears) for nullable row input and saved-operation compatibility.
 
 ## Pipeline relevance
 

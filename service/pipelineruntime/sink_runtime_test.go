@@ -4,6 +4,14 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
+	"net/http"
+	"net/http/httptest"
+
+	"github.com/Braidplane/braidplane-core/pkg/connector/transportsecurity"
+	"github.com/Braidplane/braidplane-core/pkg/hubspot/crm"
+	"github.com/Braidplane/braidplane-core/service/datasourcessvc/connector/hubspot"
+	"github.com/Braidplane/braidplane-core/service/datasourcessvc/connector/types"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -775,6 +783,74 @@ func TestSinkRuntime_ExecuteHubSpotSinkBindsRowsAndAcceptsUpsertResult(t *testin
 		"email":       "alice@example.test",
 	}}, captured[sinkbinding.Input])
 	require.Equal(t, model.ContractRepresentationRows.String(), captured[sinkbinding.InternalInputRepresentation])
+}
+
+func TestSinkRuntime_HubSpotCompanyPartialUpsert(t *testing.T) {
+	state := map[string]string{"name": "old", "phone": "keep", "city": "keep", "domain": "keep", "industry": "keep", "notes": "old"}
+	var bodies []string
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.Method + " " + r.URL.Path {
+		case "GET /crm/properties/2026-03/companies":
+			fmt.Fprint(w, `{"results":[{"name":"key","hasUniqueValue":true},{"name":"name"},{"name":"phone"},{"name":"city"},{"name":"domain"},{"name":"notes"}]}`)
+		case "POST /crm/objects/2026-03/companies/batch/upsert":
+			body, err := io.ReadAll(r.Body)
+			bodies = append(bodies, string(body))
+			var batch struct {
+				Inputs []struct {
+					ID         string
+					Properties map[string]string
+				}
+			}
+			if err != nil || json.Unmarshal(body, &batch) != nil || len(batch.Inputs) != 1 || batch.Inputs[0].ID != "company-1" {
+				http.Error(w, "invalid batch", 400)
+				return
+			}
+			for key, value := range batch.Inputs[0].Properties {
+				if value == "" {
+					delete(state, key)
+				} else {
+					state[key] = value
+				}
+			}
+			fmt.Fprint(w, `{"status":"COMPLETE","results":[{"id":"101"}]}`)
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	defer server.Close()
+	conn, err := hubspot.New(transportsecurity.WithPlaintext(t.Context()), crm.Config{BaseURL: server.URL, AllowPrivateHosts: true}, hubspot.Credentials{PrivateAppToken: "synthetic-token"})
+	require.NoError(t, err)
+	defer conn.Close()
+	const operation = `{"type":"hubspot","object_type":"companies","operation":"upsert","id_property":"key","property_mapping":{"id":"key","label":"name","phone":"phone","city":"city","domain":"domain","notes":"notes"},"rows":"{{input}}"}`
+	runtime := NewSinkRuntime(&fakeSinkQueryExecutor{executeFn: func(ctx context.Context, _, _, _ slug.Slug, _ model.EventActor, params map[string]any, _ ...queriessvc.ExecuteOption) (*result.ExecutionResult, error) {
+		return conn.Execute(ctx, json.RawMessage(operation), map[string]types.TypedParam{"input": {Value: params[sinkbinding.Input]}})
+	}})
+	run := func(rows ...map[string]any) error {
+		return runtime.Execute(t.Context(), &SinkRuntimeInput{
+			OrgSlug:            "acme",
+			SinkBackend:        model.SinkBackendHTTP,
+			SinkOperationType:  pipelinespec.OperationTypeHubSpot,
+			SinkDataSourceSlug: "hubspot",
+			SinkOperationRef:   "upsert-companies",
+			SourceResult: pipelinerun.NewTransformStepResult(&pipepayload.Output{
+				OutputKind: model.TransformOutputKindRows, Rows: rows, RowCount: len(rows),
+			}, 0, nil),
+		})
+	}
+	row := map[string]any{"id": "company-1", "label": "New name", "city": nil, "domain": "", "notes": map[string]any{"$clear": true}}
+	for i := 1; i <= 2; i++ {
+		require.NoError(t, run(row))
+		require.Len(t, bodies, i)
+		require.JSONEq(t, `{"inputs":[{"id":"company-1","idProperty":"key","properties":{"name":"New name","notes":""}}]}`, bodies[i-1])
+		require.Equal(t, map[string]string{"name": "New name", "phone": "keep", "city": "keep", "domain": "keep", "industry": "keep"}, state)
+	}
+	for _, invalid := range []map[string]any{{}, {"id": nil}, {"id": ""}, {"id": "  "}, {"id": map[string]any{"$clear": true}}, {"id": "company-2", "label": []any{"private-value"}}, {"id": "company-2", "notes": map[string]any{"$clear": "private-value"}}} {
+		err := run(row, invalid)
+		require.Error(t, err)
+		require.NotContains(t, err.Error(), "private-value")
+		require.NotContains(t, err.Error(), "synthetic-token")
+		require.Len(t, bodies, 2)
+	}
 }
 
 func TestSinkRuntime_ExecuteHTTPSinkRejectsInvalidResponses(t *testing.T) {

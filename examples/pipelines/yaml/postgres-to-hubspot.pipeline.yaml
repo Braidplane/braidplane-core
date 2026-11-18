@@ -19,6 +19,7 @@ metadata:
   #     email: email
   #     first_name: firstname
   #     last_name: lastname
+  #   Missing, NULL and blank name fields preserve existing HubSpot values.
   #   rows: "{{input}}"
 steps:
   - kind: query

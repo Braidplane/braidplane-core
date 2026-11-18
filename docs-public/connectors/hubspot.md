@@ -102,6 +102,27 @@ is from input field to HubSpot property.
 }
 ```
 
+### Partial updates and clears
+
+For a mapped writable property, a missing field, SQL NULL (JSON `null`), an empty
+string or a whitespace-only string leaves the current CRM value in place.
+Other strings retain their spacing. Numbers and booleans, including zero and
+false, are sent as supplied. To clear one property, supply the exact JSON
+object `{"$clear":true}` as its input value, for example
+`{"customer_id":"demo-1","first_name":{"$clear":true}}`. The connector sends
+an empty string for that property. Arrays and other objects fail validation
+before the first batch is sent.
+
+Every row must supply a nonblank scalar identity. Missing, NULL, blank and
+structured identities fail the entire input before dispatch. The connector
+sends the identity separately from the writable properties.
+
+Existing saved mappings pick up these rules on upgrade. Earlier versions
+forwarded NULL and empty strings. If a pipeline relied on empty strings to
+clear a property, change its upstream row to use the explicit clear object.
+A synthetic company sink test verifies the outbound request and stored
+properties across two executions. Live HubSpot qualification is pending.
+
 ## Operation reference
 
 | Field | Meaning |
