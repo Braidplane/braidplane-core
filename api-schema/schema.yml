@@ -6388,6 +6388,67 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
 
+  /organizations/{slug}/projects/{project_slug}/readiness:
+    get:
+      summary: Get project environment readiness
+      description: Evaluates persisted project requirements across enabled project environments.
+      tags:
+        - pipelines
+      operationId: getProjectReadiness
+      parameters:
+        - $ref: '#/components/parameters/SlugParam'
+        - $ref: '#/components/parameters/ProjectSlugParam'
+      responses:
+        '200':
+          description: Environment readiness report
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReadinessReport'
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Project not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /organizations/{slug}/projects/{project_slug}/pipelines/{pipeline_slug}/readiness:
+    get:
+      summary: Get pipeline environment readiness
+      description: Evaluates persisted pipeline requirements across enabled project environments.
+      tags:
+        - pipelines
+      operationId: getPipelineReadiness
+      parameters:
+        - $ref: '#/components/parameters/SlugParam'
+        - $ref: '#/components/parameters/ProjectSlugParam'
+        - $ref: '#/components/parameters/PipelineSlugParam'
+      responses:
+        '200':
+          description: Environment readiness report
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReadinessReport'
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Pipeline not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
   /organizations/{slug}/projects/{project_slug}/pipelines/{pipeline_slug}:
     get:
       summary: Get a pipeline
@@ -11746,6 +11807,60 @@ components:
           example: true
         protected_environment_confirmation:
           $ref: '#/components/schemas/NullableSlug'
+
+    ReadinessStatus:
+      type: string
+      enum: [ready, blocked, warning, informational]
+      x-enum-varnames: [ReadinessStatusReady, ReadinessStatusBlocked, ReadinessStatusWarning, ReadinessStatusInformational]
+
+    ReadinessReport:
+      type: object
+      required: [status, environments]
+      properties:
+        status:
+          $ref: '#/components/schemas/ReadinessStatus'
+        environments:
+          type: array
+          items:
+            $ref: '#/components/schemas/ReadinessEnvironment'
+
+    ReadinessEnvironment:
+      type: object
+      required: [environment_slug, status, diagnostics]
+      properties:
+        environment_slug:
+          $ref: '#/components/schemas/Slug'
+        status:
+          $ref: '#/components/schemas/ReadinessStatus'
+        diagnostics:
+          type: array
+          items:
+            $ref: '#/components/schemas/ReadinessDiagnostic'
+
+    ReadinessDiagnostic:
+      type: object
+      required: [severity, code, environment_slug, pipeline_slug, step_slug, requirement_key, field_path, next_action]
+      properties:
+        severity:
+          type: string
+          enum: [error, warning, informational]
+          x-enum-varnames: [ReadinessDiagnosticSeverityError, ReadinessDiagnosticSeverityWarning, ReadinessDiagnosticSeverityInformational]
+        code:
+          type: string
+        environment_slug:
+          $ref: '#/components/schemas/Slug'
+        pipeline_slug:
+          $ref: '#/components/schemas/Slug'
+        step_slug:
+          type: string
+          description: Step containing the requirement, or an empty string for a pipeline-level requirement.
+        requirement_key:
+          type: string
+        field_path:
+          type: string
+        next_action:
+          type: string
+          description: Machine-readable action to address this diagnostic.
 
     ProjectEnvironment:
       type: object
