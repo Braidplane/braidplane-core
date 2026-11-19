@@ -18,6 +18,7 @@ and [evidence maintenance](CONNECTOR_SUPPORT_EVIDENCE.md) for contributor guidan
 | [Snowflake](data-sources/SNOWFLAKE.md) | Snowflake SQL protocol over HTTPS | Parameterized warehouse reads and explicitly authored append-style SQL writes |
 | [MongoDB](data-sources/MONGODB.md) | MongoDB wire protocol | Document stores, flexible schemas |
 | [HTTP](data-sources/HTTP.md) | HTTP/HTTPS | REST APIs, webhooks, JSON/CSV endpoints, and opaque file responses |
+| [Stripe](data-sources/STRIPE.md) | Stripe HTTPS API | Join bounded revenue rows to CRM and warehouse data |
 | [HubSpot](data-sources/HUBSPOT.md) | HubSpot CRM APIs over HTTPS | SaaS CRM reads and key-based upserts for contacts, companies, deals, and discovered custom objects |
 | [FTP](data-sources/FTP.md) | FTP over TCP | File-based data, CSV/JSON/Excel workbook ingestion/export, and opaque file pass-through |
 | [Git](data-sources/GIT.md) | Git over SSH/HTTPS | Versioned file data, CSV/JSON/Excel workbook reads, raw file reads, and file writes in repositories |
@@ -240,19 +241,19 @@ that differs from the supported connector set.
 
 ## Capability matrix
 
-| Capability | PostgreSQL | MySQL | BigQuery | MongoDB | HTTP | HubSpot | FTP | Git | S3 | Google Workspace |
-|---|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:| :---: |
-| Test connection | yes | yes | yes | yes | yes | yes | yes | yes | yes | yes |
-| Schema introspection | yes | yes | yes | yes | yes | yes | yes | yes | yes | yes |
-| Schema refresh | yes | yes | yes | yes | yes | yes | yes | yes | yes | yes |
-| Query execution | yes | yes | yes | yes | yes | yes | yes | yes | yes | yes |
-| Parameterized queries | yes | yes | yes | yes | yes | yes | yes | yes | yes | exact update `{{input}}` binding |
-| `read_only: true` enforcement | classifier + native transaction | classifier + native transaction | classifier | adapter classifier | method classifier | operation classifier | operation classifier | operation classifier | operation classifier | read/list/export versus create/update classifier |
-| Required source credential boundary | configured read-only | configured read-only | configured IAM | configured read-only | configured read-only or unauthenticated | configured scopes | configured read-only | configured read-only or public read | configured read-only | managed OAuth; Braidplane read-only enforcement |
-| Pipeline source | yes | yes | yes | yes | yes | yes | yes | yes | yes | yes |
-| Pipeline sink | yes | yes | yes | yes | yes | yes (`idempotent_with_key`) | yes | yes | yes | yes |
-| Pagination | no | no | yes | no | [GET cursor/page/next-link](data-sources/HTTP.md#next-link-pagination) | yes | no | no | provider listing only | Drive discovery only |
-| Incremental source checkpoints | watermark | watermark | watermark | watermark | timestamp watermark, cursor | cursor | no | no | no | no |
+| Capability | PostgreSQL | MySQL | BigQuery | MongoDB | HTTP | HubSpot | FTP | Git | S3 | Google Workspace | Stripe |
+|---|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:| :---: | :---: |
+| Test connection | yes | yes | yes | yes | yes | yes | yes | yes | yes | yes | yes |
+| Schema introspection | yes | yes | yes | yes | yes | yes | yes | yes | yes | yes | fixed fields |
+| Schema refresh | yes | yes | yes | yes | yes | yes | yes | yes | yes | yes | yes |
+| Query execution | yes | yes | yes | yes | yes | yes | yes | yes | yes | yes | yes |
+| Parameterized queries | yes | yes | yes | yes | yes | yes | yes | yes | yes | exact update `{{input}}` binding | starting_after |
+| `read_only: true` enforcement | classifier + native transaction | classifier + native transaction | classifier | adapter classifier | method classifier | operation classifier | operation classifier | operation classifier | operation classifier | read/list/export versus create/update classifier | always read-only |
+| Required source credential boundary | configured read-only | configured read-only | configured IAM | configured read-only | configured read-only or unauthenticated | configured scopes | configured read-only | configured read-only or public read | configured read-only | managed OAuth; Braidplane read-only enforcement | Stripe Apps OAuth or restricted account key |
+| Pipeline source | yes | yes | yes | yes | yes | yes | yes | yes | yes | yes | yes |
+| Pipeline sink | yes | yes | yes | yes | yes | yes (`idempotent_with_key`) | yes | yes | yes | yes | no |
+| Pagination | no | no | yes | no | [GET cursor/page/next-link](data-sources/HTTP.md#next-link-pagination) | yes | no | no | provider listing only | Drive discovery only | starting_after |
+| Incremental source checkpoints | watermark | watermark | watermark | watermark | timestamp watermark, cursor | cursor | no | no | no | no | no |
 
 Incremental source checkpoint support is static connector capability metadata
 used by pipeline spec validation. Validation does not call live connectors.
@@ -304,6 +305,7 @@ Legend:
 | [BigQuery](data-sources/BIGQUERY.md) | `rows` (`native`) | `native` via `insert_rows` `rows: "{{input}}"` | `row-normalized fallback` via `input` when object/array payloads can become rows | `row-normalized fallback` via `input` when CSV can become rows | `not supported` | `not supported` |
 | [MongoDB](data-sources/MONGODB.md) | `json` (`native` document array) | `binding fallback` via `input` | `binding fallback` via `input` | `binding fallback` via `input` | `binding fallback` via `input` | `not supported` |
 | [HTTP](data-sources/HTTP.md) | `json`, `csv`, `file`, or `multipart_form` by response media type | `native` body via `body: "{{input}}"` | `native` body via `body: "{{input}}"` | `native` raw body via `body: "{{input}}"` | `native` raw body via `body: "{{input}}"` | `native` generated form body via `body: "{{input}}"` |
+| [Stripe](data-sources/STRIPE.md) | `rows` | unsupported | unsupported | unsupported | unsupported | unsupported |
 | [HubSpot](data-sources/HUBSPOT.md) | `rows` (`row-normalized` from HubSpot CRM objects) | `native` via upsert `rows: "{{input}}"` | `row-normalized fallback` via `input` when object/array payloads can become rows | `row-normalized fallback` via `input` when CSV can become rows | `not supported` | `not supported` |
 | [FTP](data-sources/FTP.md) | `rows` for CSV/JSON/Excel workbooks, `file` for `format: file` | `serialized` to the configured file format | `serialized` to JSON file output | `serialized` to CSV file output | `native` raw write with `format: file` | `not supported` |
 | [Git](data-sources/GIT.md) | `rows` for CSV/JSON/Excel workbooks, `file` for `format: file` | `serialized` to the configured file format | `serialized` to JSON file output | `serialized` to CSV file output | `native` raw write with `format: file` | `not supported` |

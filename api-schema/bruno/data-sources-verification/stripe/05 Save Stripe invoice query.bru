@@ -1,0 +1,37 @@
+meta {
+  name: 05 Save Stripe invoice query
+  type: http
+  seq: 33.5
+}
+
+post {
+  url: {{baseUrl}}/organizations/{{orgSlug}}/data-sources/{{stripeSourceSlug}}/queries
+  body: json
+  auth: inherit
+}
+
+body:json {
+  {
+    "name": "Read Stripe invoices",
+    "slug": "stripe-invoices-{{stripeRunId}}",
+    "query_statement": {
+      "type": "stripe",
+      "operation": "list",
+      "object_type": "invoices",
+      "limit": 1
+    },
+    "parameters": [],
+    "row_limit": 1,
+    "timeout_seconds": 30
+  }
+}
+
+script:post-response {
+  if (res.status === 201) bru.setVar("stripeQuerySlug", res.body.slug);
+}
+
+tests {
+  test("Save Stripe invoice query", function() {
+    expect(res.status).to.equal(201);
+  });
+}

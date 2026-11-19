@@ -1,0 +1,17 @@
+meta {
+  name: 07 Delete Stripe source
+  type: http
+  seq: 33.7
+}
+
+delete {
+  url: {{baseUrl}}/organizations/{{orgSlug}}/data-sources/{{stripeSourceSlug}}
+  body: none
+  auth: inherit
+}
+
+tests {
+  test("Delete Stripe source", function() {
+    expect(res.status).to.equal(204);
+  });
+}

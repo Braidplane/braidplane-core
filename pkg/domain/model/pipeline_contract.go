@@ -53,6 +53,7 @@ const (
 	DataSourceTypeGoogleWorkspace       = pipelinemodel.DataSourceTypeGoogleWorkspace
 	DataSourceTypeHTTP                  = pipelinemodel.DataSourceTypeHTTP
 	DataSourceTypeMongoDB               = pipelinemodel.DataSourceTypeMongoDB
+	DataSourceTypeStripe                = pipelinemodel.DataSourceTypeStripe
 	DataSourceTypeHubSpot               = pipelinemodel.DataSourceTypeHubSpot
 	DataSourceTypeFTP                   = pipelinemodel.DataSourceTypeFTP
 	DataSourceTypeGit                   = pipelinemodel.DataSourceTypeGit

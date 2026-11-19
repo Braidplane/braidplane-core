@@ -4764,6 +4764,8 @@ LEFT JOIN updated ON true;
 
 -- name: LockOAuthGrantIntent :one
 SELECT
+    ds.type AS source_type,
+    COALESCE(ds.config ->> 'mode', '')::text AS source_mode,
     c.slug AS credential_slug,
     c.kind,
     c.status,
@@ -12510,10 +12512,35 @@ WITH claimed AS (
         AND ds.deleted_at IS NULL
         AND (app.refresh_claim_id IS NULL OR app.refresh_claim_expires_at <= NOW())
     RETURNING app.data_source_id
+), stripe_claimed AS (
+    UPDATE credential_oauth_grants g
+    SET refresh_claim_id = sqlc.arg('claim_id')::text,
+        refresh_claim_expires_at = NOW() + INTERVAL '1 minute'
+    FROM data_sources ds
+    JOIN organizations o ON o.id = ds.organization_id
+    JOIN credentials c ON c.organization_id = ds.organization_id AND c.id = ds.credential_id
+    WHERE g.credential_id = c.id AND c.status = 'active'
+        AND o.slug = sqlc.arg('org_slug') AND ds.slug = sqlc.arg('data_source_slug')
+        AND c.slug = sqlc.arg('credential_slug') AND ds.deleted_at IS NULL
+        AND ds.type = 'stripe' AND g.provider IN ('stripe_test', 'stripe_live')
+        AND g.provider = 'stripe_' || (ds.config ->> 'mode')
+        AND g.provider = sqlc.arg('provider')::text AND g.updated_at = sqlc.arg('grant_updated_at')
+        AND (g.refresh_claim_id IS NULL OR g.refresh_claim_expires_at <= NOW())
+    RETURNING g.id
 )
-SELECT EXISTS (SELECT 1 FROM claimed);
+SELECT EXISTS (SELECT 1 FROM claimed UNION ALL SELECT 1 FROM stripe_claimed);
 
 -- name: ReleaseHTTPOAuthRefresh :exec
+WITH stripe_released AS (
+    UPDATE credential_oauth_grants g
+    SET refresh_claim_id = NULL, refresh_claim_expires_at = NULL
+    FROM data_sources ds
+    JOIN organizations o ON o.id = ds.organization_id
+    JOIN credentials c ON c.organization_id = ds.organization_id AND c.id = ds.credential_id
+    WHERE g.credential_id = c.id AND g.provider IN ('stripe_test', 'stripe_live')
+        AND ds.type = 'stripe' AND o.slug = sqlc.arg('org_slug') AND ds.slug = sqlc.arg('data_source_slug')
+        AND g.refresh_claim_id = sqlc.arg('claim_id')::text
+)
 UPDATE credential_http_oauth_apps app
 SET refresh_claim_id = NULL, refresh_claim_expires_at = NULL
 FROM data_sources ds JOIN organizations o ON o.id = ds.organization_id

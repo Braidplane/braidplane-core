@@ -1663,8 +1663,23 @@ WITH claimed AS (
         AND ds.deleted_at IS NULL
         AND (app.refresh_claim_id IS NULL OR app.refresh_claim_expires_at <= NOW())
     RETURNING app.data_source_id
+), stripe_claimed AS (
+    UPDATE credential_oauth_grants g
+    SET refresh_claim_id = $1::text,
+        refresh_claim_expires_at = NOW() + INTERVAL '1 minute'
+    FROM data_sources ds
+    JOIN organizations o ON o.id = ds.organization_id
+    JOIN credentials c ON c.organization_id = ds.organization_id AND c.id = ds.credential_id
+    WHERE g.credential_id = c.id AND c.status = 'active'
+        AND o.slug = $2 AND ds.slug = $3
+        AND c.slug = $4 AND ds.deleted_at IS NULL
+        AND ds.type = 'stripe' AND g.provider IN ('stripe_test', 'stripe_live')
+        AND g.provider = 'stripe_' || (ds.config ->> 'mode')
+        AND g.provider = $6::text AND g.updated_at = $5
+        AND (g.refresh_claim_id IS NULL OR g.refresh_claim_expires_at <= NOW())
+    RETURNING g.id
 )
-SELECT EXISTS (SELECT 1 FROM claimed)
+SELECT EXISTS (SELECT 1 FROM claimed UNION ALL SELECT 1 FROM stripe_claimed)
 `
 
 type ClaimHTTPOAuthRefreshParams struct {
@@ -1673,6 +1688,7 @@ type ClaimHTTPOAuthRefreshParams struct {
 	DataSourceSlug slug.Slug
 	CredentialSlug slug.Slug
 	GrantUpdatedAt pgtype.Timestamptz
+	Provider       string
 }
 
 func (q *Queries) ClaimHTTPOAuthRefresh(ctx context.Context, arg ClaimHTTPOAuthRefreshParams) (bool, error) {
@@ -1682,6 +1698,7 @@ func (q *Queries) ClaimHTTPOAuthRefresh(ctx context.Context, arg ClaimHTTPOAuthR
 		arg.DataSourceSlug,
 		arg.CredentialSlug,
 		arg.GrantUpdatedAt,
+		arg.Provider,
 	)
 	var exists bool
 	err := row.Scan(&exists)
@@ -3901,7 +3918,7 @@ WITH target AS (
 ), attached AS (
  UPDATE notification_connections connection SET credential_id=selected.id,updated_at=NOW() FROM target,selected WHERE connection.id=target.id RETURNING target.old_credential_id,selected.id AS credential_id,connection.organization_id,connection.id AS connection_id
 ), activated_pending AS (UPDATE credentials c SET status='active',failure_code=NULL,failure_message=NULL,updated_at=NOW() FROM target WHERE c.id=target.old_credential_id AND $5='create_grant' RETURNING c.id, c.organization_id, c.slug, c.kind, c.credential_type, c.status, c.encrypted_payload, c.rotated_at, c.revoked_at, c.failure_code, c.failure_message, c.created_at, c.updated_at), active AS (SELECT id, organization_id, slug, kind, credential_type, status, encrypted_payload, rotated_at, revoked_at, failure_code, failure_message, created_at, updated_at FROM inserted UNION ALL SELECT id, organization_id, slug, kind, credential_type, status, encrypted_payload, rotated_at, revoked_at, failure_code, failure_message, created_at, updated_at FROM activated_pending), retired AS (UPDATE credentials c SET status='rotated',encrypted_payload=NULL,rotated_at=NOW(),updated_at=NOW() FROM attached WHERE c.id=attached.old_credential_id AND c.id<>attached.credential_id RETURNING c.id), tombstone AS (UPDATE credential_oauth_grants g SET encrypted_token_set=decode('', 'hex'),updated_at=NOW() FROM retired WHERE g.credential_id=retired.id), oauth_grant AS (
- INSERT INTO credential_oauth_grants (credential_id,provider,encrypted_token_set,access_token_expires_at,scopes,account,last_refreshed_at) SELECT attached.credential_id,$6,$7,$8,$9::text[],$10::jsonb,$11 FROM attached ON CONFLICT (credential_id) DO UPDATE SET provider=EXCLUDED.provider,encrypted_token_set=EXCLUDED.encrypted_token_set,access_token_expires_at=EXCLUDED.access_token_expires_at,scopes=EXCLUDED.scopes,account=EXCLUDED.account,last_refreshed_at=EXCLUDED.last_refreshed_at,updated_at=NOW() RETURNING id, credential_id, provider, encrypted_token_set, access_token_expires_at, scopes, account, last_refreshed_at, created_at, updated_at
+ INSERT INTO credential_oauth_grants (credential_id,provider,encrypted_token_set,access_token_expires_at,scopes,account,last_refreshed_at) SELECT attached.credential_id,$6,$7,$8,$9::text[],$10::jsonb,$11 FROM attached ON CONFLICT (credential_id) DO UPDATE SET provider=EXCLUDED.provider,encrypted_token_set=EXCLUDED.encrypted_token_set,access_token_expires_at=EXCLUDED.access_token_expires_at,scopes=EXCLUDED.scopes,account=EXCLUDED.account,last_refreshed_at=EXCLUDED.last_refreshed_at,updated_at=NOW() RETURNING id, credential_id, provider, encrypted_token_set, access_token_expires_at, scopes, account, last_refreshed_at, created_at, updated_at, refresh_claim_id, refresh_claim_expires_at
 ) SELECT active.id, active.organization_id, active.slug, active.kind, active.credential_type, active.status, active.encrypted_payload, active.rotated_at, active.revoked_at, active.failure_code, active.failure_message, active.created_at, active.updated_at,oauth_grant.id AS grant_id,oauth_grant.provider,oauth_grant.encrypted_token_set,oauth_grant.access_token_expires_at,oauth_grant.scopes,oauth_grant.account,oauth_grant.last_refreshed_at,oauth_grant.created_at AS grant_created_at,oauth_grant.updated_at AS grant_updated_at FROM active JOIN oauth_grant ON oauth_grant.credential_id=active.id
 `
 
@@ -4195,7 +4212,7 @@ upserted AS (
         account = EXCLUDED.account,
         last_refreshed_at = EXCLUDED.last_refreshed_at,
         updated_at = NOW()
-    RETURNING id, credential_id, provider, encrypted_token_set, access_token_expires_at, scopes, account, last_refreshed_at, created_at, updated_at
+    RETURNING id, credential_id, provider, encrypted_token_set, access_token_expires_at, scopes, account, last_refreshed_at, created_at, updated_at, refresh_claim_id, refresh_claim_expires_at
 )
 SELECT
     active_credential.id, active_credential.organization_id, active_credential.slug, active_credential.kind, active_credential.credential_type, active_credential.status, active_credential.encrypted_payload, active_credential.rotated_at, active_credential.revoked_at, active_credential.failure_code, active_credential.failure_message, active_credential.created_at, active_credential.updated_at,
@@ -4759,7 +4776,7 @@ WITH target AS (
 ), attached AS (
  UPDATE organization_gitlab_connections connection SET credential_id=selected.id,updated_at=NOW() FROM target,selected WHERE connection.id=target.id RETURNING target.old_credential_id,selected.id AS credential_id,connection.organization_id,connection.id AS connection_id
 ), activated_pending AS (UPDATE credentials c SET status='active',failure_code=NULL,failure_message=NULL,updated_at=NOW() FROM target WHERE c.id=target.old_credential_id AND $4='create_grant' RETURNING c.id, c.organization_id, c.slug, c.kind, c.credential_type, c.status, c.encrypted_payload, c.rotated_at, c.revoked_at, c.failure_code, c.failure_message, c.created_at, c.updated_at), active AS (SELECT id, organization_id, slug, kind, credential_type, status, encrypted_payload, rotated_at, revoked_at, failure_code, failure_message, created_at, updated_at FROM inserted UNION ALL SELECT id, organization_id, slug, kind, credential_type, status, encrypted_payload, rotated_at, revoked_at, failure_code, failure_message, created_at, updated_at FROM activated_pending), sources AS (UPDATE data_sources ds SET credential_id=attached.credential_id,is_active=false,test_error='Test the repository connection after reconnecting GitLab',connection_test_revision=ds.connection_test_revision+1,updated_at=NOW() FROM attached WHERE ds.organization_id=attached.organization_id AND ds.organization_gitlab_connection_id=attached.connection_id RETURNING ds.id), retired AS (UPDATE credentials c SET status='rotated',encrypted_payload=NULL,rotated_at=NOW(),updated_at=NOW() FROM attached WHERE c.id=attached.old_credential_id AND c.id<>attached.credential_id RETURNING c.id), tombstone AS (UPDATE credential_oauth_grants g SET encrypted_token_set=decode('', 'hex'),updated_at=NOW() FROM retired WHERE g.credential_id=retired.id), oauth_grant AS (
- INSERT INTO credential_oauth_grants (credential_id,provider,encrypted_token_set,access_token_expires_at,scopes,account,last_refreshed_at) SELECT attached.credential_id,$5,$6,$7,$8::text[],$9::jsonb,$10 FROM attached ON CONFLICT (credential_id) DO UPDATE SET provider=EXCLUDED.provider,encrypted_token_set=EXCLUDED.encrypted_token_set,access_token_expires_at=EXCLUDED.access_token_expires_at,scopes=EXCLUDED.scopes,account=EXCLUDED.account,last_refreshed_at=EXCLUDED.last_refreshed_at,updated_at=NOW() RETURNING id, credential_id, provider, encrypted_token_set, access_token_expires_at, scopes, account, last_refreshed_at, created_at, updated_at
+ INSERT INTO credential_oauth_grants (credential_id,provider,encrypted_token_set,access_token_expires_at,scopes,account,last_refreshed_at) SELECT attached.credential_id,$5,$6,$7,$8::text[],$9::jsonb,$10 FROM attached ON CONFLICT (credential_id) DO UPDATE SET provider=EXCLUDED.provider,encrypted_token_set=EXCLUDED.encrypted_token_set,access_token_expires_at=EXCLUDED.access_token_expires_at,scopes=EXCLUDED.scopes,account=EXCLUDED.account,last_refreshed_at=EXCLUDED.last_refreshed_at,updated_at=NOW() RETURNING id, credential_id, provider, encrypted_token_set, access_token_expires_at, scopes, account, last_refreshed_at, created_at, updated_at, refresh_claim_id, refresh_claim_expires_at
 ) SELECT active.id, active.organization_id, active.slug, active.kind, active.credential_type, active.status, active.encrypted_payload, active.rotated_at, active.revoked_at, active.failure_code, active.failure_message, active.created_at, active.updated_at,oauth_grant.id AS grant_id,oauth_grant.provider,oauth_grant.encrypted_token_set,oauth_grant.access_token_expires_at,oauth_grant.scopes,oauth_grant.account,oauth_grant.last_refreshed_at,oauth_grant.created_at AS grant_created_at,oauth_grant.updated_at AS grant_updated_at FROM active JOIN oauth_grant ON oauth_grant.credential_id=active.id
 `
 
@@ -25589,6 +25606,8 @@ func (q *Queries) LockNotificationConnectionOAuthGrantIntent(ctx context.Context
 
 const lockOAuthGrantIntent = `-- name: LockOAuthGrantIntent :one
 SELECT
+    ds.type AS source_type,
+    COALESCE(ds.config ->> 'mode', '')::text AS source_mode,
     c.slug AS credential_slug,
     c.kind,
     c.status,
@@ -25616,6 +25635,8 @@ type LockOAuthGrantIntentParams struct {
 }
 
 type LockOAuthGrantIntentRow struct {
+	SourceType             string
+	SourceMode             string
 	CredentialSlug         slug.Slug
 	Kind                   string
 	Status                 string
@@ -25627,6 +25648,8 @@ func (q *Queries) LockOAuthGrantIntent(ctx context.Context, arg LockOAuthGrantIn
 	row := q.db.QueryRow(ctx, lockOAuthGrantIntent, arg.OrgSlug, arg.DataSourceSlug)
 	var i LockOAuthGrantIntentRow
 	err := row.Scan(
+		&i.SourceType,
+		&i.SourceMode,
 		&i.CredentialSlug,
 		&i.Kind,
 		&i.Status,
@@ -28823,6 +28846,16 @@ func (q *Queries) RejectPipelineWebhookDelivery(ctx context.Context, arg RejectP
 }
 
 const releaseHTTPOAuthRefresh = `-- name: ReleaseHTTPOAuthRefresh :exec
+WITH stripe_released AS (
+    UPDATE credential_oauth_grants g
+    SET refresh_claim_id = NULL, refresh_claim_expires_at = NULL
+    FROM data_sources ds
+    JOIN organizations o ON o.id = ds.organization_id
+    JOIN credentials c ON c.organization_id = ds.organization_id AND c.id = ds.credential_id
+    WHERE g.credential_id = c.id AND g.provider IN ('stripe_test', 'stripe_live')
+        AND ds.type = 'stripe' AND o.slug = $1 AND ds.slug = $2
+        AND g.refresh_claim_id = $3::text
+)
 UPDATE credential_http_oauth_apps app
 SET refresh_claim_id = NULL, refresh_claim_expires_at = NULL
 FROM data_sources ds JOIN organizations o ON o.id = ds.organization_id
@@ -33145,7 +33178,7 @@ DO UPDATE SET
     last_refreshed_at = EXCLUDED.last_refreshed_at,
     updated_at = NOW()
 WHERE credential_oauth_grants.updated_at = $12
-RETURNING id, credential_id, provider, encrypted_token_set, access_token_expires_at, scopes, account, last_refreshed_at, created_at, updated_at
+RETURNING id, credential_id, provider, encrypted_token_set, access_token_expires_at, scopes, account, last_refreshed_at, created_at, updated_at, refresh_claim_id, refresh_claim_expires_at
 ),
 credential_updated AS (
     UPDATE credentials c

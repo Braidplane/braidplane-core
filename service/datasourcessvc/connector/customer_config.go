@@ -10,6 +10,7 @@ import (
 	"github.com/Braidplane/braidplane-core/pkg/snowflakewif"
 	"github.com/Braidplane/braidplane-core/pkg/validate"
 	"github.com/Braidplane/braidplane-core/pkg/xerror"
+	"github.com/Braidplane/braidplane-core/service/datasourcessvc/connector/stripe"
 )
 
 type customerPostgresConfig struct {
@@ -118,6 +119,9 @@ func NormalizeCustomerConfig(dsType model.DataSourceType, raw []byte) ([]byte, b
 		return normalized, true, err
 	case model.DataSourceTypeMongoDB:
 		normalized, err := normalizeCustomerConfigPayload[customerMongoDBConfig](raw)
+		return normalized, true, err
+	case model.DataSourceTypeStripe:
+		normalized, err := normalizeCustomerConfigPayload[stripe.Config](raw)
 		return normalized, true, err
 	case model.DataSourceTypeHubSpot:
 		normalized, err := normalizeCustomerConfigPayload[customerHubSpotConfig](raw)

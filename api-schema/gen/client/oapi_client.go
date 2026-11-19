@@ -508,6 +508,36 @@ func (e CreateSnowflakeDataSourceRequestType) Valid() bool {
 	}
 }
 
+// Defines values for CreateStripeDataSourceRequestReadOnly.
+const (
+	CreateStripeDataSourceRequestReadOnlyTrue CreateStripeDataSourceRequestReadOnly = true
+)
+
+// Valid indicates whether the value is a known member of the CreateStripeDataSourceRequestReadOnly enum.
+func (e CreateStripeDataSourceRequestReadOnly) Valid() bool {
+	switch e {
+	case CreateStripeDataSourceRequestReadOnlyTrue:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for CreateStripeDataSourceRequestType.
+const (
+	CreateStripeDataSourceRequestTypeStripe CreateStripeDataSourceRequestType = "stripe"
+)
+
+// Valid indicates whether the value is a known member of the CreateStripeDataSourceRequestType enum.
+func (e CreateStripeDataSourceRequestType) Valid() bool {
+	switch e {
+	case CreateStripeDataSourceRequestTypeStripe:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for CredentialKind.
 const (
 	Oauth2Grant  CredentialKind = "oauth2_grant"
@@ -628,6 +658,7 @@ const (
 	DataSourceTypePostgres        DataSourceType = "postgres"
 	DataSourceTypeS3              DataSourceType = "s3"
 	DataSourceTypeSnowflake       DataSourceType = "snowflake"
+	DataSourceTypeStripe          DataSourceType = "stripe"
 )
 
 // Valid indicates whether the value is a known member of the DataSourceType enum.
@@ -658,6 +689,8 @@ func (e DataSourceType) Valid() bool {
 	case DataSourceTypeS3:
 		return true
 	case DataSourceTypeSnowflake:
+		return true
+	case DataSourceTypeStripe:
 		return true
 	default:
 		return false
@@ -3034,6 +3067,7 @@ const (
 	PipelineQueryRefOperationTypeS3              PipelineQueryRefOperationType = "s3"
 	PipelineQueryRefOperationTypeSnowflake       PipelineQueryRefOperationType = "snowflake"
 	PipelineQueryRefOperationTypeSql             PipelineQueryRefOperationType = "sql"
+	PipelineQueryRefOperationTypeStripe          PipelineQueryRefOperationType = "stripe"
 )
 
 // Valid indicates whether the value is a known member of the PipelineQueryRefOperationType enum.
@@ -3058,6 +3092,8 @@ func (e PipelineQueryRefOperationType) Valid() bool {
 	case PipelineQueryRefOperationTypeSnowflake:
 		return true
 	case PipelineQueryRefOperationTypeSql:
+		return true
+	case PipelineQueryRefOperationTypeStripe:
 		return true
 	default:
 		return false
@@ -5955,6 +5991,7 @@ const (
 	StartProviderDataSourceInstallRequestTypeBigquery        StartProviderDataSourceInstallRequestType = "bigquery"
 	StartProviderDataSourceInstallRequestTypeGoogleWorkspace StartProviderDataSourceInstallRequestType = "google_workspace"
 	StartProviderDataSourceInstallRequestTypeHubspot         StartProviderDataSourceInstallRequestType = "hubspot"
+	StartProviderDataSourceInstallRequestTypeStripe          StartProviderDataSourceInstallRequestType = "stripe"
 )
 
 // Valid indicates whether the value is a known member of the StartProviderDataSourceInstallRequestType enum.
@@ -5965,6 +6002,80 @@ func (e StartProviderDataSourceInstallRequestType) Valid() bool {
 	case StartProviderDataSourceInstallRequestTypeGoogleWorkspace:
 		return true
 	case StartProviderDataSourceInstallRequestTypeHubspot:
+		return true
+	case StartProviderDataSourceInstallRequestTypeStripe:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for StripeConfigMode.
+const (
+	StripeConfigModeLive StripeConfigMode = "live"
+	StripeConfigModeTest StripeConfigMode = "test"
+)
+
+// Valid indicates whether the value is a known member of the StripeConfigMode enum.
+func (e StripeConfigMode) Valid() bool {
+	switch e {
+	case StripeConfigModeLive:
+		return true
+	case StripeConfigModeTest:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for StripeStatementObjectType.
+const (
+	StripeStatementObjectTypeCustomers     StripeStatementObjectType = "customers"
+	StripeStatementObjectTypeInvoices      StripeStatementObjectType = "invoices"
+	StripeStatementObjectTypePayments      StripeStatementObjectType = "payments"
+	StripeStatementObjectTypeSubscriptions StripeStatementObjectType = "subscriptions"
+)
+
+// Valid indicates whether the value is a known member of the StripeStatementObjectType enum.
+func (e StripeStatementObjectType) Valid() bool {
+	switch e {
+	case StripeStatementObjectTypeCustomers:
+		return true
+	case StripeStatementObjectTypeInvoices:
+		return true
+	case StripeStatementObjectTypePayments:
+		return true
+	case StripeStatementObjectTypeSubscriptions:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for StripeStatementOperation.
+const (
+	StripeStatementOperationList StripeStatementOperation = "list"
+)
+
+// Valid indicates whether the value is a known member of the StripeStatementOperation enum.
+func (e StripeStatementOperation) Valid() bool {
+	switch e {
+	case StripeStatementOperationList:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for StripeStatementType.
+const (
+	StripeStatementTypeStripe StripeStatementType = "stripe"
+)
+
+// Valid indicates whether the value is a known member of the StripeStatementType enum.
+func (e StripeStatementType) Valid() bool {
+	switch e {
+	case StripeStatementTypeStripe:
 		return true
 	default:
 		return false
@@ -6169,6 +6280,21 @@ const (
 func (e TestSnowflakeDataSourceConnectionRequestType) Valid() bool {
 	switch e {
 	case TestSnowflakeDataSourceConnectionRequestTypeSnowflake:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for TestStripeDataSourceConnectionRequestType.
+const (
+	TestStripeDataSourceConnectionRequestTypeStripe TestStripeDataSourceConnectionRequestType = "stripe"
+)
+
+// Valid indicates whether the value is a known member of the TestStripeDataSourceConnectionRequestType enum.
+func (e TestStripeDataSourceConnectionRequestType) Valid() bool {
+	switch e {
+	case TestStripeDataSourceConnectionRequestTypeStripe:
 		return true
 	default:
 		return false
@@ -9098,6 +9224,30 @@ type CreateSnowflakeDataSourceRequest struct {
 
 // CreateSnowflakeDataSourceRequestType defines model for CreateSnowflakeDataSourceRequest.Type.
 type CreateSnowflakeDataSourceRequestType string
+
+// CreateStripeDataSourceRequest defines model for CreateStripeDataSourceRequest.
+type CreateStripeDataSourceRequest struct {
+	Config      StripeConfig      `json:"config"`
+	Credentials StripeCredentials `json:"credentials"`
+
+	// Name Human-readable display name
+	//
+	// Example: Acme Corp
+	Name Name `json:"name"`
+
+	// ReadOnly Stripe sources are read-only.
+	ReadOnly *CreateStripeDataSourceRequestReadOnly `json:"read_only,omitempty"`
+
+	// Slug Optional slug (auto-generated from name if not provided using lowercase and hyphens; if collision occurs, a random suffix is appended)
+	Slug *Slug                             `json:"slug,omitempty"`
+	Type CreateStripeDataSourceRequestType `json:"type"`
+}
+
+// CreateStripeDataSourceRequestReadOnly Stripe sources are read-only.
+type CreateStripeDataSourceRequestReadOnly bool
+
+// CreateStripeDataSourceRequestType defines model for CreateStripeDataSourceRequest.Type.
+type CreateStripeDataSourceRequestType string
 
 // CredentialKind Credential storage and runtime resolution kind
 //
@@ -18294,6 +18444,41 @@ type StartProviderDataSourceInstallRequest_Config struct {
 // StartProviderDataSourceInstallRequestType Provider-backed data source type
 type StartProviderDataSourceInstallRequestType string
 
+// StripeConfig defines model for StripeConfig.
+type StripeConfig struct {
+	// Mode Stripe environment of the restricted key.
+	Mode StripeConfigMode `json:"mode"`
+}
+
+// StripeConfigMode Stripe environment of the restricted key.
+type StripeConfigMode string
+
+// StripeCredentials defines model for StripeCredentials.
+type StripeCredentials struct {
+	// ApiKey Restricted key for the selected Stripe mode with read access to the supported objects.
+	ApiKey *string `json:"api_key,omitempty"`
+}
+
+// StripeStatement Read one page of Stripe revenue records.
+type StripeStatement struct {
+	Limit      *int                      `json:"limit,omitempty"`
+	ObjectType StripeStatementObjectType `json:"object_type"`
+	Operation  *StripeStatementOperation `json:"operation,omitempty"`
+
+	// StartingAfter Continue after this Stripe object ID.
+	StartingAfter *string             `json:"starting_after,omitempty"`
+	Type          StripeStatementType `json:"type"`
+}
+
+// StripeStatementObjectType defines model for StripeStatement.ObjectType.
+type StripeStatementObjectType string
+
+// StripeStatementOperation defines model for StripeStatement.Operation.
+type StripeStatementOperation string
+
+// StripeStatementType defines model for StripeStatement.Type.
+type StripeStatementType string
+
 // SuccessfulRunRecency State calculated at evaluated_at from retained exact-deployment success evidence; this read does not create notifications.
 type SuccessfulRunRecency struct {
 	// CapabilityEnabled Server support for successful-run recency, separate from the expectation's enabled state.
@@ -18525,6 +18710,16 @@ type TestSnowflakeDataSourceConnectionRequest struct {
 
 // TestSnowflakeDataSourceConnectionRequestType defines model for TestSnowflakeDataSourceConnectionRequest.Type.
 type TestSnowflakeDataSourceConnectionRequestType string
+
+// TestStripeDataSourceConnectionRequest defines model for TestStripeDataSourceConnectionRequest.
+type TestStripeDataSourceConnectionRequest struct {
+	Config      StripeConfig                              `json:"config"`
+	Credentials StripeCredentials                         `json:"credentials"`
+	Type        TestStripeDataSourceConnectionRequestType `json:"type"`
+}
+
+// TestStripeDataSourceConnectionRequestType defines model for TestStripeDataSourceConnectionRequest.Type.
+type TestStripeDataSourceConnectionRequestType string
 
 // Timestamp Example: 2025-10-04T12:34:56Z
 type Timestamp = time.Time
@@ -21505,6 +21700,40 @@ func (t *CreateDataSourceRequest) MergeCreateS3DataSourceRequest(v CreateS3DataS
 	return err
 }
 
+// AsCreateStripeDataSourceRequest returns the union data inside the CreateDataSourceRequest as a CreateStripeDataSourceRequest
+func (t CreateDataSourceRequest) AsCreateStripeDataSourceRequest() (CreateStripeDataSourceRequest, error) {
+	var body CreateStripeDataSourceRequest
+	err := json.Unmarshal(t.union, &body)
+	return body, err
+}
+
+// FromCreateStripeDataSourceRequest overwrites any union data inside the CreateDataSourceRequest as the provided CreateStripeDataSourceRequest
+func (t *CreateDataSourceRequest) FromCreateStripeDataSourceRequest(v CreateStripeDataSourceRequest) error {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+	b, err = runtime.JSONMerge(b, []byte(`{"type":"stripe"}`))
+	t.union = b
+	return err
+}
+
+// MergeCreateStripeDataSourceRequest performs a merge with any union data inside the CreateDataSourceRequest, using the provided CreateStripeDataSourceRequest
+func (t *CreateDataSourceRequest) MergeCreateStripeDataSourceRequest(v CreateStripeDataSourceRequest) error {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+	b, err = runtime.JSONMerge(b, []byte(`{"type":"stripe"}`))
+	if err != nil {
+		return err
+	}
+
+	merged, err := runtime.JSONMerge(t.union, b)
+	t.union = merged
+	return err
+}
+
 func (t CreateDataSourceRequest) Discriminator() (string, error) {
 	var discriminator struct {
 		Discriminator string `json:"type"`
@@ -21543,6 +21772,8 @@ func (t CreateDataSourceRequest) ValueByDiscriminator() (interface{}, error) {
 		return t.AsCreateS3DataSourceRequest()
 	case "snowflake":
 		return t.AsCreateSnowflakeDataSourceRequest()
+	case "stripe":
+		return t.AsCreateStripeDataSourceRequest()
 	default:
 		return nil, errors.New("unknown discriminator value: " + discriminator)
 	}
@@ -21886,6 +22117,32 @@ func (t *DataSource_Config) FromS3Config(v S3Config) error {
 
 // MergeS3Config performs a merge with any union data inside the DataSource_Config, using the provided S3Config
 func (t *DataSource_Config) MergeS3Config(v S3Config) error {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+
+	merged, err := runtime.JSONMerge(t.union, b)
+	t.union = merged
+	return err
+}
+
+// AsStripeConfig returns the union data inside the DataSource_Config as a StripeConfig
+func (t DataSource_Config) AsStripeConfig() (StripeConfig, error) {
+	var body StripeConfig
+	err := json.Unmarshal(t.union, &body)
+	return body, err
+}
+
+// FromStripeConfig overwrites any union data inside the DataSource_Config as the provided StripeConfig
+func (t *DataSource_Config) FromStripeConfig(v StripeConfig) error {
+	b, err := json.Marshal(v)
+	t.union = b
+	return err
+}
+
+// MergeStripeConfig performs a merge with any union data inside the DataSource_Config, using the provided StripeConfig
+func (t *DataSource_Config) MergeStripeConfig(v StripeConfig) error {
 	b, err := json.Marshal(v)
 	if err != nil {
 		return err
@@ -22244,6 +22501,32 @@ func (t *DataSourceConfig) MergeS3Config(v S3Config) error {
 	return err
 }
 
+// AsStripeConfig returns the union data inside the DataSourceConfig as a StripeConfig
+func (t DataSourceConfig) AsStripeConfig() (StripeConfig, error) {
+	var body StripeConfig
+	err := json.Unmarshal(t.union, &body)
+	return body, err
+}
+
+// FromStripeConfig overwrites any union data inside the DataSourceConfig as the provided StripeConfig
+func (t *DataSourceConfig) FromStripeConfig(v StripeConfig) error {
+	b, err := json.Marshal(v)
+	t.union = b
+	return err
+}
+
+// MergeStripeConfig performs a merge with any union data inside the DataSourceConfig, using the provided StripeConfig
+func (t *DataSourceConfig) MergeStripeConfig(v StripeConfig) error {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+
+	merged, err := runtime.JSONMerge(t.union, b)
+	t.union = merged
+	return err
+}
+
 func (t DataSourceConfig) MarshalJSON() ([]byte, error) {
 	b, err := t.union.MarshalJSON()
 	return b, err
@@ -22504,6 +22787,32 @@ func (t *DataSourceCredentials) FromS3Credentials(v S3Credentials) error {
 
 // MergeS3Credentials performs a merge with any union data inside the DataSourceCredentials, using the provided S3Credentials
 func (t *DataSourceCredentials) MergeS3Credentials(v S3Credentials) error {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+
+	merged, err := runtime.JSONMerge(t.union, b)
+	t.union = merged
+	return err
+}
+
+// AsStripeCredentials returns the union data inside the DataSourceCredentials as a StripeCredentials
+func (t DataSourceCredentials) AsStripeCredentials() (StripeCredentials, error) {
+	var body StripeCredentials
+	err := json.Unmarshal(t.union, &body)
+	return body, err
+}
+
+// FromStripeCredentials overwrites any union data inside the DataSourceCredentials as the provided StripeCredentials
+func (t *DataSourceCredentials) FromStripeCredentials(v StripeCredentials) error {
+	b, err := json.Marshal(v)
+	t.union = b
+	return err
+}
+
+// MergeStripeCredentials performs a merge with any union data inside the DataSourceCredentials, using the provided StripeCredentials
+func (t *DataSourceCredentials) MergeStripeCredentials(v StripeCredentials) error {
 	b, err := json.Marshal(v)
 	if err != nil {
 		return err
@@ -26715,6 +27024,40 @@ func (t *QueryStatement) MergeHubSpotStatement(v HubSpotStatement) error {
 	return err
 }
 
+// AsStripeStatement returns the union data inside the QueryStatement as a StripeStatement
+func (t QueryStatement) AsStripeStatement() (StripeStatement, error) {
+	var body StripeStatement
+	err := json.Unmarshal(t.union, &body)
+	return body, err
+}
+
+// FromStripeStatement overwrites any union data inside the QueryStatement as the provided StripeStatement
+func (t *QueryStatement) FromStripeStatement(v StripeStatement) error {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+	b, err = runtime.JSONMerge(b, []byte(`{"type":"stripe"}`))
+	t.union = b
+	return err
+}
+
+// MergeStripeStatement performs a merge with any union data inside the QueryStatement, using the provided StripeStatement
+func (t *QueryStatement) MergeStripeStatement(v StripeStatement) error {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+	b, err = runtime.JSONMerge(b, []byte(`{"type":"stripe"}`))
+	if err != nil {
+		return err
+	}
+
+	merged, err := runtime.JSONMerge(t.union, b)
+	t.union = merged
+	return err
+}
+
 // AsFTPStatement returns the union data inside the QueryStatement as a FTPStatement
 func (t QueryStatement) AsFTPStatement() (FTPStatement, error) {
 	var body FTPStatement
@@ -26853,6 +27196,8 @@ func (t QueryStatement) ValueByDiscriminator() (interface{}, error) {
 		return t.AsS3Statement()
 	case "snowflake":
 		return t.AsSnowflakeStatement()
+	case "stripe":
+		return t.AsStripeStatement()
 	default:
 		return nil, errors.New("unknown discriminator value: " + discriminator)
 	}
@@ -27398,6 +27743,32 @@ func (t *StartProviderDataSourceInstallRequest_Config) MergeGoogleWorkspacePendi
 	return err
 }
 
+// AsStripeConfig returns the union data inside the StartProviderDataSourceInstallRequest_Config as a StripeConfig
+func (t StartProviderDataSourceInstallRequest_Config) AsStripeConfig() (StripeConfig, error) {
+	var body StripeConfig
+	err := json.Unmarshal(t.union, &body)
+	return body, err
+}
+
+// FromStripeConfig overwrites any union data inside the StartProviderDataSourceInstallRequest_Config as the provided StripeConfig
+func (t *StartProviderDataSourceInstallRequest_Config) FromStripeConfig(v StripeConfig) error {
+	b, err := json.Marshal(v)
+	t.union = b
+	return err
+}
+
+// MergeStripeConfig performs a merge with any union data inside the StartProviderDataSourceInstallRequest_Config, using the provided StripeConfig
+func (t *StartProviderDataSourceInstallRequest_Config) MergeStripeConfig(v StripeConfig) error {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+
+	merged, err := runtime.JSONMerge(t.union, b)
+	t.union = merged
+	return err
+}
+
 func (t StartProviderDataSourceInstallRequest_Config) MarshalJSON() ([]byte, error) {
 	b, err := t.union.MarshalJSON()
 	return b, err
@@ -27816,6 +28187,40 @@ func (t *TestDataSourceConnectionRequest) MergeTestS3DataSourceConnectionRequest
 	return err
 }
 
+// AsTestStripeDataSourceConnectionRequest returns the union data inside the TestDataSourceConnectionRequest as a TestStripeDataSourceConnectionRequest
+func (t TestDataSourceConnectionRequest) AsTestStripeDataSourceConnectionRequest() (TestStripeDataSourceConnectionRequest, error) {
+	var body TestStripeDataSourceConnectionRequest
+	err := json.Unmarshal(t.union, &body)
+	return body, err
+}
+
+// FromTestStripeDataSourceConnectionRequest overwrites any union data inside the TestDataSourceConnectionRequest as the provided TestStripeDataSourceConnectionRequest
+func (t *TestDataSourceConnectionRequest) FromTestStripeDataSourceConnectionRequest(v TestStripeDataSourceConnectionRequest) error {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+	b, err = runtime.JSONMerge(b, []byte(`{"type":"stripe"}`))
+	t.union = b
+	return err
+}
+
+// MergeTestStripeDataSourceConnectionRequest performs a merge with any union data inside the TestDataSourceConnectionRequest, using the provided TestStripeDataSourceConnectionRequest
+func (t *TestDataSourceConnectionRequest) MergeTestStripeDataSourceConnectionRequest(v TestStripeDataSourceConnectionRequest) error {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+	b, err = runtime.JSONMerge(b, []byte(`{"type":"stripe"}`))
+	if err != nil {
+		return err
+	}
+
+	merged, err := runtime.JSONMerge(t.union, b)
+	t.union = merged
+	return err
+}
+
 func (t TestDataSourceConnectionRequest) Discriminator() (string, error) {
 	var discriminator struct {
 		Discriminator string `json:"type"`
@@ -27854,6 +28259,8 @@ func (t TestDataSourceConnectionRequest) ValueByDiscriminator() (interface{}, er
 		return t.AsTestS3DataSourceConnectionRequest()
 	case "snowflake":
 		return t.AsTestSnowflakeDataSourceConnectionRequest()
+	case "stripe":
+		return t.AsTestStripeDataSourceConnectionRequest()
 	default:
 		return nil, errors.New("unknown discriminator value: " + discriminator)
 	}

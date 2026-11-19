@@ -83,6 +83,8 @@ linters:
               desc: frontend must not depend on backend provider or tooling internals
             - pkg: github.com/Braidplane/braidplane-core/pkg/googleworkspace
               desc: frontend must not depend on backend provider or tooling internals
+            - pkg: github.com/Braidplane/braidplane-core/pkg/stripeoauth
+              desc: frontend must not depend on backend provider or tooling internals
             - pkg: github.com/Braidplane/braidplane-core/pkg/hubspot
               desc: frontend must not depend on backend provider or tooling internals
             - pkg: github.com/Braidplane/braidplane-core/operatorcapability
@@ -162,6 +164,8 @@ linters:
             - pkg: github.com/Braidplane/braidplane-core/pkg/googleoauth
               desc: frontend must not depend on backend provider or tooling internals
             - pkg: github.com/Braidplane/braidplane-core/pkg/googleworkspace
+              desc: frontend must not depend on backend provider or tooling internals
+            - pkg: github.com/Braidplane/braidplane-core/pkg/stripeoauth
               desc: frontend must not depend on backend provider or tooling internals
             - pkg: github.com/Braidplane/braidplane-core/pkg/hubspot
               desc: frontend must not depend on backend provider or tooling internals
@@ -253,6 +257,8 @@ linters:
             - "${base-path}/service/datasourcessvc/connector/**/client/**/*.go"
             - "${base-path}/pkg/gitprovider/*.go"
             - "${base-path}/pkg/gitprovider/**/*.go"
+            - "${base-path}/pkg/stripeoauth/*.go"
+            - "${base-path}/pkg/stripeoauth/**/*.go"
             - "${base-path}/pkg/hubspot/*.go"
             - "${base-path}/pkg/hubspot/**/*.go"
             - "${base-path}/pkg/googleoauth/*.go"
@@ -412,6 +418,8 @@ linters:
             - "${base-path}/pkg/httpsecurity/**/*.go"
             - "${base-path}/pkg/httpsecurity/*.go"
             - "${base-path}/pkg/hubspot/**/*.go"
+            - "${base-path}/pkg/stripeoauth/*.go"
+            - "${base-path}/pkg/stripeoauth/**/*.go"
             - "${base-path}/pkg/hubspot/*.go"
             - "${base-path}/pkg/i18n/**/*.go"
             - "${base-path}/pkg/i18n/*.go"
@@ -520,6 +528,8 @@ linters:
             - "${base-path}/pkg/httpsecurity/**/*.go"
             - "${base-path}/pkg/httpsecurity/*.go"
             - "${base-path}/pkg/hubspot/**/*.go"
+            - "${base-path}/pkg/stripeoauth/*.go"
+            - "${base-path}/pkg/stripeoauth/**/*.go"
             - "${base-path}/pkg/hubspot/*.go"
             - "${base-path}/pkg/i18n/**/*.go"
             - "${base-path}/pkg/i18n/*.go"

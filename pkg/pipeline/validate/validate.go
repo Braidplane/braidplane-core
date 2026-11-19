@@ -1605,7 +1605,7 @@ func queryOutputFacets(
 			return model.ContractRepresentationFile, model.ContractRootShapeUnknown
 		}
 		return model.ContractRepresentationRows, model.ContractRootShapeUnknown
-	case "", "hubspot":
+	case "", "hubspot", "stripe":
 		return model.ContractRepresentationRows, model.ContractRootShapeUnknown
 	case "google_workspace":
 		if query.OperationRef != "" {

@@ -115,6 +115,7 @@ templ DataSourcesPageContent(dataSources []api.DataSource, summaryDataSources []
 							<option value="mongodb" selected?={ formData.Type == "mongodb" }>MongoDB</option>
 							<option value="s3" selected?={ formData.Type == "s3" }>S3-compatible storage</option>
 							<option value="http" selected?={ formData.Type == "http" }>HTTP</option>
+							<option value="stripe" selected?={ formData.Type == "stripe" }>Stripe</option>
 							<option value="hubspot" selected?={ formData.Type == "hubspot" }>HubSpot</option>
 							<option value="git" selected?={ formData.Type == "git" }>Git</option>
 							<option value="github" selected?={ formData.Type == "github" }>GitHub</option>
@@ -156,6 +157,30 @@ templ DataSourcesPageContent(dataSources []api.DataSource, summaryDataSources []
 							<button class="btn btn-primary btn-sm" type="submit" formaction={ templ.URL("/orgs/" + orgSlug + "/data-sources/google_workspace/oauth") } formmethod="post" formnovalidate hx-post={ "/orgs/" + orgSlug + "/data-sources/google_workspace/oauth" } hx-target="#create-data-source" hx-select="#create-data-source" hx-swap="outerHTML">Connect Google</button>
 						</div>
 					</div>
+					<label class="form-control w-full" data-ds-fields="stripe">
+						<span class="label-text text-xs">Stripe mode</span>
+						<select class="select select-bordered select-sm w-full" name="stripe_mode">
+							<option value="test" selected?={ formData.StripeMode != "live" }>Test</option>
+							<option value="live" selected?={ formData.StripeMode == "live" }>Live</option>
+						</select>
+					</label>
+					<label class="form-control w-full" data-ds-fields="stripe">
+						<span class="label-text text-xs">Authentication</span>
+						<select class="select select-bordered select-sm w-full" name="stripe_auth_type" data-provider-auth-select="stripe">
+							<option value="restricted_key" selected?={ formData.StripeAuthType != "oauth2" }>Restricted API key</option>
+							<option value="oauth2" selected?={ formData.StripeAuthType == "oauth2" }>Connect with Stripe (OAuth)</option>
+						</select>
+					</label>
+					<div class="space-y-2 md:col-span-2 xl:col-span-3" data-ds-fields="stripe" data-provider="stripe" data-provider-auth-fields="oauth2">
+						<p class="text-xs text-base-content/70">Choose your Stripe account and approve read-only access.</p>
+						@OAuthCallbackTimeOption(formData.MoreTime)
+						<button class="btn btn-primary btn-sm" type="submit" formnovalidate formaction={ templ.URL(dataSourceMutationHref(orgSlug, activeEnvironmentSlug, "", "stripe/oauth")) } hx-post={ dataSourceMutationHref(orgSlug, activeEnvironmentSlug, "", "stripe/oauth") } hx-target="#create-data-source" hx-select="#create-data-source" hx-swap="outerHTML">Connect with Stripe</button>
+					</div>
+					<label class="form-control w-full" data-ds-fields="stripe" data-provider="stripe" data-provider-auth-fields="restricted_key">
+						<span class="label-text text-xs">Restricted API key</span>
+						<input class="input input-bordered input-sm w-full" type="password" name="stripe_api_key" id="data-source-create-stripe-key" data-required-for="stripe" autocomplete="off" hx-preserve/>
+						<span class="label-text-alt">Grant read access to customers, subscriptions, invoices and PaymentIntents in the selected mode.</span>
+					</label>
 					<label class="form-control w-full md:col-span-2 xl:col-span-3" data-ds-fields="hubspot">
 						<div class="label py-1">
 							<span class="label-text text-xs">Authentication</span>
@@ -524,7 +549,7 @@ templ DataSourcesPageContent(dataSources []api.DataSource, summaryDataSources []
 			}
 			<div
 				class={ "mt-4 flex flex-col gap-2 sm:flex-row sm:items-center" + func() string {
-				if formData.Type == "" || formData.Type == "bigquery" || (formData.Type == "github" && !formData.GitHubConnectionAvailable) || (formData.Type == "hubspot" && formData.HubSpotAuthType != "private_app") || (formData.Type == "gitlab" && !formData.GitLabConnectionAvailable) {
+				if formData.Type == "" || formData.Type == "bigquery" || (formData.Type == "stripe" && formData.StripeAuthType == "oauth2") || (formData.Type == "github" && !formData.GitHubConnectionAvailable) || (formData.Type == "hubspot" && formData.HubSpotAuthType != "private_app") || (formData.Type == "gitlab" && !formData.GitLabConnectionAvailable) {
 		return " hidden"
 	}
 	return ""
@@ -532,7 +557,7 @@ templ DataSourcesPageContent(dataSources []api.DataSource, summaryDataSources []
 				data-ds-requires-type
 				data-static-data-source-actions
 			>
-				<button class="btn btn-outline btn-sm" type="submit" data-ds-fields="postgres,mysql,snowflake,mongodb,http,hubspot,ftp,git,s3" formaction={ templ.URL(DataSourceCreateTestHref(orgSlug, activeEnvironmentSlug)) } hx-post={ DataSourceCreateTestHref(orgSlug, activeEnvironmentSlug) } hx-target="#create-data-source" hx-select="#create-data-source" hx-swap="outerHTML">Test connection</button>
+				<button class="btn btn-outline btn-sm" type="submit" data-ds-fields="postgres,mysql,snowflake,mongodb,http,hubspot,stripe,ftp,git,s3" formaction={ templ.URL(DataSourceCreateTestHref(orgSlug, activeEnvironmentSlug)) } hx-post={ DataSourceCreateTestHref(orgSlug, activeEnvironmentSlug) } hx-target="#create-data-source" hx-select="#create-data-source" hx-swap="outerHTML">Test connection</button>
 				<button class="btn btn-primary btn-sm" type="submit" hx-post={ DataSourceCreateHref(orgSlug, activeEnvironmentSlug) } hx-target="#create-data-source" hx-select="#create-data-source" hx-swap="outerHTML">Create data source</button>
 				<span class="text-xs text-base-content/70">Creation saves the source; OAuth apps must then be connected from Settings.</span>
 			</div>

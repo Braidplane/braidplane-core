@@ -959,6 +959,16 @@ func (s *service) finalizeOAuthCallback(
 	if err := validateOAuthGrantIntentState(install, intentState); err != nil {
 		return CompleteOAuthCallbackResult{}, err
 	}
+	if stripeOAuthMode(params.Provider) != "" && intentState.HasGrant {
+		current, err := s.repo.FindOAuthGrant(ctx, tx, toRepoResolveParams(ResolveRuntimeCredentialParams{Owner: install.Owner}))
+		if err != nil {
+			return CompleteOAuthCallbackResult{}, err
+		}
+		previous := fromRepoCredentialGrant(current)
+		if previous.Provider != params.Provider || previous.Account.ID != grant.Account.ID {
+			return CompleteOAuthCallbackResult{}, ErrOAuthIntentConflict.Detail("Stripe reconnect must authorize the same account and mode")
+		}
+	}
 	if params.Provider == "google_workspace" {
 		if params.FinalizeWorkspace == nil {
 			return CompleteOAuthCallbackResult{}, ErrInvalidInput.Detail("Workspace callback requires source verification")
@@ -990,7 +1000,10 @@ func validateOAuthGrantIntentState(
 	install CredentialInstall,
 	state repocredentials.OAuthGrantIntentState,
 ) error {
-	if install.Provider == "http" && (install.ExpectedSourceRevision == nil || *install.ExpectedSourceRevision != state.SourceRevision || install.ExpectedCredentialSlug != state.CredentialSlug) {
+	if mode := stripeOAuthMode(install.Provider); mode != "" && (state.SourceType != "stripe" || state.SourceMode != mode) {
+		return ErrOAuthIntentConflict
+	}
+	if (install.Provider == "http" || stripeOAuthMode(install.Provider) != "") && (install.ExpectedSourceRevision == nil || *install.ExpectedSourceRevision != state.SourceRevision || install.ExpectedCredentialSlug != state.CredentialSlug) {
 		return ErrOAuthIntentConflict
 	}
 	if install.Intent == OAuthInstallIntentRotate {
@@ -1023,6 +1036,18 @@ func (s *service) startOAuthInstall(
 	}
 	if params.Owner.Kind != CredentialOwnerKindNotificationConnection && params.Provider == "slack" {
 		return ProviderConnectorInstall{}, ErrInvalidInput.Detail("Slack OAuth requires a notification connection")
+	}
+	if mode := stripeOAuthMode(params.Provider); mode != "" {
+		if params.Owner.Kind != CredentialOwnerKindDataSource || params.IncludeWriteScopes {
+			return ProviderConnectorInstall{}, ErrInvalidInput.Detail("Stripe OAuth requires a read-only data source")
+		}
+		source, err := s.repo.LockOAuthGrantIntent(ctx, tx, toRepoResolveParams(ResolveRuntimeCredentialParams{Owner: params.Owner}))
+		if err != nil {
+			return ProviderConnectorInstall{}, err
+		}
+		if source.SourceType != "stripe" || source.SourceMode != mode {
+			return ProviderConnectorInstall{}, ErrInvalidInput.Detail("Stripe OAuth provider must match the source mode")
+		}
 	}
 	if params.AccessMode != "" && params.Provider != "google_workspace" {
 		return ProviderConnectorInstall{}, ErrInvalidInput.Detail("OAuth file access mode is only supported by Google Workspace")
@@ -1153,7 +1178,7 @@ func (s *service) resolveGrant(
 
 	now := s.now()
 	refreshBefore := now
-	if grant.Provider == "http" {
+	if grant.Provider == "http" || stripeOAuthMode(grant.Provider) != "" {
 		refreshBefore = now.Add(30 * time.Second)
 	}
 	if grant.AccessTokenExpires.IsZero() || grant.AccessTokenExpires.After(refreshBefore) {
@@ -1230,6 +1255,9 @@ func (s *service) refreshGrantUnlocked(
 		}
 		return CredentialGrant{}, ErrProviderUnavailable.With(err)
 	}
+	if stripeOAuthMode(grant.Provider) != "" && (refreshed.Account.ID == "" || refreshed.Account.ID != tokenSet.Account.ID) {
+		return CredentialGrant{}, ErrOAuthIntentConflict.Detail("Stripe refresh returned a different account")
+	}
 	if refreshed.RefreshToken == "" {
 		refreshed.RefreshToken = tokenSet.RefreshToken
 	}
@@ -1273,6 +1301,9 @@ func (s *service) grantFromTokenSet(
 ) (CredentialGrant, error) {
 	if err := validateOAuthOwner(owner); err != nil {
 		return CredentialGrant{}, err
+	}
+	if stripeOAuthMode(provider) != "" && (tokenSet.Account.ID == "" || tokenSet.AccessToken == "" || tokenSet.RefreshToken == "" || tokenSet.ExpiresAt.IsZero()) {
+		return CredentialGrant{}, ErrInvalidInput.Detail("Stripe returned an incomplete OAuth grant")
 	}
 	payload, err := marshalOAuthTokenSet(tokenSet)
 	if err != nil {

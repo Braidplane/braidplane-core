@@ -1,0 +1,31 @@
+meta {
+  name: 06 Execute Stripe invoice query
+  type: http
+  seq: 33.6
+}
+
+post {
+  url: {{baseUrl}}/organizations/{{orgSlug}}/data-sources/{{stripeSourceSlug}}/queries/{{stripeQuerySlug}}/execute
+  body: json
+  auth: inherit
+}
+
+body:json {
+  {
+    "parameters": {}
+  }
+}
+
+tests {
+  test("Execute Stripe invoice query", function() {
+    expect(res.status).to.equal(200);
+    expect(res.body.success).to.equal(true);
+    expect(res.body.result_type).to.equal("object_rows");
+    expect(res.body.type).to.equal("stripe");
+    const result = res.body.payload;
+    expect(result.object_type).to.equal("invoices");
+    expect(result.row_count).to.equal(1);
+    expect(result.rows).to.have.length(1);
+    expect(result.rows[0]).to.include({id: "in_1Pgc6tB7WZ01zgkWu9fdqL6I", amount_due: 1000, currency: "usd", livemode: false});
+  });
+}

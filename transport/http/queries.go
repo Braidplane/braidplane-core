@@ -21,6 +21,7 @@ import (
 	"github.com/Braidplane/braidplane-core/pkg/ptr"
 	"github.com/Braidplane/braidplane-core/pkg/slug"
 	"github.com/Braidplane/braidplane-core/pkg/xerror"
+	stripeconnector "github.com/Braidplane/braidplane-core/service/datasourcessvc/connector/stripe"
 	"github.com/Braidplane/braidplane-core/service/queriessvc"
 )
 
@@ -635,6 +636,9 @@ func buildQueryData(
 	}
 	if err := json.Unmarshal(stmtJSON, &discriminator); err != nil {
 		return nil, xerror.ValidationFailed().With(err)
+	}
+	if discriminator.Type == "stripe" && !stripeconnector.IsReadStatement(stmtJSON) {
+		return nil, xerror.InvalidInput(xerror.Query).Detail("invalid Stripe list statement, object, cursor or limit")
 	}
 	if discriminator.Type == "google_workspace" {
 		if _, err := workspace.DecodeStatement(stmtJSON); err != nil {

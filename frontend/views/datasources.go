@@ -61,6 +61,8 @@ type DataSourceCreateFormData struct {
 	GitHubRepositories          []api.GitHubAppRepository
 	GitHubConnectionAvailable   bool
 	GitHubReadOnly              bool
+	StripeAuthType              string
+	StripeMode                  string
 	HubSpotAuthType             string
 	HubSpotReadOnly             bool
 	SnowflakeAuthType           string
@@ -265,7 +267,7 @@ func DataSourceProviderOAuthIntent(dataSource api.DataSource) api.ProviderInstal
 
 // CanStartDataSourceProviderOAuth applies create permission only to trusted pending grants and update otherwise.
 func CanStartDataSourceProviderOAuth(dataSource api.DataSource, permissions OrganizationPermissions) bool {
-	if dataSource.Type != api.DataSourceTypeHubspot && dataSource.Type != api.DataSourceTypeBigquery && dataSource.Type != api.DataSourceTypeGoogleWorkspace {
+	if dataSource.Type != api.DataSourceTypeStripe && dataSource.Type != api.DataSourceTypeHubspot && dataSource.Type != api.DataSourceTypeBigquery && dataSource.Type != api.DataSourceTypeGoogleWorkspace {
 		return false
 	}
 	if DataSourceProviderOAuthIntent(dataSource) == api.CreateGrant {
@@ -277,6 +279,9 @@ func CanStartDataSourceProviderOAuth(dataSource api.DataSource, permissions Orga
 // DataSourceProviderOAuthActionLabel describes the recovery or credential migration action.
 func DataSourceProviderOAuthActionLabel(dataSource api.DataSource) string {
 	label := "HubSpot"
+	if dataSource.Type == api.DataSourceTypeStripe {
+		label = "Stripe"
+	}
 	if dataSource.Type == api.DataSourceTypeHttp {
 		if dataSource.Credential != nil && dataSource.Credential.Status == api.CredentialStatusPending {
 			return "Connect HTTP API"
@@ -290,7 +295,7 @@ func DataSourceProviderOAuthActionLabel(dataSource api.DataSource) string {
 		if dataSource.Type == api.DataSourceTypeBigquery || dataSource.Type == api.DataSourceTypeGoogleWorkspace {
 			return "Connect with Google"
 		}
-		return "Connect HubSpot with OAuth"
+		return "Connect " + label + " with OAuth"
 	}
 	if dataSource.Credential.Kind != api.Oauth2Grant {
 		return "Switch to OAuth"

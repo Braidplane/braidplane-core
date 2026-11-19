@@ -12,6 +12,7 @@ import (
 	mongoconnector "github.com/Braidplane/braidplane-core/service/datasourcessvc/connector/mongo"
 	s3connector "github.com/Braidplane/braidplane-core/service/datasourcessvc/connector/s3"
 	sqlconnector "github.com/Braidplane/braidplane-core/service/datasourcessvc/connector/sql"
+	stripeconnector "github.com/Braidplane/braidplane-core/service/datasourcessvc/connector/stripe"
 )
 
 // schemaAdapter asserts the connector to the appropriate introspector interface,
@@ -37,6 +38,8 @@ func adapterForType(dsType model.DataSourceType) (schemaAdapter, error) {
 		return mongoAdapter{}, nil
 	case model.DataSourceTypeHTTP:
 		return httpAdapter{}, nil
+	case model.DataSourceTypeStripe:
+		return stripeAdapter{}, nil
 	case model.DataSourceTypeHubSpot:
 		return hubspotAdapter{}, nil
 	case model.DataSourceTypeFTP, model.DataSourceTypeGit,
@@ -142,6 +145,33 @@ func (hubspotAdapter) introspect(
 		return nil, err
 	}
 	return schemaFromHubSpot(dsType, schema)
+}
+
+type stripeAdapter struct{}
+
+func (stripeAdapter) introspect(ctx context.Context, conn connector.Connector, dsType model.DataSourceType) (SchemaResult, error) {
+	i, ok := conn.(stripeconnector.SchemaIntrospector)
+	if !ok {
+		return nil, ErrSchemaIntrospectionUnsupported
+	}
+	schema, err := i.IntrospectSchema(ctx)
+	if err != nil {
+		return nil, err
+	}
+	if schema == nil {
+		return nil, ErrSchemaIntrospectionUnsupported
+	}
+	objects := make([]SchemaObjectAPIObject, 0, len(schema.Objects))
+	for _, object := range schema.Objects {
+		fields := make([]SchemaObjectAPIField, 0, len(object.Properties))
+		for _, property := range object.Properties {
+			fields = append(fields, SchemaObjectAPIField{Name: property.Name, Type: property.Type})
+		}
+		objects = append(objects, SchemaObjectAPIObject{
+			Name: object.Name, Fields: fields, Operations: []SchemaObjectAPIOperation{{Name: "list"}},
+		})
+	}
+	return Schema[ObjectAPISchemaPayload]{SchemaTypeValue: SchemaTypeObjectAPI, Type: dsType.String(), Payload: ObjectAPISchemaPayload{Objects: objects}}, nil
 }
 
 type fileAdapter struct{}

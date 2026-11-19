@@ -3,6 +3,7 @@ package credentialssvc
 import (
 	"context"
 	"encoding/json"
+	"strings"
 	"time"
 
 	"github.com/Braidplane/braidplane-core/pkg/domain/model"
@@ -229,7 +230,23 @@ func httpOAuthError(err error) error {
 	return ErrProviderUnavailable
 }
 
+func stripeOAuthMode(provider string) string {
+	switch provider {
+	case "stripe_test", "stripe_live":
+		return strings.TrimPrefix(provider, "stripe_")
+	default:
+		return ""
+	}
+}
+
 func grantRuntimeCredential(grant CredentialGrant, tokens OAuthTokenSet) (RuntimeCredential, error) {
+	if mode := stripeOAuthMode(grant.Provider); mode != "" {
+		payload, err := json.Marshal(map[string]string{"access_token": tokens.AccessToken, "oauth_mode": mode})
+		if err != nil {
+			return RuntimeCredential{}, xerror.Unexpected().With(err)
+		}
+		return RuntimeCredential{Kind: CredentialKindOAuth2Grant, PlaintextJSON: payload}, nil
+	}
 	if grant.Provider == "slack" {
 		payload, err := json.Marshal(map[string]string{"webhook_url": tokens.SlackWebhookURL})
 		if err != nil {
@@ -253,9 +270,9 @@ func grantRuntimeCredential(grant CredentialGrant, tokens OAuthTokenSet) (Runtim
 	return RuntimeCredential{Kind: CredentialKindOAuth2Grant, PlaintextJSON: payload}, nil
 }
 
-// HTTP providers may rotate refresh tokens, so only one worker may exchange a stored token at a time.
+// HTTP and Stripe providers may rotate refresh tokens, so only one worker may exchange a stored token at a time.
 func (s *service) refreshGrant(ctx context.Context, grant CredentialGrant, now time.Time, actor model.EventActor) (CredentialGrant, error) {
-	if grant.Provider != "http" {
+	if grant.Provider != "http" && stripeOAuthMode(grant.Provider) == "" {
 		return s.refreshGrantUnlocked(ctx, grant, now, actor)
 	}
 	ctx, cancel := context.WithTimeout(postgres.WithoutTransaction(ctx), 65*time.Second)

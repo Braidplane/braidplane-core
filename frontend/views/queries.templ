@@ -269,6 +269,8 @@ templ QueriesPageContent(dataSources []api.DataSource, selectedDataSource string
 									<textarea class="textarea textarea-bordered min-h-24 w-full font-mono text-sm" name="mongo_document" placeholder="JSON object document" data-param-source-input>{ createFormData.MongoDocument }</textarea>
 								</label>
 							</div>
+						} else if selectedDataSourceType == "stripe" {
+							@stripeQueryFields(createFormData)
 						} else if selectedDataSourceType == "hubspot" {
 							<div class="rounded-lg border border-base-300 bg-base-200/40 p-3">
 								<p class="text-xs font-semibold uppercase tracking-wide text-base-content/70">HubSpot CRM</p>
@@ -755,4 +757,23 @@ templ queryRowLimit(id string, value string) {
 		<input class="input input-bordered input-sm w-full" id={ id } type="number" min="0" name="row_limit" value={ value } aria-describedby={ id + "-help" } required/>
 		<span class="label-text-alt" id={ id + "-help" }>0 uses the operator’s row policy.</span>
 	</div>
+}
+
+templ stripeQueryFields(form QueryEditorFormData) {
+	<label class="form-control w-full">
+		<span class="label-text text-xs">Stripe object</span>
+		<select class="select select-bordered select-sm w-full" name="stripe_object_type" required>
+			for _, obj := range []string{"customers", "subscriptions", "invoices", "payments"} {
+				<option value={ obj } selected?={ obj == form.StripeObjectType }>{ obj }</option>
+			}
+		</select>
+	</label>
+	<label class="form-control w-full">
+		<span class="label-text text-xs">Page size (1–100)</span>
+		<input class="input input-bordered input-sm w-full" type="number" min="1" max="100" name="stripe_limit" value={ form.StripeLimit }/>
+	</label>
+	<label class="form-control w-full">
+		<span class="label-text text-xs">Start after object ID (optional)</span>
+		<input class="input input-bordered input-sm w-full" type="text" name="stripe_starting_after" value={ form.StripeStartingAfter } data-param-source-input/>
+	</label>
 }

@@ -39,6 +39,7 @@ require (
 	github.com/riverqueue/river/rivertype v0.51.2
 	github.com/robfig/cron/v3 v3.0.1
 	github.com/santhosh-tekuri/jsonschema/v6 v6.0.3
+	github.com/stripe/stripe-go/v87 v87.2.0
 	github.com/stretchr/testify v1.12.1
 	github.com/wneessen/go-mail v0.7.2
 	github.com/xuri/excelize/v2 v2.11.1
@@ -119,6 +120,7 @@ require (
 	github.com/pkg/browser v0.0.0-20210911075715-681adbf594b8 // indirect
 	github.com/power-devops/perfstat v0.0.0-20240221224432-82ca36839d55 // indirect
 	github.com/shirou/gopsutil/v4 v4.26.6 // indirect
+	github.com/shopspring/decimal v1.5.0 // indirect
 	github.com/tinylib/msgp v1.6.4 // indirect
 	github.com/tklauser/go-sysconf v0.4.0 // indirect
 	github.com/tklauser/numcpus v0.12.0 // indirect

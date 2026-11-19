@@ -45,8 +45,8 @@ func (s *server) StartProviderDataSourceInstall(
 		return apierror.InvalidRequestBody()
 	}
 	dsType, err := model.DataSourceTypeString(string(req.Type))
-	if err != nil || provider != string(req.Type) || (dsType != model.DataSourceTypeHubSpot && dsType != model.DataSourceTypeGitlab && dsType != model.DataSourceTypeBigQuery && dsType != model.DataSourceTypeGoogleWorkspace) {
-		return apierror.ValidationFailed("Provider and data source type must both be hubspot, gitlab, bigquery, or google_workspace")
+	if err != nil || provider != string(req.Type) || (dsType != model.DataSourceTypeHubSpot && dsType != model.DataSourceTypeGitlab && dsType != model.DataSourceTypeBigQuery && dsType != model.DataSourceTypeGoogleWorkspace && dsType != model.DataSourceTypeStripe) {
+		return apierror.ValidationFailed("Provider and data source type must both be hubspot, gitlab, bigquery, google_workspace, or stripe")
 	}
 
 	var dsSlug slug.Slug
@@ -118,6 +118,12 @@ func (s *server) StartProviderConnectorInstall(
 	}
 	if provider != dataSource.Type.String() {
 		return apierror.ValidationFailed("Provider must match the data source type")
+	}
+	if dataSource.Type == model.DataSourceTypeStripe {
+		provider, err = datasourcessvc.StripeOAuthProvider(dataSource.Config)
+		if err != nil {
+			return mapServiceError(err)
+		}
 	}
 	accessMode := ""
 	if req.AccessMode != nil {

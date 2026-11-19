@@ -1,0 +1,17 @@
+meta {
+  name: 02 Test Stripe connection
+  type: http
+  seq: 33.2
+}
+
+post {
+  url: {{baseUrl}}/organizations/{{orgSlug}}/data-sources/{{stripeSourceSlug}}/test-connection
+  body: none
+  auth: inherit
+}
+
+tests {
+  test("Test Stripe connection", function() {
+    expect(res.status).to.equal(204);
+  });
+}

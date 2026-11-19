@@ -1,0 +1,44 @@
+meta {
+  name: 01 Create Stripe source
+  type: http
+  seq: 33.1
+}
+
+post {
+  url: {{baseUrl}}/organizations/{{orgSlug}}/data-sources
+  body: json
+  auth: inherit
+}
+
+body:json {
+  {
+    "name": "Stripe revenue",
+    "slug": "stripe-{{stripeRunId}}",
+    "type": "stripe",
+    "config": {
+      "mode": "test"
+    },
+    "credentials": {
+      "api_key": "rk_test_bruno"
+    },
+    "read_only": true
+  }
+}
+
+script:pre-request {
+  bru.setVar("stripeRunId", String(Date.now()));
+}
+
+script:post-response {
+  if (res.status === 201) bru.setVar("stripeSourceSlug", res.body.slug);
+}
+
+tests {
+  test("Create Stripe source", function() {
+    expect(res.status).to.equal(201);
+    expect(res.body.type).to.equal("stripe");
+    expect(res.body.config.mode).to.equal("test");
+    expect(res.body.read_only).to.equal(true);
+    expect(JSON.stringify(res.body)).not.to.include("rk_test_bruno");
+  });
+}

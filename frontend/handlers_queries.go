@@ -1357,6 +1357,9 @@ func queryEditorFormDataFromRequest(c fiber.Ctx) views.QueryEditorFormData {
 	formData.MongoProjection = strings.TrimSpace(c.FormValue("mongo_projection"))
 	formData.MongoLimitValue = strings.TrimSpace(c.FormValue("mongo_limit_value"))
 	formData.MongoDocument = strings.TrimSpace(c.FormValue("mongo_document"))
+	formData.StripeObjectType = strings.TrimSpace(c.FormValue("stripe_object_type"))
+	formData.StripeLimit = strings.TrimSpace(c.FormValue("stripe_limit"))
+	formData.StripeStartingAfter = strings.TrimSpace(c.FormValue("stripe_starting_after"))
 	formData.HubSpotObjectType = strings.TrimSpace(c.FormValue("hubspot_object_type"))
 	formData.HubSpotOperation = strings.TrimSpace(c.FormValue("hubspot_operation"))
 	formData.HubSpotProperties = strings.TrimSpace(c.FormValue("hubspot_properties"))
@@ -1851,6 +1854,26 @@ func buildQueryStatementFromRequest(
 
 		if err := statement.FromMongoDBStatement(mongoStatement); err != nil {
 			return api.QueryStatement{}, "Query statement could not be encoded for MongoDB."
+		}
+	case api.DataSourceTypeStripe:
+		objectType := api.StripeStatementObjectType(c.FormValue("stripe_object_type"))
+		if !objectType.Valid() {
+			return api.QueryStatement{}, "Select a Stripe object type."
+		}
+		operation := api.StripeStatementOperationList
+		stmt := api.StripeStatement{Type: api.StripeStatementTypeStripe, ObjectType: objectType, Operation: &operation}
+		if raw := strings.TrimSpace(c.FormValue("stripe_limit")); raw != "" {
+			limit, message := parsePositiveInt(raw, 0, 100, "Page size")
+			if message != "" {
+				return api.QueryStatement{}, message
+			}
+			stmt.Limit = &limit
+		}
+		if cursor := strings.TrimSpace(c.FormValue("stripe_starting_after")); cursor != "" {
+			stmt.StartingAfter = &cursor
+		}
+		if err := statement.FromStripeStatement(stmt); err != nil {
+			return api.QueryStatement{}, "Query statement could not be encoded for Stripe."
 		}
 	case api.DataSourceTypeHubspot:
 		hubspotStatement, hubspotErrMsg := buildHubSpotStatementFromRequest(c)

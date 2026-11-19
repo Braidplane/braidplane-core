@@ -916,3 +916,180 @@ func (*dataSourceOAuthProviderStub) Revoke(
 ) error {
 	return nil
 }
+
+func TestStripeTenantCredentialLifecycle(t *testing.T) {
+	t.Parallel()
+	if testing.Short() {
+		t.Skip("requires PostgreSQL")
+	}
+	ctx := t.Context()
+	pool := e2edb.OpenPostgresPool(t, "Stripe data source credentials")
+	stack := datasourcee2e.NewStack(t, pool)
+	org := datasourcee2e.UniqueSlug(t, "stripe-owner")
+	other := datasourcee2e.UniqueSlug(t, "stripe-other")
+	ds := datasourcee2e.UniqueSlug(t, "stripe-source")
+	datasourcee2e.SeedOrganization(t, pool, org)
+	datasourcee2e.SeedOrganization(t, pool, other)
+	svc := stack.Service(t, datasourcee2e.ConnectionTestExecutorFunc(func(_ context.Context, req datasourcessvc.ConnectionTestRequest) error {
+		require.Equal(t, org, req.OrganizationSlug)
+		require.Equal(t, ds, req.DataSourceSlug)
+		return nil
+	}))
+	actor := model.ExternalEventActor()
+	params := &datasourcessvc.CreateParams{Name: "Stripe revenue", Slug: ds, Type: model.DataSourceTypeStripe, ConfigJSON: json.RawMessage(`{"mode":"test"}`), Credentials: map[string]any{"api_key": "rk_test_fixture"}}
+	created, err := svc.Create(ctx, org, actor, params)
+	require.NoError(t, err)
+	require.True(t, created.ReadOnly)
+	require.NotNil(t, created.Credential)
+	require.Equal(t, credentialssvc.CredentialKindStaticSecret, created.Credential.Kind)
+	require.JSONEq(t, `{"mode":"test"}`, string(created.Config))
+	runtimeOnly := map[string]any{"access_token": "fixture-oauth", "oauth_mode": "test"}
+	require.Error(t, svc.TestConnection(ctx, org, &datasourcessvc.TestConnectionParams{
+		Type: model.DataSourceTypeStripe, ConfigJSON: params.ConfigJSON, Credentials: runtimeOnly,
+	}))
+	forged := *params
+	forged.Slug = "forged-credential"
+	forged.Credentials = runtimeOnly
+	_, err = svc.Create(ctx, org, actor, &forged)
+	require.Error(t, err)
+	_, err = svc.UpdateCredentials(ctx, org, ds, actor, &datasourcessvc.UpdateCredentialsParams{Credentials: runtimeOnly})
+	require.Error(t, err)
+	credential := datasourcee2e.StoredDataSourceCredentialSlug(t, pool, org, ds)
+	var encrypted []byte
+	var credentialType string
+	require.NoError(t, pool.QueryRow(ctx, `SELECT c.credential_type, c.encrypted_payload FROM credentials c JOIN organizations o ON o.id=c.organization_id WHERE o.slug=$1 AND c.slug=$2`, org, credential).Scan(&credentialType, &encrypted))
+	require.Equal(t, "stripe", credentialType)
+	require.NotEmpty(t, encrypted)
+	require.NotContains(t, string(encrypted), "rk_test_fixture")
+	resolve := func(tenant slug.Slug) (credentialssvc.RuntimeCredential, error) {
+		return stack.Credentials.ResolveRuntimeCredential(ctx, credentialssvc.ResolveRuntimeCredentialParams{Owner: credentialssvc.CredentialOwner{OrgSlug: tenant, DataSourceSlug: ds}})
+	}
+	runtime, err := resolve(other)
+	require.Error(t, err)
+	require.Empty(t, runtime.PlaintextJSON)
+	rotate := func(tenant slug.Slug, key string) error {
+		_, err := svc.UpdateCredentials(ctx, tenant, ds, actor, &datasourcessvc.UpdateCredentialsParams{Credentials: map[string]any{"api_key": key}})
+		return err
+	}
+	require.Error(t, rotate(other, "rk_test_unowned"))
+	require.Error(t, rotate(org, "rk_live_wrongmode"))
+	runtime, err = resolve(org)
+	require.NoError(t, err)
+	require.JSONEq(t, `{"api_key":"rk_test_fixture"}`, string(runtime.PlaintextJSON))
+	require.NoError(t, rotate(org, "rk_test_rotated"))
+	runtime, err = resolve(org)
+	require.NoError(t, err)
+	require.JSONEq(t, `{"api_key":"rk_test_rotated"}`, string(runtime.PlaintextJSON))
+	updated, err := svc.Update(ctx, org, ds, actor, &datasourcessvc.UpdateParams{ReadOnlySet: true, ReadOnly: false})
+	require.NoError(t, err)
+	require.True(t, updated.ReadOnly)
+}
+
+type stripeProviderStub struct {
+	dataSourceOAuthProviderStub
+	refresh    credentialssvc.OAuthTokenSet
+	refreshErr error
+}
+
+func (*stripeProviderStub) OAuthScopePlan() credentialssvc.OAuthScopePlan {
+	return credentialssvc.OAuthScopePlan{Required: []string{"stripe_apps"}}
+}
+
+func (p *stripeProviderStub) Refresh(context.Context, credentialssvc.RefreshParams) (credentialssvc.OAuthTokenSet, error) {
+	return p.refresh, p.refreshErr
+}
+
+func TestStripeOAuthTenantLifecycle(t *testing.T) {
+	t.Parallel()
+	if testing.Short() {
+		t.Skip("requires PostgreSQL")
+	}
+	ctx := t.Context()
+	pool := e2edb.OpenPostgresPool(t, "Stripe OAuth grants")
+	org := datasourcee2e.UniqueSlug(t, "stripe-oauth-owner")
+	other := datasourcee2e.UniqueSlug(t, "stripe-oauth-other")
+	ds := datasourcee2e.UniqueSlug(t, "revenue")
+	datasourcee2e.SeedOrganization(t, pool, org)
+	datasourcee2e.SeedOrganization(t, pool, other)
+	grant := credentialssvc.OAuthTokenSet{
+		AccessToken: "fixture-access", RefreshToken: "fixture-refresh", Account: credentialssvc.ProviderAccount{ID: "acct_fixture"},
+		Scopes: []string{"stripe_apps"}, ExpiresAt: time.Now().Add(time.Hour),
+	}
+	testProvider := &stripeProviderStub{dataSourceOAuthProviderStub: dataSourceOAuthProviderStub{authorizationURL: "https://provider.example/install", exchange: grant}, refresh: grant}
+	stack := datasourcee2e.NewStack(t, pool, credentialssvc.ProviderRegistry{"stripe_test": testProvider})
+	svc := stack.Service(t, datasourcee2e.ConnectionTestExecutorFunc(func(_ context.Context, req datasourcessvc.ConnectionTestRequest) error {
+		require.Equal(t, org, req.OrganizationSlug)
+		require.Equal(t, ds, req.DataSourceSlug)
+		require.JSONEq(t, `{"access_token":"fixture-access","oauth_mode":"test"}`, string(req.CredentialsJSON))
+		return nil
+	}))
+	actor := model.UserEventActor("alice")
+	params := &datasourcessvc.StartProviderDataSourceInstallParams{
+		Name: "Revenue", Type: model.DataSourceTypeStripe, Slug: ds, ConfigJSON: json.RawMessage(`{"mode":"live"}`),
+	}
+	_, err := svc.StartProviderDataSourceInstall(ctx, org, actor, "stripe", params)
+	require.ErrorIs(t, err, credentialssvc.ErrProviderNotConfigured)
+	_, err = svc.FindBySlug(ctx, org, ds)
+	require.Error(t, err)
+	params.ConfigJSON = json.RawMessage(`{"mode":"test"}`)
+	pending, err := svc.StartProviderDataSourceInstall(ctx, org, actor, "stripe", params)
+	require.NoError(t, err)
+	require.Equal(t, "stripe_test", pending.Install.Provider)
+	require.True(t, pending.DataSource.ReadOnly)
+
+	callback := credentialssvc.CompleteOAuthCallbackParams{Provider: "stripe_live", State: pending.Install.State, Code: "fixture-code", Actor: actor}
+	_, err = svc.CompleteProviderOAuthCallback(ctx, callback)
+	require.Error(t, err)
+	callback.Provider = "stripe_test"
+	callback.Actor = model.UserEventActor("bob")
+	_, err = svc.CompleteProviderOAuthCallback(ctx, callback)
+	require.Error(t, err)
+	callback.Actor = actor
+	completed, err := svc.CompleteProviderOAuthCallback(ctx, callback)
+	require.NoError(t, err)
+	require.Equal(t, org, completed.Owner.OrgSlug)
+	require.Equal(t, grant.Account.ID, completed.Credential.OAuth.Account.ID)
+	_, err = svc.CompleteProviderOAuthCallback(ctx, callback)
+	require.Error(t, err)
+
+	owner := credentialssvc.CredentialOwner{OrgSlug: org, DataSourceSlug: ds}
+	otherOwner := credentialssvc.CredentialOwner{OrgSlug: other, DataSourceSlug: ds}
+	_, err = stack.Credentials.Refresh(ctx, credentialssvc.RefreshGrantParams{Owner: otherOwner})
+	require.Error(t, err)
+	_, err = stack.Credentials.StartOAuthInstall(ctx, credentialssvc.StartOAuthInstallParams{Owner: owner, Provider: "stripe_live", Intent: credentialssvc.OAuthInstallIntentRotate, Actor: actor})
+	require.Error(t, err)
+
+	testProvider.refreshErr = xerror.Unavailable(xerror.DataSource)
+	_, err = stack.Credentials.Refresh(ctx, credentialssvc.RefreshGrantParams{Owner: owner})
+	require.ErrorIs(t, err, credentialssvc.ErrProviderUnavailable)
+	testProvider.refreshErr = nil
+	testProvider.refresh.Account.ID = "acct_unrelated"
+	_, err = stack.Credentials.Refresh(ctx, credentialssvc.RefreshGrantParams{Owner: owner})
+	require.ErrorIs(t, err, credentialssvc.ErrOAuthIntentConflict)
+	runtime, err := stack.Credentials.ResolveRuntimeCredential(ctx, credentialssvc.ResolveRuntimeCredentialParams{Owner: owner})
+	require.NoError(t, err)
+	require.JSONEq(t, `{"access_token":"fixture-access","oauth_mode":"test"}`, string(runtime.PlaintextJSON))
+
+	testProvider.refresh.Account.ID = grant.Account.ID
+	testProvider.refresh.AccessToken = "fixture-renewed"
+	testProvider.refresh.RefreshToken = "fixture-new-refresh"
+	_, err = stack.Credentials.Refresh(ctx, credentialssvc.RefreshGrantParams{Owner: owner})
+	require.NoError(t, err)
+	runtime, err = stack.Credentials.ResolveRuntimeCredential(ctx, credentialssvc.ResolveRuntimeCredentialParams{Owner: owner})
+	require.NoError(t, err)
+	require.JSONEq(t, `{"access_token":"fixture-renewed","oauth_mode":"test"}`, string(runtime.PlaintextJSON))
+
+	install, err := stack.Credentials.Rotate(ctx, credentialssvc.RotateParams{Owner: owner, Actor: actor})
+	require.NoError(t, err)
+	testProvider.exchange.Account.ID = "acct_unrelated"
+	callback.State = install.State
+	_, err = svc.CompleteProviderOAuthCallback(ctx, callback)
+	require.ErrorIs(t, err, credentialssvc.ErrOAuthIntentConflict)
+	runtime, err = stack.Credentials.ResolveRuntimeCredential(ctx, credentialssvc.ResolveRuntimeCredentialParams{Owner: owner})
+	require.NoError(t, err)
+	require.JSONEq(t, `{"access_token":"fixture-renewed","oauth_mode":"test"}`, string(runtime.PlaintextJSON))
+	_, err = stack.Credentials.Revoke(ctx, credentialssvc.RevokeParams{Owner: owner, Actor: actor})
+	require.NoError(t, err)
+	_, err = stack.Credentials.ResolveRuntimeCredential(ctx, credentialssvc.ResolveRuntimeCredentialParams{Owner: owner})
+	require.ErrorIs(t, err, credentialssvc.ErrProviderGrantRevoked)
+}

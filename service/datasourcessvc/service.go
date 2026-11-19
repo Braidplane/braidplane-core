@@ -9,6 +9,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/Braidplane/braidplane-core/pkg/connector/catalog"
 	workspace "github.com/Braidplane/braidplane-core/pkg/connector/googleworkspace"
 	"github.com/Braidplane/braidplane-core/pkg/connector/schemaquota"
 	"github.com/Braidplane/braidplane-core/pkg/domain/model"
@@ -205,8 +206,8 @@ func (s *service) StartProviderDataSourceInstall(
 	if err := validate.Default().Struct(params); err != nil {
 		return nil, ErrInvalidInput.With(err)
 	}
-	if provider != params.Type.String() || (params.Type != model.DataSourceTypeHubSpot && params.Type != model.DataSourceTypeGitlab && params.Type != model.DataSourceTypeBigQuery && params.Type != model.DataSourceTypeGoogleWorkspace) {
-		return nil, ErrInvalidInput.Detail("provider and data source type must both be hubspot, gitlab, bigquery, or google_workspace")
+	if provider != params.Type.String() || (params.Type != model.DataSourceTypeHubSpot && params.Type != model.DataSourceTypeGitlab && params.Type != model.DataSourceTypeBigQuery && params.Type != model.DataSourceTypeGoogleWorkspace && params.Type != model.DataSourceTypeStripe) {
+		return nil, ErrInvalidInput.Detail("provider and data source type must both be hubspot, gitlab, bigquery, google_workspace, or stripe")
 	}
 
 	slugWasGenerated := params.Slug == ""
@@ -217,6 +218,14 @@ func (s *service) StartProviderDataSourceInstall(
 	}
 	if params.Type == model.DataSourceTypeGoogleWorkspace {
 		if err := decodeWorkspacePending(params.ConfigJSON); err != nil {
+			return nil, err
+		}
+	} else if params.Type == model.DataSourceTypeStripe {
+		if params.ReadOnly != nil && !*params.ReadOnly {
+			return nil, ErrInvalidInput.Detail("Stripe data sources are read-only")
+		}
+		provider, err = StripeOAuthProvider(params.ConfigJSON)
+		if err != nil {
 			return nil, err
 		}
 	} else if err := s.validateProviderDataSourceConfig(params.Type, params.ConfigJSON); err != nil {
@@ -743,7 +752,7 @@ func (s *service) TestConnection(
 		}
 	}
 
-	if err := s.validateConfigAndCredentials(
+	if err := s.validateStaticConfigAndCredentials(
 		params.Type,
 		configJSON,
 		credentialsJSON,
@@ -843,7 +852,7 @@ func (s *service) create(
 		validationCredentialsJSON = managedCredentialsJSON
 	}
 
-	if err := s.validateConfigAndCredentials(
+	if err := s.validateStaticConfigAndCredentials(
 		params.Type,
 		validationConfigJSON,
 		validationCredentialsJSON,
@@ -1370,7 +1379,7 @@ func (s *service) UpdateCredentials(
 			return err
 		}
 
-		if err := s.validateConfigAndCredentials(
+		if err := s.validateStaticConfigAndCredentials(
 			repoDS.Type,
 			repoDS.Config,
 			credentialsJSON,
@@ -2553,10 +2562,9 @@ func shouldForceReadOnlyFromCredentialsJSON(
 	dsType model.DataSourceType,
 	credentialsJSON []byte,
 ) (bool, error) {
-	if dsType != model.DataSourceTypeGit &&
-		dsType != model.DataSourceTypeGithub &&
-		dsType != model.DataSourceTypeGitlab {
-		return false, nil
+	if !isGitDataSourceType(dsType) {
+		descriptor, ok := catalog.DescriptorFor(dsType)
+		return ok && descriptor.ForcedReadOnly, nil
 	}
 
 	var creds gitconnector.Credentials
@@ -2593,6 +2601,8 @@ func staticCredentialTypeForDataSource(dsType model.DataSourceType) credentialss
 		return credentialssvc.StaticCredentialTypeFTP
 	case model.DataSourceTypeGit, model.DataSourceTypeGithub, model.DataSourceTypeGitlab:
 		return credentialssvc.StaticCredentialTypeGit
+	case model.DataSourceTypeStripe:
+		return credentialssvc.StaticCredentialTypeStripe
 	case model.DataSourceTypeS3:
 		return credentialssvc.StaticCredentialTypeS3
 	default:
@@ -2835,10 +2845,8 @@ func (s *service) shouldForceReadOnlyForDataSource(
 	orgSlug slug.Slug,
 	ds *repods.DataSource,
 ) (bool, error) {
-	if ds.Type != model.DataSourceTypeGit &&
-		ds.Type != model.DataSourceTypeGithub &&
-		ds.Type != model.DataSourceTypeGitlab {
-		return false, nil
+	if !isGitDataSourceType(ds.Type) {
+		return shouldForceReadOnlyFromCredentialsJSON(ds.Type, nil)
 	}
 
 	credentialsJSON, _, err := s.resolveCredentialPayload(postgres.WithoutTransaction(ctx), orgSlug, ds)

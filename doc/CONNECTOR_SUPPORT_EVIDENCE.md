@@ -41,6 +41,7 @@ source-owned coverage includes:
 | BigQuery | [adapter normalization](../service/datasourcessvc/connector/bigquery/adapter_test.go), [fake client](../service/datasourcessvc/connector/bigquery/client/client_test.go) |
 | Snowflake | [SQL connector](../service/datasourcessvc/connector/sql/snowflake/connector_test.go), [identity onboarding](../service/datasourcessvc/connector/sql/snowflake/client/onboarding_test.go) |
 | HTTP | [next-link policy](../service/datasourcessvc/connector/http/next_link_test.go), [numbered pages](../service/datasourcessvc/connector/http/page_number_test.go) |
+| Stripe | [synthetic provider fixtures](../service/datasourcessvc/connector/stripe/connector_test.go) |
 | HubSpot | [adapter](../service/datasourcessvc/connector/hubspot/adapter_test.go), [connector](../service/datasourcessvc/connector/hubspot/connector_test.go) |
 | Workspace | [Sheets](../service/datasourcessvc/connector/googleworkspace/connector_test.go), [Drive](../service/datasourcessvc/connector/googleworkspace/file_test.go), [Docs/Slides](../service/datasourcessvc/connector/googleworkspace/native_test.go) |
 | Files / objects | [FTP writes](../service/datasourcessvc/connector/ftp/connector_write_test.go), [Git reads](../service/datasourcessvc/connector/git/connector_read_test.go), [S3 client](../service/datasourcessvc/connector/s3/client/client_test.go) |

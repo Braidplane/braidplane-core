@@ -72,6 +72,13 @@
           "reason": "Preserve the upstream regression check for shutdown with an idle browser preconnection."
         },
         {
+          "file": "stripe.spec.cjs",
+          "title": "creates Stripe revenue sources with a restricted key and read-only OAuth",
+          "tier": "extended",
+          "cross_browser": false,
+          "reason": "Stripe key retry, switching to OAuth, consent and reconnect require browser state and redirects."
+        },
+        {
           "file": "http-oauth.spec.cjs",
           "title": "preserves sign-in feedback and email with JavaScript disabled",
           "tier": "extended",

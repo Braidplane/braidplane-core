@@ -353,6 +353,8 @@ func (repository) LockOAuthGrantIntent(
 		return OAuthGrantIntentState{}, mapRepositoryError(err)
 	}
 	return OAuthGrantIntentState{
+		SourceType:     row.SourceType,
+		SourceMode:     row.SourceMode,
 		SourceRevision: row.ConnectionTestRevision,
 		CredentialSlug: row.CredentialSlug,
 		Kind:           row.Kind,
@@ -526,7 +528,7 @@ func (repository) FindHTTPOAuthApp(ctx context.Context, tx postgres.DBTX, owner 
 }
 
 func (repository) ClaimHTTPOAuthRefresh(ctx context.Context, db postgres.DBTX, grant CredentialGrant, claimID string) (bool, error) {
-	claimed, err := dbint.New(db).ClaimHTTPOAuthRefresh(ctx, dbint.ClaimHTTPOAuthRefreshParams{OrgSlug: grant.OrgSlug, DataSourceSlug: grant.DataSourceSlug, CredentialSlug: grant.Slug, GrantUpdatedAt: timeToTimestamptz(grant.GrantUpdatedAt), ClaimID: claimID})
+	claimed, err := dbint.New(db).ClaimHTTPOAuthRefresh(ctx, dbint.ClaimHTTPOAuthRefreshParams{Provider: grant.Provider, OrgSlug: grant.OrgSlug, DataSourceSlug: grant.DataSourceSlug, CredentialSlug: grant.Slug, GrantUpdatedAt: timeToTimestamptz(grant.GrantUpdatedAt), ClaimID: claimID})
 	return claimed, mapRepositoryError(err)
 }
 

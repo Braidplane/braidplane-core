@@ -280,6 +280,15 @@ describe("connector descriptors", () => {
         ).toEqual([]);
     });
 
+    it("Stripe is a row source when the descriptor payload is unavailable", () => {
+        expect(t.enrichDataSourceWithDescriptor({ type: "stripe", readOnly: true }, new Map())).toMatchObject({
+            queryOperationType: "stripe",
+            schemaFamily: "object_api",
+            supportsPipelineSource: true,
+            supportsPipelineSink: false,
+        });
+    });
+
     it("DOMPayload_LoadsDescriptorMapFromTextarea", () => {
         document.body.innerHTML = `<textarea id="builder-connector-descriptors">[
             {

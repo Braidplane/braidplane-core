@@ -76,6 +76,16 @@ func TestDataSourceProviderCommandsUseTypedRoutesBodiesAndBearerAuth(t *testing.
 			wantOutput: "https://app.hubspot.test/oauth/authorize?state=opaque-one-time-state",
 		},
 		{
+			name:       "onboard Stripe using read-only OAuth",
+			args:       []string{"data-source", "provider", "onboard", "stripe", "--name", "Revenue", "--stripe-mode", "test"},
+			method:     http.MethodPost,
+			path:       "/api/organizations/acme/provider-connectors/stripe/data-source-installs",
+			wantBody:   `{"name":"Revenue","type":"stripe","config":{"mode":"test"},"read_only":true}`,
+			statusCode: http.StatusCreated,
+			response:   `{"data_source":{},"install":{"authorization_url":"https://connect.stripe.test/oauth/authorize?state=fixture"}}`,
+			wantOutput: "https://connect.stripe.test/oauth/authorize?state=fixture",
+		},
+		{
 			name: "onboard provider data source",
 			args: []string{
 				"data-source", "provider", "onboard", "hubspot",

@@ -240,3 +240,24 @@ func TestAdapterForType_InvalidType(t *testing.T) {
 
 	require.ErrorIs(t, err, ErrInvalidDataSourceType)
 }
+
+func TestStripeTracedSchemaIntrospection(t *testing.T) {
+	t.Parallel()
+	encoded, err := ExecuteSchemaIntrospection(t.Context(), connector.NewConnectorWithTracing(nil), SchemaIntrospectionRequest{
+		OrganizationSlug: "acme", DataSourceSlug: "revenue", DataSourceType: model.DataSourceTypeStripe,
+		ConfigJSON: []byte(`{"mode":"test"}`), CredentialsJSON: []byte(`{"api_key":"rk_test_fixture"}`),
+		MaxResultItems: 4, MaxResultBytes: 16 << 10,
+	})
+	require.NoError(t, err)
+	var schema Schema[ObjectAPISchemaPayload]
+	require.NoError(t, json.Unmarshal(encoded, &schema))
+	require.Equal(t, SchemaTypeObjectAPI, schema.SchemaType())
+	require.Equal(t, "stripe", schema.VendorType())
+	var names []string
+	for _, obj := range schema.Payload.Objects {
+		names = append(names, obj.Name)
+		require.Contains(t, obj.Fields, SchemaObjectAPIField{Name: "id", Type: "string"})
+		require.Equal(t, []SchemaObjectAPIOperation{{Name: "list"}}, obj.Operations)
+	}
+	require.ElementsMatch(t, []string{"customers", "subscriptions", "invoices", "payments"}, names)
+}

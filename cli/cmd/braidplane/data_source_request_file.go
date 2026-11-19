@@ -107,6 +107,7 @@ func createDataSourceBodyFromFile(path string) (api.CreateDataSourceRequest, []s
 	}
 	if file.ReadOnly != nil {
 		command.ReadOnly = *file.ReadOnly
+		command.ReadWrite = !*file.ReadOnly
 	}
 	body, _, err := command.createBody()
 	return body, secrets, err
@@ -329,6 +330,12 @@ func decodeDataSourceConfigFile(
 		flags.OpenAPIURL = stringValue(config.OpenapiUrl)
 		flags.OpenAPIFetchTimeoutSeconds = intValue(config.OpenapiFetchTimeoutSeconds)
 		flags.AllowPrivateHosts = boolValue(config.AllowPrivateHosts)
+	case api.DataSourceTypeStripe:
+		var config api.StripeConfig
+		if err := decodeStrictJSON(raw, &config, "stripe config"); err != nil {
+			return err
+		}
+		flags.StripeMode = string(config.Mode)
 	case api.DataSourceTypeHubspot:
 		var config api.HubSpotConfig
 		if err := decodeStrictJSON(raw, &config, "hubspot config"); err != nil {
@@ -523,6 +530,17 @@ func decodeDataSourceCredentialsFile(
 		flags.Username = credentials.Username
 		flags.Password = password
 		return append(headerSecrets, append(append(keySecrets, bearerSecrets...), passwordSecrets...)...), nil
+	case api.DataSourceTypeStripe:
+		var credentials struct {
+			APIKey     string `json:"api_key"`
+			APIKeyFile string `json:"api_key_file"`
+		}
+		if err := decodeStrictJSON(raw, &credentials, "stripe credentials"); err != nil {
+			return nil, err
+		}
+		key, secrets, err := readSecretFileValue("Stripe restricted API key", credentials.APIKey, credentials.APIKeyFile, baseDir, required)
+		flags.StripeAPIKey = key
+		return secrets, err
 	case api.DataSourceTypeHubspot:
 		var credentials hubSpotCredentialFile
 		if err := decodeStrictJSON(raw, &credentials, "hubspot credentials"); err != nil {
@@ -686,7 +704,7 @@ func (f dataSourceRequestFlags) hasDirectInputFlags() bool {
 		f.Bucket != "" || f.Prefix != "" || f.ForcePathStyle != nil ||
 		f.AllowPrivateHosts != nil || f.ReadOnly || f.ReadWrite || f.Username != "" ||
 		f.APIKey != "" || f.APIKeyHeader != "" || f.Password != "" || f.BearerToken != "" || f.PrivateAppToken != "" ||
-		f.ServiceAccountJSON != "" || f.GitAuthType != "" || f.GitToken != "" ||
+		f.StripeMode != "" || f.StripeAPIKey != "" || f.ServiceAccountJSON != "" || f.GitAuthType != "" || f.GitToken != "" ||
 		f.SSHPrivateKey != "" || f.SSHPassphrase != "" || f.SSHKnownHosts != "" ||
 		f.AccessKeyID != "" || f.SecretAccessKey != "" || f.SessionToken != ""
 }

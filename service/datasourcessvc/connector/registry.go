@@ -23,6 +23,7 @@ import (
 	mysqlconnector "github.com/Braidplane/braidplane-core/service/datasourcessvc/connector/sql/mysql"
 	postgresconnector "github.com/Braidplane/braidplane-core/service/datasourcessvc/connector/sql/postgres"
 	snowflakeconnector "github.com/Braidplane/braidplane-core/service/datasourcessvc/connector/sql/snowflake"
+	stripeconnector "github.com/Braidplane/braidplane-core/service/datasourcessvc/connector/stripe"
 )
 
 type connectorDefinition struct {
@@ -168,6 +169,7 @@ var productionConnectorRegistry = mustConnectorRegistry(
 			},
 		),
 	),
+	defineConnector(model.DataSourceTypeStripe, catalog.OperationTypeStripe, stripeconnector.New, withConfigPreparation(stripeconnector.Validate)),
 	defineConnector(
 		model.DataSourceTypeHubSpot,
 		catalog.OperationTypeHubSpot,

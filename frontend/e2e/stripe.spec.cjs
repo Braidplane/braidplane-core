@@ -1,0 +1,51 @@
+const { test, expect } = require("@playwright/test");
+const { withSSRFixture } = require("./support/ssr-fixture.cjs");
+
+test.use({ storageState: { cookies: [], origins: [] } });
+
+test("creates Stripe revenue sources with a restricted key and read-only OAuth", async ({ page }) => {
+    await withSSRFixture(process.env.E2E_HTTP_OAUTH_FIXTURE_BIN, async (fixture) => {
+        expect((await page.request.get(`${fixture.url}/_test/session`)).ok()).toBe(true);
+        await page.goto(`${fixture.url}/orgs/acme/data-sources?type=stripe`);
+        const form = page.locator("#create-data-source");
+        await form.getByRole("textbox", { name: "Name", exact: true }).fill("Stripe revenue");
+        await form.getByText("Customize identifier", { exact: true }).click();
+        await form.locator('[name="slug"]').fill("stripe-revenue");
+        const key = form.locator('[name="stripe_api_key"]');
+        const mode = form.getByLabel("Stripe mode");
+        await expect(key).toHaveAttribute("type", "password");
+        await expect(mode).toHaveValue("test");
+        await key.fill("rk_test_synthetic");
+        await mode.selectOption("live");
+        const check = form.getByRole("button", { name: "Test connection", exact: true });
+        await check.click();
+        await expect(form.getByRole("alert")).toContainText("Check the Stripe restricted key and mode.");
+        await expect(mode).toHaveValue("live");
+        await mode.selectOption("test");
+        await check.click();
+        await expect(form.getByRole("status")).toContainText("Connection successful.");
+        await form.getByRole("button", { name: "Create data source", exact: true }).click();
+        await expect(page.getByRole("link", { name: "Stripe revenue", exact: true })).toBeVisible();
+        await page.goto(`${fixture.url}/orgs/acme/data-sources/stripe-revenue?section=settings`);
+        await expect(page.getByText("Stripe mode", { exact: true })).toBeVisible();
+        await expect(page.locator('input[name="stripe_api_key"]')).toHaveValue("");
+        await page.goto(`${fixture.url}/orgs/acme/data-sources?type=stripe`);
+        await form.getByRole("textbox", { name: "Name", exact: true }).fill("Stripe OAuth");
+        await form.getByText("Customize identifier", { exact: true }).click();
+        await form.locator('[name="slug"]').fill("stripe-oauth");
+        await key.fill("rk_test_synthetic");
+        await form.getByRole("combobox", { name: "Authentication", exact: true }).selectOption("oauth2");
+        await expect(key).toBeDisabled();
+        await expect(check).toBeHidden();
+        await mode.selectOption("live");
+        await form.getByRole("button", { name: "Connect with Stripe", exact: true }).click();
+        await expect(page.getByRole("heading", { name: "Synthetic OAuth consent" })).toBeVisible();
+        await page.getByRole("button", { name: "Allow access" }).click();
+        const reconnect = page.getByRole("button", { name: "Reconnect Stripe", exact: true });
+        await expect(reconnect).toBeVisible();
+        await reconnect.click();
+        await page.getByRole("button", { name: "Allow access" }).click();
+        await expect(reconnect).toBeVisible();
+        expect(await page.content()).not.toContain("rk_test_synthetic");
+    });
+});

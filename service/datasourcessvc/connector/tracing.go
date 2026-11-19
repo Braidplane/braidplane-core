@@ -21,6 +21,7 @@ import (
 	hubspotconnector "github.com/Braidplane/braidplane-core/service/datasourcessvc/connector/hubspot"
 	mongoconnector "github.com/Braidplane/braidplane-core/service/datasourcessvc/connector/mongo"
 	sqlconnector "github.com/Braidplane/braidplane-core/service/datasourcessvc/connector/sql"
+	stripeconnector "github.com/Braidplane/braidplane-core/service/datasourcessvc/connector/stripe"
 	"github.com/Braidplane/braidplane-core/service/datasourcessvc/connector/types"
 )
 
@@ -60,6 +61,9 @@ func wrapTracingConnector(conn Connector, dsType model.DataSourceType) Connector
 	}
 	if introspector, ok := conn.(hubspotconnector.SchemaIntrospector); ok {
 		return tracingHubSpotConnector{tracingConnector: base, introspector: introspector}
+	}
+	if introspector, ok := conn.(stripeconnector.SchemaIntrospector); ok {
+		return tracingStripeConnector{tracingConnector: base, introspector: introspector}
 	}
 	if introspector, ok := conn.(filedata.SchemaIntrospector); ok {
 		return tracingFileConnector{tracingConnector: base, introspector: introspector}
@@ -309,6 +313,21 @@ type tracingHubSpotConnector struct {
 }
 
 func (c tracingHubSpotConnector) IntrospectSchema(ctx context.Context) (*hubspotconnector.Schema, error) {
+	return traceConnectorOperation(
+		ctx,
+		c.tracingConnector,
+		"introspect_schema",
+		c.introspector.IntrospectSchema,
+		nil,
+	)
+}
+
+type tracingStripeConnector struct {
+	tracingConnector
+	introspector stripeconnector.SchemaIntrospector
+}
+
+func (c tracingStripeConnector) IntrospectSchema(ctx context.Context) (*stripeconnector.Schema, error) {
 	return traceConnectorOperation(
 		ctx,
 		c.tracingConnector,

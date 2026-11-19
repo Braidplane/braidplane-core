@@ -1,4 +1,9 @@
 services:
+  stripe-connector-test:
+    image: stripe/stripe-mock:v0.206.0@sha256:aeb96b83e87a893d2ac005e363ac01ffa6e59a5ad85b49c155dfc9129de02e78
+    ports:
+      - "127.0.0.1:${STRIPE_MOCK_PORT:-12111}:12111"
+
   spire-registration-test:
     image: ghcr.io/spiffe/spire-server:1.15.2@sha256:410c624a2f2311c23ecc96c24abd854213333f57ccf4fd1c8d3e30b3dbf007bb
     command: ["-config", "/server.conf"]

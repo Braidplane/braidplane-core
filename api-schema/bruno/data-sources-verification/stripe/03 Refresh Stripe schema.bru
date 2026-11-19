@@ -1,0 +1,18 @@
+meta {
+  name: 03 Refresh Stripe schema
+  type: http
+  seq: 33.3
+}
+
+post {
+  url: {{baseUrl}}/organizations/{{orgSlug}}/data-sources/{{stripeSourceSlug}}/schema
+  body: none
+  auth: inherit
+}
+
+tests {
+  test("Refresh Stripe schema", function() {
+    expect(res.status).to.equal(202);
+    expect(res.body.data_source_slug).to.equal(bru.getVar("stripeSourceSlug"));
+  });
+}

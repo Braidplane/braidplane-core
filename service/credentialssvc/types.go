@@ -58,6 +58,7 @@ const (
 	StaticCredentialTypeS3                                            // s3
 	StaticCredentialTypeEnvironmentSecret                             // environment_secret
 	StaticCredentialTypeSnowflake                                     // snowflake
+	StaticCredentialTypeStripe                                        // stripe
 )
 
 type OAuthInstallIntent int
