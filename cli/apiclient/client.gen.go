@@ -10112,6 +10112,7 @@ type Pipeline struct {
 	CurrentVersionSpecHash *string            `json:"current_version_spec_hash,omitempty"`
 	Draft                  *PipelineDraft     `json:"draft,omitempty"`
 	HasDraft               bool               `json:"has_draft"`
+	HasPendingSpec         *bool              `json:"has_pending_spec,omitempty"`
 	LastAppliedCommit      string             `json:"last_applied_commit"`
 	Name                   Name               `json:"name"`
 	Slug                   Slug               `json:"slug"`

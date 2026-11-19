@@ -30,7 +30,7 @@ templ QueriesPageContent(dataSources []api.DataSource, selectedDataSource string
 				}
 			</div>
 		}
-		@cleanupSummary("Operations on this page unused by organization pipelines", cleanup)
+		@cleanupSummary("Operations on this page unused by current organization pipeline specs", cleanup)
 		<div class="mt-5 max-w-md">
 			<form
 				id="queries-filter-form"

@@ -234,7 +234,7 @@ func runtimeVariableComparisonContent(data RuntimeVariableComparisonView) templ.
 					return templ_7745c5c3_Err
 				}
 				if data.OrganizationKeys != nil && !data.OrganizationKeys[row.Key] {
-					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 19, "<span class=\"ml-2 text-xs font-normal\">Unused by organization pipelines</span> ")
+					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 19, "<span class=\"ml-2 text-xs font-normal\">Unused by current organization pipeline specs</span> ")
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}

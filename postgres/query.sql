@@ -8699,7 +8699,9 @@ upserted AS (
 SELECT * FROM upserted;
 
 -- name: FindPipelineSpecBySlug :one
-SELECT ps.*, pv.spec_hash AS current_version_spec_hash
+SELECT ps.*, pv.spec_hash AS current_version_spec_hash,
+    EXISTS (SELECT 1 FROM pipeline_drafts pd
+            WHERE pd.project_id = ps.project_id AND pd.pipeline_slug = ps.slug) AS has_pending_spec
 FROM pipeline_specs ps
 JOIN projects p ON ps.project_id = p.id
 JOIN organizations o ON p.organization_id = o.id
@@ -8710,7 +8712,9 @@ WHERE o.slug = sqlc.arg('org_slug')
     AND ps.deleted_at IS NULL;
 
 -- name: FindPipelineSpecBySlugForUpdate :one
-SELECT ps.*, pv.spec_hash AS current_version_spec_hash
+SELECT ps.*, pv.spec_hash AS current_version_spec_hash,
+    EXISTS (SELECT 1 FROM pipeline_drafts pd
+            WHERE pd.project_id = ps.project_id AND pd.pipeline_slug = ps.slug) AS has_pending_spec
 FROM pipeline_specs ps
 JOIN projects p ON ps.project_id = p.id
 JOIN organizations o ON p.organization_id = o.id

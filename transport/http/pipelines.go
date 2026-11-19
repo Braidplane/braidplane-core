@@ -2629,6 +2629,7 @@ func toAPIPipeline(orgSlug slug.Slug, item *pipelinesvc.PipelineDetail) (api.Pip
 		Slug:                   item.Summary.Slug.String(),
 		Name:                   item.Summary.Name,
 		HasDraft:               item.Summary.HasDraft,
+		HasPendingSpec:         new(item.HasPendingSpec),
 		SyncStatus:             api.PipelineSyncStatus(item.Summary.SyncStatus.String()),
 		SourcePath:             sourcePath,
 		SourceRef:              sourceRef,

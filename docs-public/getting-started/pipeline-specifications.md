@@ -702,5 +702,5 @@ definition can still require a value even when no pipeline references its key.
 
 In a data source’s query library, **Check pipeline usage** checks the saved
 operations on the current page against organization pipelines and their
-environment bindings. These read-only checks report unknown usage when they
+environment bindings. The check uses current canonical specs. Older deployed versions can still use these items. These read-only checks report unknown usage when they
 cannot resolve the relevant specs or metadata. Cleanup findings are informational.

@@ -1749,13 +1749,15 @@ func TestServer_GetPipeline(t *testing.T) {
 					require.Equal(t, slug.Slug("acme"), orgSlug)
 					require.Equal(t, slug.Slug("acme-users-sync"), pipelineSlug)
 					require.Equal(t, slug.Slug("test-user"), memberSlug)
-					return testPipelineDetail(
+					detail := testPipelineDetail(
 						now,
 						nil,
 						&sourcePath,
 						&sourceRef,
 						&lastAppliedCommit,
-					), nil
+					)
+					detail.HasPendingSpec = true
+					return detail, nil
 				},
 			},
 		})
@@ -1771,6 +1773,8 @@ func TestServer_GetPipeline(t *testing.T) {
 		require.NoError(t, json.NewDecoder(resp.Body).Decode(&body))
 		require.Equal(t, "acme-users-sync", body.Slug)
 		require.Equal(t, "ACME Users Sync", body.Name)
+		require.Equal(t, new(true), body.HasPendingSpec)
+		require.Nil(t, body.Draft)
 		require.Equal(t, api.Drifted, body.SyncStatus)
 		require.Equal(t, sourcePath, body.SourcePath)
 		require.Equal(t, sourceRef, body.SourceRef)

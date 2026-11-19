@@ -132,7 +132,7 @@ func QueriesPageContent(dataSources []api.DataSource, selectedDataSource string,
 				return templ_7745c5c3_Err
 			}
 		}
-		templ_7745c5c3_Err = cleanupSummary("Operations on this page unused by organization pipelines", cleanup).Render(ctx, templ_7745c5c3_Buffer)
+		templ_7745c5c3_Err = cleanupSummary("Operations on this page unused by current organization pipeline specs", cleanup).Render(ctx, templ_7745c5c3_Buffer)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

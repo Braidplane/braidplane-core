@@ -730,6 +730,10 @@ func (r *Router) renderProjectEnvironmentsPage(
 	pageError string,
 	pageErrorDetails string,
 ) error {
+	var cleanup *views.CleanupFindings
+	if c.Query("cleanup") == "1" {
+		cleanup = &views.CleanupFindings{}
+	}
 	permissions := r.resolveOrganizationPermissions(
 		c.Context(),
 		c.Get(fiber.HeaderCookie),
@@ -794,7 +798,7 @@ func (r *Router) renderProjectEnvironmentsPage(
 				true,
 				false,
 				permissions,
-				nil,
+				cleanup,
 			),
 		)
 	}
@@ -838,7 +842,7 @@ func (r *Router) renderProjectEnvironmentsPage(
 				false,
 				true,
 				permissions,
-				nil,
+				cleanup,
 			),
 		)
 	}
@@ -886,20 +890,17 @@ func (r *Router) renderProjectEnvironmentsPage(
 					false,
 					true,
 					permissions,
-					nil,
+					cleanup,
 				),
 			)
 		}
 		bindings[environmentSlug] = bindingList.DataSourceBindings
 	}
 
-	var cleanup *views.CleanupFindings
-	if c.Query("cleanup") == "1" {
-		result := views.CleanupFindings{}
+	if cleanup != nil {
 		if requirements, known := r.projectRequirements(c.Context(), c.Get(fiber.HeaderCookie), orgSlug.String(), projectSlug); known {
-			result = projectCleanup(requirements, refs.DataSourceRefs, projectEnvironments.ProjectEnvironments, bindings)
+			*cleanup = projectCleanup(requirements, refs.DataSourceRefs, projectEnvironments.ProjectEnvironments, bindings)
 		}
-		cleanup = &result
 	}
 	shellData := r.buildShellDataForProjectPage(
 		c,

@@ -863,7 +863,7 @@ templ ProjectEnvironmentsPageContent(orgSlug string, projectSlug string, activeE
 			<a class="btn btn-outline btn-sm" href={ templ.URL(projectRuntimeHref(ctx, ProjectEnvironmentsHref(orgSlug, projectSlug)+"?cleanup=1")) }>Check unused refs and bindings</a>
 			<a class="btn btn-outline btn-sm w-full sm:w-auto" href={ templ.URL(buildEnvironmentProjectPipelinesListHref(orgSlug, projectSlug, activeEnvironmentSlug, "", "")) }>Back to pipelines</a>
 		</div>
-		@cleanupSummary("Unused configuration in this project", cleanup)
+		@cleanupSummary("Configuration unused by current project pipeline specs", cleanup)
 		<div class="mt-5 grid gap-3 md:grid-cols-4">
 			<div class="rounded-lg border border-base-300 bg-base-200/40 p-4">
 				<p class="text-xs font-semibold uppercase tracking-wide text-base-content/60">Available</p>

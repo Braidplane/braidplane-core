@@ -27,6 +27,9 @@ func (r *Router) projectRequirements(ctx context.Context, cookie, org, project s
 		if p.Slug != pipelines[i].Slug || p.Slug != p.Spec.Metadata.Slug || p.SyncStatus != api.Synced || p.HasDraft || p.Draft != nil {
 			return nil, false
 		}
+		if p.HasPendingSpec == nil || *p.HasPendingSpec {
+			return nil, false
+		}
 		if version == nil || *version == "" || p.CurrentVersionSpecHash == nil || *version != *p.CurrentVersionSpecHash {
 			return nil, false
 		}

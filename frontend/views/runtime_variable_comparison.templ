@@ -54,7 +54,7 @@ templ runtimeVariableComparisonContent(data RuntimeVariableComparisonView) {
 								<th scope="row" class="min-w-40 align-top">
 									<span class="break-all font-mono">{ row.Key }</span>
 									if data.OrganizationKeys != nil && !data.OrganizationKeys[row.Key] {
-										<span class="ml-2 text-xs font-normal">Unused by organization pipelines</span>
+										<span class="ml-2 text-xs font-normal">Unused by current organization pipeline specs</span>
 									}
 									if row.Used {
 										<span class="ml-2 text-xs font-normal">Used</span>

@@ -14,19 +14,21 @@ func TestRuntimeCleanupPages(t *testing.T) {
 	const org = "/api/organizations/acme-hq"
 	const project = org + "/projects/default"
 	const spec = `{"metadata":{"slug":"daily","name":"Daily"},"steps":[{"kind":"query","slug":"read","name":"Read","query":{"data_source_ref":"db","operation_type":"sql","operation_ref":"read-orders","parameters":{"region":"{{runtime.env.region}}"}}}]}`
-	const pipeline = `{"slug":"daily","current_version_spec_hash":"hash","sync_status":"synced","spec":` + spec + `}`
+	const pipeline = `{"slug":"daily","current_version_spec_hash":"hash","sync_status":"synced","has_pending_spec":false,"spec":` + spec + `}`
 	for _, tc := range []struct {
 		name, path, mode string
 		want, absent     []string
 	}{
 		{"project refs and bindings", "/orgs/acme-hq/projects/default/environments", "", []string{"Logical ref · daily / old", "Binding · prod / daily / old"}, []string{"Logical ref · daily / db", "Binding · prod / daily / db"}},
-		{"organization variables", "/organizations/acme-hq/runtime-variables", "", []string{"Unused by organization pipelines", "Missing required value"}, nil},
+		{"organization variables", "/organizations/acme-hq/runtime-variables", "", []string{"Unused by current organization pipeline specs", "Missing required value"}, nil},
 		{"bound operations", "/orgs/acme-hq/queries?ds=warehouse-prod", "", []string{"<li class=\"break-words\">old-operation</li>"}, []string{"<li class=\"break-words\">read-orders</li>"}},
 		{"unresolved operation binding", "/orgs/acme-hq/queries?ds=warehouse-prod", "unbound", []string{"Usage is unknown"}, []string{"<li class=\"break-words\">read-orders</li>"}},
-		{"malformed spec", "/organizations/acme-hq/runtime-variables", "malformed", []string{"Usage is unknown"}, []string{"Unused by organization pipelines"}},
+		{"malformed spec", "/organizations/acme-hq/runtime-variables", "malformed", []string{"Usage is unknown"}, []string{"Unused by current organization pipeline specs"}},
 		{"inaccessible spec", "/orgs/acme-hq/projects/default/environments", "denied", []string{"Usage is unknown"}, []string{"Logical ref ·"}},
+		{"another member has a draft", "/organizations/acme-hq/runtime-variables", "other-draft", []string{"Usage is unknown"}, []string{"Unused by current organization pipeline specs"}},
+		{"unavailable ref inventory", "/orgs/acme-hq/projects/default/environments", "refs-denied", []string{"Usage is unknown"}, []string{"Logical ref ·"}},
 		{"pending creation", "/orgs/acme-hq/projects/default/environments", "pending", []string{"Usage is unknown"}, []string{"Binding ·"}},
-		{"incomplete listing", "/organizations/acme-hq/runtime-variables", "cursor", []string{"Usage is unknown"}, []string{"Unused by organization pipelines"}},
+		{"incomplete listing", "/organizations/acme-hq/runtime-variables", "cursor", []string{"Usage is unknown"}, []string{"Unused by current organization pipeline specs"}},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -53,6 +55,8 @@ func TestRuntimeCleanupPages(t *testing.T) {
 					switch tc.mode {
 					case "denied":
 						w.WriteHeader(http.StatusForbidden)
+					case "other-draft":
+						writeJSON(w, strings.Replace(pipeline, `"has_pending_spec":false`, `"has_pending_spec":true`, 1))
 					case "malformed":
 						writeJSON(w, strings.Replace(pipeline, `"kind":"query"`, `"kind":"unknown"`, 1))
 					default:
@@ -65,6 +69,10 @@ func TestRuntimeCleanupPages(t *testing.T) {
 					}
 					writeJSON(w, `{"pipeline_creations":[]}`)
 				case project + "/data-source-refs":
+					if tc.mode == "refs-denied" {
+						w.WriteHeader(http.StatusForbidden)
+						return
+					}
 					writeJSON(w, `{"data_source_refs":[{"slug":"db","pipeline_slug":"daily"},{"slug":"old","pipeline_slug":"daily"}]}`)
 				case project + "/environments/prod/data-source-bindings":
 					if tc.mode == "unbound" {
@@ -93,7 +101,11 @@ func TestRuntimeCleanupPages(t *testing.T) {
 			defer func() { _ = resp.Body.Close() }()
 			raw, err := io.ReadAll(resp.Body)
 			require.NoError(t, err)
-			require.Equal(t, http.StatusOK, resp.StatusCode)
+			if tc.mode == "refs-denied" {
+				require.Equal(t, http.StatusForbidden, resp.StatusCode)
+			} else {
+				require.Equal(t, http.StatusOK, resp.StatusCode)
+			}
 			page := string(raw)
 			for _, value := range tc.want {
 				if !strings.Contains(page, value) {
@@ -111,13 +123,13 @@ func TestRuntimeCleanupPages(t *testing.T) {
 					row, _, _ = strings.Cut(row, "</tr>")
 					switch {
 					case strings.Contains(row, ">old</span>"):
-						require.Contains(t, row, "Unused by organization pipelines")
+						require.Contains(t, row, "Unused by current organization pipeline specs")
 					case strings.Contains(row, ">west</span>"), strings.Contains(row, ">region</span>"):
-						require.NotContains(t, row, "Unused by organization pipelines")
+						require.NotContains(t, row, "Unused by current organization pipeline specs")
 					}
 				}
 				require.Contains(t, page, ">west</span>")
-				require.Equal(t, 1, strings.Count(page, "Unused by organization pipelines"))
+				require.Equal(t, 1, strings.Count(page, "Unused by current organization pipeline specs"))
 			}
 		})
 	}

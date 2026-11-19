@@ -4129,7 +4129,7 @@ func ProjectEnvironmentsPageContent(orgSlug string, projectSlug string, activeEn
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = cleanupSummary("Unused configuration in this project", cleanup).Render(ctx, templ_7745c5c3_Buffer)
+		templ_7745c5c3_Err = cleanupSummary("Configuration unused by current project pipeline specs", cleanup).Render(ctx, templ_7745c5c3_Buffer)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
