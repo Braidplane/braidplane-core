@@ -3,7 +3,7 @@ const { withSSRFixture } = require("./support/ssr-fixture.cjs");
 
 test.use({ storageState: { cookies: [], origins: [] } });
 
-test("tests a Stripe restricted key and saves a revenue source", async ({ page }) => {
+test("creates Stripe revenue sources with a restricted key and read-only OAuth", async ({ page }) => {
     await withSSRFixture(process.env.E2E_HTTP_OAUTH_FIXTURE_BIN, async (fixture) => {
         expect((await page.request.get(`${fixture.url}/_test/session`)).ok()).toBe(true);
         await page.goto(`${fixture.url}/orgs/acme/data-sources?type=stripe`);
@@ -29,6 +29,23 @@ test("tests a Stripe restricted key and saves a revenue source", async ({ page }
         await page.goto(`${fixture.url}/orgs/acme/data-sources/stripe-revenue?section=settings`);
         await expect(page.getByText("Stripe mode", { exact: true })).toBeVisible();
         await expect(page.locator('input[name="stripe_api_key"]')).toHaveValue("");
+        await page.goto(`${fixture.url}/orgs/acme/data-sources?type=stripe`);
+        await form.getByRole("textbox", { name: "Name", exact: true }).fill("Stripe OAuth");
+        await form.getByText("Customize identifier", { exact: true }).click();
+        await form.locator('[name="slug"]').fill("stripe-oauth");
+        await key.fill("rk_test_synthetic");
+        await form.getByRole("combobox", { name: "Authentication", exact: true }).selectOption("oauth2");
+        await expect(key).toBeDisabled();
+        await expect(check).toBeHidden();
+        await mode.selectOption("live");
+        await form.getByRole("button", { name: "Connect with Stripe", exact: true }).click();
+        await expect(page.getByRole("heading", { name: "Synthetic OAuth consent" })).toBeVisible();
+        await page.getByRole("button", { name: "Allow access" }).click();
+        const reconnect = page.getByRole("button", { name: "Reconnect Stripe", exact: true });
+        await expect(reconnect).toBeVisible();
+        await reconnect.click();
+        await page.getByRole("button", { name: "Allow access" }).click();
+        await expect(reconnect).toBeVisible();
         expect(await page.content()).not.toContain("rk_test_synthetic");
     });
 });

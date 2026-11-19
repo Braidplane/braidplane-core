@@ -101,6 +101,7 @@ CASES = [
     ("service/datasourcessvc/connector/example/client/probe.go", [PRIVATE + "pkg/connector/result"], {"connector_provider_client_boundary"}),
     ("pkg/gitprovider/probe.go", [PRIVATE + "pkg/connector/result"], {"connector_provider_client_boundary"}),
     ("pkg/hubspot/crm/probe.go", [CLI + "pkg/pipeline/spec"], {"connector_provider_client_boundary"}),
+    ("pkg/stripeoauth/probe.go", [CLI + "pkg/pipeline/spec"], {"connector_provider_client_boundary"}),
     ("pkg/googleoauth/probe.go", [CLI + "pkg/pipeline/spec"], {"connector_provider_client_boundary"}),
     ("service/datasourcessvc/connector/bigquery/probe.go", [PRIVATE + "pkg/googleoauth"], {"bigquery_execution_auth_boundary"}),
     ("service/privileged.go", [PRIVATE + "pkg/spireregistration"], {"spire_registration_boundary"}),

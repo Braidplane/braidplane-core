@@ -26,7 +26,7 @@ pending-progress navigation race run in Chromium. Auth and the real Builder
 mutation remain single-engine because they share seeded state and throttles.
 
 The full profile discovers 67 logical journeys / 177 executions. Chromium also
-covers testing and saving a Stripe restricted-key source against a synthetic API.
+covers restricted-key setup and Stripe Connect OAuth consent and reconnection against a synthetic API.
 `alpha-inventory.json` owns retained cases, reasons and budgets. Broad UI state
 permutations belong in Vitest, Go or transport coverage when those layers can
 prove the same behavior. Each added browser case needs a concrete browser-only

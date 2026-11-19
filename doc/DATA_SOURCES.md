@@ -249,7 +249,7 @@ that differs from the supported connector set.
 | Query execution | yes | yes | yes | yes | yes | yes | yes | yes | yes | yes | yes |
 | Parameterized queries | yes | yes | yes | yes | yes | yes | yes | yes | yes | exact update `{{input}}` binding | starting_after |
 | `read_only: true` enforcement | classifier + native transaction | classifier + native transaction | classifier | adapter classifier | method classifier | operation classifier | operation classifier | operation classifier | operation classifier | read/list/export versus create/update classifier | always read-only |
-| Required source credential boundary | configured read-only | configured read-only | configured IAM | configured read-only | configured read-only or unauthenticated | configured scopes | configured read-only | configured read-only or public read | configured read-only | managed OAuth; Braidplane read-only enforcement | restricted account key |
+| Required source credential boundary | configured read-only | configured read-only | configured IAM | configured read-only | configured read-only or unauthenticated | configured scopes | configured read-only | configured read-only or public read | configured read-only | managed OAuth; Braidplane read-only enforcement | Stripe Apps OAuth or restricted account key |
 | Pipeline source | yes | yes | yes | yes | yes | yes | yes | yes | yes | yes | yes |
 | Pipeline sink | yes | yes | yes | yes | yes | yes (`idempotent_with_key`) | yes | yes | yes | yes | no |
 | Pagination | no | no | yes | no | [GET cursor/page/next-link](data-sources/HTTP.md#next-link-pagination) | yes | no | no | provider listing only | Drive discovery only | starting_after |

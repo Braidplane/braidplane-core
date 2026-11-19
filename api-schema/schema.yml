@@ -14083,16 +14083,18 @@ components:
         type:
           type: string
           description: Provider-backed data source type
-          enum: [hubspot, bigquery, google_workspace]
+          enum: [hubspot, bigquery, google_workspace, stripe]
           x-enum-varnames:
             - StartProviderDataSourceInstallRequestTypeHubspot
             - StartProviderDataSourceInstallRequestTypeBigquery
             - StartProviderDataSourceInstallRequestTypeGoogleWorkspace
+            - StartProviderDataSourceInstallRequestTypeStripe
         config:
           anyOf:
             - $ref: '#/components/schemas/HubSpotConfig'
             - $ref: '#/components/schemas/BigQueryConfig'
             - $ref: '#/components/schemas/GoogleWorkspacePendingInstallConfig'
+            - $ref: '#/components/schemas/StripeConfig'
         read_only:
           type: boolean
           description: Whether direct mutating operations and pipeline sink use are blocked for this data source.

@@ -18175,6 +18175,9 @@
               },
               {
                 "$ref": "#/components/schemas/GoogleWorkspacePendingInstallConfig"
+              },
+              {
+                "$ref": "#/components/schemas/StripeConfig"
               }
             ]
           },
@@ -18203,13 +18206,15 @@
             "enum": [
               "hubspot",
               "bigquery",
-              "google_workspace"
+              "google_workspace",
+              "stripe"
             ],
             "type": "string",
             "x-enum-varnames": [
               "StartProviderDataSourceInstallRequestTypeHubspot",
               "StartProviderDataSourceInstallRequestTypeBigquery",
-              "StartProviderDataSourceInstallRequestTypeGoogleWorkspace"
+              "StartProviderDataSourceInstallRequestTypeGoogleWorkspace",
+              "StartProviderDataSourceInstallRequestTypeStripe"
             ]
           }
         },

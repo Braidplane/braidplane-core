@@ -25,7 +25,9 @@ type Config struct {
 	Mode string `json:"mode" validate:"required,oneof=test live"`
 }
 type Credentials struct {
-	APIKey string `json:"api_key" validate:"required"`
+	APIKey      string `json:"api_key,omitempty"`
+	AccessToken string `json:"access_token,omitempty"`
+	OAuthMode   string `json:"oauth_mode,omitempty"`
 }
 
 var (
@@ -36,6 +38,21 @@ var (
 func Validate(cfg *Config, creds Credentials) error {
 	if cfg == nil || (cfg.Mode != "test" && cfg.Mode != "live") {
 		return xerror.InvalidInput(xerror.DataSource).Detail("Stripe mode must be test or live")
+	}
+	if creds.AccessToken != "" || creds.OAuthMode != "" {
+		if creds.APIKey != "" || creds.OAuthMode != cfg.Mode || strings.TrimSpace(creds.AccessToken) == "" ||
+			strings.ContainsAny(creds.AccessToken, " \t\r\n") {
+			return xerror.InvalidCredentials().Detail("Stripe OAuth grant must match the connection mode")
+		}
+		return nil
+	}
+	return ValidateRestrictedKey(cfg, creds)
+}
+
+// ValidateRestrictedKey checks customer-supplied credentials before storage or a draft test.
+func ValidateRestrictedKey(cfg *Config, creds Credentials) error {
+	if cfg == nil || (cfg.Mode != "test" && cfg.Mode != "live") || creds.AccessToken != "" || creds.OAuthMode != "" {
+		return xerror.InvalidCredentials().Detail("Stripe requires a restricted API key matching the configured mode")
 	}
 	suffix, ok := strings.CutPrefix(creds.APIKey, "rk_"+cfg.Mode+"_")
 	if !ok || !keyBody.MatchString(suffix) {
@@ -55,7 +72,11 @@ func New(_ context.Context, cfg Config, creds Credentials) (*Connector, error) {
 		return nil, err
 	}
 	transport := &http.Transport{DialContext: hostguard.DialPublicHost, ForceAttemptHTTP2: true, IdleConnTimeout: 90 * time.Second}
-	return &Connector{key: creds.APIKey, live: cfg.Mode == "live", transport: transport}, nil
+	key := creds.APIKey
+	if creds.AccessToken != "" {
+		key = creds.AccessToken
+	}
+	return &Connector{key: key, live: cfg.Mode == "live", transport: transport}, nil
 }
 
 func (c *Connector) Close() error {
@@ -177,7 +198,7 @@ func statusError(status int) error {
 	case http.StatusUnauthorized:
 		return xerror.InvalidCredentials()
 	case http.StatusForbidden:
-		return xerror.Forbidden(xerror.DataSource).Detail("Stripe restricted key lacks read permission")
+		return xerror.Forbidden(xerror.DataSource).Detail("Stripe credential lacks read permission")
 	case http.StatusTooManyRequests:
 		return xerror.Unavailable(xerror.DataSource).Detail("Stripe rate limit reached (429); retry later")
 	default:

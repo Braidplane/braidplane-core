@@ -200,16 +200,18 @@ type CredentialHttpOauthApp struct {
 }
 
 type CredentialOauthGrant struct {
-	ID                   int
-	CredentialID         int64
-	Provider             string
-	EncryptedTokenSet    []byte
-	AccessTokenExpiresAt pgtype.Timestamptz
-	Scopes               []string
-	Account              []byte
-	LastRefreshedAt      pgtype.Timestamptz
-	CreatedAt            pgtype.Timestamptz
-	UpdatedAt            pgtype.Timestamptz
+	ID                    int
+	CredentialID          int64
+	Provider              string
+	EncryptedTokenSet     []byte
+	AccessTokenExpiresAt  pgtype.Timestamptz
+	Scopes                []string
+	Account               []byte
+	LastRefreshedAt       pgtype.Timestamptz
+	CreatedAt             pgtype.Timestamptz
+	UpdatedAt             pgtype.Timestamptz
+	RefreshClaimID        pgtype.Text
+	RefreshClaimExpiresAt pgtype.Timestamptz
 }
 
 type CredentialOauthInstall struct {

@@ -58,6 +58,33 @@ func main() {
 			encode(map[string]any{"projects": []any{}})
 		case "/api/organizations/acme/environments":
 			encode(map[string]any{"environments": []any{}})
+		case "/api/organizations/acme/provider-connectors/stripe/data-source-installs":
+			var input struct {
+				Type     string           `json:"type"`
+				Name     string           `json:"name"`
+				Slug     string           `json:"slug"`
+				Config   api.StripeConfig `json:"config"`
+				ReadOnly bool             `json:"read_only"`
+			}
+			decoder := json.NewDecoder(http.MaxBytesReader(w, r.Body, 16384))
+			decoder.DisallowUnknownFields()
+			if decoder.Decode(&input) != nil || input.Type != "stripe" || !input.ReadOnly || input.Config.Mode != api.StripeConfigModeLive || input.Slug != "stripe-oauth" {
+				w.WriteHeader(http.StatusBadRequest)
+				return
+			}
+			source = map[string]any{"slug": input.Slug, "name": input.Name, "type": input.Type, "config": input.Config, "read_only": true}
+			pending()
+			source["credential"].(map[string]any)["oauth"] = map[string]any{"provider": "stripe_live"}
+			w.WriteHeader(http.StatusCreated)
+			encode(map[string]any{"data_source": source, "install": map[string]any{"authorization_url": origin + "/_test/consent"}})
+		case "/api/organizations/acme/provider-connectors/stripe/installs":
+			var input api.StartProviderConnectorInstallRequest
+			if json.NewDecoder(http.MaxBytesReader(w, r.Body, 16384)).Decode(&input) != nil || input.DataSourceSlug != "stripe-oauth" || input.Intent != api.RotateGrant {
+				w.WriteHeader(http.StatusBadRequest)
+				return
+			}
+			w.WriteHeader(http.StatusCreated)
+			encode(map[string]any{"authorization_url": origin + "/_test/consent"})
 		case "/api/organizations/acme/provider-connectors/hubspot/data-source-installs":
 			w.WriteHeader(http.StatusCreated)
 			encode(map[string]any{"data_source": map[string]any{"slug": "hubspot-crm", "name": "HubSpot CRM", "type": "hubspot"}, "install": map[string]any{"authorization_url": origin + "/_test/consent"}})
@@ -174,7 +201,7 @@ func main() {
 				}
 			}
 			encode(source)
-		case "/api/organizations/acme/data-sources/stripe-revenue":
+		case "/api/organizations/acme/data-sources/stripe-revenue", "/api/organizations/acme/data-sources/stripe-oauth":
 			if source == nil || source["type"] != "stripe" {
 				w.WriteHeader(http.StatusNotFound)
 				return
@@ -320,8 +347,9 @@ func main() {
 	app.Post("/_test/authorize", func(c fiber.Ctx) error {
 		mu.Lock()
 		activate()
+		slug := source["slug"].(string)
 		mu.Unlock()
-		return c.Redirect().Status(http.StatusSeeOther).To("/orgs/acme/data-sources/http-app?section=settings&provider_oauth=success")
+		return c.Redirect().Status(http.StatusSeeOther).To("/orgs/acme/data-sources/" + slug + "?section=settings&provider_oauth=success")
 	})
 	app.Get("/assets/icons/*", static.New("brand/icons"))
 	app.Get("/assets/*", static.New("frontend/assets"))

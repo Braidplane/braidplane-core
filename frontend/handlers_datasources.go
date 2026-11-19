@@ -300,7 +300,7 @@ func validatedDataSourceOAuthFeedback(outcome string, dataSource *api.DataSource
 	}
 	if strings.EqualFold(strings.TrimSpace(outcome), "success") {
 		if dataSource == nil ||
-			(dataSource.Type != api.DataSourceTypeHubspot && dataSource.Type != api.DataSourceTypeGitlab && dataSource.Type != api.DataSourceTypeBigquery) ||
+			(dataSource.Type != api.DataSourceTypeStripe && dataSource.Type != api.DataSourceTypeHubspot && dataSource.Type != api.DataSourceTypeGitlab && dataSource.Type != api.DataSourceTypeBigquery) ||
 			!dataSource.IsActive ||
 			dataSource.Credential == nil ||
 			dataSource.Credential.Kind != api.Oauth2Grant ||
@@ -312,6 +312,9 @@ func validatedDataSourceOAuthFeedback(outcome string, dataSource *api.DataSource
 		}
 	}
 	feedback := views.DataSourceOAuthFeedback(outcome)
+	if dataSource != nil && dataSource.Type == api.DataSourceTypeStripe {
+		feedback.Message = strings.ReplaceAll(feedback.Message, "HubSpot", "Stripe")
+	}
 	if dataSource != nil && dataSource.Type == api.DataSourceTypeBigquery {
 		feedback.Message = strings.ReplaceAll(feedback.Message, "HubSpot", "BigQuery")
 	}
@@ -529,6 +532,16 @@ func (r *Router) handleStartProviderDataSourceOAuthSubmit(c fiber.Ctx, provider,
 	var providerConfig api.StartProviderDataSourceInstallRequest_Config
 	readOnly := formData.HubSpotReadOnly
 	switch provider {
+	case "stripe":
+		config, validationErr := parseStripeConfigForm(c)
+		if validationErr != "" {
+			formData.TestMessage = validationErr
+			return r.renderDataSourcesPageWithError(c, orgSlug, http.StatusBadRequest, "", "", formData)
+		}
+		if err := providerConfig.FromStripeConfig(config); err != nil {
+			return err
+		}
+		readOnly = true
 	case "hubspot":
 		config, validationErr := parseHubSpotConfigForm(c)
 		if validationErr != "" {
@@ -1464,7 +1477,7 @@ func (r *Router) selectProviderRepositoryViaAPI(
 	return resp.StatusCode(), errResp, unexpectedBackendAPIResponse("select provider repository", resp.StatusCode())
 }
 
-// startExistingProviderOAuthViaAPI starts an OAuth install for a stored HubSpot source.
+// startExistingProviderOAuthViaAPI starts an OAuth install for a stored provider-backed source.
 func (r *Router) startExistingProviderOAuthViaAPI(
 	ctx context.Context,
 	cookieHeader string,
@@ -2052,9 +2065,9 @@ func buildCreateDataSourcePayloadWithPrivateHosts(
 		}
 		return payload, ""
 	case api.DataSourceTypeStripe:
-		mode := api.StripeConfigMode(c.FormValue("stripe_mode"))
-		if !mode.Valid() {
-			return api.CreateDataSourceJSONRequestBody{}, "Validation: select a Stripe mode."
+		config, message := parseStripeConfigForm(c)
+		if message != "" {
+			return api.CreateDataSourceJSONRequestBody{}, message
 		}
 		creds, message := parseStripeCredentialsForm(c)
 		if message != "" {
@@ -2062,7 +2075,7 @@ func buildCreateDataSourcePayloadWithPrivateHosts(
 		}
 		var payload api.CreateDataSourceJSONRequestBody
 		if err := payload.FromCreateStripeDataSourceRequest(api.CreateStripeDataSourceRequest{
-			Name: name, Slug: apiSlugValue, Config: api.StripeConfig{Mode: mode}, Credentials: creds,
+			Name: name, Slug: apiSlugValue, Config: config, Credentials: creds,
 		}); err != nil {
 			return api.CreateDataSourceJSONRequestBody{}, "Validation: invalid Stripe data source payload."
 		}
@@ -2842,6 +2855,14 @@ func parseHTTPCredentialsForm(c fiber.Ctx) (api.HTTPCredentials, string) {
 	}
 
 	return credentials, ""
+}
+
+func parseStripeConfigForm(c fiber.Ctx) (api.StripeConfig, string) {
+	mode := api.StripeConfigMode(c.FormValue("stripe_mode"))
+	if !mode.Valid() {
+		return api.StripeConfig{}, "Validation: select a Stripe mode."
+	}
+	return api.StripeConfig{Mode: mode}, ""
 }
 
 func parseStripeCredentialsForm(c fiber.Ctx) (api.StripeCredentials, string) {
@@ -4102,6 +4123,7 @@ func dataSourceCreateFormDataFromRequest(c fiber.Ctx) views.DataSourceCreateForm
 		GitLabReadOnly:            strings.TrimSpace(c.FormValue(gitLabAccessModeField)) != gitLabAccessModeWrite,
 		GitHubRepositoryID:        strings.TrimSpace(c.FormValue("github_repository_id")),
 		GitHubReadOnly:            strings.TrimSpace(c.FormValue("github_access_mode")) != "write",
+		StripeAuthType:            c.FormValue("stripe_auth_type"),
 		StripeMode:                c.FormValue("stripe_mode"),
 		HubSpotAuthType:           hubSpotAuthType,
 		BigQueryReadOnly:          strings.TrimSpace(c.FormValue("bigquery_access_mode")) != "write",

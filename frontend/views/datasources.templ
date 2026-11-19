@@ -165,6 +165,18 @@ templ DataSourcesPageContent(dataSources []api.DataSource, summaryDataSources []
 						</select>
 					</label>
 					<label class="form-control w-full" data-ds-fields="stripe">
+						<span class="label-text text-xs">Authentication</span>
+						<select class="select select-bordered select-sm w-full" name="stripe_auth_type" data-provider-auth-select="stripe">
+							<option value="restricted_key" selected?={ formData.StripeAuthType != "oauth2" }>Restricted API key</option>
+							<option value="oauth2" selected?={ formData.StripeAuthType == "oauth2" }>Connect with Stripe (OAuth)</option>
+						</select>
+					</label>
+					<div class="space-y-2 md:col-span-2 xl:col-span-3" data-ds-fields="stripe" data-provider="stripe" data-provider-auth-fields="oauth2">
+						<p class="text-xs text-base-content/70">Choose your Stripe account and approve read-only access.</p>
+						@OAuthCallbackTimeOption(formData.MoreTime)
+						<button class="btn btn-primary btn-sm" type="submit" formnovalidate formaction={ templ.URL(dataSourceMutationHref(orgSlug, activeEnvironmentSlug, "", "stripe/oauth")) } hx-post={ dataSourceMutationHref(orgSlug, activeEnvironmentSlug, "", "stripe/oauth") } hx-target="#create-data-source" hx-select="#create-data-source" hx-swap="outerHTML">Connect with Stripe</button>
+					</div>
+					<label class="form-control w-full" data-ds-fields="stripe" data-provider="stripe" data-provider-auth-fields="restricted_key">
 						<span class="label-text text-xs">Restricted API key</span>
 						<input class="input input-bordered input-sm w-full" type="password" name="stripe_api_key" id="data-source-create-stripe-key" data-required-for="stripe" autocomplete="off" hx-preserve/>
 						<span class="label-text-alt">Grant read access to customers, subscriptions, invoices and PaymentIntents in the selected mode.</span>
@@ -537,7 +549,7 @@ templ DataSourcesPageContent(dataSources []api.DataSource, summaryDataSources []
 			}
 			<div
 				class={ "mt-4 flex flex-col gap-2 sm:flex-row sm:items-center" + func() string {
-				if formData.Type == "" || formData.Type == "bigquery" || (formData.Type == "github" && !formData.GitHubConnectionAvailable) || (formData.Type == "hubspot" && formData.HubSpotAuthType != "private_app") || (formData.Type == "gitlab" && !formData.GitLabConnectionAvailable) {
+				if formData.Type == "" || formData.Type == "bigquery" || (formData.Type == "stripe" && formData.StripeAuthType == "oauth2") || (formData.Type == "github" && !formData.GitHubConnectionAvailable) || (formData.Type == "hubspot" && formData.HubSpotAuthType != "private_app") || (formData.Type == "gitlab" && !formData.GitLabConnectionAvailable) {
 		return " hidden"
 	}
 	return ""

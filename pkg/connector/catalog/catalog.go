@@ -339,7 +339,7 @@ var descriptors = []Descriptor{
 			ReadOperations: []string{"list"},
 			SourcePayloads: []model.ContractRepresentation{model.ContractRepresentationRows},
 			Pagination:     model.ConnectorPaginationSupport{Methods: []string{"starting_after"}, Scope: "one list page", Limitation: "Up to 100 objects per request. Continue with the last object ID.", Throttling: "A rate-limited read fails without an automatic retry. Re-run the page after backing off."},
-			Authentication: model.ConnectorAuthenticationSupport{Modes: []string{"restricted_api_key"}, Renewal: "Static restricted key scoped to one account and mode.", Recovery: "Rotate the key and retest the connection."},
+			Authentication: model.ConnectorAuthenticationSupport{Modes: []string{"oauth2", "restricted_api_key"}, Renewal: "The credential service refreshes the OAuth grant. Restricted keys require manual rotation.", Recovery: "Reconnect the Stripe account or replace its restricted key, then retest in the same mode."},
 			Limitations:    []string{"Customers, subscriptions, invoices and PaymentIntents only. Re-read objects to see late updates. Lists do not report deletions."},
 		},
 		SupportLevel:           SupportLevelPreview,

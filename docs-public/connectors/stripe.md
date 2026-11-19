@@ -4,11 +4,15 @@ Use Stripe as a pipeline source to join customers, subscriptions, invoices and p
 
 ## Connect an account
 
-Choose **Stripe** in your organization's data sources. Select test or live mode and enter a restricted API key issued by the Stripe account you want to read. Give it read access to Customers, Subscriptions, Invoices and PaymentIntents. Test mode requires an `rk_test_` key and live mode requires an `rk_live_` key. Use separate connections for separate accounts or modes. The connector connects directly to the key's account. It accepts no connected-account override.
+Choose **Stripe** in your organization's data sources and select test or live mode. Use separate connections for each account and mode.
+
+**Connect with Stripe** opens Stripe's consent screen when the deployment has an OAuth app configured for the selected mode. Select the account, review the app's read permissions, and approve the installation. Braidplane stores the grant for that organization's source and refreshes it for subsequent reads. If access is revoked, reconnect the account. For CLI setup, run `braidplane data-source provider onboard stripe --name Revenue --stripe-mode test` and open the returned authorization URL.
+
+**Restricted API key** works independently of the deployment's OAuth app. Enter a restricted API key issued by the Stripe account you want to read. Give it read access to Customers, Subscriptions, Invoices and PaymentIntents. Test mode requires an `rk_test_` key and live mode requires an `rk_live_` key. The connector connects directly to the key's account. It accepts no connected-account override.
 
 Test the connection, save it, then refresh the schema. The connection test lists one customer. Each subsequent read also requires permission for its selected resource. Schema refresh describes the fixed fields below. To recover from an expired or revoked key, replace the stored credential with a restricted key from the same account and mode and test again.
 
-For CLI setup, put the key in a private file beside this connection JSON. The CLI resolves `api_key_file` locally. The API accepts the resolved value in `credentials.api_key`.
+For CLI setup with a restricted key, put the key in a private file beside this connection JSON. The CLI resolves `api_key_file` locally. The API accepts the resolved value in `credentials.api_key`.
 
 ```json
 {

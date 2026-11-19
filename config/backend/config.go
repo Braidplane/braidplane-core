@@ -46,6 +46,7 @@ type Config struct {
 	Proof             config.ProofConfig      `toml:"proof"`
 	ProofObservations ProofObservationsConfig `toml:"proof_observations"`
 	HTTPOAuth         HTTPOAuthConfig         `toml:"http_oauth"`
+	Stripe            StripeConfig            `toml:"stripe"`
 	HubSpot           HubSpotConfig           `toml:"hubspot"`
 	Slack             SlackConfig             `toml:"slack"`
 	GitLab            GitLabConfig            `toml:"gitlab"`
@@ -662,6 +663,9 @@ func (c *Config) validate() error {
 		return err
 	}
 	if err := c.HTTPOAuth.validate(c.Deployment.Profile); err != nil {
+		return err
+	}
+	if err := c.Stripe.validate(c.Deployment.Profile); err != nil {
 		return err
 	}
 	if err := validateHubSpotOAuth(c.HubSpot, c.Deployment.Profile); err != nil {

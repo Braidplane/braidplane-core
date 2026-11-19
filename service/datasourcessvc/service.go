@@ -206,8 +206,8 @@ func (s *service) StartProviderDataSourceInstall(
 	if err := validate.Default().Struct(params); err != nil {
 		return nil, ErrInvalidInput.With(err)
 	}
-	if provider != params.Type.String() || (params.Type != model.DataSourceTypeHubSpot && params.Type != model.DataSourceTypeGitlab && params.Type != model.DataSourceTypeBigQuery && params.Type != model.DataSourceTypeGoogleWorkspace) {
-		return nil, ErrInvalidInput.Detail("provider and data source type must both be hubspot, gitlab, bigquery, or google_workspace")
+	if provider != params.Type.String() || (params.Type != model.DataSourceTypeHubSpot && params.Type != model.DataSourceTypeGitlab && params.Type != model.DataSourceTypeBigQuery && params.Type != model.DataSourceTypeGoogleWorkspace && params.Type != model.DataSourceTypeStripe) {
+		return nil, ErrInvalidInput.Detail("provider and data source type must both be hubspot, gitlab, bigquery, google_workspace, or stripe")
 	}
 
 	slugWasGenerated := params.Slug == ""
@@ -218,6 +218,14 @@ func (s *service) StartProviderDataSourceInstall(
 	}
 	if params.Type == model.DataSourceTypeGoogleWorkspace {
 		if err := decodeWorkspacePending(params.ConfigJSON); err != nil {
+			return nil, err
+		}
+	} else if params.Type == model.DataSourceTypeStripe {
+		if params.ReadOnly != nil && !*params.ReadOnly {
+			return nil, ErrInvalidInput.Detail("Stripe data sources are read-only")
+		}
+		provider, err = StripeOAuthProvider(params.ConfigJSON)
+		if err != nil {
 			return nil, err
 		}
 	} else if err := s.validateProviderDataSourceConfig(params.Type, params.ConfigJSON); err != nil {
@@ -744,7 +752,7 @@ func (s *service) TestConnection(
 		}
 	}
 
-	if err := s.validateConfigAndCredentials(
+	if err := s.validateStaticConfigAndCredentials(
 		params.Type,
 		configJSON,
 		credentialsJSON,
@@ -844,7 +852,7 @@ func (s *service) create(
 		validationCredentialsJSON = managedCredentialsJSON
 	}
 
-	if err := s.validateConfigAndCredentials(
+	if err := s.validateStaticConfigAndCredentials(
 		params.Type,
 		validationConfigJSON,
 		validationCredentialsJSON,
@@ -1371,7 +1379,7 @@ func (s *service) UpdateCredentials(
 			return err
 		}
 
-		if err := s.validateConfigAndCredentials(
+		if err := s.validateStaticConfigAndCredentials(
 			repoDS.Type,
 			repoDS.Config,
 			credentialsJSON,

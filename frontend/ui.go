@@ -351,6 +351,12 @@ func (r *Router) RegisterRoutes(app *fiber.App, presentation RoutePresentation) 
 		r.handleExecuteQuerySubmit,
 	)
 	protected.Post("/orgs/:slug/data-sources", r.handleCreateDataSourceSubmit)
+	protected.Post("/orgs/:slug/data-sources/stripe/oauth", func(c fiber.Ctx) error {
+		return r.handleStartProviderDataSourceOAuthSubmit(c, "stripe", "Stripe")
+	})
+	protected.Post("/orgs/:slug/data-sources/:dsSlug/stripe/oauth", func(c fiber.Ctx) error {
+		return r.handleStartExistingProviderOAuthSubmit(c, "stripe")
+	})
 	protected.Post("/orgs/:slug/data-sources/hubspot/oauth", r.handleStartHubSpotDataSourceOAuthSubmit)
 	protected.Post("/orgs/:slug/data-sources/bigquery/oauth", r.handleStartBigQueryDataSourceOAuthSubmit)
 	protected.Post("/orgs/:slug/data-sources/google_workspace/oauth", r.handleStartWorkspaceDataSourceOAuthSubmit)

@@ -73,10 +73,10 @@
         },
         {
           "file": "stripe.spec.cjs",
-          "title": "tests a Stripe restricted key and saves a revenue source",
+          "title": "creates Stripe revenue sources with a restricted key and read-only OAuth",
           "tier": "extended",
           "cross_browser": false,
-          "reason": "Restricted key and mode survive a failed connection test and HTMX retry before source creation."
+          "reason": "Stripe key retry, switching to OAuth, consent and reconnect require browser state and redirects."
         },
         {
           "file": "http-oauth.spec.cjs",

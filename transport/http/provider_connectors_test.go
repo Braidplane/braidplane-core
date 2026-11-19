@@ -1132,3 +1132,27 @@ func TestHTTPOAuthPermissionsRequireUpdateForInitialAndRotatedGrants(t *testing.
 	}
 	require.Equal(t, model.Create, oauthInstallAction("hubspot", credentialssvc.OAuthInstallIntentCreate))
 }
+
+func TestStripeReconnectSelectsPersistedSourceMode(t *testing.T) {
+	t.Parallel()
+	app, store := newTestApp(t, testServerConfig{
+		authService: fakeAuthService{CanFn: func(_ context.Context, input authorization.Input) (bool, error) {
+			return input.Resource == model.ResourceDataSources && input.Action == model.Update, nil
+		}},
+		datasourcesService: &fakeDataSourcesService{FindBySlugFn: func(_ context.Context, org, source slug.Slug) (*datasourcessvc.DataSource, error) {
+			require.Equal(t, slug.Slug("acme"), org)
+			require.Equal(t, slug.Slug("revenue"), source)
+			return &datasourcessvc.DataSource{Slug: source, Type: model.DataSourceTypeStripe, Config: json.RawMessage(`{"mode":"live"}`), ReadOnly: true, IsActive: true}, nil
+		}},
+		credentialsService: &fakeCredentialsService{StartOAuthInstallFn: func(_ context.Context, p credentialssvc.StartOAuthInstallParams) (credentialssvc.ProviderConnectorInstall, error) {
+			require.Equal(t, "stripe_live", p.Provider)
+			require.False(t, p.IncludeWriteScopes)
+			require.Equal(t, credentialssvc.OAuthInstallIntentRotate, p.Intent)
+			return credentialssvc.ProviderConnectorInstall{Provider: p.Provider}, nil
+		}},
+	})
+	req := jsonRequest(t, http.MethodPost, "/organizations/acme/provider-connectors/stripe/installs", map[string]string{"data_source_slug": "revenue", "intent": "rotate_grant"})
+	resp := authenticatedRequest(t, app, store, "alice", req)
+	defer func() { _ = resp.Body.Close() }()
+	require.Equal(t, http.StatusCreated, resp.StatusCode)
+}

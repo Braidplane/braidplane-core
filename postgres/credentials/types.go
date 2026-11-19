@@ -85,6 +85,8 @@ type CredentialGrant struct {
 
 // OAuthGrantIntentState contains the locked credential state needed to validate a callback intent.
 type OAuthGrantIntentState struct {
+	SourceType     string
+	SourceMode     string
 	SourceRevision int64
 	CredentialSlug slug.Slug
 	Kind           string

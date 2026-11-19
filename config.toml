@@ -80,6 +80,13 @@ expensive_tenant_attempts = 1000
 credential_attempts = 1000
 expensive_window = "1m"
 
+[stripe]
+# Configure each Stripe App mode independently. Supply the developer key through the environment.
+test_install_url = ""
+test_redirect_uri = ""
+live_install_url = ""
+live_redirect_uri = ""
+
 [hubspot]
 # Optional local override for HubSpot connector development or mock testing.
 # Leave empty and false to use the public HubSpot API.

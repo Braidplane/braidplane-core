@@ -64,6 +64,32 @@ func TestRestrictedKeyAndAccountSelection(t *testing.T) {
 	}
 }
 
+func TestOAuthGrantIsBoundToMode(t *testing.T) {
+	for _, mode := range []string{"test", "live"} {
+		cfg := Config{Mode: mode}
+		grant := Credentials{AccessToken: "synthetic-access-token", OAuthMode: mode}
+		require.Error(t, ValidateRestrictedKey(&cfg, grant))
+		c, err := New(t.Context(), cfg, grant)
+		require.NoError(t, err)
+		c.transport = provider(func(req *http.Request) (*http.Response, error) {
+			require.Equal(t, "Bearer synthetic-access-token", req.Header.Get("Authorization"))
+			require.Empty(t, req.Header.Get("Stripe-Account"))
+			return response(200, `{"object":"list","data":[],"has_more":false}`), nil
+		})
+		require.NoError(t, c.TestConnection(t.Context()))
+		for _, invalid := range []Credentials{
+			{AccessToken: grant.AccessToken},
+			{OAuthMode: mode},
+			{AccessToken: grant.AccessToken, OAuthMode: mode, APIKey: "rk_" + mode + "_fixture"},
+		} {
+			_, err = New(t.Context(), cfg, invalid)
+			require.ErrorIs(t, err, xerror.InvalidCredentials())
+		}
+		grant.OAuthMode = "other"
+		require.ErrorIs(t, Validate(&cfg, grant), xerror.InvalidCredentials())
+	}
+}
+
 func TestReadsAndSchema(t *testing.T) {
 	c, err := New(t.Context(), Config{Mode: "test"}, Credentials{APIKey: "rk_test_fixture"})
 	require.NoError(t, err)

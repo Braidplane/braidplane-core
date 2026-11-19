@@ -93,6 +93,7 @@ import (
 	workspaceoauth "github.com/Braidplane/braidplane-core/service/credentialssvc/provider/googleworkspace"
 	hubspotoauth "github.com/Braidplane/braidplane-core/service/credentialssvc/provider/hubspot"
 	slackoauth "github.com/Braidplane/braidplane-core/service/credentialssvc/provider/slack"
+	stripeprovider "github.com/Braidplane/braidplane-core/service/credentialssvc/provider/stripe"
 	"github.com/Braidplane/braidplane-core/service/datasourcerefssvc"
 	"github.com/Braidplane/braidplane-core/service/datasourcessvc"
 	"github.com/Braidplane/braidplane-core/service/datasourcessvc/connector"
@@ -708,6 +709,16 @@ func Run(cfg *backendconfig.Config, mode Mode, createDistribution DistributionFa
 			return xerror.Wrapf("configure BigQuery OAuth provider: %w", providerErr)
 		}
 		providerRegistry["bigquery"] = provider
+	}
+	for _, app := range cfg.Stripe.Apps() {
+		if !app.Enabled() {
+			continue
+		}
+		p, err := stripeprovider.New(app)
+		if err != nil {
+			return xerror.Wrapf("configure Stripe OAuth provider: %w", err)
+		}
+		providerRegistry["stripe_"+app.Mode] = p
 	}
 	if strings.TrimSpace(cfg.HubSpot.OAuthClientID) != "" {
 		hubSpotProvider, providerErr := hubspotoauth.New(hubspotoauth.Config{

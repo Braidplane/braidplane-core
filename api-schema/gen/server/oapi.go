@@ -5990,6 +5990,7 @@ const (
 	StartProviderDataSourceInstallRequestTypeBigquery        StartProviderDataSourceInstallRequestType = "bigquery"
 	StartProviderDataSourceInstallRequestTypeGoogleWorkspace StartProviderDataSourceInstallRequestType = "google_workspace"
 	StartProviderDataSourceInstallRequestTypeHubspot         StartProviderDataSourceInstallRequestType = "hubspot"
+	StartProviderDataSourceInstallRequestTypeStripe          StartProviderDataSourceInstallRequestType = "stripe"
 )
 
 // Valid indicates whether the value is a known member of the StartProviderDataSourceInstallRequestType enum.
@@ -6000,6 +6001,8 @@ func (e StartProviderDataSourceInstallRequestType) Valid() bool {
 	case StartProviderDataSourceInstallRequestTypeGoogleWorkspace:
 		return true
 	case StartProviderDataSourceInstallRequestTypeHubspot:
+		return true
+	case StartProviderDataSourceInstallRequestTypeStripe:
 		return true
 	default:
 		return false
@@ -27726,6 +27729,32 @@ func (t *StartProviderDataSourceInstallRequest_Config) FromGoogleWorkspacePendin
 
 // MergeGoogleWorkspacePendingInstallConfig performs a merge with any union data inside the StartProviderDataSourceInstallRequest_Config, using the provided GoogleWorkspacePendingInstallConfig
 func (t *StartProviderDataSourceInstallRequest_Config) MergeGoogleWorkspacePendingInstallConfig(v GoogleWorkspacePendingInstallConfig) error {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+
+	merged, err := runtime.JSONMerge(t.union, b)
+	t.union = merged
+	return err
+}
+
+// AsStripeConfig returns the union data inside the StartProviderDataSourceInstallRequest_Config as a StripeConfig
+func (t StartProviderDataSourceInstallRequest_Config) AsStripeConfig() (StripeConfig, error) {
+	var body StripeConfig
+	err := json.Unmarshal(t.union, &body)
+	return body, err
+}
+
+// FromStripeConfig overwrites any union data inside the StartProviderDataSourceInstallRequest_Config as the provided StripeConfig
+func (t *StartProviderDataSourceInstallRequest_Config) FromStripeConfig(v StripeConfig) error {
+	b, err := json.Marshal(v)
+	t.union = b
+	return err
+}
+
+// MergeStripeConfig performs a merge with any union data inside the StartProviderDataSourceInstallRequest_Config, using the provided StripeConfig
+func (t *StartProviderDataSourceInstallRequest_Config) MergeStripeConfig(v StripeConfig) error {
 	b, err := json.Marshal(v)
 	if err != nil {
 		return err
