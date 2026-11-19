@@ -50,10 +50,13 @@ git_id=$(docker run -d --rm -p "127.0.0.1:$GIT_SSH_PORT:23231" -p "127.0.0.1:$GI
     -e 'SOFT_SERVE_DB_DATA_SOURCE=soft-serve.db?_pragma=busy_timeout(5000)&_pragma=foreign_keys(1)&_txlock=immediate' "$git_image")
 if [ "$suite" = bruno ]; then
     # Let Docker reserve the port so runner services cannot collide with the fixture.
-    HUBSPOT_MOCK_PORT=127.0.0.1:0 docker compose -f docker-compose.yml -f docker-compose.connectors.yml up -d --build --wait \
+    STRIPE_MOCK_PORT=0 HUBSPOT_MOCK_PORT=127.0.0.1:0 docker compose -f docker-compose.yml -f docker-compose.connectors.yml up -d --build --wait \
         postgres-connector-test mysql-connector-test mongo-connector-test \
-        http-connector-test openapi-server hubspot-connector-test bigquery-connector-test \
+        http-connector-test openapi-server hubspot-connector-test bigquery-connector-test stripe-connector-test \
         ftp-connector-test s3-connector-test-setup
+    stripe_address=$(docker compose -f docker-compose.yml -f docker-compose.connectors.yml port stripe-connector-test 12111)
+    export STRIPE_MOCK_PORT="${stripe_address##*:}"
+    export GOFLAGS="${GOFLAGS:+$GOFLAGS }-tags=stripe_bruno"
     hubspot_address=$(docker compose -f docker-compose.yml -f docker-compose.connectors.yml port hubspot-connector-test 8080)
     HUBSPOT_MOCK_PORT=${hubspot_address##*:}
     if [[ ! "$HUBSPOT_MOCK_PORT" =~ ^[1-9][0-9]{0,4}$ ]]; then

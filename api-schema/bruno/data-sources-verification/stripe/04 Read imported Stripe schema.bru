@@ -1,0 +1,31 @@
+meta {
+  name: 04 Read imported Stripe schema
+  type: http
+  seq: 33.4
+}
+
+get {
+  url: {{baseUrl}}/organizations/{{orgSlug}}/data-sources/{{stripeSourceSlug}}
+  body: none
+  auth: inherit
+}
+
+script:post-response {
+  if (res.status === 200 && res.body.schema_status === "importing") {
+    const attempts = Number(bru.getVar("stripeSchemaAttempts") || 0);
+    if (attempts >= 30) throw new Error("Stripe schema import timed out");
+    bru.setVar("stripeSchemaAttempts", String(attempts + 1));
+    await new Promise(resolve => setTimeout(resolve, 1000));
+    bru.runner.setNextRequest("04 Read imported Stripe schema");
+  }
+}
+
+tests {
+  test("Read imported Stripe schema", function() {
+    expect(res.status).to.equal(200);
+    if (res.body.schema_status === "importing") return;
+    expect(res.body.schema_status).to.equal("ready");
+    expect(res.body.schema.schema_type).to.equal("object_api");
+    expect(res.body.schema.objects.map(o => o.name)).to.have.members(["customers", "subscriptions", "invoices", "payments"]);
+  });
+}

@@ -13,7 +13,6 @@ import (
 	sdk "github.com/stripe/stripe-go/v87"
 
 	"github.com/Braidplane/braidplane-core/pkg/connector/result"
-	"github.com/Braidplane/braidplane-core/pkg/hostguard"
 	"github.com/Braidplane/braidplane-core/pkg/xerror"
 	"github.com/Braidplane/braidplane-core/service/datasourcessvc/connector/param"
 	"github.com/Braidplane/braidplane-core/service/datasourcessvc/connector/types"
@@ -62,6 +61,7 @@ func ValidateRestrictedKey(cfg *Config, creds Credentials) error {
 }
 
 type Connector struct {
+	apiURL    *string
 	key       string
 	live      bool
 	transport http.RoundTripper
@@ -71,12 +71,15 @@ func New(_ context.Context, cfg Config, creds Credentials) (*Connector, error) {
 	if err := Validate(&cfg, creds); err != nil {
 		return nil, err
 	}
-	transport := &http.Transport{DialContext: hostguard.DialPublicHost, ForceAttemptHTTP2: true, IdleConnTimeout: 90 * time.Second}
 	key := creds.APIKey
 	if creds.AccessToken != "" {
 		key = creds.AccessToken
 	}
-	return &Connector{key: key, live: cfg.Mode == "live", transport: transport}, nil
+	apiURL, transport, err := apiEndpoint(key)
+	if err != nil {
+		return nil, err
+	}
+	return &Connector{apiURL: apiURL, key: key, live: cfg.Mode == "live", transport: transport}, nil
 }
 
 func (c *Connector) Close() error {
@@ -219,6 +222,7 @@ func (c *Connector) list(ctx context.Context, r resource, cursor string, limit i
 		CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse },
 	}
 	backend := sdk.GetBackendWithConfig(sdk.APIBackend, &sdk.BackendConfig{
+		URL:               c.apiURL,
 		HTTPClient:        client,
 		MaxNetworkRetries: sdk.Int64(0),
 		EnableTelemetry:   sdk.Bool(false), // Workers serve multiple organizations.

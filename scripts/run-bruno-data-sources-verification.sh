@@ -79,7 +79,7 @@ done < environments/Worktree.bru > "${bruno_env_file}"
 bash "$root_dir/scripts/bruno-toolchain.sh" run \
   "_setup/Create Session.bru" \
   "_setup/Enable Prod Project Environment.bru" \
-  runtime-variables ftp s3 http provider-connectors hubspot bigquery snowflake mongodb mysql postgres git cross-source \
+  runtime-variables ftp s3 http provider-connectors hubspot stripe bigquery snowflake mongodb mysql postgres git cross-source \
   --env-file "${bruno_env_file}" -r \
   --env-var "userEmail=${user_email}" \
   --env-var "orgSlug=${org_slug}" \

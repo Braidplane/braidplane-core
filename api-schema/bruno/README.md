@@ -7,7 +7,7 @@ fixtures. They were imported from `Braidplane/braidplane-managed` revision
 | Collection | Request files |
 |---|---:|
 | Braidplane API | 147 |
-| Data source verification | 133 |
+| Data source verification | 140 |
 | Multi-tenant isolation | 46 |
 | Projects and pipeline lifecycle | 27 |
 | Setup flow | 4 |
@@ -21,7 +21,7 @@ notifications, account removal and pipeline contracts belong to Core.
 
 ## Candidate CI
 
-`task bruno-ci` runs all 357 candidate-local request files. The required Bruno
+`task bruno-ci` runs all 364 candidate-local request files. The required Bruno
 CI job provisions the connector services from `docker-compose.connectors.yml`,
 starts Core with `task dev`, and runs both the four-request `task test-bruno`
 smoke suite and these collections. Playwright runs independently on separate fixtures.
@@ -35,6 +35,8 @@ Reports omit request/response headers and bodies and are removed after the check
 For local runs, provision the same owned connector services and Git fixture as
 [`scripts/ci-runtime.sh bruno`](../../scripts/ci-runtime.sh), start `task dev`, and export
 the matching database, encryption keys, application URLs and connector ports.
+For the Stripe journey, start the API and worker with `GOFLAGS=-tags=stripe_bruno` and `STRIPE_MOCK_PORT` set to the loopback port published by `stripe-connector-test`. The tagged build routes the synthetic restricted key to the pinned Stripe mock. The journey checks connection testing, worker-imported schema and an invoice returned by a saved query. Real Stripe Apps consent requires separate staging verification.
+
 Then run `task bruno-ci`. The tasks write to the selected database and mutate the
 local Git fixture; use only disposable synthetic data. They never start or select
 a hosted runtime. `scripts/gen-bruno-env.sh` writes ignored `Worktree` environments
