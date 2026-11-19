@@ -38,6 +38,7 @@ Public user guides live under `docs-public/` with separate MkDocs navigation.
 - [Credential security audit](SECURITY_AUDIT.md)
 - [Self-hosted custody and network boundaries](SELF_HOSTED_CUSTODY.md)
 - [OpenTelemetry collector export](OPENTELEMETRY.md)
+- [Core schema reuse for MCP](MCP_SCHEMA_CONTRACT.md)
 - [Package Boundaries](PACKAGE_BOUNDARIES.md)
 - [Pipeline proposal authority](PROPOSAL_AUTHORITY.md)
 - [Pipeline run progress](PIPELINE_RUN_PROGRESS.md)

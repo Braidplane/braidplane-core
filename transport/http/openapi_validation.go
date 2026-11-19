@@ -30,10 +30,14 @@ func NewOpenAPIRequestValidator(schema *openapi3.T) (fiber.Handler, error) {
 		err = openapi3filter.ValidateRequest(c.Context(), &openapi3filter.RequestValidationInput{
 			Request: request, PathParams: params, Route: route,
 			// Principal authentication and permissions belong to route middleware and handlers.
-			Options: &openapi3filter.Options{AuthenticationFunc: openapi3filter.NoopAuthenticationFunc},
+			Options: &openapi3filter.Options{AuthenticationFunc: openapi3filter.NoopAuthenticationFunc, KeepValidatedValue: true},
 		})
 		if err != nil {
 			return openAPIValidationFailure(c, err)
+		}
+		// The generated strict Fiber handler binds this validated JSON value.
+		if body, ok := request.Body.(interface{ ValidatedValue() any }); ok {
+			c.Locals("x-oapi-codegen-validated-body", body.ValidatedValue())
 		}
 		return c.Next()
 	}, nil
