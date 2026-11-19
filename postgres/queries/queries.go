@@ -74,6 +74,10 @@ func (r *repository) Create(
 	return query, queryParams, nil
 }
 
+func (*repository) ExistsOnOtherDataSource(ctx context.Context, db postgres.DBTX, org, source, operation slug.Slug) (bool, error) {
+	return dbgen.New(db).QueryExistsOnOtherDataSource(ctx, dbgen.QueryExistsOnOtherDataSourceParams{OrgSlug: org, DataSourceSlug: source, QuerySlug: operation})
+}
+
 // FindBySlug fetches a query by slug with its parameters.
 func (r *repository) FindBySlug(
 	ctx context.Context,

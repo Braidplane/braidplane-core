@@ -12,10 +12,13 @@ import (
 	"github.com/Braidplane/braidplane-core/service/datasourcerefssvc"
 	"github.com/Braidplane/braidplane-core/service/environmentssvc"
 	"github.com/Braidplane/braidplane-core/service/pipelinesvc"
+	"github.com/Braidplane/braidplane-core/service/queriessvc"
 )
 
+type OperationReader func(context.Context, slug.Slug, slug.Slug, slug.Slug) (*queriessvc.Query, error)
+
 // Load evaluates the current persisted specs. An empty pipeline selects the whole project.
-func Load(ctx context.Context, pipelines pipelinesvc.Service, environments environmentssvc.Service, refs datasourcerefssvc.Service, org, project, pipeline slug.Slug) (Report, error) {
+func Load(ctx context.Context, pipelines pipelinesvc.Service, environments environmentssvc.Service, refs datasourcerefssvc.Service, readOperation OperationReader, org, project, pipeline slug.Slug) (Report, error) {
 	slugs := []slug.Slug{pipeline}
 	if pipeline == "" {
 		summaries, err := pages(func(req model.ListRequest) (model.ListResponse[*pipelinesvc.PipelineSummary], error) {
@@ -40,7 +43,7 @@ func Load(ctx context.Context, pipelines pipelinesvc.Service, environments envir
 		}
 		inputs[i].Spec = detail.Spec
 	}
-	envs, err := loadSetup(ctx, environments, refs, org, project, pipeline, inputs)
+	envs, err := loadSetup(ctx, environments, refs, readOperation, org, project, pipeline, inputs)
 	if err != nil {
 		return Report{}, err
 	}
@@ -48,7 +51,7 @@ func Load(ctx context.Context, pipelines pipelinesvc.Service, environments envir
 }
 
 // LoadSpecs evaluates incoming pipeline specs against the project's current setup.
-func LoadSpecs(ctx context.Context, environments environmentssvc.Service, refs datasourcerefssvc.Service, org, project slug.Slug, specs []*pipelinespec.Pipeline) ([]Report, error) {
+func LoadSpecs(ctx context.Context, environments environmentssvc.Service, refs datasourcerefssvc.Service, readOperation OperationReader, org, project slug.Slug, specs []*pipelinespec.Pipeline) ([]Report, error) {
 	reports := make([]Report, len(specs))
 	if len(specs) == 0 {
 		return reports, nil
@@ -60,7 +63,7 @@ func LoadSpecs(ctx context.Context, environments environmentssvc.Service, refs d
 		}
 		inputs[i].Spec = spec
 	}
-	envs, err := loadSetup(ctx, environments, refs, org, project, "", inputs)
+	envs, err := loadSetup(ctx, environments, refs, readOperation, org, project, "", inputs)
 	if err != nil {
 		return nil, err
 	}
@@ -70,7 +73,7 @@ func LoadSpecs(ctx context.Context, environments environmentssvc.Service, refs d
 	return reports, nil
 }
 
-func loadSetup(ctx context.Context, environments environmentssvc.Service, refs datasourcerefssvc.Service, org, project, pipeline slug.Slug, inputs []PipelineInput) ([]EnvironmentInput, error) {
+func loadSetup(ctx context.Context, environments environmentssvc.Service, refs datasourcerefssvc.Service, readOperation OperationReader, org, project, pipeline slug.Slug, inputs []PipelineInput) ([]EnvironmentInput, error) {
 	enabled, err := pages(func(req model.ListRequest) (model.ListResponse[model.ProjectEnvironment], error) {
 		return environments.ListProjectEnvironments(ctx, org, project, req)
 	})
@@ -99,6 +102,9 @@ func loadSetup(ctx context.Context, environments environmentssvc.Service, refs d
 	if err != nil {
 		return nil, err
 	}
+	if err := loadOperations(ctx, org, inputs, readOperation); err != nil {
+		return nil, err
+	}
 	if !slices.ContainsFunc(inputs, func(p PipelineInput) bool {
 		return len(runtime.ExtractRequirements(p.Spec).EnvironmentVariables) > 0
 	}) {
@@ -116,6 +122,42 @@ func loadSetup(ctx context.Context, environments environmentssvc.Service, refs d
 		}
 	}
 	return envs, nil
+}
+
+func loadOperations(ctx context.Context, org slug.Slug, inputs []PipelineInput, read OperationReader) error {
+	cache := map[OperationKey]SavedOperation{}
+	for i := range inputs {
+		p := &inputs[i]
+		p.Operations = cache
+		for _, req := range runtime.ExtractRequirements(p.Spec).SavedOperations {
+			for _, binding := range p.Bindings {
+				if binding.DataSourceRefSlug != req.DataSourceRef {
+					continue
+				}
+				key := OperationKey{binding.DataSourceSlug, req.Ref}
+				if _, ok := cache[key]; ok {
+					continue
+				}
+				if read == nil {
+					return xerror.Unexpected().Detail("missing readiness operation reader")
+				}
+				query, err := read(ctx, org, key.Source, key.Ref)
+				switch {
+				case xerror.Is(err, queriessvc.ErrOperationWrongDataSource):
+					cache[key] = SavedOperation{WrongDataSource: true}
+				case xerror.Is(err, queriessvc.ErrQueryNotFound):
+					cache[key] = SavedOperation{}
+				case err != nil:
+					return err
+				case query == nil:
+					return xerror.Unexpected().Detail("missing saved operation metadata")
+				default:
+					cache[key] = SavedOperation{Query: query}
+				}
+			}
+		}
+	}
+	return nil
 }
 
 func loadPipelineRefs(ctx context.Context, refs datasourcerefssvc.Service, org, project, pipeline slug.Slug, input *PipelineInput, envs []EnvironmentInput) error {

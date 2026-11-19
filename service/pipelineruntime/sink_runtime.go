@@ -1083,27 +1083,9 @@ func validateSinkBackendPayloadSupport(
 }
 
 func validateReservedSinkConfigBindings(config map[string]any) error {
-	for _, reserved := range []string{
-		sinkbinding.Input,
-		sinkbinding.InternalInputRows,
-		sinkbinding.InternalInputColumns,
-		sinkbinding.InternalInputRepresentation,
-		sinkbinding.InternalInputFileMetadata,
-		sinkbinding.InternalInputFileFilename,
-		sinkbinding.InternalInputFileMIMEType,
-		sinkbinding.InternalInputFileSizeBytes,
-		sinkbinding.InternalInputFileDigestAlgorithm,
-		sinkbinding.InternalInputFileDigest,
-		sinkbinding.InternalIdempotencyKey,
-		sinkbinding.InternalIdempotencyClass,
-		sinkbinding.InternalEffectStartedAt,
-		sinkbinding.InternalReplayIdentity,
-	} {
-		if _, exists := config[reserved]; exists {
-			return errSinkNotConfigured.Detailf(
-				"sink.config.%s is reserved for runtime payload binding",
-				reserved,
-			)
+	for _, name := range sinkbinding.ReservedNames() {
+		if _, exists := config[name]; exists {
+			return errSinkNotConfigured.Detailf("sink.config.%s is reserved for runtime payload binding", name)
 		}
 	}
 

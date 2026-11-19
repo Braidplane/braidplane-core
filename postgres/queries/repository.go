@@ -10,6 +10,7 @@ import (
 
 // Repository provides access to query data.
 type Repository interface {
+	ExistsOnOtherDataSource(context.Context, postgres.DBTX, slug.Slug, slug.Slug, slug.Slug) (bool, error)
 	FindSnapshot(context.Context, postgres.DBTX, slug.Slug, slug.Slug, slug.Slug) (*OperationSnapshot, error)
 	// Create inserts a new query and returns it with its parameters.
 	Create(

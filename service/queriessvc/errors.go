@@ -14,6 +14,7 @@ var (
 
 // Service-only errors.
 var (
+	ErrOperationWrongDataSource  = xerror.New(xerror.KindInvalidInput, "OPERATION_WRONG_DATA_SOURCE", "saved operation exists on a different data source")
 	ErrOperationSnapshotRequired = xerror.New(xerror.KindInvalidInput, "OPERATION_SNAPSHOT_REQUIRED", "saved operation contracts require an immutable compiled snapshot")
 	ErrInvalidInput              = xerror.ValidationFailed()
 	ErrParameterValidationFailed = xerror.ParameterValidationFailed()

@@ -352,24 +352,41 @@ func (c *byteCounter) Write(payload []byte) (int, error) {
 	return len(payload), nil
 }
 
+// SupportsPipelineSinkSQL reports whether a saved statement can consume pipeline rows.
+func SupportsPipelineSinkSQL(stmt string) bool {
+	if !nativeInputRelationPattern.MatchString(stmt) {
+		return false
+	}
+	_, err := sinkSelectIndex(strings.TrimSpace(stmt))
+	return err == nil
+}
+
 func injectSnowflakeInputRelation(stmt, inputRelationSQL string) (string, error) {
 	trimmed := strings.TrimSpace(stmt)
+	selectIndex, err := sinkSelectIndex(trimmed)
+	if err != nil {
+		return "", err
+	}
+
+	// Snowflake places a query's WITH clause after the INSERT target and before SELECT.
+	return trimmed[:selectIndex] + "WITH input AS (" + inputRelationSQL + ") " +
+		trimmed[selectIndex:], nil
+}
+
+func sinkSelectIndex(trimmed string) (int, error) {
 	if !strings.HasPrefix(strings.ToUpper(trimmed), "INSERT ") {
-		return "", xerror.InvalidInput(xerror.Query).Detail(
+		return 0, xerror.InvalidInput(xerror.Query).Detail(
 			"snowflake pipeline sink statement must be an INSERT operation",
 		)
 	}
 
 	selectIndex := unquotedSQLKeywordIndex(trimmed, "SELECT")
 	if selectIndex < 0 {
-		return "", xerror.InvalidInput(xerror.Query).Detail(
+		return 0, xerror.InvalidInput(xerror.Query).Detail(
 			"snowflake pipeline sink INSERT must select rows from input",
 		)
 	}
-
-	// Snowflake places a query's WITH clause after the INSERT target and before SELECT.
-	return trimmed[:selectIndex] + "WITH input AS (" + inputRelationSQL + ") " +
-		trimmed[selectIndex:], nil
+	return selectIndex, nil
 }
 
 func unquotedSQLKeywordIndex(statement, keyword string) int {

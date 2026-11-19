@@ -9,14 +9,26 @@ import (
 	"github.com/Braidplane/braidplane-core/pkg/domain/model"
 	"github.com/Braidplane/braidplane-core/pkg/pipeline/runtime"
 	pipelinespec "github.com/Braidplane/braidplane-core/pkg/pipeline/spec"
+	pipelinevalidate "github.com/Braidplane/braidplane-core/pkg/pipeline/validate"
 	"github.com/Braidplane/braidplane-core/pkg/slug"
+	"github.com/Braidplane/braidplane-core/service/queriessvc"
 )
 
 type PipelineInput struct {
-	Spec     *pipelinespec.Pipeline
-	Refs     []model.DataSourceRef
-	Bindings []model.DataSourceBinding
+	Spec       *pipelinespec.Pipeline
+	Refs       []model.DataSourceRef
+	Bindings   []model.DataSourceBinding
+	Operations map[OperationKey]SavedOperation
 }
+
+type OperationKey struct{ Source, Ref slug.Slug }
+
+type SavedOperation struct {
+	Query           *queriessvc.Query
+	WrongDataSource bool
+}
+
+type bindingKey struct{ env, ref slug.Slug }
 
 type EnvironmentInput struct {
 	Slug      slug.Slug
@@ -99,7 +111,6 @@ func evaluate(pipelines []PipelineInput, environments []EnvironmentInput, includ
 		for _, ref := range pipeline.Refs {
 			refs[ref.Slug] = ref
 		}
-		type bindingKey struct{ env, ref slug.Slug }
 		bindings := make(map[bindingKey]model.DataSourceBinding, len(pipeline.Bindings))
 		for _, b := range pipeline.Bindings {
 			bindings[bindingKey{b.EnvironmentSlug, b.DataSourceRefSlug}] = b
@@ -111,6 +122,15 @@ func evaluate(pipelines []PipelineInput, environments []EnvironmentInput, includ
 				operations[step.Slug] = strings.TrimSpace(step.Query.OperationType)
 			case step.Sink != nil:
 				operations[step.Slug] = strings.TrimSpace(step.Sink.OperationType)
+			}
+		}
+		var consumers map[slug.Slug][]pipelinespec.Step
+		if len(requirements.SavedOperations) > 0 {
+			// Invalid graphs are reported by structural validation. Continue checking bound operations.
+			edges, _ := pipelinevalidate.StepEdgeContexts(pipeline.Spec)
+			consumers = make(map[slug.Slug][]pipelinespec.Step)
+			for _, edge := range edges {
+				consumers[edge.FromStep.Slug] = append(consumers[edge.FromStep.Slug], edge.ToStep)
 			}
 		}
 		for i, env := range environments {
@@ -139,16 +159,12 @@ func evaluate(pipelines []PipelineInput, environments []EnvironmentInput, includ
 				if includeRequirements {
 					row := Requirement{Kind: "data_source_ref", Key: req.Ref.String(), Capability: req.Capability}
 					if bound {
-						descriptor, _ := catalog.DescriptorFor(binding.DataSourceType)
-						row.Target = &Target{
-							Slug: binding.DataSourceSlug, Name: binding.DataSourceName, Type: binding.DataSourceType,
-							Active: binding.DataSourceActive, ReadOnly: binding.DataSourceReadOnly,
-							SupportsCapability: supportsCapability(descriptor, req.Capability),
-						}
+						row.Target = readinessTarget(binding, req.Capability)
 					}
 					result.addRequirement(row, req.Usages, before)
 				}
 			}
+			pipeline.checkSavedOperations(requirements.SavedOperations, bindings, consumers, result, includeRequirements, add)
 			for _, req := range requirements.EnvironmentVariables {
 				before := len(result.Diagnostics)
 				variable, ok := env.Variables[req.Key]
@@ -171,6 +187,69 @@ func evaluate(pipelines []PipelineInput, environments []EnvironmentInput, includ
 		}
 	}
 	return report
+}
+
+func (pipeline PipelineInput) checkSavedOperations(requirements []runtime.SavedOperationRequirement, bindings map[bindingKey]model.DataSourceBinding, consumers map[slug.Slug][]pipelinespec.Step, result *EnvironmentResult, includeRequirements bool, add func(string, runtime.RequirementUsage, string, string)) {
+	if len(requirements) == 0 {
+		return
+	}
+	steps := pipeline.operationSteps(bindings, result.EnvironmentSlug)
+	for _, req := range requirements {
+		binding, bound := bindings[bindingKey{result.EnvironmentSlug, req.DataSourceRef}]
+		op := pipeline.Operations[OperationKey{binding.DataSourceSlug, req.Ref}]
+		for _, usage := range req.Usages {
+			step := steps[usage.StepSlug]
+			before := len(result.Diagnostics)
+			problem := func(code, action string) { add(req.Ref.String(), usage, code, action) }
+			switch {
+			case !bound:
+				problem("operation_unbound", "configure_binding")
+			case op.WrongDataSource || (op.Query != nil && op.Query.DataSourceSlug != binding.DataSourceSlug):
+				problem("operation_wrong_data_source", "select_compatible_operation")
+			case op.Query == nil:
+				problem("missing_operation", "configure_saved_operation")
+			default:
+				checkOperation(step, binding, op.Query, operationGraph{steps, consumers}, problem)
+			}
+			if includeRequirements {
+				capability := model.DataSourceRefCapabilityPipelineSource
+				if step.Sink != nil {
+					capability = model.DataSourceRefCapabilityPipelineSink
+				}
+				row := Requirement{Kind: "saved_operation", Key: req.Ref.String(), Capability: capability}
+				if bound {
+					row.Target = readinessTarget(binding, capability)
+				}
+				result.addRequirement(row, []runtime.RequirementUsage{usage}, before)
+			}
+		}
+	}
+}
+
+// Supply saved source output contracts to downstream sink checks without changing the authored spec.
+func (p PipelineInput) operationSteps(bindings map[bindingKey]model.DataSourceBinding, env slug.Slug) map[slug.Slug]pipelinespec.Step {
+	steps := make(map[slug.Slug]pipelinespec.Step, len(p.Spec.Steps))
+	for _, step := range p.Spec.Steps {
+		if q := step.Query; q != nil && q.OperationRef != "" && q.OutputContract == nil && q.OutputContractRef == nil {
+			b := bindings[bindingKey{env, q.DataSourceSlug}]
+			op := p.Operations[OperationKey{b.DataSourceSlug, q.OperationRef}]
+			if op.Query != nil && op.Query.DataSourceSlug == b.DataSourceSlug && (op.Query.OutputContract != nil || op.Query.OutputContractRef != nil) {
+				query := *q
+				query.OutputContract, query.OutputContractRef = op.Query.OutputContract, op.Query.OutputContractRef
+				step.Query = &query
+			}
+		}
+		steps[step.Slug] = step
+	}
+	return steps
+}
+
+func readinessTarget(b model.DataSourceBinding, capability model.DataSourceRefCapability) *Target {
+	descriptor, _ := catalog.DescriptorFor(b.DataSourceType)
+	return &Target{
+		Slug: b.DataSourceSlug, Name: b.DataSourceName, Type: b.DataSourceType,
+		Active: b.DataSourceActive, ReadOnly: b.DataSourceReadOnly, SupportsCapability: supportsCapability(descriptor, capability),
+	}
 }
 
 func (r *EnvironmentResult) addRequirement(row Requirement, usages []runtime.RequirementUsage, previousDiagnostics int) {

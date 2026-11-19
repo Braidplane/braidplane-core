@@ -117,6 +117,35 @@ func (_d RepositoryWithLogging) Delete(ctx context.Context, tx postgres.DBTX, or
 	return
 }
 
+// ExistsOnOtherDataSource implements Repository.
+func (_d RepositoryWithLogging) ExistsOnOtherDataSource(ctx context.Context, d1 postgres.DBTX, s1 slug.Slug, s2 slug.Slug, s3 slug.Slug) (b1 bool, err error) {
+	_startedAt := time.Now()
+	_ctx := ctx
+	_ctx, _span := tracing.StartMethodSpan(_ctx, tracing.MethodSpan{
+		Layer:     "repository",
+		Package:   "postgres/queries",
+		Interface: "Repository",
+		Method:    "ExistsOnOtherDataSource",
+	})
+	defer _span.End()
+	defer func() {
+		if err != nil {
+			tracing.RecordError(_span, err)
+		}
+		logging.LogMethodCompletion(_ctx, _d._logger, logging.MethodCompletion{
+			Layer:       "repository",
+			Package:     "postgres/queries",
+			Interface:   "Repository",
+			Method:      "ExistsOnOtherDataSource",
+			StartedAt:   _startedAt,
+			CompletedAt: time.Now(),
+			Err:         err,
+		})
+	}()
+	b1, err = _d._base.ExistsOnOtherDataSource(_ctx, d1, s1, s2, s3)
+	return
+}
+
 // FindBySlug implements Repository.
 func (_d RepositoryWithLogging) FindBySlug(ctx context.Context, tx postgres.DBTX, orgSlug slug.Slug, dsSlug slug.Slug, querySlug slug.Slug) (qp1 *Query, qpa1 []*QueryParameter, err error) {
 	_startedAt := time.Now()

@@ -483,7 +483,7 @@ func TestDirectOperationIsReadOnly(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 
-			got := directOperationIsReadOnly(tt.dsType, tt.statement)
+			got := DirectOperationIsReadOnly(tt.dsType, tt.statement)
 			assert.Equal(t, tt.want, got)
 		})
 	}

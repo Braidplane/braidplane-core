@@ -27745,6 +27745,30 @@ func (q *Queries) PurgeQuery(ctx context.Context, arg PurgeQueryParams) (pgconn.
 	return q.db.Exec(ctx, purgeQuery, arg.OrgSlug, arg.DataSourceSlug, arg.QuerySlug)
 }
 
+const queryExistsOnOtherDataSource = `-- name: QueryExistsOnOtherDataSource :one
+SELECT EXISTS (
+    SELECT 1
+    FROM queries q
+    JOIN data_sources ds ON ds.id = q.data_source_id
+    JOIN organizations o ON o.id = ds.organization_id
+    WHERE o.slug = $1 AND ds.slug <> $2
+        AND ds.deleted_at IS NULL AND q.slug = $3 AND q.deleted_at IS NULL
+)
+`
+
+type QueryExistsOnOtherDataSourceParams struct {
+	OrgSlug        slug.Slug
+	DataSourceSlug slug.Slug
+	QuerySlug      slug.Slug
+}
+
+func (q *Queries) QueryExistsOnOtherDataSource(ctx context.Context, arg QueryExistsOnOtherDataSourceParams) (bool, error) {
+	row := q.db.QueryRow(ctx, queryExistsOnOtherDataSource, arg.OrgSlug, arg.DataSourceSlug, arg.QuerySlug)
+	var exists bool
+	err := row.Scan(&exists)
+	return exists, err
+}
+
 const queuePipelineDraftProposalRefresh = `-- name: QueuePipelineDraftProposalRefresh :execresult
 UPDATE pipeline_drafts pd
 SET refresh_attempt_id = $1,

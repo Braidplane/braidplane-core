@@ -118,6 +118,7 @@ type Service interface {
 		actor model.EventActor,
 		params *CreateParams,
 	) (*Query, error)
+	FindForReadiness(ctx context.Context, org, source, operation slug.Slug) (*Query, error)
 	FindBySlug(ctx context.Context, orgSlug, dsSlug, querySlug slug.Slug) (*Query, error)
 	GetExpectedInputContract(
 		ctx context.Context,
@@ -670,6 +671,26 @@ func (s *service) FindBySlug(
 	}
 
 	return ret, nil
+}
+
+// FindForReadiness distinguishes a missing operation from a source mismatch without
+// returning the identity or definition of an operation on another source.
+func (s *service) FindForReadiness(ctx context.Context, org, source, operation slug.Slug) (*Query, error) {
+	query, err := s.FindBySlug(ctx, org, source, operation)
+	if !xerror.Is(err, ErrQueryNotFound) {
+		return query, err
+	}
+	err = s.txm.RunRead(ctx, func(ctx context.Context, db postgres.DBTX) error {
+		exists, err := s.repo.ExistsOnOtherDataSource(ctx, db, org, source, operation)
+		if err != nil {
+			return xerror.Wrapf("check saved operation presence: %w", err)
+		}
+		if exists {
+			return ErrOperationWrongDataSource
+		}
+		return ErrQueryNotFound
+	})
+	return nil, err
 }
 
 // GetExpectedInputContract returns the saved sink-input contract for a query when present.

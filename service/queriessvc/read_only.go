@@ -51,9 +51,9 @@ func hubSpotQueryDataIsUpsert(data json.RawMessage) bool {
 	return err == nil && hubSpotStatementIsUpsert(statementJSON)
 }
 
-// directOperationIsReadOnly classifies connector statements conservatively for read-only data
+// DirectOperationIsReadOnly classifies connector statements conservatively for read-only data
 // sources. Unknown or malformed operation shapes return false so callers fail closed.
-func directOperationIsReadOnly(dsType model.DataSourceType, statementJSON json.RawMessage) bool {
+func DirectOperationIsReadOnly(dsType model.DataSourceType, statementJSON json.RawMessage) bool {
 	return directOperationReadOnlyRejection(dsType, statementJSON) == ""
 }
 
