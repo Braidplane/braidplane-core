@@ -28,8 +28,9 @@ const defaultTimeout = 5 * time.Second
 
 // Client performs S3-compatible provider requests through the AWS SDK.
 type Client struct {
-	client     *s3.Client
-	httpClient *http.Client
+	conditionalPut bool
+	client         *s3.Client
+	httpClient     *http.Client
 }
 
 // New creates an S3 client from runtime configuration and write-only credentials.
@@ -87,7 +88,7 @@ func New(ctx context.Context, config Config, creds Credentials) (*Client, error)
 		options.UsePathStyle = config.ForcePathStyle
 	})
 
-	return &Client{client: s3Client, httpClient: httpClient}, nil
+	return &Client{conditionalPut: s3Client.Options().BaseEndpoint == nil, client: s3Client, httpClient: httpClient}, nil
 }
 
 // newPinnedHTTPClient keeps URL hostnames intact for TLS and SigV4 while forcing each socket
@@ -239,28 +240,29 @@ func (c *Client) HeadObject(ctx context.Context, req HeadObjectRequest) (bool, e
 	return false, mapProviderError(err)
 }
 
+// ValidatePut checks the endpoint contract before a sink claims a provider effect.
+func (c *Client) ValidatePut(overwrite bool) error {
+	if !overwrite && !c.conditionalPut {
+		return xerror.Unsupported(xerror.DataSource).WithPublicDetail("Atomic create requires the default AWS S3 endpoint. Custom endpoint versions are unqualified.")
+	}
+	return nil
+}
+
 // PutObject writes one S3 object body after optional overwrite protection.
 func (c *Client) PutObject(ctx context.Context, req PutObjectRequest) (*PutObjectResult, error) {
-	if !req.Overwrite {
-		// S3-compatible PutObject calls in this first slice do not provide an
-		// atomic no-overwrite guard, so this preflight can race with concurrent
-		// writers that create the same key after HeadObject returns.
-		exists, err := c.HeadObject(ctx, HeadObjectRequest{Bucket: req.Bucket, Key: req.Key})
-		if err != nil {
-			return nil, err
-		}
-		if exists {
-			return nil, xerror.AlreadyExists(xerror.DataSource).Detailf(
-				"S3 object %q already exists",
-				req.Key,
-			)
-		}
+	if err := c.ValidatePut(req.Overwrite); err != nil {
+		return nil, err
 	}
-
 	input := &s3.PutObjectInput{
 		Bucket: aws.String(req.Bucket),
 		Key:    aws.String(req.Key),
 		Body:   bytes.NewReader(req.Content),
+	}
+	var options []func(*s3.Options)
+	if !req.Overwrite {
+		input.IfNoneMatch = aws.String("*")
+		ctx = WithRedirectsDisabled(ctx)
+		options = append(options, func(o *s3.Options) { o.RetryMaxAttempts = 1 })
 	}
 	if strings.TrimSpace(req.ContentType) != "" {
 		input.ContentType = aws.String(strings.TrimSpace(req.ContentType))
@@ -269,7 +271,18 @@ func (c *Client) PutObject(ctx context.Context, req PutObjectRequest) (*PutObjec
 		input.Metadata = cloneMetadata(req.Metadata)
 	}
 
-	if _, err := c.client.PutObject(ctx, input); err != nil {
+	if _, err := c.client.PutObject(ctx, input, options...); err != nil {
+		var apiErr smithy.APIError
+		if !req.Overwrite && xerror.As(err, &apiErr) {
+			switch apiErr.ErrorCode() {
+			case "PreconditionFailed":
+				return nil, xerror.AlreadyExists(xerror.DataSource).With(err).WithPublicDetail("The S3 object already exists. Choose a different key.")
+			case "ConditionalRequestConflict":
+				return nil, xerror.AlreadyExists(xerror.DataSource).With(err).WithPublicDetail("A concurrent S3 operation conflicted with creation. Inspect the target before retrying.")
+			case "NotImplemented", "InvalidRequest", "NotSupported":
+				return nil, xerror.Unsupported(xerror.DataSource).With(err).WithPublicDetail("The provider rejected the conditional S3 PutObject request.")
+			}
+		}
 		return nil, mapProviderError(err)
 	}
 

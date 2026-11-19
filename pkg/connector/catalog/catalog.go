@@ -488,7 +488,7 @@ var descriptors = []Descriptor{
 			},
 			Pagination:     model.ConnectorPaginationSupport{Methods: []string{"continuation_token"}, Scope: "introspection object listing only", Limitation: "Object reads are full-read only; listing pages are not incremental extraction.", Throttling: "Provider/client retry policy remains within runtime byte/time limits; verify uncertain puts before replay."},
 			Authentication: model.ConnectorAuthenticationSupport{Modes: []string{"access_key", "access_key_session_token"}, Renewal: "Static access key with optional session token; no automatic AssumeRole, STS/OIDC or default credential chain.", Recovery: "Customer rotates keys/session credentials, repairs bucket policy and verifies object state before replay."},
-			Limitations:    []string{"Object put/overwrite only; no record merge or multipart-form input. XLSX has no formula evaluation or existing-workbook preservation. No CDC."},
+			Limitations:    []string{"Buffered create-if-absent requires AWS S3 conditional PutObject on a general-purpose bucket. Custom endpoints support buffered overwrite only; no record merge or multipart-form input. XLSX has no formula evaluation or existing-workbook preservation. No CDC."},
 		},
 		SupportLevel:           SupportLevelPreview,
 		ProofMetadata:          ProofMetadataCapability{Operations: []string{"s3.object_metadata"}, SourceClaimSuffix: "/source/selected_resource", SinkClaimSuffix: "/destination/selected_resource"},

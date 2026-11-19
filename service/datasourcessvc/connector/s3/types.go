@@ -33,6 +33,7 @@ type providerClient interface {
 	ListObjects(context.Context, s3client.ListObjectsRequest) ([]s3client.Object, error)
 	GetObject(context.Context, s3client.GetObjectRequest) (*s3client.ObjectContent, error)
 	HeadObject(context.Context, s3client.HeadObjectRequest) (bool, error)
+	ValidatePut(overwrite bool) error
 	PutObject(context.Context, s3client.PutObjectRequest) (*s3client.PutObjectResult, error)
 	Close() error
 }

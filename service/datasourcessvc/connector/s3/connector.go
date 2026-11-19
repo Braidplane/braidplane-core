@@ -351,6 +351,9 @@ func (provider s3ObjectProvider) WriteFile(
 	ctx context.Context,
 	req remotefile.WriteRequest,
 ) (*remotefile.WriteResult, error) {
+	if err := provider.client.ValidatePut(req.Overwrite); err != nil {
+		return nil, err
+	}
 	if err := writegate.BeforeWrite(ctx); err != nil {
 		if !xerror.Is(err, writegate.ErrReconcileOnly) {
 			return nil, err

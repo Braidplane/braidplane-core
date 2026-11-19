@@ -304,6 +304,8 @@ func (f *fakeProviderClient) HeadObject(
 	return f.headObjectFunc(ctx, req)
 }
 
+func (*fakeProviderClient) ValidatePut(bool) error { return nil }
+
 func (f *fakeProviderClient) PutObject(
 	ctx context.Context,
 	req s3client.PutObjectRequest,
