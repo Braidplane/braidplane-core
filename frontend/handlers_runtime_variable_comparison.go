@@ -69,6 +69,10 @@ func (r *Router) renderRuntimeVariableComparison(c fiber.Ctx, status int, messag
 		}
 	default:
 		data.Comparison = resp.JSON200
+		if project == "" && c.Query("cleanup") == "1" {
+			data.CheckUsage = true
+			data.OrganizationKeys, _ = r.organizationUsage(ctx, cookie, org.String(), "", nil)
+		}
 	}
 	if (c.Query("define") == "1" || submitted != nil) && data.Permissions.Can("environments", "update") {
 		data.Editing = c.Query("key") != ""

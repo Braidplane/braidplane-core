@@ -15,6 +15,7 @@ templ ProjectDataSourceBindingsPanel(organization api.Organization, project api.
 				<p class="mt-1 text-xs text-base-content/65">Logical refs required by project pipeline specs across enabled runtime targets.</p>
 			</div>
 			<a class="btn btn-outline btn-sm" href={ templ.URL(projectRuntimeHref(ctx, ProjectEnvironmentsHref(string(organization.Slug), string(project.Slug)))) }>Open runtime targets</a>
+			<a class="btn btn-ghost btn-sm" href={ templ.URL(projectRuntimeHref(ctx, ProjectEnvironmentsHref(organization.Slug, project.Slug)+"?cleanup=1")) }>Check unused refs and bindings</a>
 		</div>
 		if projectContext.PipelineDetailsUnavailable {
 			<div class="alert alert-warning mt-4"><span>Pipeline requirements are unavailable for one or more project pipelines.</span></div>

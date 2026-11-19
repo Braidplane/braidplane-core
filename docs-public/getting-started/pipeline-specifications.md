@@ -691,3 +691,16 @@ source and sink suitability, saved-operation compatibility where contract metada
 is available, and effective organization runtime variable values without running
 a connector. An empty project with enabled environments returns
 `informational`. A project with no enabled environments returns `warning`.
+
+## Check for unused runtime configuration
+
+On the project’s **Environments** page, choose **Check unused refs and bindings**
+to see which pipeline-owned logical refs and environment bindings its current
+specs no longer reference. On the organization’s runtime variable comparison,
+choose **Check organization pipeline usage** to identify unused keys. A
+definition can still require a value even when no pipeline references its key.
+
+In a data source’s query library, **Check pipeline usage** checks the saved
+operations on the current page against organization pipelines and their
+environment bindings. These read-only checks report unknown usage when they
+cannot resolve the relevant specs or metadata. Cleanup findings are informational.
