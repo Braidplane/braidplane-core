@@ -70,6 +70,7 @@ nav:
           - Snowflake: connectors/snowflake.md
           - MongoDB: connectors/mongodb.md
           - HTTP: connectors/http.md
+          - Stripe: connectors/stripe.md
           - HubSpot: connectors/hubspot.md
           - FTP: connectors/ftp.md
           - Git: connectors/git.md

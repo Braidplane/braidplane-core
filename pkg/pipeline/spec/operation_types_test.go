@@ -26,6 +26,7 @@ func TestSinkBackendForOperationType(t *testing.T) {
 		{name: "s3", operationType: OperationTypeS3, wantBackend: model.SinkBackendS3, wantSupported: true},
 		{name: "BigQuery", operationType: OperationTypeBigQuery, wantBackend: model.SinkBackendDB, wantSupported: true},
 		{name: "hubspot", operationType: OperationTypeHubSpot, wantBackend: model.SinkBackendHTTP, wantSupported: true},
+		{name: "stripe", operationType: OperationTypeStripe, wantBackend: model.SinkBackendUnknown, wantSupported: false},
 		{name: "unknown", operationType: "unknown", wantBackend: model.SinkBackendUnknown, wantSupported: false},
 	}
 
@@ -46,6 +47,7 @@ func TestIsSupportedQueryOperationType(t *testing.T) {
 	t.Parallel()
 
 	require.True(t, IsSupportedQueryOperationType(OperationTypeSQL))
+	require.True(t, IsSupportedQueryOperationType(OperationTypeStripe))
 	require.True(t, IsSupportedQueryOperationType(OperationTypeHTTP))
 	require.True(t, IsSupportedQueryOperationType(OperationTypeHubSpot))
 	require.True(t, IsSupportedQueryOperationType(OperationTypeFTP))
@@ -110,10 +112,12 @@ func TestCapabilityProjectionDoesNotMutateCatalog(t *testing.T) {
 	for i := range changed {
 		d := &changed[i].Capabilities
 		d.ReadOperations[0] = "changed"
-		d.WriteOperations[0] = "changed"
-		d.LoadModes[0] = "changed"
+		if changed[i].SupportsPipelineSink {
+			d.WriteOperations[0] = "changed"
+			d.LoadModes[0] = "changed"
+			d.SinkPayloads[0].Limitation = "changed"
+		}
 		d.SourcePayloads[0] = model.ContractRepresentationUnknown
-		d.SinkPayloads[0].Limitation = "changed"
 		if len(d.Pagination.Methods) > 0 {
 			d.Pagination.Methods[0] = "changed"
 		}

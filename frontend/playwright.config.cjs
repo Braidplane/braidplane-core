@@ -26,6 +26,7 @@ module.exports = defineConfig({
         "run-inspection.spec.cjs",
         "proof-receipts.spec.cjs",
         "http-oauth.spec.cjs",
+        "stripe.spec.cjs",
         "notification-connections.spec.cjs",
     ],
     globalSetup: ["./e2e/firefox-app-data.cjs", "./e2e/global-setup.cjs"],
@@ -59,13 +60,23 @@ module.exports = defineConfig({
         {
             name: "firefox",
             grep: browserGrep("product", "firefox", profile),
-            testIgnore: ["**/auth.spec.cjs", "**/google-signup.spec.cjs", "**/pipeline-builder.spec.cjs"],
+            testIgnore: [
+                "**/auth.spec.cjs",
+                "**/google-signup.spec.cjs",
+                "**/pipeline-builder.spec.cjs",
+                "**/stripe.spec.cjs",
+            ],
             use: { ...devices["Desktop Firefox"], storageState: resolve(authStateDir, "e2e-user-firefox.json") },
         },
         {
             name: "webkit",
             grep: browserGrep("product", "webkit", profile),
-            testIgnore: ["**/auth.spec.cjs", "**/google-signup.spec.cjs", "**/pipeline-builder.spec.cjs"],
+            testIgnore: [
+                "**/auth.spec.cjs",
+                "**/google-signup.spec.cjs",
+                "**/pipeline-builder.spec.cjs",
+                "**/stripe.spec.cjs",
+            ],
             use: { ...devices["Desktop Safari"], storageState: resolve(authStateDir, "e2e-user-webkit.json") },
         },
     ],

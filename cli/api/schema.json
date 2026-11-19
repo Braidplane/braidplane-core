@@ -1814,7 +1814,8 @@
             "mysql": "#/components/schemas/CreateMySQLDataSourceRequest",
             "postgres": "#/components/schemas/CreatePostgresDataSourceRequest",
             "s3": "#/components/schemas/CreateS3DataSourceRequest",
-            "snowflake": "#/components/schemas/CreateSnowflakeDataSourceRequest"
+            "snowflake": "#/components/schemas/CreateSnowflakeDataSourceRequest",
+            "stripe": "#/components/schemas/CreateStripeDataSourceRequest"
           },
           "propertyName": "type"
         },
@@ -1854,6 +1855,9 @@
           },
           {
             "$ref": "#/components/schemas/CreateS3DataSourceRequest"
+          },
+          {
+            "$ref": "#/components/schemas/CreateStripeDataSourceRequest"
           }
         ]
       },
@@ -2362,6 +2366,51 @@
         ],
         "type": "object"
       },
+      "CreateStripeDataSourceRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "config": {
+            "$ref": "#/components/schemas/StripeConfig"
+          },
+          "credentials": {
+            "$ref": "#/components/schemas/StripeCredentials"
+          },
+          "name": {
+            "$ref": "#/components/schemas/Name"
+          },
+          "read_only": {
+            "description": "",
+            "enum": [
+              true
+            ],
+            "type": "boolean"
+          },
+          "slug": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/Slug"
+              }
+            ],
+            "description": ""
+          },
+          "type": {
+            "enum": [
+              "stripe"
+            ],
+            "type": "string",
+            "x-enum-varnames": [
+              "CreateStripeDataSourceRequestTypeStripe"
+            ]
+          }
+        },
+        "required": [
+          "name",
+          "type",
+          "config",
+          "credentials"
+        ],
+        "type": "object"
+      },
       "CredentialKind": {
         "description": "",
         "enum": [
@@ -2500,6 +2549,9 @@
               },
               {
                 "$ref": "#/components/schemas/S3Config"
+              },
+              {
+                "$ref": "#/components/schemas/StripeConfig"
               }
             ]
           },
@@ -2738,6 +2790,9 @@
           },
           {
             "$ref": "#/components/schemas/S3Config"
+          },
+          {
+            "$ref": "#/components/schemas/StripeConfig"
           }
         ]
       },
@@ -2772,6 +2827,9 @@
           },
           {
             "$ref": "#/components/schemas/S3Credentials"
+          },
+          {
+            "$ref": "#/components/schemas/StripeCredentials"
           }
         ]
       },
@@ -3099,7 +3157,8 @@
           "git",
           "github",
           "gitlab",
-          "s3"
+          "s3",
+          "stripe"
         ],
         "type": "string"
       },
@@ -10478,7 +10537,8 @@
               "ftp",
               "mongodb",
               "git",
-              "s3"
+              "s3",
+              "stripe"
             ],
             "type": "string"
           },
@@ -16781,7 +16841,8 @@
             "mysql": "#/components/schemas/MySQLStatement",
             "postgres": "#/components/schemas/PostgresStatement",
             "s3": "#/components/schemas/S3Statement",
-            "snowflake": "#/components/schemas/SnowflakeStatement"
+            "snowflake": "#/components/schemas/SnowflakeStatement",
+            "stripe": "#/components/schemas/StripeStatement"
           },
           "propertyName": "type"
         },
@@ -16809,6 +16870,9 @@
           },
           {
             "$ref": "#/components/schemas/HubSpotStatement"
+          },
+          {
+            "$ref": "#/components/schemas/StripeStatement"
           },
           {
             "$ref": "#/components/schemas/FTPStatement"
@@ -18156,6 +18220,97 @@
         ],
         "type": "object"
       },
+      "StripeConfig": {
+        "additionalProperties": false,
+        "properties": {
+          "mode": {
+            "description": "",
+            "enum": [
+              "test",
+              "live"
+            ],
+            "type": "string",
+            "x-enum-varnames": [
+              "StripeConfigModeTest",
+              "StripeConfigModeLive"
+            ]
+          }
+        },
+        "required": [
+          "mode"
+        ],
+        "type": "object"
+      },
+      "StripeCredentials": {
+        "additionalProperties": false,
+        "properties": {
+          "api_key": {
+            "description": "",
+            "pattern": "^rk_(test|live)_[a-zA-Z0-9_]+$",
+            "type": "string",
+            "writeOnly": true
+          }
+        },
+        "required": [
+          "api_key"
+        ],
+        "type": "object"
+      },
+      "StripeStatement": {
+        "additionalProperties": false,
+        "description": "",
+        "properties": {
+          "limit": {
+            "maximum": 100,
+            "minimum": 1,
+            "type": "integer"
+          },
+          "object_type": {
+            "enum": [
+              "customers",
+              "subscriptions",
+              "invoices",
+              "payments"
+            ],
+            "type": "string",
+            "x-enum-varnames": [
+              "StripeStatementObjectTypeCustomers",
+              "StripeStatementObjectTypeSubscriptions",
+              "StripeStatementObjectTypeInvoices",
+              "StripeStatementObjectTypePayments"
+            ]
+          },
+          "operation": {
+            "default": "list",
+            "enum": [
+              "list"
+            ],
+            "type": "string",
+            "x-enum-varnames": [
+              "StripeStatementOperationList"
+            ]
+          },
+          "starting_after": {
+            "description": "",
+            "minLength": 1,
+            "type": "string"
+          },
+          "type": {
+            "enum": [
+              "stripe"
+            ],
+            "type": "string",
+            "x-enum-varnames": [
+              "StripeStatementTypeStripe"
+            ]
+          }
+        },
+        "required": [
+          "type",
+          "object_type"
+        ],
+        "type": "object"
+      },
       "SuccessfulRunRecency": {
         "additionalProperties": false,
         "description": "",
@@ -18460,7 +18615,8 @@
             "mysql": "#/components/schemas/TestMySQLDataSourceConnectionRequest",
             "postgres": "#/components/schemas/TestPostgresDataSourceConnectionRequest",
             "s3": "#/components/schemas/TestS3DataSourceConnectionRequest",
-            "snowflake": "#/components/schemas/TestSnowflakeDataSourceConnectionRequest"
+            "snowflake": "#/components/schemas/TestSnowflakeDataSourceConnectionRequest",
+            "stripe": "#/components/schemas/TestStripeDataSourceConnectionRequest"
           },
           "propertyName": "type"
         },
@@ -18500,6 +18656,9 @@
           },
           {
             "$ref": "#/components/schemas/TestS3DataSourceConnectionRequest"
+          },
+          {
+            "$ref": "#/components/schemas/TestStripeDataSourceConnectionRequest"
           }
         ]
       },
@@ -18769,6 +18928,32 @@
               "snowflake"
             ],
             "type": "string"
+          }
+        },
+        "required": [
+          "type",
+          "config",
+          "credentials"
+        ],
+        "type": "object"
+      },
+      "TestStripeDataSourceConnectionRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "config": {
+            "$ref": "#/components/schemas/StripeConfig"
+          },
+          "credentials": {
+            "$ref": "#/components/schemas/StripeCredentials"
+          },
+          "type": {
+            "enum": [
+              "stripe"
+            ],
+            "type": "string",
+            "x-enum-varnames": [
+              "TestStripeDataSourceConnectionRequestTypeStripe"
+            ]
           }
         },
         "required": [

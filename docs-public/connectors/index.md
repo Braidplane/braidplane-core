@@ -4,7 +4,7 @@ Choose a connector by starting with the system that owns the records and the
 business action you need next: read, reshape, update, or deliver a file. You
 do not need to provision any of these systems to explore the documentation.
 
-All connectors below support pipeline source and sink roles. Actual access
+All connectors below support pipeline reads. Stripe is source-only. Actual access
 depends on the configured connection, provider permissions, and operation.
 Each guide lists the available operations and their limits. See
 [support levels and evidence](support-levels.md) for connector status,
@@ -20,6 +20,7 @@ Inspect the installed CLI build with `braidplane data-source capabilities`.
 | [Snowflake](snowflake.md) | Parameterized warehouse reads and INSERT sinks | — | `format: file` query export |
 | [MongoDB](mongodb.md) | Document queries and writes | — | — |
 | [HTTP](http.md) | Explicit API requests and response payloads | File responses and retained request bodies | — |
+| [Stripe](stripe.md) | Revenue reads for customer and payment reconciliation | — | — |
 | [HubSpot](hubspot.md) | CRM search/list and unique-key upserts | — | — |
 | [FTP](ftp.md) | Explicit FTPS file reads and writes | `format: file` read/write | — |
 | [Git](git.md) | Manually authenticated repository files | `format: file` read/write; Linux workers | — |

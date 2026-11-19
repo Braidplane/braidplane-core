@@ -313,6 +313,10 @@ templ DataSourceDetailPanelContent(orgSlug string, activeEnvironmentSlug string,
 							</label>
 							if updateFormData.Type == "google_workspace" {
 								<p class="text-xs text-base-content/70 xl:col-span-2">Choose files and spreadsheets in queries and pipelines.</p>
+							} else if updateFormData.Type == "stripe" {
+								if cfg, err := dataSource.Config.AsStripeConfig(); err == nil {
+									@EntityFact("Stripe mode") { { string(cfg.Mode) } }
+								}
 							} else if updateFormData.Type == "http" {
 								if updateFormData.AllowPrivateDataSourceHosts {
 									<label class="label cursor-pointer justify-start gap-2 xl:col-span-2">
@@ -541,6 +545,11 @@ templ DataSourceDetailPanelContent(orgSlug string, activeEnvironmentSlug string,
 							<input type="hidden" name="environment_slug" value={ activeEnvironmentSlug }/>
 							if updateFormData.Type == "http" {
 								@HTTPAuthenticationFields(HTTPAuthFormData{}, "")
+							} else if updateFormData.Type == "stripe" {
+								<label class="form-control w-full">
+									<span class="label-text text-xs">Restricted API key</span>
+									<input class="input input-bordered input-sm w-full" type="password" name="stripe_api_key" autocomplete="off" required/>
+								</label>
 							} else if updateFormData.Type == "hubspot" {
 								<div class="grid gap-3 xl:grid-cols-2">
 									<label class="form-control w-full xl:col-span-2">

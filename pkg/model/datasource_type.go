@@ -19,4 +19,5 @@ const (
 	DataSourceTypeS3                                    // s3
 	DataSourceTypeSnowflake                             // snowflake
 	DataSourceTypeGoogleWorkspace                       // google_workspace
+	DataSourceTypeStripe                                // stripe
 )

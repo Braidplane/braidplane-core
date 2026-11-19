@@ -2896,3 +2896,34 @@ func TestBuildSQLFileQueryUsesOperatorRowPolicy(t *testing.T) {
 		require.NoError(t, response.Body.Close())
 	}
 }
+
+func TestStripeQueryEditorRoundTrip(t *testing.T) {
+	t.Parallel()
+	for _, limit := range []string{"25", "101"} {
+		t.Run(limit, func(t *testing.T) {
+			app := fiber.New()
+			app.Post("/", func(c fiber.Ctx) error {
+				stmt, message := buildQueryStatementFromRequest(c, api.DataSourceTypeStripe)
+				if limit == "101" {
+					require.NotEmpty(t, message)
+				} else {
+					require.Empty(t, message)
+					raw, err := json.Marshal(stmt)
+					require.NoError(t, err)
+					require.JSONEq(t, `{"type":"stripe","object_type":"payments","operation":"list","limit":25,"starting_after":"{{cursor}}"}`, string(raw))
+					form := views.QueryEditorFormDataFromQuery(api.Query{QueryStatement: stmt})
+					require.Equal(t, "payments", form.StripeObjectType)
+					require.Equal(t, limit, form.StripeLimit)
+					require.Equal(t, "{{cursor}}", form.StripeStartingAfter)
+				}
+				return c.SendStatus(http.StatusOK)
+			})
+			values := url.Values{"stripe_object_type": {"payments"}, "stripe_limit": {limit}, "stripe_starting_after": {"{{cursor}}"}}
+			req := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/", strings.NewReader(values.Encode()))
+			req.Header.Set("Content-Type", fiber.MIMEApplicationForm)
+			resp, err := app.Test(req)
+			require.NoError(t, err)
+			require.NoError(t, resp.Body.Close())
+		})
+	}
+}

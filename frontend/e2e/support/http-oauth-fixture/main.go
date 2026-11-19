@@ -65,16 +65,23 @@ func main() {
 			var input struct {
 				Type   string `json:"type"`
 				Config struct {
+					Mode       string            `json:"mode"`
 					HealthPath string            `json:"health_path"`
 					WifObjects []json.RawMessage `json:"wif_objects"`
 				} `json:"config"`
 				Credentials struct {
+					APIKey   string `json:"api_key"`
 					AuthType string `json:"auth_type"`
 					Username string `json:"username"`
 				} `json:"credentials"`
 			}
 			if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, 16384)).Decode(&input); err != nil {
 				w.WriteHeader(http.StatusBadRequest)
+				return
+			}
+			if input.Type == "stripe" && (input.Config.Mode != "test" || input.Credentials.APIKey != "rk_test_synthetic") {
+				w.WriteHeader(http.StatusUnprocessableEntity)
+				encode(map[string]any{"error": map[string]any{"message": "Check the Stripe restricted key and mode."}})
 				return
 			}
 			if input.Type == "snowflake" {
@@ -102,7 +109,8 @@ func main() {
 					Type        string         `json:"type"`
 					Config      map[string]any `json:"config"`
 					Credentials struct {
-						OAuth struct {
+						APIKey string `json:"api_key"`
+						OAuth  struct {
 							GrantType string `json:"grant_type"`
 						} `json:"oauth"`
 					} `json:"credentials"`
@@ -112,8 +120,12 @@ func main() {
 					w.WriteHeader(http.StatusBadRequest)
 					return
 				}
+				if input.Type == "stripe" && (input.Config["mode"] != "test" || input.Credentials.APIKey != "rk_test_synthetic") {
+					w.WriteHeader(http.StatusBadRequest)
+					return
+				}
 				source = map[string]any{"slug": input.Slug, "name": input.Name, "type": input.Type, "config": input.Config, "read_only": true, "created_at": "2026-10-15T00:00:00Z", "updated_at": "2026-10-15T00:00:00Z"}
-				if input.Type == "git" || input.Type == "snowflake" {
+				if input.Type == "git" || input.Type == "snowflake" || input.Type == "stripe" {
 					source["is_active"] = true
 					w.WriteHeader(http.StatusCreated)
 					encode(source)
@@ -160,6 +172,12 @@ func main() {
 					w.WriteHeader(http.StatusUnprocessableEntity)
 					return
 				}
+			}
+			encode(source)
+		case "/api/organizations/acme/data-sources/stripe-revenue":
+			if source == nil || source["type"] != "stripe" {
+				w.WriteHeader(http.StatusNotFound)
+				return
 			}
 			encode(source)
 		case "/api/organizations/acme/data-sources/snowflake-password":

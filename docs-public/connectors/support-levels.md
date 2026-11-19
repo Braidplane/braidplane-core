@@ -34,8 +34,7 @@ for native-file and SQL-result streaming modes, limits and platform restrictions
 
 These classifications describe build capabilities, not the status of a saved
 connection. The transport descriptions were checked against the current Core
-source on 6 November 2026; no connector was promoted by that review. All
-listed types are sink-capable; none is source-only at the type level. FTP remains experimental; its current transport uses explicit FTPS.
+source on 6 November 2026; no connector was promoted by that review. Stripe is source-only. Other listed types support sinks. FTP remains experimental; its current transport uses explicit FTPS.
 Other types are preview with the limits below. The CLI's
 `braidplane data-source capabilities --output text` and JSON output consume
 the same catalog facts used for operation eligibility in the UI and CLI.
@@ -56,6 +55,7 @@ additional request parameters or automatic provider helpers.
 | [Snowflake](snowflake.md) | Preview, provider-limited | Parameterized SQL → rows | Authored append-style `INSERT`; no `COPY INTO` or merge helpers | Watermark; no public result pagination | Password where policy permits, or saved-connection customer WIF. WIF needs operator infrastructure and customer-admin grants; unsaved draft WIF tests are unavailable. |
 | [MongoDB](mongodb.md) | Preview | Find/aggregate → JSON document array; count metadata | Explicit insert/update/delete; structured bindings; no replace/upsert option | Watermark; no change streams or automatic pagination | Static database credentials; customer owns roles and rotation. |
 | [HTTP](http.md) | Preview, provider-limited | Explicit requests; JSON/CSV/file/form payloads | Explicit request body; JSON/CSV/file/multipart; provider defines append/upsert semantics | GET cursor/page/next-link traversal; cursor or timestamp watermark | Static headers/API key/bearer/basic, or customer OAuth app. Customer owns endpoint, scopes, API version and operation semantics; reconnect after revocation. |
+| [Stripe](stripe.md) | Preview, source-only | Customers, subscriptions, invoices and PaymentIntents → rows | Unsupported | One page per read, explicit continuation, no incremental checkpoint | Restricted account key for test or live mode. Rotate and retest after revocation. |
 | [HubSpot](hubspot.md) | Preview, provider-limited | List/search contacts, companies, deals and discovered custom objects → rows | Unique-key upsert with explicit field mapping; no generic create/delete sink | Cursor; list/search pagination and bounded throttling | OAuth or private app token. More scopes require reconnect, not token refresh. Custom-object entitlement is account-specific. API `2026-03`. |
 | [FTP](ftp.md) | Experimental, provider-limited | CSV/JSON/XLSX → rows; raw file | File writes; CSV/JSON/XLSX serialization or raw file; no multipart | Full read only; no incremental checkpoint | Username/password over explicit FTPS with verified control/data TLS. Plaintext requires an explicit local development policy. No implicit FTPS or SFTP. |
 | [Git](git.md) | Preview | Repository CSV/JSON/XLSX → rows; raw file | Explicit repository file writes/commits | Full read only; no issues/PR extraction | Manual HTTPS/SSH credentials; customer rotates credentials and maintains host trust. HTTPS redirects are rejected. |
@@ -106,6 +106,7 @@ versions are not recorded here except for HubSpot's pinned API.
 | PostgreSQL, MySQL, MongoDB | Hermetic statement/policy tests and local dependency-backed connector suites | Unverified here; local database fixtures do not prove a hosted customer deployment. |
 | BigQuery | Owned fake-provider query, normalization, pagination, auth and failure tests | Unverified here; no live BigQuery acceptance claimed. |
 | HTTP | Owned fake-server request, OAuth, next-link, throttling and retry tests | Unverified for each customer's API and authored operation. |
+| Stripe | Synthetic list, pagination, failure and redaction fixtures | Live account acceptance pending. |
 | HubSpot | Owned fake-provider discovery, list/search/upsert, auth and throttling tests | Unverified here for live CRM reads/upserts. Metadata-only Proof is narrower evidence. |
 | FTP, Git/GitHub/GitLab, S3 | Local/fake file/repository/object-store suites, payload and safety tests | Unverified here for exact provider, auth and workflow. Repository authorization or object metadata alone cannot qualify writes. |
 | Google Workspace Sheets/Drive | Recorded synthetic selected-file Alpha acceptance and cleanup | Historical scope: selected-file reads/writes, scheduling, read-only enforcement, revocation/recovery and metadata-only Proof. Exact last run date, candidate, environment and provider version are unverified in this matrix. |
@@ -149,7 +150,6 @@ proposed first operations for each system.
 | SQL Server | Source and sink |
 | SFTP | Source and sink. FTP and Git SSH do not supply SFTP. |
 | Salesforce | CRM reads and keyed upsert |
-| Stripe | Revenue data; qualify writes per workflow |
 | Shopify | Commerce data; qualify writes per workflow |
 | Google Analytics 4 | Reporting source-only; configuration writes excluded |
 | Zendesk | Support data |

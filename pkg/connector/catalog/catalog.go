@@ -61,6 +61,7 @@ const (
 	OperationTypeFTP             = "ftp"
 	OperationTypeGit             = "git"
 	OperationTypeMongoDB         = "mongodb"
+	OperationTypeStripe          = "stripe"
 	OperationTypeHubSpot         = "hubspot"
 	OperationTypeS3              = "s3"
 	OperationTypeSnowflake       = "snowflake"
@@ -331,6 +332,22 @@ var descriptors = []Descriptor{
 		IncrementalSourceCheckpointKinds: []model.IncrementalCheckpointKind{
 			model.IncrementalCheckpointKindWatermark,
 		},
+	},
+	{
+		Type: model.DataSourceTypeStripe,
+		Capabilities: model.ConnectorCapabilityDetails{
+			ReadOperations: []string{"list"},
+			SourcePayloads: []model.ContractRepresentation{model.ContractRepresentationRows},
+			Pagination:     model.ConnectorPaginationSupport{Methods: []string{"starting_after"}, Scope: "one list page", Limitation: "Up to 100 objects per request. Continue with the last object ID.", Throttling: "A rate-limited read fails without an automatic retry. Re-run the page after backing off."},
+			Authentication: model.ConnectorAuthenticationSupport{Modes: []string{"restricted_api_key"}, Renewal: "Static restricted key scoped to one account and mode.", Recovery: "Rotate the key and retest the connection."},
+			Limitations:    []string{"Customers, subscriptions, invoices and PaymentIntents only. Re-read objects to see late updates. Lists do not report deletions."},
+		},
+		SupportLevel:           SupportLevelPreview,
+		ProofMetadata:          ProofMetadataCapability{UnsupportedReason: "The schema describes the fixed revenue row projection."},
+		SchemaFamily:           SchemaFamilyObjectAPI,
+		QueryOperationType:     OperationTypeStripe,
+		SupportsPipelineSource: true,
+		ForcedReadOnly:         true,
 	},
 	{
 		Type: model.DataSourceTypeHubSpot,

@@ -12892,7 +12892,7 @@ components:
     DataSourceType:
       type: string
       description: Type of the data source
-      enum: [postgres, mysql, bigquery, google_workspace, snowflake, http, hubspot, mongodb, ftp, git, github, gitlab, s3]
+      enum: [postgres, mysql, bigquery, google_workspace, snowflake, http, hubspot, mongodb, ftp, git, github, gitlab, s3, stripe]
       example: "postgres"
 
     # PostgreSQL-specific schemas
@@ -13815,6 +13815,28 @@ components:
       required:
         - auth_type
 
+    StripeConfig:
+      type: object
+      additionalProperties: false
+      required: [mode]
+      properties:
+        mode:
+          type: string
+          enum: [test, live]
+          x-enum-varnames: [StripeConfigModeTest, StripeConfigModeLive]
+          description: Stripe environment of the restricted key.
+
+    StripeCredentials:
+      type: object
+      additionalProperties: false
+      required: [api_key]
+      properties:
+        api_key:
+          type: string
+          writeOnly: true
+          pattern: '^rk_(test|live)_[a-zA-Z0-9_]+$'
+          description: Restricted key for the selected Stripe mode with read access to the supported objects.
+
     # S3-specific schemas
     S3Config:
       type: object
@@ -13904,6 +13926,7 @@ components:
         - $ref: '#/components/schemas/GitConfig'
         - $ref: '#/components/schemas/ProviderGitConfig'
         - $ref: '#/components/schemas/S3Config'
+        - $ref: '#/components/schemas/StripeConfig'
 
     DataSourceCredentials:
       anyOf:
@@ -13917,6 +13940,7 @@ components:
         - $ref: '#/components/schemas/FTPCredentials'
         - $ref: '#/components/schemas/GitCredentials'
         - $ref: '#/components/schemas/S3Credentials'
+        - $ref: '#/components/schemas/StripeCredentials'
 
     ProviderKey:
       type: string
@@ -14165,6 +14189,7 @@ components:
             - $ref: '#/components/schemas/UnavailableGitConfig'
             - $ref: '#/components/schemas/ProviderGitConfig'
             - $ref: '#/components/schemas/S3Config'
+            - $ref: '#/components/schemas/StripeConfig'
         is_active:
           type: boolean
           description: Whether the data source is active
@@ -14310,6 +14335,7 @@ components:
         - $ref: '#/components/schemas/CreateGitHubDataSourceRequest'
         - $ref: '#/components/schemas/CreateGitLabDataSourceRequest'
         - $ref: '#/components/schemas/CreateS3DataSourceRequest'
+        - $ref: '#/components/schemas/CreateStripeDataSourceRequest'
       discriminator:
         propertyName: type
         mapping:
@@ -14325,6 +14351,7 @@ components:
           github: '#/components/schemas/CreateGitHubDataSourceRequest'
           gitlab: '#/components/schemas/CreateGitLabDataSourceRequest'
           s3: '#/components/schemas/CreateS3DataSourceRequest'
+          stripe: '#/components/schemas/CreateStripeDataSourceRequest'
 
     TestDataSourceConnectionRequest:
       description: Request to test data source connection without creating a data source
@@ -14341,6 +14368,7 @@ components:
         - $ref: '#/components/schemas/TestGitHubDataSourceConnectionRequest'
         - $ref: '#/components/schemas/TestGitLabDataSourceConnectionRequest'
         - $ref: '#/components/schemas/TestS3DataSourceConnectionRequest'
+        - $ref: '#/components/schemas/TestStripeDataSourceConnectionRequest'
       discriminator:
         propertyName: type
         mapping:
@@ -14356,6 +14384,7 @@ components:
           github: '#/components/schemas/TestGitHubDataSourceConnectionRequest'
           gitlab: '#/components/schemas/TestGitLabDataSourceConnectionRequest'
           s3: '#/components/schemas/TestS3DataSourceConnectionRequest'
+          stripe: '#/components/schemas/TestStripeDataSourceConnectionRequest'
 
     CreatePostgresDataSourceRequest:
       type: object
@@ -14662,6 +14691,35 @@ components:
         - type
         - config
 
+    CreateStripeDataSourceRequest:
+      type: object
+      additionalProperties: false
+      properties:
+        name:
+          $ref: '#/components/schemas/Name'
+        slug:
+          description: Optional slug (auto-generated from name if not provided using lowercase and hyphens; if collision occurs, a random suffix is appended)
+          allOf:
+            - $ref: '#/components/schemas/Slug'
+        type:
+          type: string
+          enum: [stripe]
+          x-enum-varnames:
+            - CreateStripeDataSourceRequestTypeStripe
+        config:
+          $ref: '#/components/schemas/StripeConfig'
+        credentials:
+          $ref: '#/components/schemas/StripeCredentials'
+        read_only:
+          type: boolean
+          description: Stripe sources are read-only.
+          enum: [true]
+      required:
+        - name
+        - type
+        - config
+        - credentials
+
     CreateS3DataSourceRequest:
       type: object
       additionalProperties: false
@@ -14878,6 +14936,24 @@ components:
       required:
         - type
         - config
+
+    TestStripeDataSourceConnectionRequest:
+      type: object
+      additionalProperties: false
+      properties:
+        type:
+          type: string
+          enum: [stripe]
+          x-enum-varnames:
+            - TestStripeDataSourceConnectionRequestTypeStripe
+        config:
+          $ref: '#/components/schemas/StripeConfig'
+        credentials:
+          $ref: '#/components/schemas/StripeCredentials'
+      required:
+        - type
+        - config
+        - credentials
 
     TestS3DataSourceConnectionRequest:
       type: object
@@ -15785,6 +15861,34 @@ components:
       required:
         - filters
 
+    StripeStatement:
+      type: object
+      additionalProperties: false
+      description: Read one page of Stripe revenue records.
+      required: [type, object_type]
+      properties:
+        type:
+          type: string
+          enum: [stripe]
+          x-enum-varnames: [StripeStatementTypeStripe]
+        object_type:
+          type: string
+          enum: [customers, subscriptions, invoices, payments]
+          x-enum-varnames: [StripeStatementObjectTypeCustomers, StripeStatementObjectTypeSubscriptions, StripeStatementObjectTypeInvoices, StripeStatementObjectTypePayments]
+        operation:
+          type: string
+          enum: [list]
+          default: list
+          x-enum-varnames: [StripeStatementOperationList]
+        limit:
+          type: integer
+          minimum: 1
+          maximum: 100
+        starting_after:
+          type: string
+          minLength: 1
+          description: Continue after this Stripe object ID.
+
     HubSpotStatement:
       type: object
       description: HubSpot CRM read or idempotent upsert operation with {{paramName}} placeholders
@@ -16158,6 +16262,7 @@ components:
         - $ref: '#/components/schemas/MongoDBStatement'
         - $ref: '#/components/schemas/HTTPStatement'
         - $ref: '#/components/schemas/HubSpotStatement'
+        - $ref: '#/components/schemas/StripeStatement'
         - $ref: '#/components/schemas/FTPStatement'
         - $ref: '#/components/schemas/GitStatement'
         - $ref: '#/components/schemas/S3Statement'
@@ -16172,6 +16277,7 @@ components:
           mongodb: '#/components/schemas/MongoDBStatement'
           http: '#/components/schemas/HTTPStatement'
           hubspot: '#/components/schemas/HubSpotStatement'
+          stripe: '#/components/schemas/StripeStatement'
           ftp: '#/components/schemas/FTPStatement'
           git: '#/components/schemas/GitStatement'
           s3: '#/components/schemas/S3Statement'
@@ -20203,7 +20309,7 @@ components:
         operation_type:
           type: string
           description: Operation type identifier. Must match the connector type of the referenced data source.
-          enum: [sql, bigquery, google_workspace, snowflake, http, hubspot, ftp, mongodb, git, s3]
+          enum: [sql, bigquery, google_workspace, snowflake, http, hubspot, ftp, mongodb, git, s3, stripe]
           example: sql
         operation_ref:
           $ref: '#/components/schemas/Slug'

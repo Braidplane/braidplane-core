@@ -126,6 +126,8 @@
                 return "snowflake";
             case "http":
                 return "http";
+            case "stripe":
+                return "stripe";
             case "hubspot":
                 return "hubspot";
             case "ftp":
@@ -211,6 +213,7 @@
                 return "http";
             case "mongodb":
                 return "document";
+            case "stripe":
             case "hubspot":
                 return "object_api";
             case "ftp":

@@ -2051,6 +2051,22 @@ func buildCreateDataSourcePayloadWithPrivateHosts(
 			return api.CreateDataSourceJSONRequestBody{}, "Validation: invalid http data source payload."
 		}
 		return payload, ""
+	case api.DataSourceTypeStripe:
+		mode := api.StripeConfigMode(c.FormValue("stripe_mode"))
+		if !mode.Valid() {
+			return api.CreateDataSourceJSONRequestBody{}, "Validation: select a Stripe mode."
+		}
+		creds, message := parseStripeCredentialsForm(c)
+		if message != "" {
+			return api.CreateDataSourceJSONRequestBody{}, message
+		}
+		var payload api.CreateDataSourceJSONRequestBody
+		if err := payload.FromCreateStripeDataSourceRequest(api.CreateStripeDataSourceRequest{
+			Name: name, Slug: apiSlugValue, Config: api.StripeConfig{Mode: mode}, Credentials: creds,
+		}); err != nil {
+			return api.CreateDataSourceJSONRequestBody{}, "Validation: invalid Stripe data source payload."
+		}
+		return payload, ""
 	case api.DataSourceTypeHubspot:
 		config, credentials, err := parseHubSpotForm(c)
 		if err != "" {
@@ -2162,6 +2178,8 @@ func toTestDataSourceConnectionPayload(
 			Config:      v.Config,
 			Credentials: v.Credentials,
 		})
+	case api.CreateStripeDataSourceRequest:
+		err = payload.FromTestStripeDataSourceConnectionRequest(api.TestStripeDataSourceConnectionRequest{Config: v.Config, Credentials: v.Credentials})
 	case api.CreateHubSpotDataSourceRequest:
 		err = payload.FromTestHubSpotDataSourceConnectionRequest(api.TestHubSpotDataSourceConnectionRequest{
 			Config:      v.Config,
@@ -2219,7 +2237,7 @@ func buildUpdateDataSourcePayloadWithPrivateHosts(
 	}
 
 	switch api.DataSourceType(typeInput) {
-	case api.DataSourceTypeGoogleWorkspace:
+	case api.DataSourceTypeGoogleWorkspace, api.DataSourceTypeStripe:
 		return payload, ""
 	case api.DataSourceTypePostgres:
 		cfg, errMsg := parseSQLConfigFormWithPrivateHosts(c, 5432, allowPrivateDataSourceHosts)
@@ -2388,6 +2406,14 @@ func buildUpdateDataSourceCredentialsPayloadForType(
 		}
 		if err := payload.Credentials.FromHTTPCredentials(creds); err != nil {
 			return api.UpdateDataSourceCredentialsJSONRequestBody{}, "Validation: invalid http credentials."
+		}
+	case api.DataSourceTypeStripe:
+		creds, message := parseStripeCredentialsForm(c)
+		if message != "" {
+			return api.UpdateDataSourceCredentialsJSONRequestBody{}, message
+		}
+		if err := payload.Credentials.FromStripeCredentials(creds); err != nil {
+			return api.UpdateDataSourceCredentialsJSONRequestBody{}, "Validation: invalid Stripe credentials."
 		}
 	case api.DataSourceTypeHubspot:
 		creds, errMsg := parseHubSpotCredentialsForm(c)
@@ -2818,6 +2844,14 @@ func parseHTTPCredentialsForm(c fiber.Ctx) (api.HTTPCredentials, string) {
 	return credentials, ""
 }
 
+func parseStripeCredentialsForm(c fiber.Ctx) (api.StripeCredentials, string) {
+	key, ok := formCredentialValue(c, "stripe_api_key")
+	if !ok {
+		return api.StripeCredentials{}, "Validation: Stripe restricted API key is required."
+	}
+	return api.StripeCredentials{ApiKey: &key}, ""
+}
+
 func parseHubSpotCredentialsForm(c fiber.Ctx) (api.HubSpotCredentials, string) {
 	privateAppToken, hasPrivateAppToken := formCredentialValue(c, "private_app_token")
 	if !hasPrivateAppToken {
@@ -2896,8 +2930,8 @@ func dataSourceUpdateFormDataFromDataSource(ds *api.DataSource) views.DataSource
 	}
 
 	switch ds.Type {
-	case api.DataSourceTypeGoogleWorkspace:
-		// Identity and consent change through their verified workflows; ordinary edits only rename.
+	case api.DataSourceTypeGoogleWorkspace, api.DataSourceTypeStripe:
+		// These connections only expose the name in the settings form.
 		return form
 	case api.DataSourceTypePostgres:
 		cfg, err := ds.Config.AsPostgresConfig()
@@ -3873,6 +3907,10 @@ func extractConnectionInfo(ds *api.DataSource) *views.ConnectionInfo {
 		if cfg.OpenapiFetchTimeoutSeconds != nil {
 			addField("openapi_fetch_timeout_seconds", strconv.Itoa(*cfg.OpenapiFetchTimeoutSeconds))
 		}
+	case api.DataSourceTypeStripe:
+		if cfg, err := ds.Config.AsStripeConfig(); err == nil {
+			addField("mode", string(cfg.Mode))
+		}
 	case api.DataSourceTypeHubspot:
 		cfg, err := ds.Config.AsHubSpotConfig()
 		if err != nil {
@@ -4064,6 +4102,7 @@ func dataSourceCreateFormDataFromRequest(c fiber.Ctx) views.DataSourceCreateForm
 		GitLabReadOnly:            strings.TrimSpace(c.FormValue(gitLabAccessModeField)) != gitLabAccessModeWrite,
 		GitHubRepositoryID:        strings.TrimSpace(c.FormValue("github_repository_id")),
 		GitHubReadOnly:            strings.TrimSpace(c.FormValue("github_access_mode")) != "write",
+		StripeMode:                c.FormValue("stripe_mode"),
 		HubSpotAuthType:           hubSpotAuthType,
 		BigQueryReadOnly:          strings.TrimSpace(c.FormValue("bigquery_access_mode")) != "write",
 		MoreTime:                  c.FormValue("more_time") == "true",
@@ -4318,6 +4357,7 @@ func normalizeDataSourceType(t string) (api.DataSourceType, bool) {
 		api.DataSourceTypeBigquery,
 		api.DataSourceTypeMongodb,
 		api.DataSourceTypeHttp,
+		api.DataSourceTypeStripe,
 		api.DataSourceTypeHubspot,
 		api.DataSourceTypeGit,
 		api.DataSourceTypeGithub,

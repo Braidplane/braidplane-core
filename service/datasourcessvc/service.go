@@ -9,6 +9,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/Braidplane/braidplane-core/pkg/connector/catalog"
 	workspace "github.com/Braidplane/braidplane-core/pkg/connector/googleworkspace"
 	"github.com/Braidplane/braidplane-core/pkg/connector/schemaquota"
 	"github.com/Braidplane/braidplane-core/pkg/domain/model"
@@ -2553,10 +2554,9 @@ func shouldForceReadOnlyFromCredentialsJSON(
 	dsType model.DataSourceType,
 	credentialsJSON []byte,
 ) (bool, error) {
-	if dsType != model.DataSourceTypeGit &&
-		dsType != model.DataSourceTypeGithub &&
-		dsType != model.DataSourceTypeGitlab {
-		return false, nil
+	if !isGitDataSourceType(dsType) {
+		descriptor, ok := catalog.DescriptorFor(dsType)
+		return ok && descriptor.ForcedReadOnly, nil
 	}
 
 	var creds gitconnector.Credentials
@@ -2593,6 +2593,8 @@ func staticCredentialTypeForDataSource(dsType model.DataSourceType) credentialss
 		return credentialssvc.StaticCredentialTypeFTP
 	case model.DataSourceTypeGit, model.DataSourceTypeGithub, model.DataSourceTypeGitlab:
 		return credentialssvc.StaticCredentialTypeGit
+	case model.DataSourceTypeStripe:
+		return credentialssvc.StaticCredentialTypeStripe
 	case model.DataSourceTypeS3:
 		return credentialssvc.StaticCredentialTypeS3
 	default:
@@ -2835,10 +2837,8 @@ func (s *service) shouldForceReadOnlyForDataSource(
 	orgSlug slug.Slug,
 	ds *repods.DataSource,
 ) (bool, error) {
-	if ds.Type != model.DataSourceTypeGit &&
-		ds.Type != model.DataSourceTypeGithub &&
-		ds.Type != model.DataSourceTypeGitlab {
-		return false, nil
+	if !isGitDataSourceType(ds.Type) {
+		return shouldForceReadOnlyFromCredentialsJSON(ds.Type, nil)
 	}
 
 	credentialsJSON, _, err := s.resolveCredentialPayload(postgres.WithoutTransaction(ctx), orgSlug, ds)

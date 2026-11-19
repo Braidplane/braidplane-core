@@ -2336,3 +2336,46 @@ func TestGetHTTPDraftTenantIsolation(t *testing.T) {
 		})
 	}
 }
+
+func TestStripeDataSourceRequestsAndPublicResponse(t *testing.T) {
+	t.Parallel()
+	config := api.StripeConfig{Mode: api.StripeConfigModeTest}
+	credentials := api.StripeCredentials{ApiKey: new("rk_test_fixture")}
+	var request api.CreateDataSourceRequest
+	create := api.CreateStripeDataSourceRequest{Name: "Revenue", Config: config, Credentials: credentials}
+	require.NoError(t, request.FromCreateStripeDataSourceRequest(create))
+	payload, err := createDataSourcePayloadFromRequest(request)
+	require.NoError(t, err)
+	require.Equal(t, model.DataSourceTypeStripe, payload.Type)
+	require.True(t, payload.ReadOnly)
+	require.Equal(t, config, payload.Config)
+	require.Equal(t, credentials, payload.Credentials)
+
+	create.ReadOnly = new(api.CreateStripeDataSourceRequestReadOnly(false))
+	require.NoError(t, request.FromCreateStripeDataSourceRequest(create))
+	_, err = createDataSourcePayloadFromRequest(request)
+	require.Error(t, err)
+
+	var draft api.TestDataSourceConnectionRequest
+	require.NoError(t, draft.FromTestStripeDataSourceConnectionRequest(api.TestStripeDataSourceConnectionRequest{Config: config, Credentials: credentials}))
+	testPayload, err := testDataSourceConnectionPayloadFromRequest(draft)
+	require.NoError(t, err)
+	require.Equal(t, model.DataSourceTypeStripe, testPayload.Type)
+	require.Equal(t, config, testPayload.Config)
+	require.Equal(t, credentials, testPayload.Credentials)
+
+	response := dataSourceToHTTP(&datasourcessvc.DataSource{
+		Type:   model.DataSourceTypeStripe,
+		Config: json.RawMessage(`{"mode":"test","api_key":"rk_test_fixture"}`),
+	})
+	public, err := json.Marshal(response)
+	require.NoError(t, err)
+	require.NotContains(t, string(public), "rk_test_fixture")
+	require.NotContains(t, string(public), "api_key")
+	cfg, err := response.Config.MarshalJSON()
+	require.NoError(t, err)
+	require.JSONEq(t, `{"mode":"test"}`, string(cfg))
+	schema, err := response.Schema.AsObjectAPISchemaResponse()
+	require.NoError(t, err)
+	require.Equal(t, "stripe", schema.Type)
+}

@@ -426,6 +426,7 @@ func supportsTransformRowInference(dataSourceType model.DataSourceType) bool {
 		model.DataSourceTypeBigQuery,
 		model.DataSourceTypeMongoDB,
 		model.DataSourceTypeHTTP,
+		model.DataSourceTypeStripe,
 		model.DataSourceTypeHubSpot,
 		model.DataSourceTypeFTP,
 		model.DataSourceTypeGit,
@@ -718,7 +719,7 @@ func ContractFieldTypeFromNative(
 		default:
 			return model.ContractFieldTypeUnknown
 		}
-	case model.DataSourceTypeHTTP:
+	case model.DataSourceTypeHTTP, model.DataSourceTypeStripe:
 		return contractTypeFromJSONLikeNative(n)
 	case model.DataSourceTypeHubSpot:
 		switch n {

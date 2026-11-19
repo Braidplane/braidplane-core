@@ -5884,3 +5884,45 @@ func (s *fakeRunStore) ObserveWorker(ctx context.Context, org, project, environm
 	}
 	return nil
 }
+
+func TestStripeSavedQueryFeedsRevenueTransform(t *testing.T) {
+	lookup := preValidationMockService{schemas: map[slug.Slug]datasourcessvc.SchemaResult{
+		"revenue": datasourcessvc.Schema[datasourcessvc.ObjectAPISchemaPayload]{
+			SchemaTypeValue: datasourcessvc.SchemaTypeObjectAPI, Type: "stripe",
+			Payload: datasourcessvc.ObjectAPISchemaPayload{Objects: []datasourcessvc.SchemaObjectAPIObject{{
+				Name: "invoices", Fields: []datasourcessvc.SchemaObjectAPIField{{Name: "amount_paid", Type: "integer"}},
+			}}},
+		},
+	}}
+	executor := &testutil.FakeQueryExecutor{ExecuteFn: func(_ context.Context, org, ds, query slug.Slug, _ map[string]any) (*result.ExecutionResult, error) {
+		require.Equal(t, slug.Slug("acme"), org)
+		require.Equal(t, slug.Slug("revenue"), ds)
+		require.Equal(t, slug.Slug("list-invoices"), query)
+		return result.NewObjectRowsResult("stripe", &result.ObjectRowsResult{
+			ObjectType: "invoices", Operation: "list", ColumnNames: []string{"amount_paid"},
+			Rows: []map[string]any{{"amount_paid": int64(1250)}}, RowCount: 1,
+		}, 0, nil), nil
+	}}
+	runner := mustNewRunnerWithStore(executor, &testutil.FakeClock{}, NewNoopRunStore(), lookup)
+	run, err := runner.Run(t.Context(), RunRequest{
+		OrgSlug: "acme", ProjectSlug: "default", EnvironmentSlug: "dev", RunSlug: "read-revenue",
+		Pipeline: &pipelinespec.Pipeline{Metadata: pipelinespec.Metadata{Slug: "reconcile", Name: "Reconcile"}, Steps: []pipelinespec.Step{
+			{Kind: "query", Slug: "invoices", Query: &pipelinespec.QueryRef{
+				DataSourceSlug: "revenue", OperationType: "stripe", OperationRef: "list-invoices",
+				OutputContract: &payload.Contract{
+					Representation: model.ContractRepresentationRows,
+					Fields:         []payload.ContractField{{Name: "amount_paid", Type: model.ContractFieldTypeValueInteger}},
+				},
+			}},
+			{Kind: "transform", Slug: "paid", Transform: &pipelinespec.TransformSpec{
+				Inputs: map[string]pipelinespec.StepInput{"input": {FromStep: "invoices"}},
+				SQL:    "SELECT amount_paid FROM input WHERE amount_paid > 0", OutputKind: model.TransformOutputKindRows,
+			}},
+		}},
+	})
+	require.NoError(t, err)
+	require.Equal(t, "succeeded", run.Metadata.Status)
+	require.Len(t, run.Timeline.Snapshots, 2)
+	require.Equal(t, "stripe", run.Timeline.Snapshots[0].Output.VendorType)
+	require.Equal(t, 1, *run.Timeline.Snapshots[1].Output.Details.RowCount)
+}

@@ -775,6 +775,18 @@ func createDataSourcePayloadFromRequest(
 			Credentials: map[string]any{},
 			ReadOnly:    v.ReadOnly != nil && *v.ReadOnly,
 		}, nil
+	case api.CreateStripeDataSourceRequest:
+		if v.ReadOnly != nil && !*v.ReadOnly {
+			return createDataSourcePayload{}, xerror.InvalidInput(xerror.DataSource).Detail("Stripe data sources are read-only")
+		}
+		return createDataSourcePayload{
+			Name:        v.Name,
+			Slug:        apiSlugPtrToStringPtr(v.Slug),
+			Type:        model.DataSourceTypeStripe,
+			Config:      v.Config,
+			Credentials: v.Credentials,
+			ReadOnly:    true,
+		}, nil
 	case api.CreateS3DataSourceRequest:
 		return createDataSourcePayload{
 			Name:        v.Name,
@@ -867,6 +879,12 @@ func testDataSourceConnectionPayloadFromRequest(
 			Type:        model.DataSourceTypeGitlab,
 			Config:      v.Config,
 			Credentials: map[string]any{},
+		}, nil
+	case api.TestStripeDataSourceConnectionRequest:
+		return testDataSourceConnectionPayload{
+			Type:        model.DataSourceTypeStripe,
+			Config:      v.Config,
+			Credentials: v.Credentials,
 		}, nil
 	case api.TestS3DataSourceConnectionRequest:
 		return testDataSourceConnectionPayload{
@@ -1009,6 +1027,14 @@ func dataSourceToHTTP(ds *datasourcessvc.DataSource) api.DataSource {
 		if err := resp.Config.FromGitConfig(config); err != nil {
 			slog.Error("failed to marshal public Git configuration")
 		}
+	} else if ds.Type == model.DataSourceTypeStripe {
+		var config api.StripeConfig
+		if err := json.Unmarshal(ds.Config, &config); err != nil || !config.Mode.Valid() {
+			config = api.StripeConfig{}
+		}
+		if err := resp.Config.FromStripeConfig(config); err != nil {
+			slog.Error("failed to marshal public Stripe configuration")
+		}
 	} else if err := resp.Config.UnmarshalJSON(ds.Config); err != nil {
 		slog.Error("failed to unmarshal data source config", logging.ErrorAttr(err))
 	}
@@ -1128,7 +1154,7 @@ func emptySchemaResponseForDataSourceType(dsType model.DataSourceType) (api.Intr
 		return resp, resp.FromHTTPSchemaResponse(api.HTTPSchemaResponse{
 			Operations: []api.OperationInfo{},
 		})
-	case model.DataSourceTypeHubSpot:
+	case model.DataSourceTypeHubSpot, model.DataSourceTypeStripe:
 		return resp, resp.FromObjectAPISchemaResponse(api.ObjectAPISchemaResponse{
 			Objects: []api.ObjectAPIObjectInfo{},
 			Type:    dsType.String(),

@@ -30,6 +30,7 @@ var dataSourceDocumentationByType = map[model.DataSourceType]dataSourceDocumenta
 	model.DataSourceTypeBigQuery:        {"BigQuery", "data-sources/BIGQUERY.md"},
 	model.DataSourceTypeHTTP:            {"HTTP", "data-sources/HTTP.md"},
 	model.DataSourceTypeMongoDB:         {"MongoDB", "data-sources/MONGODB.md"},
+	model.DataSourceTypeStripe:          {"Stripe", "data-sources/STRIPE.md"},
 	model.DataSourceTypeHubSpot:         {"HubSpot", "data-sources/HUBSPOT.md"},
 	model.DataSourceTypeFTP:             {"FTP", "data-sources/FTP.md"},
 	model.DataSourceTypeGit:             {"Git", "data-sources/GIT.md"},

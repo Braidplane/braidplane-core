@@ -28,7 +28,7 @@ import (
 #StepInput: #Slug
 
 // Source data source operation types. SQL covers PostgreSQL and MySQL sources.
-#QueryOperationType: "sql" | "bigquery" | "google_workspace" | "snowflake" | "http" | "hubspot" | "ftp" | "mongodb" | "git" | "s3"
+#QueryOperationType: "sql" | "bigquery" | "google_workspace" | "snowflake" | "http" | "hubspot" | "stripe" | "ftp" | "mongodb" | "git" | "s3"
 
 // Sink operation types. HubSpot is intentionally source-only in the current pipeline contract.
 #SinkOperationType: "sql" | "bigquery" | "google_workspace" | "snowflake" | "http" | "ftp" | "mongodb" | "git" | "s3"

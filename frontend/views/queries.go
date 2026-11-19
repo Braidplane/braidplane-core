@@ -114,6 +114,10 @@ type QueryEditorFormData struct {
 	MongoLimitValue string // integer as string or empty
 	MongoDocument   string // JSON object or empty
 
+	StripeObjectType    string
+	StripeLimit         string
+	StripeStartingAfter string
+
 	// HubSpot-specific fields (for hubspot type)
 	HubSpotObjectType   string
 	HubSpotOperation    string
@@ -262,7 +266,7 @@ func DataSourceSupportsQueryEditor(dsType api.DataSourceType) bool {
 	case api.DataSourceTypePostgres, api.DataSourceTypeMysql,
 		api.DataSourceTypeBigquery, api.DataSourceTypeGoogleWorkspace,
 		api.DataSourceTypeSnowflake, api.DataSourceTypeHttp, api.DataSourceTypeMongodb,
-		api.DataSourceTypeHubspot, api.DataSourceTypeFtp, api.DataSourceTypeGit,
+		api.DataSourceTypeStripe, api.DataSourceTypeHubspot, api.DataSourceTypeFtp, api.DataSourceTypeGit,
 		api.DataSourceTypeGithub, api.DataSourceTypeGitlab, api.DataSourceTypeS3:
 		return true
 	default:
@@ -660,6 +664,14 @@ func QueryEditorFormDataFromQuery(query api.Query) QueryEditorFormData {
 					}
 				}
 			}
+		case "stripe":
+			if stmt, err := query.QueryStatement.AsStripeStatement(); err == nil {
+				result.StripeObjectType = string(stmt.ObjectType)
+				result.StripeStartingAfter = valueOrEmpty(stmt.StartingAfter)
+				if stmt.Limit != nil {
+					result.StripeLimit = fmt.Sprint(*stmt.Limit)
+				}
+			}
 		case queryStatementTypeHubSpot:
 			if stmt, parseErr := query.QueryStatement.AsHubSpotStatement(); parseErr == nil {
 				result.HubSpotObjectType = stmt.ObjectType
@@ -911,6 +923,8 @@ func QueryOperationBehavior(query api.Query) string {
 		default:
 			return "May write data (" + form.MongoOperation + ")"
 		}
+	case "stripe":
+		return "Lists Stripe " + form.StripeObjectType
 	case queryStatementTypeHubSpot:
 		if form.HubSpotOperation == "list" || form.HubSpotOperation == "search" {
 			return "Read operation (" + form.HubSpotOperation + ")"

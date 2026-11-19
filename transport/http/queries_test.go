@@ -2295,3 +2295,27 @@ func TestSavedQueryZeroQuotaRoundTrip(t *testing.T) {
 		require.Equal(t, want, response.RowLimit)
 	}
 }
+
+func TestBuildStripeQueryData(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		raw   string
+		valid bool
+	}{
+		{`{"type":"stripe","object_type":"invoices","starting_after":"{{cursor}}"}`, true},
+		{`{"type":"stripe","object_type":"invoices","operation":"delete"}`, false},
+		{`{"type":"stripe","object_type":"invoices","starting_after":"cus_wrongtype"}`, false},
+	} {
+		var stmt api.QueryStatement
+		require.NoError(t, json.Unmarshal([]byte(tc.raw), &stmt))
+		data, err := buildQueryData(stmt, nil, nil)
+		if !tc.valid {
+			require.Error(t, err)
+			continue
+		}
+		require.NoError(t, err)
+		var saved queryDataJSON
+		require.NoError(t, json.Unmarshal(data, &saved))
+		require.JSONEq(t, tc.raw, saved.Statement)
+	}
+}

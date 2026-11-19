@@ -1635,3 +1635,33 @@ func TestDatabaseRequestsPreservePrivateHostOptIn(t *testing.T) {
 		}
 	}
 }
+
+func TestStripeDataSourceRequestFile(t *testing.T) {
+	t.Parallel()
+	dir := t.TempDir()
+	const key = "rk_test_synthetic"
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "key"), []byte(key), 0o600))
+	path := filepath.Join(dir, "source.json")
+	require.NoError(t, os.WriteFile(path, []byte(`{"name":"Revenue","type":"stripe","config":{"mode":"test"},"credentials":{"api_key_file":"key"}}`), 0o600))
+	body, secrets, err := createDataSourceBodyFromFile(path)
+	require.NoError(t, err)
+	require.Equal(t, []string{key}, secrets)
+	value, err := body.AsCreateStripeDataSourceRequest()
+	require.NoError(t, err)
+	require.Equal(t, api.StripeConfigModeTest, value.Config.Mode)
+	require.Equal(t, key, *value.Credentials.ApiKey)
+
+	flags := dataSourceRequestFlags{StripeAPIKey: key, StripeMode: "live"}
+	testBody, secrets, err := flags.testBody(api.DataSourceTypeStripe)
+	require.NoError(t, err)
+	testValue, err := testBody.AsTestStripeDataSourceConnectionRequest()
+	require.NoError(t, err)
+	require.Equal(t, api.StripeConfigModeLive, testValue.Config.Mode)
+	require.Equal(t, key, *testValue.Credentials.ApiKey)
+	require.Equal(t, []string{key}, secrets)
+	update, _, err := flags.credentialsBody(api.DataSourceTypeStripe, true)
+	require.NoError(t, err)
+	rotated, err := update.AsStripeCredentials()
+	require.NoError(t, err)
+	require.Equal(t, key, *rotated.ApiKey)
+}

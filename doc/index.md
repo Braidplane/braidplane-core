@@ -20,6 +20,7 @@ Public user guides live under `docs-public/` with separate MkDocs navigation.
   - [Google Workspace](data-sources/GOOGLE_WORKSPACE.md)
   - [HTTP data source](data-sources/HTTP.md)
   - [HTTP OAuth reference](data-sources/HTTP_OAUTH.md)
+  - [Stripe data source](data-sources/STRIPE.md)
   - [HubSpot data source](data-sources/HUBSPOT.md)
   - [MongoDB data source](data-sources/MONGODB.md)
   - [MySQL data source](data-sources/MYSQL.md)

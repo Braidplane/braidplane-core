@@ -72,7 +72,7 @@ func operationSupportsRole(d catalog.Descriptor, raw json.RawMessage, operation,
 		if operation == "" {
 			operation = "query"
 		}
-	case catalog.OperationTypeHubSpot, catalog.OperationTypeGit, catalog.OperationTypeFTP, catalog.OperationTypeS3:
+	case catalog.OperationTypeStripe, catalog.OperationTypeHubSpot, catalog.OperationTypeGit, catalog.OperationTypeFTP, catalog.OperationTypeS3:
 		operation = strings.ToLower(operation)
 		if operation == "" {
 			// The default is a read (HubSpot may infer either list or search).

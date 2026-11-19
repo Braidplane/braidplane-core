@@ -10,6 +10,7 @@ import (
 	"github.com/Braidplane/braidplane-core/pkg/domain/model"
 	"github.com/Braidplane/braidplane-core/pkg/slug"
 	"github.com/Braidplane/braidplane-core/service/datasourcessvc"
+	"github.com/Braidplane/braidplane-core/service/datasourcessvc/connector/stripe"
 )
 
 // enforceReadOnlyDirectExecution blocks direct connector dispatch when a read-only data source
@@ -82,6 +83,11 @@ func directOperationReadOnlyRejection(
 			return ""
 		}
 		return "MongoDB operation is not a supported read operation"
+	case model.DataSourceTypeStripe:
+		if stripe.IsReadStatement(statementJSON) {
+			return ""
+		}
+		return "Stripe operation must list a supported revenue object"
 	case model.DataSourceTypeHubSpot:
 		if hubSpotDirectOperationIsReadOnly(statementJSON) {
 			return ""

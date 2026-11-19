@@ -916,3 +916,60 @@ func (*dataSourceOAuthProviderStub) Revoke(
 ) error {
 	return nil
 }
+
+func TestStripeTenantCredentialLifecycle(t *testing.T) {
+	t.Parallel()
+	if testing.Short() {
+		t.Skip("requires PostgreSQL")
+	}
+	ctx := t.Context()
+	pool := e2edb.OpenPostgresPool(t, "Stripe data source credentials")
+	stack := datasourcee2e.NewStack(t, pool)
+	org := datasourcee2e.UniqueSlug(t, "stripe-owner")
+	other := datasourcee2e.UniqueSlug(t, "stripe-other")
+	ds := datasourcee2e.UniqueSlug(t, "stripe-source")
+	datasourcee2e.SeedOrganization(t, pool, org)
+	datasourcee2e.SeedOrganization(t, pool, other)
+	svc := stack.Service(t, datasourcee2e.ConnectionTestExecutorFunc(func(_ context.Context, req datasourcessvc.ConnectionTestRequest) error {
+		require.Equal(t, org, req.OrganizationSlug)
+		require.Equal(t, ds, req.DataSourceSlug)
+		return nil
+	}))
+	actor := model.ExternalEventActor()
+	params := &datasourcessvc.CreateParams{Name: "Stripe revenue", Slug: ds, Type: model.DataSourceTypeStripe, ConfigJSON: json.RawMessage(`{"mode":"test"}`), Credentials: map[string]any{"api_key": "rk_test_fixture"}}
+	created, err := svc.Create(ctx, org, actor, params)
+	require.NoError(t, err)
+	require.True(t, created.ReadOnly)
+	require.NotNil(t, created.Credential)
+	require.Equal(t, credentialssvc.CredentialKindStaticSecret, created.Credential.Kind)
+	require.JSONEq(t, `{"mode":"test"}`, string(created.Config))
+	credential := datasourcee2e.StoredDataSourceCredentialSlug(t, pool, org, ds)
+	var encrypted []byte
+	var credentialType string
+	require.NoError(t, pool.QueryRow(ctx, `SELECT c.credential_type, c.encrypted_payload FROM credentials c JOIN organizations o ON o.id=c.organization_id WHERE o.slug=$1 AND c.slug=$2`, org, credential).Scan(&credentialType, &encrypted))
+	require.Equal(t, "stripe", credentialType)
+	require.NotEmpty(t, encrypted)
+	require.NotContains(t, string(encrypted), "rk_test_fixture")
+	resolve := func(tenant slug.Slug) (credentialssvc.RuntimeCredential, error) {
+		return stack.Credentials.ResolveRuntimeCredential(ctx, credentialssvc.ResolveRuntimeCredentialParams{Owner: credentialssvc.CredentialOwner{OrgSlug: tenant, DataSourceSlug: ds}})
+	}
+	runtime, err := resolve(other)
+	require.Error(t, err)
+	require.Empty(t, runtime.PlaintextJSON)
+	rotate := func(tenant slug.Slug, key string) error {
+		_, err := svc.UpdateCredentials(ctx, tenant, ds, actor, &datasourcessvc.UpdateCredentialsParams{Credentials: map[string]any{"api_key": key}})
+		return err
+	}
+	require.Error(t, rotate(other, "rk_test_unowned"))
+	require.Error(t, rotate(org, "rk_live_wrongmode"))
+	runtime, err = resolve(org)
+	require.NoError(t, err)
+	require.JSONEq(t, `{"api_key":"rk_test_fixture"}`, string(runtime.PlaintextJSON))
+	require.NoError(t, rotate(org, "rk_test_rotated"))
+	runtime, err = resolve(org)
+	require.NoError(t, err)
+	require.JSONEq(t, `{"api_key":"rk_test_rotated"}`, string(runtime.PlaintextJSON))
+	updated, err := svc.Update(ctx, org, ds, actor, &datasourcessvc.UpdateParams{ReadOnlySet: true, ReadOnly: false})
+	require.NoError(t, err)
+	require.True(t, updated.ReadOnly)
+}

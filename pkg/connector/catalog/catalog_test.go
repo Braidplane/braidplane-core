@@ -132,6 +132,7 @@ func TestDescriptorForDefinesConnectorDomainContract(t *testing.T) {
 			},
 			incremental: []model.IncrementalCheckpointKind{model.IncrementalCheckpointKindWatermark},
 		},
+		{name: "stripe", dsType: model.DataSourceTypeStripe, schemaFamily: SchemaFamilyObjectAPI, queryOpType: OperationTypeStripe, source: true, forcedReadOnly: true},
 		{
 			name:             "hubspot",
 			dsType:           model.DataSourceTypeHubSpot,

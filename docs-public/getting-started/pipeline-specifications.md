@@ -108,7 +108,7 @@ targets.
 
 Set `operation_type` to the connector operation family:
 
-- Query: `sql`, `bigquery`, `snowflake`, `http`, `hubspot`, `ftp`, `mongodb`,
+- Query: `stripe`, `sql`, `bigquery`, `snowflake`, `http`, `hubspot`, `ftp`, `mongodb`,
   `git`, or `s3`
 - Sink: `sql`, `bigquery`, `snowflake`, `http`, `hubspot`, `ftp`, `mongodb`,
   `git`, or `s3`

@@ -12,10 +12,10 @@ func TestEveryShippedConnectorDescribesItsCapabilityScope(t *testing.T) {
 		t.Run(descriptor.Type.String(), func(t *testing.T) {
 			d := descriptor.Capabilities
 			require.NotEmpty(t, d.ReadOperations)
-			require.NotEmpty(t, d.WriteOperations)
-			require.NotEmpty(t, d.LoadModes)
+			require.Equal(t, descriptor.SupportsPipelineSink, len(d.WriteOperations) > 0)
+			require.Equal(t, descriptor.SupportsPipelineSink, len(d.LoadModes) > 0)
 			require.NotEmpty(t, d.SourcePayloads)
-			require.NotEmpty(t, d.SinkPayloads)
+			require.Equal(t, descriptor.SupportsPipelineSink, len(d.SinkPayloads) > 0)
 			require.NotEmpty(t, d.Pagination.Scope)
 			require.NotEmpty(t, d.Pagination.Limitation)
 			require.NotEmpty(t, d.Pagination.Throttling)

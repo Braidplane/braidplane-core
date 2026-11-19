@@ -8,11 +8,11 @@ import (
 	"strings"
 )
 
-const _StaticCredentialTypeName = "postgresmysqlbigqueryhttphubspotmongodbftpgits3environment_secretsnowflake"
+const _StaticCredentialTypeName = "postgresmysqlbigqueryhttphubspotmongodbftpgits3environment_secretsnowflakestripe"
 
-var _StaticCredentialTypeIndex = [...]uint8{0, 8, 13, 21, 25, 32, 39, 42, 45, 47, 65, 74}
+var _StaticCredentialTypeIndex = [...]uint8{0, 8, 13, 21, 25, 32, 39, 42, 45, 47, 65, 74, 80}
 
-const _StaticCredentialTypeLowerName = "postgresmysqlbigqueryhttphubspotmongodbftpgits3environment_secretsnowflake"
+const _StaticCredentialTypeLowerName = "postgresmysqlbigqueryhttphubspotmongodbftpgits3environment_secretsnowflakestripe"
 
 func (i StaticCredentialType) String() string {
 	if i < 0 || i >= StaticCredentialType(len(_StaticCredentialTypeIndex)-1) {
@@ -36,9 +36,10 @@ func _StaticCredentialTypeNoOp() {
 	_ = x[StaticCredentialTypeS3-(8)]
 	_ = x[StaticCredentialTypeEnvironmentSecret-(9)]
 	_ = x[StaticCredentialTypeSnowflake-(10)]
+	_ = x[StaticCredentialTypeStripe-(11)]
 }
 
-var _StaticCredentialTypeValues = []StaticCredentialType{StaticCredentialTypePostgres, StaticCredentialTypeMySQL, StaticCredentialTypeBigQuery, StaticCredentialTypeHTTP, StaticCredentialTypeHubSpot, StaticCredentialTypeMongoDB, StaticCredentialTypeFTP, StaticCredentialTypeGit, StaticCredentialTypeS3, StaticCredentialTypeEnvironmentSecret, StaticCredentialTypeSnowflake}
+var _StaticCredentialTypeValues = []StaticCredentialType{StaticCredentialTypePostgres, StaticCredentialTypeMySQL, StaticCredentialTypeBigQuery, StaticCredentialTypeHTTP, StaticCredentialTypeHubSpot, StaticCredentialTypeMongoDB, StaticCredentialTypeFTP, StaticCredentialTypeGit, StaticCredentialTypeS3, StaticCredentialTypeEnvironmentSecret, StaticCredentialTypeSnowflake, StaticCredentialTypeStripe}
 
 var _StaticCredentialTypeNameToValueMap = map[string]StaticCredentialType{
 	_StaticCredentialTypeName[0:8]:        StaticCredentialTypePostgres,
@@ -63,6 +64,8 @@ var _StaticCredentialTypeNameToValueMap = map[string]StaticCredentialType{
 	_StaticCredentialTypeLowerName[47:65]: StaticCredentialTypeEnvironmentSecret,
 	_StaticCredentialTypeName[65:74]:      StaticCredentialTypeSnowflake,
 	_StaticCredentialTypeLowerName[65:74]: StaticCredentialTypeSnowflake,
+	_StaticCredentialTypeName[74:80]:      StaticCredentialTypeStripe,
+	_StaticCredentialTypeLowerName[74:80]: StaticCredentialTypeStripe,
 }
 
 var _StaticCredentialTypeNames = []string{
@@ -77,6 +80,7 @@ var _StaticCredentialTypeNames = []string{
 	_StaticCredentialTypeName[45:47],
 	_StaticCredentialTypeName[47:65],
 	_StaticCredentialTypeName[65:74],
+	_StaticCredentialTypeName[74:80],
 }
 
 // StaticCredentialTypeString retrieves an enum value from the enum constants string name.

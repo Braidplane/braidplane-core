@@ -17,6 +17,7 @@ const (
 	OperationTypeFTP             = catalog.OperationTypeFTP
 	OperationTypeGit             = catalog.OperationTypeGit
 	OperationTypeMongoDB         = catalog.OperationTypeMongoDB
+	OperationTypeStripe          = catalog.OperationTypeStripe
 	OperationTypeHubSpot         = catalog.OperationTypeHubSpot
 	OperationTypeS3              = catalog.OperationTypeS3
 )

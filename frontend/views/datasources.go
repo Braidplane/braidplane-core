@@ -61,6 +61,7 @@ type DataSourceCreateFormData struct {
 	GitHubRepositories          []api.GitHubAppRepository
 	GitHubConnectionAvailable   bool
 	GitHubReadOnly              bool
+	StripeMode                  string
 	HubSpotAuthType             string
 	HubSpotReadOnly             bool
 	SnowflakeAuthType           string
