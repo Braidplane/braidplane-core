@@ -62,6 +62,7 @@ type ProjectPipelineBackendExternalLink struct {
 
 // ProjectOperationalContext carries read-only project-scoped workflow state for project summary pages.
 type ProjectOperationalContext struct {
+	Readiness                      *api.ReadinessReport
 	Environments                   []api.ProjectEnvironment
 	EnvironmentsUnavailable        bool
 	Catalog                        []api.Environment

@@ -77,9 +77,9 @@ func TestProjectNavigationPreservesScopedContext(t *testing.T) {
 		require.NoError(t, err)
 		require.Equal(t, "prod", parsed.Query().Get("environment_slug"))
 		require.Equal(t, list, parsed.Query().Get("list_return"))
-		require.Equal(t, section, projectSection(WithEntityPageURL(context.Background(), href)))
+		require.Equal(t, section, ProjectSection(WithEntityPageURL(context.Background(), href)))
 	}
-	require.Equal(t, "overview", projectSection(WithEntityPageURL(context.Background(), "/?section=unknown")))
+	require.Equal(t, "overview", ProjectSection(WithEntityPageURL(context.Background(), "/?section=unknown")))
 	require.Empty(t, projectRepositoryPath(WithEntityPageURL(context.Background(), "/?repository_path=unknown")))
 }
 
@@ -196,4 +196,54 @@ func TestProjectEnvironmentRestrictedControls(t *testing.T) {
 	require.Contains(t, out.String(), "protected")
 	require.NotContains(t, out.String(), "<form")
 	require.NotContains(t, out.String(), ">Disable<")
+}
+
+func TestProjectReadinessCountsFixesPerEnvironment(t *testing.T) {
+	env := api.ReadinessEnvironment{EnvironmentSlug: "prod", Diagnostics: []api.ReadinessDiagnostic{
+		{PipelineSlug: "daily", RequirementKey: "ledger", Code: "missing_ref"},
+		{PipelineSlug: "weekly", RequirementKey: "ledger", Code: "missing_ref"},
+		{PipelineSlug: "daily", RequirementKey: "ledger", Code: "missing_ref", StepSlug: "another-step"},
+		{PipelineSlug: "daily", RequirementKey: "warehouse", Code: "read_only_sink"},
+		{PipelineSlug: "daily", RequirementKey: "warehouse", Code: "inactive_target"},
+		{PipelineSlug: "daily", RequirementKey: "region", Code: "missing_variable"},
+		{PipelineSlug: "weekly", RequirementKey: "region", Code: "missing_variable"},
+		{PipelineSlug: "weekly", RequirementKey: "threshold", Code: "variable_type_mismatch"},
+		{PipelineSlug: "daily", RequirementKey: "extract", Code: "missing_operation"},
+	}}
+	groups := projectReadinessGroups("acme", "ops", env)
+	got := map[string][]string{}
+	for _, group := range groups {
+		if len(group.keys) > 0 {
+			got[group.label] = group.keys
+		}
+	}
+	require.Equal(t, map[string][]string{
+		"Missing logical refs":            {"daily/ledger", "weekly/ledger"},
+		"Invalid bindings":                {"daily/warehouse"},
+		"Missing organization variables":  {"region"},
+		"Mistyped organization variables": {"threshold"},
+		"Other affected pipelines":        {"daily"},
+	}, got)
+}
+
+func TestProjectReadinessUnknownAndWarning(t *testing.T) {
+	for _, tc := range []struct {
+		name   string
+		report *api.ReadinessReport
+		want   string
+	}{
+		{"unavailable", nil, "could not be loaded"},
+		{"empty project", &api.ReadinessReport{Environments: []api.ReadinessEnvironment{{EnvironmentSlug: "dev", Status: api.ReadinessStatusInformational}}}, "No pipelines to evaluate"},
+		{"warning", &api.ReadinessReport{Environments: []api.ReadinessEnvironment{{EnvironmentSlug: "dev", Status: api.ReadinessStatusWarning}}}, ">warning</span>"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			var out bytes.Buffer
+			require.NoError(t, ProjectPipelineReadiness("acme", "ops", ProjectOperationalContext{Readiness: tc.report, Environments: []api.ProjectEnvironment{{EnvironmentSlug: "dev"}}}).Render(t.Context(), &out))
+			require.Contains(t, out.String(), "dev")
+			require.Contains(t, out.String(), tc.want)
+			if tc.name != "warning" {
+				require.Contains(t, out.String(), ">unknown</span>")
+			}
+		})
+	}
 }

@@ -103,3 +103,58 @@ func readinessBindingsHref(ctx context.Context, org, project, environment, ref s
 	return PipelineBindingSetupHref(org, project, environment, pipeline.Slug, *pipeline.CurrentVersionSpecHash,
 		entitySectionHref(ctx, detail, "readiness")) + "#" + DataSourceBindingFormID("binding-cell", pipeline.Slug, ref, environment)
 }
+
+type projectReadinessGroup struct {
+	hint  string
+	label string
+	href  string
+	keys  []string
+}
+
+func projectReadinessGroups(org, project string, env api.ReadinessEnvironment) []projectReadinessGroup {
+	bindings := ProjectEnvironmentConfigurationHref(org, project, env.EnvironmentSlug, env.EnvironmentSlug) + "#project-binding-matrix"
+	variables := RuntimeVariableComparisonHref(org, "", "", "")
+	missingRefs := projectReadinessGroup{label: "Missing logical refs", href: bindings, hint: "Create the reference with braidplane data-source-ref create, then configure its binding."}
+	invalidRefs := projectReadinessGroup{label: "Invalid logical refs", href: bindings, hint: "Correct the reference type or capabilities with braidplane data-source-ref update."}
+	missingBindings := projectReadinessGroup{label: "Missing bindings", href: bindings}
+	invalidBindings := projectReadinessGroup{label: "Invalid bindings", href: bindings}
+	missingVars := projectReadinessGroup{label: "Missing organization variables", href: variables}
+	invalidVars := projectReadinessGroup{label: "Mistyped organization variables", href: variables}
+	other := projectReadinessGroup{label: "Other affected pipelines"}
+	type item struct {
+		group *projectReadinessGroup
+		key   string
+	}
+	seen := make(map[item]bool)
+	for _, d := range env.Diagnostics {
+		var group *projectReadinessGroup
+		key := d.PipelineSlug + "/" + d.RequirementKey
+		switch d.Code {
+		case "missing_ref":
+			group = &missingRefs
+		case "invalid_ref_type":
+			group = &invalidRefs
+		case "missing_binding":
+			group = &missingBindings
+		case "invalid_target_type", "inactive_target", "read_only_sink":
+			group = &invalidBindings
+		case "missing_capability":
+			group = &invalidBindings
+			if d.NextAction == "update_ref_capabilities" {
+				group = &invalidRefs
+			}
+		case "missing_variable":
+			group, key = &missingVars, d.RequirementKey
+		case "variable_type_mismatch":
+			group, key = &invalidVars, d.RequirementKey
+		default:
+			group, key = &other, d.PipelineSlug
+		}
+		id := item{group, key}
+		if !seen[id] {
+			seen[id] = true
+			group.keys = append(group.keys, key)
+		}
+	}
+	return []projectReadinessGroup{missingRefs, invalidRefs, missingBindings, invalidBindings, missingVars, invalidVars, other}
+}

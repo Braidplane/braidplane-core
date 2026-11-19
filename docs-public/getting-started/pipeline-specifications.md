@@ -655,6 +655,12 @@ complete query-transform-sink example.
 
 ## Check readiness across environments
 
+Open the project **Overview** to see which enabled environments are ready for
+the current pipelines. Each environment counts affected logical refs and bindings
+per pipeline and missing organization variable keys once across pipelines. Follow
+the links to configure a binding, set a variable, or inspect a pipeline’s readiness
+matrix. The runtime environments page contains the full binding inventory.
+
 Open a pipeline and choose **Readiness** to compare its current configuration
 across enabled environments. Expand a requirement to see where the pipeline
 uses it. If the logical reference is missing, create it with
