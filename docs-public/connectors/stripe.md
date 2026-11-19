@@ -6,7 +6,7 @@ Use Stripe as a pipeline source to join customers, subscriptions, invoices and p
 
 Choose **Stripe** in your organization's data sources and select test or live mode. Use separate connections for each account and mode.
 
-**Connect with Stripe** opens Stripe's consent screen when the deployment has an OAuth app configured for the selected mode. Select the account, review the app's read permissions, and approve the installation. Braidplane stores the grant for that organization's source and refreshes it for subsequent reads. If access is revoked, reconnect the account. For CLI setup, run `braidplane data-source provider onboard stripe --name Revenue --stripe-mode test` and open the returned authorization URL.
+**Connect with Stripe** opens Stripe's consent screen when the deployment has an OAuth app configured for the selected mode. Select the account, review the app's read permissions, and approve the installation. Braidplane stores the grant for that organization's source and refreshes it for subsequent reads. Disconnecting in Braidplane stops this source from using the grant. To remove the app’s access to the Stripe account, uninstall it in the Stripe Dashboard. To restore access, reconnect the account. For CLI setup, run `braidplane data-source provider onboard stripe --name Revenue --stripe-mode test` and open the returned authorization URL.
 
 **Restricted API key** works independently of the deployment's OAuth app. Enter a restricted API key issued by the Stripe account you want to read. Give it read access to Customers, Subscriptions, Invoices and PaymentIntents. Test mode requires an `rk_test_` key and live mode requires an `rk_live_` key. The connector connects directly to the key's account. It accepts no connected-account override.
 
