@@ -16930,12 +16930,14 @@
           "kind": {
             "enum": [
               "data_source_ref",
-              "runtime_variable"
+              "runtime_variable",
+              "saved_operation"
             ],
             "type": "string",
             "x-enum-varnames": [
               "ReadinessDataSourceRef",
-              "ReadinessRuntimeVariable"
+              "ReadinessRuntimeVariable",
+              "ReadinessSavedOperation"
             ]
           },
           "status": {

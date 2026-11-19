@@ -265,6 +265,35 @@ func (_d ServiceWithLogging) FindBySlug(ctx context.Context, orgSlug slug.Slug, 
 	return
 }
 
+// FindForReadiness implements Service.
+func (_d ServiceWithLogging) FindForReadiness(ctx context.Context, org slug.Slug, source slug.Slug, operation slug.Slug) (qp1 *Query, err error) {
+	_startedAt := time.Now()
+	_ctx := ctx
+	_ctx, _span := tracing.StartMethodSpan(_ctx, tracing.MethodSpan{
+		Layer:     "service",
+		Package:   "service/queriessvc",
+		Interface: "Service",
+		Method:    "FindForReadiness",
+	})
+	defer _span.End()
+	defer func() {
+		if err != nil {
+			tracing.RecordError(_span, err)
+		}
+		logging.LogMethodCompletion(_ctx, _d._logger, logging.MethodCompletion{
+			Layer:       "service",
+			Package:     "service/queriessvc",
+			Interface:   "Service",
+			Method:      "FindForReadiness",
+			StartedAt:   _startedAt,
+			CompletedAt: time.Now(),
+			Err:         err,
+		})
+	}()
+	qp1, err = _d._base.FindForReadiness(_ctx, org, source, operation)
+	return
+}
+
 // GetExecution implements Service.
 func (_d ServiceWithLogging) GetExecution(ctx context.Context, orgSlug slug.Slug, dsSlug slug.Slug, querySlug slug.Slug, executionSlug slug.Slug) (qp1 *QueryExecution, err error) {
 	_startedAt := time.Now()

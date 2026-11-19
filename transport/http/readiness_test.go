@@ -18,6 +18,7 @@ import (
 	"github.com/Braidplane/braidplane-core/service/datasourcerefssvc"
 	"github.com/Braidplane/braidplane-core/service/pipelinesvc"
 	"github.com/Braidplane/braidplane-core/service/projectssvc"
+	"github.com/Braidplane/braidplane-core/service/queriessvc"
 )
 
 func TestReadinessRequiresReadAccessToEachResource(t *testing.T) {
@@ -95,6 +96,78 @@ func TestReadinessReadsPersistedPipelineInRequestedProject(t *testing.T) {
 			} else {
 				require.Nil(t, env.Requirements)
 			}
+		})
+	}
+}
+
+func TestReadinessChecksQueryAccessOnlyForSavedOperations(t *testing.T) {
+	for _, tc := range []struct {
+		name       string
+		ref        slug.Slug
+		canRead    bool
+		wantStatus int
+	}{
+		{"inline without query access", "", false, http.StatusOK},
+		{"saved without query access", "saved", false, http.StatusForbidden},
+		{"missing saved operation", "saved", true, http.StatusOK},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			query := &pipelinespec.QueryRef{DataSourceSlug: "ledger", OperationType: "sql", OperationRef: tc.ref}
+			if tc.ref == "" {
+				query.OperationInline = map[string]any{"type": "postgres", "sql": "select 1"}
+			}
+			queryReads, authChecks := 0, 0
+			app, store := newTestApp(t, testServerConfig{
+				authService: fakeAuthService{CanFn: func(_ context.Context, input authorization.Input) (bool, error) {
+					if input.Resource == model.ResourceQueries {
+						authChecks++
+						assert.Equal(t, model.Read, input.Action)
+						assert.Equal(t, slug.Slug("acme"), *input.OrgSlug)
+						return tc.canRead, nil
+					}
+					return true, nil
+				}},
+				pipelinesService: &fakePipelinesService{GetFn: func(context.Context, slug.Slug, slug.Slug, slug.Slug, slug.Slug) (*pipelinesvc.PipelineDetail, error) {
+					return &pipelinesvc.PipelineDetail{Spec: &pipelinespec.Pipeline{Metadata: pipelinespec.Metadata{Slug: "settlement-review"}, Steps: []pipelinespec.Step{{Slug: "read", Kind: "query", Query: query}}}}, nil
+				}},
+				environmentsService: &fakeEnvironmentsService{ListProjectEnvironmentsFn: func(context.Context, slug.Slug, slug.Slug, model.ListRequest) (model.ListResponse[model.ProjectEnvironment], error) {
+					return model.ListResponse[model.ProjectEnvironment]{Items: []model.ProjectEnvironment{{Environment: model.Environment{Slug: "dev"}}}}, nil
+				}},
+				dataSourceRefsService: &fakeDataSourceRefsService{
+					GetDataSourceRefFn: func(context.Context, slug.Slug, slug.Slug, slug.Slug, slug.Slug) (*model.DataSourceRef, error) {
+						return &model.DataSourceRef{Slug: "ledger", DataSourceType: model.DataSourceTypePostgres, RequiredCapabilities: []model.DataSourceRefCapability{model.DataSourceRefCapabilityPipelineSource}}, nil
+					},
+					GetEnvironmentBindingFn: func(context.Context, slug.Slug, slug.Slug, slug.Slug, slug.Slug, slug.Slug) (*model.DataSourceBinding, error) {
+						return &model.DataSourceBinding{EnvironmentSlug: "dev", DataSourceRefSlug: "ledger", DataSourceSlug: "ledger-dev", DataSourceType: model.DataSourceTypePostgres, DataSourceActive: true}, nil
+					},
+				},
+				queriesService: &fakeQueriesService{FindBySlugFn: func(_ context.Context, org, ds, operation slug.Slug) (*queriessvc.Query, error) {
+					queryReads++
+					assert.Equal(t, []slug.Slug{"acme", "ledger-dev", "saved"}, []slug.Slug{org, ds, operation})
+					return nil, queriessvc.ErrQueryNotFound
+				}},
+			})
+			resp := authenticatedRequest(t, app, store, "johndoe", jsonRequest(t, http.MethodGet, "/organizations/acme/projects/ops/pipelines/settlement-review/readiness", nil))
+			defer func() { require.NoError(t, resp.Body.Close()) }()
+			require.Equal(t, tc.wantStatus, resp.StatusCode)
+			if tc.ref == "" {
+				require.Zero(t, authChecks)
+				require.Zero(t, queryReads)
+				require.Equal(t, api.ReadinessStatusReady, parseResponse[api.ReadinessReport](t, resp).Status)
+				return
+			}
+			require.Equal(t, 1, authChecks)
+			if !tc.canRead {
+				require.Zero(t, queryReads)
+				return
+			}
+			require.Equal(t, 1, queryReads)
+			report := parseResponse[api.ReadinessReport](t, resp)
+			require.Equal(t, api.ReadinessStatusBlocked, report.Status)
+			require.Len(t, report.Environments, 1)
+			require.Len(t, report.Environments[0].Diagnostics, 1)
+			require.Equal(t, "missing_operation", report.Environments[0].Diagnostics[0].Code)
+			require.Equal(t, "/steps/0/query/operation_ref", report.Environments[0].Diagnostics[0].FieldPath)
 		})
 	}
 }

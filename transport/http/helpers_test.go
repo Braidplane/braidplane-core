@@ -1734,6 +1734,10 @@ func (f *fakeQueriesService) FindBySlug(
 	return nil, queriessvc.ErrQueryNotFound
 }
 
+func (f *fakeQueriesService) FindForReadiness(ctx context.Context, orgSlug, dsSlug, querySlug slug.Slug) (*queriessvc.Query, error) {
+	return f.FindBySlug(ctx, orgSlug, dsSlug, querySlug)
+}
+
 func (f *fakeQueriesService) GetExpectedInputContract(
 	ctx context.Context,
 	orgSlug, dsSlug, querySlug slug.Slug,

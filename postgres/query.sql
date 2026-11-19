@@ -5423,6 +5423,16 @@ WHERE
     AND q.slug = sqlc.arg ('query_slug')
     AND q.deleted_at IS NULL;
 
+-- name: QueryExistsOnOtherDataSource :one
+SELECT EXISTS (
+    SELECT 1
+    FROM queries q
+    JOIN data_sources ds ON ds.id = q.data_source_id
+    JOIN organizations o ON o.id = ds.organization_id
+    WHERE o.slug = sqlc.arg('org_slug') AND ds.slug <> sqlc.arg('data_source_slug')
+        AND ds.deleted_at IS NULL AND q.slug = sqlc.arg('query_slug') AND q.deleted_at IS NULL
+);
+
 -- name: FindSavedOperationSnapshot :one
 SELECT ds.type AS data_source_type, q.data, q.expected_input_contract, q.expected_input_contract_ref, q.output_contract, q.output_contract_ref, q.updated_at,
     COALESCE((SELECT jsonb_agg(jsonb_build_object(

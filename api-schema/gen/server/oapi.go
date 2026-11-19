@@ -5419,6 +5419,7 @@ func (e ReadinessDiagnosticSeverity) Valid() bool {
 const (
 	ReadinessDataSourceRef   ReadinessRequirementKind = "data_source_ref"
 	ReadinessRuntimeVariable ReadinessRequirementKind = "runtime_variable"
+	ReadinessSavedOperation  ReadinessRequirementKind = "saved_operation"
 )
 
 // Valid indicates whether the value is a known member of the ReadinessRequirementKind enum.
@@ -5427,6 +5428,8 @@ func (e ReadinessRequirementKind) Valid() bool {
 	case ReadinessDataSourceRef:
 		return true
 	case ReadinessRuntimeVariable:
+		return true
+	case ReadinessSavedOperation:
 		return true
 	default:
 		return false

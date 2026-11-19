@@ -26,6 +26,10 @@ type FakeQueryRepository struct {
 	FindLatestSuccessfulExecutionFn func(context.Context, postgres.DBTX, slug.Slug) (*qrepo.QueryExecutionIdentity, error)
 }
 
+func (f *FakeQueryRepository) ExistsOnOtherDataSource(context.Context, postgres.DBTX, slug.Slug, slug.Slug, slug.Slug) (bool, error) {
+	return false, nil
+}
+
 func (f *FakeQueryRepository) FindSnapshot(ctx context.Context, db postgres.DBTX, org, source, operation slug.Slug) (*qrepo.OperationSnapshot, error) {
 	if f.FindSnapshotFn != nil {
 		return f.FindSnapshotFn(ctx, db, org, source, operation)

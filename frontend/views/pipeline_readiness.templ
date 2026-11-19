@@ -29,7 +29,7 @@ templ PipelineReadinessPanel(org string, project string, pipeline *api.Pipeline,
 						<p>{ d.RequirementKey } · { readinessReason(d.Code, d.NextAction) }</p>
 					}
 				} else if len(*env.Requirements) == 0 {
-					<p>No data-source references or runtime variables required.</p>
+					<p>No environment requirements.</p>
 				} else {
 					{{ reasons := readinessReasons(env.Diagnostics) }}
 					<div class="overflow-x-auto" tabindex="0" role="region" aria-label={ "Requirements in " + env.EnvironmentSlug }>
@@ -110,6 +110,10 @@ templ PipelineReadinessPanel(org string, project string, pipeline *api.Pipeline,
 														<a class="link" href={ templ.URL(readinessBindingsHref(ctx, org, project, env.EnvironmentSlug, req.Key, pipeline)) }>Manage bindings</a>
 													case "runtime_variable":
 														<a class="link" href={ templ.URL(readinessVariablesHref(org, project, pipeline)) }>Compare runtime variables</a>
+													case "saved_operation":
+														if req.Target != nil {
+															<a class="link" href={ templ.URL(DataSourceQueriesHref(org, env.EnvironmentSlug, req.Target.Slug)) }>Review saved operations</a>
+														}
 												}
 											}
 										</td>

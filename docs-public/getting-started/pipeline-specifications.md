@@ -660,7 +660,12 @@ across enabled environments. Expand a requirement to see where the pipeline
 uses it. If the logical reference is missing, create it with
 `braidplane data-source-ref create`. Follow **Manage bindings** to bind the
 reference or change an unsuitable target. Use **Compare runtime variables**
-to address a missing organization variable.
+to address a missing organization variable. If a query or sink uses
+`operation_ref`, readiness looks up the saved operation on the data source
+bound in each environment. Use **Review saved operations** to inspect that
+source’s query library. A saved operation on the development source does
+not satisfy a reference on a different production source. Inline operations
+use the existing pipeline validation path.
 A ready environment has passed the listed configuration checks. Use the run
 history and inspect the destination to verify execution and output.
 
@@ -678,9 +683,11 @@ Use `GET /api/organizations/{slug}/projects/{project_slug}/readiness` to check t
 current persisted pipelines in every enabled project environment. To check one
 pipeline, use `GET /api/organizations/{slug}/projects/{project_slug}/pipelines/{pipeline_slug}/readiness`.
 Both endpoints require read access to pipelines, environments and data sources.
+Looking up saved operations also requires read access to queries.
 
 Each blocked environment lists the affected pipeline, step, field path and
 next action for each unmet requirement. Readiness checks logical refs, bindings,
-source and sink suitability, and effective organization runtime variable values
-without running a connector. An empty project with enabled environments returns
+source and sink suitability, saved-operation compatibility where contract metadata
+is available, and effective organization runtime variable values without running
+a connector. An empty project with enabled environments returns
 `informational`. A project with no enabled environments returns `warning`.

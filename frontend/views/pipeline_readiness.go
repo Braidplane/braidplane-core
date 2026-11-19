@@ -57,6 +57,20 @@ func readinessReason(code, action string) string {
 		return "Runtime variable missing"
 	case "variable_type_mismatch":
 		return "Runtime variable type mismatch"
+	case "missing_operation":
+		return "Saved operation missing on the bound data source"
+	case "operation_wrong_data_source":
+		return "Saved operation belongs to a different data source"
+	case "operation_unbound":
+		return "Bind the data-source reference to check this saved operation"
+	case "incompatible_operation_type":
+		return "Choose a saved operation compatible with the bound connector"
+	case "missing_operation_capability":
+		return "Choose a saved operation that supports this step’s source or sink role"
+	case "incompatible_operation_contract":
+		return "Update the saved operation or pipeline so their contracts agree"
+	case "missing_operation_parameter":
+		return "Supply the required saved-operation parameters in the pipeline"
 	default:
 		return strings.ReplaceAll(code, "_", " ")
 	}

@@ -1,7 +1,9 @@
 package http
 
 import (
+	"context"
 	"fmt"
+	"sync"
 
 	"github.com/gofiber/fiber/v3"
 
@@ -9,6 +11,8 @@ import (
 	"github.com/Braidplane/braidplane-core/pkg/apierror"
 	"github.com/Braidplane/braidplane-core/pkg/domain/model"
 	"github.com/Braidplane/braidplane-core/pkg/slug"
+	"github.com/Braidplane/braidplane-core/pkg/xerror"
+	"github.com/Braidplane/braidplane-core/service/queriessvc"
 	"github.com/Braidplane/braidplane-core/service/readinesssvc"
 )
 
@@ -37,11 +41,26 @@ func (s *server) getReadiness(c fiber.Ctx, org api.SlugParam, project api.Projec
 			return mapServiceError(err)
 		}
 	}
-	report, err := readinesssvc.Load(c.Context(), s.pipelinesService, s.environmentsService, s.dataSourceRefsService, orgSlug, projectSlug, pipeline)
+	report, err := readinesssvc.Load(c.Context(), s.pipelinesService, s.environmentsService, s.dataSourceRefsService, s.readinessOperations(c, orgSlug), orgSlug, projectSlug, pipeline)
 	if err != nil {
+		var authErr *apierror.Error
+		if xerror.As(err, &authErr) {
+			return authErr
+		}
 		return mapServiceError(err)
 	}
 	return c.JSON(report)
+}
+
+// Check query access once, only when readiness needs saved operation metadata.
+func (s *server) readinessOperations(c fiber.Ctx, org slug.Slug) readinesssvc.OperationReader {
+	authorize := sync.OnceValue(func() error { return s.canOrg(c, org, model.Read, model.ResourceQueries) })
+	return func(ctx context.Context, _, dataSource, operation slug.Slug) (*queriessvc.Query, error) {
+		if err := authorize(); err != nil {
+			return nil, err
+		}
+		return s.queriesService.FindForReadiness(ctx, org, dataSource, operation)
+	}
 }
 
 func (s *server) canReadReadiness(c fiber.Ctx, org slug.Slug) error {

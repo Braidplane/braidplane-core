@@ -14,6 +14,7 @@ import (
 	"github.com/Braidplane/braidplane-core/service/datasourcerefssvc"
 	"github.com/Braidplane/braidplane-core/service/environmentssvc"
 	"github.com/Braidplane/braidplane-core/service/pipelinesvc"
+	"github.com/Braidplane/braidplane-core/service/queriessvc"
 )
 
 func TestPagesIncludesLastPage(t *testing.T) {
@@ -95,7 +96,7 @@ func TestLoadSelectedPipeline(t *testing.T) {
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			refs := &loadRefs{t: t, bindingError: tc.bindingError}
-			report, err := Load(t.Context(), loadPipelines{t: t}, loadEnvironments{t: t}, refs, "tenant", "project", "selected")
+			report, err := Load(t.Context(), loadPipelines{t: t}, loadEnvironments{t: t}, refs, nil, "tenant", "project", "selected")
 			require.Equal(t, 1, refs.refReads)
 			require.Equal(t, []slug.Slug{"dev", "prod"}, refs.environments)
 			if tc.bindingError != nil {
@@ -137,7 +138,7 @@ func (e environmentsWithoutComparison) CompareRuntimeVariables(context.Context, 
 }
 
 func TestLoadWithoutVariables(t *testing.T) {
-	report, err := Load(t.Context(), pipelineWithoutVariables{}, environmentsWithoutComparison{loadEnvironments{t: t}}, &loadRefs{t: t}, "tenant", "project", "selected")
+	report, err := Load(t.Context(), pipelineWithoutVariables{}, environmentsWithoutComparison{loadEnvironments{t: t}}, &loadRefs{t: t}, nil, "tenant", "project", "selected")
 	require.NoError(t, err)
 	require.Equal(t, "ready", report.Status)
 	encoded, err := json.Marshal(report.Environments[0])
@@ -177,7 +178,7 @@ func TestLoadSpecsEvaluatesIncomingRequirementsInOrder(t *testing.T) {
 	second.Steps = nil
 	third := *first
 	third.Steps = []pipelinespec.Step{{Slug: "read", Kind: "query", Query: &pipelinespec.QueryRef{DataSourceSlug: "ledger", OperationType: "sql"}}}
-	reports, err := LoadSpecs(t.Context(), loadEnvironments{t: t}, refs, "tenant", "project", []*pipelinespec.Pipeline{first, &second, &third})
+	reports, err := LoadSpecs(t.Context(), loadEnvironments{t: t}, refs, nil, "tenant", "project", []*pipelinespec.Pipeline{first, &second, &third})
 	require.NoError(t, err)
 	require.Len(t, reports, 3)
 	encoded, err := json.Marshal(reports)
@@ -194,4 +195,52 @@ func TestLoadSpecsEvaluatesIncomingRequirementsInOrder(t *testing.T) {
 	require.Equal(t, "ready", reports[1].Status)
 	require.Equal(t, "ready", reports[2].Environments[0].Status)
 	require.Len(t, reports[2].Environments[1].Diagnostics, 1)
+}
+
+func TestSavedOperationsUseConcreteEnvironmentBinding(t *testing.T) {
+	source, sink := model.DataSourceRefCapabilityPipelineSource, model.DataSourceRefCapabilityPipelineSink
+	p := PipelineInput{
+		Spec: &pipelinespec.Pipeline{Metadata: pipelinespec.Metadata{Slug: "pipeline"}, Steps: []pipelinespec.Step{
+			{Slug: "source", Kind: "query", Query: &pipelinespec.QueryRef{OperationType: "sql", DataSourceSlug: "logical", OperationRef: "read"}},
+			{Slug: "again", Kind: "query", Query: &pipelinespec.QueryRef{OperationType: "sql", DataSourceSlug: "logical", OperationRef: "read"}},
+			{Slug: "sink", Kind: "sink", Sink: &pipelinespec.SinkSpec{OperationType: "sql", DataSourceSlug: "logical", OperationRef: "write"}},
+		}},
+		Refs: []model.DataSourceRef{{Slug: "logical", DataSourceType: model.DataSourceTypePostgres, RequiredCapabilities: []model.DataSourceRefCapability{source, sink}}},
+	}
+	envs := []EnvironmentInput{{Slug: "dev"}, {Slug: "prod"}}
+	for _, env := range envs {
+		p.Bindings = append(p.Bindings, model.DataSourceBinding{EnvironmentSlug: env.Slug, DataSourceRefSlug: "logical", DataSourceSlug: env.Slug, DataSourceType: model.DataSourceTypePostgres, DataSourceActive: true})
+	}
+	inputs := []PipelineInput{p, p}
+	reads := map[OperationKey]int{}
+	err := loadOperations(t.Context(), "tenant", inputs, func(_ context.Context, org, ds, op slug.Slug) (*queriessvc.Query, error) {
+		require.Equal(t, slug.Slug("tenant"), org)
+		reads[OperationKey{ds, op}]++
+		if ds == "prod" {
+			if op == "read" {
+				return nil, queriessvc.ErrOperationWrongDataSource
+			}
+			return nil, queriessvc.ErrQueryNotFound
+		}
+		return &queriessvc.Query{DataSourceSlug: ds, Data: json.RawMessage(`{"statement":"{\"type\":\"postgres\",\"sql\":\"select 1\"}"}`)}, nil
+	})
+	require.NoError(t, err)
+	require.Equal(t, map[OperationKey]int{{"dev", "read"}: 1, {"prod", "read"}: 1, {"dev", "write"}: 1, {"prod", "write"}: 1}, reads)
+	report := evaluate(inputs[:1], envs, true)
+	require.Equal(t, "ready", report.Environments[0].Status)
+	prod := report.Environments[1]
+	require.Equal(t, "blocked", prod.Status)
+	require.Len(t, prod.Diagnostics, 3)
+	for i, want := range []string{"operation_wrong_data_source", "operation_wrong_data_source", "missing_operation"} {
+		require.Equal(t, want, prod.Diagnostics[i].Code)
+	}
+	require.Equal(t, "/steps/2/sink/operation_ref", prod.Diagnostics[2].FieldPath)
+	row := prod.Requirements[len(prod.Requirements)-1]
+	require.Equal(t, "saved_operation", row.Kind)
+	require.Equal(t, "write", row.Key)
+	require.Equal(t, slug.Slug("prod"), row.Target.Slug)
+	require.Equal(t, "blocked", row.Status)
+	encoded, err := json.Marshal(report)
+	require.NoError(t, err)
+	require.NotContains(t, string(encoded), "select 1")
 }

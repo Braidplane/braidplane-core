@@ -11905,8 +11905,8 @@ components:
       properties:
         kind:
           type: string
-          enum: [data_source_ref, runtime_variable]
-          x-enum-varnames: [ReadinessDataSourceRef, ReadinessRuntimeVariable]
+          enum: [data_source_ref, runtime_variable, saved_operation]
+          x-enum-varnames: [ReadinessDataSourceRef, ReadinessRuntimeVariable, ReadinessSavedOperation]
         key:
           type: string
         status:

@@ -227,9 +227,13 @@ func (s *server) ReconcilePipelines(
 		}
 		return c.JSON(response)
 	}
-	reports, err := readinesssvc.LoadSpecs(c.Context(), s.environmentsService, s.dataSourceRefsService, orgSlug, projectSlug, result.Specs)
+	reports, err := readinesssvc.LoadSpecs(c.Context(), s.environmentsService, s.dataSourceRefsService, s.readinessOperations(c, orgSlug), orgSlug, projectSlug, result.Specs)
 	if err != nil {
 		response.ReadinessWarning = ptr.Ptr(unavailable)
+		var denied *apierror.Error
+		if xerror.As(err, &denied) && denied.Code == apierror.CodeAuthForbidden {
+			response.ReadinessWarning = ptr.Ptr("Read access to queries is required to view saved operation readiness.")
+		}
 		return c.JSON(response)
 	}
 	for i, report := range reports {

@@ -1090,6 +1090,11 @@ func TestRunWithArgsPipelineApplyPostsRequestAndPrintsReport(t *testing.T) {
 							"environment_slug": "prod", "pipeline_slug": "acme-users-sync",
 							"step_slug": "load", "requirement_key": "users",
 							"field_path": "/steps/0/query/data_source_ref", "next_action": "configure_binding"
+						}, {
+							"code": "missing_operation", "severity": "error",
+							"environment_slug": "prod", "pipeline_slug": "acme-users-sync",
+							"step_slug": "store", "requirement_key": "write-users",
+							"field_path": "/steps/1/sink/operation_ref", "next_action": "configure_saved_operation"
 						}]
 					}]
 				}
@@ -1170,9 +1175,12 @@ func TestRunWithArgsPipelineApplyPostsRequestAndPrintsReport(t *testing.T) {
 	require.Len(t, readiness.Environments, 1)
 	env := readiness.Environments[0]
 	require.Equal(t, "prod", env.EnvironmentSlug)
-	require.Len(t, env.Diagnostics, 1)
+	require.Len(t, env.Diagnostics, 2)
 	require.Equal(t, "users", env.Diagnostics[0].RequirementKey)
 	require.Equal(t, "configure_binding", env.Diagnostics[0].NextAction)
+	require.Equal(t, "missing_operation", env.Diagnostics[1].Code)
+	require.Equal(t, "write-users", env.Diagnostics[1].RequirementKey)
+	require.Equal(t, "/steps/1/sink/operation_ref", env.Diagnostics[1].FieldPath)
 	require.Contains(t, stdout.String(), "legacy-sync")
 	require.Contains(t, stdout.String(), "filtered_out")
 	require.Contains(t, stdout.String(), "nightly-export")

@@ -417,10 +417,10 @@ func TestServer_ReconcilePipelines(t *testing.T) {
 
 func TestServer_ReconcileReadiness(t *testing.T) {
 	for _, tc := range []struct {
-		name                                       string
-		dryRun, denyRead, loadFailure, authFailure bool
+		name                                                    string
+		dryRun, denyRead, loadFailure, authFailure, denyQueries bool
 	}{
-		{name: "preview", dryRun: true}, {name: "apply"}, {name: "restricted", denyRead: true}, {name: "unavailable", loadFailure: true}, {name: "auth unavailable", authFailure: true},
+		{name: "preview", dryRun: true}, {name: "apply"}, {name: "queries restricted", denyQueries: true}, {name: "restricted", denyRead: true}, {name: "unavailable", loadFailure: true}, {name: "auth unavailable", authFailure: true},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			app, store := newTestApp(t, testServerConfig{
@@ -428,7 +428,7 @@ func TestServer_ReconcileReadiness(t *testing.T) {
 					if tc.authFailure && input.Resource == model.ResourceEnvironments {
 						return false, fmt.Errorf("private provider detail")
 					}
-					return !tc.denyRead || input.Resource != model.ResourceEnvironments, nil
+					return (!tc.denyRead || input.Resource != model.ResourceEnvironments) && (!tc.denyQueries || input.Resource != model.ResourceQueries), nil
 				}},
 				environmentsService: &fakeEnvironmentsService{ListProjectEnvironmentsFn: func(context.Context, slug.Slug, slug.Slug, model.ListRequest) (model.ListResponse[model.ProjectEnvironment], error) {
 					require.False(t, tc.denyRead)
@@ -437,11 +437,19 @@ func TestServer_ReconcileReadiness(t *testing.T) {
 					}
 					return model.ListResponse[model.ProjectEnvironment]{Items: []model.ProjectEnvironment{{Environment: model.Environment{Slug: "prod"}}}}, nil
 				}},
+				dataSourceRefsService: &fakeDataSourceRefsService{
+					ListDataSourceRefsFn: func(context.Context, slug.Slug, slug.Slug, model.ListRequest) (model.ListResponse[model.DataSourceRef], error) {
+						return model.ListResponse[model.DataSourceRef]{Items: []model.DataSourceRef{{Slug: "source", PipelineSlug: "ledger", DataSourceType: model.DataSourceTypePostgres, RequiredCapabilities: []model.DataSourceRefCapability{model.DataSourceRefCapabilityPipelineSource}}}}, nil
+					},
+					ListEnvironmentBindingsFn: func(context.Context, slug.Slug, slug.Slug, slug.Slug, model.ListRequest) (model.ListResponse[model.DataSourceBinding], error) {
+						return model.ListResponse[model.DataSourceBinding]{Items: []model.DataSourceBinding{{EnvironmentSlug: "prod", PipelineSlug: "ledger", DataSourceRefSlug: "source", DataSourceSlug: "ledger-prod", DataSourceType: model.DataSourceTypePostgres, DataSourceActive: true}}}, nil
+					},
+				},
 				pipelinesService: &fakePipelinesService{ReconcilePipelinesFn: func(_ context.Context, _, _, _ slug.Slug, _ model.EventActor, req pipelinesvc.ReconcilePipelinesRequest) (*pipelinesvc.ReconcilePipelinesResult, error) {
 					return &pipelinesvc.ReconcilePipelinesResult{
 						DryRun: req.DryRun, Summary: pipelinesvc.ReconcilePipelinesSummary{Synced: 1},
 						Synced: []pipelinesvc.ReconcilePipelinesSyncedPipeline{{PipelineSlug: "ledger"}},
-						Specs:  []*pipelinespec.Pipeline{{Metadata: pipelinespec.Metadata{Slug: "ledger"}, Steps: []pipelinespec.Step{{Slug: "read", Kind: "query", Query: &pipelinespec.QueryRef{DataSourceSlug: "source", OperationType: "sql"}}}}},
+						Specs:  []*pipelinespec.Pipeline{{Metadata: pipelinespec.Metadata{Slug: "ledger"}, Steps: []pipelinespec.Step{{Slug: "read", Kind: "query", Query: &pipelinespec.QueryRef{DataSourceSlug: "source", OperationType: "sql", OperationRef: "saved"}}}}},
 					}, nil
 				}},
 			})
@@ -454,10 +462,10 @@ func TestServer_ReconcileReadiness(t *testing.T) {
 			require.Equal(t, 1, body.Summary.Synced)
 			require.Empty(t, body.Failures)
 			report := body.Synced[0].Readiness
-			if tc.denyRead || tc.loadFailure || tc.authFailure {
+			if tc.denyRead || tc.denyQueries || tc.loadFailure || tc.authFailure {
 				require.Nil(t, report)
 				require.NotNil(t, body.ReadinessWarning)
-				if tc.denyRead {
+				if tc.denyRead || tc.denyQueries {
 					require.Contains(t, *body.ReadinessWarning, "Read access")
 				} else {
 					require.Equal(t, "Environment readiness could not be evaluated.", *body.ReadinessWarning)
@@ -471,7 +479,9 @@ func TestServer_ReconcileReadiness(t *testing.T) {
 			env := report.Environments[0]
 			require.Equal(t, "prod", env.EnvironmentSlug)
 			require.Len(t, env.Diagnostics, 1)
-			require.Equal(t, "missing_ref", env.Diagnostics[0].Code)
+			require.Equal(t, "missing_operation", env.Diagnostics[0].Code)
+			require.Equal(t, "saved", env.Diagnostics[0].RequirementKey)
+			require.Equal(t, "/steps/0/query/operation_ref", env.Diagnostics[0].FieldPath)
 		})
 	}
 }

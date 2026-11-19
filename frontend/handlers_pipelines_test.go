@@ -496,10 +496,13 @@ func TestRouter_HandlePipelineDetailPage_RendersMetadata(t *testing.T) {
 			{"environment_slug":"prod","status":"blocked","diagnostics":[
 				{"code":"missing_binding","requirement_key":"ledger","field_path":"/steps/0/query/data_source_ref"},
 				{"code":"read_only_sink","requirement_key":"warehouse","field_path":"/steps/2/sink/data_source_ref"},
+				{"code":"missing_operation","requirement_key":"write-ledger","field_path":"/steps/2/sink/operation_ref"},
 				{"code":"missing_variable","requirement_key":"region","field_path":"/steps/0/query/parameters/region"}
 			],"requirements":[
 				{"kind":"data_source_ref","key":"ledger","status":"blocked","usages":[{"step_slug":"load-ledger","field_path":"/steps/0/query/data_source_ref"}]},
 				{"kind":"data_source_ref","key":"warehouse","status":"blocked","usages":[{"step_slug":"store","field_path":"/steps/2/sink/data_source_ref"}],
+				 "target":{"slug":"prod-ledger","type":"postgres","active":true,"read_only":true,"supports_capability":true}},
+				{"kind":"saved_operation","key":"write-ledger","status":"blocked","usages":[{"step_slug":"store","field_path":"/steps/2/sink/operation_ref"}],
 				 "target":{"slug":"prod-ledger","type":"postgres","active":true,"read_only":true,"supports_capability":true}},
 				{"kind":"runtime_variable","key":"region","status":"blocked","usages":[{"step_slug":"load-ledger","field_path":"/steps/0/query/parameters/region"}],"variable":{"present":false,"source":"missing"}}]}
 		]}`
@@ -619,6 +622,7 @@ func TestRouter_HandlePipelineDetailPage_RendersMetadata(t *testing.T) {
 			`Requirements in dev`, `Requirements in prod`, ">ready<", ">blocked<", "Binding missing", "Sink requires a writable target", "Runtime variable missing",
 			`text-purple-200">dev</span>`, `text-warning">prod</span>`,
 			"Organization default", "Absent", "dev-ledger", "Capability supported", "Read-only", "audit-ledger", "Usage locations (2)",
+			"write-ledger", "/steps/2/sink/operation_ref", "Saved operation missing on the bound data source", "/orgs/acme-hq/queries?ds=prod-ledger&amp;environment_slug=prod",
 			"/pipelines/customer-sync/bindings?", "#binding-cell-customer-sync-ledger-prod", "/organizations/acme-hq/runtime-variables?pipeline=customer-sync",
 		},
 		{">warning<", "No runtime environments are enabled"},
