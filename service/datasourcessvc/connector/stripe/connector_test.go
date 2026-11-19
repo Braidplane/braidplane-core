@@ -54,6 +54,8 @@ func TestRestrictedKeyAndAccountSelection(t *testing.T) {
 		c.transport = provider(func(req *http.Request) (*http.Response, error) {
 			require.Equal(t, "Bearer "+key, req.Header.Get("Authorization"))
 			require.Empty(t, req.Header.Get("Stripe-Account"))
+			require.Empty(t, req.Header.Get("X-Stripe-Client-Telemetry"))
+			require.NotContains(t, req.Header.Get("X-Stripe-Client-User-Agent"), "telemetry_id")
 			require.Equal(t, "https://api.stripe.com/v1/customers?limit=1", req.URL.String())
 			return response(200, `{"object":"list","data":[],"has_more":false}`), nil
 		})

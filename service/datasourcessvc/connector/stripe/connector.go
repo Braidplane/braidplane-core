@@ -197,7 +197,12 @@ func (c *Connector) list(ctx context.Context, r resource, cursor string, limit i
 		Transport: boundedTransport{c.transport, budget}, Timeout: 30 * time.Second,
 		CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse },
 	}
-	backend := sdk.GetBackendWithConfig(sdk.APIBackend, &sdk.BackendConfig{HTTPClient: client, MaxNetworkRetries: sdk.Int64(0), LeveledLogger: &sdk.LeveledLogger{Level: sdk.LevelNull}})
+	backend := sdk.GetBackendWithConfig(sdk.APIBackend, &sdk.BackendConfig{
+		HTTPClient:        client,
+		MaxNetworkRetries: sdk.Int64(0),
+		EnableTelemetry:   sdk.Bool(false), // Workers serve multiple organizations.
+		LeveledLogger:     &sdk.LeveledLogger{Level: sdk.LevelNull},
+	})
 	p := &sdk.ListParams{Context: ctx, Limit: sdk.Int64(int64(limit))}
 	if cursor != "" {
 		p.StartingAfter = sdk.String(cursor)
