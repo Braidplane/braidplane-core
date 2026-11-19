@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"strings"
+	"sync/atomic"
 	"testing"
 
 	"github.com/Braidplane/braidplane-core/pkg/connector/transportsecurity"
@@ -135,9 +136,11 @@ func TestClientExecutesPathStyleProviderOperations(t *testing.T) {
 		case r.Method == http.MethodHead && r.URL.Path == "/braidplane-fixtures/exports/new.json":
 			w.WriteHeader(http.StatusNotFound)
 		case r.Method == http.MethodPut && r.URL.Path == "/braidplane-fixtures/exports/existing.json":
-			t.Errorf("PutObject should not PUT an existing object when overwrite is false")
-			w.WriteHeader(http.StatusInternalServerError)
+			assert.Equal(t, "*", r.Header.Get("If-None-Match"))
+			w.WriteHeader(http.StatusPreconditionFailed)
+			_, _ = io.WriteString(w, "<Error><Code>PreconditionFailed</Code></Error>")
 		case r.Method == http.MethodPut && r.URL.Path == "/braidplane-fixtures/exports/new.json":
+			assert.Equal(t, "*", r.Header.Get("If-None-Match"))
 			assert.Equal(t, "application/json", r.Header.Get("Content-Type"))
 			assert.Equal(t, "run-001", r.Header.Get("X-Amz-Meta-Run"))
 			body, err := io.ReadAll(r.Body)
@@ -201,6 +204,9 @@ func TestClientExecutesPathStyleProviderOperations(t *testing.T) {
 	require.NoError(t, err)
 	require.True(t, exists)
 
+	_, err = client.PutObject(t.Context(), PutObjectRequest{Bucket: "braidplane-fixtures", Key: "unsupported"})
+	require.ErrorIs(t, err, xerror.Unsupported(xerror.DataSource))
+	client.conditionalPut = true // The synthetic provider enforces the AWS precondition.
 	writeResult, err := client.PutObject(transportsecurity.WithPlaintext(context.Background()), PutObjectRequest{
 		Bucket:      "braidplane-fixtures",
 		Key:         "exports/new.json",
@@ -313,4 +319,77 @@ func TestConnectionWithPrefixDoesNotRequireBucketWideListing(t *testing.T) {
 	require.NoError(t, err)
 	t.Cleanup(func() { require.NoError(t, client.Close()) })
 	require.NoError(t, client.TestConnection(ctx, TestConnectionRequest{Bucket: "fixtures", Prefix: "settlement-review/tester/"}))
+}
+
+func TestConcurrentConditionalPutPreservesWinner(t *testing.T) {
+	var stored atomic.Pointer[string]
+	client := streamTestClient(t, func(w http.ResponseWriter, r *http.Request) {
+		assert.Equal(t, http.MethodPut, r.Method)
+		assert.Equal(t, "*", r.Header.Get("If-None-Match"))
+		body, err := io.ReadAll(r.Body)
+		assert.NoError(t, err)
+		value := string(body)
+		if !stored.CompareAndSwap(nil, &value) {
+			w.WriteHeader(http.StatusPreconditionFailed)
+			_, _ = io.WriteString(w, "<Error><Code>PreconditionFailed</Code></Error>")
+		}
+	})
+	client.conditionalPut = true
+	start := make(chan struct{})
+	type result struct {
+		value string
+		err   error
+	}
+	results := make(chan result, 2)
+	for _, value := range []string{"first", "second"} {
+		go func() {
+			<-start
+			_, err := client.PutObject(t.Context(), PutObjectRequest{Bucket: "fixture", Key: "shared", Content: []byte(value)})
+			results <- result{value, err}
+		}()
+	}
+	close(start)
+	wins := 0
+	for range 2 {
+		result := <-results
+		if result.err == nil {
+			wins++
+			require.Equal(t, result.value, *stored.Load())
+		} else {
+			require.ErrorIs(t, result.err, xerror.AlreadyExists(xerror.DataSource))
+		}
+	}
+	require.Equal(t, 1, wins)
+}
+
+func TestConditionalPutFailuresDoNotRetry(t *testing.T) {
+	for _, tc := range []struct {
+		code   string
+		status int
+		want   error
+	}{
+		{"AccessDenied", 403, xerror.Forbidden(xerror.DataSource)},
+		{"ConditionalRequestConflict", 409, xerror.AlreadyExists(xerror.DataSource)},
+		{"NotImplemented", 501, xerror.Unsupported(xerror.DataSource)},
+		{"lost_ack", 0, xerror.Unexpected()},
+	} {
+		t.Run(tc.code, func(t *testing.T) {
+			var calls atomic.Int32
+			client := streamTestClient(t, func(w http.ResponseWriter, r *http.Request) {
+				calls.Add(1)
+				assert.Equal(t, "*", r.Header.Get("If-None-Match"))
+				_, err := io.ReadAll(r.Body)
+				assert.NoError(t, err)
+				if tc.status == 0 {
+					panic(http.ErrAbortHandler)
+				}
+				w.WriteHeader(tc.status)
+				_, _ = io.WriteString(w, "<Error><Code>"+tc.code+"</Code></Error>")
+			})
+			client.conditionalPut = true
+			_, err := client.PutObject(t.Context(), PutObjectRequest{Bucket: "fixture", Key: "target", Content: []byte("synthetic")})
+			require.ErrorIs(t, err, tc.want)
+			require.EqualValues(t, 1, calls.Load())
+		})
+	}
 }

@@ -118,7 +118,7 @@ func TestConnector_ExecuteReadAndWriteObject(t *testing.T) {
 		"overwrite": false,
 		"content":   []map[string]any{{"id": "2", "name": "Grace"}},
 	}, map[string]any{})
-	require.ErrorIs(t, err, xerror.AlreadyExists(xerror.DataSource))
+	require.ErrorIs(t, err, xerror.Unsupported(xerror.DataSource))
 
 	readResult, err := executeS3(ctx, conn, map[string]any{
 		"type":      "s3",

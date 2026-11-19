@@ -52,7 +52,7 @@ func (e s3DispatchExecutor) ExecuteInline(ctx context.Context, _, _ slug.Slug, o
 
 func TestS3PreparationAndDispatchLedger(t *testing.T) {
 	for _, inline := range []bool{false, true} {
-		for _, mode := range []string{"malformed", "serialization", "valid", "provider_failure", "completed"} {
+		for _, mode := range []string{"malformed", "serialization", "unsupported_create", "valid", "provider_failure", "completed"} {
 			t.Run(mode+map[bool]string{false: "_saved", true: "_inline"}[inline], func(t *testing.T) {
 				ledger := &fakeSinkEffectLedger{effect: pipelinerun.SinkEffect{Claimed: true, State: pipelinerun.SinkEffectStateInProgress}}
 				if mode == "completed" {
@@ -74,6 +74,9 @@ func TestS3PreparationAndDispatchLedger(t *testing.T) {
 				require.NoError(t, err)
 				defer func() { require.NoError(t, connector.Close()) }()
 				operation := map[string]any{"operation": "write", "key": "out.json", "format": "json"}
+				if mode == "unsupported_create" {
+					operation["overwrite"] = false
+				}
 				if mode == "malformed" {
 					operation["key"] = 42
 					operation["metadata"] = map[string]any{"private-name": 42}
@@ -92,7 +95,7 @@ func TestS3PreparationAndDispatchLedger(t *testing.T) {
 				runtime := NewSinkRuntime(s3DispatchExecutor{connector: connector, operation: operation}, ledger)
 				err = runtime.Execute(ctx, input)
 				switch mode {
-				case "malformed", "serialization":
+				case "malformed", "serialization", "unsupported_create":
 					require.ErrorIs(t, err, errSinkConfigurationInvalid)
 					require.Zero(t, requests)
 					require.Zero(t, ledger.beginCalls)
