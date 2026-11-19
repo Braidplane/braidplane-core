@@ -9827,7 +9827,7 @@ type ExecutePipelineRequest struct {
 	// Backfill One bounded historical run. Every incremental source requires a window. Replay-safe sinks are required. Never advances normal checkpoints. Reusing a run_slug returns a conflict rather than executing twice.
 	Backfill *PipelineBackfillRequest `json:"backfill,omitempty"`
 
-	// Input Non-secret per-run input values keyed by names matching `[A-Za-z_][A-Za-z0-9_]*`. Values are available to this run as `{{runtime.input.key}}` and are never stored in run records, events, logs, or UI.
+	// Input Non-secret per-run input values keyed by names matching `[A-Za-z_][A-Za-z0-9_]*`. Numbers support up to 38 coefficient digits, 38 integer digits and 38 fractional places after exponent expansion. Values are available to this run as `{{runtime.input.key}}` and are never stored in run records, events, logs, or UI.
 	//
 	// Example: {"customer_id":"cus_123","dry_run":true}
 	Input                            *map[string]interface{} `json:"input,omitempty"`

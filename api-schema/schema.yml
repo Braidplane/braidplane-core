@@ -23094,7 +23094,7 @@ components:
           $ref: '#/components/schemas/PipelineBackfillRequest'
         input:
           type: object
-          description: Non-secret per-run input values keyed by names matching `[A-Za-z_][A-Za-z0-9_]*`. Values are available to this run as `{{runtime.input.key}}` and are never stored in run records, events, logs, or UI.
+          description: Non-secret per-run input values keyed by names matching `[A-Za-z_][A-Za-z0-9_]*`. Numbers support up to 38 coefficient digits, 38 integer digits and 38 fractional places after exponent expansion. Values are available to this run as `{{runtime.input.key}}` and are never stored in run records, events, logs, or UI.
           additionalProperties: true
           example:
             customer_id: cus_123

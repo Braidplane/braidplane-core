@@ -1286,7 +1286,10 @@ func (s *server) ExecutePipeline(
 		return err
 	}
 
-	var req api.ExecutePipelineRequest
+	var req struct {
+		api.ExecutePipelineRequest
+		Input pipelineruntimevars.Input `json:"input"`
+	}
 	if err := c.Bind().Body(&req); err != nil {
 		return apierror.InvalidRequestBody()
 	}
@@ -1305,8 +1308,8 @@ func (s *server) ExecutePipeline(
 	}
 
 	actor := s.eventActor(c)
-	runtimeInput := executePipelineRuntimeInput(req.Input)
-	source := pipelineRunSourceSummary(c, actor, executePipelineSourceParameterKeys(c.Body()))
+	runtimeInput := map[string]any(req.Input)
+	source := pipelineRunSourceSummary(c, actor, executePipelineSourceParameterKeys(c.Body(), runtimeInput))
 	if err := s.admissionService.CheckRunAccess(c.Context(), orgSlug); err != nil {
 		return mapServiceError(err)
 	}
@@ -1479,7 +1482,7 @@ func traceIDFromContext(ctx context.Context) *string {
 	return &traceID
 }
 
-func executePipelineSourceParameterKeys(body []byte) []string {
+func executePipelineSourceParameterKeys(body []byte, input map[string]any) []string {
 	keys := make([]string, 0, 2)
 	if requestBodyHasKey(body, "run_slug") {
 		keys = append(keys, "run_slug")
@@ -1487,37 +1490,9 @@ func executePipelineSourceParameterKeys(body []byte) []string {
 	if requestBodyHasKey(body, "protected_environment_confirmation") {
 		keys = append(keys, "protected_environment_confirmation")
 	}
-	keys = append(keys, executePipelineSourceInputKeys(body)...)
+	keys = append(keys, pipelineruntimevars.InputParameterKeys(input)...)
 	sort.Strings(keys)
 	return keys
-}
-
-func executePipelineRuntimeInput(input *map[string]interface{}) map[string]any {
-	if input == nil {
-		return nil
-	}
-	return *input
-}
-
-func executePipelineSourceInputKeys(body []byte) []string {
-	if len(body) == 0 {
-		return nil
-	}
-
-	var raw map[string]json.RawMessage
-	if err := json.Unmarshal(body, &raw); err != nil {
-		return nil
-	}
-	inputRaw, ok := raw["input"]
-	if !ok || string(inputRaw) == "null" {
-		return nil
-	}
-
-	var input map[string]any
-	if err := json.Unmarshal(inputRaw, &input); err != nil {
-		return nil
-	}
-	return pipelineruntimevars.InputParameterKeys(input)
 }
 
 func parseOrgProjectSlugs(
@@ -3071,7 +3046,10 @@ func (s *server) BootstrapPipelineCheckpoints(c fiber.Ctx, orgParam api.SlugPara
 	if err := s.canOrg(c, org, model.Update, model.ResourcePipelines); err != nil {
 		return err
 	}
-	var req api.BootstrapPipelineCheckpointsRequest
+	var req struct {
+		api.BootstrapPipelineCheckpointsRequest
+		Input pipelineruntimevars.Input `json:"input"`
+	}
 	if err := c.Bind().Body(&req); err != nil {
 		return apierror.InvalidRequestBody()
 	}
@@ -3091,11 +3069,7 @@ func (s *server) BootstrapPipelineCheckpoints(c fiber.Ctx, orgParam api.SlugPara
 		}
 		seeds[step] = seed
 	}
-	var input map[string]any
-	if req.Input != nil {
-		input = *req.Input
-	}
-	if err := s.pipelinesService.BootstrapCheckpoints(c.Context(), org, project, environment, pipeline, request, confirmation, s.eventActor(c), input, seeds); err != nil {
+	if err := s.pipelinesService.BootstrapCheckpoints(c.Context(), org, project, environment, pipeline, request, confirmation, s.eventActor(c), req.Input, seeds); err != nil {
 		return mapServiceError(err)
 	}
 	return c.SendStatus(fiber.StatusNoContent)

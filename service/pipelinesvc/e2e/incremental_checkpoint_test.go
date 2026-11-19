@@ -27,6 +27,7 @@ import (
 	"github.com/Braidplane/braidplane-core/pkg/pipeline/payload"
 	pipelinerun "github.com/Braidplane/braidplane-core/pkg/pipeline/run"
 	pipelinespec "github.com/Braidplane/braidplane-core/pkg/pipeline/spec"
+	"github.com/Braidplane/braidplane-core/pkg/queue"
 	"github.com/Braidplane/braidplane-core/pkg/slug"
 	"github.com/Braidplane/braidplane-core/pkg/testutil"
 	"github.com/Braidplane/braidplane-core/pkg/testutil/fakes"
@@ -56,6 +57,7 @@ import (
 	"github.com/Braidplane/braidplane-core/service/queriessvc"
 	"github.com/Braidplane/braidplane-core/service/rolessvc"
 	"github.com/Braidplane/braidplane-core/service/userssvc"
+	"github.com/Braidplane/braidplane-core/service/worker/jobs"
 	workerproducer "github.com/Braidplane/braidplane-core/service/worker/producer"
 )
 
@@ -1156,4 +1158,47 @@ func TestRecoveredCheckpointCannotSupersedeANewerCommit(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, "confirmed", current.CommittingRunSlug)
 	require.JSONEq(t, `{"value":"confirmed"}`, string(current.ObservedUpperBound))
+}
+
+func TestQueuedRuntimeInputCheckpointIdentity(t *testing.T) {
+	if testing.Short() {
+		t.Skip("requires PostgreSQL")
+	}
+	ctx := t.Context()
+	pool := openE2EPool(t)
+	client, err := queue.NewEnqueueOnly(pool)
+	require.NoError(t, err)
+	producer, err := workerproducer.NewPipelineRunProducer(queue.NewEnqueuer(client), pipelineruns.New())
+	require.NoError(t, err)
+	executor := &incrementalCheckpointServiceQueryExecutor{}
+	svc, store := newIncrementalCheckpointService(t, pool, executor, eventtest.NewProducer(nil), producer)
+	pipeline := incrementalCheckpointServicePipeline("exact-input")
+	query := pipeline.Steps[0].Query
+	query.OperationRef = ""
+	query.OperationInline = map[string]any{"type": "postgres", "sql": "SELECT id, updated_at FROM users WHERE id > {{runtime.input.min_id}}"}
+	project, env := incrementalCheckpointProjectSlug, incrementalCheckpointEnvironmentSlug
+	input := map[string]any{"min_id": json.Number("9.007199254740993e15")}
+	for index, seed := range []string{"9007199254740993", "9007199254740995"} {
+		org := must.Slug(fmt.Sprintf("exact-input-%d", time.Now().UnixNano()))
+		member := createIncrementalCheckpointServiceOrgProject(t, pool, org)
+		createAndDeployIncrementalCheckpointPipeline(t, ctx, svc, store, org, member, pipeline)
+		actor := model.UserEventActor(member)
+		seeds := map[slug.Slug]json.RawMessage{"fetch-users": json.RawMessage(`{"value":` + seed + `}`)}
+		require.NoError(t, svc.BootstrapCheckpoints(ctx, org, project, env, pipeline.Metadata.Slug, "seed", nil, actor, input, seeds))
+		_, err := svc.StartRun(ctx, org, project, env, pipeline.Metadata.Slug, ptrSlug("read"), nil, actor, e2eRunSource(actor), input)
+		require.NoError(t, err)
+		var stored []byte
+		require.NoError(t, pool.QueryRow(ctx, `SELECT args FROM river_job WHERE kind='pipeline_run_execution' AND args->>'organization_slug'=$1 AND args->>'run_slug'='read'`, org).Scan(&stored))
+		var args jobs.PipelineRunExecutionArgs
+		require.NoError(t, json.Unmarshal(stored, &args))
+		require.Equal(t, json.Number("9007199254740993"), args.RuntimeInput["min_id"])
+		require.NoError(t, svc.ExecuteQueuedPipelineRun(ctx, args))
+		completed, err := svc.GetRun(ctx, org, project, env, "read")
+		require.NoError(t, err)
+		require.Equal(t, "succeeded", completed.Metadata.Status)
+		require.Len(t, executor.checkpointInputs, index+1)
+		var envelope map[string]json.RawMessage
+		require.NoError(t, json.Unmarshal(executor.checkpointInputs[index].LowerBound, &envelope))
+		require.Equal(t, seed, string(envelope["value"]))
+	}
 }

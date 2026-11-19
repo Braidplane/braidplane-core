@@ -8,6 +8,7 @@ import (
 
 	"github.com/Braidplane/braidplane-core/pkg/domain/model"
 	pipelinerun "github.com/Braidplane/braidplane-core/pkg/pipeline/run"
+	pipelineruntime "github.com/Braidplane/braidplane-core/pkg/pipeline/runtime"
 	"github.com/Braidplane/braidplane-core/pkg/slug"
 )
 
@@ -28,7 +29,7 @@ type PipelineRunExecutionArgs struct {
 	Actor                      model.EventActor                  `json:"actor"`
 	Source                     pipelinerun.RunSourceSummary      `json:"source"`
 	Incremental                pipelinerun.IncrementalRunOptions `json:"incremental,omitempty"`
-	RuntimeInput               map[string]any                    `json:"runtime_input,omitempty"`
+	RuntimeInput               pipelineruntime.Input             `json:"runtime_input,omitempty"`
 	ProtectedEnvironment       bool                              `json:"protected_environment"`
 }
 

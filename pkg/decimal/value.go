@@ -136,9 +136,24 @@ func finish(result Value, flags apd.Condition, err error) (Value, error) {
 
 func (v Value) String() string               { return v.d.Text('f') }
 func (v Value) MarshalJSON() ([]byte, error) { return []byte(v.d.String()), nil }
-func (v Value) Inexact() bool                { return v.conditions.Inexact() }
-func (v Value) Rounded() bool                { return v.conditions.Rounded() }
-func (v Value) Cmp(other Value) int          { return v.d.Cmp(&other.d) }
+
+// CanonicalJSONNumber uses encoding/json's exponent thresholds while retaining all digits.
+func (v Value) CanonicalJSONNumber() json.Number {
+	if v.d.IsZero() {
+		return "0"
+	}
+	var reduced apd.Decimal
+	reduced.Reduce(&v.d)
+	exponent := int64(reduced.Exponent) + reduced.NumDigits() - 1
+	if exponent < -6 || exponent >= 21 {
+		return json.Number(reduced.Text('e'))
+	}
+	return json.Number(reduced.Text('f'))
+}
+
+func (v Value) Inexact() bool       { return v.conditions.Inexact() }
+func (v Value) Rounded() bool       { return v.conditions.Rounded() }
+func (v Value) Cmp(other Value) int { return v.d.Cmp(&other.d) }
 
 // Rat is exact and bounded by the decimal exponent contract.
 func (v Value) Rat() *big.Rat {

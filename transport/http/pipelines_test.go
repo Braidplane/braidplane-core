@@ -3350,6 +3350,12 @@ func TestServer_PipelineDraftEndpoints(t *testing.T) {
 	})
 }
 
+func exactRuntimeInputFixture() []any {
+	return []any{json.Number("9007199254740993"), map[string]any{"values": []any{
+		json.Number("1.234567890123456789"), json.Number("1.25e-3"), "9007199254740993", nil,
+	}}}
+}
+
 func TestServer_ExecutePipeline(t *testing.T) {
 	t.Parallel()
 
@@ -3387,7 +3393,7 @@ func TestServer_ExecutePipeline(t *testing.T) {
 					require.Equal(t, []string{"input.customer_id", "input.dry_run", "run_slug"}, source.ParameterKeys)
 					require.Nil(t, source.SourceEventSlug)
 					require.Equal(t, map[string]any{
-						"customer_id": "cus_123",
+						"customer_id": exactRuntimeInputFixture(),
 						"dry_run":     true,
 					}, runtimeInput)
 
@@ -3430,7 +3436,7 @@ func TestServer_ExecutePipeline(t *testing.T) {
 				"run_slug": "run-001",
 				"input": map[string]any{
 					"dry_run":     true,
-					"customer_id": "cus_123",
+					"customer_id": exactRuntimeInputFixture(),
 				},
 			},
 		)
@@ -5063,11 +5069,12 @@ func TestServer_BootstrapPipelineCheckpointsRequiresUpdate(t *testing.T) {
 					require.Equal(t, slug.Slug("users-sync"), pipeline)
 					require.Equal(t, slug.Slug("bootstrap-001"), request)
 					require.Equal(t, slug.Slug("prod"), *confirmation)
-					require.JSONEq(t, `{"cursor":"opaque-token"}`, string(seeds["source"]))
+					require.Equal(t, exactRuntimeInputFixture(), input["items"])
+					require.Equal(t, `{"value":9007199254740993}`, string(seeds["source"]))
 					return nil
 				}},
 			})
-			req := jsonRequest(t, http.MethodPost, "/organizations/acme/projects/default/environments/prod/pipelines/users-sync:bootstrap-checkpoints", json.RawMessage(`{"request_slug":"bootstrap-001","protected_environment_confirmation":"prod","source_seeds":{"source":{"cursor":"opaque-token"}}}`))
+			req := jsonRequest(t, http.MethodPost, "/organizations/acme/projects/default/environments/prod/pipelines/users-sync:bootstrap-checkpoints", json.RawMessage(`{"request_slug":"bootstrap-001","protected_environment_confirmation":"prod","input":{"items":[9007199254740993,{"values":[1.234567890123456789,1.25e-3,"9007199254740993",null]}]},"source_seeds":{"source":{"value":9007199254740993}}}`))
 			resp := authenticatedRequest(t, app, store, slug.Slug("test-user"), req)
 			defer func() { _ = resp.Body.Close() }()
 			if allowed {

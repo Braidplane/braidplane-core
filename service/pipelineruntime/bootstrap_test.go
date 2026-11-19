@@ -2,6 +2,7 @@ package pipelineruntime
 
 import (
 	"context"
+	"encoding/json"
 	"testing"
 
 	pipelinerun "github.com/Braidplane/braidplane-core/pkg/pipeline/run"
@@ -18,10 +19,10 @@ func TestPrepareCheckpointBootstrapUsesResolvedInlineIdentityWithoutExecuting(t 
 	query := pipeline.Steps[0].Query
 	query.OperationRef = ""
 	query.OperationInline = map[string]any{"type": "postgres", "sql": "SELECT id, updated_at FROM users WHERE id > {{runtime.input.min_id}}"}
-	lookups, err := runner.PrepareCheckpointBootstrap(context.Background(), RunRequest{OrgSlug: "acme", ProjectSlug: "default", EnvironmentSlug: "dev", Pipeline: pipeline, PipelineVersionID: 42, RuntimeInput: map[string]any{"min_id": 10}})
+	lookups, err := runner.PrepareCheckpointBootstrap(context.Background(), RunRequest{OrgSlug: "acme", ProjectSlug: "default", EnvironmentSlug: "dev", Pipeline: pipeline, PipelineVersionID: 42, RuntimeInput: map[string]any{"min_id": json.Number("9.007199254740993e15")}})
 	require.NoError(t, err)
 	require.Len(t, lookups, 1)
-	expected, _, err := incrementalCheckpointLookupForStep(pipeline.Metadata.Slug, 42, pipelinerun.DefaultIncrementalCheckpointNamespace, pipeline.Steps[0], slug.Slug(""), map[string]any{"type": "postgres", "sql": "SELECT id, updated_at FROM users WHERE id > 10"}, true)
+	expected, _, err := incrementalCheckpointLookupForStep(pipeline.Metadata.Slug, 42, pipelinerun.DefaultIncrementalCheckpointNamespace, pipeline.Steps[0], slug.Slug(""), map[string]any{"type": "postgres", "sql": "SELECT id, updated_at FROM users WHERE id > 9007199254740993"}, true)
 	require.NoError(t, err)
 	require.Equal(t, expected, lookups[0])
 	require.Contains(t, query.OperationInline["sql"], "runtime.input.min_id")
