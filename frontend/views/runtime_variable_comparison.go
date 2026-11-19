@@ -7,16 +7,18 @@ import (
 )
 
 type RuntimeVariableComparisonView struct {
-	Organization string
-	Comparison   *api.RuntimeVariableComparison
-	Permissions  OrganizationPermissions
-	Protected    []string
-	Project      string
-	Pipeline     string
-	SpecHash     string
-	Form         *api.RuntimeVariableDefinition
-	Editing      bool
-	Unsaved      bool
+	CheckUsage       bool
+	OrganizationKeys map[string]bool
+	Organization     string
+	Comparison       *api.RuntimeVariableComparison
+	Permissions      OrganizationPermissions
+	Protected        []string
+	Project          string
+	Pipeline         string
+	SpecHash         string
+	Form             *api.RuntimeVariableDefinition
+	Editing          bool
+	Unsaved          bool
 }
 
 func RuntimeVariableComparisonHref(org, project, pipeline, specHash string) string {

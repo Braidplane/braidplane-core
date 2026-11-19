@@ -730,6 +730,10 @@ func (r *Router) renderProjectEnvironmentsPage(
 	pageError string,
 	pageErrorDetails string,
 ) error {
+	var cleanup *views.CleanupFindings
+	if c.Query("cleanup") == "1" {
+		cleanup = &views.CleanupFindings{}
+	}
 	permissions := r.resolveOrganizationPermissions(
 		c.Context(),
 		c.Get(fiber.HeaderCookie),
@@ -794,6 +798,7 @@ func (r *Router) renderProjectEnvironmentsPage(
 				true,
 				false,
 				permissions,
+				cleanup,
 			),
 		)
 	}
@@ -837,6 +842,7 @@ func (r *Router) renderProjectEnvironmentsPage(
 				false,
 				true,
 				permissions,
+				cleanup,
 			),
 		)
 	}
@@ -884,12 +890,18 @@ func (r *Router) renderProjectEnvironmentsPage(
 					false,
 					true,
 					permissions,
+					cleanup,
 				),
 			)
 		}
 		bindings[environmentSlug] = bindingList.DataSourceBindings
 	}
 
+	if cleanup != nil {
+		if requirements, known := r.projectRequirements(c.Context(), c.Get(fiber.HeaderCookie), orgSlug.String(), projectSlug); known {
+			*cleanup = projectCleanup(requirements, refs.DataSourceRefs, projectEnvironments.ProjectEnvironments, bindings)
+		}
+	}
 	shellData := r.buildShellDataForProjectPage(
 		c,
 		"Environments",
@@ -916,6 +928,7 @@ func (r *Router) renderProjectEnvironmentsPage(
 			false,
 			false,
 			permissions,
+			cleanup,
 		),
 	)
 }
@@ -1200,6 +1213,7 @@ func (r *Router) listDataSourceRefsViaAPI(
 	params.Limit = &limit
 
 	refs := []api.DataSourceRef{}
+	seen := map[string]bool{}
 	for {
 		resp, err := r.apiClient.ListDataSourceRefsWithResponse(
 			ctx,
@@ -1221,7 +1235,7 @@ func (r *Router) listDataSourceRefsViaAPI(
 		}
 
 		refs = append(refs, resp.JSON200.DataSourceRefs...)
-		if !resp.JSON200.HasMore || resp.JSON200.NextCursor == nil {
+		if !resp.JSON200.HasMore {
 			return &api.DataSourceRefListResponse{
 				DataSourceRefs: refs,
 				HasMore:        false,
@@ -1230,6 +1244,10 @@ func (r *Router) listDataSourceRefsViaAPI(
 			}, http.StatusOK, nil, nil
 		}
 
+		if resp.JSON200.NextCursor == nil || *resp.JSON200.NextCursor == "" || seen[*resp.JSON200.NextCursor] {
+			return nil, http.StatusInternalServerError, nil, xerror.Unexpected().Detail("invalid ref pagination cursor")
+		}
+		seen[*resp.JSON200.NextCursor] = true
 		cursor := *resp.JSON200.NextCursor
 		params.Cursor = &cursor
 	}
@@ -1512,6 +1530,7 @@ func (r *Router) listDataSourceBindingsViaAPI(
 	params.Limit = &limit
 
 	bindings := []api.DataSourceBinding{}
+	seen := map[string]bool{}
 	for {
 		resp, err := r.apiClient.ListDataSourceBindingsWithResponse(
 			ctx,
@@ -1534,7 +1553,7 @@ func (r *Router) listDataSourceBindingsViaAPI(
 		}
 
 		bindings = append(bindings, resp.JSON200.DataSourceBindings...)
-		if !resp.JSON200.HasMore || resp.JSON200.NextCursor == nil {
+		if !resp.JSON200.HasMore {
 			return &api.DataSourceBindingListResponse{
 				DataSourceBindings: bindings,
 				HasMore:            false,
@@ -1543,6 +1562,10 @@ func (r *Router) listDataSourceBindingsViaAPI(
 			}, http.StatusOK, nil, nil
 		}
 
+		if resp.JSON200.NextCursor == nil || *resp.JSON200.NextCursor == "" || seen[*resp.JSON200.NextCursor] {
+			return nil, http.StatusInternalServerError, nil, xerror.Unexpected().Detail("invalid binding pagination cursor")
+		}
+		seen[*resp.JSON200.NextCursor] = true
 		cursor := *resp.JSON200.NextCursor
 		params.Cursor = &cursor
 	}

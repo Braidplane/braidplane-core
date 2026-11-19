@@ -1159,13 +1159,13 @@ func (r *Router) listAllPipelinesViaAPI(
 		}
 
 		pipelines = append(pipelines, pipelineList.Pipelines...)
-		if !pipelineList.HasMore || pipelineList.NextCursor == nil {
+		if !pipelineList.HasMore {
 			return pipelines, http.StatusOK, nil, nil
+		}
+		if pipelineList.NextCursor == nil || strings.TrimSpace(*pipelineList.NextCursor) == "" {
+			return nil, http.StatusInternalServerError, nil, xerror.Unexpected().Detail("missing pipelines pagination cursor")
 		}
 		nextCursor := strings.TrimSpace(*pipelineList.NextCursor)
-		if nextCursor == "" {
-			return pipelines, http.StatusOK, nil, nil
-		}
 		if _, exists := seenCursors[nextCursor]; exists {
 			return nil, http.StatusInternalServerError, nil, xerror.Unexpected().
 				Detailf("list pipelines pagination returned repeated cursor %q", nextCursor)

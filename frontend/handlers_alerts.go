@@ -1324,15 +1324,15 @@ func (r *Router) alertPolicyProjectOptionsViaAPI(
 	cookieHeader string,
 	organizationSlug string,
 ) ([]views.AlertFormOption, int, *api.ErrorResponse, error) {
-	projects, status, errorResponse, err := r.listAllProjectsForAlertPolicySelectorsViaAPI(ctx, cookieHeader, organizationSlug)
+	projects, status, errorResponse, err := r.listAllProjectsViaAPI(ctx, cookieHeader, organizationSlug)
 	if err != nil {
 		return nil, status, errorResponse, err
 	}
 	return alertPolicyProjectOptions(projects), http.StatusOK, nil, nil
 }
 
-// listAllProjectsForAlertPolicySelectorsViaAPI loads project choices for scoped policy selectors.
-func (r *Router) listAllProjectsForAlertPolicySelectorsViaAPI(
+// listAllProjectsViaAPI loads all organization projects.
+func (r *Router) listAllProjectsViaAPI(
 	ctx context.Context,
 	cookieHeader string,
 	organizationSlug string,
@@ -1368,13 +1368,13 @@ func (r *Router) listAllProjectsForAlertPolicySelectorsViaAPI(
 		}
 
 		projects = append(projects, resp.JSON200.Projects...)
-		if !resp.JSON200.HasMore || resp.JSON200.NextCursor == nil {
+		if !resp.JSON200.HasMore {
 			return projects, http.StatusOK, nil, nil
+		}
+		if resp.JSON200.NextCursor == nil || strings.TrimSpace(*resp.JSON200.NextCursor) == "" {
+			return nil, http.StatusInternalServerError, nil, xerror.Unexpected().Detail("missing projects pagination cursor")
 		}
 		nextCursor := strings.TrimSpace(*resp.JSON200.NextCursor)
-		if nextCursor == "" {
-			return projects, http.StatusOK, nil, nil
-		}
 		if _, exists := seenCursors[nextCursor]; exists {
 			return nil, http.StatusInternalServerError, nil, xerror.Unexpected().
 				Detailf("list projects pagination returned repeated cursor %q", nextCursor)

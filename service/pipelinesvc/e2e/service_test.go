@@ -557,6 +557,8 @@ func TestPipelineServiceGitManagedDraftPublish_PersistsQueuedProposalStateWithou
 	created, err := svc.Get(ctx, orgSlug, defaultProjectSlug, pipelineSlug, memberSlug)
 	require.NoError(t, err)
 
+	require.False(t, created.HasPendingSpec)
+
 	draftPipeline := ownershipPipeline(pipelineSlug)
 	draftPipeline.Metadata.Name = "Draft Pipeline"
 	draft, err := svc.SaveDraft(
@@ -571,6 +573,12 @@ func TestPipelineServiceGitManagedDraftPublish_PersistsQueuedProposalStateWithou
 	)
 	require.NoError(t, err)
 	require.Equal(t, "Draft Pipeline", draft.Spec.Metadata.Name)
+
+	otherView, err := svc.Get(ctx, orgSlug, defaultProjectSlug, pipelineSlug, "another-member")
+	require.NoError(t, err)
+	require.True(t, otherView.HasPendingSpec)
+	require.False(t, otherView.Summary.HasDraft)
+	require.Nil(t, otherView.Draft)
 
 	beforePublish, err := store.FindSpec(ctx, orgSlug, defaultProjectSlug, pipelineSlug)
 	require.NoError(t, err)

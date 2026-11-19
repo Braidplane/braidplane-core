@@ -12973,6 +12973,9 @@ type Pipeline struct {
 	// Example: true
 	HasDraft bool `json:"has_draft"`
 
+	// HasPendingSpec Whether any member has a saved draft of this project pipeline. Draft contents remain member-scoped.
+	HasPendingSpec *bool `json:"has_pending_spec,omitempty"`
+
 	// LastAppliedCommit Immutable commit SHA of the latest Git version applied into canonical DB storage.
 	//
 	// Example: abc123def456
