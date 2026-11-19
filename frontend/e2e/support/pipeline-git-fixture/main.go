@@ -82,6 +82,12 @@ func main() {
 		partialGitSync = !partialGitSyncCorrected
 		return c.SendStatus(http.StatusNoContent)
 	})
+	app.Post("/_test/project-readiness", func(c fiber.Ctx) error {
+		mu.Lock()
+		defer mu.Unlock()
+		projectReadinessFixture, imported, bound, deploymentMultipleTargets = true, true, true, true
+		return c.SendStatus(fiber.StatusNoContent)
+	})
 	app.Post("/_test/deployment-access", func(c fiber.Ctx) error {
 		mu.Lock()
 		defer mu.Unlock()
@@ -163,6 +169,9 @@ func handleAPI(w http.ResponseWriter, r *http.Request) {
 	if runInspectionEnabled && handleRunInspectionAPI(w, r) {
 		return
 	}
+	if projectReadinessFixture && handleProjectReadinessAPI(w, r) {
+		return
+	}
 	if repositorySetupEnabled && handleRepositorySetupAPI(w, r) {
 		return
 	}
@@ -240,12 +249,6 @@ func handleAPI(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		write(`{"project_environments":[{"environment_slug":"dev","environment_name":"Development","is_default":true,"environment_protected":true}]}`)
-	case prefix + "/readiness":
-		if !imported || !deploymentMultipleTargets {
-			w.WriteHeader(http.StatusServiceUnavailable)
-			return
-		}
-		write(`{"status":"blocked","environments":[{"environment_slug":"dev","status":"ready","diagnostics":[]},{"environment_slug":"staging","status":"blocked","diagnostics":[{"code":"missing_binding","pipeline_slug":"daily-sync","requirement_key":"source"},{"code":"missing_variable","pipeline_slug":"daily-sync","requirement_key":"region"}]}]}`)
 	case prefix + "/pipelines":
 		if imported {
 			write(`{"pipelines":[` + pipeline + `]}`)

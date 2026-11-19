@@ -105,6 +105,7 @@ func readinessBindingsHref(ctx context.Context, org, project, environment, ref s
 }
 
 type projectReadinessGroup struct {
+	hint  string
 	label string
 	href  string
 	keys  []string
@@ -113,8 +114,8 @@ type projectReadinessGroup struct {
 func projectReadinessGroups(org, project string, env api.ReadinessEnvironment) []projectReadinessGroup {
 	bindings := ProjectEnvironmentConfigurationHref(org, project, env.EnvironmentSlug, env.EnvironmentSlug) + "#project-binding-matrix"
 	variables := RuntimeVariableComparisonHref(org, "", "", "")
-	missingRefs := projectReadinessGroup{label: "Missing logical refs", href: bindings}
-	invalidRefs := projectReadinessGroup{label: "Invalid logical refs", href: bindings}
+	missingRefs := projectReadinessGroup{label: "Missing logical refs", href: bindings, hint: "Create the reference with braidplane data-source-ref create, then configure its binding."}
+	invalidRefs := projectReadinessGroup{label: "Invalid logical refs", href: bindings, hint: "Correct the reference type or capabilities with braidplane data-source-ref update."}
 	missingBindings := projectReadinessGroup{label: "Missing bindings", href: bindings}
 	invalidBindings := projectReadinessGroup{label: "Invalid bindings", href: bindings}
 	missingVars := projectReadinessGroup{label: "Missing organization variables", href: variables}

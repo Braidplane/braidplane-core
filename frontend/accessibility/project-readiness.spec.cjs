@@ -12,18 +12,22 @@ test("project readiness exposes environment status and keyboard routes to fixes"
         await expect(page.getByText("Pipeline readiness is unknown.", { exact: false })).toBeVisible();
         await assess(page, testInfo, "project-readiness-unavailable");
 
-        expect((await page.request.post(fixture.url + "/_test/deployment-access?read_only=true&multiple_targets=true")).ok()).toBe(true);
+        expect((await page.request.post(fixture.url + "/_test/project-readiness")).ok()).toBe(true);
         await visit(page, overview);
         await expect(page.getByRole("heading", { name: "dev ready" })).toBeVisible();
         await expect(page.getByRole("heading", { name: "staging blocked" })).toBeVisible();
+        await expect(page.getByText(/Create the reference with braidplane data-source-ref create/)).toBeVisible();
         await assess(page, testInfo, "project-readiness-mixed");
 
-        for (const name of ["Missing bindings (1)", "Missing organization variables (1)", "daily-sync"]) {
+        for (const [name, destination] of [
+            ["Missing bindings (1)", page.locator("#project-binding-matrix").getByText(/missing project environment bindings/)],
+            ["Missing organization variables (1)", page.getByRole("region", { name: "Runtime variable comparison" }).getByText("region", { exact: true })],
+            ["daily-sync", page.getByRole("region", { name: "Requirements in staging" }).getByRole("rowheader", { name: /source/ })],
+        ]) {
             const link = page.getByRole("main").getByRole("link", { name, exact: true });
             await tabTo(page, link);
-            const destination = new URL(await link.getAttribute("href"), overview).href;
             await page.keyboard.press("Enter");
-            await expect(page).toHaveURL(destination);
+            await expect(destination).toBeVisible();
             await visit(page, overview);
         }
     });

@@ -158,6 +158,9 @@ templ ProjectPipelineReadiness(org string, project string, state ProjectOperatio
 							if group.href != "" {
 								<a class="link" href={ templ.URL(group.href) }>{ group.label } ({ fmt.Sprint(len(group.keys)) })</a>
 								<span>{ strings.Join(group.keys, ", ") }</span>
+								if group.hint != "" {
+									<span>{ group.hint }</span>
+								}
 							} else {
 								{ group.label }
 								for _, pipeline := range group.keys {
