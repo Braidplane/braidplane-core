@@ -550,9 +550,16 @@ provider write failed. Check the destination and your provider's idempotency
 contract before repeating an uncertain write.
 
 API and CLI statements use these same fields. Query create/edit forms expose
-pagination and write policy JSON under **Pagination and write retries**. Generic
-HTTP sinks require a saved operation; inline HTTP source operations do not imply
-inline HTTP sink support.
+pagination and write policy JSON under **Pagination and write retries**.
+
+### Bounded per-record updates
+
+Use `sink.config.record_updates` with an inline PUT or PATCH to send projected
+string fields to record-specific URLs. The sink claims each delivery separately
+and uses a GET to reconcile an uncertain write. Configure the response identity
+field, field location and optional field-selection parameter for the destination
+API. See [Update HTTP records from rows](../../docs-public/getting-started/pipeline-specifications.md#update-http-records-from-rows)
+for the operation shape, bounds and recovery requirements.
 
 ## Known limitations
 

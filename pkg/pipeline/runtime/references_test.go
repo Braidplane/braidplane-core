@@ -12,7 +12,7 @@ func TestRuntimeReferenceValidation(t *testing.T) {
 	for _, expression := range []string{
 		"{{runtime.rnu.date}}", "{{runtime.run.datetim}}", "{{runtime.run_date}}", "{{runtime.run_datetime}}",
 		"{{runtime.run_slug}}", "{{runtime.sink.run_slug}}", "{{runtime.sink_idempotency_key}}", "{{runtime.sink_idempotency_class}}", "{{runtime.sink_replay_identity}}",
-		"{{runtime.sink.unknown}}", "{{runtime.previous_success.id}}", "{{runtime.run.date",
+		"{{runtime.sink.record_id}}", "{{runtime.sink.unknown}}", "{{runtime.previous_success.id}}", "{{runtime.run.date",
 		"{{runtime .run.date}}", "{{runtime}}",
 		"{{runtime.env.key | add_months:no}}", "{{runtime.input.date | format:date | offset:1h}}",
 		"{{runtime.secrets.key | format:date}}", "{{runtime.incremental.unknown}}",

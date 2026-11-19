@@ -187,5 +187,9 @@ Retention starts at the original durable ledger claim and caps all attempts and
 recovery. Expired claims refuse dispatch. Timeout can follow a committed write;
 unconfirmed delivery leaves the ledger in progress and blocks dependent source
 checkpoints. Operator recovery preserves effect identity; an unrelated new run is
-a new effect. Generic HTTP inline sinks are unsupported. Fixture validation does
-not verify a real provider guarantee or establish universal exactly-once delivery.
+a new effect.
+
+For APIs that update one record per request, configure a bounded record sink.
+It projects string fields from each row, sends an inline PUT or PATCH to its
+record URL, and reads back uncertain writes on recovery. See
+[Update HTTP records from rows](../getting-started/pipeline-specifications.md#update-http-records-from-rows).

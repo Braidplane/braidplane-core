@@ -199,6 +199,7 @@ parameters, and the `runtime.` prefix is reserved.
 | `{{runtime.run.slug}}` | Current attempt's run slug. | Available throughout pipeline execution in parameter/config fields and supported connector bindings. Standalone queries have no pipeline run slug. Retries and recovery use their own attempt slug; use `runtime.sink.replay_identity` when the key must retain the original effect identity. |
 | `{{runtime.sink.idempotency_key}}` | Resolved sink idempotency key. | Injected only while a sink operation executes, when a non-empty key is configured. |
 | `{{runtime.sink.idempotency_class}}` | Declared sink idempotency class as text. | Injected only while a sink operation executes, when the class is known. It describes the declared delivery contract, not proof of provider behavior. |
+| `{{runtime.sink.record_id}}` | Destination record ID from the current row. | Available only in the URL path of a bounded HTTP record update. The source column is selected by `record_updates.identity_field`. |
 | `{{runtime.sink.replay_identity}}` | Stable sink effect identity, normally the run slug. | Injected only while a sink operation executes. Authorized recovery reuses the original run's identity, so a deterministic sink key can target the same external effect. It is not a general source or transform parameter. |
 
 In **Environments → Compare runtime variables**, define each key's type,
@@ -241,8 +242,8 @@ live execution claim. Public run/checkpoint JSON exposes file metadata only;
 missing or expired file inputs are refused without rereading the source.
 Event payloads and runs with resolved environment secrets are excluded from this
 early retention. Missing inputs, unknown ledger-only attempts and unsafe effects
-remain refused. Deterministic S3 output can be confirmed through readback as
-described below.
+remain refused unless supported readback confirms the effect. Readback is available
+for deterministic S3 output and [bounded HTTP record updates](#update-http-records-from-rows).
 Worker-loss detection and fencing are automatic. With the default one-minute job
 timeout and two-minute rescue threshold, the target is three minutes after worker
 loss when PostgreSQL and worker capacity are available. Rescue uses attempt age;
@@ -360,8 +361,8 @@ null or literal text.
 
 Runtime fields use an entity namespace followed by a field name. The replacement
 names are `runtime.run.date`, `runtime.run.datetime`, `runtime.run.slug`,
-`runtime.sink.idempotency_key`, `runtime.sink.idempotency_class`, and
-`runtime.sink.replay_identity`. Flat run/sink names have no aliases for new
+`runtime.sink.idempotency_key`, `runtime.sink.idempotency_class`,
+`runtime.sink.record_id`, and `runtime.sink.replay_identity`. Flat run/sink names have no aliases for new
 authoring. Historical inspection retains the exact executed definition.
 
 One lookup selects the most recently finished successful attempt strictly before
@@ -474,6 +475,74 @@ connector supports and that the specific operation actually satisfies. For
 example, the S3 walkthrough uses `naturally_idempotent` because it overwrites a
 deterministic object key. If a sink cannot be replayed safely, recover it
 manually and verify the destination before starting another write.
+
+## Update HTTP records from rows
+
+An HTTP sink normally sends its upstream payload in one request. Set
+`sink.config.record_updates` to send one update per row to an existing record.
+Use an inline `PATCH` or `PUT` operation with a fixed path ending in
+`/{{runtime.sink.record_id}}`. The source column named by `identity_field` supplies the
+destination's stable record ID as a string. The sink checks every ID before
+the first write, rejects duplicates, and encodes each ID as one path segment.
+IDs must be nonblank, at most 256 bytes, and free of surrounding whitespace.
+The path segments `.` and `..` are invalid.
+
+The [inventory pipeline example](https://github.com/Braidplane/braidplane-core/blob/main/examples/pipelines/yaml/http-inventory-updates.pipeline.yaml) reads item IDs and labels with inline PostgreSQL. Its HTTP sink updates each item’s display name:
+
+```yaml
+sink:
+  input: changed-items
+  data_source_ref: inventory-api
+  operation_type: http
+  idempotency_class: deduplicated_by_ledger
+  operation_inline:
+    type: http
+    method: PATCH
+    path: "/inventory/items/{{runtime.sink.record_id}}"
+    body: "{{input}}"
+  config:
+    record_updates:
+      identity_field: item_id
+      fields: {label: displayName}
+      max_records: 25
+      readback: {identity_field: recordID}
+```
+
+Each entry in `fields` maps a source column to a case-sensitive destination
+field. Supply string values for every mapped field. Bind `"{{input}}"` as the
+JSON body or place it under one field, such as `{"attributes": "{{input}}"}`.
+Use PATCH for partial updates. Use PUT only when the mapped fields form the
+complete representation the API requires for replacement. Assign each mapped
+field to one authoritative writer.
+
+A write response with HTTP 200 or 201 confirms delivery when its JSON matches
+the requested state. A 204 response triggers one immediate GET of the same
+record. GET must return HTTP 200 with matching JSON. A 202 response leaves
+delivery uncertain. A fresh delivery makes at most two requests per row.
+Missing, null or non-string fields cannot confirm a string value, including
+an empty string. Set `readback.identity_field` to the top-level field
+containing the record's string ID. Mapped fields are read from the top level
+unless `readback.fields_object` names a nested object containing them. If the
+API requires field selection on GET, set `readback.select_parameter` to the
+query parameter that accepts comma-separated destination field names. The example above
+expects a response like `{"recordID": "r1", "displayName": "Alba"}`.
+
+Set `max_records` between 1 and 100. The sink accepts up to 100 field mappings,
+caps the projected batch at 1 MiB and has a 60-second deadline. Bound the
+source window to fit. An oversized batch fails before dispatch.
+
+Use `idempotency_class: deduplicated_by_ledger`. Recovery skips confirmed
+records and reads the destination for an uncertain write. A matching ID and
+mapped values confirm delivery. A mismatch leaves the effect unresolved for
+operator investigation. A later run has a new delivery identity and can update
+the same record. An incremental source commits its checkpoint after all required
+writes are confirmed.
+
+Before the first write, the runner must retain every source and transform output
+needed for recovery. The complete repair checkpoint, including the pipeline and
+intermediate outputs, must fit within 10 MiB. Event-input runs and pipelines
+that resolve environment secrets cannot retain these repair inputs. Configure
+provider credentials on the data source.
 
 ## Incremental query sources
 

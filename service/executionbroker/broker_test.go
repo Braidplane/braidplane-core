@@ -270,6 +270,7 @@ type recordingQueryConnector struct {
 	limits        connectortypes.ExecutionLimits
 	parameters    map[string]connectortypes.TypedParam
 	sinkExecution bool
+	recordUpdate  *sinkbinding.HTTPRecordUpdate
 }
 
 func (c *recordingQueryConnector) Execute(
@@ -281,6 +282,7 @@ func (c *recordingQueryConnector) Execute(
 	c.limits = connectortypes.ResolveExecutionLimits(limits...)
 	c.parameters = parameters
 	c.sinkExecution = sinkbinding.IsSinkExecution(ctx)
+	c.recordUpdate = sinkbinding.HTTPRecordUpdateFrom(ctx)
 	return result.NewSQLResult(
 		"postgres",
 		&result.SQLResult{Rows: []map[string]any{}, ColumnNames: []string{}},
@@ -2326,6 +2328,9 @@ func TestWorkerPreservesSinkRetryAuthority(t *testing.T) {
 			defer func() { require.NoError(t, pool.Close()) }()
 			broker := &Broker{admission: testutil.FakeOperationAdmission{}, runtimePool: pool, txm: fakeTXM{}, repo: &fakeRequestRepo{}}
 			request := queriessvc.ConnectorExecutionRequest{SinkExecution: sink, OrganizationSlug: "acme", DataSourceSlug: "http-api", DataSourceType: model.DataSourceTypeHTTP, CredentialReference: "secret/2026-10-18T10:00:00Z", ConfigVersion: "v1", CredentialVersion: "v1"}
+			if sink {
+				request.HTTPRecordUpdate = &sinkbinding.HTTPRecordUpdate{RecordID: "23", Properties: map[string]string{"name": "fixture"}, Reconcile: true, Readback: sinkbinding.RecordReadback{IdentityField: "key"}}
+			}
 			encoded, err := marshalRequestPlaintext(kindQuery, request)
 			require.NoError(t, err)
 			decoded, err := unmarshalConnectorExecutionRequest(encoded)
@@ -2333,6 +2338,7 @@ func TestWorkerPreservesSinkRetryAuthority(t *testing.T) {
 			_, err = broker.executeConnector(t.Context(), uuid.New(), uuid.New(), decoded)
 			require.NoError(t, err)
 			require.Equal(t, sink, recording.sinkExecution)
+			require.Equal(t, request.HTTPRecordUpdate, recording.recordUpdate)
 		})
 	}
 }

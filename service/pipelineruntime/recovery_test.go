@@ -3,6 +3,8 @@ package pipelineruntime
 import (
 	"context"
 	"encoding/json"
+	"fmt"
+	"strings"
 	"testing"
 	"time"
 
@@ -310,6 +312,7 @@ func TestRunnerRecoveryPreservesSourceWindowWithoutCheckpointPromotion(t *testin
 			recovered, err := runner.Recover(t.Context(), ReplayRequest{OrgSlug: "acme", ProjectSlug: "default", EnvironmentSlug: "prod", SourceRunSlug: "original-window", ReplayRunSlug: "recovery-window", PipelineVersionID: 42, InputMode: ReplayInputModePinned})
 			require.NoError(t, err)
 			require.Equal(t, "succeeded", recovered.Metadata.Status)
+			require.Equal(t, "2026-10-10T10:00:00Z", recovered.IncrementalDiagnostics.Sources[0].Window.LowerBound)
 			require.Len(t, executor.checkpointInputs, 1)
 			require.Equal(t, keys[0], keys[1])
 			require.Equal(t, store.checkpoints["original-window"].IncrementalSourceWindows, store.checkpoints["recovery-window"].IncrementalSourceWindows)
@@ -383,6 +386,220 @@ func TestRecoveryRejectsMissingOrMismatchedDeploymentResolution(t *testing.T) {
 			require.ErrorIs(t, err, deploymentplan.ErrInvalid)
 			require.Nil(t, outcome)
 			require.NotContains(t, store.timelines, "recovery")
+		})
+	}
+}
+
+// The repository detects this race under the commit lock, after sink confirmations.
+type checkpointChangedDuringRecovery struct {
+	*incrementalCheckpointTestRunStore
+}
+
+func (s checkpointChangedDuringRecovery) PersistRun(ctx context.Context, org, project, env slug.Slug, pipeline *pipelinespec.Pipeline, result *pipelinerun.RunResult) error {
+	for _, transition := range result.IncrementalCheckpointTransitions {
+		if transition.RecoveryPredecessor != nil && transition.Status == pipelinerun.IncrementalCheckpointTransitionCommitted {
+			return pipelinerun.ErrRecoveryCheckpointChanged
+		}
+	}
+	return s.incrementalCheckpointTestRunStore.PersistRun(ctx, org, project, env, pipeline, result)
+}
+
+func TestRecordUpdateRecoveryReleasesOnlyOriginalCheckpoint(t *testing.T) {
+	for _, name := range []string{"confirmed", "changed predecessor", "commit race", "backfill", "no previous checkpoint", "bootstrapped", "retention limit"} {
+		t.Run(name, func(t *testing.T) {
+			lower := json.RawMessage(`{"value":"2026-10-10T10:00:00Z"}`)
+			upper := json.RawMessage(`{"value":"2026-10-10T11:00:00Z"}`)
+			store := newIncrementalCheckpointTestRunStore(&pipelinerun.IncrementalCheckpoint{CommittingRunSlug: "previous", ObservedUpperBound: lower})
+			if name == "bootstrapped" {
+				store.current.CommittingRunSlug = ""
+				store.current.ObservedRunSlug = "bootstrap-request"
+			}
+			if name == "no previous checkpoint" {
+				store.current = nil
+			}
+			executor := &incrementalCheckpointQueryExecutor{executeWithCheckpointFn: func(_ context.Context, _, _, _ slug.Slug, _ map[string]any, input *pipelinerun.IncrementalCheckpointInput) (*result.ExecutionResult, *pipelinerun.IncrementalCheckpointObservation, error) {
+				rows := successfulSQLResult(2)
+				if name == "retention limit" {
+					sqlRows, _ := rows.SQL()
+					sqlRows.Rows[0]["cursor"] = strings.Repeat("z", 10*1024*1024)
+				}
+				return rows, &pipelinerun.IncrementalCheckpointObservation{SourceStepSlug: "fetch-users", CheckpointNamespace: input.Lookup.CheckpointNamespace, CheckpointKind: "watermark", ObservedLowerBound: input.LowerBound, ObservedUpperBound: upper}, nil
+			}}
+			var keys []string
+			var history pipelinerun.RunStore = store
+			if name == "commit race" {
+				history = checkpointChangedDuringRecovery{store}
+			}
+			runner, err := NewRunner(executor, nil, history, acknowledgementDataSources{}, &fakeSinkRuntime{executeFn: func(_ context.Context, input *SinkRuntimeInput) error {
+				keys = append(keys, input.IdempotencyKey)
+				if len(keys) == 1 {
+					return xerror.HTTPAcknowledgementUncertain()
+				}
+				return nil
+			}})
+			require.NoError(t, err)
+			pipeline := incrementalCheckpointPipeline()
+			sink := pipeline.Steps[1].Sink
+			configureRecordUpdateRecoverySink(sink)
+			request := RunRequest{OrgSlug: "acme", ProjectSlug: "default", EnvironmentSlug: "prod", RunSlug: "original-window", PipelineVersionID: 42, Pipeline: pipeline}
+			if name == "backfill" {
+				request.Incremental = pipelinerun.IncrementalRunOptions{SkipCheckpointCommit: true, SourceWindows: map[slug.Slug]pipelinerun.IncrementalSourceWindow{"fetch-users": {LowerBound: lower, UpperBound: upper}}}
+			}
+			first, err := runner.Run(t.Context(), request)
+			if name == "retention limit" {
+				require.ErrorIs(t, err, errSinkConfigurationInvalid)
+				require.Empty(t, keys)
+				return
+			}
+			require.ErrorIs(t, err, xerror.HTTPAcknowledgementUncertain())
+			require.Equal(t, pipelinerun.IncrementalCheckpointTransitionBlocked, first.IncrementalCheckpointTransitions[0].Status)
+			if name == "changed predecessor" {
+				store.current.CommittingRunSlug = "later-run"
+			}
+			recovered, err := runner.Recover(t.Context(), ReplayRequest{OrgSlug: "acme", ProjectSlug: "default", EnvironmentSlug: "prod", SourceRunSlug: "original-window", ReplayRunSlug: "recovery-window", PipelineVersionID: 42, InputMode: ReplayInputModePinned})
+			if name == "changed predecessor" {
+				require.ErrorIs(t, err, pipelinerun.ErrRecoveryCheckpointChanged)
+				require.Len(t, keys, 1)
+				return
+			}
+			require.NoError(t, err)
+			require.Equal(t, "succeeded", recovered.Metadata.Status)
+			require.Len(t, executor.checkpointInputs, 1)
+			require.Equal(t, keys[0], keys[1])
+			final := store.persistedRuns[1].IncrementalCheckpointTransitions[0]
+			if name == "commit race" {
+				require.Equal(t, pipelinerun.IncrementalCheckpointTransitionBlocked, final.Status)
+				require.Empty(t, final.CommittingRunSlug)
+				require.Equal(t, "blocked", recovered.Metadata.Incremental.CheckpointStatus)
+				return
+			}
+			if name == "backfill" {
+				require.Equal(t, pipelinerun.IncrementalCheckpointTransitionBlocked, final.Status)
+				require.Nil(t, final.RecoveryPredecessor)
+				return
+			}
+			require.Equal(t, pipelinerun.IncrementalCheckpointTransitionCommitted, final.Status)
+			require.NotNil(t, final.RecoveryPredecessor)
+			require.Equal(t, upper, final.ObservedUpperBound)
+		})
+	}
+}
+
+func TestRecordEffectRetainsIdentityAcrossPinnedWindowEncoding(t *testing.T) {
+	t.Parallel()
+	input := sinkEffectTestInput(pipelinespec.SinkIdempotencyClassDeduplicatedByLedger)
+	ledger := &recoveryLedger{effects: map[string]pipelinerun.SinkEffectState{}}
+	runtime := &sinkRuntime{effectLedger: ledger}
+	writes, readbacks := 0, 0
+	deliver := func() error {
+		return runtime.executeRecordEffect(t.Context(), input, "company", func(context.Context) error {
+			writes++
+			return nil
+		}, func(context.Context) (bool, error) {
+			readbacks++
+			return true, nil
+		})
+	}
+	require.NoError(t, deliver())
+	input.RunSlug = "repair-attempt"
+	input.IdempotencyKey = "recomputed-after-jsonb-round-trip"
+	require.NoError(t, deliver())
+	require.Equal(t, 1, writes)
+	require.Zero(t, readbacks)
+	require.Equal(t, ledger.attempts[0].IdempotencyKey, ledger.attempts[1].IdempotencyKey)
+}
+
+func configureRecordUpdateRecoverySink(sink *pipelinespec.SinkSpec) {
+	sink.OperationType, sink.OperationRef = "http", ""
+	sink.OperationInline = map[string]any{"type": "http", "method": "PATCH", "path": "/crm/v3/objects/companies/{{runtime.sink.record_id}}", "body": map[string]any{"properties": "{{input}}"}}
+	sink.Config = map[string]any{"record_updates": map[string]any{"identity_field": "id", "max_records": 2, "fields": map[string]any{"updated_at": "sync_time"}, "readback": map[string]any{"identity_field": "id", "fields_object": "properties"}}}
+}
+
+type separateSourceCheckpoints struct {
+	*incrementalCheckpointTestRunStore
+	currentBySource map[slug.Slug]*pipelinerun.IncrementalCheckpoint
+}
+
+func (s separateSourceCheckpoints) GetCurrentIncrementalCheckpoint(_ context.Context, _, _, _ slug.Slug, lookup pipelinerun.IncrementalCheckpointLookup) (*pipelinerun.IncrementalCheckpoint, error) {
+	return s.currentBySource[lookup.SourceStepSlug], nil
+}
+
+func TestRecoveryLeavesOriginallyCommittedIndependentWindowAlone(t *testing.T) {
+	store := separateSourceCheckpoints{newIncrementalCheckpointTestRunStore(nil), map[slug.Slug]*pipelinerun.IncrementalCheckpoint{}}
+	executor := &incrementalCheckpointQueryExecutor{executeWithCheckpointFn: func(_ context.Context, _, _, _ slug.Slug, _ map[string]any, input *pipelinerun.IncrementalCheckpointInput) (*result.ExecutionResult, *pipelinerun.IncrementalCheckpointObservation, error) {
+		return successfulSQLResult(1), &pipelinerun.IncrementalCheckpointObservation{SourceStepSlug: input.Lookup.SourceStepSlug, CheckpointKind: "watermark", ObservedUpperBound: json.RawMessage(`{"value":"2026-10-10T11:00:00Z"}`)}, nil
+	}}
+	runner, err := NewRunner(executor, nil, store, acknowledgementDataSources{}, &fakeSinkRuntime{executeFn: func(_ context.Context, input *SinkRuntimeInput) error {
+		if input.SinkStepSlug == "update-b" && input.RunSlug == "original" {
+			return xerror.HTTPAcknowledgementUncertain()
+		}
+		return nil
+	}})
+	require.NoError(t, err)
+	pipeline := incrementalCheckpointPipeline()
+	second := incrementalCheckpointPipeline()
+	for i, branch := range []*pipelinespec.Pipeline{pipeline, second} {
+		suffix := []string{"a", "b"}[i]
+		branch.Steps[0].Slug = must.Slug("fetch-" + suffix)
+		branch.Steps[0].Query.Parameters = map[string]any{"scope": "$steps.scope.rows"}
+		branch.Steps[1].Slug = must.Slug("update-" + suffix)
+		branch.Steps[1].Sink.Input.FromStep = branch.Steps[0].Slug
+		configureRecordUpdateRecoverySink(branch.Steps[1].Sink)
+	}
+	pipeline.Steps = []pipelinespec.Step{multiSourceIncrementalCheckpointPipeline().Steps[0], pipeline.Steps[0], second.Steps[0], pipeline.Steps[1], second.Steps[1]}
+	first, err := runner.Run(t.Context(), RunRequest{OrgSlug: "acme", ProjectSlug: "ops", EnvironmentSlug: "dev", RunSlug: "original", PipelineVersionID: 42, Pipeline: pipeline})
+	require.ErrorIs(t, err, xerror.HTTPAcknowledgementUncertain())
+	require.Len(t, first.IncrementalCheckpointTransitions, 2)
+	a, b := first.IncrementalCheckpointTransitions[0], first.IncrementalCheckpointTransitions[1]
+	require.Equal(t, pipelinerun.IncrementalCheckpointTransitionCommitted, a.Status)
+	require.Equal(t, pipelinerun.IncrementalCheckpointTransitionBlocked, b.Status)
+	store.currentBySource[a.SourceStepSlug] = &pipelinerun.IncrementalCheckpoint{CommittingRunSlug: a.CommittingRunSlug, ObservedUpperBound: a.ObservedUpperBound}
+	repaired, err := runner.Recover(t.Context(), ReplayRequest{OrgSlug: "acme", ProjectSlug: "ops", EnvironmentSlug: "dev", SourceRunSlug: "original", ReplayRunSlug: "repair", PipelineVersionID: 42, InputMode: ReplayInputModePinned})
+	require.NoError(t, err)
+	require.Equal(t, "succeeded", repaired.Metadata.Status)
+	require.Len(t, executor.checkpointInputs, 2)
+	final := store.persistedRuns[1].IncrementalCheckpointTransitions
+	require.Len(t, final, 2)
+	require.Equal(t, a.SourceStepSlug, final[0].SourceStepSlug)
+	require.Nil(t, final[0].RecoveryPredecessor)
+	require.Empty(t, final[0].CommittingRunSlug)
+	require.Equal(t, "skipped", repaired.IncrementalDiagnostics.Sources[0].CommitResult.Status)
+	require.Equal(t, b.SourceStepSlug, final[1].SourceStepSlug)
+	require.Equal(t, pipelinerun.IncrementalCheckpointTransitionCommitted, final[1].Status)
+	require.Equal(t, "repair", final[1].CommittingRunSlug)
+}
+
+func TestRecordUpdatesRequireRetainableFileInputsBeforeDispatch(t *testing.T) {
+	for _, content := range []string{"inline-file", ""} {
+		t.Run(fmt.Sprintf("%d-bytes", len(content)), func(t *testing.T) {
+			executor := adaptTestQueryExecutor(&testutil.FakeQueryExecutor{ExecuteFn: func(_ context.Context, _, _, operation slug.Slug, _ map[string]any) (*result.ExecutionResult, error) {
+				if operation == "read-file" {
+					file := filepayload.NewFilePayloadMetadata("test.bin", "application/octet-stream", []byte(content))
+					return result.NewHTTPResult(&result.HTTPResult{StatusCode: 200, File: &file, RawBody: []byte(content)}, 0, nil), nil
+				}
+				return successfulSQLResult(1), nil
+			}})
+			calls := 0
+			runner, err := NewRunner(executor, nil, &fakeRunStore{}, acknowledgementDataSources{}, &fakeSinkRuntime{executeFn: func(context.Context, *SinkRuntimeInput) error {
+				calls++
+				return nil
+			}})
+			require.NoError(t, err)
+			pipeline := incrementalCheckpointPipeline()
+			rows, update := pipeline.Steps[0], pipeline.Steps[1]
+			rows.Query.Incremental = nil
+			configureRecordUpdateRecoverySink(update.Sink)
+			pipeline.Steps = []pipelinespec.Step{rows, {
+				Kind: "query", Slug: "fetch-file", Query: &pipelinespec.QueryRef{OperationType: "http", DataSourceSlug: "warehouse", OperationRef: "read-file", Parameters: map[string]any{"scope": "$steps.fetch-users.rows"}, OutputContract: &payload.Contract{Representation: model.ContractRepresentationFile}},
+			}, update}
+			_, err = runner.Run(t.Context(), RunRequest{OrgSlug: "acme", ProjectSlug: "ops", EnvironmentSlug: "dev", RunSlug: "update", Pipeline: pipeline, PipelineVersionID: 42})
+			if content != "" {
+				require.ErrorIs(t, err, errSinkConfigurationInvalid)
+				require.Zero(t, calls)
+				return
+			}
+			require.NoError(t, err)
+			require.Equal(t, 1, calls)
 		})
 	}
 }

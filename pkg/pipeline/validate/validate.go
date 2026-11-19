@@ -14,6 +14,7 @@ import (
 	pipelineruntime "github.com/Braidplane/braidplane-core/pkg/pipeline/runtime"
 	pipelinespec "github.com/Braidplane/braidplane-core/pkg/pipeline/spec"
 	transformsql "github.com/Braidplane/braidplane-core/pkg/pipeline/transform/sql"
+	"github.com/Braidplane/braidplane-core/pkg/sinkbinding"
 	"github.com/Braidplane/braidplane-core/pkg/slug"
 	structvalidate "github.com/Braidplane/braidplane-core/pkg/structvalidate"
 	"github.com/Braidplane/braidplane-core/pkg/xerror"
@@ -466,6 +467,20 @@ func validateSinkOperationContract(sink *pipelinespec.SinkSpec) error {
 		)
 	}
 
+	if _, present := sink.Config["record_updates"]; !present && sinkbinding.ValidRecordUpdateOperation(sink.OperationInline) {
+		return xerror.InvalidInput(xerror.Pipeline).Detail("runtime.sink.record_id requires record_updates")
+	} else if present {
+		if _, err := pipelinespec.ParseRecordUpdates(sink.Config); err != nil {
+			return err
+		}
+		if sink.OperationType != pipelinespec.OperationTypeHTTP || !sinkbinding.ValidRecordUpdateOperation(sink.OperationInline) ||
+			sink.IdempotencyClass != pipelinespec.SinkIdempotencyClassDeduplicatedByLedger {
+			return xerror.InvalidInput(xerror.Pipeline).Detail("record_updates requires an inline HTTP record PUT or PATCH operation and deduplicated_by_ledger")
+		}
+		if sink.InputContract != nil && sink.InputContract.Representation != model.ContractRepresentationRows {
+			return xerror.InvalidInput(xerror.Pipeline).Detail("record_updates requires rows input")
+		}
+	}
 	if sink.OperationType == pipelinespec.OperationTypeS3 {
 		if err := S3SinkConfig(sink.Config); err != nil {
 			return err

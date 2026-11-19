@@ -243,6 +243,16 @@ func (r *repository) CommitObservation(
 		return err
 	}
 
+	if transition.RecoveryPredecessor != nil {
+		current, err := r.GetCurrentCommitted(ctx, tx, orgSlug, projectSlug, environmentSlug, transition.Lookup)
+		if err != nil && !xerror.Is(err, pipelinerun.ErrIncrementalCheckpointNotFound) {
+			return err
+		}
+		if err := pipelinerun.CheckRecoveryPredecessor(*transition.RecoveryPredecessor, current); err != nil {
+			return err
+		}
+	}
+
 	if err := q.SupersedeCurrentIncrementalCheckpoint(
 		ctx,
 		scope.supersedeParams(postgres.ToTimestamptz(now)),

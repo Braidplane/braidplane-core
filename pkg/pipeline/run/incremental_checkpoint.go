@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/Braidplane/braidplane-core/pkg/slug"
+	"github.com/Braidplane/braidplane-core/pkg/xerror"
 )
 
 const DefaultIncrementalCheckpointNamespace = "normal"
@@ -82,9 +83,11 @@ type IncrementalCheckpointInput struct {
 }
 
 type IncrementalSourceWindow struct {
-	LowerBound      json.RawMessage `json:"lower_bound,omitempty"`
-	UpperBound      json.RawMessage `json:"upper_bound,omitempty"`
-	DisplayMetadata json.RawMessage `json:"display_metadata,omitempty"`
+	// RecoveryPredecessor permits a retained normal-run window to advance only from its original checkpoint.
+	RecoveryPredecessor *string         `json:"recovery_predecessor,omitempty"`
+	LowerBound          json.RawMessage `json:"lower_bound,omitempty"`
+	UpperBound          json.RawMessage `json:"upper_bound,omitempty"`
+	DisplayMetadata     json.RawMessage `json:"display_metadata,omitempty"`
 }
 
 type IncrementalRunOptions struct {
@@ -109,6 +112,7 @@ type IncrementalCheckpointObservation struct {
 }
 
 type IncrementalCheckpointTransition struct {
+	RecoveryPredecessor *string
 	Status              IncrementalCheckpointTransitionStatus
 	Lookup              IncrementalCheckpointLookup
 	SourceStepSlug      slug.Slug
@@ -128,3 +132,24 @@ type IncrementalCheckpointTransition struct {
 	BlockedReason       string
 	ObservedAt          time.Time
 }
+
+// RecoveryPredecessor identifies a normal commit or an operator bootstrap in the scoped cursor history.
+func (c *IncrementalCheckpoint) RecoveryPredecessor() string {
+	if c == nil {
+		return ""
+	}
+	if c.CommittingRunSlug == "" {
+		return "bootstrap:" + c.ObservedRunSlug
+	}
+	return c.CommittingRunSlug
+}
+
+// CheckRecoveryPredecessor prevents retained windows from superseding newer commits.
+func CheckRecoveryPredecessor(expected string, current *IncrementalCheckpoint) error {
+	if current.RecoveryPredecessor() == expected {
+		return nil
+	}
+	return ErrRecoveryCheckpointChanged
+}
+
+var ErrRecoveryCheckpointChanged = xerror.New(xerror.KindInvalidInput, "RECOVERY_CHECKPOINT_CHANGED", "the source checkpoint changed after the original evaluation")

@@ -271,6 +271,9 @@ func (c *Connector) Execute(
 	params map[string]types.TypedParam,
 	limits ...types.ExecutionLimits,
 ) (*result.ExecutionResult, error) {
+	if update := sinkbinding.HTTPRecordUpdateFrom(ctx); update != nil {
+		return c.executeRecordUpdate(ctx, queryData, update, types.ResolveExecutionLimits(limits...)), nil
+	}
 	var raw map[string]json.RawMessage
 	_ = json.Unmarshal(queryData, &raw)
 	if pagination, present := raw["pagination"]; present {

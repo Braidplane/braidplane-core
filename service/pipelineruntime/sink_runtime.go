@@ -167,6 +167,10 @@ func (s *sinkRuntime) Execute(ctx context.Context, input *SinkRuntimeInput) erro
 		}
 	}
 
+	if _, enabled := input.SinkConfig["record_updates"]; enabled {
+		return s.executeHTTPRecordUpdates(ctx, input)
+	}
+
 	var reachedWrite, skipWrite bool
 	var claimErr error
 	if backend == model.SinkBackendS3 {

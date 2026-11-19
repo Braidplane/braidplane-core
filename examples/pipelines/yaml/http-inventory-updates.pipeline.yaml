@@ -1,0 +1,45 @@
+metadata:
+  slug: mirror-item-labels
+  name: Mirror item labels to an inventory API
+steps:
+  - kind: query
+    slug: changed-items
+    query:
+      data_source_ref: source-postgres
+      operation_type: sql
+      operation_inline:
+        type: postgres
+        sql: |
+          SELECT item_id::text AS item_id, label
+          FROM inventory_items
+          WHERE label_update_pending
+          ORDER BY item_id
+      output_contract:
+        representation: rows
+        fields:
+          - name: item_id
+            type: string
+            required: true
+          - name: label
+            type: string
+            required: true
+  - kind: sink
+    slug: update-items
+    sink:
+      input: changed-items
+      data_source_ref: inventory-api
+      operation_type: http
+      idempotency_class: deduplicated_by_ledger
+      operation_inline:
+        type: http
+        method: PATCH
+        path: "/inventory/items/{{runtime.sink.record_id}}"
+        body: "{{input}}"
+      config:
+        record_updates:
+          identity_field: item_id
+          fields:
+            label: displayName
+          readback:
+            identity_field: recordID
+          max_records: 25

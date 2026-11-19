@@ -399,6 +399,18 @@ import (
 	}
 }
 
+#RecordField: string & =~"^[A-Za-z_][A-Za-z0-9_.-]{0,127}$"
+#RecordUpdates: {
+	identity_field: string & != ""
+	fields: ({[string]: #RecordField}) & struct.MinFields(1) & struct.MaxFields(100)
+	max_records: int & >=1 & <=100
+	readback: {
+		identity_field: #RecordField
+		fields_object?: #RecordField & != identity_field
+		select_parameter?: #RecordField
+	}
+}
+
 #SinkStep: {
 	kind:  "sink"
 	slug:  #Slug
@@ -413,7 +425,21 @@ import (
 		backend?:         "noop" | "ftp" | "db" | "http" | "mongo" | "s3"
 		data_source_ref:  #Slug
 		operation_type:   #SinkOperationType
-		config?: [string]: _
+		config?: {
+			record_updates?: #RecordUpdates
+			[string]: _
+		}
+		if config.record_updates != _|_ {
+			operation_type: "http"
+			idempotency_class: "deduplicated_by_ledger"
+			input_contract?: {representation: "rows"}
+			operation_inline: close({
+				type?: "http"
+				method: "PATCH" | "PUT"
+				path:   string & !~"(^|/)\\.{1,2}/" & =~"^(/|/?[A-Za-z0-9._~-]+/)([A-Za-z0-9._~-]+/)*\\{\\{runtime\\.sink\\.record_id\\}\\}$"
+				body:   "{{input}}" | (({[#RecordField]: "{{input}}"}) & struct.MinFields(1) & struct.MaxFields(1))
+			})
+		}
 		empty_input_policy?: "skip" | "reject"
 		idempotency_class: "naturally_idempotent" | "idempotent_with_key" | "deduplicated_by_ledger" | "unsafe"
 		if operation_type != "http" {

@@ -314,6 +314,7 @@ func TestQueryServiceE2E(t *testing.T) {
 			name:  "ExecutesMongoDBPipelineRunWithRealMongoSinkSuccessfully",
 			runFn: testExecutesMongoDBPipelineRunWithRealMongoSinkSuccessfully,
 		},
+		{name: "HTTPRecordUpdateCredentials", runFn: testHTTPRecordUpdateCredentials},
 		{name: "RenewsHTTPOAuthForSavedQueriesAndPipelineReads", runFn: testRenewsHTTPOAuthForSavedQueriesAndPipelineReads},
 		{
 			name:  "ExecutesHTTPPipelineRunWithRealHTTPSinkSuccessfully",
