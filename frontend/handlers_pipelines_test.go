@@ -615,9 +615,11 @@ func TestRouter_HandlePipelineDetailPage_RendersMetadata(t *testing.T) {
 		allSections += string(sectionBody)
 	}
 	for _, expected := range [][]string{
-		{`Requirements in dev`, `Requirements in prod`, ">ready<", ">blocked<", "Binding missing", "Sink requires a writable target", "Runtime variable missing",
+		{
+			`Requirements in dev`, `Requirements in prod`, ">ready<", ">blocked<", "Binding missing", "Sink requires a writable target", "Runtime variable missing",
 			"Organization default", "Absent", "dev-ledger", "Capability supported", "Read-only", "audit-ledger", "Usage locations (2)",
-			"/pipelines/customer-sync/bindings?", "#binding-cell-customer-sync-ledger-prod", "/organizations/acme-hq/runtime-variables?pipeline=customer-sync"},
+			"/pipelines/customer-sync/bindings?", "#binding-cell-customer-sync-ledger-prod", "/organizations/acme-hq/runtime-variables?pipeline=customer-sync",
+		},
 		{">warning<", "No runtime environments are enabled"},
 		{"Readiness unavailable", "Reload this section to retry"},
 	} {
