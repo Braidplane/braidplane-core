@@ -83,12 +83,12 @@ func TestGrantErrorsAreBoundedAndRedacted(t *testing.T) {
 		{"rate limit", 429, sentinel, xerror.Unavailable(xerror.DataSource)},
 		{"redirect", 307, sentinel, xerror.Unavailable(xerror.DataSource)},
 		{"oversize", 200, strings.Repeat(sentinel, 5000), xerror.Unavailable(xerror.DataSource)},
-		{"wrong mode", 200, strings.Replace(good, "false", "true", 1), ErrInvalidGrant},
-		{"missing mode", 200, strings.Replace(good, `,"livemode":false`, "", 1), ErrInvalidGrant},
-		{"missing account", 200, strings.Replace(good, "acct_fixture", "", 1), ErrInvalidGrant},
-		{"wrong scope", 200, strings.Replace(good, "stripe_apps", "read_write", 1), ErrInvalidGrant},
-		{"missing rotation", 200, strings.Replace(good, `"rt"`, `""`, 1), ErrInvalidGrant},
-		{"invalid JSON", 200, sentinel, ErrInvalidGrant},
+		{"wrong mode", 200, strings.Replace(good, "false", "true", 1), xerror.Unavailable(xerror.DataSource)},
+		{"missing mode", 200, strings.Replace(good, `,"livemode":false`, "", 1), xerror.Unavailable(xerror.DataSource)},
+		{"missing account", 200, strings.Replace(good, "acct_fixture", "", 1), xerror.Unavailable(xerror.DataSource)},
+		{"wrong scope", 200, strings.Replace(good, "stripe_apps", "read_write", 1), xerror.Unavailable(xerror.DataSource)},
+		{"missing rotation", 200, strings.Replace(good, `"rt"`, `""`, 1), xerror.Unavailable(xerror.DataSource)},
+		{"invalid JSON", 200, sentinel, xerror.Unavailable(xerror.DataSource)},
 	} {
 		t.Run(tc.label, func(t *testing.T) {
 			app := fixtureConfig("test")

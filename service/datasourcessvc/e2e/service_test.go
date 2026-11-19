@@ -987,7 +987,8 @@ func TestStripeTenantCredentialLifecycle(t *testing.T) {
 
 type stripeProviderStub struct {
 	dataSourceOAuthProviderStub
-	refresh credentialssvc.OAuthTokenSet
+	refresh    credentialssvc.OAuthTokenSet
+	refreshErr error
 }
 
 func (*stripeProviderStub) OAuthScopePlan() credentialssvc.OAuthScopePlan {
@@ -995,7 +996,7 @@ func (*stripeProviderStub) OAuthScopePlan() credentialssvc.OAuthScopePlan {
 }
 
 func (p *stripeProviderStub) Refresh(context.Context, credentialssvc.RefreshParams) (credentialssvc.OAuthTokenSet, error) {
-	return p.refresh, nil
+	return p.refresh, p.refreshErr
 }
 
 func TestStripeOAuthTenantLifecycle(t *testing.T) {
@@ -1058,6 +1059,10 @@ func TestStripeOAuthTenantLifecycle(t *testing.T) {
 	_, err = stack.Credentials.StartOAuthInstall(ctx, credentialssvc.StartOAuthInstallParams{Owner: owner, Provider: "stripe_live", Intent: credentialssvc.OAuthInstallIntentRotate, Actor: actor})
 	require.Error(t, err)
 
+	testProvider.refreshErr = xerror.Unavailable(xerror.DataSource)
+	_, err = stack.Credentials.Refresh(ctx, credentialssvc.RefreshGrantParams{Owner: owner})
+	require.ErrorIs(t, err, credentialssvc.ErrProviderUnavailable)
+	testProvider.refreshErr = nil
 	testProvider.refresh.Account.ID = "acct_unrelated"
 	_, err = stack.Credentials.Refresh(ctx, credentialssvc.RefreshGrantParams{Owner: owner})
 	require.ErrorIs(t, err, credentialssvc.ErrOAuthIntentConflict)

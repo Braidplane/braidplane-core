@@ -136,7 +136,7 @@ func (c *Client) exchange(ctx context.Context, form url.Values) (TokenSet, error
 	if json.Unmarshal(body, &tokens) != nil || strings.TrimSpace(tokens.AccessToken) == "" || strings.TrimSpace(tokens.RefreshToken) == "" ||
 		!accountID.MatchString(tokens.AccountID) || tokens.Scope != Scope || !strings.EqualFold(tokens.TokenType, "bearer") ||
 		tokens.LiveMode == nil || *tokens.LiveMode != (c.config.Mode == "live") {
-		return TokenSet{}, ErrInvalidGrant.Detail("Stripe returned an incomplete or mismatched grant")
+		return TokenSet{}, xerror.Unavailable(xerror.DataSource).Detail("Stripe returned an incomplete or mismatched grant")
 	}
 	return tokens, nil
 }
