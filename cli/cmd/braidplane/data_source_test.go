@@ -1665,3 +1665,14 @@ func TestStripeDataSourceRequestFile(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, key, *rotated.ApiKey)
 }
+
+func TestCreateHubSpotFilePreservesReadWrite(t *testing.T) {
+	t.Parallel()
+	path := filepath.Join(t.TempDir(), "hubspot.json")
+	require.NoError(t, os.WriteFile(path, []byte(`{"type":"hubspot","name":"CRM","read_only":false,"credentials":{"private_app_token":"fixture"}}`), 0o600))
+	body, _, err := createDataSourceBodyFromFile(path)
+	require.NoError(t, err)
+	hubspot, err := body.AsCreateHubSpotDataSourceRequest()
+	require.NoError(t, err)
+	require.Equal(t, boolPointer(false), hubspot.ReadOnly)
+}

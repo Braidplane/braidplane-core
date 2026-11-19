@@ -29,6 +29,9 @@ func TestStripeModeConfiguration(t *testing.T) {
 
 func TestStripeOAuthDeploymentSettings(t *testing.T) {
 	setTestGitHubAppEnv(t)
+	for _, name := range []string{"STRIPE_TEST_INSTALL_URL", "STRIPE_TEST_REDIRECT_URI", "STRIPE_LIVE_INSTALL_URL", "STRIPE_LIVE_REDIRECT_URI", "STRIPE_LIVE_DEVELOPER_KEY"} {
+		t.Setenv(name, "")
+	}
 	path := filepath.Join(t.TempDir(), "config.toml")
 	content := `[security]
 encryption_key_hex = "` + testEncryptionKeyHex + `"

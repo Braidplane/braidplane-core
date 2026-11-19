@@ -107,7 +107,7 @@ func createDataSourceBodyFromFile(path string) (api.CreateDataSourceRequest, []s
 	}
 	if file.ReadOnly != nil {
 		command.ReadOnly = *file.ReadOnly
-		command.ReadWrite = !*file.ReadOnly && file.Type == "stripe"
+		command.ReadWrite = !*file.ReadOnly
 	}
 	body, _, err := command.createBody()
 	return body, secrets, err
