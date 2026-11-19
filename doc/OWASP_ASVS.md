@@ -18,7 +18,7 @@ Keep findings and sensitive test material in the private assessment record. Use 
 
 ## Candidate verification record
 
-Of the 70 requirements, 18 are Verified, 9 are Not applicable and 43 are Pending. Level 1 conformance remains unverified.
+Of the 70 requirements, 18 are Verified, 8 are Not applicable and 44 are Pending. Level 1 conformance remains unverified.
 
 On 2026-11-19 the assessment used **v0.2.0-rc.16-linux-arm64**, source `4ad19d2c69edbb40e55357cdb65e671d73065930`, on a Linux ARM64 Docker daemon (Engine 29.8.2, Compose 5.5.0). The merge commits for [#175](https://github.com/Braidplane/braidplane-core/pull/175) and [#182](https://github.com/Braidplane/braidplane-core/pull/182) are ancestors of this source. The downloaded `installation.tar.gz` had SHA-256 `8e1511b721b00e2623cdef544c2eb1cf9ece95ccb2dd2de9d4a36223e1dab621`. The repository's attestation verifier matched the archive, candidate revision, signer revision and release workflow run. [Release assets](https://github.com/Braidplane/braidplane-core/releases/tag/v0.2.0-rc.16-linux-arm64) · [Signing run](https://github.com/Braidplane/braidplane-core/actions/runs/44530568747)
 
@@ -92,8 +92,8 @@ The last column records the method and result for each supported row, or the spe
 | `V11.3.2` | Cryptography | Pending | Inventory ciphers and modes across credential storage, payload retention and configured integrations. |
 | `V11.4.1` | Cryptography | Pending | Classify hash uses in application and connector code by purpose and verify permitted algorithms. |
 | `V12.1.1` | Secure communication | Verified | [Candidate record](#candidate-verification-record) · The edge negotiated TLS 1.3 by default and pg_stat_ssl reported TLS 1.3 for active database TLS connections. On both listeners, explicit TLS 1.2 and 1.3 handshakes succeeded and TLS 1.0 and 1.1 received protocol-version alerts. |
-| `V12.2.1` | Secure communication | Verified | [Candidate record](#candidate-verification-record) · The installed Compose configuration publishes only edge TCP 443. The client validated the fixture CA and hostname for login, account changes and API reads over HTTPS. |
-| `V12.2.2` | Secure communication | Not applicable | [Candidate record](#candidate-verification-record) · Only loopback was published. The sole test client trusted the fixture CA. A publicly exposed installation requires a separate certificate assessment. |
+| `V12.2.1` | Secure communication | Verified | [Candidate record](#candidate-verification-record) · The installed Compose configuration publishes only loopback edge TCP 443. The client validated the fixture CA and hostname for login, account changes and API reads over HTTPS. |
+| `V12.2.2` | Secure communication | Pending | The client-facing HTTPS edge used a fixture CA. Retest with the operator’s public certificate chain and an unmodified public trust store to establish public trust. |
 | `V13.4.1` | Configuration | Verified | [Candidate record](#candidate-verification-record) · Inspected exported root filesystem entries for the running edge, frontend, API, worker, executor and database. None contained .git or .svn. Mounts were fixture configuration, keys and fresh service volumes. |
 | `V14.2.1` | Data protection | Pending | Review URLs, redirects and message delivery across verification, recovery and provider flows. |
 | `V14.3.1` | Data protection | Pending | Check client data removal across logout, expiration, browser history and offline storage. |
