@@ -18,7 +18,7 @@ Keep findings and sensitive test material in the private assessment record. Use 
 
 ## Candidate verification record
 
-Of the 70 requirements, 17 are Verified, 9 are Not applicable and 44 are Pending. Level 1 conformance remains unverified.
+Of the 70 requirements, 18 are Verified, 9 are Not applicable and 43 are Pending. Level 1 conformance remains unverified.
 
 On 2026-11-19 the assessment used **v0.2.0-rc.16-linux-arm64**, source `4ad19d2c69edbb40e55357cdb65e671d73065930`, on a Linux ARM64 Docker daemon (Engine 29.8.2, Compose 5.5.0). The merge commits for [#175](https://github.com/Braidplane/braidplane-core/pull/175) and [#182](https://github.com/Braidplane/braidplane-core/pull/182) are ancestors of this source. The downloaded `installation.tar.gz` had SHA-256 `8e1511b721b00e2623cdef544c2eb1cf9ece95ccb2dd2de9d4a36223e1dab621`. The repository's attestation verifier matched the archive, candidate revision, signer revision and release workflow run. [Release assets](https://github.com/Braidplane/braidplane-core/releases/tag/v0.2.0-rc.16-linux-arm64) · [Signing run](https://github.com/Braidplane/braidplane-core/actions/runs/44530568747)
 
@@ -70,8 +70,8 @@ The last column records the method and result for each supported row, or the spe
 | `V6.4.1` | Authentication | Pending | Check generation, lifetime and single use for every invitation, activation and temporary credential flow. |
 | `V6.4.2` | Authentication | Verified | [Candidate record](#candidate-verification-record) · Reviewed account models, API schema, sign-in and recovery views. The local account flows provide email recovery and contain no password hint or knowledge-based challenge. |
 | `V7.2.1` | Session management | Pending | Trace frontend and API session checks for every principal type, including revoked accounts. |
-| `V7.2.2` | Session management | Verified | [Candidate record](#candidate-verification-record) · Both services use Fiber session stores with PostgreSQL storage and browser cookie extraction. The fixture established an authenticated session from a fresh cookie jar and read the profile through the API. |
-| `V7.2.3` | Session management | Pending | Verify the installed reference-token generator and count effective random bits in the emitted identifier. |
+| `V7.2.2` | Session management | Verified | [Candidate record](#candidate-verification-record) · Both services use the Fiber session store with its default key generator. Two independent HTTPS sign-ins received distinct session identifiers and each authorized a read of the same synthetic profile. [Fiber v3.5.0 session configuration](https://github.com/gofiber/fiber/blob/v3.5.0/middleware/session/config.go) |
+| `V7.2.3` | Session management | Verified | [Candidate record](#candidate-verification-record) · Both session configurations use the pinned SecureToken generator. It draws 32 bytes from crypto/rand and base64url-encodes all 256 bits. Independent sign-ins returned distinct identifiers. [Generator implementation](https://github.com/gofiber/utils/blob/v2.4.1/common.go) |
 | `V7.2.4` | Session management | Pending | Verify rotation and backend retirement of the previous token at sign-in and reauthentication. |
 | `V7.4.1` | Session management | Pending | Logout redirected the client to sign-in. Verify backend invalidation and expiry for each session path. |
 | `V7.4.2` | Session management | Pending | Verify all independent sessions terminate after account disablement or deletion on both frontend and API. |
