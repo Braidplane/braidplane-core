@@ -20,9 +20,20 @@ test("project readiness exposes environment status and keyboard routes to fixes"
         await assess(page, testInfo, "project-readiness-mixed");
 
         for (const [name, destination] of [
-            ["Missing bindings (1)", page.locator("#project-binding-matrix").getByText(/missing project environment bindings/)],
-            ["Missing organization variables (1)", page.getByRole("region", { name: "Runtime variable comparison" }).getByText("region", { exact: true })],
-            ["daily-sync", page.getByRole("region", { name: "Requirements in staging" }).getByRole("rowheader", { name: /source/ })],
+            [
+                "Missing bindings (1)",
+                page.locator("#project-binding-matrix").getByText(/missing project environment bindings/),
+            ],
+            [
+                "Missing organization variables (1)",
+                page.getByRole("region", { name: "Runtime variable comparison" }).getByText("region", { exact: true }),
+            ],
+            [
+                "daily-sync",
+                page
+                    .getByRole("region", { name: "Requirements in staging" })
+                    .getByRole("rowheader", { name: /source/ }),
+            ],
         ]) {
             const link = page.getByRole("main").getByRole("link", { name, exact: true });
             await tabTo(page, link);
