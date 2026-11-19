@@ -103,11 +103,13 @@ To include environment bindings and server-side checks, omit `--local` and pass
 `--org`, `--project` and `--environment`. Server validation may record failed
 validation history or a contract impact report; it is not a read-only dry run.
 Validation does not execute the pipeline or prove delivery.
-The CLI reads only the first YAML document or JSON value in a file; additional
-content is not validated or sent to the server. Ensure the file contains one
-document or value before relying on the result.
-`pipeline format` rejects extra documents or values, but sends the complete file
-to the configured API. It prints the formatted result without editing the file.
+
+Use one YAML document or JSON value per pipeline file. Trailing whitespace is
+allowed in either format, as are trailing comments in YAML. If the file contains
+another document, value, or invalid trailing text, `pipeline validate` exits
+nonzero and reports the parse error on stderr before contacting the server.
+`pipeline format` sends the full file to the API and prints the formatted result
+on success.
 
 For Git-authored pipelines, `pipeline apply --dry-run --project PROJECT` previews
 the configured project repository import. `--dir` is relative to that repository,

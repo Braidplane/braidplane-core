@@ -445,6 +445,42 @@ func TestPipelineValidateJSON(t *testing.T) {
 	}
 }
 
+func TestPipelineAuthoringRejectsTrailingContent(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		t.Errorf("unexpected API request: %s %s", r.Method, r.URL.Path)
+		w.WriteHeader(http.StatusInternalServerError)
+	}))
+	defer server.Close()
+	t.Setenv("BRAIDPLANE_SERVER_URL", server.URL)
+	t.Setenv("BRAIDPLANE_PROJECT", "data-pipelines")
+	t.Setenv("BRAIDPLANE_ORG", "acme")
+	t.Setenv("BRAIDPLANE_PAT", "test-pat")
+	t.Setenv("BRAIDPLANE_API_KEY", "")
+
+	const pipeline = `{"metadata":{"slug":"users","name":"Users"},"steps":[{"kind":"query","slug":"read","query":{"data_source_ref":"db","operation_type":"sql","operation_ref":"users"}}]}`
+	for _, tc := range []struct {
+		name, ext, tail, detail string
+		args                    []string
+	}{
+		{"local validation", "yaml", "\n---\n", "multiple YAML documents", []string{"validate", "--local", "-o", "text"}},
+		{"server validation", "json", "\nnull", "multiple JSON values", []string{"validate", "--environment", "prod", "-o", "json"}},
+		{"invalid JSON tail", "json", " garbage", "invalid character", []string{"validate", "--local", "-o", "yaml"}},
+		{"draft save", "yaml", "\n---\n{}", "multiple YAML documents", []string{"draft", "save", "users"}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			dir := t.TempDir()
+			path := filepath.Join(dir, "users.pipeline."+tc.ext)
+			require.NoError(t, os.WriteFile(path, []byte(pipeline+tc.tail), 0o600))
+			args := append([]string{"braidplane", "pipeline"}, tc.args...)
+			var stdout, stderr bytes.Buffer
+			err := runWithRuntime(append(args, "--file", path), &stdout, &stderr, cliRuntime{configPath: filepath.Join(dir, "config")})
+			require.ErrorContains(t, err, tc.detail)
+			require.ErrorContains(t, err, path)
+			require.Empty(t, stdout.String())
+		})
+	}
+}
+
 func TestPipelineValidateDirectoryFormats(t *testing.T) {
 	spec, err := os.ReadFile(filepath.Join("..", "..", "examples", "multi-source-roots.example.yaml"))
 	require.NoError(t, err)

@@ -77,11 +77,13 @@ Replace `ORG` and the file path with the intended values. Pipeline capabilities
 apply to the organization, not a specific project. Local validation does not
 contact the server. Server validation can save validation failures or a contract
 impact report. Use run history to inspect execution and delivery.
-The CLI reads only the first YAML document or
-JSON value in a file. Ensure it contains one document or value before validation;
-additional content is not checked or sent to the server.
-The API-backed `pipeline format` command rejects extra documents or values; it
-sends the complete file to the server and prints the result without editing it.
+
+Use one YAML document or JSON value per pipeline file. Trailing whitespace is
+allowed in either format, as are trailing comments in YAML. If the file contains
+another document, value, or invalid trailing text, `pipeline validate` exits
+nonzero and reports the parse error on stderr before contacting the server.
+`pipeline format` sends the full file to the API and prints the formatted result
+on success.
 
 For an existing run, use `pipeline run get` and `pipeline run progress` with
 the exact project, environment and run slug. Progress can be paginated: pass
