@@ -128,3 +128,12 @@ func TestSavedContractReferenceFacets(t *testing.T) {
 	sink := pipelinespec.Step{Sink: &pipelinespec.SinkSpec{InputContractRef: file}}
 	require.False(t, operationContractsCompatible(sink, &queriessvc.Query{ExpectedInputContract: rows}, operationGraph{}))
 }
+
+func TestDeclaredOutputCanStrengthenSavedOperationContract(t *testing.T) {
+	rows := &payload.Contract{Representation: model.ContractRepresentationRows}
+	withID := &payload.Contract{Representation: model.ContractRepresentationRows, Fields: []payload.ContractField{{Name: "id", Type: model.ContractFieldTypeValueInteger, Required: true}}}
+	source := pipelinespec.Step{Kind: "query", Slug: "read", Query: &pipelinespec.QueryRef{OperationType: "sql", OperationRef: "read", OutputContract: withID}}
+	consumer := pipelinespec.Step{Kind: "sink", Slug: "write", Sink: &pipelinespec.SinkSpec{InputContract: withID}}
+	graph := operationGraph{consumers: map[slug.Slug][]pipelinespec.Step{source.Slug: {consumer}}}
+	require.True(t, operationContractsCompatible(source, &queriessvc.Query{OutputContract: rows}, graph))
+}

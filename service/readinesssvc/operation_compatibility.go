@@ -118,9 +118,6 @@ func operationContractsCompatible(step pipelinespec.Step, query *queriessvc.Quer
 		if output == nil {
 			return true
 		}
-		producer := *q
-		producer.OutputContract, producer.OutputContractRef = query.OutputContract, query.OutputContractRef
-		step.Query = &producer
 		for _, consumer := range graph.consumers[step.Slug] {
 			if !knownEdgeCompatible(step, consumer) {
 				return false
