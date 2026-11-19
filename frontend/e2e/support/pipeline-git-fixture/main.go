@@ -82,6 +82,12 @@ func main() {
 		partialGitSync = !partialGitSyncCorrected
 		return c.SendStatus(http.StatusNoContent)
 	})
+	app.Post("/_test/project-readiness", func(c fiber.Ctx) error {
+		mu.Lock()
+		defer mu.Unlock()
+		projectReadinessFixture, imported, bound, deploymentMultipleTargets = true, true, true, true
+		return c.SendStatus(fiber.StatusNoContent)
+	})
 	app.Post("/_test/deployment-access", func(c fiber.Ctx) error {
 		mu.Lock()
 		defer mu.Unlock()
@@ -161,6 +167,9 @@ func handleAPI(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if runInspectionEnabled && handleRunInspectionAPI(w, r) {
+		return
+	}
+	if projectReadinessFixture && handleProjectReadinessAPI(w, r) {
 		return
 	}
 	if repositorySetupEnabled && handleRepositorySetupAPI(w, r) {

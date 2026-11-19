@@ -88,11 +88,20 @@ type Diagnostic struct {
 	NextAction      string    `json:"next_action"`
 }
 
+type reportScope uint8
+
+const (
+	incomingSpecs reportScope = iota
+	projectOverview
+	pipelineDetail
+)
+
 func Evaluate(pipelines []PipelineInput, environments []EnvironmentInput) Report {
-	return evaluate(pipelines, environments, false)
+	return evaluate(pipelines, environments, incomingSpecs)
 }
 
-func evaluate(pipelines []PipelineInput, environments []EnvironmentInput, includeRequirements bool) Report {
+func evaluate(pipelines []PipelineInput, environments []EnvironmentInput, scope reportScope) Report {
+	includeRequirements := scope == pipelineDetail
 	report := Report{Status: "ready", Environments: make([]EnvironmentResult, len(environments))}
 	if len(environments) == 0 {
 		report.Status = "warning"
@@ -173,7 +182,7 @@ func evaluate(pipelines []PipelineInput, environments []EnvironmentInput, includ
 				}
 				if !variable.Present || variable.TypeMismatch {
 					code := "missing_variable"
-					if includeRequirements && variable.TypeMismatch {
+					if variable.TypeMismatch && scope != incomingSpecs {
 						code = "variable_type_mismatch"
 					}
 					for _, usage := range req.Usages {

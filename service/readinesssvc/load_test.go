@@ -226,7 +226,7 @@ func TestSavedOperationsUseConcreteEnvironmentBinding(t *testing.T) {
 	})
 	require.NoError(t, err)
 	require.Equal(t, map[OperationKey]int{{"dev", "read"}: 1, {"prod", "read"}: 1, {"dev", "write"}: 1, {"prod", "write"}: 1}, reads)
-	report := evaluate(inputs[:1], envs, true)
+	report := evaluate(inputs[:1], envs, pipelineDetail)
 	require.Equal(t, "ready", report.Environments[0].Status)
 	prod := report.Environments[1]
 	require.Equal(t, "blocked", prod.Status)

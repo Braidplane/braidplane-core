@@ -45,7 +45,7 @@ func TestQueriesEmptyStateProvidesPermissionAwareFirstResultAction(t *testing.T)
 			permissions = NewOrganizationPermissions("datasources:create")
 		}
 		var out bytes.Buffer
-		require.NoError(t, QueriesPageContent(nil, "", "", nil, nil, QueryEditorFormData{}, false, "", "", "acme", QueryEditorFormData{}, nil, "", "", false, permissions).Render(context.Background(), &out))
+		require.NoError(t, QueriesPageContent(nil, "", "", nil, nil, QueryEditorFormData{}, false, "", "", "acme", QueryEditorFormData{}, nil, "", "", false, permissions, nil).Render(context.Background(), &out))
 		require.Contains(t, out.String(), "Get your first result")
 		require.Contains(t, out.String(), "You do not need a project or Git repository.")
 		if canCreate {
@@ -91,7 +91,7 @@ func TestQueriesPageContentCanonicalizesGitProviderStatementType(t *testing.T) {
 		"",
 		"",
 		false,
-		NewOrganizationPermissions("queries:create"),
+		NewOrganizationPermissions("queries:create"), nil,
 	).Render(context.Background(), &out)
 	require.NoError(t, err)
 
@@ -111,7 +111,7 @@ func TestGitQueryFormsExposeNativeFileFormat(t *testing.T) {
 	var createOut bytes.Buffer
 	require.NoError(t, QueriesPageContent(
 		nil, "repo", "git", nil, nil, QueryEditorFormData{}, false, "", "", "acme",
-		formData, nil, "", "", false, permissions,
+		formData, nil, "", "", false, permissions, nil,
 	).Render(context.Background(), &createOut))
 
 	var editOut bytes.Buffer
@@ -150,7 +150,7 @@ func TestQueriesPageContentRendersSelectedDataSourceIconReference(t *testing.T) 
 		"",
 		"",
 		false,
-		DefaultOrganizationPermissions(),
+		DefaultOrganizationPermissions(), nil,
 	).Render(context.Background(), &out)
 	require.NoError(t, err)
 
@@ -183,7 +183,7 @@ func TestQueriesPageContentKeepsHubSpotUpsertForWritableDataSource(t *testing.T)
 		"",
 		"",
 		false,
-		NewOrganizationPermissions("queries:create"),
+		NewOrganizationPermissions("queries:create"), nil,
 	).Render(context.Background(), &out))
 
 	require.Contains(t, out.String(), `value="upsert"`)
@@ -211,7 +211,7 @@ func TestQueryPagesUseContentVersionedEditorScript(t *testing.T) {
 		"",
 		"",
 		false,
-		permissions,
+		permissions, nil,
 	).Render(context.Background(), &listOut))
 
 	var detailOut bytes.Buffer
@@ -391,7 +391,7 @@ func TestQueryFormsIncludeSpreadsheetFieldsInParameterSync(t *testing.T) {
 				"",
 				"",
 				false,
-				permissions,
+				permissions, nil,
 			).Render(context.Background(), &createOut))
 			createHTML := createOut.String()
 			for _, snippet := range tc.wantCreateSnippets {
@@ -441,7 +441,7 @@ func TestQueryFormsRenderBooleanAttributes(t *testing.T) {
 		"",
 		"",
 		false,
-		permissions,
+		permissions, nil,
 	).Render(context.Background(), &listOut))
 	listHTML := listOut.String()
 	require.NotContains(t, listHTML, ` selected="false"`)
@@ -867,7 +867,7 @@ func TestHTTPQueryFormsPreservePagination(t *testing.T) {
 	form.HTTPWriteRetry = `{"verified":true,"provider_contract_url":"https://provider.invalid/idempotency","key_header":"Idempotency-Key","retention_seconds":3600,"payload_conflict":"reject"}`
 	permissions := NewOrganizationPermissions("queries:create", "queries:update")
 	var create, edit bytes.Buffer
-	require.NoError(t, QueriesPageContent(nil, "api", "http", nil, nil, QueryEditorFormData{}, false, "", "", "acme", form, nil, "", "", false, permissions).Render(context.Background(), &create))
+	require.NoError(t, QueriesPageContent(nil, "api", "http", nil, nil, QueryEditorFormData{}, false, "", "", "acme", form, nil, "", "", false, permissions, nil).Render(context.Background(), &create))
 	require.NoError(t, QueryDetailPageContent("acme", "api", api.Query{Name: "Items", Slug: "items"}, form, nil, "", "", permissions).Render(context.Background(), &edit))
 	for _, page := range []string{create.String(), edit.String()} {
 		require.Contains(t, page, `name="http_acknowledgement_enabled" checked`)

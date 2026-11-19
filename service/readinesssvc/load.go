@@ -47,7 +47,11 @@ func Load(ctx context.Context, pipelines pipelinesvc.Service, environments envir
 	if err != nil {
 		return Report{}, err
 	}
-	return evaluate(inputs, envs, pipeline != ""), nil
+	scope := projectOverview
+	if pipeline != "" {
+		scope = pipelineDetail
+	}
+	return evaluate(inputs, envs, scope), nil
 }
 
 // LoadSpecs evaluates incoming pipeline specs against the project's current setup.

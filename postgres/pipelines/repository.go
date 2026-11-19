@@ -1175,6 +1175,7 @@ func toSpecFromFindRow(row dbgen.FindPipelineSpecBySlugRow) (*PipelineSpec, erro
 	}
 
 	return &PipelineSpec{
+		HasDraft:               row.HasPendingSpec,
 		Slug:                   row.Slug,
 		Name:                   row.Name,
 		SpecJSONB:              row.SpecJsonb,

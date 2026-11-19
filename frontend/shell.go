@@ -537,6 +537,7 @@ func (r *Router) listProjectEnvironmentsViaAPI(
 	params.Order = &order
 
 	projectEnvironments := []api.ProjectEnvironment{}
+	seen := map[string]bool{}
 	for {
 		resp, err := r.apiClient.ListProjectEnvironmentsWithResponse(
 			ctx,
@@ -558,7 +559,7 @@ func (r *Router) listProjectEnvironmentsViaAPI(
 		}
 
 		projectEnvironments = append(projectEnvironments, resp.JSON200.ProjectEnvironments...)
-		if !resp.JSON200.HasMore || resp.JSON200.NextCursor == nil {
+		if !resp.JSON200.HasMore {
 			return &api.ProjectEnvironmentListResponse{
 				ProjectEnvironments: projectEnvironments,
 				HasMore:             false,
@@ -567,6 +568,10 @@ func (r *Router) listProjectEnvironmentsViaAPI(
 			}, http.StatusOK, nil, nil
 		}
 
+		if resp.JSON200.NextCursor == nil || *resp.JSON200.NextCursor == "" || seen[*resp.JSON200.NextCursor] {
+			return nil, http.StatusInternalServerError, nil, xerror.Unexpected().Detail("invalid environment pagination cursor")
+		}
+		seen[*resp.JSON200.NextCursor] = true
 		cursor := *resp.JSON200.NextCursor
 		params.Cursor = &cursor
 	}

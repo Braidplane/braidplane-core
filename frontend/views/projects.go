@@ -16,7 +16,7 @@ func projectDetailHref(ctx context.Context, orgSlug, projectSlug string) string 
 	return entityDetailHref(projectRuntimeHref(ctx, organizationProjectFullPageHref(orgSlug, projectSlug)), projectListHref(ctx, orgSlug, projectSlug))
 }
 
-func projectSection(ctx context.Context) string {
+func ProjectSection(ctx context.Context) string {
 	switch section := entityPageURL(ctx).Query().Get("section"); section {
 	case "pipelines", "repository", "environments", "settings":
 		return section

@@ -9184,6 +9184,10 @@
                 "description": "",
                 "nullable": true
               },
+              "has_pending_spec": {
+                "description": "",
+                "type": "boolean"
+              },
               "spec": {
                 "$ref": "#/components/schemas/PipelineSpec"
               }

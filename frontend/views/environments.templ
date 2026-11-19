@@ -853,15 +853,17 @@ templ OrganizationEnvironmentCreateCard(orgSlug string, formData EnvironmentCrea
 	</div>
 }
 
-templ ProjectEnvironmentsPage(shellData AuthenticatedShellData, orgSlug string, projectSlug string, selectedEnvironmentSlug string, environments []api.ProjectEnvironment, catalog []api.Environment, refs []api.DataSourceRef, bindings map[string][]api.DataSourceBinding, environmentsUnavailable bool, bindingsUnavailable bool, permissions OrganizationPermissions) {
-	@AuthenticatedShell(shellData, ProjectEnvironmentsPageContent(orgSlug, projectSlug, shellData.ActiveEnvironmentSlug, selectedEnvironmentSlug, environments, catalog, refs, bindings, environmentsUnavailable, bindingsUnavailable, permissions))
+templ ProjectEnvironmentsPage(shellData AuthenticatedShellData, orgSlug string, projectSlug string, selectedEnvironmentSlug string, environments []api.ProjectEnvironment, catalog []api.Environment, refs []api.DataSourceRef, bindings map[string][]api.DataSourceBinding, environmentsUnavailable bool, bindingsUnavailable bool, permissions OrganizationPermissions, cleanup *CleanupFindings) {
+	@AuthenticatedShell(shellData, ProjectEnvironmentsPageContent(orgSlug, projectSlug, shellData.ActiveEnvironmentSlug, selectedEnvironmentSlug, environments, catalog, refs, bindings, environmentsUnavailable, bindingsUnavailable, permissions, cleanup))
 }
 
-templ ProjectEnvironmentsPageContent(orgSlug string, projectSlug string, activeEnvironmentSlug string, selectedEnvironmentSlug string, environments []api.ProjectEnvironment, catalog []api.Environment, refs []api.DataSourceRef, bindings map[string][]api.DataSourceBinding, environmentsUnavailable bool, bindingsUnavailable bool, permissions OrganizationPermissions) {
+templ ProjectEnvironmentsPageContent(orgSlug string, projectSlug string, activeEnvironmentSlug string, selectedEnvironmentSlug string, environments []api.ProjectEnvironment, catalog []api.Environment, refs []api.DataSourceRef, bindings map[string][]api.DataSourceBinding, environmentsUnavailable bool, bindingsUnavailable bool, permissions OrganizationPermissions, cleanup *CleanupFindings) {
 	<div id="project-environments-workspace">
 		<div class="flex flex-wrap items-center justify-end gap-3">
+			<a class="btn btn-outline btn-sm" href={ templ.URL(projectRuntimeHref(ctx, ProjectEnvironmentsHref(orgSlug, projectSlug)+"?cleanup=1")) }>Check unused refs and bindings</a>
 			<a class="btn btn-outline btn-sm w-full sm:w-auto" href={ templ.URL(buildEnvironmentProjectPipelinesListHref(orgSlug, projectSlug, activeEnvironmentSlug, "", "")) }>Back to pipelines</a>
 		</div>
+		@cleanupSummary("Configuration unused by current project pipeline specs", cleanup)
 		<div class="mt-5 grid gap-3 md:grid-cols-4">
 			<div class="rounded-lg border border-base-300 bg-base-200/40 p-4">
 				<p class="text-xs font-semibold uppercase tracking-wide text-base-content/60">Available</p>
@@ -916,7 +918,7 @@ templ ProjectEnvironmentsPageContent(orgSlug string, projectSlug string, activeE
 							@EntityListItem(ProjectEnvironmentCatalogCardClass(environment.Slug == selectedEnvironmentSlug, ProjectEnvironmentEnabled(environment.Slug, environments)), environment.Slug == selectedEnvironmentSlug, "project-environment-"+environment.Slug, environment.Name, ProjectEnvironmentSelectionHref(orgSlug, projectSlug, activeEnvironmentSlug, environment.Slug), "#project-environments-workspace", "project-environment-preview", "#project-environments-loading") {
 								<div class="flex flex-wrap items-start justify-between gap-3">
 									<div class="min-w-0 flex-1 basis-full sm:basis-auto">
-										<h3 class="break-words text-base font-semibold text-base-content"><a class="relative z-10 hover:underline" href={ templ.URL(ProjectEnvironmentConfigurationHref(orgSlug, projectSlug, activeEnvironmentSlug, environment.Slug)) }>{ environment.Name }</a></h3>
+										<h3 class="break-words text-base font-semibold text-base-content"><a class="relative z-10 inline-flex min-h-6 min-w-6 items-center hover:underline" href={ templ.URL(ProjectEnvironmentConfigurationHref(orgSlug, projectSlug, activeEnvironmentSlug, environment.Slug)) }>{ environment.Name }</a></h3>
 										<p class="mt-1 break-all font-mono text-xs text-base-content/70">{ environment.Slug }</p>
 									</div>
 									<div class="flex flex-wrap gap-2">

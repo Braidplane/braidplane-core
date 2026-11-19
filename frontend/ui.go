@@ -573,13 +573,17 @@ func renderTempl(c fiber.Ctx, component templ.Component) error {
 	c.Set(fiber.HeaderContentType, fiber.MIMETextHTMLCharsetUTF8)
 	// The same URL can render a document or a fragment; browser history must not reuse the wrong variant.
 	c.Vary("HX-Request", "HX-Target", "HX-History-Restore-Request")
+	return component.Render(views.WithEntityPageURL(c.Context(), renderPageURL(c)), c.Response().BodyWriter())
+}
+
+func renderPageURL(c fiber.Ctx) string {
 	pageURL := c.OriginalURL()
 	if c.Method() != fiber.MethodGet {
 		if currentURL := safeCurrentRequestPath(c.Get("HX-Current-URL"), c.Host()); currentURL != "" {
 			pageURL = currentURL
 		}
 	}
-	return component.Render(views.WithEntityPageURL(c.Context(), pageURL), c.Response().BodyWriter())
+	return pageURL
 }
 
 func isHTMXRequest(c fiber.Ctx) bool {

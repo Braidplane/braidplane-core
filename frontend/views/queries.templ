@@ -3,11 +3,11 @@ package views
 import "fmt"
 import api "github.com/Braidplane/braidplane-core/api-schema/gen/client"
 
-templ QueriesPage(shellData AuthenticatedShellData, dataSources []api.DataSource, selectedDataSource string, selectedDataSourceType string, queries []api.Query, selectedQuery *api.Query, selectedQueryFormData QueryEditorFormData, hasMore bool, nextCursor string, prevCursor string, orgSlug string, createFormData QueryEditorFormData, executionResult *QueryExecutionResultView, executionError string, focusQuerySlug string, showDeleted bool, permissions OrganizationPermissions) {
-	@AuthenticatedShell(shellData, QueriesPageContent(dataSources, selectedDataSource, selectedDataSourceType, queries, selectedQuery, selectedQueryFormData, hasMore, nextCursor, prevCursor, orgSlug, createFormData, executionResult, executionError, focusQuerySlug, showDeleted, permissions))
+templ QueriesPage(shellData AuthenticatedShellData, dataSources []api.DataSource, selectedDataSource string, selectedDataSourceType string, queries []api.Query, selectedQuery *api.Query, selectedQueryFormData QueryEditorFormData, hasMore bool, nextCursor string, prevCursor string, orgSlug string, createFormData QueryEditorFormData, executionResult *QueryExecutionResultView, executionError string, focusQuerySlug string, showDeleted bool, permissions OrganizationPermissions, cleanup *CleanupFindings) {
+	@AuthenticatedShell(shellData, QueriesPageContent(dataSources, selectedDataSource, selectedDataSourceType, queries, selectedQuery, selectedQueryFormData, hasMore, nextCursor, prevCursor, orgSlug, createFormData, executionResult, executionError, focusQuerySlug, showDeleted, permissions, cleanup))
 }
 
-templ QueriesPageContent(dataSources []api.DataSource, selectedDataSource string, selectedDataSourceType string, queries []api.Query, selectedQuery *api.Query, selectedQueryFormData QueryEditorFormData, hasMore bool, nextCursor string, prevCursor string, orgSlug string, createFormData QueryEditorFormData, executionResult *QueryExecutionResultView, executionError string, focusQuerySlug string, showDeleted bool, permissions OrganizationPermissions) {
+templ QueriesPageContent(dataSources []api.DataSource, selectedDataSource string, selectedDataSourceType string, queries []api.Query, selectedQuery *api.Query, selectedQueryFormData QueryEditorFormData, hasMore bool, nextCursor string, prevCursor string, orgSlug string, createFormData QueryEditorFormData, executionResult *QueryExecutionResultView, executionError string, focusQuerySlug string, showDeleted bool, permissions OrganizationPermissions, cleanup *CleanupFindings) {
 	<div id="queries-workspace">
 		if createFormData.SubmitError != "" && (selectedDataSource == "" || showDeleted || !permissions.Can("queries", "create")) {
 			<div data-form-feedback>
@@ -16,6 +16,9 @@ templ QueriesPageContent(dataSources []api.DataSource, selectedDataSource string
 		}
 		if selectedDataSource != "" {
 			<div class="flex min-h-8 flex-wrap items-center justify-end gap-3">
+				if !showDeleted && len(queries) > 0 {
+					<a class="btn btn-outline btn-sm" href={ templ.URL(QueriesListCursorHref(orgSlug, selectedDataSource, false, entityPageURL(ctx).Query().Get("cursor")) + "&cleanup=1") }>Check pipeline usage</a>
+				}
 				if !showDeleted && permissions.Can("queries", "create") {
 					<button
 						class="btn btn-primary btn-sm w-full sm:w-auto"
@@ -27,6 +30,7 @@ templ QueriesPageContent(dataSources []api.DataSource, selectedDataSource string
 				}
 			</div>
 		}
+		@cleanupSummary("Operations on this page unused by current organization pipeline specs", cleanup)
 		<div class="mt-5 max-w-md">
 			<form
 				id="queries-filter-form"

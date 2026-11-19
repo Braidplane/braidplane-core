@@ -33,6 +33,7 @@ func TestSettlementReadiness(t *testing.T) {
 	for _, ref := range pipeline.Refs {
 		pipeline.Bindings = append(pipeline.Bindings, model.DataSourceBinding{EnvironmentSlug: "dev", DataSourceRefSlug: ref.Slug, DataSourceType: ref.DataSourceType, DataSourceActive: true})
 	}
+	pipeline.Refs = append(pipeline.Refs, model.DataSourceRef{Slug: "unused-unbound-ref"})
 	pipeline.Bindings = append(pipeline.Bindings,
 		model.DataSourceBinding{EnvironmentSlug: "prod", DataSourceRefSlug: "settlement-file", DataSourceType: model.DataSourceTypePostgres, DataSourceActive: true},
 		model.DataSourceBinding{EnvironmentSlug: "prod", DataSourceRefSlug: "reporting-warehouse", DataSourceSlug: "warehouse", DataSourceName: "Reporting warehouse", DataSourceType: model.DataSourceTypePostgres, DataSourceReadOnly: true},
@@ -40,7 +41,13 @@ func TestSettlementReadiness(t *testing.T) {
 	envs := []EnvironmentInput{{Slug: "dev", Variables: map[string]Variable{"review_date": {Source: model.RuntimeVariableDefault, Present: true}}}, {Slug: "prod"}}
 	before, err := json.Marshal(pipeline.Spec)
 	require.NoError(t, err)
-	report := evaluate([]PipelineInput{pipeline}, envs, true)
+	overview := evaluate([]PipelineInput{pipeline}, envs, projectOverview)
+	require.Equal(t, "ready", overview.Environments[0].Status)
+	require.Equal(t, "blocked", overview.Environments[1].Status)
+	for _, d := range overview.Environments[1].Diagnostics {
+		require.NotEqual(t, "unused-unbound-ref", d.RequirementKey)
+	}
+	report := evaluate([]PipelineInput{pipeline}, envs, pipelineDetail)
 	after, err := json.Marshal(pipeline.Spec)
 	require.NoError(t, err)
 	require.Equal(t, before, after)
@@ -119,7 +126,7 @@ func TestRequirementStatusSeparatesSharedKeyByCapabilityAndKind(t *testing.T) {
 		Bindings: []model.DataSourceBinding{{EnvironmentSlug: "dev", DataSourceRefSlug: "ledger", DataSourceActive: true, DataSourceReadOnly: true, DataSourceType: model.DataSourceTypePostgres}},
 	}
 	env := EnvironmentInput{Slug: "dev", Variables: map[string]Variable{"ledger": {Source: model.RuntimeVariableOverride, Present: true, TypeMismatch: true}}}
-	result := evaluate([]PipelineInput{p}, []EnvironmentInput{env}, true).Environments[0]
+	result := evaluate([]PipelineInput{p}, []EnvironmentInput{env}, pipelineDetail).Environments[0]
 	require.Len(t, result.Requirements, 3)
 	require.Equal(t, "ready", result.Requirements[0].Status)
 	require.Equal(t, "blocked", result.Requirements[1].Status)
@@ -131,4 +138,7 @@ func TestRequirementStatusSeparatesSharedKeyByCapabilityAndKind(t *testing.T) {
 	summary := Evaluate([]PipelineInput{p}, []EnvironmentInput{env}).Environments[0]
 	require.Nil(t, summary.Requirements)
 	require.Equal(t, "missing_variable", summary.Diagnostics[1].Code)
+	project := evaluate([]PipelineInput{p}, []EnvironmentInput{env}, projectOverview).Environments[0]
+	require.Nil(t, project.Requirements)
+	require.Equal(t, "variable_type_mismatch", project.Diagnostics[1].Code)
 }

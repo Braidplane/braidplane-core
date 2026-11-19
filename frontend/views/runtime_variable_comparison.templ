@@ -18,6 +18,12 @@ templ runtimeVariableComparisonContent(data RuntimeVariableComparisonView) {
 				<a class="btn btn-primary btn-sm" href={ templ.URL(data.EditHref("")) }>Define variable</a>
 			}
 		</div>
+		if data.Pipeline == "" && data.Comparison != nil {
+			<a class="btn btn-outline btn-sm" href={ templ.URL(data.Href()+"?cleanup=1") }>Check organization pipeline usage</a>
+			if data.CheckUsage && data.OrganizationKeys == nil {
+				<p class="text-sm">Usage is unknown. Some pipeline metadata is pending or unavailable.</p>
+			}
+		}
 		if data.Pipeline != "" {
 			<p class="text-sm">Required includes keys used by the selected version of <strong>{ data.Pipeline }</strong>.</p>
 		}
@@ -47,6 +53,9 @@ templ runtimeVariableComparisonContent(data RuntimeVariableComparisonView) {
 							<tr>
 								<th scope="row" class="min-w-40 align-top">
 									<span class="break-all font-mono">{ row.Key }</span>
+									if data.OrganizationKeys != nil && !data.OrganizationKeys[row.Key] {
+										<span class="ml-2 text-xs font-normal">Unused by current organization pipeline specs</span>
+									}
 									if row.Used {
 										<span class="ml-2 text-xs font-normal">Used</span>
 									}

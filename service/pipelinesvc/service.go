@@ -341,9 +341,10 @@ type PipelineSummary struct {
 
 // PipelineDetail contains persisted metadata plus the parsed pipeline spec.
 type PipelineDetail struct {
-	Summary *PipelineSummary
-	Spec    *pipelinespec.Pipeline
-	Draft   *PipelineDraftDetail
+	HasPendingSpec bool
+	Summary        *PipelineSummary
+	Spec           *pipelinespec.Pipeline
+	Draft          *PipelineDraftDetail
 }
 
 // PipelineDraftDetail contains mutable draft spec and metadata.
@@ -1619,9 +1620,10 @@ func (s *service) Get(
 	summary.HasDraft = draftDetail != nil
 
 	return &PipelineDetail{
-		Summary: summary,
-		Spec:    spec,
-		Draft:   draftDetail,
+		HasPendingSpec: meta.HasDraft,
+		Summary:        summary,
+		Spec:           spec,
+		Draft:          draftDetail,
 	}, nil
 }
 

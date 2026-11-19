@@ -752,6 +752,7 @@ func (r *Router) renderQueriesPage(
 				focusQuerySlug,
 				showDeleted,
 				permissions,
+				nil,
 			),
 		)
 	}
@@ -864,6 +865,18 @@ func (r *Router) renderQueriesPage(
 		}
 	}
 
+	var cleanup *views.CleanupFindings
+	if c.Query("cleanup") == "1" && !showDeleted && len(queries) > 0 {
+		used, known := r.organizationUsage(c.Context(), c.Get(fiber.HeaderCookie), orgSlug.String(), selectedDataSource, queries)
+		cleanup = &views.CleanupFindings{Known: known}
+		if known {
+			for _, q := range queries {
+				if !used[q.Slug] {
+					cleanup.Items = append(cleanup.Items, q.Slug)
+				}
+			}
+		}
+	}
 	shellData := r.buildShellDataForOrganizationPage(
 		c,
 		"Queries",
@@ -899,6 +912,7 @@ func (r *Router) renderQueriesPage(
 			focusQuerySlug,
 			showDeleted,
 			permissions,
+			cleanup,
 		),
 	)
 }

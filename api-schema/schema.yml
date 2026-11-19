@@ -16690,6 +16690,9 @@ components:
           properties:
             spec:
               $ref: '#/components/schemas/PipelineSpec'
+            has_pending_spec:
+              type: boolean
+              description: Whether any member has a saved draft of this project pipeline. Draft contents remain member-scoped.
             draft:
               allOf:
                 - $ref: '#/components/schemas/PipelineDraft'

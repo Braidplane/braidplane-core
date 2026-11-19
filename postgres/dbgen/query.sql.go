@@ -13271,7 +13271,9 @@ func (q *Queries) FindPipelineRunByRunSlug(ctx context.Context, arg FindPipeline
 }
 
 const findPipelineSpecBySlug = `-- name: FindPipelineSpecBySlug :one
-SELECT ps.id, ps.project_id, ps.slug, ps.name, ps.current_version_id, ps.spec_jsonb, ps.spec_hash, ps.sync_status, ps.source_path, ps.source_ref, ps.last_applied_commit, ps.deleted_at, ps.deleted_by, ps.delete_reason, ps.created_at, ps.updated_at, pv.spec_hash AS current_version_spec_hash
+SELECT ps.id, ps.project_id, ps.slug, ps.name, ps.current_version_id, ps.spec_jsonb, ps.spec_hash, ps.sync_status, ps.source_path, ps.source_ref, ps.last_applied_commit, ps.deleted_at, ps.deleted_by, ps.delete_reason, ps.created_at, ps.updated_at, pv.spec_hash AS current_version_spec_hash,
+    EXISTS (SELECT 1 FROM pipeline_drafts pd
+            WHERE pd.project_id = ps.project_id AND pd.pipeline_slug = ps.slug) AS has_pending_spec
 FROM pipeline_specs ps
 JOIN projects p ON ps.project_id = p.id
 JOIN organizations o ON p.organization_id = o.id
@@ -13306,6 +13308,7 @@ type FindPipelineSpecBySlugRow struct {
 	CreatedAt              pgtype.Timestamptz
 	UpdatedAt              pgtype.Timestamptz
 	CurrentVersionSpecHash pgtype.Text
+	HasPendingSpec         bool
 }
 
 func (q *Queries) FindPipelineSpecBySlug(ctx context.Context, arg FindPipelineSpecBySlugParams) (FindPipelineSpecBySlugRow, error) {
@@ -13329,12 +13332,15 @@ func (q *Queries) FindPipelineSpecBySlug(ctx context.Context, arg FindPipelineSp
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.CurrentVersionSpecHash,
+		&i.HasPendingSpec,
 	)
 	return i, err
 }
 
 const findPipelineSpecBySlugForUpdate = `-- name: FindPipelineSpecBySlugForUpdate :one
-SELECT ps.id, ps.project_id, ps.slug, ps.name, ps.current_version_id, ps.spec_jsonb, ps.spec_hash, ps.sync_status, ps.source_path, ps.source_ref, ps.last_applied_commit, ps.deleted_at, ps.deleted_by, ps.delete_reason, ps.created_at, ps.updated_at, pv.spec_hash AS current_version_spec_hash
+SELECT ps.id, ps.project_id, ps.slug, ps.name, ps.current_version_id, ps.spec_jsonb, ps.spec_hash, ps.sync_status, ps.source_path, ps.source_ref, ps.last_applied_commit, ps.deleted_at, ps.deleted_by, ps.delete_reason, ps.created_at, ps.updated_at, pv.spec_hash AS current_version_spec_hash,
+    EXISTS (SELECT 1 FROM pipeline_drafts pd
+            WHERE pd.project_id = ps.project_id AND pd.pipeline_slug = ps.slug) AS has_pending_spec
 FROM pipeline_specs ps
 JOIN projects p ON ps.project_id = p.id
 JOIN organizations o ON p.organization_id = o.id
@@ -13370,6 +13376,7 @@ type FindPipelineSpecBySlugForUpdateRow struct {
 	CreatedAt              pgtype.Timestamptz
 	UpdatedAt              pgtype.Timestamptz
 	CurrentVersionSpecHash pgtype.Text
+	HasPendingSpec         bool
 }
 
 func (q *Queries) FindPipelineSpecBySlugForUpdate(ctx context.Context, arg FindPipelineSpecBySlugForUpdateParams) (FindPipelineSpecBySlugForUpdateRow, error) {
@@ -13393,6 +13400,7 @@ func (q *Queries) FindPipelineSpecBySlugForUpdate(ctx context.Context, arg FindP
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.CurrentVersionSpecHash,
+		&i.HasPendingSpec,
 	)
 	return i, err
 }

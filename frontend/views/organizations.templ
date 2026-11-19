@@ -1078,10 +1078,7 @@ templ ProjectReadinessProblems(organization api.Organization, project api.Projec
 			}
 		</div>
 	}
-	{{ problem := projectEnvironmentProblem(projectContext) }}
-	if preview {
-		{{ problem = projectRuntimeTargetProblem(projectContext) }}
-	}
+	{{ problem := projectRuntimeTargetProblem(projectContext) }}
 	if problem != "" {
 		<div class="text-sm text-warning break-words">
 			<p>{ problem }</p>
@@ -1098,7 +1095,7 @@ templ ProjectReadinessProblems(organization api.Organization, project api.Projec
 templ OrganizationProjectDetailPanel(organization api.Organization, project api.Project, backendControls ProjectPipelineBackendControls, projectContext ProjectOperationalContext, permissions OrganizationPermissions) {
 	<div class="grid min-w-0 content-start gap-4">
 		{{ fullPage := true }}
-		{{ section := projectSection(ctx) }}
+		{{ section := ProjectSection(ctx) }}
 		{{ externalBackendLink := ProjectPipelineBackendExternalURL(project, backendControls) }}
 		@EntityDetailHeader(string(project.Name), string(project.Slug)) {
 			if externalBackendLink != nil {
@@ -1116,7 +1113,7 @@ templ OrganizationProjectDetailPanel(organization api.Organization, project api.
 					if item.Key == "repository" && (!projectRepositoryValidated(project)) {
 						@EntityAttentionBadge(projectRepositoryLabel(project))
 					}
-					if item.Key == "environments" {
+					if item.Key == "environments" && section != "overview" {
 						@EntityAttentionBadge(projectEnvironmentProblem(projectContext))
 					}
 				}
@@ -1146,6 +1143,7 @@ templ OrganizationProjectDetailPanel(organization api.Organization, project api.
 					}
 				}
 				@ProjectReadinessProblems(organization, project, projectContext, permissions, false)
+				@ProjectPipelineReadiness(organization.Slug, project.Slug, projectContext)
 			</section>
 		}
 		if section == "repository" {

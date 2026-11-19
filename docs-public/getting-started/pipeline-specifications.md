@@ -655,6 +655,12 @@ complete query-transform-sink example.
 
 ## Check readiness across environments
 
+Open the project **Overview** to see which enabled environments are ready for
+the current pipelines. Each environment counts affected logical refs and bindings
+per pipeline and missing organization variable keys once across pipelines. Follow
+the links to configure a binding, set a variable, or inspect a pipeline’s readiness
+matrix. The runtime environments page contains the full binding inventory.
+
 Open a pipeline and choose **Readiness** to compare its current configuration
 across enabled environments. Expand a requirement to see where the pipeline
 uses it. If the logical reference is missing, create it with
@@ -691,3 +697,16 @@ source and sink suitability, saved-operation compatibility where contract metada
 is available, and effective organization runtime variable values without running
 a connector. An empty project with enabled environments returns
 `informational`. A project with no enabled environments returns `warning`.
+
+## Check for unused runtime configuration
+
+On the project’s **Environments** page, choose **Check unused refs and bindings**
+to see which pipeline-owned logical refs and environment bindings its current
+specs no longer reference. On the organization’s runtime variable comparison,
+choose **Check organization pipeline usage** to identify unused keys. A
+definition can still require a value even when no pipeline references its key.
+
+In a data source’s query library, **Check pipeline usage** checks the saved
+operations on the current page against organization pipelines and their
+environment bindings. The check uses current canonical specs. Older deployed versions can still use these items. These read-only checks report unknown usage when they
+cannot resolve the relevant specs or metadata. Cleanup findings are informational.

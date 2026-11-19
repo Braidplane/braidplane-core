@@ -1,0 +1,20 @@
+package views
+
+templ cleanupSummary(heading string, findings *CleanupFindings) {
+	if findings != nil {
+		<section class="mt-4 rounded-lg border border-base-300 p-4">
+			<h2 class="font-semibold">{ heading }</h2>
+			if !findings.Known {
+				<p class="text-sm">Usage is unknown. Some pipeline or configuration metadata is pending or unavailable.</p>
+			} else if len(findings.Items) == 0 {
+				<p class="text-sm">No unused items found.</p>
+			} else {
+				<ul class="list-disc pl-5 text-sm">
+					for _, item := range findings.Items {
+						<li class="break-words">{ item }</li>
+					}
+				</ul>
+			}
+		</section>
+	}
+}
