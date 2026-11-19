@@ -41,7 +41,7 @@ class RuntimeSuiteTest(unittest.TestCase):
                     '(p/"keys.env").write_text("ENCRYPTION_KEY_HEX=synthetic\\nEXECUTION_REQUEST_KEY_HEX=synthetic\\n")\n'
                     'while True: time.sleep(1)\n')
                 result = subprocess.run(["bash", str(ROOT / "scripts/ci-runtime.sh"), suite],
-                    cwd=root, env=os.environ | {"CI": "true", "CI_GIT_IMAGE": "synthetic-fixture",
+                    cwd=root, env=os.environ | {"CI": "true", "GOFLAGS": "-p=1", "CI_GIT_IMAGE": "synthetic-fixture",
                         "CI_PLAYWRIGHT_IMAGE": "synthetic-browser",
                         "CALLS": str(calls), "FAILED_TASK": failed,
                         "PATH": f'{root / "bin"}:{os.environ["PATH"]}'},
@@ -59,7 +59,7 @@ class RuntimeSuiteTest(unittest.TestCase):
                     self.assertIn("task test-bruno", commands)
                     self.assertNotIn("run test:e2e", commands)
                     self.assertIn("mysql-connector-test", commands)
-                    self.assertIn("stripe 49124 -tags=stripe_bruno", commands)
+                    self.assertIn("stripe 49124 -p=1 -tags=stripe_bruno", commands)
                     self.assertIn("bind 127.0.0.1:0", commands)
                     self.assertIn("port hubspot-connector-test 8080", commands)
                     self.assertIn("hubspot http://127.0.0.1:49123 http://localhost:49123", commands)
