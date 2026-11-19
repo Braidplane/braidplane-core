@@ -485,6 +485,28 @@ func TestRouter_HandlePipelinesPage_UnauthorizedRedirectsToLogin(t *testing.T) {
 func TestRouter_HandlePipelineDetailPage_RendersMetadata(t *testing.T) {
 	t.Parallel()
 
+	readinessReplies := make(chan string, 3)
+	readinessReplies <- `{
+		"status":"blocked","environments":[
+			{"environment_slug":"dev","status":"ready","diagnostics":[],"requirements":[
+				{"kind":"data_source_ref","key":"ledger","capability":"pipeline_source","status":"ready",
+				 "usages":[{"step_slug":"load-ledger","field_path":"/steps/0/query/data_source_ref"},{"step_slug":"audit-ledger","field_path":"/steps/1/query/data_source_ref"}],
+				 "target":{"slug":"dev-ledger","type":"postgres","active":true,"read_only":true,"supports_capability":true}},
+				{"kind":"runtime_variable","key":"region","status":"ready","usages":[],"variable":{"present":true,"source":"default","value":"unrendered-fixture-value"}}]},
+			{"environment_slug":"prod","status":"blocked","diagnostics":[
+				{"code":"missing_binding","requirement_key":"ledger","field_path":"/steps/0/query/data_source_ref"},
+				{"code":"read_only_sink","requirement_key":"warehouse","field_path":"/steps/2/sink/data_source_ref"},
+				{"code":"missing_variable","requirement_key":"region","field_path":"/steps/0/query/parameters/region"}
+			],"requirements":[
+				{"kind":"data_source_ref","key":"ledger","status":"blocked","usages":[{"step_slug":"load-ledger","field_path":"/steps/0/query/data_source_ref"}]},
+				{"kind":"data_source_ref","key":"warehouse","status":"blocked","usages":[{"step_slug":"store","field_path":"/steps/2/sink/data_source_ref"}],
+				 "target":{"slug":"prod-ledger","type":"postgres","active":true,"read_only":true,"supports_capability":true}},
+				{"kind":"runtime_variable","key":"region","status":"blocked","usages":[{"step_slug":"load-ledger","field_path":"/steps/0/query/parameters/region"}],"variable":{"present":false,"source":"missing"}}]}
+		]}`
+	readinessReplies <- `{"status":"warning","environments":[]}`
+	readinessReplies <- ""
+	close(readinessReplies)
+
 	apiServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		if handleTestAdminRolePermissions(w, r) {
@@ -492,6 +514,14 @@ func TestRouter_HandlePipelineDetailPage_RendersMetadata(t *testing.T) {
 		}
 
 		switch r.URL.Path {
+		case "/api/organizations/acme-hq/projects/default/pipelines/customer-sync/readiness":
+			reply, ok := <-readinessReplies
+			assert.True(t, ok, "unexpected readiness request")
+			if reply == "" {
+				w.WriteHeader(http.StatusServiceUnavailable)
+				return
+			}
+			_, _ = io.WriteString(w, reply)
 		case "/api/organizations":
 			_, _ = w.Write(
 				[]byte(
@@ -583,6 +613,27 @@ func TestRouter_HandlePipelineDetailPage_RendersMetadata(t *testing.T) {
 		require.NoError(t, sectionResp.Body.Close())
 		require.Contains(t, string(sectionBody), `id="pipeline-`+section+`"`)
 		allSections += string(sectionBody)
+	}
+	for _, expected := range [][]string{
+		{`Requirements in dev`, `Requirements in prod`, ">ready<", ">blocked<", "Binding missing", "Sink requires a writable target", "Runtime variable missing",
+			"Organization default", "Absent", "dev-ledger", "Capability supported", "Read-only", "audit-ledger", "Usage locations (2)",
+			"/pipelines/customer-sync/bindings?", "#binding-cell-customer-sync-ledger-prod", "/organizations/acme-hq/runtime-variables?pipeline=customer-sync"},
+		{">warning<", "No runtime environments are enabled"},
+		{"Readiness unavailable", "Reload this section to retry"},
+	} {
+		request := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/orgs/acme-hq/projects/default/pipelines/customer-sync?section=readiness", nil)
+		request.Header.Set("Cookie", authCookie)
+		response, err := app.Test(request)
+		require.NoError(t, err)
+		require.Equal(t, http.StatusOK, response.StatusCode)
+		rendered, err := io.ReadAll(response.Body)
+		require.NoError(t, err)
+		require.NoError(t, response.Body.Close())
+		require.Contains(t, string(rendered), `id="pipeline-readiness"`)
+		for _, want := range expected {
+			require.Contains(t, string(rendered), want)
+		}
+		require.NotContains(t, string(rendered), "unrendered-fixture-value")
 	}
 	body = []byte(allSections)
 	require.Equal(t, http.StatusOK, resp.StatusCode)

@@ -642,6 +642,15 @@ complete query-transform-sink example.
 
 ## Check readiness across environments
 
+Open a pipeline and choose **Readiness** to compare its current configuration
+across enabled environments. Expand a requirement to see where the pipeline
+uses it. If the logical reference is missing, create it with
+`braidplane data-source-ref create`. Follow **Manage bindings** to bind the
+reference or change an unsuitable target. Use **Compare runtime variables**
+to address a missing organization variable.
+A ready environment has passed the listed configuration checks. Use the run
+history and inspect the destination to verify execution and output.
+
 Run `braidplane pipeline apply --project PROJECT --dry-run` to preview the
 readiness of the Git definitions before importing them. Omit `--dry-run` to
 import them. In both reports, each assessed definition in `synced` includes

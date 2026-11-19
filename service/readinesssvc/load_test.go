@@ -2,6 +2,7 @@ package readinesssvc
 
 import (
 	"context"
+	"encoding/json"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -107,11 +108,18 @@ func TestLoadSelectedPipeline(t *testing.T) {
 			require.Len(t, report.Environments, 2)
 			require.Equal(t, slug.Slug("dev"), report.Environments[0].EnvironmentSlug)
 			require.Equal(t, "ready", report.Environments[0].Status)
+			dev := report.Environments[0].Requirements
+			require.Len(t, dev, 2)
+			require.Equal(t, &Variable{Source: model.RuntimeVariableOverride, Present: true}, dev[1].Variable)
+			encoded, err := json.Marshal(report)
+			require.NoError(t, err)
+			require.NotContains(t, string(encoded), "synthetic")
 			prod := report.Environments[1]
 			require.Equal(t, slug.Slug("prod"), prod.EnvironmentSlug)
 			require.Len(t, prod.Diagnostics, 1)
 			require.Equal(t, "missing_variable", prod.Diagnostics[0].Code)
 			require.Equal(t, "batch", prod.Diagnostics[0].RequirementKey)
+			require.Equal(t, &Variable{Source: model.RuntimeVariableMissing}, prod.Requirements[1].Variable)
 		})
 	}
 }
@@ -132,6 +140,9 @@ func TestLoadWithoutVariables(t *testing.T) {
 	report, err := Load(t.Context(), pipelineWithoutVariables{}, environmentsWithoutComparison{loadEnvironments{t: t}}, &loadRefs{t: t}, "tenant", "project", "selected")
 	require.NoError(t, err)
 	require.Equal(t, "ready", report.Status)
+	encoded, err := json.Marshal(report.Environments[0])
+	require.NoError(t, err)
+	require.JSONEq(t, `{"environment_slug":"dev","status":"ready","diagnostics":[],"requirements":[]}`, string(encoded))
 }
 
 type projectRefs struct {
@@ -169,6 +180,9 @@ func TestLoadSpecsEvaluatesIncomingRequirementsInOrder(t *testing.T) {
 	reports, err := LoadSpecs(t.Context(), loadEnvironments{t: t}, refs, "tenant", "project", []*pipelinespec.Pipeline{first, &second, &third})
 	require.NoError(t, err)
 	require.Len(t, reports, 3)
+	encoded, err := json.Marshal(reports)
+	require.NoError(t, err)
+	require.NotContains(t, string(encoded), `"requirements"`)
 	require.Equal(t, 1, refs.lists)
 	require.Equal(t, []slug.Slug{"dev", "prod"}, refs.envs)
 	require.Equal(t, "ready", reports[0].Environments[0].Status)

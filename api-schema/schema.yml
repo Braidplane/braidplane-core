@@ -11893,6 +11893,73 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/ReadinessDiagnostic'
+        requirements:
+          type: array
+          description: Present on pipeline readiness responses. Each row groups the authored usages of one requirement in this environment.
+          items:
+            $ref: '#/components/schemas/ReadinessRequirement'
+
+    ReadinessRequirement:
+      type: object
+      required: [kind, key, status, usages]
+      properties:
+        kind:
+          type: string
+          enum: [data_source_ref, runtime_variable]
+          x-enum-varnames: [ReadinessDataSourceRef, ReadinessRuntimeVariable]
+        key:
+          type: string
+        status:
+          $ref: '#/components/schemas/ReadinessStatus'
+        usages:
+          type: array
+          items:
+            $ref: '#/components/schemas/ReadinessUsage'
+        capability:
+          $ref: '#/components/schemas/DataSourceRefCapability'
+        target:
+          $ref: '#/components/schemas/ReadinessTarget'
+        variable:
+          $ref: '#/components/schemas/ReadinessVariable'
+
+    ReadinessUsage:
+      type: object
+      required: [step_slug, field_path]
+      properties:
+        step_slug:
+          type: string
+        field_path:
+          type: string
+
+    ReadinessTarget:
+      type: object
+      required: [slug, name, type, active, read_only, supports_capability]
+      properties:
+        slug:
+          $ref: '#/components/schemas/Slug'
+        name:
+          type: string
+        type:
+          $ref: '#/components/schemas/DataSourceType'
+        active:
+          type: boolean
+        read_only:
+          type: boolean
+        supports_capability:
+          type: boolean
+
+    ReadinessVariable:
+      type: object
+      required: [source, present, type_mismatch]
+      properties:
+        source:
+          type: string
+          enum: [override, default, missing]
+          x-enum-varnames: [ReadinessVariableOverride, ReadinessVariableDefault, ReadinessVariableMissing]
+        present:
+          type: boolean
+        type_mismatch:
+          type: boolean
 
     ReadinessDiagnostic:
       type: object

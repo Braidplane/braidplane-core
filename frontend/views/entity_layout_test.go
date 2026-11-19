@@ -70,7 +70,7 @@ func TestEntitySectionAttentionBadges(t *testing.T) {
 	require.Empty(t, PipelineBindingAttentionLabel(&api.Pipeline{}, PipelineBindingContext{}))
 
 	var out bytes.Buffer
-	require.NoError(t, PipelineDetailPageContent("acme", "ops", "dev", "orders", pipeline, nil, false, PipelineRunPreview{}, nil, false, bindings, PipelineUpdateFormData{}, OrganizationPermissions{}).Render(context.Background(), &out))
+	require.NoError(t, PipelineDetailPageContent("acme", "ops", "dev", "orders", pipeline, nil, false, PipelineRunPreview{}, nil, false, bindings, nil, PipelineUpdateFormData{}, OrganizationPermissions{}).Render(context.Background(), &out))
 	require.Contains(t, out.String(), `section=deployments`)
 	require.Contains(t, out.String(), `title="Missing, invalid or unavailable bindings"`)
 	require.NotContains(t, out.String(), `id="pipeline-bindings"`)

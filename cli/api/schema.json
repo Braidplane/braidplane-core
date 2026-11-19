@@ -16883,6 +16883,13 @@
           "environment_slug": {
             "$ref": "#/components/schemas/Slug"
           },
+          "requirements": {
+            "description": "",
+            "items": {
+              "$ref": "#/components/schemas/ReadinessRequirement"
+            },
+            "type": "array"
+          },
           "status": {
             "$ref": "#/components/schemas/ReadinessStatus"
           }
@@ -16912,6 +16919,49 @@
         ],
         "type": "object"
       },
+      "ReadinessRequirement": {
+        "properties": {
+          "capability": {
+            "$ref": "#/components/schemas/DataSourceRefCapability"
+          },
+          "key": {
+            "type": "string"
+          },
+          "kind": {
+            "enum": [
+              "data_source_ref",
+              "runtime_variable"
+            ],
+            "type": "string",
+            "x-enum-varnames": [
+              "ReadinessDataSourceRef",
+              "ReadinessRuntimeVariable"
+            ]
+          },
+          "status": {
+            "$ref": "#/components/schemas/ReadinessStatus"
+          },
+          "target": {
+            "$ref": "#/components/schemas/ReadinessTarget"
+          },
+          "usages": {
+            "items": {
+              "$ref": "#/components/schemas/ReadinessUsage"
+            },
+            "type": "array"
+          },
+          "variable": {
+            "$ref": "#/components/schemas/ReadinessVariable"
+          }
+        },
+        "required": [
+          "kind",
+          "key",
+          "status",
+          "usages"
+        ],
+        "type": "object"
+      },
       "ReadinessStatus": {
         "enum": [
           "ready",
@@ -16926,6 +16976,81 @@
           "ReadinessStatusWarning",
           "ReadinessStatusInformational"
         ]
+      },
+      "ReadinessTarget": {
+        "properties": {
+          "active": {
+            "type": "boolean"
+          },
+          "name": {
+            "type": "string"
+          },
+          "read_only": {
+            "type": "boolean"
+          },
+          "slug": {
+            "$ref": "#/components/schemas/Slug"
+          },
+          "supports_capability": {
+            "type": "boolean"
+          },
+          "type": {
+            "$ref": "#/components/schemas/DataSourceType"
+          }
+        },
+        "required": [
+          "slug",
+          "name",
+          "type",
+          "active",
+          "read_only",
+          "supports_capability"
+        ],
+        "type": "object"
+      },
+      "ReadinessUsage": {
+        "properties": {
+          "field_path": {
+            "type": "string"
+          },
+          "step_slug": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "step_slug",
+          "field_path"
+        ],
+        "type": "object"
+      },
+      "ReadinessVariable": {
+        "properties": {
+          "present": {
+            "type": "boolean"
+          },
+          "source": {
+            "enum": [
+              "override",
+              "default",
+              "missing"
+            ],
+            "type": "string",
+            "x-enum-varnames": [
+              "ReadinessVariableOverride",
+              "ReadinessVariableDefault",
+              "ReadinessVariableMissing"
+            ]
+          },
+          "type_mismatch": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "source",
+          "present",
+          "type_mismatch"
+        ],
+        "type": "object"
       },
       "RecoverPipelineRunRequest": {
         "additionalProperties": false,

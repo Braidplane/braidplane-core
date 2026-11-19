@@ -1,0 +1,125 @@
+package views
+
+import (
+	"fmt"
+	"strings"
+
+	api "github.com/Braidplane/braidplane-core/api-schema/gen/client"
+)
+
+templ PipelineReadinessPanel(org string, project string, pipeline *api.Pipeline, report *api.ReadinessReport) {
+	<h2 class="text-lg font-semibold">Environment readiness</h2>
+	if report == nil {
+		@EntityState("Readiness unavailable", "The readiness report could not be loaded. Reload this section to retry.")
+	} else {
+		<p class="text-sm text-base-content/70">Current pipeline configuration across enabled environments. Check run history and destination output separately.</p>
+		if len(report.Environments) == 0 {
+			<span class={ readinessBadge(report.Status) }>{ string(report.Status) }</span>
+			<p>No runtime environments are enabled for this project.</p>
+		}
+		for _, env := range report.Environments {
+			<section class="min-w-0 space-y-3 rounded-xl border border-base-300 bg-base-100 p-4">
+				<h3 class="flex flex-wrap items-center gap-2 font-semibold">
+					{ env.EnvironmentSlug }
+					<span class={ readinessBadge(env.Status) }>{ string(env.Status) }</span>
+				</h3>
+				if env.Requirements == nil {
+					<p>Requirement details unavailable.</p>
+					for _, d := range env.Diagnostics {
+						<p>{ d.RequirementKey } · { readinessReason(d.Code, d.NextAction) }</p>
+					}
+				} else if len(*env.Requirements) == 0 {
+					<p>No data-source references or runtime variables required.</p>
+				} else {
+					{{ reasons := readinessReasons(env.Diagnostics) }}
+					<div class="overflow-x-auto" tabindex="0" role="region" aria-label={ "Requirements in " + env.EnvironmentSlug }>
+						<table class="table table-sm">
+							<caption class="sr-only">Pipeline requirements in { env.EnvironmentSlug }</caption>
+							<thead>
+								<tr><th scope="col">Requirement</th><th scope="col">Resolution</th><th scope="col">Status</th></tr>
+							</thead>
+							<tbody>
+								for _, req := range *env.Requirements {
+									<tr>
+										<th scope="row" class="align-top">
+											<span class="break-all font-mono">{ req.Key }</span>
+											<div class="font-normal">{ strings.ReplaceAll(string(req.Kind), "_", " ") }</div>
+											if req.Capability != nil {
+												<div class="font-normal">{ strings.ReplaceAll(string(*req.Capability), "_", " ") }</div>
+											}
+											if len(req.Usages) > 0 {
+												<details class="mt-1 font-normal">
+													<summary class="cursor-pointer">Usage locations ({ fmt.Sprint(len(req.Usages)) })</summary>
+													<ul>
+														for _, u := range req.Usages {
+															<li class="break-all">{ u.StepSlug } <code>{ u.FieldPath }</code>
+																for _, reason := range reasons[readinessLocation{key: req.Key, path: u.FieldPath}] {
+																	<span> · { reason }</span>
+																}
+															</li>
+														}
+													</ul>
+												</details>
+											}
+										</th>
+										<td class="align-top">
+											if t := req.Target; t != nil {
+												<code class="break-all">{ t.Slug }</code> · { string(t.Type) }
+												<div>
+													if t.Active {
+														<span>Active</span>
+													} else {
+														<span>Inactive</span>
+													}
+													·
+													if t.ReadOnly {
+														<span>Read-only</span>
+													} else {
+														<span>Writable</span>
+													}
+												</div>
+												if t.SupportsCapability {
+													<span>Capability supported</span>
+												} else {
+													<span>Capability unsupported</span>
+												}
+											} else if v := req.Variable; v != nil {
+												if v.Present {
+													<span>Present</span>
+													switch v.Source {
+														case "default":
+															<span> · Organization default</span>
+														case "override":
+															<span> · Environment override</span>
+													}
+												} else {
+													<span>Absent</span>
+												}
+											} else {
+												<span>No resolved target</span>
+											}
+										</td>
+										<td class="align-top">
+											<span class={ readinessBadge(req.Status) }>{ string(req.Status) }</span>
+											for _, reason := range requirementReasons(req, reasons) {
+												<div>{ reason }</div>
+											}
+											if req.Status == api.ReadinessStatusBlocked || req.Status == api.ReadinessStatusWarning {
+												switch req.Kind {
+													case "data_source_ref":
+														<a class="link" href={ templ.URL(readinessBindingsHref(ctx, org, project, env.EnvironmentSlug, req.Key, pipeline)) }>Manage bindings</a>
+													case "runtime_variable":
+														<a class="link" href={ templ.URL(readinessVariablesHref(org, project, pipeline)) }>Compare runtime variables</a>
+												}
+											}
+										</td>
+									</tr>
+								}
+							</tbody>
+						</table>
+					</div>
+				}
+			</section>
+		}
+	}
+}

@@ -5068,6 +5068,24 @@ func (e ReadinessDiagnosticSeverity) Valid() bool {
 	}
 }
 
+// Defines values for ReadinessRequirementKind.
+const (
+	ReadinessDataSourceRef   ReadinessRequirementKind = "data_source_ref"
+	ReadinessRuntimeVariable ReadinessRequirementKind = "runtime_variable"
+)
+
+// Valid indicates whether the value is a known member of the ReadinessRequirementKind enum.
+func (e ReadinessRequirementKind) Valid() bool {
+	switch e {
+	case ReadinessDataSourceRef:
+		return true
+	case ReadinessRuntimeVariable:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for ReadinessStatus.
 const (
 	ReadinessStatusBlocked       ReadinessStatus = "blocked"
@@ -5086,6 +5104,27 @@ func (e ReadinessStatus) Valid() bool {
 	case ReadinessStatusReady:
 		return true
 	case ReadinessStatusWarning:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ReadinessVariableSource.
+const (
+	ReadinessVariableDefault  ReadinessVariableSource = "default"
+	ReadinessVariableMissing  ReadinessVariableSource = "missing"
+	ReadinessVariableOverride ReadinessVariableSource = "override"
+)
+
+// Valid indicates whether the value is a known member of the ReadinessVariableSource enum.
+func (e ReadinessVariableSource) Valid() bool {
+	switch e {
+	case ReadinessVariableDefault:
+		return true
+	case ReadinessVariableMissing:
+		return true
+	case ReadinessVariableOverride:
 		return true
 	default:
 		return false
@@ -12214,9 +12253,10 @@ type ReadinessDiagnosticSeverity string
 
 // ReadinessEnvironment defines model for ReadinessEnvironment.
 type ReadinessEnvironment struct {
-	Diagnostics     []ReadinessDiagnostic `json:"diagnostics"`
-	EnvironmentSlug Slug                  `json:"environment_slug"`
-	Status          ReadinessStatus       `json:"status"`
+	Diagnostics     []ReadinessDiagnostic   `json:"diagnostics"`
+	EnvironmentSlug Slug                    `json:"environment_slug"`
+	Requirements    *[]ReadinessRequirement `json:"requirements,omitempty"`
+	Status          ReadinessStatus         `json:"status"`
 }
 
 // ReadinessReport defines model for ReadinessReport.
@@ -12225,8 +12265,48 @@ type ReadinessReport struct {
 	Status       ReadinessStatus        `json:"status"`
 }
 
+// ReadinessRequirement defines model for ReadinessRequirement.
+type ReadinessRequirement struct {
+	Capability *DataSourceRefCapability `json:"capability,omitempty"`
+	Key        string                   `json:"key"`
+	Kind       ReadinessRequirementKind `json:"kind"`
+	Status     ReadinessStatus          `json:"status"`
+	Target     *ReadinessTarget         `json:"target,omitempty"`
+	Usages     []ReadinessUsage         `json:"usages"`
+	Variable   *ReadinessVariable       `json:"variable,omitempty"`
+}
+
+// ReadinessRequirementKind defines model for ReadinessRequirement.Kind.
+type ReadinessRequirementKind string
+
 // ReadinessStatus defines model for ReadinessStatus.
 type ReadinessStatus string
+
+// ReadinessTarget defines model for ReadinessTarget.
+type ReadinessTarget struct {
+	Active             bool           `json:"active"`
+	Name               string         `json:"name"`
+	ReadOnly           bool           `json:"read_only"`
+	Slug               Slug           `json:"slug"`
+	SupportsCapability bool           `json:"supports_capability"`
+	Type               DataSourceType `json:"type"`
+}
+
+// ReadinessUsage defines model for ReadinessUsage.
+type ReadinessUsage struct {
+	FieldPath string `json:"field_path"`
+	StepSlug  string `json:"step_slug"`
+}
+
+// ReadinessVariable defines model for ReadinessVariable.
+type ReadinessVariable struct {
+	Present      bool                    `json:"present"`
+	Source       ReadinessVariableSource `json:"source"`
+	TypeMismatch bool                    `json:"type_mismatch"`
+}
+
+// ReadinessVariableSource defines model for ReadinessVariable.Source.
+type ReadinessVariableSource string
 
 // RecoverPipelineRunRequest defines model for RecoverPipelineRunRequest.
 type RecoverPipelineRunRequest struct {
