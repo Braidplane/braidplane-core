@@ -1,0 +1,11 @@
+openapi: 3.1.0
+info: {title: Core nullable enum qualification, version: "1"}
+paths: {}
+components:
+  schemas:
+    OrganizationRetentionRunFailureCode:
+      type: [string, "null"]
+      enum: [invalid_policy, maintenance_failed, null]
+      x-enum-varnames:
+        - OrganizationRetentionRunFailureCodeInvalidPolicy
+        - OrganizationRetentionRunFailureCodeMaintenanceFailed

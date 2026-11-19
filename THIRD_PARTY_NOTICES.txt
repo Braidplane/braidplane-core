@@ -21205,7 +21205,7 @@ SOFTWARE.
 // Changes made to it permit users of the package to tell
 // if some slice of bytes is a valid beginning of a json string.
 
-github.com/getkin/kin-openapi v0.149.0
+github.com/getkin/kin-openapi v0.152.0
 ======================================
 
 --- LICENSE ---
@@ -32029,7 +32029,7 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 
-github.com/oapi-codegen/runtime v1.7.0
+github.com/oapi-codegen/runtime v1.9.0
 ======================================
 
 --- LICENSE ---
@@ -62226,7 +62226,7 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 
-github.com/oapi-codegen/oapi-codegen/v2 v2.8.0 (generator input)
+github.com/oapi-codegen/oapi-codegen/v2 v2.8.2 (generator input)
 
 --- LICENSE ---
                                  Apache License

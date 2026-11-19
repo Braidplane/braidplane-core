@@ -141,14 +141,25 @@ func checkCheckpointRetentionPolicy(t *testing.T, ctx context.Context, pool *pgx
 	require.NoError(t, expireFileInputs(ctx, txm))
 	requests := requestrepo.New()
 	id := uuid.New()
-	require.NoError(t, requests.Create(ctx, pool, requestrepo.Request{ID: id, OrganizationSlug: org.String(), Kind: "prepare_s3_write", RequestCiphertext: []byte("synthetic policy reader"), DeadlineAt: time.Now().Add(time.Minute)}, time.Now().Add(time.Hour)))
+	// Claim the synthetic reader before the broker pollers can see it.
+	var reader requestrepo.Request
+	require.NoError(t, txm.RunInTx(ctx, func(ctx context.Context, db postgres.DBTX) error {
+		if err := requests.Create(ctx, db, requestrepo.Request{ID: id, OrganizationSlug: org.String(), Kind: "prepare_s3_write", RequestCiphertext: []byte("synthetic policy reader"), DeadlineAt: time.Now().Add(time.Minute)}, time.Now().Add(time.Hour)); err != nil {
+			return err
+		}
+		var claimed bool
+		var err error
+		reader, claimed, err = requests.Claim(ctx, db, id)
+		if err != nil {
+			return err
+		}
+		require.True(t, claimed)
+		return nil
+	}))
 	defer func() {
 		_, err := pool.Exec(context.WithoutCancel(ctx), `DELETE FROM execution_requests WHERE id=$1`, id)
 		require.NoError(t, err)
 	}()
-	reader, claimed, err := requests.Claim(ctx, pool, id)
-	require.NoError(t, err)
-	require.True(t, claimed)
 	claim := filestream.Claim{RequestID: id, ClaimToken: reader.ClaimToken, Organization: org}
 	files := retainedfiles.New()
 	sourceID, err := uuid.FromString(source)

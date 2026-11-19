@@ -15,7 +15,7 @@ require (
 	github.com/aws/aws-sdk-go-v2/service/s3 v1.111.0
 	github.com/aws/smithy-go v1.28.5
 	github.com/coreos/go-oidc/v3 v3.16.0
-	github.com/getkin/kin-openapi v0.149.0
+	github.com/getkin/kin-openapi v0.152.0
 	github.com/go-openapi/jsonpointer v0.23.1
 	github.com/go-playground/validator/v10 v10.27.0
 	github.com/go-sql-driver/mysql v1.9.3
@@ -24,12 +24,12 @@ require (
 	github.com/golang-migrate/migrate/v4 v4.18.1
 	github.com/google/go-github/v85 v85.0.0
 	github.com/google/uuid v1.6.0
-	github.com/jackc/pgx-gofrs-uuid v0.0.0-20230224015001-1d428863c2e2
 	github.com/jackc/pgservicefile v0.0.0-20240606120523-5a60cdf6a761
+	github.com/jackc/pgx-gofrs-uuid v0.0.0-20230224015001-1d428863c2e2
 	github.com/jackc/pgx/v5 v5.11.0
 	github.com/jlaffaye/ftp v0.2.0
 	github.com/nicksnyder/go-i18n/v2 v2.6.0
-	github.com/oapi-codegen/runtime v1.7.0
+	github.com/oapi-codegen/runtime v1.9.0
 	github.com/open-policy-agent/opa v1.9.0
 	github.com/pingcap/tidb/pkg/parser v0.0.0-20250324122243-d51e00e5bbf0
 	github.com/prometheus/client_golang v1.23.2

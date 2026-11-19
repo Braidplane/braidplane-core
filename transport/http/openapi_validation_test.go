@@ -52,6 +52,7 @@ components:
 	api := fiber.New(fiber.Config{ErrorHandler: apierror.Middleware()})
 	api.Use(validator)
 	api.Post("/body/:slug", func(c fiber.Ctx) error {
+		require.Equal(t, map[string]any{"name": "preserved"}, c.Locals("x-oapi-codegen-validated-body"))
 		var body struct {
 			Name string `json:"name"`
 		}
