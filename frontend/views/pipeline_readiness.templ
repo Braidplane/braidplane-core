@@ -7,7 +7,7 @@ import (
 	api "github.com/Braidplane/braidplane-core/api-schema/gen/client"
 )
 
-templ PipelineReadinessPanel(org string, project string, pipeline *api.Pipeline, report *api.ReadinessReport) {
+templ PipelineReadinessPanel(org string, project string, pipeline *api.Pipeline, report *api.ReadinessReport, colors map[string]string) {
 	<h2 class="text-lg font-semibold">Environment readiness</h2>
 	if report == nil {
 		@EntityState("Readiness unavailable", "The readiness report could not be loaded. Reload this section to retry.")
@@ -20,7 +20,7 @@ templ PipelineReadinessPanel(org string, project string, pipeline *api.Pipeline,
 		for _, env := range report.Environments {
 			<section class="min-w-0 space-y-3 rounded-xl border border-base-300 bg-base-100 p-4">
 				<h3 class="flex flex-wrap items-center gap-2 font-semibold">
-					{ env.EnvironmentSlug }
+					<span class={ EnvironmentColorBadgeClass(colors[env.EnvironmentSlug]) }>{ env.EnvironmentSlug }</span>
 					<span class={ readinessBadge(env.Status) }>{ string(env.Status) }</span>
 				</h3>
 				if env.Requirements == nil {

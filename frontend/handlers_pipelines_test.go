@@ -536,7 +536,7 @@ func TestRouter_HandlePipelineDetailPage_RendersMetadata(t *testing.T) {
 			)
 		case "/api/organizations/acme-hq/projects/default/environments":
 			_, _ = w.Write([]byte(
-				`{"project_environments":[{"environment_slug":"dev","environment_name":"Development","environment_description":null,"is_default":true,"enabled_at":"2026-03-02T00:00:00Z","updated_at":"2026-03-02T00:00:00Z"},{"environment_slug":"prod","environment_name":"Production","environment_description":null,"is_default":false,"enabled_at":"2026-03-02T00:00:00Z","updated_at":"2026-03-02T00:00:00Z"}],"has_more":false,"next_cursor":null,"prev_cursor":null}`,
+				`{"project_environments":[{"environment_slug":"dev","environment_name":"Development","environment_color":"purple","environment_description":null,"is_default":true,"enabled_at":"2026-03-02T00:00:00Z","updated_at":"2026-03-02T00:00:00Z"},{"environment_slug":"prod","environment_name":"Production","environment_color":"amber","environment_description":null,"is_default":false,"enabled_at":"2026-03-02T00:00:00Z","updated_at":"2026-03-02T00:00:00Z"}],"has_more":false,"next_cursor":null,"prev_cursor":null}`,
 			))
 		case "/api/organizations/acme-hq/projects/default/data-source-refs":
 			_, _ = w.Write([]byte(
@@ -617,6 +617,7 @@ func TestRouter_HandlePipelineDetailPage_RendersMetadata(t *testing.T) {
 	for _, expected := range [][]string{
 		{
 			`Requirements in dev`, `Requirements in prod`, ">ready<", ">blocked<", "Binding missing", "Sink requires a writable target", "Runtime variable missing",
+			`text-purple-200">dev</span>`, `text-warning">prod</span>`,
 			"Organization default", "Absent", "dev-ledger", "Capability supported", "Read-only", "audit-ledger", "Usage locations (2)",
 			"/pipelines/customer-sync/bindings?", "#binding-cell-customer-sync-ledger-prod", "/organizations/acme-hq/runtime-variables?pipeline=customer-sync",
 		},

@@ -71,7 +71,7 @@ templ PipelineDetailPageContent(orgSlug string, activeProjectSlug string, active
 					case "connections":
 						@PipelineConnectionsPanel()
 					case "readiness":
-						@PipelineReadinessPanel(orgSlug, activeProjectSlug, pipeline, readiness)
+						@PipelineReadinessPanel(orgSlug, activeProjectSlug, pipeline, readiness, ProjectEnvironmentColorMap(bindingContext.Environments))
 					case "deployments":
 						<div class="flex flex-wrap items-center justify-between gap-3">
 							<h2 class="text-lg font-semibold">Deployments</h2>

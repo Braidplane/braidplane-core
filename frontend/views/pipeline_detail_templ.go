@@ -407,7 +407,7 @@ func PipelineDetailPageContent(orgSlug string, activeProjectSlug string, activeE
 					return templ_7745c5c3_Err
 				}
 			case "readiness":
-				templ_7745c5c3_Err = PipelineReadinessPanel(orgSlug, activeProjectSlug, pipeline, readiness).Render(ctx, templ_7745c5c3_Buffer)
+				templ_7745c5c3_Err = PipelineReadinessPanel(orgSlug, activeProjectSlug, pipeline, readiness, ProjectEnvironmentColorMap(bindingContext.Environments)).Render(ctx, templ_7745c5c3_Buffer)
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
