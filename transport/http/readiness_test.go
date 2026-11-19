@@ -3,6 +3,7 @@ package http
 import (
 	"context"
 	"net/http"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -14,6 +15,7 @@ import (
 	pipelinespec "github.com/Braidplane/braidplane-core/pkg/pipeline/spec"
 	"github.com/Braidplane/braidplane-core/pkg/slug"
 	"github.com/Braidplane/braidplane-core/service/authorization"
+	"github.com/Braidplane/braidplane-core/service/datasourcerefssvc"
 	"github.com/Braidplane/braidplane-core/service/pipelinesvc"
 	"github.com/Braidplane/braidplane-core/service/projectssvc"
 )
@@ -59,17 +61,40 @@ func TestReadinessReadsPersistedPipelineInRequestedProject(t *testing.T) {
 						assert.Equal(t, must.Slug("ops"), project)
 						assert.Equal(t, must.Slug("settlement-review"), pipeline)
 						assert.Empty(t, member)
-						return &pipelinesvc.PipelineDetail{Spec: &pipelinespec.Pipeline{}}, nil
+						return &pipelinesvc.PipelineDetail{Spec: &pipelinespec.Pipeline{
+							Metadata: pipelinespec.Metadata{Slug: pipeline},
+							Steps:    []pipelinespec.Step{{Slug: "read", Kind: "query", Query: &pipelinespec.QueryRef{DataSourceSlug: "ledger", OperationType: "sql"}}},
+						}}, nil
 					},
 				},
+				dataSourceRefsService: &fakeDataSourceRefsService{GetDataSourceRefFn: func(context.Context, slug.Slug, slug.Slug, slug.Slug, slug.Slug) (*model.DataSourceRef, error) {
+					return nil, datasourcerefssvc.ErrDataSourceRefNotFound
+				}},
 				environmentsService: &fakeEnvironmentsService{ListProjectEnvironmentsFn: func(context.Context, slug.Slug, slug.Slug, model.ListRequest) (model.ListResponse[model.ProjectEnvironment], error) {
-					return model.ListResponse[model.ProjectEnvironment]{}, nil
+					return model.ListResponse[model.ProjectEnvironment]{Items: []model.ProjectEnvironment{{Environment: model.Environment{Slug: "dev"}}}}, nil
 				}},
 			})
 			resp := authenticatedRequest(t, app, store, must.Slug("johndoe"), jsonRequest(t, http.MethodGet, path, nil))
 			defer func() { require.NoError(t, resp.Body.Close()) }()
 			require.Equal(t, http.StatusOK, resp.StatusCode)
-			assertResponse(t, resp, api.ReadinessReport{Status: api.ReadinessStatusWarning, Environments: []api.ReadinessEnvironment{}})
+			report := parseResponse[api.ReadinessReport](t, resp)
+			require.Equal(t, api.ReadinessStatusBlocked, report.Status)
+			require.Len(t, report.Environments, 1)
+			env := report.Environments[0]
+			require.Len(t, env.Diagnostics, 1)
+			require.Equal(t, "missing_ref", env.Diagnostics[0].Code)
+			if strings.Contains(path, "/pipelines/") {
+				require.NotNil(t, env.Requirements)
+				require.Len(t, *env.Requirements, 1)
+				row := (*env.Requirements)[0]
+				require.Equal(t, api.ReadinessDataSourceRef, row.Kind)
+				require.Equal(t, "ledger", row.Key)
+				require.Equal(t, api.ReadinessStatusBlocked, row.Status)
+				require.Nil(t, row.Target)
+				require.Equal(t, []api.ReadinessUsage{{StepSlug: "read", FieldPath: env.Diagnostics[0].FieldPath}}, row.Usages)
+			} else {
+				require.Nil(t, env.Requirements)
+			}
 		})
 	}
 }

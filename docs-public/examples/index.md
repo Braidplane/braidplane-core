@@ -24,7 +24,7 @@ The original runs used the source revision recorded with each recipe. Separate o
 
 The five recipes above were run locally and their destination output was compared with the expected results. PostgreSQL, MongoDB, MySQL and S3-compatible storage used local containers. HTTP used a synthetic fixture, while BigQuery and HubSpot used local protocol mocks. To run against Google Cloud or HubSpot, configure your own account and permissions.
 
-The examples repository also includes an advanced [settlement review](https://github.com/Braidplane/examples/blob/main/recipes/settlement-review/README.md) demo with local execution and reporting-table checks. Its specification passed offline validation with public CLI alpha.6.
+The examples repository also includes an advanced [settlement review](https://github.com/Braidplane/examples/blob/main/recipes/settlement-review/README.md) demo with local execution and reporting-table checks. Its specification passed offline validation with public CLI alpha.6. After importing it, open the pipeline’s [Readiness section](../getting-started/pipeline-specifications.md#check-readiness-across-environments) to find and correct setup issues for each environment.
 
 Each recipe records its executed version, run and step results. The [coverage and friction ledger](https://github.com/Braidplane/examples/blob/main/COVERAGE.md) lists test scope and known failures, including a transform-contract mismatch and a missing binding.
 

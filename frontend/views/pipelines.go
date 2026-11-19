@@ -907,7 +907,7 @@ func formatPipelineDraftUpdatedAt(draft *api.PipelineDraft) string {
 // pipelineDetailSection accepts only the workspace's SSR destinations.
 func pipelineDetailSection(ctx context.Context) string {
 	switch section := entityPageURL(ctx).Query().Get("section"); section {
-	case "workflow", "runs", "connections", "deployments", "git":
+	case "workflow", "runs", "connections", "readiness", "deployments", "git":
 		return section
 	default:
 		return "overview"

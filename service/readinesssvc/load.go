@@ -44,7 +44,7 @@ func Load(ctx context.Context, pipelines pipelinesvc.Service, environments envir
 	if err != nil {
 		return Report{}, err
 	}
-	return Evaluate(inputs, envs), nil
+	return evaluate(inputs, envs, pipeline != ""), nil
 }
 
 // LoadSpecs evaluates incoming pipeline specs against the project's current setup.
@@ -78,9 +78,9 @@ func loadSetup(ctx context.Context, environments environmentssvc.Service, refs d
 		return nil, err
 	}
 	envs := make([]EnvironmentInput, len(enabled))
-	vars := make(map[slug.Slug]map[string]bool, len(enabled))
+	vars := make(map[slug.Slug]map[string]Variable, len(enabled))
 	for i, e := range enabled {
-		envs[i] = EnvironmentInput{Slug: e.Environment.Slug, Variables: map[string]bool{}}
+		envs[i] = EnvironmentInput{Slug: e.Environment.Slug, Variables: map[string]Variable{}}
 		vars[e.Environment.Slug] = envs[i].Variables
 	}
 	if len(inputs) == 0 || len(envs) == 0 {
@@ -111,7 +111,7 @@ func loadSetup(ctx context.Context, environments environmentssvc.Service, refs d
 	for _, row := range comparison.Rows {
 		for i, cell := range row.Cells {
 			if keys := vars[comparison.Environments[i]]; keys != nil {
-				keys[row.Key] = cell.Variable != nil && !cell.TypeMismatch
+				keys[row.Key] = Variable{Source: cell.Source, Present: cell.Variable != nil, TypeMismatch: cell.TypeMismatch}
 			}
 		}
 	}

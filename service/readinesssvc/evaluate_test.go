@@ -35,20 +35,33 @@ func TestSettlementReadiness(t *testing.T) {
 	}
 	pipeline.Bindings = append(pipeline.Bindings,
 		model.DataSourceBinding{EnvironmentSlug: "prod", DataSourceRefSlug: "settlement-file", DataSourceType: model.DataSourceTypePostgres, DataSourceActive: true},
-		model.DataSourceBinding{EnvironmentSlug: "prod", DataSourceRefSlug: "reporting-warehouse", DataSourceType: model.DataSourceTypePostgres, DataSourceReadOnly: true},
+		model.DataSourceBinding{EnvironmentSlug: "prod", DataSourceRefSlug: "reporting-warehouse", DataSourceSlug: "warehouse", DataSourceName: "Reporting warehouse", DataSourceType: model.DataSourceTypePostgres, DataSourceReadOnly: true},
 	)
-	envs := []EnvironmentInput{{Slug: "dev", Variables: map[string]bool{"review_date": true}}, {Slug: "prod"}}
+	envs := []EnvironmentInput{{Slug: "dev", Variables: map[string]Variable{"review_date": {Source: model.RuntimeVariableDefault, Present: true}}}, {Slug: "prod"}}
 	before, err := json.Marshal(pipeline.Spec)
 	require.NoError(t, err)
-	report := Evaluate([]PipelineInput{pipeline}, envs)
+	report := evaluate([]PipelineInput{pipeline}, envs, true)
 	after, err := json.Marshal(pipeline.Spec)
 	require.NoError(t, err)
 	require.Equal(t, before, after)
 	require.Equal(t, "blocked", report.Status)
 	require.Equal(t, "ready", report.Environments[0].Status)
 	require.Empty(t, report.Environments[0].Diagnostics)
+	dev := report.Environments[0].Requirements
+	require.Len(t, dev, 4)
+	require.Equal(t, &Variable{Source: model.RuntimeVariableDefault, Present: true}, dev[3].Variable)
+	require.Equal(t, "ready", dev[2].Status)
 	prod := report.Environments[1]
 	require.Equal(t, "blocked", prod.Status)
+	require.Len(t, prod.Requirements, 4)
+	require.Nil(t, prod.Requirements[1].Target)
+	row := prod.Requirements[2]
+	require.Equal(t, "data_source_ref", row.Kind)
+	require.Equal(t, "reporting-warehouse", row.Key)
+	require.Equal(t, sink, row.Capability)
+	require.Equal(t, "blocked", row.Status)
+	require.Equal(t, []Usage{{StepSlug: "write-comparisons", FieldPath: "/steps/2/sink/data_source_ref"}, {StepSlug: "write-totals", FieldPath: "/steps/3/sink/data_source_ref"}}, row.Usages)
+	require.Equal(t, &Target{Slug: "warehouse", Name: "Reporting warehouse", Type: model.DataSourceTypePostgres, ReadOnly: true, SupportsCapability: true}, row.Target)
 	var codes []string
 	for _, d := range prod.Diagnostics {
 		require.Equal(t, slug.Slug("prod"), d.EnvironmentSlug)
@@ -93,4 +106,29 @@ func TestIncompatibleLogicalRefAction(t *testing.T) {
 		}
 		require.Equal(t, expected, actions)
 	}
+}
+
+func TestRequirementStatusSeparatesSharedKeyByCapabilityAndKind(t *testing.T) {
+	source, sink := model.DataSourceRefCapabilityPipelineSource, model.DataSourceRefCapabilityPipelineSink
+	p := PipelineInput{
+		Spec: &pipelinespec.Pipeline{Steps: []pipelinespec.Step{
+			{Slug: "read", Query: &pipelinespec.QueryRef{DataSourceSlug: "ledger", OperationType: "sql", Parameters: map[string]any{"date": "{{runtime.env.ledger}}"}}},
+			{Slug: "write", Sink: &pipelinespec.SinkSpec{DataSourceSlug: "ledger", OperationType: "sql"}},
+		}},
+		Refs:     []model.DataSourceRef{{Slug: "ledger", RequiredCapabilities: []model.DataSourceRefCapability{source, sink}}},
+		Bindings: []model.DataSourceBinding{{EnvironmentSlug: "dev", DataSourceRefSlug: "ledger", DataSourceActive: true, DataSourceReadOnly: true, DataSourceType: model.DataSourceTypePostgres}},
+	}
+	env := EnvironmentInput{Slug: "dev", Variables: map[string]Variable{"ledger": {Source: model.RuntimeVariableOverride, Present: true, TypeMismatch: true}}}
+	result := evaluate([]PipelineInput{p}, []EnvironmentInput{env}, true).Environments[0]
+	require.Len(t, result.Requirements, 3)
+	require.Equal(t, "ready", result.Requirements[0].Status)
+	require.Equal(t, "blocked", result.Requirements[1].Status)
+	require.Equal(t, "blocked", result.Requirements[2].Status)
+	require.Equal(t, &Variable{Source: model.RuntimeVariableOverride, Present: true, TypeMismatch: true}, result.Requirements[2].Variable)
+	require.Len(t, result.Diagnostics, 2)
+	require.Equal(t, "read_only_sink", result.Diagnostics[0].Code)
+	require.Equal(t, "variable_type_mismatch", result.Diagnostics[1].Code)
+	summary := Evaluate([]PipelineInput{p}, []EnvironmentInput{env}).Environments[0]
+	require.Nil(t, summary.Requirements)
+	require.Equal(t, "missing_variable", summary.Diagnostics[1].Code)
 }

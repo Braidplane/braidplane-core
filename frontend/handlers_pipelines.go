@@ -865,6 +865,16 @@ func (r *Router) renderPipelineDetailPage(
 			c.SetContext(views.WithRecencyInspection(c.Context(), response.JSON200))
 		}
 	}
+	var readiness *api.ReadinessReport
+	if pipeline != nil && c.Query("section") == "readiness" {
+		response, err := r.apiClient.GetPipelineReadinessWithResponse(c.Context(), orgSlug.String(), activeProjectSlug, pipelineSlug.String(), frontendRequestEditor(c.Context(), c.Get(fiber.HeaderCookie)))
+		if err == nil {
+			if response.StatusCode() == fiber.StatusUnauthorized {
+				return redirectToLogin(c, c.OriginalURL())
+			}
+			readiness = response.JSON200
+		}
+	}
 	if pipeline != nil && c.Query("section") == "connections" {
 		connections, unauthorized := r.loadPipelineConnections(c, orgSlug.String(), activeProjectSlug, shellData.ActiveEnvironmentSlug, pipelineSlug.String())
 		if unauthorized {
@@ -889,6 +899,7 @@ func (r *Router) renderPipelineDetailPage(
 			validationResults,
 			validationUnavailable,
 			bindingContext,
+			readiness,
 			updateFormData,
 			permissions,
 		),

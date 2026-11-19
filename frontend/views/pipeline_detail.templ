@@ -2,11 +2,11 @@ package views
 
 import api "github.com/Braidplane/braidplane-core/api-schema/gen/client"
 
-templ PipelineDetailPage(shellData AuthenticatedShellData, orgSlug string, activeProjectSlug string, activeEnvironmentSlug string, pipelineSlug string, pipeline *api.Pipeline, deployments []PipelineDeploymentBadge, deploymentsUnavailable bool, runPreview PipelineRunPreview, validationResults []api.PipelineValidationResultRecord, validationUnavailable bool, bindingContext PipelineBindingContext, updateFormData PipelineUpdateFormData, permissions OrganizationPermissions) {
-	@AuthenticatedShell(shellData, PipelineDetailPageContent(orgSlug, activeProjectSlug, activeEnvironmentSlug, pipelineSlug, pipeline, deployments, deploymentsUnavailable, runPreview, validationResults, validationUnavailable, bindingContext, updateFormData, permissions))
+templ PipelineDetailPage(shellData AuthenticatedShellData, orgSlug string, activeProjectSlug string, activeEnvironmentSlug string, pipelineSlug string, pipeline *api.Pipeline, deployments []PipelineDeploymentBadge, deploymentsUnavailable bool, runPreview PipelineRunPreview, validationResults []api.PipelineValidationResultRecord, validationUnavailable bool, bindingContext PipelineBindingContext, readiness *api.ReadinessReport, updateFormData PipelineUpdateFormData, permissions OrganizationPermissions) {
+	@AuthenticatedShell(shellData, PipelineDetailPageContent(orgSlug, activeProjectSlug, activeEnvironmentSlug, pipelineSlug, pipeline, deployments, deploymentsUnavailable, runPreview, validationResults, validationUnavailable, bindingContext, readiness, updateFormData, permissions))
 }
 
-templ PipelineDetailPageContent(orgSlug string, activeProjectSlug string, activeEnvironmentSlug string, pipelineSlug string, pipeline *api.Pipeline, deployments []PipelineDeploymentBadge, deploymentsUnavailable bool, runPreview PipelineRunPreview, validationResults []api.PipelineValidationResultRecord, validationUnavailable bool, bindingContext PipelineBindingContext, updateFormData PipelineUpdateFormData, permissions OrganizationPermissions) {
+templ PipelineDetailPageContent(orgSlug string, activeProjectSlug string, activeEnvironmentSlug string, pipelineSlug string, pipeline *api.Pipeline, deployments []PipelineDeploymentBadge, deploymentsUnavailable bool, runPreview PipelineRunPreview, validationResults []api.PipelineValidationResultRecord, validationUnavailable bool, bindingContext PipelineBindingContext, readiness *api.ReadinessReport, updateFormData PipelineUpdateFormData, permissions OrganizationPermissions) {
 	{{ section := pipelineDetailSection(ctx) }}
 	{{ detailHref := pipelineDetailHrefWithEnvironment(orgSlug, activeProjectSlug, activeEnvironmentSlug, pipelineSlug) }}
 	{{
@@ -38,6 +38,7 @@ templ PipelineDetailPageContent(orgSlug string, activeProjectSlug string, active
 				@EntitySectionLink(entitySectionHref(ctx, detailHref, "workflow"), "Workflow", section == "workflow")
 				@EntitySectionLink(entitySectionHref(ctx, detailHref, "runs"), "Runs", section == "runs")
 				@EntitySectionLink(entitySectionHref(ctx, detailHref, "connections"), "Connections", section == "connections")
+				@EntitySectionLink(entitySectionHref(ctx, detailHref, "readiness"), "Readiness", section == "readiness")
 				@EntitySectionLink(entitySectionHref(ctx, detailHref, "deployments"), "Deployments", section == "deployments") {
 					@EntityAttentionBadge(PipelineBindingAttentionLabel(pipeline, bindingContext))
 					if validationUnavailable {
@@ -69,6 +70,8 @@ templ PipelineDetailPageContent(orgSlug string, activeProjectSlug string, active
 						@PipelineEnvironmentRunPreview(orgSlug, activeProjectSlug, activeEnvironmentSlug, pipelineSlug, detailHref, runPreview, deployments, deploymentsUnavailable, section == "runs")
 					case "connections":
 						@PipelineConnectionsPanel()
+					case "readiness":
+						@PipelineReadinessPanel(orgSlug, activeProjectSlug, pipeline, readiness, ProjectEnvironmentColorMap(bindingContext.Environments))
 					case "deployments":
 						<div class="flex flex-wrap items-center justify-between gap-3">
 							<h2 class="text-lg font-semibold">Deployments</h2>
