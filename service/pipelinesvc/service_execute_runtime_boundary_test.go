@@ -367,7 +367,7 @@ func TestService_StartRunPersistsQueuedRunAndEnqueuesExecution(t *testing.T) {
 			require.Equal(t, specHash, runProducer.args.PipelineVersionHash)
 			require.Equal(t, runSlug, runProducer.args.RunSlug)
 			require.Equal(t, acceptedAt, runProducer.args.AcceptedAt)
-			require.Equal(t, map[string]any{"customer_id": "cus_123", "dry_run": true}, runProducer.args.RuntimeInput)
+			require.Equal(t, map[string]any{"customer_id": "cus_123", "dry_run": true}, map[string]any(runProducer.args.RuntimeInput))
 			require.False(t, runProducer.args.ProtectedEnvironment)
 			if backfill {
 				require.Len(t, recordedEvents.calls, 1)

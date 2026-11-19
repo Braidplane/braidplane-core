@@ -158,7 +158,7 @@ func testRunnerRecoveryPreservesEffect(t *testing.T, source pipelinerun.RunSourc
 	t.Helper()
 	ledger := &recoveryLedger{effects: map[string]pipelinerun.SinkEffectState{}, loseAck: true}
 	sourceCalls := 0
-	sourceValue := 1
+	sourceValue := json.Number("9007199254740993")
 	providerCalls := map[string]int{}
 	providerObjects := map[string]any{}
 	sink := NewSinkRuntime(&fakeSinkQueryExecutor{reconcileFn: func(operation slug.Slug, params map[string]any) (*result.ExecutionResult, error) {
@@ -176,11 +176,12 @@ func testRunnerRecoveryPreservesEffect(t *testing.T, source pipelinerun.RunSourc
 	runner, err := NewRunner(adaptTestQueryExecutor(&testutil.FakeQueryExecutor{ExecuteFn: func(_ context.Context, _, _, _ slug.Slug, parameters map[string]any) (*result.ExecutionResult, error) {
 		sourceCalls++
 		require.Equal(t, "2026-10-10", parameters["as_of"])
-		return result.NewSQLResult("postgres", &result.SQLResult{Rows: []map[string]any{{"id": sourceValue}}, ColumnNames: []string{"id"}, RowCount: 1}, 0, nil), nil
+		require.EqualValues(t, int64(9007199254740993), parameters["row_id"])
+		return result.NewSQLResult("postgres", &result.SQLResult{Rows: []map[string]any{{"id": parameters["row_id"]}}, ColumnNames: []string{"id"}, RowCount: 1}, 0, nil), nil
 	}}), &testutil.FakeClock{NowFn: func() time.Time { return time.Date(2026, 10, 10, 12, 0, 0, 0, time.UTC) }}, store, recoveryDataSources{}, sink)
 	require.NoError(t, err)
 	pipeline := &pipelinespec.Pipeline{Metadata: pipelinespec.Metadata{Slug: "recovery", Name: "Recovery"}, Steps: []pipelinespec.Step{
-		{Kind: "query", Slug: "read", Query: &pipelinespec.QueryRef{DataSourceSlug: "source", OperationType: "sql", OperationRef: "read-rows", Parameters: map[string]any{"as_of": "{{runtime.input.as_of}}"}}},
+		{Kind: "query", Slug: "read", Query: &pipelinespec.QueryRef{DataSourceSlug: "source", OperationType: "sql", OperationRef: "read-rows", Parameters: map[string]any{"as_of": "{{runtime.input.as_of}}", "row_id": "{{runtime.input.row_id}}"}}},
 	}}
 	for _, name := range []string{"a", "b"} {
 		pipeline.Steps = append(pipeline.Steps, pipelinespec.Step{Kind: "sink", Slug: must.Slug("write-" + name), Sink: &pipelinespec.SinkSpec{
@@ -188,7 +189,7 @@ func testRunnerRecoveryPreservesEffect(t *testing.T, source pipelinerun.RunSourc
 			Config: map[string]any{"key": "recovery/{{runtime.sink.replay_identity}}/" + name + ".json", "format": "json", "overwrite": true},
 		}})
 	}
-	first, err := runner.Run(t.Context(), RunRequest{OrgSlug: "acme", ProjectSlug: "ops", EnvironmentSlug: "dev", RunSlug: "original", Source: source, ReplayOfRunSlug: previous, Pipeline: pipeline, PipelineVersionID: 42, RuntimeInput: map[string]any{"as_of": "2026-10-10"}})
+	first, err := runner.Run(t.Context(), RunRequest{OrgSlug: "acme", ProjectSlug: "ops", EnvironmentSlug: "dev", RunSlug: "original", Source: source, ReplayOfRunSlug: previous, Pipeline: pipeline, PipelineVersionID: 42, RuntimeInput: map[string]any{"as_of": "2026-10-10", "row_id": sourceValue}})
 	require.ErrorContains(t, err, "lost acknowledgement")
 	require.Equal(t, "confirmed", first.Timeline.Snapshots[1].Input.SinkDeliveryOutcome)
 	require.Equal(t, "unknown", first.Timeline.Snapshots[2].Input.SinkDeliveryOutcome)
@@ -196,7 +197,13 @@ func testRunnerRecoveryPreservesEffect(t *testing.T, source pipelinerun.RunSourc
 	require.NotNil(t, providerObjects["save-b"])
 	require.Equal(t, "{{runtime.input.as_of}}", runner.store.(*fakeRunStore).checkpoints["original"].Pipeline.Steps[0].Query.Parameters["as_of"], "request-local source input values must not be persisted")
 	originalObjects := map[string]any{"save-a": providerObjects["save-a"], "save-b": providerObjects["save-b"]}
-	sourceValue = 999
+	encoded, err := json.Marshal(store.checkpoints["original"].Results)
+	require.NoError(t, err)
+	require.Contains(t, string(encoded), "9007199254740993")
+	stored := store.checkpoints["original"]
+	stored.Results = nil
+	require.NoError(t, json.Unmarshal(encoded, &stored.Results))
+	store.checkpoints["original"] = stored
 	if workerLoss {
 		timeline := store.timelines["original"]
 		timeline.Failure = &pipelinerun.FailureContext{Kind: failureKindPlatform, ReasonCode: pipelinerun.FailureReasonCodeWorkerOwnershipLost, OutcomeUncertain: true}

@@ -202,6 +202,19 @@ parameters, and the `runtime.` prefix is reserved.
 | `{{runtime.sink.record_id}}` | Destination record ID from the current row. | Available only in the URL path of a bounded HTTP record update. The source column is selected by `record_updates.identity_field`. |
 | `{{runtime.sink.replay_identity}}` | Stable sink effect identity, normally the run slug. | Injected only while a sink operation executes. Authorized recovery reuses the original run's identity, so a deterministic sink key can target the same external effect. It is not a general source or transform parameter. |
 
+Runtime input preserves JSON numbers in objects and arrays through queued execution.
+A numeric token can contain up to 128 bytes and 38 coefficient digits after leading
+zeros, including trailing zeros. The explicit exponent must be between −308 and
+308. After expansion, at most 38 integer digits and 38 fractional places are
+supported. Equivalent spellings such as `1.250e2` and `125` resolve to the same
+value and checkpoint identity. Connector types and arithmetic retain their own
+limits. Use a JSON string when the spelling itself matters.
+
+Existing jobs use the same JSON format. Reload uses the stored number subject to
+these bounds. A job or checkpoint written with an already rounded value retains
+that value. Supplying the corrected number can therefore select a different
+inline source checkpoint.
+
 In **Environments → Compare runtime variables**, define each key's type,
 description, required status, and optional default. An environment uses its
 override first and otherwise inherits the organization default. New

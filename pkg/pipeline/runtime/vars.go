@@ -11,6 +11,8 @@ import (
 	"time"
 	"unicode"
 
+	"github.com/Braidplane/braidplane-core/pkg/decimal"
+	"github.com/Braidplane/braidplane-core/pkg/jsonvalue"
 	"github.com/Braidplane/braidplane-core/pkg/model"
 	pipelinespec "github.com/Braidplane/braidplane-core/pkg/pipeline/spec"
 	"github.com/Braidplane/braidplane-core/pkg/xerror"
@@ -198,13 +200,15 @@ func resolveVariableMap(variables []model.RuntimeVariable) (map[string]resolvedV
 }
 
 func resolveInputMap(input map[string]any) (map[string]resolvedVariable, error) {
-	if err := ValidateInput(input); err != nil {
-		return nil, err
-	}
-
 	resolved := make(map[string]resolvedVariable, len(input))
 	for key, raw := range input {
-		value := runtimeInputValue(raw)
+		if err := ValidateInputKey(key); err != nil {
+			return nil, err
+		}
+		value, err := runtimeInputValue(raw)
+		if err != nil {
+			return nil, err
+		}
 		resolved[InputNamespace+key] = resolvedVariable{
 			value: value,
 			date:  true,
@@ -361,28 +365,56 @@ func bindOperationReferences(value any, variables map[string]resolvedVariable, r
 	return nil
 }
 
-func runtimeInputValue(value any) any {
+// Input decodes JSON objects at the API and durable job boundaries.
+type Input map[string]any
+
+// UnmarshalJSON retains numeric tokens until runtime input validation and resolution.
+func (input *Input) UnmarshalJSON(data []byte) error {
+	return jsonvalue.Unmarshal(data, (*map[string]any)(input))
+}
+
+func runtimeInputValue(value any) (any, error) {
 	switch typed := value.(type) {
+	case json.Number, float32, float64:
+		number, err := decimal.Cast(typed)
+		if err != nil {
+			return nil, err
+		}
+		// JSONB expands exponents. Use the same spelling before and after queue reload.
+		whole, fraction, _ := strings.Cut(number.String(), ".")
+		if len(strings.TrimPrefix(whole, "-")) > decimal.MaxPrecision || len(fraction) > decimal.MaxPrecision {
+			return nil, xerror.InvalidInput(xerror.PipelineRun).Detail("runtime input number exceeds 38 integer digits or fractional places")
+		}
+		if _, exact := typed.(json.Number); !exact {
+			return value, nil
+		}
+		return jsonvalue.Normalize(number.CanonicalJSONNumber()), nil
 	case string:
 		if literalRuntimeValue(typed) {
-			return LiteralString(typed)
+			return LiteralString(typed), nil
 		}
-		return typed
 	case map[string]any:
 		resolved := make(map[string]any, len(typed))
 		for key, nested := range typed {
-			resolved[key] = runtimeInputValue(nested)
+			item, err := runtimeInputValue(nested)
+			if err != nil {
+				return nil, err
+			}
+			resolved[key] = item
 		}
-		return resolved
+		return resolved, nil
 	case []any:
 		resolved := make([]any, len(typed))
 		for i, nested := range typed {
-			resolved[i] = runtimeInputValue(nested)
+			item, err := runtimeInputValue(nested)
+			if err != nil {
+				return nil, err
+			}
+			resolved[i] = item
 		}
-		return resolved
-	default:
-		return value
+		return resolved, nil
 	}
+	return value, nil
 }
 
 func runtimeInputSource(value any) string {
@@ -659,14 +691,10 @@ func SecretReference(key string) string {
 	return fmt.Sprintf("{{%s%s}}", SecretNamespace, key)
 }
 
-// ValidateInput enforces the public non-secret runtime input key contract.
+// ValidateInput checks input keys and numeric bounds before accepting a run.
 func ValidateInput(input map[string]any) error {
-	for key := range input {
-		if err := ValidateInputKey(key); err != nil {
-			return err
-		}
-	}
-	return nil
+	_, err := resolveInputMap(input)
+	return err
 }
 
 // ValidateInputKey checks whether a per-run input key can be referenced as runtime.input.key.

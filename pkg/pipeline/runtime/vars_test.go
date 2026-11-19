@@ -1,6 +1,8 @@
 package runtime
 
 import (
+	"encoding/json"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -373,4 +375,22 @@ func TestEnvironmentKeysMatchExecutableSubstitutions(t *testing.T) {
 	}}
 	require.Equal(t, []string{"CUSTOMER", "DATE", "PREFIX"}, EnvironmentKeys(pipeline))
 	require.Empty(t, EnvironmentKeys(nil))
+}
+
+func TestRuntimeInputNumberBounds(t *testing.T) {
+	t.Parallel()
+	require.Error(t, ValidateInput(map[string]any{"value": float64(1e38)}))
+	for _, token := range []string{"1e38", "1e-39", strings.Repeat("9", 39), "1e309"} {
+		require.Error(t, ValidateInput(map[string]any{"nested": []any{map[string]any{"value": json.Number(token)}}}), token)
+	}
+	for token, want := range map[string]string{
+		"1e37": "1e+37", "1e-38": "1e-38", "123.400e-2": "1.234", "-0.0": "0",
+		"9007199254740993": "9007199254740993", strings.Repeat("9", 38): "9." + strings.Repeat("9", 37) + "e+37",
+	} {
+		value, err := runtimeInputValue(json.Number(token))
+		require.NoError(t, err)
+		encoded, err := json.Marshal(value)
+		require.NoError(t, err)
+		require.Equal(t, want, string(encoded))
+	}
 }
