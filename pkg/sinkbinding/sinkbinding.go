@@ -36,3 +36,23 @@ const (
 	// replays that must target the same deterministic external object.
 	InternalReplayIdentity = "__braidplane_sink_replay_identity"
 )
+
+// ReservedNames lists the parameter names owned by the sink runtime.
+func ReservedNames() []string {
+	return []string{
+		Input,
+		InternalInputRows,
+		InternalInputColumns,
+		InternalInputRepresentation,
+		InternalInputFileMetadata,
+		InternalInputFileFilename,
+		InternalInputFileMIMEType,
+		InternalInputFileSizeBytes,
+		InternalInputFileDigestAlgorithm,
+		InternalInputFileDigest,
+		InternalIdempotencyKey,
+		InternalIdempotencyClass,
+		InternalEffectStartedAt,
+		InternalReplayIdentity,
+	}
+}

@@ -9,6 +9,7 @@ import (
 	"github.com/Braidplane/braidplane-core/pkg/domain/model"
 	"github.com/Braidplane/braidplane-core/pkg/pipeline/runtime"
 	pipelinespec "github.com/Braidplane/braidplane-core/pkg/pipeline/spec"
+	pipelinevalidate "github.com/Braidplane/braidplane-core/pkg/pipeline/validate"
 	"github.com/Braidplane/braidplane-core/pkg/slug"
 	"github.com/Braidplane/braidplane-core/service/queriessvc"
 )
@@ -123,6 +124,15 @@ func evaluate(pipelines []PipelineInput, environments []EnvironmentInput, includ
 				operations[step.Slug] = strings.TrimSpace(step.Sink.OperationType)
 			}
 		}
+		var consumers map[slug.Slug][]pipelinespec.Step
+		if len(requirements.SavedOperations) > 0 {
+			// Invalid graphs are reported by structural validation. Continue checking bound operations.
+			edges, _ := pipelinevalidate.StepEdgeContexts(pipeline.Spec)
+			consumers = make(map[slug.Slug][]pipelinespec.Step)
+			for _, edge := range edges {
+				consumers[edge.FromStep.Slug] = append(consumers[edge.FromStep.Slug], edge.ToStep)
+			}
+		}
 		for i, env := range environments {
 			result := &report.Environments[i]
 			add := func(key string, usage runtime.RequirementUsage, code, action string) {
@@ -154,7 +164,7 @@ func evaluate(pipelines []PipelineInput, environments []EnvironmentInput, includ
 					result.addRequirement(row, req.Usages, before)
 				}
 			}
-			pipeline.checkSavedOperations(requirements.SavedOperations, bindings, result, includeRequirements, add)
+			pipeline.checkSavedOperations(requirements.SavedOperations, bindings, consumers, result, includeRequirements, add)
 			for _, req := range requirements.EnvironmentVariables {
 				before := len(result.Diagnostics)
 				variable, ok := env.Variables[req.Key]
@@ -179,7 +189,7 @@ func evaluate(pipelines []PipelineInput, environments []EnvironmentInput, includ
 	return report
 }
 
-func (pipeline PipelineInput) checkSavedOperations(requirements []runtime.SavedOperationRequirement, bindings map[bindingKey]model.DataSourceBinding, result *EnvironmentResult, includeRequirements bool, add func(string, runtime.RequirementUsage, string, string)) {
+func (pipeline PipelineInput) checkSavedOperations(requirements []runtime.SavedOperationRequirement, bindings map[bindingKey]model.DataSourceBinding, consumers map[slug.Slug][]pipelinespec.Step, result *EnvironmentResult, includeRequirements bool, add func(string, runtime.RequirementUsage, string, string)) {
 	if len(requirements) == 0 {
 		return
 	}
@@ -199,7 +209,7 @@ func (pipeline PipelineInput) checkSavedOperations(requirements []runtime.SavedO
 			case op.Query == nil:
 				problem("missing_operation", "configure_saved_operation")
 			default:
-				checkOperation(step, binding, op.Query, steps, problem)
+				checkOperation(step, binding, op.Query, operationGraph{steps, consumers}, problem)
 			}
 			if includeRequirements {
 				capability := model.DataSourceRefCapabilityPipelineSource
@@ -223,9 +233,9 @@ func (p PipelineInput) operationSteps(bindings map[bindingKey]model.DataSourceBi
 		if q := step.Query; q != nil && q.OperationRef != "" && q.OutputContract == nil && q.OutputContractRef == nil {
 			b := bindings[bindingKey{env, q.DataSourceSlug}]
 			op := p.Operations[OperationKey{b.DataSourceSlug, q.OperationRef}]
-			if op.Query != nil && op.Query.DataSourceSlug == b.DataSourceSlug && op.Query.OutputContract != nil {
+			if op.Query != nil && op.Query.DataSourceSlug == b.DataSourceSlug && (op.Query.OutputContract != nil || op.Query.OutputContractRef != nil) {
 				query := *q
-				query.OutputContract = op.Query.OutputContract
+				query.OutputContract, query.OutputContractRef = op.Query.OutputContract, op.Query.OutputContractRef
 				step.Query = &query
 			}
 		}

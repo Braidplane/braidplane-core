@@ -15,10 +15,11 @@ import (
 	"github.com/Braidplane/braidplane-core/pkg/sinkbinding"
 	"github.com/Braidplane/braidplane-core/pkg/slug"
 	"github.com/Braidplane/braidplane-core/service/datasourcessvc/connector/param"
+	"github.com/Braidplane/braidplane-core/service/datasourcessvc/connector/sql/snowflake"
 	"github.com/Braidplane/braidplane-core/service/queriessvc"
 )
 
-func checkOperation(step pipelinespec.Step, binding model.DataSourceBinding, query *queriessvc.Query, steps map[slug.Slug]pipelinespec.Step, problem func(code, action string)) {
+func checkOperation(step pipelinespec.Step, binding model.DataSourceBinding, query *queriessvc.Query, graph operationGraph, problem func(code, action string)) {
 	sink := step.Sink != nil
 	var operationType string
 	var parameters map[string]any
@@ -35,6 +36,7 @@ func checkOperation(step pipelinespec.Step, binding model.DataSourceBinding, que
 	var statement *struct {
 		Type      string `json:"type"`
 		Operation string `json:"operation"`
+		SQL       string `json:"sql"`
 	}
 	if !ok || descriptor.QueryOperationType != strings.TrimSpace(operationType) || err != nil ||
 		json.Unmarshal(raw, &statement) != nil || statement == nil ||
@@ -42,7 +44,7 @@ func checkOperation(step pipelinespec.Step, binding model.DataSourceBinding, que
 		problem("incompatible_operation_type", "select_compatible_operation")
 		return
 	}
-	if !operationSupportsRole(descriptor, raw, statement.Operation, sink) ||
+	if !operationSupportsRole(descriptor, raw, statement.Operation, statement.SQL, sink) ||
 		!sink && binding.DataSourceReadOnly && !queriessvc.DirectOperationIsReadOnly(target, raw) {
 		problem("missing_operation_capability", "select_compatible_operation")
 	}
@@ -50,17 +52,19 @@ func checkOperation(step pipelinespec.Step, binding model.DataSourceBinding, que
 		missingOperationParameter(raw, parameters, query.Parameters, sink) {
 		problem("missing_operation_parameter", "configure_operation_parameters")
 	}
-	if !operationContractsCompatible(step, query, steps) {
+	if !operationContractsCompatible(step, query, graph) {
 		problem("incompatible_operation_contract", "update_operation_contract")
 	}
 }
 
-func operationSupportsRole(d catalog.Descriptor, raw json.RawMessage, operation string, sink bool) bool {
+func operationSupportsRole(d catalog.Descriptor, raw json.RawMessage, operation, sql string, sink bool) bool {
 	if sink && !d.SupportsPipelineSink || !sink && !d.SupportsPipelineSource {
 		return false
 	}
 	operation = strings.TrimSpace(operation)
 	switch d.QueryOperationType {
+	case catalog.OperationTypeSnowflake:
+		return !sink || snowflake.SupportsPipelineSinkSQL(sql)
 	case catalog.OperationTypeGoogleWorkspace:
 		statement, err := googleworkspace.DecodeStatement(raw)
 		return err == nil && statement.IsRead() != sink
@@ -93,7 +97,7 @@ func operationSupportsRole(d catalog.Descriptor, raw json.RawMessage, operation 
 func missingOperationParameter(raw json.RawMessage, values map[string]any, parameters []*queriessvc.QueryParameter, sink bool) bool {
 	for _, name := range param.ExtractParamNames(string(raw)) {
 		if _, supplied := values[name]; supplied || strings.HasPrefix(name, runtime.Namespace) ||
-			sink && (name == sinkbinding.Input || strings.HasPrefix(name, "__braidplane_")) {
+			sink && slices.Contains(sinkbinding.ReservedNames(), name) {
 			continue
 		}
 		if !slices.ContainsFunc(parameters, func(p *queriessvc.QueryParameter) bool {
@@ -105,37 +109,70 @@ func missingOperationParameter(raw json.RawMessage, values map[string]any, param
 	return false
 }
 
-func operationContractsCompatible(step pipelinespec.Step, query *queriessvc.Query, steps map[slug.Slug]pipelinespec.Step) bool {
-	if step.Query != nil {
-		return payload.ValidateContractConjunction(query.OutputContract, step.Query.OutputContract) == nil
+func operationContractsCompatible(step pipelinespec.Step, query *queriessvc.Query, graph operationGraph) bool {
+	if q := step.Query; q != nil {
+		output := contractMetadata(query.OutputContract, query.OutputContractRef)
+		if payload.ValidateContractConjunction(output, contractMetadata(q.OutputContract, q.OutputContractRef)) != nil {
+			return false
+		}
+		if output == nil {
+			return true
+		}
+		producer := *q
+		producer.OutputContract, producer.OutputContractRef = query.OutputContract, query.OutputContractRef
+		step.Query = &producer
+		for _, consumer := range graph.consumers[step.Slug] {
+			if !knownEdgeCompatible(step, consumer) {
+				return false
+			}
+		}
+		return true
 	}
-	expected := query.ExpectedInputContract
-	if payload.ValidateContractConjunction(expected, step.Sink.InputContract) != nil {
+	sink := *step.Sink
+	expected := contractMetadata(query.ExpectedInputContract, query.ExpectedInputContractRef)
+	if payload.ValidateContractConjunction(expected, contractMetadata(sink.InputContract, sink.InputContractRef)) != nil {
 		return false
 	}
-	if expected == nil || step.Sink.Input == nil {
+	if expected == nil || sink.Input == nil {
 		return true
 	}
-	upstream := steps[step.Sink.Input.FromStep]
-	var output *payload.Contract
+	sink.InputContract, sink.InputContractRef = query.ExpectedInputContract, query.ExpectedInputContractRef
+	step.Sink = &sink
+	return knownEdgeCompatible(graph.steps[sink.Input.FromStep], step)
+}
+
+// Compare explicit facets on an unresolved ODCS reference without assuming its fields are empty.
+func contractMetadata(inline *payload.Contract, ref *pipelinespec.ODCSContractRef) *payload.Contract {
+	if inline != nil || ref == nil || (ref.Representation == model.ContractRepresentationUnknown && ref.RootShape == model.ContractRootShapeUnknown) {
+		return inline
+	}
+	return &payload.Contract{Representation: ref.Representation, RootShape: ref.RootShape}
+}
+
+func knownEdgeCompatible(upstream, downstream pipelinespec.Step) bool {
+	var output, input *payload.Contract
+	var outputRef, inputRef *pipelinespec.ODCSContractRef
 	switch {
 	case upstream.Query != nil:
-		output = upstream.Query.OutputContract
+		output, outputRef = upstream.Query.OutputContract, upstream.Query.OutputContractRef
 	case upstream.Transform != nil:
-		output = upstream.Transform.OutputContract
+		output, outputRef = upstream.Transform.OutputContract, upstream.Transform.OutputContractRef
 	case upstream.Input != nil:
-		output = upstream.Input.OutputContract
+		output, outputRef = upstream.Input.OutputContract, upstream.Input.OutputContractRef
 	}
-	if output == nil {
-		return true
+	switch {
+	case downstream.Sink != nil:
+		input, inputRef = downstream.Sink.InputContract, downstream.Sink.InputContractRef
+	case downstream.Transform != nil:
+		input, inputRef = downstream.Transform.InputContract, downstream.Transform.InputContractRef
 	}
-	// The edge validator supplies default facets when a producer only declares fields.
-	if output.Representation == model.ContractRepresentationUnknown {
-		sink := *step.Sink
-		sink.InputContract, sink.InputContractRef = expected, nil
-		step.Sink = &sink
-		return pipelinevalidate.EvaluateEdgeDiagnosticsForSteps(upstream, step).Compatible
+	if output == nil || input == nil {
+		return payload.ValidateContractConjunction(contractMetadata(output, outputRef), contractMetadata(input, inputRef)) == nil
 	}
-	edge := pipelinevalidate.EdgeLink{FromStep: upstream.Slug, ToStep: step.Slug}
-	return pipelinevalidate.EvaluateEdgeCompatibility(edge, output, expected).Compatible
+	return pipelinevalidate.EvaluateEdgeDiagnosticsForSteps(upstream, downstream).Compatible
+}
+
+type operationGraph struct {
+	steps     map[slug.Slug]pipelinespec.Step
+	consumers map[slug.Slug][]pipelinespec.Step
 }
