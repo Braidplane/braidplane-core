@@ -1250,6 +1250,13 @@ func TestRouter_HandleOrganizationProjectsPage_RendersProjects(t *testing.T) {
 					`{"project_environments":[{"environment_slug":"dev","environment_name":"Development","environment_description":"Developer target","is_default":true,"environment_protected":false,"enabled_at":"2026-03-02T00:00:00Z","updated_at":"2026-03-02T00:00:00Z"},{"environment_slug":"prod","environment_name":"Production","environment_description":"Customer target","is_default":false,"environment_protected":true,"enabled_at":"2026-03-02T00:00:00Z","updated_at":"2026-03-02T00:00:00Z"}],"has_more":false,"next_cursor":null,"prev_cursor":null}`,
 				),
 			)
+		case r.Method == http.MethodGet && r.URL.Path == "/api/organizations/acme-hq/projects/default/readiness":
+			_, _ = w.Write([]byte(`{"status":"blocked","environments":[
+				{"environment_slug":"dev","status":"ready","diagnostics":[]},
+				{"environment_slug":"prod","status":"blocked","diagnostics":[
+					{"pipeline_slug":"customer-sync","code":"missing_binding","requirement_key":"orders-db"},
+					{"pipeline_slug":"customer-sync","code":"missing_variable","requirement_key":"region"}
+				]}]}`))
 		case r.Method == http.MethodGet && r.URL.Path == "/api/organizations/acme-hq/projects/default/pipelines":
 			assert.Equal(t, "100", r.URL.Query().Get("limit"))
 			_, _ = w.Write(
@@ -1383,6 +1390,12 @@ func TestRouter_HandleOrganizationProjectsPage_RendersProjects(t *testing.T) {
 			require.Contains(t, string(body), tt.want)
 			require.NotContains(t, string(body), tt.absent)
 			require.Contains(t, string(body), "Back to project list")
+			if tt.section == "overview" {
+				for _, marker := range []string{">ready</span>", ">blocked</span>", "Missing bindings (1)", "customer-sync/orders-db", "Missing organization variables (1)", ">region</span>", "/organizations/acme-hq/runtime-variables", "#project-binding-matrix", "/pipelines/customer-sync?section=readiness"} {
+					require.Contains(t, string(body), marker)
+				}
+				require.NotContains(t, string(body), "unused-db")
+			}
 			if tt.section == "environments" {
 				for _, marker := range []string{`data-protected-action-modal`, `data-protected-select-form`, `data-confirm-slug="prod"`, `name="protected_environment_confirmation"`, "Logical bindings", "Manage binding rows", "Orders DB", "missing", "data-source-bindings/orders-db/upsert", "data-source-bindings/orders-db/delete", "Save binding"} {
 					require.Contains(t, string(body), marker)

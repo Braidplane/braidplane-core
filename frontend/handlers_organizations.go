@@ -631,7 +631,8 @@ func (r *Router) renderOrganizationProjectFullPage(
 	if project.PipelineBackend == nil {
 		r.loadManagedRepositorySetup(c, orgSlug.String(), projectSlug.String(), &backendControls)
 	}
-	projectContext, unauthorized := r.loadProjectOperationalContext(c, orgSlug, projectSlug.String(), backendDataSources, backendControls.DataSourceLoadError != "")
+	overview := views.ProjectSection(views.WithEntityPageURL(c.Context(), renderPageURL(c))) == "overview"
+	projectContext, unauthorized := r.loadProjectOperationalContext(c, orgSlug, projectSlug.String(), overview, backendDataSources, backendControls.DataSourceLoadError != "")
 	if unauthorized {
 		return redirectToLogin(c, c.OriginalURL())
 	}
@@ -898,7 +899,7 @@ func (r *Router) renderOrganizationProjectsPage(
 	if unauthorized {
 		return redirectToLogin(c, c.OriginalURL())
 	}
-	projectContext, unauthorized := r.loadProjectOperationalContext(c, orgSlug, selectedProjectSlug, backendDataSources, backendControls.DataSourceLoadError != "")
+	projectContext, unauthorized := r.loadProjectOperationalContext(c, orgSlug, selectedProjectSlug, false, backendDataSources, backendControls.DataSourceLoadError != "")
 	if unauthorized {
 		return redirectToLogin(c, c.OriginalURL())
 	}
@@ -1095,6 +1096,7 @@ func (r *Router) loadProjectOperationalContext(
 	c fiber.Ctx,
 	orgSlug slug.Slug,
 	projectSlug string,
+	overview bool,
 	dataSources []api.DataSource,
 	dataSourcesUnavailable bool,
 ) (views.ProjectOperationalContext, bool) {
@@ -1143,14 +1145,24 @@ func (r *Router) loadProjectOperationalContext(
 		orgSlug.String(),
 		projectSlug,
 	)
-	if err != nil {
-		if status == fiber.StatusUnauthorized {
-			return context, true
+	if status == fiber.StatusUnauthorized {
+		return context, true
+	}
+	context.Pipelines = pipelines
+	context.PipelinesUnavailable = err != nil
+	if overview {
+		response, err := r.apiClient.GetProjectReadinessWithResponse(c.Context(), orgSlug.String(), projectSlug, frontendRequestEditor(c.Context(), c.Get(fiber.HeaderCookie)))
+		if err == nil {
+			if response.StatusCode() == fiber.StatusUnauthorized {
+				return context, true
+			}
+			context.Readiness = response.JSON200
 		}
-		context.PipelinesUnavailable = true
+		return context, false
+	}
+	if err != nil {
 		context.PipelineDetailsUnavailable = true
 	} else if pipelines != nil {
-		context.Pipelines = pipelines
 		if len(context.Pipelines) > 5 {
 			context.Pipelines = context.Pipelines[:5]
 		}

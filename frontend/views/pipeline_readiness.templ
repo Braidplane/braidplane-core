@@ -127,3 +127,57 @@ templ PipelineReadinessPanel(org string, project string, pipeline *api.Pipeline,
 		}
 	}
 }
+
+templ ProjectPipelineReadiness(org string, project string, state ProjectOperationalContext) {
+	<h3 class="text-base font-semibold">Pipeline readiness by environment</h3>
+	if state.Readiness == nil {
+		<p>Pipeline readiness is unknown. The project report could not be loaded.</p>
+		for _, env := range state.Environments {
+			<p>{ env.EnvironmentSlug } <span class={ badgeInfoOutline }>unknown</span></p>
+		}
+	} else if len(state.Readiness.Environments) == 0 {
+		<span class={ readinessBadge(state.Readiness.Status) }>{ string(state.Readiness.Status) }</span>
+	} else {
+		for _, env := range state.Readiness.Environments {
+			<section class="space-y-2 rounded-xl border border-base-300 p-4">
+				<h4 class="flex flex-wrap items-center gap-2 font-semibold">
+					{ env.EnvironmentSlug }
+					switch env.Status {
+						case api.ReadinessStatusReady, api.ReadinessStatusWarning, api.ReadinessStatusBlocked:
+							<span class={ readinessBadge(env.Status) }>{ string(env.Status) }</span>
+						default:
+							<span class={ badgeInfoOutline }>unknown</span>
+					}
+				</h4>
+				if env.Status == api.ReadinessStatusInformational {
+					<p>No pipelines to evaluate.</p>
+				}
+				for _, group := range projectReadinessGroups(org, project, env) {
+					if len(group.keys) > 0 {
+						<p class="break-words">
+							if group.href != "" {
+								<a class="link" href={ templ.URL(group.href) }>{ group.label } ({ fmt.Sprint(len(group.keys)) })</a>
+								<span>{ strings.Join(group.keys, ", ") }</span>
+							} else {
+								{ group.label }
+								for _, pipeline := range group.keys {
+									<a class="link" href={ templ.URL(entitySectionHref(ctx, PipelineDetailHrefWithEnvironment(org, project, env.EnvironmentSlug, pipeline), "readiness")) }>{ pipeline }</a>
+								}
+							}
+						</p>
+					}
+				}
+			</section>
+		}
+	}
+	if len(state.Pipelines) > 0 {
+		<h4 class="font-semibold">Pipeline readiness matrices</h4>
+		<ul>
+			for _, pipeline := range state.Pipelines {
+				<li><a class="link break-all" href={ templ.URL(entitySectionHref(ctx, projectRuntimeHref(ctx, pipelineDetailHref(org, project, pipeline.Slug)), "readiness")) }>{ pipeline.Slug }</a></li>
+			}
+		</ul>
+	} else if state.PipelinesUnavailable {
+		<p>Pipeline list unavailable.</p>
+	}
+}

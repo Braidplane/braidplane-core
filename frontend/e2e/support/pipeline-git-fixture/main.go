@@ -240,6 +240,12 @@ func handleAPI(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		write(`{"project_environments":[{"environment_slug":"dev","environment_name":"Development","is_default":true,"environment_protected":true}]}`)
+	case prefix + "/readiness":
+		if !imported || !deploymentMultipleTargets {
+			w.WriteHeader(http.StatusServiceUnavailable)
+			return
+		}
+		write(`{"status":"blocked","environments":[{"environment_slug":"dev","status":"ready","diagnostics":[]},{"environment_slug":"staging","status":"blocked","diagnostics":[{"code":"missing_binding","pipeline_slug":"daily-sync","requirement_key":"source"},{"code":"missing_variable","pipeline_slug":"daily-sync","requirement_key":"region"}]}]}`)
 	case prefix + "/pipelines":
 		if imported {
 			write(`{"pipelines":[` + pipeline + `]}`)
