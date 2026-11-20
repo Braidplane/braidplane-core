@@ -657,7 +657,7 @@ func OrganizationDetailTabs(orgSlug string, activeTab string) templ.Component {
 			var templ_7745c5c3_Var20 string
 			templ_7745c5c3_Var20, templ_7745c5c3_Err = templ.ResolveAttributeValue(current)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 332, Col: 175}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 331, Col: 175}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var20)
 			if templ_7745c5c3_Err != nil {
@@ -670,7 +670,7 @@ func OrganizationDetailTabs(orgSlug string, activeTab string) templ.Component {
 			var templ_7745c5c3_Var21 templ.SafeURL
 			templ_7745c5c3_Var21, templ_7745c5c3_Err = templ.JoinURLErrs(templ.URL("/organizations/" + orgSlug + section.path))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 332, Col: 238}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 331, Col: 238}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var21))
 			if templ_7745c5c3_Err != nil {
@@ -683,7 +683,7 @@ func OrganizationDetailTabs(orgSlug string, activeTab string) templ.Component {
 			var templ_7745c5c3_Var22 string
 			templ_7745c5c3_Var22, templ_7745c5c3_Err = templ.JoinStringErrs(section.label)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 332, Col: 256}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 331, Col: 256}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var22))
 			if templ_7745c5c3_Err != nil {
@@ -776,7 +776,7 @@ func OrganizationGitHubPageContent(organization api.Organization, connection *ap
 			var templ_7745c5c3_Var25 templ.SafeURL
 			templ_7745c5c3_Var25, templ_7745c5c3_Err = templ.JoinURLErrs(templ.URL("/organizations/" + string(organization.Slug) + "/github/connect"))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 353, Col: 162}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 352, Col: 162}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var25))
 			if templ_7745c5c3_Err != nil {
@@ -789,7 +789,7 @@ func OrganizationGitHubPageContent(organization api.Organization, connection *ap
 			var templ_7745c5c3_Var26 string
 			templ_7745c5c3_Var26, templ_7745c5c3_Err = templ.ResolveAttributeValue("/organizations/" + string(organization.Slug) + "/github/connect")
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 353, Col: 240}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 352, Col: 240}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var26)
 			if templ_7745c5c3_Err != nil {
@@ -815,7 +815,7 @@ func OrganizationGitHubPageContent(organization api.Organization, connection *ap
 			var templ_7745c5c3_Var27 templ.SafeURL
 			templ_7745c5c3_Var27, templ_7745c5c3_Err = templ.JoinURLErrs(templ.URL("/organizations/" + string(organization.Slug) + "/github/disconnect"))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 358, Col: 113}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 357, Col: 113}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var27))
 			if templ_7745c5c3_Err != nil {
@@ -828,7 +828,7 @@ func OrganizationGitHubPageContent(organization api.Organization, connection *ap
 			var templ_7745c5c3_Var28 string
 			templ_7745c5c3_Var28, templ_7745c5c3_Err = templ.ResolveAttributeValue(DestructiveConfirmation("Disconnect", "GitHub connection", string(connection.AccountLogin), "Repository access and Proof deliveries from these repositories will stop."))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 358, Col: 297}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 357, Col: 297}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var28)
 			if templ_7745c5c3_Err != nil {
@@ -841,7 +841,7 @@ func OrganizationGitHubPageContent(organization api.Organization, connection *ap
 			var templ_7745c5c3_Var29 string
 			templ_7745c5c3_Var29, templ_7745c5c3_Err = templ.ResolveAttributeValue(DestructiveConfirmation("Disconnect", "GitHub connection", string(connection.AccountLogin), "Repository access and Proof deliveries from these repositories will stop."))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 358, Col: 495}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 357, Col: 495}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var29)
 			if templ_7745c5c3_Err != nil {
@@ -864,7 +864,7 @@ func OrganizationGitHubPageContent(organization api.Organization, connection *ap
 			var templ_7745c5c3_Var30 string
 			templ_7745c5c3_Var30, templ_7745c5c3_Err = templ.JoinStringErrs(string(connection.AccountLogin))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 366, Col: 67}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 365, Col: 67}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var30))
 			if templ_7745c5c3_Err != nil {
@@ -902,7 +902,7 @@ func OrganizationGitHubPageContent(organization api.Organization, connection *ap
 			var templ_7745c5c3_Var31 string
 			templ_7745c5c3_Var31, templ_7745c5c3_Err = templ.JoinStringErrs(fmt.Sprintf("%d repositories selected", len(connection.Repositories)))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 376, Col: 121}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 375, Col: 121}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var31))
 			if templ_7745c5c3_Err != nil {
@@ -930,7 +930,7 @@ func OrganizationGitHubPageContent(organization api.Organization, connection *ap
 					var templ_7745c5c3_Var32 string
 					templ_7745c5c3_Var32, templ_7745c5c3_Err = templ.JoinStringErrs(string(repository.FullName))
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 382, Col: 89}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 381, Col: 89}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var32))
 					if templ_7745c5c3_Err != nil {
@@ -953,7 +953,7 @@ func OrganizationGitHubPageContent(organization api.Organization, connection *ap
 			var templ_7745c5c3_Var33 templ.SafeURL
 			templ_7745c5c3_Var33, templ_7745c5c3_Err = templ.JoinURLErrs(templ.URL("/organizations/" + string(organization.Slug) + "/github/connect"))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 386, Col: 155}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 385, Col: 155}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var33))
 			if templ_7745c5c3_Err != nil {
@@ -966,7 +966,7 @@ func OrganizationGitHubPageContent(organization api.Organization, connection *ap
 			var templ_7745c5c3_Var34 string
 			templ_7745c5c3_Var34, templ_7745c5c3_Err = templ.ResolveAttributeValue("/organizations/" + string(organization.Slug) + "/github/connect")
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 386, Col: 233}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 385, Col: 233}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var34)
 			if templ_7745c5c3_Err != nil {
@@ -1110,7 +1110,7 @@ func OrganizationRetentionPageContent(
 			var templ_7745c5c3_Var37 string
 			templ_7745c5c3_Var37, templ_7745c5c3_Err = templ.JoinStringErrs(string(history.Schedule.Cadence))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 455, Col: 74}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 454, Col: 74}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var37))
 			if templ_7745c5c3_Err != nil {
@@ -1123,7 +1123,7 @@ func OrganizationRetentionPageContent(
 			var templ_7745c5c3_Var38 string
 			templ_7745c5c3_Var38, templ_7745c5c3_Err = templ.JoinStringErrs(history.Schedule.Timezone)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 456, Col: 39}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 455, Col: 39}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var38))
 			if templ_7745c5c3_Err != nil {
@@ -1173,7 +1173,7 @@ func OrganizationRetentionPageContent(
 				var templ_7745c5c3_Var41 string
 				templ_7745c5c3_Var41, templ_7745c5c3_Err = templ.JoinStringErrs(retentionRunStatusLabel(history.Runs[0].Status))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 465, Col: 143}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 464, Col: 143}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var41))
 				if templ_7745c5c3_Err != nil {
@@ -1201,7 +1201,7 @@ func OrganizationRetentionPageContent(
 				var templ_7745c5c3_Var42 string
 				templ_7745c5c3_Var42, templ_7745c5c3_Err = templ.JoinStringErrs(history.Runs[0].CompletedAt.Format("2006-01-02 15:04 MST"))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 473, Col: 121}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 472, Col: 121}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var42))
 				if templ_7745c5c3_Err != nil {
@@ -1224,7 +1224,7 @@ func OrganizationRetentionPageContent(
 			var templ_7745c5c3_Var43 string
 			templ_7745c5c3_Var43, templ_7745c5c3_Err = templ.JoinStringErrs(history.Schedule.NextRunAt.Format("2006-01-02 15:04 MST"))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 480, Col: 119}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 479, Col: 119}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var43))
 			if templ_7745c5c3_Err != nil {
@@ -1247,7 +1247,7 @@ func OrganizationRetentionPageContent(
 			var templ_7745c5c3_Var44 string
 			templ_7745c5c3_Var44, templ_7745c5c3_Err = templ.JoinStringErrs(policyError)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 491, Col: 61}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 490, Col: 61}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var44))
 			if templ_7745c5c3_Err != nil {
@@ -1267,7 +1267,7 @@ func OrganizationRetentionPageContent(
 				var templ_7745c5c3_Var45 templ.SafeURL
 				templ_7745c5c3_Var45, templ_7745c5c3_Err = templ.JoinURLErrs(templ.URL("/organizations/" + string(organization.Slug) + "/retention"))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 495, Col: 129}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 494, Col: 129}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var45))
 				if templ_7745c5c3_Err != nil {
@@ -1280,7 +1280,7 @@ func OrganizationRetentionPageContent(
 				var templ_7745c5c3_Var46 string
 				templ_7745c5c3_Var46, templ_7745c5c3_Err = templ.ResolveAttributeValue(fmt.Sprintf("%d", policy.QueryExecutionRetentionDays))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 499, Col: 190}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 498, Col: 190}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var46)
 				if templ_7745c5c3_Err != nil {
@@ -1293,7 +1293,7 @@ func OrganizationRetentionPageContent(
 				var templ_7745c5c3_Var47 string
 				templ_7745c5c3_Var47, templ_7745c5c3_Err = templ.ResolveAttributeValue(fmt.Sprintf("%d", policy.ReplayCheckpointRetentionDays))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 503, Col: 194}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 502, Col: 194}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var47)
 				if templ_7745c5c3_Err != nil {
@@ -1306,7 +1306,7 @@ func OrganizationRetentionPageContent(
 				var templ_7745c5c3_Var48 string
 				templ_7745c5c3_Var48, templ_7745c5c3_Err = templ.ResolveAttributeValue(fmt.Sprintf("%d", policy.RunHistoryRetentionDays))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 507, Col: 182}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 506, Col: 182}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var48)
 				if templ_7745c5c3_Err != nil {
@@ -1319,7 +1319,7 @@ func OrganizationRetentionPageContent(
 				var templ_7745c5c3_Var49 string
 				templ_7745c5c3_Var49, templ_7745c5c3_Err = templ.ResolveAttributeValue(fmt.Sprintf("%d", policy.EventLogRetentionDays))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 511, Col: 178}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 510, Col: 178}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var49)
 				if templ_7745c5c3_Err != nil {
@@ -1368,7 +1368,7 @@ func OrganizationRetentionPageContent(
 			var templ_7745c5c3_Var50 string
 			templ_7745c5c3_Var50, templ_7745c5c3_Err = templ.JoinStringErrs(historyError)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 535, Col: 62}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 534, Col: 62}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var50))
 			if templ_7745c5c3_Err != nil {
@@ -1435,7 +1435,7 @@ func OrganizationRetentionPolicyValue(label string, days int) templ.Component {
 		var templ_7745c5c3_Var52 string
 		templ_7745c5c3_Var52, templ_7745c5c3_Err = templ.JoinStringErrs(label)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 554, Col: 87}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 553, Col: 87}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var52))
 		if templ_7745c5c3_Err != nil {
@@ -1448,7 +1448,7 @@ func OrganizationRetentionPolicyValue(label string, days int) templ.Component {
 		var templ_7745c5c3_Var53 string
 		templ_7745c5c3_Var53, templ_7745c5c3_Err = templ.JoinStringErrs(fmt.Sprintf("%d days", days))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 555, Col: 86}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 554, Col: 86}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var53))
 		if templ_7745c5c3_Err != nil {
@@ -1512,7 +1512,7 @@ func OrganizationRetentionRun(run api.OrganizationRetentionRun) templ.Component 
 		var templ_7745c5c3_Var57 string
 		templ_7745c5c3_Var57, templ_7745c5c3_Err = templ.JoinStringErrs(retentionRunStatusLabel(run.Status))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 564, Col: 99}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 563, Col: 99}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var57))
 		if templ_7745c5c3_Err != nil {
@@ -1530,7 +1530,7 @@ func OrganizationRetentionRun(run api.OrganizationRetentionRun) templ.Component 
 			var templ_7745c5c3_Var58 string
 			templ_7745c5c3_Var58, templ_7745c5c3_Err = templ.JoinStringErrs(fmt.Sprintf("%d", run.Attempt))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 566, Col: 80}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 565, Col: 80}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var58))
 			if templ_7745c5c3_Err != nil {
@@ -1548,7 +1548,7 @@ func OrganizationRetentionRun(run api.OrganizationRetentionRun) templ.Component 
 		var templ_7745c5c3_Var59 string
 		templ_7745c5c3_Var59, templ_7745c5c3_Err = templ.JoinStringErrs(run.Slug)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 569, Col: 79}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 568, Col: 79}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var59))
 		if templ_7745c5c3_Err != nil {
@@ -1561,7 +1561,7 @@ func OrganizationRetentionRun(run api.OrganizationRetentionRun) templ.Component 
 		var templ_7745c5c3_Var60 string
 		templ_7745c5c3_Var60, templ_7745c5c3_Err = templ.JoinStringErrs(run.CompletedAt.Format("2006-01-02 15:04 MST"))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 572, Col: 101}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 571, Col: 101}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var60))
 		if templ_7745c5c3_Err != nil {
@@ -1574,7 +1574,7 @@ func OrganizationRetentionRun(run api.OrganizationRetentionRun) templ.Component 
 		var templ_7745c5c3_Var61 string
 		templ_7745c5c3_Var61, templ_7745c5c3_Err = templ.JoinStringErrs(run.StartedAt.Format("15:04:05 MST"))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 573, Col: 95}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 572, Col: 95}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var61))
 		if templ_7745c5c3_Err != nil {
@@ -1592,7 +1592,7 @@ func OrganizationRetentionRun(run api.OrganizationRetentionRun) templ.Component 
 			var templ_7745c5c3_Var62 string
 			templ_7745c5c3_Var62, templ_7745c5c3_Err = templ.JoinStringErrs(message)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 577, Col: 56}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 576, Col: 56}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var62))
 			if templ_7745c5c3_Err != nil {
@@ -1610,7 +1610,7 @@ func OrganizationRetentionRun(run api.OrganizationRetentionRun) templ.Component 
 		var templ_7745c5c3_Var63 string
 		templ_7745c5c3_Var63, templ_7745c5c3_Err = templ.JoinStringErrs(fmt.Sprintf("%d", retentionRunDeletedTotal(run)))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 582, Col: 110}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 581, Col: 110}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var63))
 		if templ_7745c5c3_Err != nil {
@@ -1702,7 +1702,7 @@ func OrganizationRetentionOutcomeValue(label string, value int64) templ.Componen
 		var templ_7745c5c3_Var65 string
 		templ_7745c5c3_Var65, templ_7745c5c3_Err = templ.JoinStringErrs(label)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 605, Col: 73}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 604, Col: 73}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var65))
 		if templ_7745c5c3_Err != nil {
@@ -1715,7 +1715,7 @@ func OrganizationRetentionOutcomeValue(label string, value int64) templ.Componen
 		var templ_7745c5c3_Var66 string
 		templ_7745c5c3_Var66, templ_7745c5c3_Err = templ.JoinStringErrs(fmt.Sprintf("%d", value))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 606, Col: 86}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 605, Col: 86}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var66))
 		if templ_7745c5c3_Err != nil {
@@ -1757,7 +1757,7 @@ func OrganizationRetentionPolicySnapshotValue(label string, days int) templ.Comp
 		var templ_7745c5c3_Var68 string
 		templ_7745c5c3_Var68, templ_7745c5c3_Err = templ.JoinStringErrs(label)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 612, Col: 73}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 611, Col: 73}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var68))
 		if templ_7745c5c3_Err != nil {
@@ -1770,7 +1770,7 @@ func OrganizationRetentionPolicySnapshotValue(label string, days int) templ.Comp
 		var templ_7745c5c3_Var69 string
 		templ_7745c5c3_Var69, templ_7745c5c3_Err = templ.JoinStringErrs(fmt.Sprintf("%d days", days))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 613, Col: 86}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 612, Col: 86}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var69))
 		if templ_7745c5c3_Err != nil {
@@ -1864,7 +1864,7 @@ func OrganizationRolesPageContent(organization api.Organization, roles []api.Org
 			var templ_7745c5c3_Var72 templ.SafeURL
 			templ_7745c5c3_Var72, templ_7745c5c3_Err = templ.JoinURLErrs(templ.URL("/organizations/" + string(organization.Slug) + "/roles"))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 641, Col: 81}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 640, Col: 81}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var72))
 			if templ_7745c5c3_Err != nil {
@@ -1877,7 +1877,7 @@ func OrganizationRolesPageContent(organization api.Organization, roles []api.Org
 			var templ_7745c5c3_Var73 string
 			templ_7745c5c3_Var73, templ_7745c5c3_Err = templ.ResolveAttributeValue("/organizations/" + string(organization.Slug) + "/roles")
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 642, Col: 71}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 641, Col: 71}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var73)
 			if templ_7745c5c3_Err != nil {
@@ -1890,7 +1890,7 @@ func OrganizationRolesPageContent(organization api.Organization, roles []api.Org
 			var templ_7745c5c3_Var74 string
 			templ_7745c5c3_Var74, templ_7745c5c3_Err = templ.ResolveAttributeValue(createFormData.Name)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 651, Col: 142}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 650, Col: 142}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var74)
 			if templ_7745c5c3_Err != nil {
@@ -1924,7 +1924,7 @@ func OrganizationRolesPageContent(organization api.Organization, roles []api.Org
 		var templ_7745c5c3_Var75 string
 		templ_7745c5c3_Var75, templ_7745c5c3_Err = templ.JoinStringErrs(RoleListViewLabel(currentRoleView))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 669, Col: 95}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 668, Col: 95}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var75))
 		if templ_7745c5c3_Err != nil {
@@ -1959,7 +1959,7 @@ func OrganizationRolesPageContent(organization api.Organization, roles []api.Org
 		var templ_7745c5c3_Var78 templ.SafeURL
 		templ_7745c5c3_Var78, templ_7745c5c3_Err = templ.JoinURLErrs(templ.URL(RoleListViewHref(string(organization.Slug), RoleListViewActive)))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 673, Col: 160}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 672, Col: 160}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var78))
 		if templ_7745c5c3_Err != nil {
@@ -1995,7 +1995,7 @@ func OrganizationRolesPageContent(organization api.Organization, roles []api.Org
 			var templ_7745c5c3_Var81 templ.SafeURL
 			templ_7745c5c3_Var81, templ_7745c5c3_Err = templ.JoinURLErrs(templ.URL(RoleListViewHref(string(organization.Slug), RoleListViewArchived)))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 675, Col: 165}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 674, Col: 165}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var81))
 			if templ_7745c5c3_Err != nil {
@@ -2014,7 +2014,7 @@ func OrganizationRolesPageContent(organization api.Organization, roles []api.Org
 			var templ_7745c5c3_Var82 string
 			templ_7745c5c3_Var82, templ_7745c5c3_Err = templ.JoinStringErrs(RoleCountLabel(len(visibleRoles)))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 678, Col: 75}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 677, Col: 75}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var82))
 			if templ_7745c5c3_Err != nil {
@@ -2067,7 +2067,7 @@ func OrganizationRolesPageContent(organization api.Organization, roles []api.Org
 				var templ_7745c5c3_Var83 string
 				templ_7745c5c3_Var83, templ_7745c5c3_Err = templ.JoinStringErrs(string(role.Name))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 706, Col: 68}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 705, Col: 68}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var83))
 				if templ_7745c5c3_Err != nil {
@@ -2080,7 +2080,7 @@ func OrganizationRolesPageContent(organization api.Organization, roles []api.Org
 				var templ_7745c5c3_Var84 string
 				templ_7745c5c3_Var84, templ_7745c5c3_Err = templ.JoinStringErrs(string(role.Slug))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 707, Col: 87}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 706, Col: 87}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var84))
 				if templ_7745c5c3_Err != nil {
@@ -2120,7 +2120,7 @@ func OrganizationRolesPageContent(organization api.Organization, roles []api.Org
 					return "Custom"
 				}())
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 717, Col: 3}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 716, Col: 3}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var87))
 				if templ_7745c5c3_Err != nil {
@@ -2155,7 +2155,7 @@ func OrganizationRolesPageContent(organization api.Organization, roles []api.Org
 				var templ_7745c5c3_Var90 string
 				templ_7745c5c3_Var90, templ_7745c5c3_Err = templ.JoinStringErrs(RoleLifecycleLabel(role))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 720, Col: 81}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 719, Col: 81}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var90))
 				if templ_7745c5c3_Err != nil {
@@ -2168,7 +2168,7 @@ func OrganizationRolesPageContent(organization api.Organization, roles []api.Org
 				var templ_7745c5c3_Var91 string
 				templ_7745c5c3_Var91, templ_7745c5c3_Err = templ.JoinStringErrs(RolePermissionSummary(role))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 725, Col: 40}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 724, Col: 40}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var91))
 				if templ_7745c5c3_Err != nil {
@@ -2181,7 +2181,7 @@ func OrganizationRolesPageContent(organization api.Organization, roles []api.Org
 				var templ_7745c5c3_Var92 string
 				templ_7745c5c3_Var92, templ_7745c5c3_Err = templ.JoinStringErrs(RolePermissionCountLabel(len(role.Permissions)))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 726, Col: 102}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 725, Col: 102}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var92))
 				if templ_7745c5c3_Err != nil {
@@ -2194,7 +2194,7 @@ func OrganizationRolesPageContent(organization api.Organization, roles []api.Org
 				var templ_7745c5c3_Var93 string
 				templ_7745c5c3_Var93, templ_7745c5c3_Err = templ.JoinStringErrs(role.UpdatedAt.Format("2006-01-02"))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 729, Col: 151}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 728, Col: 151}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var93))
 				if templ_7745c5c3_Err != nil {
@@ -2212,7 +2212,7 @@ func OrganizationRolesPageContent(organization api.Organization, roles []api.Org
 					var templ_7745c5c3_Var94 string
 					templ_7745c5c3_Var94, templ_7745c5c3_Err = templ.JoinStringErrs(RoleArchivedAtLabel(role))
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 731, Col: 90}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 730, Col: 90}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var94))
 					if templ_7745c5c3_Err != nil {
@@ -2230,7 +2230,7 @@ func OrganizationRolesPageContent(organization api.Organization, roles []api.Org
 				var templ_7745c5c3_Var95 string
 				templ_7745c5c3_Var95, templ_7745c5c3_Err = templ.ResolveAttributeValue(RoleDetailsPanelID(role))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 735, Col: 101}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 734, Col: 101}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var95)
 				if templ_7745c5c3_Err != nil {
@@ -2243,7 +2243,7 @@ func OrganizationRolesPageContent(organization api.Organization, roles []api.Org
 				var templ_7745c5c3_Var96 string
 				templ_7745c5c3_Var96, templ_7745c5c3_Err = templ.ResolveAttributeValue(RoleDetailsPanelID(role))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 735, Col: 171}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 734, Col: 171}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var96)
 				if templ_7745c5c3_Err != nil {
@@ -2261,7 +2261,7 @@ func OrganizationRolesPageContent(organization api.Organization, roles []api.Org
 					var templ_7745c5c3_Var97 string
 					templ_7745c5c3_Var97, templ_7745c5c3_Err = templ.ResolveAttributeValue(RoleEditPanelID(role))
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 737, Col: 97}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 736, Col: 97}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var97)
 					if templ_7745c5c3_Err != nil {
@@ -2274,7 +2274,7 @@ func OrganizationRolesPageContent(organization api.Organization, roles []api.Org
 					var templ_7745c5c3_Var98 string
 					templ_7745c5c3_Var98, templ_7745c5c3_Err = templ.ResolveAttributeValue(RoleEditPanelID(role))
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 737, Col: 164}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 736, Col: 164}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var98)
 					if templ_7745c5c3_Err != nil {
@@ -2293,7 +2293,7 @@ func OrganizationRolesPageContent(organization api.Organization, roles []api.Org
 					var templ_7745c5c3_Var99 string
 					templ_7745c5c3_Var99, templ_7745c5c3_Err = templ.ResolveAttributeValue(RoleArchiveModalID(role))
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 740, Col: 128}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 739, Col: 128}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var99)
 					if templ_7745c5c3_Err != nil {
@@ -2312,7 +2312,7 @@ func OrganizationRolesPageContent(organization api.Organization, roles []api.Org
 					var templ_7745c5c3_Var100 templ.SafeURL
 					templ_7745c5c3_Var100, templ_7745c5c3_Err = templ.JoinURLErrs(templ.URL("/organizations/" + string(organization.Slug) + "/roles/" + string(role.Slug) + "/restore"))
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 743, Col: 139}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 742, Col: 139}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var100))
 					if templ_7745c5c3_Err != nil {
@@ -2325,7 +2325,7 @@ func OrganizationRolesPageContent(organization api.Organization, roles []api.Org
 					var templ_7745c5c3_Var101 string
 					templ_7745c5c3_Var101, templ_7745c5c3_Err = templ.ResolveAttributeValue("/organizations/" + string(organization.Slug) + "/roles/" + string(role.Slug) + "/restore")
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 743, Col: 242}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 742, Col: 242}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var101)
 					if templ_7745c5c3_Err != nil {
@@ -2359,7 +2359,7 @@ func OrganizationRolesPageContent(organization api.Organization, roles []api.Org
 				var templ_7745c5c3_Var102 string
 				templ_7745c5c3_Var102, templ_7745c5c3_Err = templ.ResolveAttributeValue(RoleDetailsPanelID(role))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 755, Col: 41}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 754, Col: 41}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var102)
 				if templ_7745c5c3_Err != nil {
@@ -2372,7 +2372,7 @@ func OrganizationRolesPageContent(organization api.Organization, roles []api.Org
 				var templ_7745c5c3_Var103 string
 				templ_7745c5c3_Var103, templ_7745c5c3_Err = templ.JoinStringErrs(RolePermissionCountLabel(len(role.Permissions)))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 761, Col: 92}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 760, Col: 92}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var103))
 				if templ_7745c5c3_Err != nil {
@@ -2400,7 +2400,7 @@ func OrganizationRolesPageContent(organization api.Organization, roles []api.Org
 						var templ_7745c5c3_Var104 string
 						templ_7745c5c3_Var104, templ_7745c5c3_Err = templ.JoinStringErrs(RolePermissionLabel(permission))
 						if templ_7745c5c3_Err != nil {
-							return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 769, Col: 102}
+							return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 768, Col: 102}
 						}
 						_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var104))
 						if templ_7745c5c3_Err != nil {
@@ -2428,7 +2428,7 @@ func OrganizationRolesPageContent(organization api.Organization, roles []api.Org
 					var templ_7745c5c3_Var105 string
 					templ_7745c5c3_Var105, templ_7745c5c3_Err = templ.ResolveAttributeValue(RoleEditPanelID(role))
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 777, Col: 35}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 776, Col: 35}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var105)
 					if templ_7745c5c3_Err != nil {
@@ -2441,7 +2441,7 @@ func OrganizationRolesPageContent(organization api.Organization, roles []api.Org
 					var templ_7745c5c3_Var106 templ.SafeURL
 					templ_7745c5c3_Var106, templ_7745c5c3_Err = templ.JoinURLErrs(templ.URL("/organizations/" + string(organization.Slug) + "/roles/" + string(role.Slug) + "/update"))
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 780, Col: 118}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 779, Col: 118}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var106))
 					if templ_7745c5c3_Err != nil {
@@ -2454,7 +2454,7 @@ func OrganizationRolesPageContent(organization api.Organization, roles []api.Org
 					var templ_7745c5c3_Var107 string
 					templ_7745c5c3_Var107, templ_7745c5c3_Err = templ.ResolveAttributeValue("/organizations/" + string(organization.Slug) + "/roles/" + string(role.Slug) + "/update")
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 781, Col: 108}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 780, Col: 108}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var107)
 					if templ_7745c5c3_Err != nil {
@@ -2467,7 +2467,7 @@ func OrganizationRolesPageContent(organization api.Organization, roles []api.Org
 					var templ_7745c5c3_Var108 string
 					templ_7745c5c3_Var108, templ_7745c5c3_Err = templ.ResolveAttributeValue("organization-role-" + string(role.Slug) + "-update")
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 785, Col: 79}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 784, Col: 79}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var108)
 					if templ_7745c5c3_Err != nil {
@@ -2480,7 +2480,7 @@ func OrganizationRolesPageContent(organization api.Organization, roles []api.Org
 					var templ_7745c5c3_Var109 string
 					templ_7745c5c3_Var109, templ_7745c5c3_Err = templ.ResolveAttributeValue(string(role.Name))
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 791, Col: 112}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 790, Col: 112}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var109)
 					if templ_7745c5c3_Err != nil {
@@ -2569,7 +2569,7 @@ func RolePermissionFormRows(rows []RolePermissionFormData) templ.Component {
 			var templ_7745c5c3_Var111 string
 			templ_7745c5c3_Var111, templ_7745c5c3_Err = templ.ResolveAttributeValue(row.Resource)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 826, Col: 177}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 825, Col: 177}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var111)
 			if templ_7745c5c3_Err != nil {
@@ -2582,7 +2582,7 @@ func RolePermissionFormRows(rows []RolePermissionFormData) templ.Component {
 			var templ_7745c5c3_Var112 string
 			templ_7745c5c3_Var112, templ_7745c5c3_Err = templ.ResolveAttributeValue(row.Action)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 830, Col: 168}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 829, Col: 168}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var112)
 			if templ_7745c5c3_Err != nil {
@@ -2634,7 +2634,7 @@ func RolePermissionDatalists() templ.Component {
 			var templ_7745c5c3_Var114 string
 			templ_7745c5c3_Var114, templ_7745c5c3_Err = templ.ResolveAttributeValue(option.Value)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 840, Col: 31}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 839, Col: 31}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var114)
 			if templ_7745c5c3_Err != nil {
@@ -2647,7 +2647,7 @@ func RolePermissionDatalists() templ.Component {
 			var templ_7745c5c3_Var115 string
 			templ_7745c5c3_Var115, templ_7745c5c3_Err = templ.JoinStringErrs(option.Label)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 840, Col: 48}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 839, Col: 48}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var115))
 			if templ_7745c5c3_Err != nil {
@@ -2670,7 +2670,7 @@ func RolePermissionDatalists() templ.Component {
 			var templ_7745c5c3_Var116 string
 			templ_7745c5c3_Var116, templ_7745c5c3_Err = templ.ResolveAttributeValue(option.Value)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 845, Col: 31}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 844, Col: 31}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var116)
 			if templ_7745c5c3_Err != nil {
@@ -2683,7 +2683,7 @@ func RolePermissionDatalists() templ.Component {
 			var templ_7745c5c3_Var117 string
 			templ_7745c5c3_Var117, templ_7745c5c3_Err = templ.JoinStringErrs(option.Label)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 845, Col: 48}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 844, Col: 48}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var117))
 			if templ_7745c5c3_Err != nil {
@@ -2730,7 +2730,7 @@ func RoleArchiveConfirmModal(modalID string, roleName string, roleSlug string, a
 		var templ_7745c5c3_Var119 string
 		templ_7745c5c3_Var119, templ_7745c5c3_Err = templ.ResolveAttributeValue(modalID)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 851, Col: 35}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 850, Col: 35}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var119)
 		if templ_7745c5c3_Err != nil {
@@ -2743,7 +2743,7 @@ func RoleArchiveConfirmModal(modalID string, roleName string, roleSlug string, a
 		var templ_7745c5c3_Var120 string
 		templ_7745c5c3_Var120, templ_7745c5c3_Err = templ.ResolveAttributeValue(roleSlug)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 851, Col: 94}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 850, Col: 94}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var120)
 		if templ_7745c5c3_Err != nil {
@@ -2756,7 +2756,7 @@ func RoleArchiveConfirmModal(modalID string, roleName string, roleSlug string, a
 		var templ_7745c5c3_Var121 string
 		templ_7745c5c3_Var121, templ_7745c5c3_Err = templ.JoinStringErrs(roleSlug)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 859, Col: 70}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 858, Col: 70}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var121))
 		if templ_7745c5c3_Err != nil {
@@ -2769,7 +2769,7 @@ func RoleArchiveConfirmModal(modalID string, roleName string, roleSlug string, a
 		var templ_7745c5c3_Var122 templ.SafeURL
 		templ_7745c5c3_Var122, templ_7745c5c3_Err = templ.JoinURLErrs(templ.URL(actionURL))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 865, Col: 33}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 864, Col: 33}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var122))
 		if templ_7745c5c3_Err != nil {
@@ -2782,7 +2782,7 @@ func RoleArchiveConfirmModal(modalID string, roleName string, roleSlug string, a
 		var templ_7745c5c3_Var123 string
 		templ_7745c5c3_Var123, templ_7745c5c3_Err = templ.ResolveAttributeValue(actionURL)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 866, Col: 23}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 865, Col: 23}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var123)
 		if templ_7745c5c3_Err != nil {
@@ -2795,7 +2795,7 @@ func RoleArchiveConfirmModal(modalID string, roleName string, roleSlug string, a
 		var templ_7745c5c3_Var124 string
 		templ_7745c5c3_Var124, templ_7745c5c3_Err = templ.JoinStringErrs(roleName)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 873, Col: 66}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 872, Col: 66}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var124))
 		if templ_7745c5c3_Err != nil {
@@ -2808,7 +2808,7 @@ func RoleArchiveConfirmModal(modalID string, roleName string, roleSlug string, a
 		var templ_7745c5c3_Var125 string
 		templ_7745c5c3_Var125, templ_7745c5c3_Err = templ.JoinStringErrs(roleSlug)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 878, Col: 103}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 877, Col: 103}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var125))
 		if templ_7745c5c3_Err != nil {
@@ -2821,7 +2821,7 @@ func RoleArchiveConfirmModal(modalID string, roleName string, roleSlug string, a
 		var templ_7745c5c3_Var126 string
 		templ_7745c5c3_Var126, templ_7745c5c3_Err = templ.ResolveAttributeValue(roleSlug)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 885, Col: 28}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 884, Col: 28}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var126)
 		if templ_7745c5c3_Err != nil {
@@ -2834,7 +2834,7 @@ func RoleArchiveConfirmModal(modalID string, roleName string, roleSlug string, a
 		var templ_7745c5c3_Var127 string
 		templ_7745c5c3_Var127, templ_7745c5c3_Err = templ.ResolveAttributeValue(roleSlug)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 888, Col: 34}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 887, Col: 34}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var127)
 		if templ_7745c5c3_Err != nil {
@@ -2847,7 +2847,7 @@ func RoleArchiveConfirmModal(modalID string, roleName string, roleSlug string, a
 		var templ_7745c5c3_Var128 string
 		templ_7745c5c3_Var128, templ_7745c5c3_Err = templ.ResolveAttributeValue(modalID)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 892, Col: 93}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 891, Col: 93}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var128)
 		if templ_7745c5c3_Err != nil {
@@ -2928,7 +2928,7 @@ func OrganizationProjectsPageContent(organization api.Organization, projects []a
 				return "false"
 			}())
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 915, Col: 103}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 914, Col: 103}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var131)
 			if templ_7745c5c3_Err != nil {
@@ -2968,7 +2968,7 @@ func OrganizationProjectsPageContent(organization api.Organization, projects []a
 			var templ_7745c5c3_Var134 templ.SafeURL
 			templ_7745c5c3_Var134, templ_7745c5c3_Err = templ.JoinURLErrs(templ.URL("/organizations/" + string(organization.Slug) + "/projects"))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 928, Col: 83}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 927, Col: 83}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var134))
 			if templ_7745c5c3_Err != nil {
@@ -2981,7 +2981,7 @@ func OrganizationProjectsPageContent(organization api.Organization, projects []a
 			var templ_7745c5c3_Var135 string
 			templ_7745c5c3_Var135, templ_7745c5c3_Err = templ.ResolveAttributeValue("/organizations/" + string(organization.Slug) + "/projects")
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 929, Col: 73}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 928, Col: 73}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var135)
 			if templ_7745c5c3_Err != nil {
@@ -2994,7 +2994,7 @@ func OrganizationProjectsPageContent(organization api.Organization, projects []a
 			var templ_7745c5c3_Var136 string
 			templ_7745c5c3_Var136, templ_7745c5c3_Err = templ.ResolveAttributeValue(createFormData.Name)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 940, Col: 109}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 939, Col: 109}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var136)
 			if templ_7745c5c3_Err != nil {
@@ -3037,7 +3037,7 @@ func OrganizationProjectsPageContent(organization api.Organization, projects []a
 			var templ_7745c5c3_Var137 string
 			templ_7745c5c3_Var137, templ_7745c5c3_Err = templ.JoinStringErrs(contentErrorSummary)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 950, Col: 51}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 949, Col: 51}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var137))
 			if templ_7745c5c3_Err != nil {
@@ -3055,7 +3055,7 @@ func OrganizationProjectsPageContent(organization api.Organization, projects []a
 				var templ_7745c5c3_Var138 string
 				templ_7745c5c3_Var138, templ_7745c5c3_Err = templ.JoinStringErrs(contentErrorDetails)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 952, Col: 62}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 951, Col: 62}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var138))
 				if templ_7745c5c3_Err != nil {
@@ -3091,7 +3091,7 @@ func OrganizationProjectsPageContent(organization api.Organization, projects []a
 			var templ_7745c5c3_Var139 string
 			templ_7745c5c3_Var139, templ_7745c5c3_Err = templ.JoinStringErrs(fmt.Sprintf("%d", len(projects)))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 970, Col: 96}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 969, Col: 96}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var139))
 			if templ_7745c5c3_Err != nil {
@@ -3104,7 +3104,7 @@ func OrganizationProjectsPageContent(organization api.Organization, projects []a
 			var templ_7745c5c3_Var140 string
 			templ_7745c5c3_Var140, templ_7745c5c3_Err = templ.JoinStringErrs(fmt.Sprintf("%d", projectBackendConfiguredCount(projects)))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 975, Col: 122}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 974, Col: 122}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var140))
 			if templ_7745c5c3_Err != nil {
@@ -3139,7 +3139,7 @@ func OrganizationProjectsPageContent(organization api.Organization, projects []a
 			var templ_7745c5c3_Var143 string
 			templ_7745c5c3_Var143, templ_7745c5c3_Err = templ.JoinStringErrs(fmt.Sprintf("%d", projectBackendMissingCount(projects)))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 980, Col: 114}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 979, Col: 114}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var143))
 			if templ_7745c5c3_Err != nil {
@@ -3185,7 +3185,7 @@ func OrganizationProjectsPageContent(organization api.Organization, projects []a
 						var templ_7745c5c3_Var146 templ.SafeURL
 						templ_7745c5c3_Var146, templ_7745c5c3_Err = templ.JoinURLErrs(templ.URL(projectDetailHref(ctx, string(organization.Slug), string(project.Slug))))
 						if templ_7745c5c3_Err != nil {
-							return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 997, Col: 239}
+							return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 996, Col: 239}
 						}
 						_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var146))
 						if templ_7745c5c3_Err != nil {
@@ -3198,7 +3198,7 @@ func OrganizationProjectsPageContent(organization api.Organization, projects []a
 						var templ_7745c5c3_Var147 string
 						templ_7745c5c3_Var147, templ_7745c5c3_Err = templ.JoinStringErrs(string(project.Name))
 						if templ_7745c5c3_Err != nil {
-							return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 997, Col: 264}
+							return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 996, Col: 264}
 						}
 						_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var147))
 						if templ_7745c5c3_Err != nil {
@@ -3211,7 +3211,7 @@ func OrganizationProjectsPageContent(organization api.Organization, projects []a
 						var templ_7745c5c3_Var148 string
 						templ_7745c5c3_Var148, templ_7745c5c3_Err = templ.JoinStringErrs(string(project.Slug))
 						if templ_7745c5c3_Err != nil {
-							return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 998, Col: 97}
+							return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 997, Col: 97}
 						}
 						_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var148))
 						if templ_7745c5c3_Err != nil {
@@ -3246,7 +3246,7 @@ func OrganizationProjectsPageContent(organization api.Organization, projects []a
 						var templ_7745c5c3_Var151 string
 						templ_7745c5c3_Var151, templ_7745c5c3_Err = templ.JoinStringErrs(projectPipelineBackendStatusLabel(project))
 						if templ_7745c5c3_Err != nil {
-							return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 1002, Col: 112}
+							return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 1001, Col: 112}
 						}
 						_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var151))
 						if templ_7745c5c3_Err != nil {
@@ -3264,7 +3264,7 @@ func OrganizationProjectsPageContent(organization api.Organization, projects []a
 							var templ_7745c5c3_Var152 string
 							templ_7745c5c3_Var152, templ_7745c5c3_Err = templ.JoinStringErrs(projectPipelineBackendListLabel(project))
 							if templ_7745c5c3_Err != nil {
-								return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 1004, Col: 144}
+								return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 1003, Col: 144}
 							}
 							_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var152))
 							if templ_7745c5c3_Err != nil {
@@ -3277,7 +3277,7 @@ func OrganizationProjectsPageContent(organization api.Organization, projects []a
 							var templ_7745c5c3_Var153 string
 							templ_7745c5c3_Var153, templ_7745c5c3_Err = templ.JoinStringErrs(projectPipelineBackendBranchLabel(project))
 							if templ_7745c5c3_Err != nil {
-								return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 1005, Col: 146}
+								return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 1004, Col: 146}
 							}
 							_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var153))
 							if templ_7745c5c3_Err != nil {
@@ -3416,7 +3416,7 @@ func OrganizationProjectDetailPanelSlot(organization api.Organization, projects 
 								var templ_7745c5c3_Var160 string
 								templ_7745c5c3_Var160, templ_7745c5c3_Err = templ.JoinStringErrs(projectRepositoryLabel(project))
 								if templ_7745c5c3_Err != nil {
-									return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 1031, Col: 42}
+									return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 1030, Col: 42}
 								}
 								_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var160))
 								if templ_7745c5c3_Err != nil {
@@ -3456,7 +3456,7 @@ func OrganizationProjectDetailPanelSlot(organization api.Organization, projects 
 									var templ_7745c5c3_Var162 string
 									templ_7745c5c3_Var162, templ_7745c5c3_Err = templ.JoinStringErrs(projectPipelineBackendListLabel(project))
 									if templ_7745c5c3_Err != nil {
-										return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 1037, Col: 52}
+										return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 1036, Col: 52}
 									}
 									_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var162))
 									if templ_7745c5c3_Err != nil {
@@ -3495,7 +3495,7 @@ func OrganizationProjectDetailPanelSlot(organization api.Organization, projects 
 									var templ_7745c5c3_Var164 string
 									templ_7745c5c3_Var164, templ_7745c5c3_Err = templ.JoinStringErrs(projectPipelineBackendBranchLabel(project))
 									if templ_7745c5c3_Err != nil {
-										return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 1042, Col: 54}
+										return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 1041, Col: 54}
 									}
 									_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var164))
 									if templ_7745c5c3_Err != nil {
@@ -3541,7 +3541,7 @@ func OrganizationProjectDetailPanelSlot(organization api.Organization, projects 
 									var templ_7745c5c3_Var166 string
 									templ_7745c5c3_Var166, templ_7745c5c3_Err = templ.JoinStringErrs(ProjectDefaultEnvironmentLabel(projectContext.Environments))
 									if templ_7745c5c3_Err != nil {
-										return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 1051, Col: 71}
+										return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 1050, Col: 71}
 									}
 									_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var166))
 									if templ_7745c5c3_Err != nil {
@@ -3618,7 +3618,7 @@ func ProjectReadinessProblems(organization api.Organization, project api.Project
 			var templ_7745c5c3_Var168 string
 			templ_7745c5c3_Var168, templ_7745c5c3_Err = templ.JoinStringErrs(projectRepositoryLabel(project))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 1068, Col: 37}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 1067, Col: 37}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var168))
 			if templ_7745c5c3_Err != nil {
@@ -3642,7 +3642,7 @@ func ProjectReadinessProblems(organization api.Organization, project api.Project
 				var templ_7745c5c3_Var169 templ.SafeURL
 				templ_7745c5c3_Var169, templ_7745c5c3_Err = templ.JoinURLErrs(templ.URL(projectSectionHref(ctx, string(organization.Slug), string(project.Slug), "repository")))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 1076, Col: 109}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 1075, Col: 109}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var169))
 				if templ_7745c5c3_Err != nil {
@@ -3667,7 +3667,7 @@ func ProjectReadinessProblems(organization api.Organization, project api.Project
 			var templ_7745c5c3_Var170 string
 			templ_7745c5c3_Var170, templ_7745c5c3_Err = templ.JoinStringErrs(problem)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 1084, Col: 15}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 1083, Col: 15}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var170))
 			if templ_7745c5c3_Err != nil {
@@ -3685,7 +3685,7 @@ func ProjectReadinessProblems(organization api.Organization, project api.Project
 				var templ_7745c5c3_Var171 templ.SafeURL
 				templ_7745c5c3_Var171, templ_7745c5c3_Err = templ.JoinURLErrs(templ.URL(projectSectionHref(ctx, string(organization.Slug), string(project.Slug), "environments")))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 1088, Col: 111}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 1087, Col: 111}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var171))
 				if templ_7745c5c3_Err != nil {
@@ -3753,7 +3753,7 @@ func OrganizationProjectDetailPanel(organization api.Organization, project api.P
 				var templ_7745c5c3_Var174 templ.SafeURL
 				templ_7745c5c3_Var174, templ_7745c5c3_Err = templ.JoinURLErrs(templ.URL(externalBackendLink.Href))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 1104, Col: 47}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 1103, Col: 47}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var174))
 				if templ_7745c5c3_Err != nil {
@@ -3766,7 +3766,7 @@ func OrganizationProjectDetailPanel(organization api.Organization, project api.P
 				var templ_7745c5c3_Var175 string
 				templ_7745c5c3_Var175, templ_7745c5c3_Err = templ.JoinStringErrs(externalBackendLink.Label)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 1107, Col: 32}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 1106, Col: 32}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var175))
 				if templ_7745c5c3_Err != nil {
@@ -3883,7 +3883,7 @@ func OrganizationProjectDetailPanel(organization api.Organization, project api.P
 					var templ_7745c5c3_Var180 string
 					templ_7745c5c3_Var180, templ_7745c5c3_Err = templ.JoinStringErrs(projectRepositoryLabel(project))
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 1132, Col: 40}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 1131, Col: 40}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var180))
 					if templ_7745c5c3_Err != nil {
@@ -3928,7 +3928,7 @@ func OrganizationProjectDetailPanel(organization api.Organization, project api.P
 						var templ_7745c5c3_Var182 string
 						templ_7745c5c3_Var182, templ_7745c5c3_Err = templ.JoinStringErrs(ProjectDefaultEnvironmentLabel(projectContext.Environments))
 						if templ_7745c5c3_Err != nil {
-							return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 1140, Col: 69}
+							return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 1139, Col: 69}
 						}
 						_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var182))
 						if templ_7745c5c3_Err != nil {
@@ -3994,7 +3994,7 @@ func OrganizationProjectDetailPanel(organization api.Organization, project api.P
 			var templ_7745c5c3_Var185 string
 			templ_7745c5c3_Var185, templ_7745c5c3_Err = templ.JoinStringErrs(projectPipelineBackendStatusLabel(project))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 1159, Col: 50}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 1158, Col: 50}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var185))
 			if templ_7745c5c3_Err != nil {
@@ -4039,7 +4039,7 @@ func OrganizationProjectDetailPanel(organization api.Organization, project api.P
 					return "false"
 				}())
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 1166, Col: 119}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 1165, Col: 119}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var188)
 				if templ_7745c5c3_Err != nil {
@@ -4052,7 +4052,7 @@ func OrganizationProjectDetailPanel(organization api.Organization, project api.P
 				var templ_7745c5c3_Var189 templ.SafeURL
 				templ_7745c5c3_Var189, templ_7745c5c3_Err = templ.JoinURLErrs(templ.URL(projectRepositoryHref(ctx, string(organization.Slug), string(project.Slug), "existing")))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 1167, Col: 112}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 1166, Col: 112}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var189))
 				if templ_7745c5c3_Err != nil {
@@ -4092,7 +4092,7 @@ func OrganizationProjectDetailPanel(organization api.Organization, project api.P
 					return "false"
 				}())
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 1171, Col: 117}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 1170, Col: 117}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var192)
 				if templ_7745c5c3_Err != nil {
@@ -4105,7 +4105,7 @@ func OrganizationProjectDetailPanel(organization api.Organization, project api.P
 				var templ_7745c5c3_Var193 templ.SafeURL
 				templ_7745c5c3_Var193, templ_7745c5c3_Err = templ.JoinURLErrs(templ.URL(projectRepositoryHref(ctx, string(organization.Slug), string(project.Slug), "create")))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 1172, Col: 110}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 1171, Col: 110}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var193))
 				if templ_7745c5c3_Err != nil {
@@ -4123,7 +4123,7 @@ func OrganizationProjectDetailPanel(organization api.Organization, project api.P
 					var templ_7745c5c3_Var194 templ.SafeURL
 					templ_7745c5c3_Var194, templ_7745c5c3_Err = templ.JoinURLErrs(templ.URL(projectRepositoryAction(ctx, ProjectPipelineBackendFormAction(string(organization.Slug), string(project.Slug), fullPage))))
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 1179, Col: 148}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 1178, Col: 148}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var194))
 					if templ_7745c5c3_Err != nil {
@@ -4136,7 +4136,7 @@ func OrganizationProjectDetailPanel(organization api.Organization, project api.P
 					var templ_7745c5c3_Var195 string
 					templ_7745c5c3_Var195, templ_7745c5c3_Err = templ.ResolveAttributeValue(projectRepositoryAction(ctx, ProjectPipelineBackendFormAction(string(organization.Slug), string(project.Slug), fullPage)))
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 1180, Col: 138}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 1179, Col: 138}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var195)
 					if templ_7745c5c3_Err != nil {
@@ -4149,7 +4149,7 @@ func OrganizationProjectDetailPanel(organization api.Organization, project api.P
 					var templ_7745c5c3_Var196 string
 					templ_7745c5c3_Var196, templ_7745c5c3_Err = templ.ResolveAttributeValue(projectRepositoryHref(ctx, string(organization.Slug), string(project.Slug), projectRepositoryPath(ctx)))
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 1181, Col: 124}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 1180, Col: 124}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var196)
 					if templ_7745c5c3_Err != nil {
@@ -4162,7 +4162,7 @@ func OrganizationProjectDetailPanel(organization api.Organization, project api.P
 					var templ_7745c5c3_Var197 string
 					templ_7745c5c3_Var197, templ_7745c5c3_Err = templ.ResolveAttributeValue(ProjectDetailHTMXTarget(fullPage))
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 1184, Col: 52}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 1183, Col: 52}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var197)
 					if templ_7745c5c3_Err != nil {
@@ -4175,7 +4175,7 @@ func OrganizationProjectDetailPanel(organization api.Organization, project api.P
 					var templ_7745c5c3_Var198 string
 					templ_7745c5c3_Var198, templ_7745c5c3_Err = templ.ResolveAttributeValue(ProjectDetailHTMXTarget(fullPage))
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 1185, Col: 52}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 1184, Col: 52}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var198)
 					if templ_7745c5c3_Err != nil {
@@ -4188,7 +4188,7 @@ func OrganizationProjectDetailPanel(organization api.Organization, project api.P
 					var templ_7745c5c3_Var199 string
 					templ_7745c5c3_Var199, templ_7745c5c3_Err = templ.ResolveAttributeValue(ProjectPipelineBackendDirtyBaseline(project))
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 1188, Col: 73}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 1187, Col: 73}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var199)
 					if templ_7745c5c3_Err != nil {
@@ -4201,7 +4201,7 @@ func OrganizationProjectDetailPanel(organization api.Organization, project api.P
 					var templ_7745c5c3_Var200 string
 					templ_7745c5c3_Var200, templ_7745c5c3_Err = templ.ResolveAttributeValue(string(project.Slug))
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 1194, Col: 36}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 1193, Col: 36}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var200)
 					if templ_7745c5c3_Err != nil {
@@ -4224,7 +4224,7 @@ func OrganizationProjectDetailPanel(organization api.Organization, project api.P
 					var templ_7745c5c3_Var201 string
 					templ_7745c5c3_Var201, templ_7745c5c3_Err = templ.ResolveAttributeValue(projectRepositoryHref(ctx, string(organization.Slug), string(project.Slug), projectRepositoryPath(ctx)))
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 1212, Col: 121}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 1211, Col: 121}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var201)
 					if templ_7745c5c3_Err != nil {
@@ -4237,7 +4237,7 @@ func OrganizationProjectDetailPanel(organization api.Organization, project api.P
 					var templ_7745c5c3_Var202 string
 					templ_7745c5c3_Var202, templ_7745c5c3_Err = templ.ResolveAttributeValue(ProjectDetailHTMXTarget(fullPage))
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 1216, Col: 54}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 1215, Col: 54}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var202)
 					if templ_7745c5c3_Err != nil {
@@ -4250,7 +4250,7 @@ func OrganizationProjectDetailPanel(organization api.Organization, project api.P
 					var templ_7745c5c3_Var203 string
 					templ_7745c5c3_Var203, templ_7745c5c3_Err = templ.ResolveAttributeValue(ProjectDetailHTMXTarget(fullPage))
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 1217, Col: 54}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 1216, Col: 54}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var203)
 					if templ_7745c5c3_Err != nil {
@@ -4288,7 +4288,7 @@ func OrganizationProjectDetailPanel(organization api.Organization, project api.P
 							var templ_7745c5c3_Var204 string
 							templ_7745c5c3_Var204, templ_7745c5c3_Err = templ.ResolveAttributeValue(backendControls.SelectedDataSource)
 							if templ_7745c5c3_Err != nil {
-								return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 1227, Col: 61}
+								return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 1226, Col: 61}
 							}
 							_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var204)
 							if templ_7745c5c3_Err != nil {
@@ -4301,7 +4301,7 @@ func OrganizationProjectDetailPanel(organization api.Organization, project api.P
 							var templ_7745c5c3_Var205 string
 							templ_7745c5c3_Var205, templ_7745c5c3_Err = templ.JoinStringErrs(backendControls.SelectedDataSource)
 							if templ_7745c5c3_Err != nil {
-								return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 1227, Col: 109}
+								return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 1226, Col: 109}
 							}
 							_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var205))
 							if templ_7745c5c3_Err != nil {
@@ -4320,7 +4320,7 @@ func OrganizationProjectDetailPanel(organization api.Organization, project api.P
 							var templ_7745c5c3_Var206 string
 							templ_7745c5c3_Var206, templ_7745c5c3_Err = templ.ResolveAttributeValue(option.Slug)
 							if templ_7745c5c3_Err != nil {
-								return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 1230, Col: 38}
+								return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 1229, Col: 38}
 							}
 							_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var206)
 							if templ_7745c5c3_Err != nil {
@@ -4343,7 +4343,7 @@ func OrganizationProjectDetailPanel(organization api.Organization, project api.P
 							var templ_7745c5c3_Var207 string
 							templ_7745c5c3_Var207, templ_7745c5c3_Err = templ.JoinStringErrs(ProjectPipelineBackendDataSourceLabel(option))
 							if templ_7745c5c3_Err != nil {
-								return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 1231, Col: 59}
+								return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 1230, Col: 59}
 							}
 							_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var207))
 							if templ_7745c5c3_Err != nil {
@@ -4367,7 +4367,7 @@ func OrganizationProjectDetailPanel(organization api.Organization, project api.P
 						var templ_7745c5c3_Var208 string
 						templ_7745c5c3_Var208, templ_7745c5c3_Err = templ.JoinStringErrs(backendControls.DataSourceLoadError)
 						if templ_7745c5c3_Err != nil {
-							return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 1238, Col: 83}
+							return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 1237, Col: 83}
 						}
 						_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var208))
 						if templ_7745c5c3_Err != nil {
@@ -4385,7 +4385,7 @@ func OrganizationProjectDetailPanel(organization api.Organization, project api.P
 						var templ_7745c5c3_Var209 string
 						templ_7745c5c3_Var209, templ_7745c5c3_Err = templ.JoinStringErrs(ProjectPipelineBackendOptionCountLabel(backendControls.DataSourceOptions))
 						if templ_7745c5c3_Err != nil {
-							return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 1241, Col: 85}
+							return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 1240, Col: 85}
 						}
 						_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var209))
 						if templ_7745c5c3_Err != nil {
@@ -4404,7 +4404,7 @@ func OrganizationProjectDetailPanel(organization api.Organization, project api.P
 						var templ_7745c5c3_Var210 string
 						templ_7745c5c3_Var210, templ_7745c5c3_Err = templ.JoinStringErrs(backendControls.DataSourceLoadDetails)
 						if templ_7745c5c3_Err != nil {
-							return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 1245, Col: 100}
+							return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 1244, Col: 100}
 						}
 						_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var210))
 						if templ_7745c5c3_Err != nil {
@@ -4432,7 +4432,7 @@ func OrganizationProjectDetailPanel(organization api.Organization, project api.P
 					var templ_7745c5c3_Var211 string
 					templ_7745c5c3_Var211, templ_7745c5c3_Err = templ.ResolveAttributeValue(backendControls.PipelineDir)
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 1257, Col: 45}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 1256, Col: 45}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var211)
 					if templ_7745c5c3_Err != nil {
@@ -4453,7 +4453,7 @@ func OrganizationProjectDetailPanel(organization api.Organization, project api.P
 					var templ_7745c5c3_Var212 string
 					templ_7745c5c3_Var212, templ_7745c5c3_Err = templ.JoinStringErrs(projectPipelineBackendRepoLabel(project))
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 1267, Col: 51}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 1266, Col: 51}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var212))
 					if templ_7745c5c3_Err != nil {
@@ -4492,7 +4492,7 @@ func OrganizationProjectDetailPanel(organization api.Organization, project api.P
 				var templ_7745c5c3_Var213 string
 				templ_7745c5c3_Var213, templ_7745c5c3_Err = templ.JoinStringErrs(projectPipelineBackendPipelineDir(project))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 1285, Col: 52}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 1284, Col: 52}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var213))
 				if templ_7745c5c3_Err != nil {
@@ -4505,7 +4505,7 @@ func OrganizationProjectDetailPanel(organization api.Organization, project api.P
 				var templ_7745c5c3_Var214 string
 				templ_7745c5c3_Var214, templ_7745c5c3_Err = templ.JoinStringErrs(projectPipelineBackendFirstCommit(project))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 1291, Col: 52}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 1290, Col: 52}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var214))
 				if templ_7745c5c3_Err != nil {
@@ -4554,7 +4554,7 @@ func OrganizationProjectDetailPanel(organization api.Organization, project api.P
 				var templ_7745c5c3_Var215 templ.SafeURL
 				templ_7745c5c3_Var215, templ_7745c5c3_Err = templ.JoinURLErrs(templ.URL(projectSectionAction(ctx, ProjectDeleteFormAction(string(organization.Slug), string(project.Slug), fullPage), "settings")))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 1317, Col: 147}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 1316, Col: 147}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var215))
 				if templ_7745c5c3_Err != nil {
@@ -4567,7 +4567,7 @@ func OrganizationProjectDetailPanel(organization api.Organization, project api.P
 				var templ_7745c5c3_Var216 string
 				templ_7745c5c3_Var216, templ_7745c5c3_Err = templ.ResolveAttributeValue(projectSectionAction(ctx, ProjectDeleteFormAction(string(organization.Slug), string(project.Slug), fullPage), "settings"))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 1318, Col: 137}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 1317, Col: 137}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var216)
 				if templ_7745c5c3_Err != nil {
@@ -4580,7 +4580,7 @@ func OrganizationProjectDetailPanel(organization api.Organization, project api.P
 				var templ_7745c5c3_Var217 string
 				templ_7745c5c3_Var217, templ_7745c5c3_Err = templ.ResolveAttributeValue(ProjectDetailHTMXTarget(fullPage))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 1319, Col: 51}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 1318, Col: 51}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var217)
 				if templ_7745c5c3_Err != nil {
@@ -4593,7 +4593,7 @@ func OrganizationProjectDetailPanel(organization api.Organization, project api.P
 				var templ_7745c5c3_Var218 string
 				templ_7745c5c3_Var218, templ_7745c5c3_Err = templ.ResolveAttributeValue(ProjectDetailHTMXTarget(fullPage))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 1320, Col: 51}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 1319, Col: 51}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var218)
 				if templ_7745c5c3_Err != nil {
@@ -4606,7 +4606,7 @@ func OrganizationProjectDetailPanel(organization api.Organization, project api.P
 				var templ_7745c5c3_Var219 string
 				templ_7745c5c3_Var219, templ_7745c5c3_Err = templ.ResolveAttributeValue(DestructiveConfirmation("Delete", "project", DestructiveResourceLabel(string(project.Name), string(project.Slug)), "Project deletion is permanent and removes project-owned resources."))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 1323, Col: 203}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 1322, Col: 203}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var219)
 				if templ_7745c5c3_Err != nil {
@@ -4619,7 +4619,7 @@ func OrganizationProjectDetailPanel(organization api.Organization, project api.P
 				var templ_7745c5c3_Var220 string
 				templ_7745c5c3_Var220, templ_7745c5c3_Err = templ.ResolveAttributeValue(DestructiveConfirmation("Delete", "project", DestructiveResourceLabel(string(project.Name), string(project.Slug)), "Project deletion is permanent and removes project-owned resources."))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 1324, Col: 217}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 1323, Col: 217}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var220)
 				if templ_7745c5c3_Err != nil {
@@ -4692,7 +4692,7 @@ func OrganizationProjectEnvironmentsSummary(organization api.Organization, proje
 			var templ_7745c5c3_Var222 string
 			templ_7745c5c3_Var222, templ_7745c5c3_Err = templ.JoinStringErrs(fmt.Sprintf("%d", len(projectContext.Environments)))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 1354, Col: 59}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 1353, Col: 59}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var222))
 			if templ_7745c5c3_Err != nil {
@@ -4705,7 +4705,7 @@ func OrganizationProjectEnvironmentsSummary(organization api.Organization, proje
 			var templ_7745c5c3_Var223 string
 			templ_7745c5c3_Var223, templ_7745c5c3_Err = templ.JoinStringErrs(ProjectDefaultEnvironmentLabel(projectContext.Environments))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 1360, Col: 67}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 1359, Col: 67}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var223))
 			if templ_7745c5c3_Err != nil {
@@ -4718,7 +4718,7 @@ func OrganizationProjectEnvironmentsSummary(organization api.Organization, proje
 			var templ_7745c5c3_Var224 string
 			templ_7745c5c3_Var224, templ_7745c5c3_Err = templ.JoinStringErrs(fmt.Sprintf("%d", ProtectedProjectEnvironmentCount(projectContext.Environments)))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 1366, Col: 88}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 1365, Col: 88}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var224))
 			if templ_7745c5c3_Err != nil {
@@ -4746,7 +4746,7 @@ func OrganizationProjectEnvironmentsSummary(organization api.Organization, proje
 					var templ_7745c5c3_Var225 string
 					templ_7745c5c3_Var225, templ_7745c5c3_Err = templ.JoinStringErrs(environment.EnvironmentName)
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 1378, Col: 81}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 1377, Col: 81}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var225))
 					if templ_7745c5c3_Err != nil {
@@ -4781,7 +4781,7 @@ func OrganizationProjectEnvironmentsSummary(organization api.Organization, proje
 					var templ_7745c5c3_Var228 string
 					templ_7745c5c3_Var228, templ_7745c5c3_Err = templ.JoinStringErrs(string(environment.EnvironmentSlug))
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 1383, Col: 48}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 1382, Col: 48}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var228))
 					if templ_7745c5c3_Err != nil {
@@ -4870,7 +4870,7 @@ func OrganizationProjectEnvironmentsSummary(organization api.Organization, proje
 							var templ_7745c5c3_Var233 templ.SafeURL
 							templ_7745c5c3_Var233, templ_7745c5c3_Err = templ.JoinURLErrs(templ.URL(projectSectionAction(ctx, ProjectEnvironmentDefaultFormAction(string(organization.Slug), string(project.Slug), string(environment.EnvironmentSlug), fullPage), "environments")))
 							if templ_7745c5c3_Err != nil {
-								return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 1413, Col: 206}
+								return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 1412, Col: 206}
 							}
 							_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var233))
 							if templ_7745c5c3_Err != nil {
@@ -4883,7 +4883,7 @@ func OrganizationProjectEnvironmentsSummary(organization api.Organization, proje
 							var templ_7745c5c3_Var234 string
 							templ_7745c5c3_Var234, templ_7745c5c3_Err = templ.ResolveAttributeValue(projectSectionAction(ctx, ProjectEnvironmentDefaultFormAction(string(organization.Slug), string(project.Slug), string(environment.EnvironmentSlug), fullPage), "environments"))
 							if templ_7745c5c3_Err != nil {
-								return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 1414, Col: 196}
+								return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 1413, Col: 196}
 							}
 							_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var234)
 							if templ_7745c5c3_Err != nil {
@@ -4896,7 +4896,7 @@ func OrganizationProjectEnvironmentsSummary(organization api.Organization, proje
 							var templ_7745c5c3_Var235 string
 							templ_7745c5c3_Var235, templ_7745c5c3_Err = templ.ResolveAttributeValue(ProjectDetailHTMXTarget(fullPage))
 							if templ_7745c5c3_Err != nil {
-								return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 1415, Col: 57}
+								return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 1414, Col: 57}
 							}
 							_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var235)
 							if templ_7745c5c3_Err != nil {
@@ -4909,7 +4909,7 @@ func OrganizationProjectEnvironmentsSummary(organization api.Organization, proje
 							var templ_7745c5c3_Var236 string
 							templ_7745c5c3_Var236, templ_7745c5c3_Err = templ.ResolveAttributeValue(ProjectDetailHTMXTarget(fullPage))
 							if templ_7745c5c3_Err != nil {
-								return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 1416, Col: 57}
+								return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 1415, Col: 57}
 							}
 							_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var236)
 							if templ_7745c5c3_Err != nil {
@@ -4958,7 +4958,7 @@ func OrganizationProjectEnvironmentsSummary(organization api.Organization, proje
 							var templ_7745c5c3_Var237 templ.SafeURL
 							templ_7745c5c3_Var237, templ_7745c5c3_Err = templ.JoinURLErrs(templ.URL(projectSectionAction(ctx, ProjectEnvironmentDisableFormAction(string(organization.Slug), string(project.Slug), string(environment.EnvironmentSlug), fullPage), "environments")))
 							if templ_7745c5c3_Err != nil {
-								return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 1446, Col: 206}
+								return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 1445, Col: 206}
 							}
 							_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var237))
 							if templ_7745c5c3_Err != nil {
@@ -4971,7 +4971,7 @@ func OrganizationProjectEnvironmentsSummary(organization api.Organization, proje
 							var templ_7745c5c3_Var238 string
 							templ_7745c5c3_Var238, templ_7745c5c3_Err = templ.ResolveAttributeValue(projectSectionAction(ctx, ProjectEnvironmentDisableFormAction(string(organization.Slug), string(project.Slug), string(environment.EnvironmentSlug), fullPage), "environments"))
 							if templ_7745c5c3_Err != nil {
-								return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 1447, Col: 196}
+								return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 1446, Col: 196}
 							}
 							_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var238)
 							if templ_7745c5c3_Err != nil {
@@ -4984,7 +4984,7 @@ func OrganizationProjectEnvironmentsSummary(organization api.Organization, proje
 							var templ_7745c5c3_Var239 string
 							templ_7745c5c3_Var239, templ_7745c5c3_Err = templ.ResolveAttributeValue(ProjectDetailHTMXTarget(fullPage))
 							if templ_7745c5c3_Err != nil {
-								return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 1448, Col: 57}
+								return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 1447, Col: 57}
 							}
 							_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var239)
 							if templ_7745c5c3_Err != nil {
@@ -4997,7 +4997,7 @@ func OrganizationProjectEnvironmentsSummary(organization api.Organization, proje
 							var templ_7745c5c3_Var240 string
 							templ_7745c5c3_Var240, templ_7745c5c3_Err = templ.ResolveAttributeValue(ProjectDetailHTMXTarget(fullPage))
 							if templ_7745c5c3_Err != nil {
-								return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 1449, Col: 57}
+								return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 1448, Col: 57}
 							}
 							_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var240)
 							if templ_7745c5c3_Err != nil {
@@ -5010,7 +5010,7 @@ func OrganizationProjectEnvironmentsSummary(organization api.Organization, proje
 							var templ_7745c5c3_Var241 string
 							templ_7745c5c3_Var241, templ_7745c5c3_Err = templ.ResolveAttributeValue(DestructiveConfirmation("Disable", "project runtime target", DestructiveResourceLabel(string(environment.EnvironmentName), string(environment.EnvironmentSlug)), "The project will stop using this runtime target."))
 							if templ_7745c5c3_Err != nil {
-								return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 1452, Col: 237}
+								return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 1451, Col: 237}
 							}
 							_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var241)
 							if templ_7745c5c3_Err != nil {
@@ -5023,7 +5023,7 @@ func OrganizationProjectEnvironmentsSummary(organization api.Organization, proje
 							var templ_7745c5c3_Var242 string
 							templ_7745c5c3_Var242, templ_7745c5c3_Err = templ.ResolveAttributeValue(DestructiveConfirmation("Disable", "project runtime target", DestructiveResourceLabel(string(environment.EnvironmentName), string(environment.EnvironmentSlug)), "The project will stop using this runtime target."))
 							if templ_7745c5c3_Err != nil {
-								return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 1453, Col: 251}
+								return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 1452, Col: 251}
 							}
 							_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var242)
 							if templ_7745c5c3_Err != nil {
@@ -5072,7 +5072,7 @@ func OrganizationProjectEnvironmentsSummary(organization api.Organization, proje
 				var templ_7745c5c3_Var243 templ.SafeURL
 				templ_7745c5c3_Var243, templ_7745c5c3_Err = templ.JoinURLErrs(templ.URL(projectSectionAction(ctx, ProjectEnvironmentEnableFormAction(string(organization.Slug), string(project.Slug), fullPage), "environments")))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 1474, Col: 161}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 1473, Col: 161}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var243))
 				if templ_7745c5c3_Err != nil {
@@ -5085,7 +5085,7 @@ func OrganizationProjectEnvironmentsSummary(organization api.Organization, proje
 				var templ_7745c5c3_Var244 string
 				templ_7745c5c3_Var244, templ_7745c5c3_Err = templ.ResolveAttributeValue(projectSectionAction(ctx, ProjectEnvironmentEnableFormAction(string(organization.Slug), string(project.Slug), fullPage), "environments"))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 1475, Col: 151}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 1474, Col: 151}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var244)
 				if templ_7745c5c3_Err != nil {
@@ -5098,7 +5098,7 @@ func OrganizationProjectEnvironmentsSummary(organization api.Organization, proje
 				var templ_7745c5c3_Var245 string
 				templ_7745c5c3_Var245, templ_7745c5c3_Err = templ.ResolveAttributeValue(ProjectDetailHTMXTarget(fullPage))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 1476, Col: 50}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 1475, Col: 50}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var245)
 				if templ_7745c5c3_Err != nil {
@@ -5111,7 +5111,7 @@ func OrganizationProjectEnvironmentsSummary(organization api.Organization, proje
 				var templ_7745c5c3_Var246 string
 				templ_7745c5c3_Var246, templ_7745c5c3_Err = templ.ResolveAttributeValue(ProjectDetailHTMXTarget(fullPage))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 1477, Col: 50}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 1476, Col: 50}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var246)
 				if templ_7745c5c3_Err != nil {
@@ -5140,7 +5140,7 @@ func OrganizationProjectEnvironmentsSummary(organization api.Organization, proje
 						var templ_7745c5c3_Var247 string
 						templ_7745c5c3_Var247, templ_7745c5c3_Err = templ.ResolveAttributeValue(string(environment.Slug))
 						if templ_7745c5c3_Err != nil {
-							return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 1492, Col: 42}
+							return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 1491, Col: 42}
 						}
 						_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var247)
 						if templ_7745c5c3_Err != nil {
@@ -5153,7 +5153,7 @@ func OrganizationProjectEnvironmentsSummary(organization api.Organization, proje
 						var templ_7745c5c3_Var248 string
 						templ_7745c5c3_Var248, templ_7745c5c3_Err = templ.ResolveAttributeValue(ProjectProtectedEnvironmentActionModalID(string(project.Slug), string(environment.Slug), "enable"))
 						if templ_7745c5c3_Err != nil {
-							return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 1494, Col: 131}
+							return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 1493, Col: 131}
 						}
 						_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var248)
 						if templ_7745c5c3_Err != nil {
@@ -5166,7 +5166,7 @@ func OrganizationProjectEnvironmentsSummary(organization api.Organization, proje
 						var templ_7745c5c3_Var249 string
 						templ_7745c5c3_Var249, templ_7745c5c3_Err = templ.JoinStringErrs(environment.Name)
 						if templ_7745c5c3_Err != nil {
-							return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 1495, Col: 28}
+							return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 1494, Col: 28}
 						}
 						_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var249))
 						if templ_7745c5c3_Err != nil {
@@ -5179,7 +5179,7 @@ func OrganizationProjectEnvironmentsSummary(organization api.Organization, proje
 						var templ_7745c5c3_Var250 string
 						templ_7745c5c3_Var250, templ_7745c5c3_Err = templ.JoinStringErrs(environment.Slug)
 						if templ_7745c5c3_Err != nil {
-							return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 1495, Col: 50}
+							return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 1494, Col: 50}
 						}
 						_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var250))
 						if templ_7745c5c3_Err != nil {
@@ -5197,7 +5197,7 @@ func OrganizationProjectEnvironmentsSummary(organization api.Organization, proje
 						var templ_7745c5c3_Var251 string
 						templ_7745c5c3_Var251, templ_7745c5c3_Err = templ.ResolveAttributeValue(string(environment.Slug))
 						if templ_7745c5c3_Err != nil {
-							return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 1498, Col: 42}
+							return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 1497, Col: 42}
 						}
 						_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var251)
 						if templ_7745c5c3_Err != nil {
@@ -5210,7 +5210,7 @@ func OrganizationProjectEnvironmentsSummary(organization api.Organization, proje
 						var templ_7745c5c3_Var252 string
 						templ_7745c5c3_Var252, templ_7745c5c3_Err = templ.JoinStringErrs(environment.Name)
 						if templ_7745c5c3_Err != nil {
-							return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 1499, Col: 28}
+							return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 1498, Col: 28}
 						}
 						_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var252))
 						if templ_7745c5c3_Err != nil {
@@ -5223,7 +5223,7 @@ func OrganizationProjectEnvironmentsSummary(organization api.Organization, proje
 						var templ_7745c5c3_Var253 string
 						templ_7745c5c3_Var253, templ_7745c5c3_Err = templ.JoinStringErrs(environment.Slug)
 						if templ_7745c5c3_Err != nil {
-							return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 1499, Col: 50}
+							return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 1498, Col: 50}
 						}
 						_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var253))
 						if templ_7745c5c3_Err != nil {
@@ -5314,7 +5314,7 @@ func ProjectProtectedEnvironmentActionButton(orgSlug string, projectSlug string,
 		var templ_7745c5c3_Var257 string
 		templ_7745c5c3_Var257, templ_7745c5c3_Err = templ.ResolveAttributeValue(modalID)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 1528, Col: 85}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 1527, Col: 85}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var257)
 		if templ_7745c5c3_Err != nil {
@@ -5327,7 +5327,7 @@ func ProjectProtectedEnvironmentActionButton(orgSlug string, projectSlug string,
 		var templ_7745c5c3_Var258 string
 		templ_7745c5c3_Var258, templ_7745c5c3_Err = templ.JoinStringErrs(actionLabel)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 1528, Col: 101}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 1527, Col: 101}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var258))
 		if templ_7745c5c3_Err != nil {
@@ -5374,7 +5374,7 @@ func ProjectProtectedEnvironmentActionModal(orgSlug string, projectSlug string, 
 		var templ_7745c5c3_Var260 string
 		templ_7745c5c3_Var260, templ_7745c5c3_Err = templ.ResolveAttributeValue(modalID)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 1534, Col: 35}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 1533, Col: 35}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var260)
 		if templ_7745c5c3_Err != nil {
@@ -5387,7 +5387,7 @@ func ProjectProtectedEnvironmentActionModal(orgSlug string, projectSlug string, 
 		var templ_7745c5c3_Var261 string
 		templ_7745c5c3_Var261, templ_7745c5c3_Err = templ.ResolveAttributeValue(environmentSlug)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 1534, Col: 101}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 1533, Col: 101}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var261)
 		if templ_7745c5c3_Err != nil {
@@ -5400,7 +5400,7 @@ func ProjectProtectedEnvironmentActionModal(orgSlug string, projectSlug string, 
 		var templ_7745c5c3_Var262 string
 		templ_7745c5c3_Var262, templ_7745c5c3_Err = templ.JoinStringErrs(actionDescription)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 1540, Col: 70}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 1539, Col: 70}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var262))
 		if templ_7745c5c3_Err != nil {
@@ -5435,7 +5435,7 @@ func ProjectProtectedEnvironmentActionModal(orgSlug string, projectSlug string, 
 		var templ_7745c5c3_Var265 string
 		templ_7745c5c3_Var265, templ_7745c5c3_Err = templ.JoinStringErrs(environmentSlug)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 1542, Col: 53}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 1541, Col: 53}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var265))
 		if templ_7745c5c3_Err != nil {
@@ -5448,7 +5448,7 @@ func ProjectProtectedEnvironmentActionModal(orgSlug string, projectSlug string, 
 		var templ_7745c5c3_Var266 templ.SafeURL
 		templ_7745c5c3_Var266, templ_7745c5c3_Err = templ.JoinURLErrs(templ.URL(actionURL))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 1548, Col: 33}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 1547, Col: 33}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var266))
 		if templ_7745c5c3_Err != nil {
@@ -5461,7 +5461,7 @@ func ProjectProtectedEnvironmentActionModal(orgSlug string, projectSlug string, 
 		var templ_7745c5c3_Var267 string
 		templ_7745c5c3_Var267, templ_7745c5c3_Err = templ.ResolveAttributeValue(actionURL)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 1549, Col: 23}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 1548, Col: 23}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var267)
 		if templ_7745c5c3_Err != nil {
@@ -5474,7 +5474,7 @@ func ProjectProtectedEnvironmentActionModal(orgSlug string, projectSlug string, 
 		var templ_7745c5c3_Var268 string
 		templ_7745c5c3_Var268, templ_7745c5c3_Err = templ.ResolveAttributeValue(ProjectDetailHTMXTarget(fullPage))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 1550, Col: 49}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 1549, Col: 49}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var268)
 		if templ_7745c5c3_Err != nil {
@@ -5487,7 +5487,7 @@ func ProjectProtectedEnvironmentActionModal(orgSlug string, projectSlug string, 
 		var templ_7745c5c3_Var269 string
 		templ_7745c5c3_Var269, templ_7745c5c3_Err = templ.ResolveAttributeValue(ProjectDetailHTMXTarget(fullPage))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 1551, Col: 49}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 1550, Col: 49}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var269)
 		if templ_7745c5c3_Err != nil {
@@ -5511,7 +5511,7 @@ func ProjectProtectedEnvironmentActionModal(orgSlug string, projectSlug string, 
 			var templ_7745c5c3_Var270 string
 			templ_7745c5c3_Var270, templ_7745c5c3_Err = templ.ResolveAttributeValue(environmentSlug)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 1559, Col: 73}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 1558, Col: 73}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var270)
 			if templ_7745c5c3_Err != nil {
@@ -5529,7 +5529,7 @@ func ProjectProtectedEnvironmentActionModal(orgSlug string, projectSlug string, 
 		var templ_7745c5c3_Var271 string
 		templ_7745c5c3_Var271, templ_7745c5c3_Err = templ.JoinStringErrs(environmentName)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 1562, Col: 73}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 1561, Col: 73}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var271))
 		if templ_7745c5c3_Err != nil {
@@ -5542,7 +5542,7 @@ func ProjectProtectedEnvironmentActionModal(orgSlug string, projectSlug string, 
 		var templ_7745c5c3_Var272 string
 		templ_7745c5c3_Var272, templ_7745c5c3_Err = templ.JoinStringErrs(environmentSlug)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 1563, Col: 135}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 1562, Col: 135}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var272))
 		if templ_7745c5c3_Err != nil {
@@ -5555,7 +5555,7 @@ func ProjectProtectedEnvironmentActionModal(orgSlug string, projectSlug string, 
 		var templ_7745c5c3_Var273 string
 		templ_7745c5c3_Var273, templ_7745c5c3_Err = templ.JoinStringErrs(environmentSlug)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 1567, Col: 110}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 1566, Col: 110}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var273))
 		if templ_7745c5c3_Err != nil {
@@ -5568,7 +5568,7 @@ func ProjectProtectedEnvironmentActionModal(orgSlug string, projectSlug string, 
 		var templ_7745c5c3_Var274 string
 		templ_7745c5c3_Var274, templ_7745c5c3_Err = templ.ResolveAttributeValue(environmentSlug)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 1574, Col: 35}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 1573, Col: 35}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var274)
 		if templ_7745c5c3_Err != nil {
@@ -5581,7 +5581,7 @@ func ProjectProtectedEnvironmentActionModal(orgSlug string, projectSlug string, 
 		var templ_7745c5c3_Var275 string
 		templ_7745c5c3_Var275, templ_7745c5c3_Err = templ.ResolveAttributeValue(environmentSlug)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 1577, Col: 41}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 1576, Col: 41}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var275)
 		if templ_7745c5c3_Err != nil {
@@ -5594,7 +5594,7 @@ func ProjectProtectedEnvironmentActionModal(orgSlug string, projectSlug string, 
 		var templ_7745c5c3_Var276 string
 		templ_7745c5c3_Var276, templ_7745c5c3_Err = templ.ResolveAttributeValue(modalID)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 1581, Col: 93}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 1580, Col: 93}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var276)
 		if templ_7745c5c3_Err != nil {
@@ -5629,7 +5629,7 @@ func ProjectProtectedEnvironmentActionModal(orgSlug string, projectSlug string, 
 		var templ_7745c5c3_Var279 string
 		templ_7745c5c3_Var279, templ_7745c5c3_Err = templ.JoinStringErrs(actionLabel)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 1582, Col: 122}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 1581, Col: 122}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var279))
 		if templ_7745c5c3_Err != nil {
@@ -5671,7 +5671,7 @@ func OrganizationProjectPipelinesSummary(organization api.Organization, project 
 		var templ_7745c5c3_Var281 templ.SafeURL
 		templ_7745c5c3_Var281, templ_7745c5c3_Err = templ.JoinURLErrs(templ.URL(projectRuntimeHref(ctx, "/orgs/"+string(organization.Slug)+"/projects/"+string(project.Slug)+"/pipelines")))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 1601, Col: 128}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 1600, Col: 128}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var281))
 		if templ_7745c5c3_Err != nil {
@@ -5704,7 +5704,7 @@ func OrganizationProjectPipelinesSummary(organization api.Organization, project 
 				var templ_7745c5c3_Var282 templ.SafeURL
 				templ_7745c5c3_Var282, templ_7745c5c3_Err = templ.JoinURLErrs(templ.URL(projectRuntimeHref(ctx, pipelineDetailHref(string(organization.Slug), string(project.Slug), string(pipeline.Slug)))))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 1613, Col: 139}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 1612, Col: 139}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var282))
 				if templ_7745c5c3_Err != nil {
@@ -5717,7 +5717,7 @@ func OrganizationProjectPipelinesSummary(organization api.Organization, project 
 				var templ_7745c5c3_Var283 string
 				templ_7745c5c3_Var283, templ_7745c5c3_Err = templ.JoinStringErrs(string(pipeline.Name))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 1618, Col: 32}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 1617, Col: 32}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var283))
 				if templ_7745c5c3_Err != nil {
@@ -5730,7 +5730,7 @@ func OrganizationProjectPipelinesSummary(organization api.Organization, project 
 				var templ_7745c5c3_Var284 string
 				templ_7745c5c3_Var284, templ_7745c5c3_Err = templ.JoinStringErrs(string(pipeline.Slug))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 1621, Col: 32}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 1620, Col: 32}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var284))
 				if templ_7745c5c3_Err != nil {
@@ -5789,7 +5789,7 @@ func OrganizationProjectPipelinesSummary(organization api.Organization, project 
 				var templ_7745c5c3_Var289 string
 				templ_7745c5c3_Var289, templ_7745c5c3_Err = templ.JoinStringErrs(string(pipeline.SyncStatus))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 1633, Col: 38}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 1632, Col: 38}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var289))
 				if templ_7745c5c3_Err != nil {
@@ -5875,7 +5875,7 @@ func OrganizationProjectFullPageContent(organization api.Organization, project a
 			var templ_7745c5c3_Var292 string
 			templ_7745c5c3_Var292, templ_7745c5c3_Err = templ.JoinStringErrs(contentErrorSummary)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 1654, Col: 52}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 1653, Col: 52}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var292))
 			if templ_7745c5c3_Err != nil {
@@ -5893,7 +5893,7 @@ func OrganizationProjectFullPageContent(organization api.Organization, project a
 				var templ_7745c5c3_Var293 string
 				templ_7745c5c3_Var293, templ_7745c5c3_Err = templ.JoinStringErrs(contentErrorDetails)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 1656, Col: 63}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 1655, Col: 63}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var293))
 				if templ_7745c5c3_Err != nil {
@@ -5922,13 +5922,23 @@ func OrganizationProjectFullPageContent(organization api.Organization, project a
 		var templ_7745c5c3_Var294 templ.SafeURL
 		templ_7745c5c3_Var294, templ_7745c5c3_Err = templ.JoinURLErrs(templ.URL(entityBackHref(ctx, organizationProjectSelectionHref(string(organization.Slug), ""))))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 1668, Col: 106}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 1667, Col: 106}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var294))
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 485, "\">Back to project list</a></div>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 485, "\">Back to project list</a> ")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		if projectContext.OverviewAction != nil {
+			templ_7745c5c3_Err = projectContext.OverviewAction.Render(ctx, templ_7745c5c3_Buffer)
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 486, "</div>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -5936,7 +5946,7 @@ func OrganizationProjectFullPageContent(organization api.Organization, project a
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 486, "</div>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 487, "</div>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -5994,7 +6004,7 @@ func OrganizationSecurityPageContent(organization api.Organization, apiKeys []ap
 			templ_7745c5c3_Var296 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 487, "<div class=\"space-y-6\" id=\"organization-security-content\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 488, "<div class=\"space-y-6\" id=\"organization-security-content\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -6009,91 +6019,91 @@ func OrganizationSecurityPageContent(organization api.Organization, apiKeys []ap
 			return templ_7745c5c3_Err
 		}
 		if tokenNotice != nil {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 488, "<div class=\"alert alert-warning items-start\"><div class=\"min-w-0\"><p class=\"font-semibold\">")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 489, "<div class=\"alert alert-warning items-start\"><div class=\"min-w-0\"><p class=\"font-semibold\">")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 			var templ_7745c5c3_Var297 string
 			templ_7745c5c3_Var297, templ_7745c5c3_Err = templ.JoinStringErrs(tokenNotice.Action)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 1688, Col: 50}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 1690, Col: 50}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var297))
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 489, " token for ")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 490, " token for ")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 			var templ_7745c5c3_Var298 string
 			templ_7745c5c3_Var298, templ_7745c5c3_Err = templ.JoinStringErrs(tokenNotice.Name)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 1688, Col: 81}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 1690, Col: 81}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var298))
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 490, "</p><p class=\"mt-1 text-sm\">Copy this token now. It will not be shown again.</p><code class=\"mt-3 block break-all rounded-md bg-base-100 p-3 font-mono text-sm text-base-content\">")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 491, "</p><p class=\"mt-1 text-sm\">Copy this token now. It will not be shown again.</p><code class=\"mt-3 block break-all rounded-md bg-base-100 p-3 font-mono text-sm text-base-content\">")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 			var templ_7745c5c3_Var299 string
 			templ_7745c5c3_Var299, templ_7745c5c3_Err = templ.JoinStringErrs(tokenNotice.Token)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 1690, Col: 122}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 1692, Col: 122}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var299))
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 491, "</code></div></div>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 492, "</code></div></div>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 		}
 		if permissions.Can("api_keys", "create") {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 492, "<section class=\"rounded-xl border border-base-300 bg-base-100 p-4 sm:p-5\"><div><h2 class=\"text-base font-semibold text-base-content\">Create API key</h2><p class=\"mt-1 text-xs text-base-content/70\">Organization API keys are machine-scoped bearer tokens. Use personal access tokens for user-owned workflows. Role changes require creating a replacement key.</p></div><form class=\"mt-4 grid gap-3\" method=\"post\" action=\"")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 493, "<section class=\"rounded-xl border border-base-300 bg-base-100 p-4 sm:p-5\"><div><h2 class=\"text-base font-semibold text-base-content\">Create API key</h2><p class=\"mt-1 text-xs text-base-content/70\">Organization API keys are machine-scoped bearer tokens. Use personal access tokens for user-owned workflows. Role changes require creating a replacement key.</p></div><form class=\"mt-4 grid gap-3\" method=\"post\" action=\"")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 			var templ_7745c5c3_Var300 templ.SafeURL
 			templ_7745c5c3_Var300, templ_7745c5c3_Err = templ.JoinURLErrs(templ.URL("/organizations/" + string(organization.Slug) + "/security/api-keys"))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 1703, Col: 93}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 1705, Col: 93}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var300))
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 493, "\" hx-post=\"")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 494, "\" hx-post=\"")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 			var templ_7745c5c3_Var301 string
 			templ_7745c5c3_Var301, templ_7745c5c3_Err = templ.ResolveAttributeValue("/organizations/" + string(organization.Slug) + "/security/api-keys")
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 1704, Col: 83}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 1706, Col: 83}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var301)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 494, "\" hx-target=\"#organization-security-content\" hx-select=\"#organization-security-content\" hx-swap=\"outerHTML show:none focus-scroll:false\" data-preserve-scroll><div class=\"grid gap-3 xl:grid-cols-[minmax(0,1.2fr)_12rem_minmax(0,1fr)_13rem] xl:items-end\"><label class=\"form-control w-full\"><div class=\"label py-1\"><span class=\"label-text text-xs\">Name</span></div><input class=\"input input-bordered input-sm w-full\" type=\"text\" name=\"name\" placeholder=\"Production automation\" value=\"")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 495, "\" hx-target=\"#organization-security-content\" hx-select=\"#organization-security-content\" hx-swap=\"outerHTML show:none focus-scroll:false\" data-preserve-scroll><div class=\"grid gap-3 xl:grid-cols-[minmax(0,1.2fr)_12rem_minmax(0,1fr)_13rem] xl:items-end\"><label class=\"form-control w-full\"><div class=\"label py-1\"><span class=\"label-text text-xs\">Name</span></div><input class=\"input input-bordered input-sm w-full\" type=\"text\" name=\"name\" placeholder=\"Production automation\" value=\"")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 			var templ_7745c5c3_Var302 string
 			templ_7745c5c3_Var302, templ_7745c5c3_Err = templ.ResolveAttributeValue(createFormData.Name)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 1713, Col: 146}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 1715, Col: 146}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var302)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 495, "\" required></label>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 496, "\" required></label>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -6101,267 +6111,267 @@ func OrganizationSecurityPageContent(organization api.Organization, apiKeys []ap
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 496, "<label class=\"form-control w-full\"><div class=\"label py-1\"><span class=\"label-text text-xs\">Role</span></div><select class=\"select select-bordered select-sm w-full\" name=\"role\" required")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 497, "<label class=\"form-control w-full\"><div class=\"label py-1\"><span class=\"label-text text-xs\">Role</span></div><select class=\"select select-bordered select-sm w-full\" name=\"role\" required")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 			if len(roles) == 0 {
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 497, " disabled")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 498, " disabled")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 498, ">")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 499, ">")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 			if len(roles) == 0 {
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 499, "<option value=\"\">No roles available</option> ")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 500, "<option value=\"\">No roles available</option> ")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
 			}
 			for _, role := range roles {
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 500, "<option value=\"")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 501, "<option value=\"")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
 				var templ_7745c5c3_Var303 string
 				templ_7745c5c3_Var303, templ_7745c5c3_Err = templ.ResolveAttributeValue(string(role.Slug))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 1723, Col: 42}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 1725, Col: 42}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var303)
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 501, "\"")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 502, "\"")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
 				if createFormData.Role == string(role.Slug) {
-					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 502, " selected")
+					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 503, " selected")
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
 				}
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 503, ">")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 504, ">")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
 				var templ_7745c5c3_Var304 string
 				templ_7745c5c3_Var304, templ_7745c5c3_Err = templ.JoinStringErrs(string(role.Name))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 1723, Col: 119}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 1725, Col: 119}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var304))
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 504, " (")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 505, " (")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
 				var templ_7745c5c3_Var305 string
 				templ_7745c5c3_Var305, templ_7745c5c3_Err = templ.JoinStringErrs(string(role.Slug))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 1723, Col: 142}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 1725, Col: 142}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var305))
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 505, ")</option>")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 506, ")</option>")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 506, "</select></label> <label class=\"form-control w-full\"><div class=\"label py-1\"><span class=\"label-text text-xs\">Description</span></div><input class=\"input input-bordered input-sm w-full\" type=\"text\" name=\"description\" placeholder=\"Optional description\" value=\"")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 507, "</select></label> <label class=\"form-control w-full\"><div class=\"label py-1\"><span class=\"label-text text-xs\">Description</span></div><input class=\"input input-bordered input-sm w-full\" type=\"text\" name=\"description\" placeholder=\"Optional description\" value=\"")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 			var templ_7745c5c3_Var306 string
 			templ_7745c5c3_Var306, templ_7745c5c3_Err = templ.ResolveAttributeValue(createFormData.Description)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 1729, Col: 159}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 1731, Col: 159}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var306)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 507, "\"></label> <label class=\"form-control w-full\"><div class=\"label py-1\"><span class=\"label-text text-xs\">Expires</span></div><input class=\"input input-bordered input-sm w-full\" type=\"datetime-local\" name=\"expires_at\" value=\"")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 508, "\"></label> <label class=\"form-control w-full\"><div class=\"label py-1\"><span class=\"label-text text-xs\">Expires</span></div><input class=\"input input-bordered input-sm w-full\" type=\"datetime-local\" name=\"expires_at\" value=\"")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 			var templ_7745c5c3_Var307 string
 			templ_7745c5c3_Var307, templ_7745c5c3_Err = templ.ResolveAttributeValue(createFormData.ExpiresAt)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 1733, Col: 131}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 1735, Col: 131}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var307)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 508, "\"></label></div><label class=\"flex cursor-pointer items-start gap-3 rounded-lg border border-warning/30 bg-warning/5 p-3\"><input class=\"checkbox checkbox-warning checkbox-sm mt-0.5\" type=\"checkbox\" name=\"can_manage_api_keys\"")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 509, "\"></label></div><label class=\"flex cursor-pointer items-start gap-3 rounded-lg border border-warning/30 bg-warning/5 p-3\"><input class=\"checkbox checkbox-warning checkbox-sm mt-0.5\" type=\"checkbox\" name=\"can_manage_api_keys\"")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 			if createFormData.CanManageAPIKeys {
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 509, " checked")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 510, " checked")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 510, "> <span><span class=\"block text-sm font-medium text-base-content\">Allow this key to manage API keys</span> <span class=\"mt-0.5 block text-xs text-base-content/70\">Its role must also grant the requested API key action, and it can manage only keys with the same role. Keys it creates cannot inherit this permission.</span></span></label><div class=\"flex justify-end\"><button class=\"btn btn-primary btn-sm w-full sm:w-auto\" type=\"submit\"")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 511, "> <span><span class=\"block text-sm font-medium text-base-content\">Allow this key to manage API keys</span> <span class=\"mt-0.5 block text-xs text-base-content/70\">Its role must also grant the requested API key action, and it can manage only keys with the same role. Keys it creates cannot inherit this permission.</span></span></label><div class=\"flex justify-end\"><button class=\"btn btn-primary btn-sm w-full sm:w-auto\" type=\"submit\"")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 			if len(roles) == 0 {
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 511, " disabled")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 512, " disabled")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 512, ">Create key</button></div></form></section>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 513, ">Create key</button></div></form></section>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 513, "<section class=\"rounded-xl border border-base-300 bg-base-100 p-4 sm:p-5\"><div class=\"mb-4 flex flex-wrap items-start justify-between gap-3\"><div><h2 class=\"text-base font-semibold text-base-content\">API keys</h2><p class=\"mt-1 text-xs text-base-content/70\">Safe metadata only. Raw tokens are shown once after create or rotation.</p></div>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 514, "<section class=\"rounded-xl border border-base-300 bg-base-100 p-4 sm:p-5\"><div class=\"mb-4 flex flex-wrap items-start justify-between gap-3\"><div><h2 class=\"text-base font-semibold text-base-content\">API keys</h2><p class=\"mt-1 text-xs text-base-content/70\">Safe metadata only. Raw tokens are shown once after create or rotation.</p></div>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		if apiKeys != nil {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 514, "<span class=\"badge badge-outline\">")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 515, "<span class=\"badge badge-outline\">")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 			var templ_7745c5c3_Var308 string
 			templ_7745c5c3_Var308, templ_7745c5c3_Err = templ.JoinStringErrs(APIKeyCountLabel(len(apiKeys)))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 1756, Col: 71}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 1758, Col: 71}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var308))
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 515, "</span>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 516, "</span>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 516, "</div>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 517, "</div>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		if apiKeys == nil {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 517, "<div class=\"alert alert-error\"><span>API key metadata is unavailable.</span></div>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 518, "<div class=\"alert alert-error\"><span>API key metadata is unavailable.</span></div>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 		} else if len(apiKeys) == 0 {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 518, "<div class=\"alert\"><span>No API keys yet.</span></div>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 519, "<div class=\"alert\"><span>No API keys yet.</span></div>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 		} else {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 519, "<div class=\"hidden grid-cols-[1.3fr_.8fr_.8fr_1fr_1fr_1.3fr] gap-4 border-b border-base-300 px-2 pb-3 text-xs font-semibold uppercase tracking-wide text-base-content/60 lg:grid\"><div>Key</div><div>Role</div><div>Status</div><div>Expires</div><div>Last used</div><div class=\"text-right\">Actions</div></div><div class=\"divide-y divide-base-300\">")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 520, "<div class=\"hidden grid-cols-[1.3fr_.8fr_.8fr_1fr_1fr_1.3fr] gap-4 border-b border-base-300 px-2 pb-3 text-xs font-semibold uppercase tracking-wide text-base-content/60 lg:grid\"><div>Key</div><div>Role</div><div>Status</div><div>Expires</div><div>Last used</div><div class=\"text-right\">Actions</div></div><div class=\"divide-y divide-base-300\">")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 			for _, key := range apiKeys {
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 520, "<div class=\"grid gap-3 py-4 lg:grid-cols-[1.3fr_.8fr_.8fr_1fr_1fr_1.3fr] lg:items-start\"><div class=\"min-w-0\"><p class=\"font-medium text-base-content\">")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 521, "<div class=\"grid gap-3 py-4 lg:grid-cols-[1.3fr_.8fr_.8fr_1fr_1fr_1.3fr] lg:items-start\"><div class=\"min-w-0\"><p class=\"font-medium text-base-content\">")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
 				var templ_7745c5c3_Var309 string
 				templ_7745c5c3_Var309, templ_7745c5c3_Err = templ.JoinStringErrs(string(key.Name))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 1780, Col: 67}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 1782, Col: 67}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var309))
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 521, "</p><p class=\"break-all text-xs text-base-content/70\">")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 522, "</p><p class=\"break-all text-xs text-base-content/70\">")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
 				var templ_7745c5c3_Var310 string
 				templ_7745c5c3_Var310, templ_7745c5c3_Err = templ.JoinStringErrs(string(key.Slug))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 1781, Col: 76}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 1783, Col: 76}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var310))
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 522, " · ")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 523, " · ")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
 				var templ_7745c5c3_Var311 string
 				templ_7745c5c3_Var311, templ_7745c5c3_Err = templ.JoinStringErrs(key.TokenPrefix)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 1781, Col: 99}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 1783, Col: 99}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var311))
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 523, "</p>")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 524, "</p>")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
 				if key.Description != nil && *key.Description != "" {
-					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 524, "<p class=\"mt-1 text-xs text-base-content/70\">")
+					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 525, "<p class=\"mt-1 text-xs text-base-content/70\">")
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
 					var templ_7745c5c3_Var312 string
 					templ_7745c5c3_Var312, templ_7745c5c3_Err = templ.JoinStringErrs(*key.Description)
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 1783, Col: 72}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 1785, Col: 72}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var312))
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
-					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 525, "</p>")
+					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 526, "</p>")
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
 				}
 				if key.CanManageApiKeys {
-					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 526, "<div class=\"mt-2 flex flex-wrap gap-2\">")
+					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 527, "<div class=\"mt-2 flex flex-wrap gap-2\">")
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
 					if key.CanManageApiKeys {
-						templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 527, "<span class=\"badge badge-warning badge-sm\">Can manage API keys</span>")
+						templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 528, "<span class=\"badge badge-warning badge-sm\">Can manage API keys</span>")
 						if templ_7745c5c3_Err != nil {
 							return templ_7745c5c3_Err
 						}
 					}
-					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 528, "</div>")
+					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 529, "</div>")
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
 				}
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 529, "</div><div><span class=\"text-xs font-semibold uppercase tracking-wide text-base-content/60 lg:hidden\">Role </span><span class=\"badge badge-outline\">")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 530, "</div><div><span class=\"text-xs font-semibold uppercase tracking-wide text-base-content/60 lg:hidden\">Role </span><span class=\"badge badge-outline\">")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
 				var templ_7745c5c3_Var313 string
 				templ_7745c5c3_Var313, templ_7745c5c3_Err = templ.JoinStringErrs(string(key.Role))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 1793, Col: 167}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 1795, Col: 167}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var313))
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 530, "</span></div><div><span class=\"text-xs font-semibold uppercase tracking-wide text-base-content/60 lg:hidden\">Status </span>")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 531, "</span></div><div><span class=\"text-xs font-semibold uppercase tracking-wide text-base-content/60 lg:hidden\">Status </span>")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
@@ -6370,7 +6380,7 @@ func OrganizationSecurityPageContent(organization api.Organization, apiKeys []ap
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 531, "<span class=\"")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 532, "<span class=\"")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
@@ -6383,245 +6393,245 @@ func OrganizationSecurityPageContent(organization api.Organization, apiKeys []ap
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 532, "\">")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 533, "\">")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
 				var templ_7745c5c3_Var316 string
 				templ_7745c5c3_Var316, templ_7745c5c3_Err = templ.JoinStringErrs(APIKeyStatusLabel(key))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 1794, Col: 185}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 1796, Col: 185}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var316))
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 533, "</span></div><div class=\"text-sm text-base-content/80\"><span class=\"text-xs font-semibold uppercase tracking-wide text-base-content/60 lg:hidden\">Expires </span>")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 534, "</span></div><div class=\"text-sm text-base-content/80\"><span class=\"text-xs font-semibold uppercase tracking-wide text-base-content/60 lg:hidden\">Expires </span>")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
 				var templ_7745c5c3_Var317 string
 				templ_7745c5c3_Var317, templ_7745c5c3_Err = templ.JoinStringErrs(FormatOptionalAPIKeyTime(key.ExpiresAt))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 1795, Col: 196}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 1797, Col: 196}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var317))
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 534, "</div><div class=\"text-sm text-base-content/80\"><span class=\"text-xs font-semibold uppercase tracking-wide text-base-content/60 lg:hidden\">Last used </span>")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 535, "</div><div class=\"text-sm text-base-content/80\"><span class=\"text-xs font-semibold uppercase tracking-wide text-base-content/60 lg:hidden\">Last used </span>")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
 				var templ_7745c5c3_Var318 string
 				templ_7745c5c3_Var318, templ_7745c5c3_Err = templ.JoinStringErrs(FormatOptionalAPIKeyTime(key.LastUsedAt))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 1796, Col: 199}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 1798, Col: 199}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var318))
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 535, "</div><div class=\"flex flex-wrap gap-2 lg:justify-end\">")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 536, "</div><div class=\"flex flex-wrap gap-2 lg:justify-end\">")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
 				if permissions.Can("api_keys", "update") && key.RevokedAt == nil {
-					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 536, "<button class=\"btn btn-ghost btn-xs\" type=\"button\" aria-controls=\"")
+					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 537, "<button class=\"btn btn-ghost btn-xs\" type=\"button\" aria-controls=\"")
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
 					var templ_7745c5c3_Var319 string
 					templ_7745c5c3_Var319, templ_7745c5c3_Err = templ.ResolveAttributeValue(APIKeyEditPanelID(key))
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 1799, Col: 98}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 1801, Col: 98}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var319)
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
-					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 537, "\" aria-expanded=\"false\" data-toggle-target=\"")
+					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 538, "\" aria-expanded=\"false\" data-toggle-target=\"")
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
 					var templ_7745c5c3_Var320 string
 					templ_7745c5c3_Var320, templ_7745c5c3_Err = templ.ResolveAttributeValue(APIKeyEditPanelID(key))
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 1799, Col: 166}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 1801, Col: 166}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var320)
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
-					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 538, "\">Edit</button> <button class=\"btn btn-outline btn-xs\" type=\"button\" data-protected-action-trigger=\"")
+					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 539, "\">Edit</button> <button class=\"btn btn-outline btn-xs\" type=\"button\" data-protected-action-trigger=\"")
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
 					var templ_7745c5c3_Var321 string
 					templ_7745c5c3_Var321, templ_7745c5c3_Err = templ.ResolveAttributeValue(APIKeyRotateModalID(key))
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 1800, Col: 118}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 1802, Col: 118}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var321)
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
-					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 539, "\">Rotate</button> ")
+					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 540, "\">Rotate</button> ")
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
 				}
 				if permissions.Can("api_keys", "delete") && key.RevokedAt == nil {
-					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 540, "<button class=\"btn btn-error btn-outline btn-xs\" type=\"button\" data-protected-action-trigger=\"")
+					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 541, "<button class=\"btn btn-error btn-outline btn-xs\" type=\"button\" data-protected-action-trigger=\"")
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
 					var templ_7745c5c3_Var322 string
 					templ_7745c5c3_Var322, templ_7745c5c3_Err = templ.ResolveAttributeValue(APIKeyRevokeModalID(key))
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 1803, Col: 128}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 1805, Col: 128}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var322)
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
-					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 541, "\">Revoke</button> ")
+					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 542, "\">Revoke</button> ")
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
 				}
 				if permissions.Can("api_keys", "delete") && key.RevokedAt != nil {
-					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 542, "<button class=\"btn btn-error btn-outline btn-xs\" type=\"button\" data-protected-action-trigger=\"")
+					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 543, "<button class=\"btn btn-error btn-outline btn-xs\" type=\"button\" data-protected-action-trigger=\"")
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
 					var templ_7745c5c3_Var323 string
 					templ_7745c5c3_Var323, templ_7745c5c3_Err = templ.ResolveAttributeValue(APIKeyDeleteModalID(key))
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 1806, Col: 128}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 1808, Col: 128}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var323)
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
-					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 543, "\">Remove</button> ")
+					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 544, "\">Remove</button> ")
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
 				}
 				if (!permissions.Can("api_keys", "update") && !permissions.Can("api_keys", "delete")) || (key.RevokedAt != nil && !permissions.Can("api_keys", "delete")) {
-					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 544, "<span class=\"text-sm text-base-content/60\">No actions</span>")
+					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 545, "<span class=\"text-sm text-base-content/60\">No actions</span>")
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
 				}
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 545, "</div>")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 546, "</div>")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
 				if permissions.Can("api_keys", "update") && key.RevokedAt == nil {
-					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 546, "<form id=\"")
+					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 547, "<form id=\"")
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
 					var templ_7745c5c3_Var324 string
 					templ_7745c5c3_Var324, templ_7745c5c3_Err = templ.ResolveAttributeValue(APIKeyEditPanelID(key))
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 1814, Col: 36}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 1816, Col: 36}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var324)
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
-					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 547, "\" class=\"hidden rounded-lg border border-base-300 bg-base-200/35 p-3 lg:col-span-6\" method=\"post\" action=\"")
+					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 548, "\" class=\"hidden rounded-lg border border-base-300 bg-base-200/35 p-3 lg:col-span-6\" method=\"post\" action=\"")
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
 					var templ_7745c5c3_Var325 templ.SafeURL
 					templ_7745c5c3_Var325, templ_7745c5c3_Err = templ.JoinURLErrs(templ.URL("/organizations/" + string(organization.Slug) + "/security/api-keys/" + string(key.Slug) + "/update"))
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 1817, Col: 129}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 1819, Col: 129}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var325))
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
-					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 548, "\" hx-post=\"")
+					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 549, "\" hx-post=\"")
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
 					var templ_7745c5c3_Var326 string
 					templ_7745c5c3_Var326, templ_7745c5c3_Err = templ.ResolveAttributeValue("/organizations/" + string(organization.Slug) + "/security/api-keys/" + string(key.Slug) + "/update")
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 1818, Col: 119}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 1820, Col: 119}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var326)
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
-					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 549, "\" hx-target=\"#organization-security-content\" hx-select=\"#organization-security-content\" hx-swap=\"outerHTML show:none focus-scroll:false\" data-dirty-form=\"")
+					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 550, "\" hx-target=\"#organization-security-content\" hx-select=\"#organization-security-content\" hx-swap=\"outerHTML show:none focus-scroll:false\" data-dirty-form=\"")
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
 					var templ_7745c5c3_Var327 string
 					templ_7745c5c3_Var327, templ_7745c5c3_Err = templ.ResolveAttributeValue("api-key-" + string(key.Slug) + "-update")
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 1822, Col: 68}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 1824, Col: 68}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var327)
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
-					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 550, "\" data-preserve-scroll><div class=\"grid gap-3 xl:grid-cols-[minmax(0,1.1fr)_13rem_minmax(0,1fr)] xl:items-end\"><label class=\"form-control w-full\"><div class=\"label py-1\"><span class=\"label-text text-xs\">Name</span></div><input class=\"input input-bordered input-sm w-full\" type=\"text\" name=\"name\" value=\"")
+					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 551, "\" data-preserve-scroll><div class=\"grid gap-3 xl:grid-cols-[minmax(0,1.1fr)_13rem_minmax(0,1fr)] xl:items-end\"><label class=\"form-control w-full\"><div class=\"label py-1\"><span class=\"label-text text-xs\">Name</span></div><input class=\"input input-bordered input-sm w-full\" type=\"text\" name=\"name\" value=\"")
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
 					var templ_7745c5c3_Var328 string
 					templ_7745c5c3_Var328, templ_7745c5c3_Err = templ.ResolveAttributeValue(string(key.Name))
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 1828, Col: 111}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 1830, Col: 111}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var328)
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
-					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 551, "\" required></label> <label class=\"form-control w-full\"><div class=\"label py-1\"><span class=\"label-text text-xs\">Expires</span></div><input class=\"input input-bordered input-sm w-full\" type=\"datetime-local\" name=\"expires_at\" value=\"")
+					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 552, "\" required></label> <label class=\"form-control w-full\"><div class=\"label py-1\"><span class=\"label-text text-xs\">Expires</span></div><input class=\"input input-bordered input-sm w-full\" type=\"datetime-local\" name=\"expires_at\" value=\"")
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
 					var templ_7745c5c3_Var329 string
 					templ_7745c5c3_Var329, templ_7745c5c3_Err = templ.ResolveAttributeValue(FormatAPIKeyDateTimeLocal(key.ExpiresAt))
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 1832, Col: 151}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 1834, Col: 151}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var329)
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
-					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 552, "\"></label> <label class=\"form-control w-full\"><div class=\"label py-1\"><span class=\"label-text text-xs\">Description</span></div><input class=\"input input-bordered input-sm w-full\" type=\"text\" name=\"description\" value=\"")
+					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 553, "\"></label> <label class=\"form-control w-full\"><div class=\"label py-1\"><span class=\"label-text text-xs\">Description</span></div><input class=\"input input-bordered input-sm w-full\" type=\"text\" name=\"description\" value=\"")
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
 					var templ_7745c5c3_Var330 string
 					templ_7745c5c3_Var330, templ_7745c5c3_Err = templ.ResolveAttributeValue(APIKeyDescriptionValue(key.Description))
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 1836, Col: 141}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 1838, Col: 141}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var330)
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
-					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 553, "\"></label></div><label class=\"mt-3 flex cursor-pointer items-start gap-3 rounded-lg border border-warning/30 bg-warning/5 p-3\"><input class=\"checkbox checkbox-warning checkbox-sm mt-0.5\" type=\"checkbox\" name=\"can_manage_api_keys\"")
+					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 554, "\"></label></div><label class=\"mt-3 flex cursor-pointer items-start gap-3 rounded-lg border border-warning/30 bg-warning/5 p-3\"><input class=\"checkbox checkbox-warning checkbox-sm mt-0.5\" type=\"checkbox\" name=\"can_manage_api_keys\"")
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
 					if key.CanManageApiKeys {
-						templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 554, " checked")
+						templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 555, " checked")
 						if templ_7745c5c3_Err != nil {
 							return templ_7745c5c3_Err
 						}
 					}
-					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 555, "> <span><span class=\"block text-sm font-medium text-base-content\">Allow this key to manage API keys</span> <span class=\"mt-0.5 block text-xs text-base-content/70\">Its role must also grant the requested API key action, and it can manage only keys with the same role. Keys it creates cannot inherit this permission.</span></span></label><div class=\"mt-3 flex justify-end\"><button class=\"btn btn-primary btn-sm\" type=\"submit\" data-dirty-submit disabled>Save</button></div></form>")
+					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 556, "> <span><span class=\"block text-sm font-medium text-base-content\">Allow this key to manage API keys</span> <span class=\"mt-0.5 block text-xs text-base-content/70\">Its role must also grant the requested API key action, and it can manage only keys with the same role. Keys it creates cannot inherit this permission.</span></span></label><div class=\"mt-3 flex justify-end\"><button class=\"btn btn-primary btn-sm\" type=\"submit\" data-dirty-submit disabled>Save</button></div></form>")
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
@@ -6672,79 +6682,79 @@ func OrganizationSecurityPageContent(organization api.Organization, apiKeys []ap
 						return templ_7745c5c3_Err
 					}
 				}
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 556, "</div>")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 557, "</div>")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 557, "</div>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 558, "</div>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 558, "</section>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 559, "</section>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		if prevCursor != "" || hasMore {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 559, "<div class=\"flex items-center justify-end gap-2\">")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 560, "<div class=\"flex items-center justify-end gap-2\">")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 			if prevCursor != "" {
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 560, "<a class=\"btn btn-sm btn-outline\" href=\"")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 561, "<a class=\"btn btn-sm btn-outline\" href=\"")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
 				var templ_7745c5c3_Var331 templ.SafeURL
 				templ_7745c5c3_Var331, templ_7745c5c3_Err = templ.JoinURLErrs(templ.URL("/organizations/" + string(organization.Slug) + "/security?cursor=" + prevCursor + "&direction=prev"))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 1896, Col: 157}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 1898, Col: 157}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var331))
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 561, "\">Previous</a> ")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 562, "\">Previous</a> ")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
 			} else {
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 562, "<button class=\"btn btn-sm btn-outline\" type=\"button\" disabled>Previous</button> ")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 563, "<button class=\"btn btn-sm btn-outline\" type=\"button\" disabled>Previous</button> ")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
 			}
 			if hasMore && nextCursor != "" {
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 563, "<a class=\"btn btn-sm btn-outline\" href=\"")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 564, "<a class=\"btn btn-sm btn-outline\" href=\"")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
 				var templ_7745c5c3_Var332 templ.SafeURL
 				templ_7745c5c3_Var332, templ_7745c5c3_Err = templ.JoinURLErrs(templ.URL("/organizations/" + string(organization.Slug) + "/security?cursor=" + nextCursor + "&direction=next"))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 1901, Col: 157}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 1903, Col: 157}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var332))
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 564, "\">Next</a>")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 565, "\">Next</a>")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
 			} else {
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 565, "<button class=\"btn btn-sm btn-outline\" type=\"button\" disabled>Next</button>")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 566, "<button class=\"btn btn-sm btn-outline\" type=\"button\" disabled>Next</button>")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 566, "</div>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 567, "</div>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 567, "</div>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 568, "</div>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -6773,176 +6783,176 @@ func APIKeyActionConfirmModal(modalID string, title string, summary string, deta
 			templ_7745c5c3_Var333 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 568, "<dialog class=\"modal\" id=\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 569, "<dialog class=\"modal\" id=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var334 string
 		templ_7745c5c3_Var334, templ_7745c5c3_Err = templ.ResolveAttributeValue(modalID)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 1911, Col: 35}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 1913, Col: 35}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var334)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 569, "\" data-protected-action-modal data-confirm-slug=\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 570, "\" data-protected-action-modal data-confirm-slug=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var335 string
 		templ_7745c5c3_Var335, templ_7745c5c3_Err = templ.ResolveAttributeValue(keySlug)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 1911, Col: 93}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 1913, Col: 93}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var335)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 570, "\"><div class=\"modal-box max-w-lg border border-error/35 bg-base-100 p-0\"><div class=\"border-b border-error/25 bg-error/10 px-5 py-4\"><div class=\"flex flex-wrap items-start justify-between gap-3\"><div><h3 class=\"text-lg font-semibold text-base-content\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 571, "\"><div class=\"modal-box max-w-lg border border-error/35 bg-base-100 p-0\"><div class=\"border-b border-error/25 bg-error/10 px-5 py-4\"><div class=\"flex flex-wrap items-start justify-between gap-3\"><div><h3 class=\"text-lg font-semibold text-base-content\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var336 string
 		templ_7745c5c3_Var336, templ_7745c5c3_Err = templ.JoinStringErrs(title)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 1916, Col: 65}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 1918, Col: 65}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var336))
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 571, "</h3><p class=\"mt-1 text-sm text-base-content/70\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 572, "</h3><p class=\"mt-1 text-sm text-base-content/70\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var337 string
 		templ_7745c5c3_Var337, templ_7745c5c3_Err = templ.JoinStringErrs(summary)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 1917, Col: 60}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 1919, Col: 60}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var337))
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 572, "</p></div><span class=\"badge badge-outline max-w-full break-all\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 573, "</p></div><span class=\"badge badge-outline max-w-full break-all\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var338 string
 		templ_7745c5c3_Var338, templ_7745c5c3_Err = templ.JoinStringErrs(keySlug)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 1919, Col: 69}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 1921, Col: 69}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var338))
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 573, "</span></div></div><form class=\"px-5 py-4\" method=\"post\" action=\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 574, "</span></div></div><form class=\"px-5 py-4\" method=\"post\" action=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var339 templ.SafeURL
 		templ_7745c5c3_Var339, templ_7745c5c3_Err = templ.JoinURLErrs(templ.URL(actionURL))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 1925, Col: 33}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 1927, Col: 33}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var339))
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 574, "\" hx-post=\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 575, "\" hx-post=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var340 string
 		templ_7745c5c3_Var340, templ_7745c5c3_Err = templ.ResolveAttributeValue(actionURL)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 1926, Col: 23}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 1928, Col: 23}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var340)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 575, "\" hx-target=\"#organization-security-content\" hx-select=\"#organization-security-content\" hx-swap=\"outerHTML show:none focus-scroll:false\" data-preserve-scroll><div class=\"rounded-lg border border-base-300 bg-base-200/35 p-3\"><p class=\"text-sm font-semibold text-base-content\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 576, "\" hx-target=\"#organization-security-content\" hx-select=\"#organization-security-content\" hx-swap=\"outerHTML show:none focus-scroll:false\" data-preserve-scroll><div class=\"rounded-lg border border-base-300 bg-base-200/35 p-3\"><p class=\"text-sm font-semibold text-base-content\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var341 string
 		templ_7745c5c3_Var341, templ_7745c5c3_Err = templ.JoinStringErrs(keyName)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 1933, Col: 65}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 1935, Col: 65}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var341))
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 576, "</p><p class=\"mt-1 text-xs text-base-content/60\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 577, "</p><p class=\"mt-1 text-xs text-base-content/60\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var342 string
 		templ_7745c5c3_Var342, templ_7745c5c3_Err = templ.JoinStringErrs(details)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 1934, Col: 59}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 1936, Col: 59}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var342))
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 577, "</p></div><label class=\"form-control mt-4 w-full\"><div class=\"label py-1\"><span class=\"label-text text-xs\">Type <span class=\"font-mono font-semibold text-error\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 578, "</p></div><label class=\"form-control mt-4 w-full\"><div class=\"label py-1\"><span class=\"label-text text-xs\">Type <span class=\"font-mono font-semibold text-error\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var343 string
 		templ_7745c5c3_Var343, templ_7745c5c3_Err = templ.JoinStringErrs(keySlug)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 1938, Col: 102}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 1940, Col: 102}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var343))
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 578, "</span> to confirm</span></div><input class=\"input input-bordered w-full font-mono\" type=\"text\" name=\"api_key_confirmation\" autocomplete=\"off\" placeholder=\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 579, "</span> to confirm</span></div><input class=\"input input-bordered w-full font-mono\" type=\"text\" name=\"api_key_confirmation\" autocomplete=\"off\" placeholder=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var344 string
 		templ_7745c5c3_Var344, templ_7745c5c3_Err = templ.ResolveAttributeValue(keySlug)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 1945, Col: 27}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 1947, Col: 27}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var344)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 579, "\" required data-protected-confirm-input data-confirm-slug=\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 580, "\" required data-protected-confirm-input data-confirm-slug=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var345 string
 		templ_7745c5c3_Var345, templ_7745c5c3_Err = templ.ResolveAttributeValue(keySlug)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 1948, Col: 33}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 1950, Col: 33}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var345)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 580, "\"></label><div class=\"modal-action mt-5\"><button class=\"btn btn-ghost btn-sm\" type=\"button\" data-protected-action-close=\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 581, "\"></label><div class=\"modal-action mt-5\"><button class=\"btn btn-ghost btn-sm\" type=\"button\" data-protected-action-close=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var346 string
 		templ_7745c5c3_Var346, templ_7745c5c3_Err = templ.ResolveAttributeValue(modalID)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 1952, Col: 93}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 1954, Col: 93}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var346)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 581, "\">Cancel</button> ")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 582, "\">Cancel</button> ")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -6951,7 +6961,7 @@ func APIKeyActionConfirmModal(modalID string, title string, summary string, deta
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 582, "<button class=\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 583, "<button class=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -6964,20 +6974,20 @@ func APIKeyActionConfirmModal(modalID string, title string, summary string, deta
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 583, "\" type=\"submit\" data-protected-confirm-submit disabled aria-disabled=\"true\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 584, "\" type=\"submit\" data-protected-confirm-submit disabled aria-disabled=\"true\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var349 string
 		templ_7745c5c3_Var349, templ_7745c5c3_Err = templ.JoinStringErrs(submitLabel)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 1953, Col: 122}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 1955, Col: 122}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var349))
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 584, "</button></div></form></div><form method=\"dialog\" class=\"modal-backdrop\"><button type=\"submit\">close</button></form></dialog>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 585, "</button></div></form></div><form method=\"dialog\" class=\"modal-backdrop\"><button type=\"submit\">close</button></form></dialog>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -7035,33 +7045,33 @@ func OrganizationDetailUnavailablePageContent(organizationSlug string, message s
 			templ_7745c5c3_Var351 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 585, "<div class=\"rounded-xl border border-base-300 bg-base-100 p-4 sm:p-6 lg:p-7\"><h2 class=\"text-2xl font-semibold text-base-content sm:text-3xl\">Organization unavailable</h2><p class=\"mt-1 text-sm text-base-content/70\">Could not load organization <span class=\"font-medium\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 586, "<div class=\"rounded-xl border border-base-300 bg-base-100 p-4 sm:p-6 lg:p-7\"><h2 class=\"text-2xl font-semibold text-base-content sm:text-3xl\">Organization unavailable</h2><p class=\"mt-1 text-sm text-base-content/70\">Could not load organization <span class=\"font-medium\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var352 string
 		templ_7745c5c3_Var352, templ_7745c5c3_Err = templ.JoinStringErrs(organizationSlug)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 1970, Col: 119}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 1972, Col: 119}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var352))
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 586, "</span>.</p><div class=\"alert alert-error mt-4\"><span>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 587, "</span>.</p><div class=\"alert alert-error mt-4\"><span>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var353 string
 		templ_7745c5c3_Var353, templ_7745c5c3_Err = templ.JoinStringErrs(message)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 1971, Col: 53}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 1973, Col: 53}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var353))
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 587, "</span></div><div class=\"mt-4\"><a class=\"btn btn-outline btn-sm\" href=\"/organizations\">Back to organizations</a></div></div>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 588, "</span></div><div class=\"mt-4\"><a class=\"btn btn-outline btn-sm\" href=\"/organizations\">Back to organizations</a></div></div>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -7090,7 +7100,7 @@ func ProjectQuickLookUnavailable(message string) templ.Component {
 			templ_7745c5c3_Var354 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 588, "<div id=\"project-quick-look\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 589, "<div id=\"project-quick-look\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -7098,7 +7108,7 @@ func ProjectQuickLookUnavailable(message string) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 589, "</div>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 590, "</div>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -7129,92 +7139,92 @@ func ProjectBackendBranchControl(orgSlug string, project api.Project, backendCon
 		ctx = templ.ClearChildren(ctx)
 		branchesURL := "/organizations/" + orgSlug + "/projects/" + string(project.Slug) + "/settings/pipeline-backend/branches"
 		options := ProjectPipelineBackendBranchOptions(project, backendControls, backendControls.SelectedDataSource)
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 590, "<div id=\"project-backend-branches\" class=\"form-control w-full\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 591, "<div id=\"project-backend-branches\" class=\"form-control w-full\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		if backendControls.BranchesPending {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 591, " hx-get=\"")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 592, " hx-get=\"")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 			var templ_7745c5c3_Var356 string
 			templ_7745c5c3_Var356, templ_7745c5c3_Err = templ.ResolveAttributeValue(branchesURL)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 1991, Col: 23}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 1993, Col: 23}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var356)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 592, "\" hx-trigger=\"load\"")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 593, "\" hx-trigger=\"load\"")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 593, " hx-include=\"closest form\" hx-params=\"data_source_slug,tracked_branch\" hx-target=\"this\" hx-select=\"unset\" hx-swap=\"outerHTML show:none focus-scroll:true\" hx-push-url=\"false\" hx-indicator=\"this\" hx-sync=\"#project-backend-branches:drop\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 594, " hx-include=\"closest form\" hx-params=\"data_source_slug,tracked_branch\" hx-target=\"this\" hx-select=\"unset\" hx-swap=\"outerHTML show:none focus-scroll:true\" hx-push-url=\"false\" hx-indicator=\"this\" hx-sync=\"#project-backend-branches:drop\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		if backendControls.SelectedDataSource != "" {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 594, "<button id=\"project-branch-refresh\" type=\"button\" class=\"btn btn-ghost btn-xs\" aria-describedby=\"project-branch-status\" hx-get=\"")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 595, "<button id=\"project-branch-refresh\" type=\"button\" class=\"btn btn-ghost btn-xs\" aria-describedby=\"project-branch-status\" hx-get=\"")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 			var templ_7745c5c3_Var357 string
 			templ_7745c5c3_Var357, templ_7745c5c3_Err = templ.ResolveAttributeValue(branchesURL)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 2004, Col: 143}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 2006, Col: 143}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var357)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 595, "\" hx-target=\"#project-backend-branches\">")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 596, "\" hx-target=\"#project-backend-branches\">")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 			if backendControls.BranchesPending || backendControls.BranchLoadError != "" {
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 596, "Retry branches")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 597, "Retry branches")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
 			} else {
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 597, "Refresh branches")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 598, "Refresh branches")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 598, "</button> ")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 599, "</button> ")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 		}
 		if backendControls.BranchLoadError != "" {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 599, "<p id=\"project-branch-status\" class=\"mt-1 text-xs text-warning\" role=\"alert\">")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 600, "<p id=\"project-branch-status\" class=\"mt-1 text-xs text-warning\" role=\"alert\">")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 			var templ_7745c5c3_Var358 string
 			templ_7745c5c3_Var358, templ_7745c5c3_Err = templ.JoinStringErrs(backendControls.BranchLoadError)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 2013, Col: 113}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 2015, Col: 113}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var358))
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 600, "</p>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 601, "</p>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 		} else {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 601, "<p id=\"project-branch-status\" class=\"mt-1 text-xs text-base-content/70\" role=\"status\">")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 602, "<p id=\"project-branch-status\" class=\"mt-1 text-xs text-base-content/70\" role=\"status\">")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 			if backendControls.BranchesPending {
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 602, "Loading branches…")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 603, "Loading branches…")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
@@ -7222,129 +7232,129 @@ func ProjectBackendBranchControl(orgSlug string, project api.Project, backendCon
 				var templ_7745c5c3_Var359 string
 				templ_7745c5c3_Var359, templ_7745c5c3_Err = templ.JoinStringErrs(ProjectPipelineBackendBranchHelpText(backendControls, backendControls.SelectedDataSource, options))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 2019, Col: 105}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 2021, Col: 105}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var359))
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 603, "</p>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 604, "</p>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 604, "<label class=\"label py-1\" for=\"project-tracked-branch\"><span class=\"label-text text-xs\">Tracked branch</span></label> <select class=\"select select-bordered select-sm w-full font-mono\" id=\"project-tracked-branch\" name=\"tracked_branch\" aria-describedby=\"project-branch-status\" required")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 605, "<label class=\"label py-1\" for=\"project-tracked-branch\"><span class=\"label-text text-xs\">Tracked branch</span></label> <select class=\"select select-bordered select-sm w-full font-mono\" id=\"project-tracked-branch\" name=\"tracked_branch\" aria-describedby=\"project-branch-status\" required")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		if backendControls.SelectedDataSource == "" || (!backendControls.BranchesPending && len(options) == 0) {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 605, " disabled")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 606, " disabled")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 606, ">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 607, ">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		if backendControls.SelectedDataSource == "" {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 607, "<option value=\"\">Select a Git data source first</option>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 608, "<option value=\"\">Select a Git data source first</option>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 		} else if backendControls.BranchesPending && backendControls.SelectedBranch == "" {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 608, "<option value=\"\" data-branch-loading>Loading branches…</option>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 609, "<option value=\"\" data-branch-loading>Loading branches…</option>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 		} else if len(options) == 0 {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 609, "<option value=\"\">No branches available</option>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 610, "<option value=\"\">No branches available</option>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 		} else {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 610, "<option value=\"\"")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 611, "<option value=\"\"")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 			if backendControls.SelectedBranch == "" {
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 611, " selected")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 612, " selected")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 612, ">Select branch</option> ")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 613, ">Select branch</option> ")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 			for _, branch := range options {
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 613, "<option value=\"")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 614, "<option value=\"")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
 				var templ_7745c5c3_Var360 string
 				templ_7745c5c3_Var360, templ_7745c5c3_Err = templ.ResolveAttributeValue(branch.Name)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 2043, Col: 32}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 2045, Col: 32}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var360)
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 614, "\"")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 615, "\"")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
 				if branch.Name == backendControls.SelectedBranch {
-					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 615, " selected")
+					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 616, " selected")
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
 				}
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 616, ">")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 617, ">")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
 				var templ_7745c5c3_Var361 string
 				templ_7745c5c3_Var361, templ_7745c5c3_Err = templ.JoinStringErrs(branch.Label)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 2043, Col: 109}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 2045, Col: 109}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var361))
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 617, "</option>")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 618, "</option>")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
 			}
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 618, "</select> ")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 619, "</select> ")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		if backendControls.BranchLoadDetails != "" {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 619, "<p class=\"mt-1 break-words text-xs text-warning/90\">")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 620, "<p class=\"mt-1 break-words text-xs text-warning/90\">")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 			var templ_7745c5c3_Var362 string
 			templ_7745c5c3_Var362, templ_7745c5c3_Err = templ.JoinStringErrs(backendControls.BranchLoadDetails)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 2048, Col: 90}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/organizations.templ`, Line: 2050, Col: 90}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var362))
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 620, "</p>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 621, "</p>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 621, "</div>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 622, "</div>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

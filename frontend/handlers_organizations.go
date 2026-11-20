@@ -642,6 +642,9 @@ func (r *Router) renderOrganizationProjectFullPage(
 		orgSlug.String(),
 	)
 
+	if r.workspaceNavigation != nil {
+		projectContext.OverviewAction = r.workspaceNavigation.ProjectOverviewAction(c, routerManagedHost{router: r}, orgSlug, projectSlug)
+	}
 	setHTMLResponseStatus(c, statusCode)
 	return renderTempl(
 		c,

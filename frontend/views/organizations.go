@@ -3,6 +3,7 @@ package views
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/a-h/templ"
 	"net/url"
 	"strings"
 
@@ -63,6 +64,7 @@ type ProjectPipelineBackendExternalLink struct {
 // ProjectOperationalContext carries read-only project-scoped workflow state for project summary pages.
 type ProjectOperationalContext struct {
 	Readiness                      *api.ReadinessReport
+	OverviewAction                 templ.Component
 	Environments                   []api.ProjectEnvironment
 	EnvironmentsUnavailable        bool
 	Catalog                        []api.Environment

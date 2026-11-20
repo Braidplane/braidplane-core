@@ -306,7 +306,6 @@ templ OrganizationDetailPageContent(organization api.Organization, activeOrganiz
 				</div>
 			</div>
 		</section>
-
 	</div>
 }
 
@@ -1667,6 +1666,9 @@ templ OrganizationProjectFullPageContent(organization api.Organization, project 
 				class="btn btn-outline btn-sm"
 				href={ templ.URL(entityBackHref(ctx, organizationProjectSelectionHref(string(organization.Slug), ""))) }
 			>Back to project list</a>
+			if projectContext.OverviewAction != nil {
+				@projectContext.OverviewAction
+			}
 		</div>
 		@OrganizationProjectDetailPanel(organization, project, backendControls, projectContext, permissions)
 	</div>
