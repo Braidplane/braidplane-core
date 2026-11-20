@@ -693,3 +693,13 @@ func TestMembersNavigationUsesTheActiveTenant(t *testing.T) {
 func TestRecencyEnvironmentSwitchReplacesPathTarget(t *testing.T) {
 	require.Equal(t, "/orgs/acme/projects/ops/pipelines/orders/environments/stage/recency", environmentSwitcherHref("/orgs/acme/projects/ops/pipelines/orders/environments/dev/recency?environment_slug=dev&cursor=old&direction=next", "stage"))
 }
+
+func TestRebuildScopedNavPreservesHiddenItems(t *testing.T) {
+	shell := views.AuthenticatedShellData{ActiveOrganizationSlug: "acme", ActiveProjectSlug: "demo"}
+	items := rebuildScopedNav("/dashboard", shell)
+	for _, item := range items {
+		require.NotEqual(t, "Admin", item.Group)
+		require.NotEqual(t, "Events", item.Label)
+	}
+	require.True(t, shellNavContains(items, "Pipelines"))
+}

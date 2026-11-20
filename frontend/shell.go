@@ -205,9 +205,6 @@ func (r *Router) buildShellDataForProjectPage(
 		pageErrorDetails,
 		cookieHeader,
 	)
-	membersVisible := shellNavContains(shellData.NavItems, "Members")
-	eventsVisible := shellNavContains(shellData.NavItems, "Events")
-
 	activeProjectSlug := strings.TrimSpace(projectSlug)
 	activeProjectName := shellData.ActiveProjectName
 	if activeProjectName == "" {
@@ -222,13 +219,7 @@ func (r *Router) buildShellDataForProjectPage(
 		shellData.ActiveProjectSlug = activeProjectSlug
 		shellData.ActiveProjectName = activeProjectName
 		shellData.Projects = projectOptions
-		shellData.NavItems = buildShellNav(c.Path(), shellData.ActiveOrganizationSlug, activeProjectSlug)
-	}
-	if !membersVisible {
-		shellData.NavItems = slices.DeleteFunc(shellData.NavItems, func(item views.ShellNavItem) bool { return item.Group == "Admin" })
-	}
-	if !eventsVisible {
-		shellData.NavItems = removeShellNavItem(shellData.NavItems, "Events")
+		shellData.NavItems = rebuildScopedNav(c.Path(), shellData)
 	}
 
 	shellData.Breadcrumbs = buildProjectBreadcrumbs(
@@ -239,6 +230,20 @@ func (r *Router) buildShellDataForProjectPage(
 		activeProjectName,
 	)
 	return shellData
+}
+
+func rebuildScopedNav(path string, shellData views.AuthenticatedShellData) []views.ShellNavItem {
+	membersVisible := shellNavContains(shellData.NavItems, "Members")
+	eventsVisible := shellNavContains(shellData.NavItems, "Events")
+	shellData.NavItems = buildShellNav(path, shellData.ActiveOrganizationSlug, shellData.ActiveProjectSlug)
+	if !membersVisible {
+		shellData.NavItems = slices.DeleteFunc(shellData.NavItems, func(item views.ShellNavItem) bool { return item.Group == "Admin" })
+	}
+	if !eventsVisible {
+		shellData.NavItems = removeShellNavItem(shellData.NavItems, "Events")
+	}
+
+	return shellData.NavItems
 }
 
 func shellNavContains(items []views.ShellNavItem, label string) bool {

@@ -186,7 +186,7 @@ func (r *Router) loadDashboardProjectScope(
 	if unauthorized {
 		return scopedShellData, true
 	}
-	scopedShellData.NavItems = buildShellNav(c.Path(), scopedShellData.ActiveOrganizationSlug, scopedShellData.ActiveProjectSlug)
+	scopedShellData.NavItems = rebuildScopedNav(c.Path(), scopedShellData)
 	scopedShellData.NavItems = appendEnvironmentToProjectRuntimeNav(scopedShellData.NavItems, scopedShellData.ActiveEnvironmentSlug)
 	return scopedShellData, false
 }
