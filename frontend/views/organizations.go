@@ -3,9 +3,10 @@ package views
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/a-h/templ"
 	"net/url"
 	"strings"
+
+	"github.com/a-h/templ"
 
 	api "github.com/Braidplane/braidplane-core/api-schema/gen/client"
 )
