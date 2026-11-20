@@ -46,9 +46,24 @@ FROM scratch AS release-evidence
 COPY --from=go-builder /out/ /out/
 COPY --from=styles /src/frontend/assets/ /frontend-assets/
 
+FROM debian:bookworm-20261104-slim@sha256:734a72b3d6142a71993b4bc580ca01d8ca687f77a2c422d96a961d3376b179bc AS ssh-client-build
+WORKDIR /build
+COPY docker/openssh-client-rekey.patch /build/
+RUN sed -i 's/^Types: deb$/Types: deb deb-src/' /etc/apt/sources.list.d/debian.sources \
+    && apt-get update \
+    && DEBIAN_FRONTEND=noninteractive apt-get build-dep -y --no-install-recommends openssh=1:9.2p1-2+deb12u10 \
+    && apt-get source openssh=1:9.2p1-2+deb12u10 \
+    && cd openssh-9.2p1 \
+    && patch --fuzz=0 -p1 < ../openssh-client-rekey.patch \
+    && sed -i '1s/deb12u10)/deb12u10+braidplane1)/' debian/changelog \
+    && DEB_BUILD_OPTIONS=nocheck dpkg-buildpackage -B -us -uc \
+    && mv ../openssh-client_*.deb /build/openssh-client.deb
+
 FROM debian:bookworm-20261104-slim@sha256:734a72b3d6142a71993b4bc580ca01d8ca687f77a2c422d96a961d3376b179bc AS backend
-RUN apt-get update \
-    && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends ca-certificates git openssh-client tzdata \
+RUN --mount=type=bind,from=ssh-client-build,source=/build/openssh-client.deb,target=/tmp/openssh-client.deb \
+    apt-get update \
+    && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends ca-certificates git /tmp/openssh-client.deb tzdata \
+    && test "$(dpkg-query -W -f='${Version}' openssh-client)" = '1:9.2p1-2+deb12u10+braidplane1' \
     && test "$(dpkg-query -W -f='${Version}' ca-certificates)" = '20250419~deb12u2' \
     && rm -rf /var/lib/apt/lists/* \
     && echo 'braidplane:x:65532:65532:Braidplane runtime:/tmp:/usr/sbin/nologin' >> /etc/passwd \
