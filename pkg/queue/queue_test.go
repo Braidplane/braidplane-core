@@ -80,6 +80,26 @@ func TestNewWorkerHost_WithRegistrarsUsesDefaultQueueConfig(t *testing.T) {
 	require.True(t, client.willWork)
 }
 
+func TestWorkerHostWithoutLeadershipCanWorkButCannotSchedule(t *testing.T) {
+	t.Parallel()
+	cfg := &WorkerHostConfig{
+		LeaderElectionDisabled: true,
+		Registrars: []WorkerRegistrar{testWorkerRegistrar{register: func(workers *river.Workers) error {
+			return river.AddWorkerSafely(workers, &testQueueWorker{})
+		}}},
+	}
+	pool := newTestQueuePool(t)
+	host, err := NewWorkerHost(pool, cfg)
+	require.NoError(t, err)
+	require.True(t, host.willWork)
+
+	cfg.PeriodicJobs = []*river.PeriodicJob{river.NewPeriodicJob(river.PeriodicInterval(time.Minute), func() (river.JobArgs, *river.InsertOpts) {
+		return testJobArgs{}, nil
+	}, nil)}
+	_, err = NewWorkerHost(pool, cfg)
+	require.ErrorContains(t, err, "PeriodicJobs must be empty when LeaderElectionDisabled is true")
+}
+
 func TestNewWorkerHost_WithPeriodicJobsOnlyMarksClientAsWorkerCapable(t *testing.T) {
 	t.Parallel()
 

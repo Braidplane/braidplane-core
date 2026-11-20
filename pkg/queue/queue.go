@@ -25,13 +25,14 @@ const (
 
 // Config configures the internal River-backed queue client.
 type Config struct {
-	JobTimeout           time.Duration
-	RescueStuckJobsAfter time.Duration
-	Queues               map[string]river.QueueConfig
-	PeriodicJobs         []*river.PeriodicJob
-	Workers              *river.Workers
-	Logger               *slog.Logger
-	RetryPolicy          river.ClientRetryPolicy
+	LeaderElectionDisabled bool
+	JobTimeout             time.Duration
+	RescueStuckJobsAfter   time.Duration
+	Queues                 map[string]river.QueueConfig
+	PeriodicJobs           []*river.PeriodicJob
+	Workers                *river.Workers
+	Logger                 *slog.Logger
+	RetryPolicy            river.ClientRetryPolicy
 }
 
 // WorkerRegistrar registers one or more River workers on a shared bundle.
@@ -49,13 +50,14 @@ type periodicJobProvider interface {
 
 // WorkerHostConfig configures a worker-capable River client.
 type WorkerHostConfig struct {
-	JobTimeout           time.Duration
-	RescueStuckJobsAfter time.Duration
-	Queues               map[string]river.QueueConfig
-	PeriodicJobs         []*river.PeriodicJob
-	Registrars           []WorkerRegistrar
-	Logger               *slog.Logger
-	RetryPolicy          river.ClientRetryPolicy
+	LeaderElectionDisabled bool
+	JobTimeout             time.Duration
+	RescueStuckJobsAfter   time.Duration
+	Queues                 map[string]river.QueueConfig
+	PeriodicJobs           []*river.PeriodicJob
+	Registrars             []WorkerRegistrar
+	Logger                 *slog.Logger
+	RetryPolicy            river.ClientRetryPolicy
 }
 
 // Client wraps River so callers can enqueue jobs on the shared Postgres
@@ -91,6 +93,7 @@ func New(pool *pgxpool.Pool, config *Config) (*Client, error) {
 		if config.RescueStuckJobsAfter != 0 {
 			riverConfig.RescueStuckJobsAfter = config.RescueStuckJobsAfter
 		}
+		riverConfig.LeaderElectionDisabled = config.LeaderElectionDisabled
 		riverConfig.Queues = config.Queues
 		riverConfig.PeriodicJobs = config.PeriodicJobs
 		riverConfig.Workers = config.Workers
@@ -136,10 +139,11 @@ func NewWorkerHost(pool *pgxpool.Pool, config *WorkerHostConfig) (*Client, error
 	}
 
 	clientConfig := &Config{
-		JobTimeout:           config.JobTimeout,
-		RescueStuckJobsAfter: config.RescueStuckJobsAfter,
-		Logger:               config.Logger,
-		RetryPolicy:          config.RetryPolicy,
+		LeaderElectionDisabled: config.LeaderElectionDisabled,
+		JobTimeout:             config.JobTimeout,
+		RescueStuckJobsAfter:   config.RescueStuckJobsAfter,
+		Logger:                 config.Logger,
+		RetryPolicy:            config.RetryPolicy,
 	}
 	clientConfig.PeriodicJobs, err = workerPeriodicJobs(config.PeriodicJobs, config.Registrars)
 	if err != nil {
