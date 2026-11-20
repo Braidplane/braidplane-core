@@ -56,6 +56,7 @@ class PromoteCoreReleaseTest(unittest.TestCase):
         self.write('identity.json', self.value)
         self.run = dict(status='completed', conclusion='success', head_sha='c' * 40, event='workflow_dispatch',
                         path='.github/workflows/core-release.yml', head_branch='main', run_attempt=2)
+        self.sibling_refs = []
         self.versions = [self.rc]
         self.tags = {self.rc: self.tag(self.value, "2026-01-02T00:00:00Z")}
         self.history = [self.source]
@@ -79,7 +80,7 @@ class PromoteCoreReleaseTest(unittest.TestCase):
         if '/git/tags/' in path:
             return self.tags[path.rsplit('/', 1)[-1]]
         if '/matching-refs/' in path:
-            return [dict(ref=f"refs/tags/core-published/{version}/{self.platform.replace('/', '-')}", object=dict(type='tag', sha=version)) for version in self.versions]
+            return self.sibling_refs + [dict(ref=f"refs/tags/core-published/{version}/{self.platform.replace('/', '-')}", object=dict(type='tag', sha=version)) for version in self.versions]
         if '/actions/runs/' in path:
             return self.run
         raise AssertionError(path)
@@ -116,6 +117,19 @@ class PromoteCoreReleaseTest(unittest.TestCase):
         self.assertEqual(bind.call_args.args[1], 'core-published/v0.1.0/' + self.platform.replace('/', '-'))
         for name in ASSETS:
             self.assertEqual((self.output / name).read_bytes(), (self.fixture / name).read_bytes())
+
+    def test_sibling_platform_shares_stable_cursor(self):
+        sibling = 'linux-arm64' if self.platform == 'linux/amd64' else 'linux-amd64'
+        self.versions.append('v0.0.1')
+        self.sibling_refs = [dict(ref=f'refs/tags/core-published/v0.1.0/{sibling}')]
+        with patch('scripts.promote_core_release.verify_release'), patch('scripts.promote_core_release.bind'), \
+             patch('scripts.promote_core_release.publish_release'):
+            self.execute()
+
+    def test_newer_sibling_stable_rejects_old_cycle(self):
+        self.sibling_refs = [dict(ref='refs/tags/core-published/v0.2.0/linux-arm64')]
+        with self.assertRaisesRegex(ValueError, 'stable baseline advanced'):
+            self.execute()
 
     def test_failed_verification_does_not_reserve_or_publish_stable(self):
         with patch('scripts.promote_core_release.verify_release', side_effect=ValueError('bad signer')), \
