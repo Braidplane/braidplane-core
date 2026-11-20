@@ -20,6 +20,7 @@ import (
 )
 
 type Router struct {
+	workspaceNavigation            WorkspaceNavigation
 	workspacePrivacyURL            string
 	apiClient                      api.ClientWithResponsesInterface
 	apiBaseURL                     string
@@ -105,6 +106,12 @@ type RoutePresentation interface {
 	RegisterWorkspaceRoutes(fiber.Router, ManagedHost)
 }
 
+// WorkspaceNavigation lets hosted distributions customize project actions and the admin menu.
+type WorkspaceNavigation interface {
+	ProjectOverviewAction(fiber.Ctx, ManagedHost, slug.Slug, slug.Slug) templ.Component
+	HideOrganizationAdmin(fiber.Ctx, ManagedHost, string, string) bool
+}
+
 // ManagedHost is the narrow core frontend contract available to route presentations.
 // It preserves core authentication, shell, rendering, and request-forwarding behavior.
 type ManagedHost interface {
@@ -139,6 +146,7 @@ type PublicPresentation struct {
 }
 
 func (r *Router) RegisterRoutes(app *fiber.App, presentation RoutePresentation) {
+	r.workspaceNavigation, _ = presentation.(WorkspaceNavigation)
 	app.Use(r.ensureFrontendRequestID)
 	switch presentation.(type) {
 	case CommunityPresentation, *CommunityPresentation:

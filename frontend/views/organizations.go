@@ -6,6 +6,8 @@ import (
 	"net/url"
 	"strings"
 
+	"github.com/a-h/templ"
+
 	api "github.com/Braidplane/braidplane-core/api-schema/gen/client"
 )
 
@@ -63,6 +65,7 @@ type ProjectPipelineBackendExternalLink struct {
 // ProjectOperationalContext carries read-only project-scoped workflow state for project summary pages.
 type ProjectOperationalContext struct {
 	Readiness                      *api.ReadinessReport
+	OverviewAction                 templ.Component
 	Environments                   []api.ProjectEnvironment
 	EnvironmentsUnavailable        bool
 	Catalog                        []api.Environment

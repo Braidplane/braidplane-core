@@ -4,6 +4,7 @@ import (
 	"context"
 	"net/http"
 	"net/url"
+	"slices"
 	"strings"
 
 	"github.com/gofiber/fiber/v3"
@@ -63,6 +64,7 @@ func (r *Router) buildShellDataForDashboard(
 		PageError:        pageError,
 		PageErrorDetails: pageErrorDetails,
 	}
+	r.filterOrganizationAdmin(c, &shellData, activeOrganizationRole)
 	if !r.canReadEventsForRole(
 		c.Context(),
 		c.Get(fiber.HeaderCookie),
@@ -152,6 +154,7 @@ func (r *Router) buildShellData(
 	}
 
 	shellData = r.withProjectShellData(c, r.withExternalAccessShellData(shellData), cookieHeader, activeProjectSlug)
+	r.filterOrganizationAdmin(c, &shellData, activeOrganizationRole)
 	if !r.canReadEventsForRole(
 		c.Context(),
 		cookieHeader,
@@ -166,6 +169,12 @@ func (r *Router) buildShellData(
 func (r *Router) withExternalAccessShellData(data views.AuthenticatedShellData) views.AuthenticatedShellData {
 	data.DocumentationURL = r.documentationURL
 	return data
+}
+
+func (r *Router) filterOrganizationAdmin(c fiber.Ctx, shell *views.AuthenticatedShellData, role string) {
+	if r.workspaceNavigation != nil && r.workspaceNavigation.HideOrganizationAdmin(c, routerManagedHost{router: r}, shell.ActiveOrganizationSlug, role) {
+		shell.NavItems = slices.DeleteFunc(shell.NavItems, func(item views.ShellNavItem) bool { return item.Group == "Admin" })
+	}
 }
 
 func removeShellNavItem(items []views.ShellNavItem, label string) []views.ShellNavItem {
@@ -196,8 +205,6 @@ func (r *Router) buildShellDataForProjectPage(
 		pageErrorDetails,
 		cookieHeader,
 	)
-	eventsVisible := shellNavContains(shellData.NavItems, "Events")
-
 	activeProjectSlug := strings.TrimSpace(projectSlug)
 	activeProjectName := shellData.ActiveProjectName
 	if activeProjectName == "" {
@@ -212,10 +219,7 @@ func (r *Router) buildShellDataForProjectPage(
 		shellData.ActiveProjectSlug = activeProjectSlug
 		shellData.ActiveProjectName = activeProjectName
 		shellData.Projects = projectOptions
-		shellData.NavItems = buildShellNav(c.Path(), shellData.ActiveOrganizationSlug, activeProjectSlug)
-	}
-	if !eventsVisible {
-		shellData.NavItems = removeShellNavItem(shellData.NavItems, "Events")
+		shellData.NavItems = rebuildScopedNav(c.Path(), shellData)
 	}
 
 	shellData.Breadcrumbs = buildProjectBreadcrumbs(
@@ -226,6 +230,20 @@ func (r *Router) buildShellDataForProjectPage(
 		activeProjectName,
 	)
 	return shellData
+}
+
+func rebuildScopedNav(path string, shellData views.AuthenticatedShellData) []views.ShellNavItem {
+	membersVisible := shellNavContains(shellData.NavItems, "Members")
+	eventsVisible := shellNavContains(shellData.NavItems, "Events")
+	shellData.NavItems = buildShellNav(path, shellData.ActiveOrganizationSlug, shellData.ActiveProjectSlug)
+	if !membersVisible {
+		shellData.NavItems = slices.DeleteFunc(shellData.NavItems, func(item views.ShellNavItem) bool { return item.Group == "Admin" })
+	}
+	if !eventsVisible {
+		shellData.NavItems = removeShellNavItem(shellData.NavItems, "Events")
+	}
+
+	return shellData.NavItems
 }
 
 func shellNavContains(items []views.ShellNavItem, label string) bool {
