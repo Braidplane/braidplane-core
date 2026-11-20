@@ -17,6 +17,14 @@ class PublishCoreReleaseTest(unittest.TestCase):
         with self.assertRaises(ValueError):
             release_tag('v0.1.0', 'linux/386')
 
+    def test_only_canonical_stable_release_becomes_latest(self):
+        for tag, latest in [('v0.2.0', 'true'), ('v0.2.0-linux-arm64', 'false')]:
+            release = dict(id=7, body='notes', prerelease=False, draft=True)
+            with self.subTest(tag=tag), patch('scripts.publish_core_release.subprocess.check_output', return_value=b'[[]]'), \
+                 patch('scripts.publish_core_release.api', side_effect=[release, [], {}]) as api:
+                publish_release('Example/core', tag, 'a' * 40, 'notes', [], False)
+                self.assertEqual(api.call_args.args[1], dict(draft=False, make_latest=latest))
+
     def test_candidate_requires_exact_completed_rc_identity(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)

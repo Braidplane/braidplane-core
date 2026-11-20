@@ -48,9 +48,8 @@ def promote(candidate, platform, checkout, output, env):
         raise ValueError("RC identity differs from requested promotion")
     subprocess.run(["git", "-C", str(checkout), "merge-base", "--is-ancestor", source, main], check=True)
     completed = api(f"repos/{repository}/git/matching-refs/tags/core-published/")
-    versions = [m.group(1) for r in completed if (m := re.fullmatch(
-        r"refs/tags/core-published/(v0\.(?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*)(?:-rc\.[1-9][0-9]*)?)/" + suffix, r["ref"]))]
-    stable = [v for v in versions if "-rc." not in v]
+    stable = [m.group(1) for item in completed if (m := re.fullmatch(
+        r"refs/tags/core-published/(v0\.(?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*))/linux-(?:amd64|arm64)", item["ref"]))]
     latest = max(stable, key=lambda v: tuple(map(int, v[1:].split('.'))), default="v0.0.0")
     if latest not in (value["plan"]["previous"], version):
         raise ValueError("stable baseline advanced; select an RC from the current cycle")

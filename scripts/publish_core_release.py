@@ -48,7 +48,8 @@ def publish_release(repository, version, source, body, assets, prerelease):
             uploaded = {asset["name"]: asset.get("digest") for asset in api(asset_endpoint)}
             if any(uploaded.get(name) != digest for name, digest in expected.items()):
                 raise ValueError("uploaded release asset differs from the approved digest")
-        api(f"repos/{repository}/releases/{release['id']}", dict(draft=False, make_latest="false" if prerelease else "true"), method="PATCH")
+        latest = not prerelease and not version.endswith("-linux-arm64")
+        api(f"repos/{repository}/releases/{release['id']}", dict(draft=False, make_latest="true" if latest else "false"), method="PATCH")
 
 
 def publish_candidate(directory, identity_dir, env):
