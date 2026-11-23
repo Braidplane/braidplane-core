@@ -51,7 +51,7 @@ func TestEmailProducerEnqueuesEmailVerification(t *testing.T) {
 	require.Equal(t, jobs.EmailQueue, enqueuer.req.Queue)
 	require.Equal(t, user.Slug, enqueuer.req.InitiatingAccount)
 	require.Equal(t, jobs.EmailSendArgs{
-		Type:                 jobs.EmailTypeVerificationWithDocument,
+		Type:                 jobs.EmailTypeVerification,
 		User:                 jobs.NewEmailRecipient(user),
 		Link:                 "https://app.example.com/verify-email",
 		EncryptedToken:       []byte("encrypted-email-verification-token"),

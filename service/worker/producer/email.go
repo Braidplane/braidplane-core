@@ -96,12 +96,8 @@ func (p *emailProducer) EnqueueEmailVerification(
 		return queue.QueuedJob{}, xerror.Wrapf("encrypt email verification token: %w", err)
 	}
 
-	emailType := jobs.EmailTypeVerification
-	if verificationDocument != "" {
-		emailType = jobs.EmailTypeVerificationWithDocument
-	}
 	return p.enqueueSend(ctx, tx, jobs.EmailSendArgs{
-		Type:                 emailType,
+		Type:                 jobs.EmailTypeVerification,
 		User:                 jobs.NewEmailRecipient(user),
 		Link:                 verificationURL,
 		EncryptedToken:       encryptedToken,

@@ -76,11 +76,7 @@ func (w *emailSendWorker) Work(
 
 	var err error
 	switch args.Type {
-	case jobs.EmailTypeVerification, jobs.EmailTypeVerificationWithDocument:
-		if args.Type == jobs.EmailTypeVerificationWithDocument && args.VerificationDocument == "" {
-			err = xerror.ValidationFailed().Detail("verification document is required")
-			break
-		}
+	case jobs.EmailTypeVerification:
 		code, codeErr := w.decryptedToken(args, "encrypted email verification token is required", "decrypt email verification token")
 		if codeErr != nil {
 			err = codeErr
