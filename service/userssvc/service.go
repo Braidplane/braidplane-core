@@ -74,6 +74,7 @@ type Option func(*usersService)
 func WithCreated(created func(context.Context, postgres.DBTX, *model.User) error) Option {
 	return func(s *usersService) {
 		if created == nil {
+			s.passwordCreated, s.oidcCreated = nil, nil
 			return
 		}
 		s.passwordCreated = func(ctx context.Context, tx postgres.DBTX, user *model.User) (string, error) {

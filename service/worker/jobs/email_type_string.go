@@ -8,11 +8,11 @@ import (
 	"strings"
 )
 
-const _EmailTypeName = "unknownverificationverification_with_documentpassword_resetsession_mfainvitationnotificationmessage"
+const _EmailTypeName = "unknownverificationpassword_resetsession_mfainvitationnotificationmessageverification_with_document"
 
-var _EmailTypeIndex = [...]uint8{0, 7, 19, 45, 59, 70, 80, 92, 99}
+var _EmailTypeIndex = [...]uint8{0, 7, 19, 33, 44, 54, 66, 73, 99}
 
-const _EmailTypeLowerName = "unknownverificationverification_with_documentpassword_resetsession_mfainvitationnotificationmessage"
+const _EmailTypeLowerName = "unknownverificationpassword_resetsession_mfainvitationnotificationmessageverification_with_document"
 
 func (i EmailType) String() string {
 	if i < 0 || i >= EmailType(len(_EmailTypeIndex)-1) {
@@ -27,44 +27,44 @@ func _EmailTypeNoOp() {
 	var x [1]struct{}
 	_ = x[EmailTypeUnknown-(0)]
 	_ = x[EmailTypeVerification-(1)]
-	_ = x[EmailTypeVerificationWithDocument-(2)]
-	_ = x[EmailTypePasswordReset-(3)]
-	_ = x[EmailTypeSessionMFA-(4)]
-	_ = x[EmailTypeInvitation-(5)]
-	_ = x[EmailTypeNotification-(6)]
-	_ = x[EmailTypeMessage-(7)]
+	_ = x[EmailTypePasswordReset-(2)]
+	_ = x[EmailTypeSessionMFA-(3)]
+	_ = x[EmailTypeInvitation-(4)]
+	_ = x[EmailTypeNotification-(5)]
+	_ = x[EmailTypeMessage-(6)]
+	_ = x[EmailTypeVerificationWithDocument-(7)]
 }
 
-var _EmailTypeValues = []EmailType{EmailTypeUnknown, EmailTypeVerification, EmailTypeVerificationWithDocument, EmailTypePasswordReset, EmailTypeSessionMFA, EmailTypeInvitation, EmailTypeNotification, EmailTypeMessage}
+var _EmailTypeValues = []EmailType{EmailTypeUnknown, EmailTypeVerification, EmailTypePasswordReset, EmailTypeSessionMFA, EmailTypeInvitation, EmailTypeNotification, EmailTypeMessage, EmailTypeVerificationWithDocument}
 
 var _EmailTypeNameToValueMap = map[string]EmailType{
 	_EmailTypeName[0:7]:        EmailTypeUnknown,
 	_EmailTypeLowerName[0:7]:   EmailTypeUnknown,
 	_EmailTypeName[7:19]:       EmailTypeVerification,
 	_EmailTypeLowerName[7:19]:  EmailTypeVerification,
-	_EmailTypeName[19:45]:      EmailTypeVerificationWithDocument,
-	_EmailTypeLowerName[19:45]: EmailTypeVerificationWithDocument,
-	_EmailTypeName[45:59]:      EmailTypePasswordReset,
-	_EmailTypeLowerName[45:59]: EmailTypePasswordReset,
-	_EmailTypeName[59:70]:      EmailTypeSessionMFA,
-	_EmailTypeLowerName[59:70]: EmailTypeSessionMFA,
-	_EmailTypeName[70:80]:      EmailTypeInvitation,
-	_EmailTypeLowerName[70:80]: EmailTypeInvitation,
-	_EmailTypeName[80:92]:      EmailTypeNotification,
-	_EmailTypeLowerName[80:92]: EmailTypeNotification,
-	_EmailTypeName[92:99]:      EmailTypeMessage,
-	_EmailTypeLowerName[92:99]: EmailTypeMessage,
+	_EmailTypeName[19:33]:      EmailTypePasswordReset,
+	_EmailTypeLowerName[19:33]: EmailTypePasswordReset,
+	_EmailTypeName[33:44]:      EmailTypeSessionMFA,
+	_EmailTypeLowerName[33:44]: EmailTypeSessionMFA,
+	_EmailTypeName[44:54]:      EmailTypeInvitation,
+	_EmailTypeLowerName[44:54]: EmailTypeInvitation,
+	_EmailTypeName[54:66]:      EmailTypeNotification,
+	_EmailTypeLowerName[54:66]: EmailTypeNotification,
+	_EmailTypeName[66:73]:      EmailTypeMessage,
+	_EmailTypeLowerName[66:73]: EmailTypeMessage,
+	_EmailTypeName[73:99]:      EmailTypeVerificationWithDocument,
+	_EmailTypeLowerName[73:99]: EmailTypeVerificationWithDocument,
 }
 
 var _EmailTypeNames = []string{
 	_EmailTypeName[0:7],
 	_EmailTypeName[7:19],
-	_EmailTypeName[19:45],
-	_EmailTypeName[45:59],
-	_EmailTypeName[59:70],
-	_EmailTypeName[70:80],
-	_EmailTypeName[80:92],
-	_EmailTypeName[92:99],
+	_EmailTypeName[19:33],
+	_EmailTypeName[33:44],
+	_EmailTypeName[44:54],
+	_EmailTypeName[54:66],
+	_EmailTypeName[66:73],
+	_EmailTypeName[73:99],
 }
 
 // EmailTypeString retrieves an enum value from the enum constants string name.

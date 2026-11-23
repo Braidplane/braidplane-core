@@ -16,12 +16,12 @@ type EmailType int
 const (
 	EmailTypeUnknown                  EmailType = iota // unknown
 	EmailTypeVerification                              // verification
-	EmailTypeVerificationWithDocument                  // verification_with_document
 	EmailTypePasswordReset                             // password_reset
 	EmailTypeSessionMFA                                // session_mfa
 	EmailTypeInvitation                                // invitation
 	EmailTypeNotification                              // notification
 	EmailTypeMessage                                   // message
+	EmailTypeVerificationWithDocument                  // verification_with_document
 )
 
 // EmailRecipient is the minimal durable identity needed to deliver an email.
