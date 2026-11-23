@@ -69,21 +69,6 @@ func New(
 // Option configures optional behavior inside the account transaction.
 type Option func(*usersService)
 
-// WithCreated preserves the legacy account-created callback for password and
-// OIDC accounts. New integrations should use the creation-specific options.
-func WithCreated(created func(context.Context, postgres.DBTX, *model.User) error) Option {
-	return func(s *usersService) {
-		if created == nil {
-			s.passwordCreated, s.oidcCreated = nil, nil
-			return
-		}
-		s.passwordCreated = func(ctx context.Context, tx postgres.DBTX, user *model.User) (string, error) {
-			return "", created(ctx, tx, user)
-		}
-		s.oidcCreated = created
-	}
-}
-
 // WithPasswordCreated runs after a password account is created and snapshots an
 // optional document for its initial verification email.
 func WithPasswordCreated(created func(context.Context, postgres.DBTX, *model.User) (string, error)) Option {

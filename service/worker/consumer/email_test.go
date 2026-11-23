@@ -25,7 +25,7 @@ func TestEmailSendWorkerSendsVerificationEmail(t *testing.T) {
 	worker := NewEmailSendWorker(emailSvc, fakeEmailTokenCipher{}, slog.New(slog.NewTextHandler(&logs, nil)))
 
 	args := jobs.EmailSendArgs{
-		Type: jobs.EmailTypeVerificationWithDocument,
+		Type: jobs.EmailTypeVerification,
 		User: jobs.EmailRecipient{
 			Slug:     slug.Slug("alice-smith"),
 			Email:    "alice@example.com",
@@ -48,7 +48,7 @@ func TestEmailSendWorkerSendsVerificationEmail(t *testing.T) {
 	require.Equal(t, 0, emailSvc.passwordResetCalls)
 }
 
-func TestEmailSendWorkerSendsLegacyVerificationEmail(t *testing.T) {
+func TestEmailSendWorkerSendsVerificationWithoutDocument(t *testing.T) {
 	t.Parallel()
 
 	emailSvc := &recordingEmailService{}
@@ -60,18 +60,6 @@ func TestEmailSendWorkerSendsLegacyVerificationEmail(t *testing.T) {
 	}})
 	require.NoError(t, err)
 	require.Empty(t, emailSvc.verificationDocument)
-}
-
-func TestEmailSendWorkerRejectsDocumentVerificationWithoutDocument(t *testing.T) {
-	t.Parallel()
-
-	worker := NewEmailSendWorker(&recordingEmailService{}, fakeEmailTokenCipher{}, slog.New(slog.DiscardHandler))
-	err := worker.Work(context.Background(), &river.Job[jobs.EmailSendArgs]{Args: jobs.EmailSendArgs{
-		Type: jobs.EmailTypeVerificationWithDocument,
-		User: jobs.EmailRecipient{Slug: slug.Slug("alice-smith"), Email: "alice@example.com", Locale: "en"},
-		Link: "https://app.example.com/verify-email", EncryptedToken: []byte("encrypted-email-verification-token"),
-	}})
-	require.ErrorContains(t, err, "verification document is required")
 }
 
 func TestEmailSendWorkerSendsPasswordResetEmail(t *testing.T) {
@@ -326,7 +314,7 @@ func TestEmailSendWorkerReturnsEmailServiceErrorForRetry(t *testing.T) {
 
 	err := worker.Work(context.Background(), &river.Job[jobs.EmailSendArgs]{
 		Args: jobs.EmailSendArgs{
-			Type: jobs.EmailTypeVerificationWithDocument,
+			Type: jobs.EmailTypeVerification,
 			User: jobs.EmailRecipient{
 				Slug:   slug.Slug("alice-smith"),
 				Email:  "alice@example.com",

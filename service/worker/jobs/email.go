@@ -14,14 +14,13 @@ const EmailQueue = "email"
 type EmailType int
 
 const (
-	EmailTypeUnknown                  EmailType = iota // unknown
-	EmailTypeVerification                              // verification
-	EmailTypePasswordReset                             // password_reset
-	EmailTypeSessionMFA                                // session_mfa
-	EmailTypeInvitation                                // invitation
-	EmailTypeNotification                              // notification
-	EmailTypeMessage                                   // message
-	EmailTypeVerificationWithDocument                  // verification_with_document
+	EmailTypeUnknown       EmailType = iota // unknown
+	EmailTypeVerification                   // verification
+	EmailTypePasswordReset                  // password_reset
+	EmailTypeSessionMFA                     // session_mfa
+	EmailTypeInvitation                     // invitation
+	EmailTypeNotification                   // notification
+	EmailTypeMessage                        // message
 )
 
 // EmailRecipient is the minimal durable identity needed to deliver an email.
