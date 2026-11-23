@@ -1004,6 +1004,48 @@ func (s *server) GetPipelineDeployment(
 	return c.JSON(toAPIPipelineDeployment(deployment))
 }
 
+// ComparePipelineDeployment checks a candidate against the observed deployment revision.
+func (s *server) ComparePipelineDeployment(
+	c fiber.Ctx,
+	orgParam api.SlugParam,
+	projectParam api.ProjectSlugParam,
+	environmentParam api.EnvironmentSlugParam,
+	pipelineParam api.PipelineSlugParam,
+) error {
+	org, project, environment, pipeline, err := parseDeploymentSlugs(orgParam, projectParam, environmentParam, pipelineParam)
+	if err != nil {
+		return err
+	}
+	if err := s.authorizeOrg(c, org, model.Read, model.ResourcePipelines, false); err != nil {
+		return err
+	}
+	result, err := s.pipelinesService.CompareDeployment(c.Context(), org, project, environment, pipeline, c.Body())
+	if err != nil {
+		return mapServiceError(err)
+	}
+
+	findings := make([]api.PipelineComparisonFinding, 0, len(result.Impact.Findings))
+	for _, finding := range result.Impact.Findings {
+		findings = append(findings, api.PipelineComparisonFinding{
+			Severity: api.PipelineComparisonSeverity(finding.Severity.String()),
+			Message:  finding.Message,
+		})
+	}
+	c.Set(fiber.HeaderCacheControl, "no-store")
+	return c.JSON(api.PipelineDeploymentComparison{
+		OrganizationSlug:   org.String(),
+		ProjectSlug:        project.String(),
+		EnvironmentSlug:    environment.String(),
+		PipelineSlug:       pipeline.String(),
+		DeploymentRevision: result.DeploymentRevision,
+		DeployedAt:         result.DeployedAt,
+		BaselineSpecHash:   result.BaselineSpecHash,
+		CandidateSpecHash:  result.CandidateSpecHash,
+		Severity:           api.PipelineComparisonSeverity(result.Impact.Severity.String()),
+		Findings:           findings,
+	})
+}
+
 // DeployPipeline points an environment at an immutable pipeline version.
 func (s *server) DeployPipeline(
 	c fiber.Ctx,

@@ -22,7 +22,7 @@ import (
 )
 
 // Only lifecycle routes are invoked; unrelated server dependencies stay unused.
-func resolutionAPI(svc pipelinesvc.Service, compiler *contractplansvc.Service, environments environmentssvc.Service, refs datasourcerefssvc.Service) *fiber.App {
+func resolutionAPI(svc pipelinesvc.Service, compiler *contractplansvc.Service, environments environmentssvc.Service, refs datasourcerefssvc.Service, middleware ...fiber.Handler) *fiber.App {
 	server := transport.NewServer(
 		nil,                         // usersService
 		nil,                         // accountClosureService
@@ -68,6 +68,9 @@ func resolutionAPI(svc pipelinesvc.Service, compiler *contractplansvc.Service, e
 		reqctx.SetUserPrincipal(c, reqctx.UserPrincipal{Slug: "synthetic-operator", Source: reqctx.UserPrincipalSourceSession})
 		return c.Next()
 	})
+	for _, handler := range middleware {
+		app.Use(handler)
+	}
 	api.RegisterHandlers(app, server)
 	return app
 }

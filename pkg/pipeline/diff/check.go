@@ -42,6 +42,15 @@ type Finding struct {
 // Check evaluates the semantic impact of a DiffResult and returns a structured result.
 // It classifies each change by severity so callers can decide whether to block (e.g. in CI).
 func Check(d *DiffResult) *CheckResult {
+	return check(d, false)
+}
+
+// CheckRedacted classifies changes without including spec values or sink config keys.
+func CheckRedacted(d *DiffResult) *CheckResult {
+	return check(d, true)
+}
+
+func check(d *DiffResult, redact bool) *CheckResult {
 	r := &CheckResult{Severity: SeveritySafe}
 
 	if !d.HasChanges {
@@ -53,15 +62,33 @@ func Check(d *DiffResult) *CheckResult {
 		r.Severity = higherSeverity(r.Severity, sev)
 	}
 
+	addChange := func(sev Severity, change FieldChange, label, format string) {
+		if !redact {
+			add(sev, label+fmt.Sprintf(format, change.Before, change.After))
+			return
+		}
+
+		field := change.Field
+		if prefix, _, found := strings.Cut(field, "].sink.config."); found {
+			add(sev, fmt.Sprintf("%q changed", prefix+"].sink.config"))
+			return
+		}
+		switch {
+		case change.Before == absentValue:
+			add(sev, fmt.Sprintf("%q added", field))
+		case change.After == absentValue:
+			add(sev, fmt.Sprintf("%q removed", field))
+		default:
+			add(sev, fmt.Sprintf("%q changed", field))
+		}
+	}
+
 	for _, fc := range d.Metadata {
 		switch fc.Field {
 		case "metadata.slug":
-			add(SeverityBreaking, fmt.Sprintf(
-				"pipeline slug changed: %q -> %q (downstream references will break)",
-				fc.Before, fc.After,
-			))
+			addChange(SeverityBreaking, fc, "pipeline slug", " changed: %q -> %q (downstream references will break)")
 		case "metadata.name":
-			add(SeveritySafe, fmt.Sprintf("pipeline name changed: %q -> %q", fc.Before, fc.After))
+			addChange(SeveritySafe, fc, "pipeline name", " changed: %q -> %q")
 		}
 	}
 
@@ -73,9 +100,7 @@ func Check(d *DiffResult) *CheckResult {
 			add(SeveritySafe, fmt.Sprintf("step %q was added", sd.Slug))
 		case StepModified:
 			for _, fc := range sd.Fields {
-				add(severityForStepChange(fc), fmt.Sprintf(
-					"%s changed: %q -> %q", fc.Field, fc.Before, fc.After,
-				))
+				addChange(severityForStepChange(fc), fc, fc.Field, " changed: %q -> %q")
 			}
 		}
 	}

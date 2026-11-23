@@ -192,6 +192,11 @@ type Service interface {
 		ctx context.Context,
 		orgSlug, projectSlug, environmentSlug slug.Slug,
 	) ([]*PipelineDeploymentDetail, error)
+	CompareDeployment(
+		ctx context.Context,
+		orgSlug, projectSlug, environmentSlug, pipelineSlug slug.Slug,
+		candidateJSON json.RawMessage,
+	) (*PipelineDeploymentComparison, error)
 	GetDeployment(
 		ctx context.Context,
 		orgSlug, projectSlug, environmentSlug, pipelineSlug slug.Slug,

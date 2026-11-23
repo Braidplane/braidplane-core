@@ -7646,6 +7646,59 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
 
+  /organizations/{slug}/projects/{project_slug}/environments/{environment_slug}/pipelines/{pipeline_slug}/deployment:compare:
+    post:
+      summary: Compare a candidate against the deployed pipeline version
+      description: >
+        Read-only semantic comparison against the immutable authored spec selected
+        by the deployment at lookup time. Values are omitted from findings.
+        The response does not assess environment bindings or runtime compatibility.
+      tags:
+        - pipelines
+      operationId: comparePipelineDeployment
+      parameters:
+        - $ref: '#/components/parameters/SlugParam'
+        - $ref: '#/components/parameters/ProjectSlugParam'
+        - $ref: '#/components/parameters/EnvironmentSlugParam'
+        - $ref: '#/components/parameters/PipelineSlugParam'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PipelineSpec'
+      responses:
+        '200':
+          description: Comparison against the selected deployment revision
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PipelineDeploymentComparison'
+        '400':
+          description: Invalid candidate pipeline spec
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Authentication required
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Deployment or immutable version not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
   /organizations/{slug}/projects/{project_slug}/environments/{environment_slug}/pipelines/{pipeline_slug}:deploy:
     post:
       summary: Deploy pipeline version
@@ -18948,6 +19001,61 @@ components:
         has_more_episodes:
           type: boolean
       required: [capability_enabled, configured, enabled, revision, maximum_age_seconds, enabled_at, deployment_revision, version_spec_hash, resolution_digest, deployed_at, success_run_slug, succeeded_at, deadline_at, evaluated_at, outcome, unavailable_reason, episodes, has_more_episodes]
+
+    PipelineDeploymentComparison:
+      type: object
+      required:
+        - organization_slug
+        - project_slug
+        - environment_slug
+        - pipeline_slug
+        - deployment_revision
+        - deployed_at
+        - baseline_spec_hash
+        - candidate_spec_hash
+        - severity
+        - findings
+      properties:
+        organization_slug:
+          type: string
+        project_slug:
+          type: string
+        environment_slug:
+          type: string
+        pipeline_slug:
+          type: string
+        deployment_revision:
+          type: integer
+          format: int64
+        deployed_at:
+          type: string
+          format: date-time
+        baseline_spec_hash:
+          type: string
+          description: Full immutable version identifier recorded by the deployment.
+        candidate_spec_hash:
+          type: string
+          description: SHA-256 of the parsed candidate spec serialized as JSON.
+        severity:
+          $ref: '#/components/schemas/PipelineComparisonSeverity'
+        findings:
+          type: array
+          items:
+            $ref: '#/components/schemas/PipelineComparisonFinding'
+
+    PipelineComparisonFinding:
+      type: object
+      required: [severity, message]
+      properties:
+        severity:
+          $ref: '#/components/schemas/PipelineComparisonSeverity'
+        message:
+          type: string
+          description: Semantic change with spec values omitted.
+
+    PipelineComparisonSeverity:
+      type: string
+      enum: [safe, warning, breaking]
 
     PipelineDeployment:
       type: object

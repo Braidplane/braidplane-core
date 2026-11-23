@@ -85,6 +85,38 @@ nonzero and reports the parse error on stderr before contacting the server.
 `pipeline format` sends the full file to the API and prints the formatted result
 on success.
 
+### Compare a candidate with a deployed version
+
+```sh
+braidplane pipeline diff users --file candidate.pipeline.yaml --org acme --project data --baseline upstream
+braidplane pipeline diff users --git-commit "$PR_HEAD_SHA" --git-path pipelines/users.pipeline.yaml \
+  --org acme --project data --baseline deployed --environment dev
+```
+
+Upstream is the default baseline. It compares against the project's current
+pipeline. A candidate already imported upstream can show no changes even when
+`dev` runs an older version.
+
+For PR checks, use the full head commit ID and the repository-relative pipeline
+path. Run the command inside a local Git repository containing that commit.
+The CLI reads the committed file and includes its commit and path in the result.
+Use `--file` for edits before committing.
+
+The deployed comparison requires an explicit environment. It reports the observed
+deployment revision, the full immutable baseline spec hash, the candidate spec
+hash, and semantic findings with a severity. Breaking changes make the CLI exit
+nonzero. An unavailable deployment or version returns an error for the selected
+scope. If a deployment changes during comparison, the result still identifies
+the revision observed at lookup time.
+
+API clients can send the candidate as a JSON pipeline spec to
+`POST /organizations/{slug}/projects/{project_slug}/environments/{environment_slug}/pipelines/{pipeline_slug}/deployment:compare`.
+The route requires pipeline read access. It compares authored specs and omits
+spec values from its findings. It does not resolve environment bindings, test
+live sources, execute the pipeline, or record a Proof result.
+
+### Inspect pipeline runs
+
 For an existing run, use `pipeline run get` and `pipeline run progress` with
 the exact project, environment and run slug. Progress can be paginated: pass
 `next_after_event` as `--after-event` while `has_more` is true. A lost response

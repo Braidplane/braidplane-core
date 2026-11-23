@@ -1025,3 +1025,27 @@ func TestDecimalPrecisionAndScaleParticipateInTypeImpact(t *testing.T) {
 		require.Equal(t, SeverityBreaking, severityForStepChange(changes[0]))
 	}
 }
+
+func TestCheckRedactedPreservesSeverityWithoutSpecValues(t *testing.T) {
+	t.Parallel()
+
+	changes := &DiffResult{
+		HasChanges: true,
+		Steps: []StepDiff{
+			{Slug: "source", Kind: StepModified, Fields: []FieldChange{
+				{Field: "step[source].query.output_contract.email", Before: "required=true", After: absentValue},
+				{Field: "step[source].query.operation_inline", Before: "private-query-old", After: "private-query-new"},
+			}},
+			{Slug: "publish", Kind: StepModified, Fields: []FieldChange{
+				{Field: "step[publish].sink.config.private-config-key", Before: "private-value-old", After: "private-value-new"},
+			}},
+		},
+	}
+	redacted := CheckRedacted(changes)
+	require.Equal(t, Check(changes).Severity, redacted.Severity)
+	require.Equal(t, []Finding{
+		{SeverityBreaking, `"step[source].query.output_contract.email" removed`},
+		{SeverityWarning, `"step[source].query.operation_inline" changed`},
+		{SeverityWarning, `"step[publish].sink.config" changed`},
+	}, redacted.Findings)
+}

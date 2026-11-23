@@ -2353,7 +2353,8 @@ type fakePipelinesService struct {
 		ctx context.Context,
 		orgSlug, projectSlug, environmentSlug slug.Slug,
 	) ([]*pipelinesvc.PipelineDeploymentDetail, error)
-	GetDeploymentFn func(
+	CompareDeploymentFn func(context.Context, slug.Slug, slug.Slug, slug.Slug, slug.Slug, json.RawMessage) (*pipelinesvc.PipelineDeploymentComparison, error)
+	GetDeploymentFn     func(
 		ctx context.Context,
 		orgSlug, projectSlug, environmentSlug, pipelineSlug slug.Slug,
 	) (*pipelinesvc.PipelineDeploymentDetail, error)
@@ -2609,6 +2610,14 @@ func (f *fakePipelinesService) ListDeployments(
 	}
 
 	return nil, errFakePipelinesServiceFnNotSet
+}
+
+func (f *fakePipelinesService) CompareDeployment(
+	ctx context.Context,
+	org, project, environment, pipeline slug.Slug,
+	body json.RawMessage,
+) (*pipelinesvc.PipelineDeploymentComparison, error) {
+	return f.CompareDeploymentFn(ctx, org, project, environment, pipeline, body)
 }
 
 func (f *fakePipelinesService) GetDeployment(

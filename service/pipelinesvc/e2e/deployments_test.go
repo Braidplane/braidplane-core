@@ -4,6 +4,8 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"net/http"
+	"os"
 	"strings"
 	"testing"
 	"time"
@@ -19,13 +21,18 @@ import (
 
 	"github.com/Braidplane/braidplane-core/postgres/odcscontracts"
 
+	"github.com/getkin/kin-openapi/openapi3"
+	"github.com/gofiber/fiber/v3"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/stretchr/testify/require"
 
+	api "github.com/Braidplane/braidplane-core/api-schema/gen/server"
 	"github.com/Braidplane/braidplane-core/pkg/clock"
 	"github.com/Braidplane/braidplane-core/pkg/domain/model"
 	"github.com/Braidplane/braidplane-core/pkg/eventtest"
 	"github.com/Braidplane/braidplane-core/pkg/must"
+	pipelinediff "github.com/Braidplane/braidplane-core/pkg/pipeline/diff"
+	"github.com/Braidplane/braidplane-core/pkg/pipeline/payload"
 	pipelinespec "github.com/Braidplane/braidplane-core/pkg/pipeline/spec"
 	"github.com/Braidplane/braidplane-core/pkg/slug"
 	"github.com/Braidplane/braidplane-core/pkg/testutil/fakes"
@@ -35,6 +42,7 @@ import (
 	pipelinesrepo "github.com/Braidplane/braidplane-core/postgres/pipelines"
 	"github.com/Braidplane/braidplane-core/service/pipelineruntime"
 	"github.com/Braidplane/braidplane-core/service/pipelinesvc"
+	transport "github.com/Braidplane/braidplane-core/transport/http"
 )
 
 func TestService_PipelineDeploymentsAreEnvironmentScoped_Integration(t *testing.T) {
@@ -61,13 +69,21 @@ func TestService_PipelineDeploymentsAreEnvironmentScoped_Integration(t *testing.
 	seedPipelineDeploymentEnvironment(t, pool, orgBSlug, defaultProjectSlug, must.Slug("dev"))
 
 	pipelineSlug := must.Slug("environment-scoped-sync")
-	v1 := pipelineDeploymentIntegrationPipeline(pipelineSlug, "Initial Pipeline")
+	v1 := pipelineDeploymentIntegrationPipeline(pipelineSlug, "Users")
+	v1.Steps[0].Query.OutputContract = &payload.Contract{
+		Name: "users", Representation: model.ContractRepresentationRows,
+		Fields: []payload.ContractField{{Name: "email", Type: model.ContractFieldTypeValueString, Required: true}},
+	}
 	materializePipelines(t, ctx, store, orgASlug, defaultProjectSlug, v1)
 	v1Spec, err := store.FindSpec(ctx, orgASlug, defaultProjectSlug, pipelineSlug)
 	require.NoError(t, err)
 	require.NotNil(t, v1Spec.CurrentVersionSpecHash)
 
-	v2 := pipelineDeploymentIntegrationPipeline(pipelineSlug, "Updated Pipeline")
+	v2 := pipelineDeploymentIntegrationPipeline(pipelineSlug, "Users")
+	v2.Steps[0].Query.OutputContract = &payload.Contract{
+		Name: "users", Representation: model.ContractRepresentationRows,
+		Fields: []payload.ContractField{{Name: "email_address", Type: model.ContractFieldTypeValueString, Required: true}},
+	}
 	materializePipelines(t, ctx, store, orgASlug, defaultProjectSlug, v2)
 	v2Spec, err := store.FindSpec(ctx, orgASlug, defaultProjectSlug, pipelineSlug)
 	require.NoError(t, err)
@@ -105,6 +121,42 @@ func TestService_PipelineDeploymentsAreEnvironmentScoped_Integration(t *testing.
 	prodDeployment, err = svc.GetDeployment(ctx, orgASlug, defaultProjectSlug, must.Slug("prod"), pipelineSlug)
 	require.NoError(t, err)
 	require.Equal(t, *v2Spec.CurrentVersionSpecHash, prodDeployment.CurrentVersionSpecHash)
+
+	upstream, err := pipelinespec.Load("upstream.json", v2Spec.SpecJSONB)
+	require.NoError(t, err)
+	require.False(t, pipelinediff.Diff(upstream, v2).HasChanges)
+
+	schemaYAML, err := os.ReadFile("../../../api-schema/schema.yml")
+	require.NoError(t, err)
+	schema, err := openapi3.NewLoader().LoadFromData(schemaYAML)
+	require.NoError(t, err)
+	validator, err := transport.NewOpenAPIRequestValidator(schema)
+	require.NoError(t, err)
+	app := fiber.New()
+	app.Use("/api", resolutionAPI(svc, nil, nil, nil, validator))
+	comparePath := func(org, project, environment slug.Slug) string {
+		return fmt.Sprintf("/api/organizations/%s/projects/%s/environments/%s/pipelines/%s/deployment:compare",
+			org, project, environment, pipelineSlug)
+	}
+	var comparison api.PipelineDeploymentComparison
+	resolutionPost(t, app, comparePath(orgASlug, defaultProjectSlug, "dev"), v2, http.StatusOK, &comparison)
+	require.Equal(t, *v1Spec.CurrentVersionSpecHash, comparison.BaselineSpecHash)
+	require.Equal(t, *v2Spec.CurrentVersionSpecHash, comparison.CandidateSpecHash)
+	require.Equal(t, devDeployment.Revision, comparison.DeploymentRevision)
+	require.Equal(t, api.PipelineComparisonSeverityBreaking, comparison.Severity)
+	require.NotEmpty(t, comparison.Findings)
+	require.Contains(t, comparison.Findings[0].Message, "output_contract.email")
+
+	resolutionPost(t, app, comparePath(orgASlug, defaultProjectSlug, "prod"), v2, http.StatusOK, &comparison)
+	require.Equal(t, *v2Spec.CurrentVersionSpecHash, comparison.BaselineSpecHash)
+	require.Equal(t, api.PipelineComparisonSeveritySafe, comparison.Severity)
+	require.Empty(t, comparison.Findings)
+
+	resolutionPost(t, app, comparePath(orgASlug, defaultProjectSlug, "dev"),
+		map[string]string{"secret-value": "do not echo"}, http.StatusBadRequest, nil)
+	resolutionPost(t, app, comparePath(orgASlug, defaultProjectSlug, "missing"), v2, http.StatusNotFound, nil)
+	resolutionPost(t, app, comparePath(orgASlug, "missing", "dev"), v2, http.StatusNotFound, nil)
+	resolutionPost(t, app, comparePath(orgBSlug, defaultProjectSlug, "dev"), v2, http.StatusNotFound, nil)
 
 	devDeployments, err := svc.ListDeployments(ctx, orgASlug, defaultProjectSlug, must.Slug("dev"))
 	require.NoError(t, err)

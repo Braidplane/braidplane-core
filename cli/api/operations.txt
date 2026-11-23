@@ -2,6 +2,7 @@
 abandonProjectRepositorySetup
 acceptMyMemberInvitation
 acknowledgeNotification
+comparePipelineDeployment
 compilePipelineVersion
 completeProjectRepositoryGitHubAuthorization
 createAPIKey

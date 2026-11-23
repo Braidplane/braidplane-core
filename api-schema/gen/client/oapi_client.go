@@ -2671,6 +2671,27 @@ func (e PermissionAction) Valid() bool {
 	}
 }
 
+// Defines values for PipelineComparisonSeverity.
+const (
+	PipelineComparisonSeverityBreaking PipelineComparisonSeverity = "breaking"
+	PipelineComparisonSeveritySafe     PipelineComparisonSeverity = "safe"
+	PipelineComparisonSeverityWarning  PipelineComparisonSeverity = "warning"
+)
+
+// Valid indicates whether the value is a known member of the PipelineComparisonSeverity enum.
+func (e PipelineComparisonSeverity) Valid() bool {
+	switch e {
+	case PipelineComparisonSeverityBreaking:
+		return true
+	case PipelineComparisonSeveritySafe:
+		return true
+	case PipelineComparisonSeverityWarning:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for PipelineCompiledPlanStatus.
 const (
 	PipelineCompiledPlanStatusAvailable   PipelineCompiledPlanStatus = "available"
@@ -13174,6 +13195,16 @@ type PipelineBackfillWindow struct {
 	UpperBound json.RawMessage `json:"upper_bound"`
 }
 
+// PipelineComparisonFinding defines model for PipelineComparisonFinding.
+type PipelineComparisonFinding struct {
+	// Message Semantic change with spec values omitted.
+	Message  string                     `json:"message"`
+	Severity PipelineComparisonSeverity `json:"severity"`
+}
+
+// PipelineComparisonSeverity defines model for PipelineComparisonSeverity.
+type PipelineComparisonSeverity string
+
 // PipelineCompilationRequest defines model for PipelineCompilationRequest.
 type PipelineCompilationRequest struct {
 	Projection     *ODCSProjectionSelection          `json:"projection,omitempty"`
@@ -13447,6 +13478,23 @@ type PipelineDeployment struct {
 
 	// UpdatedAt Example: 2025-10-04T12:34:56Z
 	UpdatedAt Timestamp `json:"updated_at"`
+}
+
+// PipelineDeploymentComparison defines model for PipelineDeploymentComparison.
+type PipelineDeploymentComparison struct {
+	// BaselineSpecHash Full immutable version identifier recorded by the deployment.
+	BaselineSpecHash string `json:"baseline_spec_hash"`
+
+	// CandidateSpecHash SHA-256 of the parsed candidate spec serialized as JSON.
+	CandidateSpecHash  string                      `json:"candidate_spec_hash"`
+	DeployedAt         time.Time                   `json:"deployed_at"`
+	DeploymentRevision int64                       `json:"deployment_revision"`
+	EnvironmentSlug    string                      `json:"environment_slug"`
+	Findings           []PipelineComparisonFinding `json:"findings"`
+	OrganizationSlug   string                      `json:"organization_slug"`
+	PipelineSlug       string                      `json:"pipeline_slug"`
+	ProjectSlug        string                      `json:"project_slug"`
+	Severity           PipelineComparisonSeverity  `json:"severity"`
 }
 
 // PipelineDeploymentListResponse List of pipeline deployments by environment.
@@ -20809,6 +20857,9 @@ type UpdatePipelineTriggerJSONRequestBody = UpdatePipelineTrigger
 
 // ValidatePipelineJSONRequestBody defines body for ValidatePipeline for application/json ContentType.
 type ValidatePipelineJSONRequestBody = PipelineValidationRequest
+
+// ComparePipelineDeploymentJSONRequestBody defines body for ComparePipelineDeployment for application/json ContentType.
+type ComparePipelineDeploymentJSONRequestBody = PipelineSpec
 
 // UpdateSuccessfulRunRecencyJSONRequestBody defines body for UpdateSuccessfulRunRecency for application/json ContentType.
 type UpdateSuccessfulRunRecencyJSONRequestBody = SuccessfulRunRecencyUpdate
@@ -30186,6 +30237,24 @@ type ClientInterface interface {
 	// Corresponds with GET /organizations/{slug}/projects/{project_slug}/environments/{environment_slug}/pipelines/{pipeline_slug}/deployment (the `GetPipelineDeployment` operationId).
 	GetPipelineDeployment(ctx context.Context, slug SlugParam, projectSlug ProjectSlugParam, environmentSlug EnvironmentSlugParam, pipelineSlug PipelineSlugParam, reqEditors ...RequestEditorFn) (*http.Response, error)
 
+	// ComparePipelineDeploymentWithBody Compare a candidate against the deployed pipeline version
+	//
+	// Read-only semantic comparison against the immutable authored spec selected by the deployment at lookup time. Values are omitted from findings. The response does not assess environment bindings or runtime compatibility.
+	//
+	// Takes any type of body and a specified content type.
+	//
+	// Corresponds with POST /organizations/{slug}/projects/{project_slug}/environments/{environment_slug}/pipelines/{pipeline_slug}/deployment:compare (the `ComparePipelineDeployment` operationId).
+	ComparePipelineDeploymentWithBody(ctx context.Context, slug SlugParam, projectSlug ProjectSlugParam, environmentSlug EnvironmentSlugParam, pipelineSlug PipelineSlugParam, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ComparePipelineDeployment Compare a candidate against the deployed pipeline version
+	//
+	// Read-only semantic comparison against the immutable authored spec selected by the deployment at lookup time. Values are omitted from findings. The response does not assess environment bindings or runtime compatibility.
+	//
+	// Takes a body of the `application/json` content type.
+	//
+	// Corresponds with POST /organizations/{slug}/projects/{project_slug}/environments/{environment_slug}/pipelines/{pipeline_slug}/deployment:compare (the `ComparePipelineDeployment` operationId).
+	ComparePipelineDeployment(ctx context.Context, slug SlugParam, projectSlug ProjectSlugParam, environmentSlug EnvironmentSlugParam, pipelineSlug PipelineSlugParam, body ComparePipelineDeploymentJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
 	// GetSuccessfulRunRecency Inspect successful-run recency
 	//
 	// Read current calculated state and the latest 20 immutable breach/recovery episodes, including disabled expectations. This is successful-run recency, not payload data freshness or an SLA.
@@ -34857,6 +34926,44 @@ func (c *Client) GetPipelineValidationResult(ctx context.Context, slug SlugParam
 // Corresponds with GET /organizations/{slug}/projects/{project_slug}/environments/{environment_slug}/pipelines/{pipeline_slug}/deployment (the `GetPipelineDeployment` operationId).
 func (c *Client) GetPipelineDeployment(ctx context.Context, slug SlugParam, projectSlug ProjectSlugParam, environmentSlug EnvironmentSlugParam, pipelineSlug PipelineSlugParam, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewGetPipelineDeploymentRequest(c.Server, slug, projectSlug, environmentSlug, pipelineSlug)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// ComparePipelineDeploymentWithBody Compare a candidate against the deployed pipeline version
+//
+// Read-only semantic comparison against the immutable authored spec selected by the deployment at lookup time. Values are omitted from findings. The response does not assess environment bindings or runtime compatibility.
+//
+// Takes any type of body and a specified content type.
+//
+// Corresponds with POST /organizations/{slug}/projects/{project_slug}/environments/{environment_slug}/pipelines/{pipeline_slug}/deployment:compare (the `ComparePipelineDeployment` operationId).
+func (c *Client) ComparePipelineDeploymentWithBody(ctx context.Context, slug SlugParam, projectSlug ProjectSlugParam, environmentSlug EnvironmentSlugParam, pipelineSlug PipelineSlugParam, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewComparePipelineDeploymentRequestWithBody(c.Server, slug, projectSlug, environmentSlug, pipelineSlug, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// ComparePipelineDeployment Compare a candidate against the deployed pipeline version
+//
+// Read-only semantic comparison against the immutable authored spec selected by the deployment at lookup time. Values are omitted from findings. The response does not assess environment bindings or runtime compatibility.
+//
+// Takes a body of the `application/json` content type.
+//
+// Corresponds with POST /organizations/{slug}/projects/{project_slug}/environments/{environment_slug}/pipelines/{pipeline_slug}/deployment:compare (the `ComparePipelineDeployment` operationId).
+func (c *Client) ComparePipelineDeployment(ctx context.Context, slug SlugParam, projectSlug ProjectSlugParam, environmentSlug EnvironmentSlugParam, pipelineSlug PipelineSlugParam, body ComparePipelineDeploymentJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewComparePipelineDeploymentRequest(c.Server, slug, projectSlug, environmentSlug, pipelineSlug, body)
 	if err != nil {
 		return nil, err
 	}
@@ -46725,6 +46832,74 @@ func NewGetPipelineDeploymentRequest(server string, slug SlugParam, projectSlug 
 	return req, nil
 }
 
+// NewComparePipelineDeploymentRequest calls the generic ComparePipelineDeployment builder with application/json body
+func NewComparePipelineDeploymentRequest(server string, slug SlugParam, projectSlug ProjectSlugParam, environmentSlug EnvironmentSlugParam, pipelineSlug PipelineSlugParam, body ComparePipelineDeploymentJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewComparePipelineDeploymentRequestWithBody(server, slug, projectSlug, environmentSlug, pipelineSlug, "application/json", bodyReader)
+}
+
+// NewComparePipelineDeploymentRequestWithBody constructs an http.Request for the ComparePipelineDeployment method, with any body, and a specified content type
+func NewComparePipelineDeploymentRequestWithBody(server string, slug SlugParam, projectSlug ProjectSlugParam, environmentSlug EnvironmentSlugParam, pipelineSlug PipelineSlugParam, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "slug", slug, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: ""})
+	if err != nil {
+		return nil, err
+	}
+
+	var pathParam1 string
+
+	pathParam1, err = runtime.StyleParamWithOptions("simple", false, "project_slug", projectSlug, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: ""})
+	if err != nil {
+		return nil, err
+	}
+
+	var pathParam2 string
+
+	pathParam2, err = runtime.StyleParamWithOptions("simple", false, "environment_slug", environmentSlug, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: ""})
+	if err != nil {
+		return nil, err
+	}
+
+	var pathParam3 string
+
+	pathParam3, err = runtime.StyleParamWithOptions("simple", false, "pipeline_slug", pipelineSlug, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: ""})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/organizations/%s/projects/%s/environments/%s/pipelines/%s/deployment:compare", pathParam0, pathParam1, pathParam2, pathParam3)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPost, queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
 // NewGetSuccessfulRunRecencyRequest constructs an http.Request for the GetSuccessfulRunRecency method
 func NewGetSuccessfulRunRecencyRequest(server string, slug SlugParam, projectSlug ProjectSlugParam, environmentSlug EnvironmentSlugParam, pipelineSlug PipelineSlugParam) (*http.Request, error) {
 	var err error
@@ -53927,6 +54102,24 @@ type ClientWithResponsesInterface interface {
 	//
 	// Corresponds with GET /organizations/{slug}/projects/{project_slug}/environments/{environment_slug}/pipelines/{pipeline_slug}/deployment (the `GetPipelineDeployment` operationId).
 	GetPipelineDeploymentWithResponse(ctx context.Context, slug SlugParam, projectSlug ProjectSlugParam, environmentSlug EnvironmentSlugParam, pipelineSlug PipelineSlugParam, reqEditors ...RequestEditorFn) (*GetPipelineDeploymentResponse, error)
+
+	// ComparePipelineDeploymentWithBodyWithResponse Compare a candidate against the deployed pipeline version
+	//
+	// Read-only semantic comparison against the immutable authored spec selected by the deployment at lookup time. Values are omitted from findings. The response does not assess environment bindings or runtime compatibility.
+	//
+	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /organizations/{slug}/projects/{project_slug}/environments/{environment_slug}/pipelines/{pipeline_slug}/deployment:compare (the `ComparePipelineDeployment` operationId).
+	ComparePipelineDeploymentWithBodyWithResponse(ctx context.Context, slug SlugParam, projectSlug ProjectSlugParam, environmentSlug EnvironmentSlugParam, pipelineSlug PipelineSlugParam, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*ComparePipelineDeploymentResponse, error)
+
+	// ComparePipelineDeploymentWithResponse Compare a candidate against the deployed pipeline version
+	//
+	// Read-only semantic comparison against the immutable authored spec selected by the deployment at lookup time. Values are omitted from findings. The response does not assess environment bindings or runtime compatibility.
+	//
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /organizations/{slug}/projects/{project_slug}/environments/{environment_slug}/pipelines/{pipeline_slug}/deployment:compare (the `ComparePipelineDeployment` operationId).
+	ComparePipelineDeploymentWithResponse(ctx context.Context, slug SlugParam, projectSlug ProjectSlugParam, environmentSlug EnvironmentSlugParam, pipelineSlug PipelineSlugParam, body ComparePipelineDeploymentJSONRequestBody, reqEditors ...RequestEditorFn) (*ComparePipelineDeploymentResponse, error)
 
 	// GetSuccessfulRunRecencyWithResponse Inspect successful-run recency
 	//
@@ -63931,6 +64124,75 @@ func (r GetPipelineDeploymentResponse) ContentType() string {
 	return ""
 }
 
+type ComparePipelineDeploymentResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *PipelineDeploymentComparison
+	// JSON400 the response for an HTTP 400 `application/json` response
+	JSON400 *ErrorResponse
+	// JSON401 the response for an HTTP 401 `application/json` response
+	JSON401 *ErrorResponse
+	// JSON403 the response for an HTTP 403 `application/json` response
+	JSON403 *ErrorResponse
+	// JSON404 the response for an HTTP 404 `application/json` response
+	JSON404 *ErrorResponse
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r ComparePipelineDeploymentResponse) GetJSON200() *PipelineDeploymentComparison {
+	return r.JSON200
+}
+
+// GetJSON400 returns the response for an HTTP 400 `application/json` response
+func (r ComparePipelineDeploymentResponse) GetJSON400() *ErrorResponse {
+	return r.JSON400
+}
+
+// GetJSON401 returns the response for an HTTP 401 `application/json` response
+func (r ComparePipelineDeploymentResponse) GetJSON401() *ErrorResponse {
+	return r.JSON401
+}
+
+// GetJSON403 returns the response for an HTTP 403 `application/json` response
+func (r ComparePipelineDeploymentResponse) GetJSON403() *ErrorResponse {
+	return r.JSON403
+}
+
+// GetJSON404 returns the response for an HTTP 404 `application/json` response
+func (r ComparePipelineDeploymentResponse) GetJSON404() *ErrorResponse {
+	return r.JSON404
+}
+
+// GetBody returns the raw response body bytes
+func (r ComparePipelineDeploymentResponse) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r ComparePipelineDeploymentResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ComparePipelineDeploymentResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r ComparePipelineDeploymentResponse) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
 type GetSuccessfulRunRecencyResponse struct {
 	Body         []byte
 	HTTPResponse *http.Response
@@ -72227,6 +72489,36 @@ func (c *ClientWithResponses) GetPipelineDeploymentWithResponse(ctx context.Cont
 		return nil, err
 	}
 	return ParseGetPipelineDeploymentResponse(rsp)
+}
+
+// ComparePipelineDeploymentWithBodyWithResponse Compare a candidate against the deployed pipeline version
+//
+// Read-only semantic comparison against the immutable authored spec selected by the deployment at lookup time. Values are omitted from findings. The response does not assess environment bindings or runtime compatibility.
+//
+// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /organizations/{slug}/projects/{project_slug}/environments/{environment_slug}/pipelines/{pipeline_slug}/deployment:compare (the `ComparePipelineDeployment` operationId).
+func (c *ClientWithResponses) ComparePipelineDeploymentWithBodyWithResponse(ctx context.Context, slug SlugParam, projectSlug ProjectSlugParam, environmentSlug EnvironmentSlugParam, pipelineSlug PipelineSlugParam, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*ComparePipelineDeploymentResponse, error) {
+	rsp, err := c.ComparePipelineDeploymentWithBody(ctx, slug, projectSlug, environmentSlug, pipelineSlug, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseComparePipelineDeploymentResponse(rsp)
+}
+
+// ComparePipelineDeploymentWithResponse Compare a candidate against the deployed pipeline version
+//
+// Read-only semantic comparison against the immutable authored spec selected by the deployment at lookup time. Values are omitted from findings. The response does not assess environment bindings or runtime compatibility.
+//
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /organizations/{slug}/projects/{project_slug}/environments/{environment_slug}/pipelines/{pipeline_slug}/deployment:compare (the `ComparePipelineDeployment` operationId).
+func (c *ClientWithResponses) ComparePipelineDeploymentWithResponse(ctx context.Context, slug SlugParam, projectSlug ProjectSlugParam, environmentSlug EnvironmentSlugParam, pipelineSlug PipelineSlugParam, body ComparePipelineDeploymentJSONRequestBody, reqEditors ...RequestEditorFn) (*ComparePipelineDeploymentResponse, error) {
+	rsp, err := c.ComparePipelineDeployment(ctx, slug, projectSlug, environmentSlug, pipelineSlug, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseComparePipelineDeploymentResponse(rsp)
 }
 
 // GetSuccessfulRunRecencyWithResponse Inspect successful-run recency
@@ -80706,6 +80998,60 @@ func ParseGetPipelineDeploymentResponse(rsp *http.Response) (*GetPipelineDeploym
 			return nil, err
 		}
 		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 403:
+		var dest ErrorResponse
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON403 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+		var dest ErrorResponse
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON404 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseComparePipelineDeploymentResponse parses an HTTP response from a ComparePipelineDeploymentWithResponse call
+func ParseComparePipelineDeploymentResponse(rsp *http.Response) (*ComparePipelineDeploymentResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ComparePipelineDeploymentResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest PipelineDeploymentComparison
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 400:
+		var dest ErrorResponse
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON400 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+		var dest ErrorResponse
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON401 = &dest
 
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 403:
 		var dest ErrorResponse
