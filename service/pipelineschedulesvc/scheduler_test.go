@@ -188,6 +188,75 @@ func TestDispatchDueSchedulesAppliesMisfirePolicies(t *testing.T) {
 	require.Equal(t, "skip-old", notifier.calls[1].SourceRefs["trigger_slug"])
 }
 
+func TestDispatchDueSchedulesHonorsSchedulingStart(t *testing.T) {
+	t.Parallel()
+
+	fireAt := time.Date(2026, time.November, 7, 7, 0, 0, 0, time.UTC)
+	now := fireAt.Add(5 * time.Hour)
+	previousFire := fireAt.Add(-24 * time.Hour)
+	for _, tc := range []struct {
+		name      string
+		createdAt time.Time
+		updatedAt time.Time
+		lastFire  *time.Time
+		due       bool
+	}{
+		{name: "created just before", createdAt: fireAt.Add(-time.Microsecond), due: true},
+		{name: "created at occurrence", createdAt: fireAt, due: true},
+		{name: "created just after", createdAt: fireAt.Add(time.Microsecond)},
+		{name: "created just before scan", createdAt: now.Add(-time.Minute)},
+		{name: "reenabled after occurrence", createdAt: previousFire, updatedAt: fireAt.Add(time.Second)},
+		{name: "edited at occurrence", createdAt: previousFire, updatedAt: fireAt},
+		{name: "revised before occurrence", createdAt: previousFire, updatedAt: fireAt.Add(-time.Second), due: true},
+		{name: "recovery after prior fire", createdAt: previousFire, lastFire: &previousFire, due: true},
+		{name: "already claimed", createdAt: fireAt, lastFire: &fireAt},
+		{name: "legacy fire before creation", createdAt: fireAt.Add(time.Second), lastFire: &previousFire},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			for _, policy := range []model.PipelineTriggerScheduleMisfirePolicy{
+				model.PipelineTriggerScheduleMisfirePolicyFireOnce,
+				model.PipelineTriggerScheduleMisfirePolicySkip,
+			} {
+				t.Run(policy.String(), func(t *testing.T) {
+					trigger := newDueScheduleTrigger("acme", "prod", "daily", "sync", true, "0 7 * * *", "UTC", tc.lastFire)
+					trigger.TriggerRevision = 1
+					trigger.TriggerCreatedAt = tc.createdAt
+					if !tc.updatedAt.IsZero() {
+						trigger.TriggerRevision = 2
+						trigger.TriggerUpdatedAt = tc.updatedAt
+					}
+					trigger.ScheduleConfig.MisfirePolicy = policy
+					repo := &recordingScheduleRepository{triggers: []DueScheduleTrigger{trigger},
+						claimResults: []ScheduleFireClaimResult{{Claimed: true, FireSlug: "daily-fire"}}}
+					producer := &recordingScheduleFireProducer{}
+					notifier := &recordingNotificationProducer{}
+					svc := New(testutil.FakeTransactionManager{}, repo, &recordingPipelineExecutor{}, producer, nil, WithNotificationProducer(notifier))
+
+					result, err := svc.DispatchDueSchedules(t.Context(), now)
+					require.NoError(t, err)
+					if !tc.due {
+						require.Equal(t, DispatchResult{Scanned: 1}, result)
+						require.Empty(t, repo.claims)
+						require.Empty(t, notifier.calls)
+						require.Empty(t, producer.calls)
+						return
+					}
+					require.Len(t, repo.claims, 1)
+					require.Equal(t, fireAt, repo.claims[0].ScheduledFireAt)
+					require.Len(t, notifier.calls, 1)
+					if policy == model.PipelineTriggerScheduleMisfirePolicyFireOnce {
+						require.Equal(t, DispatchResult{Scanned: 1, Claimed: 1, Enqueued: 1}, result)
+						require.Equal(t, model.NotificationTypePipelineScheduledRunDelayed, notifier.calls[0].NotificationType)
+					} else {
+						require.Equal(t, DispatchResult{Scanned: 1, Claimed: 1, SkippedMisfire: 1}, result)
+						require.Equal(t, model.NotificationTypePipelineScheduledRunMissing, notifier.calls[0].NotificationType)
+					}
+				})
+			}
+		})
+	}
+}
+
 func TestDispatchDueSchedulesTreatsDispatchLatencyWithinGraceAsOnTime(t *testing.T) {
 	t.Parallel()
 

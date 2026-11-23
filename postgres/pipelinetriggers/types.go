@@ -77,6 +77,7 @@ type DueScheduleTrigger struct {
 	RetryPolicy         model.PipelineTriggerRetryPolicy
 	ScheduleConfig      model.PipelineTriggerScheduleConfig
 	TriggerCreatedAt    time.Time
+	TriggerUpdatedAt    time.Time
 	LastScheduledFireAt *time.Time
 }
 

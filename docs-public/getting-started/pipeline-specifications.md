@@ -46,6 +46,12 @@ deployed or pinned versions must pass the rule at their next deployment or run,
 including replay and recovery. Stored versions, run history and retained
 artifacts remain unchanged; remediation requires new reviewed definitions.
 
+An enabled schedule can catch up from its creation time, including a cron
+occurrence exactly at creation. After any trigger edit, including enabling or
+re-enabling, only occurrences after the new revision's update time are eligible.
+A missed occurrence within the active revision follows its `skip` or `fire_once`
+policy.
+
 Schedule and webhook retries use the retry policy captured for the original
 execution. When `max_elapsed_seconds` is set, queue time, downtime and admission
 wait count toward that budget. A new attempt may start at the deadline, but an
