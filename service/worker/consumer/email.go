@@ -125,7 +125,7 @@ func (w *emailSendWorker) Work(
 	if err := w.recordAlertDeliveryAttemptSent(ctx, job, args); err != nil {
 		w.logger.ErrorContext(ctx, "alert delivery attempt success diagnostic update failed", slog.Any("error", err))
 	}
-	w.logger.InfoContext(ctx, "email send job succeeded")
+	w.logger.InfoContext(ctx, "email send job succeeded", slog.String("email_type", args.Type.String()))
 	return nil
 }
 

@@ -1,6 +1,7 @@
 package consumer
 
 import (
+	"bytes"
 	"context"
 	"log/slog"
 	"testing"
@@ -20,7 +21,8 @@ func TestEmailSendWorkerSendsVerificationEmail(t *testing.T) {
 	t.Parallel()
 
 	emailSvc := &recordingEmailService{}
-	worker := NewEmailSendWorker(emailSvc, fakeEmailTokenCipher{}, slog.New(slog.DiscardHandler))
+	var logs bytes.Buffer
+	worker := NewEmailSendWorker(emailSvc, fakeEmailTokenCipher{}, slog.New(slog.NewTextHandler(&logs, nil)))
 
 	args := jobs.EmailSendArgs{
 		Type: jobs.EmailTypeVerification,
@@ -37,6 +39,7 @@ func TestEmailSendWorkerSendsVerificationEmail(t *testing.T) {
 	err := worker.Work(context.Background(), &river.Job[jobs.EmailSendArgs]{Args: args})
 
 	require.NoError(t, err)
+	require.Contains(t, logs.String(), `msg="email send job succeeded" email_type=verification`)
 	require.Equal(t, 1, emailSvc.verificationCalls)
 	require.Equal(t, args.User.ToUser(), emailSvc.verificationUser)
 	require.Equal(t, "https://app.example.com/verify-email?token=raw-email-verification-token", emailSvc.verificationLink)
