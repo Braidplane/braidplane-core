@@ -94,6 +94,44 @@ func TestPipelineScheduleProducer(t *testing.T) {
 	}
 }
 
+func TestPipelineScheduleProducerRoutesFinalizationsToOwnerQueue(t *testing.T) {
+	t.Parallel()
+
+	for _, test := range []struct {
+		args queue.JobArgs
+		want string
+	}{
+		{args: jobs.PipelineScheduleFireExecutionArgs{FinalizeOnly: true}, want: jobs.PipelineScheduleQueue},
+		{args: jobs.PipelineWebhookDeliveryArgs{FinalizeOnly: true}, want: jobs.PipelineScheduleQueue},
+		{args: jobs.PipelineTriggerRetryExecutionArgs{FinalizeOnly: true}, want: jobs.PipelineRetryQueue},
+	} {
+		enqueuer := &recordingEnqueuer{}
+		producer, err := NewPipelineScheduleProducer(enqueuer)
+		require.NoError(t, err)
+
+		_, err = producer.EnqueueRunFinalization(t.Context(), nil, test.args)
+		require.NoError(t, err)
+		require.Equal(t, queue.EnqueueRequest{Args: test.args, Queue: test.want}, enqueuer.req)
+	}
+}
+
+func TestPipelineWebhookProducerRoutesRetentionCleanupToScheduleQueue(t *testing.T) {
+	t.Parallel()
+
+	enqueuer := &recordingEnqueuer{}
+	producer, err := NewPipelineWebhookProducer(enqueuer)
+	require.NoError(t, err)
+	args := jobs.PipelineWebhookDeliveryArgs{
+		ReceiverID: "receiver", DeliveryID: "delivery", RunAttempt: 1, Cleanup: true,
+		ScheduledAt: time.Date(2026, time.June, 9, 7, 0, 0, 0, time.UTC),
+	}
+
+	_, err = producer.EnqueuePipelineWebhookDelivery(t.Context(), nil, args)
+	require.NoError(t, err)
+	require.Equal(t, queue.EnqueueRequest{Args: args, Queue: jobs.PipelineScheduleQueue}, enqueuer.req)
+	require.Equal(t, args.ScheduledAt, args.InsertOpts().ScheduledAt)
+}
+
 type producerTestError string
 
 func (e producerTestError) Error() string {

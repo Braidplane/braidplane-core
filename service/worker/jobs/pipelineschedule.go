@@ -9,7 +9,10 @@ import (
 	"github.com/Braidplane/braidplane-core/pkg/slug"
 )
 
-const PipelineScheduleQueue = "pipeline_schedule"
+const (
+	PipelineScheduleQueue         = "pipeline_schedule"
+	PipelineScheduleDispatchQueue = "pipeline_schedule_dispatch"
+)
 
 // PipelineScheduleDispatchArgs is the periodic River payload that scans due schedules.
 type PipelineScheduleDispatchArgs struct{}
@@ -19,7 +22,7 @@ func (PipelineScheduleDispatchArgs) Kind() string {
 }
 
 func (PipelineScheduleDispatchArgs) InsertOpts() river.InsertOpts {
-	return river.InsertOpts{Queue: PipelineScheduleQueue}
+	return river.InsertOpts{Queue: PipelineScheduleDispatchQueue}
 }
 
 // PipelineScheduleFireExecutionArgs is the durable River payload for executing one claimed scheduled fire.

@@ -558,7 +558,7 @@ func TestWorkerHostPipelineGitPublishProposalPersistsMetadata(t *testing.T) { //
 	}
 }
 
-func TestWorkerHostPipelineScheduleDispatchJobRunsScheduler(t *testing.T) { // Real River/Postgres worker E2E uses shared external state.
+func TestWorkerHostPipelineScheduleDispatchJobRunsFromExecutionQueue(t *testing.T) { // Real River/Postgres worker E2E uses shared external state.
 	if testing.Short() {
 		t.Skip("skipping real-Postgres River worker E2E test in short mode")
 	}
@@ -625,14 +625,15 @@ func TestWorkerHostPipelineScheduleDispatchJobRunsScheduler(t *testing.T) { // R
 	require.False(t, lastNow.IsZero())
 }
 
-func TestWorkerHostPipelineScheduleDispatchJobHandsOffToFireExecutionJob(t *testing.T) { // Real River/Postgres worker E2E uses shared external state.
+func TestWorkerHostPipelineScheduleDispatchRunsWhileExecutionQueueIsFull(t *testing.T) { // Real River/Postgres worker E2E uses shared external state.
 	if testing.Short() {
 		t.Skip("skipping real-Postgres River worker E2E test in short mode")
 	}
 
 	ctx := context.Background()
 	pool := openWorkerE2EPool(t)
-	scheduleQueue := uniqueWorkerE2EQueue(jobs.PipelineScheduleQueue)
+	scheduleQueue := jobs.PipelineScheduleQueue
+	dispatchQueue := jobs.PipelineScheduleDispatchQueue
 	dispatchKind := jobs.PipelineScheduleDispatchArgs{}.Kind()
 	fireArgs := jobs.PipelineScheduleFireExecutionArgs{
 		OrganizationSlug: slug.Slug("worker-e2e-org"),
@@ -644,13 +645,16 @@ func TestWorkerHostPipelineScheduleDispatchJobHandsOffToFireExecutionJob(t *test
 	}
 	fireKind := fireArgs.Kind()
 	fireArgsFilter := pipelineScheduleFireExecutionArgsFilter(fireArgs)
+	cleanupRiverJobsByArgs(t, pool, dispatchQueue, dispatchKind, map[string]any{})
 	cleanupRiverJobsByArgs(t, pool, scheduleQueue, dispatchKind, map[string]any{})
 	cleanupRiverJobsByArgs(t, pool, scheduleQueue, fireKind, fireArgsFilter)
 	eventsSvc := eventssvc.New(postgres.NewTransactionManager(pool), repoevents.New(), clock.New())
+	concurrency := workerE2EQueueConcurrency()
+	release := make(chan struct{})
 	scheduleSvc := &handoffWorkerE2EScheduleService{
-		txm:       postgres.NewTransactionManager(pool),
-		queueName: scheduleQueue,
-		fireArgs:  fireArgs,
+		txm:      postgres.NewTransactionManager(pool),
+		fireArgs: fireArgs,
+		release:  release,
 	}
 	workerSvc, err := workerhostsvc.New(
 		noopPipelineGitExecutor{},
@@ -665,47 +669,69 @@ func TestWorkerHostPipelineScheduleDispatchJobHandsOffToFireExecutionJob(t *test
 		noopNotificationDeliveryService{},
 		workerE2ETokenCipher(t),
 		slog.New(slog.DiscardHandler),
-		workerE2EQueueConcurrency(),
+		concurrency,
 		noopPipelineWebhookExecutor{},
 	)
 
 	require.NoError(t, err)
 
+	// Inject a single tick once the execution slots are occupied.
 	client, err := queue.NewWorkerHost(pool, &queue.WorkerHostConfig{
-		Logger: slog.New(slog.DiscardHandler),
-		Queues: map[string]river.QueueConfig{
-			scheduleQueue: {MaxWorkers: 2},
-		},
-		Registrars:  []queue.WorkerRegistrar{workerSvc},
-		RetryPolicy: fixedRetryPolicy{delay: time.Hour},
+		Logger:                 slog.New(slog.DiscardHandler),
+		Queues:                 workerSvc.Queues(),
+		Registrars:             []queue.WorkerRegistrar{struct{ queue.WorkerRegistrar }{workerSvc}},
+		LeaderElectionDisabled: true,
+		RetryPolicy:            fixedRetryPolicy{delay: time.Hour},
 	})
 	require.NoError(t, err)
-	scheduleSvc.enqueuer = queue.NewEnqueuer(client)
+	enqueuer := queue.NewEnqueuer(client)
+	scheduleSvc.producer, err = workerproducer.NewPipelineScheduleProducer(enqueuer)
+	require.NoError(t, err)
+
+	blockers := make([]jobs.PipelineScheduleFireExecutionArgs, concurrency.PipelineSchedule)
+	for i := range blockers {
+		blockers[i] = fireArgs
+		blockers[i].ScheduledFireAt = fireArgs.ScheduledFireAt.Add(time.Duration(i+1) * time.Minute)
+		cleanupRiverJobsByArgs(t, pool, scheduleQueue, fireKind, pipelineScheduleFireExecutionArgsFilter(blockers[i]))
+	}
+	require.NoError(t, scheduleSvc.txm.RunInTx(ctx, func(ctx context.Context, tx postgres.DBTX) error {
+		for _, args := range blockers {
+			if _, err := scheduleSvc.producer.EnqueueScheduleFireExecution(ctx, tx, args); err != nil {
+				return err
+			}
+		}
+		return nil
+	}))
+
 	require.NoError(t, client.Start(ctx))
 	t.Cleanup(func() {
 		stopCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancel()
 		require.NoError(t, client.Stop(stopCtx))
 	})
+	releaseBlockers := sync.OnceFunc(func() { close(release) })
+	defer releaseBlockers()
+	for _, args := range blockers {
+		waitForRiverJobState(t, ctx, pool, scheduleQueue, fireKind, pipelineScheduleFireExecutionArgsFilter(args), "running")
+	}
 
-	queued := enqueuePipelineScheduleDispatchInTx(t, pool, queue.NewEnqueuer(client), scheduleQueue)
+	queued := enqueuePipelineScheduleDispatchInTx(t, pool, enqueuer, "")
 	require.Positive(t, queued.ID)
-	require.Equal(t, queue.QueuedJob{
-		ID:    queued.ID,
-		Kind:  dispatchKind,
-		Queue: scheduleQueue,
-		State: "queued",
-	}, queued)
-
-	dispatchJob := waitForRiverJobState(t, ctx, pool, scheduleQueue, dispatchKind, map[string]any{}, "completed")
-	require.Equal(t, "completed", dispatchJob.state)
-	fireJob := waitForRiverJobState(t, ctx, pool, scheduleQueue, fireKind, fireArgsFilter, "completed")
-	require.Equal(t, "completed", fireJob.state)
-
-	dispatchCalls, executionCalls, lastArgs := scheduleSvc.Snapshot()
-	require.Equal(t, 1, dispatchCalls)
-	require.Equal(t, 1, executionCalls)
-	require.Equal(t, fireArgs, lastArgs)
+	waitForRiverJobStateAfterID(t, ctx, pool, queued.ID-1, dispatchQueue, dispatchKind, "completed")
+	fireJob := waitForRiverJobState(t, ctx, pool, scheduleQueue, fireKind, fireArgsFilter, "available")
+	require.Zero(t, fireJob.attempt)
+	var duplicate queue.QueuedJob
+	require.NoError(t, scheduleSvc.txm.RunInTx(ctx, func(ctx context.Context, tx postgres.DBTX) error {
+		var err error
+		duplicate, err = scheduleSvc.producer.EnqueueScheduleFireExecution(ctx, tx, fireArgs)
+		return err
+	}))
+	require.Equal(t, "skipped_duplicate", duplicate.State)
+	for _, args := range blockers {
+		waitForRiverJobState(t, ctx, pool, scheduleQueue, fireKind, pipelineScheduleFireExecutionArgsFilter(args), "running")
+	}
+	releaseBlockers()
+	waitForRiverJobState(t, ctx, pool, scheduleQueue, fireKind, fireArgsFilter, "completed")
 }
 
 func TestWorkerHostPipelineRetryJobRunsRetryAttempt(t *testing.T) { // Real River/Postgres worker E2E uses shared external state.
@@ -1667,30 +1693,18 @@ func (d *recordingWorkerE2ERetryDispatcher) Snapshot() (int, jobs.PipelineTrigge
 }
 
 type handoffWorkerE2EScheduleService struct {
-	mu        sync.Mutex
-	txm       postgres.TransactionManager
-	enqueuer  queue.Enqueuer
-	queueName string
-	fireArgs  jobs.PipelineScheduleFireExecutionArgs
-
-	dispatchCalls  int
-	executionCalls int
-	lastArgs       jobs.PipelineScheduleFireExecutionArgs
+	txm      postgres.TransactionManager
+	producer workerproducer.PipelineScheduleProducer
+	fireArgs jobs.PipelineScheduleFireExecutionArgs
+	release  <-chan struct{}
 }
 
 func (s *handoffWorkerE2EScheduleService) DispatchDueSchedules(
 	ctx context.Context,
 	_ time.Time,
 ) (pipelineschedulesvc.DispatchResult, error) {
-	s.mu.Lock()
-	s.dispatchCalls++
-	s.mu.Unlock()
-
 	err := s.txm.RunInTx(ctx, func(ctx context.Context, tx postgres.DBTX) error {
-		_, enqueueErr := s.enqueuer.EnqueueTx(ctx, tx, queue.EnqueueRequest{
-			Args:  s.fireArgs,
-			Queue: s.queueName,
-		})
+		_, enqueueErr := s.producer.EnqueueScheduleFireExecution(ctx, tx, s.fireArgs)
 		return enqueueErr
 	})
 	if err != nil {
@@ -1700,15 +1714,18 @@ func (s *handoffWorkerE2EScheduleService) DispatchDueSchedules(
 }
 
 func (s *handoffWorkerE2EScheduleService) ExecuteClaimedScheduleFire(
-	_ context.Context,
+	ctx context.Context,
 	args jobs.PipelineScheduleFireExecutionArgs,
 ) error {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-
-	s.executionCalls++
-	s.lastArgs = args
-	return nil
+	if args.ScheduledFireAt.Equal(s.fireArgs.ScheduledFireAt) {
+		return nil
+	}
+	select {
+	case <-s.release:
+		return nil
+	case <-ctx.Done():
+		return ctx.Err()
+	}
 }
 
 func (s *handoffWorkerE2EScheduleService) ExecuteTriggerRetryAttempt(
@@ -1716,13 +1733,6 @@ func (s *handoffWorkerE2EScheduleService) ExecuteTriggerRetryAttempt(
 	jobs.PipelineTriggerRetryExecutionArgs,
 ) error {
 	return nil
-}
-
-func (s *handoffWorkerE2EScheduleService) Snapshot() (int, int, jobs.PipelineScheduleFireExecutionArgs) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-
-	return s.dispatchCalls, s.executionCalls, s.lastArgs
 }
 
 type noopPipelineGitExecutor struct{}
