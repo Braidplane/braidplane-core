@@ -8,11 +8,11 @@ import (
 	"strings"
 )
 
-const _EmailTypeName = "unknownverificationpassword_resetsession_mfainvitationnotificationmessage"
+const _EmailTypeName = "unknownverificationpassword_resetsession_mfainvitationnotificationmessageverification_with_document"
 
-var _EmailTypeIndex = [...]uint8{0, 7, 19, 33, 44, 54, 66, 73}
+var _EmailTypeIndex = [...]uint8{0, 7, 19, 33, 44, 54, 66, 73, 99}
 
-const _EmailTypeLowerName = "unknownverificationpassword_resetsession_mfainvitationnotificationmessage"
+const _EmailTypeLowerName = "unknownverificationpassword_resetsession_mfainvitationnotificationmessageverification_with_document"
 
 func (i EmailType) String() string {
 	if i < 0 || i >= EmailType(len(_EmailTypeIndex)-1) {
@@ -32,9 +32,10 @@ func _EmailTypeNoOp() {
 	_ = x[EmailTypeInvitation-(4)]
 	_ = x[EmailTypeNotification-(5)]
 	_ = x[EmailTypeMessage-(6)]
+	_ = x[EmailTypeVerificationWithDocument-(7)]
 }
 
-var _EmailTypeValues = []EmailType{EmailTypeUnknown, EmailTypeVerification, EmailTypePasswordReset, EmailTypeSessionMFA, EmailTypeInvitation, EmailTypeNotification, EmailTypeMessage}
+var _EmailTypeValues = []EmailType{EmailTypeUnknown, EmailTypeVerification, EmailTypePasswordReset, EmailTypeSessionMFA, EmailTypeInvitation, EmailTypeNotification, EmailTypeMessage, EmailTypeVerificationWithDocument}
 
 var _EmailTypeNameToValueMap = map[string]EmailType{
 	_EmailTypeName[0:7]:        EmailTypeUnknown,
@@ -51,6 +52,8 @@ var _EmailTypeNameToValueMap = map[string]EmailType{
 	_EmailTypeLowerName[54:66]: EmailTypeNotification,
 	_EmailTypeName[66:73]:      EmailTypeMessage,
 	_EmailTypeLowerName[66:73]: EmailTypeMessage,
+	_EmailTypeName[73:99]:      EmailTypeVerificationWithDocument,
+	_EmailTypeLowerName[73:99]: EmailTypeVerificationWithDocument,
 }
 
 var _EmailTypeNames = []string{
@@ -61,6 +64,7 @@ var _EmailTypeNames = []string{
 	_EmailTypeName[44:54],
 	_EmailTypeName[54:66],
 	_EmailTypeName[66:73],
+	_EmailTypeName[73:99],
 }
 
 // EmailTypeString retrieves an enum value from the enum constants string name.

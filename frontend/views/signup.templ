@@ -69,6 +69,7 @@ templ SignupPageContent(fullName string, email string, pageError string, pageErr
 					<input class="input input-bordered w-full" type="password" name="confirm_password" placeholder="Repeat your password" autocomplete="new-password" minlength="8" required/>
 				</label>
 				@AccountFields(ctx)
+				@passwordSignupFields(ctx)
 				@FormError("signup-feedback", pageError, true)
 				if pageErrorDetails != "" {
 					<details class="text-sm"><summary>More details</summary><p class="whitespace-pre-wrap break-words">{ pageErrorDetails }</p></details>

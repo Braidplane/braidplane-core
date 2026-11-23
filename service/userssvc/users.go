@@ -106,8 +106,10 @@ func (s *usersService) CreateUser(ctx context.Context, newUser model.NewUser) (*
 		}
 
 		ret = toDomain(u)
-		if s.created != nil {
-			if err := s.created(ctx, tx, ret); err != nil {
+		verificationDocument := ""
+		if s.passwordCreated != nil {
+			verificationDocument, err = s.passwordCreated(ctx, tx, ret)
+			if err != nil {
 				return err
 			}
 		}
@@ -134,7 +136,7 @@ func (s *usersService) CreateUser(ctx context.Context, newUser model.NewUser) (*
 
 		verificationURL := fmt.Sprintf("%s/verify-email", s.frontendURL)
 
-		_, err = s.emailProducer.EnqueueEmailVerification(ctx, tx, ret, verificationURL, token)
+		_, err = s.emailProducer.EnqueueEmailVerification(ctx, tx, ret, verificationURL, token, verificationDocument)
 		if err != nil {
 			return xerror.Wrapf("enqueue verification email: %w", err)
 		}
@@ -422,8 +424,8 @@ func (s *usersService) LoginOrCreateOIDCUser(
 		}
 
 		ret = toDomain(u)
-		if s.created != nil {
-			if err := s.created(ctx, tx, ret); err != nil {
+		if s.oidcCreated != nil {
+			if err := s.oidcCreated(ctx, tx, ret); err != nil {
 				return err
 			}
 		}
@@ -657,7 +659,7 @@ func (s *usersService) ResendVerificationEmail(ctx context.Context, email string
 		}
 
 		verificationURL := fmt.Sprintf("%s/verify-email", s.frontendURL)
-		_, err = s.emailProducer.EnqueueEmailVerification(ctx, tx, toDomain(user), verificationURL, token)
+		_, err = s.emailProducer.EnqueueEmailVerification(ctx, tx, toDomain(user), verificationURL, token, "")
 		if err != nil {
 			return xerror.Wrapf("enqueue verification email: %w", err)
 		}

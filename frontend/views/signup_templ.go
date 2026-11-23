@@ -235,6 +235,10 @@ func SignupPageContent(fullName string, email string, pageError string, pageErro
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
+			templ_7745c5c3_Err = passwordSignupFields(ctx).Render(ctx, templ_7745c5c3_Buffer)
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
 			templ_7745c5c3_Err = FormError("signup-feedback", pageError, true).Render(ctx, templ_7745c5c3_Buffer)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
@@ -247,7 +251,7 @@ func SignupPageContent(fullName string, email string, pageError string, pageErro
 				var templ_7745c5c3_Var9 string
 				templ_7745c5c3_Var9, templ_7745c5c3_Err = templ.JoinStringErrs(pageErrorDetails)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/signup.templ`, Line: 74, Col: 122}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/signup.templ`, Line: 75, Col: 122}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var9))
 				if templ_7745c5c3_Err != nil {
@@ -269,7 +273,7 @@ func SignupPageContent(fullName string, email string, pageError string, pageErro
 			var templ_7745c5c3_Var10 templ.SafeURL
 			templ_7745c5c3_Var10, templ_7745c5c3_Err = templ.JoinURLErrs(templ.URL(AuthReturnURL("/auth/login", returnTo)))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/signup.templ`, Line: 81, Col: 89}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/signup.templ`, Line: 82, Col: 89}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var10))
 			if templ_7745c5c3_Err != nil {

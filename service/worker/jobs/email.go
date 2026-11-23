@@ -14,13 +14,14 @@ const EmailQueue = "email"
 type EmailType int
 
 const (
-	EmailTypeUnknown       EmailType = iota // unknown
-	EmailTypeVerification                   // verification
-	EmailTypePasswordReset                  // password_reset
-	EmailTypeSessionMFA                     // session_mfa
-	EmailTypeInvitation                     // invitation
-	EmailTypeNotification                   // notification
-	EmailTypeMessage                        // message
+	EmailTypeUnknown                  EmailType = iota // unknown
+	EmailTypeVerification                              // verification
+	EmailTypePasswordReset                             // password_reset
+	EmailTypeSessionMFA                                // session_mfa
+	EmailTypeInvitation                                // invitation
+	EmailTypeNotification                              // notification
+	EmailTypeMessage                                   // message
+	EmailTypeVerificationWithDocument                  // verification_with_document
 )
 
 // EmailRecipient is the minimal durable identity needed to deliver an email.
@@ -66,6 +67,7 @@ type EmailSendArgs struct {
 	Link                     string                           `json:"link"`
 	EncryptedToken           []byte                           `json:"encrypted_token,omitempty"`
 	EncryptedCode            []byte                           `json:"encrypted_code,omitempty"`
+	VerificationDocument     string                           `json:"verification_document,omitempty"`
 	Subject                  string                           `json:"subject,omitempty"`
 	Body                     string                           `json:"body,omitempty"`
 }

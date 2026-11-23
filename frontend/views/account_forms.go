@@ -7,9 +7,10 @@ import (
 )
 
 type AccountForms struct {
-	Notice  templ.Component
-	Fields  templ.Component
-	Enabled bool
+	Notice               templ.Component
+	Fields               templ.Component
+	PasswordSignupFields templ.Component
+	Enabled              bool
 }
 
 type accountFormsKey struct{}
@@ -32,6 +33,14 @@ func AccountFields(ctx context.Context) templ.Component {
 		return templ.NopComponent
 	}
 	return forms.Fields
+}
+
+func passwordSignupFields(ctx context.Context) templ.Component {
+	forms, _ := ctx.Value(accountFormsKey{}).(AccountForms)
+	if forms.PasswordSignupFields == nil {
+		return templ.NopComponent
+	}
+	return forms.PasswordSignupFields
 }
 
 func AccountActionsEnabled(ctx context.Context) bool {

@@ -76,13 +76,17 @@ func (w *emailSendWorker) Work(
 
 	var err error
 	switch args.Type {
-	case jobs.EmailTypeVerification:
+	case jobs.EmailTypeVerification, jobs.EmailTypeVerificationWithDocument:
+		if args.Type == jobs.EmailTypeVerificationWithDocument && args.VerificationDocument == "" {
+			err = xerror.ValidationFailed().Detail("verification document is required")
+			break
+		}
 		code, codeErr := w.decryptedToken(args, "encrypted email verification token is required", "decrypt email verification token")
 		if codeErr != nil {
 			err = codeErr
 			break
 		}
-		err = w.emailSvc.EmailVerification(ctx, &user, args.Link, code)
+		err = w.emailSvc.EmailVerification(ctx, &user, args.Link, code, args.VerificationDocument)
 	case jobs.EmailTypePasswordReset:
 		code, codeErr := w.decryptedToken(args, "encrypted password reset token is required", "decrypt password reset token")
 		if codeErr != nil {
@@ -126,7 +130,7 @@ func (w *emailSendWorker) Work(
 	if err := w.recordAlertDeliveryAttemptSent(ctx, job, args); err != nil {
 		w.logger.ErrorContext(ctx, "alert delivery attempt success diagnostic update failed", logging.ErrorAttr(err))
 	}
-	w.logger.InfoContext(ctx, "email send job succeeded")
+	w.logger.InfoContext(ctx, "email send job succeeded", slog.String("email_type", args.Type.String()))
 	return nil
 }
 

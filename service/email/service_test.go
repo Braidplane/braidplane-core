@@ -21,6 +21,27 @@ type recordingMailClient struct {
 	err      error
 }
 
+func TestServiceEmailVerificationAttachesDocumentSnapshot(t *testing.T) {
+	t.Parallel()
+
+	bundle, err := i18n.NewBundle("en")
+	require.NoError(t, err)
+	client := &recordingMailClient{}
+	svc := service{client: client, bundle: bundle, noReplyAddr: "no-reply@example.com"}
+
+	err = svc.EmailVerification(context.Background(), &model.User{Email: "alice@example.com", Locale: "en"}, "https://app.example.com/verify", "abc123", "accepted terms v1")
+	require.NoError(t, err)
+	require.Len(t, client.messages, 1)
+	attachments := client.messages[0].GetAttachments()
+	require.Len(t, attachments, 1)
+	require.Equal(t, "verification-document.txt", attachments[0].Name)
+	require.Equal(t, mail.TypeTextPlain, attachments[0].ContentType)
+	var document strings.Builder
+	_, err = attachments[0].Writer(&document)
+	require.NoError(t, err)
+	require.Equal(t, "accepted terms v1", document.String())
+}
+
 func (c *recordingMailClient) DialAndSendWithContext(_ context.Context, messages ...*mail.Msg) error {
 	c.messages = append(c.messages, messages...)
 	return c.err

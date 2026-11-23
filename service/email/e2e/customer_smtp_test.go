@@ -74,7 +74,7 @@ func TestCustomerSMTPTrustAndRecoveryDelivery(t *testing.T) {
 			sender, err = email.NewService(cfg, bundle)
 			require.NoError(t, err)
 			verificationCode := strings.Repeat("b", 64)
-			require.NoError(t, sender.EmailVerification(ctx, &model.User{Email: "owner@customer.example.test", Locale: "pl"}, "https://app.customer.example.test/verify-email", verificationCode))
+			require.NoError(t, sender.EmailVerification(ctx, &model.User{Email: "owner@customer.example.test", Locale: "pl"}, "https://app.customer.example.test/verify-email", verificationCode, ""))
 			select {
 			case message := <-messages:
 				require.Contains(t, message, "https://app.customer.example.test/verify-email")
