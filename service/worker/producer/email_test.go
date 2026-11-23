@@ -41,6 +41,7 @@ func TestEmailProducerEnqueuesEmailVerification(t *testing.T) {
 		user,
 		"https://app.example.com/verify-email",
 		"raw-email-verification-token",
+		"accepted document",
 	)
 
 	require.NoError(t, err)
@@ -50,10 +51,11 @@ func TestEmailProducerEnqueuesEmailVerification(t *testing.T) {
 	require.Equal(t, jobs.EmailQueue, enqueuer.req.Queue)
 	require.Equal(t, user.Slug, enqueuer.req.InitiatingAccount)
 	require.Equal(t, jobs.EmailSendArgs{
-		Type:           jobs.EmailTypeVerification,
-		User:           jobs.NewEmailRecipient(user),
-		Link:           "https://app.example.com/verify-email",
-		EncryptedToken: []byte("encrypted-email-verification-token"),
+		Type:                 jobs.EmailTypeVerificationWithDocument,
+		User:                 jobs.NewEmailRecipient(user),
+		Link:                 "https://app.example.com/verify-email",
+		EncryptedToken:       []byte("encrypted-email-verification-token"),
+		VerificationDocument: "accepted document",
 	}, enqueuer.req.Args)
 
 	payload, err := json.Marshal(enqueuer.req.Args)
@@ -63,6 +65,21 @@ func TestEmailProducerEnqueuesEmailVerification(t *testing.T) {
 	require.NotContains(t, string(payload), "00-001")
 	require.NotContains(t, string(payload), "raw-email-verification-token")
 	require.NotContains(t, string(payload), "token=raw-email-verification-token")
+}
+
+func TestEmailProducerEnqueuesLegacyVerificationWithoutDocument(t *testing.T) {
+	t.Parallel()
+
+	enqueuer := &recordingEnqueuer{}
+	producer, err := NewEmailProducer(enqueuer, fakeEmailTokenCipher{})
+	require.NoError(t, err)
+
+	_, err = producer.EnqueueEmailVerification(context.Background(), nil, &model.User{}, "https://app.example.com/verify-email", "raw-email-verification-token", "")
+	require.NoError(t, err)
+	args, ok := enqueuer.req.Args.(jobs.EmailSendArgs)
+	require.True(t, ok)
+	require.Equal(t, jobs.EmailTypeVerification, args.Type)
+	require.Empty(t, args.VerificationDocument)
 }
 
 func TestEmailProducerEnqueuesPasswordReset(t *testing.T) {
@@ -298,7 +315,7 @@ func TestEmailProducerReturnsEnqueueError(t *testing.T) {
 	producer, err := NewEmailProducer(&recordingEnqueuer{err: enqueueErr}, fakeEmailTokenCipher{})
 	require.NoError(t, err)
 
-	queued, err := producer.EnqueueEmailVerification(context.Background(), nil, &model.User{}, "", "")
+	queued, err := producer.EnqueueEmailVerification(context.Background(), nil, &model.User{}, "", "", "")
 
 	require.Empty(t, queued)
 	require.ErrorIs(t, err, enqueueErr)

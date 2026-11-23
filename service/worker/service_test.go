@@ -655,6 +655,7 @@ func (s *recordingEmailService) EmailVerification(
 	context.Context,
 	*model.User,
 	string,
+	string,
 ) error {
 	return nil
 }

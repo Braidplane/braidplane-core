@@ -75,13 +75,17 @@ func (w *emailSendWorker) Work(
 
 	var err error
 	switch args.Type {
-	case jobs.EmailTypeVerification:
+	case jobs.EmailTypeVerification, jobs.EmailTypeVerificationWithDocument:
+		if args.Type == jobs.EmailTypeVerificationWithDocument && args.VerificationDocument == "" {
+			err = xerror.ValidationFailed().Detail("verification document is required")
+			break
+		}
 		verificationLink, linkErr := w.tokenizedLink(args, "encrypted email verification token is required", "decrypt email verification token")
 		if linkErr != nil {
 			err = linkErr
 			break
 		}
-		err = w.emailSvc.EmailVerification(ctx, &user, verificationLink)
+		err = w.emailSvc.EmailVerification(ctx, &user, verificationLink, args.VerificationDocument)
 	case jobs.EmailTypePasswordReset:
 		resetLink, linkErr := w.tokenizedLink(args, "encrypted password reset token is required", "decrypt password reset token")
 		if linkErr != nil {

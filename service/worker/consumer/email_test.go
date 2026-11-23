@@ -25,15 +25,16 @@ func TestEmailSendWorkerSendsVerificationEmail(t *testing.T) {
 	worker := NewEmailSendWorker(emailSvc, fakeEmailTokenCipher{}, slog.New(slog.NewTextHandler(&logs, nil)))
 
 	args := jobs.EmailSendArgs{
-		Type: jobs.EmailTypeVerification,
+		Type: jobs.EmailTypeVerificationWithDocument,
 		User: jobs.EmailRecipient{
 			Slug:     slug.Slug("alice-smith"),
 			Email:    "alice@example.com",
 			FullName: "Alice Smith",
 			Locale:   "en",
 		},
-		Link:           "https://app.example.com/verify-email",
-		EncryptedToken: []byte("encrypted-email-verification-token"),
+		Link:                 "https://app.example.com/verify-email",
+		EncryptedToken:       []byte("encrypted-email-verification-token"),
+		VerificationDocument: "accepted terms v1",
 	}
 
 	err := worker.Work(context.Background(), &river.Job[jobs.EmailSendArgs]{Args: args})
@@ -43,7 +44,34 @@ func TestEmailSendWorkerSendsVerificationEmail(t *testing.T) {
 	require.Equal(t, 1, emailSvc.verificationCalls)
 	require.Equal(t, args.User.ToUser(), emailSvc.verificationUser)
 	require.Equal(t, "https://app.example.com/verify-email?token=raw-email-verification-token", emailSvc.verificationLink)
+	require.Equal(t, "accepted terms v1", emailSvc.verificationDocument)
 	require.Equal(t, 0, emailSvc.passwordResetCalls)
+}
+
+func TestEmailSendWorkerSendsLegacyVerificationEmail(t *testing.T) {
+	t.Parallel()
+
+	emailSvc := &recordingEmailService{}
+	worker := NewEmailSendWorker(emailSvc, fakeEmailTokenCipher{}, slog.New(slog.DiscardHandler))
+	err := worker.Work(context.Background(), &river.Job[jobs.EmailSendArgs]{Args: jobs.EmailSendArgs{
+		Type: jobs.EmailTypeVerification,
+		User: jobs.EmailRecipient{Slug: slug.Slug("alice-smith"), Email: "alice@example.com", Locale: "en"},
+		Link: "https://app.example.com/verify-email", EncryptedToken: []byte("encrypted-email-verification-token"),
+	}})
+	require.NoError(t, err)
+	require.Empty(t, emailSvc.verificationDocument)
+}
+
+func TestEmailSendWorkerRejectsDocumentVerificationWithoutDocument(t *testing.T) {
+	t.Parallel()
+
+	worker := NewEmailSendWorker(&recordingEmailService{}, fakeEmailTokenCipher{}, slog.New(slog.DiscardHandler))
+	err := worker.Work(context.Background(), &river.Job[jobs.EmailSendArgs]{Args: jobs.EmailSendArgs{
+		Type: jobs.EmailTypeVerificationWithDocument,
+		User: jobs.EmailRecipient{Slug: slug.Slug("alice-smith"), Email: "alice@example.com", Locale: "en"},
+		Link: "https://app.example.com/verify-email", EncryptedToken: []byte("encrypted-email-verification-token"),
+	}})
+	require.ErrorContains(t, err, "verification document is required")
 }
 
 func TestEmailSendWorkerSendsPasswordResetEmail(t *testing.T) {
@@ -298,18 +326,20 @@ func TestEmailSendWorkerReturnsEmailServiceErrorForRetry(t *testing.T) {
 
 	err := worker.Work(context.Background(), &river.Job[jobs.EmailSendArgs]{
 		Args: jobs.EmailSendArgs{
-			Type: jobs.EmailTypeVerification,
+			Type: jobs.EmailTypeVerificationWithDocument,
 			User: jobs.EmailRecipient{
 				Slug:   slug.Slug("alice-smith"),
 				Email:  "alice@example.com",
 				Locale: "en",
 			},
-			Link:           "https://app.example.com/verify-email",
-			EncryptedToken: []byte("encrypted-email-verification-token"),
+			Link:                 "https://app.example.com/verify-email",
+			EncryptedToken:       []byte("encrypted-email-verification-token"),
+			VerificationDocument: "accepted terms v1",
 		},
 	})
 
 	require.ErrorIs(t, err, sendErr)
+	require.Equal(t, "accepted terms v1", emailSvc.verificationDocument)
 }
 
 type fakeEmailTokenCipher struct{}
@@ -332,10 +362,11 @@ func (fakeEmailTokenCipher) Decrypt(ciphertext []byte) ([]byte, error) {
 }
 
 type recordingEmailService struct {
-	verificationCalls int
-	verificationUser  model.User
-	verificationLink  string
-	verificationErr   error
+	verificationCalls    int
+	verificationUser     model.User
+	verificationLink     string
+	verificationDocument string
+	verificationErr      error
 
 	passwordResetCalls int
 	passwordResetUser  model.User
@@ -407,10 +438,12 @@ func (s *recordingEmailService) EmailVerification(
 	_ context.Context,
 	user *model.User,
 	verificationLink string,
+	verificationDocument string,
 ) error {
 	s.verificationCalls++
 	s.verificationUser = *user
 	s.verificationLink = verificationLink
+	s.verificationDocument = verificationDocument
 	return s.verificationErr
 }
 

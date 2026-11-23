@@ -30,12 +30,14 @@ func (p *emailServiceBackedProducer) EnqueueEmailVerification(
 	user *model.User,
 	verificationURL string,
 	token string,
+	verificationDocument string,
 ) (queue.QueuedJob, error) {
 	verificationLink := verificationURL + "?token=" + token
 	return queue.QueuedJob{State: "queued"}, p.emailSvc.EmailVerification(
 		ctx,
 		user,
 		verificationLink,
+		verificationDocument,
 	)
 }
 
@@ -134,6 +136,31 @@ func TestCreateUserEnqueuesVerificationEmail(t *testing.T) {
 	require.NotContains(t, emailProducer.verificationURL, emailProducer.verificationToken)
 	require.NotContains(t, emailProducer.verificationURL, "token=")
 	require.Zero(t, emailProducer.messageCalls)
+}
+
+func TestCreateUserSnapshotsPasswordCreatedDocument(t *testing.T) {
+	t.Parallel()
+
+	repo := &testutil.FakeUsersRepo{
+		IsSlugReservedFn: func(context.Context, postgres.DBTX, slug.Slug) (bool, error) { return false, nil },
+		CreateUserFn: func(context.Context, postgres.DBTX, *users.CreateParams) (*users.UserPublic, error) {
+			return testutil.StubUserPublic(must.Slug("alice-smith"), "Alice Smith", "alice@example.com", model.RoleUser), nil
+		},
+		CreateEmailVerificationTokenFn: func(context.Context, postgres.DBTX, users.CreateEmailVerificationTokenParams) error { return nil },
+	}
+	producer := &recordingEmailProducer{}
+	callbacks := 0
+	svc := New(testutil.FakeTransactionManager{}, &testutil.FakeHasher{}, repo, producer, nil, "https://app.example.com", WithPasswordCreated(func(_ context.Context, _ postgres.DBTX, user *model.User) (string, error) {
+		callbacks++
+		require.Equal(t, must.Slug("alice-smith"), user.Slug)
+		return "accepted terms v1", nil
+	}))
+
+	_, err := svc.CreateUser(context.Background(), model.NewUser{Email: "alice@example.com", FullName: "Alice Smith", Password: "securepass123", Role: model.RoleUser, Locale: "en"})
+	require.NoError(t, err)
+	require.Equal(t, 1, callbacks)
+	require.Equal(t, 1, producer.verificationCalls)
+	require.Equal(t, "accepted terms v1", producer.verificationDocument)
 }
 
 func TestCreateUserReturnsEmailEnqueueError(t *testing.T) {
@@ -256,12 +283,13 @@ func TestResendVerificationEmailEnqueuesVerificationEmail(t *testing.T) {
 }
 
 type recordingEmailProducer struct {
-	messageCalls      int
-	verificationCalls int
-	verificationTx    postgres.DBTX
-	verificationUser  model.User
-	verificationURL   string
-	verificationToken string
+	messageCalls         int
+	verificationCalls    int
+	verificationTx       postgres.DBTX
+	verificationUser     model.User
+	verificationURL      string
+	verificationToken    string
+	verificationDocument string
 
 	passwordResetCalls int
 	passwordResetTx    postgres.DBTX
@@ -283,12 +311,14 @@ func (p *recordingEmailProducer) EnqueueEmailVerification(
 	user *model.User,
 	verificationURL string,
 	token string,
+	verificationDocument string,
 ) (queue.QueuedJob, error) {
 	p.verificationCalls++
 	p.verificationTx = tx
 	p.verificationUser = *user
 	p.verificationURL = verificationURL
 	p.verificationToken = token
+	p.verificationDocument = verificationDocument
 	return queue.QueuedJob{State: "queued"}, p.err
 }
 

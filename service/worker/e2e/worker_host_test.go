@@ -955,7 +955,7 @@ func enqueueEmailVerificationInTx(
 	var queued queue.QueuedJob
 	err := postgres.NewTransactionManager(pool).RunInTx(t.Context(), func(ctx context.Context, tx postgres.DBTX) error {
 		var enqueueErr error
-		queued, enqueueErr = producer.EnqueueEmailVerification(ctx, tx, user, link, token)
+		queued, enqueueErr = producer.EnqueueEmailVerification(ctx, tx, user, link, token, "")
 		if enqueueErr != nil {
 			return enqueueErr
 		}

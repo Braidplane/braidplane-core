@@ -873,6 +873,7 @@ func (n *captureEmailService) EnqueueEmailVerification(
 	user *model.User,
 	link string,
 	token string,
+	_ string,
 ) (queue.QueuedJob, error) {
 	parsed, err := url.Parse(link)
 	if err != nil {

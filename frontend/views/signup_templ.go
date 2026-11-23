@@ -202,6 +202,10 @@ func SignupPageContent(fullName string, email string, pageError string, pageErro
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
+			templ_7745c5c3_Err = passwordSignupFields(ctx).Render(ctx, templ_7745c5c3_Buffer)
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
 			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 18, "<button class=\"btn btn-primary w-full\" type=\"submit\">Create account</button></form><p class=\"text-center text-sm text-base-content/70\">Already have an account? <a class=\"link link-primary\" href=\"")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
@@ -209,7 +213,7 @@ func SignupPageContent(fullName string, email string, pageError string, pageErro
 			var templ_7745c5c3_Var8 templ.SafeURL
 			templ_7745c5c3_Var8, templ_7745c5c3_Err = templ.JoinURLErrs(templ.URL(AuthReturnURL("/auth/login", returnTo)))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/signup.templ`, Line: 78, Col: 89}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/signup.templ`, Line: 79, Col: 89}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var8))
 			if templ_7745c5c3_Err != nil {

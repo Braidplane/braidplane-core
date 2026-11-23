@@ -162,7 +162,7 @@ func TestCaptureEmailServiceStoresVerificationTokens(t *testing.T) {
 
 	emailService := newCaptureEmailService()
 	user := &model.User{Email: "user@example.test"}
-	_, err := emailService.EnqueueEmailVerification(context.Background(), nil, user, "https://example.test/verify", "verification-token")
+	_, err := emailService.EnqueueEmailVerification(context.Background(), nil, user, "https://example.test/verify", "verification-token", "")
 	require.NoError(t, err)
 	token, ok := emailService.tokenForEmail(user.Email)
 	require.True(t, ok)
@@ -170,9 +170,9 @@ func TestCaptureEmailServiceStoresVerificationTokens(t *testing.T) {
 	_, err = emailService.EnqueuePasswordReset(context.Background(), nil, user, "https://example.test/reset", "reset-token")
 	require.NoError(t, err)
 
-	_, err = emailService.EnqueueEmailVerification(context.Background(), nil, user, "%", "verification-token")
+	_, err = emailService.EnqueueEmailVerification(context.Background(), nil, user, "%", "verification-token", "")
 	require.Error(t, err)
-	_, err = emailService.EnqueueEmailVerification(context.Background(), nil, user, "https://example.test/verify", "")
+	_, err = emailService.EnqueueEmailVerification(context.Background(), nil, user, "https://example.test/verify", "", "")
 	require.Error(t, err)
 }
 

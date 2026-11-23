@@ -15,7 +15,7 @@ import (
 )
 
 type Service interface {
-	EmailVerification(ctx context.Context, user *model.User, verificationLink string) error
+	EmailVerification(ctx context.Context, user *model.User, verificationLink, verificationDocument string) error
 	PasswordReset(ctx context.Context, user *model.User, resetLink string) error
 	SessionMFA(ctx context.Context, user *model.User, code string) error
 	MemberInvitation(ctx context.Context, invitation model.MemberInvitationEmail, acceptanceLink string) error
@@ -85,6 +85,7 @@ func (s service) EmailVerification(
 	ctx context.Context,
 	user *model.User,
 	verificationLink string,
+	verificationDocument string,
 ) error {
 	message := mail.NewMsg()
 
@@ -107,6 +108,11 @@ func (s service) EmailVerification(
 	})
 
 	message.SetBodyString(mail.TypeTextPlain, body)
+	if verificationDocument != "" {
+		if err := message.AttachReader("verification-document.txt", strings.NewReader(verificationDocument), mail.WithFileContentType(mail.TypeTextPlain)); err != nil {
+			return xerror.Unexpected().With(err)
+		}
+	}
 
 	err = s.client.DialAndSendWithContext(ctx, message)
 	if err != nil {
