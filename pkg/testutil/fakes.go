@@ -33,7 +33,7 @@ func (f *FakeHasher) CompareHash(input, hash string) (bool, error) {
 // FakeEmailService is a test double for email.Service.
 // By default EmailVerification succeeds without side effects.
 type FakeEmailService struct {
-	EmailVerificationFn func(ctx context.Context, user *model.User, verificationLink, code string) error
+	EmailVerificationFn func(ctx context.Context, user *model.User, verificationLink, code, verificationDocument string) error
 	PasswordResetFn     func(ctx context.Context, user *model.User, resetLink, code string) error
 	SessionMFAFn        func(ctx context.Context, user *model.User, code string) error
 	MemberInvitationFn  func(ctx context.Context, invitation model.MemberInvitationEmail, acceptanceLink string) error
@@ -55,10 +55,10 @@ func (f *FakeEmailService) Message(
 func (f *FakeEmailService) EmailVerification(
 	ctx context.Context,
 	user *model.User,
-	verificationLink, code string,
+	verificationLink, code, verificationDocument string,
 ) error {
 	if f.EmailVerificationFn != nil {
-		return f.EmailVerificationFn(ctx, user, verificationLink, code)
+		return f.EmailVerificationFn(ctx, user, verificationLink, code, verificationDocument)
 	}
 	return nil
 }
@@ -110,7 +110,7 @@ func (f *FakeEmailService) Notification(
 // FakeEmailProducer is a test double for workerproducer.EmailProducer.
 // By default enqueue methods record their inputs and return a queued outcome.
 type FakeEmailProducer struct {
-	EnqueueEmailVerificationFn func(ctx context.Context, tx postgres.DBTX, user *model.User, verificationURL, token string) (queue.QueuedJob, error)
+	EnqueueEmailVerificationFn func(ctx context.Context, tx postgres.DBTX, user *model.User, verificationURL, token, verificationDocument string) (queue.QueuedJob, error)
 	EnqueuePasswordResetFn     func(ctx context.Context, tx postgres.DBTX, user *model.User, resetURL, token string) (queue.QueuedJob, error)
 	EnqueueSessionMFAFn        func(ctx context.Context, tx postgres.DBTX, user *model.User, code string) (queue.QueuedJob, error)
 	EnqueueMemberInvitationFn  func(ctx context.Context, tx postgres.DBTX, invitation model.MemberInvitationEmail, acceptanceURL, token string) (queue.QueuedJob, error)
@@ -123,6 +123,7 @@ type FakeEmailProducer struct {
 	LastEmailVerificationLink     string
 	LastEmailVerificationURL      string
 	LastEmailVerificationToken    string
+	LastVerificationDocument      string
 
 	EnqueuePasswordResetCalls int
 	LastPasswordResetTx       postgres.DBTX
@@ -180,15 +181,17 @@ func (f *FakeEmailProducer) EnqueueEmailVerification(
 	user *model.User,
 	verificationURL string,
 	token string,
+	verificationDocument string,
 ) (queue.QueuedJob, error) {
 	f.EnqueueEmailVerificationCalls++
 	f.LastEmailVerificationTx = tx
 	f.LastEmailVerificationUser = user
 	f.LastEmailVerificationURL = verificationURL
 	f.LastEmailVerificationToken = token
+	f.LastVerificationDocument = verificationDocument
 	f.LastEmailVerificationLink = verificationURL
 	if f.EnqueueEmailVerificationFn != nil {
-		return f.EnqueueEmailVerificationFn(ctx, tx, user, verificationURL, token)
+		return f.EnqueueEmailVerificationFn(ctx, tx, user, verificationURL, token, verificationDocument)
 	}
 	return queue.QueuedJob{State: "queued"}, nil
 }

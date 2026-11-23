@@ -29,7 +29,7 @@ func NewServiceWithLogging(base Service, logger *slog.Logger) Service {
 }
 
 // EmailVerification implements Service.
-func (_d ServiceWithLogging) EmailVerification(ctx context.Context, user *model.User, verificationLink string, code string) (err error) {
+func (_d ServiceWithLogging) EmailVerification(ctx context.Context, user *model.User, verificationLink string, code string, verificationDocument string) (err error) {
 	_startedAt := time.Now()
 	_ctx := ctx
 	_ctx, _span := tracing.StartMethodSpan(_ctx, tracing.MethodSpan{
@@ -53,7 +53,7 @@ func (_d ServiceWithLogging) EmailVerification(ctx context.Context, user *model.
 			Err:         err,
 		})
 	}()
-	err = _d._base.EmailVerification(_ctx, user, verificationLink, code)
+	err = _d._base.EmailVerification(_ctx, user, verificationLink, code, verificationDocument)
 	return
 }
 

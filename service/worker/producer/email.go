@@ -21,6 +21,7 @@ type EmailProducer interface {
 		user *model.User,
 		verificationURL string,
 		token string,
+		verificationDocument string,
 	) (queue.QueuedJob, error)
 	EnqueuePasswordReset(
 		ctx context.Context,
@@ -88,6 +89,7 @@ func (p *emailProducer) EnqueueEmailVerification(
 	user *model.User,
 	verificationURL string,
 	token string,
+	verificationDocument string,
 ) (queue.QueuedJob, error) {
 	encryptedToken, err := p.tokenCipher.Encrypt([]byte(token))
 	if err != nil {
@@ -95,10 +97,11 @@ func (p *emailProducer) EnqueueEmailVerification(
 	}
 
 	return p.enqueueSend(ctx, tx, jobs.EmailSendArgs{
-		Type:           jobs.EmailTypeVerification,
-		User:           jobs.NewEmailRecipient(user),
-		Link:           verificationURL,
-		EncryptedToken: encryptedToken,
+		Type:                 jobs.EmailTypeVerification,
+		User:                 jobs.NewEmailRecipient(user),
+		Link:                 verificationURL,
+		EncryptedToken:       encryptedToken,
+		VerificationDocument: verificationDocument,
 	})
 }
 

@@ -66,6 +66,7 @@ type EmailSendArgs struct {
 	Link                     string                           `json:"link"`
 	EncryptedToken           []byte                           `json:"encrypted_token,omitempty"`
 	EncryptedCode            []byte                           `json:"encrypted_code,omitempty"`
+	VerificationDocument     string                           `json:"verification_document,omitempty"`
 	Subject                  string                           `json:"subject,omitempty"`
 	Body                     string                           `json:"body,omitempty"`
 }

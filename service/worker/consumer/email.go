@@ -82,7 +82,7 @@ func (w *emailSendWorker) Work(
 			err = codeErr
 			break
 		}
-		err = w.emailSvc.EmailVerification(ctx, &user, args.Link, code)
+		err = w.emailSvc.EmailVerification(ctx, &user, args.Link, code, args.VerificationDocument)
 	case jobs.EmailTypePasswordReset:
 		code, codeErr := w.decryptedToken(args, "encrypted password reset token is required", "decrypt password reset token")
 		if codeErr != nil {
@@ -126,7 +126,7 @@ func (w *emailSendWorker) Work(
 	if err := w.recordAlertDeliveryAttemptSent(ctx, job, args); err != nil {
 		w.logger.ErrorContext(ctx, "alert delivery attempt success diagnostic update failed", logging.ErrorAttr(err))
 	}
-	w.logger.InfoContext(ctx, "email send job succeeded")
+	w.logger.InfoContext(ctx, "email send job succeeded", slog.String("email_type", args.Type.String()))
 	return nil
 }
 

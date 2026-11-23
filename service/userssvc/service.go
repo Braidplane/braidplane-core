@@ -41,7 +41,8 @@ type usersService struct {
 	emailProducer   workerproducer.EmailProducer
 	eventProducer   workerproducer.EventProducer
 	frontendURL     string
-	created         func(context.Context, postgres.DBTX, *model.User) error
+	passwordCreated func(context.Context, postgres.DBTX, *model.User) (string, error)
+	oidcCreated     func(context.Context, postgres.DBTX, *model.User) error
 	mfaEmailLimiter abusecontrols.Repository
 	mfaEmailBudget  httpsecurity.AbuseLimit
 }
@@ -73,8 +74,15 @@ func New(
 // Option configures optional behavior inside the account transaction.
 type Option func(*usersService)
 
-func WithCreated(created func(context.Context, postgres.DBTX, *model.User) error) Option {
-	return func(s *usersService) { s.created = created }
+// WithPasswordCreated runs after a password account is created and snapshots an
+// optional document for its initial verification email.
+func WithPasswordCreated(created func(context.Context, postgres.DBTX, *model.User) (string, error)) Option {
+	return func(s *usersService) { s.passwordCreated = created }
+}
+
+// WithOIDCCreated runs after an OIDC account is created.
+func WithOIDCCreated(created func(context.Context, postgres.DBTX, *model.User) error) Option {
+	return func(s *usersService) { s.oidcCreated = created }
 }
 
 // WithMFAEmailBudget limits challenge delivery after password verification.

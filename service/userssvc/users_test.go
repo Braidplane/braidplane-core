@@ -89,10 +89,11 @@ func TestCreateUser(t *testing.T) {
 					assert.False(t, params.EmailVerificationTokenExpiresAt.IsZero())
 					return nil
 				}
-				emailSvc.EmailVerificationFn = func(_ context.Context, user *model.User, link, code string) error {
+				emailSvc.EmailVerificationFn = func(_ context.Context, user *model.User, link, code, document string) error {
 					assert.Equal(t, must.Slug("alice-smith"), user.Slug)
 					assert.Equal(t, "https://app.example.com/verify-email", link)
 					assert.Len(t, code, 64)
+					assert.Empty(t, document)
 					return nil
 				}
 			},
@@ -802,6 +803,47 @@ func TestLoginOrCreateOIDCUser(t *testing.T) {
 	}
 }
 
+func TestLoginOrCreateOIDCUserUsesOIDCCreatedCallbackOnly(t *testing.T) {
+	t.Parallel()
+
+	repo := &testutil.FakeUsersRepo{
+		FindByOIDCProviderFn: func(context.Context, postgres.DBTX, string, string) (*users.UserPublic, error) {
+			return nil, users.ErrUserNotFound
+		},
+		FindByEmailFn: func(context.Context, postgres.DBTX, string) (*users.UserPublic, error) {
+			return nil, users.ErrUserNotFound
+		},
+		IsSlugReservedFn: func(context.Context, postgres.DBTX, slug.Slug) (bool, error) { return false, nil },
+		CreateOIDCUserFn: func(context.Context, postgres.DBTX, *users.CreateOIDCUserParams) (*users.UserPublic, error) {
+			return testutil.StubUserPublic(must.Slug("alice-smith"), "Alice Smith", "alice@example.com", model.RoleUser), nil
+		},
+	}
+	passwordCreated := 0
+	oidcCreated := 0
+	svc := New(
+		testutil.FakeTransactionManager{},
+		&testutil.FakeHasher{},
+		repo,
+		newEmailProducerFromService(&testutil.FakeEmailService{}),
+		nil,
+		"https://app.example.com",
+		WithPasswordCreated(func(context.Context, postgres.DBTX, *model.User) (string, error) {
+			passwordCreated++
+			return "", nil
+		}),
+		WithOIDCCreated(func(_ context.Context, _ postgres.DBTX, user *model.User) error {
+			oidcCreated++
+			require.Equal(t, must.Slug("alice-smith"), user.Slug)
+			return nil
+		}),
+	)
+
+	_, err := svc.LoginOrCreateOIDCUser(context.Background(), &model.OIDCUserInfo{Provider: "google", ProviderID: "google-123", Email: "alice@example.com", Name: "Alice Smith"})
+	require.NoError(t, err)
+	require.Zero(t, passwordCreated)
+	require.Equal(t, 1, oidcCreated)
+}
+
 func TestLoginOIDCUserUsesExistingProviderOnly(t *testing.T) {
 	t.Parallel()
 
@@ -1312,7 +1354,7 @@ func TestResendVerificationEmail(t *testing.T) {
 					assert.Equal(t, "missing@example.com", email)
 					return nil, users.ErrUserNotFound
 				}
-				emailSvc.EmailVerificationFn = func(_ context.Context, _ *model.User, _, _ string) error {
+				emailSvc.EmailVerificationFn = func(_ context.Context, _ *model.User, _, _, _ string) error {
 					t.Fatal("verification email should not be sent")
 					return nil
 				}
@@ -1332,7 +1374,7 @@ func TestResendVerificationEmail(t *testing.T) {
 					user.VerifiedAt = time.Now()
 					return user, nil
 				}
-				emailSvc.EmailVerificationFn = func(_ context.Context, _ *model.User, _, _ string) error {
+				emailSvc.EmailVerificationFn = func(_ context.Context, _ *model.User, _, _, _ string) error {
 					t.Fatal("verification email should not be sent")
 					return nil
 				}
@@ -1356,10 +1398,11 @@ func TestResendVerificationEmail(t *testing.T) {
 					assert.False(t, params.EmailVerificationTokenExpiresAt.IsZero())
 					return nil
 				}
-				emailSvc.EmailVerificationFn = func(_ context.Context, user *model.User, link, code string) error {
+				emailSvc.EmailVerificationFn = func(_ context.Context, user *model.User, link, code, document string) error {
 					assert.Equal(t, must.Slug("alice-smith"), user.Slug)
 					assert.Equal(t, "https://app.example.com/verify-email", link)
 					assert.Len(t, code, 64)
+					assert.Empty(t, document)
 					return nil
 				}
 			},
