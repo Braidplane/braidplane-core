@@ -1,0 +1,184 @@
+{
+  "architecture": "aarch64",
+  "kernel": "6.8.0-147-generic",
+  "vcpu": 2,
+  "os": "Ubuntu 24.04.5 LTS",
+  "memory_configured_bytes": 4294967296,
+  "virtual_disk_bytes": 21474836480,
+  "engine": "29.1.3",
+  "compose": "2.40.3+ds1-0ubuntu1~24.04.1",
+  "install": {
+    "exit_code": 0,
+    "elapsed_seconds": 39.87675542599999,
+    "samples": 395,
+    "median_used_ram_bytes": 635572224,
+    "peak_used_ram_bytes": 923713536,
+    "filesystem_free_bytes": [
+      {
+        "paths": [
+          "/"
+        ],
+        "before": 17142091776,
+        "minimum": 15557578752,
+        "after": 15557578752,
+        "peak_additional_bytes": 1584513024
+      }
+    ]
+  },
+  "idle": {
+    "exit_code": 0,
+    "elapsed_seconds": 30.078940319000026,
+    "samples": 298,
+    "median_used_ram_bytes": 896200704.0,
+    "peak_used_ram_bytes": 904962048,
+    "filesystem_free_bytes": [
+      {
+        "paths": [
+          "/"
+        ],
+        "before": 15557570560,
+        "minimum": 15557427200,
+        "after": 15557427200,
+        "peak_additional_bytes": 143360
+      }
+    ]
+  },
+  "run-sample": {
+    "exit_code": 0,
+    "elapsed_seconds": 10.21105005100003,
+    "samples": 103,
+    "median_used_ram_bytes": 886820864,
+    "peak_used_ram_bytes": 890687488,
+    "filesystem_free_bytes": [
+      {
+        "paths": [
+          "/"
+        ],
+        "before": 15497637888,
+        "minimum": 15496740864,
+        "after": 15496740864,
+        "peak_additional_bytes": 897024
+      }
+    ]
+  },
+  "upgrade": {
+    "exit_code": 0,
+    "elapsed_seconds": 29.694779179999955,
+    "samples": 296,
+    "median_used_ram_bytes": 951877632.0,
+    "peak_used_ram_bytes": 999927808,
+    "filesystem_free_bytes": [
+      {
+        "paths": [
+          "/var/lib/docker",
+          "/var/lib/containerd",
+          "/root/footprint"
+        ],
+        "before": 15496609792,
+        "minimum": 14822858752,
+        "after": 14824865792,
+        "peak_additional_bytes": 673751040
+      }
+    ]
+  },
+  "restore": {
+    "exit_code": 0,
+    "elapsed_seconds": 1.910844083000029,
+    "samples": 21,
+    "median_used_ram_bytes": 811196416,
+    "peak_used_ram_bytes": 816910336,
+    "filesystem_free_bytes": [
+      {
+        "paths": [
+          "/var/lib/docker",
+          "/var/lib/containerd",
+          "/root/footprint"
+        ],
+        "before": 14824861696,
+        "minimum": 14749417472,
+        "after": 14824849408,
+        "peak_additional_bytes": 75444224
+      }
+    ]
+  },
+  "disk_before": {
+    "device": "/dev/vda1",
+    "size_bytes": 19682557952,
+    "used_bytes": 2523684864,
+    "available_bytes": 17142095872,
+    "mount": "/"
+  },
+  "disk_installed": {
+    "device": "/dev/vda1",
+    "size_bytes": 19682557952,
+    "used_bytes": 4108206080,
+    "available_bytes": 15557574656,
+    "mount": "/"
+  },
+  "disk_run": {
+    "device": "/dev/vda1",
+    "size_bytes": 19682557952,
+    "used_bytes": 4169043968,
+    "available_bytes": 15496736768,
+    "mount": "/"
+  },
+  "v0.2.0-linux-arm64": {
+    "archive_sha256": "1b945e84b24c5f39a479fd2149b1a45a8e0da49e3397e22ffd4d2aeee4b27a2a",
+    "migration": {
+      "digest": "5edcd29ad74e7f0e50d1a41e145e78ab7d6fb2b33a079ed8c7de30cc994f697f",
+      "version": 8
+    },
+    "release": {
+      "core_revision": "432c2d6cc3441dc3ddbbd497ae2519d1a4e6fb5f",
+      "images": {
+        "backend": "ghcr.io/braidplane/braidplane-core-backend@sha256:b43feb9ebe43263358989d158e8dde48fc36c533e1e86e3583fdaf44fd80d353",
+        "cli": "ghcr.io/braidplane/braidplane-core-cli@sha256:3206b46b41b97f2d16017897d6c4b69fc542ba8e30f9365771ae53be8ea668ca",
+        "edge": "docker.io/library/caddy@sha256:003a97808e781aa9f7e75cc2f43d34d461099031faf5e20faefb9f61126836f0",
+        "frontend": "ghcr.io/braidplane/braidplane-core-frontend@sha256:6b32ab208fb0d4a0161a858f771d7e10fb7251509042d26773338abdfe14cb91",
+        "migrate": "ghcr.io/braidplane/braidplane-core-migrate@sha256:55a8c730940d7ac0fe6ac32fd1740a2f766b54d457b10d61f9fd3ac70c6a0fc4",
+        "postgres": "docker.io/library/postgres@sha256:edb0c08dc33befd0262ab3b5cf1c4f3f8cfd8b09e88c05b45adee29d6761ddb6"
+      },
+      "platform": "linux/arm64",
+      "version": "v0.2.0-rc.25"
+    }
+  },
+  "v0.2.1-rc.1-linux-arm64": {
+    "archive_sha256": "55bc852fbcebaa2c08731699e342ae6f818f925cfee2b9ec51a442e48c427ff5",
+    "migration": {
+      "digest": "5edcd29ad74e7f0e50d1a41e145e78ab7d6fb2b33a079ed8c7de30cc994f697f",
+      "version": 8
+    },
+    "release": {
+      "core_revision": "5ad4eb3600f47d97a9050b9e8a67410b3011db69",
+      "images": {
+        "backend": "ghcr.io/braidplane/braidplane-core-backend@sha256:9265633c4391bb43e20f0905d986d9b860aeed62ef8a557a4fbb1db9fb01b3a2",
+        "cli": "ghcr.io/braidplane/braidplane-core-cli@sha256:b6e58d5c20e19f5b45e9dcf8f8508c79f4914ca5ced298b1020d96c35e859293",
+        "edge": "docker.io/library/caddy@sha256:003a97808e781aa9f7e75cc2f43d34d461099031faf5e20faefb9f61126836f0",
+        "frontend": "ghcr.io/braidplane/braidplane-core-frontend@sha256:f02037017378cce00173be4a65dc9144af896efc768edcac5e378b8ba6d2febf",
+        "migrate": "ghcr.io/braidplane/braidplane-core-migrate@sha256:cf732ee1e0487778ca5af342dc9b7d02956039810b699448ffedb8de9ebf33b9",
+        "postgres": "docker.io/library/postgres@sha256:edb0c08dc33befd0262ab3b5cf1c4f3f8cfd8b09e88c05b45adee29d6761ddb6"
+      },
+      "platform": "linux/arm64",
+      "version": "v0.2.1-rc.1"
+    }
+  },
+  "backup_payloads": {
+    "configuration.tar": 61440,
+    "database.dump": 688784
+  },
+  "pipeline": {
+    "status": "succeeded",
+    "spec_hash": "e076d8c86950c5d40ae3d225c21d69ff5eb3978003312b6e13ac50eb245b5141",
+    "steps": [
+      "read-fixture",
+      "calculate-result",
+      "write-result"
+    ],
+    "destination_json": [
+      {
+        "result": 42
+      }
+    ],
+    "destination_commit": "6cd1cbe784a3623925008844601489aabe78e243"
+  }
+}

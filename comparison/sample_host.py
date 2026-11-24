@@ -1,0 +1,63 @@
+"""Measure a command on its Linux host. Pass existing paths on each filesystem."""
+import argparse
+import json
+import os
+from pathlib import Path
+import statistics
+import subprocess
+import time
+
+
+def used_memory():
+    fields = {}
+    for line in Path("/proc/meminfo").read_text().splitlines():
+        key, value = line.split(":", 1)
+        if key in ("MemTotal", "MemAvailable"):
+            fields[key] = int(value.split()[0]) * 1024
+    return fields["MemTotal"] - fields["MemAvailable"]
+
+
+def available(path):
+    stats = os.statvfs(path)
+    return stats.f_bavail * stats.f_frsize
+
+
+def measure(paths, command):
+    filesystems = {}
+    for path in paths:
+        device = os.stat(path).st_dev
+        if device not in filesystems:
+            free = available(path)
+            filesystems[device] = dict(paths=[], before=free, minimum=free)
+        filesystems[device]["paths"].append(path)
+
+    memory = [used_memory()]
+    started = time.monotonic()
+    with subprocess.Popen(command) as process:
+        while True:
+            status = process.poll()
+            memory.append(used_memory())
+            for entry in filesystems.values():
+                free = available(entry["paths"][0])
+                entry.update(minimum=min(entry["minimum"], free), after=free)
+            if status is not None:
+                break
+            time.sleep(0.1)
+    for entry in filesystems.values():
+        entry["peak_additional_bytes"] = entry["before"] - entry["minimum"]
+    return dict(exit_code=status, elapsed_seconds=time.monotonic() - started,
+                samples=len(memory), median_used_ram_bytes=statistics.median(memory),
+                peak_used_ram_bytes=max(memory), filesystem_free_bytes=list(filesystems.values()))
+
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--path", action="append", required=True)
+    parser.add_argument("--receipt", required=True)
+    parser.add_argument("command", nargs="+")
+    args = parser.parse_args()
+    with open(args.receipt, "x") as output:
+        result = measure(args.path, args.command)
+        json.dump(result, output, indent=2)
+        output.write("\n")
+    raise SystemExit(result["exit_code"] or 0)

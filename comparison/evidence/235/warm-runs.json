@@ -1,0 +1,486 @@
+[
+  {
+    "tool": "core",
+    "idle": {
+      "native_application": {
+        "minimum_bytes": 128794624,
+        "median_bytes": 129171456.0,
+        "peak_bytes": 166133760,
+        "complete_one_second_bins": 30,
+        "declared_components": 4
+      },
+      "docker_application": {
+        "minimum_bytes": 149128478.72,
+        "median_bytes": 149967339.51999998,
+        "peak_bytes": 150911057.92000002,
+        "complete_one_second_bins": 30,
+        "declared_components": 2
+      },
+      "docker_common-fixture": {
+        "minimum_bytes": 277579038.71999997,
+        "median_bytes": 278239641.6,
+        "peak_bytes": 279015587.84,
+        "complete_one_second_bins": 30,
+        "declared_components": 2
+      }
+    },
+    "repeats": [
+      {
+        "seconds": 2.998902416999954,
+        "memory": {
+          "native_application": {
+            "minimum_bytes": 171868160,
+            "median_bytes": 172048384,
+            "peak_bytes": 172081152,
+            "complete_one_second_bins": 3,
+            "declared_components": 4
+          },
+          "docker_application": {
+            "minimum_bytes": 163493969.92,
+            "median_bytes": 163598827.52,
+            "peak_bytes": 164018257.92,
+            "complete_one_second_bins": 3,
+            "declared_components": 2
+          },
+          "docker_common-fixture": {
+            "minimum_bytes": 280074649.59999996,
+            "median_bytes": 281081282.56,
+            "peak_bytes": 281458769.91999996,
+            "complete_one_second_bins": 3,
+            "declared_components": 2
+          }
+        },
+        "destination": {
+          "verdict": "passed",
+          "records": 12,
+          "objects": [
+            {
+              "file": "res-repeat-1-object-0.json",
+              "bytes": 1984,
+              "sha256": "752f82c7d99c2cb2712fe094371b5685859f7b6b907e9a35c74192055f7e81fa"
+            }
+          ],
+          "canonical_sha256": "752f82c7d99c2cb2712fe094371b5685859f7b6b907e9a35c74192055f7e81fa"
+        }
+      },
+      {
+        "seconds": 3.011879124999723,
+        "memory": {
+          "native_application": {
+            "minimum_bytes": 174784512,
+            "median_bytes": 174964736,
+            "peak_bytes": 175046656,
+            "complete_one_second_bins": 3,
+            "declared_components": 4
+          },
+          "docker_application": {
+            "minimum_bytes": 165695979.52,
+            "median_bytes": 165695979.52,
+            "peak_bytes": 165800837.12,
+            "complete_one_second_bins": 3,
+            "declared_components": 2
+          },
+          "docker_common-fixture": {
+            "minimum_bytes": 280294850.56,
+            "median_bytes": 280598937.59999996,
+            "peak_bytes": 280756224.0,
+            "complete_one_second_bins": 3,
+            "declared_components": 2
+          }
+        },
+        "destination": {
+          "verdict": "passed",
+          "records": 12,
+          "objects": [
+            {
+              "file": "res-repeat-2-object-0.json",
+              "bytes": 1984,
+              "sha256": "752f82c7d99c2cb2712fe094371b5685859f7b6b907e9a35c74192055f7e81fa"
+            }
+          ],
+          "canonical_sha256": "752f82c7d99c2cb2712fe094371b5685859f7b6b907e9a35c74192055f7e81fa"
+        }
+      },
+      {
+        "seconds": 3.0888961250002467,
+        "memory": {
+          "native_application": {
+            "minimum_bytes": 175341568,
+            "median_bytes": 175554560,
+            "peak_bytes": 175570944,
+            "complete_one_second_bins": 3,
+            "declared_components": 4
+          },
+          "docker_application": {
+            "minimum_bytes": 158240604.16000003,
+            "median_bytes": 167478558.72,
+            "peak_bytes": 167478558.72,
+            "complete_one_second_bins": 3,
+            "declared_components": 2
+          },
+          "docker_common-fixture": {
+            "minimum_bytes": 279340646.4,
+            "median_bytes": 280609423.36,
+            "peak_bytes": 280756224.0,
+            "complete_one_second_bins": 3,
+            "declared_components": 2
+          }
+        },
+        "destination": {
+          "verdict": "passed",
+          "records": 12,
+          "objects": [
+            {
+              "file": "res-repeat-3-object-0.json",
+              "bytes": 1984,
+              "sha256": "752f82c7d99c2cb2712fe094371b5685859f7b6b907e9a35c74192055f7e81fa"
+            }
+          ],
+          "canonical_sha256": "752f82c7d99c2cb2712fe094371b5685859f7b6b907e9a35c74192055f7e81fa"
+        }
+      }
+    ]
+  },
+  {
+    "tool": "airflow",
+    "idle": {
+      "docker_application": {
+        "minimum_bytes": 1359830056.96,
+        "median_bytes": 1360558817.2800002,
+        "peak_bytes": 1442457845.76,
+        "complete_one_second_bins": 30,
+        "declared_components": 6
+      },
+      "docker_common-fixture": {
+        "minimum_bytes": 278669557.76,
+        "median_bytes": 279340646.4,
+        "peak_bytes": 279927848.96,
+        "complete_one_second_bins": 30,
+        "declared_components": 2
+      }
+    },
+    "repeats": [
+      {
+        "seconds": 4.073476124999615,
+        "memory": {
+          "docker_application": {
+            "minimum_bytes": 1363231637.504,
+            "median_bytes": 1375832899.584,
+            "peak_bytes": 1403390001.152,
+            "complete_one_second_bins": 4,
+            "declared_components": 6
+          },
+          "docker_common-fixture": {
+            "minimum_bytes": 279571333.12,
+            "median_bytes": 279691919.36,
+            "peak_bytes": 279990763.52,
+            "complete_one_second_bins": 4,
+            "declared_components": 2
+          }
+        },
+        "destination": {
+          "verdict": "passed",
+          "records": 12,
+          "objects": [
+            {
+              "file": "airflow-res-repeat-1-object-0.json",
+              "bytes": 2175,
+              "sha256": "e201cb48f4e41a04bcac473a7aefdddcdc002adbf6f5b978e723cd227c9e26d9"
+            }
+          ],
+          "canonical_sha256": "752f82c7d99c2cb2712fe094371b5685859f7b6b907e9a35c74192055f7e81fa"
+        }
+      },
+      {
+        "seconds": 4.100657666999723,
+        "memory": {
+          "docker_application": {
+            "minimum_bytes": 1362439962.624,
+            "median_bytes": 1393318428.672,
+            "peak_bytes": 1463706189.8240001,
+            "complete_one_second_bins": 5,
+            "declared_components": 6
+          },
+          "docker_common-fixture": {
+            "minimum_bytes": 275555287.04,
+            "median_bytes": 278931701.76,
+            "peak_bytes": 280085135.36,
+            "complete_one_second_bins": 5,
+            "declared_components": 2
+          }
+        },
+        "destination": {
+          "verdict": "passed",
+          "records": 12,
+          "objects": [
+            {
+              "file": "airflow-res-repeat-2-object-0.json",
+              "bytes": 2175,
+              "sha256": "e201cb48f4e41a04bcac473a7aefdddcdc002adbf6f5b978e723cd227c9e26d9"
+            }
+          ],
+          "canonical_sha256": "752f82c7d99c2cb2712fe094371b5685859f7b6b907e9a35c74192055f7e81fa"
+        }
+      },
+      {
+        "seconds": 4.148851582999669,
+        "memory": {
+          "docker_application": {
+            "minimum_bytes": 1392794140.672,
+            "median_bytes": 1394094374.912,
+            "peak_bytes": 1463478648.832,
+            "complete_one_second_bins": 4,
+            "declared_components": 6
+          },
+          "docker_common-fixture": {
+            "minimum_bytes": 275010027.52,
+            "median_bytes": 275209256.96000004,
+            "peak_bytes": 276006174.71999997,
+            "complete_one_second_bins": 4,
+            "declared_components": 2
+          }
+        },
+        "destination": {
+          "verdict": "passed",
+          "records": 12,
+          "objects": [
+            {
+              "file": "airflow-res-repeat-3-object-0.json",
+              "bytes": 2175,
+              "sha256": "e201cb48f4e41a04bcac473a7aefdddcdc002adbf6f5b978e723cd227c9e26d9"
+            }
+          ],
+          "canonical_sha256": "752f82c7d99c2cb2712fe094371b5685859f7b6b907e9a35c74192055f7e81fa"
+        }
+      }
+    ]
+  },
+  {
+    "tool": "kestra",
+    "idle": {
+      "docker_application": {
+        "minimum_bytes": 656628776.9599999,
+        "median_bytes": 657242193.92,
+        "peak_bytes": 657960468.4799999,
+        "complete_one_second_bins": 30,
+        "declared_components": 2
+      },
+      "docker_common-fixture": {
+        "minimum_bytes": 274894684.16,
+        "median_bytes": 275654901.76,
+        "peak_bytes": 276939407.36,
+        "complete_one_second_bins": 30,
+        "declared_components": 2
+      }
+    },
+    "repeats": [
+      {
+        "seconds": 4.067768082999464,
+        "memory": {
+          "docker_application": {
+            "minimum_bytes": 658746900.4799999,
+            "median_bytes": 661032796.16,
+            "peak_bytes": 674936913.92,
+            "complete_one_second_bins": 5,
+            "declared_components": 2
+          },
+          "docker_common-fixture": {
+            "minimum_bytes": 275041484.8,
+            "median_bytes": 275209256.96,
+            "peak_bytes": 276142489.6,
+            "complete_one_second_bins": 5,
+            "declared_components": 2
+          }
+        },
+        "destination": {
+          "verdict": "passed",
+          "records": 12,
+          "objects": [
+            {
+              "file": "kestra-res-repeat-1-object-0.json",
+              "bytes": 1984,
+              "sha256": "743216efc0aab6c3fa464c237372c107fdce22ccefd4fafdeb919705c5d2d5f0"
+            }
+          ],
+          "canonical_sha256": "752f82c7d99c2cb2712fe094371b5685859f7b6b907e9a35c74192055f7e81fa"
+        }
+      },
+      {
+        "seconds": 4.080010083000161,
+        "memory": {
+          "docker_application": {
+            "minimum_bytes": 675220029.44,
+            "median_bytes": 675975004.16,
+            "peak_bytes": 676803379.2,
+            "complete_one_second_bins": 4,
+            "declared_components": 2
+          },
+          "docker_common-fixture": {
+            "minimum_bytes": 275177799.68,
+            "median_bytes": 275429457.92,
+            "peak_bytes": 276687749.12,
+            "complete_one_second_bins": 4,
+            "declared_components": 2
+          }
+        },
+        "destination": {
+          "verdict": "passed",
+          "records": 12,
+          "objects": [
+            {
+              "file": "kestra-res-repeat-2-object-0.json",
+              "bytes": 1984,
+              "sha256": "743216efc0aab6c3fa464c237372c107fdce22ccefd4fafdeb919705c5d2d5f0"
+            }
+          ],
+          "canonical_sha256": "752f82c7d99c2cb2712fe094371b5685859f7b6b907e9a35c74192055f7e81fa"
+        }
+      },
+      {
+        "seconds": 4.003856124999402,
+        "memory": {
+          "docker_application": {
+            "minimum_bytes": 676090347.52,
+            "median_bytes": 677935841.28,
+            "peak_bytes": 678554501.12,
+            "complete_one_second_bins": 4,
+            "declared_components": 2
+          },
+          "docker_common-fixture": {
+            "minimum_bytes": 275796459.52,
+            "median_bytes": 276252590.08000004,
+            "peak_bytes": 276467548.16,
+            "complete_one_second_bins": 4,
+            "declared_components": 2
+          }
+        },
+        "destination": {
+          "verdict": "passed",
+          "records": 12,
+          "objects": [
+            {
+              "file": "kestra-res-repeat-3-object-0.json",
+              "bytes": 1984,
+              "sha256": "743216efc0aab6c3fa464c237372c107fdce22ccefd4fafdeb919705c5d2d5f0"
+            }
+          ],
+          "canonical_sha256": "752f82c7d99c2cb2712fe094371b5685859f7b6b907e9a35c74192055f7e81fa"
+        }
+      }
+    ]
+  },
+  {
+    "tool": "airbyte",
+    "idle": {
+      "docker_application": {
+        "minimum_bytes": 4857608011.776,
+        "median_bytes": 4863513591.808001,
+        "peak_bytes": 4867271688.192,
+        "complete_one_second_bins": 30,
+        "declared_components": 1
+      },
+      "docker_common-fixture": {
+        "minimum_bytes": 275219742.72,
+        "median_bytes": 275943260.16,
+        "peak_bytes": 277044264.96,
+        "complete_one_second_bins": 30,
+        "declared_components": 2
+      }
+    },
+    "repeats": [
+      {
+        "seconds": 25.721332541000265,
+        "memory": {
+          "docker_application": {
+            "minimum_bytes": 4856534269.952,
+            "median_bytes": 5342402445.312,
+            "peak_bytes": 5829344362.496,
+            "complete_one_second_bins": 26,
+            "declared_components": 1
+          },
+          "docker_common-fixture": {
+            "minimum_bytes": 288725401.59999996,
+            "median_bytes": 300338380.79999995,
+            "peak_bytes": 302776320.0,
+            "complete_one_second_bins": 26,
+            "declared_components": 2
+          }
+        },
+        "destination": {
+          "verdict": "passed",
+          "records": 12,
+          "objects": [
+            {
+              "file": "airbyte-res-repeat-1-object-0.jsonl",
+              "bytes": 4179,
+              "sha256": "d21d8cb339c9c720e682c90bf801a47011611343452381604d70a5662e880a5c"
+            }
+          ],
+          "canonical_sha256": "752f82c7d99c2cb2712fe094371b5685859f7b6b907e9a35c74192055f7e81fa"
+        }
+      },
+      {
+        "seconds": 27.676584333000392,
+        "memory": {
+          "docker_application": {
+            "minimum_bytes": 4886599041.024,
+            "median_bytes": 5149128916.992,
+            "peak_bytes": 5552318971.904,
+            "complete_one_second_bins": 28,
+            "declared_components": 1
+          },
+          "docker_common-fixture": {
+            "minimum_bytes": 288714915.84,
+            "median_bytes": 289228718.08,
+            "peak_bytes": 290172436.48,
+            "complete_one_second_bins": 28,
+            "declared_components": 2
+          }
+        },
+        "destination": {
+          "verdict": "passed",
+          "records": 12,
+          "objects": [
+            {
+              "file": "airbyte-res-repeat-2-object-0.jsonl",
+              "bytes": 4191,
+              "sha256": "6279cc64fc1896672f6f649d70aaec7e7329ccfa040dd2c3d6d6fa1cd7ff08d6"
+            }
+          ],
+          "canonical_sha256": "752f82c7d99c2cb2712fe094371b5685859f7b6b907e9a35c74192055f7e81fa"
+        }
+      },
+      {
+        "seconds": 27.60493366600076,
+        "memory": {
+          "docker_application": {
+            "minimum_bytes": 4896262717.44,
+            "median_bytes": 5317706383.360001,
+            "peak_bytes": 5709085278.208,
+            "complete_one_second_bins": 28,
+            "declared_components": 1
+          },
+          "docker_common-fixture": {
+            "minimum_bytes": 288652001.28,
+            "median_bytes": 290906439.67999995,
+            "peak_bytes": 292584161.28,
+            "complete_one_second_bins": 28,
+            "declared_components": 2
+          }
+        },
+        "destination": {
+          "verdict": "passed",
+          "records": 12,
+          "objects": [
+            {
+              "file": "airbyte-res-repeat-3-object-0.jsonl",
+              "bytes": 4203,
+              "sha256": "1f09bdb6b049478fd37852af1d087c9a6697772bb0865a60ea18de0a8e6f24a4"
+            }
+          ],
+          "canonical_sha256": "752f82c7d99c2cb2712fe094371b5685859f7b6b907e9a35c74192055f7e81fa"
+        }
+      }
+    ]
+  }
+]

@@ -78,6 +78,10 @@ Build your first pipeline with the [PostgreSQL to S3 walkthrough](docs-public/ge
 It includes sample data, a pipeline definition, expected results and cleanup
 commands. You will need a database, an S3 bucket and a Git repository.
 
+Core v0.2.0 ran a verified pipeline on 2 vCPUs, 4 GiB RAM and a 20 GiB disk.
+See the [self-hosted footprint comparison](comparison/small-host.md) for measured
+RAM, disk, upgrade space and results for Airflow, Airbyte and Kestra.
+
 ## Common questions
 
 ### Is AI used to develop Core?
