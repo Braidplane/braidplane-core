@@ -350,7 +350,8 @@ Follow [the recovery operating record](RECOVERY.md) before any production adopti
 
 ## Scheduled or incident backups
 
-After fencing external writers and draining active work as described in
+For recurring backups, schedule the [complete nightly maintenance window](RECOVERY.md#example-nightly-maintenance-window).
+For a single backup, after fencing external writers and draining active work as described in
 [the recovery operating record](RECOVERY.md), take a backup without upgrading:
 
 ```sh

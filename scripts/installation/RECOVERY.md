@@ -23,7 +23,8 @@ is advertised by this tooling:
 | Key recovery | Independent protected source, retained IDs and configuration versions |
 | Artifact recovery | Original bundle, image digests, signatures/trust roots and Git revision |
 
-Use the standalone lifecycle `backup` command in the customer's backup schedule.
+Schedule the entire maintenance window described below. The standalone lifecycle
+`backup` command stops application roles and leaves them stopped.
 The command does not schedule backups, copy them off-host or emit operational
 alerts. Arrange and test those operations before promising the recovery contract
 above; pre-upgrade backups alone cannot meet a periodic backup schedule.
@@ -56,6 +57,122 @@ WAL/archive restore evidence before advertising a tighter objective.
 6. Run `python3 -m scripts.installation.restore_probe BACKUP_DIRECTORY` against a
    trusted backup. It uses fresh isolated storage and starts no application roles.
    Record the result; the disposable database is removed after this probe.
+
+## Example nightly maintenance window
+
+For a Linux installation, one example is a 02:15 job in the scheduler's UTC
+timezone. Have the backup operator install the **whole window** as a supervised
+job. Configure the scheduler to alert the on-call operator on nonzero exit,
+overrun or missed execution, even if the host goes offline. Monitor the age of
+the last verified writer-stop time independently. Test delivery and record the
+operator's acknowledgement before enabling the recurring job.
+
+```cron
+15 2 * * * /usr/local/sbin/braidplane-backup-window
+```
+
+The following Bash body assumes a dedicated account, a protected local backup
+parent, and a separate encrypted recovery host with restricted SSH access,
+pinned host key, matching tools and a mode-0700 backup parent. Use a unique
+receiver namespace for this installation. The three absolute-path site commands
+are operator-supplied integrations. Install and exercise them before scheduling:
+
+- `freeze-and-drain` records the UTC start, current trigger settings and last
+  accepted occurrences. It restricts ingress to the operator, disables triggers,
+  producers and notifications, and waits with a deadline for queued and running
+  work and in-flight destination writes to finish. It checks for external writers
+  and storage capacity. On timeout or ambiguous effects it fails and alerts.
+- `check-resume` confirms this is the original installation, project, volume,
+  keys and installed release, with a clean drain, no restore hold or upgrade in
+  progress, and admissions still fenced. Agree the disposition of missed
+  occurrences before starting any workers.
+- `reopen-and-observe` verifies role readiness and makes a CA-validated HTTPS
+  request through the operator route before reopening ingress. Restore only the
+  previously enabled producers, triggers and notifications. Record the time
+  ingress is usable and total downtime from the freeze. Watch the next scheduled
+  occurrence through destination readback as described below. Fail on timeout.
+
+```bash
+#!/bin/bash
+set -eu
+umask 077
+cd /opt/braidplane/tools
+installation=/protected/braidplane
+backups=/protected/backups
+receiver=braidplane-vault
+exec 9>"$backups/window.lock"
+flock -n 9
+id="$(date -u +%Y%m%dT%H%M%SZ)-$(cat /proc/sys/kernel/random/uuid)"
+copy="/protected/backups/$id"
+# Coordinate upgrades and manual operations for the entire window as well.
+/usr/local/sbin/freeze-and-drain "$installation"
+python3 -m scripts.installation.lifecycle backup "$installation" --backup-directory "$backups/$id"
+python3 -m scripts.installation.backup "$backups/$id"
+ssh -o BatchMode=yes "$receiver" "mkdir -m 700 '$copy.partial'"
+scp -B -p "$backups/$id/"{database.dump,configuration.tar,backup.json} "$receiver:$copy.partial/"
+ssh -o BatchMode=yes "$receiver" "set -e
+  cd /opt/braidplane/tools
+  python3 -m scripts.installation.backup '$copy.partial'
+  python3 -m scripts.installation.restore_probe '$copy.partial'
+  mv -T '$copy.partial' '$copy'"
+/usr/local/sbin/check-resume "$installation"
+python3 -m scripts.installation.lifecycle start "$installation"
+python3 -m scripts.installation.lifecycle status "$installation"
+/usr/local/sbin/reopen-and-observe "$installation"
+```
+
+On the vault, keep finalized directories and their receipts under independent
+retention protection. Record the installation identity, ID, receipt digest,
+writer-stop time and verification time in the protected operating record.
+The newest **finalized and verified** writer-stop time for this installation
+identifies the last recovery point. Reverify its receipt on the receiver.
+Exclude every `.partial` directory even if it contains a valid local receipt.
+If no finalized backup verifies, report that no verified point is available.
+
+**On failure**, the scheduler's alert should identify the installation, attempt,
+failed step, ingress/role state and last verified point (or none). Inspect
+`lifecycle status` first. A preflight refusal may leave roles running and a
+failed stop may leave a mixed state. Preserve partial files for diagnosis.
+Retry a failed transfer to a fresh staging directory from a locally reverified
+backup while the window is held. If the transfer cannot finish within the
+window, the operator may explicitly accept the age of the previous verified
+point under the site's recovery contract, run the same resume checks, then
+start and reopen the original installation. Record the missed backup and keep
+the alert open until a fresh off-host point verifies. If the drain, identity,
+external effects or recovery exposure are uncertain, keep ingress fenced and
+escalate. Never put an unconditional start or reopen in an exit trap.
+
+**Scheduled pipeline proof.** On a synthetic installation, deploy the bundled
+[first-result pipeline](INSTALL.md#first-result-from-customer-git) and configure
+an enabled schedule with a known next occurrence. Capture the trigger, timezone,
+spec hash and destination branch before freezing. After resumption use
+`bp pipeline trigger fire list TRIGGER` to find that next occurrence and its run.
+Watch and get that run using the installation guide. Require a successful
+scheduled run of the recorded version and fetch its exact output commit/path
+independently from the destination. Compare the decoded JSON to
+`[{"result":42}]`. Record the occurrence, run, commit, comparison and UTC
+completion time separately from ingress downtime. Repeat with a deliberately
+failed copy to a disposable destination. Read back the alert in the operator
+inbox, acknowledge it, and verify the preceding recovery point remains current.
+
+### Tagged rehearsal on 2026-11-24
+
+The Linux ARM64 bundle for `v0.3.0-rc.4` (Core revision
+`17aa1bfd69a0b8ae41c16b383e9e2a568b1553fa`) ran on a new loopback-only
+installation with a synthetic owner. The archive SHA-256 matched the release
+record (`73a1c86e2255a0ce4fda1e8563fbfa8cb5760c398704fd635e5da16b968b6753`)
+and all bundle checksums passed. These were manually invoked maintenance windows.
+Elapsed times run from backup invocation through the first verified HTTPS response.
+
+| UTC window | Result |
+|---|---|
+| 22:07:32–22:08:13 (41 s) | Standalone backup stopped all five application services. The database stayed healthy. The receiver copy passed receipt verification and an isolated restore probe (schema 8, 8.723 s). After lifecycle start, API, frontend, worker, executor and database reported healthy and the edge returned HTTP 200 for the login page. |
+| 22:08:41–22:08:57 (16 s) | The second local backup verified. Omitting the dump from its receiver copy made verification exit 1. The copy stayed partial. The first copy reverified with writer-stop time 22:07:39.268666 UTC. The synthetic operator inbox received the failed attempt and prior recovery point. With an idle fixture, original database healthy and all application roles stopped, the operator resumed the same installation. HTTPS login and subsequent synthetic session creation returned HTTP 200. |
+
+The receiver was a protected directory on the same host and the inbox was a
+local Mailpit fixture. Off-host custody, site scheduler alert routing, draining
+active work and the next scheduled pipeline's destination commit remain open
+qualification items.
 
 ## If an upgrade fails
 
