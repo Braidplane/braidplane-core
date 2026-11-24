@@ -3,6 +3,7 @@ package views
 import (
 	"context"
 	"net/url"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -1042,30 +1043,47 @@ func runSinkDeliveryLabel(input api.PipelineRunStepInputSnapshot) string {
 }
 
 func runSinkRecoveryHint(input api.PipelineRunStepInputSnapshot) string {
-	if input.SinkDeliveryOutcome != nil {
-		switch *input.SinkDeliveryOutcome {
-		case api.PipelineRunStepInputSnapshotSinkDeliveryOutcomeConfirmed:
-			if input.SinkReplayStrategy != nil && *input.SinkReplayStrategy == "unsafe" {
-				return "Completed unsafe effect. Recovery is blocked; reconcile the provider outcome without starting a new run to bypass replay safety."
-			}
-			return "Completion is recorded. Recovery preserves the effect record and skips repeat-safe completed writes."
-		case api.PipelineRunStepInputSnapshotSinkDeliveryOutcomeNoOp:
-			return "No provider write was made. Review the empty-input policy if data was expected."
-		case api.PipelineRunStepInputSnapshotSinkDeliveryOutcomeFailed:
-			return "No dispatch began for this attempt. Correct the configuration before recovery."
-		case api.PipelineRunStepInputSnapshotSinkDeliveryOutcomeUnknown:
-			break
-		}
+	const unavailable = "Recovery eligibility is undetermined. Verify the provider outcome before repeating this write."
+	if input.SinkDeliveryOutcome == nil {
+		return unavailable
 	}
+	var strategy api.PipelineRunStepInputSnapshotSinkReplayStrategy
 	if input.SinkReplayStrategy != nil {
-		switch *input.SinkReplayStrategy {
-		case api.PipelineRunStepInputSnapshotSinkReplayStrategyNaturallyIdempotent, api.PipelineRunStepInputSnapshotSinkReplayStrategyIdempotentWithKey:
-			return "Recovery can repeat the same effect with pinned inputs. Verify the provider target and replay guarantee."
-		case api.PipelineRunStepInputSnapshotSinkReplayStrategyUnsafe, api.PipelineRunStepInputSnapshotSinkReplayStrategyDeduplicatedByLedger:
-			return "Automatic recovery is blocked after an unknown attempt. Reconcile the provider outcome; do not start a new run to bypass this refusal."
+		strategy = *input.SinkReplayStrategy
+	}
+	switch *input.SinkDeliveryOutcome {
+	case api.PipelineRunStepInputSnapshotSinkDeliveryOutcomeConfirmed:
+		switch strategy {
+		case api.PipelineRunStepInputSnapshotSinkReplayStrategyUnsafe:
+			return "Recovery is blocked for this completed unsafe write. Reconcile the provider outcome."
+		case api.PipelineRunStepInputSnapshotSinkReplayStrategyNaturallyIdempotent, api.PipelineRunStepInputSnapshotSinkReplayStrategyIdempotentWithKey, api.PipelineRunStepInputSnapshotSinkReplayStrategyDeduplicatedByLedger:
+			return "Recovery skips this confirmed write."
+		}
+	case api.PipelineRunStepInputSnapshotSinkDeliveryOutcomeNoOp:
+		return "No provider write was made. Review the empty-input policy if data was expected."
+	case api.PipelineRunStepInputSnapshotSinkDeliveryOutcomeFailed:
+		return "No dispatch began for this attempt. Recovery can attempt the write with retained inputs if the ledger has no prior claim."
+	case api.PipelineRunStepInputSnapshotSinkDeliveryOutcomeUnknown:
+		switch strategy {
+		case api.PipelineRunStepInputSnapshotSinkReplayStrategyNaturallyIdempotent:
+			if valueOrEmpty(input.OperationType) == "s3" && (input.ParameterKeys == nil || slices.Contains(input.ParameterKeys, "overwrite")) {
+				return "For a claimed S3 write, recovery can only read back the original object. This requires a deterministic overwrite and retained inputs. Matching content confirms the write. A missing object, mismatch or failed check keeps recovery blocked."
+			}
+		case api.PipelineRunStepInputSnapshotSinkReplayStrategyDeduplicatedByLedger:
+			if valueOrEmpty(input.OperationType) == "http" && input.OperationRef == nil && slices.Contains(input.ParameterKeys, "record_updates") {
+				return "With the original rows and an eligible inline HTTP update, recovery skips confirmed records and reads back each uncertain record. A matching identity and fields let recovery continue to pending records. A mismatch or failed readback keeps recovery blocked."
+			}
+		case api.PipelineRunStepInputSnapshotSinkReplayStrategyUnsafe:
+			return "Recovery is blocked for an uncertain unsafe write. Reconcile the provider outcome."
+		}
+		if input.SinkEffectState != nil && *input.SinkEffectState == api.PipelineRunStepInputSnapshotSinkEffectStateInProgress {
+			return "The ledger already has a claim for this write. Recovery cannot repeat it. Verify the outcome at the destination."
+		}
+		if strategy == api.PipelineRunStepInputSnapshotSinkReplayStrategyNaturallyIdempotent || strategy == api.PipelineRunStepInputSnapshotSinkReplayStrategyIdempotentWithKey {
+			return "Recovery checks the ledger. It can attempt the write with retained inputs if there is no prior claim. An unresolved claim blocks another write."
 		}
 	}
-	return "Delivery evidence is unavailable. Verify the provider outcome before repeating this write."
+	return unavailable
 }
 
 func runFailureLocation(failure *api.PipelineRunFailureContext) string {

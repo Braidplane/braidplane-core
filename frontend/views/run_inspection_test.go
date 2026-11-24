@@ -117,7 +117,66 @@ func TestRunSinkEffectsKeepIndependentAndMissingEvidence(t *testing.T) {
 	for _, expected := range []string{"warehouse", "Acknowledged by sink", "notify", "Unknown delivery", "archive", "Outcome unavailable", "not independent delivery readback"} {
 		require.Contains(t, out.String(), expected)
 	}
+	require.Contains(t, out.String(), "Recovery eligibility is undetermined")
 	require.Len(t, run.Timeline.Snapshots, 2)
+}
+
+func TestAttemptsExplainPartialSinkRecovery(t *testing.T) {
+	for _, tc := range []struct {
+		operation, strategy, configKey string
+		inline                         bool
+		guidance                       []string
+	}{
+		{"s3", "naturally_idempotent", "overwrite", false, []string{"only read back the original object", "deterministic overwrite and retained inputs", "missing object, mismatch or failed check keeps recovery blocked"}},
+		{"http", "deduplicated_by_ledger", "record_updates", true, []string{"reads back each uncertain record", "matching identity and fields", "continue to pending records", "mismatch or failed readback keeps recovery blocked"}},
+		{"s3", "naturally_idempotent", "key", false, []string{"already has a claim", "Recovery cannot repeat it"}},
+		{"http", "deduplicated_by_ledger", "record_updates", false, []string{"already has a claim", "Recovery cannot repeat it"}},
+		{"http", "deduplicated_by_ledger", "other", true, []string{"already has a claim", "Recovery cannot repeat it"}},
+	} {
+		t.Run(tc.operation+"-"+tc.configKey, func(t *testing.T) {
+			var run api.PipelineRunRecord
+			require.NoError(t, json.Unmarshal([]byte(`{
+				"metadata":{"status":"failed"},
+				"timeline":{"snapshots":[
+					{"step":"prepare","kind":"sink","input":{"sink_delivery_outcome":"failed","sink_replay_strategy":"idempotent_with_key"}},
+					{"step":"archive","kind":"sink","input":{"sink_delivery_outcome":"confirmed","sink_replay_strategy":"naturally_idempotent","sink_effect_state":"succeeded"}},
+					{"step":"store","kind":"sink","input":{"sink_delivery_outcome":"unknown","sink_effect_state":"in_progress","sink_replay_decision":"execute_first_attempt"}}
+				]},
+				"incremental_diagnostics":{"sources":[{"source_step_slug":"read","previous_checkpoint":{"summary":"through row 10"},"observed_checkpoint":{"summary":"through row 20"},"commit_result":{"status":"blocked","blocked_by_step":"store","blocked_reason":"uncertain write"}}]}
+			}`), &run))
+			input := &run.Timeline.Snapshots[2].Input
+			strategy := api.PipelineRunStepInputSnapshotSinkReplayStrategy(tc.strategy)
+			input.SinkReplayStrategy = &strategy
+			input.OperationType = &tc.operation
+			if tc.inline {
+				input.UsesInline = &tc.inline
+			} else {
+				op := "save"
+				input.OperationRef = &op
+			}
+			input.ParameterKeys = []string{tc.configKey}
+
+			ctx := WithEntityPageURL(t.Context(), "/runs/original?section=attempts")
+			var out bytes.Buffer
+			require.NoError(t, PipelineRunDetailPageContent("acme", "ops", "dev", run, nil, false, "", runlineage.View{}, DefaultOrganizationPermissions(), RunCompletionInspection{}).Render(ctx, &out))
+			for _, expected := range tc.guidance {
+				require.Contains(t, out.String(), expected)
+			}
+			for _, expected := range []string{"Recovery can attempt the write with retained inputs if the ledger has no prior claim", "Recovery skips this confirmed write", "Trigger retries create another attempt", "Retained-input recovery reuses", "A new run uses its selected deployment", "Previous checkpoint", "through row 10", "Observed checkpoint", "through row 20", "Blocked by store: uncertain write"} {
+				require.Contains(t, out.String(), expected)
+			}
+		})
+	}
+}
+
+func TestRunRecoveryWriteRequiresDeliveryEvidence(t *testing.T) {
+	keyed := api.PipelineRunStepInputSnapshotSinkReplayStrategyIdempotentWithKey
+	input := api.PipelineRunStepInputSnapshot{SinkReplayStrategy: &keyed}
+	require.Contains(t, runSinkRecoveryHint(input), "eligibility is undetermined")
+
+	failed := api.PipelineRunStepInputSnapshotSinkDeliveryOutcomeFailed
+	input.SinkDeliveryOutcome = &failed
+	require.Contains(t, runSinkRecoveryHint(input), "can attempt the write with retained inputs if the ledger has no prior claim")
 }
 
 func TestRunInspectionRendersResourceScopeRejection(t *testing.T) {
