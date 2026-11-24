@@ -1213,7 +1213,7 @@ func responseError(response encryptedResponse) error {
 		return nil
 	}
 	cause := responseErrorCause(response)
-	if cause != nil && response.HubSpotUpsertProgress != nil {
+	if response.HubSpotUpsertProgress != nil {
 		progress := *response.HubSpotUpsertProgress
 		progress.Cause = cause
 		return &progress
