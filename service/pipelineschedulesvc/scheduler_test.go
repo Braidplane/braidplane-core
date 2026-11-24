@@ -226,8 +226,10 @@ func TestDispatchDueSchedulesHonorsSchedulingStart(t *testing.T) {
 						trigger.TriggerUpdatedAt = tc.updatedAt
 					}
 					trigger.ScheduleConfig.MisfirePolicy = policy
-					repo := &recordingScheduleRepository{triggers: []DueScheduleTrigger{trigger},
-						claimResults: []ScheduleFireClaimResult{{Claimed: true, FireSlug: "daily-fire"}}}
+					repo := &recordingScheduleRepository{
+						triggers:     []DueScheduleTrigger{trigger},
+						claimResults: []ScheduleFireClaimResult{{Claimed: true, FireSlug: "daily-fire"}},
+					}
 					producer := &recordingScheduleFireProducer{}
 					notifier := &recordingNotificationProducer{}
 					svc := New(testutil.FakeTransactionManager{}, repo, &recordingPipelineExecutor{}, producer, nil, WithNotificationProducer(notifier))
