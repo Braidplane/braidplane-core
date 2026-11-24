@@ -512,6 +512,11 @@ shall terminate as of the date such litigation is filed.
 
 //go:build unix
 
+--- source header: src/archive/zip/reader.go ---
+// Copyright 2010 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
 --- source header: src/archive/zip/struct.go ---
 // Copyright 2010 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
@@ -534,6 +539,11 @@ fields must be used instead.
 
 [ZIP specification]: https://support.pkware.com/pkzip/appnote
 */
+
+--- source header: src/archive/zip/writer.go ---
+// Copyright 2011 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
 
 --- source header: src/bufio/bufio.go ---
 // Copyright 2009 The Go Authors. All rights reserved.
@@ -1821,11 +1831,6 @@ resources, or cause panics.
 // The format is heavily biased toward C, but for simplicity
 // the String methods use a pseudo-Go syntax.
 
---- source header: src/debug/dwarf/unit.go ---
-// Copyright 2009 The Go Authors. All rights reserved.
-// Use of this source code is governed by a BSD-style
-// license that can be found in the LICENSE file.
-
 --- source header: src/debug/elf/elf.go ---
 /*
  * ELF constants and data structures
@@ -2190,6 +2195,11 @@ resources, or cause panics.
 // license that can be found in the LICENSE file.
 
 //go:generate go run decgen.go -output dec_helpers.go
+
+--- source header: src/encoding/gob/decoder.go ---
+// Copyright 2009 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
 
 --- source header: src/encoding/gob/doc.go ---
 // Copyright 2009 The Go Authors. All rights reserved.
@@ -2592,11 +2602,6 @@ sources, which may consume significant resources.
 // Package pem implements the PEM data encoding, which originated in Privacy
 // Enhanced Mail. The most common use of PEM encoding today is in TLS keys and
 // certificates. See RFC 1421.
-
---- source header: src/encoding/xml/marshal.go ---
-// Copyright 2011 The Go Authors. All rights reserved.
-// Use of this source code is governed by a BSD-style
-// license that can be found in the LICENSE file.
 
 --- source header: src/encoding/xml/xml.go ---
 // Copyright 2009 The Go Authors. All rights reserved.
@@ -3187,11 +3192,6 @@ methods to a reader without that capability, use
 // produced from Go source code by the parser; see the ParseFile
 // function in package [go/parser].
 
---- source header: src/go/ast/directive.go ---
-// Copyright 2025 The Go Authors. All rights reserved.
-// Use of this source code is governed by a BSD-style
-// license that can be found in the LICENSE file.
-
 --- source header: src/go/ast/print.go ---
 // Copyright 2010 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
@@ -3249,11 +3249,6 @@ implement their own logic by inspecting the parsed syntax itself.
 See the documentation for [Doc], [Block], [Text] for an overview
 and links to additional types.
 */
-
---- source header: src/go/doc/comment/html.go ---
-// Copyright 2022 The Go Authors. All rights reserved.
-// Use of this source code is governed by a BSD-style
-// license that can be found in the LICENSE file.
 
 --- source header: src/go/doc/comment/std.go ---
 // Copyright 2022 The Go Authors. All rights reserved.
@@ -5587,6 +5582,16 @@ For a guide to writing a custom handler, see https://golang.org/s/slog-handler-g
 
 // Package buffer provides a pool-allocated byte buffer.
 
+--- source header: src/log/slog/internal/ignorepc.go ---
+// Copyright 2023 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+--- source header: src/log/slog/multi_handler.go ---
+// Copyright 2025 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
 --- source header: src/log/syslog/doc.go ---
 // Copyright 2012 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
@@ -6930,11 +6935,6 @@ contained in the http package.
 // Package internal contains HTTP internals shared by net/http and
 // net/http/httputil.
 
---- source header: src/net/http/mapping.go ---
-// Copyright 2023 The Go Authors. All rights reserved.
-// Use of this source code is governed by a BSD-style
-// license that can be found in the LICENSE file.
-
 --- source header: src/net/http/pattern.go ---
 // Copyright 2023 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
@@ -7658,11 +7658,6 @@ client.
 
 //go:build !plan9 && !windows
 
---- source header: src/os/exec/exec_windows.go ---
-// Copyright 2017 The Go Authors. All rights reserved.
-// Use of this source code is governed by a BSD-style
-// license that can be found in the LICENSE file.
-
 --- source header: src/os/exec/lookpath.go ---
 // Copyright 2026 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
@@ -7674,11 +7669,6 @@ client.
 // license that can be found in the LICENSE file.
 
 //go:build unix
-
---- source header: src/os/exec/lp_windows.go ---
-// Copyright 2010 The Go Authors. All rights reserved.
-// Use of this source code is governed by a BSD-style
-// license that can be found in the LICENSE file.
 
 --- source header: src/os/exec_nohandle.go ---
 // Copyright 2024 The Go Authors. All rights reserved.
@@ -9093,11 +9083,6 @@ for details on using cgo.
 
 // Package debug contains facilities for programs to debug themselves while
 // they are running.
-
---- source header: src/runtime/debug/stubs.go ---
-// Copyright 2014 The Go Authors. All rights reserved.
-// Use of this source code is governed by a BSD-style
-// license that can be found in the LICENSE file.
 
 --- source header: src/runtime/debugcall.go ---
 // Copyright 2018 The Go Authors. All rights reserved.
@@ -11009,6 +10994,21 @@ Below is the full list of supported metrics, ordered lexicographically.
 
 //go:build unix && !linux
 
+--- source header: src/runtime/pprof/elf.go ---
+// Copyright 2017 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+--- source header: src/runtime/pprof/label.go ---
+// Copyright 2016 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+--- source header: src/runtime/pprof/pe.go ---
+// Copyright 2022 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
 --- source header: src/runtime/pprof/pprof.go ---
 // Copyright 2010 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
@@ -11099,6 +11099,11 @@ Below is the full list of supported metrics, ordered lexicographically.
 // license that can be found in the LICENSE file.
 
 //go:build !windows && !darwin
+
+--- source header: src/runtime/pprof/protobuf.go ---
+// Copyright 2014 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
 
 --- source header: src/runtime/preempt.go ---
 // Copyright 2019 The Go Authors. All rights reserved.
@@ -13318,11 +13323,6 @@ Go 1 compatibility guidelines.
 //
 // This package is shared by the standard library (which vendors it)
 // and x/net/http2. It comes with no API stability promise.
-
---- source header: src/vendor/golang.org/x/net/http/httpguts/httplex.go ---
-// Copyright 2016 The Go Authors. All rights reserved.
-// Use of this source code is governed by a BSD-style
-// license that can be found in the LICENSE file.
 
 --- source header: src/vendor/golang.org/x/net/http/httpproxy/proxy.go ---
 // Copyright 2017 The Go Authors. All rights reserved.
@@ -31390,6 +31390,11 @@ WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 //go:build !race
 
+--- source header: internal/snapref/decode.go ---
+// Copyright 2011 The Snappy-Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
 --- source header: internal/snapref/decode_other.go ---
 // Copyright 2016 The Snappy-Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
@@ -31510,11 +31515,6 @@ WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 // Streams perform CRC validation of the decompressed data.
 // Stream compression will also be performed on multiple CPU cores concurrently
 // significantly improving throughput.
-
---- source header: snappy/decode.go ---
-// Copyright 2011 The Snappy-Go Authors. All rights reserved.
-// Use of this source code is governed by a BSD-style
-// license that can be found in the LICENSE file.
 
 --- source header: snappy/snappy.go ---
 // Copyright 2011 The Snappy-Go Authors. All rights reserved.
@@ -48537,6 +48537,10 @@ To read more about propagation, see go.opentelemetry.io/otel/propagation and
 go.opentelemetry.io/otel/baggage.
 */
 
+--- source header: error_handler.go ---
+// Copyright The OpenTelemetry Authors
+// SPDX-License-Identifier: Apache-2.0
+
 --- source header: internal/baggage/baggage.go ---
 // Copyright The OpenTelemetry Authors
 // SPDX-License-Identifier: Apache-2.0
@@ -48597,10 +48601,6 @@ package is the W3C Trace Context encoding
 // patterns for OpenTelemetry things. This package represents the v1.28.0
 // version of the OpenTelemetry semantic conventions.
 
---- source header: semconv/v1.28.0/exception.go ---
-// Copyright The OpenTelemetry Authors
-// SPDX-License-Identifier: Apache-2.0
-
 --- source header: semconv/v1.37.0/doc.go ---
 // Copyright The OpenTelemetry Authors
 // SPDX-License-Identifier: Apache-2.0
@@ -48610,12 +48610,6 @@ package is the W3C Trace Context encoding
 // OpenTelemetry semantic conventions are agreed standardized naming
 // patterns for OpenTelemetry things. This package represents the v1.37.0
 // version of the OpenTelemetry semantic conventions.
-
---- source header: semconv/v1.41.0/attribute_group.go ---
-// Copyright The OpenTelemetry Authors
-// SPDX-License-Identifier: Apache-2.0
-
-// Code generated from semantic convention specification. DO NOT EDIT.
 
 --- source header: semconv/v1.41.0/doc.go ---
 // Code generated from semantic convention specification. DO NOT EDIT.
@@ -48629,12 +48623,6 @@ package is the W3C Trace Context encoding
 // patterns for OpenTelemetry things. This package represents the v1.41.0
 // version of the OpenTelemetry semantic conventions.
 
---- source header: semconv/v1.41.0/error_type.go ---
-// Code generated from semantic convention specification. DO NOT EDIT.
-
-// Copyright The OpenTelemetry Authors
-// SPDX-License-Identifier: Apache-2.0
-
 --- source header: semconv/v1.41.0/httpconv/metric.go ---
 // Code generated from semantic convention specification. DO NOT EDIT.
 
@@ -48643,6 +48631,12 @@ package is the W3C Trace Context encoding
 
 // Package httpconv provides types and functionality for OpenTelemetry semantic
 // conventions in the "http" namespace.
+
+--- source header: semconv/v1.43.0/attribute_group.go ---
+// Copyright The OpenTelemetry Authors
+// SPDX-License-Identifier: Apache-2.0
+
+// Code generated from semantic convention specification. DO NOT EDIT.
 
 --- source header: semconv/v1.43.0/doc.go ---
 // Code generated from semantic convention specification. DO NOT EDIT.
@@ -48655,6 +48649,12 @@ package is the W3C Trace Context encoding
 // OpenTelemetry semantic conventions are agreed standardized naming
 // patterns for OpenTelemetry things. This package represents the v1.43.0
 // version of the OpenTelemetry semantic conventions.
+
+--- source header: semconv/v1.43.0/error_type.go ---
+// Code generated from semantic convention specification. DO NOT EDIT.
+
+// Copyright The OpenTelemetry Authors
+// SPDX-License-Identifier: Apache-2.0
 
 --- source header: semconv/v1.43.0/otelconv/metric.go ---
 // Code generated from semantic convention specification. DO NOT EDIT.
@@ -50815,6 +50815,10 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 // Package x documents experimental features for [go.opentelemetry.io/otel/sdk].
 
+--- source header: resource/auto.go ---
+// Copyright The OpenTelemetry Authors
+// SPDX-License-Identifier: Apache-2.0
+
 --- source header: resource/doc.go ---
 // Copyright The OpenTelemetry Authors
 // SPDX-License-Identifier: Apache-2.0
@@ -50854,6 +50858,12 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 //go:build linux || dragonfly || freebsd || netbsd || openbsd || solaris
 
+--- source header: resource/host_id_windows.go ---
+// Copyright The OpenTelemetry Authors
+// SPDX-License-Identifier: Apache-2.0
+
+//go:build windows
+
 --- source header: resource/os_release_unix.go ---
 // Copyright The OpenTelemetry Authors
 // SPDX-License-Identifier: Apache-2.0
@@ -50865,10 +50875,6 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 // SPDX-License-Identifier: Apache-2.0
 
 //go:build aix || darwin || dragonfly || freebsd || linux || netbsd || openbsd || solaris || zos
-
---- source header: trace/batch_span_processor.go ---
-// Copyright The OpenTelemetry Authors
-// SPDX-License-Identifier: Apache-2.0
 
 --- source header: trace/doc.go ---
 // Copyright The OpenTelemetry Authors
@@ -53258,6 +53264,21 @@ shall terminate as of the date such litigation is filed.
 //
 // This package is a work in progress and makes no API stability promises.
 
+--- source header: acme/autocert/cache.go ---
+// Copyright 2016 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+--- source header: acme/autocert/listener.go ---
+// Copyright 2017 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+--- source header: acme/http.go ---
+// Copyright 2018 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
 --- source header: acme/jws.go ---
 // Copyright 2015 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
@@ -53398,11 +53419,6 @@ shall terminate as of the date such litigation is filed.
 
 //go:build gc && !purego
 
---- source header: chacha20poly1305/chacha20poly1305_generic.go ---
-// Copyright 2016 The Go Authors. All rights reserved.
-// Use of this source code is governed by a BSD-style
-// license that can be found in the LICENSE file.
-
 --- source header: chacha20poly1305/chacha20poly1305_noasm.go ---
 // Copyright 2016 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
@@ -53417,11 +53433,6 @@ shall terminate as of the date such litigation is filed.
 
 //go:build go1.26
 
---- source header: chacha20poly1305/xchacha20poly1305.go ---
-// Copyright 2018 The Go Authors. All rights reserved.
-// Use of this source code is governed by a BSD-style
-// license that can be found in the LICENSE file.
-
 --- source header: cryptobyte/asn1/asn1.go ---
 // Copyright 2017 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
@@ -53429,11 +53440,6 @@ shall terminate as of the date such litigation is filed.
 
 // Package asn1 contains supporting types for parsing and building ASN.1
 // messages with the cryptobyte package.
-
---- source header: cryptobyte/asn1.go ---
-// Copyright 2017 The Go Authors. All rights reserved.
-// Use of this source code is governed by a BSD-style
-// license that can be found in the LICENSE file.
 
 --- source header: cryptobyte/string.go ---
 // Copyright 2017 The Go Authors. All rights reserved.
@@ -53875,11 +53881,6 @@ tokenization or parsing may alter the content.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
---- source header: html/iter.go ---
-// Copyright 2024 The Go Authors. All rights reserved.
-// Use of this source code is governed by a BSD-style
-// license that can be found in the LICENSE file.
-
 --- source header: http/httpguts/guts.go ---
 // Copyright 2018 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
@@ -54038,6 +54039,11 @@ tokenization or parsing may alter the content.
 //go:build !(go1.27 && !http2legacy)
 
 // Transport code.
+
+--- source header: http2/unencrypted.go ---
+// Copyright 2024 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
 
 --- source header: http2/writesched.go ---
 // Copyright 2014 The Go Authors. All rights reserved.
@@ -55178,6 +55184,36 @@ shall terminate as of the date such litigation is filed.
 
 //go:build windows && !race
 
+--- source header: windows/registry/key.go ---
+// Copyright 2015 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+//go:build windows
+
+// Package registry provides access to the Windows registry.
+//
+// Here is a simple example, opening a registry key and reading a string value from it.
+//
+//	k, err := registry.OpenKey(registry.LOCAL_MACHINE, `SOFTWARE\Microsoft\Windows NT\CurrentVersion`, registry.QUERY_VALUE)
+//	if err != nil {
+//		log.Fatal(err)
+//	}
+//	defer k.Close()
+//
+//	s, _, err := k.GetStringValue("SystemRoot")
+//	if err != nil {
+//		log.Fatal(err)
+//	}
+//	fmt.Printf("Windows system root is %q\n", s)
+
+--- source header: windows/registry/syscall.go ---
+// Copyright 2015 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+//go:build windows
+
 --- source header: windows/security_windows.go ---
 // Copyright 2012 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
@@ -55452,16 +55488,6 @@ shall terminate as of the date such litigation is filed.
 // license that can be found in the LICENSE file.
 
 // Package internal contains code that is shared among encoding implementations.
-
---- source header: encoding/traditionalchinese/big5.go ---
-// Copyright 2013 The Go Authors. All rights reserved.
-// Use of this source code is governed by a BSD-style
-// license that can be found in the LICENSE file.
-
---- source header: encoding/unicode/override.go ---
-// Copyright 2015 The Go Authors. All rights reserved.
-// Use of this source code is governed by a BSD-style
-// license that can be found in the LICENSE file.
 
 --- source header: encoding/unicode/unicode.go ---
 // Copyright 2013 The Go Authors. All rights reserved.
@@ -55887,6 +55913,11 @@ shall terminate as of the date such litigation is filed.
 //
 // This package is UNDER CONSTRUCTION and its API may change.
 
+--- source header: message/catalog.go ---
+// Copyright 2015 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
 --- source header: message/doc.go ---
 // Copyright 2017 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
@@ -56009,11 +56040,6 @@ shall terminate as of the date such litigation is filed.
 // This package is under development. The API may change without notice and
 // without preserving backward compatibility.
 
---- source header: secure/precis/context.go ---
-// Copyright 2016 The Go Authors. All rights reserved.
-// Use of this source code is governed by a BSD-style
-// license that can be found in the LICENSE file.
-
 --- source header: secure/precis/doc.go ---
 // Copyright 2015 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
@@ -56051,6 +56077,11 @@ shall terminate as of the date such litigation is filed.
 // NOTE: UNDER CONSTRUCTION. This API may change in backwards incompatible ways
 // and without notice.
 
+--- source header: unicode/bidi/prop.go ---
+// Copyright 2016 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
 --- source header: unicode/norm/composition.go ---
 // Copyright 2011 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
@@ -56066,6 +56097,11 @@ shall terminate as of the date such litigation is filed.
 //go:generate go test -tags test
 
 // Package norm contains types and functions for normalizing Unicode strings.
+
+--- source header: unicode/norm/transform.go ---
+// Copyright 2013 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
 
 --- source header: width/width.go ---
 // Copyright 2015 The Go Authors. All rights reserved.
@@ -59074,6 +59110,26 @@ See grpc.io for more information about gRPC.
  *
  */
 
+--- source header: internal/tcp_keepalive_windows.go ---
+//go:build windows
+
+/*
+ * Copyright 2023 gRPC authors.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ *
+ */
+
 --- source header: internal/transport/handler_server.go ---
 /*
  *
@@ -59629,6 +59685,11 @@ shall terminate as of the date such litigation is filed.
 
 // Package protodelim marshals and unmarshals varint size-delimited messages.
 
+--- source header: encoding/protojson/decode.go ---
+// Copyright 2019 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
 --- source header: encoding/protojson/doc.go ---
 // Copyright 2019 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
@@ -59707,6 +59768,11 @@ shall terminate as of the date such litigation is filed.
 // This package handles both the form historically used in Go struct field tags
 // and also the form used by google.protobuf.FieldDescriptorProto.default_value
 // since they differ in superficial ways.
+
+--- source header: internal/encoding/json/decode.go ---
+// Copyright 2018 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
 
 --- source header: internal/encoding/messageset/messageset.go ---
 // Copyright 2019 The Go Authors. All rights reserved.
@@ -59812,11 +59878,6 @@ shall terminate as of the date such litigation is filed.
 
 // Package genid contains constants for declarations in descriptor.proto
 // and the well-known types.
-
---- source header: internal/impl/api_export.go ---
-// Copyright 2018 The Go Authors. All rights reserved.
-// Use of this source code is governed by a BSD-style
-// license that can be found in the LICENSE file.
 
 --- source header: internal/impl/api_export_opaque.go ---
 // Copyright 2024 The Go Authors. All rights reserved.
@@ -60174,11 +60235,6 @@ shall terminate as of the date such litigation is filed.
 // The compatibility agreement covers nothing except for functionality needed
 // to keep existing generated messages operational. Breakages that occur due
 // to unauthorized usages of this package are not the author's responsibility.
-
---- source header: runtime/protoimpl/version.go ---
-// Copyright 2019 The Go Authors. All rights reserved.
-// Use of this source code is governed by a BSD-style
-// license that can be found in the LICENSE file.
 
 --- source header: types/known/anypb/any.pb.go ---
 // Protocol Buffers - Google's data interchange format
