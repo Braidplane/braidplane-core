@@ -79,7 +79,7 @@ compare the destination records with the expected result.
 ## Where to go next
 
 - Sign in to the deployment you intend to use, then choose a workspace for the workflow.
-- Follow the [illustrated UI walkthrough](first-result.md) to connect a system, save a read and check the returned data.
+- [Run your first query in the UI](first-result.md). The walkthrough shows what to enter and what the result looks like.
 - [Install the CLI](cli.md), then follow the [CLI tutorial](first-result-cli.md) for the same connector-agnostic result.
 - [Pipeline specifications](pipeline-specifications.md): learn the file format, steps, references, contracts, and validation commands.
 - [Connector guide](../connectors/index.md): choose systems and understand capabilities.
