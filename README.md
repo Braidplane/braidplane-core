@@ -21,11 +21,15 @@ write the result to S3. Work through the web interface, CLI or API.
 [Pipeline examples](docs-public/examples/index.md) ·
 [Connector capabilities](docs-public/connectors/index.md)
 
+[![Pipeline builder canvas with seven connected steps. The settlement file is normalized and compared with the ledger, then the comparison feeds two outputs.](docs-public/getting-started/images/product-pipeline-builder.png)](docs-public/getting-started/images/product-pipeline-builder.png)
+
+*In the builder, follow the two inputs to `compare-settlement`. One branch
+writes comparison rows and the other calculates and writes batch totals.*
+
 [![Braidplane run lineage: read a settlement file and payment ledger, normalize and compare records, then write comparison rows and batch totals. All seven steps succeeded.](docs-public/getting-started/images/product-run-lineage.png)](docs-public/getting-started/images/product-run-lineage.png)
 
-*Run lineage with synthetic data: settlement file + payment ledger → comparison
-rows and totals. Inspect the executed pipeline version, step status, timing and
-row counts. Click the image for a full-size view.*
+*In the finished synthetic run, `write-comparisons` wrote three rows and
+`write-totals` wrote one. Open either image for a full-size view.*
 
 [Explore pipeline examples](docs-public/examples/index.md) ·
 [How runs work](docs-public/getting-started/overview.md#5-run-and-inspect)

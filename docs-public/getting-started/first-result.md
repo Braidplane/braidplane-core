@@ -42,11 +42,23 @@ Saved connector operations currently appear under **Queries**.
 4. Enter the connector-specific fields from its safe read example.
 5. Keep the row limit and timeout conservative, then select **Save query**.
 
+[![Saved query named Find customer by ID with a SELECT statement that filters public.customers by customer_id.](images/saved-customer-read.png)](images/saved-customer-read.png)
+
+*The [PostgreSQL example](../connectors/postgresql.md#read-example) saves a
+lookup for two fields, `id` and `email`. The `{{customer_id}}` parameter lets
+you choose the customer when you run it.*
+
 ## 3. Run and verify
 
 Open the saved query and select **Run query**. Expect **success**. Compare the
 returned rows, documents, records, or file content with the connector guide's
 expected result and your source data.
+
+[![Successful SQL query result with one row showing id 1 and email alex@example.com.](images/customer-read-result.png)](images/customer-read-result.png)
+
+*With the example customer in your table, enter `1` for `customer_id`.
+Look for the **success** badge and the matching email in the result table.
+Open either screenshot for a full-size view.*
 
 If the read fails, check the selected data source, statement fields, parameters
 and provider permissions, then test the connection and retry.
