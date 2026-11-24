@@ -1,5 +1,6 @@
 """Measure a command on its Linux host. Pass existing paths on each filesystem."""
 import argparse
+from contextlib import ExitStack
 import json
 import os
 from pathlib import Path
@@ -17,28 +18,36 @@ def used_memory():
     return fields["MemTotal"] - fields["MemAvailable"]
 
 
-def available(path):
-    stats = os.statvfs(path)
+def available(fd):
+    stats = os.fstatvfs(fd)
     return stats.f_bavail * stats.f_frsize
 
 
 def measure(paths, command):
-    filesystems = {}
-    for path in paths:
-        device = os.stat(path).st_dev
-        if device not in filesystems:
-            free = available(path)
-            filesystems[device] = dict(paths=[], before=free, minimum=free)
-        filesystems[device]["paths"].append(path)
+    with ExitStack() as opened:
+        filesystems = {}
+        descriptors = {}
+        for path in paths:
+            fd = os.open(path, os.O_RDONLY)
+            opened.callback(os.close, fd)
+            device = os.fstat(fd).st_dev
+            if device not in descriptors:
+                descriptors[device] = fd
+                free = available(fd)
+                filesystems[fd] = dict(paths=[], before=free, minimum=free)
+            filesystems[descriptors[device]]["paths"].append(path)
+        return sample(filesystems, command)
 
+
+def sample(filesystems, command):
     memory = [used_memory()]
     started = time.monotonic()
     with subprocess.Popen(command) as process:
         while True:
             status = process.poll()
             memory.append(used_memory())
-            for entry in filesystems.values():
-                free = available(entry["paths"][0])
+            for fd, entry in filesystems.items():
+                free = available(fd)
                 entry.update(minimum=min(entry["minimum"], free), after=free)
             if status is not None:
                 break
