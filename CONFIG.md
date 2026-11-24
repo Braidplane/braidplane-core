@@ -744,16 +744,26 @@ shorter timing; old binaries do not enforce the durable claim and readback rules
 | Notification Delivery Max Workers | `worker.notification_delivery_max_workers` | `WORKER_NOTIFICATION_DELIVERY_MAX_WORKERS` | `--worker-notification-delivery-max-workers` | `1` | int | Maximum concurrent notification delivery jobs per process |
 | Events Max Workers | `worker.events_max_workers` | `WORKER_EVENTS_MAX_WORKERS` | `--worker-events-max-workers` | `1` | int | Maximum concurrent durable event jobs per process |
 | Event Maintenance Max Workers | `worker.event_maintenance_max_workers` | `WORKER_EVENT_MAINTENANCE_MAX_WORKERS` | `--worker-event-maintenance-max-workers` | `1` | int | Maximum concurrent event maintenance jobs per process |
-| Pipeline Schedule Max Workers | `worker.pipeline_schedule_max_workers` | `WORKER_PIPELINE_SCHEDULE_MAX_WORKERS` | `--worker-pipeline-schedule-max-workers` | `4` | int | Maximum concurrent schedule dispatch and execution jobs per process |
+| Pipeline Schedule Max Workers | `worker.pipeline_schedule_max_workers` | `WORKER_PIPELINE_SCHEDULE_MAX_WORKERS` | `--worker-pipeline-schedule-max-workers` | `4` | int | Maximum concurrent scheduled pipeline and webhook jobs per process |
 | Pipeline Retry Max Workers | `worker.pipeline_retry_max_workers` | `WORKER_PIPELINE_RETRY_MAX_WORKERS` | `--worker-pipeline-retry-max-workers` | `4` | int | Maximum concurrent pipeline retry jobs per process |
 | Pipeline Run Max Workers | `worker.pipeline_run_max_workers` | `WORKER_PIPELINE_RUN_MAX_WORKERS` | `--worker-pipeline-run-max-workers` | `4` | int | Maximum concurrent pipeline run jobs per process |
 | Data Source Schema Import Max Workers | `worker.data_source_schema_import_max_workers` | `WORKER_DATA_SOURCE_SCHEMA_IMPORT_MAX_WORKERS` | `--worker-data-source-schema-import-max-workers` | `2` | int | Maximum concurrent data-source schema import jobs per process |
 | Execution Max Workers | `worker.execution_max_workers` | `WORKER_EXECUTION_MAX_WORKERS` | `--worker-execution-max-workers` | `4` | int | Maximum concurrent persisted execution jobs per process when `execution.backend=river` |
 
+Each worker process reserves one slot in `pipeline_schedule_dispatch` for the
+minute scan. The scan can queue due work while all `pipeline_schedule` slots
+are busy. Scheduled fires, webhook deliveries, webhook retention cleanup, and
+scheduled-fire and webhook finalizations wait for capacity in
+`pipeline_schedule`. Trigger retry execution and its finalization use
+`pipeline_retry`. Scan jobs already queued in `pipeline_schedule` are still
+processed there. During a rolling upgrade, an older River leader can keep
+inserting scans into the old queue until it is replaced.
+
 Adding worker replicas multiplies queue capacity approximately by the replica
 count. The sum of queue limits is the process's upper bound before database pool
 capacity, per-data-source connector concurrency, provider rate limits, or job
-mix impose a lower effective throughput. Tune these values from observed load,
+mix impose a lower effective throughput. Include the reserved scan slot when
+estimating the process limit. Tune configurable limits from observed load,
 database capacity and provider quotas.
 
 ### Execution Backend Configuration

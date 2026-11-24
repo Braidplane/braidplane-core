@@ -290,15 +290,16 @@ func (s *Service) Register(workers *river.Workers) error {
 
 func (s *Service) Queues() map[string]river.QueueConfig {
 	return map[string]river.QueueConfig{
-		jobs.PipelineGitQueue:            {MaxWorkers: s.queueConcurrency.PipelineGit},
-		jobs.EmailQueue:                  {MaxWorkers: s.queueConcurrency.Email},
-		jobs.NotificationDeliveryQueue:   {MaxWorkers: s.queueConcurrency.NotificationDelivery},
-		jobs.EventsQueue:                 {MaxWorkers: s.queueConcurrency.Events},
-		jobs.EventMaintenanceQueue:       {MaxWorkers: s.queueConcurrency.EventMaintenance},
-		jobs.PipelineScheduleQueue:       {MaxWorkers: s.queueConcurrency.PipelineSchedule},
-		jobs.PipelineRetryQueue:          {MaxWorkers: s.queueConcurrency.PipelineRetry},
-		jobs.PipelineRunQueue:            {MaxWorkers: s.queueConcurrency.PipelineRun},
-		jobs.DataSourceSchemaImportQueue: {MaxWorkers: s.queueConcurrency.DataSourceSchemaImport},
+		jobs.PipelineGitQueue:              {MaxWorkers: s.queueConcurrency.PipelineGit},
+		jobs.EmailQueue:                    {MaxWorkers: s.queueConcurrency.Email},
+		jobs.NotificationDeliveryQueue:     {MaxWorkers: s.queueConcurrency.NotificationDelivery},
+		jobs.EventsQueue:                   {MaxWorkers: s.queueConcurrency.Events},
+		jobs.EventMaintenanceQueue:         {MaxWorkers: s.queueConcurrency.EventMaintenance},
+		jobs.PipelineScheduleDispatchQueue: {MaxWorkers: 1},
+		jobs.PipelineScheduleQueue:         {MaxWorkers: s.queueConcurrency.PipelineSchedule},
+		jobs.PipelineRetryQueue:            {MaxWorkers: s.queueConcurrency.PipelineRetry},
+		jobs.PipelineRunQueue:              {MaxWorkers: s.queueConcurrency.PipelineRun},
+		jobs.DataSourceSchemaImportQueue:   {MaxWorkers: s.queueConcurrency.DataSourceSchemaImport},
 	}
 }
 
