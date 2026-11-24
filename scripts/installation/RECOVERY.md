@@ -77,8 +77,10 @@ pinned host key, matching tools and a mode-0700 backup parent. Use a unique
 receiver namespace for this installation. The three absolute-path site commands
 are operator-supplied integrations. Install and exercise them before scheduling:
 
-- `freeze-and-drain` records the UTC start, current trigger settings and last
-  accepted occurrences. It restricts ingress to the operator, disables triggers,
+- `freeze-and-drain` first refuses any unresolved window, including after a
+  reboot. Before changing admissions it durably records the attempt ID, UTC start,
+  original enablement settings and last accepted occurrences in a protected
+  window record. It restricts ingress to the operator, disables triggers,
   producers and notifications, and waits with a deadline for queued and running
   work and in-flight destination writes to finish. It checks for external writers
   and storage capacity. On timeout or ambiguous effects it fails and alerts.
@@ -90,7 +92,9 @@ are operator-supplied integrations. Install and exercise them before scheduling:
   request through the operator route before reopening ingress. Restore only the
   previously enabled producers, triggers and notifications. Record the time
   ingress is usable and total downtime from the freeze. Watch the next scheduled
-  occurrence through destination readback as described below. Fail on timeout.
+  occurrence through destination readback as described below. Mark the window
+  resolved only after verification. On failure or timeout retain the record for
+  operator reconciliation before another window can begin.
 
 ```bash
 #!/bin/bash
@@ -105,7 +109,7 @@ flock -n 9
 id="$(date -u +%Y%m%dT%H%M%SZ)-$(cat /proc/sys/kernel/random/uuid)"
 copy="/protected/backups/$id"
 # Coordinate upgrades and manual operations for the entire window as well.
-/usr/local/sbin/freeze-and-drain "$installation"
+/usr/local/sbin/freeze-and-drain "$installation" "$id"
 python3 -m scripts.installation.lifecycle backup "$installation" --backup-directory "$backups/$id"
 python3 -m scripts.installation.backup "$backups/$id"
 ssh -o BatchMode=yes "$receiver" "mkdir -m 700 '$copy.partial'"
