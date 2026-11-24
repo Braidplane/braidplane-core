@@ -514,6 +514,16 @@ func runGitCommandOutput(
 	env []string,
 	args ...string,
 ) (string, string, error) {
+	stdout, stderr, err := runGitCommandRawOutput(ctx, repoRoot, env, args...)
+	return strings.TrimSpace(stdout), stderr, err
+}
+
+func runGitCommandRawOutput(
+	ctx context.Context,
+	repoRoot string,
+	env []string,
+	args ...string,
+) (string, string, error) {
 	ctx, cancel := gitCommandContext(ctx)
 	defer cancel()
 
@@ -532,12 +542,12 @@ func runGitCommandOutput(
 
 	err := cmd.Run()
 	if overflowErr := stdoutWriter.OverflowError(); overflowErr != nil {
-		return strings.TrimSpace(stdout.String()), strings.TrimSpace(stderr.String()), overflowErr
+		return stdout.String(), strings.TrimSpace(stderr.String()), overflowErr
 	}
 	if overflowErr := stderrWriter.OverflowError(); overflowErr != nil {
-		return strings.TrimSpace(stdout.String()), strings.TrimSpace(stderr.String()), overflowErr
+		return stdout.String(), strings.TrimSpace(stderr.String()), overflowErr
 	}
-	return strings.TrimSpace(stdout.String()), strings.TrimSpace(stderr.String()), err
+	return stdout.String(), strings.TrimSpace(stderr.String()), err
 }
 
 type cancelOnOutputOverflow struct {

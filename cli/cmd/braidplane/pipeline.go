@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"net/http"
 	"os"
 	"path/filepath"
 	"slices"
@@ -16,6 +17,7 @@ import (
 	pipelineruntimevars "github.com/Braidplane/braidplane-core/pkg/pipeline/runtime"
 	pipelinespec "github.com/Braidplane/braidplane-core/pkg/pipeline/spec"
 	pipelinevalidate "github.com/Braidplane/braidplane-core/pkg/pipeline/validate"
+	"github.com/Braidplane/braidplane-core/pkg/repostore"
 	"github.com/Braidplane/braidplane-core/pkg/slug"
 	"github.com/Braidplane/braidplane-core/pkg/xerror"
 )
@@ -41,7 +43,7 @@ type pipelineCommand struct {
 	Drift        pipelineDriftCommand                `cmd:"" help:"Inspect drift and impact reports."`
 	Validate     validateCommand                     `cmd:"" help:"Validate locally or against the API; server validation can record history and impact reports."`
 	Format       formatPipelineCommand               `cmd:"" help:"Format a pipeline spec through the Braidplane API."`
-	Diff         diffPipelineCommand                 `cmd:"" help:"Compare a local pipeline spec with the upstream Braidplane API pipeline."`
+	Diff         diffPipelineCommand                 `cmd:"" help:"Compare a local pipeline spec with upstream or a deployed version."`
 	Create       createPipelineCommand               `cmd:"" help:"Propose a new pipeline file; review and merge it before pipeline apply and deploy. PAT required."`
 	Creation     pipelineCreationCommand             `cmd:"" help:"Inspect proposals for pipelines not yet imported from Git."`
 }
@@ -1165,13 +1167,28 @@ type diffPipelineCommand struct {
 	apiPipelineFlags
 
 	PipelineSlug string `arg:"" name:"pipeline-slug" help:"Pipeline slug." required:""`
-	File         string `help:"Path to the local candidate pipeline spec file." required:"" type:"path"`
+	File         string `help:"Path to the local candidate pipeline spec file." type:"path"`
+	GitCommit    string `help:"Full commit ID in the local Git repository."`
+	GitPath      string `help:"Repository-relative candidate pipeline path at --git-commit."`
+	Baseline     string `help:"Baseline to compare against." enum:"upstream,deployed" default:"upstream"`
+	Environment  string `help:"Environment slug. Required with --baseline deployed."`
 }
 
 func (c *diffPipelineCommand) Run(output *cliOutput, runtime *cliRuntime) error {
-	local, err := pipelinevalidate.LoadFile(c.File)
+	var environment slug.Slug
+	if c.Baseline == "deployed" {
+		var err error
+		environment, err = slug.New(c.Environment)
+		if err != nil {
+			return xerror.InvalidInput(xerror.Pipeline).Detail("--baseline deployed requires a valid --environment")
+		}
+	} else if c.Environment != "" {
+		return xerror.InvalidInput(xerror.Pipeline).Detail("--environment requires --baseline deployed")
+	}
+
+	local, candidateSource, err := c.loadCandidate(context.Background())
 	if err != nil {
-		return xerror.Wrapf("load local pipeline: %w", err)
+		return xerror.Wrapf("load candidate pipeline: %w", err)
 	}
 	if string(local.Metadata.Slug) != c.PipelineSlug {
 		return xerror.InvalidInput(xerror.Pipeline).Detailf(
@@ -1186,6 +1203,10 @@ func (c *diffPipelineCommand) Run(output *cliOutput, runtime *cliRuntime) error 
 		return err
 	}
 
+	if environment != "" {
+		return c.compareDeployment(output, client, projectSlug, environment.String(), local, candidateSource)
+	}
+
 	upstream, err := client.getPipeline(context.Background(), projectSlug, c.PipelineSlug)
 	if err != nil {
 		return xerror.Wrapf("get upstream pipeline %s: %w", c.PipelineSlug, err)
@@ -1197,7 +1218,8 @@ func (c *diffPipelineCommand) Run(output *cliOutput, runtime *cliRuntime) error 
 	}
 
 	result := pipelinediff.Check(pipelinediff.Diff(upstreamSpec, local))
-	_, err = fmt.Fprintln(output.stdout, result.Format())
+	_, err = fmt.Fprintf(output.stdout, "baseline: upstream (%s/%s/%s)\n%s%s\n",
+		client.organization, projectSlug, c.PipelineSlug, candidateSource, result.Format())
 	if err != nil {
 		return xerror.Unexpected().With(err)
 	}
@@ -1205,6 +1227,73 @@ func (c *diffPipelineCommand) Run(output *cliOutput, runtime *cliRuntime) error 
 		return xerror.InvalidInput(xerror.Pipeline).Detail("breaking pipeline changes detected")
 	}
 
+	return nil
+}
+
+func (c *diffPipelineCommand) loadCandidate(ctx context.Context) (*pipelinespec.Pipeline, string, error) {
+	if c.File != "" && c.GitCommit == "" && c.GitPath == "" {
+		pipeline, err := pipelinevalidate.LoadFile(c.File)
+		return pipeline, "", err
+	}
+	if c.File != "" || c.GitCommit == "" || c.GitPath == "" {
+		return nil, "", xerror.InvalidInput(xerror.Pipeline).Detail("use --file or both --git-commit and --git-path")
+	}
+	content, err := repostore.ReadCommitFile(ctx, c.GitCommit, c.GitPath)
+	if err != nil {
+		return nil, "", err
+	}
+	pipeline, err := pipelinevalidate.Load(c.GitPath, content)
+	return pipeline, fmt.Sprintf("candidate Git commit: %s\ncandidate Git path: %q\n", c.GitCommit, c.GitPath), err
+}
+
+func (c *diffPipelineCommand) compareDeployment(
+	output *cliOutput,
+	client *cliAPIClient,
+	project, environment string,
+	candidate *pipelinespec.Pipeline,
+	candidateSource string,
+) error {
+	body, err := json.Marshal(candidate)
+	if err != nil {
+		return xerror.Wrapf("encode candidate pipeline: %w", err)
+	}
+	resp, err := client.openapi.ComparePipelineDeploymentWithBodyWithResponse(
+		context.Background(), client.organization, project, environment, c.PipelineSlug, "application/json", bytes.NewReader(body),
+	)
+	if err != nil {
+		return xerror.Wrapf("compare deployed pipeline: %w", err)
+	}
+	if resp.StatusCode() != http.StatusOK {
+		return decodeAPIError(resp.StatusCode(), resp.Body)
+	}
+	result := resp.JSON200
+	if result == nil || result.OrganizationSlug != client.organization || result.ProjectSlug != project ||
+		result.EnvironmentSlug != environment || result.PipelineSlug != c.PipelineSlug ||
+		result.DeploymentRevision < 1 || result.BaselineSpecHash == "" || result.CandidateSpecHash == "" {
+		return xerror.Unexpected().Detail("unexpected API response: invalid deployed pipeline comparison")
+	}
+
+	severity, err := pipelinediff.SeverityString(string(result.Severity))
+	if err != nil {
+		return xerror.Unexpected().Detail("unexpected API response: invalid comparison severity")
+	}
+	impact := pipelinediff.CheckResult{Severity: severity}
+	for _, finding := range result.Findings {
+		severity, err := pipelinediff.SeverityString(string(finding.Severity))
+		if err != nil {
+			return xerror.Unexpected().Detail("unexpected API response: invalid comparison finding")
+		}
+		impact.Findings = append(impact.Findings, pipelinediff.Finding{Severity: severity, Message: finding.Message})
+	}
+	_, err = fmt.Fprintf(output.stdout, "baseline: deployed (%s/%s/%s/%s, revision %d)\nbaseline spec hash: %s\ncandidate spec hash: %s\n%s%s\n",
+		client.organization, project, environment, c.PipelineSlug, result.DeploymentRevision,
+		result.BaselineSpecHash, result.CandidateSpecHash, candidateSource, impact.Format())
+	if err != nil {
+		return xerror.Unexpected().With(err)
+	}
+	if pipelinediff.ShouldBlockDiff(candidate, &impact) {
+		return xerror.InvalidInput(xerror.Pipeline).Detail("breaking pipeline changes detected")
+	}
 	return nil
 }
 

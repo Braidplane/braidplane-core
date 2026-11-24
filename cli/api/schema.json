@@ -9237,6 +9237,30 @@
         ],
         "type": "object"
       },
+      "PipelineComparisonFinding": {
+        "properties": {
+          "message": {
+            "description": "",
+            "type": "string"
+          },
+          "severity": {
+            "$ref": "#/components/schemas/PipelineComparisonSeverity"
+          }
+        },
+        "required": [
+          "severity",
+          "message"
+        ],
+        "type": "object"
+      },
+      "PipelineComparisonSeverity": {
+        "enum": [
+          "safe",
+          "warning",
+          "breaking"
+        ],
+        "type": "string"
+      },
       "PipelineCompilationRequest": {
         "additionalProperties": false,
         "properties": {
@@ -9766,6 +9790,60 @@
           "updated_at",
           "data_source_ref_sync",
           "proof_link"
+        ],
+        "type": "object"
+      },
+      "PipelineDeploymentComparison": {
+        "properties": {
+          "baseline_spec_hash": {
+            "description": "",
+            "type": "string"
+          },
+          "candidate_spec_hash": {
+            "description": "",
+            "type": "string"
+          },
+          "deployed_at": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "deployment_revision": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "environment_slug": {
+            "type": "string"
+          },
+          "findings": {
+            "items": {
+              "$ref": "#/components/schemas/PipelineComparisonFinding"
+            },
+            "type": "array"
+          },
+          "organization_slug": {
+            "type": "string"
+          },
+          "pipeline_slug": {
+            "type": "string"
+          },
+          "project_slug": {
+            "type": "string"
+          },
+          "severity": {
+            "$ref": "#/components/schemas/PipelineComparisonSeverity"
+          }
+        },
+        "required": [
+          "organization_slug",
+          "project_slug",
+          "environment_slug",
+          "pipeline_slug",
+          "deployment_revision",
+          "deployed_at",
+          "baseline_spec_hash",
+          "candidate_spec_hash",
+          "severity",
+          "findings"
         ],
         "type": "object"
       },
@@ -27498,6 +27576,88 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/PipelineDeployment"
+                }
+              }
+            },
+            "description": ""
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": ""
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": ""
+          }
+        }
+      }
+    },
+    "/organizations/{slug}/projects/{project_slug}/environments/{environment_slug}/pipelines/{pipeline_slug}/deployment:compare": {
+      "post": {
+        "description": "",
+        "operationId": "comparePipelineDeployment",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/SlugParam"
+          },
+          {
+            "$ref": "#/components/parameters/ProjectSlugParam"
+          },
+          {
+            "$ref": "#/components/parameters/EnvironmentSlugParam"
+          },
+          {
+            "$ref": "#/components/parameters/PipelineSlugParam"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PipelineSpec"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PipelineDeploymentComparison"
+                }
+              }
+            },
+            "description": ""
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": ""
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
                 }
               }
             },

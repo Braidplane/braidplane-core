@@ -2670,6 +2670,27 @@ func (e PermissionAction) Valid() bool {
 	}
 }
 
+// Defines values for PipelineComparisonSeverity.
+const (
+	PipelineComparisonSeverityBreaking PipelineComparisonSeverity = "breaking"
+	PipelineComparisonSeveritySafe     PipelineComparisonSeverity = "safe"
+	PipelineComparisonSeverityWarning  PipelineComparisonSeverity = "warning"
+)
+
+// Valid indicates whether the value is a known member of the PipelineComparisonSeverity enum.
+func (e PipelineComparisonSeverity) Valid() bool {
+	switch e {
+	case PipelineComparisonSeverityBreaking:
+		return true
+	case PipelineComparisonSeveritySafe:
+		return true
+	case PipelineComparisonSeverityWarning:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for PipelineCompiledPlanStatus.
 const (
 	PipelineCompiledPlanStatusAvailable   PipelineCompiledPlanStatus = "available"
@@ -13173,6 +13194,16 @@ type PipelineBackfillWindow struct {
 	UpperBound json.RawMessage `json:"upper_bound"`
 }
 
+// PipelineComparisonFinding defines model for PipelineComparisonFinding.
+type PipelineComparisonFinding struct {
+	// Message Semantic change with spec values omitted.
+	Message  string                     `json:"message"`
+	Severity PipelineComparisonSeverity `json:"severity"`
+}
+
+// PipelineComparisonSeverity defines model for PipelineComparisonSeverity.
+type PipelineComparisonSeverity string
+
 // PipelineCompilationRequest defines model for PipelineCompilationRequest.
 type PipelineCompilationRequest struct {
 	Projection     *ODCSProjectionSelection          `json:"projection,omitempty"`
@@ -13446,6 +13477,23 @@ type PipelineDeployment struct {
 
 	// UpdatedAt Example: 2025-10-04T12:34:56Z
 	UpdatedAt Timestamp `json:"updated_at"`
+}
+
+// PipelineDeploymentComparison defines model for PipelineDeploymentComparison.
+type PipelineDeploymentComparison struct {
+	// BaselineSpecHash Full immutable version identifier recorded by the deployment.
+	BaselineSpecHash string `json:"baseline_spec_hash"`
+
+	// CandidateSpecHash SHA-256 of the parsed candidate spec serialized as JSON.
+	CandidateSpecHash  string                      `json:"candidate_spec_hash"`
+	DeployedAt         time.Time                   `json:"deployed_at"`
+	DeploymentRevision int64                       `json:"deployment_revision"`
+	EnvironmentSlug    string                      `json:"environment_slug"`
+	Findings           []PipelineComparisonFinding `json:"findings"`
+	OrganizationSlug   string                      `json:"organization_slug"`
+	PipelineSlug       string                      `json:"pipeline_slug"`
+	ProjectSlug        string                      `json:"project_slug"`
+	Severity           PipelineComparisonSeverity  `json:"severity"`
 }
 
 // PipelineDeploymentListResponse List of pipeline deployments by environment.
@@ -20808,6 +20856,9 @@ type UpdatePipelineTriggerJSONRequestBody = UpdatePipelineTrigger
 
 // ValidatePipelineJSONRequestBody defines body for ValidatePipeline for application/json ContentType.
 type ValidatePipelineJSONRequestBody = PipelineValidationRequest
+
+// ComparePipelineDeploymentJSONRequestBody defines body for ComparePipelineDeployment for application/json ContentType.
+type ComparePipelineDeploymentJSONRequestBody = PipelineSpec
 
 // UpdateSuccessfulRunRecencyJSONRequestBody defines body for UpdateSuccessfulRunRecency for application/json ContentType.
 type UpdateSuccessfulRunRecencyJSONRequestBody = SuccessfulRunRecencyUpdate
@@ -28976,6 +29027,9 @@ type ServerInterface interface {
 	// GetPipelineDeployment Get pipeline deployment
 	// (GET /organizations/{slug}/projects/{project_slug}/environments/{environment_slug}/pipelines/{pipeline_slug}/deployment)
 	GetPipelineDeployment(c fiber.Ctx, slug SlugParam, projectSlug ProjectSlugParam, environmentSlug EnvironmentSlugParam, pipelineSlug PipelineSlugParam) error
+	// ComparePipelineDeployment Compare a candidate against the deployed pipeline version
+	// (POST /organizations/{slug}/projects/{project_slug}/environments/{environment_slug}/pipelines/{pipeline_slug}/deployment:compare)
+	ComparePipelineDeployment(c fiber.Ctx, slug SlugParam, projectSlug ProjectSlugParam, environmentSlug EnvironmentSlugParam, pipelineSlug PipelineSlugParam) error
 	// GetSuccessfulRunRecency Inspect successful-run recency
 	// (GET /organizations/{slug}/projects/{project_slug}/environments/{environment_slug}/pipelines/{pipeline_slug}/successful-run-recency)
 	GetSuccessfulRunRecency(c fiber.Ctx, slug SlugParam, projectSlug ProjectSlugParam, environmentSlug EnvironmentSlugParam, pipelineSlug PipelineSlugParam) error
@@ -36489,6 +36543,59 @@ func (siw *ServerInterfaceWrapper) GetPipelineDeployment(c fiber.Ctx) error {
 	return handler(c)
 }
 
+// ComparePipelineDeployment operation middleware
+func (siw *ServerInterfaceWrapper) ComparePipelineDeployment(c fiber.Ctx) error {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "slug" -------------
+	var slug SlugParam
+
+	err = runtime.BindStyledParameterWithOptions("simple", "slug", c.Params("slug"), &slug, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: ""})
+	if err != nil {
+		return fiber.NewError(fiber.StatusBadRequest, fmt.Errorf("Invalid format for parameter slug: %w", err).Error())
+	}
+
+	// ------------- Path parameter "project_slug" -------------
+	var projectSlug ProjectSlugParam
+
+	err = runtime.BindStyledParameterWithOptions("simple", "project_slug", c.Params("project_slug"), &projectSlug, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: ""})
+	if err != nil {
+		return fiber.NewError(fiber.StatusBadRequest, fmt.Errorf("Invalid format for parameter project_slug: %w", err).Error())
+	}
+
+	// ------------- Path parameter "environment_slug" -------------
+	var environmentSlug EnvironmentSlugParam
+
+	err = runtime.BindStyledParameterWithOptions("simple", "environment_slug", c.Params("environment_slug"), &environmentSlug, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: ""})
+	if err != nil {
+		return fiber.NewError(fiber.StatusBadRequest, fmt.Errorf("Invalid format for parameter environment_slug: %w", err).Error())
+	}
+
+	// ------------- Path parameter "pipeline_slug" -------------
+	var pipelineSlug PipelineSlugParam
+
+	err = runtime.BindStyledParameterWithOptions("simple", "pipeline_slug", c.Params("pipeline_slug"), &pipelineSlug, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: ""})
+	if err != nil {
+		return fiber.NewError(fiber.StatusBadRequest, fmt.Errorf("Invalid format for parameter pipeline_slug: %w", err).Error())
+	}
+
+	handler := func(c fiber.Ctx) error {
+		return siw.Handler.ComparePipelineDeployment(c, slug, projectSlug, environmentSlug, pipelineSlug)
+	}
+
+	for i := len(siw.HandlerMiddlewares) - 1; i >= 0; i-- {
+		m := siw.HandlerMiddlewares[i]
+		next := handler
+		handler = func(c fiber.Ctx) error {
+			return m(c, next)
+		}
+	}
+
+	return handler(c)
+}
+
 // GetSuccessfulRunRecency operation middleware
 func (siw *ServerInterfaceWrapper) GetSuccessfulRunRecency(c fiber.Ctx) error {
 
@@ -40986,6 +41093,8 @@ func RegisterHandlersWithOptions(router fiber.Router, si ServerInterface, option
 	router.Get(options.BaseURL+"/organizations/:slug/projects/:project_slug/environments/:environment_slug/pipeline-validation-results/:validation_slug", wrapper.GetPipelineValidationResult)
 
 	router.Get(options.BaseURL+"/organizations/:slug/projects/:project_slug/environments/:environment_slug/pipelines/:pipeline_slug/deployment", wrapper.GetPipelineDeployment)
+
+	router.Post(options.BaseURL+"/organizations/:slug/projects/:project_slug/environments/:environment_slug/pipelines/:pipeline_slug/deployment\\:compare", wrapper.ComparePipelineDeployment)
 
 	router.Get(options.BaseURL+"/organizations/:slug/projects/:project_slug/environments/:environment_slug/pipelines/:pipeline_slug/successful-run-recency", wrapper.GetSuccessfulRunRecency)
 
@@ -47614,6 +47723,63 @@ func (response GetPipelineDeployment404JSONResponse) VisitGetPipelineDeploymentR
 	return ctx.JSON(&response)
 }
 
+type ComparePipelineDeploymentRequestObject struct {
+	Slug            SlugParam            `json:"slug"`
+	ProjectSlug     ProjectSlugParam     `json:"project_slug"`
+	EnvironmentSlug EnvironmentSlugParam `json:"environment_slug"`
+	PipelineSlug    PipelineSlugParam    `json:"pipeline_slug"`
+	Body            *ComparePipelineDeploymentJSONRequestBody
+}
+
+type ComparePipelineDeploymentResponseObject interface {
+	VisitComparePipelineDeploymentResponse(ctx fiber.Ctx) error
+}
+
+type ComparePipelineDeployment200JSONResponse PipelineDeploymentComparison
+
+func (response ComparePipelineDeployment200JSONResponse) VisitComparePipelineDeploymentResponse(ctx fiber.Ctx) error {
+	ctx.Response().Header.Set("Content-Type", "application/json")
+	ctx.Status(200)
+
+	return ctx.JSON(&response)
+}
+
+type ComparePipelineDeployment400JSONResponse ErrorResponse
+
+func (response ComparePipelineDeployment400JSONResponse) VisitComparePipelineDeploymentResponse(ctx fiber.Ctx) error {
+	ctx.Response().Header.Set("Content-Type", "application/json")
+	ctx.Status(400)
+
+	return ctx.JSON(&response)
+}
+
+type ComparePipelineDeployment401JSONResponse ErrorResponse
+
+func (response ComparePipelineDeployment401JSONResponse) VisitComparePipelineDeploymentResponse(ctx fiber.Ctx) error {
+	ctx.Response().Header.Set("Content-Type", "application/json")
+	ctx.Status(401)
+
+	return ctx.JSON(&response)
+}
+
+type ComparePipelineDeployment403JSONResponse ErrorResponse
+
+func (response ComparePipelineDeployment403JSONResponse) VisitComparePipelineDeploymentResponse(ctx fiber.Ctx) error {
+	ctx.Response().Header.Set("Content-Type", "application/json")
+	ctx.Status(403)
+
+	return ctx.JSON(&response)
+}
+
+type ComparePipelineDeployment404JSONResponse ErrorResponse
+
+func (response ComparePipelineDeployment404JSONResponse) VisitComparePipelineDeploymentResponse(ctx fiber.Ctx) error {
+	ctx.Response().Header.Set("Content-Type", "application/json")
+	ctx.Status(404)
+
+	return ctx.JSON(&response)
+}
+
 type GetSuccessfulRunRecencyRequestObject struct {
 	Slug            SlugParam            `json:"slug"`
 	ProjectSlug     ProjectSlugParam     `json:"project_slug"`
@@ -52088,6 +52254,9 @@ type StrictServerInterface interface {
 	// GetPipelineDeployment Get pipeline deployment
 	// (GET /organizations/{slug}/projects/{project_slug}/environments/{environment_slug}/pipelines/{pipeline_slug}/deployment)
 	GetPipelineDeployment(ctx context.Context, request GetPipelineDeploymentRequestObject) (GetPipelineDeploymentResponseObject, error)
+	// ComparePipelineDeployment Compare a candidate against the deployed pipeline version
+	// (POST /organizations/{slug}/projects/{project_slug}/environments/{environment_slug}/pipelines/{pipeline_slug}/deployment:compare)
+	ComparePipelineDeployment(ctx context.Context, request ComparePipelineDeploymentRequestObject) (ComparePipelineDeploymentResponseObject, error)
 	// GetSuccessfulRunRecency Inspect successful-run recency
 	// (GET /organizations/{slug}/projects/{project_slug}/environments/{environment_slug}/pipelines/{pipeline_slug}/successful-run-recency)
 	GetSuccessfulRunRecency(ctx context.Context, request GetSuccessfulRunRecencyRequestObject) (GetSuccessfulRunRecencyResponseObject, error)
@@ -57428,6 +57597,50 @@ func (sh *strictHandler) GetPipelineDeployment(ctx fiber.Ctx, slug SlugParam, pr
 		return err
 	} else if validResponse, ok := response.(GetPipelineDeploymentResponseObject); ok {
 		if err := validResponse.VisitGetPipelineDeploymentResponse(ctx); err != nil {
+			return err
+		}
+	} else if response != nil {
+		return fmt.Errorf("unexpected response type: %T", response)
+	}
+	return nil
+}
+
+// ComparePipelineDeployment operation middleware
+func (sh *strictHandler) ComparePipelineDeployment(ctx fiber.Ctx, slug SlugParam, projectSlug ProjectSlugParam, environmentSlug EnvironmentSlugParam, pipelineSlug PipelineSlugParam) error {
+	var request ComparePipelineDeploymentRequestObject
+
+	request.Slug = slug
+	request.ProjectSlug = projectSlug
+	request.EnvironmentSlug = environmentSlug
+	request.PipelineSlug = pipelineSlug
+
+	var body ComparePipelineDeploymentJSONRequestBody
+	var err error
+	// The validation middleware stores the value a kin-openapi validator
+	// validated in the Fiber context. Bind that value, matching member
+	// names exactly, so the handler receives what was validated instead
+	// of a second, case-insensitive decode.
+	if v := ctx.Locals(validatedBodyLocalsKey); v == nil || runtime.BindJSONValue(v, &body) != nil {
+		err = ctx.Bind().Body(&body)
+	}
+	if err != nil {
+		return fiber.NewError(fiber.StatusBadRequest, err.Error())
+	}
+	request.Body = &body
+
+	handler := func(ctx fiber.Ctx, request interface{}) (interface{}, error) {
+		return sh.ssi.ComparePipelineDeployment(ctx.Context(), request.(ComparePipelineDeploymentRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "ComparePipelineDeployment")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		return err
+	} else if validResponse, ok := response.(ComparePipelineDeploymentResponseObject); ok {
+		if err := validResponse.VisitComparePipelineDeploymentResponse(ctx); err != nil {
 			return err
 		}
 	} else if response != nil {

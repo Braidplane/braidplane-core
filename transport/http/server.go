@@ -250,26 +250,38 @@ func (s *server) canOrg(
 	action model.Action,
 	resource model.Resource,
 ) error {
+	return s.authorizeOrg(c, orgSlug, action, resource, true)
+}
+
+// authorizeOrg lets read-only POST handlers use normal pipeline permissions
+// without applying organization write admission.
+func (s *server) authorizeOrg(
+	c fiber.Ctx,
+	orgSlug slug.Slug,
+	action model.Action,
+	resource model.Resource,
+	checkWriteAdmission bool,
+) error {
 	if principal, ok := reqctx.GetAPIKeyPrincipal(c); ok {
 		if principal.OrgSlug != orgSlug {
 			return apierror.Forbidden(resource.String(), action.String())
 		}
-		return s.canWithInput(c, authorization.Input{
+		return s.authorize(c, authorization.Input{
 			APIKeySlug:     principal.Slug,
 			APIKeyRoleSlug: principal.Role,
 			Action:         action,
 			Resource:       resource,
 			OrgSlug:        &orgSlug,
-		})
+		}, checkWriteAdmission)
 	}
 
 	userSlug := reqctx.GetUserSlug(c, s.sessionStore)
-	return s.canWithInput(c, authorization.Input{
+	return s.authorize(c, authorization.Input{
 		UserSlug: userSlug,
 		Action:   action,
 		Resource: resource,
 		OrgSlug:  &orgSlug,
-	})
+	}, checkWriteAdmission)
 }
 
 func (s *server) canOrgUserSession(
@@ -431,6 +443,10 @@ func (s *server) canProfile(c fiber.Ctx, action model.Action) error {
 }
 
 func (s *server) canWithInput(c fiber.Ctx, input authorization.Input) error {
+	return s.authorize(c, input, true)
+}
+
+func (s *server) authorize(c fiber.Ctx, input authorization.Input, checkWriteAdmission bool) error {
 	if input.UserSlug == "" && input.APIKeySlug == "" {
 		return apierror.Unauthorized()
 	}
@@ -449,7 +465,7 @@ func (s *server) canWithInput(c fiber.Ctx, input authorization.Input) error {
 	if !can {
 		return apierror.Forbidden(input.Resource.String(), input.Action.String())
 	}
-	if input.OrgSlug != nil &&
+	if checkWriteAdmission && input.OrgSlug != nil &&
 		c.Method() != fiber.MethodGet &&
 		c.Method() != fiber.MethodHead &&
 		c.Method() != fiber.MethodOptions {
