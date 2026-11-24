@@ -1075,6 +1075,8 @@ func runSinkRecoveryHint(input api.PipelineRunStepInputSnapshot) string {
 			}
 		case api.PipelineRunStepInputSnapshotSinkReplayStrategyUnsafe:
 			return "Recovery is blocked for an uncertain unsafe write. Reconcile the provider outcome."
+		case api.PipelineRunStepInputSnapshotSinkReplayStrategyIdempotentWithKey:
+			// A key alone does not override an existing ledger claim.
 		}
 		if input.SinkEffectState != nil && *input.SinkEffectState == api.PipelineRunStepInputSnapshotSinkEffectStateInProgress {
 			return "The ledger already has a claim for this write. Recovery cannot repeat it. Verify the outcome at the destination."
