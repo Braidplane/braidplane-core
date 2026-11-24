@@ -30,6 +30,7 @@
     "brand/icons/data-sources/licenses/simple-icons-DISCLAIMER.md": "Asset provenance, rights or vendor license retained beside the assets. Local links and anchors remain checked.",
     "cli/README.md": "Package, fixture or acceptance guidance beside its owning source. Local links and anchors remain checked.",
     "comparison/README.md": "Standalone comparison verifier setup, frozen dataset and synthetic regression checks. Local links and anchors remain checked.",
+    "comparison/small-host.md": "Measured self-hosted footprint, release upgrade and comparison reproduction procedure.",
     "cmd/fake/README.md": "Package, fixture or acceptance guidance beside its owning source. Local links and anchors remain checked.",
     "frontend/AGENTS.md": "Contributor/agent instructions beside the owning source; not site content. Local links and anchors remain checked.",
     "frontend/acceptance/README.md": "Package, fixture or acceptance guidance beside its owning source. Local links and anchors remain checked.",
