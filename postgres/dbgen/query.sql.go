@@ -27487,6 +27487,45 @@ func (q *Queries) PipelineTriggerProjectEnvironmentEnabled(ctx context.Context, 
 	return exists, err
 }
 
+const pollExecutionResponse = `-- name: PollExecutionResponse :one
+SELECT r.state, r.kind, r.cancel_requested_at, r.queue_deadline_at,
+       (CASE WHEN r.state IN ('succeeded', 'failed') AND r.kind = 'query'
+             THEN r.request_ciphertext END)::bytea AS request_ciphertext,
+       (CASE WHEN r.state IN ('succeeded', 'failed')
+             THEN r.result_ciphertext END)::bytea AS result_ciphertext
+FROM execution_requests r
+JOIN organizations o ON o.id = r.organization_id
+WHERE r.id = $1::uuid AND o.slug = $2
+`
+
+type PollExecutionResponseParams struct {
+	RequestID pgtype.UUID
+	OrgSlug   slug.Slug
+}
+
+type PollExecutionResponseRow struct {
+	State             string
+	Kind              string
+	CancelRequestedAt pgtype.Timestamptz
+	QueueDeadlineAt   pgtype.Timestamptz
+	RequestCiphertext []byte
+	ResultCiphertext  []byte
+}
+
+func (q *Queries) PollExecutionResponse(ctx context.Context, arg PollExecutionResponseParams) (PollExecutionResponseRow, error) {
+	row := q.db.QueryRow(ctx, pollExecutionResponse, arg.RequestID, arg.OrgSlug)
+	var i PollExecutionResponseRow
+	err := row.Scan(
+		&i.State,
+		&i.Kind,
+		&i.CancelRequestedAt,
+		&i.QueueDeadlineAt,
+		&i.RequestCiphertext,
+		&i.ResultCiphertext,
+	)
+	return i, err
+}
+
 const projectEnvironmentEnabled = `-- name: ProjectEnvironmentEnabled :one
 SELECT EXISTS (
     SELECT 1

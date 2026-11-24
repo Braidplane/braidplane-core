@@ -279,6 +279,25 @@ func (Repository) Find(ctx context.Context, db postgres.DBTX, id uuid.UUID, orga
 	return request, nil
 }
 
+// PollResponse returns the envelopes needed to handle the observed state.
+func (Repository) PollResponse(ctx context.Context, db postgres.DBTX, id uuid.UUID, organizationSlug string) (Request, error) {
+	row, err := dbgen.New(db).PollExecutionResponse(ctx, dbgen.PollExecutionResponseParams{
+		RequestID: pgtype.UUID{Bytes: id.UUID, Valid: true}, OrgSlug: slug.Slug(organizationSlug),
+	})
+	if err != nil {
+		if xerror.Is(err, pgx.ErrNoRows) {
+			return Request{}, xerror.Unexpected().With(err).Detail("execution request not found")
+		}
+		return Request{}, xerror.Wrapf("poll execution response: %w", err)
+	}
+	return Request{
+		Kind: row.Kind, State: State(row.State),
+		CancelRequestedAt: postgres.FromNullableTimestamptz(row.CancelRequestedAt),
+		QueueDeadlineAt:   postgres.FromNullableTimestamptz(row.QueueDeadlineAt),
+		RequestCiphertext: row.RequestCiphertext, ResultCiphertext: row.ResultCiphertext,
+	}, nil
+}
+
 func (Repository) Claim(ctx context.Context, db postgres.DBTX, id uuid.UUID) (Request, bool, error) {
 	request := Request{ObservedLocallyAt: time.Now()}
 	err := db.QueryRow(ctx, `SELECT request.*, clock_timestamp() FROM claim_execution_request($1) AS request`, id).Scan(
