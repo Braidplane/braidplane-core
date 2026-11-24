@@ -135,6 +135,7 @@ daemon. List the locations of Git, SMTP and any workflow fixtures.
 
 The sampler reports guest RAM as `MemTotal - MemAvailable` and free disk as
 blocks available to an unprivileged process. It samples about every 100 ms.
-Shorter allocation spikes can escape observation. A measured low point is a
-lower bound on the free space to plan for. Preserve the receipts alongside
+The minimum records space remaining. Subtract it from starting free space to
+get `peak_additional_bytes`, the additional headroom consumed. Shorter spikes
+can escape sampling, so that difference is a lower bound. Preserve the receipts alongside
 the exact release identities and the independent destination verdict.
