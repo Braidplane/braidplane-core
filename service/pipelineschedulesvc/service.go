@@ -694,6 +694,13 @@ func initialScheduleCursor(trigger DueScheduleTrigger, nowInLocation time.Time) 
 			cursor = minCursor
 		}
 	}
+	// Cron.Next is exclusive. Start just before creation to include an occurrence at that instant.
+	if start := trigger.TriggerCreatedAt.Add(-time.Nanosecond); start.After(cursor) {
+		cursor = start.In(nowInLocation.Location())
+	}
+	if trigger.TriggerRevision > 1 && trigger.TriggerUpdatedAt.After(cursor) {
+		cursor = trigger.TriggerUpdatedAt.In(nowInLocation.Location())
+	}
 	return cursor
 }
 

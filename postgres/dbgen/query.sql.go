@@ -19032,6 +19032,7 @@ SELECT
     pt.schedule_timezone,
     pt.schedule_misfire_policy,
     pt.created_at AS trigger_created_at,
+    pt.updated_at AS trigger_updated_at,
     last_fire.scheduled_fire_at AS last_scheduled_fire_at
 FROM pipeline_triggers pt
 JOIN project_environments pe ON pe.id = pt.project_environment_id
@@ -19084,6 +19085,7 @@ type ListDueScheduleTriggersRow struct {
 	ScheduleTimezone         pgtype.Text
 	ScheduleMisfirePolicy    pgtype.Text
 	TriggerCreatedAt         pgtype.Timestamptz
+	TriggerUpdatedAt         pgtype.Timestamptz
 	LastScheduledFireAt      pgtype.Timestamptz
 }
 
@@ -19119,6 +19121,7 @@ func (q *Queries) ListDueScheduleTriggers(ctx context.Context) ([]ListDueSchedul
 			&i.ScheduleTimezone,
 			&i.ScheduleMisfirePolicy,
 			&i.TriggerCreatedAt,
+			&i.TriggerUpdatedAt,
 			&i.LastScheduledFireAt,
 		); err != nil {
 			return nil, err

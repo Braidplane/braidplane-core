@@ -148,6 +148,7 @@ func TestService_DispatchDueScheduleEnqueuesFireThenExecutionCreatesRunEventAndC
 	}, model.SystemEventActor())
 	require.NoError(t, err)
 
+	setScheduleTriggerTimes(t, pool, orgSlug, triggerSlug, now.Add(-time.Minute))
 	queueErr := xerror.Unexpected().Detail("synthetic candidate enqueue failure")
 	failingSvc := pipelineschedulesvc.New(txm, pipelinetriggers.NewRepository(), pipelineSvc, scheduleProducer, nil,
 		pipelineschedulesvc.WithNotificationProducer(testutil.FakeRunSucceededNotifier{CandidateFn: func(ctx context.Context, tx postgres.DBTX, candidate model.NotificationCandidate) error {
@@ -317,7 +318,7 @@ func TestService_DispatchDueScheduleUsesUpdatedEnabledTriggerRevision(t *testing
 	}, model.SystemEventActor())
 	require.NoError(t, err)
 
-	updated, err := triggerSvc.UpdatePipelineTrigger(ctx, orgSlug, projectSlug, environmentSlug, triggerSlug, model.UpdatePipelineTrigger{
+	update := model.UpdatePipelineTrigger{
 		Name:             "Enabled daily users",
 		Type:             model.PipelineTriggerTypeSchedule,
 		Enabled:          true,
@@ -336,12 +337,14 @@ func TestService_DispatchDueScheduleUsesUpdatedEnabledTriggerRevision(t *testing
 			Timezone:      "UTC",
 			MisfirePolicy: model.PipelineTriggerScheduleMisfirePolicySkip,
 		},
-	}, model.SystemEventActor())
+	}
+	updated, err := triggerSvc.UpdatePipelineTrigger(ctx, orgSlug, projectSlug, environmentSlug, triggerSlug, update, model.SystemEventActor())
 	require.NoError(t, err)
 	require.Equal(t, int64(2), updated.Revision)
 	require.True(t, updated.Enabled)
 	require.Equal(t, []string{"customer_id", "dry_run"}, updated.RuntimeInputKeys)
 
+	setScheduleTriggerTimes(t, pool, orgSlug, triggerSlug, now.Add(-time.Minute))
 	result, err := scheduleSvc.DispatchDueSchedules(ctx, now)
 	require.NoError(t, err)
 	require.Equal(t, pipelineschedulesvc.DispatchResult{Scanned: 1, Claimed: 1, Enqueued: 1}, result)
@@ -354,6 +357,14 @@ func TestService_DispatchDueScheduleUsesUpdatedEnabledTriggerRevision(t *testing
 		ScheduledFireAt:  now,
 	}
 	requireScheduleFireExecutionJobInQueue(t, pool, scheduleQueue, executionArgs)
+
+	update.Name = "Renamed daily users"
+	edited, err := triggerSvc.UpdatePipelineTrigger(ctx, orgSlug, projectSlug, environmentSlug, triggerSlug, update, model.SystemEventActor())
+	require.NoError(t, err)
+	require.Equal(t, int64(3), edited.Revision)
+	result, err = scheduleSvc.DispatchDueSchedules(ctx, now.Add(2*time.Minute))
+	require.NoError(t, err)
+	require.Equal(t, pipelineschedulesvc.DispatchResult{Scanned: 1}, result)
 
 	err = scheduleSvc.ExecuteClaimedScheduleFire(ctx, executionArgs)
 	require.NoError(t, err)
@@ -469,6 +480,7 @@ func TestService_TriggerRetryAttemptRetriesFailedRunTwice(t *testing.T) { // Sch
 	}, model.SystemEventActor())
 	require.NoError(t, err)
 
+	setScheduleTriggerTimes(t, pool, orgSlug, triggerSlug, now.Add(-time.Minute))
 	dispatch, err := scheduleSvc.DispatchDueSchedules(ctx, now)
 	require.NoError(t, err)
 	require.Equal(t, pipelineschedulesvc.DispatchResult{Scanned: 1, Claimed: 1, Enqueued: 1}, dispatch)
@@ -725,6 +737,7 @@ func TestService_ExecuteClaimedScheduleFireSkipsFireAfterEnvironmentSoftDelete(t
 	}, model.SystemEventActor())
 	require.NoError(t, err)
 
+	setScheduleTriggerTimes(t, pool, orgSlug, triggerSlug, now.Add(-time.Minute))
 	result, err := scheduleSvc.DispatchDueSchedules(ctx, now)
 	require.NoError(t, err)
 	require.Equal(t, pipelineschedulesvc.DispatchResult{Scanned: 1, Claimed: 1, Enqueued: 1}, result)
@@ -838,6 +851,7 @@ func TestService_ExecuteClaimedScheduleFireHonorsPinnedVersionPolicy(t *testing.
 	})
 	require.NoError(t, err)
 
+	setScheduleTriggerTimes(t, pool, orgSlug, triggerSlug, now.Add(-time.Minute))
 	result, err := scheduleSvc.DispatchDueSchedules(ctx, now)
 	require.NoError(t, err)
 	require.Equal(t, pipelineschedulesvc.DispatchResult{Scanned: 1, Claimed: 1, Enqueued: 1}, result)
@@ -1172,6 +1186,16 @@ func requirePipelineRunBySlug(
 	}
 	require.Failf(t, "pipeline run not found", "run_slug=%s", runSlug)
 	return nil
+}
+
+func setScheduleTriggerTimes(t *testing.T, pool *pgxpool.Pool, orgSlug, triggerSlug slug.Slug, at time.Time) {
+	t.Helper()
+	tag, err := pool.Exec(t.Context(), `
+		UPDATE pipeline_triggers pt SET created_at = $3, updated_at = $3
+		FROM projects p JOIN organizations o ON o.id = p.organization_id
+		WHERE pt.project_id = p.id AND o.slug = $1 AND pt.slug = $2`, orgSlug, triggerSlug, at)
+	require.NoError(t, err)
+	require.EqualValues(t, 1, tag.RowsAffected())
 }
 
 func openScheduleE2EPool(t *testing.T) *pgxpool.Pool {

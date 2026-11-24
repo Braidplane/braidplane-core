@@ -73,6 +73,7 @@ func (r *repository) ListDueScheduleTriggersForSystem(
 				MisfirePolicy: misfirePolicy,
 			},
 			TriggerCreatedAt:    row.TriggerCreatedAt.Time,
+			TriggerUpdatedAt:    row.TriggerUpdatedAt.Time,
 			LastScheduledFireAt: postgres.FromNullableTimestamptz(row.LastScheduledFireAt),
 		})
 	}
