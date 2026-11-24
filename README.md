@@ -16,6 +16,16 @@ for developers and data teams who move and combine data across databases, APIs,
 CRMs and file stores. For example, join order records with customer data and
 write the result to S3. Work through the web interface, CLI or API.
 
+**Latest non-prerelease:** [Core v0.2.0](https://github.com/Braidplane/braidplane-core/releases/tag/v0.2.0) (Alpha).
+Tags ending in `-rc.N` are release candidates. Before installing, check
+[what v0.2.0 covers and what remains for v1.0](docs-public/core-stability.md).
+
+[Try the hosted Alpha](https://app.staging.braidplane.com/auth/signup). The free
+30-day trial starts with the first successful test of a saved data source you
+provide. It includes three active logical pipelines and one queued or running
+pipeline run at a time. No card is required and there is no automatic charge.
+[Hosted trial terms](https://docs.braidplane.com/legal/self-service-alpha-v1/terms/)
+
 [How it works](docs-public/getting-started/overview.md) ·
 [Run locally](#run-locally) ·
 [Pipeline examples](docs-public/examples/index.md) ·
