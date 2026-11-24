@@ -44,17 +44,20 @@ def sample(filesystems, command):
     started = time.monotonic()
     with subprocess.Popen(command) as process:
         while True:
-            status = process.poll()
+            try:
+                status = process.wait(timeout=0.1)
+            except subprocess.TimeoutExpired:
+                status = None
+            elapsed = time.monotonic() - started
             memory.append(used_memory())
             for fd, entry in filesystems.items():
                 free = available(fd)
                 entry.update(minimum=min(entry["minimum"], free), after=free)
             if status is not None:
                 break
-            time.sleep(0.1)
     for entry in filesystems.values():
         entry["peak_additional_bytes"] = entry["before"] - entry["minimum"]
-    return dict(exit_code=status, elapsed_seconds=time.monotonic() - started,
+    return dict(exit_code=status, elapsed_seconds=elapsed,
                 samples=len(memory), median_used_ram_bytes=statistics.median(memory),
                 peak_used_ram_bytes=max(memory), filesystem_free_bytes=list(filesystems.values()))
 
@@ -65,8 +68,14 @@ if __name__ == "__main__":
     parser.add_argument("--receipt", required=True)
     parser.add_argument("command", nargs="+")
     args = parser.parse_args()
-    with open(args.receipt, "x") as output:
-        result = measure(args.path, args.command)
-        json.dump(result, output, indent=2)
-        output.write("\n")
+    receipt = Path(args.receipt)
+    output = receipt.open("x")
+    try:
+        with output:
+            result = measure(args.path, args.command)
+            json.dump(result, output, indent=2)
+            output.write("\n")
+    except BaseException:
+        receipt.unlink(missing_ok=True)
+        raise
     raise SystemExit(result["exit_code"] or 0)
