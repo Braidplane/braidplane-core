@@ -1,6 +1,9 @@
 package crm
 
-import "encoding/json"
+import (
+	"encoding/json"
+	"fmt"
+)
 
 type Config struct {
 	BaseURL           string `json:"base_url,omitempty" validate:"omitempty,url"`
@@ -63,6 +66,22 @@ type UpsertInput struct {
 	IDProperty string
 	Properties map[string]any
 }
+
+// UpsertBatchError counts only fully acknowledged earlier batches as confirmed.
+type UpsertBatchError struct {
+	Confirmed    int   `json:"confirmed"`
+	Unresolved   int   `json:"unresolved"`
+	Undispatched int   `json:"undispatched"`
+	Cause        error `json:"-"`
+}
+
+func (e *UpsertBatchError) Error() string {
+	return fmt.Sprintf("HubSpot upsert stopped: %d inputs confirmed in prior batches, %d in the unresolved batch (outcomes unknown), %d never dispatched. Verify provider state before replay.", e.Confirmed, e.Unresolved, e.Undispatched)
+}
+
+func (e *UpsertBatchError) Unwrap() error { return e.Cause }
+
+func (e *UpsertBatchError) PublicDetail() string { return e.Error() }
 
 type UpsertResult struct {
 	Records []UpsertRecord

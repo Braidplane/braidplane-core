@@ -16,6 +16,7 @@ import (
 	"github.com/Braidplane/braidplane-core/pkg/domain/model"
 	"github.com/Braidplane/braidplane-core/pkg/executiondelivery"
 	"github.com/Braidplane/braidplane-core/pkg/gitprovider"
+	"github.com/Braidplane/braidplane-core/pkg/hubspot/crm"
 	"github.com/Braidplane/braidplane-core/pkg/jsonvalue"
 	"github.com/Braidplane/braidplane-core/pkg/logging"
 	"github.com/Braidplane/braidplane-core/pkg/metrics"
@@ -76,6 +77,8 @@ const (
 	errorCodeDataSourceCredentials    = "data_source_credentials_failed" // #nosec G101 -- Error classification code, not a credential.
 	errorCodeDataSourcePermission     = "data_source_permission_denied"
 	errorCodeDataSourceConnection     = "data_source_connection_failed"
+	errorCodeHubSpotUpsertUnavailable = "hubspot_upsert_unavailable"
+	errorCodeHubSpotUpsertInvalid     = "hubspot_upsert_invalid"
 	errorCodeDataSourceTimeout        = "data_source_timeout"
 	errorCodeQueryRowLimit            = "query_row_limit_exceeded"
 	errorCodeAcknowledgementRejected  = "http_acknowledgement_rejected"
@@ -241,6 +244,7 @@ func (b *Broker) ExecuteConnector(
 }
 
 type encryptedResponse struct {
+	HubSpotUpsertProgress     *crm.UpsertBatchError          `json:"hubspot_upsert_progress,omitempty"`
 	WriteReconciled           bool                           `json:"write_reconciled,omitempty"`
 	WritePrepared             bool                           `json:"write_prepared,omitempty"`
 	Result                    *result.ExecutionResult        `json:"result,omitempty"`
@@ -1208,6 +1212,16 @@ func responseError(response encryptedResponse) error {
 	if response.ErrorCode == "" {
 		return nil
 	}
+	cause := responseErrorCause(response)
+	if cause != nil && response.HubSpotUpsertProgress != nil {
+		progress := *response.HubSpotUpsertProgress
+		progress.Cause = cause
+		return &progress
+	}
+	return cause
+}
+
+func responseErrorCause(response encryptedResponse) error {
 	switch response.ErrorCode {
 	case "sink_effect_unknown":
 		return writegate.ErrOutcomeUnknown
@@ -1217,6 +1231,10 @@ func responseError(response encryptedResponse) error {
 		return datasourcessvc.ErrConnectionFailed.
 			WithPublicDetail(response.PublicDetail).
 			Detail("connection test failed")
+	case errorCodeHubSpotUpsertUnavailable:
+		return xerror.Unavailable(xerror.DataSource)
+	case errorCodeHubSpotUpsertInvalid:
+		return xerror.InvalidInput(xerror.Query)
 	case errorCodeDataSourceCredentials:
 		return xerror.InvalidCredentials()
 	case errorCodeDataSourcePermission:
@@ -1467,12 +1485,20 @@ func (b *Broker) processClaimed(ctx context.Context, request requestrepo.Request
 				break
 			}
 			response.WriteReconciled = payload.ReconcileOnly && prepared && err == nil && response.Result != nil && response.Result.Error() == nil
+			if err == nil && response.Result != nil {
+				err = response.Result.Error()
+			}
 			if err != nil {
 				response.ErrorCode, succeeded = safeQueryErrorCode(err), false
 				response.PublicDetail = xerror.PublicDetail(err)
-			} else if response.Result != nil && response.Result.Error() != nil {
-				response.ErrorCode, succeeded = safeQueryErrorCode(response.Result.Error()), false
-				response.PublicDetail = xerror.PublicDetail(response.Result.Error())
+				if xerror.As(err, &response.HubSpotUpsertProgress) {
+					switch {
+					case xerror.Is(err, xerror.Unavailable(xerror.DataSource)):
+						response.ErrorCode = errorCodeHubSpotUpsertUnavailable
+					case xerror.Is(err, xerror.InvalidInput(xerror.Query)):
+						response.ErrorCode = errorCodeHubSpotUpsertInvalid
+					}
+				}
 				response.Result = nil
 			} else if err := response.captureResultRuntimePayload(); err != nil {
 				if !xerror.Is(err, xerror.ExecutionResponseSizeExceeded()) {

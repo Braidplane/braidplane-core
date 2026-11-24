@@ -657,13 +657,9 @@ func (c *Connector) executeUpsert(
 			MaxResponseBytes: maxResponseBytes,
 		})
 		if upsertErr != nil {
-			if offset > 0 {
-				upsertErr = xerror.Wrapf(
-					"HubSpot upsert stopped after a prior batch completed; verify provider state before replay: %w",
-					upsertErr,
-				)
-			}
-			return hubSpotFailureResult(start, objectType, OperationUpsert, nil, upsertErr)
+			return hubSpotFailureResult(start, objectType, OperationUpsert, nil, &hubspotclient.UpsertBatchError{
+				Confirmed: offset, Unresolved: end - offset, Undispatched: len(inputs) - end, Cause: upsertErr,
+			})
 		}
 		for _, record := range upsertResult.Records {
 			outputRows = append(outputRows, map[string]any{

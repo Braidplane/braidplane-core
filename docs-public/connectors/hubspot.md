@@ -156,8 +156,11 @@ come from stable row values, not row order or run IDs. Contacts can use email
 only where supported; partial upserts require a custom unique identifier.
 Read-only, provider-managed, unknown, and unmapped properties are rejected.
 Upsert results expose record IDs, created flags, and counts, not submitted
-property values. Batch writes are not atomic: any row failure fails the step,
-and replay uses the same unique keys.
+property values. A mixed response or lost acknowledgement fails the step and blocks its
+dependent checkpoint. The failure reports how many inputs earlier batches
+confirmed, how many were in the unresolved batch, and how many were never
+dispatched. Individual outcomes in the unresolved batch remain unknown. Replay
+uses the same unique keys.
 
 ## Limits and troubleshooting
 

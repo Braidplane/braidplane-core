@@ -23,6 +23,7 @@ import (
 	"github.com/Braidplane/braidplane-core/pkg/domain/model"
 	"github.com/Braidplane/braidplane-core/pkg/executiondelivery"
 	"github.com/Braidplane/braidplane-core/pkg/gitprovider"
+	"github.com/Braidplane/braidplane-core/pkg/hubspot/crm"
 	"github.com/Braidplane/braidplane-core/pkg/metrics"
 	filepayload "github.com/Braidplane/braidplane-core/pkg/payload/file"
 	pipepayload "github.com/Braidplane/braidplane-core/pkg/pipeline/payload"
@@ -550,12 +551,16 @@ func TestProcessConnectionTestStaysOutsideRuntimePool(t *testing.T) {
 func TestProcessQueryPreservesOnlyPublicDetail(t *testing.T) {
 	t.Parallel()
 	for _, tc := range []struct {
-		name        string
-		fromFactory bool
-		detail      string
-		outcome     *xerror.Error
-		code        string
+		name         string
+		fromFactory  bool
+		batchFailure bool
+		detail       string
+		outcome      *xerror.Error
+		code         string
 	}{
+		{name: "mixed upsert batch", batchFailure: true, outcome: xerror.Unavailable(xerror.DataSource), code: errorCodeHubSpotUpsertUnavailable},
+		{name: "unacknowledged upsert batch", batchFailure: true, outcome: xerror.ConnectionFailed(xerror.DataSource), code: errorCodeDataSourceConnection},
+		{name: "rejected upsert batch", batchFailure: true, outcome: xerror.InvalidInput(xerror.Query), code: errorCodeHubSpotUpsertInvalid},
 		{name: "missing column or relation", outcome: xerror.SourceSchemaReferenceInvalid(), code: errorCodeSchemaReferenceInvalid},
 		{name: "invalid query", outcome: xerror.SourceQueryInvalid(), code: errorCodeQueryInvalid, detail: "Division by zero. Check values used as divisors and try again."},
 		{name: "permission result", fromFactory: false, outcome: xerror.Forbidden(xerror.DataSource), code: errorCodeDataSourcePermission},
@@ -588,11 +593,15 @@ func TestProcessQueryPreservesOnlyPublicDetail(t *testing.T) {
 			})
 			require.NoError(t, err)
 			privateCause := "private-provider-cell-content"
-			queryErr := tc.outcome
-			if queryErr == nil {
-				queryErr = xerror.ValidationFailed()
+			outcome := tc.outcome
+			if outcome == nil {
+				outcome = xerror.ValidationFailed()
 			}
-			queryErr = queryErr.Detail(privateCause).WithPublicDetail(tc.detail)
+			var queryErr error = outcome.Detail(privateCause).WithPublicDetail(tc.detail)
+			if tc.batchFailure {
+				queryErr = &crm.UpsertBatchError{Confirmed: 100, Unresolved: 7, Cause: queryErr}
+				tc.detail = queryErr.Error()
+			}
 			repo := &fakeRequestRepo{}
 			broker := &Broker{
 				admission: testutil.FakeOperationAdmission{}, txm: fakeTXM{}, repo: repo, cipher: cipher, heartbeatEvery: time.Hour,

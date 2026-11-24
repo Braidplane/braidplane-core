@@ -18,6 +18,7 @@ import (
 	"github.com/Braidplane/braidplane-core/pkg/contractplan"
 	"github.com/Braidplane/braidplane-core/pkg/deploymentplan"
 	"github.com/Braidplane/braidplane-core/pkg/domain/model"
+	"github.com/Braidplane/braidplane-core/pkg/hubspot/crm"
 	"github.com/Braidplane/braidplane-core/pkg/jsonvalue"
 	"github.com/Braidplane/braidplane-core/pkg/logging"
 	"github.com/Braidplane/braidplane-core/pkg/metrics"
@@ -3242,6 +3243,10 @@ func dataSourceFailureSummary(
 	err error,
 	reasonCode pipelinerun.FailureReasonCode,
 ) string {
+	var progress *crm.UpsertBatchError
+	if xerror.As(err, &progress) {
+		return progress.Error()
+	}
 	switch reasonCode {
 	case pipelinerun.FailureReasonCodeDestinationConstraintViolation:
 		return xerror.DestinationConstraintViolation().Message()

@@ -484,7 +484,8 @@ func TestConnector_Execute_UpsertBatchesInputsAndReportsLaterFailure(t *testing.
 	}`), map[string]types.TypedParam{"input": {Value: rows}})
 	require.NoError(t, err)
 	require.Error(t, execResult.Error())
-	require.ErrorContains(t, execResult.Error(), "prior batch completed")
+	require.ErrorIs(t, execResult.Error(), xerror.Unavailable(xerror.DataSource))
+	require.ErrorContains(t, execResult.Error(), "100 inputs confirmed in prior batches, 1 in the unresolved batch (outcomes unknown), 0 never dispatched")
 	assert.Equal(t, 2, call)
 }
 
