@@ -5,8 +5,8 @@
 **Experimental.** [Support levels and provider evidence](support-levels.md#evidence-record)
 
 - **Available.** Read and write structured files or raw bytes over explicit FTPS.
-- **Limits.** Reads cover the selected file in full. Provider verification remains open for each workflow. Check the target before repeating a write.
-- **Not integrated.** Implicit FTPS, SFTP and incremental checkpoints.
+- **Limits.** Reads cover the selected file in full. Explicit FTPS provider verification is tracked in [#246](https://github.com/Braidplane/braidplane-core/issues/246). Check the target before repeating a write.
+- **Not integrated.** Implicit FTPS, SFTP and incremental checkpoints. [#42](https://github.com/Braidplane/braidplane-core/issues/42) tracks SFTP as a separate connector.
 
 Read and write files on an FTPS server. Use CSV, JSON, or spreadsheet mode
 for tabular records, or raw-file mode to preserve bytes.
@@ -162,7 +162,7 @@ column names. Empty selected cells become empty strings.
 
 For writes, `range` is the top-left starting cell. Braidplane creates a new
 workbook; it does not preserve existing formatting, charts, macros, or template
-metadata and does not evaluate formulas. OpenDocument workbooks are unsupported.
+metadata and does not evaluate formulas. OpenDocument workbooks are unsupported. Advanced workbook handling is tracked in [#39](https://github.com/Braidplane/braidplane-core/issues/39).
 
 ## Limits and troubleshooting
 

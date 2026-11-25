@@ -5,7 +5,7 @@
 **Preview.** [Support levels and provider evidence](support-levels.md#evidence-record)
 
 - **Available.** Read repository files and commit file writes through an organization OAuth connection to a verified project.
-- **Limits.** File reads are full reads. Repair an expired or revoked grant before retrying the operation.
+- **Limits.** File reads are full reads. Repair an expired or revoked grant before retrying the operation. [#106](https://github.com/Braidplane/braidplane-core/issues/106) tracks improvements to credential recovery.
 - **Not integrated.** Native issue and merge-request extraction as pipeline data.
 
 For pipeline changes in a managed GitLab repository, optional
@@ -168,7 +168,7 @@ column names. Empty selected cells become empty strings.
 
 For writes, `range` is the top-left starting cell. Braidplane creates a new
 workbook; it does not preserve existing formatting, charts, macros, or template
-metadata and does not evaluate formulas. OpenDocument workbooks are unsupported.
+metadata and does not evaluate formulas. OpenDocument workbooks are unsupported. Advanced workbook handling is tracked in [#39](https://github.com/Braidplane/braidplane-core/issues/39).
 
 ## Repository data and pipeline definitions
 

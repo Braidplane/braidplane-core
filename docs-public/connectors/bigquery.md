@@ -6,7 +6,7 @@
 
 - **Available.** Run query jobs, stream SELECT results into a pipeline file and append rows with `insert_rows`.
 - **Limits.** Result pages are fetched within the query limits. A successful query requires the appropriate IAM grants and a billing project.
-- **Not integrated.** Bulk load jobs and native merge or upsert helpers.
+- **Not integrated.** Bulk load jobs and native merge or upsert helpers. [#54](https://github.com/Braidplane/braidplane-core/issues/54) evaluates these warehouse operations.
 
 [Proof](../getting-started/proof.md#demonstrated-alpha-connector-scope) can use
 explicitly authorized read-only metadata for one selected table. These

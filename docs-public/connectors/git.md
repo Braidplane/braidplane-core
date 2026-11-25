@@ -164,7 +164,7 @@ column names. Empty selected cells become empty strings.
 
 For writes, `range` is the top-left starting cell. Braidplane creates a new
 workbook; it does not preserve existing formatting, charts, macros, or template
-metadata and does not evaluate formulas. OpenDocument workbooks are unsupported.
+metadata and does not evaluate formulas. OpenDocument workbooks are unsupported. Advanced workbook handling is tracked in [#39](https://github.com/Braidplane/braidplane-core/issues/39).
 
 ## Repository data and pipeline definitions
 

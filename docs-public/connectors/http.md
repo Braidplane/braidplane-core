@@ -6,7 +6,7 @@
 
 - **Available.** Send explicit API requests, traverse configured GET pages and deliver request bodies. A bounded record sink can send one PUT or PATCH per input row.
 - **Limits.** Retrying a mutating request requires a verified provider idempotency contract and a durable keyed pipeline effect.
-- **Not integrated.** Link-header pagination, asynchronous job polling and spreadsheet parsing.
+- **Not integrated.** Link-header pagination, asynchronous job polling and spreadsheet parsing. Spreadsheet handling is tracked in [#37](https://github.com/Braidplane/braidplane-core/issues/37). Bounded cursor pagination for read-only POST searches is tracked separately in [#191](https://github.com/Braidplane/braidplane-core/issues/191).
 
 Read HTTP APIs or send results to an endpoint with explicit requests. HTTP
 supports source and sink roles, with response/request media types determining

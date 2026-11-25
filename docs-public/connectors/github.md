@@ -5,7 +5,7 @@
 **Preview.** [Support levels and provider evidence](support-levels.md#evidence-record)
 
 - **Available.** Read repository files and commit file writes through a GitHub App installation.
-- **Limits.** Access is scoped to the selected repository and installation permissions. Restoring removed access requires repairing the connection.
+- **Limits.** Access is scoped to the selected repository and installation permissions. Restoring removed access requires repairing the connection. [#106](https://github.com/Braidplane/braidplane-core/issues/106) tracks improvements to credential recovery.
 - **Not integrated.** Native issue and pull-request extraction as pipeline data.
 
 Read and write repository data through a GitHub App connection. A data source
@@ -164,7 +164,7 @@ column names. Empty selected cells become empty strings.
 
 For writes, `range` is the top-left starting cell. Braidplane creates a new
 workbook; it does not preserve existing formatting, charts, macros, or template
-metadata and does not evaluate formulas. OpenDocument workbooks are unsupported.
+metadata and does not evaluate formulas. OpenDocument workbooks are unsupported. Advanced workbook handling is tracked in [#39](https://github.com/Braidplane/braidplane-core/issues/39).
 
 ## Repository data and pipeline definitions
 

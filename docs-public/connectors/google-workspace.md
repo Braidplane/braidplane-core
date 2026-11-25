@@ -5,7 +5,7 @@
 **Preview.** [Support levels and provider evidence](support-levels.md#evidence-record)
 
 - **Available.** Read or update Sheets ranges, read or write Drive files, and create blank Docs or Slides, replace text and export PDF.
-- **Limits.** Picker grants apply to selected files. Selecting a folder does not grant access to its existing children. Native Docs and Slides have historical provider evidence only for the recorded scope.
+- **Limits.** Picker grants apply to selected files. Selecting a folder does not grant access to its existing children. Native Docs and Slides have historical evidence for the recorded scope. Tagged provider verification is tracked in [#247](https://github.com/Braidplane/braidplane-core/issues/247).
 - **Not integrated.** Change data capture, native layout editing and sharing administration.
 
 Read and update selected Sheets ranges and Drive files, or use bounded native

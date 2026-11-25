@@ -6,7 +6,7 @@
 
 - **Available.** Parameterized SQL reads, query exports to a file, and database-native inserts, updates and upserts.
 - **Limits.** Your query must apply the incremental watermark. A repeated write needs a key and SQL that handle a repeated input safely.
-- **Not integrated.** Automatic result paging and binlog change capture.
+- **Not integrated.** Automatic result paging (under evaluation in [#249](https://github.com/Braidplane/braidplane-core/issues/249)) and binlog change capture (discovery in [#248](https://github.com/Braidplane/braidplane-core/issues/248)).
 
 Read relational data with parameterized SQL and write pipeline output using
 explicit inserts, updates, or database-native upserts. Sources return rows that

@@ -5,7 +5,7 @@
 **Preview.** [Support levels and provider evidence](support-levels.md#evidence-record)
 
 - **Available.** Read customers, subscriptions, invoices and PaymentIntents using Stripe Apps OAuth or a restricted key.
-- **Limits.** Each read returns one page. Continue with the returned cursor and re-read relevant pages for later changes. Live account acceptance is pending.
+- **Limits.** Each read returns one page. Continue with the returned cursor and re-read relevant pages for later changes. Tagged test-account verification is pending ([#245](https://github.com/Braidplane/braidplane-core/issues/245)).
 - **Not integrated.** Writes, automatic incremental checkpoints and deletion tracking.
 
 Use Stripe as a pipeline source to join customers, subscriptions, invoices and payments to CRM or warehouse rows. Payments are Stripe PaymentIntents. They can include unsuccessful or incomplete attempts. Use the status and amount received when reconciling revenue. This connector only reads records.
