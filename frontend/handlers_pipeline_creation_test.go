@@ -20,22 +20,30 @@ import (
 const firstPipelineQuery = `{"slug":"orders","name":"Orders","data_source_slug":"warehouse","updated_at":"2026-10-21T00:00:00Z","parameters":[{"name":"count","data_type":"integer","is_required":true}],"query_statement":{"type":"postgres","sql":"SELECT :count"}}`
 
 func TestQueryPipelineSetup(t *testing.T) {
-	for _, scenario := range []string{"create", "stale", "required parameter", "invalid slug", "no repository", "restricted", "project unavailable"} {
+	for _, scenario := range []string{"create", "scoped create", "stale", "required parameter", "invalid slug", "no repository", "restricted", "project unavailable"} {
 		t.Run(scenario, func(t *testing.T) {
 			creates := 0
 			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
 				w.Header().Set("Content-Type", "application/json")
-				if scenario != "restricted" && handleTestAdminRolePermissions(w, req) {
+				if scenario != "restricted" && scenario != "scoped create" && handleTestAdminRolePermissions(w, req) {
 					return
 				}
 				switch req.URL.Path {
 				case "/api/organizations":
 					writeJSON(w, `{"organizations":[{"slug":"acme-hq","name":"Acme","member_role":"admin"}]}`)
 				case "/api/organizations/acme-hq/authorization/permissions":
+					if scenario == "scoped create" && req.URL.Query().Get("target_kind") == "projects" && req.URL.Query().Get("target_slug") == "ops" {
+						writeJSON(w, `{"permissions":[{"resource":"pipelines","action":"create"}]}`)
+						return
+					}
 					writeJSON(w, `{"slug":"admin","permissions":[{"resource":"pipelines","action":"read"}]}`)
 				case "/api/organizations/acme-hq/data-sources/warehouse/queries/orders":
 					writeJSON(w, firstPipelineQuery)
 				case "/api/organizations/acme-hq/projects":
+					if scenario == "scoped create" {
+						w.WriteHeader(http.StatusForbidden)
+						return
+					}
 					if req.URL.Query().Get("cursor") == "next" {
 						writeJSON(w, `{"projects":[{"slug":"ops","name":"Ops"}],"has_more":false}`)
 					} else {
@@ -75,6 +83,18 @@ func TestQueryPipelineSetup(t *testing.T) {
 			app := fiber.New()
 			path := "/orgs/:slug/data-sources/:dsSlug/queries/:querySlug/pipeline"
 			app.Post(path, router.handleQueryPipelineSetup)
+			if scenario == "scoped create" {
+				app.Get(path, router.handleQueryPipelineSetup)
+				resp, err := app.Test(httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/orgs/acme-hq/data-sources/warehouse/queries/orders/pipeline", nil))
+				require.NoError(t, err)
+				body, err := io.ReadAll(resp.Body)
+				require.NoError(t, err)
+				require.NoError(t, resp.Body.Close())
+				require.Equal(t, http.StatusOK, resp.StatusCode)
+				require.Contains(t, string(body), ">Project slug</span>")
+				require.Contains(t, string(body), "Check readiness")
+				require.NotContains(t, string(body), "Propose pipeline")
+			}
 			form := url.Values{"project": {"ops"}, "name": {"Orders pipeline"}, "query_revision": {"2026-10-21T00:00:00Z"}, "exec_count": {"42"}}
 			if scenario == "stale" {
 				form.Set("query_revision", "old")
@@ -92,7 +112,7 @@ func TestQueryPipelineSetup(t *testing.T) {
 			defer func() { require.NoError(t, response.Body.Close()) }()
 			body, err := io.ReadAll(response.Body)
 			require.NoError(t, err)
-			if scenario == "create" {
+			if scenario == "create" || scenario == "scoped create" {
 				require.Equal(t, http.StatusSeeOther, response.StatusCode, string(body))
 				require.Equal(t, 1, creates)
 				require.Equal(t, "/orgs/acme-hq/projects/ops/pipeline-creations/creation-one", response.Header.Get("Location"))

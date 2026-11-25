@@ -6,6 +6,11 @@ A user must have an active, verified account and belong to the requested organiz
 
 ### Permission changes on upgrade
 
+An object-scoped request returns HTTP 403 with `AUTH_FORBIDDEN` when Core
+cannot resolve the object in the requested tenant. This includes deleted
+objects. Clients that previously treated HTTP 404 as the only indication
+that an object is unavailable must handle this denial as well.
+
 A legacy wildcard covers the registered Core actions at its original scope.
 Extensions that use their own resource types need exact resource/action grants.
 Before upgrading, inventory those extension actions and assign the intended
@@ -75,7 +80,7 @@ Apply the forward-only Core catalog on a disposable clone, then verify represent
 | Jobs | Authority when the job runs |
 |---|---|
 | Git proposal publish, including creation | The control worker rechecks the initiating member against the project for creation or the logical pipeline for an update. The isolated executor checks the bound claim, current provider binding and scoped permissions before the branch push and PR/MR mutation. |
-| Completion dispatch, child runs and their retries | Admission and execution require both the captured closure authority and current authority. Each requires read on the upstream pipeline, update on the trigger and execute on the deployed downstream pipeline. After acceptance, a deleted trigger can only be covered by inherited authority. Migration 12 binds each newly created or edited trigger to the editor’s organization membership ID or API key ID. Replacing that membership or key under the same slug requires a new authorized edit. After upgrading, an authorized editor must save each existing completion trigger before it can authorize new closures. Pending or accepted snapshots without a recorded editor ID fail their next authority check. |
+| Completion dispatch, child runs and their retries | Admission and execution require both the captured closure authority and current authority. Each requires read on the upstream pipeline, update on the trigger and execute on the deployed downstream pipeline. After acceptance, a deleted trigger can only be covered by inherited authority. Migration 12 binds each newly created or edited trigger to the editor’s organization membership ID or API key ID. Replacing that membership or key under the same slug requires a new authorized edit. After upgrading, an authorized editor must save each existing completion trigger before it can authorize new closures. A pending snapshot without a recorded editor ID is refused. For an already accepted child, the worker records a failed run with `authority_revoked` and the dispatcher completes the snapshot. To authorize future runs, a current editor must save the trigger and start a new upstream run. |
 | Schedule dispatch and fire, webhook delivery and trigger retries | The configured schedule or authenticated delivery starts the run. Workers use its persisted trigger, environment, deployment and attempt state. The actor who configured the trigger is audit attribution. |
 | Manual pipeline run and recovery, isolated execution request | Admission authorizes the initiating operation. The worker claims the admitted attempt and checks its execution state, deployment, resource limits and operation-specific dispatch guards. |
 | Git proposal refresh, Git file write/delete | Refresh reads the recorded provider proposal and updates the matching draft attempt. File jobs carry a fixed repository operation, including project-deletion cleanup. These jobs do not issue fresh member permissions. |

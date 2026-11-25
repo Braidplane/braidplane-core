@@ -289,6 +289,8 @@ func TestProjectBindingDoesNotGrantSharedSourceAccess(t *testing.T) {
 	check(false)
 	input.ProjectDataSourceBindings = true
 	check(true)
+	input.Operation = "getDataSource"
+	input.ProjectDataSourceBindings = false
 	input.Target = model.AuthorizationTarget{Kind: "datasources", Slug: "shared-source"}
 	facts.TargetID = "datasources:2"
 	facts.ProjectID = ""

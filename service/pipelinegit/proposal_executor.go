@@ -125,6 +125,9 @@ type ProposalCompletion struct {
 	Authority        model.PipelineProposalAuthorityPayload
 }
 
+// ProposalAuthorityRevokedCode records a publish cancelled by an authority check.
+const ProposalAuthorityRevokedCode = "git_proposal_authority_revoked"
+
 // ProposalFailure identifies a member-scoped proposal attempt without retaining private provider diagnostics.
 type ProposalFailure struct {
 	CreationSlug     slug.Slug

@@ -35,7 +35,7 @@ script:pre-request {
 }
 
 tests {
-  test("should return 404 Not Found", function() {
-    expect(res.status).to.equal(404);
+  test("should return 403 Forbidden", function() {
+    expect(res.status).to.equal(403);
   });
 }

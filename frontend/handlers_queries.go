@@ -652,7 +652,6 @@ func (r *Router) renderQueryDetailPage(
 			executionError,
 			executionErrorDetails,
 			permissions,
-			r.resolveOrganizationPermissions(c.Context(), c.Get(fiber.HeaderCookie), orgSlug.String()).Can("pipelines", "create"),
 		),
 	)
 }

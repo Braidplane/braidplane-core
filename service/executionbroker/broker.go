@@ -1283,7 +1283,7 @@ func responseErrorCause(response encryptedResponse) error {
 		return xerror.InvalidInput(xerror.RepoFile)
 	case errorCodeRepositoryCleanup:
 		return gitprovider.ErrRepositoryCleanupFailed
-	case "git_proposal_authority_revoked":
+	case pipelinegit.ProposalAuthorityRevokedCode:
 		return pipelinegit.ErrProposalAuthorityInvalid
 	case errorCodeCreationTargetExists:
 		return pipelinegit.ErrCreationTargetExists
@@ -1611,7 +1611,7 @@ func (b *Broker) processClaimed(ctx context.Context, request requestrepo.Request
 			if err != nil {
 				response.ErrorCode, succeeded = errorCodeGitFailed, false
 				if xerror.Is(err, pipelinegit.ErrProposalAuthorityInvalid) {
-					response.ErrorCode = "git_proposal_authority_revoked"
+					response.ErrorCode = pipelinegit.ProposalAuthorityRevokedCode
 				}
 				if xerror.Is(err, pipelinegit.ErrCreationTargetExists) {
 					response.ErrorCode = errorCodeCreationTargetExists

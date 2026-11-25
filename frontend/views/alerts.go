@@ -1,6 +1,7 @@
 package views
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"net/url"
@@ -1074,6 +1075,18 @@ func AlertDestinationCanTest(destination api.AlertDestination, connections []api
 		}
 	}
 	return false
+}
+
+func alertUpdateHref(ctx context.Context, org string, tab AlertTab, slug string) string {
+	path := "/orgs/" + org + "/alerts/" + string(tab) + "/" + slug + "/update"
+	key := "destination_slug"
+	if tab == AlertTabPolicies {
+		key = "policy_slug"
+	}
+	if entityPageURL(ctx).Query().Get(key) == slug {
+		return path + "?" + url.Values{key: {slug}}.Encode()
+	}
+	return path
 }
 
 // AlertJourneyHref carries the original inbox filters through configuration navigation.

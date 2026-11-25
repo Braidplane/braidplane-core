@@ -278,8 +278,8 @@ templ AlertDestinationList(orgSlug string, destinations []api.AlertDestination, 
 								class={ "rounded-lg border border-base-300 bg-base-200/35 p-3 lg:col-span-5", templ.KV("hidden", form.ErrorMessage == "") }
 								data-form-feedback
 								method="post"
-								action={ templ.URL("/orgs/" + orgSlug + "/alerts/destinations/" + string(destination.Slug) + "/update") }
-								hx-post={ "/orgs/" + orgSlug + "/alerts/destinations/" + string(destination.Slug) + "/update" }
+								action={ templ.URL(alertUpdateHref(ctx, orgSlug, AlertTabDestinations, destination.Slug)) }
+								hx-post={ alertUpdateHref(ctx, orgSlug, AlertTabDestinations, destination.Slug) }
 								hx-target="#alerts-workspace"
 								hx-select="#alerts-workspace"
 								hx-swap="outerHTML show:none focus-scroll:false"
@@ -391,7 +391,7 @@ templ AlertPolicyList(orgSlug string, destinations []api.AlertDestination, polic
 							}
 							<button class="btn btn-outline btn-xs" type="button" aria-controls={ AlertPolicyDetailsPanelID(policy) } aria-expanded="false" data-toggle-target={ AlertPolicyDetailsPanelID(policy) }>Details</button>
 							if policyPermissions.Can("alert_policies", "update") {
-								<button class="btn btn-ghost btn-xs" type="button" aria-controls={ AlertPolicyEditPanelID(policy) } aria-expanded="false" data-toggle-target={ AlertPolicyEditPanelID(policy) }>Edit</button>
+								<button class="btn btn-ghost btn-xs" type="button" aria-controls={ AlertPolicyEditPanelID(policy) } aria-expanded={ fmt.Sprint(editFormOverrides.PolicySlug == policy.Slug) } data-toggle-target={ AlertPolicyEditPanelID(policy) }>Edit</button>
 							}
 							if policyPermissions.Can("alert_policies", "delete") {
 								<button class="btn btn-error btn-outline btn-xs" type="button" data-protected-action-trigger={ AlertPolicyDeleteModalID(policy) }>Delete</button>
@@ -419,11 +419,11 @@ templ AlertPolicyList(orgSlug string, destinations []api.AlertDestination, polic
 						if policyPermissions.Can("alert_policies", "update") {
 							{{ form := editFormOverrides.PolicyFormDataFor(policy) }}
 							{{ form.NotificationReturn = editFormOverrides.NotificationReturn }}
-							<div id={ AlertPolicyEditPanelID(policy) } class="hidden rounded-lg border border-base-300 bg-base-200/35 p-3 lg:col-span-5">
+							<div id={ AlertPolicyEditPanelID(policy) } class={ "rounded-lg border border-base-300 bg-base-200/35 p-3 lg:col-span-5", templ.KV("hidden", editFormOverrides.PolicySlug != policy.Slug) }>
 								@AlertPolicyForm(
 									orgSlug,
 									"Save policy",
-									"/orgs/"+orgSlug+"/alerts/policies/"+string(policy.Slug)+"/update",
+									alertUpdateHref(ctx, orgSlug, AlertTabPolicies, policy.Slug),
 									form,
 									destinations,
 									true,

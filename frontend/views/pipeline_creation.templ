@@ -15,31 +15,40 @@ templ QueryPipelineSetupContent(data QueryPipelineSetupData) {
 				<p class="text-sm text-base-content/70">Use the current saved query as a repeatable pipeline. Its connection is { data.DataSource }.</p>
 				<a class="link link-primary text-sm" href={ templ.URL("/orgs/" + data.Org + "/data-sources/" + data.DataSource + "/queries/" + data.Query.Slug) }>Review saved query</a>
 			</section>
-			if !data.Permissions.Can("pipelines", "create") {
-				@EntityState("Pipeline creation needs access", "Ask a workspace admin for permission to create pipelines.")
-			} else {
+			if data.ProjectListRestricted || len(data.Projects) > 0 || data.Permissions.Can("pipelines", "create") {
 				<section class="space-y-3 border-t border-base-300 pt-5">
 					<h3 class="text-base font-semibold">Choose a project</h3>
 					<p class="text-sm text-base-content/70">The project owns the pipeline's Git repository and runtime targets.</p>
 					<form method="get" action={ QueryPipelineSetupHref(data.Org, data.DataSource, data.Query.Slug, "") } class="flex flex-wrap items-end gap-3">
 						<label class="form-control min-w-0 gap-1">
-							<span id="first-pipeline-project-label" class="label-text text-sm">Project</span>
-							<select aria-labelledby="first-pipeline-project-label" class="select select-bordered w-full" name="project" required>
-								<option value="">Select a project</option>
-								for _, project := range data.Projects {
-									<option value={ project.Slug } selected?={ project.Slug == data.Project }>{ project.Name }</option>
-								}
-							</select>
+							if data.ProjectListRestricted {
+								<span class="label-text text-sm">Project slug</span>
+								<input class="input input-bordered w-full" name="project" value={ data.Project } required/>
+							} else {
+								<span id="first-pipeline-project-label" class="label-text text-sm">Project</span>
+								<select aria-labelledby="first-pipeline-project-label" class="select select-bordered w-full" name="project" required>
+									<option value="">Select a project</option>
+									for _, project := range data.Projects {
+										<option value={ project.Slug } selected?={ project.Slug == data.Project }>{ project.Name }</option>
+									}
+								</select>
+							}
 						</label>
 						<button type="submit" class="btn btn-outline">Check readiness</button>
 					</form>
-					if data.ProjectAvailable {
+					if data.ProjectAvailable && data.Permissions.Can("pipelines", "create") {
 						<a class="btn btn-outline btn-sm" href={ templ.URL(PipelineCreationListHref(data.Org, data.Project, "", "")) }>View creation proposals</a>
 					}
 					if data.Permissions.Can("projects", "create") {
 						<p class="text-sm"><a class="link link-primary" href={ templ.URL("/organizations/" + data.Org + "/projects") } target="_blank" rel="noopener noreferrer">Create a project in a new tab</a>, then check readiness here.</p>
 					}
 				</section>
+			}
+			if !data.Permissions.Can("pipelines", "create") {
+				if data.Project != "" || (!data.ProjectListRestricted && len(data.Projects) == 0) {
+					@EntityState("Pipeline creation needs access", "Ask a workspace admin for permission to create pipelines.")
+				}
+			} else {
 				if data.ProjectAvailable && !data.BackendConfigured {
 					<section class="space-y-3 border-t border-base-300 pt-5">
 						<h3 class="text-base font-semibold">Connect the project's repository</h3>
@@ -103,7 +112,11 @@ templ PipelineCreationProgressContent(data PipelineCreationProgressData) {
 					<p class="text-sm">Preparing the proposal. Refresh progress to check the recorded outcome.</p>
 				}
 				if string(data.Creation.Status) == "publish_failed" {
-					<p class="text-sm text-error" role="alert">The proposal could not be opened. Review repository access, then retry this recorded definition.</p>
+					if data.Creation.FailureCode != nil && *data.Creation.FailureCode == "git_proposal_authority_revoked" {
+						<p class="text-sm text-error" role="alert">Publishing authority was revoked. Check the proposal branch in the repository. If it was pushed, it remains available for manual recovery.</p>
+					} else {
+						<p class="text-sm text-error" role="alert">The proposal could not be opened. Review repository access, then retry this recorded definition.</p>
+					}
 					if data.Creation.FailureCode != nil {
 						<p class="break-all font-mono text-xs">{ *data.Creation.FailureCode }</p>
 					}

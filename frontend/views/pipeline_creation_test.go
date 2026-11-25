@@ -37,3 +37,16 @@ func TestQueryPipelineSetupHidesProposalWithoutCreatePermission(t *testing.T) {
 	require.NotContains(t, out.String(), "Propose pipeline")
 	require.NotContains(t, out.String(), `<form`)
 }
+
+func TestQueryPipelineSetupAllowsProjectSelectionBeforeCreationCheck(t *testing.T) {
+	for _, project := range []string{"", "other"} {
+		var out bytes.Buffer
+		require.NoError(t, QueryPipelineSetupContent(QueryPipelineSetupData{
+			Org: "acme", DataSource: "warehouse", Query: &api.Query{Slug: "orders"},
+			Project: project, Projects: []api.Project{{Slug: "ops", Name: "Ops"}},
+		}).Render(t.Context(), &out))
+		require.Contains(t, out.String(), "Check readiness")
+		require.Contains(t, out.String(), `value="ops"`)
+		require.NotContains(t, out.String(), "Propose pipeline")
+	}
+}

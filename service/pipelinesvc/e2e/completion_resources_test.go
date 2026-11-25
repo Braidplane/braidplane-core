@@ -7,20 +7,25 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/stretchr/testify/require"
 
+	"github.com/Braidplane/braidplane-core/pkg/clock"
 	"github.com/Braidplane/braidplane-core/pkg/domain/model"
 	"github.com/Braidplane/braidplane-core/pkg/eventtest"
 	"github.com/Braidplane/braidplane-core/pkg/slug"
+	"github.com/Braidplane/braidplane-core/pkg/testutil"
 	"github.com/Braidplane/braidplane-core/postgres"
 	authstore "github.com/Braidplane/braidplane-core/postgres/authorization"
+	"github.com/Braidplane/braidplane-core/postgres/credentials"
 	"github.com/Braidplane/braidplane-core/postgres/odcscontracts"
 	"github.com/Braidplane/braidplane-core/postgres/pipelineruns"
 	"github.com/Braidplane/braidplane-core/postgres/pipelines"
 	"github.com/Braidplane/braidplane-core/postgres/pipelinetriggers"
 	"github.com/Braidplane/braidplane-core/postgres/retention"
 	"github.com/Braidplane/braidplane-core/service/authorization"
+	"github.com/Braidplane/braidplane-core/service/credentialssvc"
 	"github.com/Braidplane/braidplane-core/service/pipelinesvc"
 	"github.com/Braidplane/braidplane-core/service/pipelinetriggersvc"
 )
@@ -98,10 +103,29 @@ func TestCompletionResourcesSnapshotsRevocationAndRetention(t *testing.T) {
 		allowed, err = auth.Can(decision, input)
 		require.NoError(t, err)
 		require.True(t, allowed)
-		exec(`UPDATE pipeline_triggers t SET pipeline_id=s.id,pipeline_slug=s.slug,revision=t.revision+1
-        FROM pipeline_specs s WHERE t.project_environment_id=$1 AND t.slug='hook' AND s.project_id=t.project_id AND s.slug='upstream'`, env)
+		retarget := `UPDATE pipeline_triggers t SET pipeline_id=s.id,pipeline_slug=s.slug,revision=t.revision+1
+        FROM pipeline_specs s WHERE t.project_environment_id=$1 AND t.slug='hook' AND s.project_id=t.project_id AND s.slug=$2`
+		exec(retarget, env, "upstream")
 		secret, err := svc.RotatePipelineWebhookSecret(decision, org, project, environment, "hook", actor)
 		require.ErrorContains(t, err, "The authorized principal or target changed")
+		require.Empty(t, secret)
+
+		// Commit a retarget after the write transaction has rechecked both decisions.
+		// The credential writer locks the trigger in that same repeatable-read transaction.
+		exec(retarget, env, "downstream")
+		credentialService, err := credentialssvc.New(txm, credentials.New(), testutil.NewFakeEncryptor(), nil, clock.New(), false)
+		require.NoError(t, err)
+		rotation := pipelinetriggersvc.New(true, txm, pipelinetriggers.NewRepository(), completionPersistenceValidator{}, eventtest.NewProducer(nil), credentialService)
+		postgres.AddTransactionCheck(decision, func(ctx context.Context, _ postgres.DBTX) error {
+			competing, cancel := context.WithTimeout(ctx, 5*time.Second)
+			defer cancel()
+			_, err := pool.Exec(competing, retarget, env, "upstream")
+			return err
+		})
+		secret, err = rotation.RotatePipelineWebhookSecret(decision, org, project, environment, "hook", actor)
+		var serialization *pgconn.PgError
+		require.ErrorAs(t, err, &serialization)
+		require.Equal(t, "40001", serialization.Code)
 		require.Empty(t, secret)
 		var versions int
 		require.NoError(t, pool.QueryRow(ctx, `SELECT count(*) FROM pipeline_webhook_secret_versions v JOIN pipeline_triggers t ON t.id=v.pipeline_trigger_id WHERE t.project_environment_id=$1 AND t.slug='hook'`, env).Scan(&versions))

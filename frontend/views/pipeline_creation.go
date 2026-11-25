@@ -11,7 +11,7 @@ type QueryPipelineSetupData struct {
 	Query                                                      *api.Query
 	Projects                                                   []api.Project
 	Permissions                                                OrganizationPermissions
-	BackendConfigured, ProjectAvailable                        bool
+	BackendConfigured, ProjectAvailable, ProjectListRestricted bool
 	ParameterValues                                            map[string]string
 }
 

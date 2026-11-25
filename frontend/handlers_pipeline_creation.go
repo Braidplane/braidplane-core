@@ -90,8 +90,10 @@ func (r *Router) handleQueryPipelineSetup(c fiber.Ctx) error {
 			return c.Status(http.StatusForbidden).SendString("Pipeline creation needs access.")
 		}
 	}
-	projects, _, _, listErr := r.listProjectsViaAPI(c.Context(), cookie, org)
-	if listErr != nil {
+	projects, listStatus, _, listErr := r.listProjectsViaAPI(c.Context(), cookie, org)
+	if listStatus == http.StatusForbidden {
+		data.ProjectListRestricted = true
+	} else if listErr != nil {
 		data.Error = "Projects could not be loaded. Refresh to try again."
 	} else {
 		data.Projects = projects.Projects

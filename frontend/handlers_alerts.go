@@ -280,7 +280,11 @@ func (r *Router) handleUpdateAlertDestinationSubmit(c fiber.Ctx) error {
 		)
 	}
 
-	return redirectHTMXOrSeeOther(c, views.AlertJourneyHref(orgSlug.String(), views.AlertTabDestinations, notificationReturnTo(c.FormValue("notification_return"), orgSlug.String()), ""))
+	selected := ""
+	if c.Query("destination_slug") == destinationSlug.String() {
+		selected = destinationSlug.String()
+	}
+	return redirectHTMXOrSeeOther(c, views.AlertJourneyHref(orgSlug.String(), views.AlertTabDestinations, notificationReturnTo(c.FormValue("notification_return"), orgSlug.String()), selected))
 }
 
 // handleTestAlertDestinationSubmit enqueues a test delivery through one alert destination.
@@ -496,7 +500,11 @@ func (r *Router) handleUpdateAlertPolicySubmit(c fiber.Ctx) error {
 		)
 	}
 
-	return redirectHTMXOrSeeOther(c, views.AlertJourneyHref(orgSlug.String(), views.AlertTabPolicies, notificationReturnTo(c.FormValue("notification_return"), orgSlug.String()), ""))
+	selected := ""
+	if c.Query("policy_slug") == policySlug.String() {
+		selected = policySlug.String()
+	}
+	return redirectHTMXOrSeeOther(c, views.AlertJourneyHref(orgSlug.String(), views.AlertTabPolicies, notificationReturnTo(c.FormValue("notification_return"), orgSlug.String()), selected))
 }
 
 // handleDeleteAlertPolicySubmit removes an alert policy after slug confirmation.

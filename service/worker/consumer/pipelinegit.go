@@ -314,6 +314,10 @@ func (w *pipelineGitPublishProposalWorker) failPublishJob(
 		args.PublishAttemptID, failure,
 	)
 	failed.CreationSlug = args.CreationSlug
+	if xerror.Is(failure, pipelinegit.ErrProposalAuthorityInvalid) || xerror.Is(failure, jobs.ErrPipelineProposalAuthorityDenied) {
+		failed.FailureCode = pipelinegit.ProposalAuthorityRevokedCode
+		failed.FailureMessage = "Publishing authority was revoked. Check proposal branch " + args.BranchName + " in the repository. If it was pushed, it remains available for manual recovery."
+	}
 	if err := w.recorder.FailProposal(ctx, failed); err != nil {
 		// A deleted draft or superseded creation attempt no longer needs a terminal write.
 		if xerror.Is(err, xerror.NotFound(xerror.PipelineDraft)) || (args.CreationSlug != "" && (xerror.Is(err, xerror.NotFound(xerror.Pipeline)) || xerror.Is(err, jobs.ErrPipelineProposalAuthorityDenied))) {

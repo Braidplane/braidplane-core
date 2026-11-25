@@ -20,6 +20,8 @@ func WithTransactionChecks(ctx context.Context) context.Context {
 	return context.WithValue(WithConsistentSnapshot(ctx), transactionChecksKey{}, &transactionChecks{})
 }
 
+// AddTransactionCheck registers a check that reads through its supplied DBTX.
+// A check calling the transaction manager must use WithoutTransactionChecks to avoid re-entry.
 func AddTransactionCheck(ctx context.Context, check func(context.Context, DBTX) error) {
 	if state := checksFromContext(ctx); state != nil {
 		state.mu.Lock()

@@ -16,12 +16,12 @@ params:path {
 }
 
 tests {
-  test("deleted alert policy should return 404 Not Found", function() {
-    expect(res.status).to.equal(404);
+  test("deleted alert policy should return 403 Forbidden", function() {
+    expect(res.status).to.equal(403);
   });
 
   test("deleted alert policy should not be retrievable", function() {
-    expect(res.body.error.code).to.equal("ALERT_POLICY_NOT_FOUND");
-    expect(res.body.error.message).to.equal("alert policy not found");
+    expect(res.body.error.code).to.equal("AUTH_FORBIDDEN");
+    expect(res.body.error.message).to.include("permission");
   });
 }

@@ -727,14 +727,14 @@ func TestRouter_HandleAlertMutationSubmit_ForwardsRequestAndRedirects(t *testing
 	}{
 		{
 			name:           "UpdateDestinationForwardsMutablePayload",
-			route:          "/orgs/acme-hq/alerts/destinations/ops-email/update",
+			route:          "/orgs/acme-hq/alerts/destinations/ops-email/update?destination_slug=ops-email",
 			form:           "name=Ops+pager&type=email&to=pager%40example.com%2C+escalation%40example.com&enabled=on",
 			apiMethod:      http.MethodPut,
 			apiPath:        "/api/organizations/acme-hq/alert-destinations/ops-email",
 			apiStatus:      http.StatusOK,
 			apiResponse:    `{"slug":"ops-email","name":"Ops pager","type":"email","non_secret_config":{"recipients":["pager@example.com"]},"enabled":true,"created_at":"2026-06-30T10:00:00Z","updated_at":"2026-06-30T11:00:00Z"}`,
 			expectedStatus: http.StatusSeeOther,
-			expectedPath:   "/orgs/acme-hq/alerts?tab=destinations",
+			expectedPath:   "/orgs/acme-hq/alerts?destination_slug=ops-email&tab=destinations",
 			assertPayload: func(t *testing.T, payload map[string]any) {
 				t.Helper()
 				assert.Equal(t, "Ops pager", payload["name"])
@@ -1269,9 +1269,22 @@ func TestAlertsSelectedPolicyUsesItsPersistedScope(t *testing.T) {
 		if policy == "selected" {
 			require.Contains(t, string(body), "Selected policy detail")
 			require.Contains(t, string(body), `id="alert-policy-selected-edit"`)
+			require.Contains(t, string(body), `/alerts/policies/selected/update?policy_slug=selected`)
 		} else {
 			require.Contains(t, string(body), "Configuration details are restricted")
 		}
 	}
-	require.EqualValues(t, 1, detailCalls.Load())
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/orgs/acme-hq/alerts/policies/selected/update?policy_slug=selected", strings.NewReader("name=Edited+policy&scope=project_environment&destination_slug=Invalid_Slug"))
+	req.Header.Set("Cookie", cookie)
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	addCSRFToken(t, app, req)
+	resp, err := app.Test(req)
+	require.NoError(t, err)
+	body, err := io.ReadAll(resp.Body)
+	require.NoError(t, err)
+	require.NoError(t, resp.Body.Close())
+	require.Equal(t, http.StatusBadRequest, resp.StatusCode)
+	require.Contains(t, string(body), `value="Edited policy"`)
+	require.Contains(t, string(body), `aria-controls="alert-policy-selected-edit" aria-expanded="true"`)
+	require.EqualValues(t, 2, detailCalls.Load())
 }

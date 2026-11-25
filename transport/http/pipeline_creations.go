@@ -117,6 +117,7 @@ func pipelineCreationToHTTP(p *pipelinesvc.CreationProposal) (api.PipelineCreati
 	}
 	result := api.PipelineCreationProposal{Slug: p.Slug.String(), ProjectSlug: p.ProjectSlug.String(), PipelineSlug: p.PipelineSlug.String(), InitiatingMember: p.MemberSlug.String(), SourcePath: p.SourcePath, SpecHash: p.SpecHash, Status: api.PipelineCreationProposalStatus(p.Status)}
 	result.Spec = spec
+	result.BranchName = optionalString(p.RecoveryBranch)
 	if p.FailureCode != "" {
 		result.FailureCode = &p.FailureCode
 	}

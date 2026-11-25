@@ -12,7 +12,7 @@ import "strconv"
 
 import api "github.com/Braidplane/braidplane-core/api-schema/gen/client"
 
-func QueryDetailPage(shellData AuthenticatedShellData, orgSlug string, dataSourceSlug string, query api.Query, editFormData QueryEditorFormData, executionResult *QueryExecutionResultView, executionError string, executionErrorDetails string, permissions OrganizationPermissions, canBuildPipeline bool) templ.Component {
+func QueryDetailPage(shellData AuthenticatedShellData, orgSlug string, dataSourceSlug string, query api.Query, editFormData QueryEditorFormData, executionResult *QueryExecutionResultView, executionError string, executionErrorDetails string, permissions OrganizationPermissions) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
 		if templ_7745c5c3_CtxErr := ctx.Err(); templ_7745c5c3_CtxErr != nil {
@@ -33,7 +33,7 @@ func QueryDetailPage(shellData AuthenticatedShellData, orgSlug string, dataSourc
 			templ_7745c5c3_Var1 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = AuthenticatedShell(shellData, QueryDetailPageContent(orgSlug, dataSourceSlug, query, editFormData, executionResult, executionError, executionErrorDetails, permissions, canBuildPipeline)).Render(ctx, templ_7745c5c3_Buffer)
+		templ_7745c5c3_Err = AuthenticatedShell(shellData, QueryDetailPageContent(orgSlug, dataSourceSlug, query, editFormData, executionResult, executionError, executionErrorDetails, permissions)).Render(ctx, templ_7745c5c3_Buffer)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -70,7 +70,7 @@ func QueryDetailUnavailablePage(shellData AuthenticatedShellData, orgSlug string
 	})
 }
 
-func QueryDetailPageContent(orgSlug string, dataSourceSlug string, query api.Query, editFormData QueryEditorFormData, executionResult *QueryExecutionResultView, executionError string, executionErrorDetails string, permissions OrganizationPermissions, canBuildPipeline bool) templ.Component {
+func QueryDetailPageContent(orgSlug string, dataSourceSlug string, query api.Query, editFormData QueryEditorFormData, executionResult *QueryExecutionResultView, executionError string, executionErrorDetails string, permissions OrganizationPermissions) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
 		if templ_7745c5c3_CtxErr := ctx.Err(); templ_7745c5c3_CtxErr != nil {
@@ -108,7 +108,7 @@ func QueryDetailPageContent(orgSlug string, dataSourceSlug string, query api.Que
 				}()
 			}
 			ctx = templ.InitializeContext(ctx)
-			if query.DeletedAt == nil && canBuildPipeline {
+			if query.DeletedAt == nil {
 				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 2, "<a class=\"btn btn-primary btn-sm\" href=\"")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err

@@ -42,16 +42,17 @@ type creationProjectService interface {
 
 // CreationProposal is pending authoring state, never a deployable canonical pipeline.
 type CreationProposal struct {
-	Slug         slug.Slug
-	ProjectSlug  slug.Slug
-	PipelineSlug slug.Slug
-	MemberSlug   slug.Slug
-	SourcePath   string
-	SpecHash     string
-	Spec         *pipelinespec.Pipeline
-	Status       string
-	FailureCode  string
-	Proposal     *pipelinegit.ProposalResult
+	Slug           slug.Slug
+	ProjectSlug    slug.Slug
+	PipelineSlug   slug.Slug
+	MemberSlug     slug.Slug
+	SourcePath     string
+	SpecHash       string
+	Spec           *pipelinespec.Pipeline
+	Status         string
+	FailureCode    string
+	RecoveryBranch string
+	Proposal       *pipelinegit.ProposalResult
 }
 
 type CreationService struct {
@@ -341,6 +342,9 @@ func creationDetail(project slug.Slug, row *pipelinecreations.Row) (*CreationPro
 		return nil, err
 	}
 	result := &CreationProposal{Slug: row.Slug, ProjectSlug: project, PipelineSlug: row.PipelineSlug, MemberSlug: row.MemberSlug, SourcePath: args.Path, SpecHash: args.DraftSpecHash, Status: row.Status, FailureCode: row.FailureCode}
+	if row.FailureCode == pipelinegit.ProposalAuthorityRevokedCode {
+		result.RecoveryBranch = args.BranchName
+	}
 	spec, err := pipelinespec.Load(args.Path, args.Content)
 	if err != nil {
 		return nil, xerror.Unexpected().With(err).Detail("stored pipeline creation definition is invalid")
