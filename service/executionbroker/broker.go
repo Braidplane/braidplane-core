@@ -131,7 +131,7 @@ type requestRepository interface {
 	Create(context.Context, postgres.DBTX, requestrepo.Request, time.Time) error
 	BindUser(context.Context, postgres.DBTX, uuid.UUID, string, slug.Slug) error
 	BindSource(context.Context, postgres.DBTX, uuid.UUID, string, slug.Slug) error
-	Find(context.Context, postgres.DBTX, uuid.UUID, string) (requestrepo.Request, error)
+	PollResponse(context.Context, postgres.DBTX, uuid.UUID, string) (requestrepo.Request, error)
 	Claim(context.Context, postgres.DBTX, uuid.UUID) (requestrepo.Request, bool, error)
 	FindForDelivery(context.Context, postgres.DBTX, uuid.UUID) (requestrepo.DeliverySnapshot, bool, error)
 	ClaimNext(context.Context, postgres.DBTX) (requestrepo.Request, bool, error)
@@ -1120,7 +1120,7 @@ func (b *Broker) readResponse(
 	organizationSlug string,
 ) (encryptedResponse, bool, error) {
 	request, err := postgres.InRead(ctx, b.txm, func(ctx context.Context, db postgres.DBTX) (requestrepo.Request, error) {
-		return b.repo.Find(ctx, db, id, organizationSlug)
+		return b.repo.PollResponse(ctx, db, id, organizationSlug)
 	})
 	if err != nil {
 		return encryptedResponse{}, false, err

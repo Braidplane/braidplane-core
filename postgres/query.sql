@@ -204,6 +204,16 @@ WHERE request.id = sqlc.arg('request_id')::text::uuid
     AND request.state = 'pending'
     AND request.initiating_user_id IS NULL;
 
+-- name: PollExecutionResponse :one
+SELECT r.state, r.kind, r.cancel_requested_at, r.queue_deadline_at,
+       (CASE WHEN r.state IN ('succeeded', 'failed') AND r.kind = 'query'
+             THEN r.request_ciphertext END)::bytea AS request_ciphertext,
+       (CASE WHEN r.state IN ('succeeded', 'failed')
+             THEN r.result_ciphertext END)::bytea AS result_ciphertext
+FROM execution_requests r
+JOIN organizations o ON o.id = r.organization_id
+WHERE r.id = sqlc.arg('request_id')::uuid AND o.slug = sqlc.arg('org_slug');
+
 -- name: LockExecutionInitiatingAccount :one
 SELECT EXISTS (
     SELECT 1 FROM users WHERE slug = sqlc.arg('user_slug') AND deleted_at IS NULL FOR SHARE

@@ -134,7 +134,7 @@ func (r *fakeRequestRepo) Metrics(context.Context, postgres.DBTX) (requestrepo.M
 	return r.metrics, nil
 }
 
-func (r *fakeRequestRepo) Find(ctx context.Context, _ postgres.DBTX, _ uuid.UUID, _ string) (requestrepo.Request, error) {
+func (r *fakeRequestRepo) PollResponse(ctx context.Context, _ postgres.DBTX, _ uuid.UUID, _ string) (requestrepo.Request, error) {
 	if r.findHook != nil {
 		return r.request, r.findHook(ctx)
 	}
