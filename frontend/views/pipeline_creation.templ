@@ -114,6 +114,9 @@ templ PipelineCreationProgressContent(data PipelineCreationProgressData) {
 				if string(data.Creation.Status) == "publish_failed" {
 					if data.Creation.FailureCode != nil && *data.Creation.FailureCode == "git_proposal_authority_revoked" {
 						<p class="text-sm text-error" role="alert">Publishing authority was revoked. Check the proposal branch in the repository. If it was pushed, it remains available for manual recovery.</p>
+						if !data.VersionAvailable && data.Creation.BranchName != nil {
+							<a class="btn btn-outline" href={ templ.URL(PipelineSyncHref(data.Org, data.Project, data.Environment, data.Creation.PipelineSlug)) }>Open Git sync after a manual merge</a>
+						}
 					} else {
 						<p class="text-sm text-error" role="alert">The proposal could not be opened. Review repository access, then retry this recorded definition.</p>
 					}
