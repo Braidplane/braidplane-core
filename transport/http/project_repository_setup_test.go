@@ -75,7 +75,7 @@ func TestCreateRepositoryChecksEveryRequiredPermissionBeforeMutation(t *testing.
 					return &model.ProjectRepositorySetup{Slug: "repo-isolated", ProjectSlug: p, DataSourceSlug: "repo-isolated", Request: r, Status: model.ProjectRepositorySetupStatusAttached, RepositoryID: "42"}, nil
 				}},
 				authService: fakeAuthService{CanFn: func(_ context.Context, in authorization.Input) (bool, error) {
-					checked = append(checked, in.Resource.(model.Resource))
+					checked = append(checked, in.Resource)
 					if in.Resource == model.ResourceDataSources {
 						require.Equal(t, model.Create, in.Action)
 					} else {

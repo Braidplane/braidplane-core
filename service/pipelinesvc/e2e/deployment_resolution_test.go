@@ -344,7 +344,7 @@ func testDeploymentResolutionPinsAttempt(t *testing.T, scoped, rich, event, requ
 	}
 	completionSnapshot.State, completionSnapshot.CausalDepth = "pending", 1
 	facts := model.AuthorizationFacts{Valid: true, OrganizationID: "1", Bindings: []model.AuthorizationBinding{{Scope: "organization", ScopeID: "1", Permissions: []string{"*:*"}}}}
-	completionSnapshot.ClosureAuthority = model.CompletionAuthoritySnapshot{Valid: true, PrincipalID: "member:1", Scoped: &model.CompletionAuthorizationFacts{Upstream: facts, Trigger: facts, Downstream: facts}}
+	completionSnapshot.ClosureAuthority = model.CompletionAuthoritySnapshot{Valid: true, PrincipalID: "member:1", Scoped: model.CompletionAuthorizationFacts{Upstream: facts, Trigger: facts, Downstream: facts}}
 	completionSnapshot.CurrentAuthority = completionSnapshot.ClosureAuthority
 	completionService := pipelinetriggersvc.New(true, txm, completionValidationRepository{Repository: pipelinetriggers.NewRepository(), snapshot: completionSnapshot}, svc, events, nil)
 	_, err = completionService.CheckCompletionSnapshot(ctx, org, project, "dev", 1)

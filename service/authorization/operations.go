@@ -105,13 +105,8 @@ func RecentSessionAuthentication(authenticatedAt time.Time) bool {
 }
 
 func permitsOperation(input Input, facts model.AuthorizationFacts) bool {
-	if input.Resource == nil || !input.Source.matchesPrincipal(input) {
+	if !input.validPermission() || !input.Source.matchesPrincipal(input) {
 		return false
-	}
-	if _, err := model.ResourceString(input.Resource.String()); err != nil {
-		// Distribution resources have their own operation registry and require exact permissions.
-		_, typedCore := input.Resource.(model.Resource)
-		return input.Operation == "" && !typedCore && input.OrgSlug != nil && input.Source != SourceQueuedMember
 	}
 	if input.Operation == "patchUsersProfile" && input.CheckPurpose == "mfa" &&
 		(input.Source != SourceSession || !RecentSessionAuthentication(input.SessionAuthenticatedAt)) {

@@ -12,9 +12,13 @@ objects. Clients that previously treated HTTP 404 as the only indication
 that an object is unavailable must handle this denial as well.
 
 A legacy wildcard covers the registered Core actions at its original scope.
-Extensions that use their own resource types need exact resource/action grants.
-Before upgrading, inventory those extension actions and assign the intended
-permissions to their existing roles. New Core operations need a registered
+This is a breaking change for distributions that supplied custom resource
+types or relied on an empty operation ID. Core's Go authorization input now
+requires a `model.Resource`. Exact grants for private permission names no
+longer authorize a Core decision. Before upgrading, move checks for private
+resources into the distribution's authorization boundary. For Core resources,
+update adapters to select the registered operation for the actual request.
+New Core operations need a registered
 principal, permission and target mapping before they can run. A global
 super administrator retains the mapped global user administration operations.
 Access to an organization still requires membership and an applicable tenant
@@ -87,5 +91,7 @@ Apply the forward-only Core catalog on a disposable clone, then verify represent
 | Data-source schema import | The worker refreshes the organization source's cached schema using its connector. Persistence checks the current import attempt. |
 | Proof webhook, publication and maintenance | Workers process the verified delivery or stored observation/publication and its provider, project and environment bindings. |
 | Email, event recording and pruning, notification candidate and delivery, account deletion | These jobs fulfill a recorded account, audit, retention or delivery obligation and run under the owning service. |
+
+GitHub data sources used to publish proposals require an explicit repository ID and a matching active GitHub App installation. Reattach sources missing that binding before publishing.
 
 Migration 9 binds new encrypted proposal execution requests to the member, attempt, target and provider authority. Reapply the installation's executor function grants after migration. Drain old executors before starting scoped proposal processing. The new executor refuses earlier encrypted proposal kinds. Retrying the control job rechecks the original proposal attempt and submits a fresh bound request.

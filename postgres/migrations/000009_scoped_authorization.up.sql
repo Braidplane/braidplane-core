@@ -363,10 +363,11 @@ CREATE TRIGGER pipeline_triggers_pin_completion_editor
     FOR EACH ROW EXECUTE FUNCTION pin_completion_trigger_editor();
 
 -- Closure and execution use the same resolved scopes as request authorization.
-CREATE FUNCTION resolve_pipeline_completion_scopes(
+CREATE FUNCTION pipeline_completion_scoped_authority(
     org_id bigint, env_id bigint, configuration jsonb, accepted boolean
 ) RETURNS jsonb LANGUAGE plpgsql AS $$
 DECLARE
+    editor_id text := configuration->>'completion_editor_id';
     actor_type text := configuration->>'updated_by_actor_type';
     actor_slug text := configuration->>'updated_by_actor_slug';
     member_key integer;
@@ -392,12 +393,12 @@ BEGIN
         user_slug := actor_slug;
         SELECT m.id, m.role_id INTO member_key, assigned_role
         FROM organization_members m JOIN users u ON u.id = m.user_id
-        WHERE m.organization_id = org_id AND u.slug = actor_slug
+        WHERE m.organization_id = org_id AND u.slug = actor_slug AND editor_id = 'member:' || m.id
         FOR SHARE OF m, u;
     ELSIF actor_type = 'api_key' THEN
         key_slug := actor_slug;
         SELECT k.id, k.role_id INTO machine_key, assigned_role
-        FROM api_keys k WHERE k.organization_id = org_id AND k.slug = actor_slug
+        FROM api_keys k WHERE k.organization_id = org_id AND k.slug = actor_slug AND editor_id = 'api_key:' || k.id
         FOR SHARE;
     END IF;
     IF member_key IS NULL AND machine_key IS NULL THEN
@@ -431,23 +432,9 @@ BEGIN
     END IF;
     RETURN jsonb_build_object(
         'valid', COALESCE((upstream_facts->>'valid')::boolean, false),
-        'principal_id', CASE WHEN member_key IS NOT NULL THEN 'member:' || member_key ELSE 'api_key:' || machine_key END,
+        'principal_id', editor_id,
         'scoped', jsonb_build_object('upstream', upstream_facts, 'trigger', trigger_facts, 'downstream', downstream_facts)
     );
-END;
-$$;
-
-CREATE FUNCTION pipeline_completion_scoped_authority(
-    org_id bigint, env_id bigint, configuration jsonb, accepted boolean
-) RETURNS jsonb LANGUAGE plpgsql AS $$
-DECLARE
-    editor_id text := configuration->>'completion_editor_id';
-    facts jsonb;
-BEGIN
-    IF editor_id IS NULL THEN RETURN jsonb_build_object('valid', false); END IF;
-    facts := resolve_pipeline_completion_scopes(org_id, env_id, configuration, accepted);
-    IF facts->>'principal_id' IS DISTINCT FROM editor_id THEN RETURN jsonb_build_object('valid', false); END IF;
-    RETURN facts;
 END;
 $$;
 
@@ -543,8 +530,7 @@ $$;
 
 DROP FUNCTION pipeline_completion_authority_snapshot(bigint, text, text);
 
--- Legacy GitHub sources can omit their repository ID. Installation authorities still
--- require the recorded account, repository, and project path to be actively selected.
+-- A GitHub App proposal requires an active installation and the exact configured repository.
 CREATE VIEW active_pipeline_proposal_authorities AS
 SELECT o.slug AS org_slug, p.slug AS project_slug, pa.project_id, pa.organization_id,
     ds.updated_at AS source_updated_at,
@@ -585,7 +571,7 @@ WHERE ds.deleted_at IS NULL
         AND pa.authority_source = 'git_data_source_credential'
     ))
     AND (
-        (pa.authority_source <> 'github_app_installation' AND (ds.type <> 'github' OR ds.config #>> '{repository,id}' IS NULL))
+        (ds.type <> 'github' AND pa.authority_source <> 'github_app_installation')
         OR (
             ds.type = 'github' AND pa.publication_mode = 'organization_service' AND pa.provider_host = 'github.com'
             AND pa.authority_source = 'github_app_installation' AND c.kind = 'static_secret'
@@ -597,7 +583,7 @@ WHERE ds.deleted_at IS NULL
                     AND installation.installation_id::text = pa.provider_credential_id
                     AND installation.account_id::text = pa.provider_account_id
                     AND repository.repository_id::text = pa.provider_repository_id
-                    AND (ds.config #>> '{repository,id}' IS NULL OR repository.repository_id::text = ds.config #>> '{repository,id}')
+                    AND repository.repository_id::text = ds.config #>> '{repository,id}'
                     AND p.pipeline_backend_repo = 'github.com/' || repository.full_name
             )
         )

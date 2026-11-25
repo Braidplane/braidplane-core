@@ -266,6 +266,6 @@ it. Executors receive only the Workload API socket and database readiness
 capability, without binding-table or registration administration rights.
 `pkg/snowflakewif` validates public claims and fresh JWT-SVIDs.
 
-Authorization accepts typed resources through `fmt.Stringer`, so consumers own
-private permission names without adding them to the Community resource catalog.
+Core authorization accepts registered operations and `model.Resource` values.
+Consumers enforce private permission families in their own authorization boundary.
 Core profile ownership rules remain limited to the current account subject.

@@ -307,7 +307,7 @@ func TestRevalidateODCSReferenceRequiresCatalogRead(t *testing.T) {
 	svc.authorizationService = allowAuthorizationService{CanFn: func(_ context.Context, input authorization.Input) (bool, error) {
 		require.Equal(t, "revalidatePipeline", input.Operation)
 		require.Equal(t, authorization.SourceSession, input.Source)
-		seen[input.Resource.(model.Resource)] = input.Target
+		seen[input.Resource] = input.Target
 		return input.Resource != model.ResourceProjects, nil
 	}}
 	_, err := svc.RevalidatePipeline(t.Context(), "acme", "default", "dev", ValidationHistoryPrincipal{Source: authorization.SourceSession, UserSlug: "alice"}, pipeline.Metadata.Slug, "alice")

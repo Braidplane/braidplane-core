@@ -3,7 +3,6 @@ package authorization
 import (
 	"context"
 	_ "embed"
-	"fmt"
 	"sync"
 	"time"
 
@@ -21,19 +20,24 @@ type Service interface {
 }
 
 type Input struct {
-	SessionAuthenticatedAt    time.Time    // Trusted session authentication time for sensitive self-service changes.
-	Operation                 string       // Registered action chosen by the server or trusted adapter.
-	CheckPurpose              string       // Named secondary check when the same permission protects multiple targets.
-	Source                    Source       // Authenticated credential type.
-	UserSlug                  slug.Slug    // The user performing the action
-	APIKeySlug                slug.Slug    // Optional API key service principal
-	APIKeyRoleSlug            slug.Slug    // Authenticated role used by key management. The resolver verifies it against the current role.
-	OrgSlug                   *slug.Slug   // Optional: for organization-scoped authorization
-	Action                    model.Action // The action being performed
-	Resource                  fmt.Stringer // The typed resource, including consumer-owned resources
-	ResourceOwnerSlug         *slug.Slug   // Global profile subject.
+	SessionAuthenticatedAt    time.Time      // Trusted session authentication time for sensitive self-service changes.
+	Operation                 string         // Registered action chosen by the server or trusted adapter.
+	CheckPurpose              string         // Named secondary check when the same permission protects multiple targets.
+	Source                    Source         // Authenticated credential type.
+	UserSlug                  slug.Slug      // The user performing the action
+	APIKeySlug                slug.Slug      // Optional API key service principal
+	APIKeyRoleSlug            slug.Slug      // Authenticated role used by key management. The resolver verifies it against the current role.
+	OrgSlug                   *slug.Slug     // Optional: for organization-scoped authorization
+	Action                    model.Action   // The action being performed
+	Resource                  model.Resource // The Core permission family for this check.
+	ResourceOwnerSlug         *slug.Slug     // Global profile subject.
 	Target                    model.AuthorizationTarget
 	ProjectDataSourceBindings bool // The operation acts on project-owned references or bindings.
+}
+
+func (input Input) validPermission() bool {
+	return input.Resource != model.ResourceUnknown && input.Resource.IsAResource() &&
+		input.Action != model.Unknown && input.Action.IsAAction()
 }
 
 type ResolveFacts func(context.Context, slug.Slug, slug.Slug, slug.Slug, model.AuthorizationTarget) (model.AuthorizationFacts, error)
@@ -51,7 +55,6 @@ type opaUserInput struct {
 
 type opaAuthorizationInput struct {
 	ProjectDataSourceBindings bool                     `json:"project_datasource_bindings"`
-	ConsumerResource          bool                     `json:"consumer_resource"`
 	Facts                     model.AuthorizationFacts `json:"facts"`
 	User                      opaUserInput             `json:"user"`
 	OrgScoped                 bool                     `json:"org_scoped"`
@@ -77,7 +80,7 @@ func New(usersService userssvc.UsersService, resolve ResolveFacts) (Service, err
 }
 
 func (s *service) Can(ctx context.Context, input Input) (bool, error) {
-	if input.Resource == nil || !input.Action.IsAAction() || input.Action == model.Unknown ||
+	if _, registered := operationRules[input.Operation]; !registered || !input.validPermission() ||
 		!input.Source.matchesPrincipal(input) {
 		return false, nil
 	}
@@ -123,12 +126,12 @@ func (s *service) Can(ctx context.Context, input Input) (bool, error) {
 }
 
 // CanWithResolvedFacts evaluates tenant facts captured by a trusted persistence reader.
-func CanWithResolvedFacts(ctx context.Context, action model.Action, resource fmt.Stringer, facts model.AuthorizationFacts) (bool, error) {
+func CanWithResolvedFacts(ctx context.Context, action model.Action, resource model.Resource, facts model.AuthorizationFacts) (bool, error) {
 	return evaluateTenant(ctx, Input{Resource: resource, Action: action}, facts)
 }
 
 func evaluateTenant(ctx context.Context, input Input, facts model.AuthorizationFacts) (bool, error) {
-	if !facts.Valid || input.Resource == nil || !input.Action.IsAAction() || input.Action == model.Unknown {
+	if !facts.Valid || !input.validPermission() {
 		return false, nil
 	}
 	query, err := preparedPolicy()
@@ -139,10 +142,10 @@ func evaluateTenant(ctx context.Context, input Input, facts model.AuthorizationF
 	if input.Operation == "listPipelineWebhookDeliveries" && input.CheckPurpose == "delivery_history" {
 		facts.AncestorIDs = nil
 	}
-	name := input.Resource.String()
-	_, coreType := input.Resource.(model.Resource)
-	_, parseErr := model.ResourceString(name)
-	return evaluate(ctx, query, opaAuthorizationInput{OrgScoped: true, Facts: facts, Resource: name, Action: input.Action.String(), ProjectDataSourceBindings: input.ProjectDataSourceBindings, ConsumerResource: !coreType && parseErr != nil && name != "" && name != "*"})
+	return evaluate(ctx, query, opaAuthorizationInput{
+		OrgScoped: true, Facts: facts, Resource: input.Resource.String(),
+		Action: input.Action.String(), ProjectDataSourceBindings: input.ProjectDataSourceBindings,
+	})
 }
 
 var preparedPolicy = sync.OnceValues(func() (rego.PreparedEvalQuery, error) {

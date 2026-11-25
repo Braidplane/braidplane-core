@@ -148,15 +148,6 @@ func TestManagedGitHubBackendProvisionsProposalAuthority(t *testing.T) {
 	require.NoError(t, svc.AuthorizeProposalPublish(ctx, queued))
 
 	t.Run("claimed executor checks the exact scoped grant before each mutation", func(t *testing.T) {
-		_, err := pool.Exec(ctx, `UPDATE data_sources SET config=config #- '{repository,id}' WHERE organization_id=$1 AND slug=$2`, orgID, source)
-		require.NoError(t, err)
-		t.Cleanup(func() {
-			_, err := pool.Exec(ctx, `UPDATE data_sources SET config=$2 WHERE organization_id=$1 AND slug=$3`, orgID, config, source)
-			require.NoError(t, err)
-		})
-		legacy, err := store.ResolveProposalAuthority(ctx, org, defaultProjectSlug)
-		require.NoError(t, err)
-		require.Equal(t, bound.ID, legacy.ID)
 		repo := executionrequests.New()
 		id := uuid.New()
 		deadline := time.Now().Add(time.Minute)
@@ -232,6 +223,7 @@ func TestManagedGitHubBackendProvisionsProposalAuthority(t *testing.T) {
 		{"RevokedCredential", `UPDATE credentials SET status='revoked' WHERE organization_id=$1`, `UPDATE credentials SET status='active' WHERE organization_id=$1`},
 		{"ChangedInstallation", `UPDATE github_app_installations SET installation_id=installation_id+1 WHERE organization_id=$1`, `UPDATE github_app_installations SET installation_id=installation_id-1 WHERE organization_id=$1`},
 		{"ChangedAccount", `UPDATE github_app_installations SET account_id=3 WHERE organization_id=$1`, `UPDATE github_app_installations SET account_id=2 WHERE organization_id=$1`},
+		{"MissingRepositoryID", `UPDATE data_sources SET config=config #- '{repository,id}' WHERE organization_id=$1`, `UPDATE data_sources SET config=jsonb_set(config,'{repository,id}','"42"') WHERE organization_id=$1`},
 		{"ChangedRepository", `UPDATE data_sources SET config=jsonb_set(config,'{repository,id}','"43"') WHERE organization_id=$1`, `UPDATE data_sources SET config=jsonb_set(config,'{repository,id}','"42"') WHERE organization_id=$1`},
 		{"RevokedAuthority", `UPDATE pipeline_proposal_authorities SET revoked_at=now() WHERE organization_id=$1`, `UPDATE pipeline_proposal_authorities SET revoked_at=NULL WHERE organization_id=$1`},
 	} {

@@ -93,12 +93,6 @@ grants_action(permission) if {
     permission in {"*:*", concat(":", [input.resource, "*"]), concat(":", [input.resource, input.action])}
 }
 
-# Consumer-owned types require an exact permission registered by the distribution.
-grants_action(permission) if {
-    input.consumer_resource
-    permission == concat(":", [input.resource, input.action])
-}
-
 allow if {
     not input.org_scoped
     input.user.role == "super_admin"

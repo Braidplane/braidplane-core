@@ -2,6 +2,7 @@ package authorization
 
 import (
 	"context"
+	"encoding/json"
 	"strings"
 	"testing"
 	"time"
@@ -166,7 +167,7 @@ func TestCapturedCompletionAuthorityUsesExistingPolicy(t *testing.T) {
 	} {
 		t.Run(tt.name, func(t *testing.T) {
 			facts := model.AuthorizationFacts{Valid: true, OrganizationID: "1", Bindings: []model.AuthorizationBinding{{Scope: "organization", ScopeID: "1", Permissions: tt.permissions}}}
-			allowed, err := CanCapturedCompletionAuthority(t.Context(), "org", model.CompletionAuthoritySnapshot{Valid: tt.valid, PrincipalID: "member:1", Scoped: &model.CompletionAuthorizationFacts{Upstream: facts, Trigger: facts, Downstream: facts}})
+			allowed, err := CanCapturedCompletionAuthority(t.Context(), model.CompletionAuthoritySnapshot{Valid: tt.valid, PrincipalID: "member:1", Scoped: model.CompletionAuthorizationFacts{Upstream: facts, Trigger: facts, Downstream: facts}})
 			require.NoError(t, err)
 			require.Equal(t, tt.allowed, allowed)
 		})
@@ -174,9 +175,16 @@ func TestCapturedCompletionAuthorityUsesExistingPolicy(t *testing.T) {
 }
 
 func TestCompletionSnapshotWithoutBoundEditorIsDenied(t *testing.T) {
-	allowed, err := CanCapturedCompletionAuthority(t.Context(), "org", model.CompletionAuthoritySnapshot{Valid: true, Permissions: []string{"*:*"}})
-	require.NoError(t, err)
-	require.False(t, allowed)
+	for _, stored := range []string{
+		`{"valid":true,"permissions":["*:*"]}`,
+		`{"valid":true,"principal_id":"member:1","permissions":["*:*"]}`,
+	} {
+		var snapshot model.CompletionAuthoritySnapshot
+		require.NoError(t, json.Unmarshal([]byte(stored), &snapshot))
+		allowed, err := CanCapturedCompletionAuthority(t.Context(), snapshot)
+		require.NoError(t, err)
+		require.False(t, allowed)
+	}
 }
 
 func TestService_AdminIdentityRechecksGlobalRole(t *testing.T) {
@@ -196,10 +204,6 @@ func TestService_AdminIdentityRechecksGlobalRole(t *testing.T) {
 	require.NoError(t, err)
 	require.False(t, allowed)
 }
-
-type consumerResource string
-
-func (r consumerResource) String() string { return string(r) }
 
 func TestCanResolvesCurrentAuthority(t *testing.T) {
 	org := slug.Slug("acme")
@@ -255,11 +259,20 @@ func TestCanResolvesCurrentAuthority(t *testing.T) {
 		check(false)
 		input.Action = model.Read
 		facts.TargetID = ""
-		input.Operation = ""
-		input.Resource = consumerResource("consumer_records")
-		check(false)
-		facts.Bindings[1].Permissions = []string{"consumer_records:read"}
-		check(true)
+		for _, operation := range []string{"", "customExtensionOperation"} {
+			input.Operation = operation
+			check(false)
+		}
+		input.Operation = "getPipeline"
+		for _, resource := range []model.Resource{model.ResourceUnknown, model.Resource(999)} {
+			input.Resource = resource
+			facts.Bindings[1].Permissions = []string{"*:*", resource.String() + ":read"}
+			check(false)
+			allowed, err := CanWithResolvedFacts(t.Context(), model.Read, resource, facts)
+			require.NoError(t, err)
+			require.False(t, allowed)
+		}
+		input.Resource = model.ResourcePipelines
 		facts.Bindings = nil
 		check(false)
 		resolveErr = xerror.Unexpected().Detail("unavailable")

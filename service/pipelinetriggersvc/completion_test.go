@@ -121,7 +121,7 @@ func TestCompletionConfigRejectsCancellationAndMixedTypes(t *testing.T) {
 
 func testCompletionEditorAuthority() model.CompletionAuthoritySnapshot {
 	facts := model.AuthorizationFacts{Valid: true, OrganizationID: "1", Bindings: []model.AuthorizationBinding{{Scope: "organization", ScopeID: "1", Permissions: []string{"*:*"}}}}
-	return model.CompletionAuthoritySnapshot{Valid: true, PrincipalID: "member:1", Scoped: &model.CompletionAuthorizationFacts{Upstream: facts, Trigger: facts, Downstream: facts}}
+	return model.CompletionAuthoritySnapshot{Valid: true, PrincipalID: "member:1", Scoped: model.CompletionAuthorizationFacts{Upstream: facts, Trigger: facts, Downstream: facts}}
 }
 
 func TestCompletionSnapshotChecksClosureAndCurrentAuthorityWithoutCancelingAcceptedChild(t *testing.T) {
