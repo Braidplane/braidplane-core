@@ -571,11 +571,15 @@ templ AlertPolicySelectorFieldsBody(orgSlug string, selectorTargetID string, for
 		</label>
 		<label class={ AlertPolicyScopeFieldClass(AlertPolicyProjectScopeEnabled(form)) } data-alert-policy-scope-fields="project,project_environment">
 			<div class="label py-1"><span class="label-text text-xs">Project</span></div>
-			<select class="select select-bordered select-sm w-full" name="project_slug" required?={ options.ProjectEnabled } disabled?={ AlertPolicyProjectSelectDisabled(form) } hx-get={ AlertPolicySelectorOptionsHref(orgSlug) } hx-target={ "#" + selectorTargetID } hx-select={ "#" + selectorTargetID } hx-include="closest form" hx-trigger="change" hx-swap="outerHTML" hx-disinherit="hx-select">
-				for _, option := range options.Projects {
-					<option value={ option.Value } selected?={ form.ProjectSlug == option.Value }>{ option.Label }</option>
-				}
-			</select>
+			if dynamicOptions.ProjectListRestricted {
+				<input class="input input-bordered input-sm w-full" name="project_slug" placeholder="Project slug" value={ form.ProjectSlug } required?={ options.ProjectEnabled } disabled?={ AlertPolicyProjectSelectDisabled(form) } hx-get={ AlertPolicySelectorOptionsHref(orgSlug) } hx-target={ "#" + selectorTargetID } hx-select={ "#" + selectorTargetID } hx-include="closest form" hx-trigger="change" hx-swap="outerHTML" hx-disinherit="hx-select"/>
+			} else {
+				<select class="select select-bordered select-sm w-full" name="project_slug" required?={ options.ProjectEnabled } disabled?={ AlertPolicyProjectSelectDisabled(form) } hx-get={ AlertPolicySelectorOptionsHref(orgSlug) } hx-target={ "#" + selectorTargetID } hx-select={ "#" + selectorTargetID } hx-include="closest form" hx-trigger="change" hx-swap="outerHTML" hx-disinherit="hx-select">
+					for _, option := range options.Projects {
+						<option value={ option.Value } selected?={ form.ProjectSlug == option.Value }>{ option.Label }</option>
+					}
+				</select>
+			}
 		</label>
 		<label class={ AlertPolicyScopeFieldClass(AlertPolicyEnvironmentScopeEnabled(form)) } data-alert-policy-scope-fields="project_environment">
 			<div class="label py-1"><span class="label-text text-xs">Environment</span></div>

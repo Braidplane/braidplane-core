@@ -58,6 +58,15 @@ func TestMountedFrontendRoutes_DoNotInterceptAPISessions(t *testing.T) {
 	require.Empty(t, resp.Header.Get(fiber.HeaderContentSecurityPolicy))
 }
 
+func TestCommunityHeadRequiresItsOwnMapping(t *testing.T) {
+	app := fiber.New()
+	handler := func(c fiber.Ctx) error { return c.SendStatus(fiber.StatusNoContent) }
+	app.Get("/host-health", handler)
+	finish := checkCommunityRoutes(app)
+	app.Head("/host-health", handler)
+	require.PanicsWithValue(t, "missing authorization classification for HEAD /host-health", finish)
+}
+
 func TestCommunityRoutesRequireAnAuthorizationMapping(t *testing.T) {
 	app := fiber.New()
 	app.Head("/host-health", func(c fiber.Ctx) error { return c.SendStatus(fiber.StatusNoContent) })

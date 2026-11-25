@@ -19,7 +19,7 @@ import (
 
 func TestPipelineGitWorkflow(t *testing.T) {
 	t.Parallel()
-	for _, scenario := range []string{"preview", "apply", "stale", "missing preview", "changed directory", "selected pipeline sync denied", "deploy", "environment deploy only", "protected", "bindings", "deployment conflict", "disabled target", "unauthorized", "cross tenant", "csrf", "pipeline named sync", "compile projection", "compile without deployment read", "invalid projection", "compile scopes", "invalid scopes", "deploy denied", "compile denied", "backend compile denied"} {
+	for _, scenario := range []string{"preview", "apply", "stale", "missing preview", "changed directory", "selected pipeline sync denied", "deploy", "environment list forbidden", "environment deploy only", "protected", "bindings", "deployment conflict", "disabled target", "unauthorized", "cross tenant", "csrf", "pipeline named sync", "compile projection", "compile without deployment read", "invalid projection", "compile scopes", "invalid scopes", "deploy denied", "compile denied", "backend compile denied"} {
 		t.Run(scenario, func(t *testing.T) {
 			t.Parallel()
 			updateDenied := scenario == "deploy denied" || scenario == "compile denied"
@@ -64,6 +64,10 @@ func TestPipelineGitWorkflow(t *testing.T) {
 				case path == "/api/organizations/acme-hq/projects/default":
 					_, _ = w.Write([]byte(`{"slug":"default","name":"Default","pipeline_backend":{"data_source_slug":"git-source","repo":"https://example.com/repo.git","tracked_branch":"main"}}`))
 				case path == "/api/organizations/acme-hq/projects/default/environments":
+					if scenario == "environment list forbidden" {
+						w.WriteHeader(http.StatusForbidden)
+						return
+					}
 					_, _ = w.Write([]byte(`{"project_environments":[{"environment_slug":"dev","environment_name":"Development","is_default":true,"environment_protected":true}]}`))
 				case strings.HasSuffix(path, "/pipelines/daily-sync/versions/exact-version/compiled-plans"):
 					calls++
@@ -187,7 +191,7 @@ func TestPipelineGitWorkflow(t *testing.T) {
 				form.Set("pipeline_dir", "previous-directory")
 			case "cross tenant":
 				path = "/orgs/other/projects/default/pipeline-sync"
-			case "deploy", "environment deploy only", "protected", "bindings", "deployment conflict", "disabled target", "compile projection", "compile without deployment read", "invalid projection", "compile scopes", "invalid scopes", "deploy denied", "compile denied", "backend compile denied":
+			case "deploy", "environment list forbidden", "environment deploy only", "protected", "bindings", "deployment conflict", "disabled target", "compile projection", "compile without deployment read", "invalid projection", "compile scopes", "invalid scopes", "deploy denied", "compile denied", "backend compile denied":
 				path = "/orgs/acme-hq/projects/default/pipelines/daily-sync/deploy"
 				form = url.Values{"spec_hash": {"exact-version"}, "environment_slug": {"dev"}, "expected_current_spec_hash": {"old-version"}, "expected_revision": {"7"}, "protected_environment_confirmation": {"dev"}}
 				if scenario == "compile projection" || scenario == "compile without deployment read" || scenario == "invalid projection" || scenario == "compile scopes" || scenario == "invalid scopes" {
@@ -237,6 +241,10 @@ func TestPipelineGitWorkflow(t *testing.T) {
 			case "selected pipeline sync denied":
 				require.Equal(t, http.StatusForbidden, response.StatusCode)
 				require.Contains(t, html, "update pipelines to sync from Git")
+				require.Zero(t, calls)
+			case "environment list forbidden":
+				require.Equal(t, http.StatusForbidden, response.StatusCode)
+				require.Contains(t, html, "requires environment read access on the project")
 				require.Zero(t, calls)
 			case "backend compile denied":
 				require.Equal(t, http.StatusForbidden, response.StatusCode)

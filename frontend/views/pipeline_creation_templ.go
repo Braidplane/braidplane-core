@@ -677,11 +677,11 @@ func PipelineCreationProgressContent(data PipelineCreationProgressData) templ.Co
 			}
 			if string(data.Creation.Status) == "publish_failed" {
 				if data.Creation.FailureCode != nil && *data.Creation.FailureCode == "git_proposal_authority_revoked" {
-					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 66, "<p class=\"text-sm text-error\" role=\"alert\">Publishing authority was revoked. If the proposal branch still exists, you can merge it manually. If it has already been merged, continue to Git sync.</p>")
+					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 66, "<p class=\"text-sm text-error\" role=\"alert\">Publishing authority was revoked. If the proposal branch still exists, you can merge it manually.</p>")
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
-					if !data.VersionAvailable && data.Creation.BranchName != nil {
+					if data.VersionError == "" && !data.VersionAvailable && data.Creation.BranchName != nil {
 						templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 67, "<a class=\"btn btn-outline\" href=\"")
 						if templ_7745c5c3_Err != nil {
 							return templ_7745c5c3_Err

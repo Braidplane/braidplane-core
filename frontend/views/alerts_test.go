@@ -183,3 +183,10 @@ func TestPolicyCannotDropAnUnavailableBoundDestination(t *testing.T) {
 	require.Contains(t, out.String(), "disabled>Save policy</button>")
 	require.NotContains(t, out.String(), `data-dirty-form="alert-policy-policy-update"`)
 }
+
+func TestRestrictedProjectListAllowsKnownAlertPolicyProject(t *testing.T) {
+	var output bytes.Buffer
+	form := AlertPolicyFormData{Scope: "project", ProjectSlug: "ops"}
+	require.NoError(t, AlertPolicySelectorFields("org", "selector", form, AlertPolicyDynamicOptions{ProjectListRestricted: true}).Render(t.Context(), &output))
+	require.Contains(t, output.String(), `name="project_slug" placeholder="Project slug" value="ops" required`)
+}

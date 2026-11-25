@@ -177,6 +177,10 @@ func (r *Router) handlePipelineDeploy(c fiber.Ctx) error {
 			return redirectToLogin(c, c.OriginalURL())
 		}
 		data.Error = pipelineActionError(apiError, "Enabled environments are unavailable.")
+		if status == http.StatusForbidden {
+			backendDenied = true
+			data.Error = "This deployment page requires environment read access on the project to check whether the target is enabled and protected."
+		}
 	} else {
 		data.Environments = environments.ProjectEnvironments
 		if data.Environment == "" && c.Method() == http.MethodGet {

@@ -61,3 +61,15 @@ func TestQueryPipelineSetupShowsProposalHistoryWithReadAccess(t *testing.T) {
 		require.Equal(t, action == "read", strings.Contains(out.String(), "View creation proposals"))
 	}
 }
+
+func TestRevokedProposalOffersSyncOnlyAfterConfirmedMissingVersion(t *testing.T) {
+	for _, versionError := range []string{"", "Version lookup failed."} {
+		var output bytes.Buffer
+		data := PipelineCreationProgressData{
+			Creation:     &api.PipelineCreationProposal{Status: "publish_failed", FailureCode: new("git_proposal_authority_revoked"), BranchName: new("proposal")},
+			VersionError: versionError,
+		}
+		require.NoError(t, PipelineCreationProgressContent(data).Render(t.Context(), &output))
+		require.Equal(t, versionError == "", strings.Contains(output.String(), "Open Git sync after a manual merge"))
+	}
+}

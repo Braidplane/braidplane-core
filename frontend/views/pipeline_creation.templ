@@ -113,8 +113,8 @@ templ PipelineCreationProgressContent(data PipelineCreationProgressData) {
 				}
 				if string(data.Creation.Status) == "publish_failed" {
 					if data.Creation.FailureCode != nil && *data.Creation.FailureCode == "git_proposal_authority_revoked" {
-						<p class="text-sm text-error" role="alert">Publishing authority was revoked. If the proposal branch still exists, you can merge it manually. If it has already been merged, continue to Git sync.</p>
-						if !data.VersionAvailable && data.Creation.BranchName != nil {
+						<p class="text-sm text-error" role="alert">Publishing authority was revoked. If the proposal branch still exists, you can merge it manually.</p>
+						if data.VersionError == "" && !data.VersionAvailable && data.Creation.BranchName != nil {
 							<a class="btn btn-outline" href={ templ.URL(PipelineSyncHref(data.Org, data.Project, data.Environment, data.Creation.PipelineSlug)) }>Open Git sync after a manual merge</a>
 						}
 					} else {

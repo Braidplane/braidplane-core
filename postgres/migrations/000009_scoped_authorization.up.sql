@@ -352,7 +352,8 @@ SELECT jsonb_build_object(
 )
 FROM actor JOIN target t ON t.organization_id = actor.organization_id
 LEFT JOIN public.roles active_key_role ON actor.api_key_id IS NOT NULL AND
-    (active_key_role.organization_id, active_key_role.id) = (actor.organization_id, actor.role_id) AND active_key_role.deleted_at IS NULL;
+    (active_key_role.organization_id, active_key_role.id) = (actor.organization_id, actor.role_id) AND active_key_role.deleted_at IS NULL
+WHERE actor.api_key_id IS NULL OR active_key_role.id IS NOT NULL;
 $$;
 
 -- A trigger revision can grant execution long after its editor has left.
@@ -447,11 +448,12 @@ BEGIN
     downstream_facts := authorization_facts(org_name, user_slug, key_slug, 'deployed_pipelines',
         configuration->>'pipeline_slug', project_name, environment_name, '');
     IF EXISTS (SELECT 1 FROM pipeline_triggers t WHERE t.project_environment_id = env_id
-        AND t.id = (configuration->>'id')::bigint AND t.slug = configuration->>'slug') THEN
+        AND (t.id, t.slug, t.revision, t.pipeline_id) = ((configuration->>'id')::bigint, configuration->>'slug',
+            (configuration->>'revision')::bigint, (configuration->>'pipeline_id')::bigint)) THEN
         trigger_facts := authorization_facts(org_name, user_slug, key_slug, 'pipeline_triggers',
             configuration->>'slug', project_name, environment_name, '');
     ELSIF accepted THEN
-        -- An accepted child survives trigger deletion if its actor still has inherited authority.
+        -- An accepted child survives trigger replacement, edits or deletion if its actor still has inherited authority.
         trigger_facts := authorization_facts(org_name, user_slug, key_slug, 'project_environments',
             '', project_name, environment_name, '') - 'target_id';
     END IF;

@@ -109,10 +109,11 @@ type AlertPolicySelectorOptions struct {
 
 // AlertPolicyDynamicOptions carries API-backed selector choices for the HTMX policy partial.
 type AlertPolicyDynamicOptions struct {
-	Projects       []AlertFormOption
-	Environments   []AlertFormOption
-	SourceMetadata []api.AlertPolicySourceMetadata
-	SourceRefs     []AlertFormOption
+	ProjectListRestricted bool
+	Projects              []AlertFormOption
+	Environments          []AlertFormOption
+	SourceMetadata        []api.AlertPolicySourceMetadata
+	SourceRefs            []AlertFormOption
 }
 
 // DefaultAlertDestinationFormData returns alert destination form defaults.

@@ -101,6 +101,7 @@ func (r *Router) handleAlertPolicySelectorOptions(c fiber.Ctx) error {
 				logging.ErrorAttr(projectErr),
 			)
 			dynamicOptions.Projects = []views.AlertFormOption{}
+			dynamicOptions.ProjectListRestricted = status == fiber.StatusForbidden
 		} else {
 			dynamicOptions.Projects = projects
 		}

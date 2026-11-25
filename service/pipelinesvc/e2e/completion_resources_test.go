@@ -140,6 +140,18 @@ func TestCompletionResourcesSnapshotsRevocationAndRetention(t *testing.T) {
 		require.NoError(t, pool.QueryRow(ctx, `SELECT id FROM pipeline_completion_snapshots WHERE project_environment_id=$1 AND root_run_slug=$2 AND trigger_slug='after-upstream'`, env, root).Scan(&id))
 		return id
 	}
+	t.Run("a different trigger revision cannot supply the captured trigger grant", func(t *testing.T) {
+		var pendingTarget, acceptedTarget string
+		err := pool.QueryRow(ctx, `SELECT
+			COALESCE(pipeline_completion_scoped_authority(pe.organization_id, pe.id, captured.config, false)#>>'{scoped,trigger,target_id}', ''),
+			COALESCE(pipeline_completion_scoped_authority(pe.organization_id, pe.id, captured.config, true)#>>'{scoped,trigger,target_id}', '')
+			FROM project_environments pe JOIN pipeline_triggers t ON t.project_environment_id=pe.id
+			CROSS JOIN LATERAL (SELECT to_jsonb(t) || jsonb_build_object('revision', t.revision-1) AS config) captured
+			WHERE pe.id=$1 AND t.slug=$2`, env, trigger.Slug).Scan(&pendingTarget, &acceptedTarget)
+		require.NoError(t, err)
+		require.Empty(t, pendingTarget)
+		require.Empty(t, acceptedTarget)
+	})
 	t.Run("disabled trigger skips the editor role lock", func(t *testing.T) {
 		editor, err := pool.Begin(ctx)
 		require.NoError(t, err)
