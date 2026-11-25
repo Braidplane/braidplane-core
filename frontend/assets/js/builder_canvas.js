@@ -2,6 +2,8 @@
     const gridColumnCount = 24;
     const nodeWidth = 6;
     const nodeHeight = 3;
+    const canReloadPublishedDraft = (canvasChanged, sourceField, appliedSource) =>
+        !canvasChanged && (!(sourceField instanceof HTMLTextAreaElement) || sourceField.value === appliedSource);
     const slugPattern = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
     const nodeContentClassName =
         "builder-node-content group relative flex h-full w-full flex-col overflow-hidden rounded-xl border bg-base-100 px-3 py-2 text-left shadow-sm transition hover:border-primary/60";
@@ -11833,7 +11835,13 @@
                         const errorCode =
                             typeof payload?.error?.code === "string" ? payload.error.code.trim().toUpperCase() : "";
                         if (response.status === 404 && errorCode === "PIPELINE_DRAFT_NOT_FOUND") {
-                            if (!hasUnpersistedActionChanges()) {
+                            if (
+                                canReloadPublishedDraft(
+                                    hasUnpersistedActionChanges(),
+                                    sourceEditorField,
+                                    sourceEditorCanvasSource,
+                                )
+                            ) {
                                 reloadBuilderFromServer(organizationSlug, projectSlug, pipelineSlug);
                                 return;
                             }
@@ -11856,7 +11864,15 @@
                     }
 
                     const publishedPipeline = await readAPIJSON(response);
-                    if (publishedPipeline && !publishedPipeline.draft && !hasUnpersistedActionChanges()) {
+                    if (
+                        publishedPipeline &&
+                        !publishedPipeline.draft &&
+                        canReloadPublishedDraft(
+                            hasUnpersistedActionChanges(),
+                            sourceEditorField,
+                            sourceEditorCanvasSource,
+                        )
+                    ) {
                         reloadBuilderFromServer(organizationSlug, projectSlug, pipelineSlug);
                         return;
                     }
@@ -12262,6 +12278,7 @@
     window.braidplaneBuilderCanvas = {
         init,
         _testing: {
+            canReloadPublishedDraft,
             parseJSONMap,
             formatJSONMap,
             safeOperationObject,

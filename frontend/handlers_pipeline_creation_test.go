@@ -123,7 +123,9 @@ func TestQueryPipelineSetup(t *testing.T) {
 				} else {
 					require.Equal(t, http.StatusUnprocessableEntity, response.StatusCode, string(body))
 					require.Contains(t, string(body), "Ops")
-					require.Contains(t, string(body), "Ops")
+					if scenario == "project unavailable" {
+						require.Contains(t, string(body), "Project read access is required")
+					}
 				}
 			}
 		})

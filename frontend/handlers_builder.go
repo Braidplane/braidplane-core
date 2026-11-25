@@ -409,7 +409,9 @@ func (r *Router) handleBuilderBlueprintPage(c fiber.Ctx) error {
 	builderState.CanRun, builderState.RunReason = builderRunAvailability(builderState)
 	if saveOrganizationSlug != "" {
 		permissions := r.resolvePagePermissions(c, saveOrganizationSlug)
-		builderState.CanCreatePipeline = permissions.Can("pipelines", "create")
+		if saveProjectSlug != "" {
+			builderState.CanCreatePipeline = r.rowAllows(c, saveOrganizationSlug, "projects", saveProjectSlug, "pipelines", "create", permissions)
+		}
 		builderState.CanRefreshSchemas = permissions.Can("datasources", "update")
 		if saveProjectSlug != "" && builderState.PipelineSlug != "" && builderState.TargetEnvironmentSlug != "" {
 			target := api.GetEffectivePermissionsParams{
