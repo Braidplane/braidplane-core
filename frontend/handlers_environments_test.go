@@ -292,7 +292,7 @@ func TestRouter_HandleProjectEnvironmentsPage_HidesMutationFormsWithoutPermissio
 				w,
 				`{"projects":[{"name":"Data migration","slug":"data-migration","created_at":"2026-03-02T00:00:00Z","updated_at":"2026-03-02T00:00:00Z"}],"has_more":false,"next_cursor":null,"prev_cursor":null}`,
 			)
-		case r.Method == http.MethodGet && r.URL.Path == "/api/organizations/acme-hq/roles/viewer":
+		case r.Method == http.MethodGet && r.URL.Path == "/api/organizations/acme-hq/authorization/permissions":
 			writeJSON(
 				w,
 				`{"slug":"viewer","name":"Viewer","permissions":[{"resource":"environments","action":"read"}],"created_at":"2026-03-01T00:00:00Z","updated_at":"2026-03-01T00:00:00Z"}`,
@@ -590,7 +590,7 @@ func TestRouter_HandleOrganizationEnvironmentsPage_HidesMutationFormsWithoutPerm
 				w,
 				`{"projects":[{"name":"Data migration","slug":"data-migration","created_at":"2026-03-02T00:00:00Z","updated_at":"2026-03-02T00:00:00Z"}],"has_more":false,"next_cursor":null,"prev_cursor":null}`,
 			)
-		case r.Method == http.MethodGet && r.URL.Path == "/api/organizations/acme-hq/roles/viewer":
+		case r.Method == http.MethodGet && r.URL.Path == "/api/organizations/acme-hq/authorization/permissions":
 			writeJSON(
 				w,
 				`{"slug":"viewer","name":"Viewer","permissions":[{"resource":"environments","action":"read"}],"created_at":"2026-03-01T00:00:00Z","updated_at":"2026-03-01T00:00:00Z"}`,

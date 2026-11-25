@@ -12,7 +12,10 @@ This guide applies inside `transport/http/` and supplements the root
 - Parse user-provided slugs with `slug.New(...)` before calling services.
 - Enforce protected HTTP operations through `authorization.Service.Can(...)`
   with typed `model.Action` and `model.Resource` values. Do not query permission
-  tables directly.
+  tables directly. Add each operation to `service/authorization/operations.csv`. Pass object
+  lookup keys through `routeAuthorizationTarget`. When a mutation uses a
+  second object from a body or stored relationship, check the actual second
+  target before the operation.
 - Reuse existing request parsers, error mappers, and response helpers. Preserve
   route semantics, active organization context, and redirect safety unless the
   task intentionally changes their contract.

@@ -95,6 +95,7 @@ func (a pipelineGitExecutorAdapter) PublishProposal(
 		return nil, xerror.ExecutionUnavailable().Detail("pipeline git proposal executor is required")
 	}
 	return a.proposalExecutor.PublishProposal(ctx, pipelinegit.ProposalOperation{
+		ProjectSlug: args.ProjectSlug, PublishAttemptID: args.PublishAttemptID,
 		CreateOnly:       args.CreationSlug != "",
 		OrganizationSlug: args.OrganizationSlug,
 		DataSourceSlug:   args.DataSourceSlug,
@@ -381,6 +382,9 @@ func (w *pipelineGitRefreshProposalWorker) recordRefreshFailure(
 }
 
 func pipelineGitJobError(err error) error {
+	if xerror.Is(err, pipelinegit.ErrProposalAuthorityInvalid) {
+		return xerror.Wrapf("cancel revoked pipeline proposal: %w", river.JobCancel(err))
+	}
 	if xerror.Is(err, pipelinegit.ErrCreationTargetExists) {
 		return xerror.Wrapf("cancel conflicting pipeline creation: %w", river.JobCancel(err))
 	}

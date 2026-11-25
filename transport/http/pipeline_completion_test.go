@@ -193,3 +193,33 @@ func TestConnectedInspectionCapsReusedTriggerRevisions(t *testing.T) {
 		require.LessOrEqual(t, decision.TriggerRevision, int64(100))
 	}
 }
+
+func TestRunInspectionRequiresAuthorityOnTheWholeAttemptGroup(t *testing.T) {
+	for _, path := range []string{"completion", "connected"} {
+		for _, restricted := range []slug.Slug{"root", "final", "sibling"} {
+			t.Run(path+"/"+restricted.String(), func(t *testing.T) {
+				app, store := newTestApp(t, testServerConfig{
+					authService: fakeAuthService{CanFn: func(_ context.Context, input authorization.Input) (bool, error) {
+						return input.Target.Slug != restricted, nil
+					}},
+					pipelinesService: &fakePipelinesService{GetRunFn: func(context.Context, slug.Slug, slug.Slug, slug.Slug, string) (*pipelinesvc.PipelineRunDetail, error) {
+						return &pipelinesvc.PipelineRunDetail{}, nil
+					}, GetRunCompletionFn: func(context.Context, slug.Slug, slug.Slug, slug.Slug, slug.Slug) (*model.PipelineRunCompletion, error) {
+						return &model.PipelineRunCompletion{RootRunSlug: "root", FinalAttemptRunSlug: new(slug.Slug("final")), Attempts: []model.PipelineCompletionAttempt{{RunSlug: "sibling", Status: "synthetic-private-status"}}}, nil
+					}},
+				})
+				resp := authenticatedRequest(t, app, store, "test-user", jsonRequest(t, http.MethodGet, "/organizations/acme/projects/etl/environments/dev/runs/selected/"+path, nil))
+				defer func() { require.NoError(t, resp.Body.Close()) }()
+				if path == "completion" {
+					require.Equal(t, http.StatusForbidden, resp.StatusCode)
+				} else {
+					require.Equal(t, http.StatusOK, resp.StatusCode)
+					var graph api.PipelineRunConnected
+					require.NoError(t, json.NewDecoder(resp.Body).Decode(&graph))
+					require.Empty(t, graph.Nodes)
+					require.True(t, graph.ContextUnavailable)
+				}
+			})
+		}
+	}
+}

@@ -150,6 +150,7 @@ func (r *Router) RegisterRoutes(app *fiber.App, presentation RoutePresentation) 
 	app.Use(r.ensureFrontendRequestID)
 	switch presentation.(type) {
 	case CommunityPresentation, *CommunityPresentation:
+		defer checkCommunityRoutes(app)()
 		app.Use(requireTopLevelHTML)
 	}
 	app.Get(browserSessionStatusPath, r.handleBrowserSessionStatus)

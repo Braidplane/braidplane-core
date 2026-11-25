@@ -447,6 +447,7 @@ type PipelineValidationResultFilters struct {
 
 // ValidationHistoryPrincipal carries the authenticated actor used for validation-history authorization.
 type ValidationHistoryPrincipal struct {
+	Source         authorization.Source
 	UserSlug       slug.Slug
 	APIKeySlug     slug.Slug
 	APIKeyOrgSlug  slug.Slug
@@ -768,7 +769,6 @@ type service struct {
 	compiledPlans         *compiledplans.Repository
 	resolutions           *deploymentresolutions.Repository
 	checkpoints           incrementalcheckpoints.Repository
-	dbtx                  postgres.DBTX
 	txm                   postgres.TransactionManager
 	runRepo               pipelineruns.Repository
 	pipelineStore         PipelineStore
@@ -990,7 +990,8 @@ func (s *service) RecordValidationResult(
 	pipeline *pipelinespec.Pipeline,
 	result *PipelineValidationResult,
 ) (*PipelineValidationResultRecord, error) {
-	if err := s.requireValidationHistoryPermissions(ctx, orgSlug, principal, validationHistoryPermission{
+	if err := s.requireValidationHistoryPermissions(ctx, orgSlug, "validatePipeline", principal, validationHistoryPermission{
+		target:   model.AuthorizationTarget{Kind: "project_environments", ProjectSlug: projectSlug, EnvironmentSlug: environmentSlug},
 		action:   model.Update,
 		resource: model.ResourcePipelines,
 	}); err != nil {
@@ -1009,7 +1010,7 @@ func (s *service) ListValidationResults(
 	filters PipelineValidationResultFilters,
 	req model.ListRequest,
 ) (model.ListResponse[*PipelineValidationResultRecord], error) {
-	if err := s.requireValidationHistoryPermissions(ctx, orgSlug, principal, validationHistoryReadPermissions()...); err != nil {
+	if err := s.requireValidationHistoryPermissions(ctx, orgSlug, "listPipelineValidationResults", principal, validationHistoryReadPermissions(model.AuthorizationTarget{Kind: "project_environments", ProjectSlug: projectSlug, EnvironmentSlug: environmentSlug})...); err != nil {
 		return model.ListResponse[*PipelineValidationResultRecord]{}, err
 	}
 	return postgres.InRead(ctx, s.txm, func(ctx context.Context, db postgres.DBTX) (model.ListResponse[*PipelineValidationResultRecord], error) {
@@ -1054,7 +1055,7 @@ func (s *service) GetValidationResult(
 	principal ValidationHistoryPrincipal,
 	resultSlug slug.Slug,
 ) (*PipelineValidationResultRecord, error) {
-	if err := s.requireValidationHistoryPermissions(ctx, orgSlug, principal, validationHistoryReadPermissions()...); err != nil {
+	if err := s.requireValidationHistoryPermissions(ctx, orgSlug, "getPipelineValidationResult", principal, validationHistoryReadPermissions(model.AuthorizationTarget{Kind: "pipeline_validation_results", Slug: resultSlug, ProjectSlug: projectSlug, EnvironmentSlug: environmentSlug})...); err != nil {
 		return nil, err
 	}
 	return postgres.InRead(ctx, s.txm, func(ctx context.Context, db postgres.DBTX) (*PipelineValidationResultRecord, error) {
@@ -1076,7 +1077,7 @@ func (s *service) RevalidatePipeline(
 	principal ValidationHistoryPrincipal,
 	pipelineSlug, memberSlug slug.Slug,
 ) (*PipelineValidationResultRecord, error) {
-	if err := s.requireValidationHistoryPermissions(ctx, orgSlug, principal, validationHistoryRevalidatePermissions()...); err != nil {
+	if err := s.requireValidationHistoryPermissions(ctx, orgSlug, "revalidatePipeline", principal, validationHistoryRevalidatePermissions(model.AuthorizationTarget{Kind: "deployment_targets", ProjectSlug: projectSlug, EnvironmentSlug: environmentSlug, Slug: pipelineSlug})...); err != nil {
 		return nil, err
 	}
 	return postgres.InTx(ctx, s.txm, func(ctx context.Context, tx postgres.DBTX) (*PipelineValidationResultRecord, error) {
@@ -1090,7 +1091,7 @@ func (s *service) RevalidatePipeline(
 		}
 		for _, port := range pipelineODCSPorts(pipeline) {
 			if *port.ref != nil {
-				if err := s.requireValidationHistoryPermissions(ctx, orgSlug, principal, validationHistoryPermission{action: model.Read, resource: model.ResourceProjects}); err != nil {
+				if err := s.requireValidationHistoryPermissions(ctx, orgSlug, "revalidatePipeline", principal, validationHistoryPermission{action: model.Read, resource: model.ResourceProjects, target: model.AuthorizationTarget{Kind: "projects", Slug: projectSlug}}); err != nil {
 					return nil, err
 				}
 				break
@@ -1224,13 +1225,15 @@ func (s *service) ListDriftImpactReports(
 		return nil, nil
 	}
 
-	rows, err := s.driftReports.List(ctx, s.dbtx, orgSlug, driftimpactrepo.ListFilters{
-		ProjectSlug:    filters.ProjectSlug,
-		PipelineSlug:   filters.PipelineSlug,
-		DataSourceSlug: filters.DataSourceSlug,
-		Status:         filters.Status,
-		Severity:       filters.Severity,
-		Limit:          filters.Limit,
+	rows, err := postgres.InRead(ctx, s.txm, func(ctx context.Context, db postgres.DBTX) ([]*driftimpactrepo.Report, error) {
+		return s.driftReports.List(ctx, db, orgSlug, driftimpactrepo.ListFilters{
+			ProjectSlug:    filters.ProjectSlug,
+			PipelineSlug:   filters.PipelineSlug,
+			DataSourceSlug: filters.DataSourceSlug,
+			Status:         filters.Status,
+			Severity:       filters.Severity,
+			Limit:          filters.Limit,
+		})
 	})
 	if err != nil {
 		return nil, err
@@ -1255,7 +1258,9 @@ func (s *service) GetDriftImpactReport(
 		return nil, driftimpactrepo.ErrReportNotFound
 	}
 
-	row, err := s.driftReports.FindBySlug(ctx, s.dbtx, orgSlug, projectSlug, reportSlug)
+	row, err := postgres.InRead(ctx, s.txm, func(ctx context.Context, db postgres.DBTX) (*driftimpactrepo.Report, error) {
+		return s.driftReports.FindBySlug(ctx, db, orgSlug, projectSlug, reportSlug)
+	})
 	if err != nil {
 		return nil, err
 	}
@@ -1844,10 +1849,11 @@ func (s *service) AuthorizeProposalPublish(
 		return err
 	}
 	allowed, err := s.authorizationService.Can(ctx, authorization.Input{
-		UserSlug: args.MemberSlug,
+		Operation: "authorizeQueuedProposalUpdate", Source: authorization.SourceQueuedMember, UserSlug: args.MemberSlug,
 		OrgSlug:  &args.OrganizationSlug,
 		Action:   model.Update,
 		Resource: model.ResourcePipelines,
+		Target:   model.AuthorizationTarget{Kind: "pipelines", ProjectSlug: args.ProjectSlug, Slug: args.PipelineSlug},
 	})
 	if err != nil {
 		return xerror.Wrapf("authorize pipeline proposal member: %w", err)
@@ -3119,15 +3125,17 @@ func (s *service) ListRuns(
 		}
 	}
 
-	runs, err := s.runRepo.ListRuns(
-		ctx,
-		s.dbtx,
-		orgSlug,
-		projectSlug,
-		environmentSlug,
-		repoFilters,
-		queryReq,
-	)
+	runs, err := postgres.InRead(ctx, s.txm, func(ctx context.Context, db postgres.DBTX) ([]*pipelineruns.PipelineRun, error) {
+		return s.runRepo.ListRuns(
+			ctx,
+			db,
+			orgSlug,
+			projectSlug,
+			environmentSlug,
+			repoFilters,
+			queryReq,
+		)
+	})
 	if err != nil {
 		return model.ListResponse[*PipelineRunMetadata]{}, xerror.Wrapf(
 			"list pipeline runs: %w",
@@ -3163,14 +3171,16 @@ func (s *service) GetRun(
 	orgSlug, projectSlug, environmentSlug slug.Slug,
 	runSlug string,
 ) (*PipelineRunDetail, error) {
-	run, err := s.runRepo.FindRunBySlug(
-		ctx,
-		s.dbtx,
-		orgSlug,
-		projectSlug,
-		environmentSlug,
-		runSlug,
-	)
+	run, err := postgres.InRead(ctx, s.txm, func(ctx context.Context, db postgres.DBTX) (*pipelineruns.PipelineRun, error) {
+		return s.runRepo.FindRunBySlug(
+			ctx,
+			db,
+			orgSlug,
+			projectSlug,
+			environmentSlug,
+			runSlug,
+		)
+	})
 	if err != nil {
 		if xerror.Is(err, pipelineruns.ErrRunNotFound) {
 			return nil, ErrPipelineRunNotFound.With(err).Detail(runSlug)
@@ -3333,22 +3343,23 @@ func (s *service) completeQueuedRunFailure(
 }
 
 type validationHistoryPermission struct {
+	target   model.AuthorizationTarget
 	action   model.Action
 	resource model.Resource
 }
 
 // validationHistoryReadPermissions returns the permission split required to inspect validation evidence.
-func validationHistoryReadPermissions() []validationHistoryPermission {
+func validationHistoryReadPermissions(target model.AuthorizationTarget) []validationHistoryPermission {
 	return []validationHistoryPermission{
-		{action: model.Read, resource: model.ResourcePipelines},
+		{action: model.Read, resource: model.ResourcePipelines, target: target},
 		{action: model.Read, resource: model.ResourceDataSources},
 	}
 }
 
 // validationHistoryRevalidatePermissions returns the permission split required to revalidate a pipeline.
-func validationHistoryRevalidatePermissions() []validationHistoryPermission {
+func validationHistoryRevalidatePermissions(target model.AuthorizationTarget) []validationHistoryPermission {
 	return []validationHistoryPermission{
-		{action: model.Update, resource: model.ResourcePipelines},
+		{action: model.Update, resource: model.ResourcePipelines, target: target},
 		{action: model.Read, resource: model.ResourceDataSources},
 	}
 }
@@ -3357,6 +3368,7 @@ func validationHistoryRevalidatePermissions() []validationHistoryPermission {
 func (s *service) requireValidationHistoryPermissions(
 	ctx context.Context,
 	orgSlug slug.Slug,
+	operation string,
 	principal ValidationHistoryPrincipal,
 	permissions ...validationHistoryPermission,
 ) error {
@@ -3368,8 +3380,10 @@ func (s *service) requireValidationHistoryPermissions(
 	}
 	for _, permission := range permissions {
 		input := authorization.Input{
+			Operation: operation, Source: principal.Source,
 			Action:   permission.action,
 			Resource: permission.resource,
+			Target:   permission.target,
 			OrgSlug:  &orgSlug,
 		}
 		if principal.APIKeySlug != "" {
@@ -3648,7 +3662,9 @@ func (s *service) executeResolvedVersion(
 	var acceptedAt time.Time
 	accepted := false
 	if deployment != nil {
-		link, err := s.proofLinks.FindDeploymentLink(ctx, s.dbtx, orgSlug, projectSlug, environmentSlug, pipeline.Metadata.Slug)
+		link, err := postgres.InRead(ctx, s.txm, func(ctx context.Context, db postgres.DBTX) (*proofreceipts.LifecycleLink, error) {
+			return s.proofLinks.FindDeploymentLink(ctx, db, orgSlug, projectSlug, environmentSlug, pipeline.Metadata.Slug)
+		})
 		if err != nil && !xerror.Is(err, proofreceipts.ErrLifecycleLinkNotFound) {
 			return nil, xerror.Wrapf("find deployment proof lifecycle link: %w", xerror.Unexpected().With(err))
 		}
@@ -4220,7 +4236,6 @@ func New(
 	return &service{
 		notificationProducer: notificationProducer,
 		compiledPlans:        compiledPlans, resolutions: resolutions,
-		dbtx:                  dbtx,
 		txm:                   txm,
 		runRepo:               runRepo,
 		checkpoints:           checkpoints,
@@ -4310,7 +4325,9 @@ func (s *service) attachDeploymentProofLink(ctx context.Context, orgSlug, projec
 	if detail == nil {
 		return nil
 	}
-	link, err := s.proofLinks.FindDeploymentLink(ctx, s.dbtx, orgSlug, projectSlug, environmentSlug, detail.PipelineSlug)
+	link, err := postgres.InRead(ctx, s.txm, func(ctx context.Context, db postgres.DBTX) (*proofreceipts.LifecycleLink, error) {
+		return s.proofLinks.FindDeploymentLink(ctx, db, orgSlug, projectSlug, environmentSlug, detail.PipelineSlug)
+	})
 	if xerror.Is(err, proofreceipts.ErrLifecycleLinkNotFound) {
 		return nil
 	}
@@ -4325,7 +4342,9 @@ func (s *service) attachRunProofLink(ctx context.Context, orgSlug, projectSlug, 
 	if detail == nil {
 		return nil
 	}
-	link, err := s.proofLinks.FindRunLink(ctx, s.dbtx, orgSlug, projectSlug, environmentSlug, runSlug)
+	link, err := postgres.InRead(ctx, s.txm, func(ctx context.Context, db postgres.DBTX) (*proofreceipts.LifecycleLink, error) {
+		return s.proofLinks.FindRunLink(ctx, db, orgSlug, projectSlug, environmentSlug, runSlug)
+	})
 	if xerror.Is(err, proofreceipts.ErrLifecycleLinkNotFound) {
 		return nil
 	}

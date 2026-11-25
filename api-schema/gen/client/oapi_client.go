@@ -19830,6 +19830,21 @@ type ListAPIKeysParamsOrder string
 // ListAPIKeysParamsDirection defines parameters for ListAPIKeys.
 type ListAPIKeysParamsDirection string
 
+// GetEffectivePermissionsParams defines parameters for GetEffectivePermissions.
+type GetEffectivePermissionsParams struct {
+	TargetKind *string `form:"target_kind,omitempty" json:"target_kind,omitempty"`
+
+	// TargetSlug Object slug, runtime key, or webhook delivery identifier, according to target_kind.
+	TargetSlug      *string `form:"target_slug,omitempty" json:"target_slug,omitempty"`
+	ParentSlug      *string `form:"parent_slug,omitempty" json:"parent_slug,omitempty"`
+	ProjectSlug     *string `form:"project_slug,omitempty" json:"project_slug,omitempty"`
+	EnvironmentSlug *string `form:"environment_slug,omitempty" json:"environment_slug,omitempty"`
+	DatasourceSlug  *string `form:"datasource_slug,omitempty" json:"datasource_slug,omitempty"`
+
+	// ProjectDatasourceBindings Include data source permissions for project-owned references and bindings.
+	ProjectDatasourceBindings *bool `form:"project_datasource_bindings,omitempty" json:"project_datasource_bindings,omitempty"`
+}
+
 // ListDataSourcesParams defines parameters for ListDataSources.
 type ListDataSourcesParams struct {
 	// Limit Maximum number of items to return (default 20, max 100)
@@ -29090,6 +29105,13 @@ type ClientInterface interface {
 	// Corresponds with POST /organizations/{slug}/api-keys/{api_key_slug}/rotate (the `RotateAPIKey` operationId).
 	RotateAPIKey(ctx context.Context, slug SlugParam, apiKeySlug APIKeySlugParam, reqEditors ...RequestEditorFn) (*http.Response, error)
 
+	// GetEffectivePermissions List effective tenant permissions for the authenticated principal
+	//
+	// Evaluates the shared permission policy against current bindings and a server-resolved target. An allowed permission may still require a session, credential opt-in, write admission, or an additional permission for a particular operation.
+	//
+	// Corresponds with GET /organizations/{slug}/authorization/permissions (the `GetEffectivePermissions` operationId).
+	GetEffectivePermissions(ctx context.Context, slug SlugParam, params *GetEffectivePermissionsParams, reqEditors ...RequestEditorFn) (*http.Response, error)
+
 	// ListDataSources List data sources
 	//
 	// Lists all data sources in the organization.
@@ -32289,6 +32311,23 @@ func (c *Client) DeleteRevokedAPIKey(ctx context.Context, slug SlugParam, apiKey
 // Corresponds with POST /organizations/{slug}/api-keys/{api_key_slug}/rotate (the `RotateAPIKey` operationId).
 func (c *Client) RotateAPIKey(ctx context.Context, slug SlugParam, apiKeySlug APIKeySlugParam, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewRotateAPIKeyRequest(c.Server, slug, apiKeySlug)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// GetEffectivePermissions List effective tenant permissions for the authenticated principal
+//
+// Evaluates the shared permission policy against current bindings and a server-resolved target. An allowed permission may still require a session, credential opt-in, write admission, or an additional permission for a particular operation.
+//
+// Corresponds with GET /organizations/{slug}/authorization/permissions (the `GetEffectivePermissions` operationId).
+func (c *Client) GetEffectivePermissions(ctx context.Context, slug SlugParam, params *GetEffectivePermissionsParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewGetEffectivePermissionsRequest(c.Server, slug, params)
 	if err != nil {
 		return nil, err
 	}
@@ -39439,6 +39478,139 @@ func NewRotateAPIKeyRequest(server string, slug SlugParam, apiKeySlug APIKeySlug
 	}
 
 	req, err := http.NewRequest(http.MethodPost, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewGetEffectivePermissionsRequest constructs an http.Request for the GetEffectivePermissions method
+func NewGetEffectivePermissionsRequest(server string, slug SlugParam, params *GetEffectivePermissionsParams) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "slug", slug, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: ""})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/organizations/%s/authorization/permissions", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	if params != nil {
+		// queryValues collects non-styled parameters (passthrough, JSON)
+		// that are safe to round-trip through url.Values.Encode().
+		queryValues := queryURL.Query()
+		// rawQueryFragments collects pre-encoded query fragments from
+		// styled parameters, preserving literal commas as delimiters
+		// per the OpenAPI spec (e.g. "color=blue,black,brown").
+		var rawQueryFragments []string
+
+		if params.TargetKind != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "target_kind", *params.TargetKind, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			} else {
+				for _, qp := range strings.Split(queryFrag, "&") {
+					rawQueryFragments = append(rawQueryFragments, qp)
+				}
+			}
+
+		}
+
+		if params.TargetSlug != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "target_slug", *params.TargetSlug, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			} else {
+				for _, qp := range strings.Split(queryFrag, "&") {
+					rawQueryFragments = append(rawQueryFragments, qp)
+				}
+			}
+
+		}
+
+		if params.ParentSlug != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "parent_slug", *params.ParentSlug, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			} else {
+				for _, qp := range strings.Split(queryFrag, "&") {
+					rawQueryFragments = append(rawQueryFragments, qp)
+				}
+			}
+
+		}
+
+		if params.ProjectSlug != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "project_slug", *params.ProjectSlug, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			} else {
+				for _, qp := range strings.Split(queryFrag, "&") {
+					rawQueryFragments = append(rawQueryFragments, qp)
+				}
+			}
+
+		}
+
+		if params.EnvironmentSlug != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "environment_slug", *params.EnvironmentSlug, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			} else {
+				for _, qp := range strings.Split(queryFrag, "&") {
+					rawQueryFragments = append(rawQueryFragments, qp)
+				}
+			}
+
+		}
+
+		if params.DatasourceSlug != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "datasource_slug", *params.DatasourceSlug, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			} else {
+				for _, qp := range strings.Split(queryFrag, "&") {
+					rawQueryFragments = append(rawQueryFragments, qp)
+				}
+			}
+
+		}
+
+		if params.ProjectDatasourceBindings != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "project_datasource_bindings", *params.ProjectDatasourceBindings, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "boolean", Format: ""}); err != nil {
+				return nil, err
+			} else {
+				for _, qp := range strings.Split(queryFrag, "&") {
+					rawQueryFragments = append(rawQueryFragments, qp)
+				}
+			}
+
+		}
+
+		if encoded := queryValues.Encode(); encoded != "" {
+			rawQueryFragments = append(rawQueryFragments, encoded)
+		}
+		queryURL.RawQuery = strings.Join(rawQueryFragments, "&")
+	}
+
+	req, err := http.NewRequest(http.MethodGet, queryURL.String(), nil)
 	if err != nil {
 		return nil, err
 	}
@@ -52786,6 +52958,15 @@ type ClientWithResponsesInterface interface {
 	// Corresponds with POST /organizations/{slug}/api-keys/{api_key_slug}/rotate (the `RotateAPIKey` operationId).
 	RotateAPIKeyWithResponse(ctx context.Context, slug SlugParam, apiKeySlug APIKeySlugParam, reqEditors ...RequestEditorFn) (*RotateAPIKeyResponse, error)
 
+	// GetEffectivePermissionsWithResponse List effective tenant permissions for the authenticated principal
+	//
+	// Evaluates the shared permission policy against current bindings and a server-resolved target. An allowed permission may still require a session, credential opt-in, write admission, or an additional permission for a particular operation.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with GET /organizations/{slug}/authorization/permissions (the `GetEffectivePermissions` operationId).
+	GetEffectivePermissionsWithResponse(ctx context.Context, slug SlugParam, params *GetEffectivePermissionsParams, reqEditors ...RequestEditorFn) (*GetEffectivePermissionsResponse, error)
+
 	// ListDataSourcesWithResponse List data sources
 	//
 	// Lists all data sources in the organization.
@@ -57172,6 +57353,51 @@ func (r RotateAPIKeyResponse) StatusCode() int {
 
 // ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
 func (r RotateAPIKeyResponse) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type GetEffectivePermissionsResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *struct {
+		Permissions []Permission `json:"permissions"`
+	}
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r GetEffectivePermissionsResponse) GetJSON200() *struct {
+	Permissions []Permission `json:"permissions"`
+} {
+	return r.JSON200
+}
+
+// GetBody returns the raw response body bytes
+func (r GetEffectivePermissionsResponse) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r GetEffectivePermissionsResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r GetEffectivePermissionsResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r GetEffectivePermissionsResponse) ContentType() string {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.Header.Get("Content-Type")
 	}
@@ -70280,6 +70506,21 @@ func (c *ClientWithResponses) RotateAPIKeyWithResponse(ctx context.Context, slug
 	return ParseRotateAPIKeyResponse(rsp)
 }
 
+// GetEffectivePermissionsWithResponse List effective tenant permissions for the authenticated principal
+//
+// Evaluates the shared permission policy against current bindings and a server-resolved target. An allowed permission may still require a session, credential opt-in, write admission, or an additional permission for a particular operation.
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with GET /organizations/{slug}/authorization/permissions (the `GetEffectivePermissions` operationId).
+func (c *ClientWithResponses) GetEffectivePermissionsWithResponse(ctx context.Context, slug SlugParam, params *GetEffectivePermissionsParams, reqEditors ...RequestEditorFn) (*GetEffectivePermissionsResponse, error) {
+	rsp, err := c.GetEffectivePermissions(ctx, slug, params, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseGetEffectivePermissionsResponse(rsp)
+}
+
 // ListDataSourcesWithResponse List data sources
 //
 // Lists all data sources in the organization.
@@ -75761,6 +76002,40 @@ func ParseRotateAPIKeyResponse(rsp *http.Response) (*RotateAPIKeyResponse, error
 			return nil, err
 		}
 		response.JSON404 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseGetEffectivePermissionsResponse parses an HTTP response from a GetEffectivePermissionsWithResponse call
+func ParseGetEffectivePermissionsResponse(rsp *http.Response) (*GetEffectivePermissionsResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &GetEffectivePermissionsResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest struct {
+			Permissions []Permission `json:"permissions"`
+		}
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case rsp.StatusCode == 400:
+		break // No content-type
+
+	case rsp.StatusCode == 401:
+		break // No content-type
 
 	}
 

@@ -38,6 +38,25 @@ member-admission policy. The execution broker owns the required operation-
 admission interface; blocked connection tests preserve data-source health.
 Runtime persistence adapters are explicit constructor inputs.
 
+HTTP handlers translate authenticated principals and operation-specific target selectors into
+`authorization.Service.Can` calls. Any trusted non-HTTP caller must use the same
+contract. Only persistence can resolve the organization, logical resource, owning
+project, environment and active bindings. Forwarding an authenticated request from
+the frontend preserves these checks. Presentation code may query effective permissions
+to decide which controls to show. Each protected backend action still checks authority
+at execution. A non-HTTP action starts with `authorization.WithDecisionScope`
+and passes that context through both `Can` and the service operation. For
+admitted tenant targets the transaction manager rechecks permission and the original identities
+inside the same repeatable-read snapshot as each protected read or mutation.
+This prevents a same-slug replacement between admission and use. The scope and adoption rules are in the
+[authorization migration contract](../docs-public/api/authorization-migration.md).
+
+The pipeline validation-history service performs permission checks for trusted
+in-process reads. Queued proposal writes reauthorize the initiating principal
+and the exact target before provider mutation. Completion-trigger admission
+evaluates the captured and current database facts under the same OPA policy.
+[Proposal authority](PROPOSAL_AUTHORITY.md) describes the additional provider checks.
+
 Account creation, invitation acceptance and deletion support optional service
 callbacks inside their existing transactions. A callback failure rolls back the
 operation. Invitation callbacks also run on accepted-invitation retries.
@@ -94,9 +113,9 @@ Allowed direction:
 | `transport/http` | Backend HTTP request parsing, response mapping, auth/session adapter behavior, and permission checks before protected service calls | `service/*`, shared packages, generated API server types |
 | `frontend` | SSR frontend server, Templ rendering, HTMX flows, backend API client calls | `api-schema/gen/client`, `frontend/views`, shared runtime-neutral packages. The runtime-variable comparison uses `pkg/pipeline/runtime` to extract keys from the selected pipeline spec |
 | `service` | Business logic, validation, orchestration, and the shared authorization engine package consumed by HTTP handlers | `postgres/*`, connector packages, shared packages |
-| `service/pipelinetriggersvc` | Completion resource validation and immutable closure snapshot admission; re-evaluates captured and current permission facts through the shared authorization policy, with persistence locks fencing revocation. HTTP continues to use `authorization.Service.Can`. | `postgres/*`, `service/authorization`, shared packages; no provider or queue dispatch |
+| `service/pipelinetriggersvc` | Completion resource validation and immutable closure snapshot admission; re-evaluates captured and current permission facts through the shared authorization policy, with persistence locks fencing revocation. The trigger, upstream read and downstream execution each resolve their own target. HTTP continues to use `authorization.Service.Can`. | `postgres/*`, `service/authorization`, shared packages; no provider or queue dispatch |
 | `service/proofconfigsvc` | Data-source-owned Proof controls and explicit project/environment assessment targets | `postgres/proofconfig`, `datasourcessvc` repository access verification and webhook setup, and required audit production; HTTP owns permission checks and provider identity is derived from the data source |
-| `service/executionbroker` | Backend-neutral persisted execution submission and processing contracts | `postgres/*`, connector packages, `proofevidencesvc` restricted execution contracts, shared packages; never `service/worker` or its subpackages |
+| `service/executionbroker` | Backend-neutral persisted execution submission and processing contracts. A claimed proposal executor evaluates current operation-bound facts through the shared OPA policy before provider mutations. | `postgres/*`, connector packages, `proofevidencesvc` restricted execution contracts, shared packages; never `service/worker` or its subpackages |
 | `service/filetransfersvc` | Encrypt, seal and verify retained byte streams under live execution claims | `postgres/retainedfiles` through the repository interface, transaction management and shared byte/file contracts; providers remain in connector adapters |
 | `service/proofevidencesvc` | Grant-bound selected-resource observations, restricted HTTP/native metadata transport, and backend durable-ledger orchestration and keyless retention | `pkg/proofevidence`, shared host guard, grant-scoped `credentialssvc` reads/checks, and `postgres/proofobservations`, plus `eventrecorder` for atomic lifecycle/retention audits; connector-owned observers implement the neutral metadata contract. Connector observers own fixed native or HTTPS metadata reads under admitted public I/O; see Proof coverage. No provider clients, unrestricted connector operations, Git provider, pipeline runtime, or receipt-read authority. The backend coordinator uses an execution interface implemented by `executionbroker`; the broker constructs trusted connector observers for dispatch, while admission and receipt evaluation reconstruct their plans without provider calls. Executors receive the encrypted operation and return protected metadata, with no ledger or credential-store capability. Bounded backend health callbacks expose only deployment aggregate counts/timestamps to neutral metric collectors, without granting the executor database access. |
 | `service/notificationsvc/provider` | Notification delivery provider adapters and safe delivery error classification | Shared provider clients in shared packages and organization-scoped credential resolution; no pipeline data-source prerequisite. `notificationsvc` owns policy routing and durable attempt orchestration. |

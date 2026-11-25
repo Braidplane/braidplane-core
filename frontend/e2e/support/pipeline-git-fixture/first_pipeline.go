@@ -44,7 +44,7 @@ func registerFirstPipelineFixture(app *fiber.App) {
 func handleFirstPipelineAPI(w http.ResponseWriter, r *http.Request) bool {
 	firstPipelineRequests = append(firstPipelineRequests, r.Method+" "+r.URL.Path)
 	switch r.URL.Path {
-	case "/api/organizations/acme/roles/admin":
+	case "/api/organizations/acme/authorization/permissions":
 		permissions := []api.Permission{{Resource: "pipelines", Action: "read"}, {Resource: "projects", Action: "read"}, {Resource: "projects", Action: "update"}, {Resource: "datasources", Action: "read"}}
 		if !firstPipelineRestricted {
 			permissions = append(permissions, api.Permission{Resource: "pipelines", Action: "create"})

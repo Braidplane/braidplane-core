@@ -592,7 +592,7 @@ func (r *Router) renderAlertsPageWithEditOverrides(
 	r.loadOperationalCapabilities(c, orgSlug.String())
 
 	activeTab = views.AlertTabFromString(string(activeTab))
-	permissions := r.resolveOrganizationPermissions(c.Context(), c.Get(fiber.HeaderCookie), orgSlug.String())
+	permissions := r.resolvePagePermissions(c, orgSlug.String())
 	policyFormData.NotificationReturn = notificationReturnTo(c.FormValue("notification_return", c.Query("notification_return")), orgSlug.String())
 
 	editFormOverrides.NotificationReturn = policyFormData.NotificationReturn

@@ -82,7 +82,7 @@ func (s *server) ReplayPipelineWebhookDelivery(c fiber.Ctx, slugParam api.SlugPa
 	if err != nil {
 		return err
 	}
-	if err := s.canUpdateExecutableWebhook(c, orgSlug); err != nil {
+	if err := s.canUpdateExecutableWebhook(c, orgSlug, projectSlug, environmentSlug, triggerSlug); err != nil {
 		return err
 	}
 	delivery, err := s.pipelineWebhookService.ReplayDelivery(c.Context(), orgSlug, projectSlug, environmentSlug, triggerSlug, deliveryID)

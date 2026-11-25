@@ -207,7 +207,11 @@ func (s *CreationService) AuthorizeProposalPublish(ctx context.Context, args job
 	if err := authorizeProposalMember(args.MemberSlug, model.UserEventActor(args.MemberSlug)); err != nil {
 		return err
 	}
-	allowed, err := s.authorization.Can(ctx, authorization.Input{UserSlug: args.MemberSlug, OrgSlug: &args.OrganizationSlug, Action: model.Create, Resource: model.ResourcePipelines})
+	allowed, err := s.authorization.Can(ctx, authorization.Input{
+		Operation: "authorizeQueuedProposalCreate", Source: authorization.SourceQueuedMember,
+		UserSlug: args.MemberSlug, OrgSlug: &args.OrganizationSlug, Action: model.Create, Resource: model.ResourcePipelines,
+		Target: model.AuthorizationTarget{Kind: "projects", Slug: args.ProjectSlug},
+	})
 	if err != nil {
 		return err
 	}

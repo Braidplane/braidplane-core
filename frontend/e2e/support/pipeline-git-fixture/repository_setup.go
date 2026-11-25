@@ -88,7 +88,7 @@ func handleRepositorySetupAPI(w http.ResponseWriter, r *http.Request) bool {
 		write(map[string]any{"branches": []map[string]any{
 			{"name": "main", "is_default": true}, {"name": "release", "is_default": false},
 		}})
-	case "/api/organizations/acme/roles/admin":
+	case "/api/organizations/acme/authorization/permissions":
 		write(map[string]any{"slug": "admin", "permissions": []map[string]string{
 			{"resource": "projects", "action": "read"}, {"resource": "projects", "action": "update"}, {"resource": "organizations", "action": "update"}, {"resource": "datasources", "action": "read"}, {"resource": "datasources", "action": "create"}, {"resource": "pipelines", "action": "read"},
 		}})

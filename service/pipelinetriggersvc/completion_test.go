@@ -119,8 +119,13 @@ func TestCompletionConfigRejectsCancellationAndMixedTypes(t *testing.T) {
 	require.Error(t, validateTriggerTypeConfig(model.PipelineTriggerTypeCompletion, nil, nil, &invalid))
 }
 
+func testCompletionEditorAuthority() model.CompletionAuthoritySnapshot {
+	facts := model.AuthorizationFacts{Valid: true, OrganizationID: "1", Bindings: []model.AuthorizationBinding{{Scope: "organization", ScopeID: "1", Permissions: []string{"*:*"}}}}
+	return model.CompletionAuthoritySnapshot{Valid: true, PrincipalID: "member:1", Scoped: &model.CompletionAuthorizationFacts{Upstream: facts, Trigger: facts, Downstream: facts}}
+}
+
 func TestCompletionSnapshotChecksClosureAndCurrentAuthorityWithoutCancelingAcceptedChild(t *testing.T) {
-	authority := model.CompletionAuthoritySnapshot{Valid: true, Permissions: []string{"*:*"}}
+	authority := testCompletionEditorAuthority()
 	for _, tt := range []struct {
 		name, state, reason string
 		closure, current    bool
@@ -171,7 +176,7 @@ func TestCompletionSnapshotChecksClosureAndCurrentAuthorityWithoutCancelingAccep
 }
 
 func TestCompletionSnapshotTransientValidationFailureRemainsPending(t *testing.T) {
-	authority := model.CompletionAuthoritySnapshot{Valid: true, Permissions: []string{"*:*"}}
+	authority := testCompletionEditorAuthority()
 	transient := xerror.Unavailable(xerror.Pipeline)
 	repo := &fakeTriggerRepository{snapshot: &model.PipelineCompletionSnapshot{State: "pending", CausalDepth: 1, ClosureAuthority: authority, CurrentAuthority: authority}}
 	svc := &service{completionTriggersEnabled: true, txm: testutil.FakeTransactionManager{}, repo: repo, completionValidator: fakeCompletionValidator{err: transient}}

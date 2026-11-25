@@ -7,6 +7,8 @@ import (
 )
 
 type allowAuthorizationService struct {
+	authorization.Service
+
 	CanFn func(context.Context, authorization.Input) (bool, error)
 }
 

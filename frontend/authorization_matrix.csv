@@ -1,0 +1,214 @@
+method,route,principal,backend operations or local action (excludes shared page chrome)
+ANY,/privacy,retired,404
+ANY,/pricing,retired,404
+ANY,/solutions,retired,404
+ANY,/solutions/*,retired,404
+ANY,/robots.txt,retired,404
+ANY,/sitemap.xml,retired,404
+ANY,/orgs/:slug/projects/:projectSlug/settlement-review,retired,404
+GET,/,public,redirect to login
+GET,/auth/session-status,session,getUsersProfile
+ANY,/roadmap,retired,404
+ANY,/wishlist,retired,404
+ANY,/wishlist/*,retired,404
+ANY,/api/wishlist-registrations,retired,404
+ANY,/api/wishlist-registrations/*,retired,404
+GET,/auth/login,public,getAuthenticationMethods
+POST,/auth/login,public,"createSession, getAuthenticationMethods"
+POST,/auth/mfa,public,verifySessionMFA
+GET,/auth/signup,public,getAuthenticationMethods
+POST,/auth/signup,public,"createUser, getAuthenticationMethods"
+GET,/auth/forgot-password,public,local form or presentation
+POST,/auth/forgot-password,public,requestPasswordReset
+GET,/auth/reset-password,public,local form or presentation
+POST,/auth/reset-password,public,resetPassword
+POST,/auth/resend-verification,public,resendVerificationEmail
+GET,/auth/error,public,local form or presentation
+GET,/verify-email,public,local form or presentation
+POST,/verify-email,public,verifyEmail
+POST,/auth/logout,session cookie,local session destruction
+GET,/account,session,self profile and personal tokens
+POST,/account/deletion,session,requestAccountDeletion
+POST,/account/profile,session,"listEvents, listMyMemberInvitations, listPersonalAccessTokens, listProjectEnvironments, listProjects, patchUsersProfile"
+POST,/account/security,session,"listEvents, listMyMemberInvitations, listPersonalAccessTokens, listProjectEnvironments, listProjects, patchUsersProfile"
+POST,/account/security/password,session,"listEvents, listProjectEnvironments, listProjects, updateUserPassword"
+POST,/account/security/personal-access-tokens,session,"createPersonalAccessToken, listEvents, listMyMemberInvitations, listPersonalAccessTokens, listProjectEnvironments, listProjects"
+POST,/account/security/personal-access-tokens/:patSlug/update,session,"listEvents, listMyMemberInvitations, listPersonalAccessTokens, listProjectEnvironments, listProjects, updatePersonalAccessTokenWithBody"
+POST,/account/security/personal-access-tokens/:patSlug/rotate,session,"listEvents, listMyMemberInvitations, listPersonalAccessTokens, listProjectEnvironments, listProjects, rotatePersonalAccessToken"
+POST,/account/security/personal-access-tokens/:patSlug/revoke,session,"deletePersonalAccessToken, listEvents, listMyMemberInvitations, listPersonalAccessTokens, listProjectEnvironments, listProjects"
+POST,/account/security/personal-access-tokens/:patSlug/delete,session,"deleteRevokedPersonalAccessToken, listEvents, listMyMemberInvitations, listPersonalAccessTokens, listProjectEnvironments, listProjects"
+POST,/account/member-invitations/:slug/:invitationSlug/accept,session,"acceptMyMemberInvitation, listEvents, listMyMemberInvitations, listPersonalAccessTokens, listProjectEnvironments, listProjects"
+POST,/account/member-invitations/:slug/:invitationSlug/decline,session,"declineMyMemberInvitation, listEvents, listMyMemberInvitations, listPersonalAccessTokens, listProjectEnvironments, listProjects"
+GET,/member-invitations/accept,session,listEvents
+POST,/member-invitations/accept,session,"acceptMemberInvitation, listEvents"
+POST,/member-invitations/decline,session,"declineMemberInvitation, listEvents"
+GET,/workspace,session,membership-backed organization selection
+POST,/workspace,session,membership-backed organization selection
+POST,/organizations/:slug/switch,session,membership-backed organization selection
+GET,/dashboard,"session, workspace","getQueryExecutionSummary, listDataSourceBindings, listDataSourceRefs, listDataSources, listEvents, listPipelineDeployments, listPipelineRuns, listPipelines, listProjectEnvironments, listProjects, listQueries"
+GET,/builder,"session, workspace","getPipeline, listEvents, listProjectEnvironments, listProjects"
+GET,/builder/schema,"session, workspace",getDataSource
+POST,/builder/mapping,"session, workspace",validate submitted shape or inspectODCSRevision when a retained contract is selected
+GET,/builder/run-evidence,"session, workspace","getPipelineRun, getPipelineVersion, listPipelineRuns"
+POST,/builder/export,"session, workspace",serialize and validate submitted pipeline
+POST,/builder/validate,"session, workspace",validatePipeline
+POST,/builder/import,"session, workspace",parse submitted pipeline
+GET,/orgs/:slug/projects/:projectSlug/contracts,"session, workspace","getODCSRevision, inspectODCSRevision, listEvents, listODCSContracts, listODCSRevisions, listProjectEnvironments, listProjects, previewODCSRevisionImpact"
+GET,/orgs/:slug/projects/:projectSlug/pipelines/:pipelineSlug/environments/:environmentSlug/recency,"session, workspace","getSuccessfulRunRecency, listEvents, listProjectEnvironments, listProjects, updateSuccessfulRunRecency"
+POST,/orgs/:slug/projects/:projectSlug/pipelines/:pipelineSlug/environments/:environmentSlug/recency,"session, workspace","getSuccessfulRunRecency, listEvents, listProjectEnvironments, listProjects, updateSuccessfulRunRecency"
+GET,/orgs/:slug/projects/:projectSlug/pipelines,"session, workspace","getPipeline, listEvents, listPipelineDeployments, listPipelineRuns, listPipelineValidationResults, listPipelines, listProjectEnvironments, listProjects"
+GET,/orgs/:slug/projects/:projectSlug/pipeline-sync,"session, workspace","getProject, listEvents, listProjectEnvironments, listProjects, reconcilePipelines"
+POST,/orgs/:slug/projects/:projectSlug/pipeline-sync,"session, workspace","getProject, listEvents, listProjectEnvironments, listProjects, reconcilePipelines"
+GET,/orgs/:slug/projects/:projectSlug/pipelines/:pipelineSlug/bindings,"session, workspace","getPipelineVersion, listDataSourceBindings, listDataSourceRefs, listDataSources, listEvents, listPipelineValidationResults, listProjectEnvironments, listProjects"
+GET,/orgs/:slug/projects/:projectSlug/pipelines/:pipelineSlug/deploy,"session, workspace","compilePipelineVersion, deployPipeline, getPipelineCompiledPlan, getPipelineDeployment, getPipelineVersion, listEvents, listProjectEnvironments, listProjects"
+POST,/orgs/:slug/projects/:projectSlug/pipelines/:pipelineSlug/deploy,"session, workspace","compilePipelineVersion, deployPipeline, getPipelineCompiledPlan, getPipelineDeployment, getPipelineVersion, listEvents, listProjectEnvironments, listProjects"
+GET,/orgs/:slug/projects/:projectSlug/schedules,"session, workspace","getPipelineDeployment, getPipelineTrigger, listEvents, listPipelineScheduleFires, listPipelineTriggers, listPipelineWebhookDeliveries, listProjectEnvironments, listProjects"
+GET,/orgs/:slug/projects/:projectSlug/schedules/:triggerSlug,"session, workspace","getPipelineDeployment, getPipelineTrigger, listEvents, listPipelineScheduleFires, listPipelineWebhookDeliveries, listProjectEnvironments, listProjects"
+POST,/orgs/:slug/projects/:projectSlug/schedules/:triggerSlug/deliveries/:deliveryID/replay,"session, workspace",replayPipelineWebhookDelivery
+GET,/orgs/:slug/projects/:projectSlug/environments,"session, workspace","getPipeline, listDataSourceBindings, listDataSourceRefs, listEvents, listPipelineCreationProposals, listPipelines, listProjectEnvironments, listProjects"
+GET,/orgs/:slug/projects/:projectSlug/pipelines/:pipelineSlug/deployment,"session, workspace","getPipeline, getPipelineDeployment, listEvents, listProjectEnvironments, listProjects"
+GET,/orgs/:slug/projects/:projectSlug/pipelines/:pipelineSlug,"session, workspace","getPipeline, getPipelineDeployment, getPipelineReadiness, getPipelineRun, getPipelineVersion, getSuccessfulRunRecency, listDataSourceBindings, listDataSourceRefs, listDataSources, listEvents, listPipelineDeployments, listPipelineRuns, listPipelineTriggers, listPipelineValidationResults, listProjectEnvironments, listProjects"
+GET,/organizations/:slug/projects,"session, workspace","getDataSource, getOrganization, getPipeline, getProject, getProjectReadiness, listDataSourceBindings, listDataSourceRefs, listDataSources, listEvents, listPipelines, listProjectEnvironments, listProjects"
+GET,/organizations/:slug/projects/:projectSlug,"session, workspace","getDataSource, getOrganization, getPipeline, getProject, getProjectReadiness, getProjectRepositorySetup, getProjectRepositorySetupAttempt, listDataSourceBindings, listDataSourceRefs, listDataSources, listEvents, listPipelines, listProjectEnvironments, listProjects"
+POST,/organizations/:slug/projects,"session, workspace","createProject, getDataSource, getOrganization, getPipeline, getProjectReadiness, listDataSourceBindings, listDataSourceRefs, listDataSources, listEvents, listPipelines, listProjectEnvironments, listProjects"
+POST,/organizations/:slug/projects/:projectSlug/environments/enable,"session, workspace","enableProjectEnvironment, getDataSource, getOrganization, getPipeline, getProject, getProjectReadiness, getProjectRepositorySetup, getProjectRepositorySetupAttempt, listDataSourceBindings, listDataSourceRefs, listDataSources, listEvents, listPipelines, listProjectEnvironments, listProjects"
+POST,/organizations/:slug/projects/:projectSlug/environments/:environmentSlug/default,"session, workspace","enableProjectEnvironment, getDataSource, getOrganization, getPipeline, getProject, getProjectReadiness, getProjectRepositorySetup, getProjectRepositorySetupAttempt, listDataSourceBindings, listDataSourceRefs, listDataSources, listEvents, listPipelines, listProjectEnvironments, listProjects"
+POST,/organizations/:slug/projects/:projectSlug/environments/:environmentSlug/disable,"session, workspace","disableProjectEnvironment, getDataSource, getOrganization, getPipeline, getProject, getProjectReadiness, getProjectRepositorySetup, getProjectRepositorySetupAttempt, listDataSourceBindings, listDataSourceRefs, listDataSources, listEvents, listPipelines, listProjectEnvironments, listProjects"
+POST,/organizations/:slug/projects/:projectSlug/environments/:environmentSlug/data-source-bindings/:dataSourceRefSlug/upsert,"session, workspace","getDataSource, getOrganization, getPipeline, getProject, getProjectReadiness, getProjectRepositorySetup, getProjectRepositorySetupAttempt, listDataSourceBindings, listDataSourceRefs, listDataSources, listEvents, listPipelines, listProjectEnvironments, listProjects, upsertDataSourceBinding"
+POST,/organizations/:slug/projects/:projectSlug/environments/:environmentSlug/data-source-bindings/:dataSourceRefSlug/delete,"session, workspace","deleteDataSourceBinding, getDataSource, getOrganization, getPipeline, getProject, getProjectReadiness, getProjectRepositorySetup, getProjectRepositorySetupAttempt, listDataSourceBindings, listDataSourceRefs, listDataSources, listEvents, listPipelines, listProjectEnvironments, listProjects"
+GET,/orgs/:slug/projects/:projectSlug/proof-receipts,"session, workspace","listEvents, listProjectEnvironments, listProjects, listProofReceipts"
+GET,/orgs/:slug/projects/:projectSlug/environments/:environmentSlug/proof-receipts/:receiptSlug,"session, workspace","getOrganizationGitHubAppConnection, getProofReceipt, listEvents, listProjectEnvironments, listProjects"
+GET,/organizations/:slug/github,"session, workspace","getOrganization, getOrganizationGitHubAppConnection, listEvents, listProjectEnvironments, listProjects"
+GET,/organizations/:slug/connections,"session, workspace","getOrganizationGitLabConnection, listEvents, listProjectEnvironments, listProjects, listProofConfigurations"
+POST,/organizations/:slug/gitlab/connect,"session, workspace",startOrganizationGitLabAuthorization
+POST,/organizations/:slug/gitlab/disconnect,"session, workspace",disconnectOrganizationGitLabConnection
+GET,/organizations/:slug/proof,"session, workspace","getDataSourceProofConfiguration, listEvents, listProjectEnvironments, listProjects"
+GET,/orgs/:slug/data-sources/:dsSlug/proof,"session, workspace","getDataSourceProofConfiguration, listEvents, listProjectEnvironments, listProjects"
+POST,/orgs/:slug/data-sources/:dsSlug/proof,"session, workspace","getDataSourceProofConfiguration, listEvents, listProjectEnvironments, listProjects, setDataSourceProofConfiguration"
+POST,/orgs/:slug/data-sources/:dsSlug/gitlab-connection,"session, workspace",attachDataSourceOrganizationGitLabConnection
+POST,/organizations/:slug/github/connect,"session, workspace",startOrganizationGitHubAppInstall
+POST,/organizations/:slug/github/authorize-existing,"session, workspace",authorizeOrganizationGitHubAppConnection
+GET,/github/callback,"session, workspace",completeOrganizationGitHubAppInstall
+POST,/organizations/:slug/github/disconnect,"session, workspace",disconnectOrganizationGitHubAppConnection
+POST,/orgs/:slug/projects/:projectSlug/pipelines/save,"session, workspace","getPipeline, savePipelineDraft"
+POST,/orgs/:slug/projects/:projectSlug/pipelines/:pipelineSlug/publish,"session, workspace","getPipeline, publishPipelineDraft"
+POST,/orgs/:slug/projects/:projectSlug/pipelines/:pipelineSlug/proposal-refresh,"session, workspace",refreshPipelineDraftProposal
+GET,/orgs/:slug/projects/:projectSlug/pipelines/:pipelineSlug/proposal-review,"session, workspace",getPipeline
+GET,/orgs/:slug/projects/:projectSlug/pipelines/:pipelineSlug/canonical-state,"session, workspace",getPipeline
+POST,/orgs/:slug/projects/:projectSlug/pipelines/:pipelineSlug/draft/discard,"session, workspace",deletePipelineDraft
+POST,/orgs/:slug/projects/:projectSlug/pipelines/:pipelineSlug/draft/delete,"session, workspace","deletePipelineDraft, getPipeline, getPipelineDeployment, getPipelineReadiness, getPipelineRun, getPipelineVersion, getSuccessfulRunRecency, listDataSourceBindings, listDataSourceRefs, listDataSources, listEvents, listPipelineDeployments, listPipelineRuns, listPipelineTriggers, listPipelineValidationResults, listProjectEnvironments, listProjects"
+POST,/orgs/:slug/projects/:projectSlug/pipelines/:pipelineSlug/execute,"session, workspace",executePipeline
+POST,/orgs/:slug/projects/:projectSlug/pipelines/:pipelineSlug/validation/revalidate,"session, workspace","getPipeline, getPipelineDeployment, getPipelineReadiness, getPipelineRun, getPipelineVersion, getSuccessfulRunRecency, listDataSourceBindings, listDataSourceRefs, listDataSources, listEvents, listPipelineDeployments, listPipelineRuns, listPipelineTriggers, listPipelineValidationResults, listProjectEnvironments, listProjects, revalidatePipeline"
+POST,/orgs/:slug/projects/:projectSlug/pipelines/:pipelineSlug/environments/:environmentSlug/data-source-bindings/:dataSourceRefSlug/upsert,"session, workspace","getPipeline, getPipelineDeployment, getPipelineReadiness, getPipelineRun, getPipelineVersion, getSuccessfulRunRecency, listDataSourceBindings, listDataSourceRefs, listDataSources, listEvents, listPipelineDeployments, listPipelineRuns, listPipelineTriggers, listPipelineValidationResults, listProjectEnvironments, listProjects, upsertDataSourceBinding"
+POST,/orgs/:slug/projects/:projectSlug/pipelines/:pipelineSlug/environments/:environmentSlug/data-source-bindings/:dataSourceRefSlug/delete,"session, workspace","deleteDataSourceBinding, getPipeline, getPipelineDeployment, getPipelineReadiness, getPipelineRun, getPipelineVersion, getSuccessfulRunRecency, listDataSourceBindings, listDataSourceRefs, listDataSources, listEvents, listPipelineDeployments, listPipelineRuns, listPipelineTriggers, listPipelineValidationResults, listProjectEnvironments, listProjects"
+POST,/orgs/:slug/projects/:projectSlug/pipelines/:pipelineSlug/bootstrap-checkpoints,"session, workspace",bootstrapPipelineCheckpoints
+GET,/orgs/:slug/members,"session, workspace","listEvents, listMemberInvitations, listMembers, listProjectEnvironments, listProjects"
+GET,/orgs/:slug/events,"session, workspace","listEvents, listProjectEnvironments, listProjects, listSecurityAuditEvents"
+GET,/orgs/:slug/events/export,"session, workspace",exportSecurityAuditEvents
+GET,/orgs/:slug/notifications,"session, workspace","getPipelineOperationalCapabilities, listAlertDeliveryAttempts, listEvents, listNotifications, listProjectEnvironments, listProjects"
+GET,/orgs/:slug/alerts,"session, workspace","getAlertDestination, getAlertPolicy, getPipelineOperationalCapabilities, listAlertDestinations, listAlertPolicies, listEvents, listNotificationConnections, listProjectEnvironments, listProjects"
+GET,/orgs/:slug/alerts/connections,"session, workspace","listEvents, listNotificationConnections, listProjectEnvironments, listProjects"
+POST,/orgs/:slug/alerts/connections,"session, workspace","createNotificationConnection, listEvents, listNotificationConnections, listProjectEnvironments, listProjects"
+POST,/orgs/:slug/alerts/connections/:notification_connection_slug/connect,"session, workspace","connectNotificationConnection, listEvents, listNotificationConnections, listProjectEnvironments, listProjects"
+POST,/orgs/:slug/alerts/connections/:notification_connection_slug/disconnect,"session, workspace","disconnectNotificationConnection, listEvents, listNotificationConnections, listProjectEnvironments, listProjects"
+GET,/orgs/:slug/data-sources,"session, workspace","getDataSource, getOrganizationGitHubAppConnection, listDataSources, listEvents, listOrganizationGitLabRepositories, listProjectEnvironments, listProjects, listQueries"
+GET,/orgs/:slug/data-sources/:dsSlug,"session, workspace","getDataSource, listDataSourceProviderRepositories, listEvents, listProjectEnvironments, listProjects, listQueries"
+GET,/orgs/:slug/data-sources/:dsSlug/snowflake-onboarding,"session, workspace",getSnowflakeOnboarding
+POST,/orgs/:slug/data-sources/:dsSlug/snowflake-identity,"session, workspace",updateDataSource
+GET,/orgs/:slug/queries,"session, workspace","getDataSource, getPipeline, listDataSourceBindings, listDataSources, listEvents, listPipelineCreationProposals, listPipelines, listProjectEnvironments, listProjects, listQueries"
+POST,/orgs/:slug/projects/:projectSlug/runs/:runSlug/recover,"session, workspace",recoverPipelineRun
+GET,/orgs/:slug/projects/:projectSlug/runs,"session, workspace","getPipelineRun, listEvents, listPipelineRuns, listProjectEnvironments, listProjects"
+GET,/orgs/:slug/projects/:projectSlug/runs/:runSlug,"session, workspace","getDataSource, getPipeline, getPipelineRun, getPipelineRunCompletion, getPipelineRunConnected, getPipelineRunProgress, getPipelineVersion, getQuery, listEvents, listPipelineRunTriggerRetryAttempts, listPipelineTriggers, listProjectEnvironments, listProjects"
+GET,/orgs/:slug/data-sources/:dsSlug/queries/:querySlug,"session, workspace","getQuery, listEvents, listProjectEnvironments, listProjects"
+GET,/orgs/:slug/data-sources/:dsSlug/queries/:querySlug/pipeline,"session, workspace","createPipelineProposal, getProject, getQuery, listEvents, listProjectEnvironments, listProjects"
+POST,/orgs/:slug/data-sources/:dsSlug/queries/:querySlug/pipeline,"session, workspace","createPipelineProposal, getProject, getQuery, listEvents, listProjectEnvironments, listProjects"
+GET,/orgs/:slug/projects/:projectSlug/pipeline-creations/:creationSlug,"session, workspace","createPipelineProposal, getPipelineCreationProposal, getPipelineVersion, listEvents, listProjectEnvironments, listProjects"
+GET,/orgs/:slug/projects/:projectSlug/pipeline-creations,"session, workspace","listEvents, listPipelineCreationProposals, listProjectEnvironments, listProjects"
+POST,/orgs/:slug/projects/:projectSlug/pipeline-creations,"session, workspace",createPipelineProposal
+POST,/orgs/:slug/projects/:projectSlug/pipeline-creations/:creationSlug,"session, workspace","createPipelineProposal, getPipelineCreationProposal, getPipelineVersion, listEvents, listProjectEnvironments, listProjects"
+GET,/organizations,"session, workspace",listEvents
+GET,/organizations/:slug/members,"session, workspace","listEvents, listMemberInvitations, listMembers, listProjectEnvironments, listProjects"
+GET,/organizations/:slug/roles,"session, workspace","getOrganization, listEvents, listProjectEnvironments, listProjects, listRoles"
+GET,/organizations/:slug/security,"session, workspace","getOrganization, listAPIKeys, listEvents, listProjectEnvironments, listProjects, listRoles"
+POST,/orgs/:slug/queries,"session, workspace","createQuery, getDataSource, getPipeline, listDataSourceBindings, listDataSources, listEvents, listPipelineCreationProposals, listPipelines, listProjectEnvironments, listProjects, listQueries"
+POST,/orgs/:slug/data-sources/:dsSlug/queries/:querySlug/update,"session, workspace","getDataSource, getQuery, listEvents, listProjectEnvironments, listProjects, updateQuery"
+POST,/orgs/:slug/data-sources/:dsSlug/queries/:querySlug/delete,"session, workspace","deleteQuery, getQuery, listEvents, listProjectEnvironments, listProjects"
+POST,/orgs/:slug/data-sources/:dsSlug/queries/:querySlug/restore,"session, workspace","getDataSource, getPipeline, listDataSourceBindings, listDataSources, listEvents, listPipelineCreationProposals, listPipelines, listProjectEnvironments, listProjects, listQueries, restoreQuery"
+POST,/orgs/:slug/data-sources/:dsSlug/queries/:querySlug/purge,"session, workspace","getDataSource, getPipeline, listDataSourceBindings, listDataSources, listEvents, listPipelineCreationProposals, listPipelines, listProjectEnvironments, listProjects, listQueries, purgeQuery"
+POST,/orgs/:slug/data-sources/:dsSlug/queries/:querySlug/execute,"session, workspace","executeQuery, getDataSource, getPipeline, getQuery, listDataSourceBindings, listDataSources, listEvents, listPipelineCreationProposals, listPipelines, listProjectEnvironments, listProjects, listQueries"
+POST,/orgs/:slug/data-sources,"session, workspace","createDataSource, getOrganizationGitHubAppConnection, listDataSources, listEvents, listOrganizationGitLabRepositories, listProjectEnvironments, listProjects"
+POST,/orgs/:slug/data-sources/stripe/oauth,"session, workspace",startProviderDataSourceInstall
+POST,/orgs/:slug/data-sources/:dsSlug/stripe/oauth,"session, workspace",startProviderConnectorInstall
+POST,/orgs/:slug/data-sources/hubspot/oauth,"session, workspace","getOrganizationGitHubAppConnection, listDataSources, listEvents, listOrganizationGitLabRepositories, listProjectEnvironments, listProjects, startProviderDataSourceInstall"
+POST,/orgs/:slug/data-sources/bigquery/oauth,"session, workspace","getOrganizationGitHubAppConnection, listDataSources, listEvents, listOrganizationGitLabRepositories, listProjectEnvironments, listProjects, startProviderDataSourceInstall"
+POST,/orgs/:slug/data-sources/google_workspace/oauth,"session, workspace","getOrganizationGitHubAppConnection, listDataSources, listEvents, listOrganizationGitLabRepositories, listProjectEnvironments, listProjects, startProviderDataSourceInstall"
+POST,/orgs/:slug/data-sources/:dsSlug/google_workspace/oauth,"session, workspace","getDataSource, startProviderConnectorInstall"
+GET,/orgs/:slug/data-sources/:dsSlug/google_workspace/worksheets,"session, workspace",getGoogleWorkspaceWorksheets
+GET,/orgs/:slug/data-sources/:dsSlug/google_workspace/files,"session, workspace",listGoogleWorkspaceFiles
+GET,/orgs/:slug/data-sources/:dsSlug/google_workspace/picker,"session, workspace",getGoogleWorkspacePicker
+POST,/orgs/:slug/data-sources/:dsSlug/google_workspace/files/verify,"session, workspace",verifyGoogleWorkspaceFiles
+POST,/orgs/:slug/data-sources/:dsSlug/provider-repository,"session, workspace",selectDataSourceProviderRepository
+POST,/orgs/:slug/data-sources/:dsSlug/http/oauth,"session, workspace",connectDataSourceHTTPOAuth
+POST,/orgs/:slug/data-sources/:dsSlug/hubspot/oauth,"session, workspace","getDataSource, startProviderConnectorInstall"
+POST,/orgs/:slug/data-sources/:dsSlug/bigquery/oauth,"session, workspace","getDataSource, startProviderConnectorInstall"
+POST,/orgs/:slug/data-sources/parse-uri,"session, workspace",parse submitted connection URI
+POST,/orgs/:slug/data-sources/test-connection,"session, workspace","getOrganizationGitHubAppConnection, listDataSources, listEvents, listOrganizationGitLabRepositories, listProjectEnvironments, listProjects, testDataSourceConnection"
+POST,/orgs/:slug/data-sources/:dsSlug/test-connection,"session, workspace","getDataSource, testStoredDataSourceConnection"
+POST,/orgs/:slug/data-sources/:dsSlug/update,"session, workspace","getDataSource, updateDataSource"
+POST,/orgs/:slug/data-sources/:dsSlug/credentials/update,"session, workspace","getDataSource, updateDataSourceCredentials"
+POST,/orgs/:slug/data-sources/:dsSlug/schema/refresh,"session, workspace","getDataSource, refreshDataSourceSchema"
+POST,/orgs/:slug/data-sources/:dsSlug/delete,"session, workspace","deleteDataSource, getOrganizationGitHubAppConnection, listDataSources, listEvents, listOrganizationGitLabRepositories, listProjectEnvironments, listProjects"
+POST,/orgs/:slug/members/invite,"session, workspace","createMemberInvitation, listEvents, listMemberInvitations, listMembers, listProjectEnvironments, listProjects"
+POST,/organizations/:slug/members/invite,"session, workspace","createMemberInvitation, listEvents, listMemberInvitations, listMembers, listProjectEnvironments, listProjects"
+POST,/orgs/:slug/member-invitations/:invitationSlug/resend,"session, workspace","listEvents, listMemberInvitations, listMembers, listProjectEnvironments, listProjects, resendMemberInvitation"
+POST,/organizations/:slug/member-invitations/:invitationSlug/resend,"session, workspace","listEvents, listMemberInvitations, listMembers, listProjectEnvironments, listProjects, resendMemberInvitation"
+POST,/orgs/:slug/member-invitations/:invitationSlug/revoke,"session, workspace","listEvents, listMemberInvitations, listMembers, listProjectEnvironments, listProjects, revokeMemberInvitation"
+POST,/organizations/:slug/member-invitations/:invitationSlug/revoke,"session, workspace","listEvents, listMemberInvitations, listMembers, listProjectEnvironments, listProjects, revokeMemberInvitation"
+POST,/orgs/:slug/members/:userSlug/role,"session, workspace","listEvents, listMemberInvitations, listMembers, listProjectEnvironments, listProjects, updateMember"
+POST,/organizations/:slug/members/:userSlug/role,"session, workspace","listEvents, listMemberInvitations, listMembers, listProjectEnvironments, listProjects, updateMember"
+POST,/orgs/:slug/members/:userSlug/remove,"session, workspace","listEvents, listMemberInvitations, listMembers, listProjectEnvironments, listProjects, removeMember"
+POST,/organizations/:slug/members/:userSlug/remove,"session, workspace","listEvents, listMemberInvitations, listMembers, listProjectEnvironments, listProjects, removeMember"
+POST,/orgs/:slug/alerts/destinations,"session, workspace","createAlertDestination, getAlertDestination, getAlertPolicy, getPipelineOperationalCapabilities, listAlertDestinations, listAlertPolicies, listEvents, listNotificationConnections, listProjectEnvironments, listProjects"
+POST,/orgs/:slug/alerts/destinations/:destinationSlug/test,"session, workspace","getAlertDestination, getAlertPolicy, getPipelineOperationalCapabilities, listAlertDestinations, listAlertPolicies, listEvents, listNotificationConnections, listProjectEnvironments, listProjects, testAlertDestination"
+POST,/orgs/:slug/alerts/destinations/:destinationSlug/update,"session, workspace","getAlertDestination, getAlertPolicy, getPipelineOperationalCapabilities, listAlertDestinations, listAlertPolicies, listEvents, listNotificationConnections, listProjectEnvironments, listProjects, updateAlertDestination"
+POST,/orgs/:slug/alerts/destinations/:destinationSlug/delete,"session, workspace","deleteAlertDestination, getAlertDestination, getAlertPolicy, getPipelineOperationalCapabilities, listAlertDestinations, listAlertPolicies, listEvents, listNotificationConnections, listProjectEnvironments, listProjects"
+GET,/orgs/:slug/alerts/policies/selector-options,"session, workspace","getPipelineOperationalCapabilities, listAlertPolicySourceMetadata, listProjectEnvironments, listProjects"
+POST,/orgs/:slug/alerts/policies,"session, workspace","createAlertPolicy, getAlertDestination, getAlertPolicy, getPipelineOperationalCapabilities, listAlertDestinations, listAlertPolicies, listEvents, listNotificationConnections, listProjectEnvironments, listProjects"
+POST,/orgs/:slug/alerts/policies/:policySlug/update,"session, workspace","getAlertDestination, getAlertPolicy, getPipelineOperationalCapabilities, listAlertDestinations, listAlertPolicies, listEvents, listNotificationConnections, listProjectEnvironments, listProjects, updateAlertPolicy"
+POST,/orgs/:slug/alerts/policies/:policySlug/delete,"session, workspace","deleteAlertPolicy, getAlertDestination, getAlertPolicy, getPipelineOperationalCapabilities, listAlertDestinations, listAlertPolicies, listEvents, listNotificationConnections, listProjectEnvironments, listProjects"
+POST,/orgs/:slug/notifications/:notificationSlug/acknowledge,"session, workspace","acknowledgeNotification, getPipelineOperationalCapabilities, listAlertDeliveryAttempts, listEvents, listNotifications, listProjectEnvironments, listProjects, resolveNotification"
+POST,/orgs/:slug/notifications/:notificationSlug/resolve,"session, workspace","acknowledgeNotification, getPipelineOperationalCapabilities, listAlertDeliveryAttempts, listEvents, listNotifications, listProjectEnvironments, listProjects, resolveNotification"
+POST,/orgs/:slug/projects/:projectSlug/environments/enable,"session, workspace","enableProjectEnvironment, getPipeline, listDataSourceBindings, listDataSourceRefs, listEvents, listPipelineCreationProposals, listPipelines, listProjectEnvironments, listProjects"
+POST,/orgs/:slug/projects/:projectSlug/environments/:environmentSlug/default,"session, workspace","enableProjectEnvironment, getPipeline, listDataSourceBindings, listDataSourceRefs, listEvents, listPipelineCreationProposals, listPipelines, listProjectEnvironments, listProjects"
+POST,/orgs/:slug/projects/:projectSlug/environments/:environmentSlug/disable,"session, workspace","disableProjectEnvironment, getPipeline, listDataSourceBindings, listDataSourceRefs, listEvents, listPipelineCreationProposals, listPipelines, listProjectEnvironments, listProjects"
+GET,/organizations/new,"session, workspace",listEvents
+GET,/organizations/:slug,"session, workspace","getOrganization, listEvents, listProjectEnvironments, listProjects"
+POST,/organizations/:slug/delete,"session, workspace",deleteOrganization
+GET,/organizations/:slug/retention,"session, workspace","getOrganization, getOrganizationRetentionPolicy, listEvents, listOrganizationRetentionRuns, listProjectEnvironments, listProjects"
+POST,/organizations/:slug/retention,"session, workspace",updateOrganizationRetentionPolicy
+GET,/organizations/:slug/environments,"session, workspace","listEvents, listProjectEnvironments, listProjects"
+GET,/organizations/:slug/runtime-variables,"session, workspace","compareRuntimeVariables, getPipeline, getPipelineVersion, listDataSourceBindings, listEvents, listPipelineCreationProposals, listPipelines, listProjectEnvironments, listProjects"
+POST,/organizations/:slug/runtime-variables,"session, workspace","compareRuntimeVariables, deleteRuntimeVariableDefinition, getPipeline, getPipelineVersion, listDataSourceBindings, listEvents, listPipelineCreationProposals, listPipelines, listProjectEnvironments, listProjects, upsertRuntimeVariableDefinition"
+GET,/organizations/:slug/environments/:environmentSlug,"session, workspace","listEnvironmentRuntimeVariables, listEnvironmentSecrets, listEvents, listProjectEnvironments, listProjects"
+POST,/organizations/:slug/environments,"session, workspace","createEnvironment, listEvents, listProjectEnvironments, listProjects"
+POST,/organizations/:slug/environments/:environmentSlug/update,"session, workspace","listEnvironmentRuntimeVariables, listEnvironmentSecrets, listEvents, listProjectEnvironments, listProjects, updateEnvironment"
+POST,/organizations/:slug/environments/:environmentSlug/delete,"session, workspace","deleteEnvironment, listEnvironmentRuntimeVariables, listEnvironmentSecrets, listEvents, listProjectEnvironments, listProjects"
+POST,/organizations/:slug/environments/:environmentSlug/runtime-variables,"session, workspace","listEnvironmentRuntimeVariables, listEnvironmentSecrets, listEvents, listProjectEnvironments, listProjects, upsertEnvironmentRuntimeVariable"
+POST,/organizations/:slug/environments/:environmentSlug/runtime-variables/:runtimeVariableKey/delete,"session, workspace","deleteEnvironmentRuntimeVariable, listEnvironmentRuntimeVariables, listEnvironmentSecrets, listEvents, listProjectEnvironments, listProjects"
+POST,/organizations/:slug/environments/:environmentSlug/secrets,"session, workspace","listEnvironmentRuntimeVariables, listEnvironmentSecrets, listEvents, listProjectEnvironments, listProjects, upsertEnvironmentSecret"
+POST,/organizations/:slug/environments/:environmentSlug/secrets/:environmentSecretKey/delete,"session, workspace","deleteEnvironmentSecret, listEnvironmentRuntimeVariables, listEnvironmentSecrets, listEvents, listProjectEnvironments, listProjects"
+GET,/organizations/:slug/projects/:projectSlug/settings/pipeline-backend/branches,"session, workspace","getProject, listDataSourceBranches"
+POST,/organizations/:slug/projects/:projectSlug/settings/pipeline-backend,"session, workspace","abandonProjectRepositorySetup, createProjectRepository, getDataSource, getOrganization, getPipeline, getProject, getProjectReadiness, getProjectRepositorySetup, getProjectRepositorySetupAttempt, listDataSourceBindings, listDataSourceRefs, listDataSources, listEvents, listPipelines, listProjectEnvironments, listProjects, setProjectPipelineBackend"
+POST,/organizations/:slug/projects/:projectSlug/delete,"session, workspace","deleteProject, getDataSource, getOrganization, getPipeline, getProject, getProjectReadiness, getProjectRepositorySetup, getProjectRepositorySetupAttempt, listDataSourceBindings, listDataSourceRefs, listDataSources, listEvents, listPipelines, listProjectEnvironments, listProjects"
+POST,/organizations/:slug/roles,"session, workspace","createRole, getOrganization, listEvents, listProjectEnvironments, listProjects, listRoles"
+POST,/organizations/:slug/roles/:roleSlug/update,"session, workspace","getOrganization, listEvents, listProjectEnvironments, listProjects, listRoles, updateRole"
+POST,/organizations/:slug/roles/:roleSlug/archive,"session, workspace","deleteRole, getOrganization, listEvents, listProjectEnvironments, listProjects, listRoles"
+POST,/organizations/:slug/roles/:roleSlug/delete,"session, workspace","deleteRole, getOrganization, listEvents, listProjectEnvironments, listProjects, listRoles"
+POST,/organizations/:slug/roles/:roleSlug/restore,"session, workspace","getOrganization, listEvents, listProjectEnvironments, listProjects, listRoles, restoreRole"
+POST,/organizations/:slug/security/api-keys,"session, workspace","createAPIKey, getOrganization, listAPIKeys, listEvents, listProjectEnvironments, listProjects, listRoles"
+POST,/organizations/:slug/security/api-keys/:apiKeySlug/update,"session, workspace","getOrganization, listAPIKeys, listEvents, listProjectEnvironments, listProjects, listRoles, updateAPIKey"
+POST,/organizations/:slug/security/api-keys/:apiKeySlug/rotate,"session, workspace","getOrganization, listAPIKeys, listEvents, listProjectEnvironments, listProjects, listRoles, rotateAPIKey"
+POST,/organizations/:slug/security/api-keys/:apiKeySlug/revoke,"session, workspace","deleteAPIKey, getOrganization, listAPIKeys, listEvents, listProjectEnvironments, listProjects, listRoles"
+POST,/organizations/:slug/security/api-keys/:apiKeySlug/delete,"session, workspace","deleteRevokedAPIKey, getOrganization, listAPIKeys, listEvents, listProjectEnvironments, listProjects, listRoles"
+POST,/organizations,"session, workspace","createOrganization, listEvents"
+GET,/organizations/:slug/datasources/new,"session, workspace",local form or presentation

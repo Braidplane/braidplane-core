@@ -198,7 +198,7 @@ func TestRouter_LoadDashboardData_LoadsPanelsConcurrently(t *testing.T) {
 			writeJSON(w, `{"projects":[{"name":"Default","slug":"default","pipeline_backend":null,"created_at":"2026-03-01T00:00:00Z","updated_at":"2026-03-01T00:00:00Z"}],"has_more":false,"next_cursor":null,"prev_cursor":null}`)
 		case "/api/organizations/acme/query-execution-summary":
 			writeJSON(w, `{"successful_execution":null}`)
-		case "/api/organizations/acme/roles/admin":
+		case "/api/organizations/acme/authorization/permissions":
 			writeJSON(w, `{"slug":"admin","name":"Admin","permissions":[{"resource":"*","action":"*"}]}`)
 		case "/api/organizations/acme/projects/default/environments":
 			writeJSON(w, `{"project_environments":[{"environment_name":"Development","environment_slug":"dev","environment_description":null,"environment_protected":false,"is_default":true,"enabled_at":"2026-03-01T00:00:00Z","updated_at":"2026-03-01T00:00:00Z"}],"has_more":false,"next_cursor":null,"prev_cursor":null}`)
@@ -339,7 +339,7 @@ func TestRouter_HandleDashboardPage_EnablesProjectRuntimeNavFromDefaultScope(t *
 			writeJSON(w, `{"projects":[{"name":"Default","slug":"default","pipeline_backend":null,"created_at":"2026-03-01T00:00:00Z","updated_at":"2026-03-01T00:00:00Z"}],"has_more":false,"next_cursor":null,"prev_cursor":null}`)
 		case "/api/organizations/acme/query-execution-summary":
 			writeJSON(w, `{"successful_execution":null}`)
-		case "/api/organizations/acme/roles/admin":
+		case "/api/organizations/acme/authorization/permissions":
 			writeJSON(w, `{"slug":"admin","name":"Admin","permissions":[{"resource":"*","action":"*"}]}`)
 		case "/api/organizations/acme/projects/default/environments":
 			writeJSON(w, `{"project_environments":[{"environment_name":"Development","environment_slug":"dev","environment_description":null,"environment_protected":false,"is_default":true,"enabled_at":"2026-03-01T00:00:00Z","updated_at":"2026-03-01T00:00:00Z"}],"has_more":false,"next_cursor":null,"prev_cursor":null}`)
@@ -400,7 +400,7 @@ func TestRouter_HandleDashboardPage_FallsBackFromStaleRememberedProjectScope(t *
 			writeJSON(w, `{"projects":[{"name":"Default","slug":"default","pipeline_backend":null,"created_at":"2026-03-01T00:00:00Z","updated_at":"2026-03-01T00:00:00Z"}],"has_more":false,"next_cursor":null,"prev_cursor":null}`)
 		case "/api/organizations/acme/query-execution-summary":
 			writeJSON(w, `{"successful_execution":null}`)
-		case "/api/organizations/acme/roles/admin":
+		case "/api/organizations/acme/authorization/permissions":
 			writeJSON(w, `{"slug":"admin","name":"Admin","permissions":[{"resource":"*","action":"*"}]}`)
 		case "/api/organizations/acme/projects/default/environments":
 			writeJSON(w, `{"project_environments":[{"environment_name":"Development","environment_slug":"dev","environment_description":null,"environment_protected":false,"is_default":true,"enabled_at":"2026-03-01T00:00:00Z","updated_at":"2026-03-01T00:00:00Z"}],"has_more":false,"next_cursor":null,"prev_cursor":null}`)

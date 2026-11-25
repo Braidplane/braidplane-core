@@ -80,7 +80,8 @@ func TestPipelineWebhookDeliveryReadAndReplayUseProtectedTriggerPermissions(t *t
 	actions := make([]model.Action, 0, 5)
 	allowExecute := false
 	app, store := newTestApp(t, testServerConfig{
-		pipelineWebhookService: service,
+		pipelineWebhookService:  service,
+		pipelineTriggersService: &fakePipelineTriggersService{GetPipelineTriggerFn: storedWebhookTrigger},
 		authService: fakeAuthService{CanFn: func(_ context.Context, input authorization.Input) (bool, error) {
 			actions = append(actions, input.Action)
 			if input.Action == model.Execute {

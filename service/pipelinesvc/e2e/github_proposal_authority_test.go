@@ -20,13 +20,16 @@ import (
 	pipelinespec "github.com/Braidplane/braidplane-core/pkg/pipeline/spec"
 	"github.com/Braidplane/braidplane-core/pkg/slug"
 	"github.com/Braidplane/braidplane-core/pkg/testutil/fakes"
+	"github.com/Braidplane/braidplane-core/pkg/uuid"
 	"github.com/Braidplane/braidplane-core/postgres"
 	driftimpactrepo "github.com/Braidplane/braidplane-core/postgres/driftimpact"
+	"github.com/Braidplane/braidplane-core/postgres/executionrequests"
 	"github.com/Braidplane/braidplane-core/postgres/githubapps"
 	"github.com/Braidplane/braidplane-core/postgres/odcscontracts"
 	"github.com/Braidplane/braidplane-core/postgres/pipelineruns"
 	pipelinesrepo "github.com/Braidplane/braidplane-core/postgres/pipelines"
 	"github.com/Braidplane/braidplane-core/postgres/projects"
+	"github.com/Braidplane/braidplane-core/service/authorization"
 	"github.com/Braidplane/braidplane-core/service/datasourcessvc"
 	"github.com/Braidplane/braidplane-core/service/pipelinegit"
 	"github.com/Braidplane/braidplane-core/service/pipelineruntime"
@@ -143,6 +146,60 @@ func TestManagedGitHubBackendProvisionsProposalAuthority(t *testing.T) {
 	queued := producer.publishArgs
 	require.Equal(t, bound.Payload(), queued.Authority)
 	require.NoError(t, svc.AuthorizeProposalPublish(ctx, queued))
+
+	t.Run("claimed executor checks the exact scoped grant before each mutation", func(t *testing.T) {
+		repo := executionrequests.New()
+		id := uuid.New()
+		deadline := time.Now().Add(time.Minute)
+		require.NoError(t, repo.Create(ctx, pool, executionrequests.Request{
+			ID: id, OrganizationSlug: org.String(),
+			Kind: "git_scoped_proposal", RequestCiphertext: []byte("synthetic"), DeadlineAt: deadline,
+		}, deadline.Add(time.Minute)))
+		t.Cleanup(func() {
+			_, err := pool.Exec(ctx, `DELETE FROM execution_requests WHERE id=$1`, id)
+			require.NoError(t, err)
+		})
+		require.NoError(t, repo.BindUser(ctx, pool, id, org.String(), member))
+		ok, err := repo.BindProposal(ctx, pool, id, defaultProjectSlug, source, queued.PipelineSlug, queued.PublishAttemptID, queued.Authority.ID)
+		require.NoError(t, err)
+		require.True(t, ok)
+		request, claimed, err := repo.Claim(ctx, pool, id)
+		require.NoError(t, err)
+		require.True(t, claimed)
+		check := func(claim uuid.UUID, want bool) {
+			t.Helper()
+			facts, err := repo.ClaimedProposalAuthorization(ctx, pool, id, claim)
+			require.NoError(t, err)
+			allowed, err := authorization.CanWithResolvedFacts(ctx, model.Update, model.ResourcePipelines, facts)
+			require.NoError(t, err)
+			require.Equal(t, want, allowed)
+		}
+		_, err = pool.Exec(ctx, `UPDATE users SET verified_at=NOW() WHERE slug=$1`, member)
+		require.NoError(t, err)
+		check(request.ClaimToken, false)
+		_, err = pool.Exec(ctx, `INSERT INTO permissions(resource,action) VALUES ('pipelines','update') ON CONFLICT DO NOTHING`)
+		require.NoError(t, err)
+		_, err = pool.Exec(ctx, `WITH role AS (INSERT INTO roles(organization_id,slug,name) VALUES($1,'proposal-writer','Writer') RETURNING id)
+			INSERT INTO role_permissions(role_id,permission_id) SELECT role.id,p.id FROM role CROSS JOIN permissions p WHERE p.resource='pipelines' AND p.action='update'`, orgID)
+		require.NoError(t, err)
+		_, err = pool.Exec(ctx, `INSERT INTO authorization_scoped_grants(organization_id,member_id,role_id,scope,target_kind,target_id)
+			SELECT p.organization_id,m.id,r.id,'resource','pipelines',s.id FROM projects p
+			JOIN pipeline_specs s ON p.id=s.project_id JOIN organization_members m ON m.organization_id=p.organization_id
+			JOIN users u ON u.id=m.user_id JOIN roles r ON r.organization_id=p.organization_id
+			WHERE p.organization_id=$1 AND p.slug=$2 AND s.slug=$3 AND u.slug=$4 AND r.slug='proposal-writer'`, orgID, defaultProjectSlug, queued.PipelineSlug, member)
+		require.NoError(t, err)
+		check(uuid.New(), false)
+		check(request.ClaimToken, true)
+		_, err = pool.Exec(ctx, `UPDATE github_app_installations SET suspended_at=now() WHERE organization_id=$1`, orgID)
+		require.NoError(t, err)
+		check(request.ClaimToken, false)
+		_, err = pool.Exec(ctx, `UPDATE github_app_installations SET suspended_at=NULL WHERE organization_id=$1`, orgID)
+		require.NoError(t, err)
+		check(request.ClaimToken, true)
+		_, err = pool.Exec(ctx, `DELETE FROM authorization_scoped_grants WHERE organization_id=$1`, orgID)
+		require.NoError(t, err)
+		check(request.ClaimToken, false)
+	})
 
 	// Resolution rejects lifecycle and source mutations even before an executor can mint a token.
 	for _, tc := range []struct{ name, change, restore string }{

@@ -21,7 +21,7 @@ func TestModerationCasesResetEvidenceAndKeepPermissionsReadOnly(t *testing.T) {
 		runInspectionHistory, runInspectionDeploymentChanged = previousHistory, previousChanged
 	})
 	moderationFixture = false
-	rolePath := "/api/organizations/acme/roles/admin"
+	rolePath := "/api/organizations/acme/authorization/permissions"
 	require.False(t, handleModerationAPI(httptest.NewRecorder(), httptest.NewRequestWithContext(t.Context(), http.MethodGet, rolePath, nil)))
 	app := fiber.New()
 	registerModerationFixture(app)
@@ -72,5 +72,5 @@ func TestModerationCasesResetEvidenceAndKeepPermissionsReadOnly(t *testing.T) {
 	require.Equal(t, http.StatusBadRequest, response.StatusCode)
 	require.True(t, deployed)
 	require.Equal(t, "succeeded", runInspectionStatus)
-	require.False(t, handleModerationAPI(httptest.NewRecorder(), httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/api/organizations/other/roles/admin", nil)))
+	require.False(t, handleModerationAPI(httptest.NewRecorder(), httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/api/organizations/other/authorization/permissions", nil)))
 }

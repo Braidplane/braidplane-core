@@ -5,54 +5,65 @@ import (
 	_ "embed"
 	"fmt"
 	"sync"
+	"time"
 
 	"github.com/open-policy-agent/opa/v1/rego"
 
 	"github.com/Braidplane/braidplane-core/pkg/domain/model"
 	"github.com/Braidplane/braidplane-core/pkg/slug"
 	"github.com/Braidplane/braidplane-core/pkg/xerror"
-	"github.com/Braidplane/braidplane-core/service/rolessvc"
 	"github.com/Braidplane/braidplane-core/service/userssvc"
 )
 
 type Service interface {
 	Can(ctx context.Context, input Input) (bool, error)
+	EffectivePermissions(ctx context.Context, input Input) ([]model.RolePermission, error)
 }
 
 type Input struct {
-	UserSlug          slug.Slug    // The user performing the action
-	APIKeySlug        slug.Slug    // Optional API key service principal
-	APIKeyRoleSlug    slug.Slug    // Optional API key role in the organization
-	OrgSlug           *slug.Slug   // Optional: for organization-scoped authorization
-	Action            model.Action // The action being performed
-	Resource          fmt.Stringer // The typed resource, including consumer-owned resources
-	ResourceOwnerSlug *slug.Slug   // Optional: for ownership checks
+	SessionAuthenticatedAt    time.Time    // Trusted session authentication time for sensitive self-service changes.
+	Operation                 string       // Registered action chosen by the server or trusted adapter.
+	CheckPurpose              string       // Named secondary check when the same permission protects multiple targets.
+	Source                    Source       // Authenticated credential type.
+	UserSlug                  slug.Slug    // The user performing the action
+	APIKeySlug                slug.Slug    // Optional API key service principal
+	APIKeyRoleSlug            slug.Slug    // Authenticated role used by key management. The resolver verifies it against the current role.
+	OrgSlug                   *slug.Slug   // Optional: for organization-scoped authorization
+	Action                    model.Action // The action being performed
+	Resource                  fmt.Stringer // The typed resource, including consumer-owned resources
+	ResourceOwnerSlug         *slug.Slug   // Global profile subject.
+	Target                    model.AuthorizationTarget
+	ProjectDataSourceBindings bool // The operation acts on project-owned references or bindings.
 }
+
+type ResolveFacts func(context.Context, slug.Slug, slug.Slug, slug.Slug, model.AuthorizationTarget) (model.AuthorizationFacts, error)
 
 type service struct {
 	query        rego.PreparedEvalQuery
 	usersService userssvc.UsersService
-	rolesService rolessvc.Service
+	resolve      ResolveFacts
 }
 
 type opaUserInput struct {
-	Slug        string   `json:"slug"`
-	Role        string   `json:"role"`
-	Permissions []string `json:"permissions"`
+	Slug string `json:"slug"`
+	Role string `json:"role"`
 }
 
 type opaAuthorizationInput struct {
-	User              opaUserInput `json:"user"`
-	OrgScoped         bool         `json:"org_scoped"`
-	Action            string       `json:"action"`
-	Resource          string       `json:"resource"`
-	ResourceOwnerSlug *string      `json:"resource_owner_slug,omitempty"`
+	ProjectDataSourceBindings bool                     `json:"project_datasource_bindings"`
+	ConsumerResource          bool                     `json:"consumer_resource"`
+	Facts                     model.AuthorizationFacts `json:"facts"`
+	User                      opaUserInput             `json:"user"`
+	OrgScoped                 bool                     `json:"org_scoped"`
+	Action                    string                   `json:"action"`
+	Resource                  string                   `json:"resource"`
+	ResourceOwnerSlug         *string                  `json:"resource_owner_slug,omitempty"`
 }
 
 //go:embed authz.rego
 var authzModule string
 
-func New(usersService userssvc.UsersService, rolesService rolessvc.Service) (Service, error) {
+func New(usersService userssvc.UsersService, resolve ResolveFacts) (Service, error) {
 	query, err := preparedPolicy()
 	if err != nil {
 		return nil, xerror.Unexpected().With(err)
@@ -61,132 +72,78 @@ func New(usersService userssvc.UsersService, rolesService rolessvc.Service) (Ser
 	return &service{
 		query:        query,
 		usersService: usersService,
-		rolesService: rolesService,
+		resolve:      resolve,
 	}, nil
 }
 
 func (s *service) Can(ctx context.Context, input Input) (bool, error) {
-	if input.Resource == nil {
+	if input.Resource == nil || !input.Action.IsAAction() || input.Action == model.Unknown ||
+		(input.UserSlug == "") == (input.APIKeySlug == "") {
 		return false, nil
 	}
-	var actorSlug slug.Slug
-	var actorRole string
-	permissions := []string{}
-
-	if input.APIKeySlug != "" {
-		if input.OrgSlug == nil || input.APIKeyRoleSlug == "" {
+	if input.OrgSlug != nil {
+		if s.resolve == nil || *input.OrgSlug == "" || input.ResourceOwnerSlug != nil {
 			return false, nil
 		}
-
-		if _, err := s.rolesService.GetRole(ctx, *input.OrgSlug, input.APIKeyRoleSlug); err != nil {
-			if xerror.Is(err, rolessvc.ErrRoleNotFound) {
-				return false, nil
-			}
-			return false, xerror.Wrapf("failed to fetch api key role: %w", err)
-		}
-
-		rolePerms, err := s.rolesService.ListRolePermissions(ctx, *input.OrgSlug, input.APIKeyRoleSlug)
+		facts, err := s.resolve(ctx, *input.OrgSlug, input.UserSlug, input.APIKeySlug, input.Target)
 		if err != nil {
-			return false, xerror.Wrapf("failed to fetch api key role permissions: %w", err)
+			return false, xerror.Wrapf("resolve authorization facts: %w", err)
 		}
-
-		for _, perm := range rolePerms {
-			permissions = append(permissions, fmt.Sprintf("%s:%s", perm.Resource, perm.Action))
-		}
-
-		actorSlug = input.APIKeySlug
-		actorRole = input.APIKeyRoleSlug.String()
-	} else {
-		user, err := s.usersService.GetUserBySlug(ctx, input.UserSlug)
-		if err != nil {
-			if xerror.Is(err, userssvc.ErrUserNotFound) {
-				return false, nil
-			}
-			return false, xerror.Wrapf("failed to fetch user: %w", err)
-		}
-
-		if user.VerifiedAt.IsZero() {
+		if !permitsOperation(input, facts) {
 			return false, nil
 		}
-
-		if input.OrgSlug != nil {
-			rolePerms, err := s.rolesService.GetUserPermissionsInOrg(
-				ctx,
-				*input.OrgSlug,
-				input.UserSlug,
-			)
-			if err != nil {
-				if xerror.Is(err, rolessvc.ErrUserNotMember) {
-					return false, nil
-				}
-				return false, xerror.Wrapf("failed to fetch role permissions: %w", err)
-			}
-
-			for _, perm := range rolePerms {
-				permissions = append(permissions, fmt.Sprintf("%s:%s", perm.Resource, perm.Action))
-			}
+		allowed, err := evaluateTenant(ctx, input, facts)
+		if err == nil && allowed {
+			bindDecision(ctx, input, facts)
 		}
-
-		actorSlug = input.UserSlug
-		actorRole = user.Role.String()
+		return allowed, err
 	}
-	// For system-level authorization (no org context), pass empty permissions.
-	// OPA will use role_permissions map defined in authz.rego instead.
-
-	var resourceOwnerSlug *string
+	if !permitsOperation(input, model.AuthorizationFacts{}) || s.usersService == nil || input.APIKeySlug != "" || input.Target != (model.AuthorizationTarget{}) {
+		return false, nil
+	}
+	user, err := s.usersService.GetUserBySlug(ctx, input.UserSlug)
+	if err != nil {
+		if xerror.Is(err, userssvc.ErrUserNotFound) {
+			return false, nil
+		}
+		return false, xerror.Wrapf("fetch authorization user: %w", err)
+	}
+	if user == nil || user.Slug != input.UserSlug || user.VerifiedAt.IsZero() {
+		return false, nil
+	}
+	var owner *string
 	if input.ResourceOwnerSlug != nil {
-		owner := string(*input.ResourceOwnerSlug)
-		resourceOwnerSlug = &owner
+		value := input.ResourceOwnerSlug.String()
+		owner = &value
 	}
-
-	// Build the input for OPA.
-	opaInput := opaAuthorizationInput{
-		User: opaUserInput{
-			Slug:        string(actorSlug),
-			Role:        actorRole,
-			Permissions: permissions,
-		},
-		OrgScoped:         input.OrgSlug != nil,
-		Action:            input.Action.String(),
-		Resource:          input.Resource.String(),
-		ResourceOwnerSlug: resourceOwnerSlug,
-	}
-
-	return evaluate(ctx, s.query, opaInput)
+	return evaluate(ctx, s.query, opaAuthorizationInput{
+		User:   opaUserInput{Slug: user.Slug.String(), Role: user.Role.String()},
+		Action: input.Action.String(), Resource: input.Resource.String(), ResourceOwnerSlug: owner,
+	})
 }
 
-var preparedPolicy = sync.OnceValues(func() (rego.PreparedEvalQuery, error) {
-	return rego.New(rego.Query("data.braidplane.authz.allow"), rego.Module("authz.rego", authzModule)).PrepareForEval(context.Background())
-})
+// CanWithResolvedFacts evaluates tenant facts captured by a trusted persistence reader.
+func CanWithResolvedFacts(ctx context.Context, action model.Action, resource fmt.Stringer, facts model.AuthorizationFacts) (bool, error) {
+	return evaluateTenant(ctx, Input{Resource: resource, Action: action}, facts)
+}
 
-// CanCapturedCompletionAuthority evaluates database-captured permission facts
-// with the same policy as Can. Callers must never supply request-owned facts.
-func CanCapturedCompletionAuthority(ctx context.Context, snapshot model.CompletionAuthoritySnapshot) (bool, error) {
-	if !snapshot.Valid {
+func evaluateTenant(ctx context.Context, input Input, facts model.AuthorizationFacts) (bool, error) {
+	if !facts.Valid || input.Resource == nil || !input.Action.IsAAction() || input.Action == model.Unknown {
 		return false, nil
 	}
 	query, err := preparedPolicy()
 	if err != nil {
 		return false, xerror.Unexpected().With(err)
 	}
-	for _, requirement := range []struct {
-		action   model.Action
-		resource model.Resource
-	}{
-		{model.Read, model.ResourcePipelines},
-		{model.Update, model.ResourcePipelineTriggers},
-		{model.Execute, model.ResourcePipelines},
-	} {
-		allowed, err := evaluate(ctx, query, opaAuthorizationInput{
-			User: opaUserInput{Permissions: snapshot.Permissions}, OrgScoped: true,
-			Action: requirement.action.String(), Resource: requirement.resource.String(),
-		})
-		if err != nil || !allowed {
-			return false, err
-		}
-	}
-	return true, nil
+	name := input.Resource.String()
+	_, coreType := input.Resource.(model.Resource)
+	_, parseErr := model.ResourceString(name)
+	return evaluate(ctx, query, opaAuthorizationInput{OrgScoped: true, Facts: facts, Resource: name, Action: input.Action.String(), ProjectDataSourceBindings: input.ProjectDataSourceBindings, ConsumerResource: !coreType && parseErr != nil && name != "" && name != "*"})
 }
+
+var preparedPolicy = sync.OnceValues(func() (rego.PreparedEvalQuery, error) {
+	return rego.New(rego.Query("data.braidplane.authz.allow"), rego.Module("authz.rego", authzModule)).PrepareForEval(context.Background())
+})
 
 func evaluate(ctx context.Context, query rego.PreparedEvalQuery, opaInput opaAuthorizationInput) (bool, error) {
 	results, err := query.Eval(ctx, rego.EvalInput(opaInput))

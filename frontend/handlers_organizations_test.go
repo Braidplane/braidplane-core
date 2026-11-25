@@ -594,7 +594,7 @@ func TestRouter_WorkspaceGate_ExistingMembershipBypassesGateAndSetsActiveOrganiz
 		case "/api/organizations/acme-hq/projects":
 			assert.Equal(t, http.MethodGet, r.Method)
 			writeJSON(w, `{"projects":[],"has_more":false,"next_cursor":null,"prev_cursor":null}`)
-		case "/api/organizations/acme-hq/roles/owner":
+		case "/api/organizations/acme-hq/authorization/permissions":
 			writeJSON(w, `{"slug":"owner","name":"Owner","permissions":[{"resource":"*","action":"*"}]}`)
 		case "/api/organizations/acme-hq/data-sources":
 			assert.Equal(t, http.MethodGet, r.Method)
@@ -983,7 +983,7 @@ func TestRouter_HandleOrganizationRetentionPage_RendersSanitizedMaintenanceHisto
 			}`)
 		case r.Method == http.MethodGet && r.URL.Path == "/api/organizations":
 			writeJSON(w, `{"organizations":[{"name":"Acme HQ","slug":"acme-hq","member_role":"admin","created_at":"2026-03-01T00:00:00Z","updated_at":"2026-03-01T00:00:00Z"}],"has_more":false,"next_cursor":null,"prev_cursor":null}`)
-		case r.Method == http.MethodGet && r.URL.Path == "/api/organizations/acme-hq/roles/admin":
+		case r.Method == http.MethodGet && r.URL.Path == "/api/organizations/acme-hq/authorization/permissions":
 			writeJSON(w, `{"slug":"admin","name":"Admin","is_default":true,"permissions":[{"resource":"organizations","action":"update"}],"created_at":"2026-03-01T00:00:00Z","updated_at":"2026-03-01T00:00:00Z"}`)
 		default:
 			w.WriteHeader(http.StatusNotFound)
@@ -1043,7 +1043,7 @@ func TestRouter_HandleOrganizationRetentionPage_IsReadOnlyWithoutUpdatePermissio
 			writeJSON(w, `{"schedule":{"cadence":"daily","timezone":"UTC","next_run_at":"2026-07-24T00:00:00Z"},"runs":[]}`)
 		case r.Method == http.MethodGet && r.URL.Path == "/api/organizations":
 			writeJSON(w, `{"organizations":[{"name":"Acme HQ","slug":"acme-hq","member_role":"viewer","created_at":"2026-03-01T00:00:00Z","updated_at":"2026-03-01T00:00:00Z"}],"has_more":false,"next_cursor":null,"prev_cursor":null}`)
-		case r.Method == http.MethodGet && r.URL.Path == "/api/organizations/acme-hq/roles/viewer":
+		case r.Method == http.MethodGet && r.URL.Path == "/api/organizations/acme-hq/authorization/permissions":
 			writeJSON(w, `{"slug":"viewer","name":"Viewer","is_default":true,"permissions":[{"resource":"organizations","action":"read"}],"created_at":"2026-03-01T00:00:00Z","updated_at":"2026-03-01T00:00:00Z"}`)
 		default:
 			w.WriteHeader(http.StatusNotFound)

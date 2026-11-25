@@ -75,11 +75,7 @@ func (r *Router) handleMembersPage(c fiber.Ctx) error {
 			details,
 			c.Get(fiber.HeaderCookie),
 		)
-		permissions := r.resolveOrganizationPermissions(
-			c.Context(),
-			c.Get(fiber.HeaderCookie),
-			orgSlug.String(),
-		)
+		permissions := r.resolvePagePermissions(c, orgSlug.String())
 
 		c.Status(status)
 		return renderTempl(
@@ -161,11 +157,7 @@ func (r *Router) handleMembersPage(c fiber.Ctx) error {
 		details,
 		c.Get(fiber.HeaderCookie),
 	)
-	permissions := r.resolveOrganizationPermissions(
-		c.Context(),
-		c.Get(fiber.HeaderCookie),
-		orgSlug.String(),
-	)
+	permissions := r.resolvePagePermissions(c, orgSlug.String())
 
 	return renderTempl(
 		c,
@@ -821,11 +813,7 @@ func (r *Router) renderMembersPageWithError(
 			details,
 			c.Get(fiber.HeaderCookie),
 		)
-		permissions := r.resolveOrganizationPermissions(
-			c.Context(),
-			c.Get(fiber.HeaderCookie),
-			orgSlug.String(),
-		)
+		permissions := r.resolvePagePermissions(c, orgSlug.String())
 
 		return renderTempl(
 			c,
@@ -900,11 +888,7 @@ func (r *Router) renderMembersPageWithError(
 		details,
 		c.Get(fiber.HeaderCookie),
 	)
-	permissions := r.resolveOrganizationPermissions(
-		c.Context(),
-		c.Get(fiber.HeaderCookie),
-		orgSlug.String(),
-	)
+	permissions := r.resolvePagePermissions(c, orgSlug.String())
 
 	return renderTempl(
 		c,
@@ -1045,11 +1029,7 @@ func (r *Router) renderMembersContent(
 		}
 	}
 
-	permissions := r.resolveOrganizationPermissions(
-		c.Context(),
-		c.Get(fiber.HeaderCookie),
-		orgSlug.String(),
-	)
+	permissions := r.resolvePagePermissions(c, orgSlug.String())
 
 	return renderTempl(
 		c,

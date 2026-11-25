@@ -842,7 +842,7 @@ func TestHandleRecoverPipelineRunSubmit(t *testing.T) {
 					writeJSON(w, `{"organizations":[{"slug":"acme-hq","member_role":"admin"}]}`)
 					return
 				}
-				if r.URL.Path == "/api/organizations/acme-hq/roles/admin" {
+				if r.URL.Path == "/api/organizations/acme-hq/authorization/permissions" {
 					action := "read"
 					if allowed {
 						action = "execute"

@@ -66,8 +66,10 @@ func TestRunProgressPagesAndClassifiesOnlyRecordedLiveness(t *testing.T) {
 
 func TestRunProgressValidatesBoundsAndKeepsExactReadScope(t *testing.T) {
 	calls := 0
-	svc := &service{executionClock: fixedClock{at: time.Now()}, runRepo: &fakeRunRepository{findRunBySlugFn: func(_ context.Context, _ postgres.DBTX, org, project, env slug.Slug, run string) (*pipelineruns.PipelineRun, error) {
+	wantDB := &fakeDBTX{}
+	svc := &service{txm: fakePipelineStoreTxManager{tx: wantDB}, executionClock: fixedClock{at: time.Now()}, runRepo: &fakeRunRepository{findRunBySlugFn: func(_ context.Context, db postgres.DBTX, org, project, env slug.Slug, run string) (*pipelineruns.PipelineRun, error) {
 		calls++
+		require.Same(t, wantDB, db)
 		require.Equal(t, slug.Slug("acme"), org)
 		require.Equal(t, slug.Slug("ops"), project)
 		require.Equal(t, slug.Slug("staging"), env)

@@ -22,7 +22,7 @@ func (r *Router) handleBuilderCreatePipeline(c fiber.Ctx) error {
 		return c.Status(http.StatusBadRequest).SendString("Invalid project.")
 	}
 	cookie := c.Get(fiber.HeaderCookie)
-	if !r.resolveOrganizationPermissions(c.Context(), cookie, org.String()).Can("pipelines", "create") {
+	if !r.resolvePagePermissions(c, org.String()).Can("pipelines", "create") {
 		return c.Status(http.StatusForbidden).JSON(fiber.Map{"message": "Pipeline creation needs access."})
 	}
 	state, _, err := deserializeBuilderStateWithIssues(c.Body())
@@ -62,7 +62,6 @@ func (r *Router) handleQueryPipelineSetup(c fiber.Ctx) error {
 	org, source, querySlug := c.Params("slug"), c.Params("dsSlug"), c.Params("querySlug")
 	cookie := c.Get(fiber.HeaderCookie)
 	data := views.QueryPipelineSetupData{Org: org, DataSource: source, Project: strings.TrimSpace(c.Query("project")), ParameterValues: map[string]string{}}
-	data.Permissions = r.resolveOrganizationPermissions(c.Context(), cookie, org)
 	query, status, _, err := r.getQueryViaAPI(c.Context(), cookie, org, source, querySlug)
 	if err != nil || query == nil {
 		if status < http.StatusBadRequest {
@@ -79,6 +78,14 @@ func (r *Router) handleQueryPipelineSetup(c fiber.Ctx) error {
 		for _, parameter := range query.Parameters {
 			data.ParameterValues[parameter.Name] = c.FormValue(views.QueryExecutionFieldName(parameter.Name))
 		}
+	}
+	if data.Project != "" {
+		params := api.GetEffectivePermissionsParams{TargetKind: new("projects"), TargetSlug: &data.Project}
+		data.Permissions = organizationPermissions(r.effectivePermissions(c.Context(), cookie, org, &params))
+	} else {
+		data.Permissions = r.resolveOrganizationPermissions(c.Context(), cookie, org)
+	}
+	if c.Method() == http.MethodPost {
 		if !data.Permissions.Can("pipelines", "create") {
 			return c.Status(http.StatusForbidden).SendString("Pipeline creation needs access.")
 		}
@@ -179,7 +186,7 @@ func (r *Router) handlePipelineCreationProgress(c fiber.Ctx) error {
 	if record.Slug != creation || record.ProjectSlug != project {
 		return c.Status(http.StatusBadGateway).SendString("The proposal returned an unexpected identity.")
 	}
-	data := views.PipelineCreationProgressData{Org: org, Project: project, Creation: record, CanRetry: r.resolveOrganizationPermissions(c.Context(), cookie, org).Can("pipelines", "create")}
+	data := views.PipelineCreationProgressData{Org: org, Project: project, Creation: record, CanRetry: r.resolvePagePermissions(c, org).Can("pipelines", "create")}
 	if c.Method() == http.MethodPost {
 		if !data.CanRetry {
 			return c.Status(http.StatusForbidden).SendString("Pipeline creation needs access.")

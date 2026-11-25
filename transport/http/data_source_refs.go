@@ -249,6 +249,9 @@ func (s *server) UpsertDataSourceBinding(
 	if err != nil {
 		return apierror.ValidationFailed(fmt.Sprintf("Invalid data source slug: %v", err))
 	}
+	if err := s.canTarget(c, orgSlug, model.Read, model.ResourceDataSources, model.AuthorizationTarget{Kind: "datasources", Slug: dsSlug}); err != nil {
+		return err
+	}
 	var confirmation *slug.Slug
 	if err := protectedConfirmationFromNullableSlug(req.ProtectedEnvironmentConfirmation, &confirmation); err != nil {
 		return apierror.ValidationFailed(fmt.Sprintf("Invalid protected environment confirmation: %v", err))

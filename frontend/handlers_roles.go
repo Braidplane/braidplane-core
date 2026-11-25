@@ -344,11 +344,7 @@ func (r *Router) renderOrganizationRolesPage(
 		{Label: "Roles"},
 	}
 
-	permissions := r.resolveOrganizationPermissions(
-		c.Context(),
-		c.Get(fiber.HeaderCookie),
-		orgSlug.String(),
-	)
+	permissions := r.resolvePagePermissions(c, orgSlug.String())
 
 	setHTMLResponseStatus(c, statusCode)
 	return renderTempl(

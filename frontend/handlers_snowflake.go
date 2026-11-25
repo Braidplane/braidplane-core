@@ -18,7 +18,7 @@ func (r *Router) handleSnowflakeOnboarding(c fiber.Ctx) error {
 	if err != nil {
 		return c.SendStatus(http.StatusBadRequest)
 	}
-	permissions := r.resolveOrganizationPermissions(c.Context(), c.Get(fiber.HeaderCookie), org.String())
+	permissions := r.resolvePagePermissions(c, org.String())
 	resp, err := r.apiClient.GetSnowflakeOnboardingWithResponse(c.Context(), org.String(), ds.String(), frontendRequestEditor(c.Context(), c.Get(fiber.HeaderCookie)))
 	var onboarding *api.SnowflakeOnboarding
 	message := "Onboarding is unavailable. Check the connection's workload identity settings and selected tables, then retry."

@@ -84,6 +84,35 @@ func TestCompletionResourcesSnapshotsRevocationAndRetention(t *testing.T) {
 		require.NoError(t, pool.QueryRow(ctx, `SELECT id FROM pipeline_completion_snapshots WHERE project_environment_id=$1 AND root_run_slug=$2 AND trigger_slug='after-upstream'`, env, root).Scan(&id))
 		return id
 	}
+	t.Run("scoped grants are checked at closure and admission", func(t *testing.T) {
+		exec(`DELETE FROM role_permissions WHERE role_id=(SELECT r.id FROM roles r JOIN organizations o ON o.id=r.organization_id WHERE o.slug=$1 AND r.slug='completion-owner')`, org)
+		defer exec(`INSERT INTO role_permissions(role_id,permission_id) SELECT r.id,p.id FROM roles r JOIN organizations o ON o.id=r.organization_id CROSS JOIN permissions p WHERE o.slug=$1 AND r.slug='completion-owner' AND p.resource='*' AND p.action='*'`, org)
+		exec(`INSERT INTO roles(organization_id,slug,name) SELECT id,'scoped-completion','Scoped completion' FROM organizations WHERE slug=$1`, org)
+		exec(`INSERT INTO permissions(resource,action) VALUES ('pipelines','read'),('pipelines','execute'),('pipeline_triggers','update') ON CONFLICT DO NOTHING`)
+		exec(`INSERT INTO role_permissions(role_id,permission_id) SELECT r.id,p.id FROM roles r JOIN organizations o ON o.id=r.organization_id CROSS JOIN permissions p WHERE o.slug=$1 AND r.slug='scoped-completion' AND (p.resource,p.action) IN (('pipelines','read'),('pipelines','execute'),('pipeline_triggers','update'))`, org)
+		exec(`INSERT INTO authorization_scoped_grants(organization_id,member_id,role_id,scope,target_kind,target_id)
+			SELECT r.organization_id,m.id,r.id,'environment','environments',pe.environment_id FROM roles r
+			JOIN project_environments pe ON pe.organization_id=r.organization_id
+			JOIN organization_members m ON m.organization_id=r.organization_id JOIN users u ON u.id=m.user_id
+			WHERE r.slug='scoped-completion' AND pe.id=$1 AND u.slug=$2`, env, actorSlug)
+		before := closeRoot("no-upstream-permission")
+		exec(`INSERT INTO authorization_scoped_grants(organization_id,member_id,role_id,scope,target_kind,target_id)
+			SELECT r.organization_id,m.id,r.id,'resource','pipelines',ps.id FROM roles r
+			JOIN project_environments pe ON pe.organization_id=r.organization_id
+			JOIN pipeline_specs ps ON ps.project_id=pe.project_id AND ps.slug='upstream'
+			JOIN organization_members m ON m.organization_id=r.organization_id JOIN users u ON u.id=m.user_id
+			WHERE r.slug='scoped-completion' AND pe.id=$1 AND u.slug=$2`, env, actorSlug)
+		_, err := svc.CheckCompletionSnapshot(ctx, org, project, environment, before)
+		require.ErrorContains(t, err, "authority_revoked")
+		after := closeRoot("scoped-completion-permission")
+		_, err = svc.CheckCompletionSnapshot(ctx, org, project, environment, after)
+		require.NoError(t, err)
+		exec(`DELETE FROM authorization_scoped_grants g USING roles r,organizations o
+			WHERE g.role_id=r.id AND r.organization_id=o.id AND o.slug=$1 AND r.slug='scoped-completion' AND g.scope='environment'`, org)
+		_, err = svc.CheckCompletionSnapshot(ctx, org, project, environment, after)
+		require.ErrorContains(t, err, "authority_revoked")
+		exec(`DELETE FROM roles r USING organizations o WHERE o.id=r.organization_id AND o.slug=$1 AND r.slug='scoped-completion'`, org)
+	})
 	t.Run("capacity preserves terminal obligations and recovers", func(t *testing.T) {
 		for i := range 100 {
 			closeRoot(fmt.Sprintf("capacity-%d", i))
@@ -272,6 +301,47 @@ func TestCompletionResourcesSnapshotsRevocationAndRetention(t *testing.T) {
 			exec(`UPDATE pipeline_runs SET status='succeeded',ended_at=NOW() WHERE project_environment_id=$1 AND run_slug=$2`, env, child)
 			root = child
 		}
+	})
+	t.Run("completion grants bind editor identities across replacement", func(t *testing.T) {
+		update := model.UpdatePipelineTrigger{Name: input.Name, Type: input.Type, Enabled: input.Enabled, PipelineSlug: input.PipelineSlug, VersionPolicy: input.VersionPolicy, RetryPolicy: input.RetryPolicy, CompletionConfig: input.CompletionConfig}
+		edit := func(editor model.EventActor) {
+			t.Helper()
+			_, err := svc.UpdatePipelineTrigger(ctx, org, project, environment, trigger.Slug, update, editor)
+			require.NoError(t, err)
+		}
+		check := func(root string, allowed bool) {
+			t.Helper()
+			_, err := svc.CheckCompletionSnapshot(ctx, org, project, environment, closeRoot(root))
+			if allowed {
+				require.NoError(t, err)
+			} else {
+				require.ErrorContains(t, err, "authority_revoked")
+			}
+		}
+		exec(`DELETE FROM organization_members m USING organizations o,users u WHERE m.organization_id=o.id AND m.user_id=u.id AND o.slug=$1 AND u.slug=$2`, org, actorSlug)
+		exec(`INSERT INTO organization_members(organization_id,user_id,role_id) SELECT r.organization_id,u.id,r.id FROM roles r JOIN organizations o ON o.id=r.organization_id CROSS JOIN users u WHERE o.slug=$1 AND r.slug='completion-owner' AND u.slug=$2`, org, actorSlug)
+		check("replaced-member", false)
+		edit(actor)
+		check("reauthorized-member", true)
+
+		key := slug.Slug("completion-key")
+		addKey := func(hash string) {
+			exec(`INSERT INTO api_keys(organization_id,slug,name,token_hash,token_prefix,role_id) SELECT r.organization_id,$2,'Completion key',$3,'test',r.id FROM roles r JOIN organizations o ON o.id=r.organization_id WHERE o.slug=$1 AND r.slug='completion-owner'`, org, key, hash)
+		}
+		addKey("synthetic-a-" + suffix)
+		edit(model.APIKeyEventActor(key))
+		check("original-key", true)
+		exec(`DELETE FROM api_keys k USING organizations o WHERE k.organization_id=o.id AND o.slug=$1 AND k.slug=$2`, org, key)
+		addKey("synthetic-b-" + suffix)
+		check("replaced-key", false)
+		edit(model.APIKeyEventActor(key))
+		check("reauthorized-key", true)
+
+		// Migrated trigger revisions have no historical editor ID to authenticate.
+		exec(`UPDATE pipeline_triggers SET completion_editor_id=NULL, revision=revision+1 WHERE project_environment_id=$1 AND slug=$2`, env, trigger.Slug)
+		check("legacy-unbound-trigger", false)
+		edit(actor)
+		check("reauthorized-legacy-trigger", true)
 	})
 	selected := closeRoot("select-v2")
 	waiting := closeRoot("waiting")

@@ -12,6 +12,8 @@ See the [Alpha API contract](alpha.md) for
 version matching, authentication exceptions, upgrades and execution retries.
 Use the policy and OpenAPI document from the same release as your application.
 
+See the [authorization matrix](authorization-matrix.md) for route permissions, accepted principals and target selection.
+
 ## Base URL
 
 Use your installation's HTTPS origin with the `/api` prefix, for example
@@ -34,6 +36,24 @@ files, pipeline specifications, logs, and support messages.
 Create a personal access token under **Account → Security → Personal access
 tokens**. Organization administrators can create API keys with the API or CLI.
 The raw value is shown once.
+
+### Check your effective permissions
+
+Request `GET /api/organizations/{slug}/authorization/permissions` for your
+organization-wide permissions. To inspect a pipeline, pass
+`target_kind=pipelines&project_slug=my-project&target_slug=my-pipeline`. The
+response lists each allowed resource and action for that target. For example,
+`{"permissions":[{"resource":"pipelines","action":"read"}]}` permits reading
+the selected pipeline. An empty list means the principal has no usable
+permissions there. The endpoint returns the same empty list for a missing
+target and for a target in a different tenant.
+
+For project-owned data source references, include `project_datasource_bindings=true`.
+Access to the referenced organization data source requires its own decision.
+Some operations also require a session, credential opt-in, access to a second
+resource, or write admission. The endpoint always evaluates the authenticated
+caller. See [adopting scoped role grants](authorization-migration.md) for
+inheritance, wildcard behavior and revocation.
 
 ## Make a request
 

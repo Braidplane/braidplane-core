@@ -244,8 +244,16 @@ type PipelineTriggerRetryAttempt struct {
 
 // CompletionAuthoritySnapshot contains only verified database permission facts.
 type CompletionAuthoritySnapshot struct {
-	Valid       bool     `json:"valid"`
-	Permissions []string `json:"permissions"`
+	PrincipalID string                        `json:"principal_id,omitempty"`
+	Valid       bool                          `json:"valid"`
+	Permissions []string                      `json:"permissions,omitempty"` // Organization-wide permissions in snapshots captured before scoped bindings.
+	Scoped      *CompletionAuthorizationFacts `json:"scoped,omitempty"`
+}
+
+type CompletionAuthorizationFacts struct {
+	Upstream   AuthorizationFacts `json:"upstream"`
+	Trigger    AuthorizationFacts `json:"trigger"`
+	Downstream AuthorizationFacts `json:"downstream"`
 }
 
 // PipelineCompletionSnapshot is internal execution evidence, never a transport DTO.

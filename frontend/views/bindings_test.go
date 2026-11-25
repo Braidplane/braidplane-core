@@ -514,7 +514,7 @@ func TestEnvironmentBindingCellRendersBoundDataSourceIconReference(t *testing.T)
 func TestDataSourceBindingCellControlRendersBoundDataSourceIdentity(t *testing.T) {
 	t.Parallel()
 
-	body := renderDataSourceBindingCellControlForPermissions(t, NewOrganizationPermissions("data_sources:update", "data_sources:delete"))
+	body := renderDataSourceBindingCellControlForPermissions(t, NewOrganizationPermissions("datasources:update", "datasources:delete"))
 
 	requireDataSourceIconMarker(t, body, "postgres")
 	require.Contains(t, body, `data-data-source-identity`)
@@ -545,7 +545,7 @@ func TestDataSourceBindingCellControlPermissionStates(t *testing.T) {
 		},
 		{
 			name:               "UpdateOnlyEnablesUpdateAndDisablesRemove",
-			permissions:        NewOrganizationPermissions("data_sources:update"),
+			permissions:        NewOrganizationPermissions("datasources:update"),
 			wantSelectDisabled: false,
 			wantUpdateDisabled: false,
 			wantRemoveDisabled: true,
@@ -554,7 +554,7 @@ func TestDataSourceBindingCellControlPermissionStates(t *testing.T) {
 		},
 		{
 			name:               "UpdateDeleteEnablesUpdateAndRemove",
-			permissions:        NewOrganizationPermissions("data_sources:update", "data_sources:delete"),
+			permissions:        NewOrganizationPermissions("datasources:update", "datasources:delete"),
 			wantSelectDisabled: false,
 			wantUpdateDisabled: false,
 			wantRemoveDisabled: false,

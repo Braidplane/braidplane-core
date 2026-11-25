@@ -639,11 +639,7 @@ func (r *Router) renderQueryDetailPage(
 	)
 
 	setHTMLResponseStatus(c, status)
-	permissions := r.resolveOrganizationPermissions(
-		c.Context(),
-		c.Get(fiber.HeaderCookie),
-		orgSlug.String(),
-	)
+	permissions := r.resolvePagePermissions(c, orgSlug.String())
 	return renderTempl(
 		c,
 		views.QueryDetailPage(
@@ -727,11 +723,7 @@ func (r *Router) renderQueriesPage(
 		)
 		shellData.Subtitle = "Reusable connector operations for source reads, sink payloads, validation, and direct execution."
 		setHTMLResponseStatus(c, dsStatus)
-		permissions := r.resolveOrganizationPermissions(
-			c.Context(),
-			c.Get(fiber.HeaderCookie),
-			orgSlug.String(),
-		)
+		permissions := r.resolvePagePermissions(c, orgSlug.String())
 		return renderTempl(
 			c,
 			views.QueriesPage(
@@ -886,11 +878,7 @@ func (r *Router) renderQueriesPage(
 		c.Get(fiber.HeaderCookie),
 	)
 	shellData.Subtitle = "Reusable connector operations for source reads, sink payloads, validation, and direct execution."
-	permissions := r.resolveOrganizationPermissions(
-		c.Context(),
-		c.Get(fiber.HeaderCookie),
-		orgSlug.String(),
-	)
+	permissions := r.resolvePagePermissions(c, orgSlug.String())
 	setHTMLResponseStatus(c, status)
 	return renderTempl(
 		c,
@@ -1000,11 +988,7 @@ func (r *Router) renderQuerySidePanel(
 		selectedFormData = views.QueryEditorFormDataFromQuery(*selectedQuery)
 	}
 
-	permissions := r.resolveOrganizationPermissions(
-		c.Context(),
-		c.Get(fiber.HeaderCookie),
-		orgSlug.String(),
-	)
+	permissions := r.resolvePagePermissions(c, orgSlug.String())
 
 	return renderTempl(
 		c,

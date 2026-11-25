@@ -19,14 +19,22 @@ import (
 
 func TestPipelineGitWorkflow(t *testing.T) {
 	t.Parallel()
-	for _, scenario := range []string{"preview", "apply", "stale", "missing preview", "changed directory", "deploy", "protected", "bindings", "deployment conflict", "disabled target", "unauthorized", "cross tenant", "csrf", "pipeline named sync", "compile projection", "invalid projection", "compile scopes", "invalid scopes", "deploy denied", "compile denied", "backend compile denied"} {
+	for _, scenario := range []string{"preview", "apply", "stale", "missing preview", "changed directory", "deploy", "environment deploy only", "protected", "bindings", "deployment conflict", "disabled target", "unauthorized", "cross tenant", "csrf", "pipeline named sync", "compile projection", "invalid projection", "compile scopes", "invalid scopes", "deploy denied", "compile denied", "backend compile denied"} {
 		t.Run(scenario, func(t *testing.T) {
 			t.Parallel()
 			updateDenied := scenario == "deploy denied" || scenario == "compile denied"
 			calls := 0
 			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
 				w.Header().Set("Content-Type", "application/json")
-				if handleTestAdminRolePermissions(w, req) {
+				if scenario == "environment deploy only" && strings.HasSuffix(req.URL.Path, "/authorization/permissions") {
+					permissions := []api.Permission{{Resource: "pipelines", Action: "read"}}
+					if req.URL.Query().Get("target_kind") == "deployment_targets" && req.URL.Query().Get("environment_slug") == "dev" && req.URL.Query().Get("project_slug") == "default" && req.URL.Query().Get("target_slug") == "daily-sync" {
+						permissions = append(permissions, api.Permission{Resource: "pipelines", Action: "update"})
+					}
+					_ = json.NewEncoder(w).Encode(map[string]any{"permissions": permissions})
+					return
+				}
+				if !updateDenied && scenario != "unauthorized" && handleTestAdminRolePermissions(w, req) {
 					return
 				}
 				path := req.URL.Path
@@ -37,7 +45,7 @@ func TestPipelineGitWorkflow(t *testing.T) {
 						role = "viewer"
 					}
 					_, _ = w.Write([]byte(`{"organizations":[{"slug":"acme-hq","name":"Acme","member_role":"` + role + `"}]}`))
-				case path == "/api/organizations/acme-hq/roles/viewer" && updateDenied:
+				case path == "/api/organizations/acme-hq/authorization/permissions" && updateDenied:
 					_, _ = w.Write([]byte(`{"slug":"viewer","permissions":[{"resource":"pipelines","action":"read"}]}`))
 				case path == "/api/organizations/acme-hq/projects":
 					_, _ = w.Write([]byte(`{"projects":[{"slug":"default","name":"Default"}]}`))
@@ -166,7 +174,7 @@ func TestPipelineGitWorkflow(t *testing.T) {
 				form.Set("pipeline_dir", "previous-directory")
 			case "cross tenant":
 				path = "/orgs/other/projects/default/pipeline-sync"
-			case "deploy", "protected", "bindings", "deployment conflict", "disabled target", "compile projection", "invalid projection", "compile scopes", "invalid scopes", "deploy denied", "compile denied", "backend compile denied":
+			case "deploy", "environment deploy only", "protected", "bindings", "deployment conflict", "disabled target", "compile projection", "invalid projection", "compile scopes", "invalid scopes", "deploy denied", "compile denied", "backend compile denied":
 				path = "/orgs/acme-hq/projects/default/pipelines/daily-sync/deploy"
 				form = url.Values{"spec_hash": {"exact-version"}, "environment_slug": {"dev"}, "expected_current_spec_hash": {"old-version"}, "expected_revision": {"7"}, "protected_environment_confirmation": {"dev"}}
 				if scenario == "compile projection" || scenario == "invalid projection" || scenario == "compile scopes" || scenario == "invalid scopes" {
@@ -270,6 +278,11 @@ func TestPipelineGitWorkflow(t *testing.T) {
 				require.Contains(t, html, "spec_hash=exact-version")
 				require.Contains(t, html, "pipelines/broken.yaml")
 				require.NotContains(t, html, "MUST NOT RENDER")
+			case "environment deploy only":
+				require.Equal(t, http.StatusOK, response.StatusCode)
+				require.Contains(t, html, "Deployed exact-version to dev")
+				require.NotContains(t, html, ">Compile selected version</button>")
+				require.Equal(t, 1, calls)
 			case "deploy":
 				require.Contains(t, html, "Deployed exact-version to dev")
 				require.Contains(t, html, "Open pipeline to run")

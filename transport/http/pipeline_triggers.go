@@ -40,12 +40,12 @@ func (s *server) CreatePipelineTrigger(
 		return apierror.ValidationFailed(fmt.Sprintf("Invalid pipeline trigger request: %v", err))
 	}
 	if newTrigger.Type == model.PipelineTriggerTypeSchedule || newTrigger.Type == model.PipelineTriggerTypeWebhook {
-		if err := s.canOrg(c, orgSlug, model.Execute, model.ResourcePipelines); err != nil {
+		if err := s.canPipeline(c, orgSlug, projectSlug, environmentSlug, newTrigger.PipelineSlug, model.Execute); err != nil {
 			return err
 		}
 	}
 	if newTrigger.Type == model.PipelineTriggerTypeCompletion {
-		if err := s.canCompletionTrigger(c, orgSlug); err != nil {
+		if err := s.canCompletionTrigger(c, orgSlug, projectSlug, environmentSlug, newTrigger.PipelineSlug, newTrigger.CompletionConfig); err != nil {
 			return err
 		}
 	}
@@ -97,10 +97,9 @@ func (s *server) ListPipelineTriggers(
 	}
 	for _, trigger := range response.Items {
 		if trigger.Type == model.PipelineTriggerTypeCompletion {
-			if err := s.canOrg(c, orgSlug, model.Read, model.ResourcePipelines); err != nil {
+			if err := s.canReadCompletionEndpoints(c, orgSlug, projectSlug, &trigger); err != nil {
 				return err
 			}
-			break
 		}
 	}
 	items := make([]api.PipelineTrigger, len(response.Items))
@@ -140,7 +139,7 @@ func (s *server) GetPipelineTrigger(
 		return mapServiceError(err)
 	}
 	if trigger.Type == model.PipelineTriggerTypeCompletion {
-		if err := s.canOrg(c, orgSlug, model.Read, model.ResourcePipelines); err != nil {
+		if err := s.canReadCompletionEndpoints(c, orgSlug, projectSlug, trigger); err != nil {
 			return err
 		}
 	}
@@ -220,12 +219,12 @@ func (s *server) UpdatePipelineTrigger(
 		return apierror.ValidationFailed(fmt.Sprintf("Invalid pipeline trigger request: %v", err))
 	}
 	if update.Type == model.PipelineTriggerTypeSchedule || update.Type == model.PipelineTriggerTypeWebhook {
-		if err := s.canOrg(c, orgSlug, model.Execute, model.ResourcePipelines); err != nil {
+		if err := s.canPipeline(c, orgSlug, projectSlug, environmentSlug, update.PipelineSlug, model.Execute); err != nil {
 			return err
 		}
 	}
 	if update.Type == model.PipelineTriggerTypeCompletion && update.Enabled && update.CompletionConfig != nil && update.CompletionConfig.ExecutionGrantEnabled {
-		if err := s.canCompletionTrigger(c, orgSlug); err != nil {
+		if err := s.canCompletionTrigger(c, orgSlug, projectSlug, environmentSlug, update.PipelineSlug, update.CompletionConfig); err != nil {
 			return err
 		}
 	}
@@ -288,7 +287,7 @@ func (s *server) RotatePipelineWebhookSecret(
 	if err != nil {
 		return err
 	}
-	if err := s.canUpdateExecutableWebhook(c, orgSlug); err != nil {
+	if err := s.canUpdateExecutableWebhook(c, orgSlug, projectSlug, environmentSlug, triggerSlug); err != nil {
 		return err
 	}
 	secret, err := s.pipelineTriggersService.RotatePipelineWebhookSecret(c.Context(), orgSlug, projectSlug, environmentSlug, triggerSlug, s.eventActor(c))
@@ -299,11 +298,15 @@ func (s *server) RotatePipelineWebhookSecret(
 	return c.JSON(api.PipelineWebhookSecretIssuance{KeyVersion: secret.KeyVersion, Value: secret.Value})
 }
 
-func (s *server) canUpdateExecutableWebhook(c fiber.Ctx, orgSlug slug.Slug) error {
+func (s *server) canUpdateExecutableWebhook(c fiber.Ctx, orgSlug, project, env, triggerSlug slug.Slug) error {
 	if err := s.canOrg(c, orgSlug, model.Update, model.ResourcePipelineTriggers); err != nil {
 		return err
 	}
-	return s.canOrg(c, orgSlug, model.Execute, model.ResourcePipelines)
+	trigger, err := s.pipelineTriggersService.GetPipelineTrigger(c.Context(), orgSlug, project, env, triggerSlug)
+	if err != nil {
+		return mapServiceError(err)
+	}
+	return s.canPipeline(c, orgSlug, project, env, trigger.PipelineSlug, model.Execute)
 }
 
 func newPipelineTriggerFromAPI(req api.NewPipelineTrigger) (model.NewPipelineTrigger, error) {
@@ -629,14 +632,17 @@ func parsePipelineTriggerSlugs(
 	return orgSlug, projectSlug, environmentSlug, triggerSlug, nil
 }
 
-func (s *server) canCompletionTrigger(c fiber.Ctx, org slug.Slug) error {
+func (s *server) canCompletionTrigger(c fiber.Ctx, org, project, env, downstream slug.Slug, config *model.PipelineTriggerCompletionConfig) error {
 	if err := s.canOrg(c, org, model.Update, model.ResourcePipelineTriggers); err != nil {
 		return err
 	}
-	if err := s.canOrg(c, org, model.Read, model.ResourcePipelines); err != nil {
+	if config == nil {
+		return apierror.ValidationFailed("completion configuration is required")
+	}
+	if err := s.canPipeline(c, org, project, "", config.UpstreamPipelineSlug, model.Read); err != nil {
 		return err
 	}
-	return s.canOrg(c, org, model.Execute, model.ResourcePipelines)
+	return s.canPipeline(c, org, project, env, downstream, model.Execute)
 }
 
 func pipelineTriggerCompletionConfigFromAPI(value *api.PipelineTriggerCompletionConfig) (*model.PipelineTriggerCompletionConfig, error) {
@@ -659,4 +665,16 @@ func pipelineTriggerCompletionConfigToAPI(value *model.PipelineTriggerCompletion
 		return nil
 	}
 	return &api.PipelineTriggerCompletionConfig{UpstreamPipelineSlug: value.UpstreamPipelineSlug.String(), Condition: api.PipelineCompletionCondition(value.Condition.String()), ExecutionGrantEnabled: value.ExecutionGrantEnabled}
+}
+
+func (s *server) canReadCompletionEndpoints(c fiber.Ctx, org, project slug.Slug, trigger *model.PipelineTrigger) error {
+	if trigger.CompletionConfig == nil {
+		return apierror.Forbidden("pipelines", "read")
+	}
+	for _, pipeline := range []slug.Slug{trigger.CompletionConfig.UpstreamPipelineSlug, trigger.PipelineSlug} {
+		if err := s.canPipeline(c, org, project, "", pipeline, model.Read); err != nil {
+			return err
+		}
+	}
+	return nil
 }

@@ -8380,72 +8380,11 @@ ORDER BY pd.updated_at DESC
 LIMIT 1;
 
 -- name: FindPipelineProposalAuthority :one
-SELECT
-    pa.id,
-    pa.publication_mode,
-    pa.provider_host,
-    pa.provider_account_id,
-    pa.provider_repository_id,
-    pa.provider_credential_id,
-    pa.executing_principal_id,
-    pa.executing_principal_display,
-    pa.authority_source,
-    ds.config AS git_configuration,
-    COALESCE(p.pipeline_backend_repo, '')::text AS git_repository,
-    COALESCE(p.pipeline_backend_tracked_branch, '')::text AS git_base_branch,
-    ds.slug AS git_data_source_slug,
-    c.slug AS git_credential_slug,
-    c.updated_at AS git_credential_updated_at
-FROM pipeline_proposal_authorities pa
-JOIN organizations o ON pa.organization_id = o.id
-JOIN projects p ON pa.project_id = p.id
-    AND p.organization_id = o.id
-JOIN data_sources ds ON pa.data_source_id = ds.id
-    AND ds.organization_id = o.id
-    AND p.pipeline_backend_data_source_id = ds.id
-JOIN credentials c ON pa.credential_id = c.id
-    AND c.organization_id = o.id
-    AND ds.credential_id = c.id
-LEFT JOIN credential_oauth_grants cog ON c.id = cog.credential_id
-WHERE o.slug = sqlc.arg('org_slug')
-    AND p.slug = sqlc.arg('project_slug')
-    AND ds.deleted_at IS NULL
-    AND ds.is_active = TRUE
-    AND ds.read_only = FALSE
-    AND c.status = 'active'
-    AND c.revoked_at IS NULL
-    AND pa.revoked_at IS NULL
-    AND (pa.publication_mode <> 'repository_credential' OR (
-        ds.type = 'git' AND c.kind = 'static_secret'
-        AND pa.authority_source = 'git_data_source_credential'
-    ))
-    AND (
-        ds.type <> 'github' OR ds.config #>> '{repository,id}' IS NULL
-        OR (
-            pa.publication_mode = 'organization_service' AND pa.provider_host = 'github.com'
-            AND pa.authority_source = 'github_app_installation' AND c.kind = 'static_secret'
-            AND EXISTS (
-                SELECT 1 FROM github_app_installations installation
-                JOIN github_app_repositories repository ON repository.installation_id = installation.id AND repository.organization_id = o.id
-                WHERE installation.organization_id = o.id AND installation.suspended_at IS NULL AND installation.deleted_at IS NULL
-                    AND repository.removed_at IS NULL
-                    AND installation.installation_id::text = pa.provider_credential_id
-                    AND installation.account_id::text = pa.provider_account_id
-                    AND repository.repository_id::text = pa.provider_repository_id
-                    AND repository.repository_id::text = ds.config #>> '{repository,id}'
-                    AND p.pipeline_backend_repo = 'github.com/' || repository.full_name
-            )
-        )
-    )
-    AND (
-        pa.publication_mode <> 'delegated_user'
-        OR (
-            c.kind = 'oauth2_grant'
-            AND cog.provider = ds.type
-            AND cog.account ->> 'ID' = pa.executing_principal_id
-            AND cog.account ->> 'ID' = pa.provider_account_id
-        )
-    );
+SELECT id, publication_mode, provider_host, provider_account_id, provider_repository_id, provider_credential_id,
+    executing_principal_id, executing_principal_display, authority_source, git_configuration,
+    git_repository, git_base_branch, git_data_source_slug, git_credential_slug, git_credential_updated_at
+FROM active_pipeline_proposal_authorities
+WHERE org_slug = sqlc.arg('org_slug') AND project_slug = sqlc.arg('project_slug');
 
 -- name: QueuePipelineDraftPublish :execresult
 UPDATE pipeline_drafts pd
@@ -13056,9 +12995,8 @@ SELECT snapshot.*,
         'Jitter', snapshot.trigger_configuration->'retry_jitter',
         'RetryableFailureKinds', snapshot.trigger_configuration->'retryable_failure_kinds',
         'MaxElapsedSeconds', snapshot.trigger_configuration->'retry_max_elapsed_seconds') AS retry_policy,
-    pipeline_completion_authority_snapshot(snapshot.organization_id,
-        snapshot.trigger_configuration->>'updated_by_actor_type',
-        snapshot.trigger_configuration->>'updated_by_actor_slug') AS current_authority
+    pipeline_completion_scoped_authority(snapshot.organization_id, snapshot.project_environment_id,
+        snapshot.trigger_configuration, snapshot.state = 'accepted') AS current_authority
 FROM pipeline_completion_snapshots snapshot
 JOIN organizations o ON o.id = snapshot.organization_id
 JOIN projects p ON p.organization_id = o.id AND p.slug = sqlc.arg('project_slug')
@@ -13653,3 +13591,27 @@ JOIN organizations o ON o.id = e.organization_id
 WHERE o.slug = sqlc.arg('org_slug') AND e.deleted_at IS NULL
 ORDER BY e.slug
 FOR SHARE OF e;
+
+-- name: ResolveAuthorizationFacts :one
+SELECT COALESCE(authorization_facts(
+    sqlc.arg('org_slug')::text, sqlc.arg('user_slug')::text, sqlc.arg('key_slug')::text,
+    sqlc.arg('kind')::text, sqlc.arg('resource_slug')::text, sqlc.arg('project_slug')::text,
+    sqlc.arg('environment_slug')::text, sqlc.arg('data_source_slug')::text, sqlc.arg('parent_slug')::text
+), '{}'::jsonb)::jsonb AS facts;
+
+-- name: BindProposalExecutionTarget :execrows
+INSERT INTO execution_proposal_targets (request_id, member_id, project_id, pipeline_id, pipeline_slug, attempt_id, authority_id, provider_digest)
+SELECT req.id, m.id, a.project_id, CASE WHEN req.kind = 'git_scoped_proposal' THEN s.id ELSE NULL END,
+    sqlc.arg('pipeline_slug')::text, sqlc.arg('attempt_id')::text, a.id, sha256(convert_to(to_jsonb(a)::text, 'UTF8'))
+FROM execution_requests req
+JOIN organization_members m ON (m.organization_id,m.user_id) = (req.organization_id,req.initiating_user_id)
+JOIN active_pipeline_proposal_authorities a ON a.organization_id = req.organization_id AND a.id = sqlc.arg('authority_id')::bigint
+LEFT JOIN pipeline_specs s ON s.project_id = a.project_id AND s.slug = sqlc.arg('pipeline_slug') AND s.deleted_at IS NULL
+WHERE req.id = sqlc.arg('request_id')::uuid AND req.state = 'pending'
+    AND a.project_slug = sqlc.arg('project_slug') AND a.git_data_source_slug = sqlc.arg('data_source_slug')
+    AND sqlc.arg('attempt_id')::text <> ''
+    AND ((req.kind = 'git_scoped_proposal' AND s.id IS NOT NULL)
+        OR (req.kind = 'git_scoped_creation_proposal' AND s.id IS NULL));
+
+-- name: ClaimedProposalAuthorization :one
+SELECT claimed_proposal_authorization(sqlc.arg('request_id')::uuid,sqlc.arg('claim_token')::uuid)::jsonb AS facts;

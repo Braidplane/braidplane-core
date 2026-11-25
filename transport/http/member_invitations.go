@@ -5,7 +5,6 @@ import (
 	"time"
 
 	"github.com/gofiber/fiber/v3"
-	"github.com/gofiber/fiber/v3/middleware/session"
 
 	api "github.com/Braidplane/braidplane-core/api-schema/gen/server"
 	"github.com/Braidplane/braidplane-core/pkg/apierror"
@@ -184,7 +183,7 @@ func (s *server) RevokeMemberInvitation(
 
 // ListMyMemberInvitations returns pending invitations addressed to the authenticated user's verified email.
 func (s *server) ListMyMemberInvitations(c fiber.Ctx, params api.ListMyMemberInvitationsParams) error {
-	userSlug, err := invitationUserPrincipal(c, s.sessionStore)
+	userSlug, err := s.invitationUserPrincipal(c, model.Read)
 	if err != nil {
 		return err
 	}
@@ -213,7 +212,7 @@ func (s *server) ListMyMemberInvitations(c fiber.Ctx, params api.ListMyMemberInv
 
 // AcceptMemberInvitation accepts a pending invitation for the authenticated user principal.
 func (s *server) AcceptMemberInvitation(c fiber.Ctx) error {
-	userSlug, err := invitationUserPrincipal(c, s.sessionStore)
+	userSlug, err := s.invitationUserPrincipal(c, model.Update)
 	if err != nil {
 		return err
 	}
@@ -245,7 +244,7 @@ func (s *server) AcceptMyMemberInvitation(
 	slugParam api.SlugParam,
 	invitationSlugParam api.InvitationSlugParam,
 ) error {
-	userSlug, err := invitationUserPrincipal(c, s.sessionStore)
+	userSlug, err := s.invitationUserPrincipal(c, model.Update)
 	if err != nil {
 		return err
 	}
@@ -274,7 +273,7 @@ func (s *server) AcceptMyMemberInvitation(
 
 // DeclineMemberInvitation declines a pending invitation for the authenticated user principal.
 func (s *server) DeclineMemberInvitation(c fiber.Ctx) error {
-	userSlug, err := invitationUserPrincipal(c, s.sessionStore)
+	userSlug, err := s.invitationUserPrincipal(c, model.Update)
 	if err != nil {
 		return err
 	}
@@ -303,7 +302,7 @@ func (s *server) DeclineMyMemberInvitation(
 	slugParam api.SlugParam,
 	invitationSlugParam api.InvitationSlugParam,
 ) error {
-	userSlug, err := invitationUserPrincipal(c, s.sessionStore)
+	userSlug, err := s.invitationUserPrincipal(c, model.Update)
 	if err != nil {
 		return err
 	}
@@ -327,17 +326,17 @@ func (s *server) DeclineMyMemberInvitation(
 	return c.JSON(memberInvitationToHTTP(*invitation))
 }
 
-func invitationUserPrincipal(c fiber.Ctx, store *session.Store) (slug.Slug, error) {
+func (s *server) invitationUserPrincipal(c fiber.Ctx, action model.Action) (slug.Slug, error) {
 	if _, ok := reqctx.GetAPIKeyPrincipal(c); ok {
 		return "", apierror.UserPrincipalRequired()
 	}
 
-	principal, ok := reqctx.GetUserPrincipal(c, store)
+	principal, ok := reqctx.GetUserPrincipal(c, s.sessionStore)
 	if !ok {
 		return "", apierror.Unauthorized()
 	}
 
-	return principal.Slug, nil
+	return principal.Slug, s.canProfile(c, action)
 }
 
 func parseInvitationPath(slugParam api.SlugParam, invitationSlugParam api.InvitationSlugParam) (slug.Slug, slug.Slug, error) {

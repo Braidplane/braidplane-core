@@ -159,7 +159,7 @@ func getUserSlugFromSession(t *testing.T, app *fiber.App, authCookie string) str
 }
 
 func handleTestAdminRolePermissions(w http.ResponseWriter, r *http.Request) bool {
-	if r.Method != http.MethodGet || r.URL.Path != "/api/organizations/acme-hq/roles/admin" {
+	if r.Method != http.MethodGet || r.URL.Path != "/api/organizations/acme-hq/authorization/permissions" {
 		return false
 	}
 

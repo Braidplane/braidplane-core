@@ -31,6 +31,7 @@ func TestProposalExecutorPublishesBranchAndProviderProposal(t *testing.T) {
 		readErr: repostore.ErrFileNotFound.Detail("pipelines/daily-sync.pipeline.yaml"),
 	}
 	executor := &proposalExecutor{
+		beforeMutation: func(context.Context) error { return nil },
 		gitAuthResolver: fakeGitAuthResolver{
 			resolveFn: func(
 				_ context.Context,
@@ -151,6 +152,29 @@ func TestProposalExecutorReusesExistingProposalOnRepeatPublish(t *testing.T) {
 	require.Equal(t, 1, provider.upsertCalls)
 	require.Equal(t, "7", result.ProposalID)
 	require.Equal(t, "newsha", result.BranchHeadSHA)
+}
+
+func TestProposalExecutorRechecksAuthorityAtEachMutation(t *testing.T) {
+	for _, denyAt := range []int{1, 2, 3} {
+		provider := &recordingProposalProvider{}
+		executor := newProposalExecutorForTest(provider, &recordingOperationRepoStore{readContent: []byte("old")})
+		checks := 0
+		executor.beforeMutation = func(context.Context) error {
+			checks++
+			if checks == denyAt {
+				return ErrProposalAuthorityInvalid
+			}
+			return nil
+		}
+		_, err := executor.PublishProposal(t.Context(), ProposalOperation{
+			BranchName: "proposal", Path: "pipeline.yaml",
+			Content: []byte("changed"), Authority: testProposalAuthority("gitlab.com"),
+		})
+		require.ErrorIs(t, err, ErrProposalAuthorityInvalid)
+		require.Equal(t, denyAt, checks)
+		require.Zero(t, provider.upsertCalls)
+		require.Equal(t, denyAt == 3, executor.remoteGit.(*recordingRemoteGit).pushCalls == 1)
+	}
 }
 
 func TestCreationProposalCannotOverwriteExistingFileButCanRepeatExactBranch(t *testing.T) {
@@ -342,6 +366,7 @@ func TestProposalExecutorRejectsGenericGitProposal(t *testing.T) {
 	t.Parallel()
 
 	executor := &proposalExecutor{
+		beforeMutation: func(context.Context) error { return nil },
 		gitAuthResolver: fakeGitAuthResolver{
 			resolveFn: func(
 				context.Context,
@@ -389,6 +414,7 @@ func newProposalExecutorForTest(
 	repo *recordingOperationRepoStore,
 ) *proposalExecutor {
 	return &proposalExecutor{
+		beforeMutation: func(context.Context) error { return nil },
 		gitAuthResolver: fakeGitAuthResolver{
 			resolveFn: func(
 				context.Context,
@@ -425,6 +451,7 @@ func newTestProposalExecutor(
 	repo repostore.RepoStore,
 ) *proposalExecutor {
 	return &proposalExecutor{
+		beforeMutation: func(context.Context) error { return nil },
 		gitAuthResolver: fakeGitAuthResolver{resolveFn: func(
 			context.Context, slug.Slug, slug.Slug,
 		) (*datasourcessvc.GitDataSourceAuth, error) {
@@ -438,11 +465,15 @@ func newTestProposalExecutor(
 }
 
 func (p *recordingProposalProvider) UpsertProposal(
-	_ context.Context,
+	ctx context.Context,
 	req ProviderProposalRequest,
 ) (*ProposalResult, error) {
+	if err := req.BeforeMutation(ctx); err != nil {
+		return nil, err
+	}
 	p.upsertCalls++
 	p.request = req
+	p.request.BeforeMutation = nil
 	if p.err != nil {
 		return nil, p.err
 	}
@@ -482,7 +513,7 @@ func TestProposalExecutorRevalidatesGitHubAppIdentity(t *testing.T) {
 				current = nil
 			}
 			provider := &recordingProposalProvider{}
-			executor := &proposalExecutor{gitAuthResolver: fakeGitAuthResolver{resolveFn: func(context.Context, slug.Slug, slug.Slug) (*datasourcessvc.GitDataSourceAuth, error) {
+			executor := &proposalExecutor{beforeMutation: func(context.Context) error { return nil }, gitAuthResolver: fakeGitAuthResolver{resolveFn: func(context.Context, slug.Slug, slug.Slug) (*datasourcessvc.GitDataSourceAuth, error) {
 				return &datasourcessvc.GitDataSourceAuth{Provider: "github", RepoURL: "https://github.com/acme/pipelines.git", GitHubProposalAuthority: current}, nil
 			}}, provider: provider}
 			_, err := executor.PublishProposal(t.Context(), ProposalOperation{Authority: expected.Payload()})
@@ -527,7 +558,7 @@ func TestPlainGitProposalPublishesOnlyTheBoundBranch(t *testing.T) {
 			case "push denied":
 				remote.pushErr = xerror.Forbidden(xerror.RepoFile)
 			}
-			executor := &proposalExecutor{gitAuthResolver: fakeGitAuthResolver{resolveFn: func(context.Context, slug.Slug, slug.Slug) (*datasourcessvc.GitDataSourceAuth, error) {
+			executor := &proposalExecutor{beforeMutation: func(context.Context) error { return nil }, gitAuthResolver: fakeGitAuthResolver{resolveFn: func(context.Context, slug.Slug, slug.Slug) (*datasourcessvc.GitDataSourceAuth, error) {
 				return &auth, nil
 			}}, remoteGit: remote, provider: provider, resolveHead: func(context.Context, string) *string { return &head }}
 			result, err := executor.PublishProposal(t.Context(), op)

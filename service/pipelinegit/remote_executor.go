@@ -229,13 +229,14 @@ func ExecuteResolvedGitDelete(ctx context.Context, request RemoteDeleteRequest) 
 func ExecuteResolvedGitProposal(
 	ctx context.Context,
 	request RemoteProposalRequest,
+	beforeMutation func(context.Context) error,
 ) (*ProposalResult, error) {
 	auth, err := datasourcessvc.PrepareGitExecutionAuth(ctx, request.Auth)
 	if err != nil {
 		return nil, err
 	}
 	defer auth.Cleanup()
-	executor, err := NewProposalExecutor(staticGitAuthResolver{auth: *auth})
+	executor, err := NewProposalExecutor(staticGitAuthResolver{auth: *auth}, beforeMutation)
 	if err != nil {
 		return nil, err
 	}
@@ -252,7 +253,7 @@ func ExecuteResolvedGitProposalRefresh(
 		return nil, err
 	}
 	defer auth.Cleanup()
-	executor, err := NewProposalExecutor(staticGitAuthResolver{auth: *auth})
+	executor, err := NewProposalExecutor(staticGitAuthResolver{auth: *auth}, nil)
 	if err != nil {
 		return nil, err
 	}

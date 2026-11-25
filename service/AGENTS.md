@@ -20,7 +20,9 @@ This guide applies inside `service/` and supplements the root `AGENTS.md`.
   one-query repository calls inside them. Do not add `MethodWithTx`, `...WithTx`,
   or similar service APIs to pass transactions between services.
 - Permission checks normally stay in the HTTP layer. The service exceptions are
-  pipeline validation history and queued proposal-publish reauthorization
+  pipeline validation history, captured and current completion-trigger authority,
+  and queued proposal-publish reauthorization on the control worker and at
+  each isolated provider mutation
   (`doc/PROPOSAL_AUTHORITY.md`). Other exceptions
   require an accepted architecture change.
 - Wrap dependency failures with the existing typed `xerror` constructors and

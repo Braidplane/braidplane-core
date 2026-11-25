@@ -50,7 +50,7 @@ func (r *Router) renderNotificationConnections(c fiber.Ctx, status int, message 
 			message, failed = "Slack could not be connected. Start again.", true
 		}
 	}
-	permissions := r.resolveOrganizationPermissions(c.Context(), c.Get(fiber.HeaderCookie), org.String())
+	permissions := r.resolvePagePermissions(c, org.String())
 	setHTMLResponseStatus(c, status)
 	return renderTempl(c, views.NotificationConnectionsPage(r.buildAlertsShellData(c, org.String(), "", ""), org.String(), connections, permissions, message, failed, views.NotificationConnectionFormData{Name: strings.TrimSpace(c.FormValue("name")), Slug: strings.TrimSpace(c.FormValue("slug"))}))
 }

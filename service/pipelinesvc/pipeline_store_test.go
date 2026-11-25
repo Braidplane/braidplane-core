@@ -535,7 +535,6 @@ func TestPipelineStore_List_UsesTransactionManager(t *testing.T) {
 	t.Parallel()
 
 	expectedTx := &fakeDBTX{}
-	dbtx := &fakeDBTX{}
 	expectedSpecs := []*pipelinesrepo.PipelineSpec{{Slug: slug.Slug("users-sync")}}
 	repo := &fakePipelineReferenceRepo{
 		listSpecsTxFn: func(_ context.Context, gotTx postgres.DBTX, gotOrgSlug slug.Slug, req model.ListRequest) ([]*pipelinesrepo.PipelineSpec, error) {
@@ -547,7 +546,6 @@ func TestPipelineStore_List_UsesTransactionManager(t *testing.T) {
 	}
 
 	store := &pipelineStore{
-		dbtx: dbtx,
 		txm:  testutil.FakeTransactionManager{Tx: expectedTx},
 		repo: repo,
 	}
@@ -567,8 +565,7 @@ func TestPipelineStore_Get_ReturnsNotFoundWhenSpecMissingFromDB(t *testing.T) {
 	t.Parallel()
 
 	store := &pipelineStore{
-		dbtx: &fakeDBTX{},
-		txm:  testutil.FakeTransactionManager{},
+		txm: testutil.FakeTransactionManager{},
 		repo: &fakePipelineReferenceRepo{
 			findSpecFn: func(_ context.Context, _, _ slug.Slug) (*pipelinesrepo.PipelineSpec, error) {
 				return nil, pipelinesrepo.ErrPipelineReferenceNotFound
@@ -589,8 +586,7 @@ func TestPipelineStore_Get_ReturnsDeserializedPipelineFromDB(t *testing.T) {
 	require.NoError(t, err)
 
 	store := &pipelineStore{
-		dbtx: &fakeDBTX{},
-		txm:  testutil.FakeTransactionManager{},
+		txm: testutil.FakeTransactionManager{},
 		repo: &fakePipelineReferenceRepo{
 			findSpecFn: func(_ context.Context, _, _ slug.Slug) (*pipelinesrepo.PipelineSpec, error) {
 				return &pipelinesrepo.PipelineSpec{
@@ -613,8 +609,7 @@ func TestPipelineStore_FindDraft_EmptyMemberSlugReturnsNotFound(t *testing.T) {
 	t.Parallel()
 
 	store := &pipelineStore{
-		dbtx: &fakeDBTX{},
-		txm:  testutil.FakeTransactionManager{},
+		txm: testutil.FakeTransactionManager{},
 		repo: &fakePipelineReferenceRepo{
 			findAnyDraftFn: func(
 				_ context.Context,
@@ -645,8 +640,7 @@ func TestPipelineStore_SaveDraft_EmptyMemberSlugReturnsInvalidRequired(t *testin
 	t.Parallel()
 
 	store := &pipelineStore{
-		dbtx: &fakeDBTX{},
-		txm:  testutil.FakeTransactionManager{},
+		txm: testutil.FakeTransactionManager{},
 		repo: &fakePipelineReferenceRepo{
 			upsertDraftFn: func(
 				_ context.Context,
@@ -677,8 +671,7 @@ func TestPipelineStore_SaveDraft_AllowsGitManagedPipelines(t *testing.T) {
 	var hasDraftValue bool
 
 	store := &pipelineStore{
-		dbtx: &fakeDBTX{},
-		txm:  testutil.FakeTransactionManager{},
+		txm: testutil.FakeTransactionManager{},
 		repo: &fakePipelineReferenceRepo{
 			findSpecFn: func(
 				_ context.Context,
@@ -734,8 +727,7 @@ func TestPipelineStore_SaveDraft_PassesMemberSlugToRepository(t *testing.T) {
 
 	var gotMemberSlug slug.Slug
 	store := &pipelineStore{
-		dbtx: &fakeDBTX{},
-		txm:  testutil.FakeTransactionManager{},
+		txm: testutil.FakeTransactionManager{},
 		repo: &fakePipelineReferenceRepo{
 			findSpecFn: func(
 				_ context.Context,
@@ -773,8 +765,7 @@ func TestPipelineStore_SaveDraft_DefaultsBasedOnVersionIDToCurrentVersion(t *tes
 	var gotBasedOnVersionID *int64
 
 	store := &pipelineStore{
-		dbtx: &fakeDBTX{},
-		txm:  testutil.FakeTransactionManager{},
+		txm: testutil.FakeTransactionManager{},
 		repo: &fakePipelineReferenceRepo{
 			findSpecFn: func(
 				_ context.Context,
@@ -822,8 +813,7 @@ func TestPipelineStore_SaveDraft_PreservesExistingDraftBasedOnVersionIDWhenClien
 	var gotBasedOnVersionID *int64
 
 	store := &pipelineStore{
-		dbtx: &fakeDBTX{},
-		txm:  testutil.FakeTransactionManager{},
+		txm: testutil.FakeTransactionManager{},
 		repo: &fakePipelineReferenceRepo{
 			findSpecFn: func(
 				_ context.Context,
@@ -872,8 +862,7 @@ func TestPipelineStore_SaveDraft_ReturnsConflictWhenExpectedVersionIsStale(t *te
 	var upsertDraftCalled bool
 
 	store := &pipelineStore{
-		dbtx: &fakeDBTX{},
-		txm:  testutil.FakeTransactionManager{},
+		txm: testutil.FakeTransactionManager{},
 		repo: &fakePipelineReferenceRepo{
 			findSpecFn: func(
 				_ context.Context,
@@ -928,8 +917,7 @@ func TestPipelineStore_SaveDraft_RebasesStaleExpectedVersionWhenSpecMatchesCanon
 	var gotBasedOnVersionID *int64
 
 	store := &pipelineStore{
-		dbtx: &fakeDBTX{},
-		txm:  testutil.FakeTransactionManager{},
+		txm: testutil.FakeTransactionManager{},
 		repo: &fakePipelineReferenceRepo{
 			findSpecFn: func(
 				_ context.Context,
@@ -980,8 +968,7 @@ func TestPipelineStore_SaveDraft_RebasesStaleExpectedVersionWhenCanonicalBytesMa
 	var gotBasedOnVersionID *int64
 
 	store := &pipelineStore{
-		dbtx: &fakeDBTX{},
-		txm:  testutil.FakeTransactionManager{},
+		txm: testutil.FakeTransactionManager{},
 		repo: &fakePipelineReferenceRepo{
 			findSpecFn: func(
 				_ context.Context,
@@ -1024,8 +1011,7 @@ func TestPipelineStore_DeleteDraft_KeepsHasDraftWhenOtherMemberDraftsRemain(t *t
 
 	var hasDraftValue bool
 	store := &pipelineStore{
-		dbtx: &fakeDBTX{},
-		txm:  testutil.FakeTransactionManager{},
+		txm: testutil.FakeTransactionManager{},
 		repo: &fakePipelineReferenceRepo{
 			deleteDraftFn: func(_ context.Context, _, _, _ slug.Slug) error {
 				return nil
@@ -1065,8 +1051,7 @@ func TestPipelineStore_DeleteDraft_ClearsHasDraftForGitManagedPipelineWhenLastDr
 
 	var hasDraftValue bool
 	store := &pipelineStore{
-		dbtx: &fakeDBTX{},
-		txm:  testutil.FakeTransactionManager{},
+		txm: testutil.FakeTransactionManager{},
 		repo: &fakePipelineReferenceRepo{
 			deleteDraftFn: func(_ context.Context, _, pipelineSlug, memberSlug slug.Slug) error {
 				require.Equal(t, slug.Slug("acme-users-sync"), pipelineSlug)
@@ -1120,8 +1105,7 @@ func TestPipelineStore_PrepareGitDraftPublishTx_QueuesProposalPublishWithProject
 
 	var queued pipelinesrepo.QueueDraftPublishParams
 	store := &pipelineStore{
-		dbtx: &fakeDBTX{},
-		txm:  testutil.FakeTransactionManager{},
+		txm: testutil.FakeTransactionManager{},
 		repo: &fakePipelineReferenceRepo{
 			findSpecForUpdateFn: func(
 				_ context.Context,
@@ -1206,7 +1190,7 @@ func TestPipelineStore_PrepareGitDraftPublishReusesQueuedAttemptForSameDraft(t *
 	draftJSON, err := json.Marshal(testPipelineSpec())
 	require.NoError(t, err)
 	var queued pipelinesrepo.QueueDraftPublishParams
-	store := &pipelineStore{dbtx: &fakeDBTX{}, txm: testutil.FakeTransactionManager{}, repo: &fakePipelineReferenceRepo{
+	store := &pipelineStore{txm: testutil.FakeTransactionManager{}, repo: &fakePipelineReferenceRepo{
 		findSpecForUpdateFn: func(context.Context, slug.Slug, slug.Slug) (*pipelinesrepo.PipelineSpec, error) {
 			return &pipelinesrepo.PipelineSpec{SourcePath: &sourcePath, SourceRef: &sourceRef, CurrentVersionID: &versionID, CurrentVersionSpecHash: &specHash}, nil
 		},
@@ -1257,8 +1241,7 @@ func TestPipelineStore_CompleteProposal_PersistsSafeProposalMetadataWithoutDeplo
 	deleteDraftCalled := false
 	var completed pipelinesrepo.CompleteDraftPublishParams
 	store := &pipelineStore{
-		dbtx: &fakeDBTX{},
-		txm:  testutil.FakeTransactionManager{},
+		txm: testutil.FakeTransactionManager{},
 		repo: &fakePipelineReferenceRepo{
 			completeDraftPublishFn: func(
 				_ context.Context,
@@ -1337,8 +1320,7 @@ func TestPipelineStore_FailProposal_PersistsRetryableStateWithSafeDiagnostics(t 
 
 	var failed pipelinesrepo.FailDraftPublishParams
 	store := &pipelineStore{
-		dbtx: &fakeDBTX{},
-		txm:  testutil.FakeTransactionManager{},
+		txm: testutil.FakeTransactionManager{},
 		repo: &fakePipelineReferenceRepo{
 			failDraftPublishFn: func(
 				_ context.Context,
@@ -1375,7 +1357,7 @@ func TestPipelineStore_PrepareGitProposalRefreshQueuesDistinctAttempt(t *testing
 	t.Parallel()
 	proposalID := "42"
 	var queued pipelinesrepo.QueueDraftProposalRefreshParams
-	store := &pipelineStore{dbtx: &fakeDBTX{}, txm: testutil.FakeTransactionManager{}, repo: &fakePipelineReferenceRepo{
+	store := &pipelineStore{txm: testutil.FakeTransactionManager{}, repo: &fakePipelineReferenceRepo{
 		findDraftFn: func(context.Context, slug.Slug, slug.Slug, slug.Slug) (*pipelinesrepo.PipelineDraft, error) {
 			return &pipelinesrepo.PipelineDraft{ProposalID: &proposalID}, nil
 		},
@@ -1401,7 +1383,7 @@ func TestPipelineStore_FailProposalRefreshPreservesProposalLifecycleState(t *tes
 		t.Run(draftState, func(t *testing.T) {
 			t.Parallel()
 			var failed pipelinesrepo.FailDraftProposalRefreshParams
-			store := &pipelineStore{dbtx: &fakeDBTX{}, txm: testutil.FakeTransactionManager{}, repo: &fakePipelineReferenceRepo{
+			store := &pipelineStore{txm: testutil.FakeTransactionManager{}, repo: &fakePipelineReferenceRepo{
 				failDraftProposalRefreshFn: func(_ context.Context, _ slug.Slug, params pipelinesrepo.FailDraftProposalRefreshParams) error {
 					failed = params
 					return nil
@@ -1426,7 +1408,7 @@ func TestPipelineStore_FailProposalRefreshPreservesProposalLifecycleState(t *tes
 func TestPipelineStore_CompleteProposalRefreshPersistsTerminalStateForExactProposal(t *testing.T) {
 	t.Parallel()
 	var refreshed pipelinesrepo.RefreshDraftProposalParams
-	store := &pipelineStore{dbtx: &fakeDBTX{}, txm: testutil.FakeTransactionManager{}, repo: &fakePipelineReferenceRepo{
+	store := &pipelineStore{txm: testutil.FakeTransactionManager{}, repo: &fakePipelineReferenceRepo{
 		refreshDraftProposalFn: func(_ context.Context, _ slug.Slug, params pipelinesrepo.RefreshDraftProposalParams) error {
 			refreshed = params
 			return nil
@@ -1473,8 +1455,7 @@ steps:
 	var deletedSpec []slug.Slug
 
 	store := &pipelineStore{
-		dbtx: &fakeDBTX{},
-		txm:  testutil.FakeTransactionManager{},
+		txm: testutil.FakeTransactionManager{},
 		repo: &fakePipelineReferenceRepo{
 			upsertSpecFn: func(_ context.Context, _ slug.Slug, params pipelinesrepo.UpsertSpecParams) (*pipelinesrepo.PipelineSpec, error) {
 				upsertSpecParams = append(upsertSpecParams, params)
@@ -1593,8 +1574,7 @@ steps:
 
 	var upsertSpecCalls int
 	store := &pipelineStore{
-		dbtx: &fakeDBTX{},
-		txm:  testutil.FakeTransactionManager{},
+		txm: testutil.FakeTransactionManager{},
 		repo: &fakePipelineReferenceRepo{
 			upsertSpecFn: func(_ context.Context, _ slug.Slug, params pipelinesrepo.UpsertSpecParams) (*pipelinesrepo.PipelineSpec, error) {
 				upsertSpecCalls++
@@ -1647,8 +1627,7 @@ steps:
 	sourcePath := "pipelines/acme-users-sync.pipeline.yaml"
 
 	store := &pipelineStore{
-		dbtx: &fakeDBTX{},
-		txm:  testutil.FakeTransactionManager{},
+		txm: testutil.FakeTransactionManager{},
 		repo: &fakePipelineReferenceRepo{
 			findSpecForUpdateFn: func(
 				_ context.Context,
@@ -1740,8 +1719,7 @@ steps:
 	var upserted []slug.Slug
 	var restored []slug.Slug
 	store := &pipelineStore{
-		dbtx: &fakeDBTX{},
-		txm:  testutil.FakeTransactionManager{},
+		txm: testutil.FakeTransactionManager{},
 		repo: &fakePipelineReferenceRepo{
 			findSpecForUpdateFn: func(
 				_ context.Context,
@@ -1832,7 +1810,6 @@ func TestPipelineStore_ReconcileFromGit_ReturnsInvalidRequiredWhenRepoStoreNil(t
 	t.Parallel()
 
 	store := &pipelineStore{
-		dbtx: &fakeDBTX{},
 		txm:  testutil.FakeTransactionManager{},
 		repo: &fakePipelineReferenceRepo{},
 	}
@@ -1869,8 +1846,7 @@ steps:
 `)
 
 			store := &pipelineStore{
-				dbtx: &fakeDBTX{},
-				txm:  testutil.FakeTransactionManager{},
+				txm: testutil.FakeTransactionManager{},
 				repo: &fakePipelineReferenceRepo{
 					upsertSpecFn: func(_ context.Context, _ slug.Slug, params pipelinesrepo.UpsertSpecParams) (*pipelinesrepo.PipelineSpec, error) {
 						return &pipelinesrepo.PipelineSpec{Slug: params.Slug, Name: params.Name}, nil
@@ -1993,8 +1969,7 @@ func TestPipelineStore_ReconcileFromGit_DryRunSkipsDeletesButReportsCounts(t *te
 	var deleteRefCallCount int
 
 	store := &pipelineStore{
-		dbtx: &fakeDBTX{},
-		txm:  testutil.FakeTransactionManager{},
+		txm: testutil.FakeTransactionManager{},
 		repo: &fakePipelineReferenceRepo{
 			listSpecsFn: func(_ context.Context, _ slug.Slug, _ model.ListRequest) ([]*pipelinesrepo.PipelineSpec, error) {
 				return []*pipelinesrepo.PipelineSpec{
@@ -2065,8 +2040,7 @@ steps:
 	var deleteRefCallCount int
 
 	store := &pipelineStore{
-		dbtx: &fakeDBTX{},
-		txm:  testutil.FakeTransactionManager{},
+		txm: testutil.FakeTransactionManager{},
 		repo: &fakePipelineReferenceRepo{
 			upsertSpecFn: func(_ context.Context, _ slug.Slug, _ pipelinesrepo.UpsertSpecParams) (*pipelinesrepo.PipelineSpec, error) {
 				upsertSpecCallCount++
@@ -2168,8 +2142,7 @@ steps:
 	unchangedHash := fmt.Sprintf("%x", sha256.Sum256(specJSON))
 
 	store := &pipelineStore{
-		dbtx: &fakeDBTX{},
-		txm:  testutil.FakeTransactionManager{},
+		txm: testutil.FakeTransactionManager{},
 		repo: &fakePipelineReferenceRepo{
 			findSpecFn: func(_ context.Context, _, pipelineSlug slug.Slug) (*pipelinesrepo.PipelineSpec, error) {
 				findSpecCallCount++
@@ -2248,8 +2221,7 @@ steps:
 	legacySourcePath := "pipelines/legacy-sync.pipeline.yaml"
 
 	store := &pipelineStore{
-		dbtx: &fakeDBTX{},
-		txm:  testutil.FakeTransactionManager{},
+		txm: testutil.FakeTransactionManager{},
 		repo: &fakePipelineReferenceRepo{
 			upsertSpecFn: func(_ context.Context, _ slug.Slug, _ pipelinesrepo.UpsertSpecParams) (*pipelinesrepo.PipelineSpec, error) {
 				upsertSpecCallCount++
@@ -2348,8 +2320,7 @@ steps:
 	var deleted []slug.Slug
 
 	store := &pipelineStore{
-		dbtx: &fakeDBTX{},
-		txm:  testutil.FakeTransactionManager{},
+		txm: testutil.FakeTransactionManager{},
 		repo: &fakePipelineReferenceRepo{
 			upsertSpecFn: func(_ context.Context, _ slug.Slug, params pipelinesrepo.UpsertSpecParams) (*pipelinesrepo.PipelineSpec, error) {
 				upserted = append(upserted, params.Slug)
@@ -2426,8 +2397,7 @@ func TestPipelineStore_ReconcileFromGit_WithoutDryRunDeletesOrphans(t *testing.T
 	var deleteRefCallCount int
 
 	store := &pipelineStore{
-		dbtx: &fakeDBTX{},
-		txm:  testutil.FakeTransactionManager{},
+		txm: testutil.FakeTransactionManager{},
 		repo: &fakePipelineReferenceRepo{
 			listSpecsFn: func(_ context.Context, _ slug.Slug, _ model.ListRequest) ([]*pipelinesrepo.PipelineSpec, error) {
 				return []*pipelinesrepo.PipelineSpec{

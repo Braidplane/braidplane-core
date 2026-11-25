@@ -734,11 +734,7 @@ func (r *Router) renderProjectEnvironmentsPage(
 	if c.Query("cleanup") == "1" {
 		cleanup = &views.CleanupFindings{}
 	}
-	permissions := r.resolveOrganizationPermissions(
-		c.Context(),
-		c.Get(fiber.HeaderCookie),
-		orgSlug.String(),
-	)
+	permissions := r.resolvePagePermissions(c, orgSlug.String())
 	selectedEnvironmentSlug := projectEnvironmentSelectedSlugFromRequest(c)
 	catalog, status, errorResponse, err := r.listEnvironmentsViaAPI(
 		c.Context(),
@@ -1065,11 +1061,7 @@ func (r *Router) renderOrganizationEnvironmentDetailPage(
 		c.Get(fiber.HeaderCookie),
 	)
 	shellData.Subtitle = "Manage this organization runtime target, non-secret runtime variables, and write-only environment secrets."
-	permissions := r.resolveOrganizationPermissions(
-		c.Context(),
-		c.Get(fiber.HeaderCookie),
-		orgSlug.String(),
-	)
+	permissions := r.resolvePagePermissions(c, orgSlug.String())
 
 	setHTMLResponseStatus(c, statusCode)
 	return renderTempl(
@@ -1130,11 +1122,7 @@ func (r *Router) renderOrganizationEnvironmentsPage(
 		c.Get(fiber.HeaderCookie),
 	)
 	shellData.Subtitle = "Manage organization runtime targets, non-secret runtime variables, and write-only environment secrets. Project enablement and bindings stay on project runtime pages."
-	permissions := r.resolveOrganizationPermissions(
-		c.Context(),
-		c.Get(fiber.HeaderCookie),
-		orgSlug.String(),
-	)
+	permissions := r.resolvePagePermissions(c, orgSlug.String())
 
 	setHTMLResponseStatus(c, statusCode)
 	return renderTempl(

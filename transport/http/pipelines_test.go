@@ -1160,6 +1160,12 @@ func TestServer_PipelineValidationResults(t *testing.T) {
 		t.Parallel()
 
 		app, store := newTestApp(t, testServerConfig{
+			authService: fakeAuthService{CanFn: func(_ context.Context, input authorization.Input) (bool, error) {
+				if input.Resource == model.ResourceDataSources {
+					return input.Target == (model.AuthorizationTarget{}), nil
+				}
+				return input.Target == (model.AuthorizationTarget{Kind: "deployment_targets", Slug: "acme-users-sync", ProjectSlug: "default", EnvironmentSlug: "prod"}), nil
+			}},
 			pipelinesService: &fakePipelinesService{
 				RevalidatePipelineFn: func(
 					_ context.Context,

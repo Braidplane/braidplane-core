@@ -276,7 +276,7 @@ func (s *server) EnableProjectEnvironment(
 		return err
 	}
 
-	if err := s.canOrg(c, orgSlug, model.Update, model.ResourceEnvironments); err != nil {
+	if err := s.canTarget(c, orgSlug, model.Update, model.ResourceEnvironments, model.AuthorizationTarget{Kind: "projects", Slug: projectSlug}); err != nil {
 		return err
 	}
 

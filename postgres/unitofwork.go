@@ -19,9 +19,8 @@ type TransactionManager interface {
 	// A panic rolls back the owned transaction and propagates to the caller.
 	RunInTx(ctx context.Context, fn func(ctx context.Context, tx DBTX) error) error
 
-	// RunRead executes fn against a read handle without opening a transaction.
-	// When the context already carries a transaction, RunRead reuses it so nested
-	// service calls remain inside the caller's unit of work.
+	// RunRead reuses the caller's transaction. When a request carries authorization
+	// checks, it opens a transaction to verify them in the same snapshot as the read.
 	RunRead(ctx context.Context, fn func(ctx context.Context, db DBTX) error) error
 }
 
@@ -76,8 +75,9 @@ func (p *poolTransactionManager) RunInTx(
 		return fn(ctx, tx)
 	}
 
+	checks := pendingTransactionChecks(ctx)
 	options := pgx.TxOptions{}
-	if snapshot, _ := ctx.Value(snapshotContextKey{}).(bool); snapshot {
+	if snapshot, _ := ctx.Value(snapshotContextKey{}).(bool); snapshot || len(checks) > 0 {
 		options.IsoLevel = pgx.RepeatableRead
 	}
 	tx, err := p.pool.BeginTx(ctx, options)
@@ -95,6 +95,12 @@ func (p *poolTransactionManager) RunInTx(
 	txCtx := context.WithValue(ctx, txContextKey{}, tx)
 	txCtx = context.WithValue(txCtx, transactionSnapshotKey{}, options.IsoLevel == pgx.RepeatableRead)
 
+	// Pin authorized identities in the very snapshot used for the read or write.
+	for _, check := range checks {
+		if err := check(txCtx, tx); err != nil {
+			return err
+		}
+	}
 	err = fn(txCtx, tx)
 	if err != nil {
 		rlErr := rollback()
@@ -117,13 +123,16 @@ func (p *poolTransactionManager) RunRead(
 	ctx context.Context,
 	fn func(ctx context.Context, db DBTX) error,
 ) error {
-	if tx, ok := txFromContext(ctx); ok {
-		return fn(ctx, tx)
+	if _, ok := txFromContext(ctx); ok {
+		return p.RunInTx(ctx, fn)
 	}
 	if p == nil || p.pool == nil {
 		return xerror.Unexpected().Detail("postgres read handle is required")
 	}
 
+	if len(pendingTransactionChecks(ctx)) > 0 {
+		return p.RunInTx(ctx, fn)
+	}
 	return fn(ctx, p.pool)
 }
 
@@ -149,8 +158,7 @@ func InTx[T any](
 	return ret, nil
 }
 
-// InRead executes fn with a non-transactional database handle and returns the
-// function result without forcing callers to manage an outer return variable.
+// InRead returns the result of fn using the manager's read handle.
 func InRead[T any](
 	ctx context.Context,
 	txm TransactionManager,

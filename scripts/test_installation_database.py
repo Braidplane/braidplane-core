@@ -46,9 +46,11 @@ class InstallationDatabaseTest(unittest.TestCase):
         self.psql(baseline)
         old_execution = execution[:execution.index("    public.begin_retained_file(")].rstrip().removesuffix(",") + "\nTO :\"executor_role\";\nCOMMIT;\n"
         old_execution = old_execution.replace(':"executor_role"', '"braidplane_executor"')
-        self.psql(old_execution)
+        self.psql(old_execution.replace("    public.claimed_proposal_authorization(uuid, uuid),\n", ""))
         self.psql("SET ROLE braidplane_migrator;\n" + migrations[-1].read_text())
         before = self.psql("SELECT has_function_privilege('braidplane_executor', 'public.begin_retained_file(uuid,uuid,text,bigint,timestamptz)', 'EXECUTE');")
+        self.assertEqual(before.stdout.strip(), "f")
+        before = self.psql("SELECT has_function_privilege('braidplane_executor', 'public.claimed_proposal_authorization(uuid,uuid)', 'EXECUTE');")
         self.assertEqual(before.stdout.strip(), "f")
         self.psql(execution)
         self.psql(execution)
@@ -58,7 +60,7 @@ class InstallationDatabaseTest(unittest.TestCase):
             "complete_execution_request(uuid,uuid,bytea,boolean)", "execution_request_metrics()",
             "connector_execution_admission_metrics()",
             "check_connector_dispatch(uuid,uuid,text,text,text,jsonb,text,timestamptz,boolean)",
-            "snowflake_wif_ready(text,text,text,text)",
+            "claimed_proposal_authorization(uuid,uuid)", "snowflake_wif_ready(text,text,text,text)",
             "begin_retained_file(uuid,uuid,text,bigint,timestamptz)",
             "append_retained_file_chunk(uuid,uuid,text,integer,integer,bytea)",
             "seal_retained_file(uuid,uuid,text,bigint,text)",
@@ -78,7 +80,8 @@ class InstallationDatabaseTest(unittest.TestCase):
         self.psql("SET ROLE braidplane_executor; SELECT * FROM core_schema_migrations;")
         unclaimed = self.psql("SET ROLE braidplane_executor; SELECT public.begin_retained_file(NULL,NULL,'fixture',1,now() + interval '1 minute');")
         self.assertEqual(unclaimed.stdout.strip().splitlines()[-1], "f")
-        for sql in ("SELECT * FROM credentials", "SELECT * FROM user_sessions", "SELECT * FROM execution_requests",
+        for sql in ("SELECT * FROM execution_proposal_targets", "SELECT * FROM authorization_scoped_grants",
+                    "SELECT * FROM active_pipeline_proposal_authorities", "SELECT * FROM credentials", "SELECT * FROM user_sessions", "SELECT * FROM execution_requests",
                     "CREATE TABLE public.forbidden(id int)", "DELETE FROM core_schema_migrations",
                     "SELECT * FROM claim_execution_request(gen_random_uuid())",
                     "SELECT * FROM retained_file_streams", "SELECT * FROM retained_file_chunks",

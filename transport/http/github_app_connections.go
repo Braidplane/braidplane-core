@@ -87,7 +87,8 @@ func (s *server) CompleteOrganizationGitHubAppInstall(c fiber.Ctx, params api.Co
 		return apierror.ValidationFailed("GitHub callback cannot contain both authorization and error results")
 	}
 	if setupSlug != "" {
-		if err := s.canOrg(c, org, model.Update, model.ResourceProjects); err != nil {
+		target := model.AuthorizationTarget{Kind: "project_repository_setups", Slug: setupSlug}
+		if err := s.canTarget(c, org, model.Update, model.ResourceProjects, target); err != nil {
 			return err
 		}
 		if err := s.canOrg(c, org, model.Create, model.ResourceDataSources); err != nil {

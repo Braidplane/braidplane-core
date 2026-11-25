@@ -52,6 +52,8 @@ type ProposalExecutor interface {
 
 // ProposalOperation describes one outbound Git-authored draft proposal publish.
 type ProposalOperation struct {
+	ProjectSlug      slug.Slug
+	PublishAttemptID string
 	CreateOnly       bool
 	OrganizationSlug slug.Slug
 	DataSourceSlug   slug.Slug
@@ -176,11 +178,12 @@ func (e *ProposalBranchHeadConflictError) Unwrap() error { return ErrProposalBra
 
 // ProviderProposalRequest is the provider-native PR/MR upsert request.
 type ProviderProposalRequest struct {
-	BaseRef       string
-	BaseCommitSHA string
-	BranchName    string
-	Title         string
-	Body          string
+	BeforeMutation func(context.Context) error
+	BaseRef        string
+	BaseCommitSHA  string
+	BranchName     string
+	Title          string
+	Body           string
 }
 
 type proposalProvider interface {
@@ -189,6 +192,7 @@ type proposalProvider interface {
 }
 
 type proposalExecutor struct {
+	beforeMutation  func(context.Context) error
 	gitAuthResolver DataSourceGitAuthResolver
 	remoteGit       repostore.RemoteGit
 	provider        proposalProvider
@@ -196,7 +200,7 @@ type proposalExecutor struct {
 }
 
 // NewProposalExecutor creates the production executor for provider-native proposal publish.
-func NewProposalExecutor(gitAuthResolver DataSourceGitAuthResolver) (ProposalExecutor, error) {
+func NewProposalExecutor(gitAuthResolver DataSourceGitAuthResolver, beforeMutation func(context.Context) error) (ProposalExecutor, error) {
 	if gitAuthResolver == nil {
 		return nil, xerror.ExecutionUnavailable().With(
 			xerror.Unexpected().Detail("git auth resolver is required"),
@@ -205,11 +209,18 @@ func NewProposalExecutor(gitAuthResolver DataSourceGitAuthResolver) (ProposalExe
 
 	return &proposalExecutor{
 		gitAuthResolver: gitAuthResolver,
+		beforeMutation:  beforeMutation,
 		remoteGit:       repostore.NewRemoteGit(),
 	}, nil
 }
 
 func (e *proposalExecutor) PublishProposal(ctx context.Context, op ProposalOperation) (*ProposalResult, error) {
+	if e.beforeMutation == nil {
+		return nil, ErrProposalAuthorityInvalid.Detail("proposal authorization check is unavailable")
+	}
+	if err := e.beforeMutation(ctx); err != nil {
+		return nil, err
+	}
 	if err := validateProposalAuthority(op.Authority); err != nil {
 		return nil, err
 	}
@@ -305,6 +316,9 @@ func (e *proposalExecutor) PublishProposal(ctx context.Context, op ProposalOpera
 		if err := repoStore.WriteFile(ctx, op.Path, op.Content, op.CommitMessage); err != nil {
 			return nil, xerror.Wrapf("write proposal file: %w", err)
 		}
+		if err := e.beforeMutation(ctx); err != nil {
+			return nil, err
+		}
 		if err := e.remoteGit.PushRemote(
 			ctx,
 			repoRoot,
@@ -325,13 +339,17 @@ func (e *proposalExecutor) PublishProposal(ctx context.Context, op ProposalOpera
 	}
 
 	result, err := provider.UpsertProposal(ctx, ProviderProposalRequest{
-		BaseRef:       "refs/heads/" + baseBranch,
-		BaseCommitSHA: strings.TrimSpace(valueOrEmpty(op.BaseCommitSHA)),
-		BranchName:    branchName,
-		Title:         op.ProposalTitle,
-		Body:          op.ProposalBody,
+		BeforeMutation: e.beforeMutation,
+		BaseRef:        "refs/heads/" + baseBranch,
+		BaseCommitSHA:  strings.TrimSpace(valueOrEmpty(op.BaseCommitSHA)),
+		BranchName:     branchName,
+		Title:          op.ProposalTitle,
+		Body:           op.ProposalBody,
 	})
 	if err != nil {
+		if xerror.Is(err, ErrProposalAuthorityInvalid) {
+			return nil, err
+		}
 		return nil, sanitizeProviderError(err)
 	}
 	if result == nil {
@@ -501,6 +519,9 @@ func (p *providerProposalAdapter) UpsertProposal(
 		TargetBranch: req.BaseRef,
 	})
 	if err != nil {
+		return nil, err
+	}
+	if err := req.BeforeMutation(ctx); err != nil {
 		return nil, err
 	}
 	if len(existing) > 0 {

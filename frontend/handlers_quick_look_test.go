@@ -49,7 +49,7 @@ func TestQuickLookLoadsOnlySelectedResource(t *testing.T) {
 						case "/api/organizations":
 
 							_, _ = io.WriteString(w, `{"organizations":[{"slug":"acme","name":"Acme","member_role":"admin"}]}`)
-						case "/api/organizations/acme/roles/admin":
+						case "/api/organizations/acme/authorization/permissions":
 							_, _ = io.WriteString(w, `{"slug":"admin","permissions":[]}`)
 						default:
 							t.Errorf("quick look loaded unrelated API %s", r.URL.Path)

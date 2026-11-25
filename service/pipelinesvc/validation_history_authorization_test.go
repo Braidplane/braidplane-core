@@ -110,9 +110,9 @@ func TestServiceValidationHistoryPermissionSplit(t *testing.T) {
 
 			err := svc.requireValidationHistoryPermissions(
 				context.Background(),
-				"acme",
-				ValidationHistoryPrincipal{UserSlug: "test-user"},
-				validationHistoryReadPermissions()...,
+				"acme", "listPipelineValidationResults",
+				ValidationHistoryPrincipal{Source: authorization.SourcePAT, UserSlug: "test-user"},
+				validationHistoryReadPermissions(model.AuthorizationTarget{Kind: "project_environments", ProjectSlug: "default", EnvironmentSlug: "prod"})...,
 			)
 			switch {
 			case tc.wantErrIs != nil:
@@ -124,10 +124,16 @@ func TestServiceValidationHistoryPermissionSplit(t *testing.T) {
 			}
 
 			require.Len(t, calls, 2)
+			for _, call := range calls {
+				require.Equal(t, authorization.SourcePAT, call.Source)
+				require.Equal(t, "listPipelineValidationResults", call.Operation)
+			}
 			require.Equal(t, slug.Slug("test-user"), calls[0].UserSlug)
 			require.Equal(t, model.Read, calls[0].Action)
 			require.Equal(t, model.ResourcePipelines, calls[0].Resource)
 			require.Equal(t, slug.Slug("acme"), *calls[0].OrgSlug)
+			require.Equal(t, model.AuthorizationTarget{Kind: "project_environments", ProjectSlug: "default", EnvironmentSlug: "prod"}, calls[0].Target)
+			require.Zero(t, calls[1].Target)
 			require.Equal(t, model.Read, calls[1].Action)
 			require.Equal(t, model.ResourceDataSources, calls[1].Resource)
 		})
@@ -149,7 +155,7 @@ func TestServiceValidationHistoryRejectsCrossOrgAPIKeyPrincipal(t *testing.T) {
 
 	err := svc.requireValidationHistoryPermissions(
 		context.Background(),
-		"acme",
+		"acme", "listPipelineValidationResults",
 		ValidationHistoryPrincipal{
 			APIKeySlug:     "key-prod",
 			APIKeyOrgSlug:  "other-org",

@@ -408,7 +408,7 @@ func (r *Router) handleBuilderBlueprintPage(c fiber.Ctx) error {
 	builderState.TargetEnvironmentColor = strings.TrimSpace(shellData.ActiveEnvironmentColor)
 	builderState.CanRun, builderState.RunReason = builderRunAvailability(builderState)
 	if saveOrganizationSlug != "" {
-		permissions := r.resolveOrganizationPermissions(c.Context(), c.Get(fiber.HeaderCookie), saveOrganizationSlug)
+		permissions := r.resolvePagePermissions(c, saveOrganizationSlug)
 		builderState.CanCreatePipeline = permissions.Can("pipelines", "create")
 		builderState.CanRefreshSchemas = permissions.Can("datasources", "update")
 		builderState.CanExecutePipeline = permissions.Can("pipelines", "execute")

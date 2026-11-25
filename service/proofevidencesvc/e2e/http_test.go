@@ -31,6 +31,8 @@ import (
 )
 
 type observationTestAuthority struct {
+	authorization.Service
+
 	org   slug.Slug
 	allow bool
 }

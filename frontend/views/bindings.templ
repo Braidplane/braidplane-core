@@ -88,7 +88,7 @@ templ PipelineDataSourceBindingsPanel(orgSlug string, projectSlug string, active
 		if pipeline != nil && pipeline.CurrentVersionSpecHash != nil {
 			<a class="link link-primary mt-3 inline-block text-sm" href={ templ.URL(PipelineBindingSetupHref(orgSlug, projectSlug, activeEnvironmentSlug, string(pipeline.Slug), *pipeline.CurrentVersionSpecHash, entitySectionHref(ctx, PipelineDetailHrefWithEnvironment(orgSlug, projectSlug, activeEnvironmentSlug, string(pipeline.Slug)), "deployments")+"#pipeline-bindings")) }>Resolve current version bindings</a>
 		}
-		if !permissions.Can("data_sources", "update") {
+		if !bindingContext.canUpdateBindings(permissions) {
 			<p class="mt-3 text-sm text-base-content/70">Read-only for your role. Updating bindings requires data-source update permission.</p>
 		}
 		@PipelineBindingAttentionSummary(activeEnvironmentSlug, pipeline, bindingContext)
@@ -241,8 +241,9 @@ templ DataSourceBindingRefSummary(row DataSourceBindingRow) {
 }
 
 templ DataSourceBindingCellControl(orgSlug string, projectSlug string, pipelineSlug string, activeEnvironmentSlug string, row DataSourceBindingRow, cell DataSourceBindingCell, dataSourcesUnavailable bool, permissions OrganizationPermissions, fullPage bool, embedded bool) {
-	{{ canUpdate := permissions.Can("data_sources", "update") }}
-	{{ canDelete := permissions.Can("data_sources", "delete") }}
+	{{ if cell.Permissions != nil { permissions = *cell.Permissions } }}
+	{{ canUpdate := permissions.Can("datasources", "update") }}
+	{{ canDelete := permissions.Can("datasources", "delete") }}
 	{{ canSubmit := DataSourceBindingCanSubmit(cell.Options, dataSourcesUnavailable, canUpdate) && row.RefAvailable && !row.CapabilityMismatch && cell.State != "unavailable" }}
 	{{ bindingScopeSlug := DataSourceBindingScopeSlug(pipelineSlug, row) }}
 	{{ upsertFormID := DataSourceBindingFormID("binding", "upsert", bindingScopeSlug, row.RefSlug, cell.EnvironmentSlug) }}

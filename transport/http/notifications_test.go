@@ -1273,6 +1273,11 @@ func TestCreateAlertPolicyForwardsSessionPrincipal(t *testing.T) {
 		},
 		authService: fakeAuthService{
 			CanFn: func(_ context.Context, input authorization.Input) (bool, error) {
+				if input.Resource == model.ResourceAlertDestinations {
+					require.Equal(t, model.Read, input.Action)
+					require.Equal(t, slug.Slug("ops-email"), input.Target.Slug)
+					return true, nil
+				}
 				assert.Equal(t, model.Create, input.Action)
 				assert.Equal(t, model.ResourceAlertPolicies, input.Resource)
 				return true, nil
@@ -1394,6 +1399,9 @@ func TestUpdateAlertPolicy(t *testing.T) {
 
 			app, store := newTestApp(t, testServerConfig{
 				notificationsService: &fakeNotificationsService{
+					GetAlertPolicyFn: func(context.Context, notificationsvc.AlertManagementPrincipal, slug.Slug, slug.Slug) (*model.AlertPolicy, error) {
+						return &model.AlertPolicy{}, nil
+					},
 					UpdateAlertPolicyFn: func(
 						_ context.Context,
 						principal notificationsvc.AlertManagementPrincipal,
@@ -1441,6 +1449,11 @@ func TestUpdateAlertPolicy(t *testing.T) {
 				},
 				authService: fakeAuthService{
 					CanFn: func(_ context.Context, input authorization.Input) (bool, error) {
+						if input.Resource == model.ResourceAlertDestinations {
+							require.Equal(t, model.Read, input.Action)
+							require.Equal(t, slug.Slug("ops-email"), input.Target.Slug)
+							return true, nil
+						}
 						assert.Equal(t, model.Update, input.Action)
 						assert.Equal(t, model.ResourceAlertPolicies, input.Resource)
 						return true, nil
@@ -1470,6 +1483,9 @@ func TestUpdateAlertPolicyForwardsAPIKeyPrincipal(t *testing.T) {
 
 	app, _ := newTestApp(t, testServerConfig{
 		notificationsService: &fakeNotificationsService{
+			GetAlertPolicyFn: func(context.Context, notificationsvc.AlertManagementPrincipal, slug.Slug, slug.Slug) (*model.AlertPolicy, error) {
+				return &model.AlertPolicy{}, nil
+			},
 			UpdateAlertPolicyFn: func(
 				_ context.Context,
 				principal notificationsvc.AlertManagementPrincipal,
@@ -1502,6 +1518,11 @@ func TestUpdateAlertPolicyForwardsAPIKeyPrincipal(t *testing.T) {
 				assert.Equal(t, apiKeyRoleSlug, input.APIKeyRoleSlug)
 				require.NotNil(t, input.OrgSlug)
 				assert.Equal(t, apiKeyOrgSlug, *input.OrgSlug)
+				if input.Resource == model.ResourceAlertDestinations {
+					require.Equal(t, model.Read, input.Action)
+					require.Equal(t, slug.Slug("ops-email"), input.Target.Slug)
+					return true, nil
+				}
 				assert.Equal(t, model.Update, input.Action)
 				assert.Equal(t, model.ResourceAlertPolicies, input.Resource)
 				return true, nil
@@ -1535,4 +1556,23 @@ func TestUpdateAlertPolicyForwardsAPIKeyPrincipal(t *testing.T) {
 	}()
 
 	assert.Equal(t, http.StatusOK, resp.StatusCode)
+}
+
+func TestMovingAlertPolicyRequiresPermissionAtDestinationScope(t *testing.T) {
+	app, store := newTestApp(t, testServerConfig{
+		notificationsService: &fakeNotificationsService{
+			GetAlertPolicyFn: func(context.Context, notificationsvc.AlertManagementPrincipal, slug.Slug, slug.Slug) (*model.AlertPolicy, error) {
+				return &model.AlertPolicy{ProjectSlug: new(slug.Slug("alpha"))}, nil
+			},
+		},
+		authService: fakeAuthService{CanFn: func(_ context.Context, input authorization.Input) (bool, error) {
+			return input.Resource == model.ResourceAlertPolicies && input.Target.Kind == "alert_policies" && input.Target.Slug == "errors", nil
+		}},
+	})
+	response := authenticatedRequest(t, app, store, "alice", jsonRequest(t, http.MethodPut, "/organizations/acme/alert-policies/errors", map[string]any{
+		"name": "Errors", "scope": "organization", "enabled": true, "destination_slugs": []string{"team"},
+	}))
+	defer func() { require.NoError(t, response.Body.Close()) }()
+	require.Equal(t, http.StatusForbidden, response.StatusCode)
+	assertErrorResponse(t, response, apierror.Forbidden("alert_policies", "update"))
 }

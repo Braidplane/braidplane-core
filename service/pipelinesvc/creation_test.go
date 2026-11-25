@@ -186,6 +186,9 @@ func TestCreationProposalRechecksMemberRepositoryContentAndAuthority(t *testing.
 			allowed := true
 			auth := allowAuthorizationService{CanFn: func(_ context.Context, input authorization.Input) (bool, error) {
 				require.Equal(t, model.Create, input.Action)
+				require.Equal(t, authorization.SourceQueuedMember, input.Source)
+				require.Equal(t, "authorizeQueuedProposalCreate", input.Operation)
+				require.Equal(t, model.AuthorizationTarget{Kind: "projects", Slug: "project"}, input.Target)
 				return allowed, nil
 			}}
 			svc, repo, store, producer, project := creationFixture(t, auth)

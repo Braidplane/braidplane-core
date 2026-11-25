@@ -817,7 +817,6 @@ func TestService_ExecuteRecordsPreRunValidationFailure(t *testing.T) {
 	svc := &service{
 		proofLinks:            newTestProofLinks(),
 		admission:             testAdmissionService(),
-		dbtx:                  &fakeDBTX{},
 		pipelineStore:         pipelineStore,
 		txm:                   &recordingPipelineGitTxManager{},
 		runRepo:               &fakeRunRepository{},

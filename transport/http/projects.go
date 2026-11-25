@@ -246,6 +246,9 @@ func (s *server) SetProjectPipelineBackend(
 		)
 		return apierror.ValidationFailed("Invalid pipeline backend mode")
 	}
+	if err := s.canTarget(c, orgSlug, model.Read, model.ResourceDataSources, model.AuthorizationTarget{Kind: "datasources", Slug: dataSourceSlug}); err != nil {
+		return err
+	}
 	if err := chargeAuthorizedOrganizationAbuseControl(c, orgSlug.String(), "pipeline.reconcile", false); err != nil {
 		return err
 	}

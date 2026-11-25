@@ -69,13 +69,22 @@ func TestPipelineBindingSetupSelectedVersionAndFailures(t *testing.T) {
 	require.NoError(t, json.Unmarshal(specBytes, &spec))
 	pipeline := spec.Metadata.Slug
 	prefix := "/api/organizations/acme-hq/projects/default"
-	for _, scenario := range []string{"missing", "invalid", "bound", "disabled", "no target", "denied", "read-only", "load failure", "version failure", "version expired", "binding expired", "validation expired", "validation failure", "no requirements", "save", "save error", "save expired", "save no read", "delete", "delete error"} {
+	for _, scenario := range []string{"missing", "invalid", "bound", "disabled", "no target", "denied", "read-only", "single binding", "load failure", "version failure", "version expired", "binding expired", "validation expired", "validation failure", "no requirements", "save", "save error", "save expired", "save no read", "delete", "delete error"} {
 		t.Run(scenario, func(t *testing.T) {
 			t.Parallel()
 			mutations, currentReads := 0, 0
 			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				w.Header().Set("Content-Type", "application/json")
-				if r.URL.Path == "/api/organizations/acme-hq/roles/admin" && (scenario == "denied" || scenario == "read-only" || scenario == "save no read") {
+				if scenario == "single binding" && r.URL.Path == "/api/organizations/acme-hq/authorization/permissions" {
+					q := r.URL.Query()
+					allowed := []api.Permission{{Resource: "pipelines", Action: "read"}}
+					if q.Get("target_kind") == "data_source_bindings_upsert" && q.Get("project_datasource_bindings") == "true" && q.Get("parent_slug") == pipeline && q.Get("project_slug") == "default" && q.Get("environment_slug") == "prod" && q.Get("target_slug") == "orders-api" {
+						allowed = append(allowed, api.Permission{Resource: "datasources", Action: "update"})
+					}
+					assert.NoError(t, json.NewEncoder(w).Encode(map[string]any{"permissions": allowed}))
+					return
+				}
+				if r.URL.Path == "/api/organizations/acme-hq/authorization/permissions" && (scenario == "denied" || scenario == "read-only" || scenario == "save no read") {
 					permissions := []map[string]string{{"resource": "projects", "action": "read"}}
 					if scenario == "read-only" {
 						permissions = append(permissions, map[string]string{"resource": "pipelines", "action": "read"})
@@ -250,6 +259,14 @@ func TestPipelineBindingSetupSelectedVersionAndFailures(t *testing.T) {
 				case "no target":
 					require.Contains(t, html, "Select a runtime target to see its binding attention.")
 					require.NotContains(t, html, "not enabled for the project")
+				case "single binding":
+					require.NotContains(t, html, "Updating bindings requires data-source update permission")
+					for _, slug := range []string{"orders-api", "customer-db"} {
+						_, tag, ok := strings.Cut(html, `aria-label="Data source for `+slug+` in prod"`)
+						require.True(t, ok)
+						form, _, _ := strings.Cut(tag, "</form>")
+						require.Equal(t, slug == "customer-db", strings.Contains(form, "Read-only for your role."))
+					}
 				case "read-only":
 					require.Contains(t, html, "Read-only for your role.")
 				case "load failure":

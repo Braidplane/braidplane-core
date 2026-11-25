@@ -10,6 +10,7 @@ import (
 	"github.com/Braidplane/braidplane-core/pkg/resourcescope"
 	"github.com/Braidplane/braidplane-core/pkg/slug"
 	"github.com/Braidplane/braidplane-core/pkg/xerror"
+	"github.com/Braidplane/braidplane-core/postgres"
 	"github.com/Braidplane/braidplane-core/postgres/deploymentresolutions"
 )
 
@@ -49,7 +50,9 @@ func (s *service) inspectRunComposition(ctx context.Context, org, project, envir
 		return nil, ErrPipelineRunNotFound.With(err)
 	}
 	// This is a historical reader; new-admission controls must not hide retained evidence.
-	raw, err := s.resolutions.Find(ctx, s.dbtx, org, project, environment, pipeline, *digest)
+	raw, err := postgres.InRead(ctx, s.txm, func(ctx context.Context, db postgres.DBTX) ([]byte, error) {
+		return s.resolutions.Find(ctx, db, org, project, environment, pipeline, *digest)
+	})
 	if xerror.Is(err, deploymentresolutions.ErrNotFound) {
 		return &RunCompositionInspection{Status: "unavailable", ResolutionDigest: *digest}, nil
 	}

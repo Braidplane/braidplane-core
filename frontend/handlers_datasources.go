@@ -138,11 +138,7 @@ func (r *Router) handleDataSourcesPage(c fiber.Ctx) error {
 			c.Get(fiber.HeaderCookie),
 		)
 		shellData.Subtitle = "Connector inventory, credential-safe setup, connection readiness, and schema entry points."
-		permissions := r.resolveOrganizationPermissions(
-			c.Context(),
-			c.Get(fiber.HeaderCookie),
-			orgSlug.String(),
-		)
+		permissions := r.resolvePagePermissions(c, orgSlug.String())
 		formData := r.defaultDataSourceCreateFormData()
 		formData.ShowCreateForm = c.Query("create") == "true"
 		formData.Name = strings.TrimSpace(c.Query("name"))
@@ -219,11 +215,7 @@ func (r *Router) handleDataSourcesPage(c fiber.Ctx) error {
 		c.Get(fiber.HeaderCookie),
 	)
 	shellData.Subtitle = "Connector inventory, credential-safe setup, connection readiness, and schema entry points."
-	permissions := r.resolveOrganizationPermissions(
-		c.Context(),
-		c.Get(fiber.HeaderCookie),
-		orgSlug.String(),
-	)
+	permissions := r.resolvePagePermissions(c, orgSlug.String())
 	formData := r.defaultDataSourceCreateFormData()
 	formData.ShowCreateForm = c.Query("create") == "true"
 	formData.Name = strings.TrimSpace(c.Query("name"))
@@ -968,11 +960,7 @@ func (r *Router) handleDataSourceDetailPage(c fiber.Ctx) error {
 
 	connectionInfo := extractConnectionInfo(dataSource)
 	updateFormData := r.dataSourceUpdateFormDataFromDataSource(dataSource)
-	permissions := r.resolveOrganizationPermissions(
-		c.Context(),
-		c.Get(fiber.HeaderCookie),
-		orgSlug.String(),
-	)
+	permissions := r.resolvePagePermissions(c, orgSlug.String())
 	operationsPanel := views.DataSourceOperationsPanelData{}
 	if c.Query("section") == "operations" && permissions.Can("queries", "read") {
 		limit := api.LimitParam(20)
@@ -3600,11 +3588,7 @@ func (r *Router) renderDataSourceSidePanelWithSchemaRefreshError(
 		feedbackKind = feedbackKindError
 	}
 
-	permissions := r.resolveOrganizationPermissions(
-		c.Context(),
-		c.Get(fiber.HeaderCookie),
-		orgSlug.String(),
-	)
+	permissions := r.resolvePagePermissions(c, orgSlug.String())
 
 	return renderTempl(
 		c,
@@ -3725,11 +3709,7 @@ func (r *Router) renderDataSourcesPageWithError(
 			details,
 			c.Get(fiber.HeaderCookie),
 		)
-		permissions := r.resolveOrganizationPermissions(
-			c.Context(),
-			c.Get(fiber.HeaderCookie),
-			orgSlug.String(),
-		)
+		permissions := r.resolvePagePermissions(c, orgSlug.String())
 
 		return renderTempl(
 			c,
@@ -3772,11 +3752,7 @@ func (r *Router) renderDataSourcesPageWithError(
 		details,
 		c.Get(fiber.HeaderCookie),
 	)
-	permissions := r.resolveOrganizationPermissions(
-		c.Context(),
-		c.Get(fiber.HeaderCookie),
-		orgSlug.String(),
-	)
+	permissions := r.resolvePagePermissions(c, orgSlug.String())
 
 	return renderTempl(
 		c,

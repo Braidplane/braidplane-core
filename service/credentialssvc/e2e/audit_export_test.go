@@ -22,7 +22,10 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-type credentialAuditExportAuthority struct{ org slug.Slug }
+type credentialAuditExportAuthority struct {
+	authorization.Service
+	org slug.Slug
+}
 
 func (a credentialAuditExportAuthority) Can(_ context.Context, in authorization.Input) (bool, error) {
 	return in.OrgSlug != nil && *in.OrgSlug == a.org && in.UserSlug == "audit-reader" &&

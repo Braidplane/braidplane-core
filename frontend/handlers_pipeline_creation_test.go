@@ -31,7 +31,7 @@ func TestQueryPipelineSetup(t *testing.T) {
 				switch req.URL.Path {
 				case "/api/organizations":
 					writeJSON(w, `{"organizations":[{"slug":"acme-hq","name":"Acme","member_role":"admin"}]}`)
-				case "/api/organizations/acme-hq/roles/admin":
+				case "/api/organizations/acme-hq/authorization/permissions":
 					writeJSON(w, `{"slug":"admin","permissions":[{"resource":"pipelines","action":"read"}]}`)
 				case "/api/organizations/acme-hq/data-sources/warehouse/queries/orders":
 					writeJSON(w, firstPipelineQuery)
@@ -203,7 +203,7 @@ func TestBuilderCreatePipeline(t *testing.T) {
 				switch req.URL.Path {
 				case "/api/organizations":
 					writeJSON(w, `{"organizations":[{"slug":"acme-hq","name":"Acme","member_role":"admin"}]}`)
-				case "/api/organizations/acme-hq/roles/admin":
+				case "/api/organizations/acme-hq/authorization/permissions":
 					writeJSON(w, `{"slug":"admin","permissions":[{"resource":"pipelines","action":"read"}]}`)
 				case "/api/organizations/acme-hq/projects/ops/pipeline-creations":
 					creates++

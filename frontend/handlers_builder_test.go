@@ -301,7 +301,7 @@ func TestHandleBuilderBlueprintPage_DefaultsRuntimeTargetForDeepLinkedPipelineRu
 				if handleTestBuilderProjectRuntimeContext(w, r) {
 					return
 				}
-				if r.Method == http.MethodGet && r.URL.Path == "/api/organizations/acme-hq/roles/admin" {
+				if r.Method == http.MethodGet && r.URL.Path == "/api/organizations/acme-hq/authorization/permissions" {
 					action := "read"
 					if canExecute {
 						action = "*"

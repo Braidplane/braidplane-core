@@ -292,7 +292,7 @@ func (r *Router) handlePipelineRunDetailPageWithProject(c fiber.Ctx, activeProje
 		c.SetContext(views.WithRunTimezone(c.Context(), *user.Timezone))
 	}
 	shellData := r.buildRunDetailShellData(c, orgSlug.String(), activeProjectSlug, environmentSlug.String(), runSlug.String(), "", "")
-	permissions := r.resolveOrganizationPermissions(c.Context(), c.Get(fiber.HeaderCookie), orgSlug.String())
+	permissions := r.resolvePagePermissions(c, orgSlug.String())
 	if lineage.SelectedIndex >= 0 {
 		node := lineage.Nodes[lineage.SelectedIndex]
 		actions := r.loadRunStepActions(c, orgSlug.String(), environmentSlug.String(), node, permissions)
@@ -910,7 +910,7 @@ func (r *Router) handleRecoverPipelineRunSubmit(c fiber.Ctx) error {
 		return c.SendStatus(fiber.StatusBadRequest)
 	}
 	back := fmt.Sprintf("/orgs/%s/projects/%s/runs/%s?environment_slug=%s&section=attempts", org, project, run, environment)
-	permissions := r.resolveOrganizationPermissions(c.Context(), c.Get(fiber.HeaderCookie), org.String())
+	permissions := r.resolvePagePermissions(c, org.String())
 	if !permissions.Can("pipelines", "execute") {
 		return redirectHTMXOrSeeOther(c, back+"&recovery_error="+url.QueryEscape("Recovery was refused because you do not have permission to execute pipelines."))
 	}

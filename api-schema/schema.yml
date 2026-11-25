@@ -1534,6 +1534,42 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
 
+  /organizations/{slug}/authorization/permissions:
+    get:
+      summary: List effective tenant permissions for the authenticated principal
+      description: Evaluates the shared permission policy against current bindings and a server-resolved target. An allowed permission may still require a session, credential opt-in, write admission, or an additional permission for a particular operation.
+      operationId: getEffectivePermissions
+      tags: [organizations]
+      parameters:
+        - $ref: '#/components/parameters/SlugParam'
+        - {name: target_kind, in: query, schema: {type: string}}
+        - name: target_slug
+          in: query
+          description: Object slug, runtime key, or webhook delivery identifier, according to target_kind.
+          schema: {type: string, minLength: 1, maxLength: 128}
+        - {name: parent_slug, in: query, schema: {type: string}}
+        - {name: project_slug, in: query, schema: {type: string}}
+        - {name: environment_slug, in: query, schema: {type: string}}
+        - {name: datasource_slug, in: query, schema: {type: string}}
+        - name: project_datasource_bindings
+          in: query
+          description: Include data source permissions for project-owned references and bindings.
+          schema: {type: boolean, default: false}
+      responses:
+        '200':
+          description: Allowed Core resource and action pairs for this target. Missing targets and denied access both return an empty list.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [permissions]
+                properties:
+                  permissions: {type: array, items: {$ref: '#/components/schemas/Permission'}}
+        '400':
+          description: Invalid selector or permission
+        '401':
+          description: Authentication required
+
   /organizations/{slug}/retention:
     get:
       summary: Get organization retention policy

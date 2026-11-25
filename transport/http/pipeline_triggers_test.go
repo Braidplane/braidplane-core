@@ -174,7 +174,7 @@ func TestCreatePipelineWebhookTriggerMapsSafeConfigAndOneTimeSecret(t *testing.T
 func TestRotatePipelineWebhookSecret(t *testing.T) {
 	t.Parallel()
 	app, store := newTestApp(t, testServerConfig{
-		pipelineTriggersService: &fakePipelineTriggersService{RotatePipelineWebhookSecretFn: func(
+		pipelineTriggersService: &fakePipelineTriggersService{GetPipelineTriggerFn: storedWebhookTrigger, RotatePipelineWebhookSecretFn: func(
 			_ context.Context,
 			org, project, environment, trigger slug.Slug,
 			actor model.EventActor,
@@ -204,7 +204,7 @@ func TestRotatePipelineWebhookSecret(t *testing.T) {
 func TestRotatePipelineWebhookSecretReturnsForbiddenWhenUnauthorized(t *testing.T) {
 	t.Parallel()
 	app, store := newTestApp(t, testServerConfig{
-		pipelineTriggersService: &fakePipelineTriggersService{RotatePipelineWebhookSecretFn: func(
+		pipelineTriggersService: &fakePipelineTriggersService{GetPipelineTriggerFn: storedWebhookTrigger, RotatePipelineWebhookSecretFn: func(
 			context.Context, slug.Slug, slug.Slug, slug.Slug, slug.Slug, model.EventActor,
 		) (model.PipelineWebhookSecret, error) {
 			t.Fatal("service must not be called when authorization fails")
@@ -227,7 +227,7 @@ func TestRotatePipelineWebhookSecretReturnsForbiddenWhenUnauthorized(t *testing.
 func TestRotatePipelineWebhookSecretMapsServiceError(t *testing.T) {
 	t.Parallel()
 	app, store := newTestApp(t, testServerConfig{
-		pipelineTriggersService: &fakePipelineTriggersService{RotatePipelineWebhookSecretFn: func(
+		pipelineTriggersService: &fakePipelineTriggersService{GetPipelineTriggerFn: storedWebhookTrigger, RotatePipelineWebhookSecretFn: func(
 			context.Context, slug.Slug, slug.Slug, slug.Slug, slug.Slug, model.EventActor,
 		) (model.PipelineWebhookSecret, error) {
 			return model.PipelineWebhookSecret{}, xerror.Unexpected().Detail("rotation failed")
@@ -657,4 +657,8 @@ func TestCompletionTriggerRevocationOnlyRequiresTriggerManagement(t *testing.T) 
 	defer func() { require.NoError(t, response.Body.Close()) }()
 	require.Equal(t, http.StatusOK, response.StatusCode)
 	require.True(t, called)
+}
+
+func storedWebhookTrigger(context.Context, slug.Slug, slug.Slug, slug.Slug, slug.Slug) (*model.PipelineTrigger, error) {
+	return &model.PipelineTrigger{PipelineSlug: "customer-sync"}, nil
 }

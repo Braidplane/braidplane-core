@@ -356,6 +356,7 @@ func (s *server) canRecordPipelineValidationHistory(c fiber.Ctx, orgSlug slug.Sl
 	input := authorization.Input{
 		Action:   model.Update,
 		Resource: model.ResourcePipelines,
+		Target:   routeAuthorizationTarget(c, model.ResourcePipelines),
 		OrgSlug:  &orgSlug,
 	}
 	if principal, ok := reqctx.GetAPIKeyPrincipal(c); ok {
@@ -372,7 +373,7 @@ func (s *server) canRecordPipelineValidationHistory(c fiber.Ctx, orgSlug slug.Sl
 		input.UserSlug = userSlug
 	}
 
-	can, err := s.authorizationService.Can(c.Context(), input)
+	can, err := s.authorizeOperation(c, input)
 	if err != nil {
 		slog.LogAttrs(
 			c.Context(),
@@ -389,12 +390,13 @@ func (s *server) canRecordPipelineValidationHistory(c fiber.Ctx, orgSlug slug.Sl
 func (s *server) pipelineValidationHistoryPrincipal(c fiber.Ctx) pipelinesvc.ValidationHistoryPrincipal {
 	if principal, ok := reqctx.GetAPIKeyPrincipal(c); ok {
 		return pipelinesvc.ValidationHistoryPrincipal{
+			Source:         authorization.SourceAPIKey,
 			APIKeySlug:     principal.Slug,
 			APIKeyOrgSlug:  principal.OrgSlug,
 			APIKeyRoleSlug: principal.Role,
 		}
 	}
-	return pipelinesvc.ValidationHistoryPrincipal{UserSlug: reqctx.GetUserSlug(c, s.sessionStore)}
+	return pipelinesvc.ValidationHistoryPrincipal{Source: s.authenticatedSource(c), UserSlug: reqctx.GetUserSlug(c, s.sessionStore)}
 }
 
 // ListPipelineValidationResults returns durable non-run validation history for one runtime target.
@@ -1305,6 +1307,13 @@ func (s *server) ListPipelineRunTriggerRetryAttempts(
 		return mapServiceError(err)
 	}
 
+	var related []slug.Slug
+	for _, attempt := range attempts {
+		related = append(related, attempt.RootRunSlug, attempt.RetryOfRunSlug, attempt.RunSlug)
+	}
+	if err := s.canReadRelatedRuns(c, orgSlug, projectSlug, environmentSlug, runSlug, related); err != nil {
+		return err
+	}
 	return c.JSON(api.PipelineRunTriggerRetryAttemptListResponse{
 		RetryAttempts: toAPIPipelineRunTriggerRetryAttempts(attempts),
 	})
@@ -1455,7 +1464,7 @@ func (s *server) RevalidatePipeline(
 	if err := s.canOrg(c, orgSlug, model.Read, model.ResourceDataSources); err != nil {
 		return err
 	}
-	principal := pipelinesvc.ValidationHistoryPrincipal{UserSlug: userSlug}
+	principal := pipelinesvc.ValidationHistoryPrincipal{Source: s.authenticatedSource(c), UserSlug: userSlug}
 
 	record, err := s.pipelinesService.RevalidatePipeline(
 		c.Context(),

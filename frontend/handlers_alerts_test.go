@@ -1117,13 +1117,13 @@ func handleAlertsCommonTestAPI(w http.ResponseWriter, r *http.Request, currentRo
 			`{"sources":[{"source_kind":"pipeline_run","source_actions":["execute"]},{"source_kind":"project","source_actions":["create","update","delete"]}],"source_refs":`+sourceRefs+`}`,
 		)
 		return true
-	case r.Method == http.MethodGet && r.URL.Path == "/api/organizations/acme-hq/roles/admin":
+	case r.Method == http.MethodGet && r.URL.Path == "/api/organizations/acme-hq/authorization/permissions" && currentRole == "admin":
 		writeJSON(
 			w,
 			`{"slug":"admin","name":"Admin","permissions":[{"resource":"*","action":"*"}],"created_at":"2026-03-01T00:00:00Z","updated_at":"2026-03-01T00:00:00Z"}`,
 		)
 		return true
-	case r.Method == http.MethodGet && r.URL.Path == "/api/organizations/acme-hq/roles/viewer":
+	case r.Method == http.MethodGet && r.URL.Path == "/api/organizations/acme-hq/authorization/permissions" && currentRole == "viewer":
 		writeJSON(
 			w,
 			`{"slug":"viewer","name":"Viewer","permissions":[{"resource":"notifications","action":"read"},{"resource":"alert_policies","action":"read"},{"resource":"alert_destinations","action":"read"}],"created_at":"2026-03-01T00:00:00Z","updated_at":"2026-03-01T00:00:00Z"}`,

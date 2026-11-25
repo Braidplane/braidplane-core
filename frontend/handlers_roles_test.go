@@ -576,13 +576,13 @@ func handleRolesCommonTestAPI(w http.ResponseWriter, r *http.Request, currentRol
 			`{"roles":[{"slug":"admin","name":"Admin","is_default":true,"permissions":[{"resource":"*","action":"*"}],"created_at":"2026-03-01T00:00:00Z","updated_at":"2026-03-01T00:00:00Z","deleted_at":null},{"slug":"editor","name":"Editor","is_default":false,"permissions":[{"resource":"members","action":"read"},{"resource":"roles","action":"update"},{"resource":"pipelines","action":"execute"},{"resource":"api_keys","action":"create"}],"created_at":"2026-03-01T00:00:00Z","updated_at":"2026-03-02T00:00:00Z","deleted_at":null}],"has_more":false,"next_cursor":null,"prev_cursor":null}`,
 		)
 		return true
-	case r.Method == http.MethodGet && r.URL.Path == "/api/organizations/acme-hq/roles/admin":
+	case r.Method == http.MethodGet && r.URL.Path == "/api/organizations/acme-hq/authorization/permissions" && currentRole == "admin":
 		writeJSON(
 			w,
 			`{"slug":"admin","name":"Admin","is_default":true,"permissions":[{"resource":"*","action":"*"}],"created_at":"2026-03-01T00:00:00Z","updated_at":"2026-03-01T00:00:00Z","deleted_at":null}`,
 		)
 		return true
-	case r.Method == http.MethodGet && r.URL.Path == "/api/organizations/acme-hq/roles/viewer":
+	case r.Method == http.MethodGet && r.URL.Path == "/api/organizations/acme-hq/authorization/permissions" && currentRole == "viewer":
 		writeJSON(
 			w,
 			`{"slug":"viewer","name":"Viewer","is_default":true,"permissions":[{"resource":"roles","action":"read"}],"created_at":"2026-03-01T00:00:00Z","updated_at":"2026-03-01T00:00:00Z","deleted_at":null}`,

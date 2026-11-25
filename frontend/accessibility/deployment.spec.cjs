@@ -321,7 +321,7 @@ test("deployment and Git sync access denials give keyboard users a way back", as
         await assess(page, testInfo, "deployment-read-denied");
         await returnTo("Back to organizations", `${fixture.url}/organizations`);
 
-        expect((await simulate("read_only=false")).ok()).toBe(true);
+        expect((await simulate("read_only=false&rollback=true")).ok()).toBe(true);
         await visit(page, deployment);
         const confirmation = page.getByRole("textbox", { name: /^Confirm protected environment/ });
         await tabTo(page, confirmation);

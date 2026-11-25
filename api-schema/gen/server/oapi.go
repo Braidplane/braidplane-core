@@ -19829,6 +19829,21 @@ type ListAPIKeysParamsOrder string
 // ListAPIKeysParamsDirection defines parameters for ListAPIKeys.
 type ListAPIKeysParamsDirection string
 
+// GetEffectivePermissionsParams defines parameters for GetEffectivePermissions.
+type GetEffectivePermissionsParams struct {
+	TargetKind *string `form:"target_kind,omitempty" json:"target_kind,omitempty"`
+
+	// TargetSlug Object slug, runtime key, or webhook delivery identifier, according to target_kind.
+	TargetSlug      *string `form:"target_slug,omitempty" json:"target_slug,omitempty"`
+	ParentSlug      *string `form:"parent_slug,omitempty" json:"parent_slug,omitempty"`
+	ProjectSlug     *string `form:"project_slug,omitempty" json:"project_slug,omitempty"`
+	EnvironmentSlug *string `form:"environment_slug,omitempty" json:"environment_slug,omitempty"`
+	DatasourceSlug  *string `form:"datasource_slug,omitempty" json:"datasource_slug,omitempty"`
+
+	// ProjectDatasourceBindings Include data source permissions for project-owned references and bindings.
+	ProjectDatasourceBindings *bool `form:"project_datasource_bindings,omitempty" json:"project_datasource_bindings,omitempty"`
+}
+
 // ListDataSourcesParams defines parameters for ListDataSources.
 type ListDataSourcesParams struct {
 	// Limit Maximum number of items to return (default 20, max 100)
@@ -28676,6 +28691,9 @@ type ServerInterface interface {
 	// RotateAPIKey Rotate an API key token
 	// (POST /organizations/{slug}/api-keys/{api_key_slug}/rotate)
 	RotateAPIKey(c fiber.Ctx, slug SlugParam, apiKeySlug APIKeySlugParam) error
+	// GetEffectivePermissions List effective tenant permissions for the authenticated principal
+	// (GET /organizations/{slug}/authorization/permissions)
+	GetEffectivePermissions(c fiber.Ctx, slug SlugParam, params GetEffectivePermissionsParams) error
 	// ListDataSources List data sources
 	// (GET /organizations/{slug}/data-sources)
 	ListDataSources(c fiber.Ctx, slug SlugParam, params ListDataSourcesParams) error
@@ -30785,6 +30803,93 @@ func (siw *ServerInterfaceWrapper) RotateAPIKey(c fiber.Ctx) error {
 
 	handler := func(c fiber.Ctx) error {
 		return siw.Handler.RotateAPIKey(c, slug, apiKeySlug)
+	}
+
+	for i := len(siw.HandlerMiddlewares) - 1; i >= 0; i-- {
+		m := siw.HandlerMiddlewares[i]
+		next := handler
+		handler = func(c fiber.Ctx) error {
+			return m(c, next)
+		}
+	}
+
+	return handler(c)
+}
+
+// GetEffectivePermissions operation middleware
+func (siw *ServerInterfaceWrapper) GetEffectivePermissions(c fiber.Ctx) error {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "slug" -------------
+	var slug SlugParam
+
+	err = runtime.BindStyledParameterWithOptions("simple", "slug", c.Params("slug"), &slug, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: ""})
+	if err != nil {
+		return fiber.NewError(fiber.StatusBadRequest, fmt.Errorf("Invalid format for parameter slug: %w", err).Error())
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params GetEffectivePermissionsParams
+
+	var query url.Values
+	query, err = url.ParseQuery(string(c.Request().URI().QueryString()))
+	if err != nil {
+		return fiber.NewError(fiber.StatusBadRequest, fmt.Errorf("Invalid format for query string: %w", err).Error())
+	}
+
+	// ------------- Optional query parameter "target_kind" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "target_kind", query, &params.TargetKind, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		return fiber.NewError(fiber.StatusBadRequest, fmt.Errorf("Invalid format for parameter target_kind: %w", err).Error())
+	}
+
+	// ------------- Optional query parameter "target_slug" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "target_slug", query, &params.TargetSlug, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		return fiber.NewError(fiber.StatusBadRequest, fmt.Errorf("Invalid format for parameter target_slug: %w", err).Error())
+	}
+
+	// ------------- Optional query parameter "parent_slug" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "parent_slug", query, &params.ParentSlug, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		return fiber.NewError(fiber.StatusBadRequest, fmt.Errorf("Invalid format for parameter parent_slug: %w", err).Error())
+	}
+
+	// ------------- Optional query parameter "project_slug" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "project_slug", query, &params.ProjectSlug, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		return fiber.NewError(fiber.StatusBadRequest, fmt.Errorf("Invalid format for parameter project_slug: %w", err).Error())
+	}
+
+	// ------------- Optional query parameter "environment_slug" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "environment_slug", query, &params.EnvironmentSlug, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		return fiber.NewError(fiber.StatusBadRequest, fmt.Errorf("Invalid format for parameter environment_slug: %w", err).Error())
+	}
+
+	// ------------- Optional query parameter "datasource_slug" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "datasource_slug", query, &params.DatasourceSlug, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		return fiber.NewError(fiber.StatusBadRequest, fmt.Errorf("Invalid format for parameter datasource_slug: %w", err).Error())
+	}
+
+	// ------------- Optional query parameter "project_datasource_bindings" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "project_datasource_bindings", query, &params.ProjectDatasourceBindings, runtime.BindQueryParameterOptions{Type: "boolean", Format: ""})
+	if err != nil {
+		return fiber.NewError(fiber.StatusBadRequest, fmt.Errorf("Invalid format for parameter project_datasource_bindings: %w", err).Error())
+	}
+
+	handler := func(c fiber.Ctx) error {
+		return siw.Handler.GetEffectivePermissions(c, slug, params)
 	}
 
 	for i := len(siw.HandlerMiddlewares) - 1; i >= 0; i-- {
@@ -40860,6 +40965,8 @@ func RegisterHandlersWithOptions(router fiber.Router, si ServerInterface, option
 
 	router.Post(options.BaseURL+"/organizations/:slug/api-keys/:api_key_slug/rotate", wrapper.RotateAPIKey)
 
+	router.Get(options.BaseURL+"/organizations/:slug/authorization/permissions", wrapper.GetEffectivePermissions)
+
 	router.Get(options.BaseURL+"/organizations/:slug/data-sources", wrapper.ListDataSources)
 
 	router.Post(options.BaseURL+"/organizations/:slug/data-sources", wrapper.CreateDataSource)
@@ -42548,6 +42655,42 @@ func (response RotateAPIKey404JSONResponse) VisitRotateAPIKeyResponse(ctx fiber.
 	ctx.Status(404)
 
 	return ctx.JSON(&response)
+}
+
+type GetEffectivePermissionsRequestObject struct {
+	Slug   SlugParam `json:"slug"`
+	Params GetEffectivePermissionsParams
+}
+
+type GetEffectivePermissionsResponseObject interface {
+	VisitGetEffectivePermissionsResponse(ctx fiber.Ctx) error
+}
+
+type GetEffectivePermissions200JSONResponse struct {
+	Permissions []Permission `json:"permissions"`
+}
+
+func (response GetEffectivePermissions200JSONResponse) VisitGetEffectivePermissionsResponse(ctx fiber.Ctx) error {
+	ctx.Response().Header.Set("Content-Type", "application/json")
+	ctx.Status(200)
+
+	return ctx.JSON(&response)
+}
+
+type GetEffectivePermissions400Response struct {
+}
+
+func (response GetEffectivePermissions400Response) VisitGetEffectivePermissionsResponse(ctx fiber.Ctx) error {
+	ctx.Status(400)
+	return nil
+}
+
+type GetEffectivePermissions401Response struct {
+}
+
+func (response GetEffectivePermissions401Response) VisitGetEffectivePermissionsResponse(ctx fiber.Ctx) error {
+	ctx.Status(401)
+	return nil
 }
 
 type ListDataSourcesRequestObject struct {
@@ -51903,6 +52046,9 @@ type StrictServerInterface interface {
 	// RotateAPIKey Rotate an API key token
 	// (POST /organizations/{slug}/api-keys/{api_key_slug}/rotate)
 	RotateAPIKey(ctx context.Context, request RotateAPIKeyRequestObject) (RotateAPIKeyResponseObject, error)
+	// GetEffectivePermissions List effective tenant permissions for the authenticated principal
+	// (GET /organizations/{slug}/authorization/permissions)
+	GetEffectivePermissions(ctx context.Context, request GetEffectivePermissionsRequestObject) (GetEffectivePermissionsResponseObject, error)
 	// ListDataSources List data sources
 	// (GET /organizations/{slug}/data-sources)
 	ListDataSources(ctx context.Context, request ListDataSourcesRequestObject) (ListDataSourcesResponseObject, error)
@@ -53806,6 +53952,34 @@ func (sh *strictHandler) RotateAPIKey(ctx fiber.Ctx, slug SlugParam, apiKeySlug 
 		return err
 	} else if validResponse, ok := response.(RotateAPIKeyResponseObject); ok {
 		if err := validResponse.VisitRotateAPIKeyResponse(ctx); err != nil {
+			return err
+		}
+	} else if response != nil {
+		return fmt.Errorf("unexpected response type: %T", response)
+	}
+	return nil
+}
+
+// GetEffectivePermissions operation middleware
+func (sh *strictHandler) GetEffectivePermissions(ctx fiber.Ctx, slug SlugParam, params GetEffectivePermissionsParams) error {
+	var request GetEffectivePermissionsRequestObject
+
+	request.Slug = slug
+	request.Params = params
+
+	handler := func(ctx fiber.Ctx, request interface{}) (interface{}, error) {
+		return sh.ssi.GetEffectivePermissions(ctx.Context(), request.(GetEffectivePermissionsRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "GetEffectivePermissions")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		return err
+	} else if validResponse, ok := response.(GetEffectivePermissionsResponseObject); ok {
+		if err := validResponse.VisitGetEffectivePermissionsResponse(ctx); err != nil {
 			return err
 		}
 	} else if response != nil {

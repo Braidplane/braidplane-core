@@ -39,7 +39,7 @@ func (r *Router) handlePipelineRecency(c fiber.Ctx) error {
 	if err != nil {
 		return c.SendStatus(http.StatusBadRequest)
 	}
-	permissions := r.resolveOrganizationPermissions(c.Context(), c.Get(fiber.HeaderCookie), org.String())
+	permissions := r.resolvePagePermissions(c, org.String())
 	if !permissions.Can("pipelines", "read") {
 		return c.SendStatus(http.StatusForbidden)
 	}

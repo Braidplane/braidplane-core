@@ -2423,3 +2423,11 @@ func TestDestinationConstraintSurvivesWorkerBoundary(t *testing.T) {
 	require.Equal(t, xerror.PublicDetail(original), xerror.PublicDetail(restored))
 	require.NotContains(t, restored.Error(), "private-row-value")
 }
+
+func (*fakeRequestRepo) BindProposal(context.Context, postgres.DBTX, uuid.UUID, slug.Slug, slug.Slug, slug.Slug, string, int64) (bool, error) {
+	return true, nil
+}
+
+func (*fakeRequestRepo) ClaimedProposalAuthorization(context.Context, postgres.DBTX, uuid.UUID, uuid.UUID) (model.AuthorizationFacts, error) {
+	return model.AuthorizationFacts{}, nil
+}

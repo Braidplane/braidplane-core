@@ -879,7 +879,7 @@ func TestRouter_HandlePipelineDetailPage_HidesDiscardDraftWithoutUpdatePermissio
 			_, _ = w.Write([]byte(
 				`{"projects":[{"name":"Default project","slug":"default","created_at":"2026-03-01T00:00:00Z","updated_at":"2026-03-01T00:00:00Z"}],"has_more":false,"next_cursor":null,"prev_cursor":null}`,
 			))
-		case "/api/organizations/acme-hq/roles/viewer":
+		case "/api/organizations/acme-hq/authorization/permissions":
 			_, _ = w.Write(
 				[]byte(
 					`{"slug":"viewer","name":"Viewer","permissions":[{"resource":"pipelines","action":"read"}],"created_at":"2026-03-01T00:00:00Z","updated_at":"2026-03-01T00:00:00Z"}`,
