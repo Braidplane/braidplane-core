@@ -1,5 +1,13 @@
 # Git
 
+## Integration status
+
+**Preview.** [Support levels and provider evidence](support-levels.md#evidence-record)
+
+- **Available.** Read repository data files and commit file writes over manually configured HTTPS or SSH connections.
+- **Limits.** Reads cover the selected file in full. The write credential needs push access to the target branch.
+- **Not integrated.** Native issue and pull-request extraction, and incremental file checkpoints.
+
 Read or write data files in a repository using an HTTPS or SSH connection.
 Use Generic Git for manually authenticated repositories, including enterprise
 or self-managed providers without a matching managed onboarding flow.

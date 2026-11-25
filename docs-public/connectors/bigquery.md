@@ -1,5 +1,13 @@
 # BigQuery
 
+## Integration status
+
+**Preview.** [Support levels and provider evidence](support-levels.md#evidence-record)
+
+- **Available.** Run query jobs, export SELECT results to a file and append rows with `insert_rows`.
+- **Limits.** Result pages are fetched within the query limits. A successful query requires the appropriate IAM grants and a billing project.
+- **Not integrated.** Bulk load jobs and native merge or upsert helpers.
+
 [Proof](../getting-started/proof.md#demonstrated-alpha-connector-scope) can use
 explicitly authorized read-only metadata for one selected table. These
 observations do not read rows, start query jobs, insert data, or establish

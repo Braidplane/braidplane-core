@@ -1,5 +1,13 @@
 # GitHub
 
+## Integration status
+
+**Preview.** [Support levels and provider evidence](support-levels.md#evidence-record)
+
+- **Available.** Read repository files and commit file writes through a GitHub App installation.
+- **Limits.** Access is scoped to the selected repository and installation permissions. Restoring removed access requires repairing the connection.
+- **Not integrated.** Native issue and pull-request extraction as pipeline data.
+
 Read and write repository data through a GitHub App connection. A data source
 is bound to one selected repository; file operations use the shared Git runtime.
 

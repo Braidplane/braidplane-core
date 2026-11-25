@@ -1,5 +1,13 @@
 # HubSpot
 
+## Integration status
+
+**Preview.** [Support levels and provider evidence](support-levels.md#evidence-record)
+
+- **Available.** List and search supported CRM objects, and upsert records by a unique key with explicit property mappings.
+- **Limits.** Custom objects require account entitlement. A batch can partially succeed, so reconcile uncertain writes using the same record keys.
+- **Not integrated.** Generic create and delete sink operations.
+
 [Proof](../getting-started/proof.md#demonstrated-alpha-connector-scope) can use
 explicitly authorized read-only account and contact-property metadata for a
 pipeline assessment. This does not read contact records, verify a successful

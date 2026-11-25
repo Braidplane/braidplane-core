@@ -1,5 +1,13 @@
 # Read revenue data from Stripe
 
+## Integration status
+
+**Preview.** [Support levels and provider evidence](support-levels.md#evidence-record)
+
+- **Available.** Read customers, subscriptions, invoices and PaymentIntents using Stripe Apps OAuth or a restricted key.
+- **Limits.** Each read returns one page. Continue with the returned cursor and re-read relevant pages for later changes. Live account acceptance is pending.
+- **Not integrated.** Writes, automatic incremental checkpoints and deletion tracking.
+
 Use Stripe as a pipeline source to join customers, subscriptions, invoices and payments to CRM or warehouse rows. Payments are Stripe PaymentIntents. They can include unsuccessful or incomplete attempts. Use the status and amount received when reconciling revenue. This connector only reads records.
 
 ## Connect an account
@@ -51,5 +59,3 @@ Each row contains `id`, `created` (Unix seconds) and `livemode`. Monetary amount
 Reads return one page in Stripe's list order, newest first. Set `limit` from 1 to 100 (default 100). When `has_more` is true, pass `next_cursor` as `starting_after` on the next read of the same object type. For a reusable saved query, set `"starting_after": "{{cursor}}"` and declare a string parameter named `cursor`. Pass an empty string for the first page.
 
 A cursor continues an older page. It does not track subsequent updates, newly created objects or deletions. Pipeline runs have no automatic incremental checkpoint. Re-read the relevant pages to reconcile later status changes. Canceled subscriptions are included. Rate-limited reads fail so callers can back off before retrying the same page. Canceling the run cancels the in-flight request.
-
-Support is preview. Live account acceptance is pending.

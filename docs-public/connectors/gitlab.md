@@ -1,5 +1,13 @@
 # GitLab
 
+## Integration status
+
+**Preview.** [Support levels and provider evidence](support-levels.md#evidence-record)
+
+- **Available.** Read repository files and commit file writes through an organization OAuth connection to a verified project.
+- **Limits.** File reads are full reads. Repair an expired or revoked grant before retrying the operation.
+- **Not integrated.** Native issue and merge-request extraction as pipeline data.
+
 For pipeline changes in a managed GitLab repository, optional
 [Proof assessments](../getting-started/proof.md) publish informational MR notes
 with exact-head results and protected receipt links. These are separate from

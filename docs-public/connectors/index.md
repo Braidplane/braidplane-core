@@ -6,7 +6,8 @@ do not need to provision any of these systems to explore the documentation.
 
 All connectors below support pipeline reads. Stripe is source-only. Actual access
 depends on the configured connection, provider permissions, and operation.
-Each guide lists the available operations and their limits. See
+Each data-source guide opens with its integration status, available operations,
+limits and features still missing. See
 [support levels and evidence](support-levels.md) for connector status,
 maintenance ownership and planned connectors.
 Inspect the installed CLI build with `braidplane data-source capabilities`.

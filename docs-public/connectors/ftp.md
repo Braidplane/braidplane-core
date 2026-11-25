@@ -1,5 +1,13 @@
 # FTP
 
+## Integration status
+
+**Experimental.** [Support levels and provider evidence](support-levels.md#evidence-record)
+
+- **Available.** Read and write structured files or raw bytes over explicit FTPS.
+- **Limits.** Reads cover the selected file in full. Provider verification remains open for each workflow. Check the target before repeating a write.
+- **Not integrated.** Implicit FTPS, SFTP and incremental checkpoints.
+
 Read and write files on an FTPS server. Use CSV, JSON, or spreadsheet mode
 for tabular records, or raw-file mode to preserve bytes.
 
