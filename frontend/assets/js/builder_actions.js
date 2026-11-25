@@ -168,6 +168,9 @@
         return mode === "bootstrap" ? { source_seeds: source_windows } : { source_windows };
     };
 
+    const canSubmitIncremental = (button, bootstrap) =>
+        (bootstrap ? button.dataset.canBootstrap : button.dataset.canBackfill) === "true";
+
     const handleRunPipeline = async (e, mode = "run") => {
         const backfill = mode === "backfill";
         const bootstrap = mode === "bootstrap";
@@ -193,6 +196,8 @@
         }
 
         const runBtn = document.getElementById(backfill || bootstrap ? "builder-backfill-btn" : "builder-run-btn");
+        if ((backfill || bootstrap) && (!canSubmitIncremental(runBtn, bootstrap) || runBtn.disabled)) return;
+        const actionSelect = backfill || bootstrap ? document.getElementById("builder-incremental-action") : null;
         const originalText = runBtn.textContent;
         const originalDisabled = runBtn.disabled;
 
@@ -276,6 +281,7 @@
         try {
             // Set button to loading state
             runBtn.disabled = true;
+            if (actionSelect) actionSelect.disabled = true;
             runBtn.classList.add("loading");
             runBtn.textContent = "Running...";
 
@@ -361,6 +367,7 @@
         } finally {
             // Restore button state
             runBtn.disabled = originalDisabled;
+            if (actionSelect) actionSelect.disabled = false;
             runBtn.classList.remove("loading");
             runBtn.textContent = originalText;
         }
@@ -399,9 +406,9 @@
             });
             const environment = getContextSlugs()?.environmentSlug;
             const action = bootstrap ? "Bootstrap checkpoints" : "Start backfill";
-            document.getElementById("builder-backfill-btn").textContent = environment
-                ? `${action} in ${environment}`
-                : action;
+            const button = document.getElementById("builder-backfill-btn");
+            button.disabled = !canSubmitIncremental(button, bootstrap);
+            button.textContent = environment ? `${action} in ${environment}` : action;
         });
     };
 

@@ -416,7 +416,9 @@ func (r *Router) handleBuilderBlueprintPage(c fiber.Ctx) error {
 				TargetKind: new("deployed_pipelines"), TargetSlug: &builderState.PipelineSlug,
 				ProjectSlug: &saveProjectSlug, EnvironmentSlug: &builderState.TargetEnvironmentSlug,
 			}
-			builderState.CanExecutePipeline = r.targetPermissions(c, saveOrganizationSlug, target).Can("pipelines", "execute")
+			deploymentPermissions := r.targetPermissions(c, saveOrganizationSlug, target)
+			builderState.CanBootstrap = builderState.CanRun && deploymentPermissions.Can("pipelines", "update")
+			builderState.CanExecutePipeline = deploymentPermissions.Can("pipelines", "execute")
 		}
 		if builderState.CanRun && !builderState.CanExecutePipeline {
 			builderState.CanRun = false

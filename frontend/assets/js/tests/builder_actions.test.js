@@ -223,7 +223,7 @@ describe("backfillFromForm", () => {
 it("bootstraps initial checkpoints through the environment-scoped route", async () => {
     mount(`
       <div id="builder-canvas-root" data-org-slug="acme" data-project-slug="operations" data-target-environment-slug="prod" data-pipeline-slug="users-sync"></div>
-      <button id="builder-backfill-btn">Bootstrap checkpoints</button>
+      <button id="builder-backfill-btn" data-can-bootstrap="true">Bootstrap checkpoints</button>
       <input id="builder-bootstrap-request" value="bootstrap-001">
       <fieldset data-backfill-source="source" data-checkpoint-kind="cursor"><input name="lower_bound" value="opaque-a"></fieldset>`);
     window.history.replaceState({}, "", "/builder?org_slug=acme&project_slug=operations&pipeline_slug=users-sync");
@@ -237,4 +237,28 @@ it("bootstraps initial checkpoints through the environment-scoped route", async 
         }),
     );
     expect(document.body.textContent).toContain("Initial checkpoints bootstrapped in prod");
+});
+
+it.each([true, false])("switches incremental action authority for bootstrap access %s", async (canBootstrap) => {
+    mount(`
+      <div id="builder-canvas-root" data-org-slug="acme" data-project-slug="operations" data-target-environment-slug="dev" data-pipeline-slug="users-sync"></div>
+      <form id="builder-backfill-form">
+        <select id="builder-incremental-action"><option value="backfill">Backfill</option><option value="bootstrap">Bootstrap</option></select>
+        <label id="builder-bootstrap-request-field"><input id="builder-bootstrap-request" value="bootstrap-001"></label>
+        <fieldset data-backfill-source="source" data-checkpoint-kind="cursor"><input name="lower_bound" value="a"><input name="upper_bound" value="b"></fieldset>
+        <button id="builder-backfill-btn" data-can-bootstrap="${canBootstrap}" data-can-backfill="${!canBootstrap}"></button>
+      </form>`);
+    document.dispatchEvent(new Event("htmx:afterSwap"));
+    const select = document.getElementById("builder-incremental-action");
+    const button = document.getElementById("builder-backfill-btn");
+    vi.stubGlobal("fetch", vi.fn());
+    for (const mode of ["bootstrap", "backfill"]) {
+        select.value = mode;
+        select.dispatchEvent(new Event("change"));
+        expect(button.disabled).toBe(mode === "bootstrap" ? !canBootstrap : canBootstrap);
+        if (button.disabled) {
+            await t.handleRunPipeline(new Event("submit"), mode);
+            expect(fetch).not.toHaveBeenCalled();
+        }
+    }
 });
