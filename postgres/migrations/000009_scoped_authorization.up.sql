@@ -329,3 +329,340 @@ FROM actor JOIN target t ON t.organization_id = actor.organization_id
 LEFT JOIN public.roles active_key_role ON actor.api_key_id IS NOT NULL AND
     (active_key_role.organization_id, active_key_role.id) = (actor.organization_id, actor.role_id) AND active_key_role.deleted_at IS NULL;
 $$;
+
+-- A trigger revision can grant execution long after its editor has left.
+-- Earlier revisions have no reliable principal ID and require an authorized edit.
+ALTER TABLE pipeline_triggers ADD COLUMN completion_editor_id text;
+
+CREATE FUNCTION pin_completion_trigger_editor() RETURNS trigger LANGUAGE plpgsql AS $$
+BEGIN
+    NEW.completion_editor_id := NULL;
+    IF NEW.trigger_type <> 'completion' THEN RETURN NEW; END IF;
+
+    IF NEW.updated_by_actor_type = 'user' THEN
+        SELECT 'member:' || m.id INTO NEW.completion_editor_id
+        FROM projects p JOIN organization_members m ON m.organization_id = p.organization_id
+        JOIN users u ON u.id = m.user_id
+        WHERE p.id = NEW.project_id AND u.slug = NEW.updated_by_actor_slug
+            AND u.deleted_at IS NULL AND u.verified_at IS NOT NULL
+        FOR SHARE OF m, u;
+    ELSIF NEW.updated_by_actor_type = 'api_key' THEN
+        SELECT 'api_key:' || k.id INTO NEW.completion_editor_id
+        FROM projects p JOIN api_keys k ON k.organization_id = p.organization_id
+        WHERE p.id = NEW.project_id AND k.slug = NEW.updated_by_actor_slug
+            AND k.revoked_at IS NULL AND (k.expires_at IS NULL OR k.expires_at > clock_timestamp())
+        FOR SHARE OF k;
+    END IF;
+    RETURN NEW;
+END;
+$$;
+
+-- The authenticated create and edit queries always write the editor columns.
+CREATE TRIGGER pipeline_triggers_pin_completion_editor
+    BEFORE INSERT OR UPDATE OF updated_by_actor_type, updated_by_actor_slug ON pipeline_triggers
+    FOR EACH ROW EXECUTE FUNCTION pin_completion_trigger_editor();
+
+-- Closure and execution use the same resolved scopes as request authorization.
+CREATE FUNCTION resolve_pipeline_completion_scopes(
+    org_id bigint, env_id bigint, configuration jsonb, accepted boolean
+) RETURNS jsonb LANGUAGE plpgsql AS $$
+DECLARE
+    actor_type text := configuration->>'updated_by_actor_type';
+    actor_slug text := configuration->>'updated_by_actor_slug';
+    member_key integer;
+    machine_key bigint;
+    assigned_role integer;
+    user_slug text := '';
+    key_slug text := '';
+    org_name text;
+    project_name text;
+    environment_name text;
+    trigger_facts jsonb;
+    upstream_facts jsonb;
+    downstream_facts jsonb;
+BEGIN
+    SELECT o.slug, p.slug, e.slug INTO org_name, project_name, environment_name
+    FROM project_environments pe
+    JOIN projects p ON p.id = pe.project_id
+    JOIN organizations o ON o.id = p.organization_id
+    JOIN environments e ON e.id = pe.environment_id AND e.organization_id = o.id
+    WHERE o.id = org_id AND pe.id = env_id;
+
+    IF actor_type = 'user' THEN
+        user_slug := actor_slug;
+        SELECT m.id, m.role_id INTO member_key, assigned_role
+        FROM organization_members m JOIN users u ON u.id = m.user_id
+        WHERE m.organization_id = org_id AND u.slug = actor_slug
+        FOR SHARE OF m, u;
+    ELSIF actor_type = 'api_key' THEN
+        key_slug := actor_slug;
+        SELECT k.id, k.role_id INTO machine_key, assigned_role
+        FROM api_keys k WHERE k.organization_id = org_id AND k.slug = actor_slug
+        FOR SHARE;
+    END IF;
+    IF member_key IS NULL AND machine_key IS NULL THEN
+        RETURN jsonb_build_object('valid', false);
+    END IF;
+
+    -- Hold every currently contributing binding and role until the outer admission commits.
+    PERFORM 1 FROM authorization_scoped_grants g WHERE g.organization_id = org_id
+        AND (g.member_id = member_key OR g.api_key_id = machine_key) ORDER BY g.id FOR SHARE;
+    PERFORM 1 FROM roles r WHERE r.organization_id = org_id AND
+        (r.id = assigned_role OR r.id IN (SELECT g.role_id FROM authorization_scoped_grants g
+            WHERE g.organization_id = org_id AND (g.member_id = member_key OR g.api_key_id = machine_key)))
+        ORDER BY r.id FOR SHARE;
+    PERFORM 1 FROM role_permissions rp JOIN permissions pm ON pm.id = rp.permission_id WHERE
+        rp.role_id = assigned_role OR rp.role_id IN (SELECT g.role_id FROM authorization_scoped_grants g
+            WHERE g.organization_id = org_id AND (g.member_id = member_key OR g.api_key_id = machine_key))
+        ORDER BY rp.id FOR SHARE OF rp, pm;
+
+    upstream_facts := authorization_facts(org_name, user_slug, key_slug, 'pipelines',
+        configuration#>>'{completion_config,upstream_pipeline_slug}', project_name, '', '');
+    downstream_facts := authorization_facts(org_name, user_slug, key_slug, 'deployed_pipelines',
+        configuration->>'pipeline_slug', project_name, environment_name, '');
+    IF EXISTS (SELECT 1 FROM pipeline_triggers t WHERE t.project_environment_id = env_id
+        AND t.id = (configuration->>'id')::bigint AND t.slug = configuration->>'slug') THEN
+        trigger_facts := authorization_facts(org_name, user_slug, key_slug, 'pipeline_triggers',
+            configuration->>'slug', project_name, environment_name, '');
+    ELSIF accepted THEN
+        -- An accepted child survives trigger deletion if its actor still has inherited authority.
+        trigger_facts := authorization_facts(org_name, user_slug, key_slug, 'project_environments',
+            '', project_name, environment_name, '') - 'target_id';
+    END IF;
+    RETURN jsonb_build_object(
+        'valid', COALESCE((upstream_facts->>'valid')::boolean, false),
+        'principal_id', CASE WHEN member_key IS NOT NULL THEN 'member:' || member_key ELSE 'api_key:' || machine_key END,
+        'scoped', jsonb_build_object('upstream', upstream_facts, 'trigger', trigger_facts, 'downstream', downstream_facts)
+    );
+END;
+$$;
+
+CREATE FUNCTION pipeline_completion_scoped_authority(
+    org_id bigint, env_id bigint, configuration jsonb, accepted boolean
+) RETURNS jsonb LANGUAGE plpgsql AS $$
+DECLARE
+    editor_id text := configuration->>'completion_editor_id';
+    facts jsonb;
+BEGIN
+    IF editor_id IS NULL THEN RETURN jsonb_build_object('valid', false); END IF;
+    facts := resolve_pipeline_completion_scopes(org_id, env_id, configuration, accepted);
+    IF facts->>'principal_id' IS DISTINCT FROM editor_id THEN RETURN jsonb_build_object('valid', false); END IF;
+    RETURN facts;
+END;
+$$;
+
+CREATE OR REPLACE FUNCTION public.snapshot_pipeline_completion_targets() RETURNS trigger
+    LANGUAGE plpgsql
+    AS $$
+DECLARE source_run pipeline_runs%ROWTYPE;
+        target_trigger pipeline_triggers%ROWTYPE;
+        target_version pipeline_versions%ROWTYPE;
+        deployment pipeline_deployments%ROWTYPE;
+        resolution pipeline_deployment_resolutions%ROWTYPE;
+        protected_target BOOLEAN;
+        refusal TEXT;
+        depth_value INTEGER;
+        authority_value JSONB;
+        ancestors TEXT[];
+BEGIN
+    SELECT run.* INTO source_run FROM pipeline_runs run
+    WHERE run.project_environment_id = NEW.project_environment_id
+        AND run.run_slug = NEW.final_attempt_run_slug AND run.status = NEW.status;
+    IF NOT FOUND THEN RETURN NEW; END IF;
+    -- Run inserts already hold foreign-key key-share locks on this row.
+    SELECT e.protected INTO protected_target FROM project_environments pe
+    JOIN environments e ON e.id = pe.environment_id AND e.deleted_at IS NULL
+    WHERE pe.id = NEW.project_environment_id AND pe.deleted_at IS NULL
+    FOR NO KEY UPDATE OF pe;
+    IF NOT FOUND THEN RETURN NEW; END IF;
+    SELECT parent.ancestor_pipeline_slugs || source_run.pipeline_slug::text INTO ancestors
+    FROM pipeline_completion_snapshots parent
+    WHERE parent.organization_id = NEW.organization_id AND parent.project_environment_id = NEW.project_environment_id
+        AND parent.child_run_slug = NEW.root_run_slug;
+    IF ancestors IS NULL THEN ancestors := ARRAY[source_run.pipeline_slug::text]; END IF;
+    depth_value := cardinality(ancestors);
+    FOR target_trigger IN SELECT pt.* FROM pipeline_triggers pt
+        WHERE pt.project_environment_id = NEW.project_environment_id AND pt.trigger_type = 'completion'
+            AND pt.completion_config->>'upstream_pipeline_slug' = source_run.pipeline_slug
+            AND pt.completion_config->>'condition' = CASE NEW.status WHEN 'succeeded' THEN 'success' ELSE 'final_failure' END
+        ORDER BY pt.id
+    LOOP
+        refusal := NULL;
+        deployment := NULL;
+        target_version := NULL;
+        resolution := NULL;
+        authority_value := pipeline_completion_scoped_authority(NEW.organization_id,
+            NEW.project_environment_id, to_jsonb(target_trigger), false);
+        IF NOT target_trigger.enabled THEN refusal := 'trigger_disabled';
+        ELSIF NOT (target_trigger.completion_config->>'execution_grant_enabled')::boolean THEN refusal := 'grant_revoked';
+        ELSIF protected_target THEN refusal := 'protected_environment';
+        ELSIF depth_value > 8 THEN refusal := 'causal_depth_exceeded';
+        ELSIF target_trigger.pipeline_slug = ANY(ancestors) THEN refusal := 'ancestor_pipeline_repeated';
+        ELSIF NOT COALESCE((authority_value->>'valid')::boolean, false) THEN refusal := 'authority_revoked';
+        ELSE
+            SELECT pd.* INTO deployment FROM pipeline_deployments pd
+            WHERE pd.project_environment_id = NEW.project_environment_id AND pd.pipeline_slug = target_trigger.pipeline_slug;
+            IF NOT FOUND THEN refusal := 'deployment_missing';
+            ELSE
+                SELECT pv.* INTO target_version FROM pipeline_versions pv
+                WHERE pv.project_id = target_trigger.project_id AND pv.pipeline_slug = target_trigger.pipeline_slug
+                    AND pv.id = CASE target_trigger.version_policy WHEN 'pinned' THEN target_trigger.pinned_pipeline_version_id ELSE deployment.current_version_id END;
+                IF NOT FOUND THEN refusal := 'selected_version_missing';
+                ELSE
+                    -- A pinned version requires its own persisted materialization;
+                    -- it cannot borrow a different version's current resolution.
+                    SELECT dr.* INTO resolution FROM pipeline_deployment_resolutions dr
+                    JOIN pipeline_compiled_plans cp ON cp.project_id = dr.project_id
+                        AND cp.pipeline_slug = dr.pipeline_slug AND cp.digest = dr.compiled_digest
+                    WHERE dr.project_environment_id = NEW.project_environment_id AND dr.pipeline_slug = target_trigger.pipeline_slug
+                        AND cp.authored_spec_hash = target_version.spec_hash
+                        AND (target_trigger.version_policy = 'pinned' OR dr.digest = deployment.current_resolution_digest)
+                    ORDER BY dr.created_at DESC, dr.id DESC LIMIT 1;
+                    IF NOT FOUND THEN refusal := 'execution_context_missing'; END IF;
+                END IF;
+            END IF;
+        END IF;
+        INSERT INTO pipeline_completion_snapshots (
+            organization_id, project_environment_id, closure_id, trigger_id, trigger_revision, trigger_slug,
+            root_run_slug, final_attempt_run_slug, downstream_pipeline_slug,
+            selected_version_id, selected_version_hash, selected_deployment_revision, selected_deployment_id, ancestor_pipeline_slugs,
+            selected_resolution_digest, selected_materialization, trigger_configuration, closure_authority,
+            causal_depth, state, decision_reason, completed_at
+        ) VALUES (
+            NEW.organization_id, NEW.project_environment_id, NEW.id, target_trigger.id, target_trigger.revision, target_trigger.slug,
+            NEW.root_run_slug, NEW.final_attempt_run_slug, target_trigger.pipeline_slug,
+            target_version.id, target_version.spec_hash, deployment.revision, deployment.id, ancestors,
+            resolution.digest, resolution.materialization, to_jsonb(target_trigger), authority_value,
+            depth_value, CASE WHEN refusal IS NULL THEN 'pending' ELSE 'refused' END, refusal,
+            CASE WHEN refusal IS NULL THEN NULL ELSE CURRENT_TIMESTAMP END
+        ) ON CONFLICT (organization_id, closure_id, trigger_id, trigger_revision) DO NOTHING;
+    END LOOP;
+    RETURN NEW;
+END;
+$$;
+
+DROP FUNCTION pipeline_completion_authority_snapshot(bigint, text, text);
+
+-- Legacy GitHub sources can omit their repository ID. Installation authorities still
+-- require the recorded account, repository, and project path to be actively selected.
+CREATE VIEW active_pipeline_proposal_authorities AS
+SELECT o.slug AS org_slug, p.slug AS project_slug, pa.project_id, pa.organization_id,
+    ds.updated_at AS source_updated_at,
+    pa.id,
+    pa.publication_mode,
+    pa.provider_host,
+    pa.provider_account_id,
+    pa.provider_repository_id,
+    pa.provider_credential_id,
+    pa.executing_principal_id,
+    pa.executing_principal_display,
+    pa.authority_source,
+    ds.config AS git_configuration,
+    COALESCE(p.pipeline_backend_repo, '')::text AS git_repository,
+    COALESCE(p.pipeline_backend_tracked_branch, '')::text AS git_base_branch,
+    ds.slug AS git_data_source_slug,
+    c.slug AS git_credential_slug,
+    c.updated_at AS git_credential_updated_at
+FROM pipeline_proposal_authorities pa
+JOIN organizations o ON pa.organization_id = o.id
+JOIN projects p ON pa.project_id = p.id
+    AND p.organization_id = o.id
+JOIN data_sources ds ON pa.data_source_id = ds.id
+    AND ds.organization_id = o.id
+    AND p.pipeline_backend_data_source_id = ds.id
+JOIN credentials c ON pa.credential_id = c.id
+    AND c.organization_id = o.id
+    AND ds.credential_id = c.id
+LEFT JOIN credential_oauth_grants cog ON c.id = cog.credential_id
+WHERE ds.deleted_at IS NULL
+    AND ds.is_active = TRUE
+    AND ds.read_only = FALSE
+    AND c.status = 'active'
+    AND c.revoked_at IS NULL
+    AND pa.revoked_at IS NULL
+    AND (pa.publication_mode <> 'repository_credential' OR (
+        ds.type = 'git' AND c.kind = 'static_secret'
+        AND pa.authority_source = 'git_data_source_credential'
+    ))
+    AND (
+        (pa.authority_source <> 'github_app_installation' AND (ds.type <> 'github' OR ds.config #>> '{repository,id}' IS NULL))
+        OR (
+            ds.type = 'github' AND pa.publication_mode = 'organization_service' AND pa.provider_host = 'github.com'
+            AND pa.authority_source = 'github_app_installation' AND c.kind = 'static_secret'
+            AND EXISTS (
+                SELECT 1 FROM github_app_installations installation
+                JOIN github_app_repositories repository ON repository.installation_id = installation.id AND repository.organization_id = o.id
+                WHERE installation.organization_id = o.id AND installation.suspended_at IS NULL AND installation.deleted_at IS NULL
+                    AND repository.removed_at IS NULL
+                    AND installation.installation_id::text = pa.provider_credential_id
+                    AND installation.account_id::text = pa.provider_account_id
+                    AND repository.repository_id::text = pa.provider_repository_id
+                    AND (ds.config #>> '{repository,id}' IS NULL OR repository.repository_id::text = ds.config #>> '{repository,id}')
+                    AND p.pipeline_backend_repo = 'github.com/' || repository.full_name
+            )
+        )
+    )
+    AND (
+        pa.publication_mode <> 'delegated_user'
+        OR (
+            c.kind = 'oauth2_grant'
+            AND cog.provider = ds.type
+            AND cog.account ->> 'ID' = pa.executing_principal_id
+            AND cog.account ->> 'ID' = pa.provider_account_id
+        )
+    );
+
+CREATE TABLE execution_proposal_targets (
+    request_id uuid PRIMARY KEY REFERENCES execution_requests(id) ON DELETE CASCADE,
+    member_id integer NOT NULL,
+    project_id bigint NOT NULL,
+    pipeline_id bigint,
+    pipeline_slug text NOT NULL,
+    attempt_id text NOT NULL,
+    authority_id bigint NOT NULL,
+    provider_digest bytea NOT NULL
+);
+
+-- The executor can inspect only its active claim's relevant permissions and target.
+CREATE FUNCTION claimed_proposal_authorization(request_id uuid, claim_token uuid) RETURNS jsonb
+LANGUAGE sql STABLE SECURITY DEFINER SET search_path = pg_catalog, public AS $$
+WITH allowed_target AS (
+    SELECT b.pipeline_id, b.pipeline_slug, a.org_slug, a.project_slug, u.slug AS user_slug
+    FROM public.execution_requests req
+    JOIN public.execution_proposal_targets b ON b.request_id = req.id
+    JOIN public.organization_members m ON (m.organization_id, m.id) = (req.organization_id, b.member_id)
+    JOIN public.users u ON u.id = req.initiating_user_id AND u.id = m.user_id
+    JOIN public.active_pipeline_proposal_authorities a ON (a.organization_id, a.project_id, a.id) =
+        (req.organization_id, b.project_id, b.authority_id)
+    WHERE req.id = $1 AND req.claim_token = $2 AND req.state = 'running'
+        AND req.cancel_requested_at IS NULL AND req.deadline_at > clock_timestamp() AND req.lease_expires_at > clock_timestamp()
+        AND b.provider_digest = sha256(convert_to(to_jsonb(a)::text, 'UTF8'))
+        AND ((req.kind = 'git_scoped_proposal' AND EXISTS (
+            SELECT 1 FROM public.pipeline_specs s JOIN public.pipeline_drafts d
+                ON (d.project_id, d.pipeline_slug) = (s.project_id, s.slug)
+            WHERE s.id = b.pipeline_id AND s.project_id = b.project_id AND s.deleted_at IS NULL AND s.slug = b.pipeline_slug
+                AND d.member_id = b.member_id AND d.publish_attempt_id = b.attempt_id AND d.proposal_authority_id = b.authority_id
+        )) OR (req.kind = 'git_scoped_creation_proposal' AND b.pipeline_id IS NULL AND EXISTS (
+            SELECT 1 FROM public.pipeline_creation_proposals c WHERE c.project_id = b.project_id
+                AND c.pipeline_slug = b.pipeline_slug AND c.member_id = b.member_id AND c.publish_attempt_id = b.attempt_id
+                AND c.status = 'publish_queued'
+        ) AND NOT EXISTS (SELECT 1 FROM public.pipeline_specs s WHERE s.project_id = b.project_id
+            AND s.slug = b.pipeline_slug AND s.deleted_at IS NULL)))
+), resolved AS (
+    SELECT public.authorization_facts(org_slug::text, user_slug::text, '',
+        CASE WHEN pipeline_id IS NULL THEN 'projects' ELSE 'pipelines' END,
+        CASE WHEN pipeline_id IS NULL THEN project_slug ELSE pipeline_slug END,
+        project_slug::text, '', '') AS facts,
+        CASE WHEN pipeline_id IS NULL THEN 'pipelines:create' ELSE 'pipelines:update' END AS permission
+    FROM allowed_target
+)
+SELECT jsonb_set(facts - 'owner_slug', '{bindings}', COALESCE((
+    SELECT jsonb_agg(jsonb_build_object('scope', b->'scope', 'scope_id', b->'scope_id', 'permissions', jsonb_build_array(p)))
+    FROM jsonb_array_elements(facts->'bindings') b
+    CROSS JOIN LATERAL jsonb_array_elements_text(b->'permissions') p
+    WHERE p IN ('*:*','pipelines:*',permission)
+        AND b->>'scope_id' = CASE b->>'scope' WHEN 'organization' THEN facts->>'organization_id'
+            WHEN 'project' THEN facts->>'project_id' WHEN 'resource' THEN facts->>'target_id' END
+), '[]'::jsonb)) FROM resolved;
+$$;
+REVOKE ALL ON FUNCTION claimed_proposal_authorization(uuid, uuid) FROM PUBLIC;
