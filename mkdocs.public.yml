@@ -50,6 +50,7 @@ markdown_extensions:
 
 nav:
   - Home: index.md
+  - Core stability: core-stability.md
   - Getting started:
       - How Braidplane works: getting-started/overview.md
       - Review changes with Proof: getting-started/proof.md

@@ -1,5 +1,13 @@
 # Snowflake
 
+## Integration status
+
+**Preview.** [Support levels and provider evidence](support-levels.md#evidence-record)
+
+- **Available.** Run parameterized queries, export results to a file and append to an existing table with INSERT.
+- **Limits.** Workload identity federation requires operator setup, customer grants and a saved connection for testing.
+- **Not integrated.** Bulk loads with COPY INTO, merge helpers and public result pagination. The result-paging evaluation is tracked in [#249](https://github.com/Braidplane/braidplane-core/issues/249).
+
 Execute parameterized warehouse reads and explicitly authored append-style
 INSERT operations. Source results are rows; destinations must already exist.
 

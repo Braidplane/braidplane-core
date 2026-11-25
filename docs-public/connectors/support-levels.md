@@ -181,8 +181,9 @@ the entire portfolio. Promotion applies only to the stated operation/auth scope.
   Static credentials remain the current documented scope.
 * BigQuery additional auth/load helpers remain future work. Snowflake bulk loads,
   merge helpers, OAuth/key-pair modes and public pagination remain unsupported.
-* Advanced file spreadsheet behavior, HTTP health and spreadsheet modes,
-  and per-record HTTP delivery/recovery remain future work.
+* Advanced file spreadsheet behavior and HTTP health and spreadsheet modes
+  remain future work. For bounded per-record HTTP writes and recovery, see
+  [Update HTTP records from rows](../getting-started/pipeline-specifications.md#update-http-records-from-rows).
 * CDC strategy remains future work. Shared checkpoints alone cannot qualify CDC,
   delete propagation, late-update completeness or automatic synchronization.
 

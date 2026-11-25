@@ -1,5 +1,13 @@
 # BigQuery
 
+## Integration status
+
+**Preview.** [Support levels and provider evidence](support-levels.md#evidence-record)
+
+- **Available.** Run query jobs, stream SELECT results into a pipeline file and append rows with `insert_rows`.
+- **Limits.** Result pages are fetched within the query limits. A successful query requires the appropriate IAM grants and a billing project.
+- **Not integrated.** Bulk load jobs and native merge or upsert helpers. [#54](https://github.com/Braidplane/braidplane-core/issues/54) evaluates these warehouse operations.
+
 [Proof](../getting-started/proof.md#demonstrated-alpha-connector-scope) can use
 explicitly authorized read-only metadata for one selected table. These
 observations do not read rows, start query jobs, insert data, or establish
@@ -126,7 +134,7 @@ nested schema flattening is not available.
 
 ## Limits and troubleshooting
 
-- No public continuation tokens, resumable partial results, load jobs, exports,
+- No public continuation tokens, resumable partial results, load jobs, BigQuery extract jobs,
   table creation, schema evolution, or merge/upsert helpers.
 - The bytes-billed cap controls provider query cost; row and response-size caps
   are separate. Operation limits cannot enlarge deployment limits.

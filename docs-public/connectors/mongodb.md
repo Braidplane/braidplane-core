@@ -1,5 +1,13 @@
 # MongoDB
 
+## Integration status
+
+**Preview.** [Support levels and provider evidence](support-levels.md#evidence-record)
+
+- **Available.** Find, aggregate and count documents, and insert, update or delete documents using explicit operations.
+- **Limits.** Incremental queries must apply the watermark. Repeating a write requires checking the filter and the effect of the update.
+- **Not integrated.** Change streams (discovery in [#248](https://github.com/Braidplane/braidplane-core/issues/248)), automatic result paging (under evaluation in [#249](https://github.com/Braidplane/braidplane-core/issues/249)) and replace or upsert options.
+
 Read documents with find, count, and aggregation operations, or write documents
 to a collection. Nested fields remain structured values; inferred schemas are
 samples rather than a guarantee that every document has the same shape.

@@ -1,5 +1,13 @@
 # PostgreSQL
 
+## Integration status
+
+**Preview.** [Support levels and provider evidence](support-levels.md#evidence-record)
+
+- **Available.** Parameterized SQL reads, file exports from SELECT, and writes using INSERT, UPDATE or an authored upsert.
+- **Limits.** Incremental reads require a watermark predicate in your SQL. Replay safety depends on the keys and conflict handling in your write.
+- **Not integrated.** Automatic result paging (under evaluation in [#249](https://github.com/Braidplane/braidplane-core/issues/249)) and replication-log change capture (discovery in [#248](https://github.com/Braidplane/braidplane-core/issues/248)).
+
 Read relational data with parameterized SQL and write pipeline output using
 explicit inserts, updates, or database-native upserts. Sources return rows that
 can feed SQL transforms; destinations use the database SQL dialect.
