@@ -43,8 +43,10 @@ func (state *transactionChecks) since(offset int) []func(context.Context, DBTX) 
 }
 
 // Each transaction verifies a decision once, including decisions added by nested callers.
-type verifiedChecks map[*transactionChecks]int
-type verifiedChecksKey struct{}
+type (
+	verifiedChecks    map[*transactionChecks]int
+	verifiedChecksKey struct{}
+)
 
 func (verified verifiedChecks) run(ctx context.Context, db DBTX) error {
 	state := checksFromContext(ctx)

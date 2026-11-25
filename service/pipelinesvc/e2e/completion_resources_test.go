@@ -87,8 +87,10 @@ func TestCompletionResourcesSnapshotsRevocationAndRetention(t *testing.T) {
 		})
 		require.NoError(t, err)
 		decision := authorization.WithDecisionScope(ctx)
-		input := authorization.Input{OrgSlug: &org, UserSlug: actorSlug, Source: authorization.SourceSession, Operation: "rotatePipelineWebhookSecret",
-			Action: model.Update, Resource: model.ResourcePipelineTriggers, Target: model.AuthorizationTarget{Kind: "pipeline_triggers", Slug: "hook", ProjectSlug: project, EnvironmentSlug: environment}}
+		input := authorization.Input{
+			OrgSlug: &org, UserSlug: actorSlug, Source: authorization.SourceSession, Operation: "rotatePipelineWebhookSecret",
+			Action: model.Update, Resource: model.ResourcePipelineTriggers, Target: model.AuthorizationTarget{Kind: "pipeline_triggers", Slug: "hook", ProjectSlug: project, EnvironmentSlug: environment},
+		}
 		allowed, err := auth.Can(decision, input)
 		require.NoError(t, err)
 		require.True(t, allowed)
