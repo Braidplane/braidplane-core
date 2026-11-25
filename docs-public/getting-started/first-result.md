@@ -34,19 +34,30 @@ guide.
 
 ## 2. Save one read
 
-Saved connector operations currently appear under **Queries**.
+Braidplane calls these saved reads **queries**.
 
 1. Open **Queries** and select the data source you created.
 2. Select **New query**.
-3. Give the operation a recognizable name.
-4. Enter the connector-specific fields from its safe read example.
-5. Keep the row limit and timeout conservative, then select **Save query**.
+3. Give the query a name you’ll recognize later.
+4. Fill in the fields using the read example in your connector guide.
+5. Choose a small row limit and a short timeout, then select **Save query**.
+
+[![Saved query named Find customer by ID with a SELECT statement that filters public.customers by customer_id.](images/saved-customer-read.png)](images/saved-customer-read.png)
+
+*This [PostgreSQL query](../connectors/postgresql.md#read-example) looks up a
+customer’s email. Leave `{{customer_id}}` in the SQL. You’ll enter the ID when
+you run the query.*
 
 ## 3. Run and verify
 
-Open the saved query and select **Run query**. Expect **success**. Compare the
-returned rows, documents, records, or file content with the connector guide's
-expected result and your source data.
+Open your saved query. If it takes parameters, enter their values, then select
+**Run query**. Look for the **success** badge and check that the result matches
+what you expected from your source.
+
+[![Successful SQL query result with one row showing id 1 and email alex@example.com.](images/customer-read-result.png)](images/customer-read-result.png)
+
+*With the sample customer in the table, a lookup for ID `1` returns
+`alex@example.com`. Click either screenshot to see it full size.*
 
 If the read fails, check the selected data source, statement fields, parameters
 and provider permissions, then test the connection and retry.
