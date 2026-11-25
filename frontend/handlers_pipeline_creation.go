@@ -104,11 +104,12 @@ func (r *Router) handleQueryPipelineSetup(c fiber.Ctx) error {
 			return c.Status(http.StatusBadRequest).SendString("Invalid project.")
 		}
 		project, projectStatus, _, projectErr := r.getProjectViaAPI(c.Context(), cookie, org, data.Project)
-		if projectStatus == http.StatusForbidden {
+		switch {
+		case projectStatus == http.StatusForbidden:
 			data.Error = "Project read access is required to check the pipeline repository before proposing a pipeline."
-		} else if projectErr != nil || project == nil {
+		case projectErr != nil || project == nil:
 			data.Error = "The selected project could not be loaded. Check access and try again."
-		} else {
+		default:
 			data.ProjectAvailable, data.BackendConfigured = true, project.PipelineBackend != nil
 		}
 	}
