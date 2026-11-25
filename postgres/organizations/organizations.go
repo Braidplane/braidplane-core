@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 
+	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgtype"
 
 	"github.com/Braidplane/braidplane-core/pkg/domain/model"
@@ -16,6 +17,7 @@ import (
 var (
 	ErrNotFound          = xerror.NotFound(xerror.Organization)
 	ErrSlugAlreadyExists = xerror.AlreadyExists(xerror.Organization)
+	ErrDeletionConflict  = xerror.New(xerror.KindAlreadyExists, "ORGANIZATION_DELETION_CONFLICT", "Organization processing changed. Retry deletion.")
 )
 
 func NewRepository() Repository {
@@ -27,6 +29,11 @@ type repository struct{}
 func (r *repository) DeletionBlocked(ctx context.Context, tx postgres.DBTX, orgSlug slug.Slug) (bool, error) {
 	blocked, err := dbgen.New(tx).OrganizationDeletionBlocked(ctx, orgSlug)
 	if err != nil {
+		// River can finish a job after authorization established the deletion snapshot.
+		var pgErr *pgconn.PgError
+		if xerror.As(err, &pgErr) && pgErr.Code == "40001" {
+			return false, ErrDeletionConflict.With(err)
+		}
 		return false, xerror.Unexpected().With(err)
 	}
 	return blocked.Bool, nil
