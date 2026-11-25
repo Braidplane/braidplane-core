@@ -1784,7 +1784,7 @@ func OrganizationRetentionPolicySnapshotValue(label string, days int) templ.Comp
 	})
 }
 
-func OrganizationRolesPage(shellData AuthenticatedShellData, organization api.Organization, roles []api.OrgRole, createFormData RoleFormData, roleListView string, permissions OrganizationPermissions, contentErrorSummary string, contentErrorDetails string, contentSuccessSummary string) templ.Component {
+func OrganizationRolesPage(shellData AuthenticatedShellData, organization api.Organization, roles []api.OrgRole, createFormData RoleFormData, roleListView string, permissions OrganizationPermissions, archivable map[string]bool, contentErrorSummary string, contentErrorDetails string, contentSuccessSummary string) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
 		if templ_7745c5c3_CtxErr := ctx.Err(); templ_7745c5c3_CtxErr != nil {
@@ -1805,7 +1805,7 @@ func OrganizationRolesPage(shellData AuthenticatedShellData, organization api.Or
 			templ_7745c5c3_Var70 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = AuthenticatedShell(shellData, OrganizationRolesPageContent(organization, roles, createFormData, roleListView, permissions, contentErrorSummary, contentErrorDetails, contentSuccessSummary)).Render(ctx, templ_7745c5c3_Buffer)
+		templ_7745c5c3_Err = AuthenticatedShell(shellData, OrganizationRolesPageContent(organization, roles, createFormData, roleListView, permissions, archivable, contentErrorSummary, contentErrorDetails, contentSuccessSummary)).Render(ctx, templ_7745c5c3_Buffer)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -1813,7 +1813,7 @@ func OrganizationRolesPage(shellData AuthenticatedShellData, organization api.Or
 	})
 }
 
-func OrganizationRolesPageContent(organization api.Organization, roles []api.OrgRole, createFormData RoleFormData, roleListView string, permissions OrganizationPermissions, contentErrorSummary string, contentErrorDetails string, contentSuccessSummary string) templ.Component {
+func OrganizationRolesPageContent(organization api.Organization, roles []api.OrgRole, createFormData RoleFormData, roleListView string, permissions OrganizationPermissions, archivable map[string]bool, contentErrorSummary string, contentErrorDetails string, contentSuccessSummary string) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
 		if templ_7745c5c3_CtxErr := ctx.Err(); templ_7745c5c3_CtxErr != nil {
@@ -2285,7 +2285,7 @@ func OrganizationRolesPageContent(organization api.Organization, roles []api.Org
 						return templ_7745c5c3_Err
 					}
 				}
-				if RoleMutable(role) && permissions.Can("roles", "delete") {
+				if archivable[role.Slug] {
 					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 177, "<button class=\"btn btn-error btn-outline btn-xs\" type=\"button\" data-protected-action-trigger=\"")
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
@@ -2346,7 +2346,7 @@ func OrganizationRolesPageContent(organization api.Organization, roles []api.Org
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
-				} else if !permissions.Can("roles", "update") && !permissions.Can("roles", "delete") && !permissions.Can("roles", "restore") {
+				} else if !permissions.Can("roles", "update") && !archivable[role.Slug] && !permissions.Can("roles", "restore") {
 					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 184, "<span class=\"text-sm text-base-content/60\">No actions</span>")
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
@@ -2499,7 +2499,7 @@ func OrganizationRolesPageContent(organization api.Organization, roles []api.Org
 						return templ_7745c5c3_Err
 					}
 				}
-				if RoleMutable(role) && permissions.Can("roles", "delete") {
+				if archivable[role.Slug] {
 					templ_7745c5c3_Err = RoleArchiveConfirmModal(
 						RoleArchiveModalID(role),
 						string(role.Name),

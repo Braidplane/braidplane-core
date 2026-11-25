@@ -503,14 +503,12 @@ BEGIN
         deployment := NULL;
         target_version := NULL;
         resolution := NULL;
-        authority_value := pipeline_completion_scoped_authority(NEW.organization_id,
-            NEW.project_environment_id, to_jsonb(target_trigger), false);
+        authority_value := NULL;
         IF NOT target_trigger.enabled THEN refusal := 'trigger_disabled';
         ELSIF NOT (target_trigger.completion_config->>'execution_grant_enabled')::boolean THEN refusal := 'grant_revoked';
         ELSIF protected_target THEN refusal := 'protected_environment';
         ELSIF depth_value > 8 THEN refusal := 'causal_depth_exceeded';
         ELSIF target_trigger.pipeline_slug = ANY(ancestors) THEN refusal := 'ancestor_pipeline_repeated';
-        ELSIF NOT COALESCE((authority_value->>'valid')::boolean, false) THEN refusal := 'authority_revoked';
         ELSE
             SELECT pd.* INTO deployment FROM pipeline_deployments pd
             WHERE pd.project_environment_id = NEW.project_environment_id AND pd.pipeline_slug = target_trigger.pipeline_slug;
@@ -533,6 +531,11 @@ BEGIN
                     IF NOT FOUND THEN refusal := 'execution_context_missing'; END IF;
                 END IF;
             END IF;
+        END IF;
+        IF refusal IS NULL THEN
+            authority_value := pipeline_completion_scoped_authority(NEW.organization_id,
+                NEW.project_environment_id, to_jsonb(target_trigger), false);
+            IF NOT COALESCE((authority_value->>'valid')::boolean, false) THEN refusal := 'authority_revoked'; END IF;
         END IF;
         INSERT INTO pipeline_completion_snapshots (
             organization_id, project_environment_id, closure_id, trigger_id, trigger_revision, trigger_slug,
@@ -660,6 +663,7 @@ WITH allowed_target AS (
                 ON (d.project_id, d.pipeline_slug) = (s.project_id, s.slug)
             WHERE s.id = b.pipeline_id AND s.project_id = b.project_id AND s.deleted_at IS NULL AND s.slug = b.pipeline_slug
                 AND d.member_id = b.member_id AND d.publish_attempt_id = b.attempt_id AND d.proposal_authority_id = b.authority_id
+                AND d.draft_state = 'publish_queued'
         )) OR (req.kind = 'git_scoped_creation_proposal' AND b.pipeline_id IS NULL AND EXISTS (
             SELECT 1 FROM public.pipeline_creation_proposals c WHERE c.project_id = b.project_id
                 AND c.pipeline_slug = b.pipeline_slug AND c.member_id = b.member_id AND c.publish_attempt_id = b.attempt_id

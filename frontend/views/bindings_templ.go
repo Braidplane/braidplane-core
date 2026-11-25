@@ -238,7 +238,7 @@ func PipelineDataSourceBindingsPanel(orgSlug string, projectSlug string, activeE
 			}
 		}
 		if !bindingContext.canUpdateBindings(permissions) {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 22, "<p class=\"mt-3 text-sm text-base-content/70\">Read-only for your role. Updating bindings requires data-source update permission.</p>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 22, "<p class=\"mt-3 text-sm text-base-content/70\">Adding or changing bindings requires data-source update permission.</p>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -1172,7 +1172,7 @@ func DataSourceBindingCellControl(orgSlug string, projectSlug string, pipelineSl
 				return templ_7745c5c3_Err
 			}
 			if !canUpdate {
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 114, "<p class=\"text-xs text-base-content/60\">Read-only for your role.</p>")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 114, "<p class=\"text-xs text-base-content/60\">Updating this binding requires data-source update permission.</p>")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}

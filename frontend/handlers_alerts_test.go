@@ -1299,3 +1299,46 @@ func TestAlertsSelectedPolicyUsesItsPersistedScope(t *testing.T) {
 	require.Contains(t, string(body), `aria-controls="alert-policy-selected-edit" aria-expanded="true"`)
 	require.EqualValues(t, 2, detailCalls.Load())
 }
+
+func TestAlertsListCanEditPoliciesUsingIndividuallyReadableDestinations(t *testing.T) {
+	t.Parallel()
+	var boundReads atomic.Int32
+	backend := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+		switch req.URL.Path {
+		case "/api/organizations/acme-hq/authorization/permissions":
+			writeJSON(w, `{"permissions":[{"resource":"alert_policies","action":"*"}]}`)
+		case "/api/organizations/acme-hq/alert-policies":
+			writeJSON(w, `{"alert_policies":[{"slug":"one","name":"One","destination_slugs":["bound"]},{"slug":"two","name":"Two","destination_slugs":["bound","missing"]}],"has_more":false}`)
+		case "/api/organizations/acme-hq/alert-destinations/bound":
+			boundReads.Add(1)
+			writeJSON(w, `{"slug":"bound","name":"Bound destination","type":"email","enabled":true}`)
+		case "/api/organizations/acme-hq/alert-destinations/missing":
+			w.WriteHeader(http.StatusForbidden)
+		case "/api/organizations/acme-hq/alert-destinations":
+			t.Error("unexpected organization-wide destination list")
+			w.WriteHeader(http.StatusForbidden)
+		default:
+			if !handleAlertsCommonTestAPI(w, req, "viewer") {
+				w.WriteHeader(http.StatusNotFound)
+			}
+		}
+	}))
+	t.Cleanup(backend.Close)
+	store := session.NewStore()
+	router, err := newHandlerTestRouter(backend.URL, slog.New(slog.DiscardHandler), store)
+	require.NoError(t, err)
+	app := fiber.New()
+	registerTestSessionRoute(app, store)
+	router.RegisterRoutes(app, CommunityPresentation{})
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/orgs/acme-hq/alerts?tab=policies", nil)
+	req.Header.Set("Cookie", getAuthenticatedSessionCookie(t, app))
+	resp, err := app.Test(req)
+	require.NoError(t, err)
+	defer func() { _ = resp.Body.Close() }()
+	body, err := io.ReadAll(resp.Body)
+	require.NoError(t, err)
+	require.Equal(t, http.StatusOK, resp.StatusCode)
+	require.Contains(t, string(body), `data-dirty-form="alert-policy-one-update"`)
+	require.NotContains(t, string(body), `data-dirty-form="alert-policy-two-update"`)
+	require.EqualValues(t, 1, boundReads.Load())
+}

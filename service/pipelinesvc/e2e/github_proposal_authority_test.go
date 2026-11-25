@@ -202,6 +202,13 @@ func TestManagedGitHubBackendProvisionsProposalAuthority(t *testing.T) {
 		require.NoError(t, err)
 		check(uuid.New(), false)
 		check(request.ClaimToken, true)
+		for _, state := range []string{"editing", "publish_failed", "proposal_open", "proposal_closed", "publish_queued"} {
+			tag, err := pool.Exec(ctx, `UPDATE pipeline_drafts SET draft_state=$1
+                WHERE organization_id=$2 AND publish_attempt_id=$3`, state, orgID, queued.PublishAttemptID)
+			require.NoError(t, err)
+			require.EqualValues(t, 1, tag.RowsAffected())
+			check(request.ClaimToken, state == "publish_queued")
+		}
 		_, err = pool.Exec(ctx, `UPDATE projects SET pipeline_backend_pipeline_dir='other-directory' WHERE organization_id=$1 AND slug=$2`, orgID, defaultProjectSlug)
 		require.NoError(t, err)
 		check(request.ClaimToken, false)

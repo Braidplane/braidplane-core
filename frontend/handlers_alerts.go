@@ -683,22 +683,24 @@ func (r *Router) renderAlertsPageWithEditOverrides(
 	}
 
 	// A policy editor may read its bound destinations individually without list access.
-	if activeTab == views.AlertTabPolicies && policySlug != "" && len(policies) == 1 && policyPermissions.Can("alert_policies", "update") {
+	if activeTab == views.AlertTabPolicies && (destinationSlug != "" || !permissions.Can("alert_destinations", "read")) && policyPermissions.Can("alert_policies", "update") {
 		known := make(map[string]bool, len(destinations))
 		for _, destination := range destinations {
 			known[destination.Slug] = true
 		}
-		for _, bound := range policies[0].DestinationSlugs {
-			if known[bound] {
-				continue
-			}
-			known[bound] = true
-			individual, status, _, err := r.getAlertDestinationForView(c, orgSlug.String(), bound)
-			if status == http.StatusUnauthorized {
-				return redirectToLogin(c, c.OriginalURL())
-			}
-			if err == nil {
-				destinations = append(destinations, individual...)
+		for _, policy := range policies {
+			for _, bound := range policy.DestinationSlugs {
+				if known[bound] {
+					continue
+				}
+				known[bound] = true
+				individual, status, _, err := r.getAlertDestinationForView(c, orgSlug.String(), bound)
+				if status == http.StatusUnauthorized {
+					return redirectToLogin(c, c.OriginalURL())
+				}
+				if err == nil {
+					destinations = append(destinations, individual...)
+				}
 			}
 		}
 	}

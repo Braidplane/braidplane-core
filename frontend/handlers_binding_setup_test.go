@@ -260,15 +260,15 @@ func TestPipelineBindingSetupSelectedVersionAndFailures(t *testing.T) {
 					require.Contains(t, html, "Select a runtime target to see its binding attention.")
 					require.NotContains(t, html, "not enabled for the project")
 				case "single binding":
-					require.NotContains(t, html, "Updating bindings requires data-source update permission")
+					require.NotContains(t, html, "Adding or changing bindings requires data-source update permission")
 					for _, slug := range []string{"orders-api", "customer-db"} {
 						_, tag, ok := strings.Cut(html, `aria-label="Data source for `+slug+` in prod"`)
 						require.True(t, ok)
 						form, _, _ := strings.Cut(tag, "</form>")
-						require.Equal(t, slug == "customer-db", strings.Contains(form, "Read-only for your role."))
+						require.Equal(t, slug == "customer-db", strings.Contains(form, "Updating this binding requires data-source update permission."))
 					}
 				case "read-only":
-					require.Contains(t, html, "Read-only for your role.")
+					require.Contains(t, html, "Updating this binding requires data-source update permission.")
 				case "load failure":
 					require.Contains(t, html, "Binding state could not be loaded")
 				case "version failure":
@@ -278,7 +278,7 @@ func TestPipelineBindingSetupSelectedVersionAndFailures(t *testing.T) {
 					require.Contains(t, html, "Validation history could not be loaded")
 				case "no requirements":
 					require.Contains(t, html, "No data-source requirements")
-					require.NotContains(t, html, "Updating bindings requires data-source update permission")
+					require.NotContains(t, html, "Adding or changing bindings requires data-source update permission")
 				case "save error", "delete error":
 					require.Contains(t, html, "Binding change denied")
 					require.Contains(t, html, `id="pipeline-binding-feedback"`)

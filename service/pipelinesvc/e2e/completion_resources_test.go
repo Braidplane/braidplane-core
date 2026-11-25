@@ -131,14 +131,39 @@ func TestCompletionResourcesSnapshotsRevocationAndRetention(t *testing.T) {
 		require.NoError(t, pool.QueryRow(ctx, `SELECT count(*) FROM pipeline_webhook_secret_versions v JOIN pipeline_triggers t ON t.id=v.pipeline_trigger_id WHERE t.project_environment_id=$1 AND t.slug='hook'`, env).Scan(&versions))
 		require.Zero(t, versions)
 	})
+	const insertClosedRun = `INSERT INTO pipeline_runs(project_id,project_environment_id,pipeline_version_id,pipeline_version_spec_hash,api_version,pipeline_slug,run_slug,source_environment_slug,status,duration_ms,step_slug,timeline,source_type,source_root_run_slug,ended_at)
+            SELECT project_id,project_environment_id,pipeline_version_id,pipeline_version_spec_hash,api_version,pipeline_slug,$2,source_environment_slug,'succeeded',0,'fetch','{}','manual',$2,NOW() FROM pipeline_runs WHERE project_environment_id=$1 AND run_slug='template'`
 	closeRoot := func(root string) int {
 		t.Helper()
-		exec(`INSERT INTO pipeline_runs(project_id,project_environment_id,pipeline_version_id,pipeline_version_spec_hash,api_version,pipeline_slug,run_slug,source_environment_slug,status,duration_ms,step_slug,timeline,source_type,source_root_run_slug,ended_at)
-            SELECT project_id,project_environment_id,pipeline_version_id,pipeline_version_spec_hash,api_version,pipeline_slug,$2,source_environment_slug,'succeeded',0,'fetch','{}','manual',$2,NOW() FROM pipeline_runs WHERE project_environment_id=$1 AND run_slug='template'`, env, root)
+		exec(insertClosedRun, env, root)
 		var id int
 		require.NoError(t, pool.QueryRow(ctx, `SELECT id FROM pipeline_completion_snapshots WHERE project_environment_id=$1 AND root_run_slug=$2 AND trigger_slug='after-upstream'`, env, root).Scan(&id))
 		return id
 	}
+	t.Run("disabled trigger skips the editor role lock", func(t *testing.T) {
+		editor, err := pool.Begin(ctx)
+		require.NoError(t, err)
+		defer func() { _ = editor.Rollback(ctx) }()
+		_, err = editor.Exec(ctx, `SELECT r.id FROM roles r JOIN organizations o ON o.id=r.organization_id
+            WHERE o.slug=$1 AND r.slug='completion-owner' FOR UPDATE OF r`, org)
+		require.NoError(t, err)
+		closure, err := pool.Begin(ctx)
+		require.NoError(t, err)
+		defer func() { _ = closure.Rollback(ctx) }()
+		_, err = closure.Exec(ctx, `SET LOCAL lock_timeout='1s'`)
+		require.NoError(t, err)
+		_, err = closure.Exec(ctx, `UPDATE pipeline_triggers SET enabled=false, revision=revision+1 WHERE project_environment_id=$1 AND slug=$2`, env, trigger.Slug)
+		require.NoError(t, err)
+		_, err = closure.Exec(ctx, insertClosedRun, env, "disabled-with-role-edit")
+		require.NoError(t, err)
+		var reason string
+		var skippedAuthority bool
+		err = closure.QueryRow(ctx, `SELECT decision_reason, closure_authority IS NULL FROM pipeline_completion_snapshots
+            WHERE project_environment_id=$1 AND root_run_slug='disabled-with-role-edit' AND trigger_slug=$2`, env, trigger.Slug).Scan(&reason, &skippedAuthority)
+		require.NoError(t, err)
+		require.Equal(t, "trigger_disabled", reason)
+		require.True(t, skippedAuthority)
+	})
 	t.Run("scoped grants are checked at closure and admission", func(t *testing.T) {
 		exec(`DELETE FROM role_permissions WHERE role_id=(SELECT r.id FROM roles r JOIN organizations o ON o.id=r.organization_id WHERE o.slug=$1 AND r.slug='completion-owner')`, org)
 		defer exec(`INSERT INTO role_permissions(role_id,permission_id) SELECT r.id,p.id FROM roles r JOIN organizations o ON o.id=r.organization_id CROSS JOIN permissions p WHERE o.slug=$1 AND r.slug='completion-owner' AND p.resource='*' AND p.action='*'`, org)

@@ -50,9 +50,13 @@ func (r *Router) renderNotificationConnections(c fiber.Ctx, status int, message 
 			message, failed = "Slack could not be connected. Start again.", true
 		}
 	}
-	permissions := r.resolvePagePermissions(c, org.String())
+	permissions := r.resolveOrganizationPermissions(c.Context(), c.Get(fiber.HeaderCookie), org.String())
+	editable := make(map[string]bool, len(connections))
+	for _, connection := range connections {
+		editable[connection.Slug] = r.rowAllows(c, org.String(), "notification_connections", connection.Slug, "alert_destinations", "update", permissions)
+	}
 	setHTMLResponseStatus(c, status)
-	return renderTempl(c, views.NotificationConnectionsPage(r.buildAlertsShellData(c, org.String(), "", ""), org.String(), connections, permissions, message, failed, views.NotificationConnectionFormData{Name: strings.TrimSpace(c.FormValue("name")), Slug: strings.TrimSpace(c.FormValue("slug"))}))
+	return renderTempl(c, views.NotificationConnectionsPage(r.buildAlertsShellData(c, org.String(), "", ""), org.String(), connections, permissions, editable, message, failed, views.NotificationConnectionFormData{Name: strings.TrimSpace(c.FormValue("name")), Slug: strings.TrimSpace(c.FormValue("slug"))}))
 }
 
 func (r *Router) handleCreateNotificationConnection(c fiber.Ctx) error {

@@ -8,6 +8,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/stretchr/testify/require"
 
@@ -172,14 +173,33 @@ VALUES (601,101,'alert','Alert','project',201,'warning');`)
 
 	_, err = pool.Exec(ctx, "UPDATE alert_policies SET project_id=202 WHERE id=601")
 	require.NoError(t, err)
-	_, err = svc.UpdateAlertPolicy(ctx, principal, notificationsvc.UpdateAlertPolicyParams{
+	update := notificationsvc.UpdateAlertPolicyParams{
 		OrgSlug: org, Slug: "alert", Name: "Revised", Scope: model.AlertPolicyScopeProject, ProjectSlug: &project,
 		Severity: notificationE2ESeverityPtr(model.NotificationSeverityWarning), DestinationSlugs: []slug.Slug{"ops"},
-	})
+	}
+	_, err = svc.UpdateAlertPolicy(ctx, principal, update)
 	require.ErrorContains(t, err, "The authorized principal or target changed")
 	var storedProject int
 	require.NoError(t, pool.QueryRow(ctx, "SELECT project_id FROM alert_policies WHERE id=601").Scan(&storedProject))
 	require.Equal(t, 202, storedProject)
+
+	// A move after the transaction has rechecked the policy conflicts with its UPDATE.
+	_, err = pool.Exec(ctx, "UPDATE alert_policies SET project_id=201 WHERE id=601")
+	require.NoError(t, err)
+	postgres.AddTransactionCheck(ctx, func(ctx context.Context, _ postgres.DBTX) error {
+		competing, cancel := context.WithTimeout(ctx, 5*time.Second)
+		defer cancel()
+		_, err := pool.Exec(competing, "UPDATE alert_policies SET project_id=202 WHERE id=601")
+		return err
+	})
+	_, err = svc.UpdateAlertPolicy(ctx, principal, update)
+	var serialization *pgconn.PgError
+	require.ErrorAs(t, err, &serialization)
+	require.Equal(t, "40001", serialization.Code)
+	var storedName string
+	require.NoError(t, pool.QueryRow(ctx, "SELECT project_id, name FROM alert_policies WHERE id=601").Scan(&storedProject, &storedName))
+	require.Equal(t, 202, storedProject)
+	require.Equal(t, "Alert", storedName)
 }
 
 func TestService_CreateProjectEnvironmentPolicyRequiresEnabledProjectEnvironment(t *testing.T) {

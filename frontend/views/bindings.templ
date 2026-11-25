@@ -89,7 +89,7 @@ templ PipelineDataSourceBindingsPanel(orgSlug string, projectSlug string, active
 			<a class="link link-primary mt-3 inline-block text-sm" href={ templ.URL(PipelineBindingSetupHref(orgSlug, projectSlug, activeEnvironmentSlug, string(pipeline.Slug), *pipeline.CurrentVersionSpecHash, entitySectionHref(ctx, PipelineDetailHrefWithEnvironment(orgSlug, projectSlug, activeEnvironmentSlug, string(pipeline.Slug)), "deployments")+"#pipeline-bindings")) }>Resolve current version bindings</a>
 		}
 		if !bindingContext.canUpdateBindings(permissions) {
-			<p class="mt-3 text-sm text-base-content/70">Read-only for your role. Updating bindings requires data-source update permission.</p>
+			<p class="mt-3 text-sm text-base-content/70">Adding or changing bindings requires data-source update permission.</p>
 		}
 		@PipelineBindingAttentionSummary(activeEnvironmentSlug, pipeline, bindingContext)
 		if bindingContext.RefsUnavailable {
@@ -317,7 +317,7 @@ templ DataSourceBindingCellControl(orgSlug string, projectSlug string, pipelineS
 					}
 				</select>
 				if !canUpdate {
-					<p class="text-xs text-base-content/60">Read-only for your role.</p>
+					<p class="text-xs text-base-content/60">Updating this binding requires data-source update permission.</p>
 				} else if dataSourcesUnavailable {
 					<p class="text-xs text-warning">Data-source options could not be loaded.</p>
 				} else if !DataSourceBindingCanSubmit(cell.Options, false, true) {

@@ -2,11 +2,11 @@ package views
 
 import api "github.com/Braidplane/braidplane-core/api-schema/gen/client"
 
-templ NotificationConnectionsPage(shell AuthenticatedShellData, org string, connections []api.NotificationConnection, permissions OrganizationPermissions, message string, failed bool, form NotificationConnectionFormData) {
-	@AuthenticatedShell(shell, NotificationConnectionsContent(org, connections, permissions, message, failed, form))
+templ NotificationConnectionsPage(shell AuthenticatedShellData, org string, connections []api.NotificationConnection, permissions OrganizationPermissions, editable map[string]bool, message string, failed bool, form NotificationConnectionFormData) {
+	@AuthenticatedShell(shell, NotificationConnectionsContent(org, connections, permissions, editable, message, failed, form))
 }
 
-templ NotificationConnectionsContent(org string, connections []api.NotificationConnection, permissions OrganizationPermissions, message string, failed bool, form NotificationConnectionFormData) {
+templ NotificationConnectionsContent(org string, connections []api.NotificationConnection, permissions OrganizationPermissions, editable map[string]bool, message string, failed bool, form NotificationConnectionFormData) {
 	<div class="space-y-6" id="notification-connections">
 		<a class="btn btn-outline btn-sm" href={ templ.URL("/orgs/" + org + "/alerts?tab=destinations") }>Back to alert destinations</a>
 		<div>
@@ -50,7 +50,7 @@ templ NotificationConnectionsContent(org string, connections []api.NotificationC
 							<p class="break-words text-sm">{ NotificationConnectionDescription(connection) }</p>
 						}
 					</div>
-					if permissions.Can("alert_destinations", "update") {
+					if editable[connection.Slug] {
 						<div class="flex flex-wrap gap-2">
 							<form method="post" action={ templ.URL("/orgs/" + org + "/alerts/connections/" + connection.Slug + "/connect") } hx-post={ "/orgs/" + org + "/alerts/connections/" + connection.Slug + "/connect" } hx-target="#notification-connections" hx-select="#notification-connections" hx-swap="outerHTML">
 								if connection.Status == api.CredentialStatusActive {

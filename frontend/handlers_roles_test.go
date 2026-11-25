@@ -448,7 +448,11 @@ func TestRouter_HandleArchiveRoleSubmit_RequiresTypedConfirmation(t *testing.T) 
 
 	archived := false
 	apiServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if handleRolesCommonTestAPI(w, r, "admin", true) {
+		if r.URL.Path == "/api/organizations/acme-hq/authorization/permissions" && r.URL.Query().Get("target_kind") == "roles" && r.URL.Query().Get("target_slug") == "editor" {
+			writeJSON(w, `{"permissions":[{"resource":"roles","action":"delete"}]}`)
+			return
+		}
+		if handleRolesCommonTestAPI(w, r, "viewer", true) {
 			return
 		}
 		if r.Method == http.MethodDelete && r.URL.Path == "/api/organizations/acme-hq/roles/editor" {
@@ -487,6 +491,8 @@ func TestRouter_HandleArchiveRoleSubmit_RequiresTypedConfirmation(t *testing.T) 
 	html := string(body)
 
 	require.Equal(t, http.StatusBadRequest, resp.StatusCode)
+	require.NotContains(t, html, "Create role")
+	require.Contains(t, html, `action="/organizations/acme-hq/roles/editor/archive"`)
 	require.Contains(t, html, "Role could not be archived.")
 	require.Contains(t, html, "Validation: type the role slug to confirm archival.")
 	require.False(t, archived)

@@ -87,6 +87,14 @@ func (r *Router) targetPermissions(c fiber.Ctx, org string, params api.GetEffect
 	return organizationPermissions(r.effectivePermissions(c.Context(), c.Get(fiber.HeaderCookie), org, &params))
 }
 
+// rowAllows checks the stored target only when the page-wide grant does not cover it.
+func (r *Router) rowAllows(c fiber.Ctx, org, kind, target, resource, action string, page views.OrganizationPermissions) bool {
+	if page.Can(resource, action) {
+		return true
+	}
+	return r.targetPermissions(c, org, api.GetEffectivePermissionsParams{TargetKind: &kind, TargetSlug: &target}).Can(resource, action)
+}
+
 func (r *Router) resolveOrganizationPermissions(ctx context.Context, cookieHeader, org string) views.OrganizationPermissions {
 	return organizationPermissions(r.effectivePermissions(ctx, cookieHeader, org, nil))
 }

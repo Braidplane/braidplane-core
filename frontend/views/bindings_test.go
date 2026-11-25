@@ -544,6 +544,9 @@ func TestDataSourceBindingCellControlPermissionStates(t *testing.T) {
 			wantRemovalCopy:    true,
 		},
 		{
+			name: "DeleteOnlyEnablesRemoveAndDisablesUpdate", permissions: NewOrganizationPermissions("datasources:delete"), wantSelectDisabled: true, wantUpdateDisabled: true, wantReadOnlyCopy: true,
+		},
+		{
 			name:               "UpdateOnlyEnablesUpdateAndDisablesRemove",
 			permissions:        NewOrganizationPermissions("datasources:update"),
 			wantSelectDisabled: false,
@@ -574,7 +577,7 @@ func TestDataSourceBindingCellControlPermissionStates(t *testing.T) {
 			require.Equal(t, tt.wantSelectDisabled, htmlStartTagHasDisabledAttribute(selectTag))
 			require.Equal(t, tt.wantUpdateDisabled, htmlStartTagHasDisabledAttribute(updateButton))
 			require.Equal(t, tt.wantRemoveDisabled, htmlStartTagHasDisabledAttribute(removeButton))
-			require.Equal(t, tt.wantReadOnlyCopy, strings.Contains(body, "Read-only for your role."))
+			require.Equal(t, tt.wantReadOnlyCopy, strings.Contains(body, "Updating this binding requires data-source update permission."))
 			require.Equal(t, tt.wantRemovalCopy, strings.Contains(body, "Removal is disabled for your role."))
 		})
 	}
