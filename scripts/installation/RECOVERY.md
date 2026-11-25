@@ -90,9 +90,14 @@ before enabling the schedule.
 - `reopen-and-observe` checks that the roles are ready and verifies HTTPS through the
   operator route using the trusted CA. It then reopens ingress and restores only the
   producers, triggers and notifications that were enabled before the freeze. Record when
-  ingress becomes usable and the elapsed time since the freeze. Keep the window open
-  until you verify the next scheduled run's output at the destination. If verification
-  fails or times out, preserve the record for the operator to resolve before the next window.
+  ingress becomes usable and the elapsed time since the freeze. Choose a test pipeline
+  whose next run finishes within the approved maintenance window. Wait for its output
+  only until the window deadline, which must fall before the next backup is due.
+  If verification fails or times out, alert the operator and keep the window record open.
+  An unresolved window blocks later backups. For each backup that would be missed,
+  the operator must resolve the window or explicitly accept and record the age of
+  the last verified point under the site's recovery contract. Escalate if that age
+  exceeds the agreed limit.
 
 ```bash
 #!/bin/bash
