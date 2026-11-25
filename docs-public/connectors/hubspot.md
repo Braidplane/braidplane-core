@@ -5,7 +5,7 @@
 **Preview.** [Support levels and provider evidence](support-levels.md#evidence-record)
 
 - **Available.** List and search supported CRM objects, and upsert records by a unique key with explicit property mappings.
-- **Limits.** Custom objects require account entitlement. A batch can partially succeed, so reconcile uncertain writes using the same record keys. [#187](https://github.com/Braidplane/braidplane-core/issues/187) documents the delivered diagnostics for partial batches.
+- **Limits.** Custom objects require account entitlement. A batch can partially succeed, so reconcile uncertain writes using the same record keys. [#187](https://github.com/Braidplane/braidplane-core/issues/187) describes which batch outcomes an operator needs to distinguish after a failure.
 - **Not integrated.** Generic create and delete sink operations.
 
 [Proof](../getting-started/proof.md#demonstrated-alpha-connector-scope) can use
