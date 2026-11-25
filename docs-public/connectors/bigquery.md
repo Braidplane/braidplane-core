@@ -4,7 +4,7 @@
 
 **Preview.** [Support levels and provider evidence](support-levels.md#evidence-record)
 
-- **Available.** Run query jobs, export SELECT results to a file and append rows with `insert_rows`.
+- **Available.** Run query jobs, stream SELECT results into a pipeline file and append rows with `insert_rows`.
 - **Limits.** Result pages are fetched within the query limits. A successful query requires the appropriate IAM grants and a billing project.
 - **Not integrated.** Bulk load jobs and native merge or upsert helpers.
 
@@ -134,7 +134,7 @@ nested schema flattening is not available.
 
 ## Limits and troubleshooting
 
-- No public continuation tokens, resumable partial results, load jobs, exports,
+- No public continuation tokens, resumable partial results, load jobs, BigQuery extract jobs,
   table creation, schema evolution, or merge/upsert helpers.
 - The bytes-billed cap controls provider query cost; row and response-size caps
   are separate. Operation limits cannot enlarge deployment limits.
