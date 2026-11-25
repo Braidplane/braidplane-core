@@ -11833,6 +11833,10 @@
                         const errorCode =
                             typeof payload?.error?.code === "string" ? payload.error.code.trim().toUpperCase() : "";
                         if (response.status === 404 && errorCode === "PIPELINE_DRAFT_NOT_FOUND") {
+                            if (!hasUnpersistedActionChanges()) {
+                                reloadBuilderFromServer(organizationSlug, projectSlug, pipelineSlug);
+                                return;
+                            }
                             pipelineHasDraft = false;
                             options.pipeline.hasDraft = false;
                             if (rootElement instanceof HTMLElement) {
@@ -11852,6 +11856,10 @@
                     }
 
                     const publishedPipeline = await readAPIJSON(response);
+                    if (publishedPipeline && !publishedPipeline.draft && !hasUnpersistedActionChanges()) {
+                        reloadBuilderFromServer(organizationSlug, projectSlug, pipelineSlug);
+                        return;
+                    }
                     pipelineHasDraft = Boolean(publishedPipeline?.draft);
                     options.pipeline.hasDraft = pipelineHasDraft;
                     applyPipelineVersionContext({

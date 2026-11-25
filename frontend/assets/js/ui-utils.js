@@ -996,6 +996,13 @@ document.addEventListener("htmx:afterSwap", (event) => {
     }
 });
 
+document.addEventListener("htmx:beforeSwap", ({ detail }) => {
+    if (!detail?.target?.matches?.("[data-alert-policy-selector]")) return;
+    const project = detail.target.querySelector("input[name=project_slug]");
+    const requested = detail?.requestConfig?.formData?.get("project_slug");
+    if (project && requested != null && project.value !== requested) detail.shouldSwap = false;
+});
+
 const braidplaneBranchRefreshSelection = new WeakMap();
 document.addEventListener("htmx:beforeRequest", ({ detail }) => {
     if (detail?.elt?.id !== "project-branch-refresh" || !detail.xhr) return;

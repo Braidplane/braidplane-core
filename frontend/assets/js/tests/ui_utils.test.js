@@ -1130,6 +1130,20 @@ describe("alert policy review", () => {
     });
 });
 
+it("keeps project slug edits made while alert selectors are refreshing", () => {
+    document.body.innerHTML =
+        '<form><div data-alert-policy-selector><input name="project_slug" value="ops"></div></form>';
+    const input = document.querySelector("input");
+    const detail = {
+        target: input.parentElement,
+        requestConfig: { formData: new FormData(input.form) },
+        shouldSwap: true,
+    };
+    input.value = "ops-prod";
+    input.dispatchEvent(new CustomEvent("htmx:beforeSwap", { bubbles: true, detail }));
+    expect(detail.shouldSwap).toBe(false);
+});
+
 describe("project branch refresh", () => {
     it("keeps a branch selected while the refresh is pending", () => {
         document.body.innerHTML = `

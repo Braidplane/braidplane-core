@@ -46,7 +46,9 @@ class InstallationDatabaseTest(unittest.TestCase):
         self.psql(baseline)
         old_execution = execution[:execution.index("    public.begin_retained_file(")].rstrip().removesuffix(",") + "\nTO :\"executor_role\";\nCOMMIT;\n"
         old_execution = old_execution.replace(':"executor_role"', '"braidplane_executor"')
-        self.psql(old_execution.replace("    public.claimed_proposal_authorization(uuid, uuid),\n", ""))
+        proposal_grant = "    public.claimed_proposal_authorization(uuid, uuid),\n"
+        self.assertIn(proposal_grant, old_execution)
+        self.psql(old_execution.replace(proposal_grant, ""))
         self.psql("SET ROLE braidplane_migrator;\n" + migrations[-1].read_text())
         before = self.psql("SELECT has_function_privilege('braidplane_executor', 'public.begin_retained_file(uuid,uuid,text,bigint,timestamptz)', 'EXECUTE');")
         self.assertEqual(before.stdout.strip(), "f")

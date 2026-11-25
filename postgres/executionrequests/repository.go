@@ -102,7 +102,7 @@ func (Repository) Preflight(ctx context.Context, db postgres.DBTX) error {
 		SELECT
 			to_regprocedure('public.claim_next_execution_request()') IS NOT NULL
 			AND to_regprocedure('public.heartbeat_execution_request(uuid,uuid)') IS NOT NULL
-            AND has_function_privilege(current_user, 'public.claimed_proposal_authorization(uuid,uuid)', 'EXECUTE')
+			AND COALESCE(has_function_privilege(current_user, to_regprocedure('public.claimed_proposal_authorization(uuid,uuid)'), 'EXECUTE'), false)
  AND to_regprocedure('public.check_connector_dispatch(uuid,uuid,text,text,text,jsonb,text,timestamp with time zone,boolean)') IS NOT NULL
  AND has_function_privilege(current_user,'public.check_connector_dispatch(uuid,uuid,text,text,text,jsonb,text,timestamp with time zone,boolean)','EXECUTE')
 				AND to_regprocedure('public.complete_execution_request(uuid,uuid,bytea,boolean)') IS NOT NULL
@@ -135,7 +135,7 @@ func (Repository) PreflightDelivery(ctx context.Context, db postgres.DBTX) error
 		SELECT
 			to_regprocedure('public.claim_execution_request(uuid)') IS NOT NULL
 			AND to_regprocedure('public.heartbeat_execution_request(uuid,uuid)') IS NOT NULL
-            AND has_function_privilege(current_user, 'public.claimed_proposal_authorization(uuid,uuid)', 'EXECUTE')
+			AND COALESCE(has_function_privilege(current_user, to_regprocedure('public.claimed_proposal_authorization(uuid,uuid)'), 'EXECUTE'), false)
  AND to_regprocedure('public.check_connector_dispatch(uuid,uuid,text,text,text,jsonb,text,timestamp with time zone,boolean)') IS NOT NULL
  AND has_function_privilege(current_user,'public.check_connector_dispatch(uuid,uuid,text,text,text,jsonb,text,timestamp with time zone,boolean)','EXECUTE')
 			AND to_regprocedure('public.complete_execution_request(uuid,uuid,bytea,boolean)') IS NOT NULL

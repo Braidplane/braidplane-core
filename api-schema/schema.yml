@@ -9115,7 +9115,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
         '403':
-          description: Forbidden - caller not authorized to access this environment-scoped resource
+          description: Forbidden - the run could not be resolved in the requested scope or the caller lacks access
           content:
             application/json:
               schema:
@@ -9182,7 +9182,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
         '403':
-          description: Forbidden - caller not authorized to access this environment-scoped resource
+          description: Forbidden - the run could not be resolved in the requested scope or the caller lacks access
           content:
             application/json:
               schema:

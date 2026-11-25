@@ -18,7 +18,7 @@ type QueryPipelineSetupData struct {
 type PipelineCreationProgressData struct {
 	Org, Project, Environment, Error, VersionError string
 	Creation                                       *api.PipelineCreationProposal
-	VersionAvailable, CanRetry                     bool
+	VersionAvailable, CanRetry, CanSync            bool
 }
 
 type PipelineCreationListData struct {

@@ -67,9 +67,13 @@ func TestRevokedProposalOffersSyncOnlyAfterConfirmedMissingVersion(t *testing.T)
 		var output bytes.Buffer
 		data := PipelineCreationProgressData{
 			Creation:     &api.PipelineCreationProposal{Status: "publish_failed", FailureCode: new("git_proposal_authority_revoked"), BranchName: new("proposal")},
-			VersionError: versionError,
+			VersionError: versionError, CanSync: true,
 		}
 		require.NoError(t, PipelineCreationProgressContent(data).Render(t.Context(), &output))
 		require.Equal(t, versionError == "", strings.Contains(output.String(), "Open Git sync after a manual merge"))
+		data.CanSync = false
+		output.Reset()
+		require.NoError(t, PipelineCreationProgressContent(data).Render(t.Context(), &output))
+		require.NotContains(t, output.String(), "Open Git sync after a manual merge")
 	}
 }
