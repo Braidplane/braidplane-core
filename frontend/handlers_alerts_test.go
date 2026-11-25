@@ -1242,7 +1242,12 @@ func TestAlertsSelectedPolicyUsesItsPersistedScope(t *testing.T) {
 			}
 		case "/api/organizations/acme-hq/alert-policies/selected":
 			detailCalls.Add(1)
-			writeJSON(w, `{"slug":"selected","name":"Selected policy detail","scope":"project_environment","project_slug":"ops","environment_slug":"prod"}`)
+			writeJSON(w, `{"slug":"selected","name":"Selected policy detail","scope":"project_environment","project_slug":"ops","environment_slug":"prod","destination_slugs":["bound"]}`)
+		case "/api/organizations/acme-hq/alert-destinations/bound":
+			writeJSON(w, `{"slug":"bound","name":"Readable destination","type":"email","enabled":true}`)
+		case "/api/organizations/acme-hq/alert-destinations":
+			t.Error("attempted to list all destinations without organization read")
+			w.WriteHeader(http.StatusForbidden)
 		case "/api/organizations/acme-hq/alert-policies", "/api/organizations/acme-hq/alert-policies/other":
 			t.Errorf("unexpected policy read %s", req.URL.Path)
 			w.WriteHeader(http.StatusForbidden)
@@ -1272,6 +1277,8 @@ func TestAlertsSelectedPolicyUsesItsPersistedScope(t *testing.T) {
 		require.NotContains(t, string(body), "Create policy")
 		if policy == "selected" {
 			require.Contains(t, string(body), "Selected policy detail")
+			require.Contains(t, string(body), "Readable destination")
+			require.NotContains(t, string(body), "Saving requires read access to every bound destination.")
 			require.Contains(t, string(body), `id="alert-policy-selected-edit"`)
 			require.Contains(t, string(body), `/alerts/policies/selected/update?policy_slug=selected`)
 		} else {

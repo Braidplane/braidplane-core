@@ -571,6 +571,7 @@ SELECT o.slug AS org_slug, p.slug AS project_slug, pa.project_id, pa.organizatio
     ds.config AS git_configuration,
     COALESCE(p.pipeline_backend_repo, '')::text AS git_repository,
     COALESCE(p.pipeline_backend_tracked_branch, '')::text AS git_base_branch,
+    COALESCE(p.pipeline_backend_pipeline_dir, '')::text AS git_pipeline_directory,
     ds.slug AS git_data_source_slug,
     c.slug AS git_credential_slug,
     c.updated_at AS git_credential_updated_at
@@ -665,8 +666,8 @@ WITH allowed_target AS (
                 AND c.status = 'publish_queued'
         ) AND NOT EXISTS (SELECT 1 FROM public.pipeline_specs s WHERE s.project_id = b.project_id
             AND s.slug = b.pipeline_slug AND s.deleted_at IS NULL)))
-), resolved AS (
-    SELECT public.authorization_facts(org_slug::text, user_slug::text, '',
+), resolved AS MATERIALIZED (
+    SELECT pipeline_id, public.authorization_facts(org_slug::text, user_slug::text, '',
         CASE WHEN pipeline_id IS NULL THEN 'projects' ELSE 'pipelines' END,
         CASE WHEN pipeline_id IS NULL THEN project_slug ELSE pipeline_slug END,
         project_slug::text, '', '') AS facts,
@@ -680,6 +681,7 @@ SELECT jsonb_set(facts - 'owner_slug', '{bindings}', COALESCE((
     WHERE p IN ('*:*','pipelines:*',permission)
         AND b->>'scope_id' = CASE b->>'scope' WHEN 'organization' THEN facts->>'organization_id'
             WHEN 'project' THEN facts->>'project_id' WHEN 'resource' THEN facts->>'target_id' END
-), '[]'::jsonb)) FROM resolved;
+), '[]'::jsonb)) FROM resolved
+WHERE pipeline_id IS NULL OR facts->>'target_id' = 'pipelines:' || pipeline_id::text;
 $$;
 REVOKE ALL ON FUNCTION claimed_proposal_authorization(uuid, uuid) FROM PUBLIC;

@@ -3,6 +3,7 @@ package views
 import (
 	"bytes"
 	"context"
+	"strings"
 	"testing"
 
 	api "github.com/Braidplane/braidplane-core/api-schema/gen/client"
@@ -48,5 +49,15 @@ func TestQueryPipelineSetupAllowsProjectSelectionBeforeCreationCheck(t *testing.
 		require.Contains(t, out.String(), "Check readiness")
 		require.Contains(t, out.String(), `value="ops"`)
 		require.NotContains(t, out.String(), "Propose pipeline")
+	}
+}
+
+func TestQueryPipelineSetupShowsProposalHistoryWithReadAccess(t *testing.T) {
+	for _, action := range []string{"read", "create"} {
+		var out bytes.Buffer
+		require.NoError(t, QueryPipelineSetupContent(QueryPipelineSetupData{
+			Org: "acme", DataSource: "warehouse", Query: &api.Query{Slug: "orders"}, Project: "ops", Projects: []api.Project{{Slug: "ops"}}, ProjectAvailable: true, Permissions: NewOrganizationPermissions("pipelines:" + action),
+		}).Render(t.Context(), &out))
+		require.Equal(t, action == "read", strings.Contains(out.String(), "View creation proposals"))
 	}
 }

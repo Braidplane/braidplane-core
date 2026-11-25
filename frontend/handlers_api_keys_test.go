@@ -511,6 +511,10 @@ func TestRouter_HandleRotateAPIKeySubmit_ShowsRawTokenOnce(t *testing.T) {
 	t.Parallel()
 
 	apiServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/api/organizations/acme-hq/authorization/permissions" && r.URL.Query().Get("target_slug") != "" {
+			writeJSON(w, `{"permissions":[]}`)
+			return
+		}
 		if handleAPIKeySecurityCommonTestAPI(w, r, "admin") {
 			return
 		}
@@ -560,6 +564,7 @@ func TestRouter_HandleRotateAPIKeySubmit_ShowsRawTokenOnce(t *testing.T) {
 
 	require.Equal(t, http.StatusOK, resp.StatusCode)
 	require.Contains(t, html, "Rotated token for Deploy Bot")
+	require.Contains(t, html, "Create key")
 	require.Contains(t, html, "api-key-secret-rotated")
 	require.Contains(t, html, "xto_live_rotated")
 }

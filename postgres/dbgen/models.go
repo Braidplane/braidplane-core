@@ -95,6 +95,7 @@ type ActivePipelineProposalAuthority struct {
 	GitConfiguration          []byte
 	GitRepository             string
 	GitBaseBranch             string
+	GitPipelineDirectory      string
 	GitDataSourceSlug         string
 	GitCredentialSlug         string
 	GitCredentialUpdatedAt    pgtype.Timestamptz

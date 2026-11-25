@@ -12767,8 +12767,9 @@ components:
 
     NewRoleGrant:
       type: object
+      additionalProperties: false
       required: [subject_kind, subject_slug, role_slug, scope]
-      properties:
+      properties: &roleGrantProperties
         subject_kind: {type: string, enum: [member, api_key]}
         subject_slug: {$ref: '#/components/schemas/Slug'}
         role_slug: {$ref: '#/components/schemas/Slug'}
@@ -12786,12 +12787,11 @@ components:
         datasource_slug: {$ref: '#/components/schemas/Slug'}
         parent_slug: {$ref: '#/components/schemas/Slug'}
     RoleGrant:
-      allOf:
-        - $ref: '#/components/schemas/NewRoleGrant'
-        - type: object
-          required: [slug]
-          properties:
-            slug: {$ref: '#/components/schemas/Slug'}
+      type: object
+      required: [slug, subject_kind, subject_slug, role_slug, scope]
+      properties:
+        <<: *roleGrantProperties
+        slug: {$ref: '#/components/schemas/Slug'}
     RoleGrantList:
       type: object
       required: [grants]

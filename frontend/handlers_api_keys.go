@@ -488,7 +488,7 @@ func (r *Router) renderOrganizationSecurityPage(
 		{Label: "Security"},
 	}
 
-	permissions := r.resolvePagePermissions(c, orgSlug.String())
+	permissions := r.resolveOrganizationPermissions(c.Context(), c.Get(fiber.HeaderCookie), orgSlug.String())
 
 	if statusCode >= 400 {
 		c.Status(statusCode)

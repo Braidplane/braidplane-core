@@ -977,9 +977,6 @@ func alertNullableString(value *string) string {
 }
 
 func canEditPolicyDestinations(policy api.AlertPolicy, destinations []api.AlertDestination) bool {
-	if len(destinations) == 0 {
-		return false
-	}
 	available := make(map[string]bool, len(destinations))
 	for _, destination := range destinations {
 		available[destination.Slug] = true

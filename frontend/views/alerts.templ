@@ -86,7 +86,7 @@ templ AlertsPageContent(
 						}
 					</a>
 				}
-				if !permissions.Can("alert_destinations", "read") {
+				if !permissions.Can("alert_destinations", "read") && len(destinations) == 0 {
 					<p class="text-sm text-base-content/70">Destination configuration is restricted. An authorized destination owner must configure routing.</p>
 				}
 				if permissions.Can("alert_policies", "create") {
@@ -108,7 +108,9 @@ templ AlertsPageContent(
 				<div class="flex flex-wrap items-center justify-between gap-3">
 					<div>
 						<h2 class="text-base font-semibold text-base-content">Alert destinations</h2>
-						<a class="btn btn-outline btn-sm mt-2" href={ templ.URL("/orgs/" + orgSlug + "/alerts/connections") }>Manage notification connections</a>
+						if permissions.Can("alert_destinations", "read") {
+							<a class="btn btn-outline btn-sm mt-2" href={ templ.URL("/orgs/" + orgSlug + "/alerts/connections") }>Manage notification connections</a>
+						}
 						<p class="mt-1 text-xs text-base-content/70">Destinations receive deliveries selected by alert policies.</p>
 					</div>
 					if destinations != nil {
@@ -431,7 +433,7 @@ templ AlertPolicyList(orgSlug string, destinations []api.AlertDestination, polic
 									form,
 									destinations,
 									true,
-									!destinationsAvailable,
+									len(destinations) == 0 || !destinationsAvailable,
 									"alert-policy-"+string(policy.Slug)+"-update",
 								)
 							</div>
@@ -735,9 +737,9 @@ templ AlertDestinationConfigFields(form AlertDestinationFormData, connections []
 			</select>
 		</label>
 		if connections==nil {
-			<p class="mt-1 text-xs text-error">Connection status is unavailable. Reload before enabling a destination.</p>
+			<p class="mt-1 text-xs text-error">Connection choices are unavailable. Listing them requires organization-wide destination read access.</p>
 		}
-		if len(connections)==0 {
+		if connections!=nil && len(connections)==0 {
 			<p class="mt-1 text-xs text-base-content/70">Connect Slack using Manage notification connections, then return to select it.</p>
 		}
 	</div>

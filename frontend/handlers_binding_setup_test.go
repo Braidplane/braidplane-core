@@ -278,6 +278,7 @@ func TestPipelineBindingSetupSelectedVersionAndFailures(t *testing.T) {
 					require.Contains(t, html, "Validation history could not be loaded")
 				case "no requirements":
 					require.Contains(t, html, "No data-source requirements")
+					require.NotContains(t, html, "Updating bindings requires data-source update permission")
 				case "save error", "delete error":
 					require.Contains(t, html, "Binding change denied")
 					require.Contains(t, html, `id="pipeline-binding-feedback"`)

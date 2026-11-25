@@ -19,6 +19,7 @@ import (
 	"github.com/Braidplane/braidplane-core/pkg/must"
 	pipelinespec "github.com/Braidplane/braidplane-core/pkg/pipeline/spec"
 	"github.com/Braidplane/braidplane-core/pkg/slug"
+	"github.com/Braidplane/braidplane-core/pkg/testutil/e2edb"
 	"github.com/Braidplane/braidplane-core/pkg/testutil/fakes"
 	"github.com/Braidplane/braidplane-core/pkg/uuid"
 	"github.com/Braidplane/braidplane-core/postgres"
@@ -40,7 +41,7 @@ import (
 
 func TestManagedGitHubBackendProvisionsProposalAuthority(t *testing.T) {
 	t.Parallel()
-	pool := openE2EPool(t)
+	pool := e2edb.OpenIsolatedPostgresPool(t, "proposal authority")
 	ctx := t.Context()
 	txm := postgres.NewTransactionManager(pool)
 	store, err := pipelinesvc.NewPipelineStore(pool, txm, pipelinesrepo.New(), odcscontracts.NewRepository())
@@ -201,6 +202,31 @@ func TestManagedGitHubBackendProvisionsProposalAuthority(t *testing.T) {
 		require.NoError(t, err)
 		check(uuid.New(), false)
 		check(request.ClaimToken, true)
+		_, err = pool.Exec(ctx, `UPDATE projects SET pipeline_backend_pipeline_dir='other-directory' WHERE organization_id=$1 AND slug=$2`, orgID, defaultProjectSlug)
+		require.NoError(t, err)
+		check(request.ClaimToken, false)
+		_, err = pool.Exec(ctx, `UPDATE projects SET pipeline_backend_pipeline_dir=$3 WHERE organization_id=$1 AND slug=$2`, orgID, defaultProjectSlug, params.PipelineDir)
+		require.NoError(t, err)
+		check(request.ClaimToken, true)
+
+		t.Run("resolved pipeline must match the bound ID", func(t *testing.T) {
+			tx, err := pool.Begin(ctx)
+			require.NoError(t, err)
+			defer func() { _ = tx.Rollback(ctx) }()
+			// Model a later resolver snapshot returning a same-slug replacement.
+			// The isolated transaction rolls back the synthetic resolver after this assertion.
+			_, err = tx.Exec(ctx, `CREATE OR REPLACE FUNCTION authorization_facts(
+                org_slug text, user_slug text, key_slug text, lookup_kind text, resource_slug text,
+                project_slug text, environment_slug text, data_source_slug text, parent_locator text DEFAULT ''
+            ) RETURNS jsonb LANGUAGE sql VOLATILE AS $$
+                SELECT '{"valid":true,"target_id":"pipelines:0","organization_id":"1","bindings":[{"scope":"organization","scope_id":"1","permissions":["pipelines:update"]}]}'::jsonb
+            $$`)
+			require.NoError(t, err)
+			facts, err := repo.ClaimedProposalAuthorization(ctx, tx, id, request.ClaimToken)
+			require.NoError(t, err)
+			require.False(t, facts.Valid)
+			require.Empty(t, facts.Bindings)
+		})
 		_, err = pool.Exec(ctx, `UPDATE credentials SET updated_at=updated_at+interval '1 microsecond' WHERE organization_id=$1`, orgID)
 		require.NoError(t, err)
 		check(request.ClaimToken, false)

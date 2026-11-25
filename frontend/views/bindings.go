@@ -781,7 +781,7 @@ func PipelineBindingAttentionLabel(pipeline *api.Pipeline, bindingContext Pipeli
 }
 
 func (context PipelineBindingContext) canUpdateBindings(page OrganizationPermissions) bool {
-	if context.CellPermissions == nil {
+	if len(context.CellPermissions) == 0 {
 		return page.Can("datasources", "update")
 	}
 	for _, permissions := range context.CellPermissions {
