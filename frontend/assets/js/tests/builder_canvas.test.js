@@ -21,7 +21,7 @@ it("reloads published drafts only when both editors match their saved state", ()
     expect(t.canReloadPublishedDraft(true, source, "applied")).toBe(false);
     const mapping = document.createElement("div");
     mapping.id = "builder-field-mapping";
-    mapping.innerHTML = '<div data-field-mapping-draft></div>';
+    mapping.innerHTML = "<div data-field-mapping-draft></div>";
     document.body.append(mapping);
     expect(t.canReloadPublishedDraft(false, source, "applied")).toBe(false);
     mapping.remove();

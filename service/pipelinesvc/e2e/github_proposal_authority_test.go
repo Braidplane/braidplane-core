@@ -224,7 +224,8 @@ func TestManagedGitHubBackendProvisionsProposalAuthority(t *testing.T) {
 			// The isolated transaction rolls back the synthetic resolver after this assertion.
 			_, err = tx.Exec(ctx, `CREATE OR REPLACE FUNCTION authorization_facts(
                 org_slug text, user_slug text, key_slug text, lookup_kind text, resource_slug text,
-                project_slug text, environment_slug text, data_source_slug text, parent_locator text DEFAULT ''
+                project_slug text, environment_slug text, data_source_slug text, parent_locator text DEFAULT '',
+                locked_grant_ids bigint[] DEFAULT NULL, locked_permission_ids integer[] DEFAULT NULL
             ) RETURNS jsonb LANGUAGE sql VOLATILE AS $$
                 SELECT '{"valid":true,"target_id":"pipelines:0","organization_id":"1","bindings":[{"scope":"organization","scope_id":"1","permissions":["pipelines:update"]}]}'::jsonb
             $$`)
