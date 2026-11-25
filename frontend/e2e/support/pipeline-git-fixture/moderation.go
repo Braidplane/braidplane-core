@@ -38,7 +38,7 @@ func handleModerationAPI(w http.ResponseWriter, r *http.Request) bool {
 	var response any
 	switch r.URL.Path {
 	case "/api/organizations/acme/authorization/permissions":
-		response = map[string]any{"slug": "admin", "permissions": []any{map[string]string{"resource": "*", "action": "read"}}}
+		response = map[string]any{"slug": "admin", "permissions": []any{map[string]string{"resource": "pipelines", "action": "read"}}}
 	case prefix + "/environments/dev/pipeline-deployments":
 		deployments := []any{}
 		if deployed {

@@ -305,6 +305,15 @@ describe("query detail initialization", () => {
 });
 
 describe("alert policy scope forms", () => {
+    it("clears the previous project's environments before a selector refresh", () => {
+        document.body.innerHTML =
+            '<form data-alert-policy-form><input name="project_slug"><select name="environment_slug"><option selected>prod</option></select></form>';
+        window.braidplaneInitAlertPolicyForms(document);
+        document.querySelector("input").dispatchEvent(new Event("input", { bubbles: true }));
+        expect(document.querySelector("select").value).toBe("");
+        expect(document.querySelector("select").textContent).not.toContain("prod");
+    });
+
     it("DisablesInactiveProjectAndEnvironmentScopeFields", () => {
         document.body.innerHTML = `
             <form data-alert-policy-form>

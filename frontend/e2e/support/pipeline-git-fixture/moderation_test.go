@@ -55,7 +55,7 @@ func TestModerationCasesResetEvidenceAndKeepPermissionsReadOnly(t *testing.T) {
 
 			role := httptest.NewRecorder()
 			handleAPI(role, httptest.NewRequestWithContext(t.Context(), http.MethodGet, rolePath, nil))
-			require.JSONEq(t, `{"slug":"admin","permissions":[{"resource":"*","action":"read"}]}`, role.Body.String())
+			require.JSONEq(t, `{"slug":"admin","permissions":[{"resource":"pipelines","action":"read"}]}`, role.Body.String())
 			deployment := httptest.NewRecorder()
 			handleAPI(deployment, httptest.NewRequestWithContext(t.Context(), http.MethodGet, prefix+"/environments/dev/pipeline-deployments", nil))
 			want := `{"deployments":[]}`

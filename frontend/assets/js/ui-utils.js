@@ -567,6 +567,12 @@ window.braidplaneInitAlertPolicyForms = (root) => {
         if (!(form instanceof HTMLFormElement)) return;
         if (form.dataset.alertPolicyBound !== "true") {
             form.dataset.alertPolicyBound = "true";
+            form.addEventListener("input", ({ target }) => {
+                if (target.name !== "project_slug") return;
+                const environment = form.elements.namedItem("environment_slug");
+                if (environment instanceof HTMLSelectElement)
+                    environment.replaceChildren(new Option("Select environment", ""));
+            });
             form.addEventListener("change", () => {
                 braidplaneUpdateAlertPolicyScopeVisibility(form);
                 braidplaneUpdateAlertPolicyReview(form);

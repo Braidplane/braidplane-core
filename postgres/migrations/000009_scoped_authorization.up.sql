@@ -215,20 +215,21 @@ FOR EACH ROW EXECUTE FUNCTION validate_authorization_target();
 
 CREATE VIEW authorization_role_bindings AS
 SELECT organization_id, id AS member_id, NULL::bigint AS api_key_id, role_id,
-    'organization'::text AS scope, 'organizations'::text AS target_kind, organization_id::bigint AS target_id
+    'organization'::text AS scope, 'organizations'::text AS target_kind, organization_id::bigint AS target_id, NULL::bigint AS grant_id
 FROM organization_members
 UNION ALL
-SELECT organization_id, NULL::integer, id, role_id, 'organization', 'organizations', organization_id
+SELECT organization_id, NULL::integer, id, role_id, 'organization', 'organizations', organization_id, NULL::bigint
 FROM api_keys
 UNION ALL
-SELECT organization_id, member_id, api_key_id, role_id, scope, target_kind, target_id
+SELECT organization_id, member_id, api_key_id, role_id, scope, target_kind, target_id, id
 FROM authorization_scoped_grants;
 
 -- Use one statement snapshot for identity, ownership, bindings, and permissions.
 -- A selector that is ambiguous or disagrees with its parents has no result.
 CREATE FUNCTION authorization_facts(
     org_slug text, user_slug text, key_slug text, lookup_kind text, resource_slug text,
-    project_slug text, environment_slug text, data_source_slug text, parent_locator text DEFAULT ''
+    project_slug text, environment_slug text, data_source_slug text, parent_locator text DEFAULT '',
+    locked_grant_ids bigint[] DEFAULT NULL, locked_permission_ids integer[] DEFAULT NULL
 ) RETURNS jsonb LANGUAGE sql VOLATILE SET search_path = pg_catalog, public AS $$
 WITH tenant AS (
     SELECT o.id FROM public.organizations o WHERE o.slug = org_slug
@@ -327,8 +328,11 @@ WITH tenant AS (
     FROM actor a JOIN target t ON t.organization_id = a.organization_id
     JOIN public.authorization_role_bindings b ON b.organization_id = a.organization_id
         AND (b.member_id = a.member_id OR b.api_key_id = a.api_key_id)
+        AND (locked_grant_ids IS NULL OR b.grant_id IS NULL OR b.grant_id = ANY(locked_grant_ids))
     JOIN public.roles r ON (r.organization_id, r.id) = (b.organization_id, b.role_id) AND r.deleted_at IS NULL
-    JOIN public.role_permissions rp ON rp.role_id = r.id JOIN public.permissions perm ON perm.id = rp.permission_id
+    JOIN public.role_permissions rp ON rp.role_id = r.id
+        AND (locked_permission_ids IS NULL OR rp.id = ANY(locked_permission_ids))
+    JOIN public.permissions perm ON perm.id = rp.permission_id
     WHERE (b.scope = 'organization' AND b.target_id = t.organization_id)
        OR (b.scope = 'project' AND b.target_id = t.project_id)
        OR (b.scope = 'environment' AND b.target_id = t.environment_id)
@@ -399,6 +403,8 @@ DECLARE
     member_key integer;
     machine_key bigint;
     assigned_role integer;
+    locked_grants bigint[];
+    locked_permissions integer[];
     user_slug text := '';
     key_slug text := '';
     org_name text;
@@ -431,31 +437,29 @@ BEGIN
         RETURN jsonb_build_object('valid', false);
     END IF;
 
-    -- Hold every currently contributing binding and role until the outer admission commits.
-    PERFORM 1 FROM authorization_scoped_grants g WHERE g.organization_id = org_id
-        AND (g.member_id = member_key OR g.api_key_id = machine_key) ORDER BY g.id FOR SHARE;
+    -- Only rows held until commit may contribute, even if later statements see new grants.
+    locked_grants := ARRAY(SELECT g.id FROM authorization_scoped_grants g WHERE g.organization_id = org_id
+        AND (g.member_id = member_key OR g.api_key_id = machine_key) ORDER BY g.id FOR SHARE);
     PERFORM 1 FROM roles r WHERE r.organization_id = org_id AND
-        (r.id = assigned_role OR r.id IN (SELECT g.role_id FROM authorization_scoped_grants g
-            WHERE g.organization_id = org_id AND (g.member_id = member_key OR g.api_key_id = machine_key)))
+        (r.id = assigned_role OR r.id IN (SELECT g.role_id FROM authorization_scoped_grants g WHERE g.id = ANY(locked_grants)))
         ORDER BY r.id FOR SHARE;
-    PERFORM 1 FROM role_permissions rp JOIN permissions pm ON pm.id = rp.permission_id WHERE
-        rp.role_id = assigned_role OR rp.role_id IN (SELECT g.role_id FROM authorization_scoped_grants g
-            WHERE g.organization_id = org_id AND (g.member_id = member_key OR g.api_key_id = machine_key))
-        ORDER BY rp.id FOR SHARE OF rp, pm;
+    locked_permissions := ARRAY(SELECT rp.id FROM role_permissions rp JOIN permissions pm ON pm.id = rp.permission_id
+        WHERE rp.role_id = assigned_role OR rp.role_id IN (SELECT g.role_id FROM authorization_scoped_grants g WHERE g.id = ANY(locked_grants))
+        ORDER BY rp.id FOR SHARE OF rp, pm);
 
     upstream_facts := authorization_facts(org_name, user_slug, key_slug, 'pipelines',
-        configuration#>>'{completion_config,upstream_pipeline_slug}', project_name, '', '');
+        configuration#>>'{completion_config,upstream_pipeline_slug}', project_name, '', '', '', locked_grants, locked_permissions);
     downstream_facts := authorization_facts(org_name, user_slug, key_slug, 'deployed_pipelines',
-        configuration->>'pipeline_slug', project_name, environment_name, '');
+        configuration->>'pipeline_slug', project_name, environment_name, '', '', locked_grants, locked_permissions);
     IF EXISTS (SELECT 1 FROM pipeline_triggers t WHERE t.project_environment_id = env_id
         AND (t.id, t.slug, t.revision, t.pipeline_id) = ((configuration->>'id')::bigint, configuration->>'slug',
             (configuration->>'revision')::bigint, (configuration->>'pipeline_id')::bigint)) THEN
         trigger_facts := authorization_facts(org_name, user_slug, key_slug, 'pipeline_triggers',
-            configuration->>'slug', project_name, environment_name, '');
+            configuration->>'slug', project_name, environment_name, '', '', locked_grants, locked_permissions);
     ELSIF accepted THEN
         -- An accepted child survives trigger replacement, edits or deletion if its actor still has inherited authority.
         trigger_facts := authorization_facts(org_name, user_slug, key_slug, 'project_environments',
-            '', project_name, environment_name, '') - 'target_id';
+            '', project_name, environment_name, '', '', locked_grants, locked_permissions) - 'target_id';
     END IF;
     RETURN jsonb_build_object(
         'valid', COALESCE((upstream_facts->>'valid')::boolean, false),

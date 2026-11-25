@@ -290,6 +290,16 @@ VALUES (30,10,'Key','machine','synthetic','example',13);
 		return read("example", "", "machine", model.AuthorizationTarget{Kind: "environments", Slug: "prod"})
 	}
 	require.Equal(t, []model.AuthorizationBinding{envGrant}, machineEnv().Bindings)
+	for _, captured := range []struct {
+		grants      []int64
+		permissions []int32
+	}{{grants: []int64{}}, {permissions: []int32{}}} {
+		var count int
+		require.NoError(t, conn.QueryRow(ctx, `SELECT jsonb_array_length(authorization_facts(
+			'example','','machine','environments','prod','','','','',$1::bigint[],$2::integer[])->'bindings')`,
+			captured.grants, captured.permissions).Scan(&count))
+		require.Zero(t, count, "closure capture excludes bindings or permissions outside its lock set")
+	}
 	exec(`DELETE FROM authorization_scoped_grants WHERE scope='project';
 	DELETE FROM projects WHERE id=11;
 	INSERT INTO projects (id,organization_id,name,slug) VALUES (31,10,'Replacement','primary')`)

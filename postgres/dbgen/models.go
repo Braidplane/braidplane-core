@@ -206,6 +206,7 @@ type AuthorizationRoleBinding struct {
 	Scope          string
 	TargetKind     string
 	TargetID       int64
+	GrantID        pgtype.Int8
 }
 
 type AuthorizationScopedGrant struct {
