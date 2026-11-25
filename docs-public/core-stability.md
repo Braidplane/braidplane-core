@@ -12,7 +12,7 @@ non-prerelease for the promoted build. [v0.2.0 release notes](https://github.com
 | Surface | Coverage and limits |
 |---|---|
 | Application, CLI and API | The released commit passed Go and CLI tests, Playwright journeys for Git import, binding, deployment and run inspection, Bruno API checks, fixture-backed integration tests and container builds. [CI results](https://github.com/Braidplane/braidplane-core/actions/runs/44733158740) · [Checks for this tag](https://github.com/Braidplane/braidplane-core/blob/v0.2.0/doc/QUALITY_GATES.md) |
-| Connectors | Preview operations are suitable for bounded evaluations. Check the read or write operation and authentication method you need. Stripe is read-only. FTP is experimental and needs provider verification for explicit FTPS. No connector has production-ready status in this release. [v0.2.0 operation and evidence matrix](https://github.com/Braidplane/braidplane-core/blob/v0.2.0/docs-public/connectors/support-levels.md) |
+| Connectors | The release matrix lists preview and experimental operations. Look up the read or write operation and authentication method your pipeline needs, then check its limits and provider test results. No connector has production-ready status in this release. [v0.2.0 operation and evidence matrix](https://github.com/Braidplane/braidplane-core/blob/v0.2.0/docs-public/connectors/support-levels.md) |
 | Upgrades | Keep the application and CLI on the same release. During Alpha, minor versions may break APIs, generated clients or CLI behavior without a deprecation period. For example, v0.2.0 changes how HubSpot keyed upserts handle null and blank properties. Check the release notes and test clients against the target schema. [Tagged compatibility policy](https://github.com/Braidplane/braidplane-core/blob/v0.2.0/docs-public/api/alpha.md) |
 | Database recovery | Migrations run forward. Back up the database and its encryption keys before upgrading. After a failed upgrade, keep applications stopped and restore the matching database and keys into isolated storage. Reconcile external writes before resuming service. Service-resumption tooling still needs qualification. [Tagged recovery guide](https://github.com/Braidplane/braidplane-core/blob/v0.2.0/scripts/installation/RECOVERY.md) |
 
@@ -38,25 +38,24 @@ S3 fixture. Other destinations need evidence for their own write semantics.
 [Sink outcomes and recovery limits](https://github.com/Braidplane/braidplane-core/blob/v0.2.0/doc/PIPELINE_SINK_RECOVERY.md)
 · [Worker-loss rehearsal](https://github.com/Braidplane/braidplane-core/blob/v0.2.0/doc/PIPELINE_WORKER_RECOVERY.md#bounded-synthetic-qualification)
 
-## When is a data source ready?
+## How to evaluate a connector operation
 
-Qualify the **operation and authentication mode** you intend to deploy. A
-successful connection test is the first step. Use the release's
+Choose a read or write operation and the authentication method your pipeline
+will use. After testing the connection, verify that the operation handles the
+expected data and that you can account for the result after a failure. Use the release's
 [connector evidence record](https://github.com/Braidplane/braidplane-core/blob/v0.2.0/docs-public/connectors/support-levels.md#evidence-record)
 to see which checks have fixture coverage, historical provider evidence or
 current live verification.
 
-| Scope | Evidence needed to call it complete |
+| Scope | What to verify |
 |---|---|
 | Read | Fetch known records across a page or batch boundary. Verify keys, counts and schema at the destination. For incremental modes, interrupt and resume across a checkpoint and document how late updates and deletes are handled. |
 | Write and recovery | Verify the expected provider state after a successful write, rejection before dispatch and loss of acknowledgement. Show which writes can be confirmed, safely retried or must remain blocked. Record how an operator reconciles an uncertain outcome. |
 | Credentials and provider limits | Exercise the claimed authentication mode through expiry or revocation and repair. Verify the effect of throttling, timeouts and configured size limits on completeness. |
 
 Record the release, provider version, environment, operation, date, observed
-result and remaining limits. Mark inapplicable cases explicitly. For example,
-Stripe in v0.2.0 needs read and pagination evidence; its read-only scope has
-no sink to recover. The tagged matrix records fixture coverage and pending
-live Stripe acceptance.
+result and remaining limits. Mark checks outside the claimed scope as inapplicable.
+For a read-only operation, for example, verify read completeness and omit sink recovery.
 
 ## Criteria for v1.0
 
