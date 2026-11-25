@@ -15,6 +15,7 @@ import (
 
 	"github.com/gofiber/fiber/v3"
 	"github.com/gofiber/fiber/v3/middleware/session"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
 	api "github.com/Braidplane/braidplane-core/api-schema/gen/client"
@@ -234,8 +235,14 @@ func runBindingActionSubmitCase(t *testing.T, tt bindingActionSubmitCase) {
 	t.Helper()
 
 	var captured bindingAPIRequest
+	var projectPermissionChecked atomic.Bool
 	apiServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
+		if tt.reloadProject && strings.HasSuffix(r.URL.Path, "/authorization/permissions") && r.URL.Query().Get("target_kind") == "projects" {
+			assert.Equal(t, "default", r.URL.Query().Get("target_slug"))
+			assert.Empty(t, r.URL.Query().Get("environment_slug"))
+			projectPermissionChecked.Store(true)
+		}
 		if handleTestAdminRolePermissions(w, r) {
 			return
 		}
@@ -282,6 +289,9 @@ func runBindingActionSubmitCase(t *testing.T, tt bindingActionSubmitCase) {
 	body, err := io.ReadAll(resp.Body)
 	require.NoError(t, err)
 
+	if tt.reloadProject {
+		require.True(t, projectPermissionChecked.Load())
+	}
 	require.Equal(t, tt.wantStatus, resp.StatusCode)
 	for name, value := range tt.wantHeaders {
 		require.Equal(t, value, resp.Header.Get(name))

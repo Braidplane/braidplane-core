@@ -1210,7 +1210,7 @@ func (q *Queries) BindProjectGitHubProposalAuthority(ctx context.Context, arg Bi
 const bindProposalExecutionTarget = `-- name: BindProposalExecutionTarget :execrows
 INSERT INTO execution_proposal_targets (request_id, member_id, project_id, pipeline_id, pipeline_slug, attempt_id, authority_id, provider_digest)
 SELECT req.id, m.id, a.project_id, CASE WHEN req.kind = 'git_scoped_proposal' THEN s.id ELSE NULL END,
-    $1::text, $2::text, a.id, sha256(convert_to(to_jsonb(a)::text, 'UTF8'))
+    $1::text, $2::text, a.id, proposal_authority_digest(a)
 FROM execution_requests req
 JOIN organization_members m ON (m.organization_id,m.user_id) = (req.organization_id,req.initiating_user_id)
 JOIN active_pipeline_proposal_authorities a ON a.organization_id = req.organization_id AND a.id = $3::bigint

@@ -201,7 +201,7 @@ func (r *Router) handlePipelineDeploy(c fiber.Ctx) error {
 		case status == http.StatusUnauthorized:
 			return redirectToLogin(c, c.OriginalURL())
 		case status != http.StatusNotFound:
-			data.Error = pipelineActionError(apiError, "Current deployment is unavailable. Refresh before deploying.")
+			data.CurrentDeploymentError = pipelineActionError(apiError, "Current deployment is unavailable. Refresh before deploying.")
 		}
 	}
 	if data.TargetEnabled {
@@ -211,7 +211,7 @@ func (r *Router) handlePipelineDeploy(c fiber.Ctx) error {
 		}
 		deployPermissions := organizationPermissions(r.effectivePermissions(ctx, cookie, data.Org, &target))
 		canDeploy := deployPermissions.Can("pipelines", "update")
-		data.CanDeploy = canDeploy && data.Error == ""
+		data.CanDeploy = canDeploy && data.CurrentDeploymentError == ""
 		if c.Method() == http.MethodPost && c.FormValue("action") != "compile" {
 			updateDenied = !canDeploy
 		}

@@ -116,6 +116,11 @@ FROM drift_impact_reports r
 JOIN pipeline_specs s ON s.id = r.pipeline_spec_id
 JOIN projects p ON p.id = s.project_id
 UNION ALL
+SELECT 'drift_impact_reports', r.id, r.slug, d.organization_id, NULL, NULL, d.id, '', '',
+    ARRAY['datasources:' || d.id]
+FROM drift_impact_reports r
+JOIN data_sources d ON d.id = r.data_source_id
+UNION ALL
 SELECT 'pipeline_triggers'::text, r.id::bigint, r.slug::text, pe.organization_id, pe.project_id, pe.environment_id, NULL::bigint, ''::text,
     ''::text, ARRAY['pipelines:' || r.pipeline_id]
 FROM pipeline_triggers r
@@ -213,7 +218,7 @@ FROM authorization_scoped_grants;
 CREATE FUNCTION authorization_facts(
     org_slug text, user_slug text, key_slug text, lookup_kind text, resource_slug text,
     project_slug text, environment_slug text, data_source_slug text, parent_locator text DEFAULT ''
-) RETURNS jsonb LANGUAGE sql STABLE SET search_path = pg_catalog, public AS $$
+) RETURNS jsonb LANGUAGE sql VOLATILE SET search_path = pg_catalog, public AS $$
 WITH tenant AS (
     SELECT o.id FROM public.organizations o WHERE o.slug = org_slug
 ), actor AS (
@@ -225,7 +230,7 @@ WITH tenant AS (
     SELECT k.organization_id, NULL::integer, k.id, k.role_id, k.can_manage_api_keys
     FROM public.api_keys k JOIN tenant t ON t.id = k.organization_id
     WHERE user_slug = '' AND k.slug = key_slug
-      AND k.revoked_at IS NULL AND (k.expires_at IS NULL OR k.expires_at > statement_timestamp())
+      AND k.revoked_at IS NULL AND (k.expires_at IS NULL OR k.expires_at > clock_timestamp())
 ), selector AS (
     SELECT CASE lookup_kind WHEN '' THEN 'organizations' WHEN 'deleted_roles' THEN 'roles'
         WHEN 'environment_secrets_upsert' THEN 'environment_secrets'
@@ -251,7 +256,16 @@ WITH tenant AS (
           WHEN lookup_kind = '' AND resource_slug = '' THEN org_slug
           WHEN lookup_kind = 'project_environments' AND resource_slug = '' THEN environment_slug
           ELSE resource_slug END
-      AND (project_slug = '' OR p.slug = project_slug)
+      AND CASE WHEN t.kind = 'drift_impact_reports' AND t.data_source_id IS NOT NULL THEN
+          -- A binding makes the report visible on this route. The source remains its only owner.
+          EXISTS (SELECT 1 FROM public.data_source_bindings b
+              JOIN public.project_environments pe ON (pe.organization_id, pe.project_id, pe.id) =
+                  (b.organization_id, b.project_id, b.project_environment_id)
+              JOIN public.environments be ON (be.organization_id, be.id) = (pe.organization_id, pe.environment_id)
+              JOIN public.projects bp ON (bp.organization_id, bp.id) = (pe.organization_id, pe.project_id)
+              WHERE b.organization_id = o.id AND b.data_source_id = t.data_source_id AND bp.slug = project_slug
+                AND pe.deleted_at IS NULL AND be.deleted_at IS NULL)
+          ELSE project_slug = '' OR p.slug = project_slug END
       AND (environment_slug = '' OR e.slug = environment_slug)
       AND (data_source_slug = '' OR d.slug = data_source_slug)
       AND (lookup_kind <> 'project_environments' OR (project_slug <> '' AND environment_slug <> ''))
@@ -598,6 +612,12 @@ WHERE ds.deleted_at IS NULL
         )
     );
 
+-- Hash both timestamp revisions in UTC even when the control and executor sessions use different zones.
+CREATE FUNCTION proposal_authority_digest(authority active_pipeline_proposal_authorities) RETURNS bytea
+LANGUAGE sql STABLE SET TimeZone = 'UTC' AS $$
+    SELECT sha256(convert_to(to_jsonb(authority)::text, 'UTF8'));
+$$;
+
 CREATE TABLE execution_proposal_targets (
     request_id uuid PRIMARY KEY REFERENCES execution_requests(id) ON DELETE CASCADE,
     member_id integer NOT NULL,
@@ -622,7 +642,7 @@ WITH allowed_target AS (
         (req.organization_id, b.project_id, b.authority_id)
     WHERE req.id = $1 AND req.claim_token = $2 AND req.state = 'running'
         AND req.cancel_requested_at IS NULL AND req.deadline_at > clock_timestamp() AND req.lease_expires_at > clock_timestamp()
-        AND b.provider_digest = sha256(convert_to(to_jsonb(a)::text, 'UTF8'))
+        AND b.provider_digest = public.proposal_authority_digest(a)
         AND ((req.kind = 'git_scoped_proposal' AND EXISTS (
             SELECT 1 FROM public.pipeline_specs s JOIN public.pipeline_drafts d
                 ON (d.project_id, d.pipeline_slug) = (s.project_id, s.slug)

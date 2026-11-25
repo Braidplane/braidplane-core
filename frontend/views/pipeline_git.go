@@ -63,6 +63,7 @@ type PipelineDeployView struct {
 	ProjectionJSON                      string
 	ResourceScopesJSON                  string
 	InvalidCompileField                 string
+	CurrentDeploymentError              string
 	ExpectedRevision                    int64
 	Org, Project, Pipeline, Environment string
 	Version                             *api.PipelineVersion

@@ -630,7 +630,6 @@ func (r *Router) renderAlertsPageWithEditOverrides(
 				c.Context(),
 				c.Get(fiber.HeaderCookie),
 				orgSlug.String(),
-				&api.ListAlertDestinationsParams{},
 			)
 		}
 	}
@@ -1198,27 +1197,29 @@ func (r *Router) listAlertDestinationsViaAPI(
 	ctx context.Context,
 	cookieHeader string,
 	organizationSlug string,
-	params *api.ListAlertDestinationsParams,
 ) ([]api.AlertDestination, int, *api.ErrorResponse, error) {
-	resp, err := r.apiClient.ListAlertDestinationsWithResponse(
-		ctx,
-		organizationSlug,
-		params,
-		frontendRequestEditor(ctx, cookieHeader),
-	)
-	if err != nil {
-		return nil, http.StatusInternalServerError, nil, xerror.Unexpected().With(err)
+	params := api.ListAlertDestinationsParams{Limit: new(api.LimitParam(100))}
+	destinations := []api.AlertDestination{}
+	seenCursors := map[string]bool{}
+	for {
+		resp, err := r.apiClient.ListAlertDestinationsWithResponse(ctx, organizationSlug, &params, frontendRequestEditor(ctx, cookieHeader))
+		if err != nil {
+			return nil, http.StatusInternalServerError, nil, xerror.Unexpected().With(err)
+		}
+		if resp.StatusCode() != http.StatusOK || resp.JSON200 == nil {
+			return nil, resp.StatusCode(), parseAPIErrorResponse(resp.Body), xerror.Unexpected().Detailf("list alert destinations api returned status %d", resp.StatusCode())
+		}
+		page := resp.JSON200
+		destinations = append(destinations, page.AlertDestinations...)
+		if !page.HasMore {
+			return destinations, http.StatusOK, nil, nil
+		}
+		if page.NextCursor == nil || *page.NextCursor == "" || seenCursors[*page.NextCursor] {
+			return nil, http.StatusBadGateway, nil, xerror.Unexpected().Detail("alert destination pagination did not advance")
+		}
+		seenCursors[*page.NextCursor] = true
+		params.Cursor = page.NextCursor
 	}
-
-	if resp.StatusCode() == http.StatusOK && resp.JSON200 != nil {
-		return resp.JSON200.AlertDestinations, http.StatusOK, nil, nil
-	}
-
-	errResp := parseAPIErrorResponse(resp.Body)
-	return nil, resp.StatusCode(), errResp, xerror.Unexpected().Detailf(
-		"list alert destinations api returned status %d",
-		resp.StatusCode(),
-	)
 }
 
 // createAlertDestinationViaAPI creates an alert destination through the backend API client.

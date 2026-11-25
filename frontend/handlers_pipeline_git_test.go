@@ -19,7 +19,7 @@ import (
 
 func TestPipelineGitWorkflow(t *testing.T) {
 	t.Parallel()
-	for _, scenario := range []string{"preview", "apply", "stale", "missing preview", "changed directory", "selected pipeline sync denied", "deploy", "environment deploy only", "protected", "bindings", "deployment conflict", "disabled target", "unauthorized", "cross tenant", "csrf", "pipeline named sync", "compile projection", "invalid projection", "compile scopes", "invalid scopes", "deploy denied", "compile denied", "backend compile denied"} {
+	for _, scenario := range []string{"preview", "apply", "stale", "missing preview", "changed directory", "selected pipeline sync denied", "deploy", "environment deploy only", "protected", "bindings", "deployment conflict", "disabled target", "unauthorized", "cross tenant", "csrf", "pipeline named sync", "compile projection", "compile without deployment read", "invalid projection", "compile scopes", "invalid scopes", "deploy denied", "compile denied", "backend compile denied"} {
 		t.Run(scenario, func(t *testing.T) {
 			t.Parallel()
 			updateDenied := scenario == "deploy denied" || scenario == "compile denied"
@@ -126,6 +126,11 @@ func TestPipelineGitWorkflow(t *testing.T) {
 					})
 				case strings.HasSuffix(path, "/pipelines/daily-sync/deployment") || strings.HasSuffix(path, "/pipelines/daily-sync:deploy"):
 					if req.Method == http.MethodGet {
+						if scenario == "compile without deployment read" {
+							w.WriteHeader(http.StatusForbidden)
+							writeJSON(w, `{"error":{"code":"AUTH_FORBIDDEN","message":"Current deployment access denied."}}`)
+							return
+						}
 						_, _ = w.Write([]byte(`{"pipeline_slug":"daily-sync","environment_slug":"dev","current_version_spec_hash":"old-version","revision":7}`))
 						return
 					}
@@ -182,10 +187,10 @@ func TestPipelineGitWorkflow(t *testing.T) {
 				form.Set("pipeline_dir", "previous-directory")
 			case "cross tenant":
 				path = "/orgs/other/projects/default/pipeline-sync"
-			case "deploy", "environment deploy only", "protected", "bindings", "deployment conflict", "disabled target", "compile projection", "invalid projection", "compile scopes", "invalid scopes", "deploy denied", "compile denied", "backend compile denied":
+			case "deploy", "environment deploy only", "protected", "bindings", "deployment conflict", "disabled target", "compile projection", "compile without deployment read", "invalid projection", "compile scopes", "invalid scopes", "deploy denied", "compile denied", "backend compile denied":
 				path = "/orgs/acme-hq/projects/default/pipelines/daily-sync/deploy"
 				form = url.Values{"spec_hash": {"exact-version"}, "environment_slug": {"dev"}, "expected_current_spec_hash": {"old-version"}, "expected_revision": {"7"}, "protected_environment_confirmation": {"dev"}}
-				if scenario == "compile projection" || scenario == "invalid projection" || scenario == "compile scopes" || scenario == "invalid scopes" {
+				if scenario == "compile projection" || scenario == "compile without deployment read" || scenario == "invalid projection" || scenario == "compile scopes" || scenario == "invalid scopes" {
 					form.Set("action", "compile")
 					form.Set("projection", `{"inputs":[{"contract_slug":"orders","revision_slug":"v1","schema_object_id":"row","digest":"sha256:exact","mapping":{"id":"mapping/v1","representation":"json","root_shape":"object","types":["object","integer","instant","vector","number"]}}]}`)
 					if scenario == "compile scopes" {
@@ -250,6 +255,11 @@ func TestPipelineGitWorkflow(t *testing.T) {
 				require.NotContains(t, html, ">Compile selected version</button>")
 				require.NotContains(t, html, "Confirm protected environment")
 				require.Zero(t, calls)
+			case "compile without deployment read":
+				require.Equal(t, 1, calls)
+				require.Contains(t, html, "sha256:retained")
+				require.Contains(t, html, "Current deployment access denied.")
+				require.NotContains(t, html, ">Deploy to dev</button>")
 			case "compile projection", "compile scopes":
 				require.Equal(t, 1, calls)
 				require.Contains(t, html, "sha256:retained")

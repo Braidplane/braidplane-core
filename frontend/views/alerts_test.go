@@ -172,3 +172,14 @@ func TestFailedAlertDestinationEditIsExpanded(t *testing.T) {
 	require.Contains(t, out.String(), `aria-controls="`+AlertDestinationEditPanelID(destination)+`" aria-expanded="true"`)
 	require.Contains(t, out.String(), "Save failed.")
 }
+
+func TestPolicyCannotDropAnUnavailableBoundDestination(t *testing.T) {
+	policy := api.AlertPolicy{Slug: "policy", DestinationSlugs: []api.Slug{"available", "missing"}}
+	destinations := []api.AlertDestination{{Slug: "available"}}
+	var out bytes.Buffer
+	permissions := NewOrganizationPermissions("alert_policies:update")
+	require.NoError(t, AlertPolicyList("acme", destinations, []api.AlertPolicy{policy}, AlertEditFormOverrides{}, permissions, permissions).Render(t.Context(), &out))
+	require.Contains(t, out.String(), "Saving requires read access to every bound destination.")
+	require.Contains(t, out.String(), "disabled>Save policy</button>")
+	require.NotContains(t, out.String(), `data-dirty-form="alert-policy-policy-update"`)
+}

@@ -211,6 +211,10 @@ VALUES (30,10,'Key','machine','synthetic','example',13);
 	newBinding := read("example", "member", "", binding)
 	require.True(t, newBinding.Valid)
 	require.Contains(t, newBinding.AncestorIDs, rebuiltPipeline.TargetID)
+	exec(`INSERT INTO drift_impact_reports (data_source_id,slug,report_type)
+		SELECT id,'source-report','source_drift' FROM data_sources WHERE slug='shared'`)
+	report := model.AuthorizationTarget{Kind: "drift_impact_reports", Slug: "source-report", ProjectSlug: "primary"}
+	require.False(t, read("example", "member", "", report).Valid)
 	exec(`INSERT INTO data_source_bindings (organization_id,project_id,project_environment_id,pipeline_spec_id,data_source_ref_id,data_source_id)
 		SELECT 10,11,pe.id,r.pipeline_spec_id,r.id,d.id FROM data_source_refs r, project_environments pe, data_sources d
 		WHERE r.slug='input' AND pe.project_id=11 AND d.slug='shared'`)
@@ -221,6 +225,16 @@ VALUES (30,10,'Key','machine','synthetic','example',13);
 	require.Contains(t, storedBinding.Bindings, model.AuthorizationBinding{Scope: "resource", ScopeID: newBinding.TargetID, Permissions: []string{"projects:read"}})
 	source.ProjectSlug = ""
 	require.Equal(t, []model.AuthorizationBinding{broad}, read("example", "member", "", source).Bindings)
+	sourceFacts := read("example", "member", "", source)
+	reportFacts := read("example", "member", "", report)
+	require.True(t, reportFacts.Valid)
+	require.Empty(t, reportFacts.ProjectID)
+	require.Empty(t, reportFacts.EnvironmentID)
+	require.Equal(t, []string{sourceFacts.TargetID}, reportFacts.AncestorIDs)
+	require.Equal(t, []model.AuthorizationBinding{broad}, reportFacts.Bindings)
+	exec("UPDATE project_environments SET deleted_at=now() WHERE project_id=11")
+	require.False(t, read("example", "member", "", report).Valid)
+	exec("UPDATE project_environments SET deleted_at=NULL WHERE project_id=11")
 	binding.ParentSlug = "other"
 	require.False(t, read("example", "member", "", binding).Valid)
 	// Lookup keys never carry authority beyond a purged object's ID.
@@ -288,7 +302,13 @@ VALUES (30,10,'Key','machine','synthetic','example',13);
 	require.Equal(t, []model.AuthorizationBinding{envGrant}, machineEnv().Bindings)
 	exec("UPDATE roles SET deleted_at=now() WHERE id=14")
 	require.Empty(t, machineEnv().Bindings)
-	exec("UPDATE api_keys SET expires_at=now() WHERE id=30")
+	// The key can expire after the admission statement starts, while a worker waits for locks.
+	exec(`DO $$ BEGIN
+		UPDATE api_keys SET expires_at=clock_timestamp() WHERE id=30;
+		IF COALESCE((authorization_facts('example','','machine','environments','prod','','','')->>'valid')::boolean, false) THEN
+			RAISE EXCEPTION 'expired key authorized after statement start';
+		END IF;
+	END $$`)
 	require.False(t, machineEnv().Valid)
 	exec("UPDATE api_keys SET expires_at=NULL WHERE id=30")
 	require.True(t, machineEnv().Valid)

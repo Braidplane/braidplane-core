@@ -132,6 +132,8 @@ func TestRouter_HandleAlertsPage_RendersAlertPolicyTab(t *testing.T) {
 	require.Contains(t, html, `action="/orgs/acme-hq/alerts/policies"`)
 	require.Contains(t, html, `name="destination_slug"`)
 	require.Contains(t, html, `value="ops-email"`)
+	editForm := htmlAfterMarker(t, html, `data-dirty-form="alert-policy-critical-pipeline-failures-update"`)
+	require.Regexp(t, `name="destination_slug" value="data-team-email"[^>]* checked`, editForm)
 	require.Contains(t, html, `data-confirm-slug="critical-pipeline-failures"`)
 	require.NotContains(t, html, "Alert destinations")
 	require.NotContains(t, html, `action="/orgs/acme-hq/alerts/destinations"`)
@@ -412,6 +414,7 @@ func TestRouter_HandleAlertsPage_DisablesPolicyUpdateWhenNoDestinationsExist(t *
 	require.Contains(t, html, `href="/orgs/acme-hq/alerts?tab=destinations"`)
 	require.NotContains(t, html, `data-dirty-form="alert-policy-critical-pipeline-failures-update"`)
 	require.Contains(t, html, `disabled>Save policy</button>`)
+	require.Contains(t, html, "Saving requires read access to every bound destination.")
 }
 
 func TestRouter_HandleCreateAlertDestinationSubmit_CreatesDestination(t *testing.T) {
@@ -1130,10 +1133,11 @@ func handleAlertsCommonTestAPI(w http.ResponseWriter, r *http.Request, currentRo
 		)
 		return true
 	case r.Method == http.MethodGet && r.URL.Path == "/api/organizations/acme-hq/alert-destinations":
-		writeJSON(
-			w,
-			`{"alert_destinations":[{"slug":"ops-email","name":"Ops email","type":"email","non_secret_config":{"recipients":["ops@example.com"]},"enabled":true,"created_at":"2026-06-30T10:00:00Z","updated_at":"2026-06-30T10:00:00Z"},{"slug":"data-team-email","name":"Data team email","type":"email","non_secret_config":{"recipients":["data@example.com"]},"enabled":false,"created_at":"2026-06-30T10:10:00Z","updated_at":"2026-06-30T10:10:00Z"}],"has_more":false,"next_cursor":null,"prev_cursor":null}`,
-		)
+		if r.URL.Query().Get("cursor") == "destinations-2" {
+			writeJSON(w, `{"alert_destinations":[{"slug":"data-team-email","name":"Data team email","type":"email","non_secret_config":{"recipients":["data@example.com"]},"enabled":false,"created_at":"2026-06-30T10:10:00Z","updated_at":"2026-06-30T10:10:00Z"}],"has_more":false}`)
+		} else {
+			writeJSON(w, `{"alert_destinations":[{"slug":"ops-email","name":"Ops email","type":"email","non_secret_config":{"recipients":["ops@example.com"]},"enabled":true,"created_at":"2026-06-30T10:00:00Z","updated_at":"2026-06-30T10:00:00Z"}],"has_more":true,"next_cursor":"destinations-2"}`)
+		}
 		return true
 	case r.Method == http.MethodGet && r.URL.Path == "/api/organizations/acme-hq/alert-policies":
 		writeJSON(

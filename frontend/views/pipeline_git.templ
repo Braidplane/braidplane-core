@@ -197,7 +197,9 @@ templ pipelineDeployContent(data PipelineDeployView) {
 					if data.RollbackSelectionCleared {
 						<p class="text-sm text-base-content/70" id="pipeline-rollback-target-change">The previous rollback selection belongs to another environment. Review a rollback resolution for this target.</p>
 					}
-					if data.Current != nil {
+					if data.CurrentDeploymentError != "" {
+						<p class="text-sm" role="status">{ data.CurrentDeploymentError }</p>
+					} else if data.Current != nil {
 						<p class="break-all text-sm">Currently deployed: <span class="font-mono">{ data.Current.CurrentVersionSpecHash }</span></p>
 						if ptr.Value(data.Current.PreviousVersionSpecHash) != "" && ptr.Value(data.Current.PreviousResolutionDigest) != "" && data.ResolutionDigest != ptr.Value(data.Current.PreviousResolutionDigest) {
 							<a class="btn btn-outline btn-sm" href={ templ.URL(pipelineDeploySelectionHref(data.Org, data.Project, data.Environment, data.Pipeline, ptr.Value(data.Current.PreviousVersionSpecHash), "", ptr.Value(data.Current.PreviousResolutionDigest))) }>Review previous resolution for rollback</a>

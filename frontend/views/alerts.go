@@ -976,6 +976,22 @@ func alertNullableString(value *string) string {
 	return strings.TrimSpace(*value)
 }
 
+func canEditPolicyDestinations(policy api.AlertPolicy, destinations []api.AlertDestination) bool {
+	if len(destinations) == 0 {
+		return false
+	}
+	available := make(map[string]bool, len(destinations))
+	for _, destination := range destinations {
+		available[destination.Slug] = true
+	}
+	for _, bound := range policy.DestinationSlugs {
+		if !available[bound] {
+			return false
+		}
+	}
+	return true
+}
+
 // AlertPolicyHasDestination reports whether a policy is bound to a destination.
 func AlertPolicyHasDestination(policyForm AlertPolicyFormData, destinationSlug api.Slug) bool {
 	for _, value := range policyForm.DestinationSlugs {

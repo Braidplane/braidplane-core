@@ -633,7 +633,7 @@ func (r *Router) renderOrganizationProjectFullPage(
 	if unauthorized {
 		return redirectToLogin(c, c.OriginalURL())
 	}
-	permissions := r.resolvePagePermissions(c, orgSlug.String())
+	permissions := r.targetPermissions(c, orgSlug.String(), api.GetEffectivePermissionsParams{TargetKind: new("projects"), TargetSlug: new(projectSlug.String())})
 
 	if r.workspaceNavigation != nil {
 		projectContext.OverviewAction = r.workspaceNavigation.ProjectOverviewAction(c, routerManagedHost{router: r}, orgSlug, projectSlug)

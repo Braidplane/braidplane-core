@@ -418,8 +418,12 @@ templ AlertPolicyList(orgSlug string, destinations []api.AlertDestination, polic
 						</div>
 						if policyPermissions.Can("alert_policies", "update") {
 							{{ form := editFormOverrides.PolicyFormDataFor(policy) }}
+							{{ destinationsAvailable := canEditPolicyDestinations(policy, destinations) }}
 							{{ form.NotificationReturn = editFormOverrides.NotificationReturn }}
 							<div id={ AlertPolicyEditPanelID(policy) } class={ "rounded-lg border border-base-300 bg-base-200/35 p-3 lg:col-span-5", templ.KV("hidden", editFormOverrides.PolicySlug != policy.Slug) }>
+								if !destinationsAvailable {
+									<p class="text-sm">Saving requires read access to every bound destination. Check destination access and refresh to edit this policy.</p>
+								}
 								@AlertPolicyForm(
 									orgSlug,
 									"Save policy",
@@ -427,7 +431,7 @@ templ AlertPolicyList(orgSlug string, destinations []api.AlertDestination, polic
 									form,
 									destinations,
 									true,
-									len(destinations) == 0,
+									!destinationsAvailable,
 									"alert-policy-"+string(policy.Slug)+"-update",
 								)
 							</div>
