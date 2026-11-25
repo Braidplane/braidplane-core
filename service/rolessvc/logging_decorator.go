@@ -58,6 +58,35 @@ func (_d ServiceWithLogging) CreateDefaultRoles(ctx context.Context, orgSlug slu
 	return
 }
 
+// CreateRoleGrant implements Service.
+func (_d ServiceWithLogging) CreateRoleGrant(ctx context.Context, orgSlug slug.Slug, actor model.EventActor, grant model.NewRoleGrant) (rp1 *model.RoleGrant, err error) {
+	_startedAt := time.Now()
+	_ctx := ctx
+	_ctx, _span := tracing.StartMethodSpan(_ctx, tracing.MethodSpan{
+		Layer:     "service",
+		Package:   "service/rolessvc",
+		Interface: "Service",
+		Method:    "CreateRoleGrant",
+	})
+	defer _span.End()
+	defer func() {
+		if err != nil {
+			tracing.RecordError(_span, err)
+		}
+		logging.LogMethodCompletion(_ctx, _d._logger, logging.MethodCompletion{
+			Layer:       "service",
+			Package:     "service/rolessvc",
+			Interface:   "Service",
+			Method:      "CreateRoleGrant",
+			StartedAt:   _startedAt,
+			CompletedAt: time.Now(),
+			Err:         err,
+		})
+	}()
+	rp1, err = _d._base.CreateRoleGrant(_ctx, orgSlug, actor, grant)
+	return
+}
+
 // CreateRoleWithPermissions implements Service.
 func (_d ServiceWithLogging) CreateRoleWithPermissions(ctx context.Context, orgSlug slug.Slug, actor model.EventActor, newRole model.NewRole, permissions []model.RolePermission) (op1 *model.OrgRole, err error) {
 	_startedAt := time.Now()
@@ -174,6 +203,35 @@ func (_d ServiceWithLogging) GetUserPermissionsInOrg(ctx context.Context, orgSlu
 	return
 }
 
+// ListRoleGrants implements Service.
+func (_d ServiceWithLogging) ListRoleGrants(ctx context.Context, orgSlug slug.Slug) (ra1 []model.RoleGrant, err error) {
+	_startedAt := time.Now()
+	_ctx := ctx
+	_ctx, _span := tracing.StartMethodSpan(_ctx, tracing.MethodSpan{
+		Layer:     "service",
+		Package:   "service/rolessvc",
+		Interface: "Service",
+		Method:    "ListRoleGrants",
+	})
+	defer _span.End()
+	defer func() {
+		if err != nil {
+			tracing.RecordError(_span, err)
+		}
+		logging.LogMethodCompletion(_ctx, _d._logger, logging.MethodCompletion{
+			Layer:       "service",
+			Package:     "service/rolessvc",
+			Interface:   "Service",
+			Method:      "ListRoleGrants",
+			StartedAt:   _startedAt,
+			CompletedAt: time.Now(),
+			Err:         err,
+		})
+	}()
+	ra1, err = _d._base.ListRoleGrants(_ctx, orgSlug)
+	return
+}
+
 // ListRolePermissions implements Service.
 func (_d ServiceWithLogging) ListRolePermissions(ctx context.Context, orgSlug slug.Slug, roleSlug slug.Slug) (ra1 []model.RolePermission, err error) {
 	_startedAt := time.Now()
@@ -258,6 +316,35 @@ func (_d ServiceWithLogging) RestoreRole(ctx context.Context, orgSlug slug.Slug,
 		})
 	}()
 	err = _d._base.RestoreRole(_ctx, orgSlug, roleSlug, actor)
+	return
+}
+
+// RevokeRoleGrant implements Service.
+func (_d ServiceWithLogging) RevokeRoleGrant(ctx context.Context, orgSlug slug.Slug, grantSlug slug.Slug, actor model.EventActor) (err error) {
+	_startedAt := time.Now()
+	_ctx := ctx
+	_ctx, _span := tracing.StartMethodSpan(_ctx, tracing.MethodSpan{
+		Layer:     "service",
+		Package:   "service/rolessvc",
+		Interface: "Service",
+		Method:    "RevokeRoleGrant",
+	})
+	defer _span.End()
+	defer func() {
+		if err != nil {
+			tracing.RecordError(_span, err)
+		}
+		logging.LogMethodCompletion(_ctx, _d._logger, logging.MethodCompletion{
+			Layer:       "service",
+			Package:     "service/rolessvc",
+			Interface:   "Service",
+			Method:      "RevokeRoleGrant",
+			StartedAt:   _startedAt,
+			CompletedAt: time.Now(),
+			Err:         err,
+		})
+	}()
+	err = _d._base.RevokeRoleGrant(_ctx, orgSlug, grantSlug, actor)
 	return
 }
 

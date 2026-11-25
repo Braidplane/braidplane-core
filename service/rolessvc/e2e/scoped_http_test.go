@@ -52,9 +52,41 @@ INSERT INTO role_permissions(role_id,permission_id) VALUES (202,301);
 INSERT INTO users(id,slug,email,role,verified_at) VALUES(401,'member','member@example.test','user',now());
 INSERT INTO organization_members(id,organization_id,user_id,role_id) VALUES(501,101,401,201);
 INSERT INTO api_keys(id,organization_id,name,slug,token_hash,token_prefix,role_id) VALUES
- (601,101,'Machine','machine','synthetic-hash','synthetic',201);
-INSERT INTO authorization_scoped_grants(organization_id,member_id,api_key_id,role_id,scope,target_kind,target_id) VALUES
- (101,501,NULL,202,'resource','roles',203),(101,NULL,601,202,'resource','roles',203);`)
+ (601,101,'Machine','machine','synthetic-hash','synthetic',201);`)
+	svc := newRoleArchivalService(pool)
+	actor := model.UserEventActor("member")
+	grant := model.NewRoleGrant{SubjectKind: "member", SubjectSlug: "member", RoleSlug: "reader", Scope: "resource", Target: model.AuthorizationTarget{Kind: "roles", Slug: "target"}}
+	memberGrant, err := svc.CreateRoleGrant(ctx, "tenant", actor, grant)
+	require.NoError(t, err)
+	_, err = svc.CreateRoleGrant(ctx, "tenant", actor, grant)
+	require.Error(t, err, "duplicate grants must conflict")
+	grant.SubjectKind, grant.SubjectSlug = "api_key", "machine"
+	keyGrant, err := svc.CreateRoleGrant(ctx, "tenant", actor, grant)
+	require.NoError(t, err)
+	grants, err := svc.ListRoleGrants(ctx, "tenant")
+	require.NoError(t, err)
+	require.ElementsMatch(t, []model.RoleGrant{*memberGrant, *keyGrant}, grants)
+	_, err = svc.CreateRoleGrant(ctx, "other", actor, grant)
+	require.Error(t, err)
+	require.Error(t, svc.RevokeRoleGrant(ctx, "other", keyGrant.Slug, actor))
+	otherGrants, err := svc.ListRoleGrants(ctx, "other")
+	require.NoError(t, err)
+	require.Empty(t, otherGrants)
+
+	// Equal child slugs need a parent to select the persisted resource.
+	exec(`INSERT INTO projects(id, organization_id, slug, name) VALUES
+        (701,101,'billing','Billing'),(702,101,'sales','Sales');
+        INSERT INTO pipeline_specs(project_id,slug,spec_jsonb,source_path,source_ref,last_applied_commit)
+        VALUES (701,'daily','{}','daily.yml','main','abc'),(702,'daily','{}','daily.yml','main','def');`)
+	pipelineGrant := grant
+	pipelineGrant.Target = model.AuthorizationTarget{Kind: "pipelines", Slug: "daily"}
+	_, err = svc.CreateRoleGrant(ctx, "tenant", actor, pipelineGrant)
+	require.Error(t, err, "an ambiguous target must not bind to either project")
+	pipelineGrant.Target.ProjectSlug = "billing"
+	pipelineBinding, err := svc.CreateRoleGrant(ctx, "tenant", actor, pipelineGrant)
+	require.NoError(t, err)
+	require.NoError(t, svc.RevokeRoleGrant(ctx, "tenant", pipelineBinding.Slug, actor))
+
 	auth, err := authorization.New(nil, func(ctx context.Context, org, user, key slug.Slug, target model.AuthorizationTarget) (model.AuthorizationFacts, error) {
 		return authstore.Resolve(ctx, pool, org, user, key, target)
 	})
@@ -101,7 +133,7 @@ INSERT INTO authorization_scoped_grants(organization_id,member_id,api_key_id,rol
 		check("tenant", "reader", false)
 		check("other", "target", false)
 	}
-	exec("DELETE FROM authorization_scoped_grants WHERE api_key_id=601")
+	require.NoError(t, svc.RevokeRoleGrant(ctx, "tenant", keyGrant.Slug, actor))
 	check("tenant", "target", false)
 	machine = false
 	check("tenant", "target", true)
@@ -114,7 +146,9 @@ INSERT INTO authorization_scoped_grants(organization_id,member_id,api_key_id,rol
 	require.NoError(t, resp.Body.Close())
 	require.Equal(t, http.StatusForbidden, resp.StatusCode)
 	check("tenant", "target", false)
-	exec("UPDATE authorization_scoped_grants SET target_id=205 WHERE member_id=501")
+	require.NoError(t, svc.RevokeRoleGrant(ctx, "tenant", memberGrant.Slug, actor))
+	_, err = svc.CreateRoleGrant(ctx, "tenant", actor, memberGrant.NewRoleGrant)
+	require.NoError(t, err)
 	check("tenant", "target", true)
 	exec("DELETE FROM role_permissions WHERE role_id=202")
 	check("tenant", "target", false)

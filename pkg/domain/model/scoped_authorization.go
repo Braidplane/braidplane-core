@@ -32,3 +32,17 @@ type AuthorizationBinding struct {
 	ScopeID     string   `json:"scope_id"`
 	Permissions []string `json:"permissions"`
 }
+
+// NewRoleGrant assigns one reusable role to a member or API key at a persisted target.
+type NewRoleGrant struct {
+	SubjectKind string
+	SubjectSlug slug.Slug
+	RoleSlug    slug.Slug
+	Scope       string
+	Target      AuthorizationTarget
+}
+
+type RoleGrant struct {
+	Slug slug.Slug
+	NewRoleGrant
+}

@@ -7,6 +7,7 @@ ALTER TABLE pipeline_creation_proposals ADD COLUMN authorization_id bigint GENER
 
 CREATE TABLE authorization_scoped_grants (
     id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    slug text NOT NULL UNIQUE DEFAULT gen_random_uuid()::text,
     organization_id integer NOT NULL,
     member_id integer,
     api_key_id bigint,
@@ -183,6 +184,16 @@ FROM data_source_bindings b
 JOIN data_source_refs r ON (r.pipeline_spec_id, r.id) = (b.pipeline_spec_id, b.data_source_ref_id)
 JOIN pipeline_specs s ON (s.project_id, s.id) = (b.project_id, b.pipeline_spec_id)
 JOIN project_environments pe ON (pe.organization_id, pe.project_id, pe.id) = (b.organization_id, b.project_id, b.project_environment_id);
+
+CREATE VIEW authorization_target_locators AS
+SELECT t.organization_id, t.kind, t.id, t.slug, t.parent_slug,
+    COALESCE(p.slug, '')::text AS project_slug,
+    COALESCE(e.slug, '')::text AS environment_slug,
+    COALESCE(d.slug, '')::text AS data_source_slug
+FROM authorization_targets t
+LEFT JOIN projects p ON (p.organization_id, p.id) = (t.organization_id, t.project_id)
+LEFT JOIN environments e ON (e.organization_id, e.id) = (t.organization_id, t.environment_id)
+LEFT JOIN data_sources d ON (d.organization_id, d.id) = (t.organization_id, t.data_source_id);
 
 CREATE FUNCTION validate_authorization_target() RETURNS trigger
 LANGUAGE plpgsql SET search_path = pg_catalog, public AS $$

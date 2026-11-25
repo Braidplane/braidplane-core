@@ -27,43 +27,25 @@ authority.
 
 ## Granting and revoking access
 
-Use an authorized database administration session. Inspect the organization, subject, role, target and existing broad bindings first. The following example uses psql variables and grants an existing role to a member for one project. The insert verifies tenant ownership of each ID. Check the returned grant ID before committing.
+A role defines the permitted actions. A grant assigns that role to an organization member or API key at a particular scope. To inspect explicit grants, call `GET /organizations/{slug}/authorization/grants` with organization-wide `roles:read`. The member or key's primary role is a separate organization-wide assignment.
 
-```sql
-BEGIN;
-SELECT b.scope, b.target_kind, b.target_id, r.slug AS role
-FROM authorization_role_bindings b
-JOIN roles r ON (r.organization_id, r.id) = (b.organization_id, b.role_id)
-JOIN organizations o ON o.id = b.organization_id
-JOIN organization_members m ON (m.organization_id, m.id) = (o.id, b.member_id)
-JOIN users u ON u.id = m.user_id
-WHERE o.slug = :'organization' AND u.slug = :'member';
+To grant an existing role on one project, send this JSON to `POST /organizations/{slug}/authorization/grants` using a session or personal access token with organization-wide `roles:update`.
 
-INSERT INTO authorization_scoped_grants
-    (organization_id, member_id, role_id, scope, target_kind, target_id)
-SELECT o.id, m.id, r.id, 'project', 'projects', p.id
-FROM organizations o
-JOIN organization_members m ON m.organization_id = o.id
-JOIN users u ON u.id = m.user_id
-JOIN roles r ON r.organization_id = o.id AND r.deleted_at IS NULL
-JOIN projects p ON p.organization_id = o.id
-WHERE o.slug = :'organization' AND u.slug = :'member'
-  AND r.slug = :'role' AND p.slug = :'project'
-RETURNING id;
-COMMIT;
+```json
+{
+  "subject_kind": "member",
+  "subject_slug": "alice",
+  "role_slug": "pipeline-operator",
+  "scope": "project",
+  "target_slug": "billing"
+}
 ```
 
-Each grant names exactly one `member_id` or `api_key_id`. For a machine principal, resolve the API key by organization ID and key slug. For an environment binding, use `scope = 'environment'`, `target_kind = 'environments'` and the persisted environment ID. An additional organization binding uses `'organization'`, `'organizations'` and the organization ID. An individual resource binding uses `'resource'` and the exact kind and ID from `authorization_targets`. Qualify child slugs with their persisted parent and tenant when reading this view. A resource kind and numeric ID together identify a target. Pipeline versions share their logical pipeline's ID. Recreating a resource with the same slug assigns a new ID.
+The response includes the grant's public slug. Revoke that assignment with `DELETE /organizations/{slug}/authorization/grants/{grant_slug}`. Grant creation and revocation record the actor in the organization's audit trail. An organization administrator with grant management authority can assign an administrative role.
 
-Bindings add authority. To restrict an existing member or key to one project, replace the original organization-wide role with a role containing only the intended broad permissions, which may be empty. Creating the project grant alone preserves the whole-organization role. Review any other bindings that can authorize the same action. Deleting a membership or key cascades to its scoped grants. Purging a target makes its old numeric grant ineffective, and an administrator can remove that grant by ID.
+Use subject kind `api_key` for a machine principal. Organization scope uses the active organization. Project and environment scopes require the target slug. For individual resource scope, supply the target kind and slug and any parent qualifiers needed to identify it uniquely inside the organization. Core resolves these names to persisted identities. Recreating a target under the same slug leaves the old grant ineffective.
 
-Revoke a scoped grant within the organization and verify the row returned.
-
-```sql
-DELETE FROM authorization_scoped_grants g USING organizations o
-WHERE g.organization_id = o.id AND o.slug = :'organization' AND g.id = :'grant_id'::bigint
-RETURNING g.id;
-```
+Grants add authority. To limit a member or key to the billing project, give its primary role only the permissions intended organization-wide, which may be empty. Review other grants that authorize the same action. Deleting a membership or key removes its explicit grants.
 
 A project grant covers project-owned targets. A project referring to a shared organization data source conveys no access to the source or its stored queries. A project and environment pair must resolve to a persisted association. Environment-scoped execution of a deployed pipeline resolves its actual deployment. A standalone logical pipeline belongs to its project.
 

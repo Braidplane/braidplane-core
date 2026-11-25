@@ -59,6 +59,35 @@ func (_d RepositoryWithLogging) Create(ctx context.Context, tx postgres.DBTX, pa
 	return
 }
 
+// CreateRoleGrant implements Repository.
+func (_d RepositoryWithLogging) CreateRoleGrant(ctx context.Context, tx postgres.DBTX, orgSlug slug.Slug, grant model.NewRoleGrant) (rp1 *model.RoleGrant, err error) {
+	_startedAt := time.Now()
+	_ctx := ctx
+	_ctx, _span := tracing.StartMethodSpan(_ctx, tracing.MethodSpan{
+		Layer:     "repository",
+		Package:   "postgres/roles",
+		Interface: "Repository",
+		Method:    "CreateRoleGrant",
+	})
+	defer _span.End()
+	defer func() {
+		if err != nil {
+			tracing.RecordError(_span, err)
+		}
+		logging.LogMethodCompletion(_ctx, _d._logger, logging.MethodCompletion{
+			Layer:       "repository",
+			Package:     "postgres/roles",
+			Interface:   "Repository",
+			Method:      "CreateRoleGrant",
+			StartedAt:   _startedAt,
+			CompletedAt: time.Now(),
+			Err:         err,
+		})
+	}()
+	rp1, err = _d._base.CreateRoleGrant(_ctx, tx, orgSlug, grant)
+	return
+}
+
 // Delete implements Repository.
 func (_d RepositoryWithLogging) Delete(ctx context.Context, tx postgres.DBTX, params *DeleteParams) (err error) {
 	_startedAt := time.Now()
@@ -204,6 +233,35 @@ func (_d RepositoryWithLogging) ListByOrganization(ctx context.Context, tx postg
 	return
 }
 
+// ListRoleGrants implements Repository.
+func (_d RepositoryWithLogging) ListRoleGrants(ctx context.Context, tx postgres.DBTX, orgSlug slug.Slug) (ra1 []model.RoleGrant, err error) {
+	_startedAt := time.Now()
+	_ctx := ctx
+	_ctx, _span := tracing.StartMethodSpan(_ctx, tracing.MethodSpan{
+		Layer:     "repository",
+		Package:   "postgres/roles",
+		Interface: "Repository",
+		Method:    "ListRoleGrants",
+	})
+	defer _span.End()
+	defer func() {
+		if err != nil {
+			tracing.RecordError(_span, err)
+		}
+		logging.LogMethodCompletion(_ctx, _d._logger, logging.MethodCompletion{
+			Layer:       "repository",
+			Package:     "postgres/roles",
+			Interface:   "Repository",
+			Method:      "ListRoleGrants",
+			StartedAt:   _startedAt,
+			CompletedAt: time.Now(),
+			Err:         err,
+		})
+	}()
+	ra1, err = _d._base.ListRoleGrants(_ctx, tx, orgSlug)
+	return
+}
+
 // Restore implements Repository.
 func (_d RepositoryWithLogging) Restore(ctx context.Context, tx postgres.DBTX, params *RestoreParams) (err error) {
 	_startedAt := time.Now()
@@ -230,6 +288,35 @@ func (_d RepositoryWithLogging) Restore(ctx context.Context, tx postgres.DBTX, p
 		})
 	}()
 	err = _d._base.Restore(_ctx, tx, params)
+	return
+}
+
+// RevokeRoleGrant implements Repository.
+func (_d RepositoryWithLogging) RevokeRoleGrant(ctx context.Context, tx postgres.DBTX, orgSlug slug.Slug, grantSlug slug.Slug) (s1 slug.Slug, err error) {
+	_startedAt := time.Now()
+	_ctx := ctx
+	_ctx, _span := tracing.StartMethodSpan(_ctx, tracing.MethodSpan{
+		Layer:     "repository",
+		Package:   "postgres/roles",
+		Interface: "Repository",
+		Method:    "RevokeRoleGrant",
+	})
+	defer _span.End()
+	defer func() {
+		if err != nil {
+			tracing.RecordError(_span, err)
+		}
+		logging.LogMethodCompletion(_ctx, _d._logger, logging.MethodCompletion{
+			Layer:       "repository",
+			Package:     "postgres/roles",
+			Interface:   "Repository",
+			Method:      "RevokeRoleGrant",
+			StartedAt:   _startedAt,
+			CompletedAt: time.Now(),
+			Err:         err,
+		})
+	}()
+	s1, err = _d._base.RevokeRoleGrant(_ctx, tx, orgSlug, grantSlug)
 	return
 }
 

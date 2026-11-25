@@ -218,6 +218,9 @@ getQueryExecutionSummary,GET,/organizations/:slug/query-execution-summary,tenant
 getOrganizationRetentionPolicy,GET,/organizations/:slug/retention,tenant,"session, PAT, API key",organizations:read,,organizations:read=organization
 updateOrganizationRetentionPolicy,PUT,/organizations/:slug/retention,tenant,"session, PAT, API key",organizations:update,,organizations:update=organization
 listOrganizationRetentionRuns,GET,/organizations/:slug/retention/runs,tenant,"session, PAT, API key",organizations:read,,organizations:read=organization
+listRoleGrants,GET,/organizations/:slug/authorization/grants,tenant,"session, PAT, API key",roles:read,,roles:read=organization
+createRoleGrant,POST,/organizations/:slug/authorization/grants,tenant,"session, PAT",roles:update,,roles:update=organization
+revokeRoleGrant,DELETE,/organizations/:slug/authorization/grants/:grant_slug,tenant,"session, PAT",roles:update,,roles:update=organization
 listRoles,GET,/organizations/:slug/roles,tenant,"session, PAT, API key",roles:read roles:restore,,roles:read=organization roles:restore=organization
 createRole,POST,/organizations/:slug/roles,tenant,"session, PAT, API key",roles:create,,roles:create=organization
 deleteRole,DELETE,/organizations/:slug/roles/:role_slug,tenant,"session, PAT, API key",roles:delete,,roles:delete=roles

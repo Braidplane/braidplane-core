@@ -9,6 +9,9 @@ import (
 
 // RolesService is a test double for rolessvc.Service.
 type RolesService struct {
+	RevokeRoleGrantFn           func(ctx context.Context, orgSlug, grantSlug slug.Slug, actor model.EventActor) error
+	CreateRoleGrantFn           func(ctx context.Context, orgSlug slug.Slug, actor model.EventActor, grant model.NewRoleGrant) (*model.RoleGrant, error)
+	ListRoleGrantsFn            func(ctx context.Context, orgSlug slug.Slug) ([]model.RoleGrant, error)
 	CreateRoleWithPermissionsFn func(ctx context.Context, orgSlug slug.Slug, actor model.EventActor, newRole model.NewRole, perms []model.RolePermission) (*model.OrgRole, error)
 	CreateDefaultRolesFn        func(ctx context.Context, orgSlug slug.Slug) error
 	UpdateRoleWithPermissionsFn func(ctx context.Context, orgSlug, roleSlug slug.Slug, actor model.EventActor, update model.UpdateRole, perms []model.RolePermission) error
@@ -123,4 +126,16 @@ func (f *RolesService) ListRolePermissions(
 		return f.ListRolePermissionsFn(ctx, orgSlug, roleSlug)
 	}
 	return []model.RolePermission{}, nil
+}
+
+func (f *RolesService) ListRoleGrants(ctx context.Context, orgSlug slug.Slug) ([]model.RoleGrant, error) {
+	return f.ListRoleGrantsFn(ctx, orgSlug)
+}
+
+func (f *RolesService) CreateRoleGrant(ctx context.Context, orgSlug slug.Slug, actor model.EventActor, grant model.NewRoleGrant) (*model.RoleGrant, error) {
+	return f.CreateRoleGrantFn(ctx, orgSlug, actor, grant)
+}
+
+func (f *RolesService) RevokeRoleGrant(ctx context.Context, orgSlug, grantSlug slug.Slug, actor model.EventActor) error {
+	return f.RevokeRoleGrantFn(ctx, orgSlug, grantSlug, actor)
 }

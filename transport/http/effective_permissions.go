@@ -39,43 +39,9 @@ func (s *server) GetEffectivePermissions(c fiber.Ctx, orgParam api.SlugParam, pa
 	}
 
 	input.ProjectDataSourceBindings = params.ProjectDatasourceBindings != nil && *params.ProjectDatasourceBindings
-	if params.TargetKind != nil {
-		input.Target.Kind = *params.TargetKind
-	}
-	for _, field := range []struct {
-		raw   *string
-		value *slug.Slug
-	}{
-		{params.ParentSlug, &input.Target.ParentSlug},
-		{params.ProjectSlug, &input.Target.ProjectSlug},
-		{params.EnvironmentSlug, &input.Target.EnvironmentSlug},
-		{params.DatasourceSlug, &input.Target.DataSourceSlug},
-	} {
-		if field.raw == nil {
-			continue
-		}
-		*field.value, err = slug.New(*field.raw)
-		if err != nil {
-			return apierror.ValidationFailed("Invalid authorization target slug")
-		}
-	}
-	if params.TargetSlug != nil {
-		value := *params.TargetSlug
-		switch strings.TrimSuffix(input.Target.Kind, "_upsert") {
-		case "environment_secrets", "environment_runtime_variables", "runtime_variable_definitions":
-			if !authorizationKeyPattern.MatchString(value) {
-				return apierror.ValidationFailed("Invalid runtime key")
-			}
-		case "webhook_deliveries":
-			if !authorizationDeliveryPattern.MatchString(value) {
-				return apierror.ValidationFailed("Invalid delivery identifier")
-			}
-		default:
-			if _, err = slug.New(value); err != nil {
-				return apierror.ValidationFailed("Invalid authorization target slug")
-			}
-		}
-		input.Target.Slug = slug.Slug(value)
+	input.Target, err = parseAuthorizationTarget(params)
+	if err != nil {
+		return err
 	}
 	projectEnvironment := input.Target.Kind == "project_environments" && input.Target.ProjectSlug != "" && input.Target.EnvironmentSlug != ""
 	if !projectEnvironment && ((input.Target.Kind == "") != (input.Target.Slug == "") || (input.Target.Kind == "" && input.Target != (model.AuthorizationTarget{}))) {
@@ -90,4 +56,48 @@ func (s *server) GetEffectivePermissions(c fiber.Ctx, orgParam api.SlugParam, pa
 		allowed = append(allowed, permissionToHTTP(permission))
 	}
 	return c.JSON(fiber.Map{"permissions": allowed})
+}
+
+func parseAuthorizationTarget(params api.GetEffectivePermissionsParams) (model.AuthorizationTarget, error) {
+	var target model.AuthorizationTarget
+	var err error
+	if params.TargetKind != nil {
+		target.Kind = *params.TargetKind
+	}
+	for _, field := range []struct {
+		raw   *string
+		value *slug.Slug
+	}{
+		{params.ParentSlug, &target.ParentSlug},
+		{params.ProjectSlug, &target.ProjectSlug},
+		{params.EnvironmentSlug, &target.EnvironmentSlug},
+		{params.DatasourceSlug, &target.DataSourceSlug},
+	} {
+		if field.raw == nil {
+			continue
+		}
+		*field.value, err = slug.New(*field.raw)
+		if err != nil {
+			return target, apierror.ValidationFailed("Invalid authorization target slug")
+		}
+	}
+	if params.TargetSlug != nil {
+		value := *params.TargetSlug
+		switch strings.TrimSuffix(target.Kind, "_upsert") {
+		case "environment_secrets", "environment_runtime_variables", "runtime_variable_definitions":
+			if !authorizationKeyPattern.MatchString(value) {
+				return target, apierror.ValidationFailed("Invalid runtime key")
+			}
+		case "webhook_deliveries":
+			if !authorizationDeliveryPattern.MatchString(value) {
+				return target, apierror.ValidationFailed("Invalid delivery identifier")
+			}
+		default:
+			if _, err = slug.New(value); err != nil {
+				return target, apierror.ValidationFailed("Invalid authorization target slug")
+			}
+		}
+		target.Slug = slug.Slug(value)
+	}
+	return target, nil
 }

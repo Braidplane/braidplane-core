@@ -209,6 +209,7 @@ type AuthorizationRoleBinding struct {
 
 type AuthorizationScopedGrant struct {
 	ID             int
+	Slug           slug.Slug
 	OrganizationID int32
 	MemberID       pgtype.Int4
 	ApiKeyID       pgtype.Int8
@@ -229,6 +230,17 @@ type AuthorizationTarget struct {
 	OwnerSlug      string
 	ParentSlug     string
 	AncestorIds    []string
+}
+
+type AuthorizationTargetLocator struct {
+	OrganizationID  int32
+	Kind            string
+	ID              int
+	Slug            slug.Slug
+	ParentSlug      string
+	ProjectSlug     string
+	EnvironmentSlug string
+	DataSourceSlug  string
 }
 
 type Credential struct {

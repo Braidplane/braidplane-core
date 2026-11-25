@@ -7728,6 +7728,71 @@ func (q *Queries) CreateRole(ctx context.Context, arg CreateRoleParams) (Role, e
 	return i, err
 }
 
+const createRoleGrant = `-- name: CreateRoleGrant :one
+WITH target AS (
+    SELECT t.organization_id, t.kind, t.id, t.slug, t.parent_slug, t.project_slug, t.environment_slug, t.data_source_slug, count(*) OVER () AS matches
+    FROM authorization_target_locators t
+    JOIN organizations o ON o.id = t.organization_id
+    WHERE o.slug = $3 AND t.kind = $4::text
+      AND t.slug = $5::text
+      AND (t.kind <> 'roles' OR EXISTS (
+          SELECT 1 FROM roles active WHERE active.id = t.id AND active.deleted_at IS NULL
+      ))
+      AND ($6::text = '' OR t.project_slug = $6)
+      AND ($7::text = '' OR t.environment_slug = $7)
+      AND ($8::text = '' OR t.data_source_slug = $8)
+      AND ($9::text = '' OR t.parent_slug = $9)
+), subject AS (
+    SELECT m.organization_id, m.id AS member_id, NULL::bigint AS api_key_id
+    FROM organization_members m JOIN users u ON u.id = m.user_id
+    WHERE $10::text = 'member' AND u.slug = $11::text
+      AND u.deleted_at IS NULL AND u.verified_at IS NOT NULL
+    UNION ALL
+    SELECT k.organization_id, NULL, k.id FROM api_keys k
+    WHERE $10::text = 'api_key' AND k.slug = $11
+      AND k.revoked_at IS NULL AND (k.expires_at IS NULL OR k.expires_at > statement_timestamp())
+)
+INSERT INTO authorization_scoped_grants (organization_id, member_id, api_key_id, role_id, scope, target_kind, target_id)
+SELECT t.organization_id, s.member_id, s.api_key_id, r.id, $1::text, t.kind, t.id
+FROM target t JOIN subject s ON s.organization_id = t.organization_id
+JOIN roles r ON r.organization_id = t.organization_id AND r.slug = $2 AND r.deleted_at IS NULL
+WHERE t.matches = 1
+RETURNING slug
+`
+
+type CreateRoleGrantParams struct {
+	Scope           string
+	RoleSlug        slug.Slug
+	OrgSlug         slug.Slug
+	TargetKind      string
+	TargetSlug      string
+	ProjectSlug     string
+	EnvironmentSlug string
+	DataSourceSlug  string
+	ParentSlug      string
+	SubjectKind     string
+	SubjectSlug     string
+}
+
+func (q *Queries) CreateRoleGrant(ctx context.Context, arg CreateRoleGrantParams) (slug.Slug, error) {
+	row := q.db.QueryRow(ctx, createRoleGrant,
+		arg.Scope,
+		arg.RoleSlug,
+		arg.OrgSlug,
+		arg.TargetKind,
+		arg.TargetSlug,
+		arg.ProjectSlug,
+		arg.EnvironmentSlug,
+		arg.DataSourceSlug,
+		arg.ParentSlug,
+		arg.SubjectKind,
+		arg.SubjectSlug,
+	)
+	var slug slug.Slug
+	err := row.Scan(&slug)
+	return slug, err
+}
+
 const createRunRecencyEpisode = `-- name: CreateRunRecencyEpisode :one
 INSERT INTO pipeline_run_recency_episodes (
     slug, expectation_id, deployment_id, deployment_revision, pipeline_version_id,
@@ -23727,6 +23792,70 @@ func (q *Queries) ListRecentAlertDeliveryAttemptsForRecords(ctx context.Context,
 	return items, nil
 }
 
+const listRoleGrants = `-- name: ListRoleGrants :many
+SELECT g.slug, g.scope, g.target_kind, r.slug AS role_slug,
+       CASE WHEN g.member_id IS NULL THEN 'api_key' ELSE 'member' END::text AS subject_kind,
+       COALESCE(u.slug, k.slug)::text AS subject_slug, COALESCE(t.slug, '')::text AS target_slug,
+       CASE WHEN g.scope = 'resource' THEN COALESCE(t.project_slug, '') ELSE '' END::text AS project_slug,
+       CASE WHEN g.scope = 'resource' THEN COALESCE(t.environment_slug, '') ELSE '' END::text AS environment_slug,
+       COALESCE(t.data_source_slug, '')::text AS data_source_slug, COALESCE(t.parent_slug, '')::text AS parent_slug
+FROM authorization_scoped_grants g
+JOIN organizations o ON o.id = g.organization_id
+JOIN roles r ON (r.organization_id, r.id) = (g.organization_id, g.role_id)
+LEFT JOIN organization_members m ON (m.organization_id, m.id) = (g.organization_id, g.member_id)
+LEFT JOIN users u ON u.id = m.user_id
+LEFT JOIN api_keys k ON (k.organization_id, k.id) = (g.organization_id, g.api_key_id)
+LEFT JOIN authorization_target_locators t ON (t.organization_id, t.kind, t.id) = (g.organization_id, g.target_kind, g.target_id)
+WHERE o.slug = $1
+ORDER BY g.id
+`
+
+type ListRoleGrantsRow struct {
+	Slug            slug.Slug
+	Scope           string
+	TargetKind      string
+	RoleSlug        slug.Slug
+	SubjectKind     string
+	SubjectSlug     string
+	TargetSlug      string
+	ProjectSlug     string
+	EnvironmentSlug string
+	DataSourceSlug  string
+	ParentSlug      string
+}
+
+func (q *Queries) ListRoleGrants(ctx context.Context, orgSlug slug.Slug) ([]ListRoleGrantsRow, error) {
+	rows, err := q.db.Query(ctx, listRoleGrants, orgSlug)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ListRoleGrantsRow
+	for rows.Next() {
+		var i ListRoleGrantsRow
+		if err := rows.Scan(
+			&i.Slug,
+			&i.Scope,
+			&i.TargetKind,
+			&i.RoleSlug,
+			&i.SubjectKind,
+			&i.SubjectSlug,
+			&i.TargetSlug,
+			&i.ProjectSlug,
+			&i.EnvironmentSlug,
+			&i.DataSourceSlug,
+			&i.ParentSlug,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listRolesByOrganization = `-- name: ListRolesByOrganization :many
 SELECT r.id, r.organization_id, r.slug, r.name, r.is_default, r.created_at, r.updated_at, r.deleted_at, r.delete_reason
 FROM roles r
@@ -30356,6 +30485,25 @@ func (q *Queries) RevokePipelineWebhookCredentials(ctx context.Context, arg Revo
 		return nil, err
 	}
 	return items, nil
+}
+
+const revokeRoleGrant = `-- name: RevokeRoleGrant :one
+DELETE FROM authorization_scoped_grants g USING organizations o, roles r
+WHERE o.id = g.organization_id AND o.slug = $1 AND g.slug = $2
+  AND (r.organization_id, r.id) = (g.organization_id, g.role_id)
+RETURNING r.slug AS role_slug
+`
+
+type RevokeRoleGrantParams struct {
+	OrgSlug   slug.Slug
+	GrantSlug slug.Slug
+}
+
+func (q *Queries) RevokeRoleGrant(ctx context.Context, arg RevokeRoleGrantParams) (string, error) {
+	row := q.db.QueryRow(ctx, revokeRoleGrant, arg.OrgSlug, arg.GrantSlug)
+	var role_slug string
+	err := row.Scan(&role_slug)
+	return role_slug, err
 }
 
 const rotateAPIKey = `-- name: RotateAPIKey :one

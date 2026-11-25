@@ -1051,6 +1051,7 @@ func (f *fakePATsService) Authenticate(
 }
 
 type fakeRolesService struct {
+	testfakes.RolesService
 	CreateRoleWithPermissionsFn func(ctx context.Context, orgSlug slug.Slug, actor model.EventActor, newRole model.NewRole, perms []model.RolePermission) (*model.OrgRole, error)
 	CreateDefaultRolesFn        func(ctx context.Context, orgSlug slug.Slug) error
 	UpdateRoleWithPermissionsFn func(ctx context.Context, orgSlug, roleSlug slug.Slug, actor model.EventActor, update model.UpdateRole, perms []model.RolePermission) error

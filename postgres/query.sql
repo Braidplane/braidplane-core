@@ -13616,3 +13616,57 @@ WHERE req.id = sqlc.arg('request_id')::uuid AND req.state = 'pending'
 
 -- name: ClaimedProposalAuthorization :one
 SELECT claimed_proposal_authorization(sqlc.arg('request_id')::uuid,sqlc.arg('claim_token')::uuid)::jsonb AS facts;
+
+-- name: CreateRoleGrant :one
+WITH target AS (
+    SELECT t.*, count(*) OVER () AS matches
+    FROM authorization_target_locators t
+    JOIN organizations o ON o.id = t.organization_id
+    WHERE o.slug = sqlc.arg('org_slug') AND t.kind = sqlc.arg('target_kind')::text
+      AND t.slug = sqlc.arg('target_slug')::text
+      AND (t.kind <> 'roles' OR EXISTS (
+          SELECT 1 FROM roles active WHERE active.id = t.id AND active.deleted_at IS NULL
+      ))
+      AND (sqlc.arg('project_slug')::text = '' OR t.project_slug = sqlc.arg('project_slug'))
+      AND (sqlc.arg('environment_slug')::text = '' OR t.environment_slug = sqlc.arg('environment_slug'))
+      AND (sqlc.arg('data_source_slug')::text = '' OR t.data_source_slug = sqlc.arg('data_source_slug'))
+      AND (sqlc.arg('parent_slug')::text = '' OR t.parent_slug = sqlc.arg('parent_slug'))
+), subject AS (
+    SELECT m.organization_id, m.id AS member_id, NULL::bigint AS api_key_id
+    FROM organization_members m JOIN users u ON u.id = m.user_id
+    WHERE sqlc.arg('subject_kind')::text = 'member' AND u.slug = sqlc.arg('subject_slug')::text
+      AND u.deleted_at IS NULL AND u.verified_at IS NOT NULL
+    UNION ALL
+    SELECT k.organization_id, NULL, k.id FROM api_keys k
+    WHERE sqlc.arg('subject_kind')::text = 'api_key' AND k.slug = sqlc.arg('subject_slug')
+      AND k.revoked_at IS NULL AND (k.expires_at IS NULL OR k.expires_at > statement_timestamp())
+)
+INSERT INTO authorization_scoped_grants (organization_id, member_id, api_key_id, role_id, scope, target_kind, target_id)
+SELECT t.organization_id, s.member_id, s.api_key_id, r.id, sqlc.arg('scope')::text, t.kind, t.id
+FROM target t JOIN subject s ON s.organization_id = t.organization_id
+JOIN roles r ON r.organization_id = t.organization_id AND r.slug = sqlc.arg('role_slug') AND r.deleted_at IS NULL
+WHERE t.matches = 1
+RETURNING slug;
+
+-- name: ListRoleGrants :many
+SELECT g.slug, g.scope, g.target_kind, r.slug AS role_slug,
+       CASE WHEN g.member_id IS NULL THEN 'api_key' ELSE 'member' END::text AS subject_kind,
+       COALESCE(u.slug, k.slug)::text AS subject_slug, COALESCE(t.slug, '')::text AS target_slug,
+       CASE WHEN g.scope = 'resource' THEN COALESCE(t.project_slug, '') ELSE '' END::text AS project_slug,
+       CASE WHEN g.scope = 'resource' THEN COALESCE(t.environment_slug, '') ELSE '' END::text AS environment_slug,
+       COALESCE(t.data_source_slug, '')::text AS data_source_slug, COALESCE(t.parent_slug, '')::text AS parent_slug
+FROM authorization_scoped_grants g
+JOIN organizations o ON o.id = g.organization_id
+JOIN roles r ON (r.organization_id, r.id) = (g.organization_id, g.role_id)
+LEFT JOIN organization_members m ON (m.organization_id, m.id) = (g.organization_id, g.member_id)
+LEFT JOIN users u ON u.id = m.user_id
+LEFT JOIN api_keys k ON (k.organization_id, k.id) = (g.organization_id, g.api_key_id)
+LEFT JOIN authorization_target_locators t ON (t.organization_id, t.kind, t.id) = (g.organization_id, g.target_kind, g.target_id)
+WHERE o.slug = sqlc.arg('org_slug')
+ORDER BY g.id;
+
+-- name: RevokeRoleGrant :one
+DELETE FROM authorization_scoped_grants g USING organizations o, roles r
+WHERE o.id = g.organization_id AND o.slug = sqlc.arg('org_slug') AND g.slug = sqlc.arg('grant_slug')
+  AND (r.organization_id, r.id) = (g.organization_id, g.role_id)
+RETURNING r.slug AS role_slug;
