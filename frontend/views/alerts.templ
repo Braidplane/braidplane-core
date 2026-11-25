@@ -14,7 +14,7 @@ templ AlertsPage(
 	destinationFormData AlertDestinationFormData,
 	policyFormData AlertPolicyFormData,
 	editFormOverrides AlertEditFormOverrides,
-	permissions OrganizationPermissions,
+	permissions, policyPermissions, destinationPermissions OrganizationPermissions,
 	contentErrorSummary string,
 	contentErrorDetails string,
 	contentSuccessSummary string,
@@ -30,7 +30,7 @@ templ AlertsPage(
 			destinationFormData,
 			policyFormData,
 			editFormOverrides,
-			permissions,
+			permissions, policyPermissions, destinationPermissions,
 			contentErrorSummary,
 			contentErrorDetails,
 			contentSuccessSummary,
@@ -47,7 +47,7 @@ templ AlertsPageContent(
 	destinationFormData AlertDestinationFormData,
 	policyFormData AlertPolicyFormData,
 	editFormOverrides AlertEditFormOverrides,
-	permissions OrganizationPermissions,
+	permissions, policyPermissions, destinationPermissions OrganizationPermissions,
 	contentErrorSummary string,
 	contentErrorDetails string,
 	contentSuccessSummary string,
@@ -101,7 +101,7 @@ templ AlertsPageContent(
 						"",
 					)
 				}
-				@AlertPolicyList(orgSlug, destinations, policies, editFormOverrides, permissions)
+				@AlertPolicyList(orgSlug, destinations, policies, editFormOverrides, permissions, policyPermissions)
 			</section>
 		} else {
 			<section class="space-y-4" id={ AlertTabPanelID(AlertTabDestinations) } role="tabpanel" aria-labelledby={ AlertTabID(AlertTabDestinations) }>
@@ -153,7 +153,7 @@ templ AlertsPageContent(
 						</div>
 					</form>
 				}
-				@AlertDestinationList(orgSlug, destinations, connections, editFormOverrides, permissions)
+				@AlertDestinationList(orgSlug, destinations, connections, editFormOverrides, destinationPermissions)
 			</section>
 		}
 	</div>
@@ -337,7 +337,7 @@ templ AlertDestinationEditFields(form AlertDestinationFormData, connections []ap
 	@AlertDestinationConfigFields(form, connections, feedbackID)
 }
 
-templ AlertPolicyList(orgSlug string, destinations []api.AlertDestination, policies []api.AlertPolicy, editFormOverrides AlertEditFormOverrides, permissions OrganizationPermissions) {
+templ AlertPolicyList(orgSlug string, destinations []api.AlertDestination, policies []api.AlertPolicy, editFormOverrides AlertEditFormOverrides, permissions, policyPermissions OrganizationPermissions) {
 	if policies == nil {
 		<div class="alert alert-error"><span>Alert policies are unavailable.</span></div>
 	} else if len(policies) == 0 {
@@ -390,13 +390,13 @@ templ AlertPolicyList(orgSlug string, destinations []api.AlertDestination, polic
 								<a class="btn btn-outline btn-xs" href={ templ.URL(AlertPolicyNotificationsHref(orgSlug, policy)) }>View condition notifications</a>
 							}
 							<button class="btn btn-outline btn-xs" type="button" aria-controls={ AlertPolicyDetailsPanelID(policy) } aria-expanded="false" data-toggle-target={ AlertPolicyDetailsPanelID(policy) }>Details</button>
-							if permissions.Can("alert_policies", "update") {
+							if policyPermissions.Can("alert_policies", "update") {
 								<button class="btn btn-ghost btn-xs" type="button" aria-controls={ AlertPolicyEditPanelID(policy) } aria-expanded="false" data-toggle-target={ AlertPolicyEditPanelID(policy) }>Edit</button>
 							}
-							if permissions.Can("alert_policies", "delete") {
+							if policyPermissions.Can("alert_policies", "delete") {
 								<button class="btn btn-error btn-outline btn-xs" type="button" data-protected-action-trigger={ AlertPolicyDeleteModalID(policy) }>Delete</button>
 							}
-							if !permissions.Can("alert_policies", "update") && !permissions.Can("alert_policies", "delete") {
+							if !policyPermissions.Can("alert_policies", "update") && !policyPermissions.Can("alert_policies", "delete") {
 								<span class="text-sm text-base-content/60">No actions</span>
 							}
 						</div>
@@ -416,7 +416,7 @@ templ AlertPolicyList(orgSlug string, destinations []api.AlertDestination, polic
 								</div>
 							</div>
 						</div>
-						if permissions.Can("alert_policies", "update") {
+						if policyPermissions.Can("alert_policies", "update") {
 							{{ form := editFormOverrides.PolicyFormDataFor(policy) }}
 							{{ form.NotificationReturn = editFormOverrides.NotificationReturn }}
 							<div id={ AlertPolicyEditPanelID(policy) } class="hidden rounded-lg border border-base-300 bg-base-200/35 p-3 lg:col-span-5">
@@ -432,7 +432,7 @@ templ AlertPolicyList(orgSlug string, destinations []api.AlertDestination, polic
 								)
 							</div>
 						}
-						if permissions.Can("alert_policies", "delete") {
+						if policyPermissions.Can("alert_policies", "delete") {
 							@AlertDeleteConfirmModal(
 								AlertPolicyDeleteModalID(policy),
 								"Delete policy",

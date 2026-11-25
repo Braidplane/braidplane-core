@@ -853,11 +853,11 @@ templ OrganizationEnvironmentCreateCard(orgSlug string, formData EnvironmentCrea
 	</div>
 }
 
-templ ProjectEnvironmentsPage(shellData AuthenticatedShellData, orgSlug string, projectSlug string, selectedEnvironmentSlug string, environments []api.ProjectEnvironment, catalog []api.Environment, refs []api.DataSourceRef, bindings map[string][]api.DataSourceBinding, environmentsUnavailable bool, bindingsUnavailable bool, permissions OrganizationPermissions, cleanup *CleanupFindings) {
-	@AuthenticatedShell(shellData, ProjectEnvironmentsPageContent(orgSlug, projectSlug, shellData.ActiveEnvironmentSlug, selectedEnvironmentSlug, environments, catalog, refs, bindings, environmentsUnavailable, bindingsUnavailable, permissions, cleanup))
+templ ProjectEnvironmentsPage(shellData AuthenticatedShellData, orgSlug string, projectSlug string, selectedEnvironmentSlug string, environments []api.ProjectEnvironment, catalog []api.Environment, refs []api.DataSourceRef, bindings map[string][]api.DataSourceBinding, environmentsUnavailable bool, bindingsUnavailable bool, actions ProjectEnvironmentActions, cleanup *CleanupFindings) {
+	@AuthenticatedShell(shellData, ProjectEnvironmentsPageContent(orgSlug, projectSlug, shellData.ActiveEnvironmentSlug, selectedEnvironmentSlug, environments, catalog, refs, bindings, environmentsUnavailable, bindingsUnavailable, actions, cleanup))
 }
 
-templ ProjectEnvironmentsPageContent(orgSlug string, projectSlug string, activeEnvironmentSlug string, selectedEnvironmentSlug string, environments []api.ProjectEnvironment, catalog []api.Environment, refs []api.DataSourceRef, bindings map[string][]api.DataSourceBinding, environmentsUnavailable bool, bindingsUnavailable bool, permissions OrganizationPermissions, cleanup *CleanupFindings) {
+templ ProjectEnvironmentsPageContent(orgSlug string, projectSlug string, activeEnvironmentSlug string, selectedEnvironmentSlug string, environments []api.ProjectEnvironment, catalog []api.Environment, refs []api.DataSourceRef, bindings map[string][]api.DataSourceBinding, environmentsUnavailable bool, bindingsUnavailable bool, actions ProjectEnvironmentActions, cleanup *CleanupFindings) {
 	<div id="project-environments-workspace">
 		<div class="flex flex-wrap items-center justify-end gap-3">
 			<a class="btn btn-outline btn-sm" href={ templ.URL(projectRuntimeHref(ctx, ProjectEnvironmentsHref(orgSlug, projectSlug)+"?cleanup=1")) }>Check unused refs and bindings</a>
@@ -942,7 +942,7 @@ templ ProjectEnvironmentsPageContent(orgSlug string, projectSlug string, activeE
 		}
 		if !environmentsUnavailable && projectEnvironmentConfiguration(ctx) {
 			<a class="btn btn-outline btn-sm mt-4" href={ templ.URL(entityBackHref(ctx, ProjectEnvironmentSelectionHref(orgSlug, projectSlug, activeEnvironmentSlug, selectedEnvironmentSlug))) }>Back to environments</a>
-			@ProjectEnvironmentFocusPanel(orgSlug, projectSlug, activeEnvironmentSlug, selectedEnvironmentSlug, environments, catalog, permissions)
+			@ProjectEnvironmentFocusPanel(orgSlug, projectSlug, activeEnvironmentSlug, selectedEnvironmentSlug, environments, catalog, actions)
 			if SelectedCatalogEnvironmentSlug(catalog, selectedEnvironmentSlug) != "" {
 				<a class="btn btn-ghost btn-sm mt-3" href={ templ.URL(OrganizationEnvironmentDetailHref(orgSlug, selectedEnvironmentSlug)) }>Organization target settings</a>
 			}
@@ -1046,7 +1046,7 @@ templ ProjectEnvironmentsPageContent(orgSlug string, projectSlug string, activeE
 	</div>
 }
 
-templ ProjectEnvironmentFocusPanel(orgSlug string, projectSlug string, activeEnvironmentSlug string, selectedEnvironmentSlug string, environments []api.ProjectEnvironment, catalog []api.Environment, permissions OrganizationPermissions) {
+templ ProjectEnvironmentFocusPanel(orgSlug string, projectSlug string, activeEnvironmentSlug string, selectedEnvironmentSlug string, environments []api.ProjectEnvironment, catalog []api.Environment, actions ProjectEnvironmentActions) {
 	if SelectedCatalogEnvironmentSlug(catalog, selectedEnvironmentSlug) == "" {
 		<div class="mt-4 rounded-lg border border-warning/45 bg-warning/15 px-4 py-3 text-sm text-base-content">
 			<span>Select a runtime target to inspect enablement, protection, and binding context.</span>
@@ -1079,7 +1079,7 @@ templ ProjectEnvironmentFocusPanel(orgSlug string, projectSlug string, activeEnv
 								<div class="mt-4 flex flex-wrap gap-2">
 									if environment.IsDefault {
 										<span class={ badgePrimarySoft }>default runtime</span>
-									} else if permissions.Can("environments", "update") {
+									} else if actions.CanEnableOrSetDefault {
 										if environment.EnvironmentProtected {
 											@ProjectRuntimeProtectedEnvironmentActionButton(
 												string(environment.EnvironmentSlug),
@@ -1100,7 +1100,7 @@ templ ProjectEnvironmentFocusPanel(orgSlug string, projectSlug string, activeEnv
 											</form>
 										}
 									}
-									if permissions.Can("environments", "delete") {
+									if actions.CanDisable {
 										if environment.EnvironmentProtected {
 											@ProjectRuntimeProtectedEnvironmentActionButton(
 												string(environment.EnvironmentSlug),
@@ -1124,7 +1124,7 @@ templ ProjectEnvironmentFocusPanel(orgSlug string, projectSlug string, activeEnv
 								</div>
 							}
 						}
-					} else if permissions.Can("environments", "update") {
+					} else if actions.CanEnableOrSetDefault {
 						if catalogEnvironment.Protected {
 							<div class="mt-4">
 								@ProjectRuntimeProtectedEnvironmentActionButton(

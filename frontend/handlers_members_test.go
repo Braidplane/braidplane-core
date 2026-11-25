@@ -908,6 +908,7 @@ func TestRouter_HandleUpdateMemberRoleSubmit_ConflictRendersPopup(t *testing.T) 
 			return
 		}
 		if r.Method == http.MethodGet && r.URL.Path == "/api/organizations/acme-hq/authorization/permissions" {
+			assert.Empty(t, r.URL.RawQuery, "the member collection controls must use organization permissions")
 			w.Header().Set("Content-Type", "application/json")
 			_, _ = w.Write([]byte(`{"slug":"admin","permissions":[{"resource":"members","action":"read"},{"resource":"members","action":"update"}]}`))
 			return
@@ -979,6 +980,7 @@ func TestRouter_HandleUpdateMemberRoleSubmit_ConflictHTMXRendersPopup(t *testing
 			return
 		}
 		if r.Method == http.MethodGet && r.URL.Path == "/api/organizations/acme-hq/authorization/permissions" {
+			assert.Empty(t, r.URL.RawQuery, "the member collection controls must use organization permissions")
 			w.Header().Set("Content-Type", "application/json")
 			_, _ = w.Write([]byte(`{"slug":"admin","permissions":[{"resource":"members","action":"read"},{"resource":"members","action":"update"}]}`))
 			return

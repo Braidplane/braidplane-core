@@ -65,7 +65,7 @@ func TestProjectEnvironmentsPageContentRendersProtectedCatalogSignals(t *testing
 		nil,
 		false,
 		false,
-		NewOrganizationPermissions(), nil,
+		ProjectEnvironmentActions{}, nil,
 	).Render(context.Background(), &out))
 
 	html := out.String()

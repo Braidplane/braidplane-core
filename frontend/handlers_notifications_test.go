@@ -324,3 +324,44 @@ func TestNotificationsRecencyCapability(t *testing.T) {
 		})
 	}
 }
+
+func TestFailedNotificationActionUsesCollectionPermissions(t *testing.T) {
+	t.Parallel()
+	backend := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+		switch req.URL.Path {
+		case "/api/organizations/acme-hq/notifications/first/resolve":
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusConflict)
+			_, _ = io.WriteString(w, `{"error":{"message":"Conflict"}}`)
+		case "/api/organizations/acme-hq/authorization/permissions":
+			assert.Empty(t, req.URL.RawQuery, "the notification collection controls must use organization permissions")
+			writeJSON(w, `{"permissions":[{"resource":"notifications","action":"read"}]}`)
+		case "/api/organizations/acme-hq/notifications":
+			writeJSON(w, `{"notifications":[{"slug":"other","summary":"Another notification","lifecycle_state":"open"}]}`)
+		case "/api/organizations/acme-hq/alert-delivery-attempts":
+			writeJSON(w, `{"alert_delivery_attempts":[]}`)
+		default:
+			if !handleAlertsCommonTestAPI(w, req, "viewer") {
+				w.WriteHeader(http.StatusNotFound)
+			}
+		}
+	}))
+	t.Cleanup(backend.Close)
+	store := session.NewStore()
+	router, err := newHandlerTestRouter(backend.URL, slog.New(slog.DiscardHandler), store)
+	require.NoError(t, err)
+	app := fiber.New()
+	registerTestSessionRoute(app, store)
+	router.RegisterRoutes(app, CommunityPresentation{})
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/orgs/acme-hq/notifications/first/resolve", nil)
+	req.Header.Set("Cookie", getAuthenticatedSessionCookie(t, app))
+	addCSRFToken(t, app, req)
+	resp, err := app.Test(req)
+	require.NoError(t, err)
+	body, err := io.ReadAll(resp.Body)
+	require.NoError(t, err)
+	require.NoError(t, resp.Body.Close())
+	require.Equal(t, http.StatusConflict, resp.StatusCode)
+	require.Contains(t, string(body), "Another notification")
+	require.NotContains(t, string(body), "/notifications/other/resolve")
+}

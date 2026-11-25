@@ -4049,7 +4049,7 @@ func OrganizationEnvironmentCreateCard(orgSlug string, formData EnvironmentCreat
 	})
 }
 
-func ProjectEnvironmentsPage(shellData AuthenticatedShellData, orgSlug string, projectSlug string, selectedEnvironmentSlug string, environments []api.ProjectEnvironment, catalog []api.Environment, refs []api.DataSourceRef, bindings map[string][]api.DataSourceBinding, environmentsUnavailable bool, bindingsUnavailable bool, permissions OrganizationPermissions, cleanup *CleanupFindings) templ.Component {
+func ProjectEnvironmentsPage(shellData AuthenticatedShellData, orgSlug string, projectSlug string, selectedEnvironmentSlug string, environments []api.ProjectEnvironment, catalog []api.Environment, refs []api.DataSourceRef, bindings map[string][]api.DataSourceBinding, environmentsUnavailable bool, bindingsUnavailable bool, actions ProjectEnvironmentActions, cleanup *CleanupFindings) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
 		if templ_7745c5c3_CtxErr := ctx.Err(); templ_7745c5c3_CtxErr != nil {
@@ -4070,7 +4070,7 @@ func ProjectEnvironmentsPage(shellData AuthenticatedShellData, orgSlug string, p
 			templ_7745c5c3_Var239 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = AuthenticatedShell(shellData, ProjectEnvironmentsPageContent(orgSlug, projectSlug, shellData.ActiveEnvironmentSlug, selectedEnvironmentSlug, environments, catalog, refs, bindings, environmentsUnavailable, bindingsUnavailable, permissions, cleanup)).Render(ctx, templ_7745c5c3_Buffer)
+		templ_7745c5c3_Err = AuthenticatedShell(shellData, ProjectEnvironmentsPageContent(orgSlug, projectSlug, shellData.ActiveEnvironmentSlug, selectedEnvironmentSlug, environments, catalog, refs, bindings, environmentsUnavailable, bindingsUnavailable, actions, cleanup)).Render(ctx, templ_7745c5c3_Buffer)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -4078,7 +4078,7 @@ func ProjectEnvironmentsPage(shellData AuthenticatedShellData, orgSlug string, p
 	})
 }
 
-func ProjectEnvironmentsPageContent(orgSlug string, projectSlug string, activeEnvironmentSlug string, selectedEnvironmentSlug string, environments []api.ProjectEnvironment, catalog []api.Environment, refs []api.DataSourceRef, bindings map[string][]api.DataSourceBinding, environmentsUnavailable bool, bindingsUnavailable bool, permissions OrganizationPermissions, cleanup *CleanupFindings) templ.Component {
+func ProjectEnvironmentsPageContent(orgSlug string, projectSlug string, activeEnvironmentSlug string, selectedEnvironmentSlug string, environments []api.ProjectEnvironment, catalog []api.Environment, refs []api.DataSourceRef, bindings map[string][]api.DataSourceBinding, environmentsUnavailable bool, bindingsUnavailable bool, actions ProjectEnvironmentActions, cleanup *CleanupFindings) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
 		if templ_7745c5c3_CtxErr := ctx.Err(); templ_7745c5c3_CtxErr != nil {
@@ -4466,7 +4466,7 @@ func ProjectEnvironmentsPageContent(orgSlug string, projectSlug string, activeEn
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = ProjectEnvironmentFocusPanel(orgSlug, projectSlug, activeEnvironmentSlug, selectedEnvironmentSlug, environments, catalog, permissions).Render(ctx, templ_7745c5c3_Buffer)
+			templ_7745c5c3_Err = ProjectEnvironmentFocusPanel(orgSlug, projectSlug, activeEnvironmentSlug, selectedEnvironmentSlug, environments, catalog, actions).Render(ctx, templ_7745c5c3_Buffer)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -4831,7 +4831,7 @@ func ProjectEnvironmentsPageContent(orgSlug string, projectSlug string, activeEn
 	})
 }
 
-func ProjectEnvironmentFocusPanel(orgSlug string, projectSlug string, activeEnvironmentSlug string, selectedEnvironmentSlug string, environments []api.ProjectEnvironment, catalog []api.Environment, permissions OrganizationPermissions) templ.Component {
+func ProjectEnvironmentFocusPanel(orgSlug string, projectSlug string, activeEnvironmentSlug string, selectedEnvironmentSlug string, environments []api.ProjectEnvironment, catalog []api.Environment, actions ProjectEnvironmentActions) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
 		if templ_7745c5c3_CtxErr := ctx.Err(); templ_7745c5c3_CtxErr != nil {
@@ -5043,7 +5043,7 @@ func ProjectEnvironmentFocusPanel(orgSlug string, projectSlug string, activeEnvi
 									if templ_7745c5c3_Err != nil {
 										return templ_7745c5c3_Err
 									}
-								} else if permissions.Can("environments", "update") {
+								} else if actions.CanEnableOrSetDefault {
 									if environment.EnvironmentProtected {
 										templ_7745c5c3_Err = ProjectRuntimeProtectedEnvironmentActionButton(
 											string(environment.EnvironmentSlug),
@@ -5106,7 +5106,7 @@ func ProjectEnvironmentFocusPanel(orgSlug string, projectSlug string, activeEnvi
 										}
 									}
 								}
-								if permissions.Can("environments", "delete") {
+								if actions.CanDisable {
 									if environment.EnvironmentProtected {
 										templ_7745c5c3_Err = ProjectRuntimeProtectedEnvironmentActionButton(
 											string(environment.EnvironmentSlug),
@@ -5201,7 +5201,7 @@ func ProjectEnvironmentFocusPanel(orgSlug string, projectSlug string, activeEnvi
 								}
 							}
 						}
-					} else if permissions.Can("environments", "update") {
+					} else if actions.CanEnableOrSetDefault {
 						if catalogEnvironment.Protected {
 							templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 451, "<div class=\"mt-4\">")
 							if templ_7745c5c3_Err != nil {

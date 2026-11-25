@@ -22,7 +22,7 @@ func AlertsPage(
 	destinationFormData AlertDestinationFormData,
 	policyFormData AlertPolicyFormData,
 	editFormOverrides AlertEditFormOverrides,
-	permissions OrganizationPermissions,
+	permissions, policyPermissions, destinationPermissions OrganizationPermissions,
 	contentErrorSummary string,
 	contentErrorDetails string,
 	contentSuccessSummary string,
@@ -58,7 +58,7 @@ func AlertsPage(
 				destinationFormData,
 				policyFormData,
 				editFormOverrides,
-				permissions,
+				permissions, policyPermissions, destinationPermissions,
 				contentErrorSummary,
 				contentErrorDetails,
 				contentSuccessSummary,
@@ -80,7 +80,7 @@ func AlertsPageContent(
 	destinationFormData AlertDestinationFormData,
 	policyFormData AlertPolicyFormData,
 	editFormOverrides AlertEditFormOverrides,
-	permissions OrganizationPermissions,
+	permissions, policyPermissions, destinationPermissions OrganizationPermissions,
 	contentErrorSummary string,
 	contentErrorDetails string,
 	contentSuccessSummary string,
@@ -272,7 +272,7 @@ func AlertsPageContent(
 					return templ_7745c5c3_Err
 				}
 			}
-			templ_7745c5c3_Err = AlertPolicyList(orgSlug, destinations, policies, editFormOverrides, permissions).Render(ctx, templ_7745c5c3_Buffer)
+			templ_7745c5c3_Err = AlertPolicyList(orgSlug, destinations, policies, editFormOverrides, permissions, policyPermissions).Render(ctx, templ_7745c5c3_Buffer)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -499,7 +499,7 @@ func AlertsPageContent(
 					return templ_7745c5c3_Err
 				}
 			}
-			templ_7745c5c3_Err = AlertDestinationList(orgSlug, destinations, connections, editFormOverrides, permissions).Render(ctx, templ_7745c5c3_Buffer)
+			templ_7745c5c3_Err = AlertDestinationList(orgSlug, destinations, connections, editFormOverrides, destinationPermissions).Render(ctx, templ_7745c5c3_Buffer)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -1343,7 +1343,7 @@ func AlertDestinationEditFields(form AlertDestinationFormData, connections []api
 	})
 }
 
-func AlertPolicyList(orgSlug string, destinations []api.AlertDestination, policies []api.AlertPolicy, editFormOverrides AlertEditFormOverrides, permissions OrganizationPermissions) templ.Component {
+func AlertPolicyList(orgSlug string, destinations []api.AlertDestination, policies []api.AlertPolicy, editFormOverrides AlertEditFormOverrides, permissions, policyPermissions OrganizationPermissions) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
 		if templ_7745c5c3_CtxErr := ctx.Err(); templ_7745c5c3_CtxErr != nil {
@@ -1667,7 +1667,7 @@ func AlertPolicyList(orgSlug string, destinations []api.AlertDestination, polici
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				if permissions.Can("alert_policies", "update") {
+				if policyPermissions.Can("alert_policies", "update") {
 					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 147, "<button class=\"btn btn-ghost btn-xs\" type=\"button\" aria-controls=\"")
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
@@ -1699,7 +1699,7 @@ func AlertPolicyList(orgSlug string, destinations []api.AlertDestination, polici
 						return templ_7745c5c3_Err
 					}
 				}
-				if permissions.Can("alert_policies", "delete") {
+				if policyPermissions.Can("alert_policies", "delete") {
 					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 150, "<button class=\"btn btn-error btn-outline btn-xs\" type=\"button\" data-protected-action-trigger=\"")
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
@@ -1718,7 +1718,7 @@ func AlertPolicyList(orgSlug string, destinations []api.AlertDestination, polici
 						return templ_7745c5c3_Err
 					}
 				}
-				if !permissions.Can("alert_policies", "update") && !permissions.Can("alert_policies", "delete") {
+				if !policyPermissions.Can("alert_policies", "update") && !policyPermissions.Can("alert_policies", "delete") {
 					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 152, "<span class=\"text-sm text-base-content/60\">No actions</span>")
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
@@ -1802,7 +1802,7 @@ func AlertPolicyList(orgSlug string, destinations []api.AlertDestination, polici
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				if permissions.Can("alert_policies", "update") {
+				if policyPermissions.Can("alert_policies", "update") {
 					form := editFormOverrides.PolicyFormDataFor(policy)
 					form.NotificationReturn = editFormOverrides.NotificationReturn
 					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 160, "<div id=\"")
@@ -1840,7 +1840,7 @@ func AlertPolicyList(orgSlug string, destinations []api.AlertDestination, polici
 						return templ_7745c5c3_Err
 					}
 				}
-				if permissions.Can("alert_policies", "delete") {
+				if policyPermissions.Can("alert_policies", "delete") {
 					templ_7745c5c3_Err = AlertDeleteConfirmModal(
 						AlertPolicyDeleteModalID(policy),
 						"Delete policy",

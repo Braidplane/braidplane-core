@@ -254,7 +254,7 @@ func (r *Router) renderNotificationsPage(
 	if notificationList.PrevCursor != nil {
 		prevCursor = *notificationList.PrevCursor
 	}
-	permissions := r.resolvePagePermissions(c, orgSlug.String())
+	permissions := r.resolveOrganizationPermissions(c.Context(), c.Get(fiber.HeaderCookie), orgSlug.String())
 
 	shellData := r.buildNotificationsShellData(c, orgSlug.String(), workspaceError, pageErrorDetails)
 	return r.writeNotificationsPage(

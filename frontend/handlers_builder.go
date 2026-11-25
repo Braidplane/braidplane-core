@@ -411,8 +411,14 @@ func (r *Router) handleBuilderBlueprintPage(c fiber.Ctx) error {
 		permissions := r.resolvePagePermissions(c, saveOrganizationSlug)
 		builderState.CanCreatePipeline = permissions.Can("pipelines", "create")
 		builderState.CanRefreshSchemas = permissions.Can("datasources", "update")
-		builderState.CanExecutePipeline = permissions.Can("pipelines", "execute")
-		if !builderState.CanExecutePipeline {
+		if saveProjectSlug != "" && builderState.PipelineSlug != "" && builderState.TargetEnvironmentSlug != "" {
+			target := api.GetEffectivePermissionsParams{
+				TargetKind: new("deployed_pipelines"), TargetSlug: &builderState.PipelineSlug,
+				ProjectSlug: &saveProjectSlug, EnvironmentSlug: &builderState.TargetEnvironmentSlug,
+			}
+			builderState.CanExecutePipeline = r.targetPermissions(c, saveOrganizationSlug, target).Can("pipelines", "execute")
+		}
+		if builderState.CanRun && !builderState.CanExecutePipeline {
 			builderState.CanRun = false
 			builderState.RunReason = "You don't have permission to execute pipelines."
 		}

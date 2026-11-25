@@ -41,7 +41,16 @@ func TestRouter_HandleProjectEnvironmentsPage_RendersBindingMatrix(t *testing.T)
 
 	apiServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
-		if handleTestAdminRolePermissions(w, r) {
+		if r.URL.Path == "/api/organizations/acme-hq/authorization/permissions" {
+			query := r.URL.Query()
+			switch {
+			case query.Get("target_kind") == "projects" && query.Get("target_slug") == "data-migration":
+				writeJSON(w, `{"permissions":[{"resource":"environments","action":"update"}]}`)
+			case query.Get("target_kind") == "project_environments" && query.Get("project_slug") == "data-migration" && query.Get("environment_slug") == "prod":
+				writeJSON(w, `{"permissions":[{"resource":"environments","action":"delete"}]}`)
+			default:
+				writeJSON(w, `{"permissions":[]}`)
+			}
 			return
 		}
 

@@ -303,7 +303,10 @@ func TestHandleBuilderBlueprintPage_DefaultsRuntimeTargetForDeepLinkedPipelineRu
 				}
 				if r.Method == http.MethodGet && r.URL.Path == "/api/organizations/acme-hq/authorization/permissions" {
 					action := "read"
-					if canExecute {
+					query := r.URL.Query()
+					matchesDeployment := query.Get("target_kind") == "deployed_pipelines" && query.Get("target_slug") == "acme-users-sync" &&
+						query.Get("project_slug") == "default" && query.Get("environment_slug") == "dev"
+					if canExecute == matchesDeployment {
 						action = "*"
 					}
 					writeJSON(w, fmt.Sprintf(`{"slug":"admin","name":"Test role","permissions":[{"resource":"*","action":%q}],"created_at":"2026-03-01T00:00:00Z","updated_at":"2026-03-01T00:00:00Z"}`, action))

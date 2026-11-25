@@ -128,6 +128,9 @@ WHERE o.slug = $1
 }
 
 func TestAlertPolicyWriteRechecksParentAfterAuthorizedRead(t *testing.T) {
+	if testing.Short() {
+		t.Skip("requires PostgreSQL")
+	}
 	ctx := t.Context()
 	pool := e2edb.OpenIsolatedPostgresPool(t, "alert policy authorization")
 	_, err := pool.Exec(ctx, `

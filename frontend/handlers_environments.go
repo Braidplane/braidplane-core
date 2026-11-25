@@ -734,8 +734,12 @@ func (r *Router) renderProjectEnvironmentsPage(
 	if c.Query("cleanup") == "1" {
 		cleanup = &views.CleanupFindings{}
 	}
-	permissions := r.resolvePagePermissions(c, orgSlug.String())
 	selectedEnvironmentSlug := projectEnvironmentSelectedSlugFromRequest(c)
+	var actions views.ProjectEnvironmentActions
+	if selectedEnvironmentSlug != "" {
+		project := api.GetEffectivePermissionsParams{TargetKind: new("projects"), TargetSlug: &projectSlug}
+		actions.CanEnableOrSetDefault = r.targetPermissions(c, orgSlug.String(), project).Can("environments", "update")
+	}
 	catalog, status, errorResponse, err := r.listEnvironmentsViaAPI(
 		c.Context(),
 		c.Get(fiber.HeaderCookie),
@@ -793,10 +797,17 @@ func (r *Router) renderProjectEnvironmentsPage(
 				nil,
 				true,
 				false,
-				permissions,
+				actions,
 				cleanup,
 			),
 		)
+	}
+
+	if views.ProjectEnvironmentEnabled(selectedEnvironmentSlug, projectEnvironments.ProjectEnvironments) {
+		target := api.GetEffectivePermissionsParams{
+			TargetKind: new("project_environments"), ProjectSlug: &projectSlug, EnvironmentSlug: &selectedEnvironmentSlug,
+		}
+		actions.CanDisable = r.targetPermissions(c, orgSlug.String(), target).Can("environments", "delete")
 	}
 
 	refs, status, errorResponse, err := r.listDataSourceRefsViaAPI(
@@ -837,7 +848,7 @@ func (r *Router) renderProjectEnvironmentsPage(
 				nil,
 				false,
 				true,
-				permissions,
+				actions,
 				cleanup,
 			),
 		)
@@ -885,7 +896,7 @@ func (r *Router) renderProjectEnvironmentsPage(
 					nil,
 					false,
 					true,
-					permissions,
+					actions,
 					cleanup,
 				),
 			)
@@ -923,7 +934,7 @@ func (r *Router) renderProjectEnvironmentsPage(
 			bindings,
 			false,
 			false,
-			permissions,
+			actions,
 			cleanup,
 		),
 	)

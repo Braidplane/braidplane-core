@@ -19,13 +19,21 @@ import (
 
 func TestPipelineGitWorkflow(t *testing.T) {
 	t.Parallel()
-	for _, scenario := range []string{"preview", "apply", "stale", "missing preview", "changed directory", "deploy", "environment deploy only", "protected", "bindings", "deployment conflict", "disabled target", "unauthorized", "cross tenant", "csrf", "pipeline named sync", "compile projection", "invalid projection", "compile scopes", "invalid scopes", "deploy denied", "compile denied", "backend compile denied"} {
+	for _, scenario := range []string{"preview", "apply", "stale", "missing preview", "changed directory", "selected pipeline sync denied", "deploy", "environment deploy only", "protected", "bindings", "deployment conflict", "disabled target", "unauthorized", "cross tenant", "csrf", "pipeline named sync", "compile projection", "invalid projection", "compile scopes", "invalid scopes", "deploy denied", "compile denied", "backend compile denied"} {
 		t.Run(scenario, func(t *testing.T) {
 			t.Parallel()
 			updateDenied := scenario == "deploy denied" || scenario == "compile denied"
 			calls := 0
 			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
 				w.Header().Set("Content-Type", "application/json")
+				if scenario == "selected pipeline sync denied" && strings.HasSuffix(req.URL.Path, "/authorization/permissions") {
+					permissions := []api.Permission{{Resource: "pipelines", Action: "read"}}
+					if req.URL.Query().Get("target_kind") == "pipelines" && req.URL.Query().Get("target_slug") == "daily-sync" {
+						permissions = append(permissions, api.Permission{Resource: "pipelines", Action: "update"})
+					}
+					_ = json.NewEncoder(w).Encode(map[string]any{"permissions": permissions})
+					return
+				}
 				if scenario == "environment deploy only" && strings.HasSuffix(req.URL.Path, "/authorization/permissions") {
 					permissions := []api.Permission{{Resource: "pipelines", Action: "read"}}
 					if req.URL.Query().Get("target_kind") == "deployment_targets" && req.URL.Query().Get("environment_slug") == "dev" && req.URL.Query().Get("project_slug") == "default" && req.URL.Query().Get("target_slug") == "daily-sync" {
@@ -221,6 +229,10 @@ func TestPipelineGitWorkflow(t *testing.T) {
 			require.NoError(t, err)
 			html := string(body)
 			switch scenario {
+			case "selected pipeline sync denied":
+				require.Equal(t, http.StatusForbidden, response.StatusCode)
+				require.Contains(t, html, "update pipelines to sync from Git")
+				require.Zero(t, calls)
 			case "backend compile denied":
 				require.Equal(t, http.StatusForbidden, response.StatusCode)
 				require.Contains(t, html, "Compile permission was revoked.")

@@ -14,11 +14,13 @@ import (
 	"github.com/Braidplane/braidplane-core/pkg/eventtest"
 	"github.com/Braidplane/braidplane-core/pkg/slug"
 	"github.com/Braidplane/braidplane-core/postgres"
+	authstore "github.com/Braidplane/braidplane-core/postgres/authorization"
 	"github.com/Braidplane/braidplane-core/postgres/odcscontracts"
 	"github.com/Braidplane/braidplane-core/postgres/pipelineruns"
 	"github.com/Braidplane/braidplane-core/postgres/pipelines"
 	"github.com/Braidplane/braidplane-core/postgres/pipelinetriggers"
 	"github.com/Braidplane/braidplane-core/postgres/retention"
+	"github.com/Braidplane/braidplane-core/service/authorization"
 	"github.com/Braidplane/braidplane-core/service/pipelinesvc"
 	"github.com/Braidplane/braidplane-core/service/pipelinetriggersvc"
 )
@@ -76,6 +78,33 @@ func TestCompletionResourcesSnapshotsRevocationAndRetention(t *testing.T) {
 	point, err := svc.GetPipelineTrigger(ctx, org, project, environment, trigger.Slug)
 	require.NoError(t, err)
 	require.Equal(t, trigger.CompletionConfig, point.CompletionConfig)
+	t.Run("webhook rotation rejects a retargeted trigger", func(t *testing.T) {
+		exec(`INSERT INTO pipeline_triggers(project_id,project_environment_id,pipeline_id,pipeline_slug,slug,name,trigger_type,version_policy,receiver_id,webhook_verification_strategy,webhook_input_mappings,created_by_actor_type,updated_by_actor_type)
+        SELECT pe.project_id,pe.id,s.id,s.slug,'hook','Hook','webhook','latest_deployed',$2,'hmac_sha256','[]','system','system'
+        FROM project_environments pe JOIN pipeline_specs s ON s.project_id=pe.project_id AND s.slug='downstream' WHERE pe.id=$1`, env, suffix)
+		auth, err := authorization.New(nil, func(ctx context.Context, org, user, key slug.Slug, target model.AuthorizationTarget) (model.AuthorizationFacts, error) {
+			return authstore.Resolve(ctx, pool, org, user, key, target)
+		})
+		require.NoError(t, err)
+		decision := authorization.WithDecisionScope(ctx)
+		input := authorization.Input{OrgSlug: &org, UserSlug: actorSlug, Source: authorization.SourceSession, Operation: "rotatePipelineWebhookSecret",
+			Action: model.Update, Resource: model.ResourcePipelineTriggers, Target: model.AuthorizationTarget{Kind: "pipeline_triggers", Slug: "hook", ProjectSlug: project, EnvironmentSlug: environment}}
+		allowed, err := auth.Can(decision, input)
+		require.NoError(t, err)
+		require.True(t, allowed)
+		input.Action, input.Resource, input.Target.Kind, input.Target.Slug = model.Execute, model.ResourcePipelines, "deployed_pipelines", "downstream"
+		allowed, err = auth.Can(decision, input)
+		require.NoError(t, err)
+		require.True(t, allowed)
+		exec(`UPDATE pipeline_triggers t SET pipeline_id=s.id,pipeline_slug=s.slug,revision=t.revision+1
+        FROM pipeline_specs s WHERE t.project_environment_id=$1 AND t.slug='hook' AND s.project_id=t.project_id AND s.slug='upstream'`, env)
+		secret, err := svc.RotatePipelineWebhookSecret(decision, org, project, environment, "hook", actor)
+		require.ErrorContains(t, err, "The authorized principal or target changed")
+		require.Empty(t, secret)
+		var versions int
+		require.NoError(t, pool.QueryRow(ctx, `SELECT count(*) FROM pipeline_webhook_secret_versions v JOIN pipeline_triggers t ON t.id=v.pipeline_trigger_id WHERE t.project_environment_id=$1 AND t.slug='hook'`, env).Scan(&versions))
+		require.Zero(t, versions)
+	})
 	closeRoot := func(root string) int {
 		t.Helper()
 		exec(`INSERT INTO pipeline_runs(project_id,project_environment_id,pipeline_version_id,pipeline_version_spec_hash,api_version,pipeline_slug,run_slug,source_environment_slug,status,duration_ms,step_slug,timeline,source_type,source_root_run_slug,ended_at)

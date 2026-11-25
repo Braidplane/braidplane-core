@@ -37,6 +37,9 @@ func (a *afterAllow) Can(ctx context.Context, in authorization.Input) (bool, err
 
 // Check the same object through generated REST routing and the trusted Can boundary after each grant change.
 func TestScopedRoleReadThroughRESTAndCan(t *testing.T) {
+	if testing.Short() {
+		t.Skip("requires PostgreSQL")
+	}
 	ctx := t.Context()
 	pool := e2edb.OpenIsolatedPostgresPool(t, "scoped role read")
 	exec := func(sql string) { t.Helper(); _, err := pool.Exec(ctx, sql); require.NoError(t, err) }

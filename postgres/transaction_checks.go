@@ -14,29 +14,47 @@ type transactionChecks struct {
 type transactionChecksKey struct{}
 
 func WithTransactionChecks(ctx context.Context) context.Context {
-	if state, _ := ctx.Value(transactionChecksKey{}).(*transactionChecks); state != nil {
+	if checksFromContext(ctx) != nil {
 		return ctx
 	}
 	return context.WithValue(WithConsistentSnapshot(ctx), transactionChecksKey{}, &transactionChecks{})
 }
 
 func AddTransactionCheck(ctx context.Context, check func(context.Context, DBTX) error) {
-	state, _ := ctx.Value(transactionChecksKey{}).(*transactionChecks)
-	if state != nil {
+	if state := checksFromContext(ctx); state != nil {
 		state.mu.Lock()
 		defer state.mu.Unlock()
 		state.checks = append(state.checks, check)
 	}
 }
 
-func pendingTransactionChecks(ctx context.Context) []func(context.Context, DBTX) error {
+func checksFromContext(ctx context.Context) *transactionChecks {
 	state, _ := ctx.Value(transactionChecksKey{}).(*transactionChecks)
+	return state
+}
+
+func (state *transactionChecks) since(offset int) []func(context.Context, DBTX) error {
 	if state == nil {
 		return nil
 	}
 	state.mu.Lock()
 	defer state.mu.Unlock()
-	return slices.Clone(state.checks)
+	return slices.Clone(state.checks[offset:])
+}
+
+// Each transaction verifies a decision once, including decisions added by nested callers.
+type verifiedChecks map[*transactionChecks]int
+type verifiedChecksKey struct{}
+
+func (verified verifiedChecks) run(ctx context.Context, db DBTX) error {
+	state := checksFromContext(ctx)
+	for _, check := range state.since(verified[state]) {
+		if err := check(ctx, db); err != nil {
+			return err
+		}
+		verified[state]++
+	}
+	return nil
 }
 
 // WithoutTransactionChecks reads authorization facts without replaying other decisions

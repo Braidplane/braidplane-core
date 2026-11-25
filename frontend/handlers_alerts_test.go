@@ -1222,3 +1222,56 @@ func TestAlertCreateOptionalIdentifiers(t *testing.T) {
 		})
 	}
 }
+
+func TestAlertsSelectedPolicyUsesItsPersistedScope(t *testing.T) {
+	t.Parallel()
+	var detailCalls atomic.Int32
+	backend := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+		switch req.URL.Path {
+		case "/api/organizations/acme-hq/authorization/permissions":
+			if q := req.URL.Query(); q.Get("target_kind") == "alert_policies" && q.Get("target_slug") == "selected" {
+				assert.Empty(t, q.Get("project_slug"))
+				assert.Empty(t, q.Get("environment_slug"))
+				writeJSON(w, `{"permissions":[{"resource":"alert_policies","action":"*"}]}`)
+			} else {
+				writeJSON(w, `{"permissions":[]}`)
+			}
+		case "/api/organizations/acme-hq/alert-policies/selected":
+			detailCalls.Add(1)
+			writeJSON(w, `{"slug":"selected","name":"Selected policy detail","scope":"project_environment","project_slug":"ops","environment_slug":"prod"}`)
+		case "/api/organizations/acme-hq/alert-policies", "/api/organizations/acme-hq/alert-policies/other":
+			t.Errorf("unexpected policy read %s", req.URL.Path)
+			w.WriteHeader(http.StatusForbidden)
+		default:
+			if !handleAlertsCommonTestAPI(w, req, "viewer") {
+				w.WriteHeader(http.StatusNotFound)
+			}
+		}
+	}))
+	t.Cleanup(backend.Close)
+	store := session.NewStore()
+	router, err := newHandlerTestRouter(backend.URL, slog.New(slog.DiscardHandler), store)
+	require.NoError(t, err)
+	app := fiber.New()
+	registerTestSessionRoute(app, store)
+	router.RegisterRoutes(app, CommunityPresentation{})
+	cookie := getAuthenticatedSessionCookie(t, app)
+	for _, policy := range []string{"selected", "other"} {
+		req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/orgs/acme-hq/alerts?tab=policies&policy_slug="+policy+"&project_slug=untrusted", nil)
+		req.Header.Set("Cookie", cookie)
+		resp, err := app.Test(req)
+		require.NoError(t, err)
+		body, err := io.ReadAll(resp.Body)
+		require.NoError(t, err)
+		require.NoError(t, resp.Body.Close())
+		require.Equal(t, http.StatusOK, resp.StatusCode)
+		require.NotContains(t, string(body), "Create policy")
+		if policy == "selected" {
+			require.Contains(t, string(body), "Selected policy detail")
+			require.Contains(t, string(body), `id="alert-policy-selected-edit"`)
+		} else {
+			require.Contains(t, string(body), "Configuration details are restricted")
+		}
+	}
+	require.EqualValues(t, 1, detailCalls.Load())
+}

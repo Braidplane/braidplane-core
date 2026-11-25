@@ -592,11 +592,20 @@ func (r *Router) renderAlertsPageWithEditOverrides(
 	r.loadOperationalCapabilities(c, orgSlug.String())
 
 	activeTab = views.AlertTabFromString(string(activeTab))
-	permissions := r.resolvePagePermissions(c, orgSlug.String())
+	permissions := r.resolveOrganizationPermissions(c.Context(), c.Get(fiber.HeaderCookie), orgSlug.String())
+	selectedPermissions := func(kind, selected string) views.OrganizationPermissions {
+		if selected == "" {
+			return permissions
+		}
+		return r.targetPermissions(c, orgSlug.String(), api.GetEffectivePermissionsParams{TargetKind: &kind, TargetSlug: &selected})
+	}
+	policySlug, destinationSlug := c.Query("policy_slug"), c.Query("destination_slug")
+	policyPermissions := selectedPermissions("alert_policies", policySlug)
+	destinationPermissions := selectedPermissions("alert_destinations", destinationSlug)
 	policyFormData.NotificationReturn = notificationReturnTo(c.FormValue("notification_return", c.Query("notification_return")), orgSlug.String())
 
 	editFormOverrides.NotificationReturn = policyFormData.NotificationReturn
-	if (activeTab == views.AlertTabPolicies && !permissions.Can("alert_policies", "read")) || (activeTab == views.AlertTabDestinations && !permissions.Can("alert_destinations", "read")) {
+	if (activeTab == views.AlertTabPolicies && !policyPermissions.Can("alert_policies", "read")) || (activeTab == views.AlertTabDestinations && !destinationPermissions.Can("alert_destinations", "read")) {
 		if contentErrorSummary == "" {
 			contentErrorSummary = "Configuration details are restricted. Each resource requires its own read permission."
 		}
@@ -605,9 +614,9 @@ func (r *Router) renderAlertsPageWithEditOverrides(
 	var destinationStatus int
 	var destinationErrorResponse *api.ErrorResponse
 	var destinationErr error
-	if permissions.Can("alert_destinations", "read") {
-		if selected := c.Query("destination_slug"); selected != "" {
-			destinations, destinationStatus, destinationErrorResponse, destinationErr = r.getAlertDestinationForView(c, orgSlug.String(), selected)
+	if destinationPermissions.Can("alert_destinations", "read") {
+		if destinationSlug != "" {
+			destinations, destinationStatus, destinationErrorResponse, destinationErr = r.getAlertDestinationForView(c, orgSlug.String(), destinationSlug)
 		} else {
 			destinations, destinationStatus, destinationErrorResponse, destinationErr = r.listAlertDestinationsViaAPI(
 				c.Context(),
@@ -640,9 +649,9 @@ func (r *Router) renderAlertsPageWithEditOverrides(
 	var policyStatus int
 	var policyErrorResponse *api.ErrorResponse
 	var policyErr error
-	if permissions.Can("alert_policies", "read") {
-		if selected := c.Query("policy_slug"); selected != "" {
-			policies, policyStatus, policyErrorResponse, policyErr = r.getAlertPolicyForView(c, orgSlug.String(), selected)
+	if policyPermissions.Can("alert_policies", "read") {
+		if policySlug != "" {
+			policies, policyStatus, policyErrorResponse, policyErr = r.getAlertPolicyForView(c, orgSlug.String(), policySlug)
 		} else {
 			policies, policyStatus, policyErrorResponse, policyErr = r.listAlertPoliciesViaAPI(
 				c.Context(),
@@ -701,7 +710,7 @@ func (r *Router) renderAlertsPageWithEditOverrides(
 			destinationFormData,
 			policyFormData,
 			editFormOverrides,
-			permissions,
+			permissions, policyPermissions, destinationPermissions,
 			contentErrorSummary,
 			contentErrorDetails,
 			contentSuccessSummary,

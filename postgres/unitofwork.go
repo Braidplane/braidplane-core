@@ -72,12 +72,15 @@ func (p *poolTransactionManager) RunInTx(
 		if requested && !active {
 			return xerror.Unexpected().Detail("consistent snapshot must be selected before the outer transaction")
 		}
+		verified, _ := ctx.Value(verifiedChecksKey{}).(verifiedChecks)
+		if err := verified.run(ctx, tx); err != nil {
+			return err
+		}
 		return fn(ctx, tx)
 	}
 
-	checks := pendingTransactionChecks(ctx)
 	options := pgx.TxOptions{}
-	if snapshot, _ := ctx.Value(snapshotContextKey{}).(bool); snapshot || len(checks) > 0 {
+	if snapshot, _ := ctx.Value(snapshotContextKey{}).(bool); snapshot {
 		options.IsoLevel = pgx.RepeatableRead
 	}
 	tx, err := p.pool.BeginTx(ctx, options)
@@ -96,10 +99,10 @@ func (p *poolTransactionManager) RunInTx(
 	txCtx = context.WithValue(txCtx, transactionSnapshotKey{}, options.IsoLevel == pgx.RepeatableRead)
 
 	// Pin authorized identities in the very snapshot used for the read or write.
-	for _, check := range checks {
-		if err := check(txCtx, tx); err != nil {
-			return err
-		}
+	verified := make(verifiedChecks)
+	txCtx = context.WithValue(txCtx, verifiedChecksKey{}, verified)
+	if err := verified.run(txCtx, tx); err != nil {
+		return err
 	}
 	err = fn(txCtx, tx)
 	if err != nil {
@@ -130,7 +133,7 @@ func (p *poolTransactionManager) RunRead(
 		return xerror.Unexpected().Detail("postgres read handle is required")
 	}
 
-	if len(pendingTransactionChecks(ctx)) > 0 {
+	if len(checksFromContext(ctx).since(0)) > 0 {
 		return p.RunInTx(ctx, fn)
 	}
 	return fn(ctx, p.pool)
