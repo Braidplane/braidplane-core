@@ -7,6 +7,8 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"slices"
+	"sync"
 	"testing"
 	"time"
 
@@ -26,6 +28,7 @@ import (
 	"github.com/Braidplane/braidplane-core/pkg/sinkbinding"
 	"github.com/Braidplane/braidplane-core/pkg/slug"
 	"github.com/Braidplane/braidplane-core/pkg/xerror"
+	"github.com/Braidplane/braidplane-core/service/datasourcessvc"
 	"github.com/Braidplane/braidplane-core/service/datasourcessvc/connector/hubspot"
 	"github.com/Braidplane/braidplane-core/service/datasourcessvc/connector/types"
 	"github.com/Braidplane/braidplane-core/service/queriessvc"
@@ -857,6 +860,119 @@ func TestSinkRuntime_HubSpotCompanyPartialUpsert(t *testing.T) {
 		require.NotContains(t, err.Error(), "private-value")
 		require.NotContains(t, err.Error(), "synthetic-token")
 		require.Len(t, bodies, 2)
+	}
+}
+
+type hubSpotCheckpointDataSources struct {
+	incrementalCheckpointDataSourceService
+}
+
+func (d hubSpotCheckpointDataSources) FindBySlug(ctx context.Context, org, source slug.Slug) (*datasourcessvc.DataSource, error) {
+	if source == "warehouse" {
+		return &datasourcessvc.DataSource{Type: model.DataSourceTypeHubSpot}, nil
+	}
+	return d.incrementalCheckpointDataSourceService.FindBySlug(ctx, org, source)
+}
+
+func TestRunner_HubSpotUpsertBatchFailureAndReplay(t *testing.T) {
+	for _, scenario := range []string{"mixed response", "lost acknowledgement"} {
+		t.Run(scenario, func(t *testing.T) {
+			t.Parallel()
+			var mu sync.Mutex
+			var received [][]crm.UpsertInput
+			receivedBatches := func() [][]crm.UpsertInput {
+				mu.Lock()
+				defer mu.Unlock()
+				return slices.Clone(received)
+			}
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				switch r.Method + " " + r.URL.Path {
+				case "GET /crm/properties/2026-03/companies":
+					_, _ = fmt.Fprint(w, `{"results":[{"name":"key","hasUniqueValue":true},{"name":"name"},{"name":"synced_at"},{"name":"source_id"}]}`)
+				case "POST /crm/objects/2026-03/companies/batch/upsert":
+					var batch struct{ Inputs []crm.UpsertInput }
+					if err := json.NewDecoder(r.Body).Decode(&batch); err != nil {
+						t.Error(err)
+						return
+					}
+					mu.Lock()
+					received = append(received, batch.Inputs)
+					secondBatch := len(received) == 2
+					mu.Unlock()
+					if secondBatch {
+						if scenario == "lost acknowledgement" {
+							panic(http.ErrAbortHandler)
+						}
+						w.WriteHeader(http.StatusMultiStatus)
+						_, _ = fmt.Fprint(w, `{"status":"COMPLETE","results":[{"id":"private-record"}],"errors":[{"message":"private-error"}]}`)
+						return
+					}
+					results := make([]map[string]string, len(batch.Inputs))
+					for i, input := range batch.Inputs {
+						results[i] = map[string]string{"id": "private-record-" + input.ID}
+					}
+					if err := json.NewEncoder(w).Encode(map[string]any{"status": "COMPLETE", "results": results}); err != nil {
+						t.Error(err)
+					}
+				default:
+					http.NotFound(w, r)
+				}
+			}))
+			defer server.Close()
+			conn, err := hubspot.New(transportsecurity.WithPlaintext(t.Context()), crm.Config{BaseURL: server.URL, AllowPrivateHosts: true}, hubspot.Credentials{PrivateAppToken: "synthetic-token"})
+			require.NoError(t, err)
+			defer func() { require.NoError(t, conn.Close()) }()
+			const operation = `{"type":"hubspot","object_type":"companies","operation":"upsert","id_property":"key","property_mapping":{"cursor":"key","label":"name","updated_at":"synced_at","id":"source_id"},"rows":"{{input}}"}`
+			sink := NewSinkRuntime(&fakeSinkQueryExecutor{executeFn: func(ctx context.Context, _, _, _ slug.Slug, _ model.EventActor, params map[string]any, _ ...queriessvc.ExecuteOption) (*result.ExecutionResult, error) {
+				return conn.Execute(ctx, json.RawMessage(operation), map[string]types.TypedParam{"input": {Value: params[sinkbinding.Input]}})
+			}})
+			source := &incrementalCheckpointQueryExecutor{executeWithCheckpointFn: func(context.Context, slug.Slug, slug.Slug, slug.Slug, map[string]any, *pipelinerun.IncrementalCheckpointInput) (*result.ExecutionResult, *pipelinerun.IncrementalCheckpointObservation, error) {
+				output := successfulSQLResult(2*crm.MaxBatchUpsertInputs + 1)
+				sql, _ := output.SQL()
+				for _, row := range sql.Rows {
+					row["updated_at"] = "2026-05-24T10:00:00Z"
+					row["label"] = "private-company"
+				}
+				sql.ColumnNames = append(sql.ColumnNames, "label")
+				return output, &pipelinerun.IncrementalCheckpointObservation{SourceStepSlug: "fetch-users", CheckpointNamespace: "normal", CheckpointKind: "watermark", ObservedUpperBound: json.RawMessage(`{"value":"2026-05-24T10:00:00Z"}`)}, nil
+			}}
+			store := newIncrementalCheckpointTestRunStore(nil)
+			runner, err := NewRunner(source, nil, store, hubSpotCheckpointDataSources{}, sink)
+			require.NoError(t, err)
+			pipeline := incrementalCheckpointPipeline()
+			pipeline.Steps[1].Sink.OperationType = pipelinespec.OperationTypeHubSpot
+			pipeline.Steps[1].Sink.IdempotencyClass = pipelinespec.SinkIdempotencyClassIdempotentWithKey
+			req := RunRequest{OrgSlug: "acme", ProjectSlug: "default", EnvironmentSlug: "prod", RunSlug: "run-batches", PipelineVersionID: 42, Pipeline: pipeline}
+			_, err = runner.Run(t.Context(), req)
+			if scenario == "lost acknowledgement" {
+				require.ErrorIs(t, err, xerror.ConnectionFailed(xerror.DataSource))
+			} else {
+				require.ErrorIs(t, err, xerror.Unavailable(xerror.DataSource))
+			}
+			require.Len(t, receivedBatches(), 2)
+			require.Len(t, store.persistedRuns, 1)
+			failed := store.persistedRuns[0]
+			require.Equal(t, "failed", failed.Metadata.Status)
+			require.Equal(t, "HubSpot upsert stopped: 100 inputs confirmed in prior batches, 100 in the unresolved batch (outcomes unknown), 1 never dispatched. Verify provider state before replay.", failed.Timeline.Failure.Error)
+			require.Len(t, failed.IncrementalCheckpointTransitions, 1)
+			require.Equal(t, pipelinerun.IncrementalCheckpointTransitionBlocked, failed.IncrementalCheckpointTransitions[0].Status)
+			require.Empty(t, failed.IncrementalCheckpointTransitions[0].CommittingRunSlug)
+			replayed, err := runner.Replay(t.Context(), ReplayRequest{OrgSlug: req.OrgSlug, ProjectSlug: req.ProjectSlug, EnvironmentSlug: req.EnvironmentSlug, SourceRunSlug: req.RunSlug, InputMode: ReplayInputModePinned})
+			require.NoError(t, err)
+			require.Equal(t, "succeeded", replayed.Metadata.Status)
+			batches := receivedBatches()
+			require.Len(t, batches, 5)
+			require.Equal(t, batches[:2], batches[2:4])
+			var index int
+			for _, batch := range batches[2:] {
+				for _, input := range batch {
+					index++
+					require.Equal(t, fmt.Sprintf("cursor-%d", index), input.ID)
+					require.Equal(t, "key", input.IDProperty)
+				}
+			}
+			require.Equal(t, 201, index)
+		})
 	}
 }
 
