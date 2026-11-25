@@ -23,7 +23,8 @@ is advertised by this tooling:
 | Key recovery | Independent protected source, retained IDs and configuration versions |
 | Artifact recovery | Original bundle, image digests, signatures/trust roots and Git revision |
 
-Use the standalone lifecycle `backup` command in the customer's backup schedule.
+Schedule the entire maintenance window described below. The standalone lifecycle
+`backup` command stops application roles and leaves them stopped.
 The command does not schedule backups, copy them off-host or emit operational
 alerts. Arrange and test those operations before promising the recovery contract
 above; pre-upgrade backups alone cannot meet a periodic backup schedule.
@@ -56,6 +57,136 @@ WAL/archive restore evidence before advertising a tighter objective.
 6. Run `python3 -m scripts.installation.restore_probe BACKUP_DIRECTORY` against a
    trusted backup. It uses fresh isolated storage and starts no application roles.
    Record the result; the disposable database is removed after this probe.
+
+## Example nightly maintenance window
+
+This Linux cron job runs the full backup window at 02:15 each day when the scheduler uses UTC.
+Set up monitoring that can reach the on-call operator even if the backup host goes offline.
+Alert if the job fails, runs too long or misses a scheduled start. Independently monitor the
+age of the last verified backup using the time its writers stopped. Before enabling the job,
+send a test alert and record who acknowledged it.
+
+```cron
+15 2 * * * /usr/local/sbin/braidplane-backup-window
+```
+
+Run the script under a dedicated account with a protected local backup directory.
+On a separate recovery host, use encrypted storage and give this installation its own
+backup directory with mode 0700. Restrict SSH access, pin the host key and install the
+matching backup tools. Supply and test these three commands on the installation host
+before enabling the schedule.
+
+- `freeze-and-drain` refuses to start if a previous window is still open, even after a reboot.
+  Before restricting ingress, it saves the attempt ID, UTC start time, current settings
+  and last accepted schedule occurrences in a protected record that survives a restart.
+  It limits ingress to the operator and disables triggers, producers and notifications.
+  It waits for queued jobs, running jobs and destination writes to finish, with a deadline.
+  It also checks for external writers and available storage. If the deadline passes or the
+  outcome of a write is unclear, it stops and alerts the operator.
+- `check-resume` confirms that the installation, project, volume, keys and release match
+  their original values. It checks that work has drained, ingress is still restricted,
+  and neither a restore hold nor an upgrade is active. Before starting workers, decide
+  which missed schedule occurrences to run and which to skip.
+- `reopen-and-observe` checks that the roles are ready and verifies HTTPS through the
+  operator route using the trusted CA. It then reopens ingress and restores only the
+  producers, triggers and notifications that were enabled before the freeze. Record when
+  ingress becomes usable and the elapsed time since the freeze. Choose a test pipeline
+  whose next run finishes within the approved maintenance window. Wait for its output
+  only until the window deadline, which must fall before the next backup is due.
+  If verification fails or times out, alert the operator and keep the window record open.
+  An unresolved window blocks later backups. For each backup that would be missed,
+  the operator must resolve the window or explicitly accept and record the age of
+  the last verified point under the site's recovery contract. Escalate if that age
+  exceeds the agreed limit.
+
+```bash
+#!/bin/bash
+set -eu
+umask 077
+cd /opt/braidplane/tools
+installation=/protected/braidplane
+backups=/protected/backups
+receiver=braidplane-vault
+exec 9>"$backups/window.lock"
+flock -n 9
+id="$(date -u +%Y%m%dT%H%M%SZ)-$(cat /proc/sys/kernel/random/uuid)"
+copy="/protected/backups/$id"
+# Coordinate upgrades and manual operations for the entire window as well.
+/usr/local/sbin/freeze-and-drain "$installation" "$id"
+python3 -m scripts.installation.lifecycle backup "$installation" --backup-directory "$backups/$id"
+python3 -m scripts.installation.backup "$backups/$id"
+ssh -o BatchMode=yes "$receiver" "mkdir -m 700 '$copy.partial'"
+scp -B -p "$backups/$id/"{database.dump,configuration.tar,backup.json} "$receiver:$copy.partial/"
+ssh -o BatchMode=yes "$receiver" "set -e
+  cd /opt/braidplane/tools
+  python3 -m scripts.installation.backup '$copy.partial'
+  python3 -m scripts.installation.restore_probe '$copy.partial'
+  mv -T '$copy.partial' '$copy'"
+/usr/local/sbin/check-resume "$installation"
+python3 -m scripts.installation.lifecycle start "$installation"
+python3 -m scripts.installation.lifecycle status "$installation"
+/usr/local/sbin/reopen-and-observe "$installation"
+```
+
+On the recovery host, protect finalized backups and their receipts with an independent
+retention policy. In the protected operating record, save the installation and attempt IDs,
+receipt digest, writer-stop time and verification time. To find the last recovery point,
+check finalized backups for this installation, newest writer-stop time first. Use the first
+one whose receipt verifies on the recovery host. Skip every `.partial` directory, even if
+its local receipt was valid. If none verifies, report that there is no verified recovery point.
+
+### If the scheduled job fails
+
+The alert should name the installation, attempt and failed step. Include the state of
+ingress and application roles, and the last verified recovery point if one exists.
+Check `lifecycle status` first. A preflight failure can leave all roles running.
+If the stop failed partway through, some roles may still be running.
+
+Keep partial files for diagnosis. To retry a transfer, keep the window open, verify
+the local backup again and copy it to a fresh staging directory. If time runs out,
+check whether the site's recovery contract allows the age of the previous verified
+point. The operator must explicitly accept that exposure before running the usual
+resume checks and reopening the original installation. Record the missed backup.
+Keep the alert open until a new off-host backup verifies.
+
+Keep ingress restricted and escalate if you cannot confirm which installation you
+have, whether work drained, which writes reached their destination or how much data
+you could lose. Never use an exit trap that unconditionally starts services or reopens ingress.
+
+### Verify the next scheduled run
+
+Deploy the bundled [first-result pipeline](INSTALL.md#first-result-from-customer-git)
+on a synthetic installation. Enable a schedule and record its next occurrence, trigger,
+timezone, spec hash and destination branch before the freeze.
+
+After reopening ingress, find that occurrence and its run with
+`bp pipeline trigger fire list TRIGGER`. Follow the installation guide to watch the run
+and retrieve its details. Check that the scheduled run succeeded with the recorded spec hash.
+Use the run's output path to find the file on the destination branch. Fetch it at the
+commit that wrote it. Compare the decoded JSON with `[{"result":42}]`. Record the
+occurrence, run, commit, comparison result and UTC completion time separately from ingress downtime.
+
+Repeat the rehearsal with a deliberately failed copy to a disposable destination.
+Check the operator inbox, acknowledge the alert and confirm that the previous verified
+backup is still the last recovery point.
+
+### Tagged rehearsal on 2026-11-24
+
+The Linux ARM64 bundle for `v0.3.0-rc.4` (Core revision
+`17aa1bfd69a0b8ae41c16b383e9e2a568b1553fa`) ran on a new loopback-only
+installation with a synthetic owner. The archive SHA-256 matched the release
+record (`73a1c86e2255a0ce4fda1e8563fbfa8cb5760c398704fd635e5da16b968b6753`)
+and all bundle checksums passed. The operator started both windows manually.
+Each time below runs from the backup command to the first verified HTTPS response.
+
+| UTC window | Result |
+|---|---|
+| 22:07:32–22:08:13 (41 s) | Standalone backup stopped all five application services. The database stayed healthy. The receiver copy passed receipt verification and an isolated restore probe (schema 8, 8.723 s). After lifecycle start, API, frontend, worker, executor and database reported healthy and the edge returned HTTP 200 for the login page. |
+| 22:08:41–22:08:57 (16 s) | The second local backup verified. Omitting the dump from its receiver copy made verification exit 1. The copy stayed partial. The first copy reverified with writer-stop time 22:07:39.268666 UTC. The synthetic operator inbox received the failed attempt and prior recovery point. With an idle fixture, original database healthy and all application roles stopped, the operator resumed the same installation. HTTPS login and subsequent synthetic session creation returned HTTP 200. |
+
+The receiver was a protected directory on the same host and the inbox was a
+local Mailpit fixture. The rehearsal still needs an off-host copy, an alert from the site scheduler,
+a drain with active work, and a check of the next scheduled run's destination commit.
 
 ## If an upgrade fails
 

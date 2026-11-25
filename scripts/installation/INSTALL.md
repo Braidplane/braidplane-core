@@ -350,8 +350,9 @@ Follow [the recovery operating record](RECOVERY.md) before any production adopti
 
 ## Scheduled or incident backups
 
-After fencing external writers and draining active work as described in
-[the recovery operating record](RECOVERY.md), take a backup without upgrading:
+For recurring backups, schedule the [complete nightly maintenance window](RECOVERY.md#example-nightly-maintenance-window).
+For a single backup, first fence external writers and drain active work as described
+in [the recovery operating record](RECOVERY.md). Then run the backup command.
 
 ```sh
 python3 -m scripts.installation.lifecycle backup /protected/braidplane \
