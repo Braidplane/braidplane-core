@@ -48,6 +48,9 @@ func handleFirstPipelineAPI(w http.ResponseWriter, r *http.Request) bool {
 		permissions := []api.Permission{{Resource: "pipelines", Action: "read"}, {Resource: "projects", Action: "read"}, {Resource: "projects", Action: "update"}, {Resource: "datasources", Action: "read"}}
 		if !firstPipelineRestricted {
 			permissions = append(permissions, api.Permission{Resource: "pipelines", Action: "create"})
+			if r.URL.Query().Get("target_kind") == "projects" && r.URL.Query().Get("target_slug") == "ops" {
+				permissions = append(permissions, api.Permission{Resource: "pipelines", Action: "update"})
+			}
 		}
 		if err := json.NewEncoder(w).Encode(map[string]any{"slug": "admin", "permissions": permissions}); err != nil {
 			http.Error(w, "encode role", http.StatusInternalServerError)
