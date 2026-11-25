@@ -18,8 +18,10 @@ import (
 
 func TestRoleGrantAdministration(t *testing.T) {
 	const path = "/organizations/acme/authorization/grants"
-	body := api.NewRoleGrant{SubjectKind: "member", SubjectSlug: "alice", RoleSlug: "runner", Scope: "resource",
-		TargetKind: new("pipelines"), TargetSlug: new("batch"), ProjectSlug: new("sales")}
+	body := api.NewRoleGrant{
+		SubjectKind: "member", SubjectSlug: "alice", RoleSlug: "runner", Scope: "resource",
+		TargetKind: new("pipelines"), TargetSlug: new("batch"), ProjectSlug: new("sales"),
+	}
 	stored := model.RoleGrant{Slug: "grant-a", NewRoleGrant: model.NewRoleGrant{
 		SubjectKind: "member", SubjectSlug: "alice", RoleSlug: "runner", Scope: "resource",
 		Target: model.AuthorizationTarget{Kind: "pipelines", Slug: "batch", ProjectSlug: "sales"},
@@ -65,8 +67,10 @@ func TestRoleGrantAdministration(t *testing.T) {
 	require.Equal(t, http.StatusNoContent, revoked.StatusCode)
 	require.NoError(t, revoked.Body.Close())
 
-	keyApp, _ := newTestApp(t, testServerConfig{rolesService: roles, authService: fakeAuthService{CanFn: auth.Can},
-		middleware: []fiber.Handler{apiKeyPrincipalMiddleware(reqctx.APIKeyPrincipal{OrgSlug: "acme", Slug: "machine", Role: "admin", CanManageAPIKeys: true})}})
+	keyApp, _ := newTestApp(t, testServerConfig{
+		rolesService: roles, authService: fakeAuthService{CanFn: auth.Can},
+		middleware: []fiber.Handler{apiKeyPrincipalMiddleware(reqctx.APIKeyPrincipal{OrgSlug: "acme", Slug: "machine", Role: "admin", CanManageAPIKeys: true})},
+	})
 	for _, tc := range []struct {
 		method, url string
 		body        any
@@ -99,8 +103,10 @@ func TestRoleGrantSelectors(t *testing.T) {
 		{"missing target", "environment", "", "", "", model.AuthorizationTarget{}},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			got, err := parseRoleGrant("acme", api.NewRoleGrant{SubjectKind: "member", SubjectSlug: "alice", RoleSlug: "runner",
-				Scope: api.NewRoleGrantScope(tc.scope), TargetKind: optionalString(tc.kind), TargetSlug: optionalString(tc.target), ProjectSlug: optionalString(tc.project)})
+			got, err := parseRoleGrant("acme", api.NewRoleGrant{
+				SubjectKind: "member", SubjectSlug: "alice", RoleSlug: "runner",
+				Scope: api.NewRoleGrantScope(tc.scope), TargetKind: optionalString(tc.kind), TargetSlug: optionalString(tc.target), ProjectSlug: optionalString(tc.project),
+			})
 			if tc.want.Kind == "" {
 				require.Error(t, err)
 				return

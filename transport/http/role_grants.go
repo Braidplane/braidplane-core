@@ -83,17 +83,17 @@ func parseRoleGrant(org slug.Slug, body api.NewRoleGrant) (model.NewRoleGrant, e
 	}
 	kind := ""
 	switch body.Scope {
-	case "organization":
+	case api.NewRoleGrantScopeOrganization:
 		kind = "organizations"
 		if body.TargetSlug != nil && *body.TargetSlug != org.String() {
 			return grant, apierror.ValidationFailed("Organization target must match the requested organization")
 		}
 		body.TargetSlug = new(org.String())
-	case "project":
+	case api.NewRoleGrantScopeProject:
 		kind = "projects"
-	case "environment":
+	case api.NewRoleGrantScopeEnvironment:
 		kind = "environments"
-	case "resource":
+	case api.NewRoleGrantScopeResource:
 		if body.TargetKind == nil || *body.TargetKind == "" {
 			return grant, apierror.ValidationFailed("Resource grant requires a target kind")
 		}
