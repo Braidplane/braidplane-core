@@ -22396,20 +22396,21 @@ WHERE o.slug = $1
     AND pe.deleted_at IS NULL
     AND pt.slug = $4
     AND pt.trigger_type = 'webhook'
+    AND ($5::boolean OR (pwd.trigger_revision, pwd.pipeline_slug) = (pt.revision, pt.pipeline_slug))
     AND (
-        $5::text IS NULL
+        $6::text IS NULL
         OR (
-            ($6 = 'asc' AND (pwd.received_at, pwd.delivery_id) > ($7::timestamptz, $5::text))
+            ($7 = 'asc' AND (pwd.received_at, pwd.delivery_id) > ($8::timestamptz, $6::text))
             OR
-            ($6 = 'desc' AND (pwd.received_at, pwd.delivery_id) < ($7::timestamptz, $5::text))
+            ($7 = 'desc' AND (pwd.received_at, pwd.delivery_id) < ($8::timestamptz, $6::text))
         )
     )
 ORDER BY
-    CASE WHEN $6 = 'asc' THEN pwd.received_at END ASC,
-    CASE WHEN $6 = 'desc' THEN pwd.received_at END DESC,
-    CASE WHEN $6 = 'asc' THEN pwd.delivery_id END ASC,
-    CASE WHEN $6 = 'desc' THEN pwd.delivery_id END DESC
-LIMIT $8
+    CASE WHEN $7 = 'asc' THEN pwd.received_at END ASC,
+    CASE WHEN $7 = 'desc' THEN pwd.received_at END DESC,
+    CASE WHEN $7 = 'asc' THEN pwd.delivery_id END ASC,
+    CASE WHEN $7 = 'desc' THEN pwd.delivery_id END DESC
+LIMIT $9
 `
 
 type ListPipelineWebhookDeliveriesForTriggerParams struct {
@@ -22417,6 +22418,7 @@ type ListPipelineWebhookDeliveriesForTriggerParams struct {
 	ProjectSlug     slug.Slug
 	EnvironmentSlug slug.Slug
 	TriggerSlug     slug.Slug
+	IncludeHistory  bool
 	CursorSlug      pgtype.Text
 	OrderDir        pgtype.Text
 	CursorTimestamp pgtype.Timestamptz
@@ -22473,6 +22475,7 @@ func (q *Queries) ListPipelineWebhookDeliveriesForTrigger(ctx context.Context, a
 		arg.ProjectSlug,
 		arg.EnvironmentSlug,
 		arg.TriggerSlug,
+		arg.IncludeHistory,
 		arg.CursorSlug,
 		arg.OrderDir,
 		arg.CursorTimestamp,

@@ -129,9 +129,11 @@ func TestService_Can_SystemLevel(t *testing.T) {
 
 			operation := map[model.Resource]map[model.Action]string{
 				model.ResourceUsers:         {model.Read: "instanceUserAdministration", model.Update: "instanceUserAdministration"},
-				model.ResourceOrganizations: {model.Read: "listOrganizations", model.Create: "createOrganization"},
+				model.ResourceOrganizations: {model.Read: "listOrganizations", model.Create: "createOrganization", model.Delete: "deleteOrganization"},
+				model.ResourceDataSources:   {model.Delete: "deleteDataSource"},
 				model.ResourceProfile:       {model.Read: "getUsersProfile", model.Update: "patchUsersProfile", model.Delete: "requestAccountDeletion"},
 			}[tt.resource][tt.action]
+			require.NotEmpty(t, operation)
 			input := Input{
 				Operation: operation, Source: SourceSession,
 				UserSlug:          tt.userSlug,
@@ -291,6 +293,25 @@ func TestProjectBindingDoesNotGrantSharedSourceAccess(t *testing.T) {
 	facts.TargetID = "datasources:2"
 	facts.ProjectID = ""
 	check(false)
+}
+
+func TestHistoricalWebhookDeliveriesRequireStableOwner(t *testing.T) {
+	input := Input{Operation: "listPipelineWebhookDeliveries", Resource: model.ResourcePipelineTriggers, Action: model.Read}
+	facts := model.AuthorizationFacts{Valid: true, OrganizationID: "1", ProjectID: "7", TargetID: "pipeline_triggers:2", AncestorIDs: []string{"pipelines:3"}}
+	for _, tc := range []struct {
+		scope, id string
+		history   bool
+	}{
+		{"resource", "pipelines:3", false}, {"resource", "pipeline_triggers:2", true}, {"project", "7", true}, {"organization", "1", true},
+	} {
+		facts.Bindings = []model.AuthorizationBinding{{Scope: tc.scope, ScopeID: tc.id, Permissions: []string{"pipeline_triggers:read"}}}
+		for _, purpose := range []string{"", "delivery_history"} {
+			input.CheckPurpose = purpose
+			allowed, err := evaluateTenant(t.Context(), input, facts)
+			require.NoError(t, err)
+			require.Equal(t, purpose == "" || tc.history, allowed, tc.id)
+		}
+	}
 }
 
 func TestScopedGrantCannotDelegateOrganizationAuthority(t *testing.T) {

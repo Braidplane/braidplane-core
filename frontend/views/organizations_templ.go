@@ -2861,7 +2861,7 @@ func RoleArchiveConfirmModal(modalID string, roleName string, roleSlug string, a
 	})
 }
 
-func OrganizationProjectsPage(shellData AuthenticatedShellData, organization api.Organization, projects []api.Project, selectedProjectSlug string, backendControls ProjectPipelineBackendControls, projectContext ProjectOperationalContext, permissions OrganizationPermissions, createFormData ProjectCreateFormData, contentErrorSummary string, contentErrorDetails string, contentSuccessSummary string) templ.Component {
+func OrganizationProjectsPage(shellData AuthenticatedShellData, organization api.Organization, projects []api.Project, selectedProjectSlug string, backendControls ProjectPipelineBackendControls, projectContext ProjectOperationalContext, permissions OrganizationPermissions, canCreateProject bool, createFormData ProjectCreateFormData, contentErrorSummary string, contentErrorDetails string, contentSuccessSummary string) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
 		if templ_7745c5c3_CtxErr := ctx.Err(); templ_7745c5c3_CtxErr != nil {
@@ -2882,7 +2882,7 @@ func OrganizationProjectsPage(shellData AuthenticatedShellData, organization api
 			templ_7745c5c3_Var129 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = AuthenticatedShell(shellData, OrganizationProjectsPageContent(organization, projects, selectedProjectSlug, backendControls, projectContext, permissions, createFormData, contentErrorSummary, contentErrorDetails, contentSuccessSummary)).Render(ctx, templ_7745c5c3_Buffer)
+		templ_7745c5c3_Err = AuthenticatedShell(shellData, OrganizationProjectsPageContent(organization, projects, selectedProjectSlug, backendControls, projectContext, permissions, canCreateProject, createFormData, contentErrorSummary, contentErrorDetails, contentSuccessSummary)).Render(ctx, templ_7745c5c3_Buffer)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -2890,7 +2890,7 @@ func OrganizationProjectsPage(shellData AuthenticatedShellData, organization api
 	})
 }
 
-func OrganizationProjectsPageContent(organization api.Organization, projects []api.Project, selectedProjectSlug string, backendControls ProjectPipelineBackendControls, projectContext ProjectOperationalContext, permissions OrganizationPermissions, createFormData ProjectCreateFormData, contentErrorSummary string, contentErrorDetails string, contentSuccessSummary string) templ.Component {
+func OrganizationProjectsPageContent(organization api.Organization, projects []api.Project, selectedProjectSlug string, backendControls ProjectPipelineBackendControls, projectContext ProjectOperationalContext, permissions OrganizationPermissions, canCreateProject bool, createFormData ProjectCreateFormData, contentErrorSummary string, contentErrorDetails string, contentSuccessSummary string) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
 		if templ_7745c5c3_CtxErr := ctx.Err(); templ_7745c5c3_CtxErr != nil {
@@ -2915,7 +2915,7 @@ func OrganizationProjectsPageContent(organization api.Organization, projects []a
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		if permissions.Can("projects", "create") {
+		if canCreateProject {
 			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 231, "<div class=\"flex flex-wrap items-center justify-end gap-3\"><button class=\"btn btn-primary btn-sm w-full sm:w-auto\" type=\"button\" aria-controls=\"create-project\" aria-expanded=\"")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
@@ -4469,7 +4469,7 @@ func OrganizationProjectDetailPanel(organization api.Organization, project api.P
 					return templ_7745c5c3_Err
 				}
 				if projectRepositoryPath(ctx) == "create" {
-					templ_7745c5c3_Err = ManagedProjectRepositoryForm(organization, project, backendControls, permissions, fullPage).Render(ctx, templ_7745c5c3_Buffer)
+					templ_7745c5c3_Err = ManagedProjectRepositoryForm(organization, project, backendControls, backendControls.OrganizationPermissions, fullPage).Render(ctx, templ_7745c5c3_Buffer)
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}

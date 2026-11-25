@@ -4,19 +4,19 @@ import "strconv"
 
 import api "github.com/Braidplane/braidplane-core/api-schema/gen/client"
 
-templ QueryDetailPage(shellData AuthenticatedShellData, orgSlug string, dataSourceSlug string, query api.Query, editFormData QueryEditorFormData, executionResult *QueryExecutionResultView, executionError string, executionErrorDetails string, permissions OrganizationPermissions) {
-	@AuthenticatedShell(shellData, QueryDetailPageContent(orgSlug, dataSourceSlug, query, editFormData, executionResult, executionError, executionErrorDetails, permissions))
+templ QueryDetailPage(shellData AuthenticatedShellData, orgSlug string, dataSourceSlug string, query api.Query, editFormData QueryEditorFormData, executionResult *QueryExecutionResultView, executionError string, executionErrorDetails string, permissions OrganizationPermissions, canBuildPipeline bool) {
+	@AuthenticatedShell(shellData, QueryDetailPageContent(orgSlug, dataSourceSlug, query, editFormData, executionResult, executionError, executionErrorDetails, permissions, canBuildPipeline))
 }
 
 templ QueryDetailUnavailablePage(shellData AuthenticatedShellData, orgSlug string, dataSourceSlug string, querySlug string, message string) {
 	@AuthenticatedShell(shellData, QueryDetailUnavailablePageContent(orgSlug, dataSourceSlug, querySlug, message))
 }
 
-templ QueryDetailPageContent(orgSlug string, dataSourceSlug string, query api.Query, editFormData QueryEditorFormData, executionResult *QueryExecutionResultView, executionError string, executionErrorDetails string, permissions OrganizationPermissions) {
+templ QueryDetailPageContent(orgSlug string, dataSourceSlug string, query api.Query, editFormData QueryEditorFormData, executionResult *QueryExecutionResultView, executionError string, executionErrorDetails string, permissions OrganizationPermissions, canBuildPipeline bool) {
 	{{ resultsActive := executionResult != nil || executionError != "" }}
 	<div data-query-detail>
 		@EntityDetailHeader(query.Name, string(query.Slug)) {
-			if query.DeletedAt == nil && permissions.Can("pipelines", "create") {
+			if query.DeletedAt == nil && canBuildPipeline {
 				<a class="btn btn-primary btn-sm" href={ templ.URL(QueryPipelineSetupHref(orgSlug, dataSourceSlug, query.Slug, "")) }>Build pipeline</a>
 			}
 			<a class="btn btn-outline btn-sm" href={ templ.URL(entityBackHref(ctx, QueriesListHref(orgSlug, dataSourceSlug, string(query.Slug), query.DeletedAt != nil))) }>Back to list</a>

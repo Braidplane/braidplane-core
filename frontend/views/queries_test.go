@@ -45,7 +45,7 @@ func TestQueriesEmptyStateProvidesPermissionAwareFirstResultAction(t *testing.T)
 			permissions = NewOrganizationPermissions("datasources:create")
 		}
 		var out bytes.Buffer
-		require.NoError(t, QueriesPageContent(nil, "", "", nil, nil, QueryEditorFormData{}, false, "", "", "acme", QueryEditorFormData{}, nil, "", "", false, permissions, nil).Render(context.Background(), &out))
+		require.NoError(t, QueriesPageContent(nil, "", "", nil, nil, QueryEditorFormData{}, false, "", "", "acme", QueryEditorFormData{}, nil, "", "", false, permissions, nil, nil).Render(context.Background(), &out))
 		require.Contains(t, out.String(), "Get your first result")
 		require.Contains(t, out.String(), "You do not need a project or Git repository.")
 		if canCreate {
@@ -91,7 +91,7 @@ func TestQueriesPageContentCanonicalizesGitProviderStatementType(t *testing.T) {
 		"",
 		"",
 		false,
-		NewOrganizationPermissions("queries:create"), nil,
+		NewOrganizationPermissions("queries:create"), nil, nil,
 	).Render(context.Background(), &out)
 	require.NoError(t, err)
 
@@ -111,13 +111,13 @@ func TestGitQueryFormsExposeNativeFileFormat(t *testing.T) {
 	var createOut bytes.Buffer
 	require.NoError(t, QueriesPageContent(
 		nil, "repo", "git", nil, nil, QueryEditorFormData{}, false, "", "", "acme",
-		formData, nil, "", "", false, permissions, nil,
+		formData, nil, "", "", false, permissions, nil, nil,
 	).Render(context.Background(), &createOut))
 
 	var editOut bytes.Buffer
 	require.NoError(t, QueryDetailPageContent(
 		"acme", "repo", api.Query{Name: "Native file", Slug: "native-file"},
-		formData, nil, "", "", permissions,
+		formData, nil, "", "", permissions, false,
 	).Render(context.Background(), &editOut))
 
 	for _, html := range []string{createOut.String(), editOut.String()} {
@@ -150,7 +150,7 @@ func TestQueriesPageContentRendersSelectedDataSourceIconReference(t *testing.T) 
 		"",
 		"",
 		false,
-		DefaultOrganizationPermissions(), nil,
+		DefaultOrganizationPermissions(), nil, nil,
 	).Render(context.Background(), &out)
 	require.NoError(t, err)
 
@@ -183,7 +183,7 @@ func TestQueriesPageContentKeepsHubSpotUpsertForWritableDataSource(t *testing.T)
 		"",
 		"",
 		false,
-		NewOrganizationPermissions("queries:create"), nil,
+		NewOrganizationPermissions("queries:create"), nil, nil,
 	).Render(context.Background(), &out))
 
 	require.Contains(t, out.String(), `value="upsert"`)
@@ -211,7 +211,7 @@ func TestQueryPagesUseContentVersionedEditorScript(t *testing.T) {
 		"",
 		"",
 		false,
-		permissions, nil,
+		permissions, nil, nil,
 	).Render(context.Background(), &listOut))
 
 	var detailOut bytes.Buffer
@@ -223,7 +223,7 @@ func TestQueryPagesUseContentVersionedEditorScript(t *testing.T) {
 		nil,
 		"",
 		"",
-		permissions,
+		permissions, false,
 	).Render(context.Background(), &detailOut))
 
 	for _, html := range []string{listOut.String(), detailOut.String()} {
@@ -247,7 +247,7 @@ func TestS3QueryDefinitionVisibleWithAndWithoutEditPermission(t *testing.T) {
 			permissions = NewOrganizationPermissions("queries:read", "queries:update")
 		}
 		var out bytes.Buffer
-		require.NoError(t, QueryDetailPageContent("acme", "store", query, form, nil, "", "", permissions).Render(context.Background(), &out))
+		require.NoError(t, QueryDetailPageContent("acme", "store", query, form, nil, "", "", permissions, false).Render(context.Background(), &out))
 		document := html.UnescapeString(out.String())
 		require.Contains(t, document, form.Statement)
 		require.Contains(t, document, "exports/orders.csv")
@@ -281,7 +281,7 @@ func TestQueryDetailReadOnlyViewShowsHubSpotUpsertDefinition(t *testing.T) {
 		nil,
 		"",
 		"",
-		NewOrganizationPermissions(),
+		NewOrganizationPermissions(), false,
 	).Render(context.Background(), &out))
 
 	html := out.String()
@@ -391,7 +391,7 @@ func TestQueryFormsIncludeSpreadsheetFieldsInParameterSync(t *testing.T) {
 				"",
 				"",
 				false,
-				permissions, nil,
+				permissions, nil, nil,
 			).Render(context.Background(), &createOut))
 			createHTML := createOut.String()
 			for _, snippet := range tc.wantCreateSnippets {
@@ -407,7 +407,7 @@ func TestQueryFormsIncludeSpreadsheetFieldsInParameterSync(t *testing.T) {
 				nil,
 				"",
 				"",
-				permissions,
+				permissions, false,
 			).Render(context.Background(), &editOut))
 			editHTML := editOut.String()
 			for _, snippet := range tc.wantEditSnippets {
@@ -441,7 +441,7 @@ func TestQueryFormsRenderBooleanAttributes(t *testing.T) {
 		"",
 		"",
 		false,
-		permissions, nil,
+		permissions, nil, nil,
 	).Render(context.Background(), &listOut))
 	listHTML := listOut.String()
 	require.NotContains(t, listHTML, ` selected="false"`)
@@ -466,7 +466,7 @@ func TestQueryFormsRenderBooleanAttributes(t *testing.T) {
 		nil,
 		"",
 		"",
-		permissions,
+		permissions, false,
 	).Render(context.Background(), &detailOut))
 	detailHTML := detailOut.String()
 	require.NotContains(t, detailHTML, ` selected="false"`)
@@ -719,7 +719,7 @@ func TestS3WriteQueryRetainsCompleteEditorAndRunControls(t *testing.T) {
 	var out bytes.Buffer
 	require.NoError(t, QueryDetailPageContent(
 		"acme", "archive", query, QueryEditorFormDataFromQuery(query), nil, "", "",
-		NewOrganizationPermissions("queries:update", "queries:execute"),
+		NewOrganizationPermissions("queries:update", "queries:execute"), false,
 	).Render(context.Background(), &out))
 
 	html := out.String()
@@ -850,7 +850,7 @@ func TestQueryDetailReadOnlyViewShowsWorkspaceDefinition(t *testing.T) {
 	form.WorkspaceRange = "B2:C3"
 	form.WorkspaceOperation = "read"
 	var out bytes.Buffer
-	require.NoError(t, QueryDetailPageContent("acme", "sheet", api.Query{Name: "Orders", Slug: "orders"}, form, nil, "", "", NewOrganizationPermissions()).Render(context.Background(), &out))
+	require.NoError(t, QueryDetailPageContent("acme", "sheet", api.Query{Name: "Orders", Slug: "orders"}, form, nil, "", "", NewOrganizationPermissions(), false).Render(context.Background(), &out))
 	for _, value := range []string{"Query definition (read-only)", "Worksheet ID", "12", "Range", "B2:C3", "Operation", "read"} {
 		require.Contains(t, out.String(), value)
 	}
@@ -867,8 +867,8 @@ func TestHTTPQueryFormsPreservePagination(t *testing.T) {
 	form.HTTPWriteRetry = `{"verified":true,"provider_contract_url":"https://provider.invalid/idempotency","key_header":"Idempotency-Key","retention_seconds":3600,"payload_conflict":"reject"}`
 	permissions := NewOrganizationPermissions("queries:create", "queries:update")
 	var create, edit bytes.Buffer
-	require.NoError(t, QueriesPageContent(nil, "api", "http", nil, nil, QueryEditorFormData{}, false, "", "", "acme", form, nil, "", "", false, permissions, nil).Render(context.Background(), &create))
-	require.NoError(t, QueryDetailPageContent("acme", "api", api.Query{Name: "Items", Slug: "items"}, form, nil, "", "", permissions).Render(context.Background(), &edit))
+	require.NoError(t, QueriesPageContent(nil, "api", "http", nil, nil, QueryEditorFormData{}, false, "", "", "acme", form, nil, "", "", false, permissions, nil, nil).Render(context.Background(), &create))
+	require.NoError(t, QueryDetailPageContent("acme", "api", api.Query{Name: "Items", Slug: "items"}, form, nil, "", "", permissions, false).Render(context.Background(), &edit))
 	for _, page := range []string{create.String(), edit.String()} {
 		require.Contains(t, page, `name="http_acknowledgement_enabled" checked`)
 		require.Contains(t, page, `name="http_acknowledgement_path" value="status.code"`)

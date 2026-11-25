@@ -15,6 +15,7 @@ import (
 	"github.com/Braidplane/braidplane-core/pkg/testutil/e2edb"
 	"github.com/Braidplane/braidplane-core/postgres"
 	"github.com/Braidplane/braidplane-core/postgres/authorization"
+	"github.com/Braidplane/braidplane-core/postgres/pipelinewebhooks"
 )
 
 // Upgrade an installation that already has organization-wide user and key roles.
@@ -162,6 +163,43 @@ VALUES (30,10,'Key','machine','synthetic','example',13);
 	rebuiltPipeline := read("example", "", "machine", logical)
 	require.True(t, rebuiltPipeline.Valid)
 	require.NotEqual(t, pipe.TargetID, rebuiltPipeline.TargetID)
+	// The persisted trigger remains the owner when it is retargeted. A delivery never inherits from the new pipeline.
+	exec(`INSERT INTO pipeline_triggers (project_id,project_environment_id,pipeline_id,pipeline_slug,slug,name,trigger_type,version_policy,receiver_id,webhook_verification_strategy,webhook_input_mappings,created_by_actor_type,updated_by_actor_type)
+		SELECT 11,pe.id,s.id,s.slug,'hook','Hook','webhook','latest_deployed','receiver','hmac_sha256','[]','system','system'
+		FROM project_environments pe, pipeline_specs s WHERE pe.project_id=11 AND s.project_id=11 AND s.slug='daily';
+	INSERT INTO pipeline_webhook_deliveries (organization_id,project_id,project_environment_id,pipeline_trigger_id,receiver_id,delivery_id,payload_digest,payload_size_bytes,key_version,trigger_revision,pipeline_slug,version_policy,run_slug,status,received_at)
+		SELECT 10,11,t.project_environment_id,t.id,'receiver','attempt',repeat('a',64),1,1,t.revision,t.pipeline_slug,'latest_deployed','run','failed',now()
+		FROM pipeline_triggers t WHERE t.project_id=11 AND t.slug='hook'`)
+	delivery := model.AuthorizationTarget{Kind: "webhook_deliveries", Slug: "attempt", ProjectSlug: "primary", EnvironmentSlug: "prod", ParentSlug: "hook"}
+	originalDelivery := read("example", "member", "", delivery)
+	require.True(t, originalDelivery.Valid)
+	require.Contains(t, originalDelivery.AncestorIDs, rebuiltPipeline.TargetID)
+	exec(`INSERT INTO pipeline_specs (project_id, slug, spec_jsonb, source_path, source_ref, last_applied_commit)
+		VALUES (11,'other-pipeline','{}','other.json','main','another');
+	UPDATE pipeline_triggers t SET pipeline_id=s.id,pipeline_slug=s.slug,revision=t.revision+1
+		FROM pipeline_specs s WHERE s.project_id=11 AND s.slug='other-pipeline' AND t.slug='hook'`)
+	changedDelivery := read("example", "member", "", delivery)
+	require.True(t, changedDelivery.Valid)
+	require.Equal(t, originalDelivery.TargetID, changedDelivery.TargetID)
+	trigger := read("example", "member", "", model.AuthorizationTarget{Kind: "pipeline_triggers", Slug: "hook", ProjectSlug: "primary", EnvironmentSlug: "prod"})
+	require.Equal(t, []string{trigger.TargetID}, changedDelivery.AncestorIDs)
+	exec(`INSERT INTO pipeline_webhook_deliveries (organization_id,project_id,project_environment_id,pipeline_trigger_id,receiver_id,delivery_id,payload_digest,payload_size_bytes,key_version,trigger_revision,pipeline_slug,version_policy,run_slug,status,received_at)
+		SELECT 10,11,t.project_environment_id,t.id,'receiver','current',repeat('a',64),1,1,t.revision,t.pipeline_slug,'latest_deployed','current-run','failed',now()
+		FROM pipeline_triggers t WHERE t.project_id=11 AND t.slug='hook'`)
+	req := model.ListRequest{Limit: 1, Order: "asc"}
+	repo := pipelinewebhooks.New()
+	for _, fullHistory := range []bool{false, true} {
+		rows, err := repo.ListForTrigger(ctx, conn, "example", "primary", "prod", "hook", fullHistory, req)
+		require.NoError(t, err)
+		page, more := model.FinalizePage(rows, req)
+		require.Len(t, page, 1)
+		require.Equal(t, fullHistory, more)
+		if fullHistory {
+			require.Equal(t, "attempt", page[0].DeliveryID)
+		} else {
+			require.Equal(t, "current", page[0].DeliveryID)
+		}
+	}
 	firstDeploy := deployed
 	firstDeploy.Kind = "deployment_targets"
 	require.Equal(t, rebuiltPipeline.TargetID, read("example", "", "machine", firstDeploy).TargetID)

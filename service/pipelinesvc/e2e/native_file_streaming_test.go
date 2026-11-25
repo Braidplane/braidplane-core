@@ -185,6 +185,14 @@ func TestNativeFileStreaming(t *testing.T) {
 	checkpointJSON, err := json.Marshal(checkpoint)
 	require.NoError(t, err)
 	require.Less(t, len(checkpointJSON), 1<<20)
+	t.Run("checkpoint and file pins require one snapshot", func(t *testing.T) {
+		read := func(ctx context.Context, _ postgres.DBTX) error {
+			_, err := runs.GetCheckpoint(ctx, org, project, environment, "file-transfer")
+			return err
+		}
+		require.ErrorContains(t, txm.RunInTx(ctx, read), "consistent snapshot must be selected before the outer transaction")
+		require.NoError(t, txm.RunInTx(postgres.WithConsistentSnapshot(ctx), read))
+	})
 	t.Run("checkpoint recovery refuses missing retained file input", func(t *testing.T) {
 		_, err := pool.Exec(ctx, `DELETE FROM pipeline_checkpoint_files pin USING pipeline_checkpoint pc WHERE pin.checkpoint_id=pc.id AND pc.run_slug='file-transfer' AND pc.project_environment_id=(SELECT pe.id FROM project_environments pe JOIN projects p ON p.id=pe.project_id JOIN organizations o ON o.id=p.organization_id JOIN environments e ON e.id=pe.environment_id WHERE o.slug=$1 AND p.slug=$2 AND e.slug=$3)`, org, project, environment)
 		require.NoError(t, err)

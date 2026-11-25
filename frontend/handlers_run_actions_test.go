@@ -5,6 +5,7 @@ import (
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
+	"slices"
 	"testing"
 
 	api "github.com/Braidplane/braidplane-core/api-schema/gen/client"
@@ -25,6 +26,7 @@ func TestRunStepActionsRequireCurrentAuthorizedResources(t *testing.T) {
 	}{
 		{"available", http.StatusOK, []string{"datasources:read", "queries:read"}, true, true, ""},
 		{"restricted", http.StatusOK, nil, false, false, "restricted"},
+		{"query only", http.StatusOK, []string{"queries:read"}, false, true, "connection is restricted"},
 		{"query restricted", http.StatusOK, []string{"datasources:read"}, true, false, "query is restricted"},
 		{"failure before snapshot", http.StatusOK, []string{"datasources:read", "queries:read"}, true, true, ""},
 		{"deleted", http.StatusNotFound, []string{"datasources:read"}, false, false, "unavailable or deleted"},
@@ -32,8 +34,26 @@ func TestRunStepActionsRequireCurrentAuthorizedResources(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			requests := 0
 			backend := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-				requests++
 				w.Header().Set("Content-Type", "application/json")
+				if r.URL.Path == "/api/organizations/acme/authorization/permissions" {
+					q := r.URL.Query()
+					permissions := []api.Permission{}
+					switch {
+					case q.Get("target_kind") == "datasources" && q.Get("target_slug") == "source":
+						if slices.Contains(tc.permissions, "datasources:read") {
+							permissions = append(permissions, api.Permission{Resource: "datasources", Action: "read"})
+						}
+					case q.Get("target_kind") == "queries" && q.Get("target_slug") == "read" && q.Get("datasource_slug") == "source":
+						if slices.Contains(tc.permissions, "queries:read") {
+							permissions = append(permissions, api.Permission{Resource: "queries", Action: "read"})
+						}
+					default:
+						t.Errorf("unexpected selector %v", q)
+					}
+					_ = json.NewEncoder(w).Encode(map[string]any{"permissions": permissions})
+					return
+				}
+				requests++
 				w.WriteHeader(tc.status)
 				if r.URL.Path == "/api/organizations/acme/data-sources/source/queries/read" {
 					_, _ = w.Write([]byte(`{"slug":"read"}`))
@@ -53,7 +73,7 @@ func TestRunStepActionsRequireCurrentAuthorizedResources(t *testing.T) {
 			}
 			app := fiber.New()
 			app.Get("/", func(c fiber.Ctx) error {
-				return c.JSON(router.loadRunStepActions(c, "acme", "dev", node, views.NewOrganizationPermissions(tc.permissions...)))
+				return c.JSON(router.loadRunStepActions(c, "acme", "dev", node))
 			})
 			resp, err := app.Test(httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/", nil))
 			require.NoError(t, err)

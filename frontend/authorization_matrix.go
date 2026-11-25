@@ -28,7 +28,7 @@ func checkCommunityRoutes(app *fiber.App) func() {
 	return func() {
 		for _, route := range app.GetRoutes(true) {
 			method := route.Method
-			if method == fiber.MethodHead {
+			if method == fiber.MethodHead && !mapped[method+" "+route.Path] {
 				method = fiber.MethodGet
 			}
 			if !mapped[method+" "+route.Path] && !mapped["ANY "+route.Path] {

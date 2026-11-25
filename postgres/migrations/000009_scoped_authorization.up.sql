@@ -159,7 +159,9 @@ JOIN queries q ON q.id = r.query_id
 JOIN data_sources d ON d.id = q.data_source_id
 UNION ALL
 SELECT 'webhook_deliveries', r.id, r.delivery_id, r.organization_id, r.project_id, pe.environment_id, NULL, '', t.slug,
-    ARRAY['pipeline_triggers:' || t.id, 'pipelines:' || t.pipeline_id]
+    -- A later trigger revision may point to a different logical pipeline.
+    array_remove(ARRAY['pipeline_triggers:' || t.id,
+        CASE WHEN (r.trigger_revision, r.pipeline_slug) = (t.revision, t.pipeline_slug) THEN 'pipelines:' || t.pipeline_id END], NULL)
 FROM pipeline_webhook_deliveries r
 JOIN pipeline_triggers t ON (t.project_id, t.project_environment_id, t.id) = (r.project_id, r.project_environment_id, r.pipeline_trigger_id)
 JOIN project_environments pe ON (pe.organization_id, pe.project_id, pe.id) = (r.organization_id, r.project_id, r.project_environment_id)

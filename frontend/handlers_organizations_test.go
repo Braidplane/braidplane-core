@@ -2840,3 +2840,54 @@ func TestProjectBackendBranchesFragment(t *testing.T) {
 		})
 	}
 }
+
+func TestProjectsWorkspaceUsesSelectedProjectPermissions(t *testing.T) {
+	for _, selectedCanUpdate := range []bool{true, false} {
+		backend := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			switch r.URL.Path {
+			case "/api/organizations/acme-hq/authorization/permissions":
+				switch r.URL.Query().Get("target_kind") {
+				case "":
+					writeJSON(w, `{"permissions":[{"resource":"projects","action":"update"},{"resource":"projects","action":"create"}]}`)
+				case "projects":
+					assert.Equal(t, "ops", r.URL.Query().Get("target_slug"))
+					if selectedCanUpdate {
+						writeJSON(w, `{"permissions":[{"resource":"projects","action":"update"}]}`)
+					} else {
+						writeJSON(w, `{"permissions":[]}`)
+					}
+				default:
+					writeJSON(w, `{"permissions":[]}`)
+				}
+			case "/api/organizations":
+				writeJSON(w, `{"organizations":[{"slug":"acme-hq","name":"Acme"}]}`)
+			case "/api/organizations/acme-hq":
+				writeJSON(w, `{"slug":"acme-hq","name":"Acme"}`)
+			case "/api/organizations/acme-hq/projects":
+				writeJSON(w, `{"projects":[{"slug":"ops","name":"Operations"}]}`)
+			case "/api/organizations/acme-hq/projects/ops":
+				writeJSON(w, `{"slug":"ops","name":"Operations"}`)
+			default:
+				http.NotFound(w, r)
+			}
+		}))
+		app, cookie := setupBindingActionTestApp(t, backend.URL)
+		for _, fragment := range []bool{false, true} {
+			req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/organizations/acme-hq/projects?project_slug=ops", nil)
+			req.Header.Set("Cookie", cookie)
+			if fragment {
+				req.Header.Set("HX-Request", "true")
+				req.Header.Set("HX-Target", "project-quick-look")
+			}
+			resp, err := app.Test(req)
+			require.NoError(t, err)
+			body, err := io.ReadAll(resp.Body)
+			require.NoError(t, err)
+			require.NoError(t, resp.Body.Close())
+			require.Equal(t, http.StatusOK, resp.StatusCode)
+			require.Equal(t, !selectedCanUpdate, strings.Contains(string(body), "Ask an administrator with project update permission"))
+			require.Equal(t, !fragment, strings.Contains(string(body), `aria-controls="create-project"`))
+		}
+		backend.Close()
+	}
+}

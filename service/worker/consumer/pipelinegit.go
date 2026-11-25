@@ -253,8 +253,7 @@ func (w *pipelineGitPublishProposalWorker) Work(
 	}
 	if err := w.authorizer.AuthorizeProposalPublish(ctx, args); err != nil {
 		if xerror.Is(err, jobs.ErrPipelineProposalAuthorityDenied) {
-			w.recordProposalFailure(ctx, args, err)
-			return xerror.Wrapf("cancel terminal pipeline proposal job: %w", river.JobCancel(err))
+			return w.failPublishJob(ctx, args, err, river.JobCancel(err))
 		}
 		return err
 	}
@@ -269,13 +268,11 @@ func (w *pipelineGitPublishProposalWorker) Work(
 
 	result, err := w.pipelineGit.PublishProposal(ctx, args)
 	if err != nil {
-		w.recordProposalFailure(ctx, args, err)
 		w.logger.ErrorContext(ctx, "pipeline git proposal job failed", logging.ErrorAttr(err))
-		return pipelineGitJobError(err)
+		return w.failPublishJob(ctx, args, err, pipelineGitJobError(err))
 	}
 	if err := result.ValidatePublication(args.Authority, args.BranchName); err != nil {
-		w.recordProposalFailure(ctx, args, err)
-		return xerror.Wrapf("cancel invalid pipeline proposal result: %w", river.JobCancel(err))
+		return w.failPublishJob(ctx, args, err, river.JobCancel(err))
 	}
 
 	if args.MemberSlug != "" {
@@ -304,13 +301,13 @@ func (w *pipelineGitPublishProposalWorker) Work(
 	return nil
 }
 
-func (w *pipelineGitPublishProposalWorker) recordProposalFailure(
+func (w *pipelineGitPublishProposalWorker) failPublishJob(
 	ctx context.Context,
 	args jobs.PipelineGitPublishProposalArgs,
-	failure error,
-) {
+	failure, jobError error,
+) error {
 	if args.MemberSlug == "" {
-		return
+		return jobError
 	}
 	failed := proposalFailure(
 		args.OrganizationSlug, args.ProjectSlug, args.PipelineSlug, args.MemberSlug,
@@ -318,8 +315,13 @@ func (w *pipelineGitPublishProposalWorker) recordProposalFailure(
 	)
 	failed.CreationSlug = args.CreationSlug
 	if err := w.recorder.FailProposal(ctx, failed); err != nil {
-		w.logger.ErrorContext(ctx, "pipeline git proposal failure state persistence failed", logging.ErrorAttr(err))
+		// A deleted draft or superseded creation attempt no longer needs a terminal write.
+		if xerror.Is(err, xerror.NotFound(xerror.PipelineDraft)) || (args.CreationSlug != "" && (xerror.Is(err, xerror.NotFound(xerror.Pipeline)) || xerror.Is(err, jobs.ErrPipelineProposalAuthorityDenied))) {
+			return jobError
+		}
+		return xerror.Wrapf("persist pipeline proposal failure: %w", err)
 	}
+	return jobError
 }
 
 func (w *pipelineGitRefreshProposalWorker) Work(

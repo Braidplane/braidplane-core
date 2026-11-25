@@ -144,7 +144,7 @@ func (s *runStore) GetCheckpoint(
 	orgSlug, projectSlug, environmentSlug slug.Slug,
 	runSlug string,
 ) (*pipelinerun.ReplayCheckpoint, error) {
-	return postgres.InRead(ctx, s.txm, func(ctx context.Context, db postgres.DBTX) (*pipelinerun.ReplayCheckpoint, error) {
+	return postgres.InTx(postgres.WithConsistentSnapshot(ctx), s.txm, func(ctx context.Context, db postgres.DBTX) (*pipelinerun.ReplayCheckpoint, error) {
 		checkpoint, err := checkpoints.New(db).GetCheckpoint(ctx, orgSlug, projectSlug, environmentSlug, runSlug)
 		if err != nil {
 			return nil, err

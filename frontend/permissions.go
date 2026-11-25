@@ -80,13 +80,11 @@ func (r *Router) resolvePagePermissions(c fiber.Ctx, org string) views.Organizat
 		enabled := true
 		params.ProjectDatasourceBindings = &enabled
 	}
-	cookie := c.Get(fiber.HeaderCookie)
-	permissions := r.effectivePermissions(c.Context(), cookie, org, &params)
-	if kind != "" {
-		// Pages also expose organization actions such as listing projects and selecting a shared source.
-		permissions = append(permissions, r.effectivePermissions(c.Context(), cookie, org, nil)...)
-	}
-	return organizationPermissions(permissions)
+	return r.targetPermissions(c, org, params)
+}
+
+func (r *Router) targetPermissions(c fiber.Ctx, org string, params api.GetEffectivePermissionsParams) views.OrganizationPermissions {
+	return organizationPermissions(r.effectivePermissions(c.Context(), c.Get(fiber.HeaderCookie), org, &params))
 }
 
 func (r *Router) resolveOrganizationPermissions(ctx context.Context, cookieHeader, org string) views.OrganizationPermissions {

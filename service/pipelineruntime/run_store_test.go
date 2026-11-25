@@ -168,11 +168,13 @@ func TestNewRunStore_ComposesRunWriter(t *testing.T) {
 func TestRunStoreDeniesTimelineAndCheckpointBeforeReading(t *testing.T) {
 	t.Parallel()
 	denied := fmt.Errorf("authorization changed")
-	store := NewRunStore(&fakeTransactionManager{readErr: denied}, &fakeDBTX{}, nil, testutil.FakeRunSucceededNotifier{}, pipelineruns.New())
+	manager := &fakeTransactionManager{readErr: denied, runInTxFn: func(context.Context, func(context.Context, postgres.DBTX) error) error { return denied }}
+	store := NewRunStore(manager, &fakeDBTX{}, nil, testutil.FakeRunSucceededNotifier{}, pipelineruns.New())
 	_, err := store.Get(t.Context(), "acme", "warehouse", "prod", "run")
 	require.ErrorIs(t, err, denied)
 	_, err = store.GetCheckpoint(t.Context(), "acme", "warehouse", "prod", "run")
 	require.ErrorIs(t, err, denied)
+	require.Equal(t, 1, manager.runInTxs, "checkpoint and pins share a transaction")
 }
 
 func TestRunWriter_PersistRun_ValidatesInputs(t *testing.T) {

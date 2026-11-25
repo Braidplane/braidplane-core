@@ -35,6 +35,7 @@ type ProjectPipelineBackendBranchOption struct {
 
 // ProjectPipelineBackendControls carries backend source and branch choices for the selected project.
 type ProjectPipelineBackendControls struct {
+	OrganizationPermissions  OrganizationPermissions
 	RepositoryProvider       string
 	RepositorySetup          *api.ProjectRepositorySetup
 	PreviousRepositorySetup  *api.ProjectRepositorySetup

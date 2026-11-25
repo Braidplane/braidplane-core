@@ -11,7 +11,7 @@ import templruntime "github.com/a-h/templ/runtime"
 import "fmt"
 import api "github.com/Braidplane/braidplane-core/api-schema/gen/client"
 
-func QueriesPage(shellData AuthenticatedShellData, dataSources []api.DataSource, selectedDataSource string, selectedDataSourceType string, queries []api.Query, selectedQuery *api.Query, selectedQueryFormData QueryEditorFormData, hasMore bool, nextCursor string, prevCursor string, orgSlug string, createFormData QueryEditorFormData, executionResult *QueryExecutionResultView, executionError string, focusQuerySlug string, showDeleted bool, permissions OrganizationPermissions, cleanup *CleanupFindings) templ.Component {
+func QueriesPage(shellData AuthenticatedShellData, dataSources []api.DataSource, selectedDataSource string, selectedDataSourceType string, queries []api.Query, selectedQuery *api.Query, selectedQueryFormData QueryEditorFormData, hasMore bool, nextCursor string, prevCursor string, orgSlug string, createFormData QueryEditorFormData, executionResult *QueryExecutionResultView, executionError string, focusQuerySlug string, showDeleted bool, permissions OrganizationPermissions, archivedPermissions map[string]OrganizationPermissions, cleanup *CleanupFindings) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
 		if templ_7745c5c3_CtxErr := ctx.Err(); templ_7745c5c3_CtxErr != nil {
@@ -32,7 +32,7 @@ func QueriesPage(shellData AuthenticatedShellData, dataSources []api.DataSource,
 			templ_7745c5c3_Var1 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = AuthenticatedShell(shellData, QueriesPageContent(dataSources, selectedDataSource, selectedDataSourceType, queries, selectedQuery, selectedQueryFormData, hasMore, nextCursor, prevCursor, orgSlug, createFormData, executionResult, executionError, focusQuerySlug, showDeleted, permissions, cleanup)).Render(ctx, templ_7745c5c3_Buffer)
+		templ_7745c5c3_Err = AuthenticatedShell(shellData, QueriesPageContent(dataSources, selectedDataSource, selectedDataSourceType, queries, selectedQuery, selectedQueryFormData, hasMore, nextCursor, prevCursor, orgSlug, createFormData, executionResult, executionError, focusQuerySlug, showDeleted, permissions, archivedPermissions, cleanup)).Render(ctx, templ_7745c5c3_Buffer)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -40,7 +40,7 @@ func QueriesPage(shellData AuthenticatedShellData, dataSources []api.DataSource,
 	})
 }
 
-func QueriesPageContent(dataSources []api.DataSource, selectedDataSource string, selectedDataSourceType string, queries []api.Query, selectedQuery *api.Query, selectedQueryFormData QueryEditorFormData, hasMore bool, nextCursor string, prevCursor string, orgSlug string, createFormData QueryEditorFormData, executionResult *QueryExecutionResultView, executionError string, focusQuerySlug string, showDeleted bool, permissions OrganizationPermissions, cleanup *CleanupFindings) templ.Component {
+func QueriesPageContent(dataSources []api.DataSource, selectedDataSource string, selectedDataSourceType string, queries []api.Query, selectedQuery *api.Query, selectedQueryFormData QueryEditorFormData, hasMore bool, nextCursor string, prevCursor string, orgSlug string, createFormData QueryEditorFormData, executionResult *QueryExecutionResultView, executionError string, focusQuerySlug string, showDeleted bool, permissions OrganizationPermissions, archivedPermissions map[string]OrganizationPermissions, cleanup *CleanupFindings) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
 		if templ_7745c5c3_CtxErr := ctx.Err(); templ_7745c5c3_CtxErr != nil {
@@ -1843,7 +1843,7 @@ func QueriesPageContent(dataSources []api.DataSource, selectedDataSource string,
 						if templ_7745c5c3_Err != nil {
 							return templ_7745c5c3_Err
 						}
-						if permissions.Can("queries", "restore") {
+						if archivedPermissions[query.Slug].Can("queries", "restore") {
 							templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 214, "<form method=\"post\" action=\"")
 							if templ_7745c5c3_Err != nil {
 								return templ_7745c5c3_Err
@@ -1875,7 +1875,7 @@ func QueriesPageContent(dataSources []api.DataSource, selectedDataSource string,
 								return templ_7745c5c3_Err
 							}
 						}
-						if permissions.Can("queries", "purge") {
+						if archivedPermissions[query.Slug].Can("queries", "purge") {
 							templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 217, "<form method=\"post\" action=\"")
 							if templ_7745c5c3_Err != nil {
 								return templ_7745c5c3_Err

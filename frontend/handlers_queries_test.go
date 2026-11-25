@@ -29,7 +29,12 @@ func TestRouter_HandleQueriesPage_RendersList(t *testing.T) {
 
 	apiServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
-		if handleTestAdminRolePermissions(w, r) {
+		if r.URL.Path == "/api/organizations/acme-hq/authorization/permissions" {
+			if r.URL.Query().Get("target_kind") == "datasources" && r.URL.Query().Get("target_slug") == "prod-db" {
+				writeJSON(w, `{"permissions":[{"resource":"queries","action":"create"}]}`)
+			} else {
+				writeJSON(w, `{"permissions":[]}`)
+			}
 			return
 		}
 		switch r.URL.Path {
@@ -78,6 +83,7 @@ func TestRouter_HandleQueriesPage_RendersList(t *testing.T) {
 	require.NoError(t, err)
 
 	require.Equal(t, http.StatusOK, resp.StatusCode)
+	require.Contains(t, string(body), `aria-controls="create-query-form"`)
 	require.Contains(t, string(body), "Reusable connector operations")
 	require.Contains(t, string(body), "Acme HQ")
 	require.Contains(t, string(body), `<span class="sr-only">Switch organization: </span>`)
@@ -99,14 +105,15 @@ func TestRouter_HandleQueriesPage_RendersList(t *testing.T) {
 	require.NotContains(t, string(body), `name="return_to" value="list"`)
 	require.NotContains(t, string(body), `>Back to list<`)
 	require.Contains(t, string(body), "selected")
-	for _, queryString := range []string{"focus=top-users", "query=missing-query"} {
-		req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/orgs/acme-hq/queries?ds=prod-db&"+queryString, nil)
+	for _, queryString := range []string{"focus=top-users", "query=missing-query", ""} {
+		req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/orgs/acme-hq/queries?"+queryString, nil)
 		req.Header.Set("Cookie", authCookie)
 		resp, err := app.Test(req)
 		require.NoError(t, err)
 		body, err := io.ReadAll(resp.Body)
 		require.NoError(t, err)
 		require.NoError(t, resp.Body.Close())
+		require.Contains(t, string(body), `aria-controls="create-query-form"`)
 		require.Equal(t, queryString == "query=missing-query", strings.Contains(string(body), "Selected query is unavailable"))
 	}
 }

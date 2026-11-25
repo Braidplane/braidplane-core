@@ -576,6 +576,7 @@ func (s *server) UpdateAlertPolicy(
 		return mapServiceError(err)
 	}
 	parent := alertPolicyScopeTarget(params.ProjectSlug, params.EnvironmentSlug)
+	// The initial policy decision also pins its stored parent in the update transaction.
 	if parent != alertPolicyScopeTarget(existing.ProjectSlug, existing.EnvironmentSlug) {
 		if err := s.authorizeOrgTargetFor(c, orgSlug, model.Update, model.ResourceAlertPolicies, parent, true, "new_parent"); err != nil {
 			return err

@@ -63,13 +63,19 @@ func TestPipelineWebhookDeliveryReadAndReplayUseProtectedTriggerPermissions(t *t
 	}
 	replays := 0
 	service := &fakePipelineWebhookService{
-		listFn: func(_ context.Context, orgSlug, projectSlug, environmentSlug, triggerSlug slug.Slug, req model.ListRequest) (model.ListResponse[pipelinewebhooksvc.DeliveryDiagnostic], error) {
+		listFn: func(_ context.Context, orgSlug, projectSlug, environmentSlug, triggerSlug slug.Slug, includeHistory bool, req model.ListRequest) (model.ListResponse[pipelinewebhooksvc.DeliveryDiagnostic], error) {
 			require.Equal(t, must.Slug("acme"), orgSlug)
 			require.Equal(t, must.Slug("operations"), projectSlug)
 			require.Equal(t, must.Slug("prod"), environmentSlug)
 			require.Equal(t, must.Slug("customer-hook"), triggerSlug)
+			require.False(t, includeHistory)
 			require.Equal(t, 10, req.Limit)
 			return model.ListResponse[pipelinewebhooksvc.DeliveryDiagnostic]{Items: []pipelinewebhooksvc.DeliveryDiagnostic{delivery}}, nil
+		},
+		getFn: func(_ context.Context, org, project, env, trigger slug.Slug, id string) (pipelinewebhooksvc.DeliveryDiagnostic, error) {
+			require.Equal(t, []slug.Slug{"acme", "operations", "prod", "customer-hook"}, []slug.Slug{org, project, env, trigger})
+			require.Equal(t, delivery.DeliveryID, id)
+			return delivery, nil
 		},
 		replayFn: func(context.Context, slug.Slug, slug.Slug, slug.Slug, slug.Slug, string) (pipelinewebhooksvc.DeliveryDiagnostic, error) {
 			replays++
@@ -78,18 +84,21 @@ func TestPipelineWebhookDeliveryReadAndReplayUseProtectedTriggerPermissions(t *t
 		},
 	}
 	actions := make([]model.Action, 0, 5)
-	allowExecute := false
+	grantedPipeline := slug.Slug("retargeted")
 	app, store := newTestApp(t, testServerConfig{
-		pipelineWebhookService:  service,
-		pipelineTriggersService: &fakePipelineTriggersService{GetPipelineTriggerFn: storedWebhookTrigger},
+		pipelineWebhookService: service,
+		pipelineTriggersService: &fakePipelineTriggersService{GetPipelineTriggerFn: func(context.Context, slug.Slug, slug.Slug, slug.Slug, slug.Slug) (*model.PipelineTrigger, error) {
+			return &model.PipelineTrigger{PipelineSlug: "retargeted"}, nil
+		}},
 		authService: fakeAuthService{CanFn: func(_ context.Context, input authorization.Input) (bool, error) {
 			actions = append(actions, input.Action)
 			if input.Action == model.Execute {
 				require.Equal(t, model.ResourcePipelines, input.Resource)
-				return allowExecute, nil
+				require.Equal(t, model.AuthorizationTarget{Kind: "deployed_pipelines", Slug: delivery.PipelineSlug, ProjectSlug: "operations", EnvironmentSlug: "prod"}, input.Target)
+				return input.Target.Slug == grantedPipeline, nil
 			}
 			require.Equal(t, model.ResourcePipelineTriggers, input.Resource)
-			return true, nil
+			return input.CheckPurpose != "delivery_history", nil
 		}},
 	})
 
@@ -108,12 +117,12 @@ func TestPipelineWebhookDeliveryReadAndReplayUseProtectedTriggerPermissions(t *t
 	require.NoError(t, denied.Body.Close())
 	require.Zero(t, replays)
 
-	allowExecute = true
+	grantedPipeline = delivery.PipelineSlug
 	replayResponse := authenticatedRequest(t, app, store, must.Slug("alice"), jsonRequest(t, http.MethodPost, replayPath, nil))
 	require.Equal(t, http.StatusOK, replayResponse.StatusCode)
 	require.NoError(t, replayResponse.Body.Close())
 	require.Equal(t, 1, replays)
-	require.Equal(t, []model.Action{model.Read, model.Update, model.Execute, model.Update, model.Execute}, actions)
+	require.Equal(t, []model.Action{model.Read, model.Read, model.Update, model.Execute, model.Update, model.Execute}, actions)
 }
 
 func webhookHTTPRequest(body []byte) *http.Request {
@@ -129,7 +138,7 @@ func webhookHTTPRequest(body []byte) *http.Request {
 type fakePipelineWebhookService struct {
 	calls    int
 	request  pipelinewebhooksvc.AcceptRequest
-	listFn   func(context.Context, slug.Slug, slug.Slug, slug.Slug, slug.Slug, model.ListRequest) (model.ListResponse[pipelinewebhooksvc.DeliveryDiagnostic], error)
+	listFn   func(context.Context, slug.Slug, slug.Slug, slug.Slug, slug.Slug, bool, model.ListRequest) (model.ListResponse[pipelinewebhooksvc.DeliveryDiagnostic], error)
 	getFn    func(context.Context, slug.Slug, slug.Slug, slug.Slug, slug.Slug, string) (pipelinewebhooksvc.DeliveryDiagnostic, error)
 	replayFn func(context.Context, slug.Slug, slug.Slug, slug.Slug, slug.Slug, string) (pipelinewebhooksvc.DeliveryDiagnostic, error)
 }
@@ -140,9 +149,9 @@ func (f *fakePipelineWebhookService) Accept(_ context.Context, request pipelinew
 	return pipelinewebhooksvc.Acceptance{}, nil
 }
 
-func (f *fakePipelineWebhookService) ListDeliveries(ctx context.Context, orgSlug, projectSlug, environmentSlug, triggerSlug slug.Slug, req model.ListRequest) (model.ListResponse[pipelinewebhooksvc.DeliveryDiagnostic], error) {
+func (f *fakePipelineWebhookService) ListDeliveries(ctx context.Context, orgSlug, projectSlug, environmentSlug, triggerSlug slug.Slug, includeHistory bool, req model.ListRequest) (model.ListResponse[pipelinewebhooksvc.DeliveryDiagnostic], error) {
 	if f.listFn != nil {
-		return f.listFn(ctx, orgSlug, projectSlug, environmentSlug, triggerSlug, req)
+		return f.listFn(ctx, orgSlug, projectSlug, environmentSlug, triggerSlug, includeHistory, req)
 	}
 	return model.ListResponse[pipelinewebhooksvc.DeliveryDiagnostic]{Items: []pipelinewebhooksvc.DeliveryDiagnostic{}}, nil
 }

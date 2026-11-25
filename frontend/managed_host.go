@@ -8,6 +8,7 @@ import (
 	"github.com/a-h/templ"
 	"github.com/gofiber/fiber/v3"
 
+	api "github.com/Braidplane/braidplane-core/api-schema/gen/client"
 	"github.com/Braidplane/braidplane-core/pkg/slug"
 )
 
@@ -17,7 +18,7 @@ type routerManagedHost struct {
 
 func (h routerManagedHost) ProjectPage(c fiber.Ctx, title string, organizationSlug, projectSlug slug.Slug) ProjectPage {
 	cookieHeader := c.Get(fiber.HeaderCookie)
-	permissions := h.router.resolvePagePermissions(c, organizationSlug.String())
+	permissions := h.router.targetPermissions(c, organizationSlug.String(), api.GetEffectivePermissionsParams{TargetKind: new("projects"), TargetSlug: new(projectSlug.String())})
 	shell := h.router.buildShellDataForProjectPage(
 		c,
 		title,
@@ -35,7 +36,7 @@ func (h routerManagedHost) ProjectPage(c fiber.Ctx, title string, organizationSl
 
 func (h routerManagedHost) OrganizationPage(c fiber.Ctx, title string, organizationSlug slug.Slug) OrganizationPage {
 	cookie := c.Get(fiber.HeaderCookie)
-	permissions := h.router.resolvePagePermissions(c, organizationSlug.String())
+	permissions := h.router.resolveOrganizationPermissions(c.Context(), cookie, organizationSlug.String())
 	return OrganizationPage{
 		Shell:     h.router.buildShellDataForOrganizationPage(c, title, organizationSlug.String(), "", "", cookie),
 		CanDelete: permissions.Can("organizations", "delete"),

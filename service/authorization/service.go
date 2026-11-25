@@ -78,7 +78,7 @@ func New(usersService userssvc.UsersService, resolve ResolveFacts) (Service, err
 
 func (s *service) Can(ctx context.Context, input Input) (bool, error) {
 	if input.Resource == nil || !input.Action.IsAAction() || input.Action == model.Unknown ||
-		(input.UserSlug == "") == (input.APIKeySlug == "") {
+		!input.Source.matchesPrincipal(input) {
 		return false, nil
 	}
 	if input.OrgSlug != nil {
@@ -134,6 +134,10 @@ func evaluateTenant(ctx context.Context, input Input, facts model.AuthorizationF
 	query, err := preparedPolicy()
 	if err != nil {
 		return false, xerror.Unexpected().With(err)
+	}
+	// Older deliveries may predate the current pipeline's ownership of this trigger.
+	if input.Operation == "listPipelineWebhookDeliveries" && input.CheckPurpose == "delivery_history" {
+		facts.AncestorIDs = nil
 	}
 	name := input.Resource.String()
 	_, coreType := input.Resource.(model.Resource)

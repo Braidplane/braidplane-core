@@ -9759,6 +9759,7 @@ WHERE o.slug = sqlc.arg('org_slug')
     AND pe.deleted_at IS NULL
     AND pt.slug = sqlc.arg('trigger_slug')
     AND pt.trigger_type = 'webhook'
+    AND (sqlc.arg('include_history')::boolean OR (pwd.trigger_revision, pwd.pipeline_slug) = (pt.revision, pt.pipeline_slug))
     AND (
         sqlc.narg('cursor_slug')::text IS NULL
         OR (

@@ -60,7 +60,9 @@ func TestMountedFrontendRoutes_DoNotInterceptAPISessions(t *testing.T) {
 
 func TestCommunityRoutesRequireAnAuthorizationMapping(t *testing.T) {
 	app := fiber.New()
+	app.Head("/host-health", func(c fiber.Ctx) error { return c.SendStatus(fiber.StatusNoContent) })
 	finish := checkCommunityRoutes(app)
+	require.NotPanics(t, finish)
 	app.Get("/future-action", func(c fiber.Ctx) error { return c.SendStatus(fiber.StatusNoContent) })
 	require.PanicsWithValue(t, "missing authorization classification for GET /future-action", finish)
 }

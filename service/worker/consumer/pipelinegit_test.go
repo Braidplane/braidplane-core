@@ -350,6 +350,27 @@ func TestPipelineProposalWorkerCancelsInvalidPublicationResult(t *testing.T) {
 	require.Zero(t, recorder.calls)
 }
 
+func TestRevokedProposalRetriesUntilFailureIsRecorded(t *testing.T) {
+	t.Parallel()
+	writeFailure := xerror.Unavailable(xerror.PipelineDraft)
+	recorder := &recordingPipelineGitProposalRecorder{err: writeFailure}
+	worker := pipelineGitPublishProposalWorker{pipelineGit: &recordingPipelineGitExecutor{publishErr: pipelinegit.ErrProposalAuthorityInvalid}, authorizer: recorder, recorder: recorder, logger: slog.New(slog.DiscardHandler)}
+	job := &river.Job[jobs.PipelineGitPublishProposalArgs]{Args: jobs.PipelineGitPublishProposalArgs{MemberSlug: "alice", PublishAttemptID: "attempt-1"}}
+	err := worker.Work(t.Context(), job)
+	var cancelled *rivertype.JobCancelError
+	require.ErrorIs(t, err, writeFailure)
+	require.NotErrorAs(t, err, &cancelled)
+	recorder.err = nil
+	err = worker.Work(t.Context(), job)
+	require.ErrorAs(t, err, &cancelled)
+	require.ErrorIs(t, err, pipelinegit.ErrProposalAuthorityInvalid)
+	require.Equal(t, 2, recorder.failureCalls)
+	require.Equal(t, "attempt-1", recorder.failed.PublishAttemptID)
+
+	recorder.err = xerror.NotFound(xerror.PipelineDraft)
+	require.ErrorAs(t, worker.Work(t.Context(), job), &cancelled)
+}
+
 func TestPipelineCreationWorkerCancelsExistingTarget(t *testing.T) {
 	t.Parallel()
 	recorder := &recordingPipelineGitProposalRecorder{}

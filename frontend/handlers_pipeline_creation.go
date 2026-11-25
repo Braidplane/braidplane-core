@@ -186,7 +186,7 @@ func (r *Router) handlePipelineCreationProgress(c fiber.Ctx) error {
 	if record.Slug != creation || record.ProjectSlug != project {
 		return c.Status(http.StatusBadGateway).SendString("The proposal returned an unexpected identity.")
 	}
-	data := views.PipelineCreationProgressData{Org: org, Project: project, Creation: record, CanRetry: r.resolvePagePermissions(c, org).Can("pipelines", "create")}
+	data := views.PipelineCreationProgressData{Org: org, Project: project, Creation: record, CanRetry: r.targetPermissions(c, org, api.GetEffectivePermissionsParams{TargetKind: new("projects"), TargetSlug: &project}).Can("pipelines", "create")}
 	if c.Method() == http.MethodPost {
 		if !data.CanRetry {
 			return c.Status(http.StatusForbidden).SendString("Pipeline creation needs access.")

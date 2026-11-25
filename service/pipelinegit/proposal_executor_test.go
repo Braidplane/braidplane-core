@@ -155,7 +155,8 @@ func TestProposalExecutorReusesExistingProposalOnRepeatPublish(t *testing.T) {
 }
 
 func TestProposalExecutorRechecksAuthorityAtEachMutation(t *testing.T) {
-	for _, denyAt := range []int{1, 2, 3} {
+	for i, wantPushes := range []int{0, 0, 1} {
+		denyAt := i + 1
 		provider := &recordingProposalProvider{}
 		executor := newProposalExecutorForTest(provider, &recordingOperationRepoStore{readContent: []byte("old")})
 		checks := 0
@@ -173,7 +174,7 @@ func TestProposalExecutorRechecksAuthorityAtEachMutation(t *testing.T) {
 		require.ErrorIs(t, err, ErrProposalAuthorityInvalid)
 		require.Equal(t, denyAt, checks)
 		require.Zero(t, provider.upsertCalls)
-		require.Equal(t, denyAt == 3, executor.remoteGit.(*recordingRemoteGit).pushCalls == 1)
+		require.Equal(t, wantPushes, executor.remoteGit.(*recordingRemoteGit).pushCalls)
 	}
 }
 

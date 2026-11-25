@@ -152,13 +152,15 @@ func (r *Router) bindingCellPermissions(c fiber.Ctx, org, project string, rows [
 	}
 	cookie := c.Get(fiber.HeaderCookie)
 	orgPermissions := r.resolveOrganizationPermissions(c.Context(), cookie, org)
-	if orgPermissions.Can("datasources", "update") && orgPermissions.Can("datasources", "delete") {
-		// An organization grant applies to every binding on the page.
-		return nil
-	}
+	orgManagesBindings := orgPermissions.Can("datasources", "update") && orgPermissions.Can("datasources", "delete")
 	for _, row := range rows {
 		for _, cell := range row.Cells {
 			if !row.RefAvailable || cell.State == "unavailable" {
+				continue
+			}
+			key := views.BindingTarget{Pipeline: row.PipelineSlug, Ref: row.RefSlug, Environment: cell.EnvironmentSlug}
+			if orgManagesBindings {
+				cellPermissions[key] = orgPermissions
 				continue
 			}
 			kind := "data_source_bindings_upsert"
@@ -166,7 +168,6 @@ func (r *Router) bindingCellPermissions(c fiber.Ctx, org, project string, rows [
 				kind = "data_source_bindings"
 			}
 			params := api.GetEffectivePermissionsParams{TargetKind: &kind, TargetSlug: &row.RefSlug, ProjectSlug: &project, ParentSlug: &row.PipelineSlug, EnvironmentSlug: &cell.EnvironmentSlug, ProjectDatasourceBindings: new(true)}
-			key := views.BindingTarget{Pipeline: row.PipelineSlug, Ref: row.RefSlug, Environment: cell.EnvironmentSlug}
 			cellPermissions[key] = organizationPermissions(r.effectivePermissions(c.Context(), cookie, org, &params))
 		}
 	}

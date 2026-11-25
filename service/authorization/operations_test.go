@@ -16,6 +16,18 @@ import (
 	"github.com/Braidplane/braidplane-core/pkg/testutil/fakes"
 )
 
+func TestCanRejectsMismatchedPrincipalBeforeResolution(t *testing.T) {
+	org := slug.Slug("tenant")
+	svc, err := New(nil, func(context.Context, slug.Slug, slug.Slug, slug.Slug, model.AuthorizationTarget) (model.AuthorizationFacts, error) {
+		t.Fatal("a mismatched credential source reached persistence")
+		return model.AuthorizationFacts{}, nil
+	})
+	require.NoError(t, err)
+	allowed, err := svc.Can(t.Context(), Input{OrgSlug: &org, Operation: "listAPIKeys", APIKeySlug: "machine", Source: SourceSession, Resource: model.ResourceAPIKeys, Action: model.Read})
+	require.NoError(t, err)
+	require.False(t, allowed)
+}
+
 func TestCanRequiresMappedSourceAndPermission(t *testing.T) {
 	org := slug.Slug("tenant")
 	facts := model.AuthorizationFacts{Valid: true, OrganizationID: "1", Bindings: []model.AuthorizationBinding{
