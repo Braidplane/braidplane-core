@@ -91,11 +91,12 @@ func (r *Router) handleQueryPipelineSetup(c fiber.Ctx) error {
 		}
 	}
 	projects, listStatus, _, listErr := r.listProjectsViaAPI(c.Context(), cookie, org)
-	if listStatus == http.StatusForbidden {
+	switch {
+	case listStatus == http.StatusForbidden:
 		data.ProjectListRestricted = true
-	} else if listErr != nil {
+	case listErr != nil:
 		data.Error = "Projects could not be loaded. Refresh to try again."
-	} else {
+	default:
 		data.Projects = projects.Projects
 	}
 	if data.Project != "" {
