@@ -7242,6 +7242,62 @@
         ],
         "type": "object"
       },
+      "NewRoleGrant": {
+        "additionalProperties": false,
+        "properties": {
+          "datasource_slug": {
+            "$ref": "#/components/schemas/Slug"
+          },
+          "environment_slug": {
+            "$ref": "#/components/schemas/Slug"
+          },
+          "parent_slug": {
+            "$ref": "#/components/schemas/Slug"
+          },
+          "project_slug": {
+            "$ref": "#/components/schemas/Slug"
+          },
+          "role_slug": {
+            "$ref": "#/components/schemas/Slug"
+          },
+          "scope": {
+            "enum": [
+              "organization",
+              "project",
+              "environment",
+              "resource"
+            ],
+            "type": "string"
+          },
+          "subject_kind": {
+            "enum": [
+              "member",
+              "api_key"
+            ],
+            "type": "string"
+          },
+          "subject_slug": {
+            "$ref": "#/components/schemas/Slug"
+          },
+          "target_kind": {
+            "description": "",
+            "type": "string"
+          },
+          "target_slug": {
+            "description": "",
+            "maxLength": 128,
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "required": [
+          "subject_kind",
+          "subject_slug",
+          "role_slug",
+          "scope"
+        ],
+        "type": "object"
+      },
       "NotificationConnection": {
         "additionalProperties": false,
         "properties": {
@@ -17217,6 +17273,79 @@
         ],
         "type": "string"
       },
+      "RoleGrant": {
+        "properties": {
+          "datasource_slug": {
+            "$ref": "#/components/schemas/Slug"
+          },
+          "environment_slug": {
+            "$ref": "#/components/schemas/Slug"
+          },
+          "parent_slug": {
+            "$ref": "#/components/schemas/Slug"
+          },
+          "project_slug": {
+            "$ref": "#/components/schemas/Slug"
+          },
+          "role_slug": {
+            "$ref": "#/components/schemas/Slug"
+          },
+          "scope": {
+            "enum": [
+              "organization",
+              "project",
+              "environment",
+              "resource"
+            ],
+            "type": "string"
+          },
+          "slug": {
+            "$ref": "#/components/schemas/Slug"
+          },
+          "subject_kind": {
+            "enum": [
+              "member",
+              "api_key"
+            ],
+            "type": "string"
+          },
+          "subject_slug": {
+            "$ref": "#/components/schemas/Slug"
+          },
+          "target_kind": {
+            "description": "",
+            "type": "string"
+          },
+          "target_slug": {
+            "description": "",
+            "maxLength": 128,
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "required": [
+          "slug",
+          "subject_kind",
+          "subject_slug",
+          "role_slug",
+          "scope"
+        ],
+        "type": "object"
+      },
+      "RoleGrantList": {
+        "properties": {
+          "grants": {
+            "items": {
+              "$ref": "#/components/schemas/RoleGrant"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "grants"
+        ],
+        "type": "object"
+      },
       "RoleListResponse": {
         "description": "",
         "properties": {
@@ -21115,6 +21244,100 @@
                 }
               }
             },
+            "description": ""
+          }
+        }
+      }
+    },
+    "/organizations/{slug}/authorization/grants": {
+      "get": {
+        "description": "",
+        "operationId": "listRoleGrants",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RoleGrantList"
+                }
+              }
+            },
+            "description": ""
+          },
+          "403": {
+            "description": ""
+          }
+        }
+      },
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/SlugParam"
+        }
+      ],
+      "post": {
+        "description": "",
+        "operationId": "createRoleGrant",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/NewRoleGrant"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RoleGrant"
+                }
+              }
+            },
+            "description": ""
+          },
+          "400": {
+            "description": ""
+          },
+          "403": {
+            "description": ""
+          },
+          "404": {
+            "description": ""
+          },
+          "409": {
+            "description": ""
+          }
+        }
+      }
+    },
+    "/organizations/{slug}/authorization/grants/{grant_slug}": {
+      "delete": {
+        "description": "",
+        "operationId": "revokeRoleGrant",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/SlugParam"
+          },
+          {
+            "in": "path",
+            "name": "grant_slug",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/Slug"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": ""
+          },
+          "403": {
+            "description": ""
+          },
+          "404": {
             "description": ""
           }
         }

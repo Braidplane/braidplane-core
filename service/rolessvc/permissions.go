@@ -8,7 +8,17 @@ import (
 	"github.com/Braidplane/braidplane-core/pkg/xerror"
 	"github.com/Braidplane/braidplane-core/postgres"
 	"github.com/Braidplane/braidplane-core/postgres/permissions"
+	"github.com/Braidplane/braidplane-core/service/authorization"
 )
+
+func validateRolePermissions(permissions []model.RolePermission) error {
+	for _, permission := range permissions {
+		if !authorization.IsGrantableRolePermission(permission) {
+			return ErrInvalidInput.WithPublicDetail("Select permissions from the organization role permission catalog.")
+		}
+	}
+	return nil
+}
 
 func (s *service) addPermissionToRole(
 	ctx context.Context,

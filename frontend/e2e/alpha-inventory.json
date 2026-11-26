@@ -4,17 +4,24 @@
     "product": {
       "budgets": {
         "critical": {
-          "logical": 15,
-          "executions": 25,
+          "logical": 16,
+          "executions": 26,
           "runner_seconds": 240
         },
         "full": {
-          "logical": 67,
-          "executions": 177,
+          "logical": 68,
+          "executions": 178,
           "runner_seconds": 660
         }
       },
       "cases": [
+        {
+          "file": "role-grants.spec.cjs",
+          "title": "edits role permissions and grants access at a project",
+          "tier": "critical",
+          "cross_browser": false,
+          "reason": "Checkbox values and focus survive a failed HTMX save. Grant and revoke run through the browser forms against the tenant-scoped Core API."
+        },
         {
           "file": "auth.spec.cjs",
           "title": "signs in and navigates from dashboard to scoped pipelines",

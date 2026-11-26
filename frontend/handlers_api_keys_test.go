@@ -94,7 +94,7 @@ func TestRouter_HandleOrganizationSecurityPage_RendersAPIKeys(t *testing.T) {
 	require.Contains(t, html, "Deploy Bot")
 	require.Contains(t, html, "xto_live_abcd")
 	require.Contains(t, html, "prod deploys")
-	require.Contains(t, html, "Role changes require creating a replacement key.")
+	require.Contains(t, html, "Primary role changes require creating a replacement key.")
 	require.Contains(t, html, "Allow this key to manage API keys")
 	require.Contains(t, html, "Can manage API keys")
 	require.Contains(t, html, `name="can_manage_api_keys" checked`)

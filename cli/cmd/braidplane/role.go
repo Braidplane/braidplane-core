@@ -15,6 +15,109 @@ type roleCommand struct {
 	Update  updateRoleCommand  `cmd:"" help:"Replace a custom organization role's name and permissions."`
 	Archive archiveRoleCommand `cmd:"" help:"Archive a custom organization role."`
 	Restore restoreRoleCommand `cmd:"" help:"Restore an archived custom organization role."`
+	Grant   roleGrantCommand   `cmd:"" help:"List, add, or revoke explicit scoped role grants."`
+}
+
+type roleGrantCommand struct {
+	List   listRoleGrantsCommand  `cmd:"" help:"List explicit scoped role grants."`
+	Assign assignRoleGrantCommand `cmd:"" help:"Add a role to a member or API key at an organization, project, environment, or resource scope (PAT only)."`
+	Revoke revokeRoleGrantCommand `cmd:"" help:"Revoke a scoped grant and keep the primary role and other grants (PAT only)."`
+}
+
+type listRoleGrantsCommand struct{ apiAuthFlags }
+
+func (c *listRoleGrantsCommand) Run(output *cliOutput, runtime *cliRuntime) error {
+	client, err := newAPIClient(c.apiAuthFlags, runtime)
+	if err != nil {
+		return err
+	}
+	grants, err := client.listRoleGrants(context.Background())
+	if err != nil {
+		return err
+	}
+	return writeCLIJSON(output.stdout, grants)
+}
+
+type roleGrantFlags struct {
+	SubjectKind string `help:"Grant subject kind (member or api_key)." name:"subject-kind" required:""`
+	Subject     string `help:"Member or API key public slug." name:"subject" required:""`
+	Role        string `help:"Role public slug." name:"role" required:""`
+	Scope       string `help:"Grant scope (organization, project, environment, or resource)." name:"scope" required:""`
+	Target      string `help:"Public slug for a project, environment, or individual resource." name:"target"`
+	TargetKind  string `help:"Authorization target kind for resource scope (required)." name:"target-kind"`
+	Project     string `help:"Owning project public slug for a resource target." name:"project"`
+	Environment string `help:"Owning environment public slug for a resource target." name:"environment"`
+	DataSource  string `help:"Owning data source public slug for a resource target." name:"data-source"`
+	Parent      string `help:"Owning parent public slug for a resource target." name:"parent"`
+}
+
+func (f roleGrantFlags) request() (api.NewRoleGrant, error) {
+	subjectKind := api.NewRoleGrantSubjectKind(f.SubjectKind)
+	scope := api.NewRoleGrantScope(f.Scope)
+	if !subjectKind.Valid() || !scope.Valid() {
+		return api.NewRoleGrant{}, xerror.ValidationFailed().Detail("subject-kind must be member or api_key and scope must be organization, project, environment, or resource")
+	}
+	hasQualifiers := f.Project != "" || f.Environment != "" || f.DataSource != "" || f.Parent != ""
+	switch {
+	case scope == api.NewRoleGrantScopeOrganization && (f.Target != "" || f.TargetKind != "" || hasQualifiers):
+		return api.NewRoleGrant{}, xerror.ValidationFailed().Detail("organization scope does not accept a target or resource qualifiers")
+	case scope != api.NewRoleGrantScopeOrganization && f.Target == "":
+		return api.NewRoleGrant{}, xerror.ValidationFailed().Detail("project, environment, and resource scopes require --target")
+	case scope == api.NewRoleGrantScopeResource && f.TargetKind == "":
+		return api.NewRoleGrant{}, xerror.ValidationFailed().Detail("resource scope requires --target-kind")
+	case scope != api.NewRoleGrantScopeResource && f.TargetKind != "":
+		return api.NewRoleGrant{}, xerror.ValidationFailed().Detail("--target-kind applies only to resource scope")
+	case scope != api.NewRoleGrantScopeResource && hasQualifiers:
+		return api.NewRoleGrant{}, xerror.ValidationFailed().Detail("resource qualifiers apply only to resource scope")
+	}
+	return api.NewRoleGrant{
+		SubjectKind: subjectKind, SubjectSlug: f.Subject, RoleSlug: f.Role, Scope: scope,
+		TargetKind: optionalString(f.TargetKind), TargetSlug: optionalString(f.Target),
+		ProjectSlug: optionalAPISlug(f.Project), EnvironmentSlug: optionalAPISlug(f.Environment),
+		DatasourceSlug: optionalAPISlug(f.DataSource), ParentSlug: optionalAPISlug(f.Parent),
+	}, nil
+}
+
+type assignRoleGrantCommand struct {
+	apiAuthFlags
+	roleGrantFlags
+}
+
+func (c *assignRoleGrantCommand) Run(output *cliOutput, runtime *cliRuntime) error {
+	body, err := c.request()
+	if err != nil {
+		return err
+	}
+	client, err := newPATRoleGrantClient(c.apiAuthFlags, runtime)
+	if err != nil {
+		return err
+	}
+	grant, err := client.createRoleGrant(context.Background(), body)
+	if err != nil {
+		return err
+	}
+	return writeCLIJSON(output.stdout, grant)
+}
+
+type revokeRoleGrantCommand struct {
+	apiAuthFlags
+	GrantSlug string `arg:"" name:"grant-slug" help:"Additional role grant public slug." required:""`
+}
+
+func (c *revokeRoleGrantCommand) Run(_ *cliOutput, runtime *cliRuntime) error {
+	client, err := newPATRoleGrantClient(c.apiAuthFlags, runtime)
+	if err != nil {
+		return err
+	}
+	return client.revokeRoleGrant(context.Background(), c.GrantSlug)
+}
+
+func newPATRoleGrantClient(flags apiAuthFlags, runtime *cliRuntime) (*cliAPIClient, error) {
+	cfg, err := flags.resolvePATAuthConfig(runtime)
+	if err != nil {
+		return nil, err
+	}
+	return newCLIAPIClient(cfg)
 }
 
 type listRolesCommand struct {

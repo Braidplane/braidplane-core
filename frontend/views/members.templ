@@ -87,7 +87,7 @@ templ MembersPageContent(
 			} else {
 				<div class="hidden grid-cols-[2fr_1fr_1fr_1fr_minmax(0,1.6fr)] gap-4 border-b border-base-300 px-2 pb-3 text-xs font-semibold uppercase tracking-wide text-base-content/60 md:grid">
 					<div>Member</div>
-					<div>Role</div>
+					<div>Primary role</div>
 					<div>Status</div>
 					<div>Joined</div>
 					<div class="text-right">Actions</div>
@@ -103,6 +103,9 @@ templ MembersPageContent(
 							<div class="text-sm text-base-content/80"><span class="text-xs font-semibold uppercase tracking-wide text-base-content/60 md:hidden">Status </span>Active</div>
 							<div class="text-sm text-base-content/80"><span class="text-xs font-semibold uppercase tracking-wide text-base-content/60 md:hidden">Joined </span>{ member.CreatedAt.Format("2006-01-02") }</div>
 							<div class="flex flex-col gap-2 md:items-end">
+								if permissions.Can("roles", "read") {
+									<a class="btn btn-ghost btn-xs" href={ templ.URL(RoleGrantsHref(orgSlug, "member", member.UserSlug)) }>Grants</a>
+								}
 								if permissions.Can("members", "update") {
 									<form
 										class="grid w-full gap-2 xl:grid-cols-[minmax(0,1fr)_auto] xl:items-center"
@@ -183,7 +186,7 @@ templ MembersPageContent(
 								<p class="text-xs text-base-content/70">Sent { invitation.LastSentAt.Format("2006-01-02") }</p>
 							</div>
 							<div class="flex items-center gap-2">
-								<span class="text-xs font-semibold uppercase tracking-wide text-base-content/60 md:hidden">Role</span>
+								<span class="text-xs font-semibold uppercase tracking-wide text-base-content/60 md:hidden">Primary role</span>
 								<div class="badge badge-outline">{ string(invitation.Role) }</div>
 							</div>
 							<div class="flex items-center gap-2">
@@ -278,7 +281,7 @@ templ MemberInviteSection(orgSlug string, inviteFormData MemberInviteFormData, s
 
 templ MemberRoleCell(member api.Member) {
 	<div class="flex items-center gap-2" id={ "member-role-" + string(member.UserSlug) }>
-		<span class="text-xs font-semibold uppercase tracking-wide text-base-content/60 md:hidden">Role</span>
+		<span class="text-xs font-semibold uppercase tracking-wide text-base-content/60 md:hidden">Primary role</span>
 		<div class="badge badge-outline">{ string(member.Role) }</div>
 	</div>
 }

@@ -9,8 +9,27 @@ import (
 	"github.com/Braidplane/braidplane-core/pkg/apierror"
 	"github.com/Braidplane/braidplane-core/pkg/domain/model"
 	"github.com/Braidplane/braidplane-core/pkg/slug"
-	"github.com/Braidplane/braidplane-core/pkg/xerror"
+	"github.com/Braidplane/braidplane-core/service/authorization"
 )
+
+func (s *server) ListRolePermissionCatalog(c fiber.Ctx, slugParam api.SlugParam) error {
+	org, err := slug.New(slugParam)
+	if err != nil {
+		return apierror.ValidationFailed("Invalid organization slug")
+	}
+	if err := s.canOrg(c, org, model.Read, model.ResourceRoles); err != nil {
+		return err
+	}
+	catalog := authorization.RolePermissionCatalog()
+	result := api.RolePermissionCatalog{Permissions: make([]api.RolePermissionOption, 0, len(catalog))}
+	for _, option := range catalog {
+		result.Permissions = append(result.Permissions, api.RolePermissionOption{
+			Resource: option.Resource, Action: api.RolePermissionOptionAction(option.Action),
+			ResourceLabel: option.ResourceLabel, ActionLabel: option.ActionLabel,
+		})
+	}
+	return c.JSON(result)
+}
 
 func (s *server) ListRoles(
 	c fiber.Ctx,
@@ -84,10 +103,7 @@ func (s *server) CreateRole(c fiber.Ctx, slugParam api.SlugParam) error {
 		roleSlug = parsed
 	}
 
-	perms, err := permissionsFromAPI(req.Permissions)
-	if err != nil {
-		return xerror.Unexpected().With(err)
-	}
+	perms := permissionsFromAPI(req.Permissions)
 
 	role, err := s.rolesService.CreateRoleWithPermissions(
 		c.Context(),
@@ -162,10 +178,7 @@ func (s *server) UpdateRole(
 		return apierror.InvalidRequestBody()
 	}
 
-	perms, err := permissionsFromAPI(req.Permissions)
-	if err != nil {
-		return xerror.Unexpected().With(err)
-	}
+	perms := permissionsFromAPI(req.Permissions)
 
 	err = s.rolesService.UpdateRoleWithPermissions(
 		c.Context(),
@@ -236,7 +249,7 @@ func (s *server) RestoreRole(
 	return c.SendStatus(fiber.StatusNoContent)
 }
 
-func permissionsFromAPI(perms []api.Permission) ([]model.RolePermission, error) {
+func permissionsFromAPI(perms []api.Permission) []model.RolePermission {
 	converted := make([]model.RolePermission, 0, len(perms))
 	for _, perm := range perms {
 		convertedPerm := model.RolePermission{
@@ -247,7 +260,7 @@ func permissionsFromAPI(perms []api.Permission) ([]model.RolePermission, error) 
 		converted = append(converted, convertedPerm)
 	}
 
-	return converted, nil
+	return converted
 }
 
 func permissionToHTTP(permission model.RolePermission) api.Permission {

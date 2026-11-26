@@ -27,7 +27,17 @@ authority.
 
 ## Granting and revoking access
 
-A role defines the permitted actions. A grant assigns that role to an organization member or API key at a particular scope. To inspect explicit grants, call `GET /organizations/{slug}/authorization/grants` with organization-wide `roles:read`. The member or key's primary role is a separate organization-wide assignment.
+A role defines the permitted actions. A grant assigns that role to a member or
+API key at a particular scope. In Organization Settings, use **Roles** to define
+permissions and **Grants** to add, inspect, or revoke assignments. **Members**
+and **Security** show the primary organization-wide role for each subject.
+The public CLI provides `role grant list`, `role grant assign`, and `role grant revoke`.
+
+Use `GET /organizations/{slug}/authorization/permission-catalog` to inspect the
+supported resource and action pairs and their labels. This endpoint and
+`GET /organizations/{slug}/authorization/grants` require organization-wide
+`roles:read`. Role creation and updates accept an empty permission list and
+reject unsupported pairs.
 
 To grant an existing role on one project, send this JSON to `POST /organizations/{slug}/authorization/grants` using a session or personal access token with organization-wide `roles:update`.
 

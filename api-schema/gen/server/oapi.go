@@ -5640,6 +5640,42 @@ func (e RoleGrantSubjectKind) Valid() bool {
 	}
 }
 
+// Defines values for RolePermissionOptionAction.
+const (
+	RolePermissionOptionActionAsterisk RolePermissionOptionAction = "*"
+	RolePermissionOptionActionCreate   RolePermissionOptionAction = "create"
+	RolePermissionOptionActionDelete   RolePermissionOptionAction = "delete"
+	RolePermissionOptionActionExecute  RolePermissionOptionAction = "execute"
+	RolePermissionOptionActionPurge    RolePermissionOptionAction = "purge"
+	RolePermissionOptionActionRead     RolePermissionOptionAction = "read"
+	RolePermissionOptionActionRestore  RolePermissionOptionAction = "restore"
+	RolePermissionOptionActionUpdate   RolePermissionOptionAction = "update"
+)
+
+// Valid indicates whether the value is a known member of the RolePermissionOptionAction enum.
+func (e RolePermissionOptionAction) Valid() bool {
+	switch e {
+	case RolePermissionOptionActionAsterisk:
+		return true
+	case RolePermissionOptionActionCreate:
+		return true
+	case RolePermissionOptionActionDelete:
+		return true
+	case RolePermissionOptionActionExecute:
+		return true
+	case RolePermissionOptionActionPurge:
+		return true
+	case RolePermissionOptionActionRead:
+		return true
+	case RolePermissionOptionActionRestore:
+		return true
+	case RolePermissionOptionActionUpdate:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for RuntimeVariableComparisonCellSource.
 const (
 	RuntimeVariableSourceDefault  RuntimeVariableComparisonCellSource = "default"
@@ -17933,6 +17969,31 @@ type RoleListResponse struct {
 	Roles      []OrgRole `json:"roles"`
 }
 
+// RolePermissionCatalog defines model for RolePermissionCatalog.
+type RolePermissionCatalog struct {
+	Permissions []RolePermissionOption `json:"permissions"`
+}
+
+// RolePermissionOption defines model for RolePermissionOption.
+type RolePermissionOption struct {
+	// Action Action on the resource. Organization export is a separate grant from read access.
+	//
+	// Example: read
+	Action      RolePermissionOptionAction `json:"action"`
+	ActionLabel string                     `json:"action_label"`
+
+	// Resource Resource type (e.g., members, organizations)
+	//
+	// Example: members
+	Resource      string `json:"resource"`
+	ResourceLabel string `json:"resource_label"`
+}
+
+// RolePermissionOptionAction Action on the resource. Organization export is a separate grant from read access.
+//
+// Example: read
+type RolePermissionOptionAction string
+
 // RuntimeVariable Non-secret runtime variable scoped to one organization runtime environment.
 type RuntimeVariable struct {
 	// CreatedAt Example: 2025-10-04T12:34:56Z
@@ -28891,6 +28952,9 @@ type ServerInterface interface {
 	// RevokeRoleGrant Revoke an additional role grant
 	// (DELETE /organizations/{slug}/authorization/grants/{grant_slug})
 	RevokeRoleGrant(c fiber.Ctx, slug SlugParam, grantSlug Slug) error
+	// ListRolePermissionCatalog List permissions that can be assigned to organization roles
+	// (GET /organizations/{slug}/authorization/permission-catalog)
+	ListRolePermissionCatalog(c fiber.Ctx, slug SlugParam) error
 	// GetEffectivePermissions List effective tenant permissions for the authenticated principal
 	// (GET /organizations/{slug}/authorization/permissions)
 	GetEffectivePermissions(c fiber.Ctx, slug SlugParam, params GetEffectivePermissionsParams) error
@@ -31098,6 +31162,35 @@ func (siw *ServerInterfaceWrapper) RevokeRoleGrant(c fiber.Ctx) error {
 
 	handler := func(c fiber.Ctx) error {
 		return siw.Handler.RevokeRoleGrant(c, slug, grantSlug)
+	}
+
+	for i := len(siw.HandlerMiddlewares) - 1; i >= 0; i-- {
+		m := siw.HandlerMiddlewares[i]
+		next := handler
+		handler = func(c fiber.Ctx) error {
+			return m(c, next)
+		}
+	}
+
+	return handler(c)
+}
+
+// ListRolePermissionCatalog operation middleware
+func (siw *ServerInterfaceWrapper) ListRolePermissionCatalog(c fiber.Ctx) error {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "slug" -------------
+	var slug SlugParam
+
+	err = runtime.BindStyledParameterWithOptions("simple", "slug", c.Params("slug"), &slug, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: ""})
+	if err != nil {
+		return fiber.NewError(fiber.StatusBadRequest, fmt.Errorf("Invalid format for parameter slug: %w", err).Error())
+	}
+
+	handler := func(c fiber.Ctx) error {
+		return siw.Handler.ListRolePermissionCatalog(c, slug)
 	}
 
 	for i := len(siw.HandlerMiddlewares) - 1; i >= 0; i-- {
@@ -41266,6 +41359,8 @@ func RegisterHandlersWithOptions(router fiber.Router, si ServerInterface, option
 
 	router.Delete(options.BaseURL+"/organizations/:slug/authorization/grants/:grant_slug", wrapper.RevokeRoleGrant)
 
+	router.Get(options.BaseURL+"/organizations/:slug/authorization/permission-catalog", wrapper.ListRolePermissionCatalog)
+
 	router.Get(options.BaseURL+"/organizations/:slug/authorization/permissions", wrapper.GetEffectivePermissions)
 
 	router.Get(options.BaseURL+"/organizations/:slug/data-sources", wrapper.ListDataSources)
@@ -43063,6 +43158,39 @@ type RevokeRoleGrant404Response struct {
 
 func (response RevokeRoleGrant404Response) VisitRevokeRoleGrantResponse(ctx fiber.Ctx) error {
 	ctx.Status(404)
+	return nil
+}
+
+type ListRolePermissionCatalogRequestObject struct {
+	Slug SlugParam `json:"slug"`
+}
+
+type ListRolePermissionCatalogResponseObject interface {
+	VisitListRolePermissionCatalogResponse(ctx fiber.Ctx) error
+}
+
+type ListRolePermissionCatalog200JSONResponse RolePermissionCatalog
+
+func (response ListRolePermissionCatalog200JSONResponse) VisitListRolePermissionCatalogResponse(ctx fiber.Ctx) error {
+	ctx.Response().Header.Set("Content-Type", "application/json")
+	ctx.Status(200)
+
+	return ctx.JSON(&response)
+}
+
+type ListRolePermissionCatalog401Response struct {
+}
+
+func (response ListRolePermissionCatalog401Response) VisitListRolePermissionCatalogResponse(ctx fiber.Ctx) error {
+	ctx.Status(401)
+	return nil
+}
+
+type ListRolePermissionCatalog403Response struct {
+}
+
+func (response ListRolePermissionCatalog403Response) VisitListRolePermissionCatalogResponse(ctx fiber.Ctx) error {
+	ctx.Status(403)
 	return nil
 }
 
@@ -52464,6 +52592,9 @@ type StrictServerInterface interface {
 	// RevokeRoleGrant Revoke an additional role grant
 	// (DELETE /organizations/{slug}/authorization/grants/{grant_slug})
 	RevokeRoleGrant(ctx context.Context, request RevokeRoleGrantRequestObject) (RevokeRoleGrantResponseObject, error)
+	// ListRolePermissionCatalog List permissions that can be assigned to organization roles
+	// (GET /organizations/{slug}/authorization/permission-catalog)
+	ListRolePermissionCatalog(ctx context.Context, request ListRolePermissionCatalogRequestObject) (ListRolePermissionCatalogResponseObject, error)
 	// GetEffectivePermissions List effective tenant permissions for the authenticated principal
 	// (GET /organizations/{slug}/authorization/permissions)
 	GetEffectivePermissions(ctx context.Context, request GetEffectivePermissionsRequestObject) (GetEffectivePermissionsResponseObject, error)
@@ -54466,6 +54597,33 @@ func (sh *strictHandler) RevokeRoleGrant(ctx fiber.Ctx, slug SlugParam, grantSlu
 		return err
 	} else if validResponse, ok := response.(RevokeRoleGrantResponseObject); ok {
 		if err := validResponse.VisitRevokeRoleGrantResponse(ctx); err != nil {
+			return err
+		}
+	} else if response != nil {
+		return fmt.Errorf("unexpected response type: %T", response)
+	}
+	return nil
+}
+
+// ListRolePermissionCatalog operation middleware
+func (sh *strictHandler) ListRolePermissionCatalog(ctx fiber.Ctx, slug SlugParam) error {
+	var request ListRolePermissionCatalogRequestObject
+
+	request.Slug = slug
+
+	handler := func(ctx fiber.Ctx, request interface{}) (interface{}, error) {
+		return sh.ssi.ListRolePermissionCatalog(ctx.Context(), request.(ListRolePermissionCatalogRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "ListRolePermissionCatalog")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		return err
+	} else if validResponse, ok := response.(ListRolePermissionCatalogResponseObject); ok {
+		if err := validResponse.VisitListRolePermissionCatalogResponse(ctx); err != nil {
 			return err
 		}
 	} else if response != nil {

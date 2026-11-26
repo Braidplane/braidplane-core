@@ -22,3 +22,33 @@ func TestRolesForListViewSplitsActiveAndArchivedRoles(t *testing.T) {
 	require.Equal(t, []api.OrgRole{active}, RolesForListView(roles, "unknown"))
 	require.Equal(t, []api.OrgRole{archived}, RolesForListView(roles, RoleListViewArchived))
 }
+
+func TestRolePermissionGroupsExpandSelectedWildcards(t *testing.T) {
+	t.Parallel()
+
+	catalog := []api.RolePermissionOption{
+		{Resource: "*", Action: "*"},
+		{Resource: "events", Action: "*"},
+		{Resource: "events", Action: "read"},
+		{Resource: "pipelines", Action: "*"},
+		{Resource: "pipelines", Action: "execute"},
+		{Resource: "pipelines", Action: "read"},
+	}
+	groups, wildcards := rolePermissionGroups(catalog, []string{"pipelines:*", "pipelines:read", "legacy:read"})
+	require.Equal(t, []string{"pipelines:*"}, wildcards)
+	require.Len(t, groups, 3)
+	require.False(t, groups[0].Choices[0].Checked)
+	require.True(t, groups[1].Choices[0].Checked)
+	require.False(t, groups[1].Choices[0].Explicit)
+	require.True(t, groups[1].Choices[1].Explicit)
+	require.Empty(t, groups[2].Resource)
+	require.Equal(t, "legacy:read", groups[2].Choices[0].Value)
+
+	groups, wildcards = rolePermissionGroups(catalog, []string{"*:*"})
+	require.Equal(t, []string{"*:*"}, wildcards)
+	for _, group := range groups {
+		for _, choice := range group.Choices {
+			require.True(t, choice.Checked)
+		}
+	}
+}

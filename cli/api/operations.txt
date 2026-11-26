@@ -23,6 +23,7 @@ createProject
 createProjectRepository
 createQuery
 createRole
+createRoleGrant
 declineMyMemberInvitation
 deleteAPIKey
 deleteAlertDestination
@@ -131,6 +132,7 @@ listProjectEnvironments
 listProjects
 listQueries
 listQueryExecutions
+listRoleGrants
 listRoles
 patchUsersProfile
 publishPipelineDraft
@@ -150,6 +152,7 @@ restoreRole
 revalidatePipeline
 revokeDataSourceProviderGrant
 revokeMemberInvitation
+revokeRoleGrant
 rotateAPIKey
 rotateDataSourceProviderGrant
 rotatePersonalAccessToken

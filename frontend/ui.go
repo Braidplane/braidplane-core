@@ -337,6 +337,7 @@ func (r *Router) RegisterRoutes(app *fiber.App, presentation RoutePresentation) 
 	protected.Get("/organizations", r.handleOrganizationsPage)
 	protected.Get("/organizations/:slug/members", r.handleMembersPage)
 	protected.Get("/organizations/:slug/roles", r.handleOrganizationRolesPage)
+	protected.Get("/organizations/:slug/grants", r.handleRoleGrantsPage)
 	protected.Get("/organizations/:slug/security", r.handleOrganizationSecurityPage)
 	protected.Post("/orgs/:slug/queries", r.handleCreateQuerySubmit)
 	protected.Post(
@@ -476,6 +477,8 @@ func (r *Router) RegisterRoutes(app *fiber.App, presentation RoutePresentation) 
 		r.handleDeleteProjectSubmit,
 	)
 	protected.Post("/organizations/:slug/roles", r.handleCreateRoleSubmit)
+	protected.Post("/organizations/:slug/grants", r.handleCreateRoleGrantSubmit)
+	protected.Post("/organizations/:slug/grants/:grantSlug/revoke", r.handleRevokeRoleGrantSubmit)
 	protected.Post(
 		"/organizations/:slug/roles/:roleSlug/update",
 		r.handleUpdateRoleSubmit,

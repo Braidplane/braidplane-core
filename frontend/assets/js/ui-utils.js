@@ -79,6 +79,64 @@ const braidplaneSelectWithRoot = (root, selector) => {
     return matches;
 };
 
+window.braidplaneInitRolePermissionPickers = (root) => {
+    braidplaneSelectWithRoot(root, "[data-role-permission-picker]").forEach((picker) => {
+        if (picker.dataset.permissionReady === "true") return;
+        picker.dataset.permissionReady = "true";
+
+        const scope = (container) => ({
+            master: container.querySelector("[data-role-permission-master]"),
+            choices: [...container.querySelectorAll("[data-role-permission-choice]")],
+        });
+        const all = scope(picker);
+        const groups = new Map(
+            [...picker.querySelectorAll("[data-role-permission-group]")].map((group) => [
+                group.dataset.permissionResource,
+                scope(group),
+            ]),
+        );
+        const scopes = [all, ...groups.values()];
+        const wildcards = [...picker.querySelectorAll("[data-role-permission-wildcard]")].map((input) => ({
+            input,
+            covered: input.value === "*:*" ? all : groups.get(input.value.split(":")[0]),
+        }));
+        const count = picker.querySelector("[data-role-permission-count]");
+
+        const sync = () => {
+            for (const { master, choices } of scopes) {
+                const selected = choices.filter((choice) => choice.checked).length;
+                master.checked = choices.length > 0 && selected === choices.length;
+                master.indeterminate = selected > 0 && !master.checked;
+                if (master === all.master) count.textContent = `${selected} of ${choices.length} selected`;
+            }
+
+            for (const choice of all.choices) choice.name = "permission";
+            // Keep stored wildcard permissions while all covered actions are selected.
+            for (const { input, covered } of wildcards) {
+                input.disabled = !covered?.master.checked;
+                if (input.disabled) continue;
+                for (const choice of covered.choices) {
+                    if (!choice.hasAttribute("data-role-permission-explicit")) choice.removeAttribute("name");
+                }
+            }
+        };
+
+        picker.addEventListener("change", (event) => {
+            const bulk = scopes.find(({ master }) => master === event.target);
+            if (bulk) {
+                for (const choice of bulk.choices) choice.checked = bulk.master.checked;
+            }
+            sync();
+        });
+
+        sync();
+        for (const { master } of scopes) master.defaultChecked = master.checked;
+        for (const control of picker.querySelectorAll("[data-role-permission-bulk]")) {
+            control.classList.replace("hidden", "flex");
+        }
+    });
+};
+
 window.braidplaneInitDirtyForms = (root) => {
     braidplaneSelectWithRoot(root, "[data-dirty-form]").forEach((form) => {
         if (!(form instanceof HTMLFormElement) || form.dataset.dirtyReady === "true") {
@@ -899,6 +957,7 @@ const braidplaneInitSharedForms = (root) => {
     window.braidplaneInitAlertPolicyForms(root);
     window.braidplaneInitAlertDestinationForms(root);
     window.braidplaneQueryParamEditor?.initAll(root);
+    window.braidplaneInitRolePermissionPickers(root);
     window.braidplaneInitDirtyForms(root);
     window.braidplaneInitProtectedActionModals(root);
     window.braidplaneInitProtectedSelectForms(root);

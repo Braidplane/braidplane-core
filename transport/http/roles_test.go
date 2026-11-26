@@ -7,6 +7,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/gofiber/fiber/v3"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -44,6 +45,39 @@ var testRoleAPI = api.OrgRole{
 	},
 	CreatedAt: testRole.CreatedAt,
 	UpdatedAt: testRole.UpdatedAt,
+}
+
+func TestRolePermissionCatalogRequiresOrganizationRoleRead(t *testing.T) {
+	t.Parallel()
+
+	auth, err := authorization.New(nil, func(_ context.Context, org, _, _ slug.Slug, _ model.AuthorizationTarget) (model.AuthorizationFacts, error) {
+		facts := model.AuthorizationFacts{Valid: true, OrganizationID: "1"}
+		if org == "acme" {
+			facts.Bindings = []model.AuthorizationBinding{{Scope: "organization", ScopeID: "1", Permissions: []string{"roles:read"}}}
+		}
+		return facts, nil
+	})
+	require.NoError(t, err)
+	app, _ := newTestApp(t, testServerConfig{
+		middleware:  []fiber.Handler{patPrincipalMiddleware(false)},
+		authService: fakeAuthService{CanFn: auth.Can},
+	})
+	for _, tc := range []struct {
+		org    string
+		status int
+	}{{"acme", http.StatusOK}, {"other", http.StatusForbidden}} {
+		resp, err := app.Test(jsonRequest(t, http.MethodGet, "/organizations/"+tc.org+"/authorization/permission-catalog", nil))
+		require.NoError(t, err)
+		require.Equal(t, tc.status, resp.StatusCode)
+		if tc.status == http.StatusOK {
+			result := parseResponse[api.RolePermissionCatalog](t, resp)
+			require.Len(t, result.Permissions, len(authorization.RolePermissionCatalog()))
+			require.Contains(t, result.Permissions, api.RolePermissionOption{
+				Resource: "pipelines", Action: "execute", ResourceLabel: "Pipelines", ActionLabel: "Execute",
+			})
+		}
+		require.NoError(t, resp.Body.Close())
+	}
 }
 
 func TestRoleHandlersPassAuthenticatedActor(t *testing.T) {
@@ -784,7 +818,6 @@ func TestPermissionsFromAPI(t *testing.T) {
 		name    string
 		perms   []api.Permission
 		wantLen int
-		wantErr bool
 	}{
 		{
 			name: "ConvertsBasicPermissions",
@@ -799,12 +832,7 @@ func TestPermissionsFromAPI(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 
-			result, err := permissionsFromAPI(tt.perms)
-			if tt.wantErr {
-				require.Error(t, err)
-				return
-			}
-			require.NoError(t, err)
+			result := permissionsFromAPI(tt.perms)
 			assert.Len(t, result, tt.wantLen)
 		})
 	}

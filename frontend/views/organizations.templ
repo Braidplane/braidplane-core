@@ -318,6 +318,7 @@ templ OrganizationDetailTabs(orgSlug string, activeTab string) {
 				{ "retention", "/retention", "Retention" },
 				{ "members", "/members", "Members" },
 				{ "roles", "/roles", "Roles" },
+				{ "grants", "/grants", "Grants" },
 				{ "security", "/security", "Security" },
 			} {
 				{{
@@ -613,13 +614,14 @@ templ OrganizationRetentionPolicySnapshotValue(label string, days int) {
 	</div>
 }
 
-templ OrganizationRolesPage(shellData AuthenticatedShellData, organization api.Organization, roles []api.OrgRole, createFormData RoleFormData, roleListView string, permissions OrganizationPermissions, archivable map[string]bool, contentErrorSummary string, contentErrorDetails string, contentSuccessSummary string) {
-	@AuthenticatedShell(shellData, OrganizationRolesPageContent(organization, roles, createFormData, roleListView, permissions, archivable, contentErrorSummary, contentErrorDetails, contentSuccessSummary))
+templ OrganizationRolesPage(shellData AuthenticatedShellData, organization api.Organization, roles []api.OrgRole, picker RolePickerData, roleListView string, permissions OrganizationPermissions, archivable map[string]bool, contentErrorSummary string, contentErrorDetails string, contentSuccessSummary string) {
+	@AuthenticatedShell(shellData, OrganizationRolesPageContent(organization, roles, picker, roleListView, permissions, archivable, contentErrorSummary, contentErrorDetails, contentSuccessSummary))
 }
 
-templ OrganizationRolesPageContent(organization api.Organization, roles []api.OrgRole, createFormData RoleFormData, roleListView string, permissions OrganizationPermissions, archivable map[string]bool, contentErrorSummary string, contentErrorDetails string, contentSuccessSummary string) {
+templ OrganizationRolesPageContent(organization api.Organization, roles []api.OrgRole, picker RolePickerData, roleListView string, permissions OrganizationPermissions, archivable map[string]bool, contentErrorSummary string, contentErrorDetails string, contentSuccessSummary string) {
 	{{ currentRoleView := NormalizeRoleListView(roleListView) }}
 	{{ visibleRoles := RolesForListView(roles, currentRoleView) }}
+	{{ createFormData := picker.CreateForm() }}
 	<div class="space-y-6" id="organization-roles-content">
 		if contentSuccessSummary != "" {
 			@SuccessPopup("organization-roles-success", contentSuccessSummary)
@@ -628,11 +630,14 @@ templ OrganizationRolesPageContent(organization api.Organization, roles []api.Or
 			@ErrorPopup("organization-roles-error", contentErrorSummary, contentErrorDetails)
 		}
 		@OrganizationDetailTabs(string(organization.Slug), "roles")
-		if currentRoleView == RoleListViewActive && permissions.Can("roles", "create") {
+		if picker.Needed && len(picker.Catalog) == 0 {
+			@FormError("role-catalog-unavailable", "The permission catalog is unavailable. Reload to create or edit roles.", false)
+		}
+		if currentRoleView == RoleListViewActive && permissions.Can("roles", "create") && len(picker.Catalog) > 0 {
 			<section class="rounded-xl border border-base-300 bg-base-100 p-4 sm:p-5">
 				<div>
 					<h2 class="text-base font-semibold text-base-content">Create role</h2>
-					<p class="mt-1 text-xs text-base-content/70">Roles grant organization-scoped permissions used by members, invitations, and organization API keys.</p>
+					<p class="mt-1 text-xs text-base-content/70">Roles define allowed actions. Use Grants to assign a role to a member or API key at a scope.</p>
 				</div>
 				<form
 					class="mt-4 grid gap-4"
@@ -651,11 +656,8 @@ templ OrganizationRolesPageContent(organization api.Organization, roles []api.Or
 						</label>
 						@CustomizeIdentifier(createFormData.Slug)
 					</div>
-					<div>
-						<p class="text-xs font-semibold uppercase tracking-wide text-base-content/60">Permissions</p>
-						<p class="mt-1 text-xs text-base-content/65">Leave unused rows blank. Use <span class="font-mono">*:*</span> only for full organization administration.</p>
-						@RolePermissionFormRows(createFormData.Permissions)
-					</div>
+					@RolePermissionPicker(picker.Catalog, createFormData.Permissions)
+					@FormRequestError()
 					<div class="flex justify-end">
 						<button class="btn btn-primary btn-sm" type="submit">Create role</button>
 					</div>
@@ -666,7 +668,7 @@ templ OrganizationRolesPageContent(organization api.Organization, roles []api.Or
 			<div class="mb-4 flex flex-wrap items-start justify-between gap-3">
 				<div>
 					<h2 class="text-base font-semibold text-base-content">{ RoleListViewLabel(currentRoleView) }</h2>
-					<p class="mt-1 text-xs text-base-content/70">Roles control organization-scoped permissions for members, invitations, and organization API keys.</p>
+					<p class="mt-1 text-xs text-base-content/70">Roles define permissions for members, invitations, and API keys.</p>
 				</div>
 				<div class="flex flex-wrap items-center justify-end gap-2">
 					<a class={ RoleListViewButtonClass(currentRoleView, RoleListViewActive) } href={ templ.URL(RoleListViewHref(string(organization.Slug), RoleListViewActive)) }>Active</a>
@@ -732,8 +734,8 @@ templ OrganizationRolesPageContent(organization api.Organization, roles []api.Or
 							</div>
 							<div class="flex flex-wrap gap-2 lg:justify-end">
 								<button class="btn btn-outline btn-xs" type="button" aria-controls={ RoleDetailsPanelID(role) } aria-expanded="false" data-toggle-target={ RoleDetailsPanelID(role) }>Details</button>
-								if RoleMutable(role) && permissions.Can("roles", "update") {
-									<button class="btn btn-ghost btn-xs" type="button" aria-controls={ RoleEditPanelID(role) } aria-expanded="false" data-toggle-target={ RoleEditPanelID(role) }>Edit</button>
+								if RoleMutable(role) && permissions.Can("roles", "update") && len(picker.Catalog) > 0 {
+									<button class="btn btn-ghost btn-xs" type="button" aria-controls={ RoleEditPanelID(role) } aria-expanded={ fmt.Sprint(picker.Submitted.EditRole == role.Slug) } data-toggle-target={ RoleEditPanelID(role) }>Edit</button>
 								}
 								if archivable[role.Slug] {
 									<button class="btn btn-error btn-outline btn-xs" type="button" data-protected-action-trigger={ RoleArchiveModalID(role) }>Archive</button>
@@ -755,7 +757,7 @@ templ OrganizationRolesPageContent(organization api.Organization, roles []api.Or
 								<div class="flex flex-wrap items-start justify-between gap-2">
 									<div>
 										<p class="text-sm font-semibold text-base-content">All permissions</p>
-										<p class="mt-1 text-xs text-base-content/60">Complete organization-scoped permission set granted by this role.</p>
+										<p class="mt-1 text-xs text-base-content/60">The scope of an assignment determines where these permissions apply.</p>
 									</div>
 									<span class="badge badge-outline">{ RolePermissionCountLabel(len(role.Permissions)) }</span>
 								</div>
@@ -771,10 +773,12 @@ templ OrganizationRolesPageContent(organization api.Organization, roles []api.Or
 									</div>
 								}
 							</div>
-							if RoleMutable(role) && permissions.Can("roles", "update") {
+							if RoleMutable(role) && permissions.Can("roles", "update") && len(picker.Catalog) > 0 {
+								{{ editForm := picker.EditForm(role) }}
+								{{ retry := picker.Submitted.EditRole == role.Slug }}
 								<form
 									id={ RoleEditPanelID(role) }
-									class="hidden rounded-lg border border-base-300 bg-base-200/35 p-3 lg:col-span-5"
+									class={ "rounded-lg border border-base-300 bg-base-200/35 p-3 lg:col-span-5", templ.KV("hidden", !retry) }
 									method="post"
 									action={ templ.URL("/organizations/" + string(organization.Slug) + "/roles/" + string(role.Slug) + "/update") }
 									hx-post={ "/organizations/" + string(organization.Slug) + "/roles/" + string(role.Slug) + "/update" }
@@ -782,17 +786,20 @@ templ OrganizationRolesPageContent(organization api.Organization, roles []api.Or
 									hx-select="#organization-roles-content"
 									hx-swap="outerHTML show:none focus-scroll:false"
 									data-dirty-form={ "organization-role-" + string(role.Slug) + "-update" }
+									data-dirty-unsaved?={ retry }
+									data-form-feedback
 									data-preserve-scroll
 								>
 									<div class="grid gap-3">
 										<label class="form-control w-full">
 											<div class="label py-1"><span class="label-text text-xs">Name</span></div>
-											<input class="input input-bordered input-sm w-full" type="text" name="name" value={ string(role.Name) } required/>
+											<input class="input input-bordered input-sm w-full" type="text" name="name" value={ editForm.Name } required/>
 										</label>
-										<div>
-											<p class="text-xs font-semibold uppercase tracking-wide text-base-content/60">Permissions</p>
-											@RolePermissionFormRows(RolePermissionRows(role.Permissions))
-										</div>
+										if retry {
+											@FormError(RoleEditPanelID(role)+"-error", contentErrorSummary, true)
+										}
+										@RolePermissionPicker(picker.Catalog, editForm.Permissions)
+										@FormRequestError()
 										<div class="flex justify-end">
 											<button class="btn btn-primary btn-sm" type="submit" data-dirty-submit disabled>Save</button>
 										</div>
@@ -812,38 +819,49 @@ templ OrganizationRolesPageContent(organization api.Organization, roles []api.Or
 				</div>
 			}
 		</section>
-		@RolePermissionDatalists()
 	</div>
 }
 
-templ RolePermissionFormRows(rows []RolePermissionFormData) {
-	<div class="mt-3 grid gap-2">
-		for _, row := range rows {
-			<div class="grid gap-2 sm:grid-cols-2">
-				<label class="form-control w-full">
-					<div class="label py-1"><span class="label-text text-xs">Resource</span></div>
-					<input class="input input-bordered input-sm w-full font-mono" type="text" name="permission_resource" list="role-resource-options" placeholder="members" value={ row.Resource }/>
-				</label>
-				<label class="form-control w-full">
-					<div class="label py-1"><span class="label-text text-xs">Action</span></div>
-					<input class="input input-bordered input-sm w-full font-mono" type="text" name="permission_action" list="role-action-options" placeholder="read" value={ row.Action }/>
-				</label>
-			</div>
+templ RolePermissionPicker(catalog []api.RolePermissionOption, values []string) {
+	{{ groups, wildcards := rolePermissionGroups(catalog, values) }}
+	<input type="hidden" name="permission_picker" value="1"/>
+	<details class="rounded-lg border border-base-300 px-3 py-2" data-role-permission-picker open?={ len(values) > 0 }>
+		<summary class="cursor-pointer text-sm font-semibold">Permissions</summary>
+		for _, value := range wildcards {
+			<input type="hidden" name="permission" value={ value } data-role-permission-wildcard disabled/>
 		}
-	</div>
-}
-
-templ RolePermissionDatalists() {
-	<datalist id="role-resource-options">
-		for _, option := range RoleResourceOptions() {
-			<option value={ option.Value }>{ option.Label }</option>
+		<div class="mt-3 hidden items-center gap-3" data-role-permission-bulk>
+			<label class="flex cursor-pointer items-center gap-2 text-sm font-medium">
+				<input type="checkbox" class="checkbox checkbox-sm" data-role-permission-master/>
+				Select all permissions
+			</label>
+			<span class="text-xs tabular-nums text-base-content/70" data-role-permission-count></span>
+		</div>
+		if len(wildcards) > 0 {
+			<p class="mt-2 text-xs text-base-content/70">Existing wildcard permissions also cover future actions. Clear individual actions to narrow them.</p>
 		}
-	</datalist>
-	<datalist id="role-action-options">
-		for _, option := range RoleActionOptions() {
-			<option value={ option.Value }>{ option.Label }</option>
-		}
-	</datalist>
+		<div class="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+			for _, group := range groups {
+				<fieldset class="min-w-0 rounded border border-base-300 px-2 pb-2" data-role-permission-group?={ group.Resource != "" } data-permission-resource={ group.Resource }>
+					<legend class="px-1 text-xs font-semibold">{ group.Label }</legend>
+					if group.Resource != "" {
+						<label class="mb-2 hidden cursor-pointer items-center gap-1.5 text-sm font-medium" data-role-permission-bulk>
+							<input type="checkbox" class="checkbox checkbox-sm" data-role-permission-master aria-label={ "Select all " + group.Label + " permissions" }/>
+							All
+						</label>
+					}
+					<div class="flex flex-wrap gap-x-3 gap-y-2">
+						for _, choice := range group.Choices {
+							<label class="flex min-w-0 cursor-pointer items-start gap-1.5 text-sm">
+								<input type="checkbox" class="checkbox checkbox-sm" name="permission" value={ choice.Value } checked?={ choice.Checked } data-role-permission-choice?={ group.Resource != "" } data-role-permission-explicit?={ choice.Explicit }/>
+								<span class="break-words">{ choice.Label }</span>
+							</label>
+						}
+					</div>
+				</fieldset>
+			}
+		</div>
+	</details>
 }
 
 templ RoleArchiveConfirmModal(modalID string, roleName string, roleSlug string, actionURL string) {
@@ -1697,7 +1715,7 @@ templ OrganizationSecurityPageContent(organization api.Organization, apiKeys []a
 			<section class="rounded-xl border border-base-300 bg-base-100 p-4 sm:p-5">
 				<div>
 					<h2 class="text-base font-semibold text-base-content">Create API key</h2>
-					<p class="mt-1 text-xs text-base-content/70">Organization API keys are machine-scoped bearer tokens. Use personal access tokens for user-owned workflows. Role changes require creating a replacement key.</p>
+					<p class="mt-1 text-xs text-base-content/70">Organization API keys are machine-scoped bearer tokens. Use personal access tokens for user-owned workflows. Primary role changes require creating a replacement key.</p>
 				</div>
 				<form
 					class="mt-4 grid gap-3"
@@ -1769,7 +1787,7 @@ templ OrganizationSecurityPageContent(organization api.Organization, apiKeys []a
 			} else {
 				<div class="hidden grid-cols-[1.3fr_.8fr_.8fr_1fr_1fr_1.3fr] gap-4 border-b border-base-300 px-2 pb-3 text-xs font-semibold uppercase tracking-wide text-base-content/60 lg:grid">
 					<div>Key</div>
-					<div>Role</div>
+					<div>Primary role</div>
 					<div>Status</div>
 					<div>Expires</div>
 					<div>Last used</div>
@@ -1792,11 +1810,14 @@ templ OrganizationSecurityPageContent(organization api.Organization, apiKeys []a
 									</div>
 								}
 							</div>
-							<div><span class="text-xs font-semibold uppercase tracking-wide text-base-content/60 lg:hidden">Role </span><span class="badge badge-outline">{ string(key.Role) }</span></div>
+							<div><span class="text-xs font-semibold uppercase tracking-wide text-base-content/60 lg:hidden">Primary role </span><span class="badge badge-outline">{ string(key.Role) }</span></div>
 							<div><span class="text-xs font-semibold uppercase tracking-wide text-base-content/60 lg:hidden">Status </span><span class={ APIKeyStatusBadgeClass(key) }>{ APIKeyStatusLabel(key) }</span></div>
 							<div class="text-sm text-base-content/80"><span class="text-xs font-semibold uppercase tracking-wide text-base-content/60 lg:hidden">Expires </span>{ FormatOptionalAPIKeyTime(key.ExpiresAt) }</div>
 							<div class="text-sm text-base-content/80"><span class="text-xs font-semibold uppercase tracking-wide text-base-content/60 lg:hidden">Last used </span>{ FormatOptionalAPIKeyTime(key.LastUsedAt) }</div>
 							<div class="flex flex-wrap gap-2 lg:justify-end">
+								if permissions.Can("roles", "read") {
+									<a class="btn btn-ghost btn-xs" href={ templ.URL(RoleGrantsHref(organization.Slug, "api_key", key.Slug)) }>Grants</a>
+								}
 								if permissions.Can("api_keys", "update") && key.RevokedAt == nil {
 									<button class="btn btn-ghost btn-xs" type="button" aria-controls={ APIKeyEditPanelID(key) } aria-expanded="false" data-toggle-target={ APIKeyEditPanelID(key) }>Edit</button>
 									<button class="btn btn-outline btn-xs" type="button" data-protected-action-trigger={ APIKeyRotateModalID(key) }>Rotate</button>
@@ -1807,7 +1828,7 @@ templ OrganizationSecurityPageContent(organization api.Organization, apiKeys []a
 								if permissions.Can("api_keys", "delete") && key.RevokedAt != nil {
 									<button class="btn btn-error btn-outline btn-xs" type="button" data-protected-action-trigger={ APIKeyDeleteModalID(key) }>Remove</button>
 								}
-								if (!permissions.Can("api_keys", "update") && !permissions.Can("api_keys", "delete")) || (key.RevokedAt != nil && !permissions.Can("api_keys", "delete")) {
+								if !permissions.Can("roles", "read") && ((!permissions.Can("api_keys", "update") && !permissions.Can("api_keys", "delete")) || (key.RevokedAt != nil && !permissions.Can("api_keys", "delete"))) {
 									<span class="text-sm text-base-content/60">No actions</span>
 								}
 							</div>

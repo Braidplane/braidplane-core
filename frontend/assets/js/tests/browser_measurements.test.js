@@ -6,9 +6,13 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 
-const { unionMilliseconds, browserMeasurements } = createRequire(import.meta.url)(
-    "../../../../scripts/browser-measurements.cjs",
-);
+const require = createRequire(import.meta.url);
+const { unionMilliseconds, browserMeasurements } = require("../../../../scripts/browser-measurements.cjs");
+const {
+    logical,
+    executions,
+    runner_seconds: runnerSeconds,
+} = require("../../../e2e/alpha-inventory.json").suites.product.budgets.critical;
 
 describe("browser measurement evidence", () => {
     it("records successful counts, setup, fixture spans and artifact bytes", () => {
@@ -24,9 +28,9 @@ describe("browser measurement evidence", () => {
                 stats: { duration: 40 },
                 suites: [
                     {
-                        specs: Array.from({ length: 25 }, (_, i) => ({
+                        specs: Array.from({ length: executions }, (_, i) => ({
                             file: "journey.cjs",
-                            title: `case-${i % 15}`,
+                            title: `case-${i % logical}`,
                             tests: [
                                 {
                                     results: [
@@ -47,20 +51,21 @@ describe("browser measurement evidence", () => {
                 ],
             };
             expect(browserMeasurements("product", report)).toMatchObject({
-                logical: 15,
-                executions: 25,
+                logical,
+                executions,
                 setup_wall_ms: 12,
                 runner_wall_ms: 40,
                 fixture_startup_union_ms: 5,
                 fixture_shutdown_union_ms: 0,
-                test_duration_sum_ms: 50,
+                test_duration_sum_ms: 2 * executions,
                 artifacts: { png: { count: 1, bytes: 5 }, zip: { count: 0, bytes: 0 } },
             });
-            report.stats.duration = 240000;
-            expect(browserMeasurements("product", report).runner_wall_ms).toBe(240000);
-            report.stats.duration = 240001;
+            const limit = runnerSeconds * 1000;
+            report.stats.duration = limit;
+            expect(browserMeasurements("product", report).runner_wall_ms).toBe(limit);
+            report.stats.duration++;
             expect(() => browserMeasurements("product", report)).toThrow(
-                "product/critical browser runner exceeds its reviewed wall-time budget: 240001ms (limit 240000ms)",
+                "product/critical browser runner exceeds its reviewed wall-time budget",
             );
             report.stats.duration = 40;
             report.suites[0].specs[0].tests[0].results[0].stdout[0].text =

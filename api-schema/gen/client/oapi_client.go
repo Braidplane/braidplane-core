@@ -5641,6 +5641,42 @@ func (e RoleGrantSubjectKind) Valid() bool {
 	}
 }
 
+// Defines values for RolePermissionOptionAction.
+const (
+	RolePermissionOptionActionAsterisk RolePermissionOptionAction = "*"
+	RolePermissionOptionActionCreate   RolePermissionOptionAction = "create"
+	RolePermissionOptionActionDelete   RolePermissionOptionAction = "delete"
+	RolePermissionOptionActionExecute  RolePermissionOptionAction = "execute"
+	RolePermissionOptionActionPurge    RolePermissionOptionAction = "purge"
+	RolePermissionOptionActionRead     RolePermissionOptionAction = "read"
+	RolePermissionOptionActionRestore  RolePermissionOptionAction = "restore"
+	RolePermissionOptionActionUpdate   RolePermissionOptionAction = "update"
+)
+
+// Valid indicates whether the value is a known member of the RolePermissionOptionAction enum.
+func (e RolePermissionOptionAction) Valid() bool {
+	switch e {
+	case RolePermissionOptionActionAsterisk:
+		return true
+	case RolePermissionOptionActionCreate:
+		return true
+	case RolePermissionOptionActionDelete:
+		return true
+	case RolePermissionOptionActionExecute:
+		return true
+	case RolePermissionOptionActionPurge:
+		return true
+	case RolePermissionOptionActionRead:
+		return true
+	case RolePermissionOptionActionRestore:
+		return true
+	case RolePermissionOptionActionUpdate:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for RuntimeVariableComparisonCellSource.
 const (
 	RuntimeVariableSourceDefault  RuntimeVariableComparisonCellSource = "default"
@@ -17934,6 +17970,31 @@ type RoleListResponse struct {
 	Roles      []OrgRole `json:"roles"`
 }
 
+// RolePermissionCatalog defines model for RolePermissionCatalog.
+type RolePermissionCatalog struct {
+	Permissions []RolePermissionOption `json:"permissions"`
+}
+
+// RolePermissionOption defines model for RolePermissionOption.
+type RolePermissionOption struct {
+	// Action Action on the resource. Organization export is a separate grant from read access.
+	//
+	// Example: read
+	Action      RolePermissionOptionAction `json:"action"`
+	ActionLabel string                     `json:"action_label"`
+
+	// Resource Resource type (e.g., members, organizations)
+	//
+	// Example: members
+	Resource      string `json:"resource"`
+	ResourceLabel string `json:"resource_label"`
+}
+
+// RolePermissionOptionAction Action on the resource. Organization export is a separate grant from read access.
+//
+// Example: read
+type RolePermissionOptionAction string
+
 // RuntimeVariable Non-secret runtime variable scoped to one organization runtime environment.
 type RuntimeVariable struct {
 	// CreatedAt Example: 2025-10-04T12:34:56Z
@@ -29328,6 +29389,11 @@ type ClientInterface interface {
 	// Corresponds with DELETE /organizations/{slug}/authorization/grants/{grant_slug} (the `RevokeRoleGrant` operationId).
 	RevokeRoleGrant(ctx context.Context, slug SlugParam, grantSlug Slug, reqEditors ...RequestEditorFn) (*http.Response, error)
 
+	// ListRolePermissionCatalog List permissions that can be assigned to organization roles
+	//
+	// Corresponds with GET /organizations/{slug}/authorization/permission-catalog (the `ListRolePermissionCatalog` operationId).
+	ListRolePermissionCatalog(ctx context.Context, slug SlugParam, reqEditors ...RequestEditorFn) (*http.Response, error)
+
 	// GetEffectivePermissions List effective tenant permissions for the authenticated principal
 	//
 	// Evaluates the shared permission policy against current bindings and a server-resolved target. An allowed permission may still require a session, credential opt-in, write admission, or an additional permission for a particular operation.
@@ -32606,6 +32672,21 @@ func (c *Client) CreateRoleGrant(ctx context.Context, slug SlugParam, body Creat
 // Corresponds with DELETE /organizations/{slug}/authorization/grants/{grant_slug} (the `RevokeRoleGrant` operationId).
 func (c *Client) RevokeRoleGrant(ctx context.Context, slug SlugParam, grantSlug Slug, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewRevokeRoleGrantRequest(c.Server, slug, grantSlug)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// ListRolePermissionCatalog List permissions that can be assigned to organization roles
+//
+// Corresponds with GET /organizations/{slug}/authorization/permission-catalog (the `ListRolePermissionCatalog` operationId).
+func (c *Client) ListRolePermissionCatalog(ctx context.Context, slug SlugParam, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewListRolePermissionCatalogRequest(c.Server, slug)
 	if err != nil {
 		return nil, err
 	}
@@ -39895,6 +39976,40 @@ func NewRevokeRoleGrantRequest(server string, slug SlugParam, grantSlug Slug) (*
 	}
 
 	req, err := http.NewRequest(http.MethodDelete, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewListRolePermissionCatalogRequest constructs an http.Request for the ListRolePermissionCatalog method
+func NewListRolePermissionCatalogRequest(server string, slug SlugParam) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "slug", slug, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: ""})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/organizations/%s/authorization/permission-catalog", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodGet, queryURL.String(), nil)
 	if err != nil {
 		return nil, err
 	}
@@ -53411,6 +53526,13 @@ type ClientWithResponsesInterface interface {
 	// Corresponds with DELETE /organizations/{slug}/authorization/grants/{grant_slug} (the `RevokeRoleGrant` operationId).
 	RevokeRoleGrantWithResponse(ctx context.Context, slug SlugParam, grantSlug Slug, reqEditors ...RequestEditorFn) (*RevokeRoleGrantResponse, error)
 
+	// ListRolePermissionCatalogWithResponse List permissions that can be assigned to organization roles
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with GET /organizations/{slug}/authorization/permission-catalog (the `ListRolePermissionCatalog` operationId).
+	ListRolePermissionCatalogWithResponse(ctx context.Context, slug SlugParam, reqEditors ...RequestEditorFn) (*ListRolePermissionCatalogResponse, error)
+
 	// GetEffectivePermissionsWithResponse List effective tenant permissions for the authenticated principal
 	//
 	// Evaluates the shared permission policy against current bindings and a server-resolved target. An allowed permission may still require a session, credential opt-in, write admission, or an additional permission for a particular operation.
@@ -57922,6 +58044,47 @@ func (r RevokeRoleGrantResponse) StatusCode() int {
 
 // ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
 func (r RevokeRoleGrantResponse) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type ListRolePermissionCatalogResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *RolePermissionCatalog
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r ListRolePermissionCatalogResponse) GetJSON200() *RolePermissionCatalog {
+	return r.JSON200
+}
+
+// GetBody returns the raw response body bytes
+func (r ListRolePermissionCatalogResponse) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r ListRolePermissionCatalogResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ListRolePermissionCatalogResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r ListRolePermissionCatalogResponse) ContentType() string {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.Header.Get("Content-Type")
 	}
@@ -71135,6 +71298,19 @@ func (c *ClientWithResponses) RevokeRoleGrantWithResponse(ctx context.Context, s
 	return ParseRevokeRoleGrantResponse(rsp)
 }
 
+// ListRolePermissionCatalogWithResponse List permissions that can be assigned to organization roles
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with GET /organizations/{slug}/authorization/permission-catalog (the `ListRolePermissionCatalog` operationId).
+func (c *ClientWithResponses) ListRolePermissionCatalogWithResponse(ctx context.Context, slug SlugParam, reqEditors ...RequestEditorFn) (*ListRolePermissionCatalogResponse, error) {
+	rsp, err := c.ListRolePermissionCatalog(ctx, slug, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseListRolePermissionCatalogResponse(rsp)
+}
+
 // GetEffectivePermissionsWithResponse List effective tenant permissions for the authenticated principal
 //
 // Evaluates the shared permission policy against current bindings and a server-resolved target. An allowed permission may still require a session, credential opt-in, write admission, or an additional permission for a particular operation.
@@ -76715,6 +76891,38 @@ func ParseRevokeRoleGrantResponse(rsp *http.Response) (*RevokeRoleGrantResponse,
 	response := &RevokeRoleGrantResponse{
 		Body:         bodyBytes,
 		HTTPResponse: rsp,
+	}
+
+	return response, nil
+}
+
+// ParseListRolePermissionCatalogResponse parses an HTTP response from a ListRolePermissionCatalogWithResponse call
+func ParseListRolePermissionCatalogResponse(rsp *http.Response) (*ListRolePermissionCatalogResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ListRolePermissionCatalogResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest RolePermissionCatalog
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case rsp.StatusCode == 401:
+		break // No content-type
+
+	case rsp.StatusCode == 403:
+		break // No content-type
+
 	}
 
 	return response, nil
