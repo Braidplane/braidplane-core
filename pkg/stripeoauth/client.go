@@ -18,9 +18,10 @@ import (
 const Scope = "stripe_apps"
 
 var (
-	ErrInvalidGrant = xerror.New(xerror.KindInvalidInput, "STRIPE_INVALID_GRANT", "Stripe OAuth grant is invalid")
-	accountID       = regexp.MustCompile(`^acct_[A-Za-z0-9_]+$`)
-	developerKey    = regexp.MustCompile(`^[a-zA-Z0-9_]+$`)
+	ErrInvalidGrant    = xerror.New(xerror.KindInvalidInput, "STRIPE_INVALID_GRANT", "Stripe OAuth grant is invalid")
+	accountID          = regexp.MustCompile(`^acct_[A-Za-z0-9_]+$`)
+	developerKey       = regexp.MustCompile(`^[a-zA-Z0-9_]+$`)
+	channelInstallPath = regexp.MustCompile(`^/oauth/v2/chnlink_[A-Za-z0-9]+/authorize$`)
 )
 
 type Config struct {
@@ -44,7 +45,8 @@ func (c Config) Validate() error {
 	}
 	install, err := url.Parse(c.InstallURL)
 	if err != nil || install.Scheme != "https" || install.Host != "marketplace.stripe.com" ||
-		install.User != nil || install.Fragment != "" || install.Path != "/oauth/v2/authorize" ||
+		install.User != nil || install.Fragment != "" ||
+		(install.Path != "/oauth/v2/authorize" && !channelInstallPath.MatchString(install.EscapedPath())) ||
 		install.Query().Get("client_id") == "" {
 		return xerror.ValidationFailed().Detail("Stripe OAuth requires the mode-specific Marketplace OAuth install URL from the app Dashboard")
 	}
