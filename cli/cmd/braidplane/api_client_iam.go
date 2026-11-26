@@ -8,6 +8,45 @@ import (
 	"github.com/Braidplane/braidplane-core/pkg/xerror"
 )
 
+func (c *cliAPIClient) listRoleGrants(ctx context.Context) (*api.RoleGrantList, error) {
+	resp, err := c.openapi.ListRoleGrantsWithResponse(ctx, c.organization)
+	if err != nil {
+		return nil, xerror.Wrapf("list role grants: %w", err)
+	}
+	if resp.StatusCode() != http.StatusOK {
+		return nil, decodeAPIError(resp.StatusCode(), resp.Body)
+	}
+	if resp.JSON200 == nil {
+		return nil, xerror.Unexpected().Detail("unexpected API response: missing role grant list payload")
+	}
+	return resp.JSON200, nil
+}
+
+func (c *cliAPIClient) createRoleGrant(ctx context.Context, body api.NewRoleGrant) (*api.RoleGrant, error) {
+	resp, err := c.openapi.CreateRoleGrantWithResponse(ctx, c.organization, body)
+	if err != nil {
+		return nil, xerror.Wrapf("create role grant: %w", err)
+	}
+	if resp.StatusCode() != http.StatusCreated {
+		return nil, decodeAPIError(resp.StatusCode(), resp.Body)
+	}
+	if resp.JSON201 == nil {
+		return nil, xerror.Unexpected().Detail("unexpected API response: missing role grant payload")
+	}
+	return resp.JSON201, nil
+}
+
+func (c *cliAPIClient) revokeRoleGrant(ctx context.Context, grant string) error {
+	resp, err := c.openapi.RevokeRoleGrantWithResponse(ctx, c.organization, grant)
+	if err != nil {
+		return xerror.Wrapf("revoke role grant: %w", err)
+	}
+	if resp.StatusCode() != http.StatusNoContent {
+		return decodeAPIError(resp.StatusCode(), resp.Body)
+	}
+	return nil
+}
+
 func (c *cliAPIClient) listMembers(ctx context.Context, params *api.ListMembersParams) (*api.MemberListResponse, error) {
 	resp, err := c.openapi.ListMembersWithResponse(ctx, c.organization, params)
 	if err != nil {

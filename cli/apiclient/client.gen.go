@@ -1984,6 +1984,48 @@ func (e MySQLStatementType) Valid() bool {
 	}
 }
 
+// Defines values for NewRoleGrantScope.
+const (
+	NewRoleGrantScopeEnvironment  NewRoleGrantScope = "environment"
+	NewRoleGrantScopeOrganization NewRoleGrantScope = "organization"
+	NewRoleGrantScopeProject      NewRoleGrantScope = "project"
+	NewRoleGrantScopeResource     NewRoleGrantScope = "resource"
+)
+
+// Valid indicates whether the value is a known member of the NewRoleGrantScope enum.
+func (e NewRoleGrantScope) Valid() bool {
+	switch e {
+	case NewRoleGrantScopeEnvironment:
+		return true
+	case NewRoleGrantScopeOrganization:
+		return true
+	case NewRoleGrantScopeProject:
+		return true
+	case NewRoleGrantScopeResource:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for NewRoleGrantSubjectKind.
+const (
+	NewRoleGrantSubjectKindApiKey NewRoleGrantSubjectKind = "api_key"
+	NewRoleGrantSubjectKindMember NewRoleGrantSubjectKind = "member"
+)
+
+// Valid indicates whether the value is a known member of the NewRoleGrantSubjectKind enum.
+func (e NewRoleGrantSubjectKind) Valid() bool {
+	switch e {
+	case NewRoleGrantSubjectKindApiKey:
+		return true
+	case NewRoleGrantSubjectKindMember:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for NotificationDispatchStatus.
 const (
 	NotificationDispatchStatusQueued  NotificationDispatchStatus = "queued"
@@ -5203,6 +5245,48 @@ func (e Role) Valid() bool {
 	case RoleSuperAdmin:
 		return true
 	case RoleUser:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for RoleGrantScope.
+const (
+	RoleGrantScopeEnvironment  RoleGrantScope = "environment"
+	RoleGrantScopeOrganization RoleGrantScope = "organization"
+	RoleGrantScopeProject      RoleGrantScope = "project"
+	RoleGrantScopeResource     RoleGrantScope = "resource"
+)
+
+// Valid indicates whether the value is a known member of the RoleGrantScope enum.
+func (e RoleGrantScope) Valid() bool {
+	switch e {
+	case RoleGrantScopeEnvironment:
+		return true
+	case RoleGrantScopeOrganization:
+		return true
+	case RoleGrantScopeProject:
+		return true
+	case RoleGrantScopeResource:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for RoleGrantSubjectKind.
+const (
+	RoleGrantSubjectKindApiKey RoleGrantSubjectKind = "api_key"
+	RoleGrantSubjectKindMember RoleGrantSubjectKind = "member"
+)
+
+// Valid indicates whether the value is a known member of the RoleGrantSubjectKind enum.
+func (e RoleGrantSubjectKind) Valid() bool {
+	switch e {
+	case RoleGrantSubjectKindApiKey:
+		return true
+	case RoleGrantSubjectKindMember:
 		return true
 	default:
 		return false
@@ -9690,6 +9774,26 @@ type NewQuery struct {
 	TimeoutSeconds           *int                     `json:"timeout_seconds,omitempty"`
 }
 
+// NewRoleGrant defines model for NewRoleGrant.
+type NewRoleGrant struct {
+	DatasourceSlug  *Slug                   `json:"datasource_slug,omitempty"`
+	EnvironmentSlug *Slug                   `json:"environment_slug,omitempty"`
+	ParentSlug      *Slug                   `json:"parent_slug,omitempty"`
+	ProjectSlug     *Slug                   `json:"project_slug,omitempty"`
+	RoleSlug        Slug                    `json:"role_slug"`
+	Scope           NewRoleGrantScope       `json:"scope"`
+	SubjectKind     NewRoleGrantSubjectKind `json:"subject_kind"`
+	SubjectSlug     Slug                    `json:"subject_slug"`
+	TargetKind      *string                 `json:"target_kind,omitempty"`
+	TargetSlug      *string                 `json:"target_slug,omitempty"`
+}
+
+// NewRoleGrantScope defines model for NewRoleGrant.Scope.
+type NewRoleGrantScope string
+
+// NewRoleGrantSubjectKind defines model for NewRoleGrant.SubjectKind.
+type NewRoleGrantSubjectKind string
+
 // NotificationConnection defines model for NotificationConnection.
 type NotificationConnection struct {
 	Metadata  NotificationConnectionMetadata `json:"metadata"`
@@ -12506,6 +12610,32 @@ type RecoverPipelineRunRequest struct {
 // Role defines model for Role.
 type Role string
 
+// RoleGrant defines model for RoleGrant.
+type RoleGrant struct {
+	DatasourceSlug  *Slug                `json:"datasource_slug,omitempty"`
+	EnvironmentSlug *Slug                `json:"environment_slug,omitempty"`
+	ParentSlug      *Slug                `json:"parent_slug,omitempty"`
+	ProjectSlug     *Slug                `json:"project_slug,omitempty"`
+	RoleSlug        Slug                 `json:"role_slug"`
+	Scope           RoleGrantScope       `json:"scope"`
+	Slug            Slug                 `json:"slug"`
+	SubjectKind     RoleGrantSubjectKind `json:"subject_kind"`
+	SubjectSlug     Slug                 `json:"subject_slug"`
+	TargetKind      *string              `json:"target_kind,omitempty"`
+	TargetSlug      *string              `json:"target_slug,omitempty"`
+}
+
+// RoleGrantScope defines model for RoleGrant.Scope.
+type RoleGrantScope string
+
+// RoleGrantSubjectKind defines model for RoleGrant.SubjectKind.
+type RoleGrantSubjectKind string
+
+// RoleGrantList defines model for RoleGrantList.
+type RoleGrantList struct {
+	Grants []RoleGrant `json:"grants"`
+}
+
 // RoleListResponse defines model for RoleListResponse.
 type RoleListResponse struct {
 	HasMore    bool      `json:"has_more"`
@@ -14160,6 +14290,9 @@ type CreateAPIKeyJSONRequestBody = NewAPIKey
 
 // UpdateAPIKeyJSONRequestBody defines body for UpdateAPIKey for application/json ContentType.
 type UpdateAPIKeyJSONRequestBody = UpdateAPIKey
+
+// CreateRoleGrantJSONRequestBody defines body for CreateRoleGrant for application/json ContentType.
+type CreateRoleGrantJSONRequestBody = NewRoleGrant
 
 // CreateDataSourceJSONRequestBody defines body for CreateDataSource for application/json ContentType.
 type CreateDataSourceJSONRequestBody = CreateDataSourceRequest
@@ -21737,6 +21870,20 @@ type ClientInterface interface {
 	// RotateAPIKey performs a POST /organizations/{slug}/api-keys/{api_key_slug}/rotate (the `RotateAPIKey` operationId) request.
 	RotateAPIKey(ctx context.Context, slug SlugParam, apiKeySlug APIKeySlugParam, reqEditors ...RequestEditorFn) (*http.Response, error)
 
+	// ListRoleGrants performs a GET /organizations/{slug}/authorization/grants (the `ListRoleGrants` operationId) request.
+	ListRoleGrants(ctx context.Context, slug SlugParam, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// CreateRoleGrantWithBody performs a POST /organizations/{slug}/authorization/grants (the `CreateRoleGrant` operationId) request,
+	// with any type of body and a specified content type.
+	CreateRoleGrantWithBody(ctx context.Context, slug SlugParam, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// CreateRoleGrant performs a POST /organizations/{slug}/authorization/grants (the `CreateRoleGrant` operationId) request.
+	// Takes a body of the `application/json` content type.
+	CreateRoleGrant(ctx context.Context, slug SlugParam, body CreateRoleGrantJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// RevokeRoleGrant performs a DELETE /organizations/{slug}/authorization/grants/{grant_slug} (the `RevokeRoleGrant` operationId) request.
+	RevokeRoleGrant(ctx context.Context, slug SlugParam, grantSlug Slug, reqEditors ...RequestEditorFn) (*http.Response, error)
+
 	// ListDataSources performs a GET /organizations/{slug}/data-sources (the `ListDataSources` operationId) request.
 	ListDataSources(ctx context.Context, slug SlugParam, params *ListDataSourcesParams, reqEditors ...RequestEditorFn) (*http.Response, error)
 
@@ -22979,6 +23126,60 @@ func (c *Client) UpdateAPIKey(ctx context.Context, slug SlugParam, apiKeySlug AP
 // RotateAPIKey performs a POST /organizations/{slug}/api-keys/{api_key_slug}/rotate (the `RotateAPIKey` operationId) request.
 func (c *Client) RotateAPIKey(ctx context.Context, slug SlugParam, apiKeySlug APIKeySlugParam, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewRotateAPIKeyRequest(c.Server, slug, apiKeySlug)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// ListRoleGrants performs a GET /organizations/{slug}/authorization/grants (the `ListRoleGrants` operationId) request.
+func (c *Client) ListRoleGrants(ctx context.Context, slug SlugParam, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewListRoleGrantsRequest(c.Server, slug)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// CreateRoleGrantWithBody performs a POST /organizations/{slug}/authorization/grants (the `CreateRoleGrant` operationId) request,
+// with any type of body and a specified content type.
+func (c *Client) CreateRoleGrantWithBody(ctx context.Context, slug SlugParam, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewCreateRoleGrantRequestWithBody(c.Server, slug, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// CreateRoleGrant performs a POST /organizations/{slug}/authorization/grants (the `CreateRoleGrant` operationId) request.
+// Takes a body of the `application/json` content type.
+func (c *Client) CreateRoleGrant(ctx context.Context, slug SlugParam, body CreateRoleGrantJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewCreateRoleGrantRequest(c.Server, slug, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// RevokeRoleGrant performs a DELETE /organizations/{slug}/authorization/grants/{grant_slug} (the `RevokeRoleGrant` operationId) request.
+func (c *Client) RevokeRoleGrant(ctx context.Context, slug SlugParam, grantSlug Slug, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewRevokeRoleGrantRequest(c.Server, slug, grantSlug)
 	if err != nil {
 		return nil, err
 	}
@@ -27592,6 +27793,128 @@ func NewRotateAPIKeyRequest(server string, slug SlugParam, apiKeySlug APIKeySlug
 	}
 
 	req, err := http.NewRequest(http.MethodPost, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewListRoleGrantsRequest constructs an http.Request for the ListRoleGrants method
+func NewListRoleGrantsRequest(server string, slug SlugParam) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "slug", slug, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: ""})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/organizations/%s/authorization/grants", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodGet, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewCreateRoleGrantRequest calls the generic CreateRoleGrant builder with application/json body
+func NewCreateRoleGrantRequest(server string, slug SlugParam, body CreateRoleGrantJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewCreateRoleGrantRequestWithBody(server, slug, "application/json", bodyReader)
+}
+
+// NewCreateRoleGrantRequestWithBody constructs an http.Request for the CreateRoleGrant method, with any body, and a specified content type
+func NewCreateRoleGrantRequestWithBody(server string, slug SlugParam, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "slug", slug, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: ""})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/organizations/%s/authorization/grants", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPost, queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
+// NewRevokeRoleGrantRequest constructs an http.Request for the RevokeRoleGrant method
+func NewRevokeRoleGrantRequest(server string, slug SlugParam, grantSlug Slug) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "slug", slug, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: ""})
+	if err != nil {
+		return nil, err
+	}
+
+	var pathParam1 string
+
+	pathParam1, err = runtime.StyleParamWithOptions("simple", false, "grant_slug", grantSlug, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: ""})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/organizations/%s/authorization/grants/%s", pathParam0, pathParam1)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodDelete, queryURL.String(), nil)
 	if err != nil {
 		return nil, err
 	}
@@ -38830,6 +39153,26 @@ type ClientWithResponsesInterface interface {
 	// Returns a wrapper object for the known response body format(s).
 	RotateAPIKeyWithResponse(ctx context.Context, slug SlugParam, apiKeySlug APIKeySlugParam, reqEditors ...RequestEditorFn) (*RotateAPIKeyResponse, error)
 
+	// ListRoleGrantsWithResponse performs a GET /organizations/{slug}/authorization/grants (the `ListRoleGrants` operationId) request.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	ListRoleGrantsWithResponse(ctx context.Context, slug SlugParam, reqEditors ...RequestEditorFn) (*ListRoleGrantsResponse, error)
+
+	// CreateRoleGrantWithBodyWithResponse performs a POST /organizations/{slug}/authorization/grants (the `CreateRoleGrant` operationId) request,
+	// with any type of body and a specified content type.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	CreateRoleGrantWithBodyWithResponse(ctx context.Context, slug SlugParam, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*CreateRoleGrantResponse, error)
+
+	// CreateRoleGrantWithResponse performs a POST /organizations/{slug}/authorization/grants (the `CreateRoleGrant` operationId) request.
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+	CreateRoleGrantWithResponse(ctx context.Context, slug SlugParam, body CreateRoleGrantJSONRequestBody, reqEditors ...RequestEditorFn) (*CreateRoleGrantResponse, error)
+
+	// RevokeRoleGrantWithResponse performs a DELETE /organizations/{slug}/authorization/grants/{grant_slug} (the `RevokeRoleGrant` operationId) request.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	RevokeRoleGrantWithResponse(ctx context.Context, slug SlugParam, grantSlug Slug, reqEditors ...RequestEditorFn) (*RevokeRoleGrantResponse, error)
+
 	// ListDataSourcesWithResponse performs a GET /organizations/{slug}/data-sources (the `ListDataSources` operationId) request.
 	//
 	// Returns a wrapper object for the known response body format(s).
@@ -41285,6 +41628,122 @@ func (r RotateAPIKeyResponse) StatusCode() int {
 
 // ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
 func (r RotateAPIKeyResponse) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type ListRoleGrantsResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *RoleGrantList
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r ListRoleGrantsResponse) GetJSON200() *RoleGrantList {
+	return r.JSON200
+}
+
+// GetBody returns the raw response body bytes
+func (r ListRoleGrantsResponse) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r ListRoleGrantsResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ListRoleGrantsResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r ListRoleGrantsResponse) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type CreateRoleGrantResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON201 the response for an HTTP 201 `application/json` response
+	JSON201 *RoleGrant
+}
+
+// GetJSON201 returns the response for an HTTP 201 `application/json` response
+func (r CreateRoleGrantResponse) GetJSON201() *RoleGrant {
+	return r.JSON201
+}
+
+// GetBody returns the raw response body bytes
+func (r CreateRoleGrantResponse) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r CreateRoleGrantResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r CreateRoleGrantResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r CreateRoleGrantResponse) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type RevokeRoleGrantResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+}
+
+// GetBody returns the raw response body bytes
+func (r RevokeRoleGrantResponse) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r RevokeRoleGrantResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r RevokeRoleGrantResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r RevokeRoleGrantResponse) ContentType() string {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.Header.Get("Content-Type")
 	}
@@ -51658,6 +52117,50 @@ func (c *ClientWithResponses) RotateAPIKeyWithResponse(ctx context.Context, slug
 	return ParseRotateAPIKeyResponse(rsp)
 }
 
+// ListRoleGrantsWithResponse performs a GET /organizations/{slug}/authorization/grants (the `ListRoleGrants` operationId) request.
+//
+// Returns a wrapper object for the known response body format(s).
+func (c *ClientWithResponses) ListRoleGrantsWithResponse(ctx context.Context, slug SlugParam, reqEditors ...RequestEditorFn) (*ListRoleGrantsResponse, error) {
+	rsp, err := c.ListRoleGrants(ctx, slug, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseListRoleGrantsResponse(rsp)
+}
+
+// CreateRoleGrantWithBodyWithResponse performs a POST /organizations/{slug}/authorization/grants (the `CreateRoleGrant` operationId) request,
+// with any type of body and a specified content type.
+//
+// Returns a wrapper object for the known response body format(s).
+func (c *ClientWithResponses) CreateRoleGrantWithBodyWithResponse(ctx context.Context, slug SlugParam, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*CreateRoleGrantResponse, error) {
+	rsp, err := c.CreateRoleGrantWithBody(ctx, slug, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseCreateRoleGrantResponse(rsp)
+}
+
+// CreateRoleGrantWithResponse performs a POST /organizations/{slug}/authorization/grants (the `CreateRoleGrant` operationId) request.
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+func (c *ClientWithResponses) CreateRoleGrantWithResponse(ctx context.Context, slug SlugParam, body CreateRoleGrantJSONRequestBody, reqEditors ...RequestEditorFn) (*CreateRoleGrantResponse, error) {
+	rsp, err := c.CreateRoleGrant(ctx, slug, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseCreateRoleGrantResponse(rsp)
+}
+
+// RevokeRoleGrantWithResponse performs a DELETE /organizations/{slug}/authorization/grants/{grant_slug} (the `RevokeRoleGrant` operationId) request.
+//
+// Returns a wrapper object for the known response body format(s).
+func (c *ClientWithResponses) RevokeRoleGrantWithResponse(ctx context.Context, slug SlugParam, grantSlug Slug, reqEditors ...RequestEditorFn) (*RevokeRoleGrantResponse, error) {
+	rsp, err := c.RevokeRoleGrant(ctx, slug, grantSlug, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseRevokeRoleGrantResponse(rsp)
+}
+
 // ListDataSourcesWithResponse performs a GET /organizations/{slug}/data-sources (the `ListDataSources` operationId) request.
 //
 // Returns a wrapper object for the known response body format(s).
@@ -55097,6 +55600,89 @@ func ParseRotateAPIKeyResponse(rsp *http.Response) (*RotateAPIKeyResponse, error
 		}
 		response.JSON404 = &dest
 
+	}
+
+	return response, nil
+}
+
+// ParseListRoleGrantsResponse parses an HTTP response from a ListRoleGrantsWithResponse call
+func ParseListRoleGrantsResponse(rsp *http.Response) (*ListRoleGrantsResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ListRoleGrantsResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest RoleGrantList
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case rsp.StatusCode == 403:
+		break // No content-type
+
+	}
+
+	return response, nil
+}
+
+// ParseCreateRoleGrantResponse parses an HTTP response from a CreateRoleGrantWithResponse call
+func ParseCreateRoleGrantResponse(rsp *http.Response) (*CreateRoleGrantResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &CreateRoleGrantResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 201:
+		var dest RoleGrant
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON201 = &dest
+
+	case rsp.StatusCode == 400:
+		break // No content-type
+
+	case rsp.StatusCode == 403:
+		break // No content-type
+
+	case rsp.StatusCode == 404:
+		break // No content-type
+
+	case rsp.StatusCode == 409:
+		break // No content-type
+
+	}
+
+	return response, nil
+}
+
+// ParseRevokeRoleGrantResponse parses an HTTP response from a RevokeRoleGrantWithResponse call
+func ParseRevokeRoleGrantResponse(rsp *http.Response) (*RevokeRoleGrantResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &RevokeRoleGrantResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
 	}
 
 	return response, nil

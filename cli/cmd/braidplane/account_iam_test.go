@@ -130,6 +130,97 @@ func TestRolePermissionValidationRejectsUnknownAction(t *testing.T) {
 	require.ErrorContains(t, err, "resource:action")
 }
 
+func TestRoleGrantCommandsUseScopedRoutesAndCredentialRestrictions(t *testing.T) {
+	t.Run("list permits API key", func(t *testing.T) {
+		var gotAuth string
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			gotAuth = r.Header.Get("Authorization")
+			require.Equal(t, http.MethodGet, r.Method)
+			require.Equal(t, "/api/organizations/acme/authorization/grants", r.URL.Path)
+			w.Header().Set("Content-Type", "application/json")
+			_, _ = w.Write([]byte(`{"grants":[]}`))
+		}))
+		t.Cleanup(server.Close)
+
+		var stdout, stderr bytes.Buffer
+		err := runWithRuntime([]string{"braidplane", "role", "grant", "list", "--server-url", server.URL + "/api", "--org", "acme", "--api-key", "xto_key_test"}, &stdout, &stderr, cliRuntime{configPath: filepath.Join(t.TempDir(), "missing.toml")})
+
+		require.NoError(t, err)
+		require.Equal(t, "Bearer xto_key_test", gotAuth)
+		require.JSONEq(t, `{"grants":[]}`, stdout.String())
+		require.Empty(t, stderr.String())
+	})
+
+	t.Run("assign sends resource qualifiers with PAT", func(t *testing.T) {
+		var gotAuth string
+		var gotBody []byte
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			gotAuth = r.Header.Get("Authorization")
+			require.Equal(t, http.MethodPost, r.Method)
+			require.Equal(t, "/api/organizations/acme/authorization/grants", r.URL.Path)
+			var err error
+			gotBody, err = io.ReadAll(r.Body)
+			require.NoError(t, err)
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusCreated)
+			_, _ = w.Write([]byte(`{"slug":"grant-1","subject_kind":"member","subject_slug":"alice","role_slug":"runner","scope":"resource","target_kind":"pipelines","target_slug":"daily","project_slug":"data"}`))
+		}))
+		t.Cleanup(server.Close)
+
+		var stdout, stderr bytes.Buffer
+		err := runWithRuntime([]string{"braidplane", "role", "grant", "assign", "--server-url", server.URL + "/api", "--org", "acme", "--pat", "xto_pat_test", "--subject-kind", "member", "--subject", "alice", "--role", "runner", "--scope", "resource", "--target-kind", "pipelines", "--target", "daily", "--project", "data"}, &stdout, &stderr, cliRuntime{configPath: filepath.Join(t.TempDir(), "missing.toml")})
+
+		require.NoError(t, err)
+		require.Equal(t, "Bearer xto_pat_test", gotAuth)
+		require.JSONEq(t, `{"subject_kind":"member","subject_slug":"alice","role_slug":"runner","scope":"resource","target_kind":"pipelines","target_slug":"daily","project_slug":"data"}`, string(gotBody))
+		require.Contains(t, stdout.String(), `"slug": "grant-1"`)
+		require.NotContains(t, stdout.String(), "xto_pat_test")
+		require.Empty(t, stderr.String())
+	})
+
+	t.Run("revoke uses PAT", func(t *testing.T) {
+		var gotAuth string
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			gotAuth = r.Header.Get("Authorization")
+			require.Equal(t, http.MethodDelete, r.Method)
+			require.Equal(t, "/api/organizations/acme/authorization/grants/grant-1", r.URL.Path)
+			w.WriteHeader(http.StatusNoContent)
+		}))
+		t.Cleanup(server.Close)
+
+		var stdout, stderr bytes.Buffer
+		err := runWithRuntime([]string{"braidplane", "role", "grant", "revoke", "grant-1", "--server-url", server.URL + "/api", "--org", "acme", "--pat", "xto_pat_test"}, &stdout, &stderr, cliRuntime{configPath: filepath.Join(t.TempDir(), "missing.toml")})
+
+		require.NoError(t, err)
+		require.Equal(t, "Bearer xto_pat_test", gotAuth)
+		require.Empty(t, stdout.String())
+		require.Empty(t, stderr.String())
+	})
+
+	t.Run("revoke rejects API key before request", func(t *testing.T) {
+		serverCalled := false
+		server := httptest.NewServer(http.HandlerFunc(func(http.ResponseWriter, *http.Request) { serverCalled = true }))
+		t.Cleanup(server.Close)
+
+		var stdout, stderr bytes.Buffer
+		err := runWithRuntime([]string{"braidplane", "role", "grant", "revoke", "grant-1", "--server-url", server.URL + "/api", "--org", "acme", "--api-key", "xto_key_must_not_be_used"}, &stdout, &stderr, cliRuntime{configPath: filepath.Join(t.TempDir(), "missing.toml")})
+
+		require.ErrorContains(t, err, "personal access token")
+		require.False(t, serverCalled)
+		require.NotContains(t, err.Error(), "xto_key_must_not_be_used")
+		require.Empty(t, stdout.String())
+		require.Empty(t, stderr.String())
+	})
+}
+
+func TestRoleGrantRequestValidatesScopeSelectors(t *testing.T) {
+	t.Parallel()
+
+	_, err := (roleGrantFlags{SubjectKind: "member", Subject: "alice", Role: "runner", Scope: "resource", Target: "daily"}).request()
+
+	require.ErrorContains(t, err, "--target-kind")
+}
+
 // CLI auth resolution reads process environment variables.
 func TestInvitationCreateUsesTypedOrganizationRouteAndAPIKey(t *testing.T) {
 	var gotAuth string
@@ -226,6 +317,7 @@ func TestAccountIAMCommandHelpSurfaces(t *testing.T) {
 		{args: []string{"braidplane", "invitation", "--help"}, want: "invitation mine"},
 		{args: []string{"braidplane", "invitation", "mine", "--help"}, want: "invitation mine accept"},
 		{args: []string{"braidplane", "role", "--help"}, want: "role restore"},
+		{args: []string{"braidplane", "role", "grant", "--help"}, want: "role grant revoke"},
 	}
 
 	for _, tt := range tests {

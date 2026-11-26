@@ -93,6 +93,18 @@ user; organization API keys do not represent a user and cannot use that command.
 Do not infer an API key's owner or effective permissions from the organization
 response. User profiles may contain personal information.
 
+### Scoped role grants
+
+`role grant list` shows additional scoped grants only; a member's or API key's
+primary organization role remains separate. `role grant assign` adds the selected
+role's permissions to the subject's existing access at the selected organization,
+project, environment, or resource target. It does not replace the primary role.
+Use public slugs for the subject, role, target, and any resource qualifiers.
+`role grant revoke GRANT` removes only that additional grant, so access from the
+primary role or another grant can remain. Listing accepts an organization API key
+with role-read access; assigning and revoking require a personal access token
+with organization-wide role-update authority.
+
 Validate a local candidate without contacting the server:
 
 ```sh
