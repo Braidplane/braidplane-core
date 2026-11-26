@@ -382,7 +382,7 @@ Enable **Connect with Stripe** by configuring all three settings for each mode y
 | Test | `STRIPE_TEST_INSTALL_URL` | `STRIPE_TEST_DEVELOPER_KEY` | `STRIPE_TEST_REDIRECT_URI` ending in `/provider-connectors/stripe_test/callback` |
 | Live | `STRIPE_LIVE_INSTALL_URL` | `STRIPE_LIVE_DEVELOPER_KEY` | `STRIPE_LIVE_REDIRECT_URI` ending in `/provider-connectors/stripe_live/callback` |
 
-The corresponding TOML keys are under `[stripe]`, for example `test_install_url`, `test_developer_key` and `test_redirect_uri`. Use the install link for the intended app distribution and mode, the matching developer account secret and the exact redirect URI registered with Stripe. Keep the developer key in protected deployment configuration. See [Stripe App setup and permissions](doc/data-sources/STRIPE.md#stripe-apps-oauth).
+The corresponding TOML keys are under `[stripe]`, for example `test_install_url`, `test_developer_key` and `test_redirect_uri`. Use the install link for the intended app distribution and mode, the matching developer account secret and the exact redirect URI registered with Stripe. Keep the full path from Stripe’s Dashboard, including any external-test channel segment. Keep the developer key in protected deployment configuration. See [Stripe App setup and permissions](doc/data-sources/STRIPE.md#stripe-apps-oauth).
 
 ### HubSpot Connector Overrides
 

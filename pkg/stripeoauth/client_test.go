@@ -121,6 +121,22 @@ func TestCancellation(t *testing.T) {
 	require.ErrorIs(t, err, context.Canceled)
 }
 
+func TestAuthorizationURLPreservesExternalTestChannel(t *testing.T) {
+	cfg := fixtureConfig("test")
+	cfg.InstallURL = "https://marketplace.stripe.com/oauth/v2/chnlink_Fixture123/authorize?client_id=fixture"
+	client, err := New(cfg)
+	require.NoError(t, err)
+
+	authorizationURL, err := client.AuthorizationURL("fixture-state")
+	require.NoError(t, err)
+	parsed, err := url.Parse(authorizationURL)
+	require.NoError(t, err)
+	require.Equal(t, "/oauth/v2/chnlink_Fixture123/authorize", parsed.Path)
+	require.Equal(t, "fixture", parsed.Query().Get("client_id"))
+	require.Equal(t, cfg.RedirectURI, parsed.Query().Get("redirect_uri"))
+	require.Equal(t, "fixture-state", parsed.Query().Get("state"))
+}
+
 func TestConfigRejectsMismatches(t *testing.T) {
 	for _, change := range []func(*Config){
 		func(c *Config) { c.Mode = "sandbox" },
@@ -128,6 +144,12 @@ func TestConfigRejectsMismatches(t *testing.T) {
 		func(c *Config) { c.DeveloperKey = "rk_test_fixture" },
 		func(c *Config) { c.InstallURL = "https://example.invalid/oauth/v2/authorize?client_id=ca_123" },
 		func(c *Config) { c.InstallURL = "https://marketplace.stripe.com/other?client_id=ca_123" },
+		func(c *Config) {
+			c.InstallURL = "https://marketplace.stripe.com/oauth/v2/channel_Fixture123/authorize?client_id=ca_123"
+		},
+		func(c *Config) {
+			c.InstallURL = "https://marketplace.stripe.com/oauth/v2/chnlink_Fixture123%2Fauthorize?client_id=ca_123"
+		},
 		func(c *Config) { c.RedirectURI = "https://app.example.test/provider-connectors/stripe_live/callback" },
 		func(c *Config) {
 			c.Mode = "live"
