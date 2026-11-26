@@ -161,7 +161,10 @@ func TestRoleGrantCommandsUseScopedRoutesAndCredentialRestrictions(t *testing.T)
 			assert.Equal(t, "/api/organizations/acme/authorization/grants", r.URL.Path)
 			var err error
 			gotBody, err = io.ReadAll(r.Body)
-			assert.NoError(t, err)
+			if err != nil {
+				w.WriteHeader(http.StatusBadRequest)
+				return
+			}
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusCreated)
 			_, _ = w.Write([]byte(`{"slug":"grant-1","subject_kind":"member","subject_slug":"alice","role_slug":"runner","scope":"resource","target_kind":"pipelines","target_slug":"daily","project_slug":"data"}`))
@@ -327,9 +330,9 @@ func TestAccountIAMCommandHelpSurfaces(t *testing.T) {
 			var stdout bytes.Buffer
 			var stderr bytes.Buffer
 			err := runWithRuntime(tt.args, &stdout, &stderr, cliRuntime{})
-			assert.NoError(t, err)
-			assert.Contains(t, stdout.String(), tt.want)
-			assert.Empty(t, stderr.String())
+			require.NoError(t, err)
+			require.Contains(t, stdout.String(), tt.want)
+			require.Empty(t, stderr.String())
 		})
 	}
 }

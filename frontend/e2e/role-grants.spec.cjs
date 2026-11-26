@@ -9,6 +9,7 @@ const {
     unsafeRequest,
 } = require("./support/smoke-fixtures.cjs");
 
+test.use({ actionTimeout: 5000 });
 test.beforeAll(assertSeededAuth);
 
 test("edits role permissions and grants access at a project", async ({ page }, testInfo) => {
@@ -80,7 +81,7 @@ test("edits role permissions and grants access at a project", async ({ page }, t
         const grantForm = page.locator(`form[action^="${grantPath}"]`);
         await expect(grantForm.getByLabel("Member or API key slug")).toHaveValue(member.user_slug);
         await grantForm.getByLabel("Role slug").fill(role);
-        await grantForm.getByLabel("Scope", { exact: true }).selectOption("project");
+        await grantForm.getByRole("combobox", { name: "Scope", exact: true }).selectOption("project");
         await grantForm.getByLabel("Target slug or key").fill(e2eProjectSlug);
         await grantForm.getByRole("button", { name: "Grant role" }).click();
         await expect(grantForm.getByRole("alert").filter({ visible: true })).toContainText(

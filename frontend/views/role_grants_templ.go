@@ -574,33 +574,33 @@ func RoleGrantForm(page RoleGrantsPageData) templ.Component {
 				return templ_7745c5c3_Err
 			}
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 53, "</select></label> <label class=\"form-control\"><span class=\"label-text py-1 text-xs\">Target slug or key</span> <input class=\"input input-bordered input-sm w-full\" name=\"target_slug\" value=\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 53, "</select></label><div class=\"form-control\"><label class=\"label-text py-1 text-xs\" for=\"grant-target\">Target slug or key</label> <input class=\"input input-bordered input-sm w-full\" id=\"grant-target\" name=\"target_slug\" value=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var27 string
 		templ_7745c5c3_Var27, templ_7745c5c3_Err = templ.ResolveAttributeValue(valueOrEmpty(page.Form.TargetSlug))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/role_grants.templ`, Line: 127, Col: 118}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/role_grants.templ`, Line: 127, Col: 136}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var27)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 54, "\" aria-describedby=\"grant-target-help\"> <span id=\"grant-target-help\" class=\"mt-1 text-xs text-base-content/70\">Leave blank for organization scope.</span></label> <label class=\"form-control\"><span class=\"label-text py-1 text-xs\">Resource kind</span> <input class=\"input input-bordered input-sm w-full\" name=\"target_kind\" list=\"grant-target-kind-options\" value=\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 54, "\" aria-describedby=\"grant-target-help\"> <span id=\"grant-target-help\" class=\"mt-1 text-xs text-base-content/70\">Leave blank for organization scope.</span></div><div class=\"form-control\"><label class=\"label-text py-1 text-xs\" for=\"grant-kind\">Resource kind</label> <input class=\"input input-bordered input-sm w-full\" id=\"grant-kind\" name=\"target_kind\" list=\"grant-target-kind-options\" value=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var28 string
 		templ_7745c5c3_Var28, templ_7745c5c3_Err = templ.ResolveAttributeValue(valueOrEmpty(page.Form.TargetKind))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/role_grants.templ`, Line: 132, Col: 151}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/role_grants.templ`, Line: 132, Col: 167}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var28)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 55, "\" aria-describedby=\"grant-kind-help\"> <span id=\"grant-kind-help\" class=\"mt-1 text-xs text-base-content/70\">Required for resource scope.</span></label> <datalist id=\"grant-target-kind-options\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 55, "\" aria-describedby=\"grant-kind-help\"> <span id=\"grant-kind-help\" class=\"mt-1 text-xs text-base-content/70\">Required for resource scope.</span></div><datalist id=\"grant-target-kind-options\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

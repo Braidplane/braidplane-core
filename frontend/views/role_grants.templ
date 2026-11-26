@@ -122,16 +122,16 @@ templ RoleGrantForm(page RoleGrantsPageData) {
 						}
 					</select>
 				</label>
-				<label class="form-control">
-					<span class="label-text py-1 text-xs">Target slug or key</span>
-					<input class="input input-bordered input-sm w-full" name="target_slug" value={ valueOrEmpty(page.Form.TargetSlug) } aria-describedby="grant-target-help"/>
+				<div class="form-control">
+					<label class="label-text py-1 text-xs" for="grant-target">Target slug or key</label>
+					<input class="input input-bordered input-sm w-full" id="grant-target" name="target_slug" value={ valueOrEmpty(page.Form.TargetSlug) } aria-describedby="grant-target-help"/>
 					<span id="grant-target-help" class="mt-1 text-xs text-base-content/70">Leave blank for organization scope.</span>
-				</label>
-				<label class="form-control">
-					<span class="label-text py-1 text-xs">Resource kind</span>
-					<input class="input input-bordered input-sm w-full" name="target_kind" list="grant-target-kind-options" value={ valueOrEmpty(page.Form.TargetKind) } aria-describedby="grant-kind-help"/>
+				</div>
+				<div class="form-control">
+					<label class="label-text py-1 text-xs" for="grant-kind">Resource kind</label>
+					<input class="input input-bordered input-sm w-full" id="grant-kind" name="target_kind" list="grant-target-kind-options" value={ valueOrEmpty(page.Form.TargetKind) } aria-describedby="grant-kind-help"/>
 					<span id="grant-kind-help" class="mt-1 text-xs text-base-content/70">Required for resource scope.</span>
-				</label>
+				</div>
 				<datalist id="grant-target-kind-options">
 					for _, kind := range []string{"pipelines", "queries", "datasources", "pipeline_triggers", "runs", "alert_policies", "alert_destinations", "project_environments", "environment_secrets", "environment_runtime_variables", "runtime_variable_definitions", "data_source_refs", "data_source_bindings"} {
 						<option value={ kind }></option>
