@@ -18,7 +18,7 @@ is outside that fixture's scope.
 ## Community coverage policy
 
 The critical profile retains 16 logical journeys / 26 executions. Chromium runs
-all 16; Firefox and WebKit each run five: owned query preview/save, Git
+all 16. Firefox and WebKit each run owned query preview/save, Git
 import/bind/deploy, successful-run inspection, Proof Reconnect and HTTP OAuth
 setup/reconnect. Auth, Google signup, persisted Builder save, acknowledgement
 authoring, secret HTTP headers/pagination, Proof discovery, Slack setup, the

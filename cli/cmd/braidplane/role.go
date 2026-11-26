@@ -15,13 +15,13 @@ type roleCommand struct {
 	Update  updateRoleCommand  `cmd:"" help:"Replace a custom organization role's name and permissions."`
 	Archive archiveRoleCommand `cmd:"" help:"Archive a custom organization role."`
 	Restore restoreRoleCommand `cmd:"" help:"Restore an archived custom organization role."`
-	Grant   roleGrantCommand   `cmd:"" help:"List, add, or revoke additional scoped role grants; primary organization roles are managed separately."`
+	Grant   roleGrantCommand   `cmd:"" help:"List, add, or revoke explicit scoped role grants."`
 }
 
 type roleGrantCommand struct {
-	List   listRoleGrantsCommand  `cmd:"" help:"List additional scoped role grants; primary organization roles are not included."`
+	List   listRoleGrantsCommand  `cmd:"" help:"List explicit scoped role grants."`
 	Assign assignRoleGrantCommand `cmd:"" help:"Add a role to a member or API key at an organization, project, environment, or resource scope (PAT only)."`
-	Revoke revokeRoleGrantCommand `cmd:"" help:"Revoke one additional scoped role grant without changing the subject's primary organization role (PAT only)."`
+	Revoke revokeRoleGrantCommand `cmd:"" help:"Revoke a scoped grant and keep the primary role and other grants (PAT only)."`
 }
 
 type listRoleGrantsCommand struct{ apiAuthFlags }
@@ -39,12 +39,12 @@ func (c *listRoleGrantsCommand) Run(output *cliOutput, runtime *cliRuntime) erro
 }
 
 type roleGrantFlags struct {
-	SubjectKind string `help:"Grant subject kind: member or api_key." name:"subject-kind" required:""`
+	SubjectKind string `help:"Grant subject kind (member or api_key)." name:"subject-kind" required:""`
 	Subject     string `help:"Member or API key public slug." name:"subject" required:""`
 	Role        string `help:"Role public slug." name:"role" required:""`
-	Scope       string `help:"Grant scope: organization, project, environment, or resource." name:"scope" required:""`
-	Target      string `help:"Target public slug; required except for organization scope." name:"target"`
-	TargetKind  string `help:"Authorization target kind; required for resource scope." name:"target-kind"`
+	Scope       string `help:"Grant scope (organization, project, environment, or resource)." name:"scope" required:""`
+	Target      string `help:"Public slug for a project, environment, or individual resource." name:"target"`
+	TargetKind  string `help:"Authorization target kind for resource scope (required)." name:"target-kind"`
 	Project     string `help:"Owning project public slug for a resource target." name:"project"`
 	Environment string `help:"Owning environment public slug for a resource target." name:"environment"`
 	DataSource  string `help:"Owning data source public slug for a resource target." name:"data-source"`

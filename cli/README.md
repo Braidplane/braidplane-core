@@ -95,16 +95,15 @@ response. User profiles may contain personal information.
 
 ### Scoped role grants
 
-`role grant list` shows additional scoped grants only; a member's or API key's
-primary organization role remains separate. Find it in `member list` or, with
-the required credential, `api-key list`. `role grant assign` adds the selected
-role's permissions to the subject's existing access at the selected organization,
-project, environment, or resource target. It does not replace the primary role.
-Use public slugs for the subject, role, target, and any resource qualifiers.
-`role grant revoke GRANT` removes only that additional grant, so access from the
-primary role or another grant can remain. Listing accepts an organization API key
-with role-read access; assigning and revoking require a personal access token
-with organization-wide role-update authority.
+`role grant list` shows explicit grants. Use `member list` or, with the required
+credential, `api-key list` to see primary organization roles.
+`role grant assign` adds the role's permissions at an organization, project,
+environment, or individual resource. Use public slugs for subjects, roles,
+targets, and resource qualifiers.
+`role grant revoke GRANT` removes that grant. The primary role and other
+grants stay in effect. Organization API keys with role-read access can list
+grants. Assigning or revoking requires a personal access token with
+organization-wide role-update authority.
 
 Validate a local candidate without contacting the server:
 
