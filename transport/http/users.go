@@ -189,11 +189,6 @@ func (s *server) PatchUsersProfile(c fiber.Ctx) error {
 		if _, err := s.canSessionProfile(c, model.Update); err != nil {
 			return err
 		}
-		_, authenticatedAt := reqctx.SessionAuthentication(c, s.sessionStore)
-		age := time.Since(authenticatedAt)
-		if age < 0 || age > 5*time.Minute {
-			return apierror.New(fiber.StatusForbidden, "RECENT_AUTHENTICATION_REQUIRED", "Sign in again with your password or MFA before changing MFA settings.")
-		}
 	}
 
 	// Normalize locale if provided

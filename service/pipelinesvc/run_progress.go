@@ -8,6 +8,7 @@ import (
 	pipelinerun "github.com/Braidplane/braidplane-core/pkg/pipeline/run"
 	"github.com/Braidplane/braidplane-core/pkg/slug"
 	"github.com/Braidplane/braidplane-core/pkg/xerror"
+	"github.com/Braidplane/braidplane-core/postgres"
 	"github.com/Braidplane/braidplane-core/postgres/pipelineruns"
 )
 
@@ -28,7 +29,9 @@ func (s *service) GetRunProgress(ctx context.Context, org, project, environment 
 	if after < 0 || limit < 1 || limit > 100 {
 		return nil, xerror.InvalidInput(xerror.PipelineRun).Detail("after_event must be nonnegative and limit must be between 1 and 100")
 	}
-	record, err := s.runRepo.FindRunBySlug(ctx, s.dbtx, org, project, environment, run)
+	record, err := postgres.InRead(ctx, s.txm, func(ctx context.Context, db postgres.DBTX) (*pipelineruns.PipelineRun, error) {
+		return s.runRepo.FindRunBySlug(ctx, db, org, project, environment, run)
+	})
 	if xerror.Is(err, pipelineruns.ErrRunNotFound) {
 		return nil, ErrPipelineRunNotFound.With(err)
 	}

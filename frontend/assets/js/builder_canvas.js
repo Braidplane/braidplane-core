@@ -2,6 +2,10 @@
     const gridColumnCount = 24;
     const nodeWidth = 6;
     const nodeHeight = 3;
+    const canReloadPublishedDraft = (canvasChanged, sourceField, appliedSource) =>
+        !canvasChanged &&
+        !document.querySelector("#builder-field-mapping [data-field-mapping-draft]") &&
+        (!(sourceField instanceof HTMLTextAreaElement) || sourceField.value === appliedSource);
     const slugPattern = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
     const nodeContentClassName =
         "builder-node-content group relative flex h-full w-full flex-col overflow-hidden rounded-xl border bg-base-100 px-3 py-2 text-left shadow-sm transition hover:border-primary/60";
@@ -11763,11 +11767,11 @@
             const reopenReviewMessage = "The active pipeline changed. Reopen the proposal review to publish.";
             const publishDraft = async (target, force = false, conflict = null) => {
                 const { organizationSlug, projectSlug, pipelineSlug } = target;
-                if (
-                    organizationSlug !== getActiveOrganizationSlug() ||
-                    projectSlug !== getActiveProjectSlug() ||
-                    pipelineSlug !== (options.pipeline.slug || "").trim()
-                ) {
+                const isActiveTarget = () =>
+                    organizationSlug === getActiveOrganizationSlug() &&
+                    projectSlug === getActiveProjectSlug() &&
+                    pipelineSlug === (options.pipeline.slug || "").trim();
+                if (!isActiveTarget()) {
                     setStatusMessage(reopenReviewMessage, TONE_ERROR);
                     return;
                 }
@@ -11793,8 +11797,9 @@
                             }),
                         },
                     );
+                    const payload = await readAPIJSON(response);
+                    if (!isActiveTarget()) return;
                     if (!response.ok) {
-                        const payload = await readAPIJSON(response);
                         if (response.status === 409 && payload?.error) {
                             const draftState = buildExportBody();
                             showDraftConflictDialog({
@@ -11833,6 +11838,16 @@
                         const errorCode =
                             typeof payload?.error?.code === "string" ? payload.error.code.trim().toUpperCase() : "";
                         if (response.status === 404 && errorCode === "PIPELINE_DRAFT_NOT_FOUND") {
+                            if (
+                                canReloadPublishedDraft(
+                                    hasUnpersistedActionChanges(),
+                                    sourceEditorField,
+                                    sourceEditorCanvasSource,
+                                )
+                            ) {
+                                reloadBuilderFromServer(organizationSlug, projectSlug, pipelineSlug);
+                                return;
+                            }
                             pipelineHasDraft = false;
                             options.pipeline.hasDraft = false;
                             if (rootElement instanceof HTMLElement) {
@@ -11851,7 +11866,19 @@
                         return;
                     }
 
-                    const publishedPipeline = await readAPIJSON(response);
+                    const publishedPipeline = payload;
+                    if (
+                        publishedPipeline &&
+                        !publishedPipeline.draft &&
+                        canReloadPublishedDraft(
+                            hasUnpersistedActionChanges(),
+                            sourceEditorField,
+                            sourceEditorCanvasSource,
+                        )
+                    ) {
+                        reloadBuilderFromServer(organizationSlug, projectSlug, pipelineSlug);
+                        return;
+                    }
                     pipelineHasDraft = Boolean(publishedPipeline?.draft);
                     options.pipeline.hasDraft = pipelineHasDraft;
                     applyPipelineVersionContext({
@@ -12254,6 +12281,7 @@
     window.braidplaneBuilderCanvas = {
         init,
         _testing: {
+            canReloadPublishedDraft,
             parseJSONMap,
             formatJSONMap,
             safeOperationObject,

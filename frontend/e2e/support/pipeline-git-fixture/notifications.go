@@ -59,7 +59,7 @@ func handleNotificationAPI(w http.ResponseWriter, r *http.Request) bool {
 		notificationConnection["status"] = "active"
 		notificationConnection["metadata"] = map[string]any{"workspace_id": "TTEST", "workspace_name": "Synthetic workspace", "channel_id": "CTEST", "channel_name": "#operations"}
 		http.Redirect(w, r, notificationAppOrigin+"/orgs/acme/alerts/connections?provider_oauth=success", http.StatusSeeOther)
-	case base + "/roles/admin":
+	case base + "/authorization/permissions":
 		encode(map[string]any{"slug": "admin", "permissions": []any{map[string]any{"resource": "*", "action": "*"}}})
 	case base + "/notification-connections":
 		switch {

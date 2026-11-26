@@ -213,7 +213,7 @@ func (r *repository) RecordRetry(ctx context.Context, tx postgres.DBTX, params R
 	return nil
 }
 
-func (r *repository) ListForTrigger(ctx context.Context, db postgres.DBTX, orgSlug, projectSlug, environmentSlug, triggerSlug slug.Slug, req model.ListRequest) ([]Diagnostic, error) {
+func (r *repository) ListForTrigger(ctx context.Context, db postgres.DBTX, orgSlug, projectSlug, environmentSlug, triggerSlug slug.Slug, includeHistory bool, req model.ListRequest) ([]Diagnostic, error) {
 	normalized, queryReq := model.PrepareListQuery(req, model.ListSortCreatedAt)
 	cursorSlug, cursorTimestamp, _, err := postgres.BuildCursorValues(queryReq.Cursor, normalized.SortBy)
 	if err != nil {
@@ -221,7 +221,7 @@ func (r *repository) ListForTrigger(ctx context.Context, db postgres.DBTX, orgSl
 	}
 	rows, err := dbgen.New(db).ListPipelineWebhookDeliveriesForTrigger(ctx, dbgen.ListPipelineWebhookDeliveriesForTriggerParams{
 		OrgSlug: orgSlug, ProjectSlug: projectSlug, EnvironmentSlug: environmentSlug, TriggerSlug: triggerSlug,
-		CursorSlug: cursorSlug, CursorTimestamp: cursorTimestamp,
+		IncludeHistory: includeHistory, CursorSlug: cursorSlug, CursorTimestamp: cursorTimestamp,
 		OrderDir: pgtype.Text{String: queryReq.Order, Valid: queryReq.Order != ""}, LimitCount: int64(queryReq.Limit),
 	})
 	if err != nil {

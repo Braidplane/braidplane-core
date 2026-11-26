@@ -2,13 +2,18 @@ package e2e
 
 import (
 	"fmt"
+	"net/http"
 	"testing"
 	"time"
 
+	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgconn"
+	"github.com/stretchr/testify/require"
+
 	"github.com/Braidplane/braidplane-core/pkg/slug"
 	"github.com/Braidplane/braidplane-core/pkg/testutil/e2edb"
+	"github.com/Braidplane/braidplane-core/pkg/xerror"
 	"github.com/Braidplane/braidplane-core/postgres/organizations"
-	"github.com/stretchr/testify/require"
 )
 
 func TestOrganizationDeletionChecksWorkAndPreservesOtherTenant(t *testing.T) {
@@ -39,4 +44,44 @@ func TestOrganizationDeletionChecksWorkAndPreservesOtherTenant(t *testing.T) {
 	require.Equal(t, 1, count)
 	_, err = repo.FindBySlug(t.Context(), tx, other)
 	require.NoError(t, err)
+}
+
+func TestOrganizationDeletionConflictsWithConcurrentJobCompletion(t *testing.T) {
+	ctx := t.Context()
+	pool := e2edb.OpenPostgresPool(t, "organization deletion")
+	target := slug.Slug(fmt.Sprintf("synthetic-race-%d", time.Now().UnixNano()))
+	_, err := pool.Exec(ctx, `INSERT INTO organizations(slug,name) VALUES ($1,'Synthetic')`, target)
+	require.NoError(t, err)
+	var jobID int64
+	require.NoError(t, pool.QueryRow(ctx, `INSERT INTO river_job(kind,args,queue,max_attempts)
+		VALUES ('synthetic',jsonb_build_object('organization_slug',$1::text),'synthetic',25) RETURNING id`, target).Scan(&jobID))
+
+	repo := organizations.NewRepository()
+	tx, err := pool.BeginTx(ctx, pgx.TxOptions{IsoLevel: pgx.RepeatableRead})
+	require.NoError(t, err)
+	defer func() { _ = tx.Rollback(ctx) }()
+	_, err = repo.FindBySlugForUpdate(ctx, tx, target)
+	require.NoError(t, err)
+	_, err = pool.Exec(ctx, `UPDATE river_job SET state='completed',finalized_at=NOW() WHERE id=$1`, jobID)
+	require.NoError(t, err)
+
+	_, err = repo.DeletionBlocked(ctx, tx, target)
+	var pgErr *pgconn.PgError
+	require.ErrorAs(t, err, &pgErr)
+	require.Equal(t, "40001", pgErr.Code)
+	var conflict *xerror.Error
+	require.ErrorAs(t, err, &conflict)
+	require.Equal(t, http.StatusConflict, conflict.Kind().HTTPStatus())
+	require.NoError(t, tx.Rollback(ctx))
+
+	retry, err := pool.Begin(ctx)
+	require.NoError(t, err)
+	defer func() { _ = retry.Rollback(ctx) }()
+	_, err = repo.FindBySlugForUpdate(ctx, retry, target)
+	require.NoError(t, err)
+	blocked, err := repo.DeletionBlocked(ctx, retry, target)
+	require.NoError(t, err)
+	require.False(t, blocked)
+	require.NoError(t, repo.Delete(ctx, retry, target))
+	require.NoError(t, retry.Commit(ctx))
 }

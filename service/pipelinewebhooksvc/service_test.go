@@ -383,7 +383,7 @@ func TestListDeliveriesBuildsNextCursorFromTheLastReturnedDelivery(t *testing.T)
 	}}
 	svc := newWebhookService(t, now, repo, fakeSecretResolver{}, &fakeWebhookProducer{}, &fakePipelineExecutor{})
 
-	page, err := svc.ListDeliveries(t.Context(), slug.FromString("acme"), slug.FromString("etl"), slug.FromString("prod"), slug.FromString("customer-hook"), model.ListRequest{Limit: 2})
+	page, err := svc.ListDeliveries(t.Context(), slug.FromString("acme"), slug.FromString("etl"), slug.FromString("prod"), slug.FromString("customer-hook"), true, model.ListRequest{Limit: 2})
 	require.NoError(t, err)
 	require.Len(t, page.Items, 2)
 	require.True(t, page.HasMore)
@@ -571,7 +571,7 @@ func (f *fakeWebhookRepository) RecordRetry(_ context.Context, _ postgres.DBTX, 
 	return nil
 }
 
-func (f *fakeWebhookRepository) ListForTrigger(_ context.Context, _ postgres.DBTX, _, _, _, _ slug.Slug, req model.ListRequest) ([]pipelinewebhooks.Diagnostic, error) {
+func (f *fakeWebhookRepository) ListForTrigger(_ context.Context, _ postgres.DBTX, _, _, _, _ slug.Slug, includeHistory bool, req model.ListRequest) ([]pipelinewebhooks.Diagnostic, error) {
 	f.listRequest = req
 	return f.diagnostics, nil
 }

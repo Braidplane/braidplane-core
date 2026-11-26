@@ -91,7 +91,7 @@ func handleRunInspectionAPI(w http.ResponseWriter, r *http.Request) bool {
 		query := map[string]any{"slug": "write-object", "name": "Write S3 object", "data_source_slug": "warehouse", "query_statement": runInspectionS3Statement, "parameters": []any{}, "row_limit": 100, "timeout_seconds": 30}
 		source := map[string]any{"slug": "warehouse", "name": "S3 storage", "type": "s3", "is_active": true, "read_only": false}
 		switch r.URL.Path {
-		case "/api/organizations/acme/roles/admin":
+		case "/api/organizations/acme/authorization/permissions":
 			encode(map[string]any{"slug": "admin", "permissions": []any{map[string]string{"resource": "pipelines", "action": "read"}, map[string]string{"resource": "datasources", "action": "read"}, map[string]string{"resource": "queries", "action": "read"}, map[string]string{"resource": "queries", "action": "update"}}})
 			return true
 		case "/api/organizations/acme/data-sources":

@@ -231,10 +231,10 @@ func (s *Service) rejectVerified(ctx context.Context, request AcceptRequest, rec
 	return rejection
 }
 
-func (s *Service) ListDeliveries(ctx context.Context, orgSlug, projectSlug, environmentSlug, triggerSlug slug.Slug, req model.ListRequest) (model.ListResponse[DeliveryDiagnostic], error) {
+func (s *Service) ListDeliveries(ctx context.Context, orgSlug, projectSlug, environmentSlug, triggerSlug slug.Slug, includeHistory bool, req model.ListRequest) (model.ListResponse[DeliveryDiagnostic], error) {
 	normalized, _ := model.PrepareListQuery(req, model.ListSortCreatedAt)
 	rows, err := postgres.InRead(ctx, s.txm, func(ctx context.Context, db postgres.DBTX) ([]pipelinewebhooks.Diagnostic, error) {
-		return s.repo.ListForTrigger(ctx, db, orgSlug, projectSlug, environmentSlug, triggerSlug, normalized)
+		return s.repo.ListForTrigger(ctx, db, orgSlug, projectSlug, environmentSlug, triggerSlug, includeHistory, normalized)
 	})
 	if err != nil {
 		return model.ListResponse[DeliveryDiagnostic]{}, err

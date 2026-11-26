@@ -101,6 +101,7 @@ func (r *Router) handleAlertPolicySelectorOptions(c fiber.Ctx) error {
 				logging.ErrorAttr(projectErr),
 			)
 			dynamicOptions.Projects = []views.AlertFormOption{}
+			dynamicOptions.ProjectListRestricted = status == fiber.StatusForbidden
 		} else {
 			dynamicOptions.Projects = projects
 		}
@@ -280,7 +281,11 @@ func (r *Router) handleUpdateAlertDestinationSubmit(c fiber.Ctx) error {
 		)
 	}
 
-	return redirectHTMXOrSeeOther(c, views.AlertJourneyHref(orgSlug.String(), views.AlertTabDestinations, notificationReturnTo(c.FormValue("notification_return"), orgSlug.String()), ""))
+	selected := ""
+	if c.Query("destination_slug") == destinationSlug.String() {
+		selected = destinationSlug.String()
+	}
+	return redirectHTMXOrSeeOther(c, views.AlertJourneyHref(orgSlug.String(), views.AlertTabDestinations, notificationReturnTo(c.FormValue("notification_return"), orgSlug.String()), selected))
 }
 
 // handleTestAlertDestinationSubmit enqueues a test delivery through one alert destination.
@@ -496,7 +501,11 @@ func (r *Router) handleUpdateAlertPolicySubmit(c fiber.Ctx) error {
 		)
 	}
 
-	return redirectHTMXOrSeeOther(c, views.AlertJourneyHref(orgSlug.String(), views.AlertTabPolicies, notificationReturnTo(c.FormValue("notification_return"), orgSlug.String()), ""))
+	selected := ""
+	if c.Query("policy_slug") == policySlug.String() {
+		selected = policySlug.String()
+	}
+	return redirectHTMXOrSeeOther(c, views.AlertJourneyHref(orgSlug.String(), views.AlertTabPolicies, notificationReturnTo(c.FormValue("notification_return"), orgSlug.String()), selected))
 }
 
 // handleDeleteAlertPolicySubmit removes an alert policy after slug confirmation.
@@ -593,10 +602,19 @@ func (r *Router) renderAlertsPageWithEditOverrides(
 
 	activeTab = views.AlertTabFromString(string(activeTab))
 	permissions := r.resolveOrganizationPermissions(c.Context(), c.Get(fiber.HeaderCookie), orgSlug.String())
+	selectedPermissions := func(kind, selected string) views.OrganizationPermissions {
+		if selected == "" {
+			return permissions
+		}
+		return r.targetPermissions(c, orgSlug.String(), api.GetEffectivePermissionsParams{TargetKind: &kind, TargetSlug: &selected})
+	}
+	policySlug, destinationSlug := c.Query("policy_slug"), c.Query("destination_slug")
+	policyPermissions := selectedPermissions("alert_policies", policySlug)
+	destinationPermissions := selectedPermissions("alert_destinations", destinationSlug)
 	policyFormData.NotificationReturn = notificationReturnTo(c.FormValue("notification_return", c.Query("notification_return")), orgSlug.String())
 
 	editFormOverrides.NotificationReturn = policyFormData.NotificationReturn
-	if (activeTab == views.AlertTabPolicies && !permissions.Can("alert_policies", "read")) || (activeTab == views.AlertTabDestinations && !permissions.Can("alert_destinations", "read")) {
+	if (activeTab == views.AlertTabPolicies && !policyPermissions.Can("alert_policies", "read")) || (activeTab == views.AlertTabDestinations && !destinationPermissions.Can("alert_destinations", "read")) {
 		if contentErrorSummary == "" {
 			contentErrorSummary = "Configuration details are restricted. Each resource requires its own read permission."
 		}
@@ -605,15 +623,14 @@ func (r *Router) renderAlertsPageWithEditOverrides(
 	var destinationStatus int
 	var destinationErrorResponse *api.ErrorResponse
 	var destinationErr error
-	if permissions.Can("alert_destinations", "read") {
-		if selected := c.Query("destination_slug"); selected != "" {
-			destinations, destinationStatus, destinationErrorResponse, destinationErr = r.getAlertDestinationForView(c, orgSlug.String(), selected)
+	if destinationPermissions.Can("alert_destinations", "read") {
+		if destinationSlug != "" {
+			destinations, destinationStatus, destinationErrorResponse, destinationErr = r.getAlertDestinationForView(c, orgSlug.String(), destinationSlug)
 		} else {
 			destinations, destinationStatus, destinationErrorResponse, destinationErr = r.listAlertDestinationsViaAPI(
 				c.Context(),
 				c.Get(fiber.HeaderCookie),
 				orgSlug.String(),
-				&api.ListAlertDestinationsParams{},
 			)
 		}
 	}
@@ -640,9 +657,9 @@ func (r *Router) renderAlertsPageWithEditOverrides(
 	var policyStatus int
 	var policyErrorResponse *api.ErrorResponse
 	var policyErr error
-	if permissions.Can("alert_policies", "read") {
-		if selected := c.Query("policy_slug"); selected != "" {
-			policies, policyStatus, policyErrorResponse, policyErr = r.getAlertPolicyForView(c, orgSlug.String(), selected)
+	if policyPermissions.Can("alert_policies", "read") {
+		if policySlug != "" {
+			policies, policyStatus, policyErrorResponse, policyErr = r.getAlertPolicyForView(c, orgSlug.String(), policySlug)
 		} else {
 			policies, policyStatus, policyErrorResponse, policyErr = r.listAlertPoliciesViaAPI(
 				c.Context(),
@@ -664,6 +681,29 @@ func (r *Router) renderAlertsPageWithEditOverrides(
 			statusCode = policyStatus
 		}
 		policies = nil
+	}
+
+	// A policy editor may read its bound destinations individually without list access.
+	if activeTab == views.AlertTabPolicies && (destinationSlug != "" || !permissions.Can("alert_destinations", "read")) && policyPermissions.Can("alert_policies", "update") {
+		known := make(map[string]bool, len(destinations))
+		for _, destination := range destinations {
+			known[destination.Slug] = true
+		}
+		for _, policy := range policies {
+			for _, bound := range policy.DestinationSlugs {
+				if known[bound] {
+					continue
+				}
+				known[bound] = true
+				individual, status, _, err := r.getAlertDestinationForView(c, orgSlug.String(), bound)
+				if status == http.StatusUnauthorized {
+					return redirectToLogin(c, c.OriginalURL())
+				}
+				if err == nil {
+					destinations = append(destinations, individual...)
+				}
+			}
+		}
 	}
 
 	var connections []api.NotificationConnection
@@ -701,7 +741,7 @@ func (r *Router) renderAlertsPageWithEditOverrides(
 			destinationFormData,
 			policyFormData,
 			editFormOverrides,
-			permissions,
+			permissions, policyPermissions, destinationPermissions,
 			contentErrorSummary,
 			contentErrorDetails,
 			contentSuccessSummary,
@@ -1181,27 +1221,29 @@ func (r *Router) listAlertDestinationsViaAPI(
 	ctx context.Context,
 	cookieHeader string,
 	organizationSlug string,
-	params *api.ListAlertDestinationsParams,
 ) ([]api.AlertDestination, int, *api.ErrorResponse, error) {
-	resp, err := r.apiClient.ListAlertDestinationsWithResponse(
-		ctx,
-		organizationSlug,
-		params,
-		frontendRequestEditor(ctx, cookieHeader),
-	)
-	if err != nil {
-		return nil, http.StatusInternalServerError, nil, xerror.Unexpected().With(err)
+	params := api.ListAlertDestinationsParams{Limit: new(api.LimitParam(100))}
+	destinations := []api.AlertDestination{}
+	seenCursors := map[string]bool{}
+	for {
+		resp, err := r.apiClient.ListAlertDestinationsWithResponse(ctx, organizationSlug, &params, frontendRequestEditor(ctx, cookieHeader))
+		if err != nil {
+			return nil, http.StatusInternalServerError, nil, xerror.Unexpected().With(err)
+		}
+		if resp.StatusCode() != http.StatusOK || resp.JSON200 == nil {
+			return nil, resp.StatusCode(), parseAPIErrorResponse(resp.Body), xerror.Unexpected().Detailf("list alert destinations api returned status %d", resp.StatusCode())
+		}
+		page := resp.JSON200
+		destinations = append(destinations, page.AlertDestinations...)
+		if !page.HasMore {
+			return destinations, http.StatusOK, nil, nil
+		}
+		if page.NextCursor == nil || *page.NextCursor == "" || seenCursors[*page.NextCursor] {
+			return nil, http.StatusBadGateway, nil, xerror.Unexpected().Detail("alert destination pagination did not advance")
+		}
+		seenCursors[*page.NextCursor] = true
+		params.Cursor = page.NextCursor
 	}
-
-	if resp.StatusCode() == http.StatusOK && resp.JSON200 != nil {
-		return resp.JSON200.AlertDestinations, http.StatusOK, nil, nil
-	}
-
-	errResp := parseAPIErrorResponse(resp.Body)
-	return nil, resp.StatusCode(), errResp, xerror.Unexpected().Detailf(
-		"list alert destinations api returned status %d",
-		resp.StatusCode(),
-	)
 }
 
 // createAlertDestinationViaAPI creates an alert destination through the backend API client.

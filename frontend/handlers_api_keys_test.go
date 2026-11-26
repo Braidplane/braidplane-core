@@ -511,6 +511,10 @@ func TestRouter_HandleRotateAPIKeySubmit_ShowsRawTokenOnce(t *testing.T) {
 	t.Parallel()
 
 	apiServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/api/organizations/acme-hq/authorization/permissions" && r.URL.Query().Get("target_slug") != "" {
+			writeJSON(w, `{"permissions":[]}`)
+			return
+		}
 		if handleAPIKeySecurityCommonTestAPI(w, r, "admin") {
 			return
 		}
@@ -560,6 +564,7 @@ func TestRouter_HandleRotateAPIKeySubmit_ShowsRawTokenOnce(t *testing.T) {
 
 	require.Equal(t, http.StatusOK, resp.StatusCode)
 	require.Contains(t, html, "Rotated token for Deploy Bot")
+	require.Contains(t, html, "Create key")
 	require.Contains(t, html, "api-key-secret-rotated")
 	require.Contains(t, html, "xto_live_rotated")
 }
@@ -852,13 +857,13 @@ func handleAPIKeySecurityCommonTestAPI(w http.ResponseWriter, r *http.Request, r
 			`{"roles":[{"slug":"admin","name":"Admin","is_default":true,"permissions":[],"created_at":"2026-03-01T00:00:00Z","updated_at":"2026-03-01T00:00:00Z","deleted_at":null},{"slug":"viewer","name":"Viewer","is_default":true,"permissions":[],"created_at":"2026-03-01T00:00:00Z","updated_at":"2026-03-01T00:00:00Z","deleted_at":null}],"has_more":false,"next_cursor":null,"prev_cursor":null}`,
 		)
 		return true
-	case r.Method == http.MethodGet && r.URL.Path == "/api/organizations/acme-hq/roles/admin":
+	case r.Method == http.MethodGet && r.URL.Path == "/api/organizations/acme-hq/authorization/permissions" && role == "admin":
 		writeJSON(
 			w,
 			`{"slug":"admin","name":"Admin","is_default":true,"permissions":[{"resource":"api_keys","action":"create"},{"resource":"api_keys","action":"read"},{"resource":"api_keys","action":"update"},{"resource":"api_keys","action":"delete"}],"created_at":"2026-03-01T00:00:00Z","updated_at":"2026-03-01T00:00:00Z","deleted_at":null}`,
 		)
 		return true
-	case r.Method == http.MethodGet && r.URL.Path == "/api/organizations/acme-hq/roles/viewer":
+	case r.Method == http.MethodGet && r.URL.Path == "/api/organizations/acme-hq/authorization/permissions" && role == "viewer":
 		writeJSON(
 			w,
 			`{"slug":"viewer","name":"Viewer","is_default":true,"permissions":[{"resource":"api_keys","action":"read"}],"created_at":"2026-03-01T00:00:00Z","updated_at":"2026-03-01T00:00:00Z","deleted_at":null}`,

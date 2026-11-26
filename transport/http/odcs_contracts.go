@@ -232,9 +232,6 @@ func (s *server) PreviewODCSRevisionImpact(c fiber.Ctx, orgParam api.SlugParam, 
 	var fromPlan, toPlan *odcscontractsvc.ImpactPlanSelection
 	if input.FromPlan != nil {
 		c.Set(fiber.HeaderCacheControl, "no-store")
-		if err := s.canOrg(c, org, model.Read, model.ResourcePipelines); err != nil {
-			return err
-		}
 		fromPipeline, err := slug.New(input.FromPlan.PipelineSlug)
 		if err != nil {
 			return apierror.ValidationFailed("Invalid source pipeline slug")
@@ -242,6 +239,11 @@ func (s *server) PreviewODCSRevisionImpact(c fiber.Ctx, orgParam api.SlugParam, 
 		toPipeline, err := slug.New(input.ToPlan.PipelineSlug)
 		if err != nil {
 			return apierror.ValidationFailed("Invalid target pipeline slug")
+		}
+		for _, pipeline := range []slug.Slug{fromPipeline, toPipeline} {
+			if err := s.canPipeline(c, org, project, "", pipeline, model.Read); err != nil {
+				return err
+			}
 		}
 		fromPlan = &odcscontractsvc.ImpactPlanSelection{Pipeline: fromPipeline, Digest: input.FromPlan.Digest, ProjectionInput: input.FromPlan.ProjectionInput}
 		toPlan = &odcscontractsvc.ImpactPlanSelection{Pipeline: toPipeline, Digest: input.ToPlan.Digest, ProjectionInput: input.ToPlan.ProjectionInput}

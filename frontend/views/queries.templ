@@ -3,11 +3,11 @@ package views
 import "fmt"
 import api "github.com/Braidplane/braidplane-core/api-schema/gen/client"
 
-templ QueriesPage(shellData AuthenticatedShellData, dataSources []api.DataSource, selectedDataSource string, selectedDataSourceType string, queries []api.Query, selectedQuery *api.Query, selectedQueryFormData QueryEditorFormData, hasMore bool, nextCursor string, prevCursor string, orgSlug string, createFormData QueryEditorFormData, executionResult *QueryExecutionResultView, executionError string, focusQuerySlug string, showDeleted bool, permissions OrganizationPermissions, cleanup *CleanupFindings) {
-	@AuthenticatedShell(shellData, QueriesPageContent(dataSources, selectedDataSource, selectedDataSourceType, queries, selectedQuery, selectedQueryFormData, hasMore, nextCursor, prevCursor, orgSlug, createFormData, executionResult, executionError, focusQuerySlug, showDeleted, permissions, cleanup))
+templ QueriesPage(shellData AuthenticatedShellData, dataSources []api.DataSource, selectedDataSource string, selectedDataSourceType string, queries []api.Query, selectedQuery *api.Query, selectedQueryFormData QueryEditorFormData, hasMore bool, nextCursor string, prevCursor string, orgSlug string, createFormData QueryEditorFormData, executionResult *QueryExecutionResultView, executionError string, focusQuerySlug string, showDeleted bool, permissions OrganizationPermissions, archivedPermissions map[string]OrganizationPermissions, cleanup *CleanupFindings) {
+	@AuthenticatedShell(shellData, QueriesPageContent(dataSources, selectedDataSource, selectedDataSourceType, queries, selectedQuery, selectedQueryFormData, hasMore, nextCursor, prevCursor, orgSlug, createFormData, executionResult, executionError, focusQuerySlug, showDeleted, permissions, archivedPermissions, cleanup))
 }
 
-templ QueriesPageContent(dataSources []api.DataSource, selectedDataSource string, selectedDataSourceType string, queries []api.Query, selectedQuery *api.Query, selectedQueryFormData QueryEditorFormData, hasMore bool, nextCursor string, prevCursor string, orgSlug string, createFormData QueryEditorFormData, executionResult *QueryExecutionResultView, executionError string, focusQuerySlug string, showDeleted bool, permissions OrganizationPermissions, cleanup *CleanupFindings) {
+templ QueriesPageContent(dataSources []api.DataSource, selectedDataSource string, selectedDataSourceType string, queries []api.Query, selectedQuery *api.Query, selectedQueryFormData QueryEditorFormData, hasMore bool, nextCursor string, prevCursor string, orgSlug string, createFormData QueryEditorFormData, executionResult *QueryExecutionResultView, executionError string, focusQuerySlug string, showDeleted bool, permissions OrganizationPermissions, archivedPermissions map[string]OrganizationPermissions, cleanup *CleanupFindings) {
 	<div id="queries-workspace">
 		if createFormData.SubmitError != "" && (selectedDataSource == "" || showDeleted || !permissions.Can("queries", "create")) {
 			<div data-form-feedback>
@@ -539,7 +539,7 @@ templ QueriesPageContent(dataSources []api.DataSource, selectedDataSource string
 											}
 										</div>
 										<div class="flex flex-wrap items-center gap-2">
-											if permissions.Can("queries", "restore") {
+											if archivedPermissions[query.Slug].Can("queries", "restore") {
 												<form
 													method="post"
 													action={ templ.URL("/orgs/" + orgSlug + "/data-sources/" + selectedDataSource + "/queries/" + string(query.Slug) + "/restore") }
@@ -552,7 +552,7 @@ templ QueriesPageContent(dataSources []api.DataSource, selectedDataSource string
 													<button class="btn btn-outline btn-sm" type="submit">Restore</button>
 												</form>
 											}
-											if permissions.Can("queries", "purge") {
+											if archivedPermissions[query.Slug].Can("queries", "purge") {
 												<form
 													method="post"
 													action={ templ.URL("/orgs/" + orgSlug + "/data-sources/" + selectedDataSource + "/queries/" + string(query.Slug) + "/purge") }

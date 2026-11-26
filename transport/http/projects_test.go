@@ -508,6 +508,11 @@ func TestSetProjectPipelineBackend(t *testing.T) {
 		},
 		authService: fakeAuthService{
 			CanFn: func(_ context.Context, input authorization.Input) (bool, error) {
+				if input.Resource == model.ResourceDataSources {
+					require.Equal(t, model.Read, input.Action)
+					require.Equal(t, model.AuthorizationTarget{Kind: "datasources", Slug: "pipelines-git"}, input.Target)
+					return true, nil
+				}
 				assert.Equal(t, model.ResourceProjects, input.Resource)
 				assert.Equal(t, model.Update, input.Action)
 				return true, nil

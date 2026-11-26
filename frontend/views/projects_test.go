@@ -54,7 +54,7 @@ func TestProjectRepositoryChoiceAndRestrictedControls(t *testing.T) {
 		t.Run(tc.query, func(t *testing.T) {
 			ctx := WithEntityPageURL(context.Background(), "/organizations/acme/projects/ops?"+tc.query)
 			var out bytes.Buffer
-			require.NoError(t, OrganizationProjectFullPageContent(org, project, ProjectPipelineBackendControls{PipelineDir: "pipelines", CreationBranch: "main"}, ProjectOperationalContext{}, NewOrganizationPermissions("projects:update", "organizations:update", "datasources:create", "projects:delete"), "", "", "").Render(ctx, &out))
+			require.NoError(t, OrganizationProjectFullPageContent(org, project, ProjectPipelineBackendControls{OrganizationPermissions: NewOrganizationPermissions("organizations:update", "datasources:create"), PipelineDir: "pipelines", CreationBranch: "main"}, ProjectOperationalContext{}, NewOrganizationPermissions("projects:update", "organizations:update", "datasources:create", "projects:delete"), "", "", "").Render(ctx, &out))
 			require.Contains(t, out.String(), tc.present)
 			require.NotContains(t, out.String(), tc.absent)
 			out.Reset()
@@ -107,7 +107,7 @@ func TestProjectDeletionReturnIsScoped(t *testing.T) {
 }
 
 func TestProjectRepositoryStickyValuesAndRuntimeLinks(t *testing.T) {
-	controls := ProjectPipelineBackendControls{PipelineDir: "custom-path", SelectedDataSource: "git-source", CreationBranch: "release", DataSourceOptions: []ProjectPipelineBackendDataSourceOption{{Slug: "git-source", Name: "Git source", Type: projectPipelineBackendSourceGitHub}}}
+	controls := ProjectPipelineBackendControls{OrganizationPermissions: NewOrganizationPermissions("organizations:update", "datasources:create"), PipelineDir: "custom-path", SelectedDataSource: "git-source", CreationBranch: "release", DataSourceOptions: []ProjectPipelineBackendDataSourceOption{{Slug: "git-source", Name: "Git source", Type: projectPipelineBackendSourceGitHub}}}
 	org := api.Organization{Slug: "acme"}
 	project := api.Project{Slug: "ops"}
 	for _, path := range []string{"existing", "create"} {
@@ -138,7 +138,7 @@ func TestManagedProjectRepositoryFormProtectsSavedTargetAndStopsOnUnavailablePro
 
 	var out bytes.Buffer
 	ctx := WithEntityPageURL(context.Background(), "/organizations/acme/projects/ops?section=repository&repository_path=create")
-	require.NoError(t, OrganizationProjectDetailPanel(org, project, ProjectPipelineBackendControls{RepositorySetup: setup, RepositoryProvider: "gitlab", ProviderOwner: "acme/platform", RepositoryName: "pipelines", CreationBranch: branch, PipelineDir: directory}, ProjectOperationalContext{}, permissions).Render(ctx, &out))
+	require.NoError(t, OrganizationProjectDetailPanel(org, project, ProjectPipelineBackendControls{OrganizationPermissions: permissions, RepositorySetup: setup, RepositoryProvider: "gitlab", ProviderOwner: "acme/platform", RepositoryName: "pipelines", CreationBranch: branch, PipelineDir: directory}, ProjectOperationalContext{}, permissions).Render(ctx, &out))
 	html := out.String()
 	require.Contains(t, html, "Resume repository setup")
 	require.Contains(t, html, `value="acme/platform" required maxlength="255" readonly`)
@@ -146,17 +146,17 @@ func TestManagedProjectRepositoryFormProtectsSavedTargetAndStopsOnUnavailablePro
 	require.Contains(t, html, "Resume setup")
 
 	out.Reset()
-	require.NoError(t, OrganizationProjectDetailPanel(org, project, ProjectPipelineBackendControls{RepositorySetupLoadError: "Setup progress could not be loaded."}, ProjectOperationalContext{}, permissions).Render(ctx, &out))
+	require.NoError(t, OrganizationProjectDetailPanel(org, project, ProjectPipelineBackendControls{OrganizationPermissions: permissions, RepositorySetupLoadError: "Setup progress could not be loaded."}, ProjectOperationalContext{}, permissions).Render(ctx, &out))
 	require.Contains(t, out.String(), "Setup progress unavailable")
 	require.NotContains(t, out.String(), `name="mode" value="managed_create"`)
 
 	out.Reset()
-	require.NoError(t, OrganizationProjectDetailPanel(org, api.Project{Slug: "ops", PipelineBackend: &api.ProjectPipelineBackend{}}, ProjectPipelineBackendControls{}, ProjectOperationalContext{}, permissions).Render(ctx, &out))
+	require.NoError(t, OrganizationProjectDetailPanel(org, api.Project{Slug: "ops", PipelineBackend: &api.ProjectPipelineBackend{}}, ProjectPipelineBackendControls{OrganizationPermissions: permissions}, ProjectOperationalContext{}, permissions).Render(ctx, &out))
 	require.Contains(t, out.String(), "Repository already connected")
 	require.NotContains(t, out.String(), `name="mode" value="managed_create"`)
 
 	out.Reset()
-	require.NoError(t, OrganizationProjectDetailPanel(org, project, ProjectPipelineBackendControls{}, ProjectOperationalContext{}, NewOrganizationPermissions("projects:read")).Render(ctx, &out))
+	require.NoError(t, OrganizationProjectDetailPanel(org, project, ProjectPipelineBackendControls{OrganizationPermissions: permissions}, ProjectOperationalContext{}, NewOrganizationPermissions("projects:read")).Render(ctx, &out))
 	require.Contains(t, out.String(), "View only")
 	require.NotContains(t, out.String(), `name="mode" value="managed_create"`)
 }

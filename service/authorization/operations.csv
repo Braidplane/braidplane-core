@@ -1,0 +1,250 @@
+operation,method,route,class,principal,permissions,conditions,selectors
+resendVerificationEmail,POST,/auth/email/resend-verification,public,anonymous,,authentication lifecycle,
+verifyEmail,POST,/auth/email/verify,public,anonymous,,authentication lifecycle,
+initiateGoogleAuth,GET,/auth/google,public,anonymous,,authentication lifecycle,
+registerGoogleAccount,POST,/auth/google,public,anonymous,,authentication lifecycle,
+handleGoogleCallback,GET,/auth/google/callback,public,anonymous,,authentication lifecycle,
+getAuthenticationMethods,GET,/auth/methods,public,anonymous,,authentication lifecycle,
+requestPasswordReset,POST,/auth/password/forgot,public,anonymous,,authentication lifecycle,
+resetPassword,POST,/auth/password/reset,public,anonymous,,authentication lifecycle,
+completeOrganizationGitHubAppInstall,GET,/github-app-connection/callback,tenant,session,organizations:update projects:update datasources:create,,organizations:update=organization projects:update=project_repository_setups datasources:create=organization
+listMyMemberInvitations,GET,/member-invitations,self,"session, PAT",profile:read,profile:read; verified recipient,profile:read=none
+acceptMemberInvitation,POST,/member-invitations/accept,self,"session, PAT",profile:update,profile:update; verified recipient,profile:update=none
+declineMemberInvitation,POST,/member-invitations/decline,self,"session, PAT",profile:update,profile:update; verified recipient,profile:update=none
+acceptMyMemberInvitation,POST,/member-invitations/:slug/:invitation_slug/accept,self,"session, PAT",profile:update,profile:update; verified recipient,profile:update=none
+declineMyMemberInvitation,POST,/member-invitations/:slug/:invitation_slug/decline,self,"session, PAT",profile:update,profile:update; verified recipient,profile:update=none
+listOrganizations,GET,/organizations,pre-tenant,"session, PAT",organizations:read,,organizations:read=none
+createOrganization,POST,/organizations,pre-tenant,"session, PAT",organizations:create,,organizations:create=none
+deleteOrganization,DELETE,/organizations/:slug,tenant,"session, PAT, API key",organizations:delete,,organizations:delete=organization
+getOrganization,GET,/organizations/:slug,tenant,"session, PAT, API key",organizations:read,,organizations:read=organization
+updateOrganization,PUT,/organizations/:slug,tenant,"session, PAT, API key",organizations:update,,organizations:update=organization
+listAlertDeliveryAttempts,GET,/organizations/:slug/alert-delivery-attempts,tenant,"session, PAT, API key",notifications:read,,notifications:read=organization
+listAlertDestinations,GET,/organizations/:slug/alert-destinations,tenant,"session, PAT, API key",alert_destinations:read,,alert_destinations:read=organization
+createAlertDestination,POST,/organizations/:slug/alert-destinations,tenant,"session, PAT, API key",alert_destinations:create,,alert_destinations:create=organization
+deleteAlertDestination,DELETE,/organizations/:slug/alert-destinations/:alert_destination_slug,tenant,"session, PAT, API key",alert_destinations:delete,,alert_destinations:delete=alert_destinations
+getAlertDestination,GET,/organizations/:slug/alert-destinations/:alert_destination_slug,tenant,"session, PAT, API key",alert_destinations:read,,alert_destinations:read=alert_destinations
+updateAlertDestination,PUT,/organizations/:slug/alert-destinations/:alert_destination_slug,tenant,"session, PAT, API key",alert_destinations:update,,alert_destinations:update=alert_destinations
+testAlertDestination,POST,/organizations/:slug/alert-destinations/:alert_destination_slug/test,tenant,"session, PAT, API key",alert_destinations:update,,alert_destinations:update=alert_destinations
+listAlertPolicies,GET,/organizations/:slug/alert-policies,tenant,"session, PAT, API key",alert_policies:read,,alert_policies:read=organization
+createAlertPolicy,POST,/organizations/:slug/alert-policies,tenant,"session, PAT, API key",alert_policies:create alert_destinations:read,alert_policies:create alert_destinations:read (each destination),alert_policies:create=organization|projects|project_environments alert_destinations:read=alert_destinations
+deleteAlertPolicy,DELETE,/organizations/:slug/alert-policies/:alert_policy_slug,tenant,"session, PAT, API key",alert_policies:delete,,alert_policies:delete=alert_policies
+getAlertPolicy,GET,/organizations/:slug/alert-policies/:alert_policy_slug,tenant,"session, PAT, API key",alert_policies:read,,alert_policies:read=alert_policies
+updateAlertPolicy,PUT,/organizations/:slug/alert-policies/:alert_policy_slug,tenant,"session, PAT, API key",alert_policies:update alert_destinations:read,alert_policies:update alert_destinations:read (each destination),alert_policies:update=alert_policies alert_policies:update@new_parent=organization|projects|project_environments alert_destinations:read=alert_destinations
+listAlertPolicySourceMetadata,GET,/organizations/:slug/alert-policy-source-metadata,tenant,"session, PAT, API key",alert_policies:read,,alert_policies:read=organization
+listAPIKeys,GET,/organizations/:slug/api-keys,tenant,"session, key-management-enabled API key",api_keys:read,,api_keys:read=organization
+createAPIKey,POST,/organizations/:slug/api-keys,tenant,"session, key-management-enabled API key",api_keys:create,Machine callers must use their current primary role and omit the management flag,api_keys:create=organization
+deleteAPIKey,DELETE,/organizations/:slug/api-keys/:api_key_slug,tenant,"session, key-management-enabled API key",api_keys:delete,,api_keys:delete=api_keys
+getAPIKey,GET,/organizations/:slug/api-keys/:api_key_slug,tenant,"session, key-management-enabled API key",api_keys:read,,api_keys:read=api_keys
+updateAPIKey,PUT,/organizations/:slug/api-keys/:api_key_slug,tenant,"session, key-management-enabled API key",api_keys:update,Machine callers may only manage keys with the same role and must omit the management flag,api_keys:update=api_keys
+deleteRevokedAPIKey,POST,/organizations/:slug/api-keys/:api_key_slug/delete,tenant,session,api_keys:delete,,api_keys:delete=api_keys
+rotateAPIKey,POST,/organizations/:slug/api-keys/:api_key_slug/rotate,tenant,"session, key-management-enabled API key",api_keys:update,,api_keys:update=api_keys
+getEffectivePermissions,GET,/organizations/:slug/authorization/permissions,tenant,"session, PAT, API key",,self decision evaluation,
+listDataSources,GET,/organizations/:slug/data-sources,tenant,"session, PAT, API key",datasources:read,,datasources:read=organization
+createDataSource,POST,/organizations/:slug/data-sources,tenant,"session, PAT, API key",datasources:create,,datasources:create=organization
+testDataSourceConnection,POST,/organizations/:slug/data-sources/test-connection,tenant,"session, PAT, API key",datasources:create,,datasources:create=organization
+deleteDataSource,DELETE,/organizations/:slug/data-sources/:ds_slug,tenant,"session, PAT, API key",datasources:delete,,datasources:delete=datasources
+getDataSource,GET,/organizations/:slug/data-sources/:ds_slug,tenant,"session, PAT, API key",datasources:read,,datasources:read=datasources
+updateDataSource,PATCH,/organizations/:slug/data-sources/:ds_slug,tenant,"session, PAT, API key",datasources:update,,datasources:update=datasources
+listDataSourceBranches,GET,/organizations/:slug/data-sources/:ds_slug/branches,tenant,"session, PAT, API key",datasources:read,,datasources:read=datasources
+updateDataSourceCredentials,PATCH,/organizations/:slug/data-sources/:ds_slug/credentials,tenant,"session, PAT, API key",datasources:update,,datasources:update=datasources
+attachDataSourceOrganizationGitLabConnection,POST,/organizations/:slug/data-sources/:ds_slug/gitlab-connection,tenant,"session, PAT, API key",datasources:update,,datasources:update=datasources
+listGoogleWorkspaceFiles,GET,/organizations/:slug/data-sources/:ds_slug/google-workspace/files,tenant,"session, PAT, API key",datasources:read,,datasources:read=datasources
+verifyGoogleWorkspaceFiles,POST,/organizations/:slug/data-sources/:ds_slug/google-workspace/files/verify,tenant,"session, PAT, API key",datasources:update,,datasources:update=datasources
+getGoogleWorkspaceFile,GET,/organizations/:slug/data-sources/:ds_slug/google-workspace/files/:file_id,tenant,"session, PAT, API key",datasources:read,,datasources:read=datasources
+getGoogleWorkspacePicker,GET,/organizations/:slug/data-sources/:ds_slug/google-workspace/picker,tenant,"session, PAT, API key",datasources:update,,datasources:update=datasources
+getGoogleWorkspaceWorksheets,GET,/organizations/:slug/data-sources/:ds_slug/google-workspace/spreadsheets/:file_id/worksheets,tenant,"session, PAT, API key",datasources:read,,datasources:read=datasources
+connectDataSourceHTTPOAuth,POST,/organizations/:slug/data-sources/:ds_slug/http-oauth/connect,tenant,"session, PAT, API key",datasources:update,,datasources:update=datasources
+getDataSourceProofConfiguration,GET,/organizations/:slug/data-sources/:ds_slug/proof,tenant,"session, PAT, API key",datasources:read pipelines:read,,datasources:read=datasources pipelines:read=organization
+setDataSourceProofConfiguration,PUT,/organizations/:slug/data-sources/:ds_slug/proof,tenant,"session, PAT, API key",datasources:update pipelines:update,,datasources:update=datasources pipelines:update=organization
+refreshDataSourceProviderGrant,POST,/organizations/:slug/data-sources/:ds_slug/provider-grant/refresh,tenant,"session, PAT, API key",datasources:update,,datasources:update=datasources
+revokeDataSourceProviderGrant,POST,/organizations/:slug/data-sources/:ds_slug/provider-grant/revoke,tenant,"session, PAT, API key",datasources:update,,datasources:update=datasources
+rotateDataSourceProviderGrant,POST,/organizations/:slug/data-sources/:ds_slug/provider-grant/rotate,tenant,"session, PAT, API key",datasources:update,,datasources:update=datasources
+listDataSourceProviderRepositories,GET,/organizations/:slug/data-sources/:ds_slug/provider-repositories,tenant,"session, PAT, API key",datasources:update,,datasources:update=datasources
+selectDataSourceProviderRepository,PUT,/organizations/:slug/data-sources/:ds_slug/provider-repository,tenant,"session, PAT, API key",datasources:update,,datasources:update=datasources
+listQueries,GET,/organizations/:slug/data-sources/:ds_slug/queries,tenant,"session, PAT, API key",queries:read queries:restore,,queries:read=datasources queries:restore=datasources
+createQuery,POST,/organizations/:slug/data-sources/:ds_slug/queries,tenant,"session, PAT, API key",queries:create,,queries:create=datasources
+deleteQuery,DELETE,/organizations/:slug/data-sources/:ds_slug/queries/:query_slug,tenant,"session, PAT, API key",queries:delete,,queries:delete=queries
+getQuery,GET,/organizations/:slug/data-sources/:ds_slug/queries/:query_slug,tenant,"session, PAT, API key",queries:read,,queries:read=queries
+updateQuery,PUT,/organizations/:slug/data-sources/:ds_slug/queries/:query_slug,tenant,"session, PAT, API key",queries:update,,queries:update=queries
+executeQuery,POST,/organizations/:slug/data-sources/:ds_slug/queries/:query_slug/execute,tenant,"session, PAT, API key",queries:execute,,queries:execute=queries
+listQueryExecutions,GET,/organizations/:slug/data-sources/:ds_slug/queries/:query_slug/executions,tenant,"session, PAT, API key",queries:read,,queries:read=queries
+getQueryExecution,GET,/organizations/:slug/data-sources/:ds_slug/queries/:query_slug/executions/:execution_slug,tenant,"session, PAT, API key",queries:read,,queries:read=query_executions
+purgeQuery,DELETE,/organizations/:slug/data-sources/:ds_slug/queries/:query_slug/purge,tenant,"session, PAT, API key",queries:purge,,queries:purge=queries
+restoreQuery,POST,/organizations/:slug/data-sources/:ds_slug/queries/:query_slug/restore,tenant,"session, PAT, API key",queries:restore,,queries:restore=queries
+restoreDataSource,POST,/organizations/:slug/data-sources/:ds_slug/restore,tenant,"session, PAT, API key",datasources:restore,,datasources:restore=datasources
+introspectDataSourceSchema,GET,/organizations/:slug/data-sources/:ds_slug/schema,tenant,"session, PAT, API key",datasources:read,,datasources:read=datasources
+refreshDataSourceSchema,POST,/organizations/:slug/data-sources/:ds_slug/schema,tenant,"session, PAT, API key",datasources:update,,datasources:update=datasources
+getSnowflakeOnboarding,GET,/organizations/:slug/data-sources/:ds_slug/snowflake-onboarding,tenant,"session, PAT, API key",datasources:read,,datasources:read=datasources
+testStoredDataSourceConnection,POST,/organizations/:slug/data-sources/:ds_slug/test-connection,tenant,"session, PAT, API key",datasources:update,,datasources:update=datasources
+listEnvironments,GET,/organizations/:slug/environments,tenant,"session, PAT, API key",environments:read,,environments:read=organization
+createEnvironment,POST,/organizations/:slug/environments,tenant,"session, PAT, API key",environments:create,,environments:create=organization
+deleteEnvironment,DELETE,/organizations/:slug/environments/:environment_slug,tenant,"session, PAT, API key",environments:delete,,environments:delete=environments
+getEnvironment,GET,/organizations/:slug/environments/:environment_slug,tenant,"session, PAT, API key",environments:read,,environments:read=environments
+updateEnvironment,PUT,/organizations/:slug/environments/:environment_slug,tenant,"session, PAT, API key",environments:update,,environments:update=environments
+listEnvironmentRuntimeVariables,GET,/organizations/:slug/environments/:environment_slug/runtime-variables,tenant,"session, PAT, API key",environments:read,,environments:read=environments
+deleteEnvironmentRuntimeVariable,DELETE,/organizations/:slug/environments/:environment_slug/runtime-variables/:runtime_variable_key,tenant,"session, PAT, API key",environments:delete,,environments:delete=environment_runtime_variables
+getEnvironmentRuntimeVariable,GET,/organizations/:slug/environments/:environment_slug/runtime-variables/:runtime_variable_key,tenant,"session, PAT, API key",environments:read,,environments:read=environment_runtime_variables
+upsertEnvironmentRuntimeVariable,PUT,/organizations/:slug/environments/:environment_slug/runtime-variables/:runtime_variable_key,tenant,"session, PAT, API key",environments:update,,environments:update=environment_runtime_variables_upsert
+listEnvironmentSecrets,GET,/organizations/:slug/environments/:environment_slug/secrets,tenant,"session, PAT, API key",environments:read,,environments:read=environments
+deleteEnvironmentSecret,DELETE,/organizations/:slug/environments/:environment_slug/secrets/:environment_secret_key,tenant,"session, PAT, API key",environments:delete,,environments:delete=environment_secrets
+getEnvironmentSecret,GET,/organizations/:slug/environments/:environment_slug/secrets/:environment_secret_key,tenant,"session, PAT, API key",environments:read,,environments:read=environment_secrets
+upsertEnvironmentSecret,PUT,/organizations/:slug/environments/:environment_slug/secrets/:environment_secret_key,tenant,"session, PAT, API key",environments:update,,environments:update=environment_secrets_upsert
+listEvents,GET,/organizations/:slug/events,tenant,"session, PAT, API key",events:read,,events:read=organization
+disconnectOrganizationGitHubAppConnection,DELETE,/organizations/:slug/github-app-connection,tenant,session,organizations:update,,organizations:update=organization
+getOrganizationGitHubAppConnection,GET,/organizations/:slug/github-app-connection,tenant,session,organizations:read,,organizations:read=organization
+authorizeOrganizationGitHubAppConnection,POST,/organizations/:slug/github-app-connection/authorize,tenant,session,organizations:update,,organizations:update=organization
+startOrganizationGitHubAppInstall,POST,/organizations/:slug/github-app-connection/install,tenant,session,organizations:update,,organizations:update=organization
+disconnectOrganizationGitLabConnection,DELETE,/organizations/:slug/gitlab-connection,tenant,session,organizations:update,,organizations:update=organization
+getOrganizationGitLabConnection,GET,/organizations/:slug/gitlab-connection,tenant,session,organizations:read,,organizations:read=organization
+startOrganizationGitLabAuthorization,POST,/organizations/:slug/gitlab-connection/authorization,tenant,session,organizations:update,,organizations:update=organization
+listOrganizationGitLabRepositories,GET,/organizations/:slug/gitlab-connection/repositories,tenant,"session, PAT, API key",datasources:read,,datasources:read=organization
+listMemberInvitations,GET,/organizations/:slug/member-invitations,tenant,"session, PAT, API key",members:read,,members:read=organization
+createMemberInvitation,POST,/organizations/:slug/member-invitations,tenant,"session, PAT, API key",members:create,,members:create=organization
+getMemberInvitation,GET,/organizations/:slug/member-invitations/:invitation_slug,tenant,"session, PAT, API key",members:read,,members:read=member_invitations
+resendMemberInvitation,POST,/organizations/:slug/member-invitations/:invitation_slug/resend,tenant,"session, PAT, API key",members:update,,members:update=member_invitations
+revokeMemberInvitation,POST,/organizations/:slug/member-invitations/:invitation_slug/revoke,tenant,"session, PAT, API key",members:delete,,members:delete=member_invitations
+listMembers,GET,/organizations/:slug/members,tenant,"session, PAT, API key",members:read,,members:read=organization
+createMember,POST,/organizations/:slug/members,tenant,"session, PAT, API key",members:create,,members:create=organization
+removeMember,DELETE,/organizations/:slug/members/:user_slug,tenant,"session, PAT, API key",members:delete,,members:delete=members
+updateMember,PUT,/organizations/:slug/members/:user_slug,tenant,"session, PAT, API key",members:update,,members:update=members
+listNotificationConnections,GET,/organizations/:slug/notification-connections,tenant,"session, PAT, API key",alert_destinations:read,,alert_destinations:read=organization
+createNotificationConnection,POST,/organizations/:slug/notification-connections,tenant,"session, PAT, API key",alert_destinations:create,,alert_destinations:create=organization
+connectNotificationConnection,POST,/organizations/:slug/notification-connections/:notification_connection_slug/connect,tenant,"session, PAT, API key",alert_destinations:update,,alert_destinations:update=notification_connections
+disconnectNotificationConnection,POST,/organizations/:slug/notification-connections/:notification_connection_slug/disconnect,tenant,"session, PAT, API key",alert_destinations:update,,alert_destinations:update=notification_connections
+listNotifications,GET,/organizations/:slug/notifications,tenant,"session, PAT, API key",notifications:read,,notifications:read=organization
+getNotification,GET,/organizations/:slug/notifications/:notification_slug,tenant,"session, PAT, API key",notifications:read,,notifications:read=notifications
+acknowledgeNotification,POST,/organizations/:slug/notifications/:notification_slug/acknowledge,tenant,"session, PAT, API key",notifications:update,,notifications:update=notifications
+listNotificationDeliveryAttempts,GET,/organizations/:slug/notifications/:notification_slug/delivery-attempts,tenant,"session, PAT, API key",notifications:read,,notifications:read=notifications
+resolveNotification,POST,/organizations/:slug/notifications/:notification_slug/resolve,tenant,"session, PAT, API key",notifications:update,,notifications:update=notifications
+getPipelineOperationalCapabilities,GET,/organizations/:slug/pipeline-operational-capabilities,tenant,"session, PAT, API key",pipelines:read,,pipelines:read=organization
+formatPipelineSpec,POST,/organizations/:slug/pipeline-spec\:format,tenant,"session, PAT, API key",pipelines:read,,pipelines:read=organization
+listProjects,GET,/organizations/:slug/projects,tenant,"session, PAT, API key",projects:read,,projects:read=organization
+createProject,POST,/organizations/:slug/projects,tenant,"session, PAT, API key",projects:create,,projects:create=organization
+deleteProject,DELETE,/organizations/:slug/projects/:project_slug,tenant,"session, PAT, API key",projects:delete,,projects:delete=projects
+getProject,GET,/organizations/:slug/projects/:project_slug,tenant,"session, PAT, API key",projects:read,,projects:read=projects
+updateProject,PUT,/organizations/:slug/projects/:project_slug,tenant,"session, PAT, API key",projects:update,,projects:update=projects
+listODCSContracts,GET,/organizations/:slug/projects/:project_slug/contracts,tenant,"session, PAT, API key",projects:read,,projects:read=projects
+createODCSContract,POST,/organizations/:slug/projects/:project_slug/contracts,tenant,"session, PAT, API key",projects:create,,projects:create=projects
+importODCSArtifacts,POST,/organizations/:slug/projects/:project_slug/contracts/import,tenant,"session, PAT, API key",projects:create,,projects:create=projects
+getODCSContract,GET,/organizations/:slug/projects/:project_slug/contracts/:contract_slug,tenant,"session, PAT, API key",projects:read,,projects:read=contracts
+updateODCSContract,PUT,/organizations/:slug/projects/:project_slug/contracts/:contract_slug,tenant,"session, PAT, API key",projects:update,,projects:update=contracts
+previewODCSRevisionImpact,POST,/organizations/:slug/projects/:project_slug/contracts/:contract_slug/impact,tenant,"session, PAT, API key",projects:read pipelines:read,,projects:read=contracts pipelines:read=pipelines
+listODCSRevisions,GET,/organizations/:slug/projects/:project_slug/contracts/:contract_slug/revisions,tenant,"session, PAT, API key",projects:read,,projects:read=contracts
+createODCSRevision,POST,/organizations/:slug/projects/:project_slug/contracts/:contract_slug/revisions,tenant,"session, PAT, API key",projects:create,,projects:create=contracts
+getODCSRevision,GET,/organizations/:slug/projects/:project_slug/contracts/:contract_slug/revisions/:revision_slug,tenant,"session, PAT, API key",projects:read,,projects:read=contracts
+getODCSArtifact,GET,/organizations/:slug/projects/:project_slug/contracts/:contract_slug/revisions/:revision_slug/artifact,tenant,"session, PAT, API key",projects:read,,projects:read=contracts
+inspectODCSRevision,GET,/organizations/:slug/projects/:project_slug/contracts/:contract_slug/revisions/:revision_slug/inspection,tenant,"session, PAT, API key",projects:read,,projects:read=contracts
+listDataSourceRefs,GET,/organizations/:slug/projects/:project_slug/data-source-refs,tenant,"session, PAT, API key",datasources:read,,datasources:read=binding.projects
+listDriftImpactReports,GET,/organizations/:slug/projects/:project_slug/drift-impact-reports,tenant,"session, PAT, API key",pipelines:read datasources:read,,pipelines:read=projects datasources:read=organization
+getDriftImpactReport,GET,/organizations/:slug/projects/:project_slug/drift-impact-reports/:report_slug,tenant,"session, PAT, API key",pipelines:read datasources:read,,pipelines:read=drift_impact_reports datasources:read=organization
+listProjectEnvironments,GET,/organizations/:slug/projects/:project_slug/environments,tenant,"session, PAT, API key",environments:read,,environments:read=projects
+disableProjectEnvironment,DELETE,/organizations/:slug/projects/:project_slug/environments/:environment_slug,tenant,"session, PAT, API key",environments:delete,,environments:delete=project_environments
+enableProjectEnvironment,PUT,/organizations/:slug/projects/:project_slug/environments/:environment_slug,tenant,"session, PAT, API key",environments:update,,environments:update=projects
+listDataSourceBindings,GET,/organizations/:slug/projects/:project_slug/environments/:environment_slug/data-source-bindings,tenant,"session, PAT, API key",datasources:read,,datasources:read=binding.project_environments
+listPipelineDeployments,GET,/organizations/:slug/projects/:project_slug/environments/:environment_slug/pipeline-deployments,tenant,"session, PAT, API key",pipelines:read,,pipelines:read=project_environments
+listPipelineTriggers,GET,/organizations/:slug/projects/:project_slug/environments/:environment_slug/pipeline-triggers,tenant,"session, PAT, API key",pipeline_triggers:read pipelines:read,pipeline_triggers:read pipelines:read (completion endpoints),pipeline_triggers:read=project_environments pipelines:read=pipelines
+createPipelineTrigger,POST,/organizations/:slug/projects/:project_slug/environments/:environment_slug/pipeline-triggers,tenant,"session, PAT, API key",pipeline_triggers:create pipelines:execute pipeline_triggers:update pipelines:read,pipeline_triggers:create pipelines:execute; completion grant also pipeline_triggers:update pipelines:read,pipeline_triggers:create=project_environments pipelines:execute=deployed_pipelines pipeline_triggers:update=project_environments pipelines:read=pipelines
+deletePipelineTrigger,DELETE,/organizations/:slug/projects/:project_slug/environments/:environment_slug/pipeline-triggers/:pipeline_trigger_slug,tenant,"session, PAT, API key",pipeline_triggers:delete,,pipeline_triggers:delete=pipeline_triggers
+getPipelineTrigger,GET,/organizations/:slug/projects/:project_slug/environments/:environment_slug/pipeline-triggers/:pipeline_trigger_slug,tenant,"session, PAT, API key",pipeline_triggers:read pipelines:read,pipeline_triggers:read pipelines:read (completion endpoints),pipeline_triggers:read=pipeline_triggers pipelines:read=pipelines
+updatePipelineTrigger,PUT,/organizations/:slug/projects/:project_slug/environments/:environment_slug/pipeline-triggers/:pipeline_trigger_slug,tenant,"session, PAT, API key",pipeline_triggers:update pipelines:execute pipelines:read,pipeline_triggers:update pipelines:execute; completion grant also pipeline_triggers:update pipelines:read,pipeline_triggers:update=pipeline_triggers pipelines:execute=deployed_pipelines pipelines:read=pipelines
+listPipelineWebhookDeliveries,GET,/organizations/:slug/projects/:project_slug/environments/:environment_slug/pipeline-triggers/:pipeline_trigger_slug/deliveries,tenant,"session, PAT, API key",pipeline_triggers:read,Older revisions require read permission on the trigger or a containing scope,pipeline_triggers:read=pipeline_triggers pipeline_triggers:read@delivery_history=pipeline_triggers
+getPipelineWebhookDelivery,GET,/organizations/:slug/projects/:project_slug/environments/:environment_slug/pipeline-triggers/:pipeline_trigger_slug/deliveries/:delivery_id,tenant,"session, PAT, API key",pipeline_triggers:read,,pipeline_triggers:read=webhook_deliveries
+replayPipelineWebhookDelivery,POST,/organizations/:slug/projects/:project_slug/environments/:environment_slug/pipeline-triggers/:pipeline_trigger_slug/deliveries/:delivery_id/replay,tenant,"session, PAT, API key",pipeline_triggers:update pipelines:execute,,pipeline_triggers:update=webhook_deliveries pipelines:execute=deployed_pipelines
+listPipelineScheduleFires,GET,/organizations/:slug/projects/:project_slug/environments/:environment_slug/pipeline-triggers/:pipeline_trigger_slug/fires,tenant,"session, PAT, API key",pipeline_triggers:read,,pipeline_triggers:read=pipeline_triggers
+rotatePipelineWebhookSecret,POST,/organizations/:slug/projects/:project_slug/environments/:environment_slug/pipeline-triggers/:pipeline_trigger_slug/webhook-secret/rotate,tenant,"session, PAT, API key",pipeline_triggers:update pipelines:execute,,pipeline_triggers:update=pipeline_triggers pipelines:execute=deployed_pipelines
+validatePipeline,POST,/organizations/:slug/projects/:project_slug/environments/:environment_slug/pipeline-validation,tenant,"session, PAT, API key",pipelines:read datasources:read projects:read pipelines:update,pipelines:read datasources:read projects:read pipelines:update (optional history),pipelines:read=project_environments datasources:read=organization projects:read=project_environments pipelines:update=project_environments
+listPipelineValidationResults,GET,/organizations/:slug/projects/:project_slug/environments/:environment_slug/pipeline-validation-results,tenant,"session, PAT, API key",pipelines:read datasources:read,,pipelines:read=project_environments datasources:read=organization
+getPipelineValidationResult,GET,/organizations/:slug/projects/:project_slug/environments/:environment_slug/pipeline-validation-results/:validation_slug,tenant,"session, PAT, API key",pipelines:read datasources:read,,pipelines:read=pipeline_validation_results datasources:read=organization
+getPipelineDeployment,GET,/organizations/:slug/projects/:project_slug/environments/:environment_slug/pipelines/:pipeline_slug/deployment,tenant,"session, PAT, API key",pipelines:read,,pipelines:read=deployment_targets
+comparePipelineDeployment,POST,/organizations/:slug/projects/:project_slug/environments/:environment_slug/pipelines/:pipeline_slug/deployment\:compare,tenant,"session, PAT, API key",pipelines:read,,pipelines:read=deployed_pipelines
+getSuccessfulRunRecency,GET,/organizations/:slug/projects/:project_slug/environments/:environment_slug/pipelines/:pipeline_slug/successful-run-recency,tenant,"session, PAT, API key",pipelines:read,,pipelines:read=deployed_pipelines
+updateSuccessfulRunRecency,PUT,/organizations/:slug/projects/:project_slug/environments/:environment_slug/pipelines/:pipeline_slug/successful-run-recency,tenant,"session, PAT, API key",pipelines:update,,pipelines:update=deployed_pipelines
+bootstrapPipelineCheckpoints,POST,/organizations/:slug/projects/:project_slug/environments/:environment_slug/pipelines/:pipeline_slug\:bootstrap-checkpoints,tenant,"session, PAT, API key",pipelines:update,,pipelines:update=deployed_pipelines
+deployPipeline,POST,/organizations/:slug/projects/:project_slug/environments/:environment_slug/pipelines/:pipeline_slug\:deploy,tenant,"session, PAT, API key",pipelines:update,,pipelines:update=deployment_targets
+executePipeline,POST,/organizations/:slug/projects/:project_slug/environments/:environment_slug/pipelines/:pipeline_slug\:execute,tenant,"session, PAT, API key",pipelines:execute,,pipelines:execute=deployed_pipelines
+revalidatePipeline,POST,/organizations/:slug/projects/:project_slug/environments/:environment_slug/pipelines/:pipeline_slug\:revalidate,tenant,"session, PAT",pipelines:update datasources:read projects:read,pipelines:update datasources:read projects:read (when resolving a contract),pipelines:update=deployment_targets datasources:read=organization projects:read=projects
+getProofObservationPolicy,GET,/organizations/:slug/projects/:project_slug/environments/:environment_slug/proof-observation-policy,tenant,"session, PAT",environments:read,,environments:read=project_environments
+setProofObservationPolicy,PUT,/organizations/:slug/projects/:project_slug/environments/:environment_slug/proof-observation-policy,tenant,"session, PAT",environments:update,,environments:update=project_environments
+prepareProofObservation,POST,/organizations/:slug/projects/:project_slug/environments/:environment_slug/proof-observation-previews,tenant,"session, PAT",pipelines:execute pipelines:read datasources:read,,pipelines:execute=project_environments pipelines:read=project_environments datasources:read=organization
+authorizeProofObservation,POST,/organizations/:slug/projects/:project_slug/environments/:environment_slug/proof-observations,tenant,"session, PAT",pipelines:execute pipelines:read datasources:read,,pipelines:execute=project_environments pipelines:read=project_environments datasources:read=organization
+getProofObservation,GET,/organizations/:slug/projects/:project_slug/environments/:environment_slug/proof-observations/:observation_slug,tenant,"session, PAT",pipelines:read,,pipelines:read=proof_observations
+cancelProofObservation,POST,/organizations/:slug/projects/:project_slug/environments/:environment_slug/proof-observations/:observation_slug/cancel,tenant,"session, PAT",pipelines:execute,,pipelines:execute=proof_observations
+compileOperationalProofReceipt,POST,/organizations/:slug/projects/:project_slug/environments/:environment_slug/proof-operational-receipts,tenant,"session, PAT",pipelines:execute pipelines:read datasources:read,,pipelines:execute=project_environments pipelines:read=project_environments datasources:read=organization
+listProofReceipts,GET,/organizations/:slug/projects/:project_slug/environments/:environment_slug/proof-receipts,tenant,"session, PAT, API key",pipelines:read,,pipelines:read=project_environments
+compileObservedProofReceipt,POST,/organizations/:slug/projects/:project_slug/environments/:environment_slug/proof-receipts,tenant,"session, PAT",pipelines:execute pipelines:read datasources:read,,pipelines:execute=project_environments pipelines:read=project_environments datasources:read=organization
+getProofReceipt,GET,/organizations/:slug/projects/:project_slug/environments/:environment_slug/proof-receipts/:receipt_slug,tenant,"session, PAT, API key",pipelines:read,,pipelines:read=proof_receipts
+listPipelineRuns,GET,/organizations/:slug/projects/:project_slug/environments/:environment_slug/runs,tenant,"session, PAT, API key",pipelines:read,,pipelines:read=project_environments
+getPipelineRun,GET,/organizations/:slug/projects/:project_slug/environments/:environment_slug/runs/:run_slug,tenant,"session, PAT, API key",pipelines:read,,pipelines:read=runs
+getPipelineRunCompletion,GET,/organizations/:slug/projects/:project_slug/environments/:environment_slug/runs/:run_slug/completion,tenant,"session, PAT, API key",pipelines:read pipeline_triggers:read,,pipelines:read=runs pipelines:read@related_pipeline=pipelines pipeline_triggers:read=pipeline_triggers
+getPipelineRunConnected,GET,/organizations/:slug/projects/:project_slug/environments/:environment_slug/runs/:run_slug/connected,tenant,"session, PAT, API key",pipelines:read pipeline_triggers:read,,pipelines:read=runs pipelines:read@related_pipeline=pipelines pipeline_triggers:read=pipeline_triggers
+getPipelineRunProgress,GET,/organizations/:slug/projects/:project_slug/environments/:environment_slug/runs/:run_slug/progress,tenant,"session, PAT, API key",pipelines:read,,pipelines:read=runs
+listPipelineRunTriggerRetryAttempts,GET,/organizations/:slug/projects/:project_slug/environments/:environment_slug/runs/:run_slug/trigger-retry-attempts,tenant,"session, PAT, API key",pipelines:read,,pipelines:read=runs
+recoverPipelineRun,POST,/organizations/:slug/projects/:project_slug/environments/:environment_slug/runs/:run_slug\:recover,tenant,"session, PAT, API key",pipelines:execute,,pipelines:execute=runs
+setProjectPipelineBackend,PUT,/organizations/:slug/projects/:project_slug/pipeline-backend,tenant,"session, PAT, API key",projects:update datasources:read,,projects:update=projects datasources:read=datasources
+listPipelineCreationProposals,GET,/organizations/:slug/projects/:project_slug/pipeline-creations,tenant,"session, PAT, API key",pipelines:read,,pipelines:read=projects
+createPipelineProposal,POST,/organizations/:slug/projects/:project_slug/pipeline-creations,tenant,"session, PAT",pipelines:create,,pipelines:create=projects
+getPipelineCreationProposal,GET,/organizations/:slug/projects/:project_slug/pipeline-creations/:creation_slug,tenant,"session, PAT, API key",pipelines:read,,pipelines:read=pipeline_creations
+listPipelines,GET,/organizations/:slug/projects/:project_slug/pipelines,tenant,"session, PAT, API key",pipelines:read,,pipelines:read=projects
+getPipeline,GET,/organizations/:slug/projects/:project_slug/pipelines/:pipeline_slug,tenant,"session, PAT, API key",pipelines:read,,pipelines:read=pipelines
+updatePipeline,PUT,/organizations/:slug/projects/:project_slug/pipelines/:pipeline_slug,tenant,"session, PAT",pipelines:update,,pipelines:update=pipelines
+getPipelineCompiledPlan,GET,/organizations/:slug/projects/:project_slug/pipelines/:pipeline_slug/compiled-plans/:digest,tenant,"session, PAT, API key",pipelines:read,,pipelines:read=pipelines
+createDataSourceRef,POST,/organizations/:slug/projects/:project_slug/pipelines/:pipeline_slug/data-source-refs,tenant,"session, PAT, API key",datasources:create,,datasources:create=binding.pipelines
+deleteDataSourceRef,DELETE,/organizations/:slug/projects/:project_slug/pipelines/:pipeline_slug/data-source-refs/:data_source_ref_slug,tenant,"session, PAT, API key",datasources:delete,,datasources:delete=binding.data_source_refs
+getDataSourceRef,GET,/organizations/:slug/projects/:project_slug/pipelines/:pipeline_slug/data-source-refs/:data_source_ref_slug,tenant,"session, PAT, API key",datasources:read,,datasources:read=binding.data_source_refs
+updateDataSourceRef,PUT,/organizations/:slug/projects/:project_slug/pipelines/:pipeline_slug/data-source-refs/:data_source_ref_slug,tenant,"session, PAT, API key",datasources:update,,datasources:update=binding.data_source_refs
+deletePipelineDraft,DELETE,/organizations/:slug/projects/:project_slug/pipelines/:pipeline_slug/draft,tenant,"session, PAT",pipelines:update,,pipelines:update=pipelines
+getPipelineDraft,GET,/organizations/:slug/projects/:project_slug/pipelines/:pipeline_slug/draft,tenant,"session, PAT",pipelines:read,,pipelines:read=pipelines
+savePipelineDraft,PUT,/organizations/:slug/projects/:project_slug/pipelines/:pipeline_slug/draft,tenant,"session, PAT",pipelines:update,,pipelines:update=pipelines
+publishPipelineDraft,POST,/organizations/:slug/projects/:project_slug/pipelines/:pipeline_slug/draft\:publish,tenant,"session, PAT",pipelines:update,,pipelines:update=pipelines
+refreshPipelineDraftProposal,POST,/organizations/:slug/projects/:project_slug/pipelines/:pipeline_slug/draft\:refresh-proposal,tenant,"session, PAT",pipelines:update,,pipelines:update=pipelines
+deleteDataSourceBinding,DELETE,/organizations/:slug/projects/:project_slug/pipelines/:pipeline_slug/environments/:environment_slug/data-source-bindings/:data_source_ref_slug,tenant,"session, PAT, API key",datasources:delete,,datasources:delete=binding.data_source_bindings
+getDataSourceBinding,GET,/organizations/:slug/projects/:project_slug/pipelines/:pipeline_slug/environments/:environment_slug/data-source-bindings/:data_source_ref_slug,tenant,"session, PAT, API key",datasources:read,,datasources:read=binding.data_source_bindings
+upsertDataSourceBinding,PUT,/organizations/:slug/projects/:project_slug/pipelines/:pipeline_slug/environments/:environment_slug/data-source-bindings/:data_source_ref_slug,tenant,"session, PAT, API key",datasources:update datasources:read,,datasources:update=binding.data_source_bindings_upsert datasources:read=datasources
+getPipelineReadiness,GET,/organizations/:slug/projects/:project_slug/pipelines/:pipeline_slug/readiness,tenant,"session, PAT, API key",pipelines:read environments:read datasources:read queries:read,,pipelines:read=pipelines environments:read=projects datasources:read=organization queries:read=queries
+listPipelineVersions,GET,/organizations/:slug/projects/:project_slug/pipelines/:pipeline_slug/versions,tenant,"session, PAT, API key",pipelines:read,,pipelines:read=pipelines
+getPipelineVersion,GET,/organizations/:slug/projects/:project_slug/pipelines/:pipeline_slug/versions/:spec_hash,tenant,"session, PAT, API key",pipelines:read,,pipelines:read=pipelines
+compilePipelineVersion,POST,/organizations/:slug/projects/:project_slug/pipelines/:pipeline_slug/versions/:spec_hash/compiled-plans,tenant,"session, PAT, API key",pipelines:update,,pipelines:update=pipelines
+reconcilePipelines,POST,/organizations/:slug/projects/:project_slug/pipelines\:reconcile,tenant,"session, PAT, API key",pipelines:update pipelines:read environments:read datasources:read queries:read,,pipelines:update=projects pipelines:read=projects environments:read=projects datasources:read=organization queries:read=queries
+getProjectReadiness,GET,/organizations/:slug/projects/:project_slug/readiness,tenant,"session, PAT, API key",pipelines:read environments:read datasources:read queries:read,,pipelines:read=projects environments:read=projects datasources:read=organization queries:read=queries
+getProjectRepositorySetup,GET,/organizations/:slug/projects/:project_slug/repository-setup,tenant,"session, PAT, API key",projects:read,,projects:read=projects
+createProjectRepository,POST,/organizations/:slug/projects/:project_slug/repository-setup,tenant,"session, PAT, API key",organizations:update projects:update datasources:create,,organizations:update=organization projects:update=projects datasources:create=organization
+abandonProjectRepositorySetup,POST,/organizations/:slug/projects/:project_slug/repository-setup/abandon,tenant,"session, PAT, API key",organizations:update projects:update,,organizations:update=organization projects:update=projects
+completeProjectRepositoryGitHubAuthorization,POST,/organizations/:slug/projects/:project_slug/repository-setup/github-authorization,tenant,"session, PAT",organizations:update projects:update datasources:create,,organizations:update=organization projects:update=projects datasources:create=organization
+getProjectRepositorySetupAttempt,GET,/organizations/:slug/projects/:project_slug/repository-setups/:setup_slug,tenant,"session, PAT, API key",projects:read,,projects:read=project_repository_setups
+listProofConfigurations,GET,/organizations/:slug/proof-configurations,tenant,"session, PAT, API key",datasources:read pipelines:read,,datasources:read=organization pipelines:read=organization
+startProviderDataSourceInstall,POST,/organizations/:slug/provider-connectors/:provider/data-source-installs,tenant,"session, PAT, API key",datasources:create,,datasources:create=organization
+startProviderConnectorInstall,POST,/organizations/:slug/provider-connectors/:provider/installs,tenant,"session, PAT, API key",datasources:create datasources:update,datasources:create/update,datasources:create=datasources datasources:update=datasources
+getQueryExecutionSummary,GET,/organizations/:slug/query-execution-summary,tenant,"session, PAT, API key",queries:read,,queries:read=organization
+getOrganizationRetentionPolicy,GET,/organizations/:slug/retention,tenant,"session, PAT, API key",organizations:read,,organizations:read=organization
+updateOrganizationRetentionPolicy,PUT,/organizations/:slug/retention,tenant,"session, PAT, API key",organizations:update,,organizations:update=organization
+listOrganizationRetentionRuns,GET,/organizations/:slug/retention/runs,tenant,"session, PAT, API key",organizations:read,,organizations:read=organization
+listRoleGrants,GET,/organizations/:slug/authorization/grants,tenant,"session, PAT, API key",roles:read,,roles:read=organization
+createRoleGrant,POST,/organizations/:slug/authorization/grants,tenant,"session, PAT",roles:update,,roles:update=organization
+revokeRoleGrant,DELETE,/organizations/:slug/authorization/grants/:grant_slug,tenant,"session, PAT",roles:update,,roles:update=organization
+listRoles,GET,/organizations/:slug/roles,tenant,"session, PAT, API key",roles:read roles:restore,,roles:read=organization roles:restore=organization
+createRole,POST,/organizations/:slug/roles,tenant,"session, PAT, API key",roles:create,,roles:create=organization
+deleteRole,DELETE,/organizations/:slug/roles/:role_slug,tenant,"session, PAT, API key",roles:delete,,roles:delete=roles
+getRole,GET,/organizations/:slug/roles/:role_slug,tenant,"session, PAT, API key",roles:read,,roles:read=roles
+updateRole,PUT,/organizations/:slug/roles/:role_slug,tenant,"session, PAT, API key",roles:update,,roles:update=roles
+restoreRole,POST,/organizations/:slug/roles/:role_slug/restore,tenant,"session, PAT, API key",roles:restore,,roles:restore=deleted_roles
+compareRuntimeVariables,GET,/organizations/:slug/runtime-variable-comparison,tenant,"session, PAT, API key",environments:read,,environments:read=organization
+deleteRuntimeVariableDefinition,DELETE,/organizations/:slug/runtime-variable-definitions/:runtime_variable_key,tenant,"session, PAT, API key",environments:delete,,environments:delete=runtime_variable_definitions
+upsertRuntimeVariableDefinition,PUT,/organizations/:slug/runtime-variable-definitions/:runtime_variable_key,tenant,"session, PAT, API key",environments:update,,environments:update=runtime_variable_definitions_upsert
+listSecurityAuditEvents,GET,/organizations/:slug/security-audit-events,tenant,"session, PAT, API key",events:read,,events:read=organization
+exportSecurityAuditEvents,GET,/organizations/:slug/security-audit-events/export,tenant,"session, PAT, API key",events:read,,events:read=organization
+handleProviderConnectorCallback,GET,/provider-connectors/:provider/callback,tenant,"session, PAT",datasources:create datasources:update alert_destinations:update organizations:update projects:update,datasources:create/update or alert_destinations:update or organizations:update; repository setup also projects:update datasources:create,datasources:create=datasources datasources:create@repository_source=organization datasources:update=datasources alert_destinations:update=notification_connections organizations:update=organization projects:update=projects
+createSession,POST,/sessions,public,anonymous,,authentication lifecycle,
+verifySessionMFA,POST,/sessions/mfa/verify,public,anonymous,,authentication lifecycle,
+createUser,POST,/users,public,anonymous,,authentication lifecycle,
+getUsersProfile,GET,/users/profile,self,"session, PAT",profile:read,,profile:read=none
+patchUsersProfile,PATCH,/users/profile,self,"session, PAT",profile:update,MFA changes require a session authenticated in the past five minutes,profile:update=none profile:update@mfa=none
+requestAccountDeletion,POST,/users/profile/deletion,self,session,profile:delete,,profile:delete=none
+updateUserPassword,PUT,/users/profile/password,self,session,profile:update,,profile:update=none
+listPersonalAccessTokens,GET,/users/profile/personal-access-tokens,self,"session, management-enabled PAT",profile:read,,profile:read=none
+createPersonalAccessToken,POST,/users/profile/personal-access-tokens,self,"session, management-enabled PAT",profile:update,PAT callers cannot set the new token management flag,profile:update=none
+deletePersonalAccessToken,DELETE,/users/profile/personal-access-tokens/:pat_slug,self,"session, management-enabled PAT",profile:update,,profile:update=none
+getPersonalAccessToken,GET,/users/profile/personal-access-tokens/:pat_slug,self,"session, management-enabled PAT",profile:read,,profile:read=none
+updatePersonalAccessToken,PUT,/users/profile/personal-access-tokens/:pat_slug,self,"session, management-enabled PAT",profile:update,PAT callers cannot change the token management flag,profile:update=none
+deleteRevokedPersonalAccessToken,POST,/users/profile/personal-access-tokens/:pat_slug/delete,self,session,profile:update,,profile:update=none
+rotatePersonalAccessToken,POST,/users/profile/personal-access-tokens/:pat_slug/rotate,self,"session, management-enabled PAT",profile:update,,profile:update=none
+receivePipelineWebhook,POST,/webhooks/pipelines/:receiver_id,signed ingress,receiver signature,,verified receiver and queued grant,

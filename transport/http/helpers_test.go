@@ -1051,6 +1051,7 @@ func (f *fakePATsService) Authenticate(
 }
 
 type fakeRolesService struct {
+	testfakes.RolesService
 	CreateRoleWithPermissionsFn func(ctx context.Context, orgSlug slug.Slug, actor model.EventActor, newRole model.NewRole, perms []model.RolePermission) (*model.OrgRole, error)
 	CreateDefaultRolesFn        func(ctx context.Context, orgSlug slug.Slug) error
 	UpdateRoleWithPermissionsFn func(ctx context.Context, orgSlug, roleSlug slug.Slug, actor model.EventActor, update model.UpdateRole, perms []model.RolePermission) error
@@ -2293,7 +2294,8 @@ func (f *fakeNotificationsService) MarkAlertDeliveryAttemptFailed(
 }
 
 type fakeAuthService struct {
-	CanFn func(ctx context.Context, input authorization.Input) (bool, error)
+	EffectivePermissionsFn func(context.Context, authorization.Input) ([]model.RolePermission, error)
+	CanFn                  func(ctx context.Context, input authorization.Input) (bool, error)
 }
 
 type fakePipelinesService struct {
@@ -2922,6 +2924,13 @@ func (f *fakePipelinesService) GetRun(
 	return nil, errFakePipelinesServiceFnNotSet
 }
 
+func (f *fakeAuthService) EffectivePermissions(ctx context.Context, input authorization.Input) ([]model.RolePermission, error) {
+	if f.EffectivePermissionsFn != nil {
+		return f.EffectivePermissionsFn(ctx, input)
+	}
+	return nil, nil
+}
+
 func (f *fakeAuthService) Can(ctx context.Context, input authorization.Input) (bool, error) {
 	if f.CanFn != nil {
 		return f.CanFn(ctx, input)
@@ -3151,7 +3160,7 @@ func newTestApp(t *testing.T, cfg testServerConfig) (*fiber.App, *session.Store)
 		app.Use(middleware)
 	}
 
-	api.RegisterHandlers(app, srv)
+	api.RegisterHandlersWithOptions(app, srv, api.FiberServerOptions{HandlerMiddlewares: []api.HandlerMiddlewareFunc{RequireMappedOperation}})
 
 	return app, store
 }

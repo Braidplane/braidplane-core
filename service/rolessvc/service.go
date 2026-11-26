@@ -12,6 +12,9 @@ import (
 )
 
 type Service interface {
+	ListRoleGrants(ctx context.Context, orgSlug slug.Slug) ([]model.RoleGrant, error)
+	CreateRoleGrant(ctx context.Context, orgSlug slug.Slug, actor model.EventActor, grant model.NewRoleGrant) (*model.RoleGrant, error)
+	RevokeRoleGrant(ctx context.Context, orgSlug, grantSlug slug.Slug, actor model.EventActor) error
 	CreateRoleWithPermissions(
 		ctx context.Context,
 		orgSlug slug.Slug,

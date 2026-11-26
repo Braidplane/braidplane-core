@@ -35,9 +35,7 @@ type runWriter struct {
 
 type runStore struct {
 	txm                     postgres.TransactionManager
-	dbtx                    postgres.DBTX
 	runWriter               pipelinerun.RunPersister
-	timelineStore           pipelinerun.TimelineStore
 	incrementalCheckpointDB incrementalcheckpoints.Repository
 }
 
@@ -59,9 +57,7 @@ func NewRunStore(
 	incrementalCheckpointDB := incrementalcheckpoints.New()
 	return &runStore{
 		txm:                     txm,
-		dbtx:                    dbtx,
 		runWriter:               newRunWriter(txm, clk, incrementalCheckpointDB, notifier, runs),
-		timelineStore:           checkpoints.New(dbtx),
 		incrementalCheckpointDB: incrementalCheckpointDB,
 	}
 }
@@ -110,7 +106,9 @@ func (s *runStore) Get(
 	orgSlug, projectSlug, environmentSlug slug.Slug,
 	runSlug string,
 ) (*pipelinerun.RunTimeline, error) {
-	return s.timelineStore.Get(ctx, orgSlug, projectSlug, environmentSlug, runSlug)
+	return postgres.InRead(ctx, s.txm, func(ctx context.Context, db postgres.DBTX) (*pipelinerun.RunTimeline, error) {
+		return checkpoints.New(db).Get(ctx, orgSlug, projectSlug, environmentSlug, runSlug)
+	})
 }
 
 func (s *runStore) SaveCheckpoint(
@@ -146,22 +144,24 @@ func (s *runStore) GetCheckpoint(
 	orgSlug, projectSlug, environmentSlug slug.Slug,
 	runSlug string,
 ) (*pipelinerun.ReplayCheckpoint, error) {
-	checkpoint, err := s.timelineStore.GetCheckpoint(ctx, orgSlug, projectSlug, environmentSlug, runSlug)
-	if err != nil {
-		return nil, err
-	}
-	files, err := retainedfiles.New().ListCheckpointFiles(ctx, s.dbtx, orgSlug, projectSlug, environmentSlug, runSlug)
-	if err != nil {
-		return nil, err
-	}
-	for _, file := range files {
-		content, ok := checkpoint.Results[file.Step].Payload()
-		if !ok || content.Representation != model.ContractRepresentationFile || content.File == nil || content.File.DigestAlgorithm != filepayload.FilePayloadDigestSHA256 || content.File.SizeBytes != file.Reference.SizeBytes || content.File.Digest != file.Reference.SHA256 {
-			return nil, filestream.ErrUnavailable
+	return postgres.InTx(postgres.WithConsistentSnapshot(ctx), s.txm, func(ctx context.Context, db postgres.DBTX) (*pipelinerun.ReplayCheckpoint, error) {
+		checkpoint, err := checkpoints.New(db).GetCheckpoint(ctx, orgSlug, projectSlug, environmentSlug, runSlug)
+		if err != nil {
+			return nil, err
 		}
-		content.FileReference = filepayload.CloneReference(&file.Reference)
-	}
-	return checkpoint, nil
+		files, err := retainedfiles.New().ListCheckpointFiles(ctx, db, orgSlug, projectSlug, environmentSlug, runSlug)
+		if err != nil {
+			return nil, err
+		}
+		for _, file := range files {
+			content, ok := checkpoint.Results[file.Step].Payload()
+			if !ok || content.Representation != model.ContractRepresentationFile || content.File == nil || content.File.DigestAlgorithm != filepayload.FilePayloadDigestSHA256 || content.File.SizeBytes != file.Reference.SizeBytes || content.File.Digest != file.Reference.SHA256 {
+				return nil, filestream.ErrUnavailable
+			}
+			content.FileReference = filepayload.CloneReference(&file.Reference)
+		}
+		return checkpoint, nil
+	})
 }
 
 func (s *runStore) GetCurrentIncrementalCheckpoint(
@@ -169,14 +169,16 @@ func (s *runStore) GetCurrentIncrementalCheckpoint(
 	orgSlug, projectSlug, environmentSlug slug.Slug,
 	lookup pipelinerun.IncrementalCheckpointLookup,
 ) (*pipelinerun.IncrementalCheckpoint, error) {
-	checkpoint, err := s.incrementalCheckpointDB.GetCurrentCommitted(
-		ctx,
-		s.dbtx,
-		orgSlug,
-		projectSlug,
-		environmentSlug,
-		lookup,
-	)
+	checkpoint, err := postgres.InRead(ctx, s.txm, func(ctx context.Context, db postgres.DBTX) (*pipelinerun.IncrementalCheckpoint, error) {
+		return s.incrementalCheckpointDB.GetCurrentCommitted(
+			ctx,
+			db,
+			orgSlug,
+			projectSlug,
+			environmentSlug,
+			lookup,
+		)
+	})
 	if xerror.Is(err, pipelinerun.ErrIncrementalCheckpointNotFound) {
 		return nil, pipelinerun.ErrIncrementalCheckpointNotFound.With(err)
 	}
@@ -321,7 +323,9 @@ func optionalResolutionDigest(digest string) *string {
 }
 
 func (s *runStore) PreviousSuccess(ctx context.Context, org, project, environment, pipeline slug.Slug, version int64, before time.Time) (*pipelineruntime.SuccessfulRun, error) {
-	prior, err := pipelineruns.New().PreviousSuccess(ctx, s.dbtx, org, project, environment, pipeline, version, before)
+	prior, err := postgres.InRead(ctx, s.txm, func(ctx context.Context, db postgres.DBTX) (*pipelineruntime.SuccessfulRun, error) {
+		return pipelineruns.New().PreviousSuccess(ctx, db, org, project, environment, pipeline, version, before)
+	})
 	if xerror.Is(err, pipelineruns.ErrRunNotFound) {
 		return nil, pipelinerun.ErrTimelineNotFound.With(err)
 	}
@@ -329,5 +333,7 @@ func (s *runStore) PreviousSuccess(ctx context.Context, org, project, environmen
 }
 
 func (s *runStore) ObserveWorker(ctx context.Context, org, project, environment slug.Slug, run string, at time.Time) error {
-	return s.timelineStore.ObserveWorker(ctx, org, project, environment, run, at)
+	return s.txm.RunInTx(ctx, func(ctx context.Context, db postgres.DBTX) error {
+		return checkpoints.New(db).ObserveWorker(ctx, org, project, environment, run, at)
+	})
 }

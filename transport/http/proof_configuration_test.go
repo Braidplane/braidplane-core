@@ -26,7 +26,7 @@ func TestProofConfigurationRequiresBothPermissions(t *testing.T) {
 				var checked []model.Resource
 				app, store := newTestApp(t, testServerConfig{authService: fakeAuthService{CanFn: func(_ context.Context, input authorization.Input) (bool, error) {
 					require.Equal(t, route.action, input.Action)
-					checked = append(checked, input.Resource.(model.Resource))
+					checked = append(checked, input.Resource)
 					return input.Resource != denied, nil
 				}}})
 				req, err := http.NewRequestWithContext(t.Context(), route.method, route.path, strings.NewReader(`{"enabled":false,"publish_checks":false,"expected_repository_id":"42","targets":[]}`))

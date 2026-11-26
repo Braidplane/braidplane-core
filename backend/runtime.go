@@ -46,6 +46,7 @@ import (
 	"github.com/Braidplane/braidplane-core/postgres/abusecontrols"
 	"github.com/Braidplane/braidplane-core/postgres/accountclosures"
 	"github.com/Braidplane/braidplane-core/postgres/apikeys"
+	authstore "github.com/Braidplane/braidplane-core/postgres/authorization"
 	"github.com/Braidplane/braidplane-core/postgres/compiledplans"
 	repocredentials "github.com/Braidplane/braidplane-core/postgres/credentials"
 	"github.com/Braidplane/braidplane-core/postgres/datasourcerefs"
@@ -922,7 +923,11 @@ func Run(cfg *backendconfig.Config, mode Mode, createDistribution DistributionFa
 		),
 		backendLogger,
 	)
-	authorizationService, err := authorization.New(usersService, rolesService)
+	authorizationService, err := authorization.New(usersService, func(ctx context.Context, org, user, key slug.Slug, target model.AuthorizationTarget) (model.AuthorizationFacts, error) {
+		return postgres.InRead(postgres.WithoutTransactionChecks(ctx), txm, func(ctx context.Context, db postgres.DBTX) (model.AuthorizationFacts, error) {
+			return authstore.Resolve(ctx, db, org, user, key, target)
+		})
+	})
 	if err != nil {
 		return xerror.Wrapf("failed to initialize authorization service: %w", err)
 	}
@@ -1472,7 +1477,7 @@ func Run(cfg *backendconfig.Config, mode Mode, createDistribution DistributionFa
 			if err := extension.RegisterRoutes(apiApp, coreServer); err != nil {
 				return xerror.Wrapf("register distribution routes: %w", err)
 			}
-			oapi.RegisterHandlersWithOptions(apiApp, coreServer, oapi.FiberServerOptions{})
+			oapi.RegisterHandlersWithOptions(apiApp, coreServer, oapi.FiberServerOptions{HandlerMiddlewares: []oapi.HandlerMiddlewareFunc{http.RequireMappedOperation}})
 
 			app.Use("/api", apiApp)
 			return runBackendHTTP(app, drainLifecycle, cfg.Server, backendLogger)

@@ -120,6 +120,7 @@ func copyCreateRunParams(params *createRunParams) *createRunParams {
 type fakeTransactionManager struct {
 	runInTxFn func(context.Context, func(context.Context, postgres.DBTX) error) error
 	runInTxs  int
+	readErr   error
 }
 
 func (f *fakeTransactionManager) RunInTx(
@@ -137,10 +138,13 @@ func (f *fakeTransactionManager) RunRead(
 	ctx context.Context,
 	fn func(context.Context, postgres.DBTX) error,
 ) error {
+	if f.readErr != nil {
+		return f.readErr
+	}
 	return fn(ctx, &fakeDBTX{})
 }
 
-func TestNewRunStore_ComposesRunWriterAndTimelineStore(t *testing.T) {
+func TestNewRunStore_ComposesRunWriter(t *testing.T) {
 	t.Parallel()
 
 	runs := pipelineruns.New()
@@ -148,7 +152,6 @@ func TestNewRunStore_ComposesRunWriterAndTimelineStore(t *testing.T) {
 	runStore, ok := store.(*runStore)
 	require.True(t, ok)
 	require.NotNil(t, runStore.runWriter)
-	require.NotNil(t, runStore.timelineStore)
 
 	runWriter, ok := runStore.runWriter.(*runWriter)
 	require.True(t, ok)
@@ -160,6 +163,18 @@ func TestNewRunStore_ComposesRunWriterAndTimelineStore(t *testing.T) {
 	require.PanicsWithValue(t, "pipelineruntime: pipeline run repository is required", func() {
 		NewRunStore(&fakeTransactionManager{}, &fakeDBTX{}, nil, testutil.FakeRunSucceededNotifier{}, nil)
 	})
+}
+
+func TestRunStoreDeniesTimelineAndCheckpointBeforeReading(t *testing.T) {
+	t.Parallel()
+	denied := fmt.Errorf("authorization changed")
+	manager := &fakeTransactionManager{readErr: denied, runInTxFn: func(context.Context, func(context.Context, postgres.DBTX) error) error { return denied }}
+	store := NewRunStore(manager, &fakeDBTX{}, nil, testutil.FakeRunSucceededNotifier{}, pipelineruns.New())
+	_, err := store.Get(t.Context(), "acme", "warehouse", "prod", "run")
+	require.ErrorIs(t, err, denied)
+	_, err = store.GetCheckpoint(t.Context(), "acme", "warehouse", "prod", "run")
+	require.ErrorIs(t, err, denied)
+	require.Equal(t, 1, manager.runInTxs, "checkpoint and pins share a transaction")
 }
 
 func TestRunWriter_PersistRun_ValidatesInputs(t *testing.T) {

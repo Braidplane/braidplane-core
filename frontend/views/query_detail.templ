@@ -16,7 +16,7 @@ templ QueryDetailPageContent(orgSlug string, dataSourceSlug string, query api.Qu
 	{{ resultsActive := executionResult != nil || executionError != "" }}
 	<div data-query-detail>
 		@EntityDetailHeader(query.Name, string(query.Slug)) {
-			if query.DeletedAt == nil && permissions.Can("pipelines", "create") {
+			if query.DeletedAt == nil {
 				<a class="btn btn-primary btn-sm" href={ templ.URL(QueryPipelineSetupHref(orgSlug, dataSourceSlug, query.Slug, "")) }>Build pipeline</a>
 			}
 			<a class="btn btn-outline btn-sm" href={ templ.URL(entityBackHref(ctx, QueriesListHref(orgSlug, dataSourceSlug, string(query.Slug), query.DeletedAt != nil))) }>Back to list</a>

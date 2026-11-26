@@ -14,6 +14,21 @@ await import("../builder_canvas.js");
 
 const t = window.braidplaneBuilderCanvas._testing;
 
+it("reloads published drafts only when both editors match their saved state", () => {
+    const source = document.createElement("textarea");
+    source.value = "applied";
+    expect(t.canReloadPublishedDraft(false, source, "applied")).toBe(true);
+    expect(t.canReloadPublishedDraft(true, source, "applied")).toBe(false);
+    const mapping = document.createElement("div");
+    mapping.id = "builder-field-mapping";
+    mapping.innerHTML = "<div data-field-mapping-draft></div>";
+    document.body.append(mapping);
+    expect(t.canReloadPublishedDraft(false, source, "applied")).toBe(false);
+    mapping.remove();
+    source.value = "";
+    expect(t.canReloadPublishedDraft(false, source, "applied")).toBe(false);
+});
+
 const issueMessages = (issues) => issues.map((issue) => (typeof issue === "string" ? issue : issue.message));
 
 const resetLocalStorage = () => {

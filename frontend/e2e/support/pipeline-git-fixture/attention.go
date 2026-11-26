@@ -43,7 +43,7 @@ func handleAttentionAPI(w http.ResponseWriter, r *http.Request) bool {
 		w.WriteHeader(http.StatusForbidden)
 		return true
 	}
-	if r.URL.Path == base+"/roles/admin" {
+	if r.URL.Path == base+"/authorization/permissions" {
 		permissions := []any{map[string]any{"resource": "*", "action": "*"}}
 		if attentionRestricted {
 			permissions = []any{map[string]any{"resource": "notifications", "action": "read"}}

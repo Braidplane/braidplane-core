@@ -567,6 +567,12 @@ window.braidplaneInitAlertPolicyForms = (root) => {
         if (!(form instanceof HTMLFormElement)) return;
         if (form.dataset.alertPolicyBound !== "true") {
             form.dataset.alertPolicyBound = "true";
+            form.addEventListener("input", ({ target }) => {
+                if (target.name !== "project_slug") return;
+                const environment = form.elements.namedItem("environment_slug");
+                if (environment instanceof HTMLSelectElement)
+                    environment.replaceChildren(new Option("Select environment", ""));
+            });
             form.addEventListener("change", () => {
                 braidplaneUpdateAlertPolicyScopeVisibility(form);
                 braidplaneUpdateAlertPolicyReview(form);
@@ -994,6 +1000,13 @@ document.addEventListener("htmx:afterSwap", (event) => {
     if (target instanceof HTMLElement && target.id === "query-execution-feedback-slot") {
         window.braidplaneFocusQueryExecutionFeedback(target);
     }
+});
+
+document.addEventListener("htmx:beforeSwap", ({ detail }) => {
+    if (!detail?.target?.matches?.("[data-alert-policy-selector]")) return;
+    const project = detail.target.querySelector("input[name=project_slug]");
+    const requested = detail?.requestConfig?.formData?.get("project_slug");
+    if (project && requested != null && project.value !== requested) detail.shouldSwap = false;
 });
 
 const braidplaneBranchRefreshSelection = new WeakMap();

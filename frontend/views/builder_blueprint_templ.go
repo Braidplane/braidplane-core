@@ -21,6 +21,7 @@ type BuilderBlueprintState struct {
 	IsValid                bool
 	HasDraft               bool
 	CanExecutePipeline     bool
+	CanBootstrap           bool
 	CanRun                 bool
 	CanRefreshSchemas      bool
 	CanCreatePipeline      bool
@@ -229,7 +230,7 @@ func BuilderBlueprintContent(state BuilderBlueprintState) templ.Component {
 			var templ_7745c5c3_Var3 templ.SafeURL
 			templ_7745c5c3_Var3, templ_7745c5c3_Err = templ.JoinURLErrs(templ.URL(fmt.Sprintf("/organizations/%s/projects/%s", state.DeepLinkOrgSlug, state.DeepLinkProjectSlug)))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/builder_blueprint.templ`, Line: 169, Col: 147}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/builder_blueprint.templ`, Line: 170, Col: 147}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var3))
 			if templ_7745c5c3_Err != nil {
@@ -248,7 +249,7 @@ func BuilderBlueprintContent(state BuilderBlueprintState) templ.Component {
 			var templ_7745c5c3_Var4 string
 			templ_7745c5c3_Var4, templ_7745c5c3_Err = templ.ResolveAttributeValue(state.PipelineName)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/builder_blueprint.templ`, Line: 181, Col: 198}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/builder_blueprint.templ`, Line: 182, Col: 198}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var4)
 			if templ_7745c5c3_Err != nil {
@@ -261,7 +262,7 @@ func BuilderBlueprintContent(state BuilderBlueprintState) templ.Component {
 			var templ_7745c5c3_Var5 templ.SafeURL
 			templ_7745c5c3_Var5, templ_7745c5c3_Err = templ.JoinURLErrs(templ.URL("/organizations/" + state.DeepLinkOrgSlug + "/projects/" + state.DeepLinkProjectSlug + "?section=repository"))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/builder_blueprint.templ`, Line: 185, Col: 281}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/builder_blueprint.templ`, Line: 186, Col: 281}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var5))
 			if templ_7745c5c3_Err != nil {
@@ -340,7 +341,7 @@ func BuilderBlueprintContent(state BuilderBlueprintState) templ.Component {
 			var templ_7745c5c3_Var10 string
 			templ_7745c5c3_Var10, templ_7745c5c3_Err = templ.JoinStringErrs(builderRuntimeTargetBadgeLabel(state.TargetEnvironmentSlug))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/builder_blueprint.templ`, Line: 202, Col: 140}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/builder_blueprint.templ`, Line: 203, Col: 140}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var10))
 			if templ_7745c5c3_Err != nil {
@@ -358,7 +359,7 @@ func BuilderBlueprintContent(state BuilderBlueprintState) templ.Component {
 			var templ_7745c5c3_Var11 string
 			templ_7745c5c3_Var11, templ_7745c5c3_Err = templ.JoinStringErrs(builderRuntimeTargetBadgeLabel(state.TargetEnvironmentSlug))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/builder_blueprint.templ`, Line: 204, Col: 134}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/builder_blueprint.templ`, Line: 205, Col: 134}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var11))
 			if templ_7745c5c3_Err != nil {
@@ -386,7 +387,7 @@ func BuilderBlueprintContent(state BuilderBlueprintState) templ.Component {
 		var templ_7745c5c3_Var12 string
 		templ_7745c5c3_Var12, templ_7745c5c3_Err = templ.ResolveAttributeValue(builderRuntimeActionLabel("Validate", state.TargetEnvironmentSlug))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/builder_blueprint.templ`, Line: 213, Col: 268}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/builder_blueprint.templ`, Line: 214, Col: 268}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var12)
 		if templ_7745c5c3_Err != nil {
@@ -399,7 +400,7 @@ func BuilderBlueprintContent(state BuilderBlueprintState) templ.Component {
 		var templ_7745c5c3_Var13 string
 		templ_7745c5c3_Var13, templ_7745c5c3_Err = templ.JoinStringErrs(builderRuntimeActionLabel("Validate", state.TargetEnvironmentSlug))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/builder_blueprint.templ`, Line: 214, Col: 106}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/builder_blueprint.templ`, Line: 215, Col: 106}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var13))
 		if templ_7745c5c3_Err != nil {
@@ -422,7 +423,7 @@ func BuilderBlueprintContent(state BuilderBlueprintState) templ.Component {
 		var templ_7745c5c3_Var14 string
 		templ_7745c5c3_Var14, templ_7745c5c3_Err = templ.ResolveAttributeValue(builderPublishTitle(state))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/builder_blueprint.templ`, Line: 216, Col: 162}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/builder_blueprint.templ`, Line: 217, Col: 162}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var14)
 		if templ_7745c5c3_Err != nil {
@@ -435,7 +436,7 @@ func BuilderBlueprintContent(state BuilderBlueprintState) templ.Component {
 		var templ_7745c5c3_Var15 string
 		templ_7745c5c3_Var15, templ_7745c5c3_Err = templ.ResolveAttributeValue(strconv.FormatBool(state.CanExecutePipeline))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/builder_blueprint.templ`, Line: 217, Col: 138}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/builder_blueprint.templ`, Line: 218, Col: 138}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var15)
 		if templ_7745c5c3_Err != nil {
@@ -458,7 +459,7 @@ func BuilderBlueprintContent(state BuilderBlueprintState) templ.Component {
 		var templ_7745c5c3_Var16 string
 		templ_7745c5c3_Var16, templ_7745c5c3_Err = templ.ResolveAttributeValue(strings.TrimSpace(state.RunReason))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/builder_blueprint.templ`, Line: 217, Col: 225}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/builder_blueprint.templ`, Line: 218, Col: 225}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var16)
 		if templ_7745c5c3_Err != nil {
@@ -471,7 +472,7 @@ func BuilderBlueprintContent(state BuilderBlueprintState) templ.Component {
 		var templ_7745c5c3_Var17 string
 		templ_7745c5c3_Var17, templ_7745c5c3_Err = templ.JoinStringErrs(builderRuntimeActionLabel("Run", state.TargetEnvironmentSlug))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/builder_blueprint.templ`, Line: 218, Col: 101}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/builder_blueprint.templ`, Line: 219, Col: 101}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var17))
 		if templ_7745c5c3_Err != nil {
@@ -494,7 +495,7 @@ func BuilderBlueprintContent(state BuilderBlueprintState) templ.Component {
 		var templ_7745c5c3_Var18 string
 		templ_7745c5c3_Var18, templ_7745c5c3_Err = templ.ResolveAttributeValue(builderSaveTitle(state))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/builder_blueprint.templ`, Line: 220, Col: 153}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/builder_blueprint.templ`, Line: 221, Col: 153}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var18)
 		if templ_7745c5c3_Err != nil {
@@ -513,7 +514,7 @@ func BuilderBlueprintContent(state BuilderBlueprintState) templ.Component {
 				var templ_7745c5c3_Var19 string
 				templ_7745c5c3_Var19, templ_7745c5c3_Err = templ.ResolveAttributeValue(node.Slug)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/builder_blueprint.templ`, Line: 231, Col: 92}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/builder_blueprint.templ`, Line: 232, Col: 92}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var19)
 				if templ_7745c5c3_Err != nil {
@@ -526,7 +527,7 @@ func BuilderBlueprintContent(state BuilderBlueprintState) templ.Component {
 				var templ_7745c5c3_Var20 string
 				templ_7745c5c3_Var20, templ_7745c5c3_Err = templ.ResolveAttributeValue(kind)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/builder_blueprint.templ`, Line: 231, Col: 122}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/builder_blueprint.templ`, Line: 232, Col: 122}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var20)
 				if templ_7745c5c3_Err != nil {
@@ -539,7 +540,7 @@ func BuilderBlueprintContent(state BuilderBlueprintState) templ.Component {
 				var templ_7745c5c3_Var21 string
 				templ_7745c5c3_Var21, templ_7745c5c3_Err = templ.JoinStringErrs(node.Slug)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/builder_blueprint.templ`, Line: 232, Col: 61}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/builder_blueprint.templ`, Line: 233, Col: 61}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var21))
 				if templ_7745c5c3_Err != nil {
@@ -552,7 +553,7 @@ func BuilderBlueprintContent(state BuilderBlueprintState) templ.Component {
 				var templ_7745c5c3_Var22 string
 				templ_7745c5c3_Var22, templ_7745c5c3_Err = templ.JoinStringErrs(kind)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/builder_blueprint.templ`, Line: 232, Col: 117}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/builder_blueprint.templ`, Line: 233, Col: 117}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var22))
 				if templ_7745c5c3_Err != nil {
@@ -564,1449 +565,1449 @@ func BuilderBlueprintContent(state BuilderBlueprintState) templ.Component {
 				}
 			}
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 39, "<p class=\"text-xs text-base-content/70\">Watermarks accept a number or text value, such as an ISO timestamp. Cursors are opaque text. Each source operation must use both bounds.</p><button class=\"btn btn-sm btn-outline\" id=\"builder-backfill-btn\" data-can-execute=\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 39, "<p class=\"text-xs text-base-content/70\">Watermarks accept a number or text value, such as an ISO timestamp. Cursors are opaque text. Each source operation must use both bounds.</p><button class=\"btn btn-sm btn-outline\" id=\"builder-backfill-btn\" data-can-backfill=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var23 string
-		templ_7745c5c3_Var23, templ_7745c5c3_Err = templ.ResolveAttributeValue(strconv.FormatBool(state.CanExecutePipeline))
+		templ_7745c5c3_Var23, templ_7745c5c3_Err = templ.ResolveAttributeValue(strconv.FormatBool(state.CanRun))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/builder_blueprint.templ`, Line: 239, Col: 134}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/builder_blueprint.templ`, Line: 240, Col: 123}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var23)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 40, "\" type=\"submit\"")
-		if templ_7745c5c3_Err != nil {
-			return templ_7745c5c3_Err
-		}
-		if !state.CanRun {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 41, " disabled")
-			if templ_7745c5c3_Err != nil {
-				return templ_7745c5c3_Err
-			}
-		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 42, ">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 40, "\" data-can-bootstrap=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var24 string
-		templ_7745c5c3_Var24, templ_7745c5c3_Err = templ.JoinStringErrs(builderRuntimeActionLabel("Start backfill", state.TargetEnvironmentSlug))
+		templ_7745c5c3_Var24, templ_7745c5c3_Err = templ.ResolveAttributeValue(strconv.FormatBool(state.CanBootstrap))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/builder_blueprint.templ`, Line: 239, Col: 253}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/builder_blueprint.templ`, Line: 240, Col: 185}
 		}
-		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var24))
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var24)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 43, "</button></form></details> ")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 41, "\" type=\"submit\"")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		if !state.CanRun {
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 42, " disabled")
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 43, ">")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		var templ_7745c5c3_Var25 string
+		templ_7745c5c3_Var25, templ_7745c5c3_Err = templ.JoinStringErrs(builderRuntimeActionLabel("Start backfill", state.TargetEnvironmentSlug))
+		if templ_7745c5c3_Err != nil {
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/builder_blueprint.templ`, Line: 240, Col: 304}
+		}
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var25))
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 44, "</button></form></details> ")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		if strings.TrimSpace(state.SaveReason) != "" {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 44, "<p class=\"mt-3 text-xs text-base-content/70\" id=\"builder-save-reason\" role=\"status\" tabindex=\"-1\">")
-			if templ_7745c5c3_Err != nil {
-				return templ_7745c5c3_Err
-			}
-			var templ_7745c5c3_Var25 string
-			templ_7745c5c3_Var25, templ_7745c5c3_Err = templ.JoinStringErrs(state.SaveReason)
-			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/builder_blueprint.templ`, Line: 243, Col: 121}
-			}
-			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var25))
-			if templ_7745c5c3_Err != nil {
-				return templ_7745c5c3_Err
-			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 45, "</p>")
-			if templ_7745c5c3_Err != nil {
-				return templ_7745c5c3_Err
-			}
-		} else {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 46, "<p class=\"mt-3 text-xs text-base-content/70\" id=\"builder-save-reason\" role=\"status\" tabindex=\"-1\">Save blocked: select a node and resolve validation issues.</p>")
-			if templ_7745c5c3_Err != nil {
-				return templ_7745c5c3_Err
-			}
-		}
-		if strings.TrimSpace(state.RunReason) != "" {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 47, "<p class=\"mt-1 text-xs text-base-content/60\" id=\"builder-run-reason\">")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 45, "<p class=\"mt-3 text-xs text-base-content/70\" id=\"builder-save-reason\" role=\"status\" tabindex=\"-1\">")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 			var templ_7745c5c3_Var26 string
-			templ_7745c5c3_Var26, templ_7745c5c3_Err = templ.JoinStringErrs(state.RunReason)
+			templ_7745c5c3_Var26, templ_7745c5c3_Err = templ.JoinStringErrs(state.SaveReason)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/builder_blueprint.templ`, Line: 248, Col: 91}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/builder_blueprint.templ`, Line: 244, Col: 121}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var26))
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 48, "</p>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 46, "</p>")
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+		} else {
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 47, "<p class=\"mt-3 text-xs text-base-content/70\" id=\"builder-save-reason\" role=\"status\" tabindex=\"-1\">Save blocked: select a node and resolve validation issues.</p>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 49, "<div id=\"builder-run-feedback\" class=\"mt-3 empty:hidden\"></div>")
+		if strings.TrimSpace(state.RunReason) != "" {
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 48, "<p class=\"mt-1 text-xs text-base-content/60\" id=\"builder-run-reason\">")
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			var templ_7745c5c3_Var27 string
+			templ_7745c5c3_Var27, templ_7745c5c3_Err = templ.JoinStringErrs(state.RunReason)
+			if templ_7745c5c3_Err != nil {
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/builder_blueprint.templ`, Line: 249, Col: 91}
+			}
+			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var27))
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 49, "</p>")
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 50, "<div id=\"builder-run-feedback\" class=\"mt-3 empty:hidden\"></div>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		if state.ProposalReview != nil {
 			if state.ProposalReview.MatchesCanonicalSource {
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 50, "<div class=\"mt-3 space-y-2 rounded-lg border border-base-300 p-3 text-sm\" id=\"builder-matching-draft-notice\" role=\"status\"><p>Your saved draft matches the current pipeline definition. Review it in Git settings and discard the duplicate copy before running the deployment.</p><a class=\"link link-primary\" href=\"")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 51, "<div class=\"mt-3 space-y-2 rounded-lg border border-base-300 p-3 text-sm\" id=\"builder-matching-draft-notice\" role=\"status\"><p>Your saved draft matches the current pipeline definition. Review it in Git settings and discard the duplicate copy before running the deployment.</p><a class=\"link link-primary\" href=\"")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				var templ_7745c5c3_Var27 templ.SafeURL
-				templ_7745c5c3_Var27, templ_7745c5c3_Err = templ.JoinURLErrs(templ.URL(fmt.Sprintf("/orgs/%s/projects/%s/pipelines/%s?environment_slug=%s&section=git", state.DeepLinkOrgSlug, state.DeepLinkProjectSlug, state.PipelineSlug, state.TargetEnvironmentSlug)))
+				var templ_7745c5c3_Var28 templ.SafeURL
+				templ_7745c5c3_Var28, templ_7745c5c3_Err = templ.JoinURLErrs(templ.URL(fmt.Sprintf("/orgs/%s/projects/%s/pipelines/%s?environment_slug=%s&section=git", state.DeepLinkOrgSlug, state.DeepLinkProjectSlug, state.PipelineSlug, state.TargetEnvironmentSlug)))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/builder_blueprint.templ`, Line: 255, Col: 233}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/builder_blueprint.templ`, Line: 256, Col: 233}
 				}
-				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var27))
-				if templ_7745c5c3_Err != nil {
-					return templ_7745c5c3_Err
-				}
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 51, "\">Review saved draft</a></div>")
+				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var28))
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 52, "\">Review saved draft</a></div>")
+				if templ_7745c5c3_Err != nil {
+					return templ_7745c5c3_Err
+				}
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 52, " <section class=\"mt-3 border-y border-base-300 py-3\" id=\"builder-proposal-status\" aria-label=\"Git proposal status\"><div class=\"flex flex-wrap items-start justify-between gap-3\"><div class=\"min-w-0\"><div class=\"flex flex-wrap items-center gap-2\"><p class=\"text-xs font-semibold uppercase tracking-wide text-base-content/70\">Git proposal</p>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 53, " <section class=\"mt-3 border-y border-base-300 py-3\" id=\"builder-proposal-status\" aria-label=\"Git proposal status\"><div class=\"flex flex-wrap items-start justify-between gap-3\"><div class=\"min-w-0\"><div class=\"flex flex-wrap items-center gap-2\"><p class=\"text-xs font-semibold uppercase tracking-wide text-base-content/70\">Git proposal</p>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			var templ_7745c5c3_Var28 = []any{builderProposalStatusClass(state.ProposalReview)}
-			templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var28...)
+			var templ_7745c5c3_Var29 = []any{builderProposalStatusClass(state.ProposalReview)}
+			templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var29...)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 53, "<span class=\"")
-			if templ_7745c5c3_Err != nil {
-				return templ_7745c5c3_Err
-			}
-			var templ_7745c5c3_Var29 string
-			templ_7745c5c3_Var29, templ_7745c5c3_Err = templ.ResolveAttributeValue(templ.CSSClasses(templ_7745c5c3_Var28).String())
-			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/builder_blueprint.templ`, Line: 1, Col: 0}
-			}
-			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var29)
-			if templ_7745c5c3_Err != nil {
-				return templ_7745c5c3_Err
-			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 54, "\">")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 54, "<span class=\"")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 			var templ_7745c5c3_Var30 string
-			templ_7745c5c3_Var30, templ_7745c5c3_Err = templ.JoinStringErrs(builderProposalStatusLabel(state.ProposalReview))
+			templ_7745c5c3_Var30, templ_7745c5c3_Err = templ.ResolveAttributeValue(templ.CSSClasses(templ_7745c5c3_Var29).String())
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/builder_blueprint.templ`, Line: 263, Col: 124}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/builder_blueprint.templ`, Line: 1, Col: 0}
 			}
-			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var30))
+			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var30)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 55, "</span></div><p class=\"mt-1 break-all font-mono text-xs text-base-content/80\">")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 55, "\">")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 			var templ_7745c5c3_Var31 string
-			templ_7745c5c3_Var31, templ_7745c5c3_Err = templ.JoinStringErrs(state.ProposalReview.SourcePath)
+			templ_7745c5c3_Var31, templ_7745c5c3_Err = templ.JoinStringErrs(builderProposalStatusLabel(state.ProposalReview))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/builder_blueprint.templ`, Line: 265, Col: 106}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/builder_blueprint.templ`, Line: 264, Col: 124}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var31))
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 56, " · ")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 56, "</span></div><p class=\"mt-1 break-all font-mono text-xs text-base-content/80\">")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 			var templ_7745c5c3_Var32 string
-			templ_7745c5c3_Var32, templ_7745c5c3_Err = templ.JoinStringErrs(state.ProposalReview.BaseRef)
+			templ_7745c5c3_Var32, templ_7745c5c3_Err = templ.JoinStringErrs(state.ProposalReview.SourcePath)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/builder_blueprint.templ`, Line: 265, Col: 142}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/builder_blueprint.templ`, Line: 266, Col: 106}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var32))
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 57, "</p><p class=\"mt-1 break-all text-xs text-base-content/60\">")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 57, " · ")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 			var templ_7745c5c3_Var33 string
-			templ_7745c5c3_Var33, templ_7745c5c3_Err = templ.JoinStringErrs(state.ProposalReview.Repository)
+			templ_7745c5c3_Var33, templ_7745c5c3_Err = templ.JoinStringErrs(state.ProposalReview.BaseRef)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/builder_blueprint.templ`, Line: 266, Col: 96}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/builder_blueprint.templ`, Line: 266, Col: 142}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var33))
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 58, "</p>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 58, "</p><p class=\"mt-1 break-all text-xs text-base-content/60\">")
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			var templ_7745c5c3_Var34 string
+			templ_7745c5c3_Var34, templ_7745c5c3_Err = templ.JoinStringErrs(state.ProposalReview.Repository)
+			if templ_7745c5c3_Err != nil {
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/builder_blueprint.templ`, Line: 267, Col: 96}
+			}
+			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var34))
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 59, "</p>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 			if state.ProposalReview.Attribution != "" {
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 59, "<p class=\"mt-1 text-xs text-base-content/70\">")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 60, "<p class=\"mt-1 text-xs text-base-content/70\">")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				var templ_7745c5c3_Var34 string
-				templ_7745c5c3_Var34, templ_7745c5c3_Err = templ.JoinStringErrs(state.ProposalReview.Attribution)
+				var templ_7745c5c3_Var35 string
+				templ_7745c5c3_Var35, templ_7745c5c3_Err = templ.JoinStringErrs(state.ProposalReview.Attribution)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/builder_blueprint.templ`, Line: 268, Col: 88}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/builder_blueprint.templ`, Line: 269, Col: 88}
 				}
-				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var34))
+				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var35))
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 60, "</p>")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 61, "</p>")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 61, "</div><div class=\"text-left text-xs text-base-content/60 sm:text-right\"><p>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 62, "</div><div class=\"text-left text-xs text-base-content/60 sm:text-right\"><p>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			var templ_7745c5c3_Var35 string
-			templ_7745c5c3_Var35, templ_7745c5c3_Err = templ.JoinStringErrs(state.ProposalReview.StatusObservedAt)
+			var templ_7745c5c3_Var36 string
+			templ_7745c5c3_Var36, templ_7745c5c3_Err = templ.JoinStringErrs(state.ProposalReview.StatusObservedAt)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/builder_blueprint.templ`, Line: 272, Col: 50}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/builder_blueprint.templ`, Line: 273, Col: 50}
 			}
-			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var35))
+			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var36))
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 62, "</p>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 63, "</p>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 			if state.ProposalReview.ProposalID != "" && state.ProposalReview.ProviderSupported {
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 63, "<button class=\"link link-primary mr-2\" id=\"builder-proposal-refresh-btn\" type=\"button\">Refresh status</button> ")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 64, "<button class=\"link link-primary mr-2\" id=\"builder-proposal-refresh-btn\" type=\"button\">Refresh status</button> ")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
 			}
 			if state.ProposalReview.ProposalURL != "" {
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 64, "<a class=\"link link-primary\" href=\"")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 65, "<a class=\"link link-primary\" href=\"")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				var templ_7745c5c3_Var36 templ.SafeURL
-				templ_7745c5c3_Var36, templ_7745c5c3_Err = templ.JoinURLErrs(templ.URL(state.ProposalReview.ProposalURL))
+				var templ_7745c5c3_Var37 templ.SafeURL
+				templ_7745c5c3_Var37, templ_7745c5c3_Err = templ.JoinURLErrs(templ.URL(state.ProposalReview.ProposalURL))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/builder_blueprint.templ`, Line: 277, Col: 88}
-				}
-				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var36))
-				if templ_7745c5c3_Err != nil {
-					return templ_7745c5c3_Err
-				}
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 65, "\" target=\"_blank\" rel=\"noopener noreferrer\">Open proposal</a>")
-				if templ_7745c5c3_Err != nil {
-					return templ_7745c5c3_Err
-				}
-			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 66, "</div></div>")
-			if templ_7745c5c3_Err != nil {
-				return templ_7745c5c3_Err
-			}
-			if state.ProposalReview.PublicationMode == "repository_credential" && state.ProposalReview.BranchName != "" {
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 67, "<dl class=\"mt-3 grid min-w-0 gap-3 text-xs sm:grid-cols-2\"><div class=\"min-w-0 space-y-1\"><dt class=\"font-medium\">Proposal branch</dt><dd class=\"break-all font-mono\">")
-				if templ_7745c5c3_Err != nil {
-					return templ_7745c5c3_Err
-				}
-				var templ_7745c5c3_Var37 string
-				templ_7745c5c3_Var37, templ_7745c5c3_Err = templ.JoinStringErrs(state.ProposalReview.BranchName)
-				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/builder_blueprint.templ`, Line: 283, Col: 148}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/builder_blueprint.templ`, Line: 278, Col: 88}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var37))
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 68, "</dd></div>")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 66, "\" target=\"_blank\" rel=\"noopener noreferrer\">Open proposal</a>")
+				if templ_7745c5c3_Err != nil {
+					return templ_7745c5c3_Err
+				}
+			}
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 67, "</div></div>")
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			if state.ProposalReview.PublicationMode == "repository_credential" && state.ProposalReview.BranchName != "" {
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 68, "<dl class=\"mt-3 grid min-w-0 gap-3 text-xs sm:grid-cols-2\"><div class=\"min-w-0 space-y-1\"><dt class=\"font-medium\">Proposal branch</dt><dd class=\"break-all font-mono\">")
+				if templ_7745c5c3_Err != nil {
+					return templ_7745c5c3_Err
+				}
+				var templ_7745c5c3_Var38 string
+				templ_7745c5c3_Var38, templ_7745c5c3_Err = templ.JoinStringErrs(state.ProposalReview.BranchName)
+				if templ_7745c5c3_Err != nil {
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/builder_blueprint.templ`, Line: 284, Col: 148}
+				}
+				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var38))
+				if templ_7745c5c3_Err != nil {
+					return templ_7745c5c3_Err
+				}
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 69, "</dd></div>")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
 				if state.ProposalReview.BranchHeadSHA != "" {
-					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 69, "<div class=\"min-w-0 space-y-1\"><dt class=\"font-medium\">Last pushed commit</dt><dd class=\"break-all font-mono\">")
+					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 70, "<div class=\"min-w-0 space-y-1\"><dt class=\"font-medium\">Last pushed commit</dt><dd class=\"break-all font-mono\">")
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
-					var templ_7745c5c3_Var38 string
-					templ_7745c5c3_Var38, templ_7745c5c3_Err = templ.JoinStringErrs(state.ProposalReview.BranchHeadSHA)
+					var templ_7745c5c3_Var39 string
+					templ_7745c5c3_Var39, templ_7745c5c3_Err = templ.JoinStringErrs(state.ProposalReview.BranchHeadSHA)
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/builder_blueprint.templ`, Line: 285, Col: 155}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/builder_blueprint.templ`, Line: 286, Col: 155}
 					}
-					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var38))
+					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var39))
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
-					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 70, "</dd></div>")
+					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 71, "</dd></div>")
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
 				}
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 71, "</dl>")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 72, "</dl>")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 72, "</section>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 73, "</section>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 73, "<div class=\"mt-3 rounded-lg border border-base-300 bg-base-100 p-3\" id=\"builder-validation-summary\"><p class=\"text-xs font-semibold uppercase tracking-wide text-base-content/70\">Draft checks</p><ul class=\"mt-2 space-y-1 text-xs text-base-content/80\" id=\"builder-validation-list\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 74, "<div class=\"mt-3 rounded-lg border border-base-300 bg-base-100 p-3\" id=\"builder-validation-summary\"><p class=\"text-xs font-semibold uppercase tracking-wide text-base-content/70\">Draft checks</p><ul class=\"mt-2 space-y-1 text-xs text-base-content/80\" id=\"builder-validation-list\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		if len(state.ValidationIssues) > 0 {
 			for _, issue := range state.ValidationIssues {
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 74, "<li>")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 75, "<li>")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				var templ_7745c5c3_Var39 string
-				templ_7745c5c3_Var39, templ_7745c5c3_Err = templ.JoinStringErrs(issue)
+				var templ_7745c5c3_Var40 string
+				templ_7745c5c3_Var40, templ_7745c5c3_Err = templ.JoinStringErrs(issue)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/builder_blueprint.templ`, Line: 296, Col: 19}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/builder_blueprint.templ`, Line: 297, Col: 19}
 				}
-				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var39))
+				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var40))
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 75, "</li>")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 76, "</li>")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
 			}
 		} else if state.IsEmpty {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 76, "<li>Add a source step to begin. Draft checks run as you build.</li>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 77, "<li>Add a source step to begin. Draft checks run as you build.</li>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 		} else if state.IsValid {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 77, "<li>No draft issues found.</li>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 78, "<li>No draft issues found.</li>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 		} else {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 78, "<li>Resolve ")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 79, "<li>Resolve ")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			var templ_7745c5c3_Var40 string
-			templ_7745c5c3_Var40, templ_7745c5c3_Err = templ.JoinStringErrs(state.ErrorCount)
+			var templ_7745c5c3_Var41 string
+			templ_7745c5c3_Var41, templ_7745c5c3_Err = templ.JoinStringErrs(state.ErrorCount)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/builder_blueprint.templ`, Line: 303, Col: 37}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/builder_blueprint.templ`, Line: 304, Col: 37}
 			}
-			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var40))
+			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var41))
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 79, " validation issues to continue.</li>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 80, " validation issues to continue.</li>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 80, "</ul></div><div id=\"builder-server-validation\" class=\"hidden mt-3 border-t border-base-300 pt-3\" role=\"status\" aria-live=\"polite\"><p class=\"text-xs font-medium\">Server preflight</p><ul id=\"builder-server-validation-list\" class=\"mt-1 space-y-1 text-xs\"></ul></div></div><div class=\"relative grid gap-0 xl:grid-cols-[220px_minmax(0,1fr)_320px]\" id=\"builder-main-grid\"><aside class=\"relative border-b border-base-300 p-4 md:border-b-0 md:border-r\" id=\"builder-palette-aside\"><button aria-label=\"Hide palette\" class=\"btn btn-ghost btn-xs btn-circle border border-base-300 bg-base-100 absolute -right-3 z-10\" id=\"builder-toggle-palette-btn\" style=\"top: 1.25rem;\" title=\"Hide palette\" type=\"button\"><svg xmlns=\"http://www.w3.org/2000/svg\" class=\"shell-sidebar-toggle-icon h-3.5 w-3.5 transition-transform duration-200\" width=\"14\" height=\"14\" fill=\"none\" viewBox=\"0 0 24 24\" stroke=\"currentColor\" stroke-width=\"2\" aria-hidden=\"true\"><path stroke-linecap=\"round\" stroke-linejoin=\"round\" d=\"M15 19l-7-7 7-7\"></path></svg></button><div class=\"flex items-center justify-between gap-2\"><p class=\"text-xs font-semibold uppercase tracking-wide text-base-content/60\" id=\"builder-palette-title\">Canonical Steps</p></div><div class=\"hidden mt-3 text-[10px] font-semibold uppercase tracking-[0.2em] text-base-content/50\" id=\"builder-palette-rail-label\" style=\"writing-mode: vertical-rl; transform: rotate(180deg);\">Palette</div><div id=\"builder-palette-body\"><label class=\"form-control mt-2\"><input aria-label=\"Search pipeline steps\" class=\"input input-bordered input-sm\" id=\"builder-palette-search\" placeholder=\"Search nodes...\" type=\"text\"></label><p class=\"mt-2 text-xs text-base-content/70\">Add semantic steps. The graph position is computed from step kind and dependencies.</p><div class=\"mt-5 space-y-5\" id=\"builder-palette-groups\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 81, "</ul></div><div id=\"builder-server-validation\" class=\"hidden mt-3 border-t border-base-300 pt-3\" role=\"status\" aria-live=\"polite\"><p class=\"text-xs font-medium\">Server preflight</p><ul id=\"builder-server-validation-list\" class=\"mt-1 space-y-1 text-xs\"></ul></div></div><div class=\"relative grid gap-0 xl:grid-cols-[220px_minmax(0,1fr)_320px]\" id=\"builder-main-grid\"><aside class=\"relative border-b border-base-300 p-4 md:border-b-0 md:border-r\" id=\"builder-palette-aside\"><button aria-label=\"Hide palette\" class=\"btn btn-ghost btn-xs btn-circle border border-base-300 bg-base-100 absolute -right-3 z-10\" id=\"builder-toggle-palette-btn\" style=\"top: 1.25rem;\" title=\"Hide palette\" type=\"button\"><svg xmlns=\"http://www.w3.org/2000/svg\" class=\"shell-sidebar-toggle-icon h-3.5 w-3.5 transition-transform duration-200\" width=\"14\" height=\"14\" fill=\"none\" viewBox=\"0 0 24 24\" stroke=\"currentColor\" stroke-width=\"2\" aria-hidden=\"true\"><path stroke-linecap=\"round\" stroke-linejoin=\"round\" d=\"M15 19l-7-7 7-7\"></path></svg></button><div class=\"flex items-center justify-between gap-2\"><p class=\"text-xs font-semibold uppercase tracking-wide text-base-content/60\" id=\"builder-palette-title\">Canonical Steps</p></div><div class=\"hidden mt-3 text-[10px] font-semibold uppercase tracking-[0.2em] text-base-content/50\" id=\"builder-palette-rail-label\" style=\"writing-mode: vertical-rl; transform: rotate(180deg);\">Palette</div><div id=\"builder-palette-body\"><label class=\"form-control mt-2\"><input aria-label=\"Search pipeline steps\" class=\"input input-bordered input-sm\" id=\"builder-palette-search\" placeholder=\"Search nodes...\" type=\"text\"></label><p class=\"mt-2 text-xs text-base-content/70\">Add semantic steps. The graph position is computed from step kind and dependencies.</p><div class=\"mt-5 space-y-5\" id=\"builder-palette-groups\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		if len(state.PaletteEntries) == 0 {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 81, "<div><p class=\"text-xs font-semibold uppercase tracking-wide text-base-content/50\">Query Steps</p><div class=\"mt-2 space-y-2 text-sm\"><button class=\"block w-full cursor-pointer rounded-lg border border-base-300 bg-base-200 p-2.5 text-left hover:border-primary/30 hover:bg-base-100\" data-add-node-kind=\"query\" data-add-node-type=\"query\" data-palette-item=\"true\" type=\"button\"><span class=\"block font-medium\">Query Step (Execute)</span> <span class=\"block text-xs text-base-content/60\">Run the referenced query with step parameters.</span></button></div></div><div><p class=\"text-xs font-semibold uppercase tracking-wide text-base-content/50\">Transform Steps</p><div class=\"mt-2 space-y-2 text-sm\"><button class=\"block w-full cursor-pointer rounded-lg border border-base-300 bg-base-200 p-2.5 text-left hover:border-primary/30 hover:bg-base-100\" data-add-node-kind=\"transform\" data-add-node-type=\"query\" data-palette-item=\"true\" type=\"button\"><span class=\"block font-medium\">Transform Step</span> <span class=\"block text-xs text-base-content/60\">Apply SQL transform logic to upstream rows.</span></button></div></div><div><p class=\"text-xs font-semibold uppercase tracking-wide text-base-content/50\">Sinks</p><div class=\"mt-2 space-y-2 text-sm\"><button class=\"block w-full cursor-pointer rounded-lg border border-base-300 bg-base-200 p-2.5 text-left hover:border-primary/30 hover:bg-base-100\" data-add-node-kind=\"sink\" data-add-node-type=\"query\" data-palette-item=\"true\" type=\"button\"><span class=\"block font-medium\">Sink Step</span> <span class=\"block text-xs text-base-content/60\">Write ordered upstream output to a target operation.</span></button></div></div>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 82, "<div><p class=\"text-xs font-semibold uppercase tracking-wide text-base-content/50\">Query Steps</p><div class=\"mt-2 space-y-2 text-sm\"><button class=\"block w-full cursor-pointer rounded-lg border border-base-300 bg-base-200 p-2.5 text-left hover:border-primary/30 hover:bg-base-100\" data-add-node-kind=\"query\" data-add-node-type=\"query\" data-palette-item=\"true\" type=\"button\"><span class=\"block font-medium\">Query Step (Execute)</span> <span class=\"block text-xs text-base-content/60\">Run the referenced query with step parameters.</span></button></div></div><div><p class=\"text-xs font-semibold uppercase tracking-wide text-base-content/50\">Transform Steps</p><div class=\"mt-2 space-y-2 text-sm\"><button class=\"block w-full cursor-pointer rounded-lg border border-base-300 bg-base-200 p-2.5 text-left hover:border-primary/30 hover:bg-base-100\" data-add-node-kind=\"transform\" data-add-node-type=\"query\" data-palette-item=\"true\" type=\"button\"><span class=\"block font-medium\">Transform Step</span> <span class=\"block text-xs text-base-content/60\">Apply SQL transform logic to upstream rows.</span></button></div></div><div><p class=\"text-xs font-semibold uppercase tracking-wide text-base-content/50\">Sinks</p><div class=\"mt-2 space-y-2 text-sm\"><button class=\"block w-full cursor-pointer rounded-lg border border-base-300 bg-base-200 p-2.5 text-left hover:border-primary/30 hover:bg-base-100\" data-add-node-kind=\"sink\" data-add-node-type=\"query\" data-palette-item=\"true\" type=\"button\"><span class=\"block font-medium\">Sink Step</span> <span class=\"block text-xs text-base-content/60\">Write ordered upstream output to a target operation.</span></button></div></div>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 		} else {
 			for _, group := range []string{"Inputs", "Query Steps", "Transform Steps", "Sinks"} {
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 82, "<div><p class=\"text-xs font-semibold uppercase tracking-wide text-base-content/50\">")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 83, "<div><p class=\"text-xs font-semibold uppercase tracking-wide text-base-content/50\">")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				var templ_7745c5c3_Var41 string
-				templ_7745c5c3_Var41, templ_7745c5c3_Err = templ.JoinStringErrs(group)
+				var templ_7745c5c3_Var42 string
+				templ_7745c5c3_Var42, templ_7745c5c3_Err = templ.JoinStringErrs(group)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/builder_blueprint.templ`, Line: 362, Col: 95}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/builder_blueprint.templ`, Line: 363, Col: 95}
 				}
-				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var41))
+				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var42))
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 83, "</p><div class=\"mt-2 space-y-2 text-sm\">")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 84, "</p><div class=\"mt-2 space-y-2 text-sm\">")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
 				for _, entry := range state.PaletteEntries {
 					if entry.Group == group {
-						templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 84, "<button class=\"block w-full cursor-pointer rounded-lg border border-base-300 bg-base-200 p-2.5 text-left hover:border-primary/30 hover:bg-base-100\" data-add-node-kind=\"")
-						if templ_7745c5c3_Err != nil {
-							return templ_7745c5c3_Err
-						}
-						var templ_7745c5c3_Var42 string
-						templ_7745c5c3_Var42, templ_7745c5c3_Err = templ.ResolveAttributeValue(entry.Kind)
-						if templ_7745c5c3_Err != nil {
-							return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/builder_blueprint.templ`, Line: 366, Col: 192}
-						}
-						_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var42)
-						if templ_7745c5c3_Err != nil {
-							return templ_7745c5c3_Err
-						}
-						templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 85, "\" data-add-node-type=\"")
+						templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 85, "<button class=\"block w-full cursor-pointer rounded-lg border border-base-300 bg-base-200 p-2.5 text-left hover:border-primary/30 hover:bg-base-100\" data-add-node-kind=\"")
 						if templ_7745c5c3_Err != nil {
 							return templ_7745c5c3_Err
 						}
 						var templ_7745c5c3_Var43 string
-						templ_7745c5c3_Var43, templ_7745c5c3_Err = templ.ResolveAttributeValue(entry.NodeType)
+						templ_7745c5c3_Var43, templ_7745c5c3_Err = templ.ResolveAttributeValue(entry.Kind)
 						if templ_7745c5c3_Err != nil {
-							return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/builder_blueprint.templ`, Line: 366, Col: 230}
+							return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/builder_blueprint.templ`, Line: 367, Col: 192}
 						}
 						_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var43)
 						if templ_7745c5c3_Err != nil {
 							return templ_7745c5c3_Err
 						}
-						templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 86, "\" data-palette-item=\"true\" type=\"button\"><span class=\"block font-medium\">")
+						templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 86, "\" data-add-node-type=\"")
 						if templ_7745c5c3_Err != nil {
 							return templ_7745c5c3_Err
 						}
 						var templ_7745c5c3_Var44 string
-						templ_7745c5c3_Var44, templ_7745c5c3_Err = templ.JoinStringErrs(entry.Label)
+						templ_7745c5c3_Var44, templ_7745c5c3_Err = templ.ResolveAttributeValue(entry.NodeType)
 						if templ_7745c5c3_Err != nil {
-							return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/builder_blueprint.templ`, Line: 367, Col: 59}
+							return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/builder_blueprint.templ`, Line: 367, Col: 230}
 						}
-						_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var44))
+						_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var44)
 						if templ_7745c5c3_Err != nil {
 							return templ_7745c5c3_Err
 						}
-						templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 87, "</span> <span class=\"block text-xs text-base-content/60\">")
+						templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 87, "\" data-palette-item=\"true\" type=\"button\"><span class=\"block font-medium\">")
 						if templ_7745c5c3_Err != nil {
 							return templ_7745c5c3_Err
 						}
 						var templ_7745c5c3_Var45 string
-						templ_7745c5c3_Var45, templ_7745c5c3_Err = templ.JoinStringErrs(entry.Description)
+						templ_7745c5c3_Var45, templ_7745c5c3_Err = templ.JoinStringErrs(entry.Label)
 						if templ_7745c5c3_Err != nil {
-							return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/builder_blueprint.templ`, Line: 368, Col: 82}
+							return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/builder_blueprint.templ`, Line: 368, Col: 59}
 						}
 						_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var45))
 						if templ_7745c5c3_Err != nil {
 							return templ_7745c5c3_Err
 						}
-						templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 88, "</span></button>")
+						templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 88, "</span> <span class=\"block text-xs text-base-content/60\">")
+						if templ_7745c5c3_Err != nil {
+							return templ_7745c5c3_Err
+						}
+						var templ_7745c5c3_Var46 string
+						templ_7745c5c3_Var46, templ_7745c5c3_Err = templ.JoinStringErrs(entry.Description)
+						if templ_7745c5c3_Err != nil {
+							return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/builder_blueprint.templ`, Line: 369, Col: 82}
+						}
+						_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var46))
+						if templ_7745c5c3_Err != nil {
+							return templ_7745c5c3_Err
+						}
+						templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 89, "</span></button>")
 						if templ_7745c5c3_Err != nil {
 							return templ_7745c5c3_Err
 						}
 					}
 				}
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 89, "</div></div>")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 90, "</div></div>")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
 			}
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 90, "</div></div></aside><section class=\"relative border-b border-base-300 bg-base-200/40 p-3 sm:p-4 md:border-b-0\" id=\"builder-main-section\"><div class=\"grid gap-4 2xl:grid-cols-[minmax(48rem,1fr)_minmax(22rem,30rem)]\" id=\"builder-workspace\" data-view-mode=\"preview\"><div class=\"relative min-h-[380px] overflow-hidden bg-base-100 p-2 sm:min-h-[440px]\" id=\"builder-canvas-root\" data-member-slug=\"")
-		if templ_7745c5c3_Err != nil {
-			return templ_7745c5c3_Err
-		}
-		var templ_7745c5c3_Var46 string
-		templ_7745c5c3_Var46, templ_7745c5c3_Err = templ.ResolveAttributeValue(state.MemberSlug)
-		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/builder_blueprint.templ`, Line: 381, Col: 151}
-		}
-		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var46)
-		if templ_7745c5c3_Err != nil {
-			return templ_7745c5c3_Err
-		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 91, "\" data-org-slug=\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 91, "</div></div></aside><section class=\"relative border-b border-base-300 bg-base-200/40 p-3 sm:p-4 md:border-b-0\" id=\"builder-main-section\"><div class=\"grid gap-4 2xl:grid-cols-[minmax(48rem,1fr)_minmax(22rem,30rem)]\" id=\"builder-workspace\" data-view-mode=\"preview\"><div class=\"relative min-h-[380px] overflow-hidden bg-base-100 p-2 sm:min-h-[440px]\" id=\"builder-canvas-root\" data-member-slug=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var47 string
-		templ_7745c5c3_Var47, templ_7745c5c3_Err = templ.ResolveAttributeValue(state.DeepLinkOrgSlug)
+		templ_7745c5c3_Var47, templ_7745c5c3_Err = templ.ResolveAttributeValue(state.MemberSlug)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/builder_blueprint.templ`, Line: 381, Col: 191}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/builder_blueprint.templ`, Line: 382, Col: 151}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var47)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 92, "\" data-project-slug=\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 92, "\" data-org-slug=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var48 string
-		templ_7745c5c3_Var48, templ_7745c5c3_Err = templ.ResolveAttributeValue(state.DeepLinkProjectSlug)
+		templ_7745c5c3_Var48, templ_7745c5c3_Err = templ.ResolveAttributeValue(state.DeepLinkOrgSlug)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/builder_blueprint.templ`, Line: 381, Col: 239}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/builder_blueprint.templ`, Line: 382, Col: 191}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var48)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 93, "\" data-target-environment-slug=\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 93, "\" data-project-slug=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var49 string
-		templ_7745c5c3_Var49, templ_7745c5c3_Err = templ.ResolveAttributeValue(state.TargetEnvironmentSlug)
+		templ_7745c5c3_Var49, templ_7745c5c3_Err = templ.ResolveAttributeValue(state.DeepLinkProjectSlug)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/builder_blueprint.templ`, Line: 381, Col: 300}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/builder_blueprint.templ`, Line: 382, Col: 239}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var49)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 94, "\" data-pipeline-slug=\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 94, "\" data-target-environment-slug=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var50 string
-		templ_7745c5c3_Var50, templ_7745c5c3_Err = templ.ResolveAttributeValue(state.PipelineSlug)
+		templ_7745c5c3_Var50, templ_7745c5c3_Err = templ.ResolveAttributeValue(state.TargetEnvironmentSlug)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/builder_blueprint.templ`, Line: 381, Col: 342}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/builder_blueprint.templ`, Line: 382, Col: 300}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var50)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 95, "\" data-pipeline-name=\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 95, "\" data-pipeline-slug=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var51 string
-		templ_7745c5c3_Var51, templ_7745c5c3_Err = templ.ResolveAttributeValue(state.PipelineName)
+		templ_7745c5c3_Var51, templ_7745c5c3_Err = templ.ResolveAttributeValue(state.PipelineSlug)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/builder_blueprint.templ`, Line: 381, Col: 384}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/builder_blueprint.templ`, Line: 382, Col: 342}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var51)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 96, "\" data-pipeline-has-draft=\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 96, "\" data-pipeline-name=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var52 string
-		templ_7745c5c3_Var52, templ_7745c5c3_Err = templ.ResolveAttributeValue(boolString(state.HasDraft))
+		templ_7745c5c3_Var52, templ_7745c5c3_Err = templ.ResolveAttributeValue(state.PipelineName)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/builder_blueprint.templ`, Line: 381, Col: 439}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/builder_blueprint.templ`, Line: 382, Col: 384}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var52)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 97, "\" data-pipeline-expected-version-id=\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 97, "\" data-pipeline-has-draft=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var53 string
-		templ_7745c5c3_Var53, templ_7745c5c3_Err = templ.ResolveAttributeValue(optionalString(state.ExpectedVersionID))
+		templ_7745c5c3_Var53, templ_7745c5c3_Err = templ.ResolveAttributeValue(boolString(state.HasDraft))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/builder_blueprint.templ`, Line: 381, Col: 517}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/builder_blueprint.templ`, Line: 382, Col: 439}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var53)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 98, "\" data-pipeline-current-version-id=\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 98, "\" data-pipeline-expected-version-id=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var54 string
-		templ_7745c5c3_Var54, templ_7745c5c3_Err = templ.ResolveAttributeValue(optionalString(state.CurrentVersionID))
+		templ_7745c5c3_Var54, templ_7745c5c3_Err = templ.ResolveAttributeValue(optionalString(state.ExpectedVersionID))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/builder_blueprint.templ`, Line: 381, Col: 593}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/builder_blueprint.templ`, Line: 382, Col: 517}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var54)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 99, "\" data-pipeline-draft-based-on-version-id=\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 99, "\" data-pipeline-current-version-id=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var55 string
-		templ_7745c5c3_Var55, templ_7745c5c3_Err = templ.ResolveAttributeValue(optionalString(state.DraftBasedOnVersionID))
+		templ_7745c5c3_Var55, templ_7745c5c3_Err = templ.ResolveAttributeValue(optionalString(state.CurrentVersionID))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/builder_blueprint.templ`, Line: 381, Col: 681}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/builder_blueprint.templ`, Line: 382, Col: 593}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var55)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 100, "\" data-pipeline-source-format=\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 100, "\" data-pipeline-draft-based-on-version-id=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var56 string
-		templ_7745c5c3_Var56, templ_7745c5c3_Err = templ.ResolveAttributeValue(state.SourceFormat)
+		templ_7745c5c3_Var56, templ_7745c5c3_Err = templ.ResolveAttributeValue(optionalString(state.DraftBasedOnVersionID))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/builder_blueprint.templ`, Line: 381, Col: 732}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/builder_blueprint.templ`, Line: 382, Col: 681}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var56)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 101, "\" data-pipeline-export-format=\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 101, "\" data-pipeline-source-format=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var57 string
-		templ_7745c5c3_Var57, templ_7745c5c3_Err = templ.ResolveAttributeValue(state.ExportFormat)
+		templ_7745c5c3_Var57, templ_7745c5c3_Err = templ.ResolveAttributeValue(state.SourceFormat)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/builder_blueprint.templ`, Line: 381, Col: 783}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/builder_blueprint.templ`, Line: 382, Col: 732}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var57)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 102, "\" data-pipeline-example=\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 102, "\" data-pipeline-export-format=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var58 string
-		templ_7745c5c3_Var58, templ_7745c5c3_Err = templ.ResolveAttributeValue(state.PipelineExample)
+		templ_7745c5c3_Var58, templ_7745c5c3_Err = templ.ResolveAttributeValue(state.ExportFormat)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/builder_blueprint.templ`, Line: 381, Col: 831}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/builder_blueprint.templ`, Line: 382, Col: 783}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var58)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 103, "\" data-save-url=\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 103, "\" data-pipeline-example=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var59 string
-		templ_7745c5c3_Var59, templ_7745c5c3_Err = templ.ResolveAttributeValue(state.SaveURL)
+		templ_7745c5c3_Var59, templ_7745c5c3_Err = templ.ResolveAttributeValue(state.PipelineExample)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/builder_blueprint.templ`, Line: 381, Col: 863}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/builder_blueprint.templ`, Line: 382, Col: 831}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var59)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 104, "\"><div class=\"pipeline-graph-grid absolute inset-0 rounded-lg\"></div><div class=\"relative z-10\"><div class=\"flex flex-wrap items-center gap-2 rounded-lg border border-base-300 bg-base-100 px-3 py-2 text-xs text-base-content/80\"><span class=\"mr-auto text-base-content/70\">Select a step to inspect or edit it.</span><div class=\"flex items-center gap-1\" role=\"group\" aria-label=\"Canvas controls\"><button type=\"button\" class=\"btn btn-ghost btn-sm\" id=\"builder-zoom-out-btn\" aria-label=\"Zoom out\" title=\"Zoom out\">−</button> <button type=\"button\" class=\"btn btn-ghost btn-sm\" id=\"builder-zoom-in-btn\" aria-label=\"Zoom in\" title=\"Zoom in\">+</button> <output class=\"min-w-10 text-center text-xs tabular-nums\" id=\"builder-zoom-level\" aria-label=\"Canvas zoom\">100%</output> <button type=\"button\" class=\"btn btn-ghost btn-sm\" id=\"builder-fit-btn\">Fit</button> <button type=\"button\" class=\"btn btn-ghost btn-sm\" id=\"builder-toggle-mappings-btn\" aria-expanded=\"false\">Expand mappings</button></div></div>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 104, "\" data-save-url=\"")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		var templ_7745c5c3_Var60 string
+		templ_7745c5c3_Var60, templ_7745c5c3_Err = templ.ResolveAttributeValue(state.SaveURL)
+		if templ_7745c5c3_Err != nil {
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/builder_blueprint.templ`, Line: 382, Col: 863}
+		}
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var60)
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 105, "\"><div class=\"pipeline-graph-grid absolute inset-0 rounded-lg\"></div><div class=\"relative z-10\"><div class=\"flex flex-wrap items-center gap-2 rounded-lg border border-base-300 bg-base-100 px-3 py-2 text-xs text-base-content/80\"><span class=\"mr-auto text-base-content/70\">Select a step to inspect or edit it.</span><div class=\"flex items-center gap-1\" role=\"group\" aria-label=\"Canvas controls\"><button type=\"button\" class=\"btn btn-ghost btn-sm\" id=\"builder-zoom-out-btn\" aria-label=\"Zoom out\" title=\"Zoom out\">−</button> <button type=\"button\" class=\"btn btn-ghost btn-sm\" id=\"builder-zoom-in-btn\" aria-label=\"Zoom in\" title=\"Zoom in\">+</button> <output class=\"min-w-10 text-center text-xs tabular-nums\" id=\"builder-zoom-level\" aria-label=\"Canvas zoom\">100%</output> <button type=\"button\" class=\"btn btn-ghost btn-sm\" id=\"builder-fit-btn\">Fit</button> <button type=\"button\" class=\"btn btn-ghost btn-sm\" id=\"builder-toggle-mappings-btn\" aria-expanded=\"false\">Expand mappings</button></div></div>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		if state.HasImportedGraph {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 105, "<div class=\"mt-3 text-xs text-base-content/70\">")
-			if templ_7745c5c3_Err != nil {
-				return templ_7745c5c3_Err
-			}
-			var templ_7745c5c3_Var60 string
-			templ_7745c5c3_Var60, templ_7745c5c3_Err = templ.JoinStringErrs(len(state.ImportedNodes))
-			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/builder_blueprint.templ`, Line: 396, Col: 36}
-			}
-			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var60))
-			if templ_7745c5c3_Err != nil {
-				return templ_7745c5c3_Err
-			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 106, " steps · ")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 106, "<div class=\"mt-3 text-xs text-base-content/70\">")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 			var templ_7745c5c3_Var61 string
-			templ_7745c5c3_Var61, templ_7745c5c3_Err = templ.JoinStringErrs(state.ImportedEdgeCount)
+			templ_7745c5c3_Var61, templ_7745c5c3_Err = templ.JoinStringErrs(len(state.ImportedNodes))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/builder_blueprint.templ`, Line: 396, Col: 73}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/builder_blueprint.templ`, Line: 397, Col: 36}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var61))
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 107, " connections · ")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 107, " steps · ")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 			var templ_7745c5c3_Var62 string
-			templ_7745c5c3_Var62, templ_7745c5c3_Err = templ.JoinStringErrs(state.ImportedBindingCount)
+			templ_7745c5c3_Var62, templ_7745c5c3_Err = templ.JoinStringErrs(state.ImportedEdgeCount)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/builder_blueprint.templ`, Line: 396, Col: 119}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/builder_blueprint.templ`, Line: 397, Col: 73}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var62))
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 108, " bindings</div>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 108, " connections · ")
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			var templ_7745c5c3_Var63 string
+			templ_7745c5c3_Var63, templ_7745c5c3_Err = templ.JoinStringErrs(state.ImportedBindingCount)
+			if templ_7745c5c3_Err != nil {
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/builder_blueprint.templ`, Line: 397, Col: 119}
+			}
+			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var63))
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 109, " bindings</div>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 109, "<div class=\"mt-4 overflow-x-auto pb-2\" id=\"builder-canvas-viewport\"><style>\n\t\t\t\t\t\t\t\t\t#builder-canvas-stage {\n\t\t\t\t\t\t\t\t\t\toverflow: auto;\n\t\t\t\t\t\t\t\t\t}\n\n\t\t\t\t\t\t\t\t\t#builder-canvas-bounds {\n                                        overflow: hidden;\n\t\t\t\t\t\t\t\t\t\tmin-width: 0;\n\t\t\t\t\t\t\t\t\t\tmin-height: 380px;\n\t\t\t\t\t\t\t\t\t}\n\n\t\t\t\t\t\t\t\t\t#builder-canvas-surface {\n\t\t\t\t\t\t\t\t\t\tposition: absolute;\n\t\t\t\t\t\t\t\t\t\ttransform-origin: top left;\n\t\t\t\t\t\t\t\t\t}\n\n\t\t\t\t\t\t\t\t\t#builder-lane-overlay {\n\t\t\t\t\t\t\t\t\t\tposition: absolute;\n\t\t\t\t\t\t\t\t\t\tinset: 0;\n\t\t\t\t\t\t\t\t\t\t/* Lane boundaries follow the canonical node columns and card dimensions. */\n\t\t\t\t\t\t\t\t\t\t--builder-lane-divider-1: calc((5.5 * var(--builder-grid-unit-x)) + (0.5 * var(--builder-node-width)));\n\t\t\t\t\t\t\t\t\t\t--builder-lane-divider-2: calc((12.5 * var(--builder-grid-unit-x)) + (0.5 * var(--builder-node-width)));\n\t\t\t\t\t\t\t\t\t\tpointer-events: none;\n\t\t\t\t\t\t\t\t\t\tz-index: 1;\n\t\t\t\t\t\t\t\t\t}\n\n\t\t\t\t\t\t\t\t\t#builder-lane-overlay .builder-lane {\n\t\t\t\t\t\t\t\t\t\tposition: absolute;\n\t\t\t\t\t\t\t\t\t\ttop: 0;\n\t\t\t\t\t\t\t\t\t\tbottom: 0;\n\t\t\t\t\t\t\t\t\t}\n\n\t\t\t\t\t\t\t\t\t#builder-lane-overlay .builder-lane-sources {\n\t\t\t\t\t\t\t\t\t\tleft: 0;\n\t\t\t\t\t\t\t\t\t\tright: calc(100% - var(--builder-lane-divider-1));\n\t\t\t\t\t\t\t\t\t\tbackground: linear-gradient(180deg, color-mix(in oklab, var(--color-primary) 8%, transparent), color-mix(in oklab, var(--color-primary) 2%, transparent));\n\t\t\t\t\t\t\t\t\t\tborder-right: 1px dashed color-mix(in oklab, var(--color-base-content) 18%, transparent);\n\t\t\t\t\t\t\t\t\t}\n\n\t\t\t\t\t\t\t\t\t#builder-lane-overlay .builder-lane-transforms {\n\t\t\t\t\t\t\t\t\t\tleft: var(--builder-lane-divider-1);\n\t\t\t\t\t\t\t\t\t\tright: calc(100% - var(--builder-lane-divider-2));\n\t\t\t\t\t\t\t\t\t\tbackground: linear-gradient(180deg, color-mix(in oklab, var(--color-info) 8%, transparent), color-mix(in oklab, var(--color-info) 2%, transparent));\n\t\t\t\t\t\t\t\t\t\tborder-right: 1px dashed color-mix(in oklab, var(--color-base-content) 18%, transparent);\n\t\t\t\t\t\t\t\t\t}\n\n\t\t\t\t\t\t\t\t\t#builder-lane-overlay .builder-lane-sinks {\n\t\t\t\t\t\t\t\t\t\tleft: var(--builder-lane-divider-2);\n\t\t\t\t\t\t\t\t\t\tright: 0;\n\t\t\t\t\t\t\t\t\t\tbackground: linear-gradient(180deg, color-mix(in oklab, var(--color-success) 8%, transparent), color-mix(in oklab, var(--color-success) 2%, transparent));\n\t\t\t\t\t\t\t\t\t}\n\n\t\t\t\t\t\t\t\t\t#builder-lane-overlay .builder-lane-label {\n\t\t\t\t\t\t\t\t\t\tposition: absolute;\n\t\t\t\t\t\t\t\t\t\ttop: 10px;\n\t\t\t\t\t\t\t\t\t\tleft: 12px;\n\t\t\t\t\t\t\t\t\t\tpadding: 2px 8px;\n\t\t\t\t\t\t\t\t\t\tborder-radius: 9999px;\n\t\t\t\t\t\t\t\t\t\tfont-size: 10px;\n\t\t\t\t\t\t\t\t\t\tfont-weight: 700;\n\t\t\t\t\t\t\t\t\t\tletter-spacing: 0.12em;\n\t\t\t\t\t\t\t\t\t\ttext-transform: uppercase;\n\t\t\t\t\t\t\t\t\t\tcolor: var(--color-base-content);\n\t\t\t\t\t\t\t\t\t\tbackground: color-mix(in oklab, var(--color-base-100) 84%, transparent);\n\t\t\t\t\t\t\t\t\t\tborder: 1px solid color-mix(in oklab, var(--color-base-300) 70%, transparent);\n\t\t\t\t\t\t\t\t\t}\n\n\t\t\t\t\t\t\t\t\t#builder-grid {\n                                        pointer-events: none;\n\t\t\t\t\t\t\t\t\t\tposition: relative;\n\t\t\t\t\t\t\t\t\t\tz-index: 30;\n\t\t\t\t\t\t\t\t\t}\n\n\t\t\t\t\t\t\t\t\t#builder-grid .builder-node {\n                                        pointer-events: auto;\n\t\t\t\t\t\t\t\t\t\toverflow: visible;\n\t\t\t\t\t\t\t\t\t\tz-index: 10;\n\t\t\t\t\t\t\t\t\t\t--builder-node-accent: var(--color-primary);\n\t\t\t\t\t\t\t\t\t}\n\n\t\t\t\t\t\t\t\t\t#builder-grid .builder-node[data-kind=\"transform\"] {\n\t\t\t\t\t\t\t\t\t\t--builder-node-accent: var(--color-info);\n\t\t\t\t\t\t\t\t\t}\n\n\t\t\t\t\t\t\t\t\t#builder-grid .builder-node[data-kind=\"sink\"] {\n\t\t\t\t\t\t\t\t\t\t--builder-node-accent: var(--color-success);\n\t\t\t\t\t\t\t\t\t}\n\n                                    #builder-grid .builder-node-content {\n                                        border-color: var(--color-base-300);\n                                        background: var(--color-base-100);\n                                        color: var(--color-base-content);\n                                        padding: 12px;\n                                    }\n                                    #builder-grid .builder-node-content:hover {\n                                        border-color: color-mix(in oklab, var(--color-primary) 60%, transparent);\n                                    }\n\n\t\t\t\t\t\t\t\t\t.builder-node-badges {\n\t\t\t\t\t\t\t\t\t\tdisplay: flex;\n\t\t\t\t\t\t\t\t\t\tmin-height: 18px;\n\t\t\t\t\t\t\t\t\t\tgap: 4px;\n\t\t\t\t\t\t\t\t\t\tmargin-top: auto;\n\t\t\t\t\t\t\t\t\t\toverflow: hidden;\n\t\t\t\t\t\t\t\t\t}\n\n\t\t\t\t\t\t\t\t\t.builder-node-badge {\n\t\t\t\t\t\t\t\t\t\tdisplay: inline-flex;\n\t\t\t\t\t\t\t\t\t\talign-items: center;\n\t\t\t\t\t\t\t\t\t\tmax-width: 72px;\n\t\t\t\t\t\t\t\t\t\theight: 18px;\n\t\t\t\t\t\t\t\t\t\tpadding: 0 6px;\n\t\t\t\t\t\t\t\t\t\tborder-radius: 9999px;\n\t\t\t\t\t\t\t\t\t\tborder: 1px solid color-mix(in oklab, var(--builder-node-accent) 34%, transparent);\n\t\t\t\t\t\t\t\t\t\tbackground: color-mix(in oklab, var(--builder-node-accent) 14%, transparent);\n\t\t\t\t\t\t\t\t\t\tcolor: var(--color-base-content);\n\t\t\t\t\t\t\t\t\t\tfont-size: 10px;\n\t\t\t\t\t\t\t\t\t\tfont-weight: 700;\n\t\t\t\t\t\t\t\t\t\tline-height: 1;\n\t\t\t\t\t\t\t\t\t\toverflow: hidden;\n\t\t\t\t\t\t\t\t\t\ttext-overflow: ellipsis;\n\t\t\t\t\t\t\t\t\t\twhite-space: nowrap;\n\t\t\t\t\t\t\t\t\t}\n\n\t\t\t\t\t\t\t\t\t.builder-node-badge[data-tone=\"success\"] {\n\t\t\t\t\t\t\t\t\t\tborder-color: color-mix(in oklab, var(--color-success) 42%, transparent);\n\t\t\t\t\t\t\t\t\t\tbackground: color-mix(in oklab, var(--color-success) 16%, transparent);\n\t\t\t\t\t\t\t\t\t}\n\n\t\t\t\t\t\t\t\t\t.builder-node-badge[data-tone=\"warning\"] {\n\t\t\t\t\t\t\t\t\t\tborder-color: color-mix(in oklab, var(--color-warning) 46%, transparent);\n\t\t\t\t\t\t\t\t\t\tbackground: color-mix(in oklab, var(--color-warning) 16%, transparent);\n\t\t\t\t\t\t\t\t\t}\n\n\t\t\t\t\t\t\t\t\t.builder-node-badge[data-tone=\"error\"] {\n\t\t\t\t\t\t\t\t\t\tborder-color: color-mix(in oklab, var(--color-error) 54%, transparent);\n\t\t\t\t\t\t\t\t\t\tbackground: color-mix(in oklab, var(--color-error) 18%, transparent);\n\t\t\t\t\t\t\t\t\t}\n\n\t\t\t\t\t\t\t\t\t.builder-node-disclosure-popover {\n\t\t\t\t\t\t\t\t\t\tposition: absolute;\n\t\t\t\t\t\t\t\t\t\tz-index: 80;\n\t\t\t\t\t\t\t\t\t\twidth: min(340px, calc(100% - 24px));\n\t\t\t\t\t\t\t\t\t\tborder-radius: 0.5rem;\n\t\t\t\t\t\t\t\t\t\tborder: 1px solid color-mix(in oklab, var(--color-primary) 34%, var(--color-base-300));\n\t\t\t\t\t\t\t\t\t\tbackground: color-mix(in oklab, var(--color-base-100) 94%, #000 6%);\n\t\t\t\t\t\t\t\t\t\tcolor: var(--color-base-content);\n\t\t\t\t\t\t\t\t\t\tbox-shadow: 0 16px 40px color-mix(in oklab, #000 40%, transparent);\n\t\t\t\t\t\t\t\t\t\tpointer-events: auto;\n\t\t\t\t\t\t\t\t\t}\n\n\t\t\t\t\t\t\t\t\t.builder-node-disclosure-popover dl {\n\t\t\t\t\t\t\t\t\t\tdisplay: grid;\n\t\t\t\t\t\t\t\t\t\tgrid-template-columns: 74px minmax(0, 1fr);\n\t\t\t\t\t\t\t\t\t\tgap: 6px 10px;\n\t\t\t\t\t\t\t\t\t\tmargin: 0;\n\t\t\t\t\t\t\t\t\t}\n\n\t\t\t\t\t\t\t\t\t.builder-node-disclosure-popover dt {\n\t\t\t\t\t\t\t\t\t\tcolor: var(--color-base-content);\n\t\t\t\t\t\t\t\t\t\tfont-size: 11px;\n\t\t\t\t\t\t\t\t\t\topacity: 0.58;\n\t\t\t\t\t\t\t\t\t}\n\n\t\t\t\t\t\t\t\t\t.builder-node-disclosure-popover dd {\n\t\t\t\t\t\t\t\t\t\tmin-width: 0;\n\t\t\t\t\t\t\t\t\t\tmargin: 0;\n\t\t\t\t\t\t\t\t\t\toverflow: hidden;\n\t\t\t\t\t\t\t\t\t\tcolor: var(--color-base-content);\n\t\t\t\t\t\t\t\t\t\tfont-size: 11px;\n\t\t\t\t\t\t\t\t\t\ttext-overflow: ellipsis;\n\t\t\t\t\t\t\t\t\t\twhite-space: nowrap;\n\t\t\t\t\t\t\t\t\t}\n\n\t\t\t\t\t\t\t\t\t#builder-grid .builder-node:focus-visible { outline: none; }\n\t\t\t\t\t\t\t\t\t#builder-grid .builder-node:focus-visible > .builder-node-content,\n\t\t\t\t\t\t\t\t\t#builder-grid .builder-node-content:focus-visible {\n\t\t\t\t\t\t\t\t\t\t--builder-focus-outline: max(2px, calc(var(--builder-min-target-size, 24px) / 8));\n\t\t\t\t\t\t\t\t\t\toutline: var(--builder-focus-outline) solid var(--color-base-content);\n\t\t\t\t\t\t\t\t\t\toutline-offset: 0;\n\t\t\t\t\t\t\t\t\t}\n                                    #builder-edges-layer [role=\"button\"]:focus { outline: none; }\n                                    #builder-edges-layer [role=\"button\"]:focus {\n                                        stroke: color-mix(in oklab, var(--color-info) 76%, transparent);\n                                    }\n                                    #builder-edges-layer {\n\t\t\t\t\t\t\t\t\t\tpointer-events: none;\n\t\t\t\t\t\t\t\t\t}\n\n\t\t\t\t\t\t\t\t\t.node-port {\n\t\t\t\t\t\t\t\t\t\tposition: absolute;\n\t\t\t\t\t\t\t\t\t\ttop: 50%;\n\t\t\t\t\t\t\t\t\t\ttransform: translateY(-50%);\n\t\t\t\t\t\t\t\t\t\tdisplay: flex;\n\t\t\t\t\t\t\t\t\t\talign-items: center;\n\t\t\t\t\t\t\t\t\t\tjustify-content: center;\n\t\t\t\t\t\t\t\t\t\twidth: 16px;\n\t\t\t\t\t\t\t\t\t\theight: 16px;\n\t\t\t\t\t\t\t\t\t\tborder-radius: 50%;\n\t\t\t\t\t\t\t\t\t\tbackground: color-mix(in oklab, var(--builder-node-accent) 18%, var(--color-base-100));\n\t\t\t\t\t\t\t\t\t\tbox-shadow: 0 0 0 1px color-mix(in oklab, var(--builder-node-accent) 24%, transparent);\n\t\t\t\t\t\t\t\t\t\tcursor: pointer;\n\t\t\t\t\t\t\t\t\t\tz-index: 30;\n\t\t\t\t\t\t\t\t\t\tfont-size: 7px;\n\t\t\t\t\t\t\t\t\t\tfont-weight: 700;\n\t\t\t\t\t\t\t\t\t\tline-height: 1;\n\t\t\t\t\t\t\t\t\t\topacity: 0.72;\n\t\t\t\t\t\t\t\t\t\ttransition: opacity 0.15s, background-color 0.1s, color 0.1s, transform 0.1s;\n\t\t\t\t\t\t\t\t\t\tpointer-events: auto;\n\t\t\t\t\t\t\t\t\t\ttouch-action: none;\n\t\t\t\t\t\t\t\t\t\tuser-select: none;\n\t\t\t\t\t\t\t\t\t}\n\n\t\t\t\t\t\t\t\t\t.node-port-in {\n\t\t\t\t\t\t\t\t\t\tleft: -8px;\n\t\t\t\t\t\t\t\t\t\tcolor: var(--color-success);\n\t\t\t\t\t\t\t\t\t\tborder: 2px solid var(--color-success);\n\t\t\t\t\t\t\t\t\t\tbackground: color-mix(in oklab, var(--color-success) 18%, var(--color-base-100));\n\t\t\t\t\t\t\t\t\t}\n\n\t\t\t\t\t\t\t\t\t.node-port-out {\n\t\t\t\t\t\t\t\t\t\tright: -8px;\n\t\t\t\t\t\t\t\t\t\tcolor: var(--color-primary);\n\t\t\t\t\t\t\t\t\t\tborder: 2px solid var(--color-primary);\n\t\t\t\t\t\t\t\t\t\tbackground: color-mix(in oklab, var(--color-primary) 18%, var(--color-base-100));\n\t\t\t\t\t\t\t\t\t}\n\n\t\t\t\t\t\t\t\t\t#builder-grid .builder-node:hover .node-port,\n\t\t\t\t\t\t\t\t\t#builder-grid .builder-node:focus-within .node-port,\n\t\t\t\t\t\t\t\t\t.node-port:hover {\n\t\t\t\t\t\t\t\t\t\topacity: 1;\n\t\t\t\t\t\t\t\t\t}\n\n\t\t\t\t\t\t\t\t\t.node-port:hover {\n\t\t\t\t\t\t\t\t\t\ttransform: translateY(-50%) scale(1.08);\n\t\t\t\t\t\t\t\t\t}\n\n\t\t\t\t\t\t\t\t\t.node-port-connect-target {\n\t\t\t\t\t\t\t\t\t\topacity: 1;\n\t\t\t\t\t\t\t\t\t\tbox-shadow:\n\t\t\t\t\t\t\t\t\t\t\t0 0 0 3px color-mix(in oklab, var(--color-success) 24%, transparent),\n\t\t\t\t\t\t\t\t\t\t\t0 0 0 1px color-mix(in oklab, var(--color-success) 52%, transparent);\n\t\t\t\t\t\t\t\t\t\ttransform: translateY(-50%) scale(1.14);\n\t\t\t\t\t\t\t\t\t}\n\n\t\t\t\t\t\t\t\t\t#builder-grid .builder-node[data-kind=\"query\"] .node-port-in {\n\t\t\t\t\t\t\t\t\t\tdisplay: none;\n\t\t\t\t\t\t\t\t\t}\n\n\t\t\t\t\t\t\t\t\t#builder-grid .builder-node[data-kind=\"sink\"] .node-port-out {\n\t\t\t\t\t\t\t\t\t\tdisplay: none;\n\t\t\t\t\t\t\t\t\t}\n\n\t\t\t\t\t\t\t\t\t#builder-grid .builder-node-content.node-card-has-error {\n\t\t\t\t\t\t\t\t\t\tborder-color: color-mix(in oklab, var(--color-error) 72%, var(--color-base-content) 10%) !important;\n\t\t\t\t\t\t\t\t\t\tbackground: linear-gradient(\n\t\t\t\t\t\t\t\t\t\t\t180deg,\n\t\t\t\t\t\t\t\t\t\t\tcolor-mix(in oklab, var(--color-base-100) 76%, var(--color-error) 24%),\n\t\t\t\t\t\t\t\t\t\t\tcolor-mix(in oklab, var(--color-base-200) 82%, var(--color-error) 18%)\n\t\t\t\t\t\t\t\t\t\t) !important;\n\t\t\t\t\t\t\t\t\t\tbox-shadow: 0 0 0 1px color-mix(in oklab, var(--color-error) 32%, transparent) !important;\n\t\t\t\t\t\t\t\t\t}\n\n\n\t\t\t\t\t\t\t\t\t.node-error-badge {\n\t\t\t\t\t\t\t\t\t\tposition: absolute;\n\t\t\t\t\t\t\t\t\t\ttop: 4px;\n\t\t\t\t\t\t\t\t\t\tright: 4px;\n\t\t\t\t\t\t\t\t\t\tmin-width: 18px;\n\t\t\t\t\t\t\t\t\t\theight: 18px;\n\t\t\t\t\t\t\t\t\t\tborder-radius: 9px;\n\t\t\t\t\t\t\t\t\t\tbackground-color: var(--color-error);\n\t\t\t\t\t\t\t\t\t\tcolor: var(--color-error-content);\n\t\t\t\t\t\t\t\t\t\tfont-size: 10px;\n\t\t\t\t\t\t\t\t\t\tfont-weight: 700;\n\t\t\t\t\t\t\t\t\t\tdisplay: flex;\n\t\t\t\t\t\t\t\t\t\talign-items: center;\n\t\t\t\t\t\t\t\t\t\tjustify-content: center;\n\t\t\t\t\t\t\t\t\t\tpadding: 0 4px;\n\t\t\t\t\t\t\t\t\t\tz-index: 40;\n\t\t\t\t\t\t\t\t\t\tpointer-events: none;\n\t\t\t\t\t\t\t\t\t}\n                                    #builder-property-panel { font-size: 13px; line-height: 1.6; }\n                                    #builder-property-kind, #builder-edge-preview > h3 { font-size: 18px; line-height: 1.35; font-weight: 650; overflow-wrap: anywhere; color: var(--color-base-content); }\n                                    #builder-property-panel h4, #builder-property-panel .builder-inspector-section-title {\n                                        font-size: 14px; line-height: 1.5; font-weight: 650; color: var(--color-base-content);\n                                    }\n                                    #builder-property-panel .builder-inspector-header { padding-bottom: 16px; }\n                                    #builder-property-panel .builder-inspector-subtitle { margin-top: 6px; font-size: 12px; color: color-mix(in oklab, var(--color-base-content) 75%, transparent); }\n                                    #builder-property-panel .builder-inspector-identifier { display: block; margin-top: 6px; font-size: 12px; overflow-wrap: anywhere; }\n                                    #builder-property-panel .builder-inspector-section {\n                                        margin-top: 24px; padding-top: 20px; border-top: 1px solid var(--color-base-300);\n                                    }\n                                    #builder-property-panel .builder-inspector-section > h4 { margin-bottom: 12px; }\n                                    #builder-property-panel .builder-inspector-metadata {\n                                        display: grid; grid-template-columns: 88px minmax(0, 1fr); gap: 8px 12px; margin: 12px 0 16px;\n                                    }\n                                    #builder-property-panel .builder-inspector-metadata dt { font-size: 12px; color: color-mix(in oklab, var(--color-base-content) 75%, transparent); }\n                                    #builder-property-panel .builder-inspector-metadata dd { min-width: 0; margin: 0; font-size: 13px; overflow-wrap: anywhere; }\n                                    #builder-property-form p { font-size: 12px; line-height: 1.6; }\n                                    #builder-property-panel .label-text { font-size: 12px; font-weight: 500; line-height: 1.5; }\n                                    #builder-property-panel :is(.input, .select, .textarea) { font-size: 13px; }\n                                    #builder-property-panel :is(.input, .select) { min-height: 32px; height: auto; }\n                                    #builder-property-panel .form-control { margin-top: 12px; }\n                                    #builder-property-panel .builder-contract-field-editor {\n                                        padding: 16px 0; border-top: 1px solid var(--color-base-300);\n                                    }\n                                    #builder-property-panel .builder-contract-field-editor [data-contract-field-name] { font-weight: 600; }\n                                    #builder-property-panel .builder-contract-rules {\n                                        margin-top: 12px; padding: 10px 12px; background: var(--color-base-200); border-radius: 6px;\n                                    }\n                                    #builder-property-panel .builder-contract-rules > summary { font-size: 12px; font-weight: 500; cursor: pointer; }\n                                    #builder-property-panel .builder-contract-field-summary {\n                                        cursor: pointer; padding: 10px 0; font-size: 12px; line-height: 1.8; overflow-wrap: anywhere;\n                                    }\n                                    #builder-property-panel .builder-contract-field-name { font-size: 13px; font-weight: 600; }\n                                    #builder-property-panel .builder-contract-field-type {\n                                        display: inline-block; padding: 0 6px; background: var(--color-base-200); border-radius: 4px; font-size: 11px;\n                                    }\n                                    #builder-property-panel .builder-contract-description { margin: 0 0 12px; font-size: 13px; line-height: 1.6; color: color-mix(in oklab, var(--color-base-content) 80%, transparent); }\n                                    #builder-property-panel .builder-inspector-note {\n                                        margin-top: 16px; font-size: 12px; line-height: 1.6; color: color-mix(in oklab, var(--color-base-content) 75%, transparent);\n                                    }\n                                    .builder-mapping-attachment {\n                                        position: absolute; top: calc(100% + 12px); left: 12px; right: 0;\n                                        min-width: calc(2 * var(--builder-min-target-size, 24px) + 22px);\n                                        border: 1px solid var(--color-base-300); border-radius: 8px;\n                                        background: var(--color-base-200); color: var(--color-base-content);\n                                    }\n                                    .builder-mapping-attachment::before {\n                                        content: \"\"; position: absolute; top: -13px; left: 16px; height: 12px;\n                                        border-left: 1px solid var(--color-base-300);\n                                    }\n                                    .builder-mapping-attachment-header { display: flex; align-items: center; gap: 4px; padding: 8px; }\n                                    .builder-mapping-attachment-header > div { min-width: var(--builder-min-target-size, 24px); }\n                                    .builder-mapping-open { flex: 1; min-width: 0; text-align: left; font-size: 12px; cursor: pointer; }\n                                    .builder-mapping-open, .builder-mapping-toggle { min-width: var(--builder-min-target-size, 24px); min-height: var(--builder-min-target-size, 24px); }\n                                    .builder-mapping-open > span { display: block; font-weight: 600; }\n                                    .builder-mapping-attachment-header small { display: block; margin-top: 3px; font-size: 11px; color: color-mix(in oklab, var(--color-base-content) 75%, transparent); }\n                                    .builder-mapping-toggle svg { width: 14px; height: 14px; fill: none; stroke: currentColor; stroke-width: 1.7; }\n                                    .builder-mapping-toggle[aria-expanded=\"true\"] svg { transform: rotate(180deg); }\n                                    .builder-mapping-attachment-detail { border-top: 1px solid var(--color-base-300); padding: 10px; }\n                                    .builder-mapping-attachment-detail > p { margin-top: 8px; font-size: 11px; line-height: 1.5; }\n                                    .builder-mapping-pair { display: grid; grid-template-columns: minmax(0, 1fr) 12px minmax(0, 1fr); gap: 4px; padding: 4px 0; font-size: 11px; overflow-wrap: anywhere; }\n                                    .builder-mapping-warning { border-color: var(--color-warning); }\n                                    .builder-mapping-warning small { color: var(--color-warning); }\n                                    #builder-mapping-workspace { position: fixed; inset: auto; margin: 0; width: min(480px, calc(100vw - 24px)); max-height: min(520px, calc(100dvh - 24px)); overflow: auto; padding: 16px; background: var(--color-base-100); color: var(--color-base-content); border: 1px solid var(--color-base-300); border-radius: 8px; }\n                                    #builder-mapping-workspace[data-editing=\"true\"] { width: min(600px, calc(100vw - 24px)); max-height: min(680px, calc(100dvh - 24px)); }\n                                    #builder-mapping-workspace::backdrop { background: transparent; pointer-events: none; }\n                                    #builder-mapping-preview { margin-top: 8px; }\n                                    .builder-mapping-columns { display: grid; grid-template-columns: minmax(0, 1fr) 16px minmax(0, 1fr); gap: 8px; margin-top: 16px; font-size: 11px; color: color-mix(in oklab, var(--color-base-content) 75%, transparent); }\n                                    #builder-mapping-workspace[data-editing=\"true\"] .builder-mapping-columns { display: none; }\n                                    #builder-mapping-preview .builder-mapping-pair { grid-template-columns: minmax(0, 1fr) 16px minmax(0, 1fr); gap: 8px; padding: 8px 0; font-size: 12px; border-bottom: 1px solid var(--color-base-300); }\n                                    #builder-mapping-preview > p { margin-top: 12px; font-size: 12px; line-height: 1.5; }\n                                    #builder-mapping-preview-actions:not(.hidden) { display: flex; justify-content: end; margin-top: 16px; }\n                                    #builder-mapping-workspace-header { position: sticky; top: -16px; z-index: 1; display: flex; align-items: start; justify-content: space-between; gap: 16px; padding: 12px 0; background: var(--color-base-100); border-bottom: 1px solid var(--color-base-300); }\n                                    #builder-mapping-workspace-title { font-size: 18px; font-weight: 600; }\n                                    #builder-field-mapping { padding-top: 16px; }\n                                    #builder-field-mapping fieldset { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }\n                                    #builder-field-mapping fieldset > :is(details, div) { grid-column: 1 / -1; }\n                                    #builder-field-mapping :is(input, select, textarea) { min-width: 0; }\n                                    #builder-field-mapping pre { padding: 12px; background: var(--color-base-200); }\n                                    @media (max-width: 640px) {\n                                        #builder-mapping-workspace { padding: 12px; }\n                                        #builder-field-mapping fieldset { grid-template-columns: minmax(0, 1fr); }\n                                    }\n\n\t\t\t\t\t\t\t\t\t</style><div class=\"relative h-[420px] overflow-auto rounded-lg border border-base-300 bg-base-200/40 sm:h-[520px]\" id=\"builder-canvas-stage\"><div class=\"relative\" id=\"builder-canvas-bounds\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 110, "<div class=\"mt-4 overflow-x-auto pb-2\" id=\"builder-canvas-viewport\"><style>\n\t\t\t\t\t\t\t\t\t#builder-canvas-stage {\n\t\t\t\t\t\t\t\t\t\toverflow: auto;\n\t\t\t\t\t\t\t\t\t}\n\n\t\t\t\t\t\t\t\t\t#builder-canvas-bounds {\n                                        overflow: hidden;\n\t\t\t\t\t\t\t\t\t\tmin-width: 0;\n\t\t\t\t\t\t\t\t\t\tmin-height: 380px;\n\t\t\t\t\t\t\t\t\t}\n\n\t\t\t\t\t\t\t\t\t#builder-canvas-surface {\n\t\t\t\t\t\t\t\t\t\tposition: absolute;\n\t\t\t\t\t\t\t\t\t\ttransform-origin: top left;\n\t\t\t\t\t\t\t\t\t}\n\n\t\t\t\t\t\t\t\t\t#builder-lane-overlay {\n\t\t\t\t\t\t\t\t\t\tposition: absolute;\n\t\t\t\t\t\t\t\t\t\tinset: 0;\n\t\t\t\t\t\t\t\t\t\t/* Lane boundaries follow the canonical node columns and card dimensions. */\n\t\t\t\t\t\t\t\t\t\t--builder-lane-divider-1: calc((5.5 * var(--builder-grid-unit-x)) + (0.5 * var(--builder-node-width)));\n\t\t\t\t\t\t\t\t\t\t--builder-lane-divider-2: calc((12.5 * var(--builder-grid-unit-x)) + (0.5 * var(--builder-node-width)));\n\t\t\t\t\t\t\t\t\t\tpointer-events: none;\n\t\t\t\t\t\t\t\t\t\tz-index: 1;\n\t\t\t\t\t\t\t\t\t}\n\n\t\t\t\t\t\t\t\t\t#builder-lane-overlay .builder-lane {\n\t\t\t\t\t\t\t\t\t\tposition: absolute;\n\t\t\t\t\t\t\t\t\t\ttop: 0;\n\t\t\t\t\t\t\t\t\t\tbottom: 0;\n\t\t\t\t\t\t\t\t\t}\n\n\t\t\t\t\t\t\t\t\t#builder-lane-overlay .builder-lane-sources {\n\t\t\t\t\t\t\t\t\t\tleft: 0;\n\t\t\t\t\t\t\t\t\t\tright: calc(100% - var(--builder-lane-divider-1));\n\t\t\t\t\t\t\t\t\t\tbackground: linear-gradient(180deg, color-mix(in oklab, var(--color-primary) 8%, transparent), color-mix(in oklab, var(--color-primary) 2%, transparent));\n\t\t\t\t\t\t\t\t\t\tborder-right: 1px dashed color-mix(in oklab, var(--color-base-content) 18%, transparent);\n\t\t\t\t\t\t\t\t\t}\n\n\t\t\t\t\t\t\t\t\t#builder-lane-overlay .builder-lane-transforms {\n\t\t\t\t\t\t\t\t\t\tleft: var(--builder-lane-divider-1);\n\t\t\t\t\t\t\t\t\t\tright: calc(100% - var(--builder-lane-divider-2));\n\t\t\t\t\t\t\t\t\t\tbackground: linear-gradient(180deg, color-mix(in oklab, var(--color-info) 8%, transparent), color-mix(in oklab, var(--color-info) 2%, transparent));\n\t\t\t\t\t\t\t\t\t\tborder-right: 1px dashed color-mix(in oklab, var(--color-base-content) 18%, transparent);\n\t\t\t\t\t\t\t\t\t}\n\n\t\t\t\t\t\t\t\t\t#builder-lane-overlay .builder-lane-sinks {\n\t\t\t\t\t\t\t\t\t\tleft: var(--builder-lane-divider-2);\n\t\t\t\t\t\t\t\t\t\tright: 0;\n\t\t\t\t\t\t\t\t\t\tbackground: linear-gradient(180deg, color-mix(in oklab, var(--color-success) 8%, transparent), color-mix(in oklab, var(--color-success) 2%, transparent));\n\t\t\t\t\t\t\t\t\t}\n\n\t\t\t\t\t\t\t\t\t#builder-lane-overlay .builder-lane-label {\n\t\t\t\t\t\t\t\t\t\tposition: absolute;\n\t\t\t\t\t\t\t\t\t\ttop: 10px;\n\t\t\t\t\t\t\t\t\t\tleft: 12px;\n\t\t\t\t\t\t\t\t\t\tpadding: 2px 8px;\n\t\t\t\t\t\t\t\t\t\tborder-radius: 9999px;\n\t\t\t\t\t\t\t\t\t\tfont-size: 10px;\n\t\t\t\t\t\t\t\t\t\tfont-weight: 700;\n\t\t\t\t\t\t\t\t\t\tletter-spacing: 0.12em;\n\t\t\t\t\t\t\t\t\t\ttext-transform: uppercase;\n\t\t\t\t\t\t\t\t\t\tcolor: var(--color-base-content);\n\t\t\t\t\t\t\t\t\t\tbackground: color-mix(in oklab, var(--color-base-100) 84%, transparent);\n\t\t\t\t\t\t\t\t\t\tborder: 1px solid color-mix(in oklab, var(--color-base-300) 70%, transparent);\n\t\t\t\t\t\t\t\t\t}\n\n\t\t\t\t\t\t\t\t\t#builder-grid {\n                                        pointer-events: none;\n\t\t\t\t\t\t\t\t\t\tposition: relative;\n\t\t\t\t\t\t\t\t\t\tz-index: 30;\n\t\t\t\t\t\t\t\t\t}\n\n\t\t\t\t\t\t\t\t\t#builder-grid .builder-node {\n                                        pointer-events: auto;\n\t\t\t\t\t\t\t\t\t\toverflow: visible;\n\t\t\t\t\t\t\t\t\t\tz-index: 10;\n\t\t\t\t\t\t\t\t\t\t--builder-node-accent: var(--color-primary);\n\t\t\t\t\t\t\t\t\t}\n\n\t\t\t\t\t\t\t\t\t#builder-grid .builder-node[data-kind=\"transform\"] {\n\t\t\t\t\t\t\t\t\t\t--builder-node-accent: var(--color-info);\n\t\t\t\t\t\t\t\t\t}\n\n\t\t\t\t\t\t\t\t\t#builder-grid .builder-node[data-kind=\"sink\"] {\n\t\t\t\t\t\t\t\t\t\t--builder-node-accent: var(--color-success);\n\t\t\t\t\t\t\t\t\t}\n\n                                    #builder-grid .builder-node-content {\n                                        border-color: var(--color-base-300);\n                                        background: var(--color-base-100);\n                                        color: var(--color-base-content);\n                                        padding: 12px;\n                                    }\n                                    #builder-grid .builder-node-content:hover {\n                                        border-color: color-mix(in oklab, var(--color-primary) 60%, transparent);\n                                    }\n\n\t\t\t\t\t\t\t\t\t.builder-node-badges {\n\t\t\t\t\t\t\t\t\t\tdisplay: flex;\n\t\t\t\t\t\t\t\t\t\tmin-height: 18px;\n\t\t\t\t\t\t\t\t\t\tgap: 4px;\n\t\t\t\t\t\t\t\t\t\tmargin-top: auto;\n\t\t\t\t\t\t\t\t\t\toverflow: hidden;\n\t\t\t\t\t\t\t\t\t}\n\n\t\t\t\t\t\t\t\t\t.builder-node-badge {\n\t\t\t\t\t\t\t\t\t\tdisplay: inline-flex;\n\t\t\t\t\t\t\t\t\t\talign-items: center;\n\t\t\t\t\t\t\t\t\t\tmax-width: 72px;\n\t\t\t\t\t\t\t\t\t\theight: 18px;\n\t\t\t\t\t\t\t\t\t\tpadding: 0 6px;\n\t\t\t\t\t\t\t\t\t\tborder-radius: 9999px;\n\t\t\t\t\t\t\t\t\t\tborder: 1px solid color-mix(in oklab, var(--builder-node-accent) 34%, transparent);\n\t\t\t\t\t\t\t\t\t\tbackground: color-mix(in oklab, var(--builder-node-accent) 14%, transparent);\n\t\t\t\t\t\t\t\t\t\tcolor: var(--color-base-content);\n\t\t\t\t\t\t\t\t\t\tfont-size: 10px;\n\t\t\t\t\t\t\t\t\t\tfont-weight: 700;\n\t\t\t\t\t\t\t\t\t\tline-height: 1;\n\t\t\t\t\t\t\t\t\t\toverflow: hidden;\n\t\t\t\t\t\t\t\t\t\ttext-overflow: ellipsis;\n\t\t\t\t\t\t\t\t\t\twhite-space: nowrap;\n\t\t\t\t\t\t\t\t\t}\n\n\t\t\t\t\t\t\t\t\t.builder-node-badge[data-tone=\"success\"] {\n\t\t\t\t\t\t\t\t\t\tborder-color: color-mix(in oklab, var(--color-success) 42%, transparent);\n\t\t\t\t\t\t\t\t\t\tbackground: color-mix(in oklab, var(--color-success) 16%, transparent);\n\t\t\t\t\t\t\t\t\t}\n\n\t\t\t\t\t\t\t\t\t.builder-node-badge[data-tone=\"warning\"] {\n\t\t\t\t\t\t\t\t\t\tborder-color: color-mix(in oklab, var(--color-warning) 46%, transparent);\n\t\t\t\t\t\t\t\t\t\tbackground: color-mix(in oklab, var(--color-warning) 16%, transparent);\n\t\t\t\t\t\t\t\t\t}\n\n\t\t\t\t\t\t\t\t\t.builder-node-badge[data-tone=\"error\"] {\n\t\t\t\t\t\t\t\t\t\tborder-color: color-mix(in oklab, var(--color-error) 54%, transparent);\n\t\t\t\t\t\t\t\t\t\tbackground: color-mix(in oklab, var(--color-error) 18%, transparent);\n\t\t\t\t\t\t\t\t\t}\n\n\t\t\t\t\t\t\t\t\t.builder-node-disclosure-popover {\n\t\t\t\t\t\t\t\t\t\tposition: absolute;\n\t\t\t\t\t\t\t\t\t\tz-index: 80;\n\t\t\t\t\t\t\t\t\t\twidth: min(340px, calc(100% - 24px));\n\t\t\t\t\t\t\t\t\t\tborder-radius: 0.5rem;\n\t\t\t\t\t\t\t\t\t\tborder: 1px solid color-mix(in oklab, var(--color-primary) 34%, var(--color-base-300));\n\t\t\t\t\t\t\t\t\t\tbackground: color-mix(in oklab, var(--color-base-100) 94%, #000 6%);\n\t\t\t\t\t\t\t\t\t\tcolor: var(--color-base-content);\n\t\t\t\t\t\t\t\t\t\tbox-shadow: 0 16px 40px color-mix(in oklab, #000 40%, transparent);\n\t\t\t\t\t\t\t\t\t\tpointer-events: auto;\n\t\t\t\t\t\t\t\t\t}\n\n\t\t\t\t\t\t\t\t\t.builder-node-disclosure-popover dl {\n\t\t\t\t\t\t\t\t\t\tdisplay: grid;\n\t\t\t\t\t\t\t\t\t\tgrid-template-columns: 74px minmax(0, 1fr);\n\t\t\t\t\t\t\t\t\t\tgap: 6px 10px;\n\t\t\t\t\t\t\t\t\t\tmargin: 0;\n\t\t\t\t\t\t\t\t\t}\n\n\t\t\t\t\t\t\t\t\t.builder-node-disclosure-popover dt {\n\t\t\t\t\t\t\t\t\t\tcolor: var(--color-base-content);\n\t\t\t\t\t\t\t\t\t\tfont-size: 11px;\n\t\t\t\t\t\t\t\t\t\topacity: 0.58;\n\t\t\t\t\t\t\t\t\t}\n\n\t\t\t\t\t\t\t\t\t.builder-node-disclosure-popover dd {\n\t\t\t\t\t\t\t\t\t\tmin-width: 0;\n\t\t\t\t\t\t\t\t\t\tmargin: 0;\n\t\t\t\t\t\t\t\t\t\toverflow: hidden;\n\t\t\t\t\t\t\t\t\t\tcolor: var(--color-base-content);\n\t\t\t\t\t\t\t\t\t\tfont-size: 11px;\n\t\t\t\t\t\t\t\t\t\ttext-overflow: ellipsis;\n\t\t\t\t\t\t\t\t\t\twhite-space: nowrap;\n\t\t\t\t\t\t\t\t\t}\n\n\t\t\t\t\t\t\t\t\t#builder-grid .builder-node:focus-visible { outline: none; }\n\t\t\t\t\t\t\t\t\t#builder-grid .builder-node:focus-visible > .builder-node-content,\n\t\t\t\t\t\t\t\t\t#builder-grid .builder-node-content:focus-visible {\n\t\t\t\t\t\t\t\t\t\t--builder-focus-outline: max(2px, calc(var(--builder-min-target-size, 24px) / 8));\n\t\t\t\t\t\t\t\t\t\toutline: var(--builder-focus-outline) solid var(--color-base-content);\n\t\t\t\t\t\t\t\t\t\toutline-offset: 0;\n\t\t\t\t\t\t\t\t\t}\n                                    #builder-edges-layer [role=\"button\"]:focus { outline: none; }\n                                    #builder-edges-layer [role=\"button\"]:focus {\n                                        stroke: color-mix(in oklab, var(--color-info) 76%, transparent);\n                                    }\n                                    #builder-edges-layer {\n\t\t\t\t\t\t\t\t\t\tpointer-events: none;\n\t\t\t\t\t\t\t\t\t}\n\n\t\t\t\t\t\t\t\t\t.node-port {\n\t\t\t\t\t\t\t\t\t\tposition: absolute;\n\t\t\t\t\t\t\t\t\t\ttop: 50%;\n\t\t\t\t\t\t\t\t\t\ttransform: translateY(-50%);\n\t\t\t\t\t\t\t\t\t\tdisplay: flex;\n\t\t\t\t\t\t\t\t\t\talign-items: center;\n\t\t\t\t\t\t\t\t\t\tjustify-content: center;\n\t\t\t\t\t\t\t\t\t\twidth: 16px;\n\t\t\t\t\t\t\t\t\t\theight: 16px;\n\t\t\t\t\t\t\t\t\t\tborder-radius: 50%;\n\t\t\t\t\t\t\t\t\t\tbackground: color-mix(in oklab, var(--builder-node-accent) 18%, var(--color-base-100));\n\t\t\t\t\t\t\t\t\t\tbox-shadow: 0 0 0 1px color-mix(in oklab, var(--builder-node-accent) 24%, transparent);\n\t\t\t\t\t\t\t\t\t\tcursor: pointer;\n\t\t\t\t\t\t\t\t\t\tz-index: 30;\n\t\t\t\t\t\t\t\t\t\tfont-size: 7px;\n\t\t\t\t\t\t\t\t\t\tfont-weight: 700;\n\t\t\t\t\t\t\t\t\t\tline-height: 1;\n\t\t\t\t\t\t\t\t\t\topacity: 0.72;\n\t\t\t\t\t\t\t\t\t\ttransition: opacity 0.15s, background-color 0.1s, color 0.1s, transform 0.1s;\n\t\t\t\t\t\t\t\t\t\tpointer-events: auto;\n\t\t\t\t\t\t\t\t\t\ttouch-action: none;\n\t\t\t\t\t\t\t\t\t\tuser-select: none;\n\t\t\t\t\t\t\t\t\t}\n\n\t\t\t\t\t\t\t\t\t.node-port-in {\n\t\t\t\t\t\t\t\t\t\tleft: -8px;\n\t\t\t\t\t\t\t\t\t\tcolor: var(--color-success);\n\t\t\t\t\t\t\t\t\t\tborder: 2px solid var(--color-success);\n\t\t\t\t\t\t\t\t\t\tbackground: color-mix(in oklab, var(--color-success) 18%, var(--color-base-100));\n\t\t\t\t\t\t\t\t\t}\n\n\t\t\t\t\t\t\t\t\t.node-port-out {\n\t\t\t\t\t\t\t\t\t\tright: -8px;\n\t\t\t\t\t\t\t\t\t\tcolor: var(--color-primary);\n\t\t\t\t\t\t\t\t\t\tborder: 2px solid var(--color-primary);\n\t\t\t\t\t\t\t\t\t\tbackground: color-mix(in oklab, var(--color-primary) 18%, var(--color-base-100));\n\t\t\t\t\t\t\t\t\t}\n\n\t\t\t\t\t\t\t\t\t#builder-grid .builder-node:hover .node-port,\n\t\t\t\t\t\t\t\t\t#builder-grid .builder-node:focus-within .node-port,\n\t\t\t\t\t\t\t\t\t.node-port:hover {\n\t\t\t\t\t\t\t\t\t\topacity: 1;\n\t\t\t\t\t\t\t\t\t}\n\n\t\t\t\t\t\t\t\t\t.node-port:hover {\n\t\t\t\t\t\t\t\t\t\ttransform: translateY(-50%) scale(1.08);\n\t\t\t\t\t\t\t\t\t}\n\n\t\t\t\t\t\t\t\t\t.node-port-connect-target {\n\t\t\t\t\t\t\t\t\t\topacity: 1;\n\t\t\t\t\t\t\t\t\t\tbox-shadow:\n\t\t\t\t\t\t\t\t\t\t\t0 0 0 3px color-mix(in oklab, var(--color-success) 24%, transparent),\n\t\t\t\t\t\t\t\t\t\t\t0 0 0 1px color-mix(in oklab, var(--color-success) 52%, transparent);\n\t\t\t\t\t\t\t\t\t\ttransform: translateY(-50%) scale(1.14);\n\t\t\t\t\t\t\t\t\t}\n\n\t\t\t\t\t\t\t\t\t#builder-grid .builder-node[data-kind=\"query\"] .node-port-in {\n\t\t\t\t\t\t\t\t\t\tdisplay: none;\n\t\t\t\t\t\t\t\t\t}\n\n\t\t\t\t\t\t\t\t\t#builder-grid .builder-node[data-kind=\"sink\"] .node-port-out {\n\t\t\t\t\t\t\t\t\t\tdisplay: none;\n\t\t\t\t\t\t\t\t\t}\n\n\t\t\t\t\t\t\t\t\t#builder-grid .builder-node-content.node-card-has-error {\n\t\t\t\t\t\t\t\t\t\tborder-color: color-mix(in oklab, var(--color-error) 72%, var(--color-base-content) 10%) !important;\n\t\t\t\t\t\t\t\t\t\tbackground: linear-gradient(\n\t\t\t\t\t\t\t\t\t\t\t180deg,\n\t\t\t\t\t\t\t\t\t\t\tcolor-mix(in oklab, var(--color-base-100) 76%, var(--color-error) 24%),\n\t\t\t\t\t\t\t\t\t\t\tcolor-mix(in oklab, var(--color-base-200) 82%, var(--color-error) 18%)\n\t\t\t\t\t\t\t\t\t\t) !important;\n\t\t\t\t\t\t\t\t\t\tbox-shadow: 0 0 0 1px color-mix(in oklab, var(--color-error) 32%, transparent) !important;\n\t\t\t\t\t\t\t\t\t}\n\n\n\t\t\t\t\t\t\t\t\t.node-error-badge {\n\t\t\t\t\t\t\t\t\t\tposition: absolute;\n\t\t\t\t\t\t\t\t\t\ttop: 4px;\n\t\t\t\t\t\t\t\t\t\tright: 4px;\n\t\t\t\t\t\t\t\t\t\tmin-width: 18px;\n\t\t\t\t\t\t\t\t\t\theight: 18px;\n\t\t\t\t\t\t\t\t\t\tborder-radius: 9px;\n\t\t\t\t\t\t\t\t\t\tbackground-color: var(--color-error);\n\t\t\t\t\t\t\t\t\t\tcolor: var(--color-error-content);\n\t\t\t\t\t\t\t\t\t\tfont-size: 10px;\n\t\t\t\t\t\t\t\t\t\tfont-weight: 700;\n\t\t\t\t\t\t\t\t\t\tdisplay: flex;\n\t\t\t\t\t\t\t\t\t\talign-items: center;\n\t\t\t\t\t\t\t\t\t\tjustify-content: center;\n\t\t\t\t\t\t\t\t\t\tpadding: 0 4px;\n\t\t\t\t\t\t\t\t\t\tz-index: 40;\n\t\t\t\t\t\t\t\t\t\tpointer-events: none;\n\t\t\t\t\t\t\t\t\t}\n                                    #builder-property-panel { font-size: 13px; line-height: 1.6; }\n                                    #builder-property-kind, #builder-edge-preview > h3 { font-size: 18px; line-height: 1.35; font-weight: 650; overflow-wrap: anywhere; color: var(--color-base-content); }\n                                    #builder-property-panel h4, #builder-property-panel .builder-inspector-section-title {\n                                        font-size: 14px; line-height: 1.5; font-weight: 650; color: var(--color-base-content);\n                                    }\n                                    #builder-property-panel .builder-inspector-header { padding-bottom: 16px; }\n                                    #builder-property-panel .builder-inspector-subtitle { margin-top: 6px; font-size: 12px; color: color-mix(in oklab, var(--color-base-content) 75%, transparent); }\n                                    #builder-property-panel .builder-inspector-identifier { display: block; margin-top: 6px; font-size: 12px; overflow-wrap: anywhere; }\n                                    #builder-property-panel .builder-inspector-section {\n                                        margin-top: 24px; padding-top: 20px; border-top: 1px solid var(--color-base-300);\n                                    }\n                                    #builder-property-panel .builder-inspector-section > h4 { margin-bottom: 12px; }\n                                    #builder-property-panel .builder-inspector-metadata {\n                                        display: grid; grid-template-columns: 88px minmax(0, 1fr); gap: 8px 12px; margin: 12px 0 16px;\n                                    }\n                                    #builder-property-panel .builder-inspector-metadata dt { font-size: 12px; color: color-mix(in oklab, var(--color-base-content) 75%, transparent); }\n                                    #builder-property-panel .builder-inspector-metadata dd { min-width: 0; margin: 0; font-size: 13px; overflow-wrap: anywhere; }\n                                    #builder-property-form p { font-size: 12px; line-height: 1.6; }\n                                    #builder-property-panel .label-text { font-size: 12px; font-weight: 500; line-height: 1.5; }\n                                    #builder-property-panel :is(.input, .select, .textarea) { font-size: 13px; }\n                                    #builder-property-panel :is(.input, .select) { min-height: 32px; height: auto; }\n                                    #builder-property-panel .form-control { margin-top: 12px; }\n                                    #builder-property-panel .builder-contract-field-editor {\n                                        padding: 16px 0; border-top: 1px solid var(--color-base-300);\n                                    }\n                                    #builder-property-panel .builder-contract-field-editor [data-contract-field-name] { font-weight: 600; }\n                                    #builder-property-panel .builder-contract-rules {\n                                        margin-top: 12px; padding: 10px 12px; background: var(--color-base-200); border-radius: 6px;\n                                    }\n                                    #builder-property-panel .builder-contract-rules > summary { font-size: 12px; font-weight: 500; cursor: pointer; }\n                                    #builder-property-panel .builder-contract-field-summary {\n                                        cursor: pointer; padding: 10px 0; font-size: 12px; line-height: 1.8; overflow-wrap: anywhere;\n                                    }\n                                    #builder-property-panel .builder-contract-field-name { font-size: 13px; font-weight: 600; }\n                                    #builder-property-panel .builder-contract-field-type {\n                                        display: inline-block; padding: 0 6px; background: var(--color-base-200); border-radius: 4px; font-size: 11px;\n                                    }\n                                    #builder-property-panel .builder-contract-description { margin: 0 0 12px; font-size: 13px; line-height: 1.6; color: color-mix(in oklab, var(--color-base-content) 80%, transparent); }\n                                    #builder-property-panel .builder-inspector-note {\n                                        margin-top: 16px; font-size: 12px; line-height: 1.6; color: color-mix(in oklab, var(--color-base-content) 75%, transparent);\n                                    }\n                                    .builder-mapping-attachment {\n                                        position: absolute; top: calc(100% + 12px); left: 12px; right: 0;\n                                        min-width: calc(2 * var(--builder-min-target-size, 24px) + 22px);\n                                        border: 1px solid var(--color-base-300); border-radius: 8px;\n                                        background: var(--color-base-200); color: var(--color-base-content);\n                                    }\n                                    .builder-mapping-attachment::before {\n                                        content: \"\"; position: absolute; top: -13px; left: 16px; height: 12px;\n                                        border-left: 1px solid var(--color-base-300);\n                                    }\n                                    .builder-mapping-attachment-header { display: flex; align-items: center; gap: 4px; padding: 8px; }\n                                    .builder-mapping-attachment-header > div { min-width: var(--builder-min-target-size, 24px); }\n                                    .builder-mapping-open { flex: 1; min-width: 0; text-align: left; font-size: 12px; cursor: pointer; }\n                                    .builder-mapping-open, .builder-mapping-toggle { min-width: var(--builder-min-target-size, 24px); min-height: var(--builder-min-target-size, 24px); }\n                                    .builder-mapping-open > span { display: block; font-weight: 600; }\n                                    .builder-mapping-attachment-header small { display: block; margin-top: 3px; font-size: 11px; color: color-mix(in oklab, var(--color-base-content) 75%, transparent); }\n                                    .builder-mapping-toggle svg { width: 14px; height: 14px; fill: none; stroke: currentColor; stroke-width: 1.7; }\n                                    .builder-mapping-toggle[aria-expanded=\"true\"] svg { transform: rotate(180deg); }\n                                    .builder-mapping-attachment-detail { border-top: 1px solid var(--color-base-300); padding: 10px; }\n                                    .builder-mapping-attachment-detail > p { margin-top: 8px; font-size: 11px; line-height: 1.5; }\n                                    .builder-mapping-pair { display: grid; grid-template-columns: minmax(0, 1fr) 12px minmax(0, 1fr); gap: 4px; padding: 4px 0; font-size: 11px; overflow-wrap: anywhere; }\n                                    .builder-mapping-warning { border-color: var(--color-warning); }\n                                    .builder-mapping-warning small { color: var(--color-warning); }\n                                    #builder-mapping-workspace { position: fixed; inset: auto; margin: 0; width: min(480px, calc(100vw - 24px)); max-height: min(520px, calc(100dvh - 24px)); overflow: auto; padding: 16px; background: var(--color-base-100); color: var(--color-base-content); border: 1px solid var(--color-base-300); border-radius: 8px; }\n                                    #builder-mapping-workspace[data-editing=\"true\"] { width: min(600px, calc(100vw - 24px)); max-height: min(680px, calc(100dvh - 24px)); }\n                                    #builder-mapping-workspace::backdrop { background: transparent; pointer-events: none; }\n                                    #builder-mapping-preview { margin-top: 8px; }\n                                    .builder-mapping-columns { display: grid; grid-template-columns: minmax(0, 1fr) 16px minmax(0, 1fr); gap: 8px; margin-top: 16px; font-size: 11px; color: color-mix(in oklab, var(--color-base-content) 75%, transparent); }\n                                    #builder-mapping-workspace[data-editing=\"true\"] .builder-mapping-columns { display: none; }\n                                    #builder-mapping-preview .builder-mapping-pair { grid-template-columns: minmax(0, 1fr) 16px minmax(0, 1fr); gap: 8px; padding: 8px 0; font-size: 12px; border-bottom: 1px solid var(--color-base-300); }\n                                    #builder-mapping-preview > p { margin-top: 12px; font-size: 12px; line-height: 1.5; }\n                                    #builder-mapping-preview-actions:not(.hidden) { display: flex; justify-content: end; margin-top: 16px; }\n                                    #builder-mapping-workspace-header { position: sticky; top: -16px; z-index: 1; display: flex; align-items: start; justify-content: space-between; gap: 16px; padding: 12px 0; background: var(--color-base-100); border-bottom: 1px solid var(--color-base-300); }\n                                    #builder-mapping-workspace-title { font-size: 18px; font-weight: 600; }\n                                    #builder-field-mapping { padding-top: 16px; }\n                                    #builder-field-mapping fieldset { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }\n                                    #builder-field-mapping fieldset > :is(details, div) { grid-column: 1 / -1; }\n                                    #builder-field-mapping :is(input, select, textarea) { min-width: 0; }\n                                    #builder-field-mapping pre { padding: 12px; background: var(--color-base-200); }\n                                    @media (max-width: 640px) {\n                                        #builder-mapping-workspace { padding: 12px; }\n                                        #builder-field-mapping fieldset { grid-template-columns: minmax(0, 1fr); }\n                                    }\n\n\t\t\t\t\t\t\t\t\t</style><div class=\"relative h-[420px] overflow-auto rounded-lg border border-base-300 bg-base-200/40 sm:h-[520px]\" id=\"builder-canvas-stage\"><div class=\"relative\" id=\"builder-canvas-bounds\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		var templ_7745c5c3_Var63 = []any{builderEmptyCanvasHintClass(state.HasImportedGraph)}
-		templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var63...)
+		var templ_7745c5c3_Var64 = []any{builderEmptyCanvasHintClass(state.HasImportedGraph)}
+		templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var64...)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 110, "<div class=\"")
-		if templ_7745c5c3_Err != nil {
-			return templ_7745c5c3_Err
-		}
-		var templ_7745c5c3_Var64 string
-		templ_7745c5c3_Var64, templ_7745c5c3_Err = templ.ResolveAttributeValue(templ.CSSClasses(templ_7745c5c3_Var63).String())
-		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/builder_blueprint.templ`, Line: 1, Col: 0}
-		}
-		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var64)
-		if templ_7745c5c3_Err != nil {
-			return templ_7745c5c3_Err
-		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 111, "\" id=\"builder-empty-canvas-hint\"><div class=\"max-w-sm space-y-2 text-center\"><h2 class=\"text-base font-semibold text-base-content\">Add your first step</h2><p class=\"text-sm text-base-content/70\">Choose Event Input or Query Step from the palette to start your pipeline.</p></div></div><div id=\"builder-canvas-surface\" style=\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 111, "<div class=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var65 string
-		templ_7745c5c3_Var65, templ_7745c5c3_Err = templruntime.SanitizeStyleAttributeValues(templ.SafeCSS(fmt.Sprintf("--builder-grid-unit-x: %dpx; --builder-grid-unit-y: %dpx; --builder-node-width: %dpx; --builder-node-height: %dpx;", builderGridUnitXPx, builderGridUnitYPx, builderNodeWidthPx, builderNodeHeightPx)))
+		templ_7745c5c3_Var65, templ_7745c5c3_Err = templ.ResolveAttributeValue(templ.CSSClasses(templ_7745c5c3_Var64).String())
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/builder_blueprint.templ`, Line: 776, Col: 277}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/builder_blueprint.templ`, Line: 1, Col: 0}
 		}
-		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var65))
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var65)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 112, "\"><div aria-hidden=\"true\" id=\"builder-lane-overlay\"><div class=\"builder-lane builder-lane-sources\"><div class=\"builder-lane-label\">Sources</div></div><div class=\"builder-lane builder-lane-transforms\"><div class=\"builder-lane-label\">Transforms</div></div><div class=\"builder-lane builder-lane-sinks\"><div class=\"builder-lane-label\">Sinks</div></div></div><svg role=\"group\" aria-label=\"Pipeline connections\" class=\"absolute inset-0 z-20 h-full w-full\" id=\"builder-edges-layer\"></svg><div class=\"relative\" id=\"builder-grid\" data-grid-enabled=\"false\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 112, "\" id=\"builder-empty-canvas-hint\"><div class=\"max-w-sm space-y-2 text-center\"><h2 class=\"text-base font-semibold text-base-content\">Add your first step</h2><p class=\"text-sm text-base-content/70\">Choose Event Input or Query Step from the palette to start your pipeline.</p></div></div><div id=\"builder-canvas-surface\" style=\"")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		var templ_7745c5c3_Var66 string
+		templ_7745c5c3_Var66, templ_7745c5c3_Err = templruntime.SanitizeStyleAttributeValues(templ.SafeCSS(fmt.Sprintf("--builder-grid-unit-x: %dpx; --builder-grid-unit-y: %dpx; --builder-node-width: %dpx; --builder-node-height: %dpx;", builderGridUnitXPx, builderGridUnitYPx, builderNodeWidthPx, builderNodeHeightPx)))
+		if templ_7745c5c3_Err != nil {
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/builder_blueprint.templ`, Line: 777, Col: 277}
+		}
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var66))
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 113, "\"><div aria-hidden=\"true\" id=\"builder-lane-overlay\"><div class=\"builder-lane builder-lane-sources\"><div class=\"builder-lane-label\">Sources</div></div><div class=\"builder-lane builder-lane-transforms\"><div class=\"builder-lane-label\">Transforms</div></div><div class=\"builder-lane builder-lane-sinks\"><div class=\"builder-lane-label\">Sinks</div></div></div><svg role=\"group\" aria-label=\"Pipeline connections\" class=\"absolute inset-0 z-20 h-full w-full\" id=\"builder-edges-layer\"></svg><div class=\"relative\" id=\"builder-grid\" data-grid-enabled=\"false\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		for _, node := range state.ImportedNodes {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 113, "<div class=\"builder-node absolute\" data-kind=\"")
-			if templ_7745c5c3_Err != nil {
-				return templ_7745c5c3_Err
-			}
-			var templ_7745c5c3_Var66 string
-			templ_7745c5c3_Var66, templ_7745c5c3_Err = templ.ResolveAttributeValue(node.Kind)
-			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/builder_blueprint.templ`, Line: 791, Col: 70}
-			}
-			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var66)
-			if templ_7745c5c3_Err != nil {
-				return templ_7745c5c3_Err
-			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 114, "\" data-node-type=\"query\" data-node-slug=\"")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 114, "<div class=\"builder-node absolute\" data-kind=\"")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 			var templ_7745c5c3_Var67 string
-			templ_7745c5c3_Var67, templ_7745c5c3_Err = templ.ResolveAttributeValue(node.Slug)
+			templ_7745c5c3_Var67, templ_7745c5c3_Err = templ.ResolveAttributeValue(node.Kind)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/builder_blueprint.templ`, Line: 791, Col: 122}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/builder_blueprint.templ`, Line: 792, Col: 70}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var67)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 115, "\" data-data-source-slug=\"")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 115, "\" data-node-type=\"query\" data-node-slug=\"")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 			var templ_7745c5c3_Var68 string
-			templ_7745c5c3_Var68, templ_7745c5c3_Err = templ.ResolveAttributeValue(node.DataSourceSlug)
+			templ_7745c5c3_Var68, templ_7745c5c3_Err = templ.ResolveAttributeValue(node.Slug)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/builder_blueprint.templ`, Line: 791, Col: 168}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/builder_blueprint.templ`, Line: 792, Col: 122}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var68)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 116, "\" data-operation-type=\"")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 116, "\" data-data-source-slug=\"")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 			var templ_7745c5c3_Var69 string
-			templ_7745c5c3_Var69, templ_7745c5c3_Err = templ.ResolveAttributeValue(node.OperationType)
+			templ_7745c5c3_Var69, templ_7745c5c3_Err = templ.ResolveAttributeValue(node.DataSourceSlug)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/builder_blueprint.templ`, Line: 791, Col: 211}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/builder_blueprint.templ`, Line: 792, Col: 168}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var69)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 117, "\" data-operation-inline=\"")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 117, "\" data-operation-type=\"")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 			var templ_7745c5c3_Var70 string
-			templ_7745c5c3_Var70, templ_7745c5c3_Err = templ.ResolveAttributeValue(node.OperationInline)
+			templ_7745c5c3_Var70, templ_7745c5c3_Err = templ.ResolveAttributeValue(node.OperationType)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/builder_blueprint.templ`, Line: 791, Col: 258}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/builder_blueprint.templ`, Line: 792, Col: 211}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var70)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 118, "\" data-query-output-contract=\"")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 118, "\" data-operation-inline=\"")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 			var templ_7745c5c3_Var71 string
-			templ_7745c5c3_Var71, templ_7745c5c3_Err = templ.ResolveAttributeValue(node.QueryOutputContract)
+			templ_7745c5c3_Var71, templ_7745c5c3_Err = templ.ResolveAttributeValue(node.OperationInline)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/builder_blueprint.templ`, Line: 791, Col: 314}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/builder_blueprint.templ`, Line: 792, Col: 258}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var71)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 119, "\" data-query-incremental=\"")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 119, "\" data-query-output-contract=\"")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 			var templ_7745c5c3_Var72 string
-			templ_7745c5c3_Var72, templ_7745c5c3_Err = templ.ResolveAttributeValue(node.QueryIncremental)
+			templ_7745c5c3_Var72, templ_7745c5c3_Err = templ.ResolveAttributeValue(node.QueryOutputContract)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/builder_blueprint.templ`, Line: 791, Col: 363}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/builder_blueprint.templ`, Line: 792, Col: 314}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var72)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 120, "\" data-query-slug=\"")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 120, "\" data-query-incremental=\"")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 			var templ_7745c5c3_Var73 string
-			templ_7745c5c3_Var73, templ_7745c5c3_Err = templ.ResolveAttributeValue(node.QuerySlug)
+			templ_7745c5c3_Var73, templ_7745c5c3_Err = templ.ResolveAttributeValue(node.QueryIncremental)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/builder_blueprint.templ`, Line: 791, Col: 398}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/builder_blueprint.templ`, Line: 792, Col: 363}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var73)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 121, "\" data-use-inline-sql=\"")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 121, "\" data-query-slug=\"")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 			var templ_7745c5c3_Var74 string
-			templ_7745c5c3_Var74, templ_7745c5c3_Err = templ.ResolveAttributeValue(boolString(node.UseInlineSQL))
+			templ_7745c5c3_Var74, templ_7745c5c3_Err = templ.ResolveAttributeValue(node.QuerySlug)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/builder_blueprint.templ`, Line: 791, Col: 452}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/builder_blueprint.templ`, Line: 792, Col: 398}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var74)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 122, "\" data-use-inline-operation=\"")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 122, "\" data-use-inline-sql=\"")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 			var templ_7745c5c3_Var75 string
-			templ_7745c5c3_Var75, templ_7745c5c3_Err = templ.ResolveAttributeValue(boolString(node.UseInlineOperation))
+			templ_7745c5c3_Var75, templ_7745c5c3_Err = templ.ResolveAttributeValue(boolString(node.UseInlineSQL))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/builder_blueprint.templ`, Line: 791, Col: 518}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/builder_blueprint.templ`, Line: 792, Col: 452}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var75)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 123, "\" data-inline-sql=\"")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 123, "\" data-use-inline-operation=\"")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 			var templ_7745c5c3_Var76 string
-			templ_7745c5c3_Var76, templ_7745c5c3_Err = templ.ResolveAttributeValue(node.InlineSQL)
+			templ_7745c5c3_Var76, templ_7745c5c3_Err = templ.ResolveAttributeValue(boolString(node.UseInlineOperation))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/builder_blueprint.templ`, Line: 791, Col: 553}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/builder_blueprint.templ`, Line: 792, Col: 518}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var76)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 124, "\" data-step-slug=\"")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 124, "\" data-inline-sql=\"")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 			var templ_7745c5c3_Var77 string
-			templ_7745c5c3_Var77, templ_7745c5c3_Err = templ.ResolveAttributeValue(node.StepSlug)
+			templ_7745c5c3_Var77, templ_7745c5c3_Err = templ.ResolveAttributeValue(node.InlineSQL)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/builder_blueprint.templ`, Line: 791, Col: 586}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/builder_blueprint.templ`, Line: 792, Col: 553}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var77)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 125, "\" data-step-name=\"")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 125, "\" data-step-slug=\"")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 			var templ_7745c5c3_Var78 string
-			templ_7745c5c3_Var78, templ_7745c5c3_Err = templ.ResolveAttributeValue(node.StepName)
+			templ_7745c5c3_Var78, templ_7745c5c3_Err = templ.ResolveAttributeValue(node.StepSlug)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/builder_blueprint.templ`, Line: 791, Col: 619}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/builder_blueprint.templ`, Line: 792, Col: 586}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var78)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 126, "\" data-original-step=\"")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 126, "\" data-step-name=\"")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 			var templ_7745c5c3_Var79 string
-			templ_7745c5c3_Var79, templ_7745c5c3_Err = templ.ResolveAttributeValue(node.OriginalStep)
+			templ_7745c5c3_Var79, templ_7745c5c3_Err = templ.ResolveAttributeValue(node.StepName)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/builder_blueprint.templ`, Line: 791, Col: 660}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/builder_blueprint.templ`, Line: 792, Col: 619}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var79)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 127, "\" data-transform-output-kind=\"")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 127, "\" data-original-step=\"")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 			var templ_7745c5c3_Var80 string
-			templ_7745c5c3_Var80, templ_7745c5c3_Err = templ.ResolveAttributeValue(node.TransformOutputKind)
+			templ_7745c5c3_Var80, templ_7745c5c3_Err = templ.ResolveAttributeValue(node.OriginalStep)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/builder_blueprint.templ`, Line: 791, Col: 716}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/builder_blueprint.templ`, Line: 792, Col: 660}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var80)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 128, "\" data-transform-sql=\"")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 128, "\" data-transform-output-kind=\"")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 			var templ_7745c5c3_Var81 string
-			templ_7745c5c3_Var81, templ_7745c5c3_Err = templ.ResolveAttributeValue(node.TransformSQL)
+			templ_7745c5c3_Var81, templ_7745c5c3_Err = templ.ResolveAttributeValue(node.TransformOutputKind)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/builder_blueprint.templ`, Line: 791, Col: 757}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/builder_blueprint.templ`, Line: 792, Col: 716}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var81)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 129, "\" data-transform-inputs=\"")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 129, "\" data-transform-sql=\"")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 			var templ_7745c5c3_Var82 string
-			templ_7745c5c3_Var82, templ_7745c5c3_Err = templ.ResolveAttributeValue(node.TransformInputs)
+			templ_7745c5c3_Var82, templ_7745c5c3_Err = templ.ResolveAttributeValue(node.TransformSQL)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/builder_blueprint.templ`, Line: 791, Col: 804}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/builder_blueprint.templ`, Line: 792, Col: 757}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var82)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 130, "\" data-transform-input-contract=\"")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 130, "\" data-transform-inputs=\"")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 			var templ_7745c5c3_Var83 string
-			templ_7745c5c3_Var83, templ_7745c5c3_Err = templ.ResolveAttributeValue(node.TransformInputContract)
+			templ_7745c5c3_Var83, templ_7745c5c3_Err = templ.ResolveAttributeValue(node.TransformInputs)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/builder_blueprint.templ`, Line: 791, Col: 866}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/builder_blueprint.templ`, Line: 792, Col: 804}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var83)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 131, "\" data-transform-output-contract=\"")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 131, "\" data-transform-input-contract=\"")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 			var templ_7745c5c3_Var84 string
-			templ_7745c5c3_Var84, templ_7745c5c3_Err = templ.ResolveAttributeValue(node.TransformOutputContract)
+			templ_7745c5c3_Var84, templ_7745c5c3_Err = templ.ResolveAttributeValue(node.TransformInputContract)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/builder_blueprint.templ`, Line: 791, Col: 930}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/builder_blueprint.templ`, Line: 792, Col: 866}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var84)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 132, "\" data-parameters=\"")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 132, "\" data-transform-output-contract=\"")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 			var templ_7745c5c3_Var85 string
-			templ_7745c5c3_Var85, templ_7745c5c3_Err = templ.ResolveAttributeValue(node.Parameters)
+			templ_7745c5c3_Var85, templ_7745c5c3_Err = templ.ResolveAttributeValue(node.TransformOutputContract)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/builder_blueprint.templ`, Line: 791, Col: 966}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/builder_blueprint.templ`, Line: 792, Col: 930}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var85)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 133, "\" data-sink-backend=\"")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 133, "\" data-parameters=\"")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 			var templ_7745c5c3_Var86 string
-			templ_7745c5c3_Var86, templ_7745c5c3_Err = templ.ResolveAttributeValue(node.SinkBackend)
+			templ_7745c5c3_Var86, templ_7745c5c3_Err = templ.ResolveAttributeValue(node.Parameters)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/builder_blueprint.templ`, Line: 791, Col: 1005}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/builder_blueprint.templ`, Line: 792, Col: 966}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var86)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 134, "\" data-sink-data-source-slug=\"")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 134, "\" data-sink-backend=\"")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 			var templ_7745c5c3_Var87 string
-			templ_7745c5c3_Var87, templ_7745c5c3_Err = templ.ResolveAttributeValue(node.SinkDataSourceSlug)
+			templ_7745c5c3_Var87, templ_7745c5c3_Err = templ.ResolveAttributeValue(node.SinkBackend)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/builder_blueprint.templ`, Line: 791, Col: 1060}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/builder_blueprint.templ`, Line: 792, Col: 1005}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var87)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 135, "\" data-sink-operation-type=\"")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 135, "\" data-sink-data-source-slug=\"")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 			var templ_7745c5c3_Var88 string
-			templ_7745c5c3_Var88, templ_7745c5c3_Err = templ.ResolveAttributeValue(node.SinkOperationType)
+			templ_7745c5c3_Var88, templ_7745c5c3_Err = templ.ResolveAttributeValue(node.SinkDataSourceSlug)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/builder_blueprint.templ`, Line: 791, Col: 1112}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/builder_blueprint.templ`, Line: 792, Col: 1060}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var88)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 136, "\" data-sink-operation-inline=\"")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 136, "\" data-sink-operation-type=\"")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 			var templ_7745c5c3_Var89 string
-			templ_7745c5c3_Var89, templ_7745c5c3_Err = templ.ResolveAttributeValue(node.SinkOperationInline)
+			templ_7745c5c3_Var89, templ_7745c5c3_Err = templ.ResolveAttributeValue(node.SinkOperationType)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/builder_blueprint.templ`, Line: 791, Col: 1168}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/builder_blueprint.templ`, Line: 792, Col: 1112}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var89)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 137, "\" data-sink-idempotency-class=\"")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 137, "\" data-sink-operation-inline=\"")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 			var templ_7745c5c3_Var90 string
-			templ_7745c5c3_Var90, templ_7745c5c3_Err = templ.ResolveAttributeValue(node.SinkIdempotencyClass)
+			templ_7745c5c3_Var90, templ_7745c5c3_Err = templ.ResolveAttributeValue(node.SinkOperationInline)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/builder_blueprint.templ`, Line: 791, Col: 1226}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/builder_blueprint.templ`, Line: 792, Col: 1168}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var90)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 138, "\" data-sink-input-contract=\"")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 138, "\" data-sink-idempotency-class=\"")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 			var templ_7745c5c3_Var91 string
-			templ_7745c5c3_Var91, templ_7745c5c3_Err = templ.ResolveAttributeValue(node.SinkInputContract)
+			templ_7745c5c3_Var91, templ_7745c5c3_Err = templ.ResolveAttributeValue(node.SinkIdempotencyClass)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/builder_blueprint.templ`, Line: 791, Col: 1278}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/builder_blueprint.templ`, Line: 792, Col: 1226}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var91)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 139, "\" data-sink-use-inline-operation=\"")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 139, "\" data-sink-input-contract=\"")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 			var templ_7745c5c3_Var92 string
-			templ_7745c5c3_Var92, templ_7745c5c3_Err = templ.ResolveAttributeValue(boolString(node.SinkUseInlineOperation))
+			templ_7745c5c3_Var92, templ_7745c5c3_Err = templ.ResolveAttributeValue(node.SinkInputContract)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/builder_blueprint.templ`, Line: 791, Col: 1353}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/builder_blueprint.templ`, Line: 792, Col: 1278}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var92)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 140, "\" data-sink-query-slug=\"")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 140, "\" data-sink-use-inline-operation=\"")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 			var templ_7745c5c3_Var93 string
-			templ_7745c5c3_Var93, templ_7745c5c3_Err = templ.ResolveAttributeValue(node.SinkQuerySlug)
+			templ_7745c5c3_Var93, templ_7745c5c3_Err = templ.ResolveAttributeValue(boolString(node.SinkUseInlineOperation))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/builder_blueprint.templ`, Line: 791, Col: 1397}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/builder_blueprint.templ`, Line: 792, Col: 1353}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var93)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 141, "\" data-grid-x=\"")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 141, "\" data-sink-query-slug=\"")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 			var templ_7745c5c3_Var94 string
-			templ_7745c5c3_Var94, templ_7745c5c3_Err = templ.ResolveAttributeValue(node.X)
+			templ_7745c5c3_Var94, templ_7745c5c3_Err = templ.ResolveAttributeValue(node.SinkQuerySlug)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/builder_blueprint.templ`, Line: 791, Col: 1420}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/builder_blueprint.templ`, Line: 792, Col: 1397}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var94)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 142, "\" data-grid-y=\"")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 142, "\" data-grid-x=\"")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 			var templ_7745c5c3_Var95 string
-			templ_7745c5c3_Var95, templ_7745c5c3_Err = templ.ResolveAttributeValue(node.Y)
+			templ_7745c5c3_Var95, templ_7745c5c3_Err = templ.ResolveAttributeValue(node.X)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/builder_blueprint.templ`, Line: 791, Col: 1443}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/builder_blueprint.templ`, Line: 792, Col: 1420}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var95)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 143, "\" style=\"")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 143, "\" data-grid-y=\"")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 			var templ_7745c5c3_Var96 string
-			templ_7745c5c3_Var96, templ_7745c5c3_Err = templruntime.SanitizeStyleAttributeValues(templ.SafeCSS(fmt.Sprintf("left: calc(%d * var(--builder-grid-unit-x)); top: calc(%d * var(--builder-grid-unit-y)); width: var(--builder-node-width); height: var(--builder-node-height);", node.X, node.Y)))
+			templ_7745c5c3_Var96, templ_7745c5c3_Err = templ.ResolveAttributeValue(node.Y)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/builder_blueprint.templ`, Line: 791, Col: 1658}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/builder_blueprint.templ`, Line: 792, Col: 1443}
 			}
-			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var96))
+			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var96)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 144, "\"><div class=\"builder-node-content rounded-lg border border-primary/30 bg-base-100 px-3 py-2 shadow-sm h-full\"><span class=\"block text-[10px] font-semibold uppercase tracking-wide text-base-content/50\">")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 144, "\" style=\"")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 			var templ_7745c5c3_Var97 string
-			templ_7745c5c3_Var97, templ_7745c5c3_Err = templ.JoinStringErrs(node.Kind)
+			templ_7745c5c3_Var97, templ_7745c5c3_Err = templruntime.SanitizeStyleAttributeValues(templ.SafeCSS(fmt.Sprintf("left: calc(%d * var(--builder-grid-unit-x)); top: calc(%d * var(--builder-grid-unit-y)); width: var(--builder-node-width); height: var(--builder-node-height);", node.X, node.Y)))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/builder_blueprint.templ`, Line: 793, Col: 118}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/builder_blueprint.templ`, Line: 792, Col: 1658}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var97))
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 145, "</span> <span class=\"block mt-0.5 truncate text-xs font-medium text-base-content\">")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 145, "\"><div class=\"builder-node-content rounded-lg border border-primary/30 bg-base-100 px-3 py-2 shadow-sm h-full\"><span class=\"block text-[10px] font-semibold uppercase tracking-wide text-base-content/50\">")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 			var templ_7745c5c3_Var98 string
-			templ_7745c5c3_Var98, templ_7745c5c3_Err = templ.JoinStringErrs(node.Slug)
+			templ_7745c5c3_Var98, templ_7745c5c3_Err = templ.JoinStringErrs(node.Kind)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/builder_blueprint.templ`, Line: 794, Col: 101}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/builder_blueprint.templ`, Line: 794, Col: 118}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var98))
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 146, "</span> ")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 146, "</span> <span class=\"block mt-0.5 truncate text-xs font-medium text-base-content\">")
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			var templ_7745c5c3_Var99 string
+			templ_7745c5c3_Var99, templ_7745c5c3_Err = templ.JoinStringErrs(node.Slug)
+			if templ_7745c5c3_Err != nil {
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/builder_blueprint.templ`, Line: 795, Col: 101}
+			}
+			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var99))
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 147, "</span> ")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 			if node.Kind == "sink" {
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 147, "<span class=\"block mt-0.5 truncate text-[11px] text-base-content/70\">")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 148, "<span class=\"block mt-0.5 truncate text-[11px] text-base-content/70\">")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				var templ_7745c5c3_Var99 string
-				templ_7745c5c3_Var99, templ_7745c5c3_Err = templ.JoinStringErrs(node.SinkBackend)
+				var templ_7745c5c3_Var100 string
+				templ_7745c5c3_Var100, templ_7745c5c3_Err = templ.JoinStringErrs(node.SinkBackend)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/builder_blueprint.templ`, Line: 796, Col: 104}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/builder_blueprint.templ`, Line: 797, Col: 104}
 				}
-				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var99))
+				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var100))
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 148, "</span>")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 149, "</span>")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 149, "</div>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 150, "</div>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 			if node.Kind == "transform" || node.Kind == "sink" {
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 150, "<div class=\"node-port node-port-in\" data-port=\"in\" title=\"Input\">◀</div>")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 151, "<div class=\"node-port node-port-in\" data-port=\"in\" title=\"Input\">◀</div>")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
 			}
 			if node.Kind == "query" || node.Kind == "transform" {
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 151, "<div class=\"node-port node-port-out\" data-port=\"out\" title=\"Output\">▶</div>")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 152, "<div class=\"node-port node-port-out\" data-port=\"out\" title=\"Output\">▶</div>")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 152, "</div>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 153, "</div>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 153, "</div></div></div></div><div class=\"hidden\" id=\"builder-edges-data\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 154, "</div></div></div></div><div class=\"hidden\" id=\"builder-edges-data\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		for _, edge := range state.ImportedEdges {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 154, "<div data-edge-from=\"")
-			if templ_7745c5c3_Err != nil {
-				return templ_7745c5c3_Err
-			}
-			var templ_7745c5c3_Var100 string
-			templ_7745c5c3_Var100, templ_7745c5c3_Err = templ.ResolveAttributeValue(edge.From)
-			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/builder_blueprint.templ`, Line: 813, Col: 42}
-			}
-			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var100)
-			if templ_7745c5c3_Err != nil {
-				return templ_7745c5c3_Err
-			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 155, "\" data-edge-to=\"")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 155, "<div data-edge-from=\"")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 			var templ_7745c5c3_Var101 string
-			templ_7745c5c3_Var101, templ_7745c5c3_Err = templ.ResolveAttributeValue(edge.To)
+			templ_7745c5c3_Var101, templ_7745c5c3_Err = templ.ResolveAttributeValue(edge.From)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/builder_blueprint.templ`, Line: 813, Col: 67}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/builder_blueprint.templ`, Line: 814, Col: 42}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var101)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 156, "\"></div>")
-			if templ_7745c5c3_Err != nil {
-				return templ_7745c5c3_Err
-			}
-		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 157, "</div><div class=\"hidden\" id=\"builder-bindings-data\">")
-		if templ_7745c5c3_Err != nil {
-			return templ_7745c5c3_Err
-		}
-		for _, binding := range state.ImportedBindings {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 158, "<div data-binding-from-node=\"")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 156, "\" data-edge-to=\"")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 			var templ_7745c5c3_Var102 string
-			templ_7745c5c3_Var102, templ_7745c5c3_Err = templ.ResolveAttributeValue(binding.FromNode)
+			templ_7745c5c3_Var102, templ_7745c5c3_Err = templ.ResolveAttributeValue(edge.To)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/builder_blueprint.templ`, Line: 818, Col: 57}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/builder_blueprint.templ`, Line: 814, Col: 67}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var102)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 159, "\" data-binding-from-port=\"")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 157, "\"></div>")
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 158, "</div><div class=\"hidden\" id=\"builder-bindings-data\">")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		for _, binding := range state.ImportedBindings {
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 159, "<div data-binding-from-node=\"")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 			var templ_7745c5c3_Var103 string
-			templ_7745c5c3_Var103, templ_7745c5c3_Err = templ.ResolveAttributeValue(binding.FromPort)
+			templ_7745c5c3_Var103, templ_7745c5c3_Err = templ.ResolveAttributeValue(binding.FromNode)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/builder_blueprint.templ`, Line: 818, Col: 101}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/builder_blueprint.templ`, Line: 819, Col: 57}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var103)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 160, "\" data-binding-to-node=\"")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 160, "\" data-binding-from-port=\"")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 			var templ_7745c5c3_Var104 string
-			templ_7745c5c3_Var104, templ_7745c5c3_Err = templ.ResolveAttributeValue(binding.ToNode)
+			templ_7745c5c3_Var104, templ_7745c5c3_Err = templ.ResolveAttributeValue(binding.FromPort)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/builder_blueprint.templ`, Line: 818, Col: 141}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/builder_blueprint.templ`, Line: 819, Col: 101}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var104)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 161, "\" data-binding-to-port=\"")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 161, "\" data-binding-to-node=\"")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 			var templ_7745c5c3_Var105 string
-			templ_7745c5c3_Var105, templ_7745c5c3_Err = templ.ResolveAttributeValue(binding.ToPort)
+			templ_7745c5c3_Var105, templ_7745c5c3_Err = templ.ResolveAttributeValue(binding.ToNode)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/builder_blueprint.templ`, Line: 818, Col: 181}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/builder_blueprint.templ`, Line: 819, Col: 141}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var105)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 162, "\"></div>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 162, "\" data-binding-to-port=\"")
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			var templ_7745c5c3_Var106 string
+			templ_7745c5c3_Var106, templ_7745c5c3_Err = templ.ResolveAttributeValue(binding.ToPort)
+			if templ_7745c5c3_Err != nil {
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/builder_blueprint.templ`, Line: 819, Col: 181}
+			}
+			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var106)
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 163, "\"></div>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 163, "</div><div aria-live=\"polite\" class=\"builder-node-disclosure-popover hidden p-3 text-xs\" id=\"builder-node-disclosure-popover\" role=\"tooltip\"></div></div></div></div><div class=\"min-w-0 rounded-lg border border-base-300 bg-base-100 p-3\" id=\"builder-source-workspace-panel\"><div class=\"flex items-center justify-between gap-2\"><p class=\"text-xs font-semibold uppercase tracking-wide text-base-content/70\">Canonical Source</p><span class=\"text-[11px] text-base-content/60\" id=\"builder-source-format-hint\">YAML</span></div><p class=\"mt-1 text-xs text-base-content/70\">Preview or edit the canonical YAML/JSON spec, then apply it back to refresh the graph projection.</p><div class=\"mt-3 rounded-lg border border-base-300 bg-base-200/40\"><style>\n\t\t\t\t\t\t\t\t\t#builder-source-line-numbers {\n\t\t\t\t\t\t\t\t\t\tscrollbar-width: none;\n\t\t\t\t\t\t\t\t\t\t-ms-overflow-style: none;\n\t\t\t\t\t\t\t\t\t}\n\n\t\t\t\t\t\t\t\t\t#builder-source-line-numbers::-webkit-scrollbar {\n\t\t\t\t\t\t\t\t\t\tdisplay: none;\n\t\t\t\t\t\t\t\t\t\twidth: 0;\n\t\t\t\t\t\t\t\t\t\theight: 0;\n\t\t\t\t\t\t\t\t\t}\n\t\t\t\t\t\t\t\t</style><div class=\"relative h-[520px] overflow-hidden\"><pre aria-hidden=\"true\" class=\"m-0 pointer-events-none whitespace-pre border-r border-base-300 bg-base-200/50 px-2 py-3 text-right text-[11px] text-base-content/50\" id=\"builder-source-line-numbers\" style=\"position: absolute; top: 0; bottom: 0; left: 0; z-index: 20; width: 3rem; overflow-y: scroll; overflow-x: hidden; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace; line-height: 20px;\"></pre><div id=\"builder-source-content-viewport\" style=\"position: absolute; top: 0; bottom: 0; left: 3rem; right: 0; z-index: 10; overflow: hidden;\"><pre aria-hidden=\"true\" class=\"hidden m-0 pointer-events-none whitespace-pre text-base-content/90\" id=\"builder-source-highlight\" style=\"position: absolute; top: 0; left: 0; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace; font-size: 12px; line-height: 20px; letter-spacing: 0; tab-size: 2; font-variant-ligatures: none; padding: 12px;\"></pre><textarea aria-describedby=\"builder-source-status\" aria-label=\"Pipeline source\" class=\"resize-none overflow-auto border-0 bg-transparent p-3 text-base-content pointer-events-auto cursor-text\" id=\"builder-source-editor\" spellcheck=\"false\" style=\"position: absolute; top: 0; right: 0; bottom: 0; left: 0; z-index: 30; width: 100%; height: 100%; box-sizing: border-box; overscroll-behavior: contain; -webkit-overflow-scrolling: touch; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace; font-size: 12px; line-height: 20px; letter-spacing: 0; tab-size: 2; font-variant-ligatures: none; color: var(--color-base-content) !important; -webkit-text-fill-color: var(--color-base-content) !important; opacity: 1 !important; caret-color: var(--color-primary);\" wrap=\"off\"></textarea></div></div></div><div class=\"mt-3 flex flex-wrap items-center gap-2\"><button class=\"btn btn-xs btn-outline\" id=\"builder-source-sync-btn\" type=\"button\">Sync From Canvas</button> <button class=\"btn btn-xs btn-primary\" id=\"builder-source-apply-btn\" type=\"button\">Apply To Canvas</button></div><p class=\"mt-2 text-xs text-base-content/70\" id=\"builder-source-status\" role=\"status\">Source editor is ready.</p></div></div><section popover=\"auto\" id=\"builder-mapping-workspace\" aria-label=\"Mapping details\"><div id=\"builder-mapping-workspace-header\"><div><h3 id=\"builder-mapping-workspace-title\" tabindex=\"-1\">Field mapping</h3><p class=\"mt-1 text-xs text-base-content/70\" id=\"builder-mapping-workspace-parent\"></p></div><button class=\"btn btn-sm btn-outline\" type=\"button\" id=\"builder-close-mapping-btn\">Close mapping</button></div><p class=\"mt-3 text-xs text-base-content/70\" id=\"builder-mapping-preview-help\">From authored SQL · checks not run</p><div class=\"builder-mapping-columns\"><span>Input / expression</span><span></span><span>Output field</span></div><div id=\"builder-mapping-preview\"></div><div id=\"builder-mapping-preview-actions\"><button class=\"btn btn-sm btn-outline\" id=\"builder-edit-mapping-btn\" type=\"button\">Edit mapping</button></div><button class=\"btn btn-xs btn-ghost mt-3 hidden\" id=\"builder-preview-mapping-btn\" type=\"button\">Show assignments</button><section id=\"builder-field-mapping\" aria-label=\"Field mapping\" class=\"hidden\"></section></section></section><aside class=\"relative z-10 border-t border-base-300 bg-base-100/95 p-4 xl:border-l xl:border-t-0\" id=\"builder-properties-aside\"><button aria-label=\"Hide properties\" class=\"btn btn-ghost btn-xs btn-circle border border-base-300 bg-base-100 absolute -left-3 z-10\" id=\"builder-toggle-properties-btn\" style=\"top: 1.25rem;\" title=\"Hide properties\" type=\"button\"><svg xmlns=\"http://www.w3.org/2000/svg\" class=\"shell-sidebar-toggle-icon h-3.5 w-3.5 transition-transform duration-200\" width=\"14\" height=\"14\" fill=\"none\" viewBox=\"0 0 24 24\" stroke=\"currentColor\" stroke-width=\"2\" aria-hidden=\"true\"><path stroke-linecap=\"round\" stroke-linejoin=\"round\" d=\"M15 19l-7-7 7-7\"></path></svg></button><div class=\"flex items-center justify-between gap-2\"><p class=\"text-xs font-semibold uppercase tracking-wide text-base-content/60\" id=\"builder-properties-title\">Properties</p></div><div class=\"hidden mt-3 ml-auto text-[10px] font-semibold uppercase tracking-[0.2em] text-base-content/50\" id=\"builder-properties-rail-label\" style=\"writing-mode: vertical-rl;\">Properties</div><div class=\"flex h-full flex-col\" id=\"builder-properties-body\"><div class=\"mt-3 min-w-0 flex-1 overflow-y-auto\" id=\"builder-property-panel\"><div id=\"builder-property-empty\"><p class=\"text-xs text-base-content/70\">Select a node to edit properties, contracts, checkpoints, and links.</p></div><section class=\"hidden\" id=\"builder-edge-preview\" aria-label=\"Connection preview\"></section><form class=\"hidden space-y-3\" id=\"builder-property-form\" novalidate><div class=\"builder-inspector-header\"><h3 id=\"builder-property-kind\">Node</h3><p class=\"builder-inspector-subtitle\" id=\"builder-property-node-type\">query</p><code class=\"builder-inspector-identifier\" id=\"builder-property-identifier\"></code> <button type=\"button\" class=\"btn btn-outline btn-sm mt-2\" id=\"builder-remove-step-btn\">Remove step</button></div><details class=\"hidden border-y border-base-300 py-3\" id=\"builder-schema-panel\"><summary class=\"cursor-pointer text-xs font-medium\">Data source schema</summary><div class=\"mt-3 space-y-3\"><p class=\"text-xs text-base-content/70\" id=\"builder-schema-status\" role=\"status\"></p><div class=\"flex flex-wrap gap-2\"><button class=\"btn btn-xs btn-outline\" type=\"button\" id=\"builder-schema-reload\">Reload cache</button> ")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 164, "</div><div aria-live=\"polite\" class=\"builder-node-disclosure-popover hidden p-3 text-xs\" id=\"builder-node-disclosure-popover\" role=\"tooltip\"></div></div></div></div><div class=\"min-w-0 rounded-lg border border-base-300 bg-base-100 p-3\" id=\"builder-source-workspace-panel\"><div class=\"flex items-center justify-between gap-2\"><p class=\"text-xs font-semibold uppercase tracking-wide text-base-content/70\">Canonical Source</p><span class=\"text-[11px] text-base-content/60\" id=\"builder-source-format-hint\">YAML</span></div><p class=\"mt-1 text-xs text-base-content/70\">Preview or edit the canonical YAML/JSON spec, then apply it back to refresh the graph projection.</p><div class=\"mt-3 rounded-lg border border-base-300 bg-base-200/40\"><style>\n\t\t\t\t\t\t\t\t\t#builder-source-line-numbers {\n\t\t\t\t\t\t\t\t\t\tscrollbar-width: none;\n\t\t\t\t\t\t\t\t\t\t-ms-overflow-style: none;\n\t\t\t\t\t\t\t\t\t}\n\n\t\t\t\t\t\t\t\t\t#builder-source-line-numbers::-webkit-scrollbar {\n\t\t\t\t\t\t\t\t\t\tdisplay: none;\n\t\t\t\t\t\t\t\t\t\twidth: 0;\n\t\t\t\t\t\t\t\t\t\theight: 0;\n\t\t\t\t\t\t\t\t\t}\n\t\t\t\t\t\t\t\t</style><div class=\"relative h-[520px] overflow-hidden\"><pre aria-hidden=\"true\" class=\"m-0 pointer-events-none whitespace-pre border-r border-base-300 bg-base-200/50 px-2 py-3 text-right text-[11px] text-base-content/50\" id=\"builder-source-line-numbers\" style=\"position: absolute; top: 0; bottom: 0; left: 0; z-index: 20; width: 3rem; overflow-y: scroll; overflow-x: hidden; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace; line-height: 20px;\"></pre><div id=\"builder-source-content-viewport\" style=\"position: absolute; top: 0; bottom: 0; left: 3rem; right: 0; z-index: 10; overflow: hidden;\"><pre aria-hidden=\"true\" class=\"hidden m-0 pointer-events-none whitespace-pre text-base-content/90\" id=\"builder-source-highlight\" style=\"position: absolute; top: 0; left: 0; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace; font-size: 12px; line-height: 20px; letter-spacing: 0; tab-size: 2; font-variant-ligatures: none; padding: 12px;\"></pre><textarea aria-describedby=\"builder-source-status\" aria-label=\"Pipeline source\" class=\"resize-none overflow-auto border-0 bg-transparent p-3 text-base-content pointer-events-auto cursor-text\" id=\"builder-source-editor\" spellcheck=\"false\" style=\"position: absolute; top: 0; right: 0; bottom: 0; left: 0; z-index: 30; width: 100%; height: 100%; box-sizing: border-box; overscroll-behavior: contain; -webkit-overflow-scrolling: touch; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace; font-size: 12px; line-height: 20px; letter-spacing: 0; tab-size: 2; font-variant-ligatures: none; color: var(--color-base-content) !important; -webkit-text-fill-color: var(--color-base-content) !important; opacity: 1 !important; caret-color: var(--color-primary);\" wrap=\"off\"></textarea></div></div></div><div class=\"mt-3 flex flex-wrap items-center gap-2\"><button class=\"btn btn-xs btn-outline\" id=\"builder-source-sync-btn\" type=\"button\">Sync From Canvas</button> <button class=\"btn btn-xs btn-primary\" id=\"builder-source-apply-btn\" type=\"button\">Apply To Canvas</button></div><p class=\"mt-2 text-xs text-base-content/70\" id=\"builder-source-status\" role=\"status\">Source editor is ready.</p></div></div><section popover=\"auto\" id=\"builder-mapping-workspace\" aria-label=\"Mapping details\"><div id=\"builder-mapping-workspace-header\"><div><h3 id=\"builder-mapping-workspace-title\" tabindex=\"-1\">Field mapping</h3><p class=\"mt-1 text-xs text-base-content/70\" id=\"builder-mapping-workspace-parent\"></p></div><button class=\"btn btn-sm btn-outline\" type=\"button\" id=\"builder-close-mapping-btn\">Close mapping</button></div><p class=\"mt-3 text-xs text-base-content/70\" id=\"builder-mapping-preview-help\">From authored SQL · checks not run</p><div class=\"builder-mapping-columns\"><span>Input / expression</span><span></span><span>Output field</span></div><div id=\"builder-mapping-preview\"></div><div id=\"builder-mapping-preview-actions\"><button class=\"btn btn-sm btn-outline\" id=\"builder-edit-mapping-btn\" type=\"button\">Edit mapping</button></div><button class=\"btn btn-xs btn-ghost mt-3 hidden\" id=\"builder-preview-mapping-btn\" type=\"button\">Show assignments</button><section id=\"builder-field-mapping\" aria-label=\"Field mapping\" class=\"hidden\"></section></section></section><aside class=\"relative z-10 border-t border-base-300 bg-base-100/95 p-4 xl:border-l xl:border-t-0\" id=\"builder-properties-aside\"><button aria-label=\"Hide properties\" class=\"btn btn-ghost btn-xs btn-circle border border-base-300 bg-base-100 absolute -left-3 z-10\" id=\"builder-toggle-properties-btn\" style=\"top: 1.25rem;\" title=\"Hide properties\" type=\"button\"><svg xmlns=\"http://www.w3.org/2000/svg\" class=\"shell-sidebar-toggle-icon h-3.5 w-3.5 transition-transform duration-200\" width=\"14\" height=\"14\" fill=\"none\" viewBox=\"0 0 24 24\" stroke=\"currentColor\" stroke-width=\"2\" aria-hidden=\"true\"><path stroke-linecap=\"round\" stroke-linejoin=\"round\" d=\"M15 19l-7-7 7-7\"></path></svg></button><div class=\"flex items-center justify-between gap-2\"><p class=\"text-xs font-semibold uppercase tracking-wide text-base-content/60\" id=\"builder-properties-title\">Properties</p></div><div class=\"hidden mt-3 ml-auto text-[10px] font-semibold uppercase tracking-[0.2em] text-base-content/50\" id=\"builder-properties-rail-label\" style=\"writing-mode: vertical-rl;\">Properties</div><div class=\"flex h-full flex-col\" id=\"builder-properties-body\"><div class=\"mt-3 min-w-0 flex-1 overflow-y-auto\" id=\"builder-property-panel\"><div id=\"builder-property-empty\"><p class=\"text-xs text-base-content/70\">Select a node to edit properties, contracts, checkpoints, and links.</p></div><section class=\"hidden\" id=\"builder-edge-preview\" aria-label=\"Connection preview\"></section><form class=\"hidden space-y-3\" id=\"builder-property-form\" novalidate><div class=\"builder-inspector-header\"><h3 id=\"builder-property-kind\">Node</h3><p class=\"builder-inspector-subtitle\" id=\"builder-property-node-type\">query</p><code class=\"builder-inspector-identifier\" id=\"builder-property-identifier\"></code> <button type=\"button\" class=\"btn btn-outline btn-sm mt-2\" id=\"builder-remove-step-btn\">Remove step</button></div><details class=\"hidden border-y border-base-300 py-3\" id=\"builder-schema-panel\"><summary class=\"cursor-pointer text-xs font-medium\">Data source schema</summary><div class=\"mt-3 space-y-3\"><p class=\"text-xs text-base-content/70\" id=\"builder-schema-status\" role=\"status\"></p><div class=\"flex flex-wrap gap-2\"><button class=\"btn btn-xs btn-outline\" type=\"button\" id=\"builder-schema-reload\">Reload cache</button> ")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		if state.CanRefreshSchemas {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 164, "<button class=\"btn btn-xs btn-outline\" type=\"button\" id=\"builder-schema-refresh\">Refresh schema</button>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 165, "<button class=\"btn btn-xs btn-outline\" type=\"button\" id=\"builder-schema-refresh\">Refresh schema</button>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 165, "</div><pre class=\"max-h-48 overflow-auto whitespace-pre-wrap break-words text-[11px]\" id=\"builder-schema-lines\"></pre><label class=\"form-control\"><span class=\"label-text text-xs\">Table, collection or file</span> <select class=\"select select-bordered select-sm w-full\" id=\"builder-schema-dataset\" aria-label=\"Schema dataset\"></select></label><p class=\"text-xs text-base-content/70\" id=\"builder-schema-hint\"></p><button class=\"btn btn-xs btn-outline\" type=\"button\" id=\"builder-schema-apply\" disabled>Add proposed fields</button><div id=\"builder-schema-operation\" class=\"hidden space-y-2\"><h4>Proposed source operation</h4><pre class=\"max-h-48 overflow-auto whitespace-pre-wrap break-words font-mono text-xs\" id=\"builder-schema-operation-preview\"></pre><p class=\"text-xs text-base-content/70\">Reads the selected dataset. Review filters, projection and schema qualification before running. Replaces this step’s saved or inline operation; the contract is unchanged.</p><button class=\"btn btn-xs btn-outline\" type=\"button\" id=\"builder-schema-operation-apply\">Replace source operation</button></div><p class=\"text-[11px] text-base-content/60\">Draft fields only. Review the query projection, required fields and nullability, then save and validate. Existing fields and pinned ODCS references are preserved.</p></div></details> <input class=\"hidden\" id=\"builder-field-slug\" type=\"text\" readonly aria-hidden=\"true\" tabindex=\"-1\"> <span class=\"hidden label-text-alt text-error\" id=\"builder-error-slug\"></span><div class=\"hidden\" id=\"builder-group-source\"><h4 class=\"builder-inspector-section-title\">Source configuration</h4><label class=\"form-control\"><span class=\"label-text text-xs\">Logical data source ref <span class=\"text-error\">*</span></span> <input class=\"input input-bordered input-sm\" id=\"builder-field-data-source\" type=\"text\"> <span class=\"label-text-alt text-error\" id=\"builder-error-data-source\"></span></label><p class=\"mt-2 text-[11px] text-base-content/60\" id=\"builder-source-config-hint\"></p>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 166, "</div><pre class=\"max-h-48 overflow-auto whitespace-pre-wrap break-words text-[11px]\" id=\"builder-schema-lines\"></pre><label class=\"form-control\"><span class=\"label-text text-xs\">Table, collection or file</span> <select class=\"select select-bordered select-sm w-full\" id=\"builder-schema-dataset\" aria-label=\"Schema dataset\"></select></label><p class=\"text-xs text-base-content/70\" id=\"builder-schema-hint\"></p><button class=\"btn btn-xs btn-outline\" type=\"button\" id=\"builder-schema-apply\" disabled>Add proposed fields</button><div id=\"builder-schema-operation\" class=\"hidden space-y-2\"><h4>Proposed source operation</h4><pre class=\"max-h-48 overflow-auto whitespace-pre-wrap break-words font-mono text-xs\" id=\"builder-schema-operation-preview\"></pre><p class=\"text-xs text-base-content/70\">Reads the selected dataset. Review filters, projection and schema qualification before running. Replaces this step’s saved or inline operation; the contract is unchanged.</p><button class=\"btn btn-xs btn-outline\" type=\"button\" id=\"builder-schema-operation-apply\">Replace source operation</button></div><p class=\"text-[11px] text-base-content/60\">Draft fields only. Review the query projection, required fields and nullability, then save and validate. Existing fields and pinned ODCS references are preserved.</p></div></details> <input class=\"hidden\" id=\"builder-field-slug\" type=\"text\" readonly aria-hidden=\"true\" tabindex=\"-1\"> <span class=\"hidden label-text-alt text-error\" id=\"builder-error-slug\"></span><div class=\"hidden\" id=\"builder-group-source\"><h4 class=\"builder-inspector-section-title\">Source configuration</h4><label class=\"form-control\"><span class=\"label-text text-xs\">Logical data source ref <span class=\"text-error\">*</span></span> <input class=\"input input-bordered input-sm\" id=\"builder-field-data-source\" type=\"text\"> <span class=\"label-text-alt text-error\" id=\"builder-error-data-source\"></span></label><p class=\"mt-2 text-[11px] text-base-content/60\" id=\"builder-source-config-hint\"></p>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		if state.DeepLinkOrgSlug != "" {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 166, "<p class=\"mt-2 text-xs text-base-content/70\"><a class=\"link link-primary\" href=\"")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 167, "<p class=\"mt-2 text-xs text-base-content/70\"><a class=\"link link-primary\" href=\"")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			var templ_7745c5c3_Var106 templ.SafeURL
-			templ_7745c5c3_Var106, templ_7745c5c3_Err = templ.JoinURLErrs(templ.URL(DataSourcesListHref(state.DeepLinkOrgSlug, state.TargetEnvironmentSlug, "")))
+			var templ_7745c5c3_Var107 templ.SafeURL
+			templ_7745c5c3_Var107, templ_7745c5c3_Err = templ.JoinURLErrs(templ.URL(DataSourcesListHref(state.DeepLinkOrgSlug, state.TargetEnvironmentSlug, "")))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/builder_blueprint.templ`, Line: 932, Col: 177}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/builder_blueprint.templ`, Line: 933, Col: 177}
 			}
-			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var106))
-			if templ_7745c5c3_Err != nil {
-				return templ_7745c5c3_Err
-			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 167, "\" target=\"_blank\" rel=\"noopener noreferrer\">Manage connections (new tab)</a>.</p><button type=\"button\" class=\"btn btn-ghost btn-xs mt-1\" data-builder-refresh-connections>Refresh connections</button>")
+			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var107))
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 168, "\" target=\"_blank\" rel=\"noopener noreferrer\">Manage connections (new tab)</a>.</p><button type=\"button\" class=\"btn btn-ghost btn-xs mt-1\" data-builder-refresh-connections>Refresh connections</button>")
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 168, "<div class=\"form-control mt-2\" id=\"builder-inline-sql-toggle-group\"><span class=\"label-text text-xs\">Inline SQL</span> <label class=\"label cursor-pointer justify-start gap-2\"><input class=\"checkbox checkbox-sm\" id=\"builder-field-inline-sql-toggle\" type=\"checkbox\"> <span class=\"label-text text-xs\" id=\"builder-inline-sql-toggle-label\">Use inline SQL instead of a saved query</span></label></div><div class=\"form-control mt-2 hidden\" id=\"builder-inline-operation-toggle-group\"><span class=\"label-text text-xs\">Inline operation</span> <label class=\"label cursor-pointer justify-start gap-2\"><input class=\"checkbox checkbox-sm\" id=\"builder-field-inline-operation-toggle\" type=\"checkbox\"> <span class=\"label-text text-xs\" id=\"builder-inline-operation-toggle-label\">Use inline operation instead of a saved query</span></label></div><div class=\"hidden\" id=\"builder-source-inline-operation-group\"><label class=\"form-control mt-2\" id=\"builder-source-inline-operation-json-field\"><span class=\"label-text text-xs\" id=\"builder-inline-operation-label\">Inline operation (JSON)</span> <textarea class=\"textarea textarea-bordered textarea-sm\" id=\"builder-field-operation-inline\" rows=\"5\"></textarea> <span class=\"label-text-alt text-error\" id=\"builder-error-operation-inline\"></span></label><div class=\"hidden mt-2 space-y-2\" id=\"builder-source-inline-operation-guided\"></div></div><div id=\"builder-source-saved-query-group\"><label class=\"form-control mt-2\"><span class=\"label-text text-xs\" id=\"builder-query-ref-label\">Saved query</span> <input class=\"input input-bordered input-sm\" id=\"builder-field-query\" type=\"text\"> <span class=\"label-text-alt text-error\" id=\"builder-error-query\"></span></label></div><div class=\"hidden\" id=\"builder-source-inline-sql-group\"><label class=\"form-control mt-2\"><span class=\"label-text text-xs\">Inline SQL <span class=\"text-error\">*</span></span> <textarea class=\"textarea textarea-bordered textarea-sm\" id=\"builder-field-inline-sql\" rows=\"5\"></textarea> <span class=\"label-text-alt text-error\"></span></label></div><div class=\"builder-inspector-section\" id=\"builder-query-incremental-section\"><div class=\"flex items-center justify-between gap-2\"><h4 class=\"builder-inspector-section-title\">Checkpoint</h4><p class=\"text-[11px] text-base-content/60\">query.incremental</p></div><label class=\"form-control mt-2\"><span class=\"label-text text-xs\">Mode</span> <select class=\"select select-bordered select-sm\" id=\"builder-field-query-incremental-kind\"><option value=\"\">Full read</option> <option value=\"watermark\">Watermark</option> <option value=\"cursor\">Cursor</option></select></label><div class=\"mt-2 grid gap-2\"><label class=\"form-control\" id=\"builder-query-incremental-field-group\"><span class=\"label-text text-xs\">Watermark field</span> <input class=\"input input-bordered input-sm font-mono\" id=\"builder-field-query-incremental-field\" type=\"text\" placeholder=\"updated_at\"></label> <label class=\"form-control\" id=\"builder-query-incremental-cursor-group\"><span class=\"label-text text-xs\">Cursor name</span> <input class=\"input input-bordered input-sm font-mono\" id=\"builder-field-query-incremental-cursor\" type=\"text\" placeholder=\"next_page_token\"></label> <label class=\"form-control\"><span class=\"label-text text-xs\">Lookback window</span> <input class=\"input input-bordered input-sm font-mono\" id=\"builder-field-query-incremental-lookback\" type=\"text\" placeholder=\"15m\"></label> <label class=\"form-control\"><span class=\"label-text text-xs\">Ordering fields</span> <input class=\"input input-bordered input-sm font-mono\" id=\"builder-field-query-incremental-ordering\" type=\"text\" placeholder=\"updated_at, id\"></label> <label class=\"form-control\"><span class=\"label-text text-xs\">Dedupe key</span> <input class=\"input input-bordered input-sm font-mono\" id=\"builder-field-query-incremental-dedupe\" type=\"text\" placeholder=\"id\"></label></div><p class=\"mt-2 text-[11px] text-error\" id=\"builder-error-query-incremental\"></p></div><div class=\"builder-inspector-section\" id=\"builder-query-output-contract-group\"><div class=\"flex items-center justify-between gap-2\"><h4 class=\"builder-inspector-section-title\">Output contract</h4><p class=\"text-[11px] text-base-content/60\">query.output_contract</p></div><div class=\"mt-2 space-y-2\" id=\"builder-query-output-contract-editor\"></div><details class=\"mt-2\"><summary class=\"cursor-pointer text-[11px] font-medium text-base-content/70\">Raw contract JSON</summary> <textarea aria-label=\"Source output contract JSON\" class=\"textarea textarea-bordered textarea-sm mt-2 font-mono text-xs\" id=\"builder-field-query-output-contract\" rows=\"7\" placeholder=\"{ &quot;representation&quot;: &quot;rows&quot;, &quot;fields&quot;: [] }\"></textarea></details> <span class=\"label-text-alt text-error\" id=\"builder-error-query-output-contract\"></span></div></div><div class=\"hidden\" id=\"builder-group-transform\"><input class=\"hidden\" id=\"builder-field-step-slug\" type=\"text\" readonly aria-hidden=\"true\" tabindex=\"-1\"> <span class=\"hidden label-text-alt text-error\" id=\"builder-error-step-slug\"></span> <label class=\"form-control mt-2\" id=\"builder-step-name-group\"><span class=\"label-text text-xs\">Step name</span> <input class=\"input input-bordered input-sm\" id=\"builder-field-step-name\" type=\"text\"></label><div class=\"builder-inspector-section\" id=\"builder-parameters-group\"><div class=\"flex items-center justify-between gap-2\"><h4 class=\"builder-inspector-section-title\">Parameters</h4><button class=\"btn btn-xs btn-outline\" id=\"builder-add-parameter-btn\" type=\"button\">Add</button></div><p class=\"mt-2 text-xs text-base-content/70\">Use date expressions in query parameters or sink config, then reference named parameters in connector fields. Example: <code>")
-		if templ_7745c5c3_Err != nil {
-			return templ_7745c5c3_Err
-		}
-		var templ_7745c5c3_Var107 string
-		templ_7745c5c3_Var107, templ_7745c5c3_Err = templ.JoinStringErrs("{{runtime.run.datetime | offset:-24h}}")
-		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/builder_blueprint.templ`, Line: 1033, Col: 222}
-		}
-		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var107))
-		if templ_7745c5c3_Err != nil {
-			return templ_7745c5c3_Err
-		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 169, "</code>. Date-typed environment variables and ISO date inputs also support date operations; month offsets clamp to the last day. Previous success is scoped to this pipeline version and environment; <code>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 169, "<div class=\"form-control mt-2\" id=\"builder-inline-sql-toggle-group\"><span class=\"label-text text-xs\">Inline SQL</span> <label class=\"label cursor-pointer justify-start gap-2\"><input class=\"checkbox checkbox-sm\" id=\"builder-field-inline-sql-toggle\" type=\"checkbox\"> <span class=\"label-text text-xs\" id=\"builder-inline-sql-toggle-label\">Use inline SQL instead of a saved query</span></label></div><div class=\"form-control mt-2 hidden\" id=\"builder-inline-operation-toggle-group\"><span class=\"label-text text-xs\">Inline operation</span> <label class=\"label cursor-pointer justify-start gap-2\"><input class=\"checkbox checkbox-sm\" id=\"builder-field-inline-operation-toggle\" type=\"checkbox\"> <span class=\"label-text text-xs\" id=\"builder-inline-operation-toggle-label\">Use inline operation instead of a saved query</span></label></div><div class=\"hidden\" id=\"builder-source-inline-operation-group\"><label class=\"form-control mt-2\" id=\"builder-source-inline-operation-json-field\"><span class=\"label-text text-xs\" id=\"builder-inline-operation-label\">Inline operation (JSON)</span> <textarea class=\"textarea textarea-bordered textarea-sm\" id=\"builder-field-operation-inline\" rows=\"5\"></textarea> <span class=\"label-text-alt text-error\" id=\"builder-error-operation-inline\"></span></label><div class=\"hidden mt-2 space-y-2\" id=\"builder-source-inline-operation-guided\"></div></div><div id=\"builder-source-saved-query-group\"><label class=\"form-control mt-2\"><span class=\"label-text text-xs\" id=\"builder-query-ref-label\">Saved query</span> <input class=\"input input-bordered input-sm\" id=\"builder-field-query\" type=\"text\"> <span class=\"label-text-alt text-error\" id=\"builder-error-query\"></span></label></div><div class=\"hidden\" id=\"builder-source-inline-sql-group\"><label class=\"form-control mt-2\"><span class=\"label-text text-xs\">Inline SQL <span class=\"text-error\">*</span></span> <textarea class=\"textarea textarea-bordered textarea-sm\" id=\"builder-field-inline-sql\" rows=\"5\"></textarea> <span class=\"label-text-alt text-error\"></span></label></div><div class=\"builder-inspector-section\" id=\"builder-query-incremental-section\"><div class=\"flex items-center justify-between gap-2\"><h4 class=\"builder-inspector-section-title\">Checkpoint</h4><p class=\"text-[11px] text-base-content/60\">query.incremental</p></div><label class=\"form-control mt-2\"><span class=\"label-text text-xs\">Mode</span> <select class=\"select select-bordered select-sm\" id=\"builder-field-query-incremental-kind\"><option value=\"\">Full read</option> <option value=\"watermark\">Watermark</option> <option value=\"cursor\">Cursor</option></select></label><div class=\"mt-2 grid gap-2\"><label class=\"form-control\" id=\"builder-query-incremental-field-group\"><span class=\"label-text text-xs\">Watermark field</span> <input class=\"input input-bordered input-sm font-mono\" id=\"builder-field-query-incremental-field\" type=\"text\" placeholder=\"updated_at\"></label> <label class=\"form-control\" id=\"builder-query-incremental-cursor-group\"><span class=\"label-text text-xs\">Cursor name</span> <input class=\"input input-bordered input-sm font-mono\" id=\"builder-field-query-incremental-cursor\" type=\"text\" placeholder=\"next_page_token\"></label> <label class=\"form-control\"><span class=\"label-text text-xs\">Lookback window</span> <input class=\"input input-bordered input-sm font-mono\" id=\"builder-field-query-incremental-lookback\" type=\"text\" placeholder=\"15m\"></label> <label class=\"form-control\"><span class=\"label-text text-xs\">Ordering fields</span> <input class=\"input input-bordered input-sm font-mono\" id=\"builder-field-query-incremental-ordering\" type=\"text\" placeholder=\"updated_at, id\"></label> <label class=\"form-control\"><span class=\"label-text text-xs\">Dedupe key</span> <input class=\"input input-bordered input-sm font-mono\" id=\"builder-field-query-incremental-dedupe\" type=\"text\" placeholder=\"id\"></label></div><p class=\"mt-2 text-[11px] text-error\" id=\"builder-error-query-incremental\"></p></div><div class=\"builder-inspector-section\" id=\"builder-query-output-contract-group\"><div class=\"flex items-center justify-between gap-2\"><h4 class=\"builder-inspector-section-title\">Output contract</h4><p class=\"text-[11px] text-base-content/60\">query.output_contract</p></div><div class=\"mt-2 space-y-2\" id=\"builder-query-output-contract-editor\"></div><details class=\"mt-2\"><summary class=\"cursor-pointer text-[11px] font-medium text-base-content/70\">Raw contract JSON</summary> <textarea aria-label=\"Source output contract JSON\" class=\"textarea textarea-bordered textarea-sm mt-2 font-mono text-xs\" id=\"builder-field-query-output-contract\" rows=\"7\" placeholder=\"{ &quot;representation&quot;: &quot;rows&quot;, &quot;fields&quot;: [] }\"></textarea></details> <span class=\"label-text-alt text-error\" id=\"builder-error-query-output-contract\"></span></div></div><div class=\"hidden\" id=\"builder-group-transform\"><input class=\"hidden\" id=\"builder-field-step-slug\" type=\"text\" readonly aria-hidden=\"true\" tabindex=\"-1\"> <span class=\"hidden label-text-alt text-error\" id=\"builder-error-step-slug\"></span> <label class=\"form-control mt-2\" id=\"builder-step-name-group\"><span class=\"label-text text-xs\">Step name</span> <input class=\"input input-bordered input-sm\" id=\"builder-field-step-name\" type=\"text\"></label><div class=\"builder-inspector-section\" id=\"builder-parameters-group\"><div class=\"flex items-center justify-between gap-2\"><h4 class=\"builder-inspector-section-title\">Parameters</h4><button class=\"btn btn-xs btn-outline\" id=\"builder-add-parameter-btn\" type=\"button\">Add</button></div><p class=\"mt-2 text-xs text-base-content/70\">Use date expressions in query parameters or sink config, then reference named parameters in connector fields. Example: <code>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var108 string
-		templ_7745c5c3_Var108, templ_7745c5c3_Err = templ.JoinStringErrs("{{runtime.previous_success.finished_at}}")
+		templ_7745c5c3_Var108, templ_7745c5c3_Err = templ.JoinStringErrs("{{runtime.run.datetime | offset:-24h}}")
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/builder_blueprint.templ`, Line: 1033, Col: 472}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/builder_blueprint.templ`, Line: 1034, Col: 222}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var108))
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 170, "</code> is null on the first run. Run time and previous success are pinned for retries and recovery.</p><div class=\"mt-2 space-y-2\" id=\"builder-parameter-rows\"></div><textarea class=\"hidden\" id=\"builder-field-parameters\" rows=\"1\"></textarea> <span class=\"label-text-alt text-error\" id=\"builder-error-parameters\"></span></div><label class=\"form-control mt-2\" id=\"builder-transform-sql-group\"><span class=\"label-text text-xs\">Transform SQL <span class=\"text-error\">*</span></span> <textarea class=\"textarea textarea-bordered textarea-sm font-mono text-xs\" id=\"builder-field-transform-sql\" rows=\"6\"></textarea> <span class=\"label-text-alt text-error\" id=\"builder-error-transform-sql\"></span></label><section class=\"builder-inspector-section hidden\" id=\"builder-mapping-properties\"><h4 class=\"builder-inspector-section-title\">Field mapping</h4><p class=\"text-xs text-base-content/70\">Click the canvas attachment to inspect field pairs. Choose Edit mapping to make changes.</p><button class=\"btn btn-xs btn-outline mt-2\" type=\"button\" id=\"builder-open-mapping-btn\">Inspect field mapping</button></section><div class=\"builder-inspector-section\" id=\"builder-transform-contracts-section\"><h4 class=\"builder-inspector-section-title\">Contracts and validations</h4><div class=\"mt-2\" id=\"builder-transform-legacy-input-contract-group\"><p class=\"text-xs font-medium text-base-content/80\">Input contract</p><div class=\"mt-2 space-y-2\" id=\"builder-transform-input-contract-editor\"></div><details class=\"mt-2\"><summary class=\"cursor-pointer text-[11px] font-medium text-base-content/70\">Raw contract JSON</summary> <textarea aria-label=\"Transform input contract JSON\" class=\"textarea textarea-bordered textarea-sm mt-2 font-mono text-xs\" id=\"builder-field-transform-input-contract\" rows=\"6\"></textarea></details> <span class=\"label-text-alt text-error\" id=\"builder-error-transform-input-contract\"></span></div><div class=\"mt-3\"><p class=\"text-xs font-medium text-base-content/80\">Output contract</p><div class=\"mt-2 space-y-2\" id=\"builder-transform-output-contract-editor\"></div><details class=\"mt-2\"><summary class=\"cursor-pointer text-[11px] font-medium text-base-content/70\">Raw contract JSON</summary> <textarea aria-label=\"Transform output contract JSON\" class=\"textarea textarea-bordered textarea-sm mt-2 font-mono text-xs\" id=\"builder-field-transform-output-contract\" rows=\"6\"></textarea></details> <span class=\"label-text-alt text-error\" id=\"builder-error-transform-output-contract\"></span></div><p class=\"mt-2 text-[11px] text-base-content/60\">Contract fields may include validations that run at pipeline boundaries.</p></div></div><div class=\"hidden\" id=\"builder-group-sink\"><h4 class=\"builder-inspector-section-title\">Destination configuration</h4><label class=\"form-control\"><span class=\"label-text text-xs\">Sink logical data source ref</span> <select class=\"select select-bordered select-sm\" id=\"builder-field-sink-backend\"><option value=\"\">Select writable data source</option></select> <span class=\"label-text-alt text-error\" id=\"builder-error-sink-data-source\"></span></label><p class=\"mt-2 text-[11px] text-base-content/60\" id=\"builder-sink-config-hint\"></p>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 170, "</code>. Date-typed environment variables and ISO date inputs also support date operations; month offsets clamp to the last day. Previous success is scoped to this pipeline version and environment; <code>")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		var templ_7745c5c3_Var109 string
+		templ_7745c5c3_Var109, templ_7745c5c3_Err = templ.JoinStringErrs("{{runtime.previous_success.finished_at}}")
+		if templ_7745c5c3_Err != nil {
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/builder_blueprint.templ`, Line: 1034, Col: 472}
+		}
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var109))
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 171, "</code> is null on the first run. Run time and previous success are pinned for retries and recovery.</p><div class=\"mt-2 space-y-2\" id=\"builder-parameter-rows\"></div><textarea class=\"hidden\" id=\"builder-field-parameters\" rows=\"1\"></textarea> <span class=\"label-text-alt text-error\" id=\"builder-error-parameters\"></span></div><label class=\"form-control mt-2\" id=\"builder-transform-sql-group\"><span class=\"label-text text-xs\">Transform SQL <span class=\"text-error\">*</span></span> <textarea class=\"textarea textarea-bordered textarea-sm font-mono text-xs\" id=\"builder-field-transform-sql\" rows=\"6\"></textarea> <span class=\"label-text-alt text-error\" id=\"builder-error-transform-sql\"></span></label><section class=\"builder-inspector-section hidden\" id=\"builder-mapping-properties\"><h4 class=\"builder-inspector-section-title\">Field mapping</h4><p class=\"text-xs text-base-content/70\">Click the canvas attachment to inspect field pairs. Choose Edit mapping to make changes.</p><button class=\"btn btn-xs btn-outline mt-2\" type=\"button\" id=\"builder-open-mapping-btn\">Inspect field mapping</button></section><div class=\"builder-inspector-section\" id=\"builder-transform-contracts-section\"><h4 class=\"builder-inspector-section-title\">Contracts and validations</h4><div class=\"mt-2\" id=\"builder-transform-legacy-input-contract-group\"><p class=\"text-xs font-medium text-base-content/80\">Input contract</p><div class=\"mt-2 space-y-2\" id=\"builder-transform-input-contract-editor\"></div><details class=\"mt-2\"><summary class=\"cursor-pointer text-[11px] font-medium text-base-content/70\">Raw contract JSON</summary> <textarea aria-label=\"Transform input contract JSON\" class=\"textarea textarea-bordered textarea-sm mt-2 font-mono text-xs\" id=\"builder-field-transform-input-contract\" rows=\"6\"></textarea></details> <span class=\"label-text-alt text-error\" id=\"builder-error-transform-input-contract\"></span></div><div class=\"mt-3\"><p class=\"text-xs font-medium text-base-content/80\">Output contract</p><div class=\"mt-2 space-y-2\" id=\"builder-transform-output-contract-editor\"></div><details class=\"mt-2\"><summary class=\"cursor-pointer text-[11px] font-medium text-base-content/70\">Raw contract JSON</summary> <textarea aria-label=\"Transform output contract JSON\" class=\"textarea textarea-bordered textarea-sm mt-2 font-mono text-xs\" id=\"builder-field-transform-output-contract\" rows=\"6\"></textarea></details> <span class=\"label-text-alt text-error\" id=\"builder-error-transform-output-contract\"></span></div><p class=\"mt-2 text-[11px] text-base-content/60\">Contract fields may include validations that run at pipeline boundaries.</p></div></div><div class=\"hidden\" id=\"builder-group-sink\"><h4 class=\"builder-inspector-section-title\">Destination configuration</h4><label class=\"form-control\"><span class=\"label-text text-xs\">Sink logical data source ref</span> <select class=\"select select-bordered select-sm\" id=\"builder-field-sink-backend\"><option value=\"\">Select writable data source</option></select> <span class=\"label-text-alt text-error\" id=\"builder-error-sink-data-source\"></span></label><p class=\"mt-2 text-[11px] text-base-content/60\" id=\"builder-sink-config-hint\"></p>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		if state.DeepLinkOrgSlug != "" {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 171, "<p class=\"mt-2 text-xs text-base-content/70\"><a class=\"link link-primary\" href=\"")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 172, "<p class=\"mt-2 text-xs text-base-content/70\"><a class=\"link link-primary\" href=\"")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			var templ_7745c5c3_Var109 templ.SafeURL
-			templ_7745c5c3_Var109, templ_7745c5c3_Err = templ.JoinURLErrs(templ.URL(DataSourcesListHref(state.DeepLinkOrgSlug, state.TargetEnvironmentSlug, "")))
+			var templ_7745c5c3_Var110 templ.SafeURL
+			templ_7745c5c3_Var110, templ_7745c5c3_Err = templ.JoinURLErrs(templ.URL(DataSourcesListHref(state.DeepLinkOrgSlug, state.TargetEnvironmentSlug, "")))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/builder_blueprint.templ`, Line: 1082, Col: 177}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/builder_blueprint.templ`, Line: 1083, Col: 177}
 			}
-			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var109))
+			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var110))
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 172, "\" target=\"_blank\" rel=\"noopener noreferrer\">Manage connections (new tab)</a>.</p><button type=\"button\" class=\"btn btn-ghost btn-xs mt-1\" data-builder-refresh-connections>Refresh connections</button> ")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 173, "\" target=\"_blank\" rel=\"noopener noreferrer\">Manage connections (new tab)</a>.</p><button type=\"button\" class=\"btn btn-ghost btn-xs mt-1\" data-builder-refresh-connections>Refresh connections</button> ")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 173, "<label class=\"form-control mt-2\"><span class=\"label-text text-xs\">Replay policy</span> <select class=\"select select-bordered select-sm\" id=\"builder-field-sink-replay-policy\" aria-describedby=\"builder-sink-replay-help\"></select></label><p class=\"mt-2 text-[11px] text-base-content/60\" id=\"builder-sink-replay-help\">Choose how repeated attempts avoid duplicate writes. Uncertain delivery may still require investigation.</p><div class=\"form-control mt-2\" id=\"builder-sink-inline-operation-toggle-group\"><span class=\"label-text text-xs\">Inline operation</span> <label class=\"label cursor-pointer justify-start gap-2\"><input class=\"checkbox checkbox-sm\" id=\"builder-field-sink-inline-operation-toggle\" type=\"checkbox\"> <span class=\"label-text text-xs\" id=\"builder-sink-inline-operation-toggle-label\">Use inline operation instead of a saved query</span></label></div><div id=\"builder-sink-saved-query-group\"><label class=\"form-control mt-2\"><span class=\"label-text text-xs\" id=\"builder-sink-query-ref-label\">Saved query</span> <input class=\"input input-bordered input-sm\" id=\"builder-field-sink-query\" type=\"text\"> <span class=\"label-text-alt text-error\" id=\"builder-error-sink-query\"></span></label></div><div class=\"hidden\" id=\"builder-sink-inline-operation-group\"><label class=\"form-control mt-2\" id=\"builder-sink-inline-operation-json-field\"><span class=\"label-text text-xs\">Inline operation (JSON) <span class=\"text-error\">*</span></span> <textarea class=\"textarea textarea-bordered textarea-sm\" id=\"builder-field-sink-operation-inline\" rows=\"5\"></textarea> <span class=\"label-text-alt text-error\" id=\"builder-error-sink-operation-inline\"></span></label><div class=\"hidden mt-2 space-y-2\" id=\"builder-sink-inline-operation-guided\"></div></div><div id=\"builder-s3-output\" class=\"hidden builder-inspector-section space-y-2\"><h4 class=\"builder-inspector-section-title\">S3 output</h4><label class=\"form-control\"><span class=\"label-text\">Object key</span> <input class=\"input input-bordered input-sm font-mono\" id=\"builder-s3-key\" type=\"text\" placeholder=\"runs/{{runtime.run.slug}}/output.json\"></label><p class=\"text-xs text-base-content/70\">Required by the S3 sink. Relative to the data source prefix; runtime templates are supported.</p><label class=\"form-control\"><span class=\"label-text\">Output format</span> <select class=\"select select-bordered select-sm\" id=\"builder-s3-format\"><option value=\"\">Use operation format</option> <option value=\"auto\">Auto</option> <option value=\"csv\">CSV</option> <option value=\"json\">JSON</option> <option value=\"file\">File bytes</option> <option value=\"spreadsheet\">Spreadsheet</option></select></label></div><div class=\"builder-inspector-section\" id=\"builder-sink-input-contract-group\"><div class=\"flex items-center justify-between gap-2\"><h4 class=\"builder-inspector-section-title\">Input contract</h4><p class=\"text-[11px] text-base-content/60\">sink.input_contract</p></div><div class=\"mt-2 space-y-2\" id=\"builder-sink-input-contract-editor\"></div><details class=\"mt-2\"><summary class=\"cursor-pointer text-[11px] font-medium text-base-content/70\">Raw contract JSON</summary> <textarea aria-label=\"Sink input contract JSON\" class=\"textarea textarea-bordered textarea-sm mt-2 font-mono text-xs\" id=\"builder-field-sink-input-contract\" rows=\"7\"></textarea></details> <span class=\"label-text-alt text-error\" id=\"builder-error-sink-input-contract\"></span></div></div><div class=\"hidden builder-inspector-section\" id=\"builder-bindings-section\"><div class=\"flex items-center justify-between gap-2\"><h4 class=\"builder-inspector-section-title\">Inputs</h4><p class=\"text-[11px] text-base-content/60\" id=\"builder-bindings-status\">No input</p></div><p class=\"mt-1 text-xs text-base-content/70\" id=\"builder-bindings-help\">Choose upstream sources and SQL aliases for this step.</p><div class=\"mt-3 space-y-2\" id=\"builder-binding-rows\"></div><p class=\"text-[11px] text-base-content/60\" id=\"builder-binding-edge-hint\"></p><p class=\"hidden mt-2 text-[11px]\" id=\"builder-binding-payload-diagnostic\"></p><p class=\"text-[11px] text-error\" id=\"builder-binding-error\"></p></div><div class=\"hidden builder-inspector-section\" id=\"builder-connections-section\"><div class=\"flex items-center justify-between gap-2\"><h4 class=\"builder-inspector-section-title\">Outputs</h4><p class=\"text-[11px] text-base-content/60\" id=\"builder-connections-status\">No links</p></div><p class=\"mt-1 text-xs text-base-content/70\" id=\"builder-connections-help\">Choose downstream steps produced by this node.</p><div class=\"mt-3 space-y-2\" id=\"builder-connections-editor\"></div><p class=\"text-[11px] text-error\" id=\"builder-connections-error\"></p></div><section id=\"builder-odcs-section\" class=\"mt-4 space-y-3 border-t border-base-300 pt-4\"><h3 class=\"text-sm font-semibold\">Reusable ODCS agreement</h3><p id=\"builder-event-input-help\" class=\"hidden text-xs text-base-content/70\">Receives the run's JSON event payload. Define its output agreement, then connect this node to a transform or sink. Event delivery is configured separately; use a query step to fetch data.</p><label class=\"form-control gap-1\"><span class=\"label-text text-xs\">Port</span> <select id=\"builder-odcs-port\" class=\"select select-bordered select-sm w-full\"></select></label><div class=\"grid grid-cols-2 gap-2\"><label class=\"form-control min-w-0 gap-1\"><span class=\"label-text text-xs\">Wire representation</span> <select id=\"builder-odcs-representation\" class=\"select select-bordered select-sm w-full\"><option value=\"\">Not declared</option><option value=\"rows\">Rows</option><option value=\"json\">JSON</option><option value=\"csv\">CSV</option><option value=\"file\">File</option><option value=\"multipart_form\">Multipart form</option></select></label> <label class=\"form-control min-w-0 gap-1\"><span class=\"label-text text-xs\">Root shape</span> <select id=\"builder-odcs-root-shape\" class=\"select select-bordered select-sm w-full\"><option value=\"\">Not declared</option><option value=\"object\">Object</option><option value=\"array\">Array</option></select></label></div><p id=\"builder-odcs-current\" class=\"break-all text-xs\" role=\"status\"></p><button id=\"builder-odcs-inline\" type=\"button\" class=\"btn btn-outline btn-sm\">Use inline contract</button> <label id=\"builder-odcs-inline-agreement\" class=\"hidden form-control gap-1\"><span class=\"label-text text-xs\">Inline agreement (JSON)</span> <textarea id=\"builder-odcs-inline-json\" class=\"textarea textarea-bordered textarea-sm w-full font-mono text-xs\" rows=\"8\" spellcheck=\"false\" aria-describedby=\"builder-odcs-inline-help builder-odcs-inline-error\"></textarea> <span id=\"builder-odcs-inline-help\" class=\"text-xs text-base-content/70\">Edit the complete contract declaration, including rich ODCS fields. Exact references use the catalog below.</span> <span id=\"builder-odcs-inline-error\" class=\"text-xs text-error\" role=\"alert\"></span></label><p class=\"text-xs text-base-content/70\">Choose a port or named input, then select an object from an exact revision. Selecting an object replaces that port's inline contract.</p>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 174, "<label class=\"form-control mt-2\"><span class=\"label-text text-xs\">Replay policy</span> <select class=\"select select-bordered select-sm\" id=\"builder-field-sink-replay-policy\" aria-describedby=\"builder-sink-replay-help\"></select></label><p class=\"mt-2 text-[11px] text-base-content/60\" id=\"builder-sink-replay-help\">Choose how repeated attempts avoid duplicate writes. Uncertain delivery may still require investigation.</p><div class=\"form-control mt-2\" id=\"builder-sink-inline-operation-toggle-group\"><span class=\"label-text text-xs\">Inline operation</span> <label class=\"label cursor-pointer justify-start gap-2\"><input class=\"checkbox checkbox-sm\" id=\"builder-field-sink-inline-operation-toggle\" type=\"checkbox\"> <span class=\"label-text text-xs\" id=\"builder-sink-inline-operation-toggle-label\">Use inline operation instead of a saved query</span></label></div><div id=\"builder-sink-saved-query-group\"><label class=\"form-control mt-2\"><span class=\"label-text text-xs\" id=\"builder-sink-query-ref-label\">Saved query</span> <input class=\"input input-bordered input-sm\" id=\"builder-field-sink-query\" type=\"text\"> <span class=\"label-text-alt text-error\" id=\"builder-error-sink-query\"></span></label></div><div class=\"hidden\" id=\"builder-sink-inline-operation-group\"><label class=\"form-control mt-2\" id=\"builder-sink-inline-operation-json-field\"><span class=\"label-text text-xs\">Inline operation (JSON) <span class=\"text-error\">*</span></span> <textarea class=\"textarea textarea-bordered textarea-sm\" id=\"builder-field-sink-operation-inline\" rows=\"5\"></textarea> <span class=\"label-text-alt text-error\" id=\"builder-error-sink-operation-inline\"></span></label><div class=\"hidden mt-2 space-y-2\" id=\"builder-sink-inline-operation-guided\"></div></div><div id=\"builder-s3-output\" class=\"hidden builder-inspector-section space-y-2\"><h4 class=\"builder-inspector-section-title\">S3 output</h4><label class=\"form-control\"><span class=\"label-text\">Object key</span> <input class=\"input input-bordered input-sm font-mono\" id=\"builder-s3-key\" type=\"text\" placeholder=\"runs/{{runtime.run.slug}}/output.json\"></label><p class=\"text-xs text-base-content/70\">Required by the S3 sink. Relative to the data source prefix; runtime templates are supported.</p><label class=\"form-control\"><span class=\"label-text\">Output format</span> <select class=\"select select-bordered select-sm\" id=\"builder-s3-format\"><option value=\"\">Use operation format</option> <option value=\"auto\">Auto</option> <option value=\"csv\">CSV</option> <option value=\"json\">JSON</option> <option value=\"file\">File bytes</option> <option value=\"spreadsheet\">Spreadsheet</option></select></label></div><div class=\"builder-inspector-section\" id=\"builder-sink-input-contract-group\"><div class=\"flex items-center justify-between gap-2\"><h4 class=\"builder-inspector-section-title\">Input contract</h4><p class=\"text-[11px] text-base-content/60\">sink.input_contract</p></div><div class=\"mt-2 space-y-2\" id=\"builder-sink-input-contract-editor\"></div><details class=\"mt-2\"><summary class=\"cursor-pointer text-[11px] font-medium text-base-content/70\">Raw contract JSON</summary> <textarea aria-label=\"Sink input contract JSON\" class=\"textarea textarea-bordered textarea-sm mt-2 font-mono text-xs\" id=\"builder-field-sink-input-contract\" rows=\"7\"></textarea></details> <span class=\"label-text-alt text-error\" id=\"builder-error-sink-input-contract\"></span></div></div><div class=\"hidden builder-inspector-section\" id=\"builder-bindings-section\"><div class=\"flex items-center justify-between gap-2\"><h4 class=\"builder-inspector-section-title\">Inputs</h4><p class=\"text-[11px] text-base-content/60\" id=\"builder-bindings-status\">No input</p></div><p class=\"mt-1 text-xs text-base-content/70\" id=\"builder-bindings-help\">Choose upstream sources and SQL aliases for this step.</p><div class=\"mt-3 space-y-2\" id=\"builder-binding-rows\"></div><p class=\"text-[11px] text-base-content/60\" id=\"builder-binding-edge-hint\"></p><p class=\"hidden mt-2 text-[11px]\" id=\"builder-binding-payload-diagnostic\"></p><p class=\"text-[11px] text-error\" id=\"builder-binding-error\"></p></div><div class=\"hidden builder-inspector-section\" id=\"builder-connections-section\"><div class=\"flex items-center justify-between gap-2\"><h4 class=\"builder-inspector-section-title\">Outputs</h4><p class=\"text-[11px] text-base-content/60\" id=\"builder-connections-status\">No links</p></div><p class=\"mt-1 text-xs text-base-content/70\" id=\"builder-connections-help\">Choose downstream steps produced by this node.</p><div class=\"mt-3 space-y-2\" id=\"builder-connections-editor\"></div><p class=\"text-[11px] text-error\" id=\"builder-connections-error\"></p></div><section id=\"builder-odcs-section\" class=\"mt-4 space-y-3 border-t border-base-300 pt-4\"><h3 class=\"text-sm font-semibold\">Reusable ODCS agreement</h3><p id=\"builder-event-input-help\" class=\"hidden text-xs text-base-content/70\">Receives the run's JSON event payload. Define its output agreement, then connect this node to a transform or sink. Event delivery is configured separately; use a query step to fetch data.</p><label class=\"form-control gap-1\"><span class=\"label-text text-xs\">Port</span> <select id=\"builder-odcs-port\" class=\"select select-bordered select-sm w-full\"></select></label><div class=\"grid grid-cols-2 gap-2\"><label class=\"form-control min-w-0 gap-1\"><span class=\"label-text text-xs\">Wire representation</span> <select id=\"builder-odcs-representation\" class=\"select select-bordered select-sm w-full\"><option value=\"\">Not declared</option><option value=\"rows\">Rows</option><option value=\"json\">JSON</option><option value=\"csv\">CSV</option><option value=\"file\">File</option><option value=\"multipart_form\">Multipart form</option></select></label> <label class=\"form-control min-w-0 gap-1\"><span class=\"label-text text-xs\">Root shape</span> <select id=\"builder-odcs-root-shape\" class=\"select select-bordered select-sm w-full\"><option value=\"\">Not declared</option><option value=\"object\">Object</option><option value=\"array\">Array</option></select></label></div><p id=\"builder-odcs-current\" class=\"break-all text-xs\" role=\"status\"></p><button id=\"builder-odcs-inline\" type=\"button\" class=\"btn btn-outline btn-sm\">Use inline contract</button> <label id=\"builder-odcs-inline-agreement\" class=\"hidden form-control gap-1\"><span class=\"label-text text-xs\">Inline agreement (JSON)</span> <textarea id=\"builder-odcs-inline-json\" class=\"textarea textarea-bordered textarea-sm w-full font-mono text-xs\" rows=\"8\" spellcheck=\"false\" aria-describedby=\"builder-odcs-inline-help builder-odcs-inline-error\"></textarea> <span id=\"builder-odcs-inline-help\" class=\"text-xs text-base-content/70\">Edit the complete contract declaration, including rich ODCS fields. Exact references use the catalog below.</span> <span id=\"builder-odcs-inline-error\" class=\"text-xs text-error\" role=\"alert\"></span></label><p class=\"text-xs text-base-content/70\">Choose a port or named input, then select an object from an exact revision. Selecting an object replaces that port's inline contract.</p>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		if state.DeepLinkOrgSlug != "" && state.DeepLinkProjectSlug != "" {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 174, "<button type=\"button\" class=\"btn btn-outline btn-sm\" hx-get=\"")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 175, "<button type=\"button\" class=\"btn btn-outline btn-sm\" hx-get=\"")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			var templ_7745c5c3_Var110 string
-			templ_7745c5c3_Var110, templ_7745c5c3_Err = templ.ResolveAttributeValue(ODCSCatalogHref(state.DeepLinkOrgSlug, state.DeepLinkProjectSlug, "", "", true, ""))
+			var templ_7745c5c3_Var111 string
+			templ_7745c5c3_Var111, templ_7745c5c3_Err = templ.ResolveAttributeValue(ODCSCatalogHref(state.DeepLinkOrgSlug, state.DeepLinkProjectSlug, "", "", true, ""))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/builder_blueprint.templ`, Line: 1195, Col: 155}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/builder_blueprint.templ`, Line: 1196, Col: 155}
 			}
-			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var110)
+			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var111)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 175, "\" hx-target=\"#odcs-catalog\" hx-select=\"#odcs-catalog\" hx-swap=\"outerHTML\">Browse exact revisions</button><div id=\"odcs-catalog\" class=\"space-y-2\"><p class=\"text-xs text-base-content/70\">Browse this project's catalog to inspect supported shapes and consumers.</p></div>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 176, "\" hx-target=\"#odcs-catalog\" hx-select=\"#odcs-catalog\" hx-swap=\"outerHTML\">Browse exact revisions</button><div id=\"odcs-catalog\" class=\"space-y-2\"><p class=\"text-xs text-base-content/70\">Browse this project's catalog to inspect supported shapes and consumers.</p></div>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 		} else {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 176, "<p class=\"text-xs text-base-content/70\">Select an organization and project to browse its contract catalog.</p>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 177, "<p class=\"text-xs text-base-content/70\">Select an organization and project to browse its contract catalog.</p>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 177, "</section></form></div></div></aside></div></div><textarea class=\"hidden\" id=\"builder-initial-source\">")
-		if templ_7745c5c3_Err != nil {
-			return templ_7745c5c3_Err
-		}
-		var templ_7745c5c3_Var111 string
-		templ_7745c5c3_Var111, templ_7745c5c3_Err = templ.JoinStringErrs(state.InitialPipelineSource)
-		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/builder_blueprint.templ`, Line: 1207, Col: 84}
-		}
-		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var111))
-		if templ_7745c5c3_Err != nil {
-			return templ_7745c5c3_Err
-		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 178, "</textarea> <textarea class=\"hidden\" id=\"builder-connector-descriptors\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 178, "</section></form></div></div></aside></div></div><textarea class=\"hidden\" id=\"builder-initial-source\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var112 string
-		templ_7745c5c3_Var112, templ_7745c5c3_Err = templ.JoinStringErrs(state.ConnectorDescriptorsJSON)
+		templ_7745c5c3_Var112, templ_7745c5c3_Err = templ.JoinStringErrs(state.InitialPipelineSource)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/builder_blueprint.templ`, Line: 1208, Col: 94}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/builder_blueprint.templ`, Line: 1208, Col: 84}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var112))
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 179, "</textarea><script src=\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 179, "</textarea> <textarea class=\"hidden\" id=\"builder-connector-descriptors\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var113 string
-		templ_7745c5c3_Var113, templ_7745c5c3_Err = templ.ResolveAttributeValue(versionedAssetPath("/assets/js/builder_canvas_shared.js"))
+		templ_7745c5c3_Var113, templ_7745c5c3_Err = templ.JoinStringErrs(state.ConnectorDescriptorsJSON)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/builder_blueprint.templ`, Line: 1209, Col: 73}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/builder_blueprint.templ`, Line: 1209, Col: 94}
 		}
-		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var113)
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var113))
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 180, "\" defer></script><script src=\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 180, "</textarea><script src=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var114 string
-		templ_7745c5c3_Var114, templ_7745c5c3_Err = templ.ResolveAttributeValue(versionedAssetPath("/assets/js/builder_canvas_rendering.js"))
+		templ_7745c5c3_Var114, templ_7745c5c3_Err = templ.ResolveAttributeValue(versionedAssetPath("/assets/js/builder_canvas_shared.js"))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/builder_blueprint.templ`, Line: 1210, Col: 76}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/builder_blueprint.templ`, Line: 1210, Col: 73}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var114)
 		if templ_7745c5c3_Err != nil {
@@ -2017,9 +2018,9 @@ func BuilderBlueprintContent(state BuilderBlueprintState) templ.Component {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var115 string
-		templ_7745c5c3_Var115, templ_7745c5c3_Err = templ.ResolveAttributeValue(versionedAssetPath("/assets/js/builder_canvas_state.js"))
+		templ_7745c5c3_Var115, templ_7745c5c3_Err = templ.ResolveAttributeValue(versionedAssetPath("/assets/js/builder_canvas_rendering.js"))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/builder_blueprint.templ`, Line: 1211, Col: 72}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/builder_blueprint.templ`, Line: 1211, Col: 76}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var115)
 		if templ_7745c5c3_Err != nil {
@@ -2030,9 +2031,9 @@ func BuilderBlueprintContent(state BuilderBlueprintState) templ.Component {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var116 string
-		templ_7745c5c3_Var116, templ_7745c5c3_Err = templ.ResolveAttributeValue(versionedAssetPath("/assets/js/builder_canvas_conflicts.js"))
+		templ_7745c5c3_Var116, templ_7745c5c3_Err = templ.ResolveAttributeValue(versionedAssetPath("/assets/js/builder_canvas_state.js"))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/builder_blueprint.templ`, Line: 1212, Col: 76}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/builder_blueprint.templ`, Line: 1212, Col: 72}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var116)
 		if templ_7745c5c3_Err != nil {
@@ -2043,9 +2044,9 @@ func BuilderBlueprintContent(state BuilderBlueprintState) templ.Component {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var117 string
-		templ_7745c5c3_Var117, templ_7745c5c3_Err = templ.ResolveAttributeValue(versionedAssetPath("/assets/js/builder_canvas_serialization.js"))
+		templ_7745c5c3_Var117, templ_7745c5c3_Err = templ.ResolveAttributeValue(versionedAssetPath("/assets/js/builder_canvas_conflicts.js"))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/builder_blueprint.templ`, Line: 1213, Col: 80}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/builder_blueprint.templ`, Line: 1213, Col: 76}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var117)
 		if templ_7745c5c3_Err != nil {
@@ -2056,9 +2057,9 @@ func BuilderBlueprintContent(state BuilderBlueprintState) templ.Component {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var118 string
-		templ_7745c5c3_Var118, templ_7745c5c3_Err = templ.ResolveAttributeValue(versionedAssetPath("/assets/js/builder_canvas_api.js"))
+		templ_7745c5c3_Var118, templ_7745c5c3_Err = templ.ResolveAttributeValue(versionedAssetPath("/assets/js/builder_canvas_serialization.js"))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/builder_blueprint.templ`, Line: 1214, Col: 70}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/builder_blueprint.templ`, Line: 1214, Col: 80}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var118)
 		if templ_7745c5c3_Err != nil {
@@ -2069,9 +2070,9 @@ func BuilderBlueprintContent(state BuilderBlueprintState) templ.Component {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var119 string
-		templ_7745c5c3_Var119, templ_7745c5c3_Err = templ.ResolveAttributeValue(versionedAssetPath("/assets/js/builder_field_mapping.js"))
+		templ_7745c5c3_Var119, templ_7745c5c3_Err = templ.ResolveAttributeValue(versionedAssetPath("/assets/js/builder_canvas_api.js"))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/builder_blueprint.templ`, Line: 1215, Col: 73}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/builder_blueprint.templ`, Line: 1215, Col: 70}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var119)
 		if templ_7745c5c3_Err != nil {
@@ -2082,9 +2083,9 @@ func BuilderBlueprintContent(state BuilderBlueprintState) templ.Component {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var120 string
-		templ_7745c5c3_Var120, templ_7745c5c3_Err = templ.ResolveAttributeValue(versionedAssetPath("/assets/js/builder_canvas_interactions.js"))
+		templ_7745c5c3_Var120, templ_7745c5c3_Err = templ.ResolveAttributeValue(versionedAssetPath("/assets/js/builder_field_mapping.js"))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/builder_blueprint.templ`, Line: 1216, Col: 79}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/builder_blueprint.templ`, Line: 1216, Col: 73}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var120)
 		if templ_7745c5c3_Err != nil {
@@ -2095,9 +2096,9 @@ func BuilderBlueprintContent(state BuilderBlueprintState) templ.Component {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var121 string
-		templ_7745c5c3_Var121, templ_7745c5c3_Err = templ.ResolveAttributeValue(versionedAssetPath("/assets/js/builder_canvas.js"))
+		templ_7745c5c3_Var121, templ_7745c5c3_Err = templ.ResolveAttributeValue(versionedAssetPath("/assets/js/builder_canvas_interactions.js"))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/builder_blueprint.templ`, Line: 1217, Col: 66}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/builder_blueprint.templ`, Line: 1217, Col: 79}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var121)
 		if templ_7745c5c3_Err != nil {
@@ -2108,28 +2109,41 @@ func BuilderBlueprintContent(state BuilderBlueprintState) templ.Component {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var122 string
-		templ_7745c5c3_Var122, templ_7745c5c3_Err = templ.ResolveAttributeValue(versionedAssetPath("/assets/js/builder_actions.js"))
+		templ_7745c5c3_Var122, templ_7745c5c3_Err = templ.ResolveAttributeValue(versionedAssetPath("/assets/js/builder_canvas.js"))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/builder_blueprint.templ`, Line: 1218, Col: 67}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/builder_blueprint.templ`, Line: 1218, Col: 66}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var122)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 189, "\" defer></script><!-- Draft conflict modal --><dialog id=\"builder-conflict-modal\" class=\"modal\" aria-labelledby=\"builder-conflict-modal-title\" aria-describedby=\"builder-conflict-modal-summary\"><div class=\"modal-box h-[min(92vh,960px)] w-11/12 max-w-[min(96vw,1440px)] overflow-y-auto p-0 lg:overflow-hidden\"><div class=\"flex min-h-full flex-col lg:h-full\"><div class=\"border-b border-base-300 px-5 py-4\"><h3 class=\"text-lg font-bold\" id=\"builder-conflict-modal-title\" tabindex=\"-1\" autofocus>Version conflict</h3><p class=\"pt-3 text-sm\" id=\"builder-conflict-modal-summary\"></p><p class=\"text-sm text-base-content/60\" id=\"builder-conflict-modal-detail\"></p></div><div class=\"min-h-0 flex-1 px-5 py-4 lg:overflow-hidden\"><div class=\"flex h-full min-h-0 flex-col gap-4\" id=\"builder-conflict-modal-overview\"><details class=\"rounded-lg border border-base-300 bg-base-200/40 px-3 py-2\" id=\"builder-conflict-modal-diff-container\" open><summary id=\"builder-conflict-diff-label\" class=\"cursor-pointer text-sm text-base-content/70 select-none\">Show diff (canonical vs. your draft)</summary><pre id=\"builder-conflict-modal-diff\" class=\"mt-2 max-h-[50vh] overflow-auto whitespace-pre-wrap break-all rounded bg-base-200 p-2 text-xs font-mono\" role=\"region\" aria-labelledby=\"builder-conflict-diff-label\" tabindex=\"0\">Loading diff…</pre></details></div><div class=\"hidden min-h-0 lg:h-full\" id=\"builder-conflict-resolver\"><div class=\"grid min-h-0 gap-4 lg:h-full lg:grid-cols-[minmax(280px,360px)_minmax(0,1fr)]\"><section class=\"min-h-0 overflow-hidden rounded-lg border border-base-300 bg-base-100\"><div class=\"border-b border-base-300 px-4 py-3\"><div class=\"flex flex-wrap items-center justify-between gap-2\"><div><p class=\"text-sm font-semibold text-base-content\">Changed units</p><p class=\"text-xs text-base-content/60\">Pick a unit to see its fields.</p></div><div class=\"text-right\"><p class=\"text-xs font-semibold uppercase tracking-wide text-base-content/60\" id=\"builder-conflict-resolver-unresolved-count\">0 unresolved</p><p class=\"text-[11px] text-base-content/50\" id=\"builder-conflict-resolver-validation-count\">No validation issues.</p></div></div></div><div class=\"px-3 py-3 lg:h-[calc(100%-74px)] lg:overflow-auto\" id=\"builder-conflict-units-list\"></div></section><section class=\"min-h-0 overflow-hidden rounded-lg border border-base-300 bg-base-100\"><div class=\"border-b border-base-300 px-4 py-3\"><p class=\"text-sm font-semibold text-base-content\">Manual merge</p><p class=\"text-xs text-base-content/60\">Resolve the selected unit field-by-field and then apply the merged draft.</p></div><div class=\"min-h-0 px-4 py-4 lg:h-[calc(100%-74px)] lg:overflow-auto\" id=\"builder-conflict-resolver-inspector\"></div></section></div></div></div><div class=\"border-t border-base-300 px-5 py-4\"><div class=\"flex flex-wrap items-center justify-between gap-3\"><div class=\"text-xs text-base-content/60\" id=\"builder-conflict-modal-status\" role=\"status\">Use canonical, use your draft, or merge manually before saving again.</div><div class=\"flex flex-wrap gap-2\" id=\"builder-conflict-modal-actions\"></div></div></div></div></div><form method=\"dialog\" class=\"modal-backdrop\" aria-hidden=\"true\"><button type=\"submit\" class=\"cursor-default\" tabindex=\"-1\" aria-label=\"Dismiss dialog\"></button></form></dialog> <dialog id=\"builder-proposal-review-modal\" class=\"modal\" aria-labelledby=\"builder-proposal-review-title\" aria-describedby=\"builder-proposal-review-description\"><div class=\"modal-box h-[min(92vh,940px)] w-11/12 max-w-[min(96vw,1280px)] overflow-hidden p-0\"><div class=\"flex h-full min-h-0 flex-col\"><div class=\"border-b border-base-300 px-5 py-4\"><div class=\"flex flex-wrap items-start justify-between gap-3\"><div><h3 id=\"builder-proposal-review-title\" class=\"text-lg font-bold\" tabindex=\"-1\" autofocus>Review Git proposal</h3><p id=\"builder-proposal-review-description\" class=\"mt-1 text-sm text-base-content/60\">Only the canonical pipeline file is committed. Merge does not deploy until Git reconciliation runs.</p></div><span class=\"badge badge-outline\" id=\"builder-proposal-review-state\" role=\"status\">Loading</span></div></div><div class=\"min-h-0 flex-1 overflow-auto px-5 py-4\"><div class=\"grid gap-2 text-xs sm:grid-cols-2 lg:grid-cols-3\" id=\"builder-proposal-review-facts\"></div><div class=\"mt-4 grid min-h-0 gap-4 lg:grid-cols-2\"><details class=\"rounded-lg border border-base-300 bg-base-100 p-3\" open><summary id=\"builder-proposal-structural-diff-label\" class=\"cursor-pointer text-sm font-semibold\">Structural diff</summary><pre class=\"mt-3 max-h-[44vh] overflow-auto whitespace-pre-wrap break-all rounded bg-base-200 p-3 text-xs font-mono\" id=\"builder-proposal-structural-diff\" role=\"region\" aria-labelledby=\"builder-proposal-structural-diff-label\" tabindex=\"0\">Loading…</pre></details> <details class=\"rounded-lg border border-base-300 bg-base-100 p-3\" open><summary id=\"builder-proposal-source-diff-label\" class=\"cursor-pointer text-sm font-semibold\">Canonical source diff</summary><pre class=\"mt-3 max-h-[44vh] overflow-auto whitespace-pre-wrap break-all rounded bg-base-200 p-3 text-xs font-mono\" id=\"builder-proposal-source-diff\" role=\"region\" aria-labelledby=\"builder-proposal-source-diff-label\" tabindex=\"0\">Loading…</pre></details></div><p class=\"mt-3 text-sm font-medium text-base-content\" id=\"builder-proposal-review-attribution\"></p><a class=\"hidden mt-3 btn btn-outline btn-sm\" id=\"builder-proposal-review-link\" target=\"_blank\" rel=\"noopener noreferrer\">Review proposal in Git</a><p class=\"mt-2 text-xs text-error\" id=\"builder-proposal-review-error\" role=\"alert\"></p></div><div class=\"border-t border-base-300 px-5 py-4\"><div class=\"flex flex-wrap items-center justify-between gap-3\"><p class=\"text-xs text-base-content/60\">The provider status shown here is last-known at the displayed observation time.</p><div class=\"flex flex-wrap gap-2\"><button class=\"btn btn-sm btn-ghost\" id=\"builder-proposal-review-cancel\" type=\"button\">Cancel</button> <button class=\"btn btn-sm btn-primary\" id=\"builder-proposal-review-confirm\" type=\"button\">Create or update proposal</button></div></div></div></div></div><form method=\"dialog\" class=\"modal-backdrop\" aria-hidden=\"true\"><button type=\"submit\" tabindex=\"-1\" aria-label=\"Dismiss dialog\"></button></form></dialog><script src=\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 189, "\" defer></script><script src=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var123 string
-		templ_7745c5c3_Var123, templ_7745c5c3_Err = templ.ResolveAttributeValue(versionedAssetPath("/assets/js/builder_canvas_init.js"))
+		templ_7745c5c3_Var123, templ_7745c5c3_Err = templ.ResolveAttributeValue(versionedAssetPath("/assets/js/builder_actions.js"))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/builder_blueprint.templ`, Line: 1315, Col: 71}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/builder_blueprint.templ`, Line: 1219, Col: 67}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var123)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 190, "\" defer></script></div>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 190, "\" defer></script><!-- Draft conflict modal --><dialog id=\"builder-conflict-modal\" class=\"modal\" aria-labelledby=\"builder-conflict-modal-title\" aria-describedby=\"builder-conflict-modal-summary\"><div class=\"modal-box h-[min(92vh,960px)] w-11/12 max-w-[min(96vw,1440px)] overflow-y-auto p-0 lg:overflow-hidden\"><div class=\"flex min-h-full flex-col lg:h-full\"><div class=\"border-b border-base-300 px-5 py-4\"><h3 class=\"text-lg font-bold\" id=\"builder-conflict-modal-title\" tabindex=\"-1\" autofocus>Version conflict</h3><p class=\"pt-3 text-sm\" id=\"builder-conflict-modal-summary\"></p><p class=\"text-sm text-base-content/60\" id=\"builder-conflict-modal-detail\"></p></div><div class=\"min-h-0 flex-1 px-5 py-4 lg:overflow-hidden\"><div class=\"flex h-full min-h-0 flex-col gap-4\" id=\"builder-conflict-modal-overview\"><details class=\"rounded-lg border border-base-300 bg-base-200/40 px-3 py-2\" id=\"builder-conflict-modal-diff-container\" open><summary id=\"builder-conflict-diff-label\" class=\"cursor-pointer text-sm text-base-content/70 select-none\">Show diff (canonical vs. your draft)</summary><pre id=\"builder-conflict-modal-diff\" class=\"mt-2 max-h-[50vh] overflow-auto whitespace-pre-wrap break-all rounded bg-base-200 p-2 text-xs font-mono\" role=\"region\" aria-labelledby=\"builder-conflict-diff-label\" tabindex=\"0\">Loading diff…</pre></details></div><div class=\"hidden min-h-0 lg:h-full\" id=\"builder-conflict-resolver\"><div class=\"grid min-h-0 gap-4 lg:h-full lg:grid-cols-[minmax(280px,360px)_minmax(0,1fr)]\"><section class=\"min-h-0 overflow-hidden rounded-lg border border-base-300 bg-base-100\"><div class=\"border-b border-base-300 px-4 py-3\"><div class=\"flex flex-wrap items-center justify-between gap-2\"><div><p class=\"text-sm font-semibold text-base-content\">Changed units</p><p class=\"text-xs text-base-content/60\">Pick a unit to see its fields.</p></div><div class=\"text-right\"><p class=\"text-xs font-semibold uppercase tracking-wide text-base-content/60\" id=\"builder-conflict-resolver-unresolved-count\">0 unresolved</p><p class=\"text-[11px] text-base-content/50\" id=\"builder-conflict-resolver-validation-count\">No validation issues.</p></div></div></div><div class=\"px-3 py-3 lg:h-[calc(100%-74px)] lg:overflow-auto\" id=\"builder-conflict-units-list\"></div></section><section class=\"min-h-0 overflow-hidden rounded-lg border border-base-300 bg-base-100\"><div class=\"border-b border-base-300 px-4 py-3\"><p class=\"text-sm font-semibold text-base-content\">Manual merge</p><p class=\"text-xs text-base-content/60\">Resolve the selected unit field-by-field and then apply the merged draft.</p></div><div class=\"min-h-0 px-4 py-4 lg:h-[calc(100%-74px)] lg:overflow-auto\" id=\"builder-conflict-resolver-inspector\"></div></section></div></div></div><div class=\"border-t border-base-300 px-5 py-4\"><div class=\"flex flex-wrap items-center justify-between gap-3\"><div class=\"text-xs text-base-content/60\" id=\"builder-conflict-modal-status\" role=\"status\">Use canonical, use your draft, or merge manually before saving again.</div><div class=\"flex flex-wrap gap-2\" id=\"builder-conflict-modal-actions\"></div></div></div></div></div><form method=\"dialog\" class=\"modal-backdrop\" aria-hidden=\"true\"><button type=\"submit\" class=\"cursor-default\" tabindex=\"-1\" aria-label=\"Dismiss dialog\"></button></form></dialog> <dialog id=\"builder-proposal-review-modal\" class=\"modal\" aria-labelledby=\"builder-proposal-review-title\" aria-describedby=\"builder-proposal-review-description\"><div class=\"modal-box h-[min(92vh,940px)] w-11/12 max-w-[min(96vw,1280px)] overflow-hidden p-0\"><div class=\"flex h-full min-h-0 flex-col\"><div class=\"border-b border-base-300 px-5 py-4\"><div class=\"flex flex-wrap items-start justify-between gap-3\"><div><h3 id=\"builder-proposal-review-title\" class=\"text-lg font-bold\" tabindex=\"-1\" autofocus>Review Git proposal</h3><p id=\"builder-proposal-review-description\" class=\"mt-1 text-sm text-base-content/60\">Only the canonical pipeline file is committed. Merge does not deploy until Git reconciliation runs.</p></div><span class=\"badge badge-outline\" id=\"builder-proposal-review-state\" role=\"status\">Loading</span></div></div><div class=\"min-h-0 flex-1 overflow-auto px-5 py-4\"><div class=\"grid gap-2 text-xs sm:grid-cols-2 lg:grid-cols-3\" id=\"builder-proposal-review-facts\"></div><div class=\"mt-4 grid min-h-0 gap-4 lg:grid-cols-2\"><details class=\"rounded-lg border border-base-300 bg-base-100 p-3\" open><summary id=\"builder-proposal-structural-diff-label\" class=\"cursor-pointer text-sm font-semibold\">Structural diff</summary><pre class=\"mt-3 max-h-[44vh] overflow-auto whitespace-pre-wrap break-all rounded bg-base-200 p-3 text-xs font-mono\" id=\"builder-proposal-structural-diff\" role=\"region\" aria-labelledby=\"builder-proposal-structural-diff-label\" tabindex=\"0\">Loading…</pre></details> <details class=\"rounded-lg border border-base-300 bg-base-100 p-3\" open><summary id=\"builder-proposal-source-diff-label\" class=\"cursor-pointer text-sm font-semibold\">Canonical source diff</summary><pre class=\"mt-3 max-h-[44vh] overflow-auto whitespace-pre-wrap break-all rounded bg-base-200 p-3 text-xs font-mono\" id=\"builder-proposal-source-diff\" role=\"region\" aria-labelledby=\"builder-proposal-source-diff-label\" tabindex=\"0\">Loading…</pre></details></div><p class=\"mt-3 text-sm font-medium text-base-content\" id=\"builder-proposal-review-attribution\"></p><a class=\"hidden mt-3 btn btn-outline btn-sm\" id=\"builder-proposal-review-link\" target=\"_blank\" rel=\"noopener noreferrer\">Review proposal in Git</a><p class=\"mt-2 text-xs text-error\" id=\"builder-proposal-review-error\" role=\"alert\"></p></div><div class=\"border-t border-base-300 px-5 py-4\"><div class=\"flex flex-wrap items-center justify-between gap-3\"><p class=\"text-xs text-base-content/60\">The provider status shown here is last-known at the displayed observation time.</p><div class=\"flex flex-wrap gap-2\"><button class=\"btn btn-sm btn-ghost\" id=\"builder-proposal-review-cancel\" type=\"button\">Cancel</button> <button class=\"btn btn-sm btn-primary\" id=\"builder-proposal-review-confirm\" type=\"button\">Create or update proposal</button></div></div></div></div></div><form method=\"dialog\" class=\"modal-backdrop\" aria-hidden=\"true\"><button type=\"submit\" tabindex=\"-1\" aria-label=\"Dismiss dialog\"></button></form></dialog><script src=\"")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		var templ_7745c5c3_Var124 string
+		templ_7745c5c3_Var124, templ_7745c5c3_Err = templ.ResolveAttributeValue(versionedAssetPath("/assets/js/builder_canvas_init.js"))
+		if templ_7745c5c3_Err != nil {
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `frontend/views/builder_blueprint.templ`, Line: 1316, Col: 71}
+		}
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var124)
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 191, "\" defer></script></div>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

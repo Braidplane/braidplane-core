@@ -514,7 +514,7 @@ func TestEnvironmentBindingCellRendersBoundDataSourceIconReference(t *testing.T)
 func TestDataSourceBindingCellControlRendersBoundDataSourceIdentity(t *testing.T) {
 	t.Parallel()
 
-	body := renderDataSourceBindingCellControlForPermissions(t, NewOrganizationPermissions("data_sources:update", "data_sources:delete"))
+	body := renderDataSourceBindingCellControlForPermissions(t, NewOrganizationPermissions("datasources:update", "datasources:delete"))
 
 	requireDataSourceIconMarker(t, body, "postgres")
 	require.Contains(t, body, `data-data-source-identity`)
@@ -544,8 +544,11 @@ func TestDataSourceBindingCellControlPermissionStates(t *testing.T) {
 			wantRemovalCopy:    true,
 		},
 		{
+			name: "DeleteOnlyEnablesRemoveAndDisablesUpdate", permissions: NewOrganizationPermissions("datasources:delete"), wantSelectDisabled: true, wantUpdateDisabled: true, wantReadOnlyCopy: true,
+		},
+		{
 			name:               "UpdateOnlyEnablesUpdateAndDisablesRemove",
-			permissions:        NewOrganizationPermissions("data_sources:update"),
+			permissions:        NewOrganizationPermissions("datasources:update"),
 			wantSelectDisabled: false,
 			wantUpdateDisabled: false,
 			wantRemoveDisabled: true,
@@ -554,7 +557,7 @@ func TestDataSourceBindingCellControlPermissionStates(t *testing.T) {
 		},
 		{
 			name:               "UpdateDeleteEnablesUpdateAndRemove",
-			permissions:        NewOrganizationPermissions("data_sources:update", "data_sources:delete"),
+			permissions:        NewOrganizationPermissions("datasources:update", "datasources:delete"),
 			wantSelectDisabled: false,
 			wantUpdateDisabled: false,
 			wantRemoveDisabled: false,
@@ -574,7 +577,7 @@ func TestDataSourceBindingCellControlPermissionStates(t *testing.T) {
 			require.Equal(t, tt.wantSelectDisabled, htmlStartTagHasDisabledAttribute(selectTag))
 			require.Equal(t, tt.wantUpdateDisabled, htmlStartTagHasDisabledAttribute(updateButton))
 			require.Equal(t, tt.wantRemoveDisabled, htmlStartTagHasDisabledAttribute(removeButton))
-			require.Equal(t, tt.wantReadOnlyCopy, strings.Contains(body, "Read-only for your role."))
+			require.Equal(t, tt.wantReadOnlyCopy, strings.Contains(body, "Updating this binding requires data-source update permission."))
 			require.Equal(t, tt.wantRemovalCopy, strings.Contains(body, "Removal is disabled for your role."))
 		})
 	}

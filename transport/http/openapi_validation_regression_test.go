@@ -120,3 +120,38 @@ func TestDeploymentResolutionRequestSchema(t *testing.T) {
 		})
 	}
 }
+
+func TestRoleGrantRequestRejectsUnknownSelectors(t *testing.T) {
+	t.Parallel()
+	schema, err := openapi3.NewLoader().LoadFromFile("../../api-schema/schema.yml")
+	require.NoError(t, err)
+	validator, err := NewOpenAPIRequestValidator(schema)
+	require.NoError(t, err)
+	app := fiber.New()
+	app.Use(validator)
+	app.Post("/api/organizations/:slug/authorization/grants", func(c fiber.Ctx) error {
+		return c.SendStatus(http.StatusCreated)
+	})
+
+	grant := map[string]any{
+		"subject_kind": "member", "subject_slug": "alice", "role_slug": "reader",
+		"scope": "resource", "target_kind": "pipeline_triggers", "target_slug": "nightly",
+		"project_slug": "billing", "environment_slug": "prod",
+	}
+	check := func(want int) {
+		t.Helper()
+		resp, err := app.Test(jsonRequest(t, http.MethodPost, "/api/organizations/acme/authorization/grants", grant))
+		require.NoError(t, err)
+		require.NoError(t, resp.Body.Close())
+		require.Equal(t, want, resp.StatusCode)
+	}
+	check(http.StatusCreated)
+	delete(grant, "environment_slug")
+	grant["environmentSlug"] = "prod"
+	check(http.StatusBadRequest)
+	delete(grant, "environmentSlug")
+	grant["environment_slug"] = "prod"
+	grant["slug"] = "grant-a"
+	check(http.StatusBadRequest)
+	require.NoError(t, schema.Components.Schemas["RoleGrant"].Value.VisitJSON(grant))
+}

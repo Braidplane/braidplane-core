@@ -11,14 +11,14 @@ type QueryPipelineSetupData struct {
 	Query                                                      *api.Query
 	Projects                                                   []api.Project
 	Permissions                                                OrganizationPermissions
-	BackendConfigured, ProjectAvailable                        bool
+	BackendConfigured, ProjectAvailable, ProjectListRestricted bool
 	ParameterValues                                            map[string]string
 }
 
 type PipelineCreationProgressData struct {
 	Org, Project, Environment, Error, VersionError string
 	Creation                                       *api.PipelineCreationProposal
-	VersionAvailable, CanRetry                     bool
+	VersionAvailable, CanRetry, CanSync            bool
 }
 
 type PipelineCreationListData struct {

@@ -10,7 +10,7 @@ import templruntime "github.com/a-h/templ/runtime"
 
 import api "github.com/Braidplane/braidplane-core/api-schema/gen/client"
 
-func NotificationConnectionsPage(shell AuthenticatedShellData, org string, connections []api.NotificationConnection, permissions OrganizationPermissions, message string, failed bool, form NotificationConnectionFormData) templ.Component {
+func NotificationConnectionsPage(shell AuthenticatedShellData, org string, connections []api.NotificationConnection, permissions OrganizationPermissions, editable map[string]bool, message string, failed bool, form NotificationConnectionFormData) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
 		if templ_7745c5c3_CtxErr := ctx.Err(); templ_7745c5c3_CtxErr != nil {
@@ -31,7 +31,7 @@ func NotificationConnectionsPage(shell AuthenticatedShellData, org string, conne
 			templ_7745c5c3_Var1 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = AuthenticatedShell(shell, NotificationConnectionsContent(org, connections, permissions, message, failed, form)).Render(ctx, templ_7745c5c3_Buffer)
+		templ_7745c5c3_Err = AuthenticatedShell(shell, NotificationConnectionsContent(org, connections, permissions, editable, message, failed, form)).Render(ctx, templ_7745c5c3_Buffer)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -39,7 +39,7 @@ func NotificationConnectionsPage(shell AuthenticatedShellData, org string, conne
 	})
 }
 
-func NotificationConnectionsContent(org string, connections []api.NotificationConnection, permissions OrganizationPermissions, message string, failed bool, form NotificationConnectionFormData) templ.Component {
+func NotificationConnectionsContent(org string, connections []api.NotificationConnection, permissions OrganizationPermissions, editable map[string]bool, message string, failed bool, form NotificationConnectionFormData) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
 		if templ_7745c5c3_CtxErr := ctx.Err(); templ_7745c5c3_CtxErr != nil {
@@ -207,7 +207,7 @@ func NotificationConnectionsContent(org string, connections []api.NotificationCo
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			if permissions.Can("alert_destinations", "update") {
+			if editable[connection.Slug] {
 				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 16, "<div class=\"flex flex-wrap gap-2\"><form method=\"post\" action=\"")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err

@@ -107,11 +107,7 @@ func (r *Router) handlePipelinesPageWithProject(c fiber.Ctx, activeProjectSlug s
 		pageErrorDetails = backendErrorDetails("list pipelines", status, errorResponse, listErr)
 
 		shellData := r.buildPipelineShellData(c, orgSlug.String(), activeProjectSlug, pageError, pageErrorDetails)
-		permissions := r.resolveOrganizationPermissions(
-			c.Context(),
-			c.Get(fiber.HeaderCookie),
-			orgSlug.String(),
-		)
+		permissions := r.resolvePagePermissions(c, orgSlug.String())
 		c.Status(status)
 		return renderTempl(
 			c,
@@ -194,11 +190,7 @@ func (r *Router) handlePipelinesPageWithProject(c fiber.Ctx, activeProjectSlug s
 			}
 		}
 	}
-	permissions := r.resolveOrganizationPermissions(
-		c.Context(),
-		c.Get(fiber.HeaderCookie),
-		orgSlug.String(),
-	)
+	permissions := r.resolvePagePermissions(c, orgSlug.String())
 	selectedDetail, selectedStatus, selectedUnauthorized := r.loadSelectedPipelineDetail(
 		c,
 		orgSlug.String(),
@@ -516,11 +508,7 @@ func (r *Router) handleDeletePipelineDraftSubmit(c fiber.Ctx) error {
 		return c.Status(fiber.StatusBadRequest).SendString("invalid environment slug")
 	}
 
-	permissions := r.resolveOrganizationPermissions(
-		c.Context(),
-		c.Get(fiber.HeaderCookie),
-		orgSlug.String(),
-	)
+	permissions := r.resolvePagePermissions(c, orgSlug.String())
 	if !permissions.Can("pipelines", "update") {
 		return r.renderPipelineDetailPage(
 			c,
@@ -809,11 +797,7 @@ func (r *Router) renderPipelineDetailPage(
 		pageError,
 		pageErrorDetails,
 	)
-	permissions := r.resolveOrganizationPermissions(
-		c.Context(),
-		c.Get(fiber.HeaderCookie),
-		orgSlug.String(),
-	)
+	permissions := r.resolvePagePermissions(c, orgSlug.String())
 	deploymentBadges := []views.PipelineDeploymentBadge{}
 	deploymentsUnavailable := false
 	runPreview := views.PipelineRunPreview{}
@@ -854,6 +838,7 @@ func (r *Router) renderPipelineDetailPage(
 		}
 		var bindingUnauthorized bool
 		bindingContext, bindingUnauthorized = r.loadPipelineBindingContext(c, orgSlug.String(), activeProjectSlug)
+		bindingContext.CellPermissions = r.bindingCellPermissions(c, orgSlug.String(), activeProjectSlug, views.PipelineBindingRows(pipeline, bindingContext))
 		if bindingUnauthorized {
 			return redirectToLogin(c, c.OriginalURL())
 		}

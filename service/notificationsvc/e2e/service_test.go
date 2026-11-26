@@ -8,6 +8,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/stretchr/testify/require"
 
@@ -20,7 +21,9 @@ import (
 	"github.com/Braidplane/braidplane-core/pkg/testutil/e2edb"
 	"github.com/Braidplane/braidplane-core/pkg/xerror"
 	"github.com/Braidplane/braidplane-core/postgres"
+	authstore "github.com/Braidplane/braidplane-core/postgres/authorization"
 	reponotifications "github.com/Braidplane/braidplane-core/postgres/notifications"
+	"github.com/Braidplane/braidplane-core/service/authorization"
 	"github.com/Braidplane/braidplane-core/service/eventrecorder"
 	"github.com/Braidplane/braidplane-core/service/notificationsvc"
 )
@@ -123,6 +126,80 @@ WHERE o.slug = $1
 `, orgSlug, destinationSlug).Scan(&storedConfig)
 	require.NoError(t, err)
 	require.JSONEq(t, `{"display_label":"Operations","recipients":["ops@example.com"]}`, storedConfig)
+}
+
+func TestAlertPolicyWriteRechecksParentAfterAuthorizedRead(t *testing.T) {
+	if testing.Short() {
+		t.Skip("requires PostgreSQL")
+	}
+	ctx := t.Context()
+	pool := e2edb.OpenIsolatedPostgresPool(t, "alert policy authorization")
+	_, err := pool.Exec(ctx, `
+INSERT INTO organizations(id,name,slug) VALUES (101,'Tenant','tenant');
+INSERT INTO projects(id,organization_id,name,slug) VALUES (201,101,'Alpha','alpha'),(202,101,'Beta','beta');
+INSERT INTO roles(id,organization_id,name,slug) VALUES (301,101,'Editor','editor');
+INSERT INTO role_permissions(role_id,permission_id) SELECT 301,id FROM permissions WHERE resource='alert_policies' AND action='update';
+INSERT INTO users(id,slug,email,role,verified_at) VALUES (501,'alice','alice@example.test','user',now());
+INSERT INTO organization_members(organization_id,user_id,role_id) VALUES (101,501,301);
+INSERT INTO alert_policies(id,organization_id,slug,name,scope,project_id,severity)
+VALUES (601,101,'alert','Alert','project',201,'warning');`)
+	require.NoError(t, err)
+	auth, err := authorization.New(nil, func(ctx context.Context, org, user, key slug.Slug, target model.AuthorizationTarget) (model.AuthorizationFacts, error) {
+		return authstore.Resolve(ctx, pool, org, user, key, target)
+	})
+	require.NoError(t, err)
+	ctx = authorization.WithDecisionScope(ctx)
+	org, project := slug.Slug("tenant"), slug.Slug("alpha")
+	allowed, err := auth.Can(ctx, authorization.Input{
+		OrgSlug: &org, UserSlug: "alice", Operation: "updateAlertPolicy", Source: authorization.SourceSession,
+		Resource: model.ResourceAlertPolicies, Action: model.Update, Target: model.AuthorizationTarget{Kind: "alert_policies", Slug: "alert"},
+	})
+	require.NoError(t, err)
+	require.True(t, allowed)
+	svc := newNotificationE2EService(pool, nil, nil)
+	principal := notificationE2EPrincipal()
+	// A transient move cannot cause the handler to mistake beta for the admitted
+	// parent and omit its new-parent check, even if the row then returns to alpha.
+	_, err = pool.Exec(ctx, "UPDATE alert_policies SET project_id=202 WHERE id=601")
+	require.NoError(t, err)
+	otherParent, err := svc.GetAlertPolicy(ctx, principal, org, "alert")
+	require.ErrorContains(t, err, "The authorized principal or target changed")
+	require.Nil(t, otherParent)
+	_, err = pool.Exec(ctx, "UPDATE alert_policies SET project_id=201 WHERE id=601")
+	require.NoError(t, err)
+	current, err := svc.GetAlertPolicy(ctx, principal, org, "alert")
+	require.NoError(t, err)
+	require.Equal(t, &project, current.ProjectSlug)
+
+	_, err = pool.Exec(ctx, "UPDATE alert_policies SET project_id=202 WHERE id=601")
+	require.NoError(t, err)
+	update := notificationsvc.UpdateAlertPolicyParams{
+		OrgSlug: org, Slug: "alert", Name: "Revised", Scope: model.AlertPolicyScopeProject, ProjectSlug: &project,
+		Severity: notificationE2ESeverityPtr(model.NotificationSeverityWarning), DestinationSlugs: []slug.Slug{"ops"},
+	}
+	_, err = svc.UpdateAlertPolicy(ctx, principal, update)
+	require.ErrorContains(t, err, "The authorized principal or target changed")
+	var storedProject int
+	require.NoError(t, pool.QueryRow(ctx, "SELECT project_id FROM alert_policies WHERE id=601").Scan(&storedProject))
+	require.Equal(t, 202, storedProject)
+
+	// A move after the transaction has rechecked the policy conflicts with its UPDATE.
+	_, err = pool.Exec(ctx, "UPDATE alert_policies SET project_id=201 WHERE id=601")
+	require.NoError(t, err)
+	postgres.AddTransactionCheck(ctx, func(ctx context.Context, _ postgres.DBTX) error {
+		competing, cancel := context.WithTimeout(ctx, 5*time.Second)
+		defer cancel()
+		_, err := pool.Exec(competing, "UPDATE alert_policies SET project_id=202 WHERE id=601")
+		return err
+	})
+	_, err = svc.UpdateAlertPolicy(ctx, principal, update)
+	var serialization *pgconn.PgError
+	require.ErrorAs(t, err, &serialization)
+	require.Equal(t, "40001", serialization.Code)
+	var storedName string
+	require.NoError(t, pool.QueryRow(ctx, "SELECT project_id, name FROM alert_policies WHERE id=601").Scan(&storedProject, &storedName))
+	require.Equal(t, 202, storedProject)
+	require.Equal(t, "Alert", storedName)
 }
 
 func TestService_CreateProjectEnvironmentPolicyRequiresEnabledProjectEnvironment(t *testing.T) {

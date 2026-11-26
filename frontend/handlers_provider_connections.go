@@ -70,7 +70,7 @@ func (r *Router) handleProviderConnectionsPage(c fiber.Ctx) error {
 	if fiber.Query[bool](c, "saved") {
 		feedback, failed = "Proof configuration saved.", false
 	}
-	permissions := r.resolveOrganizationPermissions(c.Context(), c.Get(fiber.HeaderCookie), org.String())
+	permissions := r.resolvePagePermissions(c, org.String())
 	return renderTempl(c, views.ProviderConnectionsPage(shell, org.String(), gitlab, configurations, feedback, failed, connectionError, proofError, permissions))
 }
 

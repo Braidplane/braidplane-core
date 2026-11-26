@@ -16,12 +16,12 @@ params:path {
 }
 
 tests {
-  test("deleted API key metadata should return 404 Not Found", function() {
-    expect(res.status).to.equal(404);
+  test("deleted API key metadata should return 403 Forbidden", function() {
+    expect(res.status).to.equal(403);
   });
 
   test("deleted API key metadata should not be retrievable", function() {
-    expect(res.body.error.code).to.equal("API_KEY_NOT_FOUND");
-    expect(res.body.error.message).to.equal("api key not found");
+    expect(res.body.error.code).to.equal("AUTH_FORBIDDEN");
+    expect(res.body.error.message).to.include("permission");
   });
 }

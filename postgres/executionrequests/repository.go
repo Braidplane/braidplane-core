@@ -2,11 +2,13 @@ package executionrequests
 
 import (
 	"context"
+	"encoding/json"
 	"time"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgtype"
 
+	"github.com/Braidplane/braidplane-core/pkg/domain/model"
 	"github.com/Braidplane/braidplane-core/pkg/executiondelivery"
 	"github.com/Braidplane/braidplane-core/pkg/slug"
 	"github.com/Braidplane/braidplane-core/pkg/uuid"
@@ -100,6 +102,7 @@ func (Repository) Preflight(ctx context.Context, db postgres.DBTX) error {
 		SELECT
 			to_regprocedure('public.claim_next_execution_request()') IS NOT NULL
 			AND to_regprocedure('public.heartbeat_execution_request(uuid,uuid)') IS NOT NULL
+			AND COALESCE(has_function_privilege(current_user, to_regprocedure('public.claimed_proposal_authorization(uuid,uuid)'), 'EXECUTE'), false)
  AND to_regprocedure('public.check_connector_dispatch(uuid,uuid,text,text,text,jsonb,text,timestamp with time zone,boolean)') IS NOT NULL
  AND has_function_privilege(current_user,'public.check_connector_dispatch(uuid,uuid,text,text,text,jsonb,text,timestamp with time zone,boolean)','EXECUTE')
 				AND to_regprocedure('public.complete_execution_request(uuid,uuid,bytea,boolean)') IS NOT NULL
@@ -132,6 +135,7 @@ func (Repository) PreflightDelivery(ctx context.Context, db postgres.DBTX) error
 		SELECT
 			to_regprocedure('public.claim_execution_request(uuid)') IS NOT NULL
 			AND to_regprocedure('public.heartbeat_execution_request(uuid,uuid)') IS NOT NULL
+			AND COALESCE(has_function_privilege(current_user, to_regprocedure('public.claimed_proposal_authorization(uuid,uuid)'), 'EXECUTE'), false)
  AND to_regprocedure('public.check_connector_dispatch(uuid,uuid,text,text,text,jsonb,text,timestamp with time zone,boolean)') IS NOT NULL
  AND has_function_privilege(current_user,'public.check_connector_dispatch(uuid,uuid,text,text,text,jsonb,text,timestamp with time zone,boolean)','EXECUTE')
 			AND to_regprocedure('public.complete_execution_request(uuid,uuid,bytea,boolean)') IS NOT NULL
@@ -493,4 +497,31 @@ func (Repository) CheckDispatch(ctx context.Context, db postgres.DBTX, expected 
 		return false, xerror.Unexpected().With(err)
 	}
 	return allowed, nil
+}
+
+func (Repository) BindProposal(ctx context.Context, tx postgres.DBTX, id uuid.UUID, project, source, pipeline slug.Slug, attempt string, authorityID int64) (bool, error) {
+	rows, err := dbgen.New(tx).BindProposalExecutionTarget(ctx, dbgen.BindProposalExecutionTargetParams{
+		RequestID: pgtype.UUID{Bytes: id.UUID, Valid: true}, ProjectSlug: project.String(), DataSourceSlug: source.String(),
+		PipelineSlug: pipeline.String(), AttemptID: attempt, AuthorityID: authorityID,
+	})
+	if err != nil {
+		return false, xerror.Unexpected().With(err)
+	}
+	return rows == 1, nil
+}
+
+func (Repository) ClaimedProposalAuthorization(ctx context.Context, tx postgres.DBTX, id, claim uuid.UUID) (model.AuthorizationFacts, error) {
+	raw, err := dbgen.New(tx).ClaimedProposalAuthorization(ctx, dbgen.ClaimedProposalAuthorizationParams{
+		RequestID: pgtype.UUID{Bytes: id.UUID, Valid: true}, ClaimToken: pgtype.UUID{Bytes: claim.UUID, Valid: true},
+	})
+	var facts model.AuthorizationFacts
+	if err != nil {
+		return facts, xerror.Unexpected().With(err)
+	}
+	if len(raw) > 0 {
+		if err := json.Unmarshal(raw, &facts); err != nil {
+			return facts, xerror.Unexpected().With(err)
+		}
+	}
+	return facts, nil
 }

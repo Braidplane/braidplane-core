@@ -1,6 +1,7 @@
 package views
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"net/url"
@@ -108,10 +109,11 @@ type AlertPolicySelectorOptions struct {
 
 // AlertPolicyDynamicOptions carries API-backed selector choices for the HTMX policy partial.
 type AlertPolicyDynamicOptions struct {
-	Projects       []AlertFormOption
-	Environments   []AlertFormOption
-	SourceMetadata []api.AlertPolicySourceMetadata
-	SourceRefs     []AlertFormOption
+	ProjectListRestricted bool
+	Projects              []AlertFormOption
+	Environments          []AlertFormOption
+	SourceMetadata        []api.AlertPolicySourceMetadata
+	SourceRefs            []AlertFormOption
 }
 
 // DefaultAlertDestinationFormData returns alert destination form defaults.
@@ -975,6 +977,19 @@ func alertNullableString(value *string) string {
 	return strings.TrimSpace(*value)
 }
 
+func canEditPolicyDestinations(policy api.AlertPolicy, destinations []api.AlertDestination) bool {
+	available := make(map[string]bool, len(destinations))
+	for _, destination := range destinations {
+		available[destination.Slug] = true
+	}
+	for _, bound := range policy.DestinationSlugs {
+		if !available[bound] {
+			return false
+		}
+	}
+	return true
+}
+
 // AlertPolicyHasDestination reports whether a policy is bound to a destination.
 func AlertPolicyHasDestination(policyForm AlertPolicyFormData, destinationSlug api.Slug) bool {
 	for _, value := range policyForm.DestinationSlugs {
@@ -1074,6 +1089,18 @@ func AlertDestinationCanTest(destination api.AlertDestination, connections []api
 		}
 	}
 	return false
+}
+
+func alertUpdateHref(ctx context.Context, org string, tab AlertTab, slug string) string {
+	path := "/orgs/" + org + "/alerts/" + string(tab) + "/" + slug + "/update"
+	key := "destination_slug"
+	if tab == AlertTabPolicies {
+		key = "policy_slug"
+	}
+	if entityPageURL(ctx).Query().Get(key) == slug {
+		return path + "?" + url.Values{key: {slug}}.Encode()
+	}
+	return path
 }
 
 // AlertJourneyHref carries the original inbox filters through configuration navigation.

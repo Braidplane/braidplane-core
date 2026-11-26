@@ -13,6 +13,7 @@ type BuilderBlueprintState struct {
 	IsValid                bool
 	HasDraft               bool
 	CanExecutePipeline     bool
+	CanBootstrap           bool
 	CanRun                 bool
 	CanRefreshSchemas      bool
 	CanCreatePipeline      bool
@@ -236,7 +237,7 @@ templ BuilderBlueprintContent(state BuilderBlueprintState) {
 							}
 						}
 						<p class="text-xs text-base-content/70">Watermarks accept a number or text value, such as an ISO timestamp. Cursors are opaque text. Each source operation must use both bounds.</p>
-						<button class="btn btn-sm btn-outline" id="builder-backfill-btn" data-can-execute={ strconv.FormatBool(state.CanExecutePipeline) } type="submit" disabled?={ !state.CanRun }>{ builderRuntimeActionLabel("Start backfill", state.TargetEnvironmentSlug) }</button>
+						<button class="btn btn-sm btn-outline" id="builder-backfill-btn" data-can-backfill={ strconv.FormatBool(state.CanRun) } data-can-bootstrap={ strconv.FormatBool(state.CanBootstrap) } type="submit" disabled?={ !state.CanRun }>{ builderRuntimeActionLabel("Start backfill", state.TargetEnvironmentSlug) }</button>
 					</form>
 				</details>
 				if strings.TrimSpace(state.SaveReason) != "" {

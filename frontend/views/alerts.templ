@@ -14,7 +14,7 @@ templ AlertsPage(
 	destinationFormData AlertDestinationFormData,
 	policyFormData AlertPolicyFormData,
 	editFormOverrides AlertEditFormOverrides,
-	permissions OrganizationPermissions,
+	permissions, policyPermissions, destinationPermissions OrganizationPermissions,
 	contentErrorSummary string,
 	contentErrorDetails string,
 	contentSuccessSummary string,
@@ -30,7 +30,7 @@ templ AlertsPage(
 			destinationFormData,
 			policyFormData,
 			editFormOverrides,
-			permissions,
+			permissions, policyPermissions, destinationPermissions,
 			contentErrorSummary,
 			contentErrorDetails,
 			contentSuccessSummary,
@@ -47,7 +47,7 @@ templ AlertsPageContent(
 	destinationFormData AlertDestinationFormData,
 	policyFormData AlertPolicyFormData,
 	editFormOverrides AlertEditFormOverrides,
-	permissions OrganizationPermissions,
+	permissions, policyPermissions, destinationPermissions OrganizationPermissions,
 	contentErrorSummary string,
 	contentErrorDetails string,
 	contentSuccessSummary string,
@@ -86,7 +86,7 @@ templ AlertsPageContent(
 						}
 					</a>
 				}
-				if !permissions.Can("alert_destinations", "read") {
+				if !permissions.Can("alert_destinations", "read") && len(destinations) == 0 {
 					<p class="text-sm text-base-content/70">Destination configuration is restricted. An authorized destination owner must configure routing.</p>
 				}
 				if permissions.Can("alert_policies", "create") {
@@ -101,14 +101,16 @@ templ AlertsPageContent(
 						"",
 					)
 				}
-				@AlertPolicyList(orgSlug, destinations, policies, editFormOverrides, permissions)
+				@AlertPolicyList(orgSlug, destinations, policies, editFormOverrides, permissions, policyPermissions)
 			</section>
 		} else {
 			<section class="space-y-4" id={ AlertTabPanelID(AlertTabDestinations) } role="tabpanel" aria-labelledby={ AlertTabID(AlertTabDestinations) }>
 				<div class="flex flex-wrap items-center justify-between gap-3">
 					<div>
 						<h2 class="text-base font-semibold text-base-content">Alert destinations</h2>
-						<a class="btn btn-outline btn-sm mt-2" href={ templ.URL("/orgs/" + orgSlug + "/alerts/connections") }>Manage notification connections</a>
+						if permissions.Can("alert_destinations", "read") {
+							<a class="btn btn-outline btn-sm mt-2" href={ templ.URL("/orgs/" + orgSlug + "/alerts/connections") }>Manage notification connections</a>
+						}
 						<p class="mt-1 text-xs text-base-content/70">Destinations receive deliveries selected by alert policies.</p>
 					</div>
 					if destinations != nil {
@@ -153,7 +155,7 @@ templ AlertsPageContent(
 						</div>
 					</form>
 				}
-				@AlertDestinationList(orgSlug, destinations, connections, editFormOverrides, permissions)
+				@AlertDestinationList(orgSlug, destinations, connections, editFormOverrides, destinationPermissions)
 			</section>
 		}
 	</div>
@@ -278,8 +280,8 @@ templ AlertDestinationList(orgSlug string, destinations []api.AlertDestination, 
 								class={ "rounded-lg border border-base-300 bg-base-200/35 p-3 lg:col-span-5", templ.KV("hidden", form.ErrorMessage == "") }
 								data-form-feedback
 								method="post"
-								action={ templ.URL("/orgs/" + orgSlug + "/alerts/destinations/" + string(destination.Slug) + "/update") }
-								hx-post={ "/orgs/" + orgSlug + "/alerts/destinations/" + string(destination.Slug) + "/update" }
+								action={ templ.URL(alertUpdateHref(ctx, orgSlug, AlertTabDestinations, destination.Slug)) }
+								hx-post={ alertUpdateHref(ctx, orgSlug, AlertTabDestinations, destination.Slug) }
 								hx-target="#alerts-workspace"
 								hx-select="#alerts-workspace"
 								hx-swap="outerHTML show:none focus-scroll:false"
@@ -337,7 +339,7 @@ templ AlertDestinationEditFields(form AlertDestinationFormData, connections []ap
 	@AlertDestinationConfigFields(form, connections, feedbackID)
 }
 
-templ AlertPolicyList(orgSlug string, destinations []api.AlertDestination, policies []api.AlertPolicy, editFormOverrides AlertEditFormOverrides, permissions OrganizationPermissions) {
+templ AlertPolicyList(orgSlug string, destinations []api.AlertDestination, policies []api.AlertPolicy, editFormOverrides AlertEditFormOverrides, permissions, policyPermissions OrganizationPermissions) {
 	if policies == nil {
 		<div class="alert alert-error"><span>Alert policies are unavailable.</span></div>
 	} else if len(policies) == 0 {
@@ -390,13 +392,13 @@ templ AlertPolicyList(orgSlug string, destinations []api.AlertDestination, polic
 								<a class="btn btn-outline btn-xs" href={ templ.URL(AlertPolicyNotificationsHref(orgSlug, policy)) }>View condition notifications</a>
 							}
 							<button class="btn btn-outline btn-xs" type="button" aria-controls={ AlertPolicyDetailsPanelID(policy) } aria-expanded="false" data-toggle-target={ AlertPolicyDetailsPanelID(policy) }>Details</button>
-							if permissions.Can("alert_policies", "update") {
-								<button class="btn btn-ghost btn-xs" type="button" aria-controls={ AlertPolicyEditPanelID(policy) } aria-expanded="false" data-toggle-target={ AlertPolicyEditPanelID(policy) }>Edit</button>
+							if policyPermissions.Can("alert_policies", "update") {
+								<button class="btn btn-ghost btn-xs" type="button" aria-controls={ AlertPolicyEditPanelID(policy) } aria-expanded={ fmt.Sprint(editFormOverrides.PolicySlug == policy.Slug) } data-toggle-target={ AlertPolicyEditPanelID(policy) }>Edit</button>
 							}
-							if permissions.Can("alert_policies", "delete") {
+							if policyPermissions.Can("alert_policies", "delete") {
 								<button class="btn btn-error btn-outline btn-xs" type="button" data-protected-action-trigger={ AlertPolicyDeleteModalID(policy) }>Delete</button>
 							}
-							if !permissions.Can("alert_policies", "update") && !permissions.Can("alert_policies", "delete") {
+							if !policyPermissions.Can("alert_policies", "update") && !policyPermissions.Can("alert_policies", "delete") {
 								<span class="text-sm text-base-content/60">No actions</span>
 							}
 						</div>
@@ -416,23 +418,27 @@ templ AlertPolicyList(orgSlug string, destinations []api.AlertDestination, polic
 								</div>
 							</div>
 						</div>
-						if permissions.Can("alert_policies", "update") {
+						if policyPermissions.Can("alert_policies", "update") {
 							{{ form := editFormOverrides.PolicyFormDataFor(policy) }}
+							{{ destinationsAvailable := canEditPolicyDestinations(policy, destinations) }}
 							{{ form.NotificationReturn = editFormOverrides.NotificationReturn }}
-							<div id={ AlertPolicyEditPanelID(policy) } class="hidden rounded-lg border border-base-300 bg-base-200/35 p-3 lg:col-span-5">
+							<div id={ AlertPolicyEditPanelID(policy) } class={ "rounded-lg border border-base-300 bg-base-200/35 p-3 lg:col-span-5", templ.KV("hidden", editFormOverrides.PolicySlug != policy.Slug) }>
+								if !destinationsAvailable {
+									<p class="text-sm">Saving requires read access to every bound destination. Check destination access and refresh to edit this policy.</p>
+								}
 								@AlertPolicyForm(
 									orgSlug,
 									"Save policy",
-									"/orgs/"+orgSlug+"/alerts/policies/"+string(policy.Slug)+"/update",
+									alertUpdateHref(ctx, orgSlug, AlertTabPolicies, policy.Slug),
 									form,
 									destinations,
 									true,
-									len(destinations) == 0,
+									len(destinations) == 0 || !destinationsAvailable,
 									"alert-policy-"+string(policy.Slug)+"-update",
 								)
 							</div>
 						}
-						if permissions.Can("alert_policies", "delete") {
+						if policyPermissions.Can("alert_policies", "delete") {
 							@AlertDeleteConfirmModal(
 								AlertPolicyDeleteModalID(policy),
 								"Delete policy",
@@ -565,11 +571,15 @@ templ AlertPolicySelectorFieldsBody(orgSlug string, selectorTargetID string, for
 		</label>
 		<label class={ AlertPolicyScopeFieldClass(AlertPolicyProjectScopeEnabled(form)) } data-alert-policy-scope-fields="project,project_environment">
 			<div class="label py-1"><span class="label-text text-xs">Project</span></div>
-			<select class="select select-bordered select-sm w-full" name="project_slug" required?={ options.ProjectEnabled } disabled?={ AlertPolicyProjectSelectDisabled(form) } hx-get={ AlertPolicySelectorOptionsHref(orgSlug) } hx-target={ "#" + selectorTargetID } hx-select={ "#" + selectorTargetID } hx-include="closest form" hx-trigger="change" hx-swap="outerHTML" hx-disinherit="hx-select">
-				for _, option := range options.Projects {
-					<option value={ option.Value } selected?={ form.ProjectSlug == option.Value }>{ option.Label }</option>
-				}
-			</select>
+			if dynamicOptions.ProjectListRestricted {
+				<input class="input input-bordered input-sm w-full" name="project_slug" placeholder="Project slug" value={ form.ProjectSlug } required?={ options.ProjectEnabled } disabled?={ AlertPolicyProjectSelectDisabled(form) } hx-get={ AlertPolicySelectorOptionsHref(orgSlug) } hx-target={ "#" + selectorTargetID } hx-select={ "#" + selectorTargetID } hx-include="closest form" hx-trigger="change" hx-swap="outerHTML" hx-disinherit="hx-select"/>
+			} else {
+				<select class="select select-bordered select-sm w-full" name="project_slug" required?={ options.ProjectEnabled } disabled?={ AlertPolicyProjectSelectDisabled(form) } hx-get={ AlertPolicySelectorOptionsHref(orgSlug) } hx-target={ "#" + selectorTargetID } hx-select={ "#" + selectorTargetID } hx-include="closest form" hx-trigger="change" hx-swap="outerHTML" hx-disinherit="hx-select">
+					for _, option := range options.Projects {
+						<option value={ option.Value } selected?={ form.ProjectSlug == option.Value }>{ option.Label }</option>
+					}
+				</select>
+			}
 		</label>
 		<label class={ AlertPolicyScopeFieldClass(AlertPolicyEnvironmentScopeEnabled(form)) } data-alert-policy-scope-fields="project_environment">
 			<div class="label py-1"><span class="label-text text-xs">Environment</span></div>
@@ -731,9 +741,9 @@ templ AlertDestinationConfigFields(form AlertDestinationFormData, connections []
 			</select>
 		</label>
 		if connections==nil {
-			<p class="mt-1 text-xs text-error">Connection status is unavailable. Reload before enabling a destination.</p>
+			<p class="mt-1 text-xs text-error">Connection choices are unavailable. Listing them requires organization-wide destination read access.</p>
 		}
-		if len(connections)==0 {
+		if connections!=nil && len(connections)==0 {
 			<p class="mt-1 text-xs text-base-content/70">Connect Slack using Manage notification connections, then return to select it.</p>
 		}
 	</div>

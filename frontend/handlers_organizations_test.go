@@ -594,7 +594,7 @@ func TestRouter_WorkspaceGate_ExistingMembershipBypassesGateAndSetsActiveOrganiz
 		case "/api/organizations/acme-hq/projects":
 			assert.Equal(t, http.MethodGet, r.Method)
 			writeJSON(w, `{"projects":[],"has_more":false,"next_cursor":null,"prev_cursor":null}`)
-		case "/api/organizations/acme-hq/roles/owner":
+		case "/api/organizations/acme-hq/authorization/permissions":
 			writeJSON(w, `{"slug":"owner","name":"Owner","permissions":[{"resource":"*","action":"*"}]}`)
 		case "/api/organizations/acme-hq/data-sources":
 			assert.Equal(t, http.MethodGet, r.Method)
@@ -983,7 +983,7 @@ func TestRouter_HandleOrganizationRetentionPage_RendersSanitizedMaintenanceHisto
 			}`)
 		case r.Method == http.MethodGet && r.URL.Path == "/api/organizations":
 			writeJSON(w, `{"organizations":[{"name":"Acme HQ","slug":"acme-hq","member_role":"admin","created_at":"2026-03-01T00:00:00Z","updated_at":"2026-03-01T00:00:00Z"}],"has_more":false,"next_cursor":null,"prev_cursor":null}`)
-		case r.Method == http.MethodGet && r.URL.Path == "/api/organizations/acme-hq/roles/admin":
+		case r.Method == http.MethodGet && r.URL.Path == "/api/organizations/acme-hq/authorization/permissions":
 			writeJSON(w, `{"slug":"admin","name":"Admin","is_default":true,"permissions":[{"resource":"organizations","action":"update"}],"created_at":"2026-03-01T00:00:00Z","updated_at":"2026-03-01T00:00:00Z"}`)
 		default:
 			w.WriteHeader(http.StatusNotFound)
@@ -1043,7 +1043,7 @@ func TestRouter_HandleOrganizationRetentionPage_IsReadOnlyWithoutUpdatePermissio
 			writeJSON(w, `{"schedule":{"cadence":"daily","timezone":"UTC","next_run_at":"2026-07-24T00:00:00Z"},"runs":[]}`)
 		case r.Method == http.MethodGet && r.URL.Path == "/api/organizations":
 			writeJSON(w, `{"organizations":[{"name":"Acme HQ","slug":"acme-hq","member_role":"viewer","created_at":"2026-03-01T00:00:00Z","updated_at":"2026-03-01T00:00:00Z"}],"has_more":false,"next_cursor":null,"prev_cursor":null}`)
-		case r.Method == http.MethodGet && r.URL.Path == "/api/organizations/acme-hq/roles/viewer":
+		case r.Method == http.MethodGet && r.URL.Path == "/api/organizations/acme-hq/authorization/permissions":
 			writeJSON(w, `{"slug":"viewer","name":"Viewer","is_default":true,"permissions":[{"resource":"organizations","action":"read"}],"created_at":"2026-03-01T00:00:00Z","updated_at":"2026-03-01T00:00:00Z"}`)
 		default:
 			w.WriteHeader(http.StatusNotFound)
@@ -2838,5 +2838,56 @@ func TestProjectBackendBranchesFragment(t *testing.T) {
 				require.Contains(t, string(body), `role="alert"`)
 			}
 		})
+	}
+}
+
+func TestProjectsWorkspaceUsesSelectedProjectPermissions(t *testing.T) {
+	for _, selectedCanUpdate := range []bool{true, false} {
+		backend := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			switch r.URL.Path {
+			case "/api/organizations/acme-hq/authorization/permissions":
+				switch r.URL.Query().Get("target_kind") {
+				case "":
+					writeJSON(w, `{"permissions":[{"resource":"projects","action":"update"},{"resource":"projects","action":"create"}]}`)
+				case "projects":
+					assert.Equal(t, "ops", r.URL.Query().Get("target_slug"))
+					if selectedCanUpdate {
+						writeJSON(w, `{"permissions":[{"resource":"projects","action":"update"}]}`)
+					} else {
+						writeJSON(w, `{"permissions":[]}`)
+					}
+				default:
+					writeJSON(w, `{"permissions":[]}`)
+				}
+			case "/api/organizations":
+				writeJSON(w, `{"organizations":[{"slug":"acme-hq","name":"Acme"}]}`)
+			case "/api/organizations/acme-hq":
+				writeJSON(w, `{"slug":"acme-hq","name":"Acme"}`)
+			case "/api/organizations/acme-hq/projects":
+				writeJSON(w, `{"projects":[{"slug":"ops","name":"Operations"}]}`)
+			case "/api/organizations/acme-hq/projects/ops":
+				writeJSON(w, `{"slug":"ops","name":"Operations"}`)
+			default:
+				http.NotFound(w, r)
+			}
+		}))
+		app, cookie := setupBindingActionTestApp(t, backend.URL)
+		for _, fragment := range []bool{false, true} {
+			req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/organizations/acme-hq/projects?project_slug=ops", nil)
+			req.Header.Set("Cookie", cookie)
+			if fragment {
+				req.Header.Set("HX-Request", "true")
+				req.Header.Set("HX-Target", "project-quick-look")
+			}
+			resp, err := app.Test(req)
+			require.NoError(t, err)
+			body, err := io.ReadAll(resp.Body)
+			require.NoError(t, err)
+			require.NoError(t, resp.Body.Close())
+			require.Equal(t, http.StatusOK, resp.StatusCode)
+			require.Equal(t, !selectedCanUpdate, strings.Contains(string(body), "Ask an administrator with project update permission"))
+			require.Equal(t, !fragment, strings.Contains(string(body), `aria-controls="create-project"`))
+		}
+		backend.Close()
 	}
 }

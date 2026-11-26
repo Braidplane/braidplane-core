@@ -94,3 +94,25 @@ func TestConsistentSnapshotCannotSilentlyReuseReadCommittedTransaction(t *testin
 	require.Error(t, err)
 	require.False(t, called)
 }
+
+func TestNestedOperationChecksNewDecisionsOnce(t *testing.T) {
+	txm := &poolTransactionManager{}
+	ctx := WithTransactionChecks(t.Context())
+	ctx = context.WithValue(ctx, txContextKey{}, fakeDBTX{})
+	ctx = context.WithValue(ctx, transactionSnapshotKey{}, true)
+	ctx = context.WithValue(ctx, verifiedChecksKey{}, make(verifiedChecks))
+	calls := 0
+	AddTransactionCheck(ctx, func(context.Context, DBTX) error { calls++; return nil })
+	noop := func(context.Context, DBTX) error { return nil }
+	require.NoError(t, txm.RunRead(ctx, noop))
+	require.NoError(t, txm.RunInTx(ctx, noop))
+	require.Equal(t, 1, calls)
+
+	AddTransactionCheck(ctx, func(context.Context, DBTX) error { return context.Canceled })
+	err := txm.RunRead(ctx, func(context.Context, DBTX) error {
+		t.Fatal("nested read ran despite a failed decision")
+		return nil
+	})
+	require.ErrorIs(t, err, context.Canceled)
+	require.Equal(t, 1, calls)
+}

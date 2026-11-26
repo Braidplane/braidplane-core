@@ -15,6 +15,10 @@ This guide applies inside `frontend/` and supplements the root `AGENTS.md`.
   documented compact-screen fallback. Keep loading, empty, success, and error
   states explicit, and keep copy concise and operational.
 
+Register each Community route in `authorization_matrix.csv`. Render controls
+using effective permissions for the selected target. Reads and mutations use
+the authenticated backend API, which makes the authoritative decision.
+
 ## Validation
 
 Run `task generate-templ` when `.templ` sources change. Use

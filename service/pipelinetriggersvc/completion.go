@@ -101,6 +101,14 @@ func (s *service) CheckCompletionSnapshot(ctx context.Context, org, project, env
 			reason = "causal_depth_exceeded"
 		}
 		if reason == "" {
+			closure, current := snapshot.ClosureAuthority, snapshot.CurrentAuthority
+			if closure.PrincipalID != current.PrincipalID ||
+				closure.Scoped.Upstream.TargetID != current.Scoped.Upstream.TargetID ||
+				closure.Scoped.Downstream.TargetID != current.Scoped.Downstream.TargetID {
+				reason = "authority_revoked"
+			}
+		}
+		if reason == "" {
 			for _, authority := range []model.CompletionAuthoritySnapshot{snapshot.ClosureAuthority, snapshot.CurrentAuthority} {
 				allowed, err := authorization.CanCapturedCompletionAuthority(ctx, authority)
 				if err != nil {

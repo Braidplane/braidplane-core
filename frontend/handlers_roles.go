@@ -344,11 +344,13 @@ func (r *Router) renderOrganizationRolesPage(
 		{Label: "Roles"},
 	}
 
-	permissions := r.resolveOrganizationPermissions(
-		c.Context(),
-		c.Get(fiber.HeaderCookie),
-		orgSlug.String(),
-	)
+	permissions := r.resolveOrganizationPermissions(c.Context(), c.Get(fiber.HeaderCookie), orgSlug.String())
+	archivable := make(map[string]bool, len(roles))
+	for _, role := range roles {
+		if views.RoleMutable(role) {
+			archivable[role.Slug] = r.rowAllows(c, orgSlug.String(), "roles", role.Slug, "roles", "delete", permissions)
+		}
+	}
 
 	setHTMLResponseStatus(c, statusCode)
 	return renderTempl(
@@ -360,6 +362,7 @@ func (r *Router) renderOrganizationRolesPage(
 			createFormData,
 			roleListView,
 			permissions,
+			archivable,
 			contentErrorSummary,
 			contentErrorDetails,
 			contentSuccessSummary,

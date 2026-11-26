@@ -3,7 +3,6 @@ package http
 import (
 	"context"
 	"fmt"
-	"sync"
 
 	"github.com/gofiber/fiber/v3"
 
@@ -52,11 +51,12 @@ func (s *server) getReadiness(c fiber.Ctx, org api.SlugParam, project api.Projec
 	return c.JSON(report)
 }
 
-// Check query access once, only when readiness needs saved operation metadata.
+// A binding may point to an organization-owned query outside the project grant.
 func (s *server) readinessOperations(c fiber.Ctx, org slug.Slug) readinesssvc.OperationReader {
-	authorize := sync.OnceValue(func() error { return s.canOrg(c, org, model.Read, model.ResourceQueries) })
 	return func(ctx context.Context, _, dataSource, operation slug.Slug) (*queriessvc.Query, error) {
-		if err := authorize(); err != nil {
+		target := model.AuthorizationTarget{Kind: "queries", Slug: operation, DataSourceSlug: dataSource}
+		// The Fiber request carries the operation and authenticated principal for this callback.
+		if err := s.canTarget(c, org, model.Read, model.ResourceQueries, target); err != nil { //nolint:contextcheck
 			return nil, err
 		}
 		return s.queriesService.FindForReadiness(ctx, org, dataSource, operation)

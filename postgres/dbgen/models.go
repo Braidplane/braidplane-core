@@ -77,6 +77,30 @@ type AccountDeletionRequest struct {
 	FailureCode pgtype.Text
 }
 
+type ActivePipelineProposalAuthority struct {
+	OrgSlug                   string
+	ProjectSlug               string
+	ProjectID                 int64
+	OrganizationID            int32
+	SourceUpdatedAt           pgtype.Timestamptz
+	ID                        int
+	PublicationMode           string
+	ProviderHost              string
+	ProviderAccountID         string
+	ProviderRepositoryID      string
+	ProviderCredentialID      string
+	ExecutingPrincipalID      string
+	ExecutingPrincipalDisplay string
+	AuthoritySource           string
+	GitConfiguration          []byte
+	GitRepository             string
+	GitBaseBranch             string
+	GitPipelineDirectory      string
+	GitDataSourceSlug         string
+	GitCredentialSlug         string
+	GitCredentialUpdatedAt    pgtype.Timestamptz
+}
+
 type ActiveProofCandidateMapping struct {
 	ID                   int64
 	OrganizationID       int32
@@ -172,6 +196,53 @@ type ApiKey struct {
 	CreatedAt         pgtype.Timestamptz
 	UpdatedAt         pgtype.Timestamptz
 	CanManageApiKeys  bool
+}
+
+type AuthorizationRoleBinding struct {
+	OrganizationID int32
+	MemberID       int32
+	ApiKeyID       pgtype.Int8
+	RoleID         int32
+	Scope          string
+	TargetKind     string
+	TargetID       int64
+	GrantID        pgtype.Int8
+}
+
+type AuthorizationScopedGrant struct {
+	ID             int
+	Slug           slug.Slug
+	OrganizationID int32
+	MemberID       pgtype.Int4
+	ApiKeyID       pgtype.Int8
+	RoleID         int32
+	Scope          string
+	TargetKind     string
+	TargetID       int64
+}
+
+type AuthorizationTarget struct {
+	Kind           string
+	ID             int
+	Slug           slug.Slug
+	OrganizationID int32
+	ProjectID      pgtype.Int8
+	EnvironmentID  pgtype.Int8
+	DataSourceID   pgtype.Int8
+	OwnerSlug      string
+	ParentSlug     string
+	AncestorIds    []string
+}
+
+type AuthorizationTargetLocator struct {
+	OrganizationID  int32
+	Kind            string
+	ID              int
+	Slug            slug.Slug
+	ParentSlug      string
+	ProjectSlug     string
+	EnvironmentSlug string
+	DataSourceSlug  string
 }
 
 type Credential struct {
@@ -357,6 +428,17 @@ type Event struct {
 	EventClass     string
 	RequestID      pgtype.Text
 	SchemaVersion  int32
+}
+
+type ExecutionProposalTarget struct {
+	RequestID      pgtype.UUID
+	MemberID       int32
+	ProjectID      int64
+	PipelineID     pgtype.Int8
+	PipelineSlug   string
+	AttemptID      string
+	AuthorityID    int64
+	ProviderDigest []byte
 }
 
 type ExecutionRequest struct {
@@ -718,6 +800,7 @@ type PipelineCreationProposal struct {
 	PublishAttemptID string
 	CreatedAt        pgtype.Timestamptz
 	UpdatedAt        pgtype.Timestamptz
+	AuthorizationID  pgtype.Int8
 }
 
 type PipelineDeployment struct {
@@ -1089,6 +1172,7 @@ type PipelineTrigger struct {
 	WebhookVerificationStrategy pgtype.Text
 	WebhookInputMappings        []byte
 	CompletionConfig            []byte
+	CompletionEditorID          pgtype.Text
 }
 
 type PipelineTriggerRetryAttempt struct {
@@ -1254,18 +1338,19 @@ type ProjectEnvironment struct {
 }
 
 type ProjectRepositorySetup struct {
-	OrganizationID int32
-	ProjectID      int64
-	Slug           slug.Slug
-	Request        []byte
-	Result         []byte
-	Status         string
-	FailureCode    string
-	LeaseOwner     pgtype.Text
-	LeaseUntil     pgtype.Timestamptz
-	CreatedAt      pgtype.Timestamptz
-	UpdatedAt      pgtype.Timestamptz
-	AbandonedAt    pgtype.Timestamptz
+	OrganizationID  int32
+	ProjectID       int64
+	Slug            slug.Slug
+	Request         []byte
+	Result          []byte
+	Status          string
+	FailureCode     string
+	LeaseOwner      pgtype.Text
+	LeaseUntil      pgtype.Timestamptz
+	CreatedAt       pgtype.Timestamptz
+	UpdatedAt       pgtype.Timestamptz
+	AbandonedAt     pgtype.Timestamptz
+	AuthorizationID pgtype.Int8
 }
 
 type ProofChangeCandidate struct {
@@ -1532,14 +1617,15 @@ type RolePermission struct {
 }
 
 type RuntimeVariableDefinition struct {
-	OrganizationID int32
-	Key            string
-	ValueType      string
-	Description    pgtype.Text
-	Required       bool
-	DefaultValue   pgtype.Text
-	CreatedAt      pgtype.Timestamptz
-	UpdatedAt      pgtype.Timestamptz
+	OrganizationID  int32
+	Key             string
+	ValueType       string
+	Description     pgtype.Text
+	Required        bool
+	DefaultValue    pgtype.Text
+	CreatedAt       pgtype.Timestamptz
+	UpdatedAt       pgtype.Timestamptz
+	AuthorizationID pgtype.Int8
 }
 
 type SchemaMetadatum struct {

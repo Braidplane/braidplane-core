@@ -27,7 +27,7 @@ func (r *Router) renderPipelineBindingSetup(c fiber.Ctx, statusCode int, message
 			return c.SendStatus(http.StatusBadRequest)
 		}
 	}
-	permissions := r.resolveOrganizationPermissions(c.Context(), c.Get(fiber.HeaderCookie), org.String())
+	permissions := r.resolvePagePermissions(c, org.String())
 	if !permissions.Can("pipelines", "read") {
 		if isHTMXRequest(c) {
 			return redirectHTMXOrSeeOther(c, pipelineBindingSetupReloadHref(c, org.String(), project.String(), pipeline.String()))
@@ -54,6 +54,7 @@ func (r *Router) renderPipelineBindingSetup(c fiber.Ctx, statusCode int, message
 		data.Definition = &api.Pipeline{Slug: data.Pipeline, Spec: version.Spec}
 		var unauthorized bool
 		data.Bindings, unauthorized = r.loadPipelineBindingContext(c, data.Org, data.Project)
+		data.Bindings.CellPermissions = r.bindingCellPermissions(c, data.Org, data.Project, views.PipelineBindingRows(data.Definition, data.Bindings))
 		if unauthorized {
 			return redirectToLogin(c, pipelineBindingSetupReloadHref(c, data.Org, data.Project, data.Pipeline))
 		}
@@ -142,4 +143,33 @@ func pipelineBindingSetupReloadHref(c fiber.Ctx, org, project, pipeline string) 
 		href += "#" + views.DataSourceBindingFormID("binding-cell", pipeline, ref, c.Params("environmentSlug"))
 	}
 	return href
+}
+
+func (r *Router) bindingCellPermissions(c fiber.Ctx, org, project string, rows []views.DataSourceBindingRow) map[views.BindingTarget]views.OrganizationPermissions {
+	cellPermissions := make(map[views.BindingTarget]views.OrganizationPermissions)
+	if len(rows) == 0 {
+		return cellPermissions
+	}
+	cookie := c.Get(fiber.HeaderCookie)
+	orgPermissions := r.resolveOrganizationPermissions(c.Context(), cookie, org)
+	orgManagesBindings := orgPermissions.Can("datasources", "update") && orgPermissions.Can("datasources", "delete")
+	for _, row := range rows {
+		for _, cell := range row.Cells {
+			if !row.RefAvailable || cell.State == "unavailable" {
+				continue
+			}
+			key := views.BindingTarget{Pipeline: row.PipelineSlug, Ref: row.RefSlug, Environment: cell.EnvironmentSlug}
+			if orgManagesBindings {
+				cellPermissions[key] = orgPermissions
+				continue
+			}
+			kind := "data_source_bindings_upsert"
+			if cell.HasBinding {
+				kind = "data_source_bindings"
+			}
+			params := api.GetEffectivePermissionsParams{TargetKind: &kind, TargetSlug: &row.RefSlug, ProjectSlug: &project, ParentSlug: &row.PipelineSlug, EnvironmentSlug: &cell.EnvironmentSlug, ProjectDatasourceBindings: new(true)}
+			cellPermissions[key] = organizationPermissions(r.effectivePermissions(c.Context(), cookie, org, &params))
+		}
+	}
+	return cellPermissions
 }

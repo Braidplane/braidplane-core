@@ -42,6 +42,21 @@ rebinding, credential revision changes and incompatible policy changes fail the
 attempt closed. The proposal service and executor own this queued authorization
 exception; HTTP endpoints still authorize through `authorization.Service.Can`.
 
+Creating a pipeline checks `pipelines:create` against the owning project.
+Publishing an existing pipeline checks `pipelines:update` against its logical
+pipeline identity. The control worker verifies the queued member and attempt.
+Its encrypted execution request binds the membership, project, pipeline or
+creation, attempt and current provider authority in the dispatch transaction.
+The isolated executor presents its live request ID and claim token before
+opening the repository, pushing a branch and creating or updating a PR/MR.
+Each check resolves current bindings for that exact operation and applies OPA.
+A revocation after the push can leave a proposal branch with no review object.
+
+Before adopting this schema, drain old executors and coordinate the runtime
+and executor upgrade. Old encrypted proposal requests lack a bound target.
+The new executor refuses them. A retained control-queue job can reauthorize
+and submit a fresh request using its original proposal attempt.
+
 Provider calls remain confined to the retained proposal branch and its PR/MR
 lifecycle. No merge, repository administration, protection bypass, secret
 management or unrelated repository operations are authorized. Unsupported

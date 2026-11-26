@@ -19,6 +19,7 @@ const (
 
 // PipelineBindingContext carries pipeline-owned refs and project environment bindings for detail views.
 type PipelineBindingContext struct {
+	CellPermissions                map[BindingTarget]OrganizationPermissions
 	DataSourceRefs                 []api.DataSourceRef
 	Environments                   []api.ProjectEnvironment
 	Bindings                       map[string][]api.DataSourceBinding
@@ -44,8 +45,13 @@ type DataSourceBindingRow struct {
 	Cells                []DataSourceBindingCell
 }
 
+type BindingTarget struct {
+	Pipeline, Ref, Environment string
+}
+
 // DataSourceBindingCell describes one logical ref/environment binding state and available actions.
 type DataSourceBindingCell struct {
+	Permissions          *OrganizationPermissions
 	EnvironmentSlug      string
 	EnvironmentName      string
 	EnvironmentColor     string
@@ -88,6 +94,7 @@ func ProjectBindingRows(projectContext ProjectOperationalContext) []DataSourceBi
 			projectContext.Bindings,
 			projectContext.BindingUnavailableEnvironments,
 			projectContext.DataSources,
+			projectContext.CellPermissions,
 		))
 	}
 	return rows
@@ -129,6 +136,7 @@ func PipelineBindingRows(pipeline *api.Pipeline, bindingContext PipelineBindingC
 			bindingContext.Bindings,
 			bindingContext.BindingUnavailableEnvironments,
 			bindingContext.DataSources,
+			bindingContext.CellPermissions,
 		))
 	}
 	return rows
@@ -392,6 +400,7 @@ func dataSourceBindingRowFromSeed(
 	bindings map[string][]api.DataSourceBinding,
 	unavailableEnvironments map[string]bool,
 	dataSources []api.DataSource,
+	permissions map[BindingTarget]OrganizationPermissions,
 ) DataSourceBindingRow {
 	row.Cells = make([]DataSourceBindingCell, 0, len(environments))
 	if strings.TrimSpace(row.RefName) == "" {
@@ -400,6 +409,10 @@ func dataSourceBindingRowFromSeed(
 	for _, environment := range environments {
 		environmentSlug := strings.TrimSpace(environment.EnvironmentSlug)
 		cell := dataSourceBindingCell(row, environment, bindings[environmentSlug], unavailableEnvironments[environmentSlug], dataSources)
+		if permissions != nil {
+			allowed := permissions[BindingTarget{row.PipelineSlug, row.RefSlug, environmentSlug}]
+			cell.Permissions = &allowed
+		}
 		row.Cells = append(row.Cells, cell)
 	}
 	return row
@@ -765,4 +778,16 @@ func PipelineBindingAttentionLabel(pipeline *api.Pipeline, bindingContext Pipeli
 		return "Missing, invalid or unavailable bindings"
 	}
 	return ""
+}
+
+func (context PipelineBindingContext) canUpdateBindings(page OrganizationPermissions) bool {
+	if len(context.CellPermissions) == 0 {
+		return page.Can("datasources", "update")
+	}
+	for _, permissions := range context.CellPermissions {
+		if permissions.Can("datasources", "update") {
+			return true
+		}
+	}
+	return false
 }

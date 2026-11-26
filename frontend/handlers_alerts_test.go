@@ -132,6 +132,8 @@ func TestRouter_HandleAlertsPage_RendersAlertPolicyTab(t *testing.T) {
 	require.Contains(t, html, `action="/orgs/acme-hq/alerts/policies"`)
 	require.Contains(t, html, `name="destination_slug"`)
 	require.Contains(t, html, `value="ops-email"`)
+	editForm := htmlAfterMarker(t, html, `data-dirty-form="alert-policy-critical-pipeline-failures-update"`)
+	require.Regexp(t, `name="destination_slug" value="data-team-email"[^>]* checked`, editForm)
 	require.Contains(t, html, `data-confirm-slug="critical-pipeline-failures"`)
 	require.NotContains(t, html, "Alert destinations")
 	require.NotContains(t, html, `action="/orgs/acme-hq/alerts/destinations"`)
@@ -412,6 +414,7 @@ func TestRouter_HandleAlertsPage_DisablesPolicyUpdateWhenNoDestinationsExist(t *
 	require.Contains(t, html, `href="/orgs/acme-hq/alerts?tab=destinations"`)
 	require.NotContains(t, html, `data-dirty-form="alert-policy-critical-pipeline-failures-update"`)
 	require.Contains(t, html, `disabled>Save policy</button>`)
+	require.Contains(t, html, "Saving requires read access to every bound destination.")
 }
 
 func TestRouter_HandleCreateAlertDestinationSubmit_CreatesDestination(t *testing.T) {
@@ -727,14 +730,14 @@ func TestRouter_HandleAlertMutationSubmit_ForwardsRequestAndRedirects(t *testing
 	}{
 		{
 			name:           "UpdateDestinationForwardsMutablePayload",
-			route:          "/orgs/acme-hq/alerts/destinations/ops-email/update",
+			route:          "/orgs/acme-hq/alerts/destinations/ops-email/update?destination_slug=ops-email",
 			form:           "name=Ops+pager&type=email&to=pager%40example.com%2C+escalation%40example.com&enabled=on",
 			apiMethod:      http.MethodPut,
 			apiPath:        "/api/organizations/acme-hq/alert-destinations/ops-email",
 			apiStatus:      http.StatusOK,
 			apiResponse:    `{"slug":"ops-email","name":"Ops pager","type":"email","non_secret_config":{"recipients":["pager@example.com"]},"enabled":true,"created_at":"2026-06-30T10:00:00Z","updated_at":"2026-06-30T11:00:00Z"}`,
 			expectedStatus: http.StatusSeeOther,
-			expectedPath:   "/orgs/acme-hq/alerts?tab=destinations",
+			expectedPath:   "/orgs/acme-hq/alerts?destination_slug=ops-email&tab=destinations",
 			assertPayload: func(t *testing.T, payload map[string]any) {
 				t.Helper()
 				assert.Equal(t, "Ops pager", payload["name"])
@@ -1117,23 +1120,24 @@ func handleAlertsCommonTestAPI(w http.ResponseWriter, r *http.Request, currentRo
 			`{"sources":[{"source_kind":"pipeline_run","source_actions":["execute"]},{"source_kind":"project","source_actions":["create","update","delete"]}],"source_refs":`+sourceRefs+`}`,
 		)
 		return true
-	case r.Method == http.MethodGet && r.URL.Path == "/api/organizations/acme-hq/roles/admin":
+	case r.Method == http.MethodGet && r.URL.Path == "/api/organizations/acme-hq/authorization/permissions" && currentRole == "admin":
 		writeJSON(
 			w,
 			`{"slug":"admin","name":"Admin","permissions":[{"resource":"*","action":"*"}],"created_at":"2026-03-01T00:00:00Z","updated_at":"2026-03-01T00:00:00Z"}`,
 		)
 		return true
-	case r.Method == http.MethodGet && r.URL.Path == "/api/organizations/acme-hq/roles/viewer":
+	case r.Method == http.MethodGet && r.URL.Path == "/api/organizations/acme-hq/authorization/permissions" && currentRole == "viewer":
 		writeJSON(
 			w,
 			`{"slug":"viewer","name":"Viewer","permissions":[{"resource":"notifications","action":"read"},{"resource":"alert_policies","action":"read"},{"resource":"alert_destinations","action":"read"}],"created_at":"2026-03-01T00:00:00Z","updated_at":"2026-03-01T00:00:00Z"}`,
 		)
 		return true
 	case r.Method == http.MethodGet && r.URL.Path == "/api/organizations/acme-hq/alert-destinations":
-		writeJSON(
-			w,
-			`{"alert_destinations":[{"slug":"ops-email","name":"Ops email","type":"email","non_secret_config":{"recipients":["ops@example.com"]},"enabled":true,"created_at":"2026-06-30T10:00:00Z","updated_at":"2026-06-30T10:00:00Z"},{"slug":"data-team-email","name":"Data team email","type":"email","non_secret_config":{"recipients":["data@example.com"]},"enabled":false,"created_at":"2026-06-30T10:10:00Z","updated_at":"2026-06-30T10:10:00Z"}],"has_more":false,"next_cursor":null,"prev_cursor":null}`,
-		)
+		if r.URL.Query().Get("cursor") == "destinations-2" {
+			writeJSON(w, `{"alert_destinations":[{"slug":"data-team-email","name":"Data team email","type":"email","non_secret_config":{"recipients":["data@example.com"]},"enabled":false,"created_at":"2026-06-30T10:10:00Z","updated_at":"2026-06-30T10:10:00Z"}],"has_more":false}`)
+		} else {
+			writeJSON(w, `{"alert_destinations":[{"slug":"ops-email","name":"Ops email","type":"email","non_secret_config":{"recipients":["ops@example.com"]},"enabled":true,"created_at":"2026-06-30T10:00:00Z","updated_at":"2026-06-30T10:00:00Z"}],"has_more":true,"next_cursor":"destinations-2"}`)
+		}
 		return true
 	case r.Method == http.MethodGet && r.URL.Path == "/api/organizations/acme-hq/alert-policies":
 		writeJSON(
@@ -1221,4 +1225,120 @@ func TestAlertCreateOptionalIdentifiers(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestAlertsSelectedPolicyUsesItsPersistedScope(t *testing.T) {
+	t.Parallel()
+	var detailCalls atomic.Int32
+	backend := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+		switch req.URL.Path {
+		case "/api/organizations/acme-hq/authorization/permissions":
+			if q := req.URL.Query(); q.Get("target_kind") == "alert_policies" && q.Get("target_slug") == "selected" {
+				assert.Empty(t, q.Get("project_slug"))
+				assert.Empty(t, q.Get("environment_slug"))
+				writeJSON(w, `{"permissions":[{"resource":"alert_policies","action":"*"}]}`)
+			} else {
+				writeJSON(w, `{"permissions":[]}`)
+			}
+		case "/api/organizations/acme-hq/alert-policies/selected":
+			detailCalls.Add(1)
+			writeJSON(w, `{"slug":"selected","name":"Selected policy detail","scope":"project_environment","project_slug":"ops","environment_slug":"prod","destination_slugs":["bound"]}`)
+		case "/api/organizations/acme-hq/alert-destinations/bound":
+			writeJSON(w, `{"slug":"bound","name":"Readable destination","type":"email","enabled":true}`)
+		case "/api/organizations/acme-hq/alert-destinations":
+			t.Error("attempted to list all destinations without organization read")
+			w.WriteHeader(http.StatusForbidden)
+		case "/api/organizations/acme-hq/alert-policies", "/api/organizations/acme-hq/alert-policies/other":
+			t.Errorf("unexpected policy read %s", req.URL.Path)
+			w.WriteHeader(http.StatusForbidden)
+		default:
+			if !handleAlertsCommonTestAPI(w, req, "viewer") {
+				w.WriteHeader(http.StatusNotFound)
+			}
+		}
+	}))
+	t.Cleanup(backend.Close)
+	store := session.NewStore()
+	router, err := newHandlerTestRouter(backend.URL, slog.New(slog.DiscardHandler), store)
+	require.NoError(t, err)
+	app := fiber.New()
+	registerTestSessionRoute(app, store)
+	router.RegisterRoutes(app, CommunityPresentation{})
+	cookie := getAuthenticatedSessionCookie(t, app)
+	for _, policy := range []string{"selected", "other"} {
+		req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/orgs/acme-hq/alerts?tab=policies&policy_slug="+policy+"&project_slug=untrusted", nil)
+		req.Header.Set("Cookie", cookie)
+		resp, err := app.Test(req)
+		require.NoError(t, err)
+		body, err := io.ReadAll(resp.Body)
+		require.NoError(t, err)
+		require.NoError(t, resp.Body.Close())
+		require.Equal(t, http.StatusOK, resp.StatusCode)
+		require.NotContains(t, string(body), "Create policy")
+		if policy == "selected" {
+			require.Contains(t, string(body), "Selected policy detail")
+			require.Contains(t, string(body), "Readable destination")
+			require.NotContains(t, string(body), "Saving requires read access to every bound destination.")
+			require.Contains(t, string(body), `id="alert-policy-selected-edit"`)
+			require.Contains(t, string(body), `/alerts/policies/selected/update?policy_slug=selected`)
+		} else {
+			require.Contains(t, string(body), "Configuration details are restricted")
+		}
+	}
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/orgs/acme-hq/alerts/policies/selected/update?policy_slug=selected", strings.NewReader("name=Edited+policy&scope=project_environment&destination_slug=Invalid_Slug"))
+	req.Header.Set("Cookie", cookie)
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	addCSRFToken(t, app, req)
+	resp, err := app.Test(req)
+	require.NoError(t, err)
+	body, err := io.ReadAll(resp.Body)
+	require.NoError(t, err)
+	require.NoError(t, resp.Body.Close())
+	require.Equal(t, http.StatusBadRequest, resp.StatusCode)
+	require.Contains(t, string(body), `value="Edited policy"`)
+	require.Contains(t, string(body), `aria-controls="alert-policy-selected-edit" aria-expanded="true"`)
+	require.EqualValues(t, 2, detailCalls.Load())
+}
+
+func TestAlertsListCanEditPoliciesUsingIndividuallyReadableDestinations(t *testing.T) {
+	t.Parallel()
+	var boundReads atomic.Int32
+	backend := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+		switch req.URL.Path {
+		case "/api/organizations/acme-hq/authorization/permissions":
+			writeJSON(w, `{"permissions":[{"resource":"alert_policies","action":"*"}]}`)
+		case "/api/organizations/acme-hq/alert-policies":
+			writeJSON(w, `{"alert_policies":[{"slug":"one","name":"One","destination_slugs":["bound"]},{"slug":"two","name":"Two","destination_slugs":["bound","missing"]}],"has_more":false}`)
+		case "/api/organizations/acme-hq/alert-destinations/bound":
+			boundReads.Add(1)
+			writeJSON(w, `{"slug":"bound","name":"Bound destination","type":"email","enabled":true}`)
+		case "/api/organizations/acme-hq/alert-destinations/missing":
+			w.WriteHeader(http.StatusForbidden)
+		case "/api/organizations/acme-hq/alert-destinations":
+			t.Error("unexpected organization-wide destination list")
+			w.WriteHeader(http.StatusForbidden)
+		default:
+			if !handleAlertsCommonTestAPI(w, req, "viewer") {
+				w.WriteHeader(http.StatusNotFound)
+			}
+		}
+	}))
+	t.Cleanup(backend.Close)
+	store := session.NewStore()
+	router, err := newHandlerTestRouter(backend.URL, slog.New(slog.DiscardHandler), store)
+	require.NoError(t, err)
+	app := fiber.New()
+	registerTestSessionRoute(app, store)
+	router.RegisterRoutes(app, CommunityPresentation{})
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/orgs/acme-hq/alerts?tab=policies", nil)
+	req.Header.Set("Cookie", getAuthenticatedSessionCookie(t, app))
+	resp, err := app.Test(req)
+	require.NoError(t, err)
+	defer func() { _ = resp.Body.Close() }()
+	body, err := io.ReadAll(resp.Body)
+	require.NoError(t, err)
+	require.Equal(t, http.StatusOK, resp.StatusCode)
+	require.Contains(t, string(body), `data-dirty-form="alert-policy-one-update"`)
+	require.NotContains(t, string(body), `data-dirty-form="alert-policy-two-update"`)
+	require.EqualValues(t, 1, boundReads.Load())
 }

@@ -223,6 +223,12 @@ func ProjectEnvironmentSelectionHref(orgSlug, projectSlug, activeEnvironmentSlug
 	return base
 }
 
+// ProjectEnvironmentActions reflects the API targets used by the focused row's forms.
+type ProjectEnvironmentActions struct {
+	CanEnableOrSetDefault bool
+	CanDisable            bool
+}
+
 // SelectedCatalogEnvironmentSlug validates the URL-selected catalog environment.
 func SelectedCatalogEnvironmentSlug(catalog []api.Environment, requestedSlug string) string {
 	requestedSlug = strings.TrimSpace(requestedSlug)

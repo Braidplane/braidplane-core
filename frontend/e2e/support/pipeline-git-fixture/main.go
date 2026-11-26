@@ -225,7 +225,7 @@ func handleAPI(w http.ResponseWriter, r *http.Request) {
 		write(`{"organizations":[{"name":"Acme","slug":"acme","member_role":"admin"}]}`)
 	case "/api/organizations/acme":
 		write(`{"name":"Acme","slug":"acme","member_role":"admin"}`)
-	case "/api/organizations/acme/roles/admin":
+	case "/api/organizations/acme/authorization/permissions":
 		if deploymentNoPipelineRead {
 			write(`{"slug":"admin","permissions":[{"resource":"projects","action":"read"}]}`)
 			return
@@ -234,7 +234,7 @@ func handleAPI(w http.ResponseWriter, r *http.Request) {
 			write(`{"slug":"admin","permissions":[{"resource":"pipelines","action":"read"},{"resource":"projects","action":"read"}]}`)
 			return
 		}
-		write(`{"slug":"admin","permissions":[{"resource":"pipelines","action":"read"},{"resource":"pipelines","action":"update"},{"resource":"pipelines","action":"execute"},{"resource":"projects","action":"read"},{"resource":"projects","action":"update"},{"resource":"datasources","action":"read"},{"resource":"datasources","action":"update"},{"resource":"data_sources","action":"update"},{"resource":"data_sources","action":"delete"}]}`)
+		write(`{"slug":"admin","permissions":[{"resource":"pipelines","action":"read"},{"resource":"pipelines","action":"update"},{"resource":"pipelines","action":"execute"},{"resource":"projects","action":"read"},{"resource":"projects","action":"update"},{"resource":"datasources","action":"read"},{"resource":"datasources","action":"update"},{"resource":"datasources","action":"delete"}]}`)
 	case "/api/organizations/acme/projects":
 		write(`{"projects":[{"name":"Ops","slug":"ops"}]}`)
 	case prefix:

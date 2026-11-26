@@ -5658,7 +5658,7 @@ func TestRouter_DataSourceOperationsLoadsOnlyScopedPermittedQueries(t *testing.T
 			var calls atomic.Int32
 			apiServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				switch r.URL.Path {
-				case "/api/organizations/acme-hq/roles/admin":
+				case "/api/organizations/acme-hq/authorization/permissions":
 					if tt.canRead {
 						handleTestAdminRolePermissions(w, r)
 					} else {

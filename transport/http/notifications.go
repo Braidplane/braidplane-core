@@ -488,9 +488,6 @@ func (s *server) CreateAlertPolicy(c fiber.Ctx, slugParam api.SlugParam) error {
 		return apierror.ValidationFailed(fmt.Sprintf("Invalid organization slug: %v", err))
 	}
 
-	if err := s.canOrg(c, orgSlug, model.Create, model.ResourceAlertPolicies); err != nil {
-		return err
-	}
 	principal, err := s.alertManagementPrincipal(c)
 	if err != nil {
 		return err
@@ -503,6 +500,12 @@ func (s *server) CreateAlertPolicy(c fiber.Ctx, slugParam api.SlugParam) error {
 
 	params, err := toCreateAlertPolicyParams(orgSlug, req)
 	if err != nil {
+		return err
+	}
+	if err := s.canTarget(c, orgSlug, model.Create, model.ResourceAlertPolicies, alertPolicyScopeTarget(params.ProjectSlug, params.EnvironmentSlug)); err != nil {
+		return err
+	}
+	if err := s.canBindAlertDestinations(c, orgSlug, params.DestinationSlugs); err != nil {
 		return err
 	}
 	policy, err := s.notificationsService.CreateAlertPolicy(c.Context(), principal, params)
@@ -566,6 +569,20 @@ func (s *server) UpdateAlertPolicy(
 
 	params, err := toUpdateAlertPolicyParams(orgSlug, policySlug, req)
 	if err != nil {
+		return err
+	}
+	existing, err := s.notificationsService.GetAlertPolicy(c.Context(), principal, orgSlug, policySlug)
+	if err != nil {
+		return mapServiceError(err)
+	}
+	parent := alertPolicyScopeTarget(params.ProjectSlug, params.EnvironmentSlug)
+	// The initial policy decision also pins its stored parent in the update transaction.
+	if parent != alertPolicyScopeTarget(existing.ProjectSlug, existing.EnvironmentSlug) {
+		if err := s.authorizeOrgTargetFor(c, orgSlug, model.Update, model.ResourceAlertPolicies, parent, true, "new_parent"); err != nil {
+			return err
+		}
+	}
+	if err := s.canBindAlertDestinations(c, orgSlug, params.DestinationSlugs); err != nil {
 		return err
 	}
 	policy, err := s.notificationsService.UpdateAlertPolicy(c.Context(), principal, params)
@@ -1291,4 +1308,23 @@ func toAPITimestampPtr(value *time.Time) *api.Timestamp {
 	}
 	out := *value
 	return &out
+}
+
+func alertPolicyScopeTarget(project, environment *slug.Slug) model.AuthorizationTarget {
+	if project == nil {
+		return model.AuthorizationTarget{}
+	}
+	if environment == nil {
+		return model.AuthorizationTarget{Kind: "projects", Slug: *project}
+	}
+	return model.AuthorizationTarget{Kind: "project_environments", ProjectSlug: *project, EnvironmentSlug: *environment}
+}
+
+func (s *server) canBindAlertDestinations(c fiber.Ctx, org slug.Slug, destinations []slug.Slug) error {
+	for _, destination := range destinations {
+		if err := s.canTarget(c, org, model.Read, model.ResourceAlertDestinations, model.AuthorizationTarget{Kind: "alert_destinations", Slug: destination}); err != nil {
+			return err
+		}
+	}
+	return nil
 }

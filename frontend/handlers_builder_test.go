@@ -301,12 +301,15 @@ func TestHandleBuilderBlueprintPage_DefaultsRuntimeTargetForDeepLinkedPipelineRu
 				if handleTestBuilderProjectRuntimeContext(w, r) {
 					return
 				}
-				if r.Method == http.MethodGet && r.URL.Path == "/api/organizations/acme-hq/roles/admin" {
-					action := "read"
-					if canExecute {
-						action = "*"
+				if r.Method == http.MethodGet && r.URL.Path == "/api/organizations/acme-hq/authorization/permissions" {
+					action := "update"
+					query := r.URL.Query()
+					matchesDeployment := query.Get("target_kind") == "deployed_pipelines" && query.Get("target_slug") == "acme-users-sync" &&
+						query.Get("project_slug") == "default" && query.Get("environment_slug") == "dev"
+					if canExecute == matchesDeployment {
+						action = "execute"
 					}
-					writeJSON(w, fmt.Sprintf(`{"slug":"admin","name":"Test role","permissions":[{"resource":"*","action":%q}],"created_at":"2026-03-01T00:00:00Z","updated_at":"2026-03-01T00:00:00Z"}`, action))
+					writeJSON(w, fmt.Sprintf(`{"slug":"admin","name":"Test role","permissions":[{"resource":"pipelines","action":%q}],"created_at":"2026-03-01T00:00:00Z","updated_at":"2026-03-01T00:00:00Z"}`, action))
 					return
 				}
 
@@ -350,6 +353,8 @@ func TestHandleBuilderBlueprintPage_DefaultsRuntimeTargetForDeepLinkedPipelineRu
 			require.Equal(t, !canExecute, strings.Contains(button, "disabled"))
 			backfill := strings.Split(strings.Split(html, `id="builder-backfill-btn"`)[1], ">")[0]
 			require.Equal(t, !canExecute, strings.Contains(backfill, "disabled"))
+			require.Contains(t, backfill, fmt.Sprintf(`data-can-bootstrap="%t"`, !canExecute))
+			require.Contains(t, backfill, fmt.Sprintf(`data-can-backfill="%t"`, canExecute))
 			if !canExecute {
 				require.Contains(t, html, "You don&#39;t have permission to execute pipelines.")
 			}

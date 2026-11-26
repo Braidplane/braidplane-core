@@ -133,7 +133,7 @@ func TestPipelineCreationInspectionScopesProjectAndReadPermission(t *testing.T) 
 		require.Equal(t, slug.Slug("acme"), o)
 		require.Equal(t, slug.Slug("project"), p)
 		require.Equal(t, slug.Slug("creation-first"), c)
-		return &pipelinesvc.CreationProposal{Slug: c, ProjectSlug: p, PipelineSlug: "first", MemberSlug: "alice", Status: "publish_failed", FailureCode: "provider_unavailable", Spec: &pipelinespec.Pipeline{Metadata: pipelinespec.Metadata{Slug: "first", Name: "Proposed first"}, Steps: []pipelinespec.Step{{Kind: "query", Slug: "fetch", Query: &pipelinespec.QueryRef{DataSourceSlug: "source", OperationType: "sql", OperationRef: "list"}}}}}, nil
+		return &pipelinesvc.CreationProposal{Slug: c, ProjectSlug: p, PipelineSlug: "first", MemberSlug: "alice", Status: "publish_failed", FailureCode: "git_proposal_authority_revoked", RecoveryBranch: "braidplane/create/first", Spec: &pipelinespec.Pipeline{Metadata: pipelinespec.Metadata{Slug: "first", Name: "Proposed first"}, Steps: []pipelinespec.Step{{Kind: "query", Slug: "fetch", Query: &pipelinespec.QueryRef{DataSourceSlug: "source", OperationType: "sql", OperationRef: "list"}}}}}, nil
 	}}})
 	response := authenticatedRequest(t, app, store, "alice", jsonRequest(t, http.MethodGet, "/organizations/acme/projects/project/pipeline-creations/creation-first", nil))
 	defer func() { require.NoError(t, response.Body.Close()) }()
@@ -142,7 +142,10 @@ func TestPipelineCreationInspectionScopesProjectAndReadPermission(t *testing.T) 
 	require.Equal(t, "creation-first", body.Slug)
 	require.Equal(t, "Proposed first", body.Spec.Metadata.Name)
 	require.NotNil(t, body.FailureCode)
-	require.Equal(t, "provider_unavailable", *body.FailureCode)
+	require.Equal(t, "git_proposal_authority_revoked", *body.FailureCode)
+	require.NotNil(t, body.BranchName)
+	require.Equal(t, "braidplane/create/first", *body.BranchName)
+	require.Nil(t, body.BranchHeadSha)
 }
 
 func TestPlainGitCreationOmitsProviderReviewFields(t *testing.T) {

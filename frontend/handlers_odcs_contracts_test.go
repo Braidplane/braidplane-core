@@ -46,7 +46,7 @@ func TestODCSCatalogInspection(t *testing.T) {
 			var impactCalls atomic.Int32
 			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
 				w.Header().Set("Content-Type", "application/json")
-				if scenario == "PermissionDenied" && strings.HasSuffix(req.URL.Path, "/roles/admin") {
+				if scenario == "PermissionDenied" && strings.HasSuffix(req.URL.Path, "/authorization/permissions") {
 					_, _ = w.Write([]byte(`{"slug":"admin","permissions":[]}`))
 					return
 				}

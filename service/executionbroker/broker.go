@@ -32,6 +32,7 @@ import (
 	eventrepo "github.com/Braidplane/braidplane-core/postgres/events"
 	requestrepo "github.com/Braidplane/braidplane-core/postgres/executionrequests"
 	"github.com/Braidplane/braidplane-core/postgres/retainedfiles"
+	"github.com/Braidplane/braidplane-core/service/authorization"
 	"github.com/Braidplane/braidplane-core/service/credentialssvc"
 	"github.com/Braidplane/braidplane-core/service/datasourcessvc"
 	"github.com/Braidplane/braidplane-core/service/datasourcessvc/connector"
@@ -54,8 +55,8 @@ const (
 	kindTransform                     = "transform"
 	kindGitWrite                      = "git_write"
 	kindGitDelete                     = "git_delete"
-	kindGitProposal                   = "git_proposal"
-	kindGitCreationProposal           = "git_creation_proposal"
+	kindGitProposal                   = "git_scoped_proposal"
+	kindGitCreationProposal           = "git_scoped_creation_proposal"
 	kindGitProposalRefresh            = "git_proposal_refresh"
 	kindGitRepository                 = "git_repository"
 	kindGitSource                     = "git_source_snapshot"
@@ -128,6 +129,8 @@ type Broker struct {
 }
 
 type requestRepository interface {
+	BindProposal(context.Context, postgres.DBTX, uuid.UUID, slug.Slug, slug.Slug, slug.Slug, string, int64) (bool, error)
+	ClaimedProposalAuthorization(context.Context, postgres.DBTX, uuid.UUID, uuid.UUID) (model.AuthorizationFacts, error)
 	CheckDispatch(context.Context, postgres.DBTX, requestrepo.DispatchAuthority) (bool, error)
 	Preflight(context.Context, postgres.DBTX) error
 	PreflightDelivery(context.Context, postgres.DBTX) error
@@ -979,6 +982,16 @@ func (b *Broker) submitAndWait(
 				return err
 			}
 		}
+		if proposal, ok := payload.(pipelinegit.RemoteProposalRequest); ok {
+			op := proposal.Operation
+			bound, err := b.repo.BindProposal(ctx, tx, id, op.ProjectSlug, op.DataSourceSlug, op.PipelineSlug, op.PublishAttemptID, op.Authority.ID)
+			if err != nil {
+				return err
+			}
+			if !bound {
+				return pipelinegit.ErrProposalAuthorityInvalid
+			}
+		}
 		if kind == kindConnectionTest || kind == kindSchema {
 			var source struct {
 				DataSourceSlug slug.Slug `json:"data_source_slug"`
@@ -1270,6 +1283,8 @@ func responseErrorCause(response encryptedResponse) error {
 		return xerror.InvalidInput(xerror.RepoFile)
 	case errorCodeRepositoryCleanup:
 		return gitprovider.ErrRepositoryCleanupFailed
+	case pipelinegit.ProposalAuthorityRevokedCode:
+		return pipelinegit.ErrProposalAuthorityInvalid
 	case errorCodeCreationTargetExists:
 		return pipelinegit.ErrCreationTargetExists
 	case "transform_work":
@@ -1573,9 +1588,31 @@ func (b *Broker) processClaimed(ctx context.Context, request requestrepo.Request
 				response.ErrorCode, succeeded = errorCodeInvalidRequest, false
 				break
 			}
-			response.ProposalResult, err = pipelinegit.ExecuteResolvedGitProposal(execCtx, payload)
+			action := model.Update
+			if payload.Operation.CreateOnly {
+				action = model.Create
+			}
+			response.ProposalResult, err = pipelinegit.ExecuteResolvedGitProposal(execCtx, payload, func(ctx context.Context) error {
+				facts, err := postgres.InRead(ctx, b.txm, func(ctx context.Context, db postgres.DBTX) (model.AuthorizationFacts, error) {
+					return b.repo.ClaimedProposalAuthorization(ctx, db, id, claimToken)
+				})
+				if err != nil {
+					return err
+				}
+				allowed, err := authorization.CanWithResolvedFacts(ctx, action, model.ResourcePipelines, facts)
+				if err != nil {
+					return err
+				}
+				if !allowed {
+					return pipelinegit.ErrProposalAuthorityInvalid
+				}
+				return nil
+			})
 			if err != nil {
 				response.ErrorCode, succeeded = errorCodeGitFailed, false
+				if xerror.Is(err, pipelinegit.ErrProposalAuthorityInvalid) {
+					response.ErrorCode = pipelinegit.ProposalAuthorityRevokedCode
+				}
 				if xerror.Is(err, pipelinegit.ErrCreationTargetExists) {
 					response.ErrorCode = errorCodeCreationTargetExists
 				}

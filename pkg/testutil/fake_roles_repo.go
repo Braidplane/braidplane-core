@@ -11,6 +11,9 @@ import (
 
 // FakeRolesRepo is a test double for roles.Repository.
 type FakeRolesRepo struct {
+	RevokeRoleGrantFn         func(ctx context.Context, tx postgres.DBTX, orgSlug, grantSlug slug.Slug) (slug.Slug, error)
+	CreateRoleGrantFn         func(ctx context.Context, tx postgres.DBTX, orgSlug slug.Slug, grant model.NewRoleGrant) (*model.RoleGrant, error)
+	ListRoleGrantsFn          func(ctx context.Context, tx postgres.DBTX, orgSlug slug.Slug) ([]model.RoleGrant, error)
 	CreateFn                  func(ctx context.Context, tx postgres.DBTX, params *roles.CreateParams) (*roles.Role, error)
 	EnsureDefaultFn           func(ctx context.Context, tx postgres.DBTX, params *roles.CreateParams) (*roles.Role, error)
 	FindBySlugFn              func(ctx context.Context, tx postgres.DBTX, orgSlug, roleSlug slug.Slug) (*roles.Role, error)
@@ -83,4 +86,16 @@ func (f *FakeRolesRepo) Delete(ctx context.Context, tx postgres.DBTX, p *roles.D
 
 func (f *FakeRolesRepo) Restore(ctx context.Context, tx postgres.DBTX, p *roles.RestoreParams) error {
 	return f.RestoreFn(ctx, tx, p)
+}
+
+func (f *FakeRolesRepo) ListRoleGrants(ctx context.Context, tx postgres.DBTX, orgSlug slug.Slug) ([]model.RoleGrant, error) {
+	return f.ListRoleGrantsFn(ctx, tx, orgSlug)
+}
+
+func (f *FakeRolesRepo) CreateRoleGrant(ctx context.Context, tx postgres.DBTX, orgSlug slug.Slug, grant model.NewRoleGrant) (*model.RoleGrant, error) {
+	return f.CreateRoleGrantFn(ctx, tx, orgSlug, grant)
+}
+
+func (f *FakeRolesRepo) RevokeRoleGrant(ctx context.Context, tx postgres.DBTX, orgSlug, grantSlug slug.Slug) (slug.Slug, error) {
+	return f.RevokeRoleGrantFn(ctx, tx, orgSlug, grantSlug)
 }

@@ -144,7 +144,7 @@ func (gitLab *gitLabConnectionFixture) handleAPI(w http.ResponseWriter, r *http.
 		}
 		w.WriteHeader(http.StatusCreated)
 		write(w, `{"slug":"install","provider":"gitlab","authorization_url":"https://gitlab.com/oauth/authorize?state=fixture","expires_at":"2026-09-27T00:10:00Z","intent":"rotate_grant","requested_scopes":["read_user","read_api","read_repository"]}`)
-	case "/api/organizations/acme/roles/admin":
+	case "/api/organizations/acme/authorization/permissions":
 		write(w, `{"slug":"admin","name":"Admin","permissions":[{"resource":"*","action":"*"}]}`)
 	case "/api/organizations/acme/data-sources/missing/proof":
 		w.WriteHeader(http.StatusNotFound)

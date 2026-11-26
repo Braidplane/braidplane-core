@@ -95,6 +95,7 @@ func (a pipelineGitExecutorAdapter) PublishProposal(
 		return nil, xerror.ExecutionUnavailable().Detail("pipeline git proposal executor is required")
 	}
 	return a.proposalExecutor.PublishProposal(ctx, pipelinegit.ProposalOperation{
+		ProjectSlug: args.ProjectSlug, PublishAttemptID: args.PublishAttemptID,
 		CreateOnly:       args.CreationSlug != "",
 		OrganizationSlug: args.OrganizationSlug,
 		DataSourceSlug:   args.DataSourceSlug,
@@ -252,8 +253,7 @@ func (w *pipelineGitPublishProposalWorker) Work(
 	}
 	if err := w.authorizer.AuthorizeProposalPublish(ctx, args); err != nil {
 		if xerror.Is(err, jobs.ErrPipelineProposalAuthorityDenied) {
-			w.recordProposalFailure(ctx, args, err)
-			return xerror.Wrapf("cancel terminal pipeline proposal job: %w", river.JobCancel(err))
+			return w.failPublishJob(ctx, args, err, river.JobCancel(err))
 		}
 		return err
 	}
@@ -268,13 +268,11 @@ func (w *pipelineGitPublishProposalWorker) Work(
 
 	result, err := w.pipelineGit.PublishProposal(ctx, args)
 	if err != nil {
-		w.recordProposalFailure(ctx, args, err)
 		w.logger.ErrorContext(ctx, "pipeline git proposal job failed", logging.ErrorAttr(err))
-		return pipelineGitJobError(err)
+		return w.failPublishJob(ctx, args, err, pipelineGitJobError(err))
 	}
 	if err := result.ValidatePublication(args.Authority, args.BranchName); err != nil {
-		w.recordProposalFailure(ctx, args, err)
-		return xerror.Wrapf("cancel invalid pipeline proposal result: %w", river.JobCancel(err))
+		return w.failPublishJob(ctx, args, err, river.JobCancel(err))
 	}
 
 	if args.MemberSlug != "" {
@@ -303,22 +301,31 @@ func (w *pipelineGitPublishProposalWorker) Work(
 	return nil
 }
 
-func (w *pipelineGitPublishProposalWorker) recordProposalFailure(
+func (w *pipelineGitPublishProposalWorker) failPublishJob(
 	ctx context.Context,
 	args jobs.PipelineGitPublishProposalArgs,
-	failure error,
-) {
+	failure, jobError error,
+) error {
 	if args.MemberSlug == "" {
-		return
+		return jobError
 	}
 	failed := proposalFailure(
 		args.OrganizationSlug, args.ProjectSlug, args.PipelineSlug, args.MemberSlug,
 		args.PublishAttemptID, failure,
 	)
 	failed.CreationSlug = args.CreationSlug
-	if err := w.recorder.FailProposal(ctx, failed); err != nil {
-		w.logger.ErrorContext(ctx, "pipeline git proposal failure state persistence failed", logging.ErrorAttr(err))
+	if xerror.Is(failure, pipelinegit.ErrProposalAuthorityInvalid) || xerror.Is(failure, jobs.ErrPipelineProposalAuthorityDenied) {
+		failed.FailureCode = pipelinegit.ProposalAuthorityRevokedCode
+		failed.FailureMessage = "Publishing authority was revoked. Check proposal branch " + args.BranchName + " in the repository. If it was pushed, it remains available for manual recovery."
 	}
+	if err := w.recorder.FailProposal(ctx, failed); err != nil {
+		// A deleted draft or superseded creation attempt no longer needs a terminal write.
+		if xerror.Is(err, xerror.NotFound(xerror.PipelineDraft)) || (args.CreationSlug != "" && (xerror.Is(err, xerror.NotFound(xerror.Pipeline)) || xerror.Is(err, jobs.ErrPipelineProposalAuthorityDenied))) {
+			return jobError
+		}
+		return xerror.Wrapf("persist pipeline proposal failure: %w", err)
+	}
+	return jobError
 }
 
 func (w *pipelineGitRefreshProposalWorker) Work(
@@ -381,6 +388,9 @@ func (w *pipelineGitRefreshProposalWorker) recordRefreshFailure(
 }
 
 func pipelineGitJobError(err error) error {
+	if xerror.Is(err, pipelinegit.ErrProposalAuthorityInvalid) {
+		return xerror.Wrapf("cancel revoked pipeline proposal: %w", river.JobCancel(err))
+	}
 	if xerror.Is(err, pipelinegit.ErrCreationTargetExists) {
 		return xerror.Wrapf("cancel conflicting pipeline creation: %w", river.JobCancel(err))
 	}

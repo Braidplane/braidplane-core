@@ -390,7 +390,7 @@ func (r *repository) FindProposalAuthority(
 ) (*ProposalAuthority, error) {
 	row, err := dbgen.New(tx).FindPipelineProposalAuthority(
 		ctx,
-		dbgen.FindPipelineProposalAuthorityParams{OrgSlug: orgSlug, ProjectSlug: projectSlug},
+		dbgen.FindPipelineProposalAuthorityParams{OrgSlug: orgSlug.String(), ProjectSlug: projectSlug.String()},
 	)
 	if err != nil {
 		if xerror.Is(err, pgx.ErrNoRows) {
@@ -413,8 +413,8 @@ func (r *repository) FindProposalAuthority(
 		authority.GitConfigurationHash = model.GitConfigurationHash(row.GitConfiguration)
 		authority.GitRepository = row.GitRepository
 		authority.GitBaseRef = "refs/heads/" + row.GitBaseBranch
-		authority.GitDataSourceSlug = row.GitDataSourceSlug.String()
-		authority.GitCredentialSlug = row.GitCredentialSlug.String()
+		authority.GitDataSourceSlug = row.GitDataSourceSlug
+		authority.GitCredentialSlug = row.GitCredentialSlug
 		if row.GitCredentialUpdatedAt.Valid {
 			authority.GitCredentialRevision = row.GitCredentialUpdatedAt.Time.UTC().Format(time.RFC3339Nano)
 		}

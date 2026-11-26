@@ -188,6 +188,49 @@ func testCompletionDispatcherAdmission(t *testing.T, pool *pgxpool.Pool, org, pr
 	require.NoError(t, dispatcher.ExecuteQueuedPipelineRun(ctx, args), "redelivery cannot execute an already terminal child")
 	require.NoError(t, pool.QueryRow(ctx, `SELECT status FROM pipeline_runs WHERE project_environment_id=$1 AND run_slug='runtime-parent'`, env).Scan(&status))
 	require.Equal(t, "succeeded", status)
+	t.Run("accepted pre-upgrade child reaches a terminal outcome", func(t *testing.T) {
+		// Import the closure and child in their historical format, before editor IDs were recorded.
+		var legacyID int
+		var legacyArgs jobs.PipelineRunExecutionArgs
+		err := txm.RunInTx(ctx, func(ctx context.Context, db postgres.DBTX) error {
+			err := db.QueryRow(ctx, `INSERT INTO pipeline_completion_snapshots(
+				organization_id,project_environment_id,closure_id,trigger_id,trigger_revision,trigger_slug,root_run_slug,final_attempt_run_slug,
+				downstream_pipeline_slug,selected_version_id,selected_version_hash,selected_deployment_revision,selected_deployment_id,
+				selected_resolution_digest,selected_materialization,trigger_configuration,closure_authority,ancestor_pipeline_slugs,causal_depth,state)
+				SELECT organization_id,project_environment_id,closure_id,trigger_id,trigger_revision+100,trigger_slug,root_run_slug,final_attempt_run_slug,
+				downstream_pipeline_slug,selected_version_id,selected_version_hash,selected_deployment_revision,selected_deployment_id,
+				selected_resolution_digest,selected_materialization,trigger_configuration-'completion_editor_id','{"valid":true,"permissions":["*:*"]}'::jsonb,ancestor_pipeline_slugs,causal_depth,'pending'
+				FROM pipeline_completion_snapshots WHERE id=$1 RETURNING id`, snapshotID).Scan(&legacyID)
+			if err != nil {
+				return err
+			}
+			snapshot, err := repo.LoadCompletionSnapshot(ctx, db, org, project, environment, legacyID)
+			if err != nil {
+				return err
+			}
+			legacyArgs, err = executor.AcceptCompletionRun(ctx, org, project, environment, snapshot)
+			if err != nil {
+				return err
+			}
+			raw, err := json.Marshal(legacyArgs)
+			if err != nil {
+				return err
+			}
+			return repo.AcceptCompletionSnapshot(ctx, db, org, legacyID, legacyArgs.RunSlug, raw)
+		})
+		require.NoError(t, err)
+		require.NoError(t, dispatcher.ExecuteQueuedPipelineRun(ctx, legacyArgs))
+		require.NoError(t, dispatcher.Dispatch(ctx))
+		require.NoError(t, dispatcher.Dispatch(ctx))
+		require.NoError(t, dispatcher.ExecuteQueuedPipelineRun(ctx, legacyArgs))
+		var runState, snapshotState, reason string
+		require.NoError(t, pool.QueryRow(ctx, `SELECT r.status,r.error_summary,s.state FROM pipeline_completion_snapshots s
+			JOIN pipeline_runs r ON (r.project_environment_id,r.run_slug)=(s.project_environment_id,s.child_run_slug)
+			WHERE s.id=$1`, legacyID).Scan(&runState, &reason, &snapshotState))
+		require.Equal(t, "failed", runState)
+		require.Contains(t, reason, "authority_revoked")
+		require.Equal(t, "completed", snapshotState)
+	})
 	var retiredRaw []byte
 	require.NoError(t, pool.QueryRow(ctx, `SELECT execution_args FROM pipeline_completion_snapshots WHERE id=$1`, retiredID).Scan(&retiredRaw))
 	var retired jobs.PipelineRunExecutionArgs

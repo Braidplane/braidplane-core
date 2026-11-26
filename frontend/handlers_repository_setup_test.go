@@ -347,7 +347,7 @@ func repositorySetupPageApp(t *testing.T, setupCode int, setupBody string, viewe
 			writeJSON(w, `{"name":"Acme HQ","slug":"acme-hq"}`)
 		case "GET /api/organizations":
 			writeJSON(w, `{"organizations":[{"name":"Acme HQ","slug":"acme-hq","member_role":"`+role+`"}],"has_more":false}`)
-		case "GET /api/organizations/acme-hq/roles/" + role:
+		case "GET /api/organizations/acme-hq/authorization/permissions":
 			writeJSON(w, `{"slug":"`+role+`","name":"`+role+`","permissions":`+permissions+`}`)
 		case "GET /api/organizations/acme-hq/projects/default":
 			writeJSON(w, `{"name":"Default","slug":"default"}`)

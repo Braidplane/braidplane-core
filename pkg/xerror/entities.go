@@ -22,6 +22,7 @@ var (
 	Member              = Entity{code: "MEMBER", label: "member"}
 	MemberInvitation    = Entity{code: "MEMBER_INVITATION", label: "member invitation"}
 	Role                = Entity{code: "ROLE", label: "role"}
+	RoleGrant           = Entity{code: "ROLE_GRANT", label: "role grant"}
 	APIKey              = Entity{code: "API_KEY", label: "api key"}
 	PersonalAccessToken = Entity{code: "PERSONAL_ACCESS_TOKEN", label: "personal access token"}
 	DataSource          = Entity{code: "DATA_SOURCE", label: "data source"}

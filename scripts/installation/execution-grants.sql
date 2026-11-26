@@ -41,6 +41,7 @@ GRANT EXECUTE ON FUNCTION
     public.claim_next_execution_request(),
     public.heartbeat_execution_request(uuid, uuid),
     public.complete_execution_request(uuid, uuid, bytea, boolean),
+    public.claimed_proposal_authorization(uuid, uuid),
     public.execution_request_metrics(),
     public.connector_execution_admission_metrics(),
     public.check_connector_dispatch(uuid, uuid, text, text, text, jsonb, text, timestamptz, boolean),

@@ -613,11 +613,11 @@ templ OrganizationRetentionPolicySnapshotValue(label string, days int) {
 	</div>
 }
 
-templ OrganizationRolesPage(shellData AuthenticatedShellData, organization api.Organization, roles []api.OrgRole, createFormData RoleFormData, roleListView string, permissions OrganizationPermissions, contentErrorSummary string, contentErrorDetails string, contentSuccessSummary string) {
-	@AuthenticatedShell(shellData, OrganizationRolesPageContent(organization, roles, createFormData, roleListView, permissions, contentErrorSummary, contentErrorDetails, contentSuccessSummary))
+templ OrganizationRolesPage(shellData AuthenticatedShellData, organization api.Organization, roles []api.OrgRole, createFormData RoleFormData, roleListView string, permissions OrganizationPermissions, archivable map[string]bool, contentErrorSummary string, contentErrorDetails string, contentSuccessSummary string) {
+	@AuthenticatedShell(shellData, OrganizationRolesPageContent(organization, roles, createFormData, roleListView, permissions, archivable, contentErrorSummary, contentErrorDetails, contentSuccessSummary))
 }
 
-templ OrganizationRolesPageContent(organization api.Organization, roles []api.OrgRole, createFormData RoleFormData, roleListView string, permissions OrganizationPermissions, contentErrorSummary string, contentErrorDetails string, contentSuccessSummary string) {
+templ OrganizationRolesPageContent(organization api.Organization, roles []api.OrgRole, createFormData RoleFormData, roleListView string, permissions OrganizationPermissions, archivable map[string]bool, contentErrorSummary string, contentErrorDetails string, contentSuccessSummary string) {
 	{{ currentRoleView := NormalizeRoleListView(roleListView) }}
 	{{ visibleRoles := RolesForListView(roles, currentRoleView) }}
 	<div class="space-y-6" id="organization-roles-content">
@@ -735,7 +735,7 @@ templ OrganizationRolesPageContent(organization api.Organization, roles []api.Or
 								if RoleMutable(role) && permissions.Can("roles", "update") {
 									<button class="btn btn-ghost btn-xs" type="button" aria-controls={ RoleEditPanelID(role) } aria-expanded="false" data-toggle-target={ RoleEditPanelID(role) }>Edit</button>
 								}
-								if RoleMutable(role) && permissions.Can("roles", "delete") {
+								if archivable[role.Slug] {
 									<button class="btn btn-error btn-outline btn-xs" type="button" data-protected-action-trigger={ RoleArchiveModalID(role) }>Archive</button>
 								}
 								if RoleRestorable(role) && permissions.Can("roles", "restore") {
@@ -747,7 +747,7 @@ templ OrganizationRolesPageContent(organization api.Organization, roles []api.Or
 									<span class="text-sm text-base-content/60">System role</span>
 								} else if RoleArchived(role) && !permissions.Can("roles", "restore") {
 									<span class="text-sm text-base-content/60">Archived</span>
-								} else if !permissions.Can("roles", "update") && !permissions.Can("roles", "delete") && !permissions.Can("roles", "restore") {
+								} else if !permissions.Can("roles", "update") && !archivable[role.Slug] && !permissions.Can("roles", "restore") {
 									<span class="text-sm text-base-content/60">No actions</span>
 								}
 							</div>
@@ -799,7 +799,7 @@ templ OrganizationRolesPageContent(organization api.Organization, roles []api.Or
 									</div>
 								</form>
 							}
-							if RoleMutable(role) && permissions.Can("roles", "delete") {
+							if archivable[role.Slug] {
 								@RoleArchiveConfirmModal(
 									RoleArchiveModalID(role),
 									string(role.Name),
@@ -899,13 +899,13 @@ templ RoleArchiveConfirmModal(modalID string, roleName string, roleSlug string, 
 	</dialog>
 }
 
-templ OrganizationProjectsPage(shellData AuthenticatedShellData, organization api.Organization, projects []api.Project, selectedProjectSlug string, backendControls ProjectPipelineBackendControls, projectContext ProjectOperationalContext, permissions OrganizationPermissions, createFormData ProjectCreateFormData, contentErrorSummary string, contentErrorDetails string, contentSuccessSummary string) {
-	@AuthenticatedShell(shellData, OrganizationProjectsPageContent(organization, projects, selectedProjectSlug, backendControls, projectContext, permissions, createFormData, contentErrorSummary, contentErrorDetails, contentSuccessSummary))
+templ OrganizationProjectsPage(shellData AuthenticatedShellData, organization api.Organization, projects []api.Project, selectedProjectSlug string, backendControls ProjectPipelineBackendControls, projectContext ProjectOperationalContext, permissions OrganizationPermissions, canCreateProject bool, createFormData ProjectCreateFormData, contentErrorSummary string, contentErrorDetails string, contentSuccessSummary string) {
+	@AuthenticatedShell(shellData, OrganizationProjectsPageContent(organization, projects, selectedProjectSlug, backendControls, projectContext, permissions, canCreateProject, createFormData, contentErrorSummary, contentErrorDetails, contentSuccessSummary))
 }
 
-templ OrganizationProjectsPageContent(organization api.Organization, projects []api.Project, selectedProjectSlug string, backendControls ProjectPipelineBackendControls, projectContext ProjectOperationalContext, permissions OrganizationPermissions, createFormData ProjectCreateFormData, contentErrorSummary string, contentErrorDetails string, contentSuccessSummary string) {
+templ OrganizationProjectsPageContent(organization api.Organization, projects []api.Project, selectedProjectSlug string, backendControls ProjectPipelineBackendControls, projectContext ProjectOperationalContext, permissions OrganizationPermissions, canCreateProject bool, createFormData ProjectCreateFormData, contentErrorSummary string, contentErrorDetails string, contentSuccessSummary string) {
 	<div id="organization-projects-workspace" data-form-feedback>
-		if permissions.Can("projects", "create") {
+		if canCreateProject {
 			<div class="flex flex-wrap items-center justify-end gap-3">
 				<button
 					class="btn btn-primary btn-sm w-full sm:w-auto"
@@ -1270,7 +1270,7 @@ templ OrganizationProjectDetailPanel(organization api.Organization, project api.
 						</form>
 					}
 					if projectRepositoryPath(ctx) == "create" {
-						@ManagedProjectRepositoryForm(organization, project, backendControls, permissions, fullPage)
+						@ManagedProjectRepositoryForm(organization, project, backendControls, backendControls.OrganizationPermissions, fullPage)
 					}
 					<div id="project-repository-pending" class="htmx-indicator mt-3 text-sm text-base-content/70" role="status" aria-live="polite">Setting up repository…</div>
 				} else {

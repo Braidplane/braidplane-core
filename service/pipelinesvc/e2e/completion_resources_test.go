@@ -7,18 +7,25 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/stretchr/testify/require"
 
+	"github.com/Braidplane/braidplane-core/pkg/clock"
 	"github.com/Braidplane/braidplane-core/pkg/domain/model"
 	"github.com/Braidplane/braidplane-core/pkg/eventtest"
 	"github.com/Braidplane/braidplane-core/pkg/slug"
+	"github.com/Braidplane/braidplane-core/pkg/testutil"
 	"github.com/Braidplane/braidplane-core/postgres"
+	authstore "github.com/Braidplane/braidplane-core/postgres/authorization"
+	"github.com/Braidplane/braidplane-core/postgres/credentials"
 	"github.com/Braidplane/braidplane-core/postgres/odcscontracts"
 	"github.com/Braidplane/braidplane-core/postgres/pipelineruns"
 	"github.com/Braidplane/braidplane-core/postgres/pipelines"
 	"github.com/Braidplane/braidplane-core/postgres/pipelinetriggers"
 	"github.com/Braidplane/braidplane-core/postgres/retention"
+	"github.com/Braidplane/braidplane-core/service/authorization"
+	"github.com/Braidplane/braidplane-core/service/credentialssvc"
 	"github.com/Braidplane/braidplane-core/service/pipelinesvc"
 	"github.com/Braidplane/braidplane-core/service/pipelinetriggersvc"
 )
@@ -76,14 +83,128 @@ func TestCompletionResourcesSnapshotsRevocationAndRetention(t *testing.T) {
 	point, err := svc.GetPipelineTrigger(ctx, org, project, environment, trigger.Slug)
 	require.NoError(t, err)
 	require.Equal(t, trigger.CompletionConfig, point.CompletionConfig)
+	t.Run("webhook rotation rejects a retargeted trigger", func(t *testing.T) {
+		exec(`INSERT INTO pipeline_triggers(project_id,project_environment_id,pipeline_id,pipeline_slug,slug,name,trigger_type,version_policy,receiver_id,webhook_verification_strategy,webhook_input_mappings,created_by_actor_type,updated_by_actor_type)
+        SELECT pe.project_id,pe.id,s.id,s.slug,'hook','Hook','webhook','latest_deployed',$2,'hmac_sha256','[]','system','system'
+        FROM project_environments pe JOIN pipeline_specs s ON s.project_id=pe.project_id AND s.slug='downstream' WHERE pe.id=$1`, env, suffix)
+		auth, err := authorization.New(nil, func(ctx context.Context, org, user, key slug.Slug, target model.AuthorizationTarget) (model.AuthorizationFacts, error) {
+			return authstore.Resolve(ctx, pool, org, user, key, target)
+		})
+		require.NoError(t, err)
+		decision := authorization.WithDecisionScope(ctx)
+		input := authorization.Input{
+			OrgSlug: &org, UserSlug: actorSlug, Source: authorization.SourceSession, Operation: "rotatePipelineWebhookSecret",
+			Action: model.Update, Resource: model.ResourcePipelineTriggers, Target: model.AuthorizationTarget{Kind: "pipeline_triggers", Slug: "hook", ProjectSlug: project, EnvironmentSlug: environment},
+		}
+		allowed, err := auth.Can(decision, input)
+		require.NoError(t, err)
+		require.True(t, allowed)
+		input.Action, input.Resource, input.Target.Kind, input.Target.Slug = model.Execute, model.ResourcePipelines, "deployed_pipelines", "downstream"
+		allowed, err = auth.Can(decision, input)
+		require.NoError(t, err)
+		require.True(t, allowed)
+		retarget := `UPDATE pipeline_triggers t SET pipeline_id=s.id,pipeline_slug=s.slug,revision=t.revision+1
+        FROM pipeline_specs s WHERE t.project_environment_id=$1 AND t.slug='hook' AND s.project_id=t.project_id AND s.slug=$2`
+		exec(retarget, env, "upstream")
+		secret, err := svc.RotatePipelineWebhookSecret(decision, org, project, environment, "hook", actor)
+		require.ErrorContains(t, err, "The authorized principal or target changed")
+		require.Empty(t, secret)
+
+		// Commit a retarget after the write transaction has rechecked both decisions.
+		// The credential writer locks the trigger in that same repeatable-read transaction.
+		exec(retarget, env, "downstream")
+		credentialService, err := credentialssvc.New(txm, credentials.New(), testutil.NewFakeEncryptor(), nil, clock.New(), false)
+		require.NoError(t, err)
+		rotation := pipelinetriggersvc.New(true, txm, pipelinetriggers.NewRepository(), completionPersistenceValidator{}, eventtest.NewProducer(nil), credentialService)
+		postgres.AddTransactionCheck(decision, func(ctx context.Context, _ postgres.DBTX) error {
+			competing, cancel := context.WithTimeout(ctx, 5*time.Second)
+			defer cancel()
+			_, err := pool.Exec(competing, retarget, env, "upstream")
+			return err
+		})
+		secret, err = rotation.RotatePipelineWebhookSecret(decision, org, project, environment, "hook", actor)
+		var serialization *pgconn.PgError
+		require.ErrorAs(t, err, &serialization)
+		require.Equal(t, "40001", serialization.Code)
+		require.Empty(t, secret)
+		var versions int
+		require.NoError(t, pool.QueryRow(ctx, `SELECT count(*) FROM pipeline_webhook_secret_versions v JOIN pipeline_triggers t ON t.id=v.pipeline_trigger_id WHERE t.project_environment_id=$1 AND t.slug='hook'`, env).Scan(&versions))
+		require.Zero(t, versions)
+	})
+	const insertClosedRun = `INSERT INTO pipeline_runs(project_id,project_environment_id,pipeline_version_id,pipeline_version_spec_hash,api_version,pipeline_slug,run_slug,source_environment_slug,status,duration_ms,step_slug,timeline,source_type,source_root_run_slug,ended_at)
+            SELECT project_id,project_environment_id,pipeline_version_id,pipeline_version_spec_hash,api_version,pipeline_slug,$2,source_environment_slug,'succeeded',0,'fetch','{}','manual',$2,NOW() FROM pipeline_runs WHERE project_environment_id=$1 AND run_slug='template'`
 	closeRoot := func(root string) int {
 		t.Helper()
-		exec(`INSERT INTO pipeline_runs(project_id,project_environment_id,pipeline_version_id,pipeline_version_spec_hash,api_version,pipeline_slug,run_slug,source_environment_slug,status,duration_ms,step_slug,timeline,source_type,source_root_run_slug,ended_at)
-            SELECT project_id,project_environment_id,pipeline_version_id,pipeline_version_spec_hash,api_version,pipeline_slug,$2,source_environment_slug,'succeeded',0,'fetch','{}','manual',$2,NOW() FROM pipeline_runs WHERE project_environment_id=$1 AND run_slug='template'`, env, root)
+		exec(insertClosedRun, env, root)
 		var id int
 		require.NoError(t, pool.QueryRow(ctx, `SELECT id FROM pipeline_completion_snapshots WHERE project_environment_id=$1 AND root_run_slug=$2 AND trigger_slug='after-upstream'`, env, root).Scan(&id))
 		return id
 	}
+	t.Run("a different trigger revision cannot supply the captured trigger grant", func(t *testing.T) {
+		var pendingTarget, acceptedTarget string
+		err := pool.QueryRow(ctx, `SELECT
+			COALESCE(pipeline_completion_scoped_authority(pe.organization_id, pe.id, captured.config, false)#>>'{scoped,trigger,target_id}', ''),
+			COALESCE(pipeline_completion_scoped_authority(pe.organization_id, pe.id, captured.config, true)#>>'{scoped,trigger,target_id}', '')
+			FROM project_environments pe JOIN pipeline_triggers t ON t.project_environment_id=pe.id
+			CROSS JOIN LATERAL (SELECT to_jsonb(t) || jsonb_build_object('revision', t.revision-1) AS config) captured
+			WHERE pe.id=$1 AND t.slug=$2`, env, trigger.Slug).Scan(&pendingTarget, &acceptedTarget)
+		require.NoError(t, err)
+		require.Empty(t, pendingTarget)
+		require.Empty(t, acceptedTarget)
+	})
+	t.Run("disabled trigger skips the editor role lock", func(t *testing.T) {
+		editor, err := pool.Begin(ctx)
+		require.NoError(t, err)
+		defer func() { _ = editor.Rollback(ctx) }()
+		_, err = editor.Exec(ctx, `SELECT r.id FROM roles r JOIN organizations o ON o.id=r.organization_id
+            WHERE o.slug=$1 AND r.slug='completion-owner' FOR UPDATE OF r`, org)
+		require.NoError(t, err)
+		closure, err := pool.Begin(ctx)
+		require.NoError(t, err)
+		defer func() { _ = closure.Rollback(ctx) }()
+		_, err = closure.Exec(ctx, `SET LOCAL lock_timeout='1s'`)
+		require.NoError(t, err)
+		_, err = closure.Exec(ctx, `UPDATE pipeline_triggers SET enabled=false, revision=revision+1 WHERE project_environment_id=$1 AND slug=$2`, env, trigger.Slug)
+		require.NoError(t, err)
+		_, err = closure.Exec(ctx, insertClosedRun, env, "disabled-with-role-edit")
+		require.NoError(t, err)
+		var reason string
+		var skippedAuthority bool
+		err = closure.QueryRow(ctx, `SELECT decision_reason, closure_authority IS NULL FROM pipeline_completion_snapshots
+            WHERE project_environment_id=$1 AND root_run_slug='disabled-with-role-edit' AND trigger_slug=$2`, env, trigger.Slug).Scan(&reason, &skippedAuthority)
+		require.NoError(t, err)
+		require.Equal(t, "trigger_disabled", reason)
+		require.True(t, skippedAuthority)
+	})
+	t.Run("scoped grants are checked at closure and admission", func(t *testing.T) {
+		exec(`DELETE FROM role_permissions WHERE role_id=(SELECT r.id FROM roles r JOIN organizations o ON o.id=r.organization_id WHERE o.slug=$1 AND r.slug='completion-owner')`, org)
+		defer exec(`INSERT INTO role_permissions(role_id,permission_id) SELECT r.id,p.id FROM roles r JOIN organizations o ON o.id=r.organization_id CROSS JOIN permissions p WHERE o.slug=$1 AND r.slug='completion-owner' AND p.resource='*' AND p.action='*'`, org)
+		exec(`INSERT INTO roles(organization_id,slug,name) SELECT id,'scoped-completion','Scoped completion' FROM organizations WHERE slug=$1`, org)
+		exec(`INSERT INTO permissions(resource,action) VALUES ('pipelines','read'),('pipelines','execute'),('pipeline_triggers','update') ON CONFLICT DO NOTHING`)
+		exec(`INSERT INTO role_permissions(role_id,permission_id) SELECT r.id,p.id FROM roles r JOIN organizations o ON o.id=r.organization_id CROSS JOIN permissions p WHERE o.slug=$1 AND r.slug='scoped-completion' AND (p.resource,p.action) IN (('pipelines','read'),('pipelines','execute'),('pipeline_triggers','update'))`, org)
+		exec(`INSERT INTO authorization_scoped_grants(organization_id,member_id,role_id,scope,target_kind,target_id)
+			SELECT r.organization_id,m.id,r.id,'environment','environments',pe.environment_id FROM roles r
+			JOIN project_environments pe ON pe.organization_id=r.organization_id
+			JOIN organization_members m ON m.organization_id=r.organization_id JOIN users u ON u.id=m.user_id
+			WHERE r.slug='scoped-completion' AND pe.id=$1 AND u.slug=$2`, env, actorSlug)
+		before := closeRoot("no-upstream-permission")
+		exec(`INSERT INTO authorization_scoped_grants(organization_id,member_id,role_id,scope,target_kind,target_id)
+			SELECT r.organization_id,m.id,r.id,'resource','pipelines',ps.id FROM roles r
+			JOIN project_environments pe ON pe.organization_id=r.organization_id
+			JOIN pipeline_specs ps ON ps.project_id=pe.project_id AND ps.slug='upstream'
+			JOIN organization_members m ON m.organization_id=r.organization_id JOIN users u ON u.id=m.user_id
+			WHERE r.slug='scoped-completion' AND pe.id=$1 AND u.slug=$2`, env, actorSlug)
+		_, err := svc.CheckCompletionSnapshot(ctx, org, project, environment, before)
+		require.ErrorContains(t, err, "authority_revoked")
+		after := closeRoot("scoped-completion-permission")
+		_, err = svc.CheckCompletionSnapshot(ctx, org, project, environment, after)
+		require.NoError(t, err)
+		exec(`DELETE FROM authorization_scoped_grants g USING roles r,organizations o
+			WHERE g.role_id=r.id AND r.organization_id=o.id AND o.slug=$1 AND r.slug='scoped-completion' AND g.scope='environment'`, org)
+		_, err = svc.CheckCompletionSnapshot(ctx, org, project, environment, after)
+		require.ErrorContains(t, err, "authority_revoked")
+		exec(`DELETE FROM roles r USING organizations o WHERE o.id=r.organization_id AND o.slug=$1 AND r.slug='scoped-completion'`, org)
+	})
 	t.Run("capacity preserves terminal obligations and recovers", func(t *testing.T) {
 		for i := range 100 {
 			closeRoot(fmt.Sprintf("capacity-%d", i))
@@ -272,6 +393,47 @@ func TestCompletionResourcesSnapshotsRevocationAndRetention(t *testing.T) {
 			exec(`UPDATE pipeline_runs SET status='succeeded',ended_at=NOW() WHERE project_environment_id=$1 AND run_slug=$2`, env, child)
 			root = child
 		}
+	})
+	t.Run("completion grants bind editor identities across replacement", func(t *testing.T) {
+		update := model.UpdatePipelineTrigger{Name: input.Name, Type: input.Type, Enabled: input.Enabled, PipelineSlug: input.PipelineSlug, VersionPolicy: input.VersionPolicy, RetryPolicy: input.RetryPolicy, CompletionConfig: input.CompletionConfig}
+		edit := func(editor model.EventActor) {
+			t.Helper()
+			_, err := svc.UpdatePipelineTrigger(ctx, org, project, environment, trigger.Slug, update, editor)
+			require.NoError(t, err)
+		}
+		check := func(root string, allowed bool) {
+			t.Helper()
+			_, err := svc.CheckCompletionSnapshot(ctx, org, project, environment, closeRoot(root))
+			if allowed {
+				require.NoError(t, err)
+			} else {
+				require.ErrorContains(t, err, "authority_revoked")
+			}
+		}
+		exec(`DELETE FROM organization_members m USING organizations o,users u WHERE m.organization_id=o.id AND m.user_id=u.id AND o.slug=$1 AND u.slug=$2`, org, actorSlug)
+		exec(`INSERT INTO organization_members(organization_id,user_id,role_id) SELECT r.organization_id,u.id,r.id FROM roles r JOIN organizations o ON o.id=r.organization_id CROSS JOIN users u WHERE o.slug=$1 AND r.slug='completion-owner' AND u.slug=$2`, org, actorSlug)
+		check("replaced-member", false)
+		edit(actor)
+		check("reauthorized-member", true)
+
+		key := slug.Slug("completion-key")
+		addKey := func(hash string) {
+			exec(`INSERT INTO api_keys(organization_id,slug,name,token_hash,token_prefix,role_id) SELECT r.organization_id,$2,'Completion key',$3,'test',r.id FROM roles r JOIN organizations o ON o.id=r.organization_id WHERE o.slug=$1 AND r.slug='completion-owner'`, org, key, hash)
+		}
+		addKey("synthetic-a-" + suffix)
+		edit(model.APIKeyEventActor(key))
+		check("original-key", true)
+		exec(`DELETE FROM api_keys k USING organizations o WHERE k.organization_id=o.id AND o.slug=$1 AND k.slug=$2`, org, key)
+		addKey("synthetic-b-" + suffix)
+		check("replaced-key", false)
+		edit(model.APIKeyEventActor(key))
+		check("reauthorized-key", true)
+
+		// Migrated trigger revisions have no historical editor ID to authenticate.
+		exec(`UPDATE pipeline_triggers SET completion_editor_id=NULL, revision=revision+1 WHERE project_environment_id=$1 AND slug=$2`, env, trigger.Slug)
+		check("legacy-unbound-trigger", false)
+		edit(actor)
+		check("reauthorized-legacy-trigger", true)
 	})
 	selected := closeRoot("select-v2")
 	waiting := closeRoot("waiting")

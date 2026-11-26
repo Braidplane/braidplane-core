@@ -104,8 +104,12 @@ func TestCreationProposalPublishesWithoutCanonicalPipelineAndResumesExactContent
 	require.Zero(t, store.findSpecCalls)
 	args := producer.publishArgs
 	require.NoError(t, svc.AuthorizeProposalPublish(t.Context(), args))
-	require.NoError(t, svc.FailProposal(t.Context(), pipelinegit.ProposalFailure{CreationSlug: created.Slug, OrganizationSlug: "acme", ProjectSlug: "project", PipelineSlug: spec.Metadata.Slug, MemberSlug: "alice", PublishAttemptID: args.PublishAttemptID, FailureCode: "provider_unavailable"}))
+	require.NoError(t, svc.FailProposal(t.Context(), pipelinegit.ProposalFailure{CreationSlug: created.Slug, OrganizationSlug: "acme", ProjectSlug: "project", PipelineSlug: spec.Metadata.Slug, MemberSlug: "alice", PublishAttemptID: args.PublishAttemptID, FailureCode: pipelinegit.ProposalAuthorityRevokedCode}))
 	require.Equal(t, "publish_failed", repo.row.Status)
+	recovery, err := svc.Get(t.Context(), "acme", "project", created.Slug)
+	require.NoError(t, err)
+	require.Equal(t, args.BranchName, recovery.RecoveryBranch)
+	require.Nil(t, recovery.Proposal)
 	retry, err := svc.Create(t.Context(), "acme", "project", "alice", model.UserEventActor("alice"), spec)
 	require.NoError(t, err)
 	require.Equal(t, created.Slug, retry.Slug)
@@ -186,6 +190,9 @@ func TestCreationProposalRechecksMemberRepositoryContentAndAuthority(t *testing.
 			allowed := true
 			auth := allowAuthorizationService{CanFn: func(_ context.Context, input authorization.Input) (bool, error) {
 				require.Equal(t, model.Create, input.Action)
+				require.Equal(t, authorization.SourceQueuedMember, input.Source)
+				require.Equal(t, "authorizeQueuedProposalCreate", input.Operation)
+				require.Equal(t, model.AuthorizationTarget{Kind: "projects", Slug: "project"}, input.Target)
 				return allowed, nil
 			}}
 			svc, repo, store, producer, project := creationFixture(t, auth)

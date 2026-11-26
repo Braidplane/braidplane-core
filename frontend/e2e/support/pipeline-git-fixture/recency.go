@@ -75,7 +75,7 @@ func handleRecencyAPI(w http.ResponseWriter, r *http.Request) bool {
 			types = append(types, api.NotificationTypePipelineFreshnessSLABreached)
 		}
 		encode(api.PipelineOperationalCapabilities{SuccessfulRunRecency: recencyCapability, NotificationTypes: types})
-	case org + "/roles/admin":
+	case org + "/authorization/permissions":
 		permissions := []map[string]string{{"resource": "*", "action": "*"}}
 		if recencyRestricted {
 			permissions = []map[string]string{{"resource": "pipelines", "action": "read"}}

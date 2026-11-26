@@ -32,6 +32,9 @@ func (s *server) GetPipelineRunCompletion(c fiber.Ctx, orgParam api.SlugParam, p
 	if err != nil {
 		return mapServiceError(err)
 	}
+	if err := s.canReadCompletionAttempts(c, org, project, environment, run, evidence); err != nil {
+		return err
+	}
 	result, err := s.authorizedCompletion(c, org, project, environment, evidence)
 	if err != nil {
 		return err
@@ -86,30 +89,33 @@ func toAPICompletion(evidence *model.PipelineRunCompletion) *api.PipelineRunComp
 }
 
 func (s *server) completionDecisionReadable(c fiber.Ctx, org, project, environment slug.Slug, decision model.PipelineCompletionDecision) (bool, error) {
-	if err := s.canOrg(c, org, model.Read, model.ResourcePipelineTriggers); err != nil {
-		return completionReadResult(err)
+	if err := s.canTarget(c, org, model.Read, model.ResourcePipelineTriggers, model.AuthorizationTarget{Kind: "pipeline_triggers", Slug: decision.TriggerSlug, ProjectSlug: project, EnvironmentSlug: environment}); err != nil {
+		return optionalAuthorizationResult(err)
 	}
-	// Keep endpoint checks independent even though today's permission scope is organization-wide.
 	for _, run := range []slug.Slug{decision.RootRunSlug, decision.FinalAttemptRunSlug} {
-		if err := s.canOrg(c, org, model.Read, model.ResourcePipelines); err != nil {
-			return completionReadResult(err)
+		if err := s.canTarget(c, org, model.Read, model.ResourcePipelines, model.AuthorizationTarget{Kind: "runs", Slug: run, ProjectSlug: project, EnvironmentSlug: environment}); err != nil {
+			return optionalAuthorizationResult(err)
 		}
 		if _, err := s.pipelinesService.GetRun(c.Context(), org, project, environment, run.String()); err != nil {
-			return completionReadResult(err)
+			return optionalAuthorizationResult(err)
 		}
 	}
-	if err := s.canOrg(c, org, model.Read, model.ResourcePipelines); err != nil {
-		return completionReadResult(err)
-	}
 	if decision.ChildRunSlug != nil {
+		if err := s.canTarget(c, org, model.Read, model.ResourcePipelines, model.AuthorizationTarget{Kind: "runs", Slug: *decision.ChildRunSlug, ProjectSlug: project, EnvironmentSlug: environment}); err != nil {
+			return optionalAuthorizationResult(err)
+		}
 		_, err := s.pipelinesService.GetRun(c.Context(), org, project, environment, decision.ChildRunSlug.String())
-		return completionReadResult(err)
+		return optionalAuthorizationResult(err)
+	}
+	downstream := model.AuthorizationTarget{Kind: "pipelines", Slug: decision.DownstreamPipelineSlug, ProjectSlug: project}
+	if err := s.authorizeOrgTargetFor(c, org, model.Read, model.ResourcePipelines, downstream, true, "related_pipeline"); err != nil {
+		return optionalAuthorizationResult(err)
 	}
 	_, err := s.pipelinesService.Get(c.Context(), org, project, decision.DownstreamPipelineSlug, reqctx.GetUserSlug(c, s.sessionStore))
-	return completionReadResult(err)
+	return optionalAuthorizationResult(err)
 }
 
-func completionReadResult(err error) (bool, error) {
+func optionalAuthorizationResult(err error) (bool, error) {
 	if err == nil {
 		return true, nil
 	}
@@ -149,15 +155,15 @@ func (s *server) GetPipelineRunConnected(c fiber.Ctx, orgParam api.SlugParam, pr
 		return mapServiceError(err)
 	}
 	graph, err := pipelinesvc.InspectConnectedRuns(c.Context(), run, func(candidate slug.Slug) (*model.PipelineRunCompletion, error) {
-		if err := s.canOrg(c, org, model.Read, model.ResourcePipelines); err != nil {
-			_, e := completionReadResult(err)
+		if err := s.canTarget(c, org, model.Read, model.ResourcePipelines, model.AuthorizationTarget{Kind: "runs", Slug: candidate, ProjectSlug: project, EnvironmentSlug: environment}); err != nil {
+			_, e := optionalAuthorizationResult(err)
 			if e == nil {
 				e = pipelinesvc.ErrPipelineRunNotFound
 			}
 			return nil, e
 		}
 		if _, err := s.pipelinesService.GetRun(c.Context(), org, project, environment, candidate.String()); err != nil {
-			_, e := completionReadResult(err)
+			_, e := optionalAuthorizationResult(err)
 			if e == nil {
 				e = pipelinesvc.ErrPipelineRunNotFound
 			}
@@ -165,11 +171,17 @@ func (s *server) GetPipelineRunConnected(c fiber.Ctx, orgParam api.SlugParam, pr
 		}
 		evidence, err := s.pipelinesService.GetRunCompletion(c.Context(), org, project, environment, candidate)
 		if err != nil {
-			_, e := completionReadResult(err)
+			_, e := optionalAuthorizationResult(err)
 			if e == nil {
 				e = pipelinesvc.ErrPipelineRunNotFound
 			}
 			return nil, e
+		}
+		if err := s.canReadCompletionAttempts(c, org, project, environment, candidate, evidence); err != nil {
+			if _, failure := optionalAuthorizationResult(err); failure != nil {
+				return nil, failure
+			}
+			return nil, pipelinesvc.ErrPipelineRunNotFound
 		}
 		return evidence, nil
 	}, func(decision model.PipelineCompletionDecision) (bool, error) {
@@ -183,4 +195,31 @@ func (s *server) GetPipelineRunConnected(c fiber.Ctx, orgParam api.SlugParam, pr
 		result.Nodes = append(result.Nodes, api.PipelineConnectedRun{PipelineSlug: node.PipelineSlug.String(), Completion: *toAPICompletion(node)})
 	}
 	return c.JSON(result)
+}
+
+// Completion outcomes and retry state describe the group as a whole.
+func (s *server) canReadCompletionAttempts(c fiber.Ctx, org, project, env, selected slug.Slug, evidence *model.PipelineRunCompletion) error {
+	runs := make([]slug.Slug, 0, len(evidence.Attempts)+2)
+	runs = append(runs, evidence.RootRunSlug)
+	if evidence.FinalAttemptRunSlug != nil {
+		runs = append(runs, *evidence.FinalAttemptRunSlug)
+	}
+	for _, attempt := range evidence.Attempts {
+		runs = append(runs, attempt.RunSlug)
+	}
+	return s.canReadRelatedRuns(c, org, project, env, selected, runs)
+}
+
+func (s *server) canReadRelatedRuns(c fiber.Ctx, org, project, env, selected slug.Slug, runs []slug.Slug) error {
+	checked := map[slug.Slug]bool{selected: true, "": true}
+	for _, run := range runs {
+		if checked[run] {
+			continue
+		}
+		if err := s.canTarget(c, org, model.Read, model.ResourcePipelines, model.AuthorizationTarget{Kind: "runs", Slug: run, ProjectSlug: project, EnvironmentSlug: env}); err != nil {
+			return err
+		}
+		checked[run] = true
+	}
+	return nil
 }

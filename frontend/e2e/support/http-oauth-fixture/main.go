@@ -52,7 +52,7 @@ func main() {
 			encode(map[string]any{"organizations": []any{map[string]any{"name": "Acme", "slug": "acme", "member_role": "admin"}}})
 		case "/api/organizations/acme":
 			encode(map[string]any{"name": "Acme", "slug": "acme", "member_role": "admin"})
-		case "/api/organizations/acme/roles/admin":
+		case "/api/organizations/acme/authorization/permissions":
 			encode(map[string]any{"slug": "admin", "permissions": []any{map[string]any{"resource": "*", "action": "*"}}})
 		case "/api/organizations/acme/projects":
 			encode(map[string]any{"projects": []any{}})

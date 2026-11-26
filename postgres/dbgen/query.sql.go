@@ -1207,6 +1207,45 @@ func (q *Queries) BindProjectGitHubProposalAuthority(ctx context.Context, arg Bi
 	return result.RowsAffected(), nil
 }
 
+const bindProposalExecutionTarget = `-- name: BindProposalExecutionTarget :execrows
+INSERT INTO execution_proposal_targets (request_id, member_id, project_id, pipeline_id, pipeline_slug, attempt_id, authority_id, provider_digest)
+SELECT req.id, m.id, a.project_id, CASE WHEN req.kind = 'git_scoped_proposal' THEN s.id ELSE NULL END,
+    $1::text, $2::text, a.id, proposal_authority_digest(a)
+FROM execution_requests req
+JOIN organization_members m ON (m.organization_id,m.user_id) = (req.organization_id,req.initiating_user_id)
+JOIN active_pipeline_proposal_authorities a ON a.organization_id = req.organization_id AND a.id = $3::bigint
+LEFT JOIN pipeline_specs s ON s.project_id = a.project_id AND s.slug = $1 AND s.deleted_at IS NULL
+WHERE req.id = $4::uuid AND req.state = 'pending'
+    AND a.project_slug = $5 AND a.git_data_source_slug = $6
+    AND $2::text <> ''
+    AND ((req.kind = 'git_scoped_proposal' AND s.id IS NOT NULL)
+        OR (req.kind = 'git_scoped_creation_proposal' AND s.id IS NULL))
+`
+
+type BindProposalExecutionTargetParams struct {
+	PipelineSlug   string
+	AttemptID      string
+	AuthorityID    int64
+	RequestID      pgtype.UUID
+	ProjectSlug    string
+	DataSourceSlug string
+}
+
+func (q *Queries) BindProposalExecutionTarget(ctx context.Context, arg BindProposalExecutionTargetParams) (int64, error) {
+	result, err := q.db.Exec(ctx, bindProposalExecutionTarget,
+		arg.PipelineSlug,
+		arg.AttemptID,
+		arg.AuthorityID,
+		arg.RequestID,
+		arg.ProjectSlug,
+		arg.DataSourceSlug,
+	)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
 const bootstrapIncrementalCheckpoint = `-- name: BootstrapIncrementalCheckpoint :one
 WITH target AS (
     SELECT
@@ -1913,6 +1952,22 @@ func (q *Queries) ClaimScheduleFire(ctx context.Context, arg ClaimScheduleFirePa
 	var i ClaimScheduleFireRow
 	err := row.Scan(&i.Claimed, &i.FireSlug)
 	return i, err
+}
+
+const claimedProposalAuthorization = `-- name: ClaimedProposalAuthorization :one
+SELECT claimed_proposal_authorization($1::uuid,$2::uuid)::jsonb AS facts
+`
+
+type ClaimedProposalAuthorizationParams struct {
+	RequestID  pgtype.UUID
+	ClaimToken pgtype.UUID
+}
+
+func (q *Queries) ClaimedProposalAuthorization(ctx context.Context, arg ClaimedProposalAuthorizationParams) ([]byte, error) {
+	row := q.db.QueryRow(ctx, claimedProposalAuthorization, arg.RequestID, arg.ClaimToken)
+	var facts []byte
+	err := row.Scan(&facts)
+	return facts, err
 }
 
 const clearAlertPolicyDestinations = `-- name: ClearAlertPolicyDestinations :execrows
@@ -5972,10 +6027,10 @@ inserted AS (
     FROM target
     WHERE $6 <> 'pinned'
         OR target.pinned_pipeline_version_id IS NOT NULL
-    RETURNING id, project_id, project_environment_id, pipeline_id, pipeline_slug, pinned_pipeline_version_id, slug, name, trigger_type, enabled, revision, version_policy, runtime_input_keys, retry_enabled, retry_max_attempts, retry_backoff_strategy, retry_initial_delay_seconds, retry_max_delay_seconds, retry_jitter, retryable_failure_kinds, retry_max_elapsed_seconds, schedule_cron, schedule_timezone, schedule_misfire_policy, created_by_actor_type, created_by_actor_slug, updated_by_actor_type, updated_by_actor_slug, disabled_at, created_at, updated_at, receiver_id, webhook_verification_strategy, webhook_input_mappings, completion_config
+    RETURNING id, project_id, project_environment_id, pipeline_id, pipeline_slug, pinned_pipeline_version_id, slug, name, trigger_type, enabled, revision, version_policy, runtime_input_keys, retry_enabled, retry_max_attempts, retry_backoff_strategy, retry_initial_delay_seconds, retry_max_delay_seconds, retry_jitter, retryable_failure_kinds, retry_max_elapsed_seconds, schedule_cron, schedule_timezone, schedule_misfire_policy, created_by_actor_type, created_by_actor_slug, updated_by_actor_type, updated_by_actor_slug, disabled_at, created_at, updated_at, receiver_id, webhook_verification_strategy, webhook_input_mappings, completion_config, completion_editor_id
 )
 SELECT
-    inserted.id, inserted.project_id, inserted.project_environment_id, inserted.pipeline_id, inserted.pipeline_slug, inserted.pinned_pipeline_version_id, inserted.slug, inserted.name, inserted.trigger_type, inserted.enabled, inserted.revision, inserted.version_policy, inserted.runtime_input_keys, inserted.retry_enabled, inserted.retry_max_attempts, inserted.retry_backoff_strategy, inserted.retry_initial_delay_seconds, inserted.retry_max_delay_seconds, inserted.retry_jitter, inserted.retryable_failure_kinds, inserted.retry_max_elapsed_seconds, inserted.schedule_cron, inserted.schedule_timezone, inserted.schedule_misfire_policy, inserted.created_by_actor_type, inserted.created_by_actor_slug, inserted.updated_by_actor_type, inserted.updated_by_actor_slug, inserted.disabled_at, inserted.created_at, inserted.updated_at, inserted.receiver_id, inserted.webhook_verification_strategy, inserted.webhook_input_mappings, inserted.completion_config,
+    inserted.id, inserted.project_id, inserted.project_environment_id, inserted.pipeline_id, inserted.pipeline_slug, inserted.pinned_pipeline_version_id, inserted.slug, inserted.name, inserted.trigger_type, inserted.enabled, inserted.revision, inserted.version_policy, inserted.runtime_input_keys, inserted.retry_enabled, inserted.retry_max_attempts, inserted.retry_backoff_strategy, inserted.retry_initial_delay_seconds, inserted.retry_max_delay_seconds, inserted.retry_jitter, inserted.retryable_failure_kinds, inserted.retry_max_elapsed_seconds, inserted.schedule_cron, inserted.schedule_timezone, inserted.schedule_misfire_policy, inserted.created_by_actor_type, inserted.created_by_actor_slug, inserted.updated_by_actor_type, inserted.updated_by_actor_slug, inserted.disabled_at, inserted.created_at, inserted.updated_at, inserted.receiver_id, inserted.webhook_verification_strategy, inserted.webhook_input_mappings, inserted.completion_config, inserted.completion_editor_id,
     e.slug AS environment_slug,
     ps.slug AS pipeline_slug,
     pinned.spec_hash AS pinned_version_hash,
@@ -6056,6 +6111,7 @@ type CreatePipelineTriggerRow struct {
 	WebhookVerificationStrategy pgtype.Text
 	WebhookInputMappings        []byte
 	CompletionConfig            []byte
+	CompletionEditorID          pgtype.Text
 	EnvironmentSlug             slug.Slug
 	PipelineSlug_2              slug.Slug
 	PinnedVersionHash           pgtype.Text
@@ -6132,6 +6188,7 @@ func (q *Queries) CreatePipelineTrigger(ctx context.Context, arg CreatePipelineT
 		&i.WebhookVerificationStrategy,
 		&i.WebhookInputMappings,
 		&i.CompletionConfig,
+		&i.CompletionEditorID,
 		&i.EnvironmentSlug,
 		&i.PipelineSlug_2,
 		&i.PinnedVersionHash,
@@ -7669,6 +7726,71 @@ func (q *Queries) CreateRole(ctx context.Context, arg CreateRoleParams) (Role, e
 		&i.DeleteReason,
 	)
 	return i, err
+}
+
+const createRoleGrant = `-- name: CreateRoleGrant :one
+WITH target AS (
+    SELECT t.organization_id, t.kind, t.id, t.slug, t.parent_slug, t.project_slug, t.environment_slug, t.data_source_slug, count(*) OVER () AS matches
+    FROM authorization_target_locators t
+    JOIN organizations o ON o.id = t.organization_id
+    WHERE o.slug = $3 AND t.kind = $4::text
+      AND t.slug = $5::text
+      AND (t.kind <> 'roles' OR EXISTS (
+          SELECT 1 FROM roles active WHERE active.id = t.id AND active.deleted_at IS NULL
+      ))
+      AND ($6::text = '' OR t.project_slug = $6)
+      AND ($7::text = '' OR t.environment_slug = $7)
+      AND ($8::text = '' OR t.data_source_slug = $8)
+      AND ($9::text = '' OR t.parent_slug = $9)
+), subject AS (
+    SELECT m.organization_id, m.id AS member_id, NULL::bigint AS api_key_id
+    FROM organization_members m JOIN users u ON u.id = m.user_id
+    WHERE $10::text = 'member' AND u.slug = $11::text
+      AND u.deleted_at IS NULL AND u.verified_at IS NOT NULL
+    UNION ALL
+    SELECT k.organization_id, NULL, k.id FROM api_keys k
+    WHERE $10::text = 'api_key' AND k.slug = $11
+      AND k.revoked_at IS NULL AND (k.expires_at IS NULL OR k.expires_at > statement_timestamp())
+)
+INSERT INTO authorization_scoped_grants (organization_id, member_id, api_key_id, role_id, scope, target_kind, target_id)
+SELECT t.organization_id, s.member_id, s.api_key_id, r.id, $1::text, t.kind, t.id
+FROM target t JOIN subject s ON s.organization_id = t.organization_id
+JOIN roles r ON r.organization_id = t.organization_id AND r.slug = $2 AND r.deleted_at IS NULL
+WHERE t.matches = 1
+RETURNING slug
+`
+
+type CreateRoleGrantParams struct {
+	Scope           string
+	RoleSlug        slug.Slug
+	OrgSlug         slug.Slug
+	TargetKind      string
+	TargetSlug      string
+	ProjectSlug     string
+	EnvironmentSlug string
+	DataSourceSlug  string
+	ParentSlug      string
+	SubjectKind     string
+	SubjectSlug     string
+}
+
+func (q *Queries) CreateRoleGrant(ctx context.Context, arg CreateRoleGrantParams) (slug.Slug, error) {
+	row := q.db.QueryRow(ctx, createRoleGrant,
+		arg.Scope,
+		arg.RoleSlug,
+		arg.OrgSlug,
+		arg.TargetKind,
+		arg.TargetSlug,
+		arg.ProjectSlug,
+		arg.EnvironmentSlug,
+		arg.DataSourceSlug,
+		arg.ParentSlug,
+		arg.SubjectKind,
+		arg.SubjectSlug,
+	)
+	var slug slug.Slug
+	err := row.Scan(&slug)
+	return slug, err
 }
 
 const createRunRecencyEpisode = `-- name: CreateRunRecencyEpisode :one
@@ -12711,7 +12833,7 @@ func (q *Queries) FindPipelineCompiledPlan(ctx context.Context, arg FindPipeline
 }
 
 const findPipelineCreationProposal = `-- name: FindPipelineCreationProposal :one
-SELECT c.organization_id, c.project_id, c.member_id, c.slug, c.pipeline_slug, c.request, c.result, c.status, c.failure_code, c.publish_attempt_id, c.created_at, c.updated_at, u.slug AS member_slug
+SELECT c.organization_id, c.project_id, c.member_id, c.slug, c.pipeline_slug, c.request, c.result, c.status, c.failure_code, c.publish_attempt_id, c.created_at, c.updated_at, c.authorization_id, u.slug AS member_slug
 FROM pipeline_creation_proposals c
 JOIN projects p ON p.id=c.project_id AND p.organization_id=c.organization_id
 JOIN organizations o ON o.id=c.organization_id
@@ -12740,6 +12862,7 @@ type FindPipelineCreationProposalRow struct {
 	PublishAttemptID string
 	CreatedAt        pgtype.Timestamptz
 	UpdatedAt        pgtype.Timestamptz
+	AuthorizationID  pgtype.Int8
 	MemberSlug       slug.Slug
 }
 
@@ -12759,6 +12882,7 @@ func (q *Queries) FindPipelineCreationProposal(ctx context.Context, arg FindPipe
 		&i.PublishAttemptID,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.AuthorizationID,
 		&i.MemberSlug,
 	)
 	return i, err
@@ -13003,77 +13127,16 @@ func (q *Queries) FindPipelineDraftBySlug(ctx context.Context, arg FindPipelineD
 }
 
 const findPipelineProposalAuthority = `-- name: FindPipelineProposalAuthority :one
-SELECT
-    pa.id,
-    pa.publication_mode,
-    pa.provider_host,
-    pa.provider_account_id,
-    pa.provider_repository_id,
-    pa.provider_credential_id,
-    pa.executing_principal_id,
-    pa.executing_principal_display,
-    pa.authority_source,
-    ds.config AS git_configuration,
-    COALESCE(p.pipeline_backend_repo, '')::text AS git_repository,
-    COALESCE(p.pipeline_backend_tracked_branch, '')::text AS git_base_branch,
-    ds.slug AS git_data_source_slug,
-    c.slug AS git_credential_slug,
-    c.updated_at AS git_credential_updated_at
-FROM pipeline_proposal_authorities pa
-JOIN organizations o ON pa.organization_id = o.id
-JOIN projects p ON pa.project_id = p.id
-    AND p.organization_id = o.id
-JOIN data_sources ds ON pa.data_source_id = ds.id
-    AND ds.organization_id = o.id
-    AND p.pipeline_backend_data_source_id = ds.id
-JOIN credentials c ON pa.credential_id = c.id
-    AND c.organization_id = o.id
-    AND ds.credential_id = c.id
-LEFT JOIN credential_oauth_grants cog ON c.id = cog.credential_id
-WHERE o.slug = $1
-    AND p.slug = $2
-    AND ds.deleted_at IS NULL
-    AND ds.is_active = TRUE
-    AND ds.read_only = FALSE
-    AND c.status = 'active'
-    AND c.revoked_at IS NULL
-    AND pa.revoked_at IS NULL
-    AND (pa.publication_mode <> 'repository_credential' OR (
-        ds.type = 'git' AND c.kind = 'static_secret'
-        AND pa.authority_source = 'git_data_source_credential'
-    ))
-    AND (
-        ds.type <> 'github' OR ds.config #>> '{repository,id}' IS NULL
-        OR (
-            pa.publication_mode = 'organization_service' AND pa.provider_host = 'github.com'
-            AND pa.authority_source = 'github_app_installation' AND c.kind = 'static_secret'
-            AND EXISTS (
-                SELECT 1 FROM github_app_installations installation
-                JOIN github_app_repositories repository ON repository.installation_id = installation.id AND repository.organization_id = o.id
-                WHERE installation.organization_id = o.id AND installation.suspended_at IS NULL AND installation.deleted_at IS NULL
-                    AND repository.removed_at IS NULL
-                    AND installation.installation_id::text = pa.provider_credential_id
-                    AND installation.account_id::text = pa.provider_account_id
-                    AND repository.repository_id::text = pa.provider_repository_id
-                    AND repository.repository_id::text = ds.config #>> '{repository,id}'
-                    AND p.pipeline_backend_repo = 'github.com/' || repository.full_name
-            )
-        )
-    )
-    AND (
-        pa.publication_mode <> 'delegated_user'
-        OR (
-            c.kind = 'oauth2_grant'
-            AND cog.provider = ds.type
-            AND cog.account ->> 'ID' = pa.executing_principal_id
-            AND cog.account ->> 'ID' = pa.provider_account_id
-        )
-    )
+SELECT id, publication_mode, provider_host, provider_account_id, provider_repository_id, provider_credential_id,
+    executing_principal_id, executing_principal_display, authority_source, git_configuration,
+    git_repository, git_base_branch, git_data_source_slug, git_credential_slug, git_credential_updated_at
+FROM active_pipeline_proposal_authorities
+WHERE org_slug = $1 AND project_slug = $2
 `
 
 type FindPipelineProposalAuthorityParams struct {
-	OrgSlug     slug.Slug
-	ProjectSlug slug.Slug
+	OrgSlug     string
+	ProjectSlug string
 }
 
 type FindPipelineProposalAuthorityRow struct {
@@ -13089,8 +13152,8 @@ type FindPipelineProposalAuthorityRow struct {
 	GitConfiguration          []byte
 	GitRepository             string
 	GitBaseBranch             string
-	GitDataSourceSlug         slug.Slug
-	GitCredentialSlug         slug.Slug
+	GitDataSourceSlug         string
+	GitCredentialSlug         string
 	GitCredentialUpdatedAt    pgtype.Timestamptz
 }
 
@@ -13431,7 +13494,7 @@ func (q *Queries) FindPipelineSpecDeletedAtForUpdate(ctx context.Context, arg Fi
 
 const findPipelineTriggerBySlug = `-- name: FindPipelineTriggerBySlug :one
 SELECT
-    pt.id, pt.project_id, pt.project_environment_id, pt.pipeline_id, pt.pipeline_slug, pt.pinned_pipeline_version_id, pt.slug, pt.name, pt.trigger_type, pt.enabled, pt.revision, pt.version_policy, pt.runtime_input_keys, pt.retry_enabled, pt.retry_max_attempts, pt.retry_backoff_strategy, pt.retry_initial_delay_seconds, pt.retry_max_delay_seconds, pt.retry_jitter, pt.retryable_failure_kinds, pt.retry_max_elapsed_seconds, pt.schedule_cron, pt.schedule_timezone, pt.schedule_misfire_policy, pt.created_by_actor_type, pt.created_by_actor_slug, pt.updated_by_actor_type, pt.updated_by_actor_slug, pt.disabled_at, pt.created_at, pt.updated_at, pt.receiver_id, pt.webhook_verification_strategy, pt.webhook_input_mappings, pt.completion_config,
+    pt.id, pt.project_id, pt.project_environment_id, pt.pipeline_id, pt.pipeline_slug, pt.pinned_pipeline_version_id, pt.slug, pt.name, pt.trigger_type, pt.enabled, pt.revision, pt.version_policy, pt.runtime_input_keys, pt.retry_enabled, pt.retry_max_attempts, pt.retry_backoff_strategy, pt.retry_initial_delay_seconds, pt.retry_max_delay_seconds, pt.retry_jitter, pt.retryable_failure_kinds, pt.retry_max_elapsed_seconds, pt.schedule_cron, pt.schedule_timezone, pt.schedule_misfire_policy, pt.created_by_actor_type, pt.created_by_actor_slug, pt.updated_by_actor_type, pt.updated_by_actor_slug, pt.disabled_at, pt.created_at, pt.updated_at, pt.receiver_id, pt.webhook_verification_strategy, pt.webhook_input_mappings, pt.completion_config, pt.completion_editor_id,
     e.slug AS environment_slug,
     ps.slug AS pipeline_slug,
     pinned.spec_hash AS pinned_version_hash,
@@ -13497,6 +13560,7 @@ type FindPipelineTriggerBySlugRow struct {
 	WebhookVerificationStrategy pgtype.Text
 	WebhookInputMappings        []byte
 	CompletionConfig            []byte
+	CompletionEditorID          pgtype.Text
 	EnvironmentSlug             slug.Slug
 	PipelineSlug_2              slug.Slug
 	PinnedVersionHash           pgtype.Text
@@ -13547,6 +13611,7 @@ func (q *Queries) FindPipelineTriggerBySlug(ctx context.Context, arg FindPipelin
 		&i.WebhookVerificationStrategy,
 		&i.WebhookInputMappings,
 		&i.CompletionConfig,
+		&i.CompletionEditorID,
 		&i.EnvironmentSlug,
 		&i.PipelineSlug_2,
 		&i.PinnedVersionHash,
@@ -14822,7 +14887,7 @@ func (q *Queries) FindRuntimeVariable(ctx context.Context, arg FindRuntimeVariab
 }
 
 const findRuntimeVariableDefinition = `-- name: FindRuntimeVariableDefinition :one
-SELECT d.organization_id, d.key, d.value_type, d.description, d.required, d.default_value, d.created_at, d.updated_at
+SELECT d.organization_id, d.key, d.value_type, d.description, d.required, d.default_value, d.created_at, d.updated_at, d.authorization_id
 FROM runtime_variable_definitions d
 JOIN organizations o ON o.id = d.organization_id
 WHERE o.slug = $1 AND d.key = $2
@@ -14845,6 +14910,7 @@ func (q *Queries) FindRuntimeVariableDefinition(ctx context.Context, arg FindRun
 		&i.DefaultValue,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.AuthorizationID,
 	)
 	return i, err
 }
@@ -15870,7 +15936,7 @@ func (q *Queries) GetGitLabProofWebhookByRoute(ctx context.Context, routeKeyHash
 }
 
 const getPipelineCreationProposal = `-- name: GetPipelineCreationProposal :one
-SELECT c.organization_id, c.project_id, c.member_id, c.slug, c.pipeline_slug, c.request, c.result, c.status, c.failure_code, c.publish_attempt_id, c.created_at, c.updated_at, u.slug AS member_slug
+SELECT c.organization_id, c.project_id, c.member_id, c.slug, c.pipeline_slug, c.request, c.result, c.status, c.failure_code, c.publish_attempt_id, c.created_at, c.updated_at, c.authorization_id, u.slug AS member_slug
 FROM pipeline_creation_proposals c
 JOIN projects p ON p.id=c.project_id AND p.organization_id=c.organization_id
 JOIN organizations o ON o.id=c.organization_id
@@ -15898,6 +15964,7 @@ type GetPipelineCreationProposalRow struct {
 	PublishAttemptID string
 	CreatedAt        pgtype.Timestamptz
 	UpdatedAt        pgtype.Timestamptz
+	AuthorizationID  pgtype.Int8
 	MemberSlug       slug.Slug
 }
 
@@ -15917,6 +15984,7 @@ func (q *Queries) GetPipelineCreationProposal(ctx context.Context, arg GetPipeli
 		&i.PublishAttemptID,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.AuthorizationID,
 		&i.MemberSlug,
 	)
 	return i, err
@@ -21406,7 +21474,7 @@ func (q *Queries) ListPipelineCompletionRepairsForSystem(ctx context.Context) ([
 }
 
 const listPipelineCreationProposals = `-- name: ListPipelineCreationProposals :many
-SELECT c.organization_id, c.project_id, c.member_id, c.slug, c.pipeline_slug, c.request, c.result, c.status, c.failure_code, c.publish_attempt_id, c.created_at, c.updated_at, u.slug AS member_slug
+SELECT c.organization_id, c.project_id, c.member_id, c.slug, c.pipeline_slug, c.request, c.result, c.status, c.failure_code, c.publish_attempt_id, c.created_at, c.updated_at, c.authorization_id, u.slug AS member_slug
 FROM pipeline_creation_proposals c
 JOIN projects p ON p.id=c.project_id AND p.organization_id=c.organization_id
 JOIN organizations o ON o.id=c.organization_id
@@ -21438,6 +21506,7 @@ type ListPipelineCreationProposalsRow struct {
 	PublishAttemptID string
 	CreatedAt        pgtype.Timestamptz
 	UpdatedAt        pgtype.Timestamptz
+	AuthorizationID  pgtype.Int8
 	MemberSlug       slug.Slug
 }
 
@@ -21468,6 +21537,7 @@ func (q *Queries) ListPipelineCreationProposals(ctx context.Context, arg ListPip
 			&i.PublishAttemptID,
 			&i.CreatedAt,
 			&i.UpdatedAt,
+			&i.AuthorizationID,
 			&i.MemberSlug,
 		); err != nil {
 			return nil, err
@@ -22033,7 +22103,7 @@ func (q *Queries) ListPipelineSpecsByProject(ctx context.Context, arg ListPipeli
 
 const listPipelineTriggers = `-- name: ListPipelineTriggers :many
 SELECT
-    pt.id, pt.project_id, pt.project_environment_id, pt.pipeline_id, pt.pipeline_slug, pt.pinned_pipeline_version_id, pt.slug, pt.name, pt.trigger_type, pt.enabled, pt.revision, pt.version_policy, pt.runtime_input_keys, pt.retry_enabled, pt.retry_max_attempts, pt.retry_backoff_strategy, pt.retry_initial_delay_seconds, pt.retry_max_delay_seconds, pt.retry_jitter, pt.retryable_failure_kinds, pt.retry_max_elapsed_seconds, pt.schedule_cron, pt.schedule_timezone, pt.schedule_misfire_policy, pt.created_by_actor_type, pt.created_by_actor_slug, pt.updated_by_actor_type, pt.updated_by_actor_slug, pt.disabled_at, pt.created_at, pt.updated_at, pt.receiver_id, pt.webhook_verification_strategy, pt.webhook_input_mappings, pt.completion_config,
+    pt.id, pt.project_id, pt.project_environment_id, pt.pipeline_id, pt.pipeline_slug, pt.pinned_pipeline_version_id, pt.slug, pt.name, pt.trigger_type, pt.enabled, pt.revision, pt.version_policy, pt.runtime_input_keys, pt.retry_enabled, pt.retry_max_attempts, pt.retry_backoff_strategy, pt.retry_initial_delay_seconds, pt.retry_max_delay_seconds, pt.retry_jitter, pt.retryable_failure_kinds, pt.retry_max_elapsed_seconds, pt.schedule_cron, pt.schedule_timezone, pt.schedule_misfire_policy, pt.created_by_actor_type, pt.created_by_actor_slug, pt.updated_by_actor_type, pt.updated_by_actor_slug, pt.disabled_at, pt.created_at, pt.updated_at, pt.receiver_id, pt.webhook_verification_strategy, pt.webhook_input_mappings, pt.completion_config, pt.completion_editor_id,
     e.slug AS environment_slug,
     ps.slug AS pipeline_slug,
     pinned.spec_hash AS pinned_version_hash,
@@ -22134,6 +22204,7 @@ type ListPipelineTriggersRow struct {
 	WebhookVerificationStrategy pgtype.Text
 	WebhookInputMappings        []byte
 	CompletionConfig            []byte
+	CompletionEditorID          pgtype.Text
 	EnvironmentSlug             slug.Slug
 	PipelineSlug_2              slug.Slug
 	PinnedVersionHash           pgtype.Text
@@ -22193,6 +22264,7 @@ func (q *Queries) ListPipelineTriggers(ctx context.Context, arg ListPipelineTrig
 			&i.WebhookVerificationStrategy,
 			&i.WebhookInputMappings,
 			&i.CompletionConfig,
+			&i.CompletionEditorID,
 			&i.EnvironmentSlug,
 			&i.PipelineSlug_2,
 			&i.PinnedVersionHash,
@@ -22389,20 +22461,21 @@ WHERE o.slug = $1
     AND pe.deleted_at IS NULL
     AND pt.slug = $4
     AND pt.trigger_type = 'webhook'
+    AND ($5::boolean OR (pwd.trigger_revision, pwd.pipeline_slug) = (pt.revision, pt.pipeline_slug))
     AND (
-        $5::text IS NULL
+        $6::text IS NULL
         OR (
-            ($6 = 'asc' AND (pwd.received_at, pwd.delivery_id) > ($7::timestamptz, $5::text))
+            ($7 = 'asc' AND (pwd.received_at, pwd.delivery_id) > ($8::timestamptz, $6::text))
             OR
-            ($6 = 'desc' AND (pwd.received_at, pwd.delivery_id) < ($7::timestamptz, $5::text))
+            ($7 = 'desc' AND (pwd.received_at, pwd.delivery_id) < ($8::timestamptz, $6::text))
         )
     )
 ORDER BY
-    CASE WHEN $6 = 'asc' THEN pwd.received_at END ASC,
-    CASE WHEN $6 = 'desc' THEN pwd.received_at END DESC,
-    CASE WHEN $6 = 'asc' THEN pwd.delivery_id END ASC,
-    CASE WHEN $6 = 'desc' THEN pwd.delivery_id END DESC
-LIMIT $8
+    CASE WHEN $7 = 'asc' THEN pwd.received_at END ASC,
+    CASE WHEN $7 = 'desc' THEN pwd.received_at END DESC,
+    CASE WHEN $7 = 'asc' THEN pwd.delivery_id END ASC,
+    CASE WHEN $7 = 'desc' THEN pwd.delivery_id END DESC
+LIMIT $9
 `
 
 type ListPipelineWebhookDeliveriesForTriggerParams struct {
@@ -22410,6 +22483,7 @@ type ListPipelineWebhookDeliveriesForTriggerParams struct {
 	ProjectSlug     slug.Slug
 	EnvironmentSlug slug.Slug
 	TriggerSlug     slug.Slug
+	IncludeHistory  bool
 	CursorSlug      pgtype.Text
 	OrderDir        pgtype.Text
 	CursorTimestamp pgtype.Timestamptz
@@ -22466,6 +22540,7 @@ func (q *Queries) ListPipelineWebhookDeliveriesForTrigger(ctx context.Context, a
 		arg.ProjectSlug,
 		arg.EnvironmentSlug,
 		arg.TriggerSlug,
+		arg.IncludeHistory,
 		arg.CursorSlug,
 		arg.OrderDir,
 		arg.CursorTimestamp,
@@ -23717,6 +23792,70 @@ func (q *Queries) ListRecentAlertDeliveryAttemptsForRecords(ctx context.Context,
 	return items, nil
 }
 
+const listRoleGrants = `-- name: ListRoleGrants :many
+SELECT g.slug, g.scope, g.target_kind, r.slug AS role_slug,
+       CASE WHEN g.member_id IS NULL THEN 'api_key' ELSE 'member' END::text AS subject_kind,
+       COALESCE(u.slug, k.slug)::text AS subject_slug, COALESCE(t.slug, '')::text AS target_slug,
+       CASE WHEN g.scope = 'resource' THEN COALESCE(t.project_slug, '') ELSE '' END::text AS project_slug,
+       CASE WHEN g.scope = 'resource' THEN COALESCE(t.environment_slug, '') ELSE '' END::text AS environment_slug,
+       COALESCE(t.data_source_slug, '')::text AS data_source_slug, COALESCE(t.parent_slug, '')::text AS parent_slug
+FROM authorization_scoped_grants g
+JOIN organizations o ON o.id = g.organization_id
+JOIN roles r ON (r.organization_id, r.id) = (g.organization_id, g.role_id)
+LEFT JOIN organization_members m ON (m.organization_id, m.id) = (g.organization_id, g.member_id)
+LEFT JOIN users u ON u.id = m.user_id
+LEFT JOIN api_keys k ON (k.organization_id, k.id) = (g.organization_id, g.api_key_id)
+LEFT JOIN authorization_target_locators t ON (t.organization_id, t.kind, t.id) = (g.organization_id, g.target_kind, g.target_id)
+WHERE o.slug = $1
+ORDER BY g.id
+`
+
+type ListRoleGrantsRow struct {
+	Slug            slug.Slug
+	Scope           string
+	TargetKind      string
+	RoleSlug        slug.Slug
+	SubjectKind     string
+	SubjectSlug     string
+	TargetSlug      string
+	ProjectSlug     string
+	EnvironmentSlug string
+	DataSourceSlug  string
+	ParentSlug      string
+}
+
+func (q *Queries) ListRoleGrants(ctx context.Context, orgSlug slug.Slug) ([]ListRoleGrantsRow, error) {
+	rows, err := q.db.Query(ctx, listRoleGrants, orgSlug)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ListRoleGrantsRow
+	for rows.Next() {
+		var i ListRoleGrantsRow
+		if err := rows.Scan(
+			&i.Slug,
+			&i.Scope,
+			&i.TargetKind,
+			&i.RoleSlug,
+			&i.SubjectKind,
+			&i.SubjectSlug,
+			&i.TargetSlug,
+			&i.ProjectSlug,
+			&i.EnvironmentSlug,
+			&i.DataSourceSlug,
+			&i.ParentSlug,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listRolesByOrganization = `-- name: ListRolesByOrganization :many
 SELECT r.id, r.organization_id, r.slug, r.name, r.is_default, r.created_at, r.updated_at, r.deleted_at, r.delete_reason
 FROM roles r
@@ -24009,7 +24148,7 @@ func (q *Queries) ListRuntimeVariableComparisonEnvironments(ctx context.Context,
 }
 
 const listRuntimeVariableDefinitions = `-- name: ListRuntimeVariableDefinitions :many
-SELECT d.organization_id, d.key, d.value_type, d.description, d.required, d.default_value, d.created_at, d.updated_at
+SELECT d.organization_id, d.key, d.value_type, d.description, d.required, d.default_value, d.created_at, d.updated_at, d.authorization_id
 FROM runtime_variable_definitions d
 JOIN organizations o ON o.id = d.organization_id
 WHERE o.slug = $1
@@ -24034,6 +24173,7 @@ func (q *Queries) ListRuntimeVariableDefinitions(ctx context.Context, orgSlug sl
 			&i.DefaultValue,
 			&i.CreatedAt,
 			&i.UpdatedAt,
+			&i.AuthorizationID,
 		); err != nil {
 			return nil, err
 		}
@@ -24902,9 +25042,8 @@ SELECT snapshot.id, snapshot.organization_id, snapshot.project_environment_id, s
         'Jitter', snapshot.trigger_configuration->'retry_jitter',
         'RetryableFailureKinds', snapshot.trigger_configuration->'retryable_failure_kinds',
         'MaxElapsedSeconds', snapshot.trigger_configuration->'retry_max_elapsed_seconds') AS retry_policy,
-    pipeline_completion_authority_snapshot(snapshot.organization_id,
-        snapshot.trigger_configuration->>'updated_by_actor_type',
-        snapshot.trigger_configuration->>'updated_by_actor_slug') AS current_authority
+    pipeline_completion_scoped_authority(snapshot.organization_id, snapshot.project_environment_id,
+        snapshot.trigger_configuration, snapshot.state = 'accepted') AS current_authority
 FROM pipeline_completion_snapshots snapshot
 JOIN organizations o ON o.id = snapshot.organization_id
 JOIN projects p ON p.organization_id = o.id AND p.slug = $1
@@ -29314,6 +29453,43 @@ func (q *Queries) ResetPipelineWebhookPreflight(ctx context.Context, arg ResetPi
 	return result.RowsAffected(), nil
 }
 
+const resolveAuthorizationFacts = `-- name: ResolveAuthorizationFacts :one
+SELECT COALESCE(authorization_facts(
+    $1::text, $2::text, $3::text,
+    $4::text, $5::text, $6::text,
+    $7::text, $8::text, $9::text
+), '{}'::jsonb)::jsonb AS facts
+`
+
+type ResolveAuthorizationFactsParams struct {
+	OrgSlug         string
+	UserSlug        string
+	KeySlug         string
+	Kind            string
+	ResourceSlug    string
+	ProjectSlug     string
+	EnvironmentSlug string
+	DataSourceSlug  string
+	ParentSlug      string
+}
+
+func (q *Queries) ResolveAuthorizationFacts(ctx context.Context, arg ResolveAuthorizationFactsParams) ([]byte, error) {
+	row := q.db.QueryRow(ctx, resolveAuthorizationFacts,
+		arg.OrgSlug,
+		arg.UserSlug,
+		arg.KeySlug,
+		arg.Kind,
+		arg.ResourceSlug,
+		arg.ProjectSlug,
+		arg.EnvironmentSlug,
+		arg.DataSourceSlug,
+		arg.ParentSlug,
+	)
+	var facts []byte
+	err := row.Scan(&facts)
+	return facts, err
+}
+
 const resolveGitHubAppRepositoryBinding = `-- name: ResolveGitHubAppRepositoryBinding :one
 SELECT organization.slug AS organization_slug, installation.installation_id
 FROM github_app_repositories repository
@@ -30309,6 +30485,25 @@ func (q *Queries) RevokePipelineWebhookCredentials(ctx context.Context, arg Revo
 		return nil, err
 	}
 	return items, nil
+}
+
+const revokeRoleGrant = `-- name: RevokeRoleGrant :one
+DELETE FROM authorization_scoped_grants g USING organizations o, roles r
+WHERE o.id = g.organization_id AND o.slug = $1 AND g.slug = $2
+  AND (r.organization_id, r.id) = (g.organization_id, g.role_id)
+RETURNING r.slug AS role_slug
+`
+
+type RevokeRoleGrantParams struct {
+	OrgSlug   slug.Slug
+	GrantSlug slug.Slug
+}
+
+func (q *Queries) RevokeRoleGrant(ctx context.Context, arg RevokeRoleGrantParams) (string, error) {
+	row := q.db.QueryRow(ctx, revokeRoleGrant, arg.OrgSlug, arg.GrantSlug)
+	var role_slug string
+	err := row.Scan(&role_slug)
+	return role_slug, err
 }
 
 const rotateAPIKey = `-- name: RotateAPIKey :one
@@ -32209,10 +32404,10 @@ updated AS (
         updated_at = NOW()
     FROM target
     WHERE pt.id = target.trigger_id
-    RETURNING pt.id, pt.project_id, pt.project_environment_id, pt.pipeline_id, pt.pipeline_slug, pt.pinned_pipeline_version_id, pt.slug, pt.name, pt.trigger_type, pt.enabled, pt.revision, pt.version_policy, pt.runtime_input_keys, pt.retry_enabled, pt.retry_max_attempts, pt.retry_backoff_strategy, pt.retry_initial_delay_seconds, pt.retry_max_delay_seconds, pt.retry_jitter, pt.retryable_failure_kinds, pt.retry_max_elapsed_seconds, pt.schedule_cron, pt.schedule_timezone, pt.schedule_misfire_policy, pt.created_by_actor_type, pt.created_by_actor_slug, pt.updated_by_actor_type, pt.updated_by_actor_slug, pt.disabled_at, pt.created_at, pt.updated_at, pt.receiver_id, pt.webhook_verification_strategy, pt.webhook_input_mappings, pt.completion_config
+    RETURNING pt.id, pt.project_id, pt.project_environment_id, pt.pipeline_id, pt.pipeline_slug, pt.pinned_pipeline_version_id, pt.slug, pt.name, pt.trigger_type, pt.enabled, pt.revision, pt.version_policy, pt.runtime_input_keys, pt.retry_enabled, pt.retry_max_attempts, pt.retry_backoff_strategy, pt.retry_initial_delay_seconds, pt.retry_max_delay_seconds, pt.retry_jitter, pt.retryable_failure_kinds, pt.retry_max_elapsed_seconds, pt.schedule_cron, pt.schedule_timezone, pt.schedule_misfire_policy, pt.created_by_actor_type, pt.created_by_actor_slug, pt.updated_by_actor_type, pt.updated_by_actor_slug, pt.disabled_at, pt.created_at, pt.updated_at, pt.receiver_id, pt.webhook_verification_strategy, pt.webhook_input_mappings, pt.completion_config, pt.completion_editor_id
 )
 SELECT
-    updated.id, updated.project_id, updated.project_environment_id, updated.pipeline_id, updated.pipeline_slug, updated.pinned_pipeline_version_id, updated.slug, updated.name, updated.trigger_type, updated.enabled, updated.revision, updated.version_policy, updated.runtime_input_keys, updated.retry_enabled, updated.retry_max_attempts, updated.retry_backoff_strategy, updated.retry_initial_delay_seconds, updated.retry_max_delay_seconds, updated.retry_jitter, updated.retryable_failure_kinds, updated.retry_max_elapsed_seconds, updated.schedule_cron, updated.schedule_timezone, updated.schedule_misfire_policy, updated.created_by_actor_type, updated.created_by_actor_slug, updated.updated_by_actor_type, updated.updated_by_actor_slug, updated.disabled_at, updated.created_at, updated.updated_at, updated.receiver_id, updated.webhook_verification_strategy, updated.webhook_input_mappings, updated.completion_config,
+    updated.id, updated.project_id, updated.project_environment_id, updated.pipeline_id, updated.pipeline_slug, updated.pinned_pipeline_version_id, updated.slug, updated.name, updated.trigger_type, updated.enabled, updated.revision, updated.version_policy, updated.runtime_input_keys, updated.retry_enabled, updated.retry_max_attempts, updated.retry_backoff_strategy, updated.retry_initial_delay_seconds, updated.retry_max_delay_seconds, updated.retry_jitter, updated.retryable_failure_kinds, updated.retry_max_elapsed_seconds, updated.schedule_cron, updated.schedule_timezone, updated.schedule_misfire_policy, updated.created_by_actor_type, updated.created_by_actor_slug, updated.updated_by_actor_type, updated.updated_by_actor_slug, updated.disabled_at, updated.created_at, updated.updated_at, updated.receiver_id, updated.webhook_verification_strategy, updated.webhook_input_mappings, updated.completion_config, updated.completion_editor_id,
     e.slug AS environment_slug,
     ps.slug AS pipeline_slug,
     pinned.spec_hash AS pinned_version_hash,
@@ -32291,6 +32486,7 @@ type UpdatePipelineTriggerRow struct {
 	WebhookVerificationStrategy pgtype.Text
 	WebhookInputMappings        []byte
 	CompletionConfig            []byte
+	CompletionEditorID          pgtype.Text
 	EnvironmentSlug             slug.Slug
 	PipelineSlug_2              slug.Slug
 	PinnedVersionHash           pgtype.Text
@@ -32365,6 +32561,7 @@ func (q *Queries) UpdatePipelineTrigger(ctx context.Context, arg UpdatePipelineT
 		&i.WebhookVerificationStrategy,
 		&i.WebhookInputMappings,
 		&i.CompletionConfig,
+		&i.CompletionEditorID,
 		&i.EnvironmentSlug,
 		&i.PipelineSlug_2,
 		&i.PinnedVersionHash,
@@ -33923,7 +34120,7 @@ SET value_type = excluded.value_type,
     required = excluded.required,
     default_value = excluded.default_value,
     updated_at = CURRENT_TIMESTAMP
-RETURNING organization_id, key, value_type, description, required, default_value, created_at, updated_at
+RETURNING organization_id, key, value_type, description, required, default_value, created_at, updated_at, authorization_id
 `
 
 type UpsertRuntimeVariableDefinitionParams struct {
@@ -33954,6 +34151,7 @@ func (q *Queries) UpsertRuntimeVariableDefinition(ctx context.Context, arg Upser
 		&i.DefaultValue,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.AuthorizationID,
 	)
 	return i, err
 }

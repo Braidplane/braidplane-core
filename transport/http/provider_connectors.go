@@ -17,6 +17,7 @@ import (
 	"github.com/Braidplane/braidplane-core/pkg/domain/model"
 	"github.com/Braidplane/braidplane-core/pkg/logging"
 	"github.com/Braidplane/braidplane-core/pkg/ptr"
+	"github.com/Braidplane/braidplane-core/pkg/reqctx"
 	"github.com/Braidplane/braidplane-core/pkg/slug"
 	"github.com/Braidplane/braidplane-core/pkg/xerror"
 	"github.com/Braidplane/braidplane-core/service/credentialssvc"
@@ -101,11 +102,17 @@ func (s *server) StartProviderConnectorInstall(
 	if err != nil {
 		return apierror.ValidationFailed(fmt.Sprintf("Invalid provider install intent: %v", err))
 	}
-	if err := s.canOrg(c, orgSlug, oauthInstallAction(provider, requestedIntent), model.ResourceDataSources); err != nil {
-		return err
+	if _, ok := s.CurrentUser(c); !ok {
+		if _, key := reqctx.GetAPIKeyPrincipal(c); !key {
+			return apierror.Unauthorized()
+		}
 	}
 	owner, err := providerInstallOwner(orgSlug, req)
 	if err != nil {
+		return err
+	}
+	target := model.AuthorizationTarget{Kind: "datasources", Slug: owner.DataSourceSlug}
+	if err := s.canTarget(c, orgSlug, oauthInstallAction(provider, requestedIntent), model.ResourceDataSources, target); err != nil {
 		return err
 	}
 	dataSource, err := s.datasourcesService.FindBySlug(c.Context(), orgSlug, owner.DataSourceSlug)
@@ -113,7 +120,7 @@ func (s *server) StartProviderConnectorInstall(
 		return mapServiceError(err)
 	}
 	intent := oauthInstallIntentForDataSource(dataSource)
-	if err := s.canOrg(c, orgSlug, oauthInstallAction(provider, intent), model.ResourceDataSources); err != nil {
+	if err := s.canTarget(c, orgSlug, oauthInstallAction(provider, intent), model.ResourceDataSources, target); err != nil {
 		return err
 	}
 	if provider != dataSource.Type.String() {
@@ -177,11 +184,18 @@ func (s *server) HandleProviderConnectorCallback(
 		return s.redirectProviderOAuthFailure(c, "")
 	}
 	action, resource := oauthCallbackPermission(install.Provider, install.Owner, install.Intent)
-	userSlug, authErr := s.canOrgUserPrincipal(
+	target := model.AuthorizationTarget{}
+	switch resource { //nolint:exhaustive // Only OAuth callback resources have a credential owner.
+	case model.ResourceDataSources:
+		target = model.AuthorizationTarget{Kind: "datasources", Slug: install.Owner.DataSourceSlug}
+	case model.ResourceAlertDestinations:
+		target = model.AuthorizationTarget{Kind: "notification_connections", Slug: install.Owner.NotificationConnectionSlug}
+	}
+	userSlug, authErr := s.canOrgUserTarget(
 		c,
 		install.Owner.OrgSlug,
 		action,
-		resource,
+		resource, target,
 	)
 	if authErr != nil {
 		return authErr
@@ -255,10 +269,10 @@ func (s *server) handleRepositoryGitLabCallback(c fiber.Ctx, provider api.Provid
 	if err != nil {
 		return err
 	}
-	if err := s.canOrg(c, org, model.Update, model.ResourceProjects); err != nil {
+	if err := s.canTarget(c, org, model.Update, model.ResourceProjects, model.AuthorizationTarget{Kind: "projects", Slug: project}); err != nil {
 		return err
 	}
-	if err := s.canOrg(c, org, model.Create, model.ResourceDataSources); err != nil {
+	if err := s.authorizeOrgTargetFor(c, org, model.Create, model.ResourceDataSources, model.AuthorizationTarget{}, true, "repository_source"); err != nil {
 		return err
 	}
 	if user != install.Actor.UserSlugValue() {

@@ -63,7 +63,7 @@ func (r *Router) renderProofConfigurations(c fiber.Ctx, org slug.Slug, ds string
 	if ds != "" {
 		shell.Breadcrumbs = []views.BreadcrumbItem{{Label: "Data sources", Href: "/orgs/" + org.String() + "/data-sources"}, {Label: ds, Href: "/orgs/" + org.String() + "/data-sources/" + ds}, {Label: "Proof"}}
 	}
-	permissions := r.resolveOrganizationPermissions(c.Context(), c.Get(fiber.HeaderCookie), org.String())
+	permissions := r.resolvePagePermissions(c, org.String())
 	return renderTempl(c, views.ProofConfigurationPage(shell, org.String(), ds, configurations, feedback, failed, permissions.Can("datasources", "update") && permissions.Can("pipelines", "update")))
 }
 

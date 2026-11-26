@@ -734,12 +734,12 @@ func (r *Router) renderProjectEnvironmentsPage(
 	if c.Query("cleanup") == "1" {
 		cleanup = &views.CleanupFindings{}
 	}
-	permissions := r.resolveOrganizationPermissions(
-		c.Context(),
-		c.Get(fiber.HeaderCookie),
-		orgSlug.String(),
-	)
 	selectedEnvironmentSlug := projectEnvironmentSelectedSlugFromRequest(c)
+	var actions views.ProjectEnvironmentActions
+	if selectedEnvironmentSlug != "" {
+		project := api.GetEffectivePermissionsParams{TargetKind: new("projects"), TargetSlug: &projectSlug}
+		actions.CanEnableOrSetDefault = r.targetPermissions(c, orgSlug.String(), project).Can("environments", "update")
+	}
 	catalog, status, errorResponse, err := r.listEnvironmentsViaAPI(
 		c.Context(),
 		c.Get(fiber.HeaderCookie),
@@ -797,10 +797,17 @@ func (r *Router) renderProjectEnvironmentsPage(
 				nil,
 				true,
 				false,
-				permissions,
+				actions,
 				cleanup,
 			),
 		)
+	}
+
+	if views.ProjectEnvironmentEnabled(selectedEnvironmentSlug, projectEnvironments.ProjectEnvironments) {
+		target := api.GetEffectivePermissionsParams{
+			TargetKind: new("project_environments"), ProjectSlug: &projectSlug, EnvironmentSlug: &selectedEnvironmentSlug,
+		}
+		actions.CanDisable = r.targetPermissions(c, orgSlug.String(), target).Can("environments", "delete")
 	}
 
 	refs, status, errorResponse, err := r.listDataSourceRefsViaAPI(
@@ -841,7 +848,7 @@ func (r *Router) renderProjectEnvironmentsPage(
 				nil,
 				false,
 				true,
-				permissions,
+				actions,
 				cleanup,
 			),
 		)
@@ -889,7 +896,7 @@ func (r *Router) renderProjectEnvironmentsPage(
 					nil,
 					false,
 					true,
-					permissions,
+					actions,
 					cleanup,
 				),
 			)
@@ -927,7 +934,7 @@ func (r *Router) renderProjectEnvironmentsPage(
 			bindings,
 			false,
 			false,
-			permissions,
+			actions,
 			cleanup,
 		),
 	)
@@ -1065,11 +1072,7 @@ func (r *Router) renderOrganizationEnvironmentDetailPage(
 		c.Get(fiber.HeaderCookie),
 	)
 	shellData.Subtitle = "Manage this organization runtime target, non-secret runtime variables, and write-only environment secrets."
-	permissions := r.resolveOrganizationPermissions(
-		c.Context(),
-		c.Get(fiber.HeaderCookie),
-		orgSlug.String(),
-	)
+	permissions := r.resolvePagePermissions(c, orgSlug.String())
 
 	setHTMLResponseStatus(c, statusCode)
 	return renderTempl(
@@ -1130,11 +1133,7 @@ func (r *Router) renderOrganizationEnvironmentsPage(
 		c.Get(fiber.HeaderCookie),
 	)
 	shellData.Subtitle = "Manage organization runtime targets, non-secret runtime variables, and write-only environment secrets. Project enablement and bindings stay on project runtime pages."
-	permissions := r.resolveOrganizationPermissions(
-		c.Context(),
-		c.Get(fiber.HeaderCookie),
-		orgSlug.String(),
-	)
+	permissions := r.resolvePagePermissions(c, orgSlug.String())
 
 	setHTMLResponseStatus(c, statusCode)
 	return renderTempl(

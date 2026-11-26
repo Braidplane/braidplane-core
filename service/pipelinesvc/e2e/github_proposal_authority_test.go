@@ -19,14 +19,18 @@ import (
 	"github.com/Braidplane/braidplane-core/pkg/must"
 	pipelinespec "github.com/Braidplane/braidplane-core/pkg/pipeline/spec"
 	"github.com/Braidplane/braidplane-core/pkg/slug"
+	"github.com/Braidplane/braidplane-core/pkg/testutil/e2edb"
 	"github.com/Braidplane/braidplane-core/pkg/testutil/fakes"
+	"github.com/Braidplane/braidplane-core/pkg/uuid"
 	"github.com/Braidplane/braidplane-core/postgres"
 	driftimpactrepo "github.com/Braidplane/braidplane-core/postgres/driftimpact"
+	"github.com/Braidplane/braidplane-core/postgres/executionrequests"
 	"github.com/Braidplane/braidplane-core/postgres/githubapps"
 	"github.com/Braidplane/braidplane-core/postgres/odcscontracts"
 	"github.com/Braidplane/braidplane-core/postgres/pipelineruns"
 	pipelinesrepo "github.com/Braidplane/braidplane-core/postgres/pipelines"
 	"github.com/Braidplane/braidplane-core/postgres/projects"
+	"github.com/Braidplane/braidplane-core/service/authorization"
 	"github.com/Braidplane/braidplane-core/service/datasourcessvc"
 	"github.com/Braidplane/braidplane-core/service/pipelinegit"
 	"github.com/Braidplane/braidplane-core/service/pipelineruntime"
@@ -37,7 +41,7 @@ import (
 
 func TestManagedGitHubBackendProvisionsProposalAuthority(t *testing.T) {
 	t.Parallel()
-	pool := openE2EPool(t)
+	pool := e2edb.OpenIsolatedPostgresPool(t, "proposal authority")
 	ctx := t.Context()
 	txm := postgres.NewTransactionManager(pool)
 	store, err := pipelinesvc.NewPipelineStore(pool, txm, pipelinesrepo.New(), odcscontracts.NewRepository())
@@ -144,6 +148,122 @@ func TestManagedGitHubBackendProvisionsProposalAuthority(t *testing.T) {
 	require.Equal(t, bound.Payload(), queued.Authority)
 	require.NoError(t, svc.AuthorizeProposalPublish(ctx, queued))
 
+	t.Run("claimed executor checks the exact scoped grant before each mutation", func(t *testing.T) {
+		repo := executionrequests.New()
+		id := uuid.New()
+		deadline := time.Now().Add(time.Minute)
+		require.NoError(t, repo.Create(ctx, pool, executionrequests.Request{
+			ID: id, OrganizationSlug: org.String(),
+			Kind: "git_scoped_proposal", RequestCiphertext: []byte("synthetic"), DeadlineAt: deadline,
+		}, deadline.Add(time.Minute)))
+		t.Cleanup(func() {
+			_, err := pool.Exec(ctx, `DELETE FROM execution_requests WHERE id=$1`, id)
+			require.NoError(t, err)
+		})
+		require.NoError(t, repo.BindUser(ctx, pool, id, org.String(), member))
+		bind, err := pool.Begin(ctx)
+		require.NoError(t, err)
+		defer func() { _ = bind.Rollback(ctx) }()
+		_, err = bind.Exec(ctx, "SET LOCAL TIME ZONE 'America/New_York'")
+		require.NoError(t, err)
+		ok, err := repo.BindProposal(ctx, bind, id, defaultProjectSlug, source, queued.PipelineSlug, queued.PublishAttemptID, queued.Authority.ID)
+		require.NoError(t, err)
+		require.True(t, ok)
+		require.NoError(t, bind.Commit(ctx))
+		request, claimed, err := repo.Claim(ctx, pool, id)
+		require.NoError(t, err)
+		require.True(t, claimed)
+		check := func(claim uuid.UUID, want bool) {
+			t.Helper()
+			read, err := pool.Begin(ctx)
+			require.NoError(t, err)
+			defer func() { _ = read.Rollback(ctx) }()
+			_, err = read.Exec(ctx, "SET LOCAL TIME ZONE 'Asia/Tokyo'")
+			require.NoError(t, err)
+			facts, err := repo.ClaimedProposalAuthorization(ctx, read, id, claim)
+			require.NoError(t, err)
+			allowed, err := authorization.CanWithResolvedFacts(ctx, model.Update, model.ResourcePipelines, facts)
+			require.NoError(t, err)
+			require.Equal(t, want, allowed)
+		}
+		_, err = pool.Exec(ctx, `UPDATE users SET verified_at=NOW() WHERE slug=$1`, member)
+		require.NoError(t, err)
+		check(request.ClaimToken, false)
+		_, err = pool.Exec(ctx, `INSERT INTO permissions(resource,action) VALUES ('pipelines','update') ON CONFLICT DO NOTHING`)
+		require.NoError(t, err)
+		_, err = pool.Exec(ctx, `WITH role AS (INSERT INTO roles(organization_id,slug,name) VALUES($1,'proposal-writer','Writer') RETURNING id)
+			INSERT INTO role_permissions(role_id,permission_id) SELECT role.id,p.id FROM role CROSS JOIN permissions p WHERE p.resource='pipelines' AND p.action='update'`, orgID)
+		require.NoError(t, err)
+		_, err = pool.Exec(ctx, `INSERT INTO authorization_scoped_grants(organization_id,member_id,role_id,scope,target_kind,target_id)
+			SELECT p.organization_id,m.id,r.id,'resource','pipelines',s.id FROM projects p
+			JOIN pipeline_specs s ON p.id=s.project_id JOIN organization_members m ON m.organization_id=p.organization_id
+			JOIN users u ON u.id=m.user_id JOIN roles r ON r.organization_id=p.organization_id
+			WHERE p.organization_id=$1 AND p.slug=$2 AND s.slug=$3 AND u.slug=$4 AND r.slug='proposal-writer'`, orgID, defaultProjectSlug, queued.PipelineSlug, member)
+		require.NoError(t, err)
+		check(uuid.New(), false)
+		check(request.ClaimToken, true)
+		for _, state := range []string{"editing", "publish_failed", "proposal_open", "proposal_closed", "publish_queued"} {
+			tag, err := pool.Exec(ctx, `UPDATE pipeline_drafts SET draft_state=$1
+                WHERE organization_id=$2 AND publish_attempt_id=$3`, state, orgID, queued.PublishAttemptID)
+			require.NoError(t, err)
+			require.EqualValues(t, 1, tag.RowsAffected())
+			check(request.ClaimToken, state == "publish_queued")
+		}
+		_, err = pool.Exec(ctx, `UPDATE projects SET pipeline_backend_pipeline_dir='other-directory' WHERE organization_id=$1 AND slug=$2`, orgID, defaultProjectSlug)
+		require.NoError(t, err)
+		check(request.ClaimToken, false)
+		_, err = pool.Exec(ctx, `UPDATE projects SET pipeline_backend_pipeline_dir=$3 WHERE organization_id=$1 AND slug=$2`, orgID, defaultProjectSlug, params.PipelineDir)
+		require.NoError(t, err)
+		check(request.ClaimToken, true)
+
+		t.Run("resolved pipeline must match the bound ID", func(t *testing.T) {
+			tx, err := pool.Begin(ctx)
+			require.NoError(t, err)
+			defer func() { _ = tx.Rollback(ctx) }()
+			// Model a later resolver snapshot returning a same-slug replacement.
+			// The isolated transaction rolls back the synthetic resolver after this assertion.
+			_, err = tx.Exec(ctx, `CREATE OR REPLACE FUNCTION authorization_facts(
+                org_slug text, user_slug text, key_slug text, lookup_kind text, resource_slug text,
+                project_slug text, environment_slug text, data_source_slug text, parent_locator text DEFAULT '',
+                locked_grant_ids bigint[] DEFAULT NULL, locked_permission_ids integer[] DEFAULT NULL
+            ) RETURNS jsonb LANGUAGE sql VOLATILE AS $$
+                SELECT '{"valid":true,"target_id":"pipelines:0","organization_id":"1","bindings":[{"scope":"organization","scope_id":"1","permissions":["pipelines:update"]}]}'::jsonb
+            $$`)
+			require.NoError(t, err)
+			facts, err := repo.ClaimedProposalAuthorization(ctx, tx, id, request.ClaimToken)
+			require.NoError(t, err)
+			require.False(t, facts.Valid)
+			require.Empty(t, facts.Bindings)
+		})
+		_, err = pool.Exec(ctx, `UPDATE credentials SET updated_at=updated_at+interval '1 microsecond' WHERE organization_id=$1`, orgID)
+		require.NoError(t, err)
+		check(request.ClaimToken, false)
+		_, err = pool.Exec(ctx, `UPDATE credentials SET updated_at=updated_at-interval '1 microsecond' WHERE organization_id=$1`, orgID)
+		require.NoError(t, err)
+		check(request.ClaimToken, true)
+		_, err = pool.Exec(ctx, `UPDATE github_app_installations SET suspended_at=now() WHERE organization_id=$1`, orgID)
+		require.NoError(t, err)
+		_, err = store.ResolveProposalAuthority(ctx, org, defaultProjectSlug)
+		require.ErrorIs(t, err, pipelinesvc.ErrPipelineProposalAuthorityDenied)
+		pending := uuid.New()
+		require.NoError(t, repo.Create(ctx, pool, executionrequests.Request{ID: pending, OrganizationSlug: org.String(), Kind: "git_scoped_proposal", RequestCiphertext: []byte("synthetic"), DeadlineAt: deadline}, deadline.Add(time.Minute)))
+		t.Cleanup(func() {
+			_, err := pool.Exec(ctx, `DELETE FROM execution_requests WHERE id=$1`, pending)
+			require.NoError(t, err)
+		})
+		require.NoError(t, repo.BindUser(ctx, pool, pending, org.String(), member))
+		rebound, err := repo.BindProposal(ctx, pool, pending, defaultProjectSlug, source, queued.PipelineSlug, queued.PublishAttemptID, queued.Authority.ID)
+		require.NoError(t, err)
+		require.False(t, rebound)
+		check(request.ClaimToken, false)
+		_, err = pool.Exec(ctx, `UPDATE github_app_installations SET suspended_at=NULL WHERE organization_id=$1`, orgID)
+		require.NoError(t, err)
+		check(request.ClaimToken, true)
+		_, err = pool.Exec(ctx, `DELETE FROM authorization_scoped_grants WHERE organization_id=$1`, orgID)
+		require.NoError(t, err)
+		check(request.ClaimToken, false)
+	})
+
 	// Resolution rejects lifecycle and source mutations even before an executor can mint a token.
 	for _, tc := range []struct{ name, change, restore string }{
 		{"ReadOnly", `UPDATE data_sources SET read_only=true WHERE organization_id=$1`, `UPDATE data_sources SET read_only=false WHERE organization_id=$1`},
@@ -154,6 +274,7 @@ func TestManagedGitHubBackendProvisionsProposalAuthority(t *testing.T) {
 		{"RevokedCredential", `UPDATE credentials SET status='revoked' WHERE organization_id=$1`, `UPDATE credentials SET status='active' WHERE organization_id=$1`},
 		{"ChangedInstallation", `UPDATE github_app_installations SET installation_id=installation_id+1 WHERE organization_id=$1`, `UPDATE github_app_installations SET installation_id=installation_id-1 WHERE organization_id=$1`},
 		{"ChangedAccount", `UPDATE github_app_installations SET account_id=3 WHERE organization_id=$1`, `UPDATE github_app_installations SET account_id=2 WHERE organization_id=$1`},
+		{"MissingRepositoryID", `UPDATE data_sources SET config=config #- '{repository,id}' WHERE organization_id=$1`, `UPDATE data_sources SET config=jsonb_set(config,'{repository,id}','"42"') WHERE organization_id=$1`},
 		{"ChangedRepository", `UPDATE data_sources SET config=jsonb_set(config,'{repository,id}','"43"') WHERE organization_id=$1`, `UPDATE data_sources SET config=jsonb_set(config,'{repository,id}','"42"') WHERE organization_id=$1`},
 		{"RevokedAuthority", `UPDATE pipeline_proposal_authorities SET revoked_at=now() WHERE organization_id=$1`, `UPDATE pipeline_proposal_authorities SET revoked_at=NULL WHERE organization_id=$1`},
 	} {

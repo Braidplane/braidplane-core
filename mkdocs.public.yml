@@ -89,3 +89,5 @@ nav:
   - API:
       - Reference: api/index.md
       - Alpha API contract: api/alpha.md
+      - Authorization matrix: api/authorization-matrix.md
+      - Scoped role grants: api/authorization-migration.md

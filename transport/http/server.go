@@ -224,6 +224,9 @@ func (s *server) CurrentUser(c fiber.Ctx) (reqctx.UserPrincipal, bool) {
 
 // Can authorizes a global user action through the shared authorization service.
 func (s *server) Can(c fiber.Ctx, action model.Action, resource model.Resource) error {
+	if resource == model.ResourceUsers && routeOperation(c) == "" {
+		return s.canWithInput(c, authorization.Input{Operation: "instanceUserAdministration", UserSlug: reqctx.GetUserSlug(c, s.sessionStore), Action: action, Resource: resource})
+	}
 	return s.can(c, action, resource)
 }
 
@@ -262,6 +265,14 @@ func (s *server) authorizeOrg(
 	resource model.Resource,
 	checkWriteAdmission bool,
 ) error {
+	return s.authorizeOrgTarget(c, orgSlug, action, resource, routeAuthorizationTarget(c, resource), checkWriteAdmission)
+}
+
+func (s *server) authorizeOrgTarget(c fiber.Ctx, orgSlug slug.Slug, action model.Action, resource model.Resource, target model.AuthorizationTarget, checkWriteAdmission bool) error {
+	return s.authorizeOrgTargetFor(c, orgSlug, action, resource, target, checkWriteAdmission, "")
+}
+
+func (s *server) authorizeOrgTargetFor(c fiber.Ctx, orgSlug slug.Slug, action model.Action, resource model.Resource, target model.AuthorizationTarget, checkWriteAdmission bool, purpose string) error {
 	if principal, ok := reqctx.GetAPIKeyPrincipal(c); ok {
 		if principal.OrgSlug != orgSlug {
 			return apierror.Forbidden(resource.String(), action.String())
@@ -271,16 +282,20 @@ func (s *server) authorizeOrg(
 			APIKeyRoleSlug: principal.Role,
 			Action:         action,
 			Resource:       resource,
+			Target:         target,
+			CheckPurpose:   purpose,
 			OrgSlug:        &orgSlug,
 		}, checkWriteAdmission)
 	}
 
 	userSlug := reqctx.GetUserSlug(c, s.sessionStore)
 	return s.authorize(c, authorization.Input{
-		UserSlug: userSlug,
-		Action:   action,
-		Resource: resource,
-		OrgSlug:  &orgSlug,
+		UserSlug:     userSlug,
+		Action:       action,
+		Resource:     resource,
+		Target:       target,
+		CheckPurpose: purpose,
+		OrgSlug:      &orgSlug,
 	}, checkWriteAdmission)
 }
 
@@ -306,6 +321,7 @@ func (s *server) canOrgUserSession(
 		UserSlug: userPrincipal.Slug,
 		Action:   action,
 		Resource: resource,
+		Target:   routeAuthorizationTarget(c, resource),
 		OrgSlug:  &orgSlug,
 	})
 }
@@ -326,6 +342,7 @@ func (s *server) canOrgAPIKeyManager(
 			APIKeyRoleSlug: principal.Role,
 			Action:         action,
 			Resource:       model.ResourceAPIKeys,
+			Target:         routeAuthorizationTarget(c, model.ResourceAPIKeys),
 			OrgSlug:        &orgSlug,
 		})
 	}
@@ -342,6 +359,7 @@ func (s *server) canOrgAPIKeyManager(
 		UserSlug: userPrincipal.Slug,
 		Action:   action,
 		Resource: model.ResourceAPIKeys,
+		Target:   routeAuthorizationTarget(c, model.ResourceAPIKeys),
 		OrgSlug:  &orgSlug,
 	})
 }
@@ -352,6 +370,10 @@ func (s *server) canOrgUserPrincipal(
 	action model.Action,
 	resource model.Resource,
 ) (slug.Slug, error) {
+	return s.canOrgUserTarget(c, orgSlug, action, resource, routeAuthorizationTarget(c, resource))
+}
+
+func (s *server) canOrgUserTarget(c fiber.Ctx, orgSlug slug.Slug, action model.Action, resource model.Resource, target model.AuthorizationTarget) (slug.Slug, error) {
 	if _, ok := reqctx.GetAPIKeyPrincipal(c); ok {
 		return "", apierror.UserPrincipalRequired()
 	}
@@ -365,6 +387,7 @@ func (s *server) canOrgUserPrincipal(
 		UserSlug: userPrincipal.Slug,
 		Action:   action,
 		Resource: resource,
+		Target:   target,
 		OrgSlug:  &orgSlug,
 	})
 	if err != nil {
@@ -387,13 +410,20 @@ func (s *server) canSessionProfile(c fiber.Ctx, action model.Action) (slug.Slug,
 		return "", apierror.UserPrincipalRequired()
 	}
 
-	err := s.canWithInput(c, authorization.Input{
+	input := authorization.Input{
 		UserSlug:          userPrincipal.Slug,
 		Action:            action,
 		Resource:          model.ResourceProfile,
 		ResourceOwnerSlug: &userPrincipal.Slug,
-	})
-	if err != nil {
+	}
+	if routeOperation(c) == "patchUsersProfile" {
+		input.CheckPurpose = "mfa"
+		_, input.SessionAuthenticatedAt = reqctx.SessionAuthentication(c, s.sessionStore)
+		if !authorization.RecentSessionAuthentication(input.SessionAuthenticatedAt) {
+			return "", apierror.New(fiber.StatusForbidden, "RECENT_AUTHENTICATION_REQUIRED", "Sign in again with your password or MFA before changing MFA settings.")
+		}
+	}
+	if err := s.canWithInput(c, input); err != nil {
 		return "", err
 	}
 
@@ -451,7 +481,11 @@ func (s *server) authorize(c fiber.Ctx, input authorization.Input, checkWriteAdm
 		return apierror.Unauthorized()
 	}
 
-	can, err := s.authorizationService.Can(c.Context(), input)
+	if input.Resource == model.ResourceDataSources && isProjectBindingRoute(c.Route().Path) && input.Target.Kind != "datasources" {
+		input.ProjectDataSourceBindings = true
+	}
+
+	can, err := s.authorizeOperation(c, input)
 	if err != nil {
 		slog.LogAttrs(
 			c.Context(),

@@ -22,7 +22,7 @@ func (r *Router) handlePipelineSync(c fiber.Ctx) error {
 	if !ok {
 		return c.SendStatus(http.StatusBadRequest)
 	}
-	permissions := r.resolveOrganizationPermissions(c.Context(), c.Get(fiber.HeaderCookie), org.String())
+	permissions := r.resolvePagePermissions(c, org.String())
 	if !permissions.Can("pipelines", "update") {
 		return r.renderPipelineGitAccessDenied(c, org.String(), project.String(), permissions.Can("pipelines", "read"),
 			"You need permission to update pipelines to sync from Git.")
@@ -135,7 +135,7 @@ func (r *Router) handlePipelineDeploy(c fiber.Ctx) error {
 	if !ok || err != nil {
 		return c.SendStatus(http.StatusBadRequest)
 	}
-	permissions := r.resolveOrganizationPermissions(c.Context(), c.Get(fiber.HeaderCookie), org.String())
+	permissions := r.resolvePagePermissions(c, org.String())
 	canUpdate := permissions.Can("pipelines", "update")
 	if !permissions.Can("pipelines", "read") {
 		return r.renderPipelineGitAccessDenied(c, org.String(), project.String(), false, "You need permission to read pipelines to inspect deployments.")
@@ -177,6 +177,10 @@ func (r *Router) handlePipelineDeploy(c fiber.Ctx) error {
 			return redirectToLogin(c, c.OriginalURL())
 		}
 		data.Error = pipelineActionError(apiError, "Enabled environments are unavailable.")
+		if status == http.StatusForbidden {
+			backendDenied = true
+			data.Error = "This deployment page requires environment read access on the project to check whether the target is enabled and protected."
+		}
 	} else {
 		data.Environments = environments.ProjectEnvironments
 		if data.Environment == "" && c.Method() == http.MethodGet {
@@ -201,10 +205,21 @@ func (r *Router) handlePipelineDeploy(c fiber.Ctx) error {
 		case status == http.StatusUnauthorized:
 			return redirectToLogin(c, c.OriginalURL())
 		case status != http.StatusNotFound:
-			data.Error = pipelineActionError(apiError, "Current deployment is unavailable. Refresh before deploying.")
+			data.CurrentDeploymentError = pipelineActionError(apiError, "Current deployment is unavailable. Refresh before deploying.")
 		}
 	}
-	data.CanDeploy = canUpdate && data.Error == ""
+	if data.TargetEnabled {
+		target := api.GetEffectivePermissionsParams{
+			TargetKind: new("deployment_targets"), TargetSlug: &data.Pipeline,
+			ProjectSlug: &data.Project, EnvironmentSlug: &data.Environment,
+		}
+		deployPermissions := organizationPermissions(r.effectivePermissions(ctx, cookie, data.Org, &target))
+		canDeploy := deployPermissions.Can("pipelines", "update")
+		data.CanDeploy = canDeploy && data.CurrentDeploymentError == ""
+		if c.Method() == http.MethodPost && c.FormValue("action") != "compile" {
+			updateDenied = !canDeploy
+		}
+	}
 	if data.Current != nil {
 		data.ExpectedRevision = data.Current.Revision
 	}
@@ -229,7 +244,7 @@ func (r *Router) handlePipelineDeploy(c fiber.Ctx) error {
 	if data.CanDeploy && c.Method() == http.MethodPost && c.FormValue("action") == "compile" && !data.CanCompile {
 		data.Error = "New contract compilation is disabled. Retained plans remain inspectable."
 	}
-	if data.CanDeploy && data.CanCompile && c.Method() == http.MethodPost && c.FormValue("action") == "compile" {
+	if data.TargetEnabled && data.Error == "" && data.CanCompile && c.Method() == http.MethodPost && c.FormValue("action") == "compile" {
 		data.ProjectionJSON = strings.TrimSpace(c.FormValue("projection"))
 		data.ResourceScopesJSON = strings.TrimSpace(c.FormValue("resource_scopes"))
 		body := api.PipelineCompilationRequest{}

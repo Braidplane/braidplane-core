@@ -86,7 +86,7 @@ func TestRouter_HandleMembersPage_RendersMembersList(t *testing.T) {
 				),
 			)
 			return
-		case "/api/organizations/acme-hq/roles/admin":
+		case "/api/organizations/acme-hq/authorization/permissions":
 			w.Header().Set("Content-Type", "application/json")
 			_, _ = w.Write(
 				[]byte(
@@ -175,7 +175,7 @@ func TestRouter_HandleMembersPage_RendersPendingInvitationsSeparately(t *testing
 				w,
 				`{"organizations":[{"name":"Acme HQ","slug":"acme-hq","member_role":"admin","created_at":"2026-03-01T00:00:00Z","updated_at":"2026-03-01T00:00:00Z"}],"has_more":false,"next_cursor":null,"prev_cursor":null}`,
 			)
-		case "/api/organizations/acme-hq/roles/admin":
+		case "/api/organizations/acme-hq/authorization/permissions":
 			writeJSON(
 				w,
 				`{"slug":"admin","name":"Admin","is_default":true,"permissions":[{"resource":"members","action":"create"},{"resource":"members","action":"update"},{"resource":"members","action":"delete"}],"created_at":"2026-03-01T00:00:00Z","updated_at":"2026-03-01T00:00:00Z"}`,
@@ -240,7 +240,7 @@ func TestRouter_HandleMembersPage_PaginatesInvitationsSeparately(t *testing.T) {
 				w,
 				`{"organizations":[{"name":"Acme HQ","slug":"acme-hq","member_role":"admin","created_at":"2026-03-01T00:00:00Z","updated_at":"2026-03-01T00:00:00Z"}],"has_more":false,"next_cursor":null,"prev_cursor":null}`,
 			)
-		case "/api/organizations/acme-hq/roles/admin":
+		case "/api/organizations/acme-hq/authorization/permissions":
 			writeJSON(
 				w,
 				`{"slug":"admin","name":"Admin","is_default":true,"permissions":[{"resource":"members","action":"create"},{"resource":"members","action":"update"},{"resource":"members","action":"delete"}],"created_at":"2026-03-01T00:00:00Z","updated_at":"2026-03-01T00:00:00Z"}`,
@@ -305,7 +305,7 @@ func TestRouter_HandleMembersPage_GatesActionsFromRolePermissions(t *testing.T) 
 				),
 			)
 			return
-		case "/api/organizations/acme-hq/roles/viewer":
+		case "/api/organizations/acme-hq/authorization/permissions":
 			w.Header().Set("Content-Type", "application/json")
 			_, _ = w.Write(
 				[]byte(
@@ -527,7 +527,7 @@ func TestRouter_HandleCreateMemberSubmit_InvalidInputRendersPopup(t *testing.T) 
 			return
 		}
 
-		if r.Method == http.MethodGet && r.URL.Path == "/api/organizations/acme-hq/roles/admin" {
+		if r.Method == http.MethodGet && r.URL.Path == "/api/organizations/acme-hq/authorization/permissions" {
 			w.Header().Set("Content-Type", "application/json")
 			_, _ = w.Write(
 				[]byte(
@@ -597,7 +597,7 @@ func TestRouter_HandleCreateMemberSubmit_InvalidInputHTMXRendersInviteSection(t 
 			return
 		}
 
-		if r.Method == http.MethodGet && r.URL.Path == "/api/organizations/acme-hq/roles/admin" {
+		if r.Method == http.MethodGet && r.URL.Path == "/api/organizations/acme-hq/authorization/permissions" {
 			w.Header().Set("Content-Type", "application/json")
 			_, _ = w.Write(
 				[]byte(
@@ -672,7 +672,7 @@ func TestRouter_HandleCreateMemberSubmit_APIErrorHTMXShowsInviteError(t *testing
 			_, _ = w.Write([]byte(`{"organizations":[{"name":"Acme","slug":"acme-hq","member_role":"admin"}]}`))
 			return
 		}
-		if r.Method == http.MethodGet && r.URL.Path == "/api/organizations/acme-hq/roles/admin" {
+		if r.Method == http.MethodGet && r.URL.Path == "/api/organizations/acme-hq/authorization/permissions" {
 			w.Header().Set("Content-Type", "application/json")
 			_, _ = w.Write([]byte(`{"slug":"admin","permissions":[{"resource":"members","action":"create"}]}`))
 			return
@@ -907,7 +907,8 @@ func TestRouter_HandleUpdateMemberRoleSubmit_ConflictRendersPopup(t *testing.T) 
 			_, _ = w.Write([]byte(`{"organizations":[{"name":"Acme","slug":"acme-hq","member_role":"admin"}]}`))
 			return
 		}
-		if r.Method == http.MethodGet && r.URL.Path == "/api/organizations/acme-hq/roles/admin" {
+		if r.Method == http.MethodGet && r.URL.Path == "/api/organizations/acme-hq/authorization/permissions" {
+			assert.Empty(t, r.URL.RawQuery, "the member collection controls must use organization permissions")
 			w.Header().Set("Content-Type", "application/json")
 			_, _ = w.Write([]byte(`{"slug":"admin","permissions":[{"resource":"members","action":"read"},{"resource":"members","action":"update"}]}`))
 			return
@@ -978,7 +979,8 @@ func TestRouter_HandleUpdateMemberRoleSubmit_ConflictHTMXRendersPopup(t *testing
 			_, _ = w.Write([]byte(`{"organizations":[{"name":"Acme","slug":"acme-hq","member_role":"admin"}]}`))
 			return
 		}
-		if r.Method == http.MethodGet && r.URL.Path == "/api/organizations/acme-hq/roles/admin" {
+		if r.Method == http.MethodGet && r.URL.Path == "/api/organizations/acme-hq/authorization/permissions" {
+			assert.Empty(t, r.URL.RawQuery, "the member collection controls must use organization permissions")
 			w.Header().Set("Content-Type", "application/json")
 			_, _ = w.Write([]byte(`{"slug":"admin","permissions":[{"resource":"members","action":"read"},{"resource":"members","action":"update"}]}`))
 			return
@@ -1167,7 +1169,7 @@ func TestRouter_HandleRemoveMemberSubmit_HTMXRedirectHeader(t *testing.T) {
 			return
 		}
 
-		if r.URL.Path == "/api/organizations/acme-hq/roles/admin" && r.Method == http.MethodGet {
+		if r.URL.Path == "/api/organizations/acme-hq/authorization/permissions" && r.Method == http.MethodGet {
 			w.Header().Set("Content-Type", "application/json")
 			_, _ = w.Write(
 				[]byte(
@@ -1244,7 +1246,7 @@ func TestRouter_HandleRemoveMemberSubmit_HTMXRendersFailure(t *testing.T) {
 			return
 		}
 
-		if r.URL.Path == "/api/organizations/acme-hq/roles/admin" && r.Method == http.MethodGet {
+		if r.URL.Path == "/api/organizations/acme-hq/authorization/permissions" && r.Method == http.MethodGet {
 			w.Header().Set("Content-Type", "application/json")
 			_, _ = w.Write(
 				[]byte(

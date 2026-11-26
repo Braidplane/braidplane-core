@@ -21,7 +21,7 @@ func (r *Router) handleODCSCatalog(c fiber.Ctx) error {
 	if !ok {
 		return c.SendStatus(http.StatusBadRequest)
 	}
-	permissions := r.resolveOrganizationPermissions(c.Context(), c.Get(fiber.HeaderCookie), org.String())
+	permissions := r.resolvePagePermissions(c, org.String())
 	if !permissions.Can("projects", "read") {
 		return c.SendStatus(http.StatusForbidden)
 	}

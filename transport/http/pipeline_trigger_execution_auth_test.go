@@ -72,6 +72,7 @@ func TestScheduleAndWebhookMutationsRequireExecutionPermission(t *testing.T) {
 							}
 							require.Equal(t, model.ResourcePipelines, input.Resource)
 							require.Equal(t, model.Execute, input.Action)
+							require.Equal(t, model.AuthorizationTarget{Kind: "deployed_pipelines", Slug: "replacement", ProjectSlug: "operations", EnvironmentSlug: "prod"}, input.Target)
 							if permission == "execution-error" {
 								return false, xerror.Unexpected().Detail("synthetic authorization failure")
 							}

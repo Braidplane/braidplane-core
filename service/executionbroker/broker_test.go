@@ -74,6 +74,7 @@ func (d *recordingDispatcher) Dispatch(
 }
 
 type fakeRequestRepo struct {
+	rejectProposal        bool
 	dispatchDenied        bool
 	dispatchErr           error
 	lastDispatch          requestrepo.DispatchAuthority
@@ -759,6 +760,16 @@ func TestGitProposalCreationUsesDistinctExecutionKind(t *testing.T) {
 			require.Equal(t, want, repo.created.Kind)
 		})
 	}
+}
+
+func TestGitProposalRejectedBindingPreventsDispatch(t *testing.T) {
+	cipher, err := crypto.NewAES256(make([]byte, 32))
+	require.NoError(t, err)
+	dispatcher := &recordingDispatcher{}
+	broker := &Broker{admission: testutil.FakeOperationAdmission{}, txm: fakeTXM{}, repo: &fakeRequestRepo{rejectProposal: true}, cipher: cipher, dispatcher: dispatcher, requestTimeout: testRequestTimeout}
+	_, err = broker.ExecuteGitProposal(t.Context(), pipelinegit.RemoteProposalRequest{Operation: pipelinegit.ProposalOperation{OrganizationSlug: "acme"}})
+	require.ErrorIs(t, err, pipelinegit.ErrProposalAuthorityInvalid)
+	require.Zero(t, dispatcher.calls.Load())
 }
 
 func TestGitProposalRejectsMismatchedCreationKindBeforeExecution(t *testing.T) {
@@ -2422,4 +2433,12 @@ func TestDestinationConstraintSurvivesWorkerBoundary(t *testing.T) {
 	require.Equal(t, xerror.KindInvalidInput, typed.Kind())
 	require.Equal(t, xerror.PublicDetail(original), xerror.PublicDetail(restored))
 	require.NotContains(t, restored.Error(), "private-row-value")
+}
+
+func (r *fakeRequestRepo) BindProposal(context.Context, postgres.DBTX, uuid.UUID, slug.Slug, slug.Slug, slug.Slug, string, int64) (bool, error) {
+	return !r.rejectProposal, nil
+}
+
+func (*fakeRequestRepo) ClaimedProposalAuthorization(context.Context, postgres.DBTX, uuid.UUID, uuid.UUID) (model.AuthorizationFacts, error) {
+	return model.AuthorizationFacts{}, nil
 }

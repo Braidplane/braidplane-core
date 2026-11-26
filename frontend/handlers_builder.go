@@ -408,11 +408,21 @@ func (r *Router) handleBuilderBlueprintPage(c fiber.Ctx) error {
 	builderState.TargetEnvironmentColor = strings.TrimSpace(shellData.ActiveEnvironmentColor)
 	builderState.CanRun, builderState.RunReason = builderRunAvailability(builderState)
 	if saveOrganizationSlug != "" {
-		permissions := r.resolveOrganizationPermissions(c.Context(), c.Get(fiber.HeaderCookie), saveOrganizationSlug)
-		builderState.CanCreatePipeline = permissions.Can("pipelines", "create")
+		permissions := r.resolvePagePermissions(c, saveOrganizationSlug)
+		if saveProjectSlug != "" {
+			builderState.CanCreatePipeline = r.rowAllows(c, saveOrganizationSlug, "projects", saveProjectSlug, "pipelines", "create", permissions)
+		}
 		builderState.CanRefreshSchemas = permissions.Can("datasources", "update")
-		builderState.CanExecutePipeline = permissions.Can("pipelines", "execute")
-		if !builderState.CanExecutePipeline {
+		if saveProjectSlug != "" && builderState.PipelineSlug != "" && builderState.TargetEnvironmentSlug != "" {
+			target := api.GetEffectivePermissionsParams{
+				TargetKind: new("deployed_pipelines"), TargetSlug: &builderState.PipelineSlug,
+				ProjectSlug: &saveProjectSlug, EnvironmentSlug: &builderState.TargetEnvironmentSlug,
+			}
+			deploymentPermissions := r.targetPermissions(c, saveOrganizationSlug, target)
+			builderState.CanBootstrap = builderState.CanRun && deploymentPermissions.Can("pipelines", "update")
+			builderState.CanExecutePipeline = deploymentPermissions.Can("pipelines", "execute")
+		}
+		if builderState.CanRun && !builderState.CanExecutePipeline {
 			builderState.CanRun = false
 			builderState.RunReason = "You don't have permission to execute pipelines."
 		}

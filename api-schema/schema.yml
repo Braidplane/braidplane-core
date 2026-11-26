@@ -1534,6 +1534,105 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
 
+  /organizations/{slug}/authorization/grants:
+    parameters:
+      - $ref: '#/components/parameters/SlugParam'
+    get:
+      summary: List additional role grants in the organization
+      description: Includes grants added to members and API keys. Their primary organization roles are managed separately.
+      operationId: listRoleGrants
+      tags: [roles]
+      responses:
+        '200':
+          description: Role grants
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RoleGrantList'
+        '403':
+          description: Organization role read permission required
+    post:
+      summary: Grant a role to a member or API key at a specified scope
+      description: A session or personal access token with organization-wide role update authority can delegate this role. The grant adds to the subject's existing permissions.
+      operationId: createRoleGrant
+      tags: [roles]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/NewRoleGrant'
+      responses:
+        '201':
+          description: Role granted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RoleGrant'
+        '400':
+          description: Invalid grant
+        '403':
+          description: Organization role update permission required
+        '404':
+          description: Subject, role, or target unavailable
+        '409':
+          description: Grant already exists
+  /organizations/{slug}/authorization/grants/{grant_slug}:
+    delete:
+      summary: Revoke an additional role grant
+      description: Requires a session or personal access token with organization-wide role update authority.
+      operationId: revokeRoleGrant
+      tags: [roles]
+      parameters:
+        - $ref: '#/components/parameters/SlugParam'
+        - name: grant_slug
+          in: path
+          required: true
+          schema: {$ref: '#/components/schemas/Slug'}
+      responses:
+        '204':
+          description: Grant revoked
+        '403':
+          description: Organization role update permission required
+        '404':
+          description: Grant unavailable
+
+  /organizations/{slug}/authorization/permissions:
+    get:
+      summary: List effective tenant permissions for the authenticated principal
+      description: Evaluates the shared permission policy against current bindings and a server-resolved target. An allowed permission may still require a session, credential opt-in, write admission, or an additional permission for a particular operation.
+      operationId: getEffectivePermissions
+      tags: [organizations]
+      parameters:
+        - $ref: '#/components/parameters/SlugParam'
+        - {name: target_kind, in: query, schema: {type: string}}
+        - name: target_slug
+          in: query
+          description: Object slug, runtime key, or webhook delivery identifier, according to target_kind.
+          schema: {type: string, minLength: 1, maxLength: 128}
+        - {name: parent_slug, in: query, schema: {type: string}}
+        - {name: project_slug, in: query, schema: {type: string}}
+        - {name: environment_slug, in: query, schema: {type: string}}
+        - {name: datasource_slug, in: query, schema: {type: string}}
+        - name: project_datasource_bindings
+          in: query
+          description: Include data source permissions for project-owned references and bindings.
+          schema: {type: boolean, default: false}
+      responses:
+        '200':
+          description: Allowed Core resource and action pairs for this target. Missing targets and denied access both return an empty list.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [permissions]
+                properties:
+                  permissions: {type: array, items: {$ref: '#/components/schemas/Permission'}}
+        '400':
+          description: Invalid selector or permission
+        '401':
+          description: Authentication required
+
   /organizations/{slug}/retention:
     get:
       summary: Get organization retention policy
@@ -9016,7 +9115,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
         '403':
-          description: Forbidden - caller not authorized to access this environment-scoped resource
+          description: Forbidden - the run could not be resolved in the requested scope or the caller lacks access
           content:
             application/json:
               schema:
@@ -9083,7 +9182,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
         '403':
-          description: Forbidden - caller not authorized to access this environment-scoped resource
+          description: Forbidden - the run could not be resolved in the requested scope or the caller lacks access
           content:
             application/json:
               schema:
@@ -12665,6 +12764,39 @@ components:
       required:
         - resource
         - action
+
+    NewRoleGrant:
+      type: object
+      additionalProperties: false
+      required: [subject_kind, subject_slug, role_slug, scope]
+      properties: &roleGrantProperties
+        subject_kind: {type: string, enum: [member, api_key]}
+        subject_slug: {$ref: '#/components/schemas/Slug'}
+        role_slug: {$ref: '#/components/schemas/Slug'}
+        scope: {type: string, enum: [organization, project, environment, resource]}
+        target_kind:
+          type: string
+          description: Required for resource scope. Use the resource's authorization target kind, such as pipelines or queries.
+        target_slug:
+          type: string
+          minLength: 1
+          maxLength: 128
+          description: Project, environment, or individual resource identifier. Optional for organization scope. An existing grant omits this field if its target has been purged.
+        project_slug: {$ref: '#/components/schemas/Slug'}
+        environment_slug: {$ref: '#/components/schemas/Slug'}
+        datasource_slug: {$ref: '#/components/schemas/Slug'}
+        parent_slug: {$ref: '#/components/schemas/Slug'}
+    RoleGrant:
+      type: object
+      required: [slug, subject_kind, subject_slug, role_slug, scope]
+      properties:
+        <<: *roleGrantProperties
+        slug: {$ref: '#/components/schemas/Slug'}
+    RoleGrantList:
+      type: object
+      required: [grants]
+      properties:
+        grants: {type: array, items: {$ref: '#/components/schemas/RoleGrant'}}
 
     NewOrgRole:
       type: object

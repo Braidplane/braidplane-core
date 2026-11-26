@@ -234,7 +234,7 @@ func (r *Router) handleOrganizationDetailPage(c fiber.Ctx) error {
 			shellData,
 			*organization,
 			activeOrganizationSlug,
-			r.resolveOrganizationPermissions(c.Context(), c.Get(fiber.HeaderCookie), orgSlug.String()).Can("organizations", "delete"),
+			r.resolvePagePermissions(c, orgSlug.String()).Can("organizations", "delete"),
 		),
 	)
 }
@@ -317,11 +317,7 @@ func (r *Router) handleOrganizationRetentionPage(c fiber.Ctx) error {
 		runsError = "Maintenance history is temporarily unavailable."
 	}
 
-	permissions := r.resolveOrganizationPermissions(
-		c.Context(),
-		cookieHeader,
-		orgSlug.String(),
-	)
+	permissions := r.resolvePagePermissions(c, orgSlug.String())
 	shellData := r.buildShellDataForOrganizationPage(
 		c,
 		"Organization retention",
@@ -446,7 +442,7 @@ func (r *Router) handleOrganizationProjectsPage(c fiber.Ctx) error {
 		} else if environments != nil {
 			projectContext.Environments = environments.ProjectEnvironments
 		}
-		permissions := r.resolveOrganizationPermissions(c.Context(), c.Get(fiber.HeaderCookie), orgSlug.String())
+		permissions := r.targetPermissions(c, orgSlug.String(), api.GetEffectivePermissionsParams{TargetKind: new("projects"), TargetSlug: &selectedProjectSlug})
 		return renderTempl(c, views.OrganizationProjectDetailPanelSlot(organization, []api.Project{*project}, selectedProjectSlug, views.ProjectPipelineBackendControls{}, projectContext, permissions))
 	}
 
@@ -631,16 +627,13 @@ func (r *Router) renderOrganizationProjectFullPage(
 	if project.PipelineBackend == nil {
 		r.loadManagedRepositorySetup(c, orgSlug.String(), projectSlug.String(), &backendControls)
 	}
+	backendControls.OrganizationPermissions = r.resolveOrganizationPermissions(c.Context(), c.Get(fiber.HeaderCookie), orgSlug.String())
 	overview := views.ProjectSection(views.WithEntityPageURL(c.Context(), renderPageURL(c))) == "overview"
 	projectContext, unauthorized := r.loadProjectOperationalContext(c, orgSlug, projectSlug.String(), overview, backendDataSources, backendControls.DataSourceLoadError != "")
 	if unauthorized {
 		return redirectToLogin(c, c.OriginalURL())
 	}
-	permissions := r.resolveOrganizationPermissions(
-		c.Context(),
-		c.Get(fiber.HeaderCookie),
-		orgSlug.String(),
-	)
+	permissions := r.targetPermissions(c, orgSlug.String(), api.GetEffectivePermissionsParams{TargetKind: new("projects"), TargetSlug: new(projectSlug.String())})
 
 	if r.workspaceNavigation != nil {
 		projectContext.OverviewAction = r.workspaceNavigation.ProjectOverviewAction(c, routerManagedHost{router: r}, orgSlug, projectSlug)
@@ -906,11 +899,12 @@ func (r *Router) renderOrganizationProjectsPage(
 	if unauthorized {
 		return redirectToLogin(c, c.OriginalURL())
 	}
-	permissions := r.resolveOrganizationPermissions(
-		c.Context(),
-		c.Get(fiber.HeaderCookie),
-		orgSlug.String(),
-	)
+	orgPermissions := r.resolveOrganizationPermissions(c.Context(), c.Get(fiber.HeaderCookie), orgSlug.String())
+	backendControls.OrganizationPermissions = orgPermissions
+	permissions := views.DefaultOrganizationPermissions()
+	if selectedProjectSlug != "" {
+		permissions = r.targetPermissions(c, orgSlug.String(), api.GetEffectivePermissionsParams{TargetKind: new("projects"), TargetSlug: &selectedProjectSlug})
+	}
 
 	setHTMLResponseStatus(c, statusCode)
 	return renderTempl(
@@ -923,6 +917,7 @@ func (r *Router) renderOrganizationProjectsPage(
 			backendControls,
 			projectContext,
 			permissions,
+			orgPermissions.Can("projects", "create"),
 			createFormData,
 			contentErrorSummary,
 			contentErrorDetails,
@@ -1226,6 +1221,7 @@ func (r *Router) loadProjectOperationalContext(
 			context.Bindings[environment.EnvironmentSlug] = bindings.DataSourceBindings
 		}
 	}
+	context.CellPermissions = r.bindingCellPermissions(c, orgSlug.String(), projectSlug, views.ProjectBindingRows(context))
 	return context, false
 }
 

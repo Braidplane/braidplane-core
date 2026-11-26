@@ -10,11 +10,11 @@ get {
 }
 
 tests {
-  test("should return 404 Not Found", function() {
-    expect(res.status).to.equal(404);
+  test("should return 403 Forbidden", function() {
+    expect(res.status).to.equal(403);
   });
 
-  test("should return pipeline run not found error code", function() {
-    expect(res.body.error.code).to.equal('PIPELINE_RUN_NOT_FOUND');
+  test("should deny access to the unresolved run", function() {
+    expect(res.body.error.code).to.equal('AUTH_FORBIDDEN');
   });
 }

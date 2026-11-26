@@ -10,6 +10,7 @@ import (
 	"log/slog"
 	"time"
 
+	"github.com/Braidplane/braidplane-core/pkg/domain/model"
 	"github.com/Braidplane/braidplane-core/pkg/logging"
 	"github.com/Braidplane/braidplane-core/pkg/tracing"
 )
@@ -54,5 +55,34 @@ func (_d ServiceWithLogging) Can(ctx context.Context, input Input) (b1 bool, err
 		})
 	}()
 	b1, err = _d._base.Can(_ctx, input)
+	return
+}
+
+// EffectivePermissions implements Service.
+func (_d ServiceWithLogging) EffectivePermissions(ctx context.Context, input Input) (ra1 []model.RolePermission, err error) {
+	_startedAt := time.Now()
+	_ctx := ctx
+	_ctx, _span := tracing.StartMethodSpan(_ctx, tracing.MethodSpan{
+		Layer:     "service",
+		Package:   "service/authorization",
+		Interface: "Service",
+		Method:    "EffectivePermissions",
+	})
+	defer _span.End()
+	defer func() {
+		if err != nil {
+			tracing.RecordError(_span, err)
+		}
+		logging.LogMethodCompletion(_ctx, _d._logger, logging.MethodCompletion{
+			Layer:       "service",
+			Package:     "service/authorization",
+			Interface:   "Service",
+			Method:      "EffectivePermissions",
+			StartedAt:   _startedAt,
+			CompletedAt: time.Now(),
+			Err:         err,
+		})
+	}()
+	ra1, err = _d._base.EffectivePermissions(_ctx, input)
 	return
 }

@@ -305,6 +305,15 @@ describe("query detail initialization", () => {
 });
 
 describe("alert policy scope forms", () => {
+    it("clears the previous project's environments before a selector refresh", () => {
+        document.body.innerHTML =
+            '<form data-alert-policy-form><input name="project_slug"><select name="environment_slug"><option selected>prod</option></select></form>';
+        window.braidplaneInitAlertPolicyForms(document);
+        document.querySelector("input").dispatchEvent(new Event("input", { bubbles: true }));
+        expect(document.querySelector("select").value).toBe("");
+        expect(document.querySelector("select").textContent).not.toContain("prod");
+    });
+
     it("DisablesInactiveProjectAndEnvironmentScopeFields", () => {
         document.body.innerHTML = `
             <form data-alert-policy-form>
@@ -1128,6 +1137,20 @@ describe("alert policy review", () => {
         window.braidplaneInitAlertPolicyForms(selector);
         expect(review.textContent).toContain("Resolved");
     });
+});
+
+it("keeps project slug edits made while alert selectors are refreshing", () => {
+    document.body.innerHTML =
+        '<form><div data-alert-policy-selector><input name="project_slug" value="ops"></div></form>';
+    const input = document.querySelector("input");
+    const detail = {
+        target: input.parentElement,
+        requestConfig: { formData: new FormData(input.form) },
+        shouldSwap: true,
+    };
+    input.value = "ops-prod";
+    input.dispatchEvent(new CustomEvent("htmx:beforeSwap", { bubbles: true, detail }));
+    expect(detail.shouldSwap).toBe(false);
 });
 
 describe("project branch refresh", () => {

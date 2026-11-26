@@ -14,7 +14,7 @@ import (
 
 type pipelineWebhookService interface {
 	Accept(context.Context, pipelinewebhooksvc.AcceptRequest) (pipelinewebhooksvc.Acceptance, error)
-	ListDeliveries(context.Context, slug.Slug, slug.Slug, slug.Slug, slug.Slug, model.ListRequest) (model.ListResponse[pipelinewebhooksvc.DeliveryDiagnostic], error)
+	ListDeliveries(context.Context, slug.Slug, slug.Slug, slug.Slug, slug.Slug, bool, model.ListRequest) (model.ListResponse[pipelinewebhooksvc.DeliveryDiagnostic], error)
 	GetDelivery(context.Context, slug.Slug, slug.Slug, slug.Slug, slug.Slug, string) (pipelinewebhooksvc.DeliveryDiagnostic, error)
 	ReplayDelivery(context.Context, slug.Slug, slug.Slug, slug.Slug, slug.Slug, string) (pipelinewebhooksvc.DeliveryDiagnostic, error)
 }
@@ -49,7 +49,12 @@ func (s *server) ListPipelineWebhookDeliveries(c fiber.Ctx, slugParam api.SlugPa
 	if err := s.canOrg(c, orgSlug, model.Read, model.ResourcePipelineTriggers); err != nil {
 		return err
 	}
-	response, err := s.pipelineWebhookService.ListDeliveries(c.Context(), orgSlug, projectSlug, environmentSlug, triggerSlug, model.ListRequest{
+	target := routeAuthorizationTarget(c, model.ResourcePipelineTriggers)
+	includeHistory, err := optionalAuthorizationResult(s.authorizeOrgTargetFor(c, orgSlug, model.Read, model.ResourcePipelineTriggers, target, false, "delivery_history"))
+	if err != nil {
+		return err
+	}
+	response, err := s.pipelineWebhookService.ListDeliveries(c.Context(), orgSlug, projectSlug, environmentSlug, triggerSlug, includeHistory, model.ListRequest{
 		Limit: int(valueOrZero(params.Limit)), Cursor: valueOrZero(params.Cursor), Direction: string(valueOrZero(params.Direction)),
 	})
 	if err != nil {
@@ -82,7 +87,14 @@ func (s *server) ReplayPipelineWebhookDelivery(c fiber.Ctx, slugParam api.SlugPa
 	if err != nil {
 		return err
 	}
-	if err := s.canUpdateExecutableWebhook(c, orgSlug); err != nil {
+	if err := s.canOrg(c, orgSlug, model.Update, model.ResourcePipelineTriggers); err != nil {
+		return err
+	}
+	recorded, err := s.pipelineWebhookService.GetDelivery(c.Context(), orgSlug, projectSlug, environmentSlug, triggerSlug, deliveryID)
+	if err != nil {
+		return mapServiceError(err)
+	}
+	if err := s.canPipeline(c, orgSlug, projectSlug, environmentSlug, recorded.PipelineSlug, model.Execute); err != nil {
 		return err
 	}
 	delivery, err := s.pipelineWebhookService.ReplayDelivery(c.Context(), orgSlug, projectSlug, environmentSlug, triggerSlug, deliveryID)

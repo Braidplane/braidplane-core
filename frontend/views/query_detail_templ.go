@@ -108,7 +108,7 @@ func QueryDetailPageContent(orgSlug string, dataSourceSlug string, query api.Que
 				}()
 			}
 			ctx = templ.InitializeContext(ctx)
-			if query.DeletedAt == nil && permissions.Can("pipelines", "create") {
+			if query.DeletedAt == nil {
 				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 2, "<a class=\"btn btn-primary btn-sm\" href=\"")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err

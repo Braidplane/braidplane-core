@@ -303,10 +303,19 @@ func TestRevalidateODCSReferenceRequiresCatalogRead(t *testing.T) {
 		return nil, nil, nil
 	}}
 	svc := newCRUDTestService(t, store).(*service)
+	seen := make(map[model.Resource]model.AuthorizationTarget)
 	svc.authorizationService = allowAuthorizationService{CanFn: func(_ context.Context, input authorization.Input) (bool, error) {
+		require.Equal(t, "revalidatePipeline", input.Operation)
+		require.Equal(t, authorization.SourceSession, input.Source)
+		seen[input.Resource] = input.Target
 		return input.Resource != model.ResourceProjects, nil
 	}}
-	_, err := svc.RevalidatePipeline(context.Background(), "acme", "default", "dev", ValidationHistoryPrincipal{UserSlug: "alice"}, pipeline.Metadata.Slug, "alice")
+	_, err := svc.RevalidatePipeline(t.Context(), "acme", "default", "dev", ValidationHistoryPrincipal{Source: authorization.SourceSession, UserSlug: "alice"}, pipeline.Metadata.Slug, "alice")
+	require.Equal(t, map[model.Resource]model.AuthorizationTarget{
+		model.ResourcePipelines:   {Kind: "deployment_targets", Slug: pipeline.Metadata.Slug, ProjectSlug: "default", EnvironmentSlug: "dev"},
+		model.ResourceDataSources: {},
+		model.ResourceProjects:    {Kind: "projects", Slug: "default"},
+	}, seen)
 	require.ErrorIs(t, err, xerror.Forbidden(xerror.PipelineValidationResult))
 }
 

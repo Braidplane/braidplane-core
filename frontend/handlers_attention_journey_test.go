@@ -132,7 +132,7 @@ func TestAttentionPolicyReaderDoesNotLoadDestinationConfig(t *testing.T) {
 			w.WriteHeader(http.StatusForbidden)
 			return
 		}
-		if r.URL.Path == "/api/organizations/acme-hq/roles/viewer" {
+		if r.URL.Path == "/api/organizations/acme-hq/authorization/permissions" {
 			writeJSON(w, `{"slug":"viewer","permissions":[{"resource":"notifications","action":"read"},{"resource":"alert_policies","action":"read"},{"resource":"alert_policies","action":"create"}]}`)
 			return
 		}

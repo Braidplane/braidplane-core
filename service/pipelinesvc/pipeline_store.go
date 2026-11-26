@@ -264,7 +264,6 @@ type GitProposalMetadata struct {
 }
 
 type pipelineStore struct {
-	dbtx postgres.DBTX
 	txm  postgres.TransactionManager
 	repo pipelinesrepo.Repository
 	odcs odcscontracts.Repository
@@ -291,14 +290,16 @@ func NewPipelineStore(
 	if odcs == nil {
 		return nil, xerror.Unexpected().Detail("pipelinesvc: ODCS repository is required for PipelineStore")
 	}
-	return &pipelineStore{dbtx: dbtx, txm: txm, repo: repo, odcs: odcs}, nil
+	return &pipelineStore{txm: txm, repo: repo, odcs: odcs}, nil
 }
 
 func (s *pipelineStore) FindSpec(
 	ctx context.Context,
 	orgSlug, projectSlug, pipelineSlug slug.Slug,
 ) (*pipelinesrepo.PipelineSpec, error) {
-	spec, err := s.repo.FindSpec(ctx, s.dbtx, orgSlug, projectSlug, pipelineSlug)
+	spec, err := postgres.InRead(ctx, s.txm, func(ctx context.Context, db postgres.DBTX) (*pipelinesrepo.PipelineSpec, error) {
+		return s.repo.FindSpec(ctx, db, orgSlug, projectSlug, pipelineSlug)
+	})
 	if xerror.Is(err, pipelinesrepo.ErrPipelineReferenceNotFound) {
 		return nil, ErrPipelineNotFound.With(err)
 	}
@@ -322,7 +323,9 @@ func (s *pipelineStore) ResolveProposalAuthority(
 	ctx context.Context,
 	orgSlug, projectSlug slug.Slug,
 ) (model.PipelineProposalAuthority, error) {
-	authority, err := s.resolveProposalAuthority(ctx, s.dbtx, orgSlug, projectSlug)
+	authority, err := postgres.InRead(ctx, s.txm, func(ctx context.Context, db postgres.DBTX) (*pipelinesrepo.ProposalAuthority, error) {
+		return s.resolveProposalAuthority(ctx, db, orgSlug, projectSlug)
+	})
 	if err != nil {
 		return model.PipelineProposalAuthority{}, err
 	}
@@ -353,14 +356,10 @@ func (s *pipelineStore) Get(
 	ctx context.Context,
 	orgSlug, projectSlug, pipelineSlug slug.Slug,
 ) (*pipelinespec.Pipeline, error) {
-	spec, err := s.repo.FindSpec(ctx, s.dbtx, orgSlug, projectSlug, pipelineSlug)
+	spec, err := s.FindSpec(ctx, orgSlug, projectSlug, pipelineSlug)
 	if err != nil {
-		if xerror.Is(err, pipelinesrepo.ErrPipelineReferenceNotFound) {
-			return nil, ErrPipelineNotFound.With(err)
-		}
 		return nil, err
 	}
-
 	return pipelineFromJSON(spec.SpecJSONB)
 }
 
@@ -372,7 +371,9 @@ func (s *pipelineStore) FindDraft(
 		return nil, ErrPipelineDraftNotFound
 	}
 
-	draft, err := s.repo.FindDraft(ctx, s.dbtx, orgSlug, projectSlug, pipelineSlug, memberSlug)
+	draft, err := postgres.InRead(ctx, s.txm, func(ctx context.Context, db postgres.DBTX) (*pipelinesrepo.PipelineDraft, error) {
+		return s.repo.FindDraft(ctx, db, orgSlug, projectSlug, pipelineSlug, memberSlug)
+	})
 	if xerror.Is(err, pipelinesrepo.ErrPipelineReferenceNotFound) {
 		return nil, ErrPipelineDraftNotFound.With(err)
 	}
@@ -974,13 +975,15 @@ func (s *pipelineStore) List(
 	orgSlug, projectSlug slug.Slug,
 	req model.ListRequest,
 ) ([]*pipelinesrepo.PipelineSpec, error) {
-	return s.repo.ListSpecs(ctx, s.dbtx, orgSlug, projectSlug, req)
+	return postgres.InRead(ctx, s.txm, func(ctx context.Context, db postgres.DBTX) ([]*pipelinesrepo.PipelineSpec, error) {
+		return s.repo.ListSpecs(ctx, db, orgSlug, projectSlug, req)
+	})
 }
 
 func (s *pipelineStore) Exists(ctx context.Context, orgSlug, projectSlug, pipelineSlug slug.Slug) (bool, error) {
-	_, err := s.repo.FindSpec(ctx, s.dbtx, orgSlug, projectSlug, pipelineSlug)
+	_, err := s.FindSpec(ctx, orgSlug, projectSlug, pipelineSlug)
 	if err != nil {
-		if xerror.Is(err, pipelinesrepo.ErrPipelineReferenceNotFound) {
+		if xerror.Is(err, ErrPipelineNotFound) {
 			return false, nil
 		}
 		return false, err
@@ -992,7 +995,9 @@ func (s *pipelineStore) ListVersions(
 	ctx context.Context,
 	orgSlug, projectSlug, pipelineSlug slug.Slug,
 ) ([]*pipelinesrepo.PipelineVersion, error) {
-	return s.repo.ListVersions(ctx, s.dbtx, orgSlug, projectSlug, pipelineSlug)
+	return postgres.InRead(ctx, s.txm, func(ctx context.Context, db postgres.DBTX) ([]*pipelinesrepo.PipelineVersion, error) {
+		return s.repo.ListVersions(ctx, db, orgSlug, projectSlug, pipelineSlug)
+	})
 }
 
 func (s *pipelineStore) FindVersionBySpecHash(
@@ -1000,7 +1005,9 @@ func (s *pipelineStore) FindVersionBySpecHash(
 	orgSlug, projectSlug, pipelineSlug slug.Slug,
 	specHash string,
 ) (*pipelinesrepo.PipelineVersion, error) {
-	return s.repo.FindVersionBySpecHash(ctx, s.dbtx, orgSlug, projectSlug, pipelineSlug, specHash)
+	return postgres.InRead(ctx, s.txm, func(ctx context.Context, db postgres.DBTX) (*pipelinesrepo.PipelineVersion, error) {
+		return s.repo.FindVersionBySpecHash(ctx, db, orgSlug, projectSlug, pipelineSlug, specHash)
+	})
 }
 
 func (s *pipelineStore) FindVersionBySpecHashPrefix(
@@ -1008,14 +1015,16 @@ func (s *pipelineStore) FindVersionBySpecHashPrefix(
 	orgSlug, projectSlug, pipelineSlug slug.Slug,
 	specHashPrefix string,
 ) (*pipelinesrepo.PipelineVersion, error) {
-	return s.repo.FindVersionBySpecHashPrefix(
-		ctx,
-		s.dbtx,
-		orgSlug,
-		projectSlug,
-		pipelineSlug,
-		specHashPrefix,
-	)
+	return postgres.InRead(ctx, s.txm, func(ctx context.Context, db postgres.DBTX) (*pipelinesrepo.PipelineVersion, error) {
+		return s.repo.FindVersionBySpecHashPrefix(
+			ctx,
+			db,
+			orgSlug,
+			projectSlug,
+			pipelineSlug,
+			specHashPrefix,
+		)
+	})
 }
 
 func (s *pipelineStore) Deploy(
@@ -1036,14 +1045,16 @@ func (s *pipelineStore) FindDeployment(
 	ctx context.Context,
 	orgSlug, projectSlug, environmentSlug, pipelineSlug slug.Slug,
 ) (*pipelinesrepo.PipelineDeployment, error) {
-	deployment, err := s.repo.FindDeployment(
-		ctx,
-		s.dbtx,
-		orgSlug,
-		projectSlug,
-		environmentSlug,
-		pipelineSlug,
-	)
+	deployment, err := postgres.InRead(ctx, s.txm, func(ctx context.Context, db postgres.DBTX) (*pipelinesrepo.PipelineDeployment, error) {
+		return s.repo.FindDeployment(
+			ctx,
+			db,
+			orgSlug,
+			projectSlug,
+			environmentSlug,
+			pipelineSlug,
+		)
+	})
 	if xerror.Is(err, pipelinesrepo.ErrPipelineDeploymentNotFound) {
 		return nil, ErrPipelineDeploymentNotFound.With(err)
 	}
@@ -1054,7 +1065,9 @@ func (s *pipelineStore) ListDeployments(
 	ctx context.Context,
 	orgSlug, projectSlug, environmentSlug slug.Slug,
 ) ([]*pipelinesrepo.PipelineDeployment, error) {
-	return s.repo.ListDeployments(ctx, s.dbtx, orgSlug, projectSlug, environmentSlug)
+	return postgres.InRead(ctx, s.txm, func(ctx context.Context, db postgres.DBTX) ([]*pipelinesrepo.PipelineDeployment, error) {
+		return s.repo.ListDeployments(ctx, db, orgSlug, projectSlug, environmentSlug)
+	})
 }
 
 func (s *pipelineStore) ProjectEnvironmentEnabled(

@@ -639,11 +639,7 @@ func (r *Router) renderQueryDetailPage(
 	)
 
 	setHTMLResponseStatus(c, status)
-	permissions := r.resolveOrganizationPermissions(
-		c.Context(),
-		c.Get(fiber.HeaderCookie),
-		orgSlug.String(),
-	)
+	permissions := r.resolvePagePermissions(c, orgSlug.String())
 	return renderTempl(
 		c,
 		views.QueryDetailPage(
@@ -727,11 +723,7 @@ func (r *Router) renderQueriesPage(
 		)
 		shellData.Subtitle = "Reusable connector operations for source reads, sink payloads, validation, and direct execution."
 		setHTMLResponseStatus(c, dsStatus)
-		permissions := r.resolveOrganizationPermissions(
-			c.Context(),
-			c.Get(fiber.HeaderCookie),
-			orgSlug.String(),
-		)
+		permissions := views.DefaultOrganizationPermissions()
 		return renderTempl(
 			c,
 			views.QueriesPage(
@@ -752,6 +744,7 @@ func (r *Router) renderQueriesPage(
 				focusQuerySlug,
 				showDeleted,
 				permissions,
+				nil,
 				nil,
 			),
 		)
@@ -886,11 +879,17 @@ func (r *Router) renderQueriesPage(
 		c.Get(fiber.HeaderCookie),
 	)
 	shellData.Subtitle = "Reusable connector operations for source reads, sink payloads, validation, and direct execution."
-	permissions := r.resolveOrganizationPermissions(
-		c.Context(),
-		c.Get(fiber.HeaderCookie),
-		orgSlug.String(),
-	)
+	params := api.GetEffectivePermissionsParams{}
+	if selectedDataSource != "" {
+		params.TargetKind, params.TargetSlug = new("datasources"), &selectedDataSource
+	}
+	permissions := r.targetPermissions(c, orgSlug.String(), params)
+	archivedPermissions := make(map[string]views.OrganizationPermissions)
+	if showDeleted {
+		for _, query := range queries {
+			archivedPermissions[query.Slug] = r.targetPermissions(c, orgSlug.String(), api.GetEffectivePermissionsParams{TargetKind: new("queries"), TargetSlug: &query.Slug, DatasourceSlug: &selectedDataSource})
+		}
+	}
 	setHTMLResponseStatus(c, status)
 	return renderTempl(
 		c,
@@ -912,6 +911,7 @@ func (r *Router) renderQueriesPage(
 			focusQuerySlug,
 			showDeleted,
 			permissions,
+			archivedPermissions,
 			cleanup,
 		),
 	)
@@ -1000,11 +1000,7 @@ func (r *Router) renderQuerySidePanel(
 		selectedFormData = views.QueryEditorFormDataFromQuery(*selectedQuery)
 	}
 
-	permissions := r.resolveOrganizationPermissions(
-		c.Context(),
-		c.Get(fiber.HeaderCookie),
-		orgSlug.String(),
-	)
+	permissions := r.resolvePagePermissions(c, orgSlug.String())
 
 	return renderTempl(
 		c,

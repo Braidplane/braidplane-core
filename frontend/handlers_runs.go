@@ -292,11 +292,11 @@ func (r *Router) handlePipelineRunDetailPageWithProject(c fiber.Ctx, activeProje
 		c.SetContext(views.WithRunTimezone(c.Context(), *user.Timezone))
 	}
 	shellData := r.buildRunDetailShellData(c, orgSlug.String(), activeProjectSlug, environmentSlug.String(), runSlug.String(), "", "")
-	permissions := r.resolveOrganizationPermissions(c.Context(), c.Get(fiber.HeaderCookie), orgSlug.String())
+	permissions := r.runPermissions(c, orgSlug.String(), activeProjectSlug, environmentSlug.String(), runSlug.String())
 	if lineage.SelectedIndex >= 0 {
 		node := lineage.Nodes[lineage.SelectedIndex]
-		actions := r.loadRunStepActions(c, orgSlug.String(), environmentSlug.String(), node, permissions)
-		if node.Kind == "transform" && permissions.Can("pipelines", "update") {
+		actions := r.loadRunStepActions(c, orgSlug.String(), environmentSlug.String(), node)
+		if node.Kind == "transform" && r.targetPermissions(c, orgSlug.String(), api.GetEffectivePermissionsParams{TargetKind: new("pipelines"), TargetSlug: &runRecord.Metadata.PipelineSlug, ProjectSlug: &activeProjectSlug}).Can("pipelines", "update") {
 			current, _, _, err := r.getPipelineViaAPI(c.Context(), c.Get(fiber.HeaderCookie), orgSlug.String(), activeProjectSlug, runRecord.Metadata.PipelineSlug)
 			if err == nil && current != nil {
 				query := url.Values{"org_slug": {orgSlug.String()}, "project_slug": {activeProjectSlug}, "pipeline_slug": {runRecord.Metadata.PipelineSlug}, "target_environment_slug": {environmentSlug.String()}}
@@ -910,7 +910,7 @@ func (r *Router) handleRecoverPipelineRunSubmit(c fiber.Ctx) error {
 		return c.SendStatus(fiber.StatusBadRequest)
 	}
 	back := fmt.Sprintf("/orgs/%s/projects/%s/runs/%s?environment_slug=%s&section=attempts", org, project, run, environment)
-	permissions := r.resolveOrganizationPermissions(c.Context(), c.Get(fiber.HeaderCookie), org.String())
+	permissions := r.runPermissions(c, org.String(), project, environment.String(), run.String())
 	if !permissions.Can("pipelines", "execute") {
 		return redirectHTMXOrSeeOther(c, back+"&recovery_error="+url.QueryEscape("Recovery was refused because you do not have permission to execute pipelines."))
 	}
@@ -936,7 +936,13 @@ func (r *Router) handleRecoverPipelineRunSubmit(c fiber.Ctx) error {
 	return redirectHTMXOrSeeOther(c, back+"&recovery_error="+url.QueryEscape(message))
 }
 
-func (r *Router) loadRunStepActions(c fiber.Ctx, org, environment string, node runlineage.Node, permissions views.OrganizationPermissions) views.RunStepActions {
+func (r *Router) runPermissions(c fiber.Ctx, org, project, environment, run string) views.OrganizationPermissions {
+	return r.targetPermissions(c, org, api.GetEffectivePermissionsParams{
+		TargetKind: new("runs"), TargetSlug: &run, ProjectSlug: &project, EnvironmentSlug: &environment,
+	})
+}
+
+func (r *Router) loadRunStepActions(c fiber.Ctx, org, environment string, node runlineage.Node) views.RunStepActions {
 	actions := views.RunStepActions{}
 	if node.Kind == "transform" {
 		return actions
@@ -960,26 +966,27 @@ func (r *Router) loadRunStepActions(c fiber.Ctx, org, environment string, node r
 		actions.Message = "Current connection unavailable: no resolved data source was recorded. Logical references do not identify a current connection."
 		return actions
 	}
-	if !permissions.Can("datasources", "read") {
-		actions.Message = "Current connection is restricted by your permissions."
-		return actions
-	}
-	source, status, _, err := r.getDataSourceViaAPI(c.Context(), c.Get(fiber.HeaderCookie), org, dataSource)
-	if err != nil || source == nil {
-		actions.Message = "Current connection unavailable or deleted. " + definitionUnavailable(status)
-		return actions
-	}
-	actions.DataSourceHref = views.DataSourceDetailHref(org, environment, dataSource)
-	if query != "" && permissions.Can("queries", "read") {
-		current, _, _, err := r.getQueryViaAPI(c.Context(), c.Get(fiber.HeaderCookie), org, dataSource, query)
-		if err == nil && current != nil && current.DeletedAt == nil {
-			actions.QueryHref = "/orgs/" + url.PathEscape(org) + "/data-sources/" + url.PathEscape(dataSource) + "/queries/" + url.PathEscape(query) + "?environment_slug=" + url.QueryEscape(environment)
+	if r.targetPermissions(c, org, api.GetEffectivePermissionsParams{TargetKind: new("datasources"), TargetSlug: &dataSource}).Can("datasources", "read") {
+		source, status, _, err := r.getDataSourceViaAPI(c.Context(), c.Get(fiber.HeaderCookie), org, dataSource)
+		if err == nil && source != nil {
+			actions.DataSourceHref = views.DataSourceDetailHref(org, environment, dataSource)
 		} else {
-			actions.Message = "Current saved query is unavailable or deleted. Its recorded identity remains historical evidence."
+			actions.Message = "Current connection unavailable or deleted. " + definitionUnavailable(status)
 		}
+	} else {
+		actions.Message = "Current connection is restricted by your permissions."
 	}
-	if query != "" && !permissions.Can("queries", "read") {
-		actions.Message = "Current saved query is restricted by your permissions."
+	if query != "" {
+		if r.targetPermissions(c, org, api.GetEffectivePermissionsParams{TargetKind: new("queries"), TargetSlug: &query, DatasourceSlug: &dataSource}).Can("queries", "read") {
+			current, _, _, err := r.getQueryViaAPI(c.Context(), c.Get(fiber.HeaderCookie), org, dataSource, query)
+			if err == nil && current != nil && current.DeletedAt == nil {
+				actions.QueryHref = "/orgs/" + url.PathEscape(org) + "/data-sources/" + url.PathEscape(dataSource) + "/queries/" + url.PathEscape(query) + "?environment_slug=" + url.QueryEscape(environment)
+			} else if actions.Message == "" {
+				actions.Message = "Current saved query is unavailable or deleted. Its recorded identity remains historical evidence."
+			}
+		} else if actions.Message == "" {
+			actions.Message = "Current saved query is restricted by your permissions."
+		}
 	}
 	return actions
 }

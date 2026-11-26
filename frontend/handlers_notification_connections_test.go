@@ -18,9 +18,17 @@ import (
 
 func TestNotificationConnectionsPageShowsChannelAndLifecycleControls(t *testing.T) {
 	backend := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/api/organizations/acme-hq/authorization/permissions" {
+			if r.URL.Query().Get("target_kind") == "notification_connections" && r.URL.Query().Get("target_slug") == "ops-slack" {
+				writeJSON(w, `{"permissions":[{"resource":"alert_destinations","action":"update"}]}`)
+			} else {
+				writeJSON(w, `{"permissions":[{"resource":"alert_destinations","action":"read"}]}`)
+			}
+			return
+		}
 		if r.URL.Path == "/api/organizations/acme-hq/notification-connections" {
 			w.Header().Set("Content-Type", "application/json")
-			_, _ = io.WriteString(w, `[{"slug":"ops-slack","name":"Operations Slack","provider":"slack","status":"active","metadata":{"workspace_id":"T123","workspace_name":"Test workspace","channel_id":"C123","channel_name":"#alerts"},"updated_at":"2026-10-19T10:00:00Z"}]`)
+			_, _ = io.WriteString(w, `[{"slug":"ops-slack","name":"Operations Slack","provider":"slack","status":"active","metadata":{"workspace_id":"T123","workspace_name":"Test workspace","channel_id":"C123","channel_name":"#alerts"},"updated_at":"2026-10-19T10:00:00Z"},{"slug":"other-slack","name":"Other Slack","provider":"slack","status":"active","metadata":{},"updated_at":"2026-10-19T10:00:00Z"}]`)
 			return
 		}
 		if handleAlertsCommonTestAPI(w, r, "admin") {
@@ -47,6 +55,9 @@ func TestNotificationConnectionsPageShowsChannelAndLifecycleControls(t *testing.
 	for _, expected := range []string{"Notification connections", "Operations Slack", "Test workspace", "#alerts", "Reconnect / change target", "Disconnect", "/alerts/connections/ops-slack/connect", "/alerts/connections/ops-slack/disconnect", "Slack connected."} {
 		require.Contains(t, string(body), expected)
 	}
+	require.Contains(t, string(body), "Other Slack")
+	require.NotContains(t, string(body), "/alerts/connections/other-slack/connect")
+	require.NotContains(t, string(body), "/alerts/connections/other-slack/disconnect")
 	require.NotContains(t, string(body), "hooks.slack.com")
 }
 

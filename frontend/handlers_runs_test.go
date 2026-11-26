@@ -519,13 +519,22 @@ func TestRouter_HandlePipelineRunsPage_RendersFilteredEmptyDashboardState(t *tes
 func TestRouter_HandlePipelineRunDetailPage_RendersTimeline(t *testing.T) {
 	t.Parallel()
 
+	var requestedRun bool
 	apiServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
+		if r.URL.Path == "/api/organizations/acme-hq/authorization/permissions" && r.URL.Query().Get("target_kind") == "runs" {
+			requestedRun = true
+			assert.Equal(t, "default", r.URL.Query().Get("project_slug"))
+			assert.Equal(t, "run-001", r.URL.Query().Get("target_slug"))
+			assert.Equal(t, "prod", r.URL.Query().Get("environment_slug"))
+		}
 		if handleTestAdminRolePermissions(w, r) {
 			return
 		}
 
 		switch {
+		case r.URL.Path == "/api/organizations/acme-hq/projects/default/environments":
+			writeJSON(w, `{"project_environments":[{"environment_slug":"prod","is_default":true}]}`)
 		case r.Method == http.MethodGet && r.URL.Path == "/api/organizations":
 			writeJSON(
 				w,
@@ -558,7 +567,7 @@ func TestRouter_HandlePipelineRunDetailPage_RendersTimeline(t *testing.T) {
 	router.RegisterRoutes(app, CommunityPresentation{})
 
 	authCookie := getAuthenticatedSessionCookie(t, app)
-	req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/orgs/acme-hq/projects/default/runs/run-001?environment_slug=prod&section=steps", nil)
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/orgs/acme-hq/projects/default/runs/run-001?section=steps", nil)
 	req.Header.Set("Cookie", authCookie)
 	addCSRFToken(t, app, req)
 
@@ -570,6 +579,7 @@ func TestRouter_HandlePipelineRunDetailPage_RendersTimeline(t *testing.T) {
 	require.NoError(t, err)
 
 	require.Equal(t, http.StatusOK, resp.StatusCode)
+	require.True(t, requestedRun)
 	require.Contains(t, string(body), "Run details")
 	require.Contains(t, string(body), "run-001")
 	require.Contains(t, string(body), "Execution timeline")
@@ -842,7 +852,7 @@ func TestHandleRecoverPipelineRunSubmit(t *testing.T) {
 					writeJSON(w, `{"organizations":[{"slug":"acme-hq","member_role":"admin"}]}`)
 					return
 				}
-				if r.URL.Path == "/api/organizations/acme-hq/roles/admin" {
+				if r.URL.Path == "/api/organizations/acme-hq/authorization/permissions" {
 					action := "read"
 					if allowed {
 						action = "execute"

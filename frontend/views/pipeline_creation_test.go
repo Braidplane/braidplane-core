@@ -3,6 +3,7 @@ package views
 import (
 	"bytes"
 	"context"
+	"strings"
 	"testing"
 
 	api "github.com/Braidplane/braidplane-core/api-schema/gen/client"
@@ -36,4 +37,43 @@ func TestQueryPipelineSetupHidesProposalWithoutCreatePermission(t *testing.T) {
 	require.Contains(t, out.String(), "Pipeline creation needs access")
 	require.NotContains(t, out.String(), "Propose pipeline")
 	require.NotContains(t, out.String(), `<form`)
+}
+
+func TestQueryPipelineSetupAllowsProjectSelectionBeforeCreationCheck(t *testing.T) {
+	for _, project := range []string{"", "other"} {
+		var out bytes.Buffer
+		require.NoError(t, QueryPipelineSetupContent(QueryPipelineSetupData{
+			Org: "acme", DataSource: "warehouse", Query: &api.Query{Slug: "orders"},
+			Project: project, Projects: []api.Project{{Slug: "ops", Name: "Ops"}},
+		}).Render(t.Context(), &out))
+		require.Contains(t, out.String(), "Check readiness")
+		require.Contains(t, out.String(), `value="ops"`)
+		require.NotContains(t, out.String(), "Propose pipeline")
+	}
+}
+
+func TestQueryPipelineSetupShowsProposalHistoryWithReadAccess(t *testing.T) {
+	for _, action := range []string{"read", "create"} {
+		var out bytes.Buffer
+		require.NoError(t, QueryPipelineSetupContent(QueryPipelineSetupData{
+			Org: "acme", DataSource: "warehouse", Query: &api.Query{Slug: "orders"}, Project: "ops", Projects: []api.Project{{Slug: "ops"}}, ProjectAvailable: true, Permissions: NewOrganizationPermissions("pipelines:" + action),
+		}).Render(t.Context(), &out))
+		require.Equal(t, action == "read", strings.Contains(out.String(), "View creation proposals"))
+	}
+}
+
+func TestRevokedProposalOffersSyncOnlyAfterConfirmedMissingVersion(t *testing.T) {
+	for _, versionError := range []string{"", "Version lookup failed."} {
+		var output bytes.Buffer
+		data := PipelineCreationProgressData{
+			Creation:     &api.PipelineCreationProposal{Status: "publish_failed", FailureCode: new("git_proposal_authority_revoked"), BranchName: new("proposal")},
+			VersionError: versionError, CanSync: true,
+		}
+		require.NoError(t, PipelineCreationProgressContent(data).Render(t.Context(), &output))
+		require.Equal(t, versionError == "", strings.Contains(output.String(), "Open Git sync after a manual merge"))
+		data.CanSync = false
+		output.Reset()
+		require.NoError(t, PipelineCreationProgressContent(data).Render(t.Context(), &output))
+		require.NotContains(t, output.String(), "Open Git sync after a manual merge")
+	}
 }

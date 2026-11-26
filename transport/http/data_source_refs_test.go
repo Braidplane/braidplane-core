@@ -317,6 +317,10 @@ func TestUpsertEnvironmentBindingDoesNotExposeConcreteConfigOrCredentials(t *tes
 		authService: fakeAuthService{
 			CanFn: func(_ context.Context, input authorization.Input) (bool, error) {
 				assert.Equal(t, model.ResourceDataSources, input.Resource)
+				if input.Action == model.Read {
+					require.Equal(t, model.AuthorizationTarget{Kind: "datasources", Slug: "prod-users-postgres"}, input.Target)
+					return true, nil
+				}
 				assert.Equal(t, model.Update, input.Action)
 				return true, nil
 			},

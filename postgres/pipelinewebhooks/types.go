@@ -114,7 +114,7 @@ type Repository interface {
 	MarkRunning(context.Context, postgres.DBTX, string, string, int, time.Time) error
 	Complete(context.Context, postgres.DBTX, CompleteParams) error
 	RecordRetry(context.Context, postgres.DBTX, RecordRetryParams) error
-	ListForTrigger(context.Context, postgres.DBTX, slug.Slug, slug.Slug, slug.Slug, slug.Slug, model.ListRequest) ([]Diagnostic, error)
+	ListForTrigger(context.Context, postgres.DBTX, slug.Slug, slug.Slug, slug.Slug, slug.Slug, bool, model.ListRequest) ([]Diagnostic, error)
 	GetForTrigger(context.Context, postgres.DBTX, slug.Slug, slug.Slug, slug.Slug, slug.Slug, string) (Diagnostic, error)
 	Replay(context.Context, postgres.DBTX, slug.Slug, slug.Slug, slug.Slug, slug.Slug, string, time.Time) (ReplayRef, error)
 }
