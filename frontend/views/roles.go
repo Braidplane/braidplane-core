@@ -2,6 +2,7 @@ package views
 
 import (
 	"fmt"
+	"maps"
 	"net/url"
 	"strings"
 
@@ -55,44 +56,57 @@ func (p RolePickerData) EditForm(role api.OrgRole) RoleFormData {
 }
 
 type rolePermissionChoice struct {
-	Value   string
-	Label   string
-	Checked bool
+	Value    string
+	Label    string
+	Checked  bool
+	Explicit bool
 }
 
 type rolePermissionGroup struct {
-	Label   string
-	Choices []rolePermissionChoice
+	Resource string
+	Label    string
+	Choices  []rolePermissionChoice
 }
 
-func rolePermissionGroups(catalog []api.RolePermissionOption, values []string) []rolePermissionGroup {
-	checked := make(map[string]bool, len(values))
+func rolePermissionGroups(catalog []api.RolePermissionOption, values []string) ([]rolePermissionGroup, []string) {
+	selected := make(map[string]bool, len(values))
 	for _, value := range values {
-		checked[value] = true
+		selected[value] = true
 	}
+	remaining := maps.Clone(selected)
 	var groups []rolePermissionGroup
-	last := ""
+	var wildcards []string
 	for _, option := range catalog {
-		if len(groups) == 0 || option.Resource != last {
-			last = option.Resource
-			groups = append(groups, rolePermissionGroup{Label: option.ResourceLabel})
-		}
 		value := option.Resource + ":" + string(option.Action)
+		delete(remaining, value)
+		if option.Action == "*" {
+			if selected[value] {
+				wildcards = append(wildcards, value)
+			}
+			continue
+		}
+		if len(groups) == 0 || option.Resource != groups[len(groups)-1].Resource {
+			groups = append(groups, rolePermissionGroup{Resource: option.Resource, Label: option.ResourceLabel})
+		}
 		group := &groups[len(groups)-1]
-		group.Choices = append(group.Choices, rolePermissionChoice{value, option.ActionLabel, checked[value]})
-		delete(checked, value)
+		group.Choices = append(group.Choices, rolePermissionChoice{
+			Value:    value,
+			Label:    option.ActionLabel,
+			Checked:  selected[value] || selected["*:*"] || selected[option.Resource+":*"],
+			Explicit: selected[value],
+		})
 	}
-	if len(checked) != 0 {
+	if len(remaining) != 0 {
 		group := rolePermissionGroup{Label: "Unavailable permissions (clear before saving)"}
 		for _, value := range values {
-			if checked[value] {
-				group.Choices = append(group.Choices, rolePermissionChoice{value, value, true})
-				delete(checked, value)
+			if remaining[value] {
+				group.Choices = append(group.Choices, rolePermissionChoice{Value: value, Label: value, Checked: true})
+				delete(remaining, value)
 			}
 		}
 		groups = append(groups, group)
 	}
-	return groups
+	return groups, wildcards
 }
 
 // RoleCountLabel formats a compact role count for section badges.

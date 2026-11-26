@@ -637,7 +637,7 @@ templ OrganizationRolesPageContent(organization api.Organization, roles []api.Or
 			<section class="rounded-xl border border-base-300 bg-base-100 p-4 sm:p-5">
 				<div>
 					<h2 class="text-base font-semibold text-base-content">Create role</h2>
-					<p class="mt-1 text-xs text-base-content/70">Define the permissions a role can grant. Use the Grants tab to assign it at a scope.</p>
+					<p class="mt-1 text-xs text-base-content/70">Roles define allowed actions. Use Grants to assign a role to a member or API key at a scope.</p>
 				</div>
 				<form
 					class="mt-4 grid gap-4"
@@ -823,18 +823,37 @@ templ OrganizationRolesPageContent(organization api.Organization, roles []api.Or
 }
 
 templ RolePermissionPicker(catalog []api.RolePermissionOption, values []string) {
+	{{ groups, wildcards := rolePermissionGroups(catalog, values) }}
 	<input type="hidden" name="permission_picker" value="1"/>
-	<details class="rounded-lg border border-base-300 px-3 py-2" open?={ len(values) > 0 }>
+	<details class="rounded-lg border border-base-300 px-3 py-2" data-role-permission-picker open?={ len(values) > 0 }>
 		<summary class="cursor-pointer text-sm font-semibold">Permissions</summary>
-		<p class="mt-2 text-xs text-base-content/70">Select any number of permissions. Leave all boxes clear for a role with no permissions.</p>
+		for _, value := range wildcards {
+			<input type="hidden" name="permission" value={ value } data-role-permission-wildcard disabled/>
+		}
+		<div class="mt-3 hidden items-center gap-3" data-role-permission-bulk>
+			<label class="flex cursor-pointer items-center gap-2 text-sm font-medium">
+				<input type="checkbox" class="checkbox checkbox-sm" data-role-permission-master/>
+				Select all permissions
+			</label>
+			<span class="text-xs tabular-nums text-base-content/70" data-role-permission-count></span>
+		</div>
+		if len(wildcards) > 0 {
+			<p class="mt-2 text-xs text-base-content/70">Existing wildcard permissions also cover future actions. Clear individual actions to narrow them.</p>
+		}
 		<div class="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-			for _, group := range rolePermissionGroups(catalog, values) {
-				<fieldset class="min-w-0 rounded border border-base-300 px-2 pb-2">
+			for _, group := range groups {
+				<fieldset class="min-w-0 rounded border border-base-300 px-2 pb-2" data-role-permission-group?={ group.Resource != "" } data-permission-resource={ group.Resource }>
 					<legend class="px-1 text-xs font-semibold">{ group.Label }</legend>
+					if group.Resource != "" {
+						<label class="mb-2 hidden cursor-pointer items-center gap-1.5 text-sm font-medium" data-role-permission-bulk>
+							<input type="checkbox" class="checkbox checkbox-sm" data-role-permission-master aria-label={ "Select all " + group.Label + " permissions" }/>
+							All
+						</label>
+					}
 					<div class="flex flex-wrap gap-x-3 gap-y-2">
 						for _, choice := range group.Choices {
 							<label class="flex min-w-0 cursor-pointer items-start gap-1.5 text-sm">
-								<input type="checkbox" class="checkbox checkbox-sm" name="permission" value={ choice.Value } checked?={ choice.Checked }/>
+								<input type="checkbox" class="checkbox checkbox-sm" name="permission" value={ choice.Value } checked?={ choice.Checked } data-role-permission-choice?={ group.Resource != "" } data-role-permission-explicit?={ choice.Explicit }/>
 								<span class="break-words">{ choice.Label }</span>
 							</label>
 						}

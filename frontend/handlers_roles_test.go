@@ -78,7 +78,7 @@ func TestRouter_HandleOrganizationRolesPage_RendersRoles(t *testing.T) {
 	require.Equal(t, http.StatusOK, resp.StatusCode)
 	require.Contains(t, html, `href="/organizations/acme-hq/roles"`)
 	require.Contains(t, html, "Create role")
-	require.Contains(t, html, "Define the permissions a role can grant")
+	require.Contains(t, html, "Roles define allowed actions")
 	require.Contains(t, html, "Editor")
 	require.Contains(t, html, "members:read")
 	require.Contains(t, html, "All permissions")

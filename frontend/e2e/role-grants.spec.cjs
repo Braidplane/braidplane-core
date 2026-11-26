@@ -54,16 +54,32 @@ test("edits role permissions and grants access at a project", async ({ page }, t
 
         await page.getByRole("button", { name: "Edit", exact: true }).click();
         await edit.getByText("Permissions", { exact: true }).click();
+        const allPermissions = edit.getByRole("checkbox", { name: "Select all permissions", exact: true });
+        const allPipelines = edit.getByRole("checkbox", { name: "Select all Pipelines permissions", exact: true });
+        await expect(allPermissions).not.toBeChecked();
+        await expect(allPermissions).toHaveJSProperty("indeterminate", false);
+        await allPipelines.check();
+        await expect(edit.locator('input[value="pipelines:execute"]')).toBeChecked();
+        await expect(allPermissions).toHaveJSProperty("indeterminate", true);
+        await allPermissions.check();
+        await expect(allPermissions).toHaveJSProperty("indeterminate", false);
+        await expect(edit.locator('input[value="queries:purge"]')).toBeChecked();
+        await allPermissions.uncheck();
+        await expect(allPipelines).not.toBeChecked();
+        await expect(edit.getByRole("button", { name: "Save", exact: true })).toBeDisabled();
+
         const permissions = ["events:read", "pipelines:execute", "projects:read", "queries:purge"];
         for (const permission of permissions) {
             await edit.locator(`input[value="${permission}"]`).check();
         }
+        await expect(allPipelines).toHaveJSProperty("indeterminate", true);
         const dryRunName = "x".repeat(256);
         await edit.getByLabel("Name", { exact: true }).fill(dryRunName);
         await edit.getByRole("button", { name: "Save", exact: true }).click();
         await expect(edit.getByRole("alert").filter({ visible: true })).toBeFocused();
         await expect(edit.getByLabel("Name", { exact: true })).toHaveValue(dryRunName);
-        await expect(edit.getByRole("checkbox", { checked: true })).toHaveCount(4);
+        await expect(edit.locator("[data-role-permission-choice]:checked")).toHaveCount(4);
+        await expect(allPipelines).toHaveJSProperty("indeterminate", true);
         await edit.getByLabel("Name", { exact: true }).fill("Updated scoped reviewer");
         await edit.getByRole("button", { name: "Save", exact: true }).click();
         await expect(
@@ -129,9 +145,9 @@ test("edits role permissions and grants access at a project", async ({ page }, t
 
         await page.goto(`${settings}/roles`);
         await page.getByRole("button", { name: "Edit", exact: true }).click();
-        for (const permission of permissions) {
-            await edit.locator(`input[value="${permission}"]`).uncheck();
-        }
+        await expect(allPermissions).toHaveJSProperty("indeterminate", true);
+        await allPermissions.check();
+        await allPermissions.uncheck();
         await edit.getByRole("button", { name: "Save", exact: true }).click();
         await expect(edit).toBeHidden();
         expect((await getRole()).permissions).toEqual([]);

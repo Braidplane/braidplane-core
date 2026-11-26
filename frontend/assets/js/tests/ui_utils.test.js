@@ -2,6 +2,74 @@ import { describe, expect, it, vi } from "vitest";
 
 await import("../ui-utils.js");
 
+describe("role permission picker", () => {
+    const mountPicker = (wildcard = false) => {
+        document.body.innerHTML = `
+            <form data-dirty-form>
+                <div data-role-permission-picker>
+                    <label class="hidden" data-role-permission-bulk><input type="checkbox" data-role-permission-master></label>
+                    <span data-role-permission-count></span>
+                    ${wildcard ? '<input type="hidden" name="permission" value="pipelines:*" data-role-permission-wildcard disabled>' : ""}
+                    <fieldset data-role-permission-group data-permission-resource="pipelines">
+                        <input type="checkbox" data-role-permission-master>
+                        <input type="checkbox" name="permission" value="pipelines:read" data-role-permission-choice ${wildcard ? "checked" : ""}>
+                        <input type="checkbox" name="permission" value="pipelines:execute" data-role-permission-choice ${wildcard ? "checked" : ""}>
+                    </fieldset>
+                    <fieldset data-role-permission-group data-permission-resource="events">
+                        <input type="checkbox" data-role-permission-master>
+                        <input type="checkbox" name="permission" value="events:read" data-role-permission-choice>
+                    </fieldset>
+                    <input type="checkbox" name="permission" value="legacy:read" checked>
+                </div>
+                <button type="submit" data-dirty-submit disabled>Save</button>
+            </form>`;
+        const form = document.querySelector("form");
+        form.dispatchEvent(new CustomEvent("htmx:afterSwap", { bubbles: true }));
+        const [all, pipelines] = form.querySelectorAll("[data-role-permission-master]");
+        const [read, execute, events] = form.querySelectorAll("[data-role-permission-choice]");
+        const permissions = () => new FormData(form).getAll("permission");
+        return { all, pipelines, read, execute, events, permissions, save: form.querySelector("button") };
+    };
+
+    it("tracks empty, mixed and full selection across both levels", () => {
+        const { all, pipelines, read, execute, events, permissions, save } = mountPicker();
+        expect(all.checked).toBe(false);
+        expect(all.indeterminate).toBe(false);
+        expect(save.disabled).toBe(true);
+        read.click();
+        expect(all.indeterminate).toBe(true);
+        expect(pipelines.indeterminate).toBe(true);
+        expect(save.disabled).toBe(false);
+        pipelines.click();
+        expect(pipelines.checked).toBe(true);
+        expect(execute.checked).toBe(true);
+        expect(events.checked).toBe(false);
+        all.click();
+        expect(all.checked).toBe(true);
+        expect(all.indeterminate).toBe(false);
+        expect(permissions()).toEqual(["pipelines:read", "pipelines:execute", "events:read", "legacy:read"]);
+        all.click();
+        expect(pipelines.checked).toBe(false);
+        expect(permissions()).toEqual(["legacy:read"]);
+        expect(save.disabled).toBe(true);
+    });
+
+    it("keeps an existing wildcard until an action it covers is cleared", () => {
+        const { all, pipelines, read, permissions, save } = mountPicker(true);
+        expect(all.indeterminate).toBe(true);
+        expect(pipelines.checked).toBe(true);
+        expect(permissions()).toEqual(["pipelines:*", "legacy:read"]);
+        expect(save.disabled).toBe(true);
+        read.click();
+        expect(pipelines.indeterminate).toBe(true);
+        expect(permissions()).toEqual(["pipelines:execute", "legacy:read"]);
+        expect(save.disabled).toBe(false);
+        read.click();
+        expect(permissions()).toEqual(["pipelines:*", "legacy:read"]);
+        expect(save.disabled).toBe(true);
+    });
+});
+
 describe("server form error focus", () => {
     it("FocusesSettledFeedbackOnceWithoutStealingLaterFocus", () => {
         document.body.innerHTML =
