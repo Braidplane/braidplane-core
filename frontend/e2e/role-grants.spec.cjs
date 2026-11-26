@@ -73,6 +73,7 @@ test("edits role permissions and grants access at a project", async ({ page }, t
             permissions,
         );
 
+        await page.setViewportSize({ width: 390, height: 844 });
         await page.goto(`${settings}/members`);
         const membersList = page.locator("#members-list");
         await expect(membersList.getByText("admin", { exact: true }).first()).toBeVisible();

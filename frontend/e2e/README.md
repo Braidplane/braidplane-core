@@ -21,9 +21,9 @@ The critical profile retains 16 logical journeys / 26 executions. Chromium runs
 all 16; Firefox and WebKit each run five: owned query preview/save, Git
 import/bind/deploy, successful-run inspection, Proof Reconnect and HTTP OAuth
 setup/reconnect. Auth, Google signup, persisted Builder save, acknowledgement
-authoring, secret HTTP headers/pagination, Proof discovery, Slack setup and the
-pending-progress navigation race run in Chromium. Role editing and scoped grants run in Chromium. Auth and the real Builder
-mutation remain single-engine because they share seeded state and throttles.
+authoring, secret HTTP headers/pagination, Proof discovery, Slack setup, the
+pending-progress navigation race, and role grant management run in Chromium.
+Auth and the real Builder mutation share seeded state and throttles.
 
 The full profile discovers 68 logical journeys / 178 executions. Chromium also
 covers restricted-key setup and Stripe Connect OAuth consent and reconnection against a synthetic API.

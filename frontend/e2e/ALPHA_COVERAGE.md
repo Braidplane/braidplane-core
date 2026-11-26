@@ -63,7 +63,7 @@ website entries describe the earlier combined inventory and are historical:
 
 | Suite/profile | Logical cases | Executions | Workers | Runner wall cap |
 | --- | ---: | ---: | ---: | ---: |
-| Product critical (local default; every CI route) | 16 | 26 | CI 2 / local 4 | 240s |
+| Product critical (local default; every CI route) | 15 | 25 | CI 2 / local 4 | 240s |
 | Product full (explicit broader validation) | 64 | 174 | CI 2 / local 4 | 660s |
 | Public critical | 6 | 18 | 3 | 60s |
 | Public full (explicit broader validation) | 14 | 42 | 3 | 120s |
