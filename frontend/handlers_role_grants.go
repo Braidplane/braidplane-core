@@ -121,18 +121,22 @@ func (r *Router) renderRoleGrantsPage(c fiber.Ctx, status int, form api.NewRoleG
 }
 
 func roleGrantFormFromRequest(c fiber.Ctx) api.NewRoleGrant {
+	form := c.Request().PostArgs()
+	field := func(name string) string {
+		return strings.TrimSpace(string(form.Peek(name)))
+	}
 	optional := func(name string) *string {
-		value := strings.TrimSpace(c.FormValue(name))
+		value := field(name)
 		if value == "" {
 			return nil
 		}
 		return &value
 	}
 	return api.NewRoleGrant{
-		SubjectKind:     api.NewRoleGrantSubjectKind(c.FormValue("subject_kind")),
-		SubjectSlug:     strings.TrimSpace(c.FormValue("subject_slug")),
-		RoleSlug:        strings.TrimSpace(c.FormValue("role_slug")),
-		Scope:           api.NewRoleGrantScope(c.FormValue("scope")),
+		SubjectKind:     api.NewRoleGrantSubjectKind(field("subject_kind")),
+		SubjectSlug:     field("subject_slug"),
+		RoleSlug:        field("role_slug"),
+		Scope:           api.NewRoleGrantScope(field("scope")),
 		TargetKind:      optional("target_kind"),
 		TargetSlug:      optional("target_slug"),
 		ProjectSlug:     optional("project_slug"),
