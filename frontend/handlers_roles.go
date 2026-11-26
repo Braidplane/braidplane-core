@@ -26,7 +26,7 @@ func (r *Router) handleOrganizationRolesPage(c fiber.Ctx) error {
 		orgSlug,
 		http.StatusOK,
 		roleListViewFromRequest(c),
-		views.DefaultRoleFormData(),
+		views.RoleFormData{},
 		"",
 		"",
 		"",
@@ -106,13 +106,14 @@ func (r *Router) handleUpdateRoleSubmit(c fiber.Ctx) error {
 	}
 
 	formData := roleFormDataFromRequest(c)
+	formData.EditRole = roleSlug.String()
 	if strings.TrimSpace(formData.Name) == "" {
 		return r.renderOrganizationRolesPage(
 			c,
 			orgSlug,
 			http.StatusBadRequest,
 			views.RoleListViewActive,
-			views.DefaultRoleFormData(),
+			formData,
 			"Role could not be updated.",
 			"Validation: role name is required.",
 			"",
@@ -126,7 +127,7 @@ func (r *Router) handleUpdateRoleSubmit(c fiber.Ctx) error {
 			orgSlug,
 			http.StatusBadRequest,
 			views.RoleListViewActive,
-			views.DefaultRoleFormData(),
+			formData,
 			"Role could not be updated.",
 			validationErr,
 			"",
@@ -154,7 +155,7 @@ func (r *Router) handleUpdateRoleSubmit(c fiber.Ctx) error {
 			orgSlug,
 			status,
 			views.RoleListViewActive,
-			views.DefaultRoleFormData(),
+			formData,
 			message,
 			backendErrorDetails("update role", status, errorResponse, updateErr),
 			"",
@@ -176,7 +177,7 @@ func (r *Router) handleArchiveRoleSubmit(c fiber.Ctx) error {
 			orgSlug,
 			http.StatusBadRequest,
 			views.RoleListViewActive,
-			views.DefaultRoleFormData(),
+			views.RoleFormData{},
 			"Role could not be archived.",
 			"Validation: type the role slug to confirm archival.",
 			"",
@@ -203,7 +204,7 @@ func (r *Router) handleArchiveRoleSubmit(c fiber.Ctx) error {
 			orgSlug,
 			status,
 			views.RoleListViewActive,
-			views.DefaultRoleFormData(),
+			views.RoleFormData{},
 			message,
 			backendErrorDetails("archive role", status, errorResponse, archiveErr),
 			"",
@@ -240,7 +241,7 @@ func (r *Router) handleRestoreRoleSubmit(c fiber.Ctx) error {
 			orgSlug,
 			status,
 			views.RoleListViewArchived,
-			views.DefaultRoleFormData(),
+			views.RoleFormData{},
 			message,
 			backendErrorDetails("restore role", status, errorResponse, restoreErr),
 			"",
@@ -256,7 +257,7 @@ func (r *Router) renderOrganizationRolesPage(
 	orgSlug slug.Slug,
 	statusCode int,
 	roleListView string,
-	createFormData views.RoleFormData,
+	submittedForm views.RoleFormData,
 	contentErrorSummary string,
 	contentErrorDetails string,
 	contentSuccessSummary string,
@@ -346,9 +347,21 @@ func (r *Router) renderOrganizationRolesPage(
 
 	permissions := r.resolveOrganizationPermissions(c.Context(), c.Get(fiber.HeaderCookie), orgSlug.String())
 	archivable := make(map[string]bool, len(roles))
+	needsCatalog := roleListView == views.RoleListViewActive &&
+		(permissions.Can("roles", "create") || permissions.Can("roles", "update"))
 	for _, role := range roles {
 		if views.RoleMutable(role) {
 			archivable[role.Slug] = r.rowAllows(c, orgSlug.String(), "roles", role.Slug, "roles", "delete", permissions)
+		}
+	}
+
+	var catalog []api.RolePermissionOption
+	if needsCatalog && rolesErr == nil {
+		resp, err := r.apiClient.ListRolePermissionCatalogWithResponse(
+			c.Context(), orgSlug.String(), frontendRequestEditor(c.Context(), c.Get(fiber.HeaderCookie)),
+		)
+		if err == nil && resp.JSON200 != nil {
+			catalog = resp.JSON200.Permissions
 		}
 	}
 
@@ -359,7 +372,7 @@ func (r *Router) renderOrganizationRolesPage(
 			shellData,
 			*organization,
 			roles,
-			createFormData,
+			views.RolePickerData{Catalog: catalog, Submitted: submittedForm, Needed: needsCatalog},
 			roleListView,
 			permissions,
 			archivable,
@@ -370,12 +383,12 @@ func (r *Router) renderOrganizationRolesPage(
 	)
 }
 
-// roleFormDataFromRequest reads role form fields and repeated permission rows.
+// roleFormDataFromRequest reads the role fields and selected permission values.
 func roleFormDataFromRequest(c fiber.Ctx) views.RoleFormData {
 	return views.RoleFormData{
-		Name:        strings.TrimSpace(c.FormValue("name")),
-		Slug:        strings.TrimSpace(c.FormValue("slug")),
-		Permissions: rolePermissionRowsFromRequest(c),
+		Name:        c.FormValue("name"),
+		Slug:        c.FormValue("slug"),
+		Permissions: repeatedFormValues(c, "permission"),
 	}
 }
 
@@ -391,7 +404,7 @@ func roleCreatePayloadFromForm(formData views.RoleFormData) (api.CreateRoleJSONR
 		Permissions: permissions,
 	}
 	if strings.TrimSpace(formData.Slug) != "" {
-		roleSlug, err := slug.New(formData.Slug)
+		roleSlug, err := slug.New(strings.TrimSpace(formData.Slug))
 		if err != nil {
 			return api.CreateRoleJSONRequestBody{}, "Validation: role slug must use lowercase letters, digits, and hyphens only."
 		}
@@ -415,52 +428,17 @@ func roleUpdatePayloadFromForm(formData views.RoleFormData) (api.UpdateRoleJSONR
 	}, ""
 }
 
-// rolePermissionsFromForm normalizes non-empty resource/action pairs for role APIs.
-func rolePermissionsFromForm(rows []views.RolePermissionFormData) ([]api.Permission, string) {
-	permissions := make([]api.Permission, 0, len(rows))
-	for _, row := range rows {
-		resource := strings.TrimSpace(row.Resource)
-		action := strings.TrimSpace(row.Action)
-		if resource == "" && action == "" {
-			continue
-		}
+// rolePermissionsFromForm converts checked values into API permission pairs.
+func rolePermissionsFromForm(values []string) ([]api.Permission, string) {
+	permissions := make([]api.Permission, 0, len(values))
+	for _, value := range values {
+		resource, action, _ := strings.Cut(value, ":")
 		if resource == "" || action == "" {
-			return nil, "Validation: every permission row needs both resource and action."
+			return nil, "Validation: select permissions from the catalog."
 		}
-
-		permissions = append(permissions, api.Permission{
-			Resource: resource,
-			Action:   api.PermissionAction(action),
-		})
+		permissions = append(permissions, api.Permission{Resource: resource, Action: api.PermissionAction(action)})
 	}
-
 	return permissions, ""
-}
-
-// rolePermissionRowsFromRequest preserves repeated permission rows from the form body.
-func rolePermissionRowsFromRequest(c fiber.Ctx) []views.RolePermissionFormData {
-	resources := repeatedFormValues(c, "permission_resource")
-	actions := repeatedFormValues(c, "permission_action")
-	count := len(resources)
-	if len(actions) > count {
-		count = len(actions)
-	}
-
-	rows := make([]views.RolePermissionFormData, 0, count)
-	for idx := 0; idx < count; idx++ {
-		row := views.RolePermissionFormData{}
-		if idx < len(resources) {
-			row.Resource = resources[idx]
-		}
-		if idx < len(actions) {
-			row.Action = actions[idx]
-		}
-		rows = append(rows, row)
-	}
-	if len(rows) == 0 {
-		return views.RolePermissionRows(nil)
-	}
-	return rows
 }
 
 // repeatedFormValues returns all values for a form field in submitted order.

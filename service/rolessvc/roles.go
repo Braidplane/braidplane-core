@@ -67,6 +67,10 @@ func (s *service) CreateRoleWithPermissions(
 	newRole model.NewRole,
 	permissions []model.RolePermission,
 ) (*model.OrgRole, error) {
+	if err := validateRolePermissions(permissions); err != nil {
+		return nil, err
+	}
+
 	return postgres.InTx(ctx, s.txm, func(ctx context.Context, tx postgres.DBTX) (*model.OrgRole, error) {
 		role, err := s.createRole(ctx, tx, orgSlug, newRole)
 		if err != nil {
@@ -227,6 +231,10 @@ func (s *service) UpdateRoleWithPermissions(
 ) error {
 	if err := validate.Default().Struct(update); err != nil {
 		return xerror.ValidationFailed().With(err)
+	}
+
+	if err := validateRolePermissions(permissions); err != nil {
+		return err
 	}
 
 	return s.txm.RunInTx(ctx, func(ctx context.Context, tx postgres.DBTX) error {

@@ -8,8 +8,6 @@ import (
 	api "github.com/Braidplane/braidplane-core/api-schema/gen/client"
 )
 
-const rolePermissionBlankRows = 3
-
 const (
 	RoleListViewActive   = "active"
 	RoleListViewArchived = "archived"
@@ -19,28 +17,77 @@ const (
 	roleLifecycleActiveBadge = "badge badge-success"
 )
 
-// RolePermissionFormData stores one editable permission row in role forms.
-type RolePermissionFormData struct {
-	Resource string
-	Action   string
-}
-
-// RoleFormData stores sticky values for role create and update forms.
+// RoleFormData holds the draft returned when a role form fails.
 type RoleFormData struct {
 	Name        string
 	Slug        string
-	Permissions []RolePermissionFormData
+	Permissions []string
+	EditRole    string
 }
 
-// RolePermissionOption describes a selectable role permission value.
-type RolePermissionOption struct {
-	Value string
-	Label string
+type RolePickerData struct {
+	Catalog   []api.RolePermissionOption
+	Submitted RoleFormData
+	Needed    bool
 }
 
-// DefaultRoleFormData returns an empty create-role form with editable permission rows.
-func DefaultRoleFormData() RoleFormData {
-	return RoleFormData{Permissions: RolePermissionRows(nil)}
+func (p RolePickerData) CreateForm() RoleFormData {
+	if p.Submitted.EditRole == "" {
+		return p.Submitted
+	}
+	return RoleFormData{}
+}
+
+func (p RolePickerData) EditForm(role api.OrgRole) RoleFormData {
+	if p.Submitted.EditRole == role.Slug {
+		return p.Submitted
+	}
+	form := RoleFormData{Name: role.Name}
+	for _, permission := range role.Permissions {
+		form.Permissions = append(form.Permissions, rolePermissionLabel(permission))
+	}
+	return form
+}
+
+type rolePermissionChoice struct {
+	Value   string
+	Label   string
+	Checked bool
+}
+
+type rolePermissionGroup struct {
+	Label   string
+	Choices []rolePermissionChoice
+}
+
+func rolePermissionGroups(catalog []api.RolePermissionOption, values []string) []rolePermissionGroup {
+	checked := make(map[string]bool, len(values))
+	for _, value := range values {
+		checked[value] = true
+	}
+	var groups []rolePermissionGroup
+	last := ""
+	for _, option := range catalog {
+		if len(groups) == 0 || option.Resource != last {
+			last = option.Resource
+			groups = append(groups, rolePermissionGroup{Label: option.ResourceLabel})
+		}
+		value := option.Resource + ":" + string(option.Action)
+		group := &groups[len(groups)-1]
+		group.Choices = append(group.Choices, rolePermissionChoice{value, option.ActionLabel, checked[value]})
+		delete(checked, value)
+	}
+	if len(checked) != 0 {
+		group := rolePermissionGroup{Label: "Unavailable permissions (clear before saving)"}
+		for _, value := range values {
+			if checked[value] {
+				group.Choices = append(group.Choices, rolePermissionChoice{value, value, true})
+				delete(checked, value)
+			}
+		}
+		groups = append(groups, group)
+	}
+	return groups
 }
 
 // RoleCountLabel formats a compact role count for section badges.
@@ -76,21 +123,6 @@ func RolePermissionSummary(role api.OrgRole) string {
 		return strings.Join(parts, ", ")
 	}
 	return strings.Join(parts[:3], ", ") + fmt.Sprintf(" and %d more", len(parts)-3)
-}
-
-// RolePermissionRows returns current permissions plus a few blanks for form editing.
-func RolePermissionRows(permissions []api.Permission) []RolePermissionFormData {
-	rows := make([]RolePermissionFormData, 0, len(permissions)+rolePermissionBlankRows)
-	for _, permission := range permissions {
-		rows = append(rows, RolePermissionFormData{
-			Resource: strings.TrimSpace(permission.Resource),
-			Action:   strings.TrimSpace(string(permission.Action)),
-		})
-	}
-	for i := 0; i < rolePermissionBlankRows; i++ {
-		rows = append(rows, RolePermissionFormData{})
-	}
-	return rows
 }
 
 // NormalizeRoleListView maps unknown role list view values back to active roles.
@@ -156,41 +188,6 @@ func RolesForListView(roles []api.OrgRole, view string) []api.OrgRole {
 		}
 	}
 	return filtered
-}
-
-// RoleResourceOptions returns common organization-scoped permission resources.
-func RoleResourceOptions() []RolePermissionOption {
-	return []RolePermissionOption{
-		{Value: "*", Label: "All resources"},
-		{Value: "organizations", Label: "Organizations"},
-		{Value: "members", Label: "Members"},
-		{Value: "roles", Label: "Roles"},
-		{Value: "api_keys", Label: "API keys"},
-		{Value: "projects", Label: "Projects"},
-		{Value: "environments", Label: "Environments"},
-		{Value: "datasources", Label: "Data sources"},
-		{Value: "queries", Label: "Queries"},
-		{Value: "pipelines", Label: "Pipelines"},
-		{Value: "pipeline_triggers", Label: "Pipeline triggers"},
-		{Value: "events", Label: "Events"},
-		{Value: "notifications", Label: "Notifications"},
-		{Value: "alert_policies", Label: "Alert policies"},
-		{Value: "alert_destinations", Label: "Alert destinations"},
-	}
-}
-
-// RoleActionOptions returns supported role permission actions.
-func RoleActionOptions() []RolePermissionOption {
-	return []RolePermissionOption{
-		{Value: "*", Label: "All actions"},
-		{Value: "create", Label: "Create"},
-		{Value: "read", Label: "Read"},
-		{Value: "update", Label: "Update"},
-		{Value: "delete", Label: "Delete"},
-		{Value: "restore", Label: "Restore"},
-		{Value: "purge", Label: "Purge"},
-		{Value: "execute", Label: "Execute"},
-	}
 }
 
 // RoleEditPanelID builds the per-role edit panel identifier.

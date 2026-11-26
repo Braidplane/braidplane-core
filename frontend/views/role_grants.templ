@@ -1,0 +1,170 @@
+package views
+
+import (
+	api "github.com/Braidplane/braidplane-core/api-schema/gen/client"
+)
+
+const roleGrantRevokeImpact = "The subject keeps access from its primary role and any other grants."
+
+templ OrganizationRoleGrantsPage(shell AuthenticatedShellData, page RoleGrantsPageData) {
+	@AuthenticatedShell(shell, OrganizationRoleGrantsContent(page))
+}
+
+templ OrganizationRoleGrantsContent(page RoleGrantsPageData) {
+	<div id="organization-grants-content" class="space-y-6">
+		@OrganizationDetailTabs(page.Organization.Slug, "grants")
+		<section class="rounded-xl border border-base-300 bg-base-100 p-4 sm:p-5">
+			<h2 class="text-base font-semibold">Role grants</h2>
+			<p class="mt-1 text-sm text-base-content/70">
+				Grants add permissions at the selected scope. Revoking a grant leaves the primary role and any other grants in place.
+				Primary organization-wide roles are shown in
+				<a class="link" href={ templ.URL("/organizations/" + page.Organization.Slug + "/members") }>Members</a> and
+				<a class="link" href={ templ.URL("/organizations/" + page.Organization.Slug + "/security") }>Security</a>.
+			</p>
+			if page.SubjectSlug != "" {
+				<div class="mt-4 flex flex-wrap items-center gap-3">
+					<span class="text-sm">{ roleGrantSubjectLabel(page.SubjectKind) } <code>{ page.SubjectSlug }</code></span>
+					<a class="link text-sm" href={ templ.URL(RoleGrantsHref(page.Organization.Slug, "", "")) }>Show all grants</a>
+				</div>
+			}
+			@FormError("role-grant-list-error", page.ListError, false)
+			if page.ListAvailable {
+				if len(page.Grants) == 0 {
+					<p class="mt-4 text-sm text-base-content/70">No explicit grants.</p>
+				} else {
+					<div class="mt-4 overflow-x-auto">
+						<table class="table table-sm">
+							<thead>
+								<tr>
+									<th scope="col">Subject</th>
+									<th scope="col">Granted role</th>
+									<th scope="col">Scope and target</th>
+									if page.CanManage {
+										<th scope="col" class="text-right">Actions</th>
+									}
+								</tr>
+							</thead>
+							<tbody>
+								for _, grant := range page.Grants {
+									<tr>
+										<td>{ roleGrantSubjectLabel(string(grant.SubjectKind)) } <code class="break-all">{ grant.SubjectSlug }</code></td>
+										<td><code class="break-all">{ grant.RoleSlug }</code></td>
+										<td>
+											{ roleGrantScopeLabel(grant.Scope) } <code class="break-all">{ roleGrantTargetLabel(grant) }</code>
+											if grant.ProjectSlug != nil || grant.EnvironmentSlug != nil || grant.DatasourceSlug != nil || grant.ParentSlug != nil {
+												<div class="mt-1 flex flex-wrap gap-x-3 text-xs text-base-content/70">
+													@RoleGrantQualifier("Project", grant.ProjectSlug)
+													@RoleGrantQualifier("Environment", grant.EnvironmentSlug)
+													@RoleGrantQualifier("Data source", grant.DatasourceSlug)
+													@RoleGrantQualifier("Parent", grant.ParentSlug)
+												</div>
+											}
+										</td>
+										if page.CanManage {
+											<td class="text-right">
+												{{ action := roleGrantRevokeHref(page, grant) }}
+												<form method="post" action={ templ.URL(action) } hx-post={ action } hx-target="#organization-grants-content" hx-select="#organization-grants-content" hx-swap="outerHTML show:none focus-scroll:false" data-preserve-scroll hx-confirm={ DestructiveConfirmation("Revoke", "role grant", grant.RoleSlug+" for "+grant.SubjectSlug, roleGrantRevokeImpact) } data-destructive-confirm={ DestructiveConfirmation("Revoke", "role grant", grant.RoleSlug+" for "+grant.SubjectSlug, roleGrantRevokeImpact) }>
+													<button class="btn btn-error btn-outline btn-xs" type="submit" aria-label={ "Revoke grant " + grant.Slug }>Revoke</button>
+													@FormRequestError()
+												</form>
+											</td>
+										}
+									</tr>
+								}
+							</tbody>
+						</table>
+					</div>
+				}
+			}
+		</section>
+		if page.CanManage {
+			@RoleGrantForm(page)
+		} else {
+			@FormError("role-grant-form-error", page.FormError, false)
+		}
+	</div>
+}
+
+templ RoleGrantForm(page RoleGrantsPageData) {
+	{{ action := RoleGrantsHref(page.Organization.Slug, page.SubjectKind, page.SubjectSlug) }}
+	<section class="rounded-xl border border-base-300 bg-base-100 p-4 sm:p-5">
+		<h2 class="text-base font-semibold">Grant a role</h2>
+		<form class="mt-3 grid gap-3" method="post" action={ templ.URL(action) } hx-post={ action } hx-target="#organization-grants-content" hx-select="#organization-grants-content" hx-swap="outerHTML show:none focus-scroll:false" data-preserve-scroll data-form-feedback>
+			@FormError("role-grant-form-error", page.FormError, true)
+			<div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+				<label class="form-control">
+					<span class="label-text py-1 text-xs">Subject type</span>
+					<select class="select select-bordered select-sm w-full" name="subject_kind" required>
+						<option value="">Select a subject type</option>
+						<option value="member" selected?={ page.Form.SubjectKind == api.NewRoleGrantSubjectKindMember }>Member</option>
+						<option value="api_key" selected?={ page.Form.SubjectKind == api.NewRoleGrantSubjectKindApiKey }>API key</option>
+					</select>
+				</label>
+				<label class="form-control">
+					<span class="label-text py-1 text-xs">Member or API key slug</span>
+					<input class="input input-bordered input-sm w-full" name="subject_slug" value={ page.Form.SubjectSlug } required/>
+				</label>
+				<label class="form-control">
+					<span class="label-text py-1 text-xs">Role slug</span>
+					<input class="input input-bordered input-sm w-full" name="role_slug" list="grant-role-options" value={ page.Form.RoleSlug } required/>
+				</label>
+				<datalist id="grant-role-options">
+					for _, role := range page.Roles {
+						<option value={ role.Slug }>{ role.Name }</option>
+					}
+				</datalist>
+				<label class="form-control">
+					<span class="label-text py-1 text-xs">Scope</span>
+					<select class="select select-bordered select-sm w-full" name="scope" required>
+						<option value="">Select a scope</option>
+						for _, scope := range []api.NewRoleGrantScope{api.NewRoleGrantScopeOrganization, api.NewRoleGrantScopeProject, api.NewRoleGrantScopeEnvironment, api.NewRoleGrantScopeResource} {
+							<option value={ string(scope) } selected?={ page.Form.Scope == scope }>{ roleGrantScopeLabel(api.RoleGrantScope(scope)) }</option>
+						}
+					</select>
+				</label>
+				<label class="form-control">
+					<span class="label-text py-1 text-xs">Target slug or key</span>
+					<input class="input input-bordered input-sm w-full" name="target_slug" value={ valueOrEmpty(page.Form.TargetSlug) } aria-describedby="grant-target-help"/>
+					<span id="grant-target-help" class="mt-1 text-xs text-base-content/70">Leave blank for organization scope.</span>
+				</label>
+				<label class="form-control">
+					<span class="label-text py-1 text-xs">Resource kind</span>
+					<input class="input input-bordered input-sm w-full" name="target_kind" list="grant-target-kind-options" value={ valueOrEmpty(page.Form.TargetKind) } aria-describedby="grant-kind-help"/>
+					<span id="grant-kind-help" class="mt-1 text-xs text-base-content/70">Required for resource scope.</span>
+				</label>
+				<datalist id="grant-target-kind-options">
+					for _, kind := range []string{"pipelines", "queries", "datasources", "pipeline_triggers", "runs", "alert_policies", "alert_destinations", "project_environments", "environment_secrets", "environment_runtime_variables", "runtime_variable_definitions", "data_source_refs", "data_source_bindings"} {
+						<option value={ kind }></option>
+					}
+				</datalist>
+			</div>
+			<details open?={ page.Form.ProjectSlug != nil || page.Form.EnvironmentSlug != nil || page.Form.DatasourceSlug != nil || page.Form.ParentSlug != nil }>
+				<summary class="cursor-pointer text-sm font-semibold">Resource qualifiers</summary>
+				<p class="mt-1 text-xs text-base-content/70">Use these to identify an individual resource when its slug is shared across scopes.</p>
+				<div class="mt-2 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+					@RoleGrantQualifierField("Project slug", "project_slug", page.Form.ProjectSlug)
+					@RoleGrantQualifierField("Environment slug", "environment_slug", page.Form.EnvironmentSlug)
+					@RoleGrantQualifierField("Data source slug", "datasource_slug", page.Form.DatasourceSlug)
+					@RoleGrantQualifierField("Parent slug", "parent_slug", page.Form.ParentSlug)
+				</div>
+			</details>
+			@FormRequestError()
+			<div class="flex justify-end">
+				<button class="btn btn-primary btn-sm" type="submit">Grant role</button>
+			</div>
+		</form>
+	</section>
+}
+
+templ RoleGrantQualifier(label string, value *string) {
+	if value != nil {
+		<span>{ label } <code class="break-all">{ *value }</code></span>
+	}
+}
+
+templ RoleGrantQualifierField(label, name string, value *string) {
+	<label class="form-control">
+		<span class="label-text py-1 text-xs">{ label }</span>
+		<input class="input input-bordered input-sm w-full" name={ name } value={ valueOrEmpty(value) }/>
+	</label>
+}

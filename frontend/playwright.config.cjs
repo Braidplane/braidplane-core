@@ -18,6 +18,7 @@ module.exports = defineConfig({
     testDir: "./e2e",
     testMatch: [
         "auth.spec.cjs",
+        "role-grants.spec.cjs",
         "google-signup.spec.cjs",
         "query-workspace.spec.cjs",
         "query-workspace-owned.spec.cjs",
@@ -62,6 +63,7 @@ module.exports = defineConfig({
             grep: browserGrep("product", "firefox", profile),
             testIgnore: [
                 "**/auth.spec.cjs",
+                "**/role-grants.spec.cjs",
                 "**/google-signup.spec.cjs",
                 "**/pipeline-builder.spec.cjs",
                 "**/stripe.spec.cjs",
@@ -73,6 +75,7 @@ module.exports = defineConfig({
             grep: browserGrep("product", "webkit", profile),
             testIgnore: [
                 "**/auth.spec.cjs",
+                "**/role-grants.spec.cjs",
                 "**/google-signup.spec.cjs",
                 "**/pipeline-builder.spec.cjs",
                 "**/stripe.spec.cjs",

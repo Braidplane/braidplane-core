@@ -376,7 +376,7 @@ func TestUpdateRoleWithPermissionsEmitsUpdateEvent(t *testing.T) {
 		model.UpdateRole{Name: "Editor renamed"},
 		[]model.RolePermission{
 			{Resource: "projects", Action: "read"},
-			{Resource: "queries", Action: "write"},
+			{Resource: "queries", Action: "update"},
 		},
 	)
 	require.NoError(t, err)

@@ -784,7 +784,6 @@ func TestPermissionsFromAPI(t *testing.T) {
 		name    string
 		perms   []api.Permission
 		wantLen int
-		wantErr bool
 	}{
 		{
 			name: "ConvertsBasicPermissions",
@@ -799,12 +798,7 @@ func TestPermissionsFromAPI(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 
-			result, err := permissionsFromAPI(tt.perms)
-			if tt.wantErr {
-				require.Error(t, err)
-				return
-			}
-			require.NoError(t, err)
+			result := permissionsFromAPI(tt.perms)
 			assert.Len(t, result, tt.wantLen)
 		})
 	}

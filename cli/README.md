@@ -96,7 +96,8 @@ response. User profiles may contain personal information.
 ### Scoped role grants
 
 `role grant list` shows additional scoped grants only; a member's or API key's
-primary organization role remains separate. `role grant assign` adds the selected
+primary organization role remains separate. Find it in `member list` or, with
+the required credential, `api-key list`. `role grant assign` adds the selected
 role's permissions to the subject's existing access at the selected organization,
 project, environment, or resource target. It does not replace the primary role.
 Use public slugs for the subject, role, target, and any resource qualifiers.

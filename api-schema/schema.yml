@@ -1534,6 +1534,25 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
 
+  /organizations/{slug}/authorization/permission-catalog:
+    get:
+      summary: List permissions that can be assigned to organization roles
+      operationId: listRolePermissionCatalog
+      tags: [roles]
+      parameters:
+        - $ref: '#/components/parameters/SlugParam'
+      responses:
+        '200':
+          description: Grantable permissions with display labels
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RolePermissionCatalog'
+        '401':
+          description: Authentication required
+        '403':
+          description: Organization role read permission required
+
   /organizations/{slug}/authorization/grants:
     parameters:
       - $ref: '#/components/parameters/SlugParam'
@@ -12764,6 +12783,24 @@ components:
       required:
         - resource
         - action
+
+    RolePermissionCatalog:
+      type: object
+      required: [permissions]
+      properties:
+        permissions:
+          type: array
+          items:
+            $ref: '#/components/schemas/RolePermissionOption'
+
+    RolePermissionOption:
+      allOf:
+        - $ref: '#/components/schemas/Permission'
+        - type: object
+          required: [resource_label, action_label]
+          properties:
+            resource_label: {type: string}
+            action_label: {type: string}
 
     NewRoleGrant:
       type: object
