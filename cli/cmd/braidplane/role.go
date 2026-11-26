@@ -57,22 +57,21 @@ func (f roleGrantFlags) request() (api.NewRoleGrant, error) {
 	if !subjectKind.Valid() || !scope.Valid() {
 		return api.NewRoleGrant{}, xerror.ValidationFailed().Detail("subject-kind must be member or api_key and scope must be organization, project, environment, or resource")
 	}
-	if scope == api.NewRoleGrantScopeOrganization {
-		if f.Target != "" || f.TargetKind != "" || f.Project != "" || f.Environment != "" || f.DataSource != "" || f.Parent != "" {
-			return api.NewRoleGrant{}, xerror.ValidationFailed().Detail("organization scope does not accept a target or resource qualifiers")
-		}
-	} else if f.Target == "" {
+	hasQualifiers := f.Project != "" || f.Environment != "" || f.DataSource != "" || f.Parent != ""
+	switch {
+	case scope == api.NewRoleGrantScopeOrganization && (f.Target != "" || f.TargetKind != "" || hasQualifiers):
+		return api.NewRoleGrant{}, xerror.ValidationFailed().Detail("organization scope does not accept a target or resource qualifiers")
+	case scope != api.NewRoleGrantScopeOrganization && f.Target == "":
 		return api.NewRoleGrant{}, xerror.ValidationFailed().Detail("project, environment, and resource scopes require --target")
-	} else if scope == api.NewRoleGrantScopeResource && f.TargetKind == "" {
+	case scope == api.NewRoleGrantScopeResource && f.TargetKind == "":
 		return api.NewRoleGrant{}, xerror.ValidationFailed().Detail("resource scope requires --target-kind")
-	} else if scope != api.NewRoleGrantScopeResource && f.TargetKind != "" {
+	case scope != api.NewRoleGrantScopeResource && f.TargetKind != "":
 		return api.NewRoleGrant{}, xerror.ValidationFailed().Detail("--target-kind applies only to resource scope")
-	}
-	if scope != api.NewRoleGrantScopeResource && (f.Project != "" || f.Environment != "" || f.DataSource != "" || f.Parent != "") {
+	case scope != api.NewRoleGrantScopeResource && hasQualifiers:
 		return api.NewRoleGrant{}, xerror.ValidationFailed().Detail("resource qualifiers apply only to resource scope")
 	}
 	return api.NewRoleGrant{
-		SubjectKind: subjectKind, SubjectSlug: api.Slug(f.Subject), RoleSlug: api.Slug(f.Role), Scope: scope,
+		SubjectKind: subjectKind, SubjectSlug: f.Subject, RoleSlug: f.Role, Scope: scope,
 		TargetKind: optionalString(f.TargetKind), TargetSlug: optionalString(f.Target),
 		ProjectSlug: optionalAPISlug(f.Project), EnvironmentSlug: optionalAPISlug(f.Environment),
 		DatasourceSlug: optionalAPISlug(f.DataSource), ParentSlug: optionalAPISlug(f.Parent),

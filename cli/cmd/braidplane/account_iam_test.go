@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
@@ -135,8 +136,8 @@ func TestRoleGrantCommandsUseScopedRoutesAndCredentialRestrictions(t *testing.T)
 		var gotAuth string
 		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			gotAuth = r.Header.Get("Authorization")
-			require.Equal(t, http.MethodGet, r.Method)
-			require.Equal(t, "/api/organizations/acme/authorization/grants", r.URL.Path)
+			assert.Equal(t, http.MethodGet, r.Method)
+			assert.Equal(t, "/api/organizations/acme/authorization/grants", r.URL.Path)
 			w.Header().Set("Content-Type", "application/json")
 			_, _ = w.Write([]byte(`{"grants":[]}`))
 		}))
@@ -156,11 +157,11 @@ func TestRoleGrantCommandsUseScopedRoutesAndCredentialRestrictions(t *testing.T)
 		var gotBody []byte
 		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			gotAuth = r.Header.Get("Authorization")
-			require.Equal(t, http.MethodPost, r.Method)
-			require.Equal(t, "/api/organizations/acme/authorization/grants", r.URL.Path)
+			assert.Equal(t, http.MethodPost, r.Method)
+			assert.Equal(t, "/api/organizations/acme/authorization/grants", r.URL.Path)
 			var err error
 			gotBody, err = io.ReadAll(r.Body)
-			require.NoError(t, err)
+			assert.NoError(t, err)
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusCreated)
 			_, _ = w.Write([]byte(`{"slug":"grant-1","subject_kind":"member","subject_slug":"alice","role_slug":"runner","scope":"resource","target_kind":"pipelines","target_slug":"daily","project_slug":"data"}`))
@@ -182,8 +183,8 @@ func TestRoleGrantCommandsUseScopedRoutesAndCredentialRestrictions(t *testing.T)
 		var gotAuth string
 		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			gotAuth = r.Header.Get("Authorization")
-			require.Equal(t, http.MethodDelete, r.Method)
-			require.Equal(t, "/api/organizations/acme/authorization/grants/grant-1", r.URL.Path)
+			assert.Equal(t, http.MethodDelete, r.Method)
+			assert.Equal(t, "/api/organizations/acme/authorization/grants/grant-1", r.URL.Path)
 			w.WriteHeader(http.StatusNoContent)
 		}))
 		t.Cleanup(server.Close)
@@ -326,9 +327,9 @@ func TestAccountIAMCommandHelpSurfaces(t *testing.T) {
 			var stdout bytes.Buffer
 			var stderr bytes.Buffer
 			err := runWithRuntime(tt.args, &stdout, &stderr, cliRuntime{})
-			require.NoError(t, err)
-			require.Contains(t, stdout.String(), tt.want)
-			require.Empty(t, stderr.String())
+			assert.NoError(t, err)
+			assert.Contains(t, stdout.String(), tt.want)
+			assert.Empty(t, stderr.String())
 		})
 	}
 }
