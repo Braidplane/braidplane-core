@@ -243,7 +243,7 @@ func TestRouter_HandleCreateRoleSubmit_RendersValidationFailure(t *testing.T) {
 	router.RegisterRoutes(app, CommunityPresentation{})
 
 	authCookie := getAuthenticatedSessionCookie(t, app)
-	form := strings.NewReader("name=&slug=editor&permission=members%3Aread")
+	form := strings.NewReader("name=&slug=editor&permission_picker=1&permission=members%3Aread")
 	req := httptest.NewRequestWithContext(context.Background(),
 		http.MethodPost,
 		"/organizations/acme-hq/roles",
@@ -315,7 +315,7 @@ func TestRouter_HandleCreateRoleSubmit_CreatesRole(t *testing.T) {
 	router.RegisterRoutes(app, CommunityPresentation{})
 
 	authCookie := getAuthenticatedSessionCookie(t, app)
-	form := strings.NewReader("name=Pipeline+Operator&slug=pipeline-operator&permission=pipelines%3Aexecute")
+	form := strings.NewReader("name=Pipeline+Operator&slug=pipeline-operator&permission_picker=1&permission=pipelines%3Aexecute")
 	req := httptest.NewRequestWithContext(context.Background(),
 		http.MethodPost,
 		"/organizations/acme-hq/roles",
@@ -332,6 +332,43 @@ func TestRouter_HandleCreateRoleSubmit_CreatesRole(t *testing.T) {
 	require.Equal(t, http.StatusSeeOther, resp.StatusCode)
 	require.Equal(t, "/organizations/acme-hq/roles", resp.Header.Get("Location"))
 	require.True(t, created)
+}
+
+func TestRouter_HandleUpdateRoleSubmit_RejectsStalePermissionForm(t *testing.T) {
+	t.Parallel()
+
+	apiServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if handleRolesCommonTestAPI(w, r, "admin", true) {
+			return
+		}
+		assert.NotEqual(t, http.MethodPut, r.Method, "stale form must be rejected before calling the API")
+		w.WriteHeader(http.StatusNotFound)
+	}))
+	defer apiServer.Close()
+
+	store := session.NewStore()
+	router, err := newHandlerTestRouter(apiServer.URL, slog.New(slog.DiscardHandler), store)
+	require.NoError(t, err)
+
+	app := fiber.New()
+	registerTestSessionRoute(app, store)
+	router.RegisterRoutes(app, CommunityPresentation{})
+
+	form := strings.NewReader("name=Stale+editor&permission_resource=members&permission_action=read")
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodPost, "/organizations/acme-hq/roles/editor/update", form)
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	req.Header.Set("Cookie", getAuthenticatedSessionCookie(t, app))
+	addCSRFToken(t, app, req)
+
+	resp, err := app.Test(req)
+	require.NoError(t, err)
+	defer func() { _ = resp.Body.Close() }()
+	require.Equal(t, http.StatusBadRequest, resp.StatusCode)
+	body, err := io.ReadAll(resp.Body)
+	require.NoError(t, err)
+	require.Contains(t, string(body), "The permission picker has changed.")
+	require.Contains(t, string(body), `value="Stale editor"`)
+	require.Contains(t, string(body), `value="pipelines:execute" checked`)
 }
 
 func TestRouter_HandleUpdateRoleSubmit_UpdatesRole(t *testing.T) {
@@ -379,7 +416,7 @@ func TestRouter_HandleUpdateRoleSubmit_UpdatesRole(t *testing.T) {
 	router.RegisterRoutes(app, CommunityPresentation{})
 
 	authCookie := getAuthenticatedSessionCookie(t, app)
-	form := strings.NewReader("name=Senior+Editor&permission=roles%3Aupdate")
+	form := strings.NewReader("name=Senior+Editor&permission_picker=1&permission=roles%3Aupdate")
 	req := httptest.NewRequestWithContext(context.Background(),
 		http.MethodPost,
 		"/organizations/acme-hq/roles/editor/update",

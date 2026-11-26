@@ -62,8 +62,8 @@ func (r *Router) handleCreateRoleSubmit(c fiber.Ctx) error {
 			http.StatusBadRequest,
 			views.RoleListViewActive,
 			formData,
-			"Role could not be created.",
 			validationErr,
+			"",
 			"",
 		)
 	}
@@ -128,8 +128,8 @@ func (r *Router) handleUpdateRoleSubmit(c fiber.Ctx) error {
 			http.StatusBadRequest,
 			views.RoleListViewActive,
 			formData,
-			"Role could not be updated.",
 			validationErr,
+			"",
 			"",
 		)
 	}
@@ -386,15 +386,16 @@ func (r *Router) renderOrganizationRolesPage(
 // roleFormDataFromRequest reads the role fields and selected permission values.
 func roleFormDataFromRequest(c fiber.Ctx) views.RoleFormData {
 	return views.RoleFormData{
-		Name:        c.FormValue("name"),
-		Slug:        c.FormValue("slug"),
-		Permissions: repeatedFormValues(c, "permission"),
+		Name:                       c.FormValue("name"),
+		Slug:                       c.FormValue("slug"),
+		Permissions:                repeatedFormValues(c, "permission"),
+		PermissionSelectionPresent: c.FormValue("permission_picker") == "1",
 	}
 }
 
 // roleCreatePayloadFromForm converts form data into a create-role API payload.
 func roleCreatePayloadFromForm(formData views.RoleFormData) (api.CreateRoleJSONRequestBody, string) {
-	permissions, validationErr := rolePermissionsFromForm(formData.Permissions)
+	permissions, validationErr := rolePermissionsFromForm(formData)
 	if validationErr != "" {
 		return api.CreateRoleJSONRequestBody{}, validationErr
 	}
@@ -417,7 +418,7 @@ func roleCreatePayloadFromForm(formData views.RoleFormData) (api.CreateRoleJSONR
 
 // roleUpdatePayloadFromForm converts form data into an update-role API payload.
 func roleUpdatePayloadFromForm(formData views.RoleFormData) (api.UpdateRoleJSONRequestBody, string) {
-	permissions, validationErr := rolePermissionsFromForm(formData.Permissions)
+	permissions, validationErr := rolePermissionsFromForm(formData)
 	if validationErr != "" {
 		return api.UpdateRoleJSONRequestBody{}, validationErr
 	}
@@ -429,9 +430,12 @@ func roleUpdatePayloadFromForm(formData views.RoleFormData) (api.UpdateRoleJSONR
 }
 
 // rolePermissionsFromForm converts checked values into API permission pairs.
-func rolePermissionsFromForm(values []string) ([]api.Permission, string) {
-	permissions := make([]api.Permission, 0, len(values))
-	for _, value := range values {
+func rolePermissionsFromForm(formData views.RoleFormData) ([]api.Permission, string) {
+	if !formData.PermissionSelectionPresent {
+		return nil, "The permission picker has changed. Review the permissions before saving."
+	}
+	permissions := make([]api.Permission, 0, len(formData.Permissions))
+	for _, value := range formData.Permissions {
 		resource, action, _ := strings.Cut(value, ":")
 		if resource == "" || action == "" {
 			return nil, "Validation: select permissions from the catalog."

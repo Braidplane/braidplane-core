@@ -823,6 +823,7 @@ templ OrganizationRolesPageContent(organization api.Organization, roles []api.Or
 }
 
 templ RolePermissionPicker(catalog []api.RolePermissionOption, values []string) {
+	<input type="hidden" name="permission_picker" value="1"/>
 	<details class="rounded-lg border border-base-300 px-3 py-2" open?={ len(values) > 0 }>
 		<summary class="cursor-pointer text-sm font-semibold">Permissions</summary>
 		<p class="mt-2 text-xs text-base-content/70">Select any number of permissions. Leave all boxes clear for a role with no permissions.</p>

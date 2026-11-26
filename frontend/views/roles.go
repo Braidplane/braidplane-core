@@ -19,10 +19,11 @@ const (
 
 // RoleFormData holds the draft returned when a role form fails.
 type RoleFormData struct {
-	Name        string
-	Slug        string
-	Permissions []string
-	EditRole    string
+	Name                       string
+	Slug                       string
+	Permissions                []string
+	EditRole                   string
+	PermissionSelectionPresent bool
 }
 
 type RolePickerData struct {
@@ -39,10 +40,14 @@ func (p RolePickerData) CreateForm() RoleFormData {
 }
 
 func (p RolePickerData) EditForm(role api.OrgRole) RoleFormData {
-	if p.Submitted.EditRole == role.Slug {
-		return p.Submitted
-	}
 	form := RoleFormData{Name: role.Name}
+	if p.Submitted.EditRole == role.Slug {
+		form = p.Submitted
+		if form.PermissionSelectionPresent {
+			return form
+		}
+		form.Permissions = nil
+	}
 	for _, permission := range role.Permissions {
 		form.Permissions = append(form.Permissions, rolePermissionLabel(permission))
 	}

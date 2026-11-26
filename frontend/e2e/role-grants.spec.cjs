@@ -126,6 +126,15 @@ test("edits role permissions and grants access at a project", async ({ page }, t
         await row.getByRole("button", { name: /Revoke grant/ }).click();
         await expect(page.getByText("No explicit grants.")).toBeVisible();
         expect((await (await page.request.get(`${orgAPI}/members`)).json()).members[0].role).toBe("admin");
+
+        await page.goto(`${settings}/roles`);
+        await page.getByRole("button", { name: "Edit", exact: true }).click();
+        for (const permission of permissions) {
+            await edit.locator(`input[value="${permission}"]`).uncheck();
+        }
+        await edit.getByRole("button", { name: "Save", exact: true }).click();
+        await expect(edit).toBeHidden();
+        expect((await getRole()).permissions).toEqual([]);
     } catch (error) {
         errors.push(error);
     }
