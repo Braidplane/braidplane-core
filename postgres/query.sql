@@ -13833,3 +13833,169 @@ DELETE FROM authorization_scoped_grants g USING organizations o, roles r
 WHERE o.id = g.organization_id AND o.slug = sqlc.arg('org_slug') AND g.slug = sqlc.arg('grant_slug')
   AND (r.organization_id, r.id) = (g.organization_id, g.role_id)
 RETURNING r.slug AS role_slug;
+
+-- name: CreateMCPOAuthUserGrant :one
+INSERT INTO mcp_oauth_grants (issuer, audience, client_id, user_id, member_id, authentication_version, expires_at, operation_scope_keys)
+SELECT sqlc.arg('issuer'), sqlc.arg('audience'), sqlc.arg('client_id'),
+    CASE WHEN m.id IS NULL THEN u.id END, m.id, u.authentication_version,
+    clock_timestamp() + sqlc.arg('lifetime_seconds')::integer * interval '1 second',
+    COALESCE(sqlc.arg('operation_scope_keys')::text[], '{}')
+FROM users u
+LEFT JOIN organizations o ON o.slug = sqlc.arg('organization_slug')::text
+LEFT JOIN organization_members m ON m.user_id = u.id AND m.organization_id = o.id
+WHERE u.slug = sqlc.arg('user_slug')::text
+    AND u.verified_at IS NOT NULL AND u.deleted_at IS NULL
+    AND u.authentication_version = sqlc.arg('authentication_version')::bigint
+    AND (sqlc.arg('organization_slug')::text = '' OR m.id IS NOT NULL)
+RETURNING grant_id;
+
+-- name: CreateMCPOAuthCredential :one
+INSERT INTO mcp_oauth_credentials (credential_hash, grant_id, kind, redirect_uri, challenge, expires_at)
+SELECT sqlc.arg('credential_hash'), g.grant_id, sqlc.arg('kind'), sqlc.arg('redirect_uri'),
+    sqlc.arg('challenge'), LEAST(g.expires_at, clock_timestamp() + sqlc.arg('lifetime_seconds')::integer * interval '1 second')
+FROM mcp_oauth_grants g
+WHERE g.grant_id = sqlc.arg('grant_id') AND g.revoked_at IS NULL AND g.expires_at > clock_timestamp()
+RETURNING expires_at;
+
+-- name: LockMCPOAuthGrant :one
+SELECT g.grant_id
+FROM mcp_oauth_credentials c
+JOIN mcp_oauth_grants g ON g.grant_id = c.grant_id
+WHERE c.credential_hash = sqlc.arg('credential_hash') AND c.kind = sqlc.arg('kind')
+    AND g.issuer = sqlc.arg('issuer') AND g.audience = sqlc.arg('audience')
+    AND g.client_id = sqlc.arg('client_id') AND g.revoked_at IS NULL AND g.expires_at > clock_timestamp()
+    AND (g.machine_client_id IS NOT NULL) = sqlc.arg('machine')::boolean
+FOR UPDATE OF g;
+
+-- name: CheckActiveMCPOAuthGrant :one
+SELECT g.grant_id FROM mcp_oauth_grants g
+WHERE g.grant_id = sqlc.arg('grant_id') AND (
+    EXISTS (SELECT 1 FROM active_mcp_oauth_user_grants u WHERE u.grant_id = g.grant_id) OR
+    EXISTS (SELECT 1 FROM active_mcp_oauth_machine_grants m WHERE m.grant_id = g.grant_id)
+);
+
+-- name: ReadMCPOAuthCredential :one
+SELECT redirect_uri, challenge, used_at IS NOT NULL AS used, expires_at > clock_timestamp() AS unexpired
+FROM mcp_oauth_credentials WHERE credential_hash = sqlc.arg('credential_hash') AND grant_id = sqlc.arg('grant_id');
+
+-- name: ConsumeMCPOAuthCredential :execrows
+UPDATE mcp_oauth_credentials SET used_at = clock_timestamp()
+WHERE credential_hash = sqlc.arg('credential_hash') AND grant_id = sqlc.arg('grant_id')
+    AND kind IN ('code', 'refresh') AND used_at IS NULL AND expires_at > clock_timestamp();
+
+-- name: AuthenticateMCPOAuthAccessToken :one
+SELECT g.*
+FROM mcp_oauth_credentials c
+JOIN active_mcp_oauth_user_grants g ON g.grant_id = c.grant_id
+WHERE c.credential_hash = sqlc.arg('credential_hash') AND c.kind = 'access'
+    AND g.issuer = sqlc.arg('issuer') AND g.audience = sqlc.arg('audience')
+    AND c.expires_at > clock_timestamp();
+
+-- name: RevokeMCPOAuthGrant :exec
+UPDATE mcp_oauth_grants SET revoked_at = clock_timestamp()
+WHERE grant_id = sqlc.arg('grant_id') AND revoked_at IS NULL;
+
+-- name: DisconnectMCPOAuthUserClient :exec
+UPDATE mcp_oauth_grants g SET revoked_at = clock_timestamp()
+FROM active_mcp_oauth_user_grants a
+WHERE g.grant_id = a.grant_id AND g.revoked_at IS NULL
+    AND a.issuer = sqlc.arg('issuer') AND a.audience = sqlc.arg('audience') AND a.client_id = sqlc.arg('client_id')
+    AND a.user_slug = sqlc.arg('user_slug') AND a.organization_slug = sqlc.arg('organization_slug');
+
+-- name: RegisterMCPOAuthMachineClient :one
+INSERT INTO mcp_oauth_machine_clients (issuer, audience, client_id, client_secret_hash, api_key_id, api_key_token_hash, expires_at, operation_scope_keys)
+SELECT sqlc.arg('issuer'), sqlc.arg('audience'), sqlc.arg('client_id'), sqlc.arg('client_secret_hash'),
+    k.id, k.token_hash, LEAST(k.expires_at, clock_timestamp() + sqlc.arg('lifetime_seconds')::integer * interval '1 second'),
+    COALESCE(sqlc.arg('operation_scope_keys')::text[], '{}')
+FROM api_keys k JOIN organizations o ON o.id = k.organization_id
+JOIN roles r ON r.id = k.role_id AND r.organization_id = k.organization_id
+WHERE o.slug = sqlc.arg('organization_slug') AND k.slug = sqlc.arg('api_key_slug')
+    AND k.revoked_at IS NULL AND (k.expires_at IS NULL OR k.expires_at > clock_timestamp())
+    AND r.deleted_at IS NULL
+RETURNING expires_at;
+
+-- name: ReadMCPOAuthMachineClientSecretHash :one
+SELECT client_secret_hash FROM active_mcp_oauth_machine_clients
+WHERE issuer = sqlc.arg('issuer') AND audience = sqlc.arg('audience') AND client_id = sqlc.arg('client_id');
+
+-- name: CreateMCPOAuthMachineGrant :one
+INSERT INTO mcp_oauth_grants (issuer, audience, client_id, machine_client_id, expires_at, operation_scope_keys)
+SELECT c.issuer, c.audience, c.client_id, c.client_id,
+    LEAST(c.expires_at, clock_timestamp() + sqlc.arg('lifetime_seconds')::integer * interval '1 second'), c.operation_scope_keys
+FROM active_mcp_oauth_machine_clients c
+WHERE c.issuer = sqlc.arg('issuer') AND c.audience = sqlc.arg('audience') AND c.client_id = sqlc.arg('client_id')
+RETURNING grant_id;
+
+-- name: AuthenticateMCPOAuthMachineAccessToken :one
+SELECT g.*
+FROM mcp_oauth_credentials c
+JOIN active_mcp_oauth_machine_grants g ON g.grant_id = c.grant_id
+WHERE c.credential_hash = sqlc.arg('credential_hash') AND c.kind = 'access'
+    AND g.issuer = sqlc.arg('issuer') AND g.audience = sqlc.arg('audience')
+    AND g.organization_slug = sqlc.arg('organization_slug') AND c.expires_at > clock_timestamp();
+
+-- name: DisconnectMCPOAuthMachineClient :execrows
+UPDATE mcp_oauth_machine_clients c SET revoked_at = COALESCE(c.revoked_at, clock_timestamp())
+FROM api_keys k JOIN organizations o ON o.id = k.organization_id
+WHERE k.id = c.api_key_id AND o.slug = sqlc.arg('organization_slug') AND k.slug = sqlc.arg('api_key_slug')
+    AND c.issuer = sqlc.arg('issuer') AND c.audience = sqlc.arg('audience') AND c.client_id = sqlc.arg('client_id');
+
+-- name: CheckMCPOAuthMachineAdminSession :one
+SELECT u.id FROM users u
+JOIN organization_members m ON m.user_id = u.id
+JOIN organizations o ON o.id = m.organization_id
+WHERE u.slug = sqlc.arg('user_slug') AND o.slug = sqlc.arg('organization_slug')
+    AND u.authentication_version = sqlc.arg('authentication_version')
+    AND u.verified_at IS NOT NULL AND u.deleted_at IS NULL;
+
+-- name: CreateMCPOAuthPendingConsent :exec
+INSERT INTO mcp_oauth_pending_consents (nonce_hash, grant_id, session_hash, redirect_uri, challenge, client_state, expires_at)
+VALUES (sqlc.arg('nonce_hash'), sqlc.arg('grant_id'), sqlc.arg('session_hash'),
+    sqlc.arg('redirect_uri'), sqlc.arg('challenge'), sqlc.arg('client_state'),
+    clock_timestamp() + sqlc.arg('lifetime_seconds')::integer * interval '1 second');
+
+-- name: ConsumeMCPOAuthPendingConsent :one
+WITH eligible AS MATERIALIZED (
+    SELECT p.nonce_hash
+    FROM mcp_oauth_pending_consents p
+    JOIN active_mcp_oauth_user_grants a ON a.grant_id = p.grant_id
+    JOIN mcp_oauth_grants g ON g.grant_id = a.grant_id
+    WHERE p.nonce_hash = sqlc.arg('nonce_hash') AND p.session_hash = sqlc.arg('session_hash')
+        AND p.expires_at > clock_timestamp()
+        AND a.issuer = sqlc.arg('issuer') AND a.audience = sqlc.arg('audience')
+        AND a.user_slug = sqlc.arg('user_slug') AND a.organization_slug = sqlc.arg('organization_slug')
+        AND g.authentication_version = sqlc.arg('authentication_version')::bigint
+        AND g.revoked_at IS NULL AND g.expires_at > clock_timestamp()
+    FOR UPDATE OF g
+)
+DELETE FROM mcp_oauth_pending_consents p
+USING eligible
+WHERE p.nonce_hash = eligible.nonce_hash AND p.expires_at > clock_timestamp()
+RETURNING p.grant_id, p.redirect_uri, p.challenge, p.client_state;
+
+-- name: NarrowMCPOAuthUserGrantScopes :execrows
+UPDATE mcp_oauth_grants g SET operation_scope_keys = ARRAY(
+    SELECT key FROM unnest(g.operation_scope_keys) WITH ORDINALITY AS existing(key, position)
+    WHERE key = ANY(sqlc.arg('allowed_scope_keys')::text[])
+    ORDER BY position
+)
+WHERE g.grant_id = sqlc.arg('grant_id') AND g.machine_client_id IS NULL
+    AND g.revoked_at IS NULL AND g.expires_at > clock_timestamp();
+
+-- name: DeleteExpiredMCPOAuthMachineClients :execrows
+DELETE FROM mcp_oauth_machine_clients WHERE expires_at <= statement_timestamp();
+
+-- name: DeleteInactiveMCPOAuthGrants :execrows
+DELETE FROM mcp_oauth_grants WHERE expires_at <= statement_timestamp() OR revoked_at IS NOT NULL;
+
+-- name: DeleteExpiredMCPOAuthTransientRecords :one
+WITH consent AS (
+    DELETE FROM mcp_oauth_pending_consents WHERE expires_at <= statement_timestamp() RETURNING 1
+), unused_codes AS (
+    -- Used codes and refresh tokens still detect reuse while their grant is live.
+    -- Access and refresh tokens of live grants can still be presented for revocation.
+    DELETE FROM mcp_oauth_credentials
+    WHERE kind = 'code' AND used_at IS NULL AND expires_at <= statement_timestamp()
+    RETURNING 1
+)
+SELECT ((SELECT count(*) FROM consent) + (SELECT count(*) FROM unused_codes))::bigint;

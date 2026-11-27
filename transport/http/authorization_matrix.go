@@ -27,6 +27,9 @@ func RequireMappedOperation(c fiber.Ctx, next fiber.Handler) error {
 }
 
 func (s *server) authenticatedSource(c fiber.Ctx) authorization.Source {
+	if source := authorization.DelegatedSource(c.Context()); source != "" {
+		return source
+	}
 	if _, ok := reqctx.GetAPIKeyPrincipal(c); ok {
 		return authorization.SourceAPIKey
 	}

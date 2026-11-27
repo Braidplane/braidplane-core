@@ -19,6 +19,7 @@ const (
 	SessionUserKey                  = "user"
 	SessionAuthenticationVersionKey = "authentication_version"
 	SessionAuthenticatedAtKey       = "authenticated_at"
+	SessionAuthenticatedAtNanosKey  = "authenticated_at_nanos"
 	SessionGoogleSignupKey          = "google_signup"
 	SessionGoogleSignupExpiresKey   = "google_signup_expires"
 	activeOrgKey                    = "active_org"
@@ -40,6 +41,7 @@ type UserPrincipalSource string
 const (
 	UserPrincipalSourceSession             UserPrincipalSource = "session"
 	UserPrincipalSourcePersonalAccessToken UserPrincipalSource = "personal_access_token"
+	UserPrincipalSourceDelegated           UserPrincipalSource = "delegated"
 )
 
 type UserPrincipal struct {
@@ -230,7 +232,9 @@ func ResetAndSetAuthenticatedUser(c fiber.Ctx, store *session.Store, userSlug sl
 	sess.Set(SessionUserKey, userSlug.String())
 	sess.Set(SessionAuthenticationVersionKey, version)
 	if passwordOrMFA {
-		sess.Set(SessionAuthenticatedAtKey, time.Now().Unix())
+		now := time.Now()
+		sess.Set(SessionAuthenticatedAtKey, now.Unix())
+		sess.Set(SessionAuthenticatedAtNanosKey, now.UnixNano())
 	}
 	if err := sess.Save(); err != nil {
 		return fiber.NewError(fiber.StatusInternalServerError, "failed to save session")

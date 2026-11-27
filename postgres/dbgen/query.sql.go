@@ -805,6 +805,75 @@ func (q *Queries) AttemptAbuseControl(ctx context.Context, arg AttemptAbuseContr
 	return i, err
 }
 
+const authenticateMCPOAuthAccessToken = `-- name: AuthenticateMCPOAuthAccessToken :one
+SELECT g.grant_id, g.issuer, g.audience, g.client_id, g.user_slug, g.organization_slug, g.user_id, g.member_id, g.operation_scope_keys
+FROM mcp_oauth_credentials c
+JOIN active_mcp_oauth_user_grants g ON g.grant_id = c.grant_id
+WHERE c.credential_hash = $1 AND c.kind = 'access'
+    AND g.issuer = $2 AND g.audience = $3
+    AND c.expires_at > clock_timestamp()
+`
+
+type AuthenticateMCPOAuthAccessTokenParams struct {
+	CredentialHash string
+	Issuer         string
+	Audience       string
+}
+
+func (q *Queries) AuthenticateMCPOAuthAccessToken(ctx context.Context, arg AuthenticateMCPOAuthAccessTokenParams) (ActiveMcpOauthUserGrant, error) {
+	row := q.db.QueryRow(ctx, authenticateMCPOAuthAccessToken, arg.CredentialHash, arg.Issuer, arg.Audience)
+	var i ActiveMcpOauthUserGrant
+	err := row.Scan(
+		&i.GrantID,
+		&i.Issuer,
+		&i.Audience,
+		&i.ClientID,
+		&i.UserSlug,
+		&i.OrganizationSlug,
+		&i.UserID,
+		&i.MemberID,
+		&i.OperationScopeKeys,
+	)
+	return i, err
+}
+
+const authenticateMCPOAuthMachineAccessToken = `-- name: AuthenticateMCPOAuthMachineAccessToken :one
+SELECT g.grant_id, g.issuer, g.audience, g.client_id, g.api_key_id, g.api_key_slug, g.organization_slug, g.operation_scope_keys
+FROM mcp_oauth_credentials c
+JOIN active_mcp_oauth_machine_grants g ON g.grant_id = c.grant_id
+WHERE c.credential_hash = $1 AND c.kind = 'access'
+    AND g.issuer = $2 AND g.audience = $3
+    AND g.organization_slug = $4 AND c.expires_at > clock_timestamp()
+`
+
+type AuthenticateMCPOAuthMachineAccessTokenParams struct {
+	CredentialHash   string
+	Issuer           string
+	Audience         string
+	OrganizationSlug string
+}
+
+func (q *Queries) AuthenticateMCPOAuthMachineAccessToken(ctx context.Context, arg AuthenticateMCPOAuthMachineAccessTokenParams) (ActiveMcpOauthMachineGrant, error) {
+	row := q.db.QueryRow(ctx, authenticateMCPOAuthMachineAccessToken,
+		arg.CredentialHash,
+		arg.Issuer,
+		arg.Audience,
+		arg.OrganizationSlug,
+	)
+	var i ActiveMcpOauthMachineGrant
+	err := row.Scan(
+		&i.GrantID,
+		&i.Issuer,
+		&i.Audience,
+		&i.ClientID,
+		&i.ApiKeyID,
+		&i.ApiKeySlug,
+		&i.OrganizationSlug,
+		&i.OperationScopeKeys,
+	)
+	return i, err
+}
+
 const beginPipelineSinkEffect = `-- name: BeginPipelineSinkEffect :one
 
 WITH scoped_environment AS (
@@ -1493,6 +1562,21 @@ func (q *Queries) CancelProofObservationJob(ctx context.Context, arg CancelProof
 	return result.RowsAffected(), nil
 }
 
+const checkActiveMCPOAuthGrant = `-- name: CheckActiveMCPOAuthGrant :one
+SELECT g.grant_id FROM mcp_oauth_grants g
+WHERE g.grant_id = $1 AND (
+    EXISTS (SELECT 1 FROM active_mcp_oauth_user_grants u WHERE u.grant_id = g.grant_id) OR
+    EXISTS (SELECT 1 FROM active_mcp_oauth_machine_grants m WHERE m.grant_id = g.grant_id)
+)
+`
+
+func (q *Queries) CheckActiveMCPOAuthGrant(ctx context.Context, grantID int64) (int64, error) {
+	row := q.db.QueryRow(ctx, checkActiveMCPOAuthGrant, grantID)
+	var grant_id int64
+	err := row.Scan(&grant_id)
+	return grant_id, err
+}
+
 const checkConnectorDispatch = `-- name: CheckConnectorDispatch :one
 SELECT check_connector_dispatch(
     $1, $2::uuid, $3::text,
@@ -1529,6 +1613,28 @@ func (q *Queries) CheckConnectorDispatch(ctx context.Context, arg CheckConnector
 	var allowed bool
 	err := row.Scan(&allowed)
 	return allowed, err
+}
+
+const checkMCPOAuthMachineAdminSession = `-- name: CheckMCPOAuthMachineAdminSession :one
+SELECT u.id FROM users u
+JOIN organization_members m ON m.user_id = u.id
+JOIN organizations o ON o.id = m.organization_id
+WHERE u.slug = $1 AND o.slug = $2
+    AND u.authentication_version = $3
+    AND u.verified_at IS NOT NULL AND u.deleted_at IS NULL
+`
+
+type CheckMCPOAuthMachineAdminSessionParams struct {
+	UserSlug              slug.Slug
+	OrganizationSlug      slug.Slug
+	AuthenticationVersion int64
+}
+
+func (q *Queries) CheckMCPOAuthMachineAdminSession(ctx context.Context, arg CheckMCPOAuthMachineAdminSessionParams) (int, error) {
+	row := q.db.QueryRow(ctx, checkMCPOAuthMachineAdminSession, arg.UserSlug, arg.OrganizationSlug, arg.AuthenticationVersion)
+	var id int
+	err := row.Scan(&id)
+	return id, err
 }
 
 const claimConnectionDelivery = `-- name: ClaimConnectionDelivery :one
@@ -2706,6 +2812,82 @@ func (q *Queries) ConsumeGitHubAppInstallIntent(ctx context.Context, id int) (in
 	var id_2 int
 	err := row.Scan(&id_2)
 	return id_2, err
+}
+
+const consumeMCPOAuthCredential = `-- name: ConsumeMCPOAuthCredential :execrows
+UPDATE mcp_oauth_credentials SET used_at = clock_timestamp()
+WHERE credential_hash = $1 AND grant_id = $2
+    AND kind IN ('code', 'refresh') AND used_at IS NULL AND expires_at > clock_timestamp()
+`
+
+type ConsumeMCPOAuthCredentialParams struct {
+	CredentialHash string
+	GrantID        int64
+}
+
+func (q *Queries) ConsumeMCPOAuthCredential(ctx context.Context, arg ConsumeMCPOAuthCredentialParams) (int64, error) {
+	result, err := q.db.Exec(ctx, consumeMCPOAuthCredential, arg.CredentialHash, arg.GrantID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const consumeMCPOAuthPendingConsent = `-- name: ConsumeMCPOAuthPendingConsent :one
+WITH eligible AS MATERIALIZED (
+    SELECT p.nonce_hash
+    FROM mcp_oauth_pending_consents p
+    JOIN active_mcp_oauth_user_grants a ON a.grant_id = p.grant_id
+    JOIN mcp_oauth_grants g ON g.grant_id = a.grant_id
+    WHERE p.nonce_hash = $1 AND p.session_hash = $2
+        AND p.expires_at > clock_timestamp()
+        AND a.issuer = $3 AND a.audience = $4
+        AND a.user_slug = $5 AND a.organization_slug = $6
+        AND g.authentication_version = $7::bigint
+        AND g.revoked_at IS NULL AND g.expires_at > clock_timestamp()
+    FOR UPDATE OF g
+)
+DELETE FROM mcp_oauth_pending_consents p
+USING eligible
+WHERE p.nonce_hash = eligible.nonce_hash AND p.expires_at > clock_timestamp()
+RETURNING p.grant_id, p.redirect_uri, p.challenge, p.client_state
+`
+
+type ConsumeMCPOAuthPendingConsentParams struct {
+	NonceHash             string
+	SessionHash           string
+	Issuer                string
+	Audience              string
+	UserSlug              string
+	OrganizationSlug      string
+	AuthenticationVersion int64
+}
+
+type ConsumeMCPOAuthPendingConsentRow struct {
+	GrantID     int64
+	RedirectUri string
+	Challenge   string
+	ClientState string
+}
+
+func (q *Queries) ConsumeMCPOAuthPendingConsent(ctx context.Context, arg ConsumeMCPOAuthPendingConsentParams) (ConsumeMCPOAuthPendingConsentRow, error) {
+	row := q.db.QueryRow(ctx, consumeMCPOAuthPendingConsent,
+		arg.NonceHash,
+		arg.SessionHash,
+		arg.Issuer,
+		arg.Audience,
+		arg.UserSlug,
+		arg.OrganizationSlug,
+		arg.AuthenticationVersion,
+	)
+	var i ConsumeMCPOAuthPendingConsentRow
+	err := row.Scan(
+		&i.GrantID,
+		&i.RedirectUri,
+		&i.Challenge,
+		&i.ClientState,
+	)
+	return i, err
 }
 
 const consumeOAuthInstall = `-- name: ConsumeOAuthInstall :one
@@ -3944,6 +4126,139 @@ type CreateInstanceAdminAuditParams struct {
 func (q *Queries) CreateInstanceAdminAudit(ctx context.Context, arg CreateInstanceAdminAuditParams) error {
 	_, err := q.db.Exec(ctx, createInstanceAdminAudit, arg.TargetUserSlug, arg.PreviousRole, arg.NewRole)
 	return err
+}
+
+const createMCPOAuthCredential = `-- name: CreateMCPOAuthCredential :one
+INSERT INTO mcp_oauth_credentials (credential_hash, grant_id, kind, redirect_uri, challenge, expires_at)
+SELECT $1, g.grant_id, $2, $3,
+    $4, LEAST(g.expires_at, clock_timestamp() + $5::integer * interval '1 second')
+FROM mcp_oauth_grants g
+WHERE g.grant_id = $6 AND g.revoked_at IS NULL AND g.expires_at > clock_timestamp()
+RETURNING expires_at
+`
+
+type CreateMCPOAuthCredentialParams struct {
+	CredentialHash  string
+	Kind            string
+	RedirectUri     string
+	Challenge       string
+	LifetimeSeconds int32
+	GrantID         int64
+}
+
+func (q *Queries) CreateMCPOAuthCredential(ctx context.Context, arg CreateMCPOAuthCredentialParams) (pgtype.Timestamptz, error) {
+	row := q.db.QueryRow(ctx, createMCPOAuthCredential,
+		arg.CredentialHash,
+		arg.Kind,
+		arg.RedirectUri,
+		arg.Challenge,
+		arg.LifetimeSeconds,
+		arg.GrantID,
+	)
+	var expires_at pgtype.Timestamptz
+	err := row.Scan(&expires_at)
+	return expires_at, err
+}
+
+const createMCPOAuthMachineGrant = `-- name: CreateMCPOAuthMachineGrant :one
+INSERT INTO mcp_oauth_grants (issuer, audience, client_id, machine_client_id, expires_at, operation_scope_keys)
+SELECT c.issuer, c.audience, c.client_id, c.client_id,
+    LEAST(c.expires_at, clock_timestamp() + $1::integer * interval '1 second'), c.operation_scope_keys
+FROM active_mcp_oauth_machine_clients c
+WHERE c.issuer = $2 AND c.audience = $3 AND c.client_id = $4
+RETURNING grant_id
+`
+
+type CreateMCPOAuthMachineGrantParams struct {
+	LifetimeSeconds int32
+	Issuer          string
+	Audience        string
+	ClientID        string
+}
+
+func (q *Queries) CreateMCPOAuthMachineGrant(ctx context.Context, arg CreateMCPOAuthMachineGrantParams) (int64, error) {
+	row := q.db.QueryRow(ctx, createMCPOAuthMachineGrant,
+		arg.LifetimeSeconds,
+		arg.Issuer,
+		arg.Audience,
+		arg.ClientID,
+	)
+	var grant_id int64
+	err := row.Scan(&grant_id)
+	return grant_id, err
+}
+
+const createMCPOAuthPendingConsent = `-- name: CreateMCPOAuthPendingConsent :exec
+INSERT INTO mcp_oauth_pending_consents (nonce_hash, grant_id, session_hash, redirect_uri, challenge, client_state, expires_at)
+VALUES ($1, $2, $3,
+    $4, $5, $6,
+    clock_timestamp() + $7::integer * interval '1 second')
+`
+
+type CreateMCPOAuthPendingConsentParams struct {
+	NonceHash       string
+	GrantID         int64
+	SessionHash     string
+	RedirectUri     string
+	Challenge       string
+	ClientState     string
+	LifetimeSeconds int32
+}
+
+func (q *Queries) CreateMCPOAuthPendingConsent(ctx context.Context, arg CreateMCPOAuthPendingConsentParams) error {
+	_, err := q.db.Exec(ctx, createMCPOAuthPendingConsent,
+		arg.NonceHash,
+		arg.GrantID,
+		arg.SessionHash,
+		arg.RedirectUri,
+		arg.Challenge,
+		arg.ClientState,
+		arg.LifetimeSeconds,
+	)
+	return err
+}
+
+const createMCPOAuthUserGrant = `-- name: CreateMCPOAuthUserGrant :one
+INSERT INTO mcp_oauth_grants (issuer, audience, client_id, user_id, member_id, authentication_version, expires_at, operation_scope_keys)
+SELECT $1, $2, $3,
+    CASE WHEN m.id IS NULL THEN u.id END, m.id, u.authentication_version,
+    clock_timestamp() + $4::integer * interval '1 second',
+    COALESCE($5::text[], '{}')
+FROM users u
+LEFT JOIN organizations o ON o.slug = $6::text
+LEFT JOIN organization_members m ON m.user_id = u.id AND m.organization_id = o.id
+WHERE u.slug = $7::text
+    AND u.verified_at IS NOT NULL AND u.deleted_at IS NULL
+    AND u.authentication_version = $8::bigint
+    AND ($6::text = '' OR m.id IS NOT NULL)
+RETURNING grant_id
+`
+
+type CreateMCPOAuthUserGrantParams struct {
+	Issuer                string
+	Audience              string
+	ClientID              string
+	LifetimeSeconds       int32
+	OperationScopeKeys    []string
+	OrganizationSlug      string
+	UserSlug              string
+	AuthenticationVersion int64
+}
+
+func (q *Queries) CreateMCPOAuthUserGrant(ctx context.Context, arg CreateMCPOAuthUserGrantParams) (int64, error) {
+	row := q.db.QueryRow(ctx, createMCPOAuthUserGrant,
+		arg.Issuer,
+		arg.Audience,
+		arg.ClientID,
+		arg.LifetimeSeconds,
+		arg.OperationScopeKeys,
+		arg.OrganizationSlug,
+		arg.UserSlug,
+		arg.AuthenticationVersion,
+	)
+	var grant_id int64
+	err := row.Scan(&grant_id)
+	return grant_id, err
 }
 
 const createNotificationConnection = `-- name: CreateNotificationConnection :one
@@ -8658,6 +8973,38 @@ func (q *Queries) DeleteExpiredAbuseControlBuckets(ctx context.Context, cutoff p
 	return result.RowsAffected(), nil
 }
 
+const deleteExpiredMCPOAuthMachineClients = `-- name: DeleteExpiredMCPOAuthMachineClients :execrows
+DELETE FROM mcp_oauth_machine_clients WHERE expires_at <= statement_timestamp()
+`
+
+func (q *Queries) DeleteExpiredMCPOAuthMachineClients(ctx context.Context) (int64, error) {
+	result, err := q.db.Exec(ctx, deleteExpiredMCPOAuthMachineClients)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const deleteExpiredMCPOAuthTransientRecords = `-- name: DeleteExpiredMCPOAuthTransientRecords :one
+WITH consent AS (
+    DELETE FROM mcp_oauth_pending_consents WHERE expires_at <= statement_timestamp() RETURNING 1
+), unused_codes AS (
+    -- Used codes and refresh tokens still detect reuse while their grant is live.
+    -- Access and refresh tokens of live grants can still be presented for revocation.
+    DELETE FROM mcp_oauth_credentials
+    WHERE kind = 'code' AND used_at IS NULL AND expires_at <= statement_timestamp()
+    RETURNING 1
+)
+SELECT ((SELECT count(*) FROM consent) + (SELECT count(*) FROM unused_codes))::bigint
+`
+
+func (q *Queries) DeleteExpiredMCPOAuthTransientRecords(ctx context.Context) (int64, error) {
+	row := q.db.QueryRow(ctx, deleteExpiredMCPOAuthTransientRecords)
+	var column_1 int64
+	err := row.Scan(&column_1)
+	return column_1, err
+}
+
 const deleteExpiredOrganizationEvents = `-- name: DeleteExpiredOrganizationEvents :execrows
 DELETE FROM events e
 USING organizations o
@@ -8884,6 +9231,18 @@ WHERE updated_at <= $1
 
 func (q *Queries) DeleteExpiredWishlistRegistrations(ctx context.Context, cutoff pgtype.Timestamptz) (int64, error) {
 	result, err := q.db.Exec(ctx, deleteExpiredWishlistRegistrations, cutoff)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const deleteInactiveMCPOAuthGrants = `-- name: DeleteInactiveMCPOAuthGrants :execrows
+DELETE FROM mcp_oauth_grants WHERE expires_at <= statement_timestamp() OR revoked_at IS NOT NULL
+`
+
+func (q *Queries) DeleteInactiveMCPOAuthGrants(ctx context.Context) (int64, error) {
+	result, err := q.db.Exec(ctx, deleteInactiveMCPOAuthGrants)
 	if err != nil {
 		return 0, err
 	}
@@ -9443,6 +9802,62 @@ func (q *Queries) DisconnectGitHubAppInstallation(ctx context.Context, organizat
 		return 0, err
 	}
 	return result.RowsAffected(), nil
+}
+
+const disconnectMCPOAuthMachineClient = `-- name: DisconnectMCPOAuthMachineClient :execrows
+UPDATE mcp_oauth_machine_clients c SET revoked_at = COALESCE(c.revoked_at, clock_timestamp())
+FROM api_keys k JOIN organizations o ON o.id = k.organization_id
+WHERE k.id = c.api_key_id AND o.slug = $1 AND k.slug = $2
+    AND c.issuer = $3 AND c.audience = $4 AND c.client_id = $5
+`
+
+type DisconnectMCPOAuthMachineClientParams struct {
+	OrganizationSlug slug.Slug
+	ApiKeySlug       slug.Slug
+	Issuer           string
+	Audience         string
+	ClientID         string
+}
+
+func (q *Queries) DisconnectMCPOAuthMachineClient(ctx context.Context, arg DisconnectMCPOAuthMachineClientParams) (int64, error) {
+	result, err := q.db.Exec(ctx, disconnectMCPOAuthMachineClient,
+		arg.OrganizationSlug,
+		arg.ApiKeySlug,
+		arg.Issuer,
+		arg.Audience,
+		arg.ClientID,
+	)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const disconnectMCPOAuthUserClient = `-- name: DisconnectMCPOAuthUserClient :exec
+UPDATE mcp_oauth_grants g SET revoked_at = clock_timestamp()
+FROM active_mcp_oauth_user_grants a
+WHERE g.grant_id = a.grant_id AND g.revoked_at IS NULL
+    AND a.issuer = $1 AND a.audience = $2 AND a.client_id = $3
+    AND a.user_slug = $4 AND a.organization_slug = $5
+`
+
+type DisconnectMCPOAuthUserClientParams struct {
+	Issuer           string
+	Audience         string
+	ClientID         string
+	UserSlug         string
+	OrganizationSlug string
+}
+
+func (q *Queries) DisconnectMCPOAuthUserClient(ctx context.Context, arg DisconnectMCPOAuthUserClientParams) error {
+	_, err := q.db.Exec(ctx, disconnectMCPOAuthUserClient,
+		arg.Issuer,
+		arg.Audience,
+		arg.ClientID,
+		arg.UserSlug,
+		arg.OrganizationSlug,
+	)
+	return err
 }
 
 const enableProjectEnvironment = `-- name: EnableProjectEnvironment :one
@@ -26005,6 +26420,40 @@ func (q *Queries) LockInstanceAdminRoleChanges(ctx context.Context) error {
 	return err
 }
 
+const lockMCPOAuthGrant = `-- name: LockMCPOAuthGrant :one
+SELECT g.grant_id
+FROM mcp_oauth_credentials c
+JOIN mcp_oauth_grants g ON g.grant_id = c.grant_id
+WHERE c.credential_hash = $1 AND c.kind = $2
+    AND g.issuer = $3 AND g.audience = $4
+    AND g.client_id = $5 AND g.revoked_at IS NULL AND g.expires_at > clock_timestamp()
+    AND (g.machine_client_id IS NOT NULL) = $6::boolean
+FOR UPDATE OF g
+`
+
+type LockMCPOAuthGrantParams struct {
+	CredentialHash string
+	Kind           string
+	Issuer         string
+	Audience       string
+	ClientID       string
+	Machine        bool
+}
+
+func (q *Queries) LockMCPOAuthGrant(ctx context.Context, arg LockMCPOAuthGrantParams) (int64, error) {
+	row := q.db.QueryRow(ctx, lockMCPOAuthGrant,
+		arg.CredentialHash,
+		arg.Kind,
+		arg.Issuer,
+		arg.Audience,
+		arg.ClientID,
+		arg.Machine,
+	)
+	var grant_id int64
+	err := row.Scan(&grant_id)
+	return grant_id, err
+}
+
 const lockNotificationConnectionOAuthGrantIntent = `-- name: LockNotificationConnectionOAuthGrantIntent :one
 SELECT c.slug AS credential_slug, c.kind, c.status, EXISTS (SELECT 1 FROM credential_oauth_grants g WHERE g.credential_id = c.id) AS has_grant
 FROM notification_connections connection JOIN organizations o ON o.id = connection.organization_id JOIN credentials c ON c.organization_id = connection.organization_id AND c.id = connection.credential_id
@@ -27646,6 +28095,29 @@ func (q *Queries) MarkTriggerRetryAttemptRunning(ctx context.Context, arg MarkTr
 	return result.RowsAffected(), nil
 }
 
+const narrowMCPOAuthUserGrantScopes = `-- name: NarrowMCPOAuthUserGrantScopes :execrows
+UPDATE mcp_oauth_grants g SET operation_scope_keys = ARRAY(
+    SELECT key FROM unnest(g.operation_scope_keys) WITH ORDINALITY AS existing(key, position)
+    WHERE key = ANY($1::text[])
+    ORDER BY position
+)
+WHERE g.grant_id = $2 AND g.machine_client_id IS NULL
+    AND g.revoked_at IS NULL AND g.expires_at > clock_timestamp()
+`
+
+type NarrowMCPOAuthUserGrantScopesParams struct {
+	AllowedScopeKeys []string
+	GrantID          int64
+}
+
+func (q *Queries) NarrowMCPOAuthUserGrantScopes(ctx context.Context, arg NarrowMCPOAuthUserGrantScopesParams) (int64, error) {
+	result, err := q.db.Exec(ctx, narrowMCPOAuthUserGrantScopes, arg.AllowedScopeKeys, arg.GrantID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
 const observePipelineRunWorker = `-- name: ObservePipelineRunWorker :execrows
 UPDATE pipeline_runs pr
 SET timeline = jsonb_set(pr.timeline, '{worker_observed_at}', to_jsonb(GREATEST(
@@ -28392,6 +28864,53 @@ func (q *Queries) QueuePipelineDraftPublish(ctx context.Context, arg QueuePipeli
 		arg.PipelineSlug,
 		arg.MemberSlug,
 	)
+}
+
+const readMCPOAuthCredential = `-- name: ReadMCPOAuthCredential :one
+SELECT redirect_uri, challenge, used_at IS NOT NULL AS used, expires_at > clock_timestamp() AS unexpired
+FROM mcp_oauth_credentials WHERE credential_hash = $1 AND grant_id = $2
+`
+
+type ReadMCPOAuthCredentialParams struct {
+	CredentialHash string
+	GrantID        int64
+}
+
+type ReadMCPOAuthCredentialRow struct {
+	RedirectUri string
+	Challenge   string
+	Used        pgtype.Bool
+	Unexpired   bool
+}
+
+func (q *Queries) ReadMCPOAuthCredential(ctx context.Context, arg ReadMCPOAuthCredentialParams) (ReadMCPOAuthCredentialRow, error) {
+	row := q.db.QueryRow(ctx, readMCPOAuthCredential, arg.CredentialHash, arg.GrantID)
+	var i ReadMCPOAuthCredentialRow
+	err := row.Scan(
+		&i.RedirectUri,
+		&i.Challenge,
+		&i.Used,
+		&i.Unexpired,
+	)
+	return i, err
+}
+
+const readMCPOAuthMachineClientSecretHash = `-- name: ReadMCPOAuthMachineClientSecretHash :one
+SELECT client_secret_hash FROM active_mcp_oauth_machine_clients
+WHERE issuer = $1 AND audience = $2 AND client_id = $3
+`
+
+type ReadMCPOAuthMachineClientSecretHashParams struct {
+	Issuer   string
+	Audience string
+	ClientID string
+}
+
+func (q *Queries) ReadMCPOAuthMachineClientSecretHash(ctx context.Context, arg ReadMCPOAuthMachineClientSecretHashParams) (string, error) {
+	row := q.db.QueryRow(ctx, readMCPOAuthMachineClientSecretHash, arg.Issuer, arg.Audience, arg.ClientID)
+	var client_secret_hash string
+	err := row.Scan(&client_secret_hash)
+	return client_secret_hash, err
 }
 
 const readRetainedFile = `-- name: ReadRetainedFile :one
@@ -29190,6 +29709,46 @@ func (q *Queries) RefusePipelineCompletionSnapshot(ctx context.Context, arg Refu
 		return 0, err
 	}
 	return result.RowsAffected(), nil
+}
+
+const registerMCPOAuthMachineClient = `-- name: RegisterMCPOAuthMachineClient :one
+INSERT INTO mcp_oauth_machine_clients (issuer, audience, client_id, client_secret_hash, api_key_id, api_key_token_hash, expires_at, operation_scope_keys)
+SELECT $1, $2, $3, $4,
+    k.id, k.token_hash, LEAST(k.expires_at, clock_timestamp() + $5::integer * interval '1 second'),
+    COALESCE($6::text[], '{}')
+FROM api_keys k JOIN organizations o ON o.id = k.organization_id
+JOIN roles r ON r.id = k.role_id AND r.organization_id = k.organization_id
+WHERE o.slug = $7 AND k.slug = $8
+    AND k.revoked_at IS NULL AND (k.expires_at IS NULL OR k.expires_at > clock_timestamp())
+    AND r.deleted_at IS NULL
+RETURNING expires_at
+`
+
+type RegisterMCPOAuthMachineClientParams struct {
+	Issuer             string
+	Audience           string
+	ClientID           string
+	ClientSecretHash   string
+	LifetimeSeconds    int32
+	OperationScopeKeys []string
+	OrganizationSlug   slug.Slug
+	ApiKeySlug         slug.Slug
+}
+
+func (q *Queries) RegisterMCPOAuthMachineClient(ctx context.Context, arg RegisterMCPOAuthMachineClientParams) (pgtype.Timestamptz, error) {
+	row := q.db.QueryRow(ctx, registerMCPOAuthMachineClient,
+		arg.Issuer,
+		arg.Audience,
+		arg.ClientID,
+		arg.ClientSecretHash,
+		arg.LifetimeSeconds,
+		arg.OperationScopeKeys,
+		arg.OrganizationSlug,
+		arg.ApiKeySlug,
+	)
+	var expires_at pgtype.Timestamptz
+	err := row.Scan(&expires_at)
+	return expires_at, err
 }
 
 const rejectPipelineWebhookDelivery = `-- name: RejectPipelineWebhookDelivery :one
@@ -30553,6 +31112,16 @@ func (q *Queries) RevokeChangedProjectProposalAuthority(ctx context.Context, arg
 		arg.ProviderRepositoryID,
 		arg.ProviderCredentialID,
 	)
+	return err
+}
+
+const revokeMCPOAuthGrant = `-- name: RevokeMCPOAuthGrant :exec
+UPDATE mcp_oauth_grants SET revoked_at = clock_timestamp()
+WHERE grant_id = $1 AND revoked_at IS NULL
+`
+
+func (q *Queries) RevokeMCPOAuthGrant(ctx context.Context, grantID int64) error {
+	_, err := q.db.Exec(ctx, revokeMCPOAuthGrant, grantID)
 	return err
 }
 

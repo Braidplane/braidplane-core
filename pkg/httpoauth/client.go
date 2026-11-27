@@ -3,8 +3,6 @@ package httpoauth
 
 import (
 	"context"
-	"crypto/sha256"
-	"encoding/base64"
 	"encoding/json"
 	"io"
 	"net/http"
@@ -151,7 +149,7 @@ func ValidateDestination(destination, raw string) error {
 
 // AuthorizationURL requires a per-install verifier which the credential lifecycle must store encrypted.
 func (c *Client) AuthorizationURL(state, verifier string) (string, error) {
-	if c.config.GrantType != "authorization_code" || state == "" || !validVerifier(verifier) {
+	if c.config.GrantType != "authorization_code" || state == "" || !oauthflow.ValidPKCEVerifier(verifier) {
 		return "", ErrConfig.Detail("authorization requires state and a PKCE verifier")
 	}
 	u, _ := url.Parse(c.config.AuthorizationEndpoint)
@@ -160,31 +158,16 @@ func (c *Client) AuthorizationURL(state, verifier string) (string, error) {
 	q.Set("client_id", c.config.ClientID)
 	q.Set("redirect_uri", c.redirectURI)
 	q.Set("state", state)
-	challenge := sha256.Sum256([]byte(verifier))
-	q.Set("code_challenge", base64.RawURLEncoding.EncodeToString(challenge[:]))
-	q.Set("code_challenge_method", "S256")
+	q.Set("code_challenge", oauthflow.S256Challenge(verifier))
+	q.Set("code_challenge_method", oauthflow.PKCES256)
 	c.addScopeAudience(q)
 	u.RawQuery = q.Encode()
 	return u.String(), nil
 }
 
-func validVerifier(verifier string) bool {
-	if len(verifier) < 43 || len(verifier) > 128 {
-		return false
-	}
-	for _, r := range verifier {
-		switch {
-		case r >= 'a' && r <= 'z', r >= 'A' && r <= 'Z', r >= '0' && r <= '9', strings.ContainsRune("-._~", r):
-		default:
-			return false
-		}
-	}
-	return true
-}
-
 // Exchange verifies the callback issuer against the stored app before sending a code.
 func (c *Client) Exchange(ctx context.Context, code, verifier, issuer string) (TokenSet, error) {
-	if c.config.GrantType != "authorization_code" || code == "" || !validVerifier(verifier) || issuer != c.config.Issuer {
+	if c.config.GrantType != "authorization_code" || code == "" || !oauthflow.ValidPKCEVerifier(verifier) || issuer != c.config.Issuer {
 		return TokenSet{}, ErrGrant
 	}
 	return c.token(ctx, url.Values{"grant_type": {"authorization_code"}, "code": {code}, "code_verifier": {verifier}, "redirect_uri": {c.redirectURI}}, c.config.Scopes)

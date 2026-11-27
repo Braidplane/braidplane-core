@@ -634,12 +634,24 @@ type workerE2ERetentionRepository struct {
 	organizations []slug.Slug
 }
 
-// This event harness owns no global abuse-control or wishlist fixtures.
+// This event harness owns no global retention fixtures.
 func (workerE2ERetentionRepository) DeleteAbuseControlBucketsBefore(context.Context, postgres.DBTX, time.Time) (int64, error) {
 	return 0, nil
 }
 
 func (workerE2ERetentionRepository) DeleteExpired(context.Context, postgres.DBTX, time.Time) (int64, error) {
+	return 0, nil
+}
+
+func (workerE2ERetentionRepository) DeleteExpiredMCPOAuthMachineClients(context.Context, postgres.DBTX) (int64, error) {
+	return 0, nil
+}
+
+func (workerE2ERetentionRepository) DeleteInactiveMCPOAuthGrants(context.Context, postgres.DBTX) (int64, error) {
+	return 0, nil
+}
+
+func (workerE2ERetentionRepository) DeleteExpiredMCPOAuthTransientRecords(context.Context, postgres.DBTX) (int64, error) {
 	return 0, nil
 }
 

@@ -49,7 +49,16 @@ func (w *eventPruneWorker) Work(
 		return err
 	}
 
-	w.logger.InfoContext(ctx, "customer-data retention job succeeded", slog.Int64("wishlist_registrations", result.WishlistRegistrations), slog.Int64("abuse_control_buckets", result.AbuseControlBuckets), slog.Int64("query_executions", result.QueryExecutions), slog.Int64("replay_checkpoints", result.ReplayCheckpoints), slog.Int64("pipeline_runs", result.PipelineRuns), slog.Int64("events", result.Events), slog.Any("skipped_organizations", result.SkippedOrgs))
+	w.logger.InfoContext(ctx, "customer-data retention job succeeded",
+		slog.Int64("wishlist_registrations", result.WishlistRegistrations),
+		slog.Int64("abuse_control_buckets", result.AbuseControlBuckets),
+		slog.Int64("mcp_oauth_rows_deleted", result.MCPOAuthRowsDeleted),
+		slog.Int64("query_executions", result.QueryExecutions),
+		slog.Int64("replay_checkpoints", result.ReplayCheckpoints),
+		slog.Int64("pipeline_runs", result.PipelineRuns),
+		slog.Int64("events", result.Events),
+		slog.Any("skipped_organizations", result.SkippedOrgs),
+	)
 	return nil
 }
 

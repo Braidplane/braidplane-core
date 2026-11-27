@@ -84,6 +84,10 @@ func (s *service) Can(ctx context.Context, input Input) (bool, error) {
 		!input.Source.matchesPrincipal(input) {
 		return false, nil
 	}
+	delegation, matches := delegationMatchesInput(ctx, input)
+	if !matches {
+		return false, nil
+	}
 	if input.OrgSlug != nil {
 		if s.resolve == nil || *input.OrgSlug == "" || input.ResourceOwnerSlug != nil {
 			return false, nil
@@ -92,7 +96,7 @@ func (s *service) Can(ctx context.Context, input Input) (bool, error) {
 		if err != nil {
 			return false, xerror.Wrapf("resolve authorization facts: %w", err)
 		}
-		if !permitsOperation(input, facts) {
+		if (input.Source.delegated() && facts.PrincipalID != delegation.PrincipalID) || !permitsOperation(input, facts) {
 			return false, nil
 		}
 		allowed, err := evaluateTenant(ctx, input, facts)

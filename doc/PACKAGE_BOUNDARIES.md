@@ -57,6 +57,105 @@ and the exact target before provider mutation. Completion-trigger admission
 evaluates the captured and current database facts under the same OPA policy.
 [Proposal authority](PROPOSAL_AUTHORITY.md) describes the additional provider checks.
 
+### Delegated MCP authorization
+
+`service/mcpauthsvc` owns OAuth discovery and protocol validation for the
+deployment's configured issuer and MCP resource. Authorization validates a
+pre-registered public client or fetches its Client ID Metadata Document. The
+code binding records the issuer, resource, client ID, exact redirect URI and
+S256 challenge. Registered HTTP redirects on literal loopback IP addresses
+allow the requested port to vary. The code exchange checks the actual
+redirect URI from the binding before issuance.
+
+Client metadata retrieval uses a dedicated, bounded HTTPS client. The dialer
+resolves and checks every address before dialing a vetted literal address.
+The fetch uses no redirect, proxy or user credentials. Core uses client
+metadata only for identification, grant selection and redirect registration.
+The [MCP authorization specification](https://modelcontextprotocol.io/specification/2025-11-25/basic/authorization)
+and [Client ID Metadata Document draft](https://datatracker.ietf.org/doc/html/draft-ietf-oauth-client-id-metadata-document-03)
+describe these protocol boundaries.
+
+The MCP OAuth migration stores user and machine grants and hashes of opaque codes, access
+tokens, refresh tokens and machine client secrets. A user grant pins a
+verified user or a specific membership and the user's authentication version.
+A user grant with no membership can authenticate only for operations with no
+tenant. A tenant grant authenticates only for its recorded organization. The
+service checks the issuer, audience and current identity when it authenticates
+a token or issues replacements.
+
+Codes last five minutes, access tokens ten minutes, and refresh tokens seven
+days from each issuance. The grant expires after thirty days and caps every
+credential lifetime. Code consumption and token issuance commit in one
+transaction. The grant lock serializes refresh rotation and revocation. Reuse
+of a consumed refresh token, or a code presented again with its valid proof,
+revokes the family before the service reports the failure. User disconnect
+revokes the selected client's grants for that user's tenant.
+
+The daily retention job removes expired machine registrations, expired or
+revoked grants, expired consent requests, and expired unused
+codes. Expiry uses the database clock. Credential hashes that still support
+replay detection or family revocation stay until the grant ends. Disconnected
+machine registrations stay until expiry so disconnect can be repeated. The
+worker's `mcp_oauth_rows_deleted` count excludes cascaded deletes.
+
+A machine client authenticates with a separately issued secret. Provisioning
+pins the current API key and its credential generation for one organization.
+Registration expires after ninety days or at the key's expiry, whichever is
+earlier. Key rotation, revocation or deletion invalidates the registration.
+An archived role also blocks use. The machine principal carries the current
+key identity for OPA and has no member identity. Disconnect invalidates every
+grant under that registration. Token revocation invalidates one family.
+Machine clients receive rotating refresh tokens to support the delegated
+machine lifecycle. Each refresh and token revocation requires the same
+confidential client proof. See the [OAuth client credentials grant](https://www.rfc-editor.org/rfc/rfc6749.html#section-4.4.3)
+and [refresh-token security guidance](https://www.rfc-editor.org/rfc/rfc9700.html#section-4.14.2).
+
+The OAuth route module uses the configured discovery paths and serves token
+and revocation requests as form-encoded POSTs. Authorization code redemption
+uses a public client ID, and machine exchange uses HTTP Basic client proof.
+Token requests require the configured resource indicator. Revocation defaults
+to that resource, follows the idempotent OAuth response, and requires client
+proof for machine tokens. The module requires an authorization handler and
+the shared abuse limiter before it can register. These protocol endpoints sit
+outside the product OpenAPI routes. Application mounting stays disabled.
+Register OAuth and machine administration before any mounted sub-apps that
+could shadow their paths. Earlier middleware for those paths must fall through.
+Registration checks explicit method routes for conflicts. Verify endpoint
+reachability when adding the runtime mounts.
+
+Browser consent uses the issuer's same-origin Core login and requires a
+cookie session and CSRF proof. The prompt shows the client, redirect origin,
+resource, account and selected organization. The server keeps the exact
+redirect, `state` and PKCE challenge in a five-minute record bound to the
+browser session, user, authentication version and membership. Read-only consent is selected by default. The member can explicitly allow
+mapped changes. Read-only approval narrows the frozen grant in the same
+transaction that consumes the prompt and issues the code. Refresh uses that
+same grant scope. Denial consumes
+the prompt and revokes its grant. Both responses send the stored `state` and
+the [issuer identifier](https://www.rfc-editor.org/rfc/rfc9207.html) to the
+registered callback. A cross-origin consent submission shows a continuation
+link to that callback so the consent form can retain a same-origin CSP.
+An unsupported scope request goes to the verified callback with its state and
+the OAuth error.
+
+The optional operation adapter maps organization reads, project list and detail,
+and renaming projects through the existing handlers. Authorization checks the
+grant's frozen operation scope, the tenant and stable principal, and the
+current resource-level OPA decision. The protected database transaction repeats
+the token and policy checks. New mappings need fresh consent or a new machine
+registration.
+
+The optional machine administration routes use the configured issuer path.
+`POST /organizations/{org}/api-keys/{key}/machine-clients` requires a current
+browser session, CSRF proof, recent password or MFA authentication, and
+`api_keys:update` on the exact parent key. The response delivers the client
+secret once and is marked `no-store`. `DELETE` on the same path with a client
+ID appended requires a current browser session, CSRF proof, and
+`api_keys:delete` on that key. It only disconnects the named registration
+under that key. Both operations recheck membership and session generation
+inside the mutation transaction and enqueue an audit event without the secret.
+Core startup leaves the administration routes unmounted.
+
 Account creation, invitation acceptance and deletion support optional service
 callbacks inside their existing transactions. A callback failure rolls back the
 operation. Invitation callbacks also run on accepted-invitation retries.

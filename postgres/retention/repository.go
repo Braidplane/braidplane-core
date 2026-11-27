@@ -30,6 +30,9 @@ type Repository interface {
 	DeletePipelineRunsBefore(context.Context, postgres.DBTX, slug.Slug, time.Time) (int64, error)
 	DeleteEventsBefore(context.Context, postgres.DBTX, slug.Slug, time.Time) (int64, error)
 	DeleteAbuseControlBucketsBefore(context.Context, postgres.DBTX, time.Time) (int64, error)
+	DeleteExpiredMCPOAuthMachineClients(context.Context, postgres.DBTX) (int64, error)
+	DeleteInactiveMCPOAuthGrants(context.Context, postgres.DBTX) (int64, error)
+	DeleteExpiredMCPOAuthTransientRecords(context.Context, postgres.DBTX) (int64, error)
 }
 
 type repository struct{}
@@ -210,6 +213,30 @@ func (r *repository) DeleteAbuseControlBucketsBefore(
 	cutoff time.Time,
 ) (int64, error) {
 	deleted, err := dbgen.New(tx).DeleteExpiredAbuseControlBuckets(ctx, postgres.ToTimestamptz(cutoff))
+	if err != nil {
+		return 0, mapError(err)
+	}
+	return deleted, nil
+}
+
+func (r *repository) DeleteExpiredMCPOAuthMachineClients(ctx context.Context, tx postgres.DBTX) (int64, error) {
+	deleted, err := dbgen.New(tx).DeleteExpiredMCPOAuthMachineClients(ctx)
+	if err != nil {
+		return 0, mapError(err)
+	}
+	return deleted, nil
+}
+
+func (r *repository) DeleteInactiveMCPOAuthGrants(ctx context.Context, tx postgres.DBTX) (int64, error) {
+	deleted, err := dbgen.New(tx).DeleteInactiveMCPOAuthGrants(ctx)
+	if err != nil {
+		return 0, mapError(err)
+	}
+	return deleted, nil
+}
+
+func (r *repository) DeleteExpiredMCPOAuthTransientRecords(ctx context.Context, tx postgres.DBTX) (int64, error) {
+	deleted, err := dbgen.New(tx).DeleteExpiredMCPOAuthTransientRecords(ctx)
 	if err != nil {
 		return 0, mapError(err)
 	}
