@@ -28,6 +28,7 @@ import (
 	"github.com/Braidplane/braidplane-core/service/credentialssvc"
 	"github.com/Braidplane/braidplane-core/service/eventrecorder"
 	"github.com/Braidplane/braidplane-core/service/eventssvc"
+	"github.com/Braidplane/braidplane-core/service/internal/triggerretry"
 	"github.com/Braidplane/braidplane-core/service/notificationsvc"
 	"github.com/Braidplane/braidplane-core/service/pipelinesvc"
 	"github.com/Braidplane/braidplane-core/service/worker/jobs"
@@ -64,15 +65,16 @@ type PipelineExecutor interface {
 }
 
 type Service struct {
-	audit    eventrecorder.Recorder
-	notifier notificationsvc.CandidateProducer
-	txm      postgres.TransactionManager
-	repo     pipelinewebhooks.Repository
-	secrets  SecretResolver
-	producer Producer
-	executor PipelineExecutor
-	cipher   crypto.CredentialCipher
-	clock    clock.Clock
+	audit       eventrecorder.Recorder
+	notifier    notificationsvc.CandidateProducer
+	txm         postgres.TransactionManager
+	repo        pipelinewebhooks.Repository
+	secrets     SecretResolver
+	producer    Producer
+	executor    PipelineExecutor
+	cipher      crypto.CredentialCipher
+	clock       clock.Clock
+	retryRandom func(int64) int64
 }
 
 type AcceptRequest struct {
@@ -487,15 +489,15 @@ func (s *Service) ExecuteDelivery(ctx context.Context, args jobs.PipelineWebhook
 		return s.complete(ctx, args, "succeeded", "", "", s.clock.Now().UTC(), delivery.EnvelopeExpiresAt)
 	}
 	failureKind := runFailureKind(run)
-	scheduledAt, decisionReason, shouldRetry := retryDecision(
-		delivery, failureKind, args.RunAttempt, run.Metadata.StartedAt, s.clock.Now().UTC(),
-	)
-	if run.Timeline.Failure != nil && run.Timeline.Failure.AutomaticRetryProhibited {
-		shouldRetry = false
-		decisionReason = "execution_response_limit_exceeded"
-	}
-	if shouldRetry {
-		return s.recordRetry(ctx, args, run.Metadata.PipelineVersionSpecHash, failureKind, scheduledAt)
+	decisionReason := "execution_response_limit_exceeded"
+	if run.Timeline.Failure == nil || !run.Timeline.Failure.AutomaticRetryProhibited {
+		scheduledAt, reason, shouldRetry := s.retryDecision(
+			delivery, failureKind, args.RunAttempt, run.Metadata.StartedAt, s.clock.Now().UTC(),
+		)
+		if shouldRetry {
+			return s.recordRetry(ctx, args, run.Metadata.PipelineVersionSpecHash, failureKind, scheduledAt)
+		}
+		decisionReason = reason
 	}
 	return s.txm.RunInTx(ctx, func(ctx context.Context, tx postgres.DBTX) error {
 		if err := s.complete(ctx, args, "failed", failureKind, decisionReason, s.clock.Now().UTC(), delivery.EnvelopeExpiresAt); err != nil {
@@ -635,7 +637,7 @@ func webhookAttemptRunSlug(root slug.Slug, attempt int) (slug.Slug, error) {
 	return slug.FromName(fmt.Sprintf("%s-retry-%d", root, attempt))
 }
 
-func retryDecision(
+func (s *Service) retryDecision(
 	delivery pipelinewebhooks.Delivery,
 	failureKind string,
 	attempt int,
@@ -661,7 +663,7 @@ func retryDecision(
 	if startedAt.IsZero() {
 		startedAt = now
 	}
-	scheduledAt := startedAt.Add(retryDelay(policy, attempt+1))
+	scheduledAt := startedAt.Add(triggerretry.Delay(policy, attempt+1, s.retryRandom))
 	if scheduledAt.Before(now) {
 		scheduledAt = now
 	}
@@ -670,20 +672,6 @@ func retryDecision(
 		return time.Time{}, "max_elapsed_exhausted", false
 	}
 	return scheduledAt, "retryable_failure_kind", true
-}
-
-func retryDelay(policy model.PipelineTriggerRetryPolicy, attempt int) time.Duration {
-	delay := policy.InitialDelaySeconds
-	if policy.BackoffStrategy == model.PipelineTriggerBackoffStrategyExponential {
-		for i := 2; i < attempt; i++ {
-			delay *= 2
-			if policy.MaxDelaySeconds > 0 && delay >= policy.MaxDelaySeconds {
-				delay = policy.MaxDelaySeconds
-				break
-			}
-		}
-	}
-	return time.Duration(delay) * time.Second
 }
 
 func runFailureKind(run *pipelinesvc.PipelineRunDetail) string {

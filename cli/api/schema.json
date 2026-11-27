@@ -14768,6 +14768,10 @@
             "minimum": 0,
             "type": "integer"
           },
+          "jitter": {
+            "description": "",
+            "type": "boolean"
+          },
           "max_attempts": {
             "description": "",
             "maximum": 10,

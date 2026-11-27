@@ -127,6 +127,7 @@ func TestRetryAttemptFromExecutionRowHydratesProjection(t *testing.T) {
 			require.Equal(t, "spec-hash-123", got.PipelineVersionSpecHash)
 			require.Equal(t, []string{"customer_id", "dry_run"}, got.RuntimeInputKeys)
 			require.True(t, got.RetryPolicy.Enabled)
+			require.True(t, got.RetryPolicy.Jitter)
 			require.Equal(t, 3, got.RetryPolicy.MaxAttempts)
 			require.Equal(t, model.PipelineTriggerBackoffStrategyFixed, got.RetryPolicy.BackoffStrategy)
 			require.Equal(t, []model.PipelineTriggerRetryFailureKind{model.PipelineTriggerRetryFailureKindDataSource}, got.RetryPolicy.RetryableFailureKinds)

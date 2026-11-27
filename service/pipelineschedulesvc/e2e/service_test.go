@@ -471,6 +471,7 @@ func TestService_TriggerRetryAttemptRetriesFailedRunTwice(t *testing.T) { // Sch
 			BackoffStrategy:       model.PipelineTriggerBackoffStrategyFixed,
 			InitialDelaySeconds:   60,
 			MaxDelaySeconds:       60,
+			Jitter:                true,
 			RetryableFailureKinds: []model.PipelineTriggerRetryFailureKind{model.PipelineTriggerRetryFailureKindDataSource},
 		},
 		ScheduleConfig: &model.PipelineTriggerScheduleConfig{
@@ -531,6 +532,7 @@ func TestService_TriggerRetryAttemptRetriesFailedRunTwice(t *testing.T) { // Sch
 	require.Equal(t, model.PipelineTriggerBackoffStrategyFixed.String(), attempt.retryBackoffStrategy)
 	require.Equal(t, int32(60), attempt.retryInitialDelaySeconds)
 	require.Equal(t, int32(60), attempt.retryMaxDelaySeconds)
+	require.True(t, attempt.retryJitter)
 	require.Equal(t, []string{model.PipelineTriggerRetryFailureKindDataSource.String()}, attempt.retryableFailureKinds)
 	require.Equal(t, failedRun.RunSlug, attempt.rootRunSlug)
 	require.Equal(t, failedRun.RunSlug, attempt.retryOfRunSlug)
@@ -538,7 +540,8 @@ func TestService_TriggerRetryAttemptRetriesFailedRunTwice(t *testing.T) { // Sch
 	require.Equal(t, int32(2), attempt.attemptNumber)
 	require.NotNil(t, attempt.failureKind)
 	require.Equal(t, model.PipelineTriggerRetryFailureKindDataSource.String(), *attempt.failureKind)
-	require.True(t, attempt.scheduledAt.Equal(failedRun.StartedAt.Add(time.Minute)))
+	require.GreaterOrEqual(t, attempt.scheduledAt.Sub(failedRun.StartedAt), 30*time.Second)
+	require.LessOrEqual(t, attempt.scheduledAt.Sub(failedRun.StartedAt), time.Minute)
 	require.True(t, attempt.enqueuedAt.Valid)
 	require.False(t, attempt.startedAt.Valid)
 	require.False(t, attempt.completedAt.Valid)
@@ -602,7 +605,9 @@ func TestService_TriggerRetryAttemptRetriesFailedRunTwice(t *testing.T) { // Sch
 	require.Equal(t, int32(3), secondAttempt.attemptNumber)
 	require.NotNil(t, secondAttempt.failureKind)
 	require.Equal(t, model.PipelineTriggerRetryFailureKindDataSource.String(), *secondAttempt.failureKind)
-	require.True(t, secondAttempt.scheduledAt.Equal(firstRetryRun.StartedAt.Add(time.Minute)))
+	require.True(t, secondAttempt.retryJitter)
+	require.GreaterOrEqual(t, secondAttempt.scheduledAt.Sub(firstRetryRun.StartedAt), 30*time.Second)
+	require.LessOrEqual(t, secondAttempt.scheduledAt.Sub(firstRetryRun.StartedAt), time.Minute)
 	require.True(t, secondAttempt.enqueuedAt.Valid)
 	require.False(t, secondAttempt.startedAt.Valid)
 	require.False(t, secondAttempt.completedAt.Valid)
@@ -985,6 +990,7 @@ type triggerRetryAttemptRow struct {
 	retryBackoffStrategy          string
 	retryInitialDelaySeconds      int32
 	retryMaxDelaySeconds          int32
+	retryJitter                   bool
 	retryableFailureKinds         []string
 	sourceType                    string
 	sourceEntrypoint              string
@@ -1082,6 +1088,7 @@ func requireTriggerRetryAttempts(
 			ptra.retry_backoff_strategy,
 			ptra.retry_initial_delay_seconds,
 			ptra.retry_max_delay_seconds,
+			ptra.retry_jitter,
 			ptra.retryable_failure_kinds,
 			ptra.source_type,
 			ptra.source_entrypoint,
@@ -1149,6 +1156,7 @@ func scanTriggerRetryAttempt(scanner triggerRetryAttemptScanner) (triggerRetryAt
 		&row.retryBackoffStrategy,
 		&row.retryInitialDelaySeconds,
 		&row.retryMaxDelaySeconds,
+		&row.retryJitter,
 		&row.retryableFailureKinds,
 		&row.sourceType,
 		&row.sourceEntrypoint,

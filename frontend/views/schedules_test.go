@@ -238,6 +238,15 @@ func TestTriggerViewsRenderSeparately(t *testing.T) {
 	require.NotContains(t, out.String(), "Scheduled-fire history")
 }
 
+func TestScheduleRetryTimingLabelShowsEnabledJitter(t *testing.T) {
+	t.Parallel()
+
+	policy := api.PipelineTriggerRetryPolicy{Enabled: true, InitialDelaySeconds: 2, MaxDelaySeconds: 30}
+	require.Equal(t, "initial 2s / max 30s", scheduleRetryTimingLabel(policy))
+	policy.Jitter = new(true)
+	require.Equal(t, "initial 2s / max 30s / jitter enabled", scheduleRetryTimingLabel(policy))
+}
+
 func TestTriggerHistoryLinksRetainScopeAndRestrictedReplay(t *testing.T) {
 	t.Parallel()
 	ctx := WithEntityPageURL(context.Background(), "/orgs/acme/projects/etl/schedules/webhook?list_return=%2Forgs%2Facme%2Fprojects%2Fetl%2Fschedules%3Fenabled%3Dpaused")

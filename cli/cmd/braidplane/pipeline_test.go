@@ -139,21 +139,6 @@ func TestRunWithArgsRejectsUnknownCommand(t *testing.T) {
 	require.Contains(t, stderr.String(), "unknown")
 }
 
-func TestRunWithArgsRejectsRemovedRetryJitterFlag(t *testing.T) {
-	t.Parallel()
-	for _, command := range []string{"create", "update"} {
-		t.Run(command, func(t *testing.T) {
-			t.Parallel()
-			var stdout, stderr bytes.Buffer
-			err := runWithArgs([]string{"braidplane", "pipeline", "trigger", command, "--retry-jitter"}, &stdout, &stderr)
-
-			require.ErrorContains(t, err, "unknown flag --retry-jitter")
-			require.Contains(t, stderr.String(), "unknown flag --retry-jitter")
-			require.Empty(t, stdout.String())
-		})
-	}
-}
-
 func TestRunWithArgsValidateRequiresFile(t *testing.T) {
 	t.Parallel()
 
@@ -2937,6 +2922,7 @@ func TestRunWithArgsPipelineTriggerCommands(t *testing.T) {
 				"--preflight-lead-time", "6h",
 				"--retry-enabled",
 				"--retry-max-attempts", "3",
+				"--retry-jitter",
 				"--retry-backoff", "fixed",
 				"--retry-initial-delay-seconds", "60",
 				"--retry-max-delay-seconds", "300",
@@ -2985,6 +2971,8 @@ func TestRunWithArgsPipelineTriggerCommands(t *testing.T) {
 				require.Equal(t, api.PipelineTriggerBackoffStrategyFixed, state.createBody.RetryPolicy.BackoffStrategy)
 				require.Equal(t, 60, state.createBody.RetryPolicy.InitialDelaySeconds)
 				require.Equal(t, 300, state.createBody.RetryPolicy.MaxDelaySeconds)
+				require.NotNil(t, state.createBody.RetryPolicy.Jitter)
+				require.True(t, *state.createBody.RetryPolicy.Jitter)
 				require.Equal(
 					t,
 					[]api.PipelineTriggerRetryFailureKind{
@@ -3192,6 +3180,7 @@ func TestRunWithArgsPipelineTriggerCommands(t *testing.T) {
 				require.False(t, state.updateBody.RetryPolicy.Enabled)
 				require.Equal(t, 1, state.updateBody.RetryPolicy.MaxAttempts)
 				require.Equal(t, api.PipelineTriggerBackoffStrategyNone, state.updateBody.RetryPolicy.BackoffStrategy)
+				require.Nil(t, state.updateBody.RetryPolicy.Jitter)
 				require.Equal(t, []api.PipelineTriggerRetryFailureKind{}, state.updateBody.RetryPolicy.RetryableFailureKinds)
 				require.Contains(t, stdout, `"enabled": true`)
 			},

@@ -11986,6 +11986,7 @@ type PipelineTriggerRetryPolicy struct {
 	BackoffStrategy       PipelineTriggerBackoffStrategy    `json:"backoff_strategy"`
 	Enabled               bool                              `json:"enabled"`
 	InitialDelaySeconds   int                               `json:"initial_delay_seconds"`
+	Jitter                *bool                             `json:"jitter,omitempty"`
 	MaxAttempts           int                               `json:"max_attempts"`
 	MaxDelaySeconds       int                               `json:"max_delay_seconds"`
 	MaxElapsedSeconds     *int                              `json:"max_elapsed_seconds,omitempty"`

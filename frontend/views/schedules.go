@@ -271,6 +271,9 @@ func scheduleRetryTimingLabel(policy api.PipelineTriggerRetryPolicy) string {
 	if policy.MaxElapsedSeconds != nil {
 		parts = append(parts, "elapsed "+strconv.Itoa(*policy.MaxElapsedSeconds)+"s")
 	}
+	if policy.Jitter != nil && *policy.Jitter {
+		parts = append(parts, "jitter enabled")
+	}
 	return strings.Join(parts, " / ")
 }
 

@@ -19511,6 +19511,10 @@ components:
           maximum: 604800
           description: Upper bound for retry delays when backoff is fixed or exponential. For backoff_strategy=none, both delay fields must be 0.
           example: 3600
+        jitter:
+          type: boolean
+          description: Randomize the delay for fixed or exponential backoff between half and all of the calculated delay, after applying max_delay_seconds. Defaults to false.
+          example: true
         retryable_failure_kinds:
           type: array
           uniqueItems: true

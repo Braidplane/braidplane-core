@@ -1091,13 +1091,14 @@ func TestExecuteClaimedScheduleFireQueuesRetryForRetryableFailedRun(t *testing.T
 	ctx := context.Background()
 	tx := &fakeScheduleDBTX{}
 	scheduledAt := time.Date(2026, time.June, 9, 7, 0, 0, 0, time.UTC)
-	retryAt := scheduledAt.Add(time.Minute)
+	retryAt := scheduledAt.Add(30 * time.Second)
 	sourceEventSlug := must.Slug("evt-original-schedule-run")
 	trigger := newDueScheduleTrigger("acme", "prod", "daily-users", "sync-users", true, "0 7 * * *", "UTC", nil)
 	trigger.RetryPolicy = enabledRetryPolicy(
 		3,
 		model.PipelineTriggerRetryFailureKindDataSource,
 	)
+	trigger.RetryPolicy.Jitter = true
 	fire := ClaimedScheduleFire{
 		Trigger: trigger,
 		Claim: ScheduleFireClaim{
@@ -1154,17 +1155,24 @@ func TestExecuteClaimedScheduleFireQueuesRetryForRetryableFailedRun(t *testing.T
 		retryProducer,
 		WithNotificationProducer(notifier),
 	)
+	draws := 0
+	svc.retryRandom = func(int64) int64 {
+		draws++
+		return 0
+	}
 
-	err := svc.ExecuteClaimedScheduleFire(ctx, jobs.PipelineScheduleFireExecutionArgs{
+	args := jobs.PipelineScheduleFireExecutionArgs{
 		OrganizationSlug: trigger.OrgSlug,
 		ProjectSlug:      trigger.ProjectSlug,
 		EnvironmentSlug:  trigger.EnvironmentSlug,
 		TriggerSlug:      trigger.TriggerSlug,
 		TriggerRevision:  trigger.TriggerRevision,
 		ScheduledFireAt:  scheduledAt,
-	})
+	}
 
-	require.NoError(t, err)
+	require.NoError(t, svc.ExecuteClaimedScheduleFire(ctx, args))
+	require.NoError(t, svc.ExecuteClaimedScheduleFire(ctx, args))
+	require.Equal(t, 1, draws)
 	require.Len(t, repo.completions, 1)
 	require.Equal(t, scheduleFireStatusFailed, repo.completions[0].Status)
 	require.Len(t, repo.retryAttempts, 1)

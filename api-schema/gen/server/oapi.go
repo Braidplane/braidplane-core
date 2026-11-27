@@ -16474,6 +16474,11 @@ type PipelineTriggerRetryPolicy struct {
 	// Example: 60
 	InitialDelaySeconds int `json:"initial_delay_seconds"`
 
+	// Jitter Randomize the delay for fixed or exponential backoff between half and all of the calculated delay, after applying max_delay_seconds. Defaults to false.
+	//
+	// Example: true
+	Jitter *bool `json:"jitter,omitempty"`
+
 	// MaxAttempts Maximum attempts in a retry group, including the initial run.
 	//
 	// Example: 3
