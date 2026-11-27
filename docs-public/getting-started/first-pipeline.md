@@ -1,33 +1,39 @@
 # Example: PostgreSQL to S3
 
-For the reusable five-recipe collection, start with [Pipeline examples](../examples/index.md).
-This walkthrough keeps its own tutorial assets; it is a separate workflow.
-
-This CLI worked example is only about the PostgreSQL-to-S3 pipeline. Account setup,
-CLI installation, and the specification format have their own
-guides:
-
-- Confirm that you can sign in to the deployment you intend to use.
-- [Install and authenticate the CLI](cli.md)
-- [Read the pipeline specification reference](pipeline-specifications.md)
-
-The downloadable pipeline joins synthetic PostgreSQL orders and customers with
-`sql_v1`, then writes JSON to S3. Braidplane does not provide the database,
-bucket, or repository.
-
-Choose the systems appropriate for your evaluation. Hosted execution cannot
-reach your laptop's `localhost`, loopback, or private network addresses by
-default. Do not disable TLS or make the bucket public as a shortcut.
+Join synthetic PostgreSQL orders and customers with `sql_v1` and write three
+rows to a JSON object in S3. A successful run reports `written_rows: 3`. Download
+the object at the reported path and compare it with the
+[expected rows](files/joined-orders.expected-rows.json).
 
 ## Before you start
 
-You need an authenticated CLI, Bash, Git, `jq`, and:
+You need an [authenticated CLI](cli.md), Bash, Git, `jq`, and:
 
 - a Braidplane workspace where you can manage a project, environment, data
   sources, queries, bindings, deployments, and runs;
-- your own reachable PostgreSQL database;
-- your own private S3 bucket and dedicated tutorial prefix;
-- a Git repository with an initialized branch you can push to.
+- a non-production PostgreSQL database with a read-only role for the sample
+  tables and a setup identity to load them;
+- a private S3 bucket with a dedicated tutorial prefix;
+- a Git repository with an initialized branch you can push to and a
+  repository-scoped HTTPS credential for Braidplane.
+
+Supply these resources yourself and confirm your Braidplane deployment can
+reach them. Hosted execution blocks loopback and private network addresses by
+default. Keep TLS verification enabled and the bucket private.
+
+If you have a workspace and one reachable system, start with one saved read in
+the [UI](first-result.md) or [CLI](first-result-cli.md). With only a browser, use
+the [reading tour](overview.md). With the CLI installed, you can also download
+the [sample specification](files/joined-orders.pipeline.yaml) and check it
+locally before setting up any connections:
+
+```bash
+braidplane pipeline validate --local --file joined-orders.pipeline.yaml
+```
+
+Expect `pipeline validation succeeded`. This checks the file, including whether
+the join SQL projects the required `net_total_cents` field. It makes no server
+or provider calls. See [pipeline contracts](pipeline-specifications.md#contracts).
 
 Keep the same terminal throughout the example. Keep `BRAIDPLANE_SERVER_URL` set
 to the installation API base URL you used to authenticate, including `/api`.
@@ -83,11 +89,11 @@ variables. If you change a connection slug, update the corresponding
 | S3 | Your bucket, signing region, and a dedicated prefix such as `tutorial/first-pipeline`. Put credentials in `s3-access-key-id` and `s3-secret-access-key`. For S3-compatible storage, add the provider's HTTPS `endpoint` and its required `force_path_style` setting. Temporary credentials also need `session_token_file`. |
 | Git | Your HTTPS clone URL, initialized branch, provider username, and a repository-scoped token in `git-token`. This connection needs repository read/write access for the project backend. Your local Git login is separate. |
 
-Enter secret values using your editor or password manager, not literal shell
-commands. Make the credential files readable only by your user (`chmod 600`),
-and never commit or share the folder. Credential file paths resolve relative
-to each request file. Restrict provider permissions to your tutorial resources;
-Braidplane's `read_only` flag is an additional guard, not proof of least privilege.
+Use your editor or password manager to save only the secret in each file,
+without a trailing newline. Make the credential files readable only by your
+user (`chmod 600`) and keep the folder out of Git. Credential file paths
+resolve relative to each request file. Restrict provider permissions to your
+tutorial resources. Braidplane's `read_only` flag adds a separate guard.
 For S3, allow the connection test's bucket access and required object operations
 only in your tutorial scope; the bucket remains private.
 
@@ -293,12 +299,19 @@ completion. On timeout, use `pipeline run get` and watch the same run again. Do
 not start another run just because the wait timed out. On `failed` or `canceled`,
 inspect the safe diagnostic and contact the team before retrying.
 
-With the supplied sample data, inspect the sink's `file_write` details for
-`written_rows: 3` and a
-`target_path`. The object key uses the runtime sink replay identity; do not guess
-it from the run slug. In your storage provider's console,
-open the reported bucket/key and download that exact object as
-`tutorial-output.json` in this repository folder.
+Read the sink's `file_write` details from the saved run JSON:
+
+```bash
+jq -e '.timeline.snapshots[] | select(.step == "write-joined-orders") |
+  .output.details | select(.kind == "file_write") |
+  {written_rows, target_path}' tutorial-run.json
+```
+
+With the supplied sample data, expect `written_rows: 3`.
+Use `target_path` as the exact object key in the bucket you configured for
+`TUTORIAL_SINK_SOURCE`. The key includes the configured prefix and the sink's
+runtime replay identity. Download the object as `tutorial-output.json` in this
+repository folder.
 
 ```bash
 jq -S . tutorial-output.json > tutorial-output.sorted.json
@@ -324,10 +337,9 @@ as the CLI. Open **Pipelines**, then **Golden Path Joined Orders**. Check Git
 provenance, the current version, the deployment for your environment, the spec
 and contracts, and all three data-source bindings.
 
-Open **Runs**, select your `TUTORIAL_RUN`, and inspect its terminal status,
-execution timeline, version, and **Sink output metadata**. Deployment state and
-run state are separate. The app displays destination metadata; the independent
-object comparison above proves the actual bytes.
+Open **Runs** and select your `TUTORIAL_RUN`. Confirm the terminal status and
+executed version. Open **Steps** to review the timeline and **Sink output
+metadata**. The object comparison above verifies the actual contents.
 
 ## 6. Trigger a safe failure and recover
 

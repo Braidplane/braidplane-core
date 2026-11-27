@@ -1,17 +1,18 @@
 # Get your first result in the UI
 
-Connect a system and run a saved read in the web interface. Depending on the
-connector, you will get rows, documents, records or file content. You can do this
-before setting up a pipeline or Git repository.
+Run a saved read and check its **success** badge and result. The PostgreSQL
+example returns one synthetic row with ID `1` and email `alex@example.com`.
+It creates no tables and reads no stored customer data.
 
-Before starting, sign in to the deployment you intend to use and choose your system in the
-[connector directory](../connectors/index.md). Read its setup guide and use the
-safe read example it identifies. Use least-privilege provider credentials.
+You need a Braidplane workspace where you can create data sources and queries,
+one system your deployment can reach, and least-privilege credentials for that
+system. A project, Git repository, and destination are only needed for later
+workflows. For another system, use the safe read in its
+[connector guide](../connectors/index.md).
 
-Hosted execution cannot reach your laptop's `localhost`, loopback, or private
-network addresses by default. Do not disable TLS or expose a system publicly as
-a shortcut. If you have no reachable system, watch the
-[synthetic demo](https://braidplane.com/#demo) instead.
+Hosted execution blocks loopback and private network addresses by default.
+Keep TLS verification enabled. If you have no reachable system, use the
+[reading tour](overview.md) to inspect an example pipeline and run.
 
 ## 1. Connect your system
 
@@ -20,17 +21,28 @@ a shortcut. If you have no reachable system, watch the
 3. Enter the settings from its guide and give the connection a recognizable
    name.
 4. Follow the connector guide's authentication sequence.
-5. For static credentials, test the connection and create the data source when
-   it succeeds. OAuth and workload-identity connectors can save an inactive
-   data source first; complete their connection or verification step, then test.
+5. For static credentials, select **Test connection**.
+
+### Optional: try one failed connection and recover
+
+Before saving a draft connection to a test database you control, replace only
+**Database** with a name you know is absent, such as
+`braidplane_tutorial_missing`. Select **Test connection**. The form reports
+**Connection test failed** without identifying the database field. Check
+**Database** against the name of the database you intended to use. Restore the
+correct name and test again. The form should report **Connection successful**.
+
+If the corrected name still fails, follow the test message and the
+[PostgreSQL connection guide](../connectors/postgresql.md#authentication-and-permissions).
+
+### Save the connection
+
+For static credentials, select **Create data source** after the test succeeds.
+OAuth and workload-identity connectors can save an inactive data source first.
+Complete the connector's connection or verification step, then test.
 
 The detail page shows whether the data source is active and its last test.
-Stored credentials are never displayed again. A successful saved connection
-test confirms that the source can connect.
-
-If the test fails, check the endpoint, authentication, TLS, provider
-permissions, firewall, and hosted-connectivity requirements in the connector
-guide.
+Stored credentials are never displayed again.
 
 ## 2. Save one read
 
@@ -39,28 +51,33 @@ Braidplane calls these saved reads **queries**.
 1. Open **Queries** and select the data source you created.
 2. Select **New query**.
 3. Give the query a name you’ll recognize later.
-4. Fill in the fields using the read example in your connector guide.
-5. Choose a small row limit and a short timeout, then select **Save query**.
+4. For PostgreSQL, paste the SQL below into **Statement**. Select **+ Add param**,
+   name it `customer_id`, and set its type to **integer** and its status to
+   **required**. For another connector, use its guide's read example.
+5. Set the row limit to `10` and timeout to `10` seconds. Select **Save query**.
+
+```sql
+SELECT id, email
+FROM (VALUES (1, 'alex@example.com')) AS customers(id, email)
+WHERE id = {{customer_id}}
+```
 
 [![Saved query named Find customer by ID with a SELECT statement that filters public.customers by customer_id.](images/saved-customer-read.png)](images/saved-customer-read.png)
 
-*This [PostgreSQL query](../connectors/postgresql.md#read-example) looks up a
-customer’s email. Leave `{{customer_id}}` in the SQL. You’ll enter the ID when
-you run the query.*
+*The screenshot shows the same lookup against a table. Use the SQL above
+to supply the sample row inline. Leave `{{customer_id}}` in the SQL and enter
+its value when you run the query.*
 
 ## 3. Run and verify
 
-Open your saved query. If it takes parameters, enter their values, then select
-**Run query**. Look for the **success** badge and check that the result matches
-what you expected from your source.
+Open your saved query. For the sample, enter `1` for `customer_id` and select
+**Run query**. Look for the **success** badge and the row below. If you used
+another connector, compare the result with the read example in its guide.
 
 [![Successful SQL query result with one row showing id 1 and email alex@example.com.](images/customer-read-result.png)](images/customer-read-result.png)
 
-*With the sample customer in the table, a lookup for ID `1` returns
-`alex@example.com`. Click either screenshot to see it full size.*
-
-If the read fails, check the selected data source, statement fields, parameters
-and provider permissions, then test the connection and retry.
+*The result shows ID `1` and email `alex@example.com`. Click either screenshot to
+see it full size.*
 
 The dashboard marks **Get a result** complete when a retained successful saved
 operation is recorded. Its query link returns to that operation. **Hide** keeps

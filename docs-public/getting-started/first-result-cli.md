@@ -1,49 +1,72 @@
 # Get your first result with the CLI
 
-Connect one supported system, save one harmless standalone read,
-and run it. Exact connection fields, statement shapes, and results depend on the
-connector.
+Run one saved read and check that it returns data. The PostgreSQL sample returns
+one synthetic row with ID `1` and email `alex@example.com`. It creates no tables
+and reads no stored customer data.
 
-Before starting, sign in to the deployment you intend to use,
-[install and authenticate the CLI](cli.md), and choose your system in the
-[connector directory](../connectors/index.md). Use the connector guide's safe
-read example and least-privilege provider credentials.
+You need an [authenticated CLI](cli.md), a workspace where you can create data
+sources and queries, and least-privilege credentials for one system your
+deployment can reach. A standalone read needs no project, Git repository, or
+destination. For another system, use the safe read in its
+[connector guide](../connectors/index.md).
 
-Hosted execution cannot reach your laptop's `localhost`, loopback, or private
-network addresses by default. Do not disable TLS or expose a system publicly as
-a shortcut.
+Hosted execution blocks loopback and private network addresses by default.
+Keep TLS verification enabled. If you have no reachable system, use the
+[reading tour](overview.md).
 
 ## 1. Connect your system
 
-Prepare `connection.json` from the connector guide and the
+For OAuth or workload identity, follow your connector's setup guide to connect
+and test the data source. Then [save one read](#2-save-one-read).
+
+For static credentials, prepare `connection.json` using the connector guide and
 [`CreateDataSourceRequest` schema]({{ public_openapi_url }}#/components/schemas/CreateDataSourceRequest).
 The schema defines the complete request envelope for every connector.
 
-For example, download the complete
-[PostgreSQL connection request](files/postgres.connection.json), replace every
-angle-bracket placeholder, and keep `read_only: true`. The database role needs
-`CONNECT` on the database, `USAGE` on the required schemas, and `SELECT` on the
-required tables or views. This PostgreSQL request is an example; use the request
-fields and least-privilege permissions from the guide for the connector you
-choose.
+For PostgreSQL, save the [connection request](files/postgres.connection.json)
+as `connection.json`. Replace every angle-bracket placeholder and keep
+`read_only: true`. Put only the database password in `postgres-password` next
+to the request, without a trailing newline. The inline sample only needs a role
+that can connect.
+For reads from your own tables, see the
+[PostgreSQL role requirements](../connectors/postgresql.md#authentication-and-permissions).
 
 Keep `connection.json` and referenced credential files outside Git with
 permissions restricted to your user.
 
 ```bash
 braidplane data-source test --file connection.json
-braidplane data-source create --file connection.json
 ```
 
 A successful draft test exits zero and prints JSON such as
 `{"type":"postgres","status":"succeeded"}`. Use `--output text` for a readable
-confirmation. Creation returns safe metadata, never credentials.
-Static-credential connections can be tested before creation. OAuth
-and workload-identity connectors can create an inactive data source, then
-require the connection or verification step in their connector guide before a
-successful saved test.
+confirmation.
 
-To check the saved connection again later, run:
+### Optional: try one failed connection and recover
+
+To practice recovery before creating the connection, use a test PostgreSQL
+database you control. In `connection.json`, replace only `config.database` with
+a name you know is absent, such as `braidplane_tutorial_missing`. Run the draft
+test again:
+
+```bash
+braidplane data-source test --file connection.json
+```
+
+Expect a nonzero exit and `DATA_SOURCE_CONNECTION_FAILED` on stderr. For this
+failure, compare `config.database` with the name of the database you intended
+to use. Restore its name and repeat the test. Confirm exit zero and
+`"status":"succeeded"`.
+If the corrected name still fails, see the
+[PostgreSQL connection guide](../connectors/postgresql.md#authentication-and-permissions).
+
+For static credentials, create the data source after a successful draft test:
+
+```bash
+braidplane data-source create --file connection.json
+```
+
+To test a connection you already saved, run:
 
 ```bash
 braidplane data-source test-stored '<data-source-slug>'
@@ -56,19 +79,17 @@ write pipeline data.
 
 ## 2. Save one read
 
-Save the connector guide's standalone read statement as
-`operation.statement.json`:
+For PostgreSQL, save this as `operation.statement.json`. For another system,
+use the statement in its connector guide.
 
-For a query without parameters:
-
-```bash
-braidplane query create --data-source '<data-source-slug>' \
-  --name 'First read' --slug first-read \
-  --statement-file operation.statement.json
+```json
+{
+  "type": "postgres",
+  "sql": "SELECT id, email FROM (VALUES (1, 'alex@example.com')) AS customers(id, email) WHERE id = {{customer_id}}"
+}
 ```
 
-If the statement contains a placeholder such as `{{customer_id}}`, define it in
-`parameters.json`:
+Define the sample's `customer_id` parameter in `parameters.json`:
 
 ```json
 [
@@ -80,13 +101,14 @@ If the statement contains a placeholder such as `{{customer_id}}`, define it in
 ]
 ```
 
-Pass the definitions when creating the query:
+Replace `<data-source-slug>` with the slug of your saved connection, such as
+`tutorial-postgres`. Omit `--parameters-file` if your statement has no parameters.
 
 ```bash
 braidplane query create --data-source '<data-source-slug>' \
   --name 'First read' --slug first-read \
   --statement-file operation.statement.json \
-  --parameters-file parameters.json
+  --parameters-file parameters.json --row-limit 10 --timeout-seconds 10
 ```
 
 The placeholder name and parameter name are case-sensitive and must match.
@@ -100,7 +122,7 @@ For the parameterized example above:
 
 ```bash
 braidplane query execute first-read --data-source '<data-source-slug>' \
-  --parameters-json '{"customer_id": 42}'
+  --parameters-json '{"customer_id": 1}'
 ```
 
 For a query without parameters:
@@ -109,11 +131,9 @@ For a query without parameters:
 braidplane query execute first-read --data-source '<data-source-slug>'
 ```
 
-Expect `success`. Compare the returned rows, documents, records, or file content
-with the connector guide's expected result and your source data.
-
-If execution fails, confirm the data-source slug, statement shape, parameters,
-and provider permissions, then test the saved connection and retry.
+For the sample, expect `success: true`, `payload.row_count: 1`, and the row
+`{"id":1,"email":"alex@example.com"}` in `payload.rows`. For another connector,
+compare the result with its guide's read example.
 
 To resume later, inspect recorded first-result progress without retrieving
 result payloads:
@@ -153,7 +173,7 @@ Propose the current saved operation without writing a pipeline file:
 ```bash
 braidplane pipeline create --project first-pipeline --from-query first-read \
   --data-source '<data-source-slug>' --name 'Repeat first read' \
-  --slug repeat-first-read --parameters-json '{"customer_id": 42}'
+  --slug repeat-first-read --parameters-json '{"customer_id": 1}'
 braidplane pipeline creation list --project first-pipeline
 braidplane pipeline creation get '<creation-slug>' --project first-pipeline
 ```
