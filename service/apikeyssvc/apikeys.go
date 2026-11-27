@@ -4,6 +4,7 @@ import (
 	"context"
 	"time"
 
+	"github.com/Braidplane/braidplane-core/pkg/crypto"
 	"github.com/Braidplane/braidplane-core/pkg/domain/model"
 	"github.com/Braidplane/braidplane-core/pkg/slug"
 	"github.com/Braidplane/braidplane-core/pkg/validate"
@@ -84,7 +85,7 @@ func (s *service) CreateAPIKey(
 		createdByUserSlug = actor.Slug
 	}
 
-	token, tokenHash, safePrefix, err := generateToken()
+	token, tokenHash, safePrefix, err := crypto.GenerateBearerToken(tokenPrefix)
 	if err != nil {
 		return nil, xerror.Wrapf("generate api key token: %w", err)
 	}
@@ -259,7 +260,7 @@ func (s *service) RotateAPIKey(
 	actor model.EventActor,
 	callerRole *slug.Slug,
 ) (*model.APIKeyWithToken, error) {
-	token, tokenHash, safePrefix, err := generateToken()
+	token, tokenHash, safePrefix, err := crypto.GenerateBearerToken(tokenPrefix)
 	if err != nil {
 		return nil, xerror.Wrapf("generate api key token: %w", err)
 	}
@@ -325,7 +326,7 @@ func (s *service) Authenticate(ctx context.Context, token string) (*model.APIKey
 
 	var ret *model.APIKeyPrincipal
 	err := s.txm.RunInTx(ctx, func(ctx context.Context, tx postgres.DBTX) error {
-		principal, err := s.apiKeysRepo.FindActivePrincipalByTokenHash(ctx, tx, hashToken(token))
+		principal, err := s.apiKeysRepo.FindActivePrincipalByTokenHash(ctx, tx, crypto.HashBearerToken(token))
 		if err != nil {
 			if xerror.Is(err, apikeys.ErrNotFound) {
 				return ErrInvalidToken

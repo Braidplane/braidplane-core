@@ -93,8 +93,8 @@ func TestService_CreatePersonalAccessTokenReturnsRawTokenOnceAndStoresHash(t *te
 	require.NoError(t, err)
 	require.NotNil(t, token)
 	require.True(t, repo.createCalled)
-	require.True(t, strings.HasPrefix(token.Token, TokenPrefix))
-	require.Equal(t, token.Token[:tokenPrefixLen], repo.createParams.TokenPrefix)
+	require.Regexp(t, "^xto_pat_[A-Za-z0-9_-]{43}$", token.Token)
+	require.Equal(t, token.Token[:16], repo.createParams.TokenPrefix)
 	require.NotEqual(t, token.Token, repo.createParams.TokenHash)
 	require.Len(t, repo.createParams.TokenHash, 64)
 	require.Equal(t, slug.Slug("user-1"), repo.createParams.UserSlug)
@@ -105,7 +105,7 @@ func TestService_CreatePersonalAccessTokenReturnsRawTokenOnceAndStoresHash(t *te
 	require.True(t, repo.createParams.ExpiresAt.Equal(expiresAt))
 	require.True(t, repo.createParams.CanManagePersonalAccessTokens)
 	require.True(t, token.CanManagePersonalAccessTokens)
-	require.Equal(t, token.Token[:tokenPrefixLen], token.TokenPrefix)
+	require.Equal(t, token.Token[:16], token.TokenPrefix)
 }
 
 func TestService_RotatePersonalAccessTokenReplacesStoredTokenSecret(t *testing.T) {
@@ -128,8 +128,8 @@ func TestService_RotatePersonalAccessTokenReplacesStoredTokenSecret(t *testing.T
 	require.NoError(t, err)
 	require.NotNil(t, token)
 	require.True(t, repo.rotateCalled)
-	require.True(t, strings.HasPrefix(token.Token, TokenPrefix))
-	require.Equal(t, token.Token[:tokenPrefixLen], repo.rotateParams.TokenPrefix)
+	require.Regexp(t, "^xto_pat_[A-Za-z0-9_-]{43}$", token.Token)
+	require.Equal(t, token.Token[:16], repo.rotateParams.TokenPrefix)
 	require.NotEqual(t, token.Token, repo.rotateParams.TokenHash)
 	require.Len(t, repo.rotateParams.TokenHash, 64)
 	require.Equal(t, slug.Slug("user-1"), repo.rotateParams.UserSlug)
@@ -390,8 +390,8 @@ func TestService_DeleteRevokedPersonalAccessTokenRejectsActiveToken(t *testing.T
 func TestService_AuthenticateResolvesUserPrincipalAndMarksUsed(t *testing.T) {
 	t.Parallel()
 
-	rawToken, tokenHash, _, err := generateToken()
-	require.NoError(t, err)
+	const rawToken = "xto_pat_AQIDBAUGBwgJCgsMDQ4PEBESExQVFhcYGRobHB0eHyA"
+	const tokenHash = "b9be6363d4b21ff530c0533508483b068ff50af4cf9677b1cf6f57db7b291126"
 
 	repo := &fakePATsRepository{
 		principal: &pats.Principal{
@@ -402,7 +402,7 @@ func TestService_AuthenticateResolvesUserPrincipalAndMarksUsed(t *testing.T) {
 	}
 	svc := New(testutil.FakeTransactionManager{}, repo)
 
-	principal, err := svc.Authenticate(context.Background(), rawToken)
+	principal, err := svc.Authenticate(context.Background(), " \t"+rawToken+"\n")
 
 	require.NoError(t, err)
 	require.NotNil(t, principal)
@@ -433,8 +433,7 @@ func TestService_AuthenticateRejectsWrongTokenPrefix(t *testing.T) {
 func TestService_AuthenticateTreatsZeroRowMarkUsedAsInvalidToken(t *testing.T) {
 	t.Parallel()
 
-	rawToken, _, _, err := generateToken()
-	require.NoError(t, err)
+	const rawToken = "xto_pat_AQIDBAUGBwgJCgsMDQ4PEBESExQVFhcYGRobHB0eHyA"
 
 	repo := &fakePATsRepository{
 		principal: &pats.Principal{
@@ -445,7 +444,7 @@ func TestService_AuthenticateTreatsZeroRowMarkUsedAsInvalidToken(t *testing.T) {
 	}
 	svc := New(testutil.FakeTransactionManager{}, repo)
 
-	principal, err := svc.Authenticate(context.Background(), rawToken)
+	principal, err := svc.Authenticate(context.Background(), " \t"+rawToken+"\n")
 
 	require.Nil(t, principal)
 	require.Error(t, err)
