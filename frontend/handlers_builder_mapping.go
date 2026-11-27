@@ -2,10 +2,11 @@ package frontend
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"io"
 	"net/http"
-	"strings"
+	"time"
 
 	"github.com/gofiber/fiber/v3"
 
@@ -20,18 +21,19 @@ import (
 )
 
 type builderMappingRequest struct {
-	Action         string                        `json:"action"`
-	SQL            string                        `json:"sql,omitempty"`
-	Mapping        *transformsql.FieldMapping    `json:"mapping,omitempty"`
-	Source         *payload.Contract             `json:"source,omitempty"`
-	Destination    *payload.Contract             `json:"destination,omitempty"`
-	FixtureJSON    string                        `json:"fixture_json,omitempty"`
-	Step           string                        `json:"step,omitempty"`
-	OutputKind     model.TransformOutputKind     `json:"output_kind,omitempty"`
-	Org            string                        `json:"org,omitempty"`
-	Project        string                        `json:"project,omitempty"`
-	SourceRef      *pipelinespec.ODCSContractRef `json:"source_ref,omitempty"`
-	DestinationRef *pipelinespec.ODCSContractRef `json:"destination_ref,omitempty"`
+	Action         string                                           `json:"action"`
+	SQL            string                                           `json:"sql,omitempty"`
+	Mapping        *transformsql.FieldMapping                       `json:"mapping,omitempty"`
+	Source         *payload.Contract                                `json:"source,omitempty"`
+	Destination    *payload.Contract                                `json:"destination,omitempty"`
+	FixtureJSON    string                                           `json:"fixture_json,omitempty"`
+	InputContracts map[string]*pipelinespec.InputContractAttachment `json:"input_contracts,omitempty"`
+	Step           string                                           `json:"step,omitempty"`
+	OutputKind     model.TransformOutputKind                        `json:"output_kind,omitempty"`
+	Org            string                                           `json:"org,omitempty"`
+	Project        string                                           `json:"project,omitempty"`
+	SourceRef      *pipelinespec.ODCSContractRef                    `json:"source_ref,omitempty"`
+	DestinationRef *pipelinespec.ODCSContractRef                    `json:"destination_ref,omitempty"`
 }
 
 // This SSR adapter edits submitted SQL only. Schema and ODCS reads use their
@@ -51,27 +53,61 @@ func (r *Router) handleBuilderMapping(c fiber.Ctx) error {
 		if xerror.As(err, &typed) {
 			code = typed.Code()
 		}
+		if request.Action == "fixture" {
+			return builderFixtureResponse(c, http.StatusUnprocessableEntity, transformfixture.Failure(request.Step, code,
+				"Supply valid fixture inputs and select one inline shape or exact reference per port."))
+		}
 		return c.Status(http.StatusUnprocessableEntity).JSON(fiber.Map{
 			"valid": false, "diagnostics": []fiber.Map{{"code": code, "message": err.Error()}},
 		})
 	}
-	if request.SourceRef != nil || request.DestinationRef != nil {
-		if (request.SourceRef != nil && request.Source != nil) || (request.DestinationRef != nil && request.Destination != nil) {
+	var fixture transformfixture.Fixture
+	ctx := c.Context()
+	if request.Action == "fixture" {
+		var err error
+		fixture, err = transformfixture.Decode([]byte(request.FixtureJSON))
+		if err != nil {
+			return builderFixtureResponse(c, http.StatusUnprocessableEntity, transformfixture.Failure(request.Step, "TRANSFORM_FIXTURE_INVALID", err.Error()))
+		}
+		var cancel context.CancelFunc
+		ctx, cancel = context.WithTimeout(ctx, 2*time.Second)
+		defer cancel()
+		if request.InputContracts != nil {
+			if len(request.InputContracts) == 0 || len(request.InputContracts) > 64 || request.Source != nil || request.SourceRef != nil {
+				return failure(xerror.ValidationFailed().Detail("use either a combined input contract or up to 64 named input contracts"))
+			}
+		}
+	}
+	type contractPort struct {
+		ref   *pipelinespec.ODCSContractRef
+		shape **payload.Contract
+	}
+	ports := []contractPort{{request.SourceRef, &request.Source}, {request.DestinationRef, &request.Destination}}
+	if request.Action == "fixture" {
+		for name, input := range request.InputContracts {
+			if _, exists := fixture.Inputs[name]; !exists || input == nil || (input.Contract == nil && input.ContractRef == nil) {
+				return failure(xerror.ValidationFailed().Detail("supply a fixture input for every named contract"))
+			}
+			ports = append(ports, contractPort{input.ContractRef, &input.Contract})
+		}
+	}
+	for _, port := range ports {
+		if port.ref != nil && *port.shape != nil {
 			return failure(xerror.ValidationFailed().Detail("choose one inline shape or exact reference per mapping port"))
 		}
-		for _, port := range []struct {
-			ref   *pipelinespec.ODCSContractRef
-			shape **payload.Contract
-		}{{request.SourceRef, &request.Source}, {request.DestinationRef, &request.Destination}} {
-			if port.ref == nil {
-				continue
-			}
-			shape, status, err := r.resolveBuilderMappingContract(c, request.Org, request.Project, port.ref)
-			if err != nil {
-				return c.Status(status).JSON(fiber.Map{"valid": false, "diagnostics": []fiber.Map{{"code": "MAPPING_CONTRACT_UNAVAILABLE", "message": err.Error()}}})
-			}
-			*port.shape = shape
+	}
+	for _, port := range ports {
+		if port.ref == nil {
+			continue
 		}
+		shape, status, err := r.resolveBuilderMappingContract(ctx, c.Get(fiber.HeaderCookie), request.Org, request.Project, port.ref)
+		if err != nil {
+			if request.Action == "fixture" {
+				return builderFixtureResponse(c, status, transformfixture.Failure(request.Step, "MAPPING_CONTRACT_UNAVAILABLE", err.Error()))
+			}
+			return c.Status(status).JSON(fiber.Map{"valid": false, "diagnostics": []fiber.Map{{"code": "MAPPING_CONTRACT_UNAVAILABLE", "message": err.Error()}}})
+		}
+		*port.shape = shape
 	}
 	switch request.Action {
 	case "inspect":
@@ -108,36 +144,31 @@ func (r *Router) handleBuilderMapping(c fiber.Ctx) error {
 		}
 		return c.JSON(fiber.Map{"valid": true, "scope": "explicit_contract_shapes"})
 	case "fixture":
-		var fixture transformfixture.Fixture
-		decoder := json.NewDecoder(strings.NewReader(request.FixtureJSON))
-		decoder.DisallowUnknownFields()
-		if decoder.Decode(&fixture) != nil || decoder.Decode(&struct{}{}) != io.EOF {
-			return failure(xerror.ValidationFailed().Detail("supply fixture JSON with named inputs and optional expected output"))
-		}
-		for _, contract := range []*payload.Contract{request.Source, request.Destination} {
-			if err := transformsql.ValidateFieldMappingSchema(contract); err != nil {
-				return failure(err)
+		transform := transformsql.Transform{SQL: request.SQL, OutputKind: request.OutputKind, InputContract: request.Source, OutputContract: request.Destination}
+		if request.InputContracts != nil {
+			transform.InputContracts = make(map[string]*payload.Contract, len(request.InputContracts))
+			for name, input := range request.InputContracts {
+				transform.InputContracts[name] = input.Contract
 			}
 		}
-		if request.OutputKind != model.TransformOutputKindRows && request.OutputKind != model.TransformOutputKindJSON && request.OutputKind != model.TransformOutputKindCSV {
-			return failure(xerror.ValidationFailed().Detail("select rows, json or csv output"))
-		}
-		result := transformfixture.Run(c.Context(), request.Step, transformsql.Transform{
-			SQL: request.SQL, OutputKind: request.OutputKind, InputContract: request.Source, OutputContract: request.Destination,
-		}, fixture)
+		result := transformfixture.Run(ctx, request.Step, transform, fixture)
 		if !result.Passed {
-			c.Status(http.StatusUnprocessableEntity)
+			return builderFixtureResponse(c, http.StatusUnprocessableEntity, result)
 		}
-		return c.JSON(fiber.Map{
-			"passed": result.Passed, "asserted": result.Asserted, "step": result.Step, "scope": result.Scope,
-			"output_json": string(result.Output), "columns": result.Columns, "diagnostics": result.Diagnostics,
-		})
+		return builderFixtureResponse(c, http.StatusOK, result)
 	default:
 		return c.Status(http.StatusBadRequest).JSON(fiber.Map{"error": "Choose inspect, render, suggest, check or fixture."})
 	}
 }
 
-func (r *Router) resolveBuilderMappingContract(c fiber.Ctx, org, project string, ref *pipelinespec.ODCSContractRef) (*payload.Contract, int, error) {
+func builderFixtureResponse(c fiber.Ctx, status int, result transformfixture.Result) error {
+	return c.Status(status).JSON(fiber.Map{
+		"passed": result.Passed, "asserted": result.Asserted, "step": result.Step, "scope": result.Scope,
+		"output_json": string(result.Output), "columns": result.Columns, "diagnostics": result.Diagnostics,
+	})
+}
+
+func (r *Router) resolveBuilderMappingContract(ctx context.Context, cookie, org, project string, ref *pipelinespec.ODCSContractRef) (*payload.Contract, int, error) {
 	for _, value := range []string{org, project, ref.ContractSlug.String(), ref.RevisionSlug.String()} {
 		if _, err := slug.New(value); err != nil {
 			return nil, http.StatusBadRequest, xerror.ValidationFailed().Detail("select valid organization, project and exact contract revision identifiers")
@@ -146,8 +177,8 @@ func (r *Router) resolveBuilderMappingContract(c fiber.Ctx, org, project string,
 	if ref.RevisionSlug.String() == "latest" || ref.SchemaObjectID == "" {
 		return nil, http.StatusBadRequest, xerror.ValidationFailed().Detail("select an exact revision and schema object")
 	}
-	response, err := r.apiClient.InspectODCSRevisionWithResponse(c.Context(), org, project, ref.ContractSlug.String(), ref.RevisionSlug.String(),
-		&api.InspectODCSRevisionParams{SchemaObjectId: &ref.SchemaObjectID}, frontendRequestEditor(c.Context(), c.Get(fiber.HeaderCookie)))
+	response, err := r.apiClient.InspectODCSRevisionWithResponse(ctx, org, project, ref.ContractSlug.String(), ref.RevisionSlug.String(),
+		&api.InspectODCSRevisionParams{SchemaObjectId: &ref.SchemaObjectID}, frontendRequestEditor(ctx, cookie))
 	if err != nil {
 		return nil, http.StatusBadGateway, xerror.ValidationFailed().Detail("contract inspection is unavailable; retry after checking the API connection")
 	}

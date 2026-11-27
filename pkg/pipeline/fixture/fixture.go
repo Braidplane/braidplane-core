@@ -6,7 +6,9 @@ import (
 	"context"
 	"encoding/json"
 	"io"
+	"maps"
 	"math/big"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -41,10 +43,27 @@ type Result struct {
 	Diagnostics []Diagnostic    `json:"diagnostics"`
 }
 
+const resultScope = "fixture_explicit_contract_shapes"
+
+// Decode reads a single fixture file without exposing parse details or values.
+func Decode(raw []byte) (Fixture, error) {
+	var fixture Fixture
+	decoder := json.NewDecoder(bytes.NewReader(raw))
+	decoder.DisallowUnknownFields()
+	if len(raw) > MaxBytes || decoder.Decode(&fixture) != nil || decoder.Decode(&struct{}{}) != io.EOF {
+		return Fixture{}, xerror.ValidationFailed().Detail("Supply at most 1 MiB of fixture JSON with named inputs and optional expected output.")
+	}
+	return fixture, nil
+}
+
+func Failure(step, code, message string) Result {
+	return Result{Step: step, Scope: resultScope, Diagnostics: []Diagnostic{{Step: step, Code: code, Message: message}}}
+}
+
 // Run executes the pipeline SQL runtime and its existing contract checks. Output
 // is returned only after contract success; failures never echo fixture values.
 func Run(ctx context.Context, step string, transform transformsql.Transform, fixture Fixture) Result {
-	result := Result{Step: step, Scope: "fixture_explicit_contract_shapes", Diagnostics: []Diagnostic{}}
+	result := Result{Step: step, Scope: resultScope, Diagnostics: []Diagnostic{}}
 	fail := func(code, message string) Result {
 		result.Diagnostics = append(result.Diagnostics, Diagnostic{Step: step, Code: code, Message: message})
 		return result
@@ -72,7 +91,12 @@ func Run(ctx context.Context, step string, transform transformsql.Transform, fix
 			continue
 		}
 		fieldCount += len(contract.Fields)
-		if fieldCount > 256 || payload.ValidateContractFieldDeclarations(contract) != nil {
+		shape := *contract
+		// Inline transform contracts may omit the name required by the mapping checker.
+		if shape.Name == "" {
+			shape.Name = "fixture"
+		}
+		if fieldCount > 256 || transformsql.ValidateFieldMappingSchema(&shape) != nil {
 			return fail("TRANSFORM_FIXTURE_CONTRACT_INVALID", "Supply valid contract constraints with at most 256 total declared fields.")
 		}
 	}
@@ -81,7 +105,8 @@ func Run(ctx context.Context, step string, transform transformsql.Transform, fix
 		return fail("TRANSFORM_FIXTURE_INVALID", "Supply a step name and 1–64 named inputs; the complete fixture must be at most 1 MiB.")
 	}
 	inputs := make(map[string]*payload.Payload, len(fixture.Inputs))
-	for name, raw := range fixture.Inputs {
+	for _, name := range slices.Sorted(maps.Keys(fixture.Inputs)) {
+		raw := fixture.Inputs[name]
 		if transformsql.ValidateTransformInputRelationName(name) != nil {
 			return fail("TRANSFORM_FIXTURE_INPUT_INVALID", "Fixture input names must be valid transform relation identifiers.")
 		}
@@ -102,19 +127,19 @@ func Run(ctx context.Context, step string, transform transformsql.Transform, fix
 		switch representation {
 		case model.ContractRepresentationJSON:
 			input.Document, input.RootShape = raw, payload.DetectJSONRootShape(raw)
-			rows, _, err = payload.ParseJSONBodyToRowsPreserveNumbers(raw)
+			rows, input.ColumnNames, err = payload.ParseJSONBodyToRowsPreserveNumbers(raw)
 		case model.ContractRepresentationCSV:
 			var ok bool
 			input.CSV, ok = decoded.(string)
 			if !ok {
 				return fail("TRANSFORM_FIXTURE_INPUT_INVALID", "CSV fixture inputs must be JSON strings containing CSV text.")
 			}
-			rows, _, err = payload.ParseCSVBodyToRows([]byte(input.CSV))
+			rows, input.ColumnNames, err = payload.ParseCSVBodyToRows([]byte(input.CSV))
 		case model.ContractRepresentationRows:
 			if _, ok := decoded.([]any); !ok {
 				return fail("TRANSFORM_FIXTURE_INPUT_INVALID", "Row fixture inputs must be JSON arrays of objects.")
 			}
-			rows, _, err = payload.ParseJSONBodyToRowsPreserveNumbers(raw)
+			rows, input.ColumnNames, err = payload.ParseJSONBodyToRowsPreserveNumbers(raw)
 			input.Rows = rows
 		default:
 			return fail("TRANSFORM_FIXTURE_INPUT_INVALID", "Fixtures support rows, JSON and CSV input representations.")
@@ -122,7 +147,7 @@ func Run(ctx context.Context, step string, transform transformsql.Transform, fix
 		if err != nil || len(rows) > 1000 {
 			return fail("TRANSFORM_FIXTURE_INPUT_INVALID", "Each fixture input must parse into at most 1000 row objects.")
 		}
-		input.ColumnNames, input.RowCount = payload.CollectColumnNames(rows), len(rows)
+		input.RowCount = len(rows)
 		if err := runtime.ValidateInputContext(ctx, input, contract); err != nil {
 			return fail("TRANSFORM_FIXTURE_INPUT_CONTRACT_FAILED", "Input violates its declared representation, root shape or field constraints; sample values are omitted.")
 		}
@@ -151,6 +176,9 @@ func Run(ctx context.Context, step string, transform transformsql.Transform, fix
 		if err := transformsql.ValidateOutputContract(output, transform.OutputContract); err != nil {
 			failed := fail("TRANSFORM_FIXTURE_OUTPUT_CONTRACT_FAILED", "Output violates the declared contract. Check required fields, nullability, types and field constraints; sample values are omitted.")
 			for _, field := range transform.OutputContract.Fields {
+				if ctx.Err() != nil {
+					break
+				}
 				selected := *transform.OutputContract
 				selected.Fields = []payload.ContractField{field}
 				if transformsql.ValidateOutputContract(output, &selected) != nil {
@@ -177,8 +205,14 @@ func Run(ctx context.Context, step string, transform transformsql.Transform, fix
 		result.Asserted = true
 		value, err := decodeJSON(actual)
 		if err != nil || !equalJSON(ctx, value, expected) {
+			if ctx.Err() != nil {
+				return fail("TRANSFORM_FIXTURE_TIMEOUT", "Fixture execution was canceled or ran out of time.")
+			}
 			return fail("TRANSFORM_FIXTURE_ASSERTION_FAILED", "Actual output differs from expected output. Row and array order matter; numeric comparison is exact. Output values are omitted on failure.")
 		}
+	}
+	if ctx.Err() != nil {
+		return fail("TRANSFORM_FIXTURE_TIMEOUT", "Fixture execution was canceled or ran out of time.")
 	}
 	result.Passed, result.Output, result.Columns = true, actual, output.ColumnNames
 	return result

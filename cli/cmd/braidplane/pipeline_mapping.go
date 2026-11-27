@@ -24,33 +24,59 @@ type pipelineMappingCommand struct {
 }
 
 type testPipelineMappingCommand struct {
-	mappingContractFlags
-	File       string `required:"" help:"SQL transform file." type:"path"`
-	Fixture    string `required:"" help:"JSON fixture with named inputs matching their contract representations and optional expected output." type:"path"`
-	Step       string `required:"" help:"Authored step name for fixture diagnostics."`
-	OutputKind string `default:"rows" enum:"rows,json,csv" help:"Transform output serialization." name:"output-kind"`
+	File           string `required:"" help:"SQL transform file." type:"path"`
+	Fixture        string `required:"" help:"JSON fixture with named inputs matching their contract representations and optional expected output." type:"path"`
+	Step           string `required:"" help:"Authored step name for fixture diagnostics."`
+	OutputKind     string `default:"rows" enum:"rows,json,csv" help:"Transform output serialization." name:"output-kind"`
+	InputContract  string `help:"JSON input contract shape." type:"path" xor:"fixture-input-shapes"`
+	InputContracts string `help:"JSON object mapping input relation names to contract shapes." type:"path" xor:"fixture-input-shapes"`
+	OutputContract string `help:"JSON output contract shape." type:"path"`
 }
 
 func (c *testPipelineMappingCommand) Run(output *cliOutput) error {
-	source, destination, err := c.load()
-	if err != nil {
-		return mappingCommandFailure(output, err)
+	var transform transformsql.Transform
+	for _, file := range []struct {
+		path, flag string
+		contract   any
+	}{
+		{c.InputContract, "--input-contract", &transform.InputContract},
+		{c.InputContracts, "--input-contracts", &transform.InputContracts},
+		{c.OutputContract, "--output-contract", &transform.OutputContract},
+	} {
+		if file.path != "" {
+			if err := decodeMappingFile(file.path, file.contract); err != nil {
+				return c.writeResult(output, transformfixture.Failure(c.Step, "TRANSFORM_FIXTURE_CONTRACT_INVALID",
+					"Supply a readable JSON contract file of at most 1 MiB for "+file.flag+"."))
+			}
+			if (file.flag == "--input-contract" && transform.InputContract == nil) ||
+				(file.flag == "--input-contracts" && len(transform.InputContracts) == 0) ||
+				(file.flag == "--output-contract" && transform.OutputContract == nil) {
+				return c.writeResult(output, transformfixture.Failure(c.Step, "TRANSFORM_FIXTURE_CONTRACT_INVALID",
+					"Supply a nonempty contract declaration for "+file.flag+"."))
+			}
+		}
 	}
 	raw, err := readMappingFile(c.File)
 	if err != nil {
-		return mappingCommandFailure(output, err)
+		return c.writeResult(output, transformfixture.Failure(c.Step, "TRANSFORM_FIXTURE_SQL_INVALID", "Supply a readable SQL file of at most 1 MiB."))
 	}
-	var fixture transformfixture.Fixture
-	if err := decodeMappingFile(c.Fixture, &fixture); err != nil {
-		return mappingCommandFailure(output, err)
-	}
-	kind, err := model.TransformOutputKindString(c.OutputKind)
+	transform.SQL = string(raw)
+	fixtureRaw, err := readMappingFile(c.Fixture)
 	if err != nil {
-		return mappingCommandFailure(output, err)
+		return c.writeResult(output, transformfixture.Failure(c.Step, "TRANSFORM_FIXTURE_INVALID", "Supply a readable fixture file of at most 1 MiB."))
 	}
-	result := transformfixture.Run(context.Background(), c.Step, transformsql.Transform{
-		SQL: string(raw), OutputKind: kind, InputContract: source, OutputContract: destination,
-	}, fixture)
+	fixture, err := transformfixture.Decode(fixtureRaw)
+	if err != nil {
+		return c.writeResult(output, transformfixture.Failure(c.Step, "TRANSFORM_FIXTURE_INVALID", err.Error()))
+	}
+	transform.OutputKind, err = model.TransformOutputKindString(c.OutputKind)
+	if err != nil {
+		return c.writeResult(output, transformfixture.Failure(c.Step, "TRANSFORM_FIXTURE_INVALID", "Select rows, json or csv output."))
+	}
+	return c.writeResult(output, transformfixture.Run(context.Background(), c.Step, transform, fixture))
+}
+
+func (c *testPipelineMappingCommand) writeResult(output *cliOutput, result transformfixture.Result) error {
 	if err := writeCLIJSON(output.stdout, result); err != nil {
 		return err
 	}

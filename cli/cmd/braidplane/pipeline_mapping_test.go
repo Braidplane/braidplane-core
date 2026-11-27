@@ -9,6 +9,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 
+	transformfixture "github.com/Braidplane/braidplane-core/pkg/pipeline/fixture"
 	transformsql "github.com/Braidplane/braidplane-core/pkg/pipeline/transform/sql"
 )
 
@@ -149,6 +150,41 @@ func TestPipelineMappingCLIFixtureHasSafeStepDiagnosticsAndFailureExit(t *testin
 			require.Equal(t, "map-products", result.Diagnostics[0]["step"])
 			require.NotContains(t, stdout.String()+stderr.String()+err.Error(), "private-customer-value")
 		}
+	}
+}
+
+func TestPipelineMappingCLIFixtureReadsNamedContractsAndRedactsInvalidFiles(t *testing.T) {
+	file := writeMappingTestFile(t, "query.sql", "SELECT sku FROM supplier WHERE sku IS NOT NULL")
+	contracts := writeMappingTestFile(t, "contracts.json", `{"supplier":{"name":"supplier","fields":[{"name":"sku","type":"string","required":true}]}}`)
+	for _, test := range []struct {
+		fixture string
+		code    string
+	}{
+		{`{"inputs":{"supplier":[{"sku":"CHAIR-42"}]},"expected":[{"sku":"CHAIR-42"}]}`, ""},
+		{`{"inputs":{"supplier":[{"wrong_field":"sample-canary"}]}}`, "TRANSFORM_FIXTURE_INPUT_CONTRACT_FAILED"},
+		{`{"inputs":{"supplier":[{"sku":"sample-canary"}]},"unknown-canary":true}`, "TRANSFORM_FIXTURE_INVALID"},
+	} {
+		fixture := writeMappingTestFile(t, "fixture.json", test.fixture)
+		var stdout, stderr bytes.Buffer
+		err := runWithArgs([]string{
+			"braidplane", "pipeline", "mapping", "test", "--file", file, "--fixture", fixture,
+			"--step", "map-products", "--input-contracts", contracts,
+		}, &stdout, &stderr)
+		var result transformfixture.Result
+		require.NoError(t, json.Unmarshal(stdout.Bytes(), &result))
+		if test.code == "" {
+			require.NoError(t, err)
+			require.True(t, result.Passed)
+			require.True(t, result.Asserted)
+			continue
+		}
+		require.Error(t, err)
+		require.False(t, result.Passed)
+		require.Empty(t, result.Output)
+		require.Len(t, result.Diagnostics, 1)
+		require.Equal(t, test.code, result.Diagnostics[0].Code)
+		require.Equal(t, "map-products", result.Diagnostics[0].Step)
+		require.NotContains(t, stdout.String()+stderr.String()+err.Error(), "canary")
 	}
 }
 

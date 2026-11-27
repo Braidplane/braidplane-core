@@ -19,7 +19,7 @@ func TestFixtureCatchesMappingRegressionAndRequiredFieldBeforeDeployment(t *test
 	transform := transformsql.Transform{
 		SQL:        "SELECT item_code AS sku, CAST(price AS DECIMAL(18,2)) AS unit_price, 'PLN' AS currency FROM input",
 		OutputKind: model.TransformOutputKindRows,
-		OutputContract: &payload.Contract{Name: "catalog", Fields: []payload.ContractField{
+		OutputContract: &payload.Contract{Fields: []payload.ContractField{
 			{Name: "sku", Type: model.ContractFieldTypeValueString, Required: true},
 			{Name: "unit_price", Type: model.ContractFieldTypeValueDecimal, Precision: &p, Scale: &s, Required: true},
 			{Name: "currency", Type: model.ContractFieldTypeValueString, Required: true},

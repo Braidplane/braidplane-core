@@ -469,6 +469,51 @@ Set `output_kind` to `rows`, `json`, or `csv` to control serialization. Local
 validation reports unsupported syntax before the spec is committed. The
 [API reference](../api/index.md) defines the pipeline contract.
 
+### Test SQL with an offline fixture
+
+Run the SQL with synthetic inputs before applying a mapping or deploying a
+pipeline. Use a `braidplane` binary built from this checkout and put it on your
+path before running these commands.
+
+```sh
+cd examples/pipelines/sql-fixture
+braidplane pipeline mapping test \
+  --step map-products --file products.sql --fixture fixture.json \
+  --input-contract input-contract.json --output-contract output-contract.json
+```
+
+The command uses local files and needs no credentials, network or browser
+session. It reports JSON on stdout and exits 0 on success. The sample renames
+`item_code` to `sku` and converts `price` to an exact decimal. Run the same
+command with `--file products-missing-price.sql` to see the required
+`unit_price` regression. The command exits 1 and returns a diagnostic with the
+step, code and failing field when available. Runtime, setup and assertion
+failures omit sample values and output. Use only synthetic values, since
+successful output appears on stdout and may be retained by your CI logs.
+
+Name each fixture input after its SQL relation. Supply row inputs as arrays of
+objects. With a JSON contract, use an object or an array of objects matching its
+root shape. With a CSV contract, use a JSON string containing the CSV header and
+rows. Pass inline or previously resolved shapes using the optional contract
+flags. Use `--input-contracts` in place of `--input-contract` for a JSON object
+keyed by relation name. That allows different input representations per
+relation. Use `--output-kind json` or `--output-kind csv` to match the
+transform when it does not emit rows.
+
+The optional `expected` value asserts the entire serialized output. Object key
+order is ignored, array order matters and numbers are compared exactly. For CSV,
+supply the expected CSV as a JSON string. Without `expected`, the command shows
+the output after running any supplied contract checks. Fixtures are limited to
+1 MiB, at most 64 input relations and at most 1,000 rows per relation. A passing
+fixture covers only the supplied inputs. Empty inputs exercise no row values.
+
+In your project's Builder, open the transform's **Field mapping** workspace and choose
+**Edit mapping**. Paste the contents of `fixture.json` into **SQL fixture** and
+choose **Test fixture**. The preview uses the transform SQL and declared
+contracts, or the current mapping draft and its available shapes while editing
+fields. Exact catalog references use authorized contract metadata. Testing
+keeps samples out of the pipeline draft and runs without provider access.
+
 ## Contracts
 
 To use a project catalog revision in place of an inline contract, see

@@ -238,7 +238,6 @@
         let sources = [];
         let targets = [];
         let replacing = false;
-        let fixtureJSON = "";
         let revision = 0;
         let pendingRevision = null;
         let busy = false;
@@ -251,11 +250,12 @@
             editor.querySelectorAll("pre").forEach((preview) => {
                 preview.textContent = "";
             });
+            clearFixtureResult();
             refreshRequirements?.();
         };
         editor.addEventListener("input", changed);
         editor.addEventListener("change", changed);
-        const button = (label, callback, parent = actions) => {
+        const button = (label, callback, parent = actions, keepFocus = false) => {
             const control = element("button", label, "btn btn-xs btn-outline");
             control.type = "button";
             control.addEventListener("click", async () => {
@@ -269,7 +269,10 @@
                     button,
                     button.disabled,
                 ]);
-                for (const [button] of controls) button.disabled = true;
+                for (const [button] of controls) {
+                    if (!keepFocus || button !== control) button.disabled = true;
+                }
+                if (keepFocus) control.setAttribute("aria-disabled", "true");
                 busy = true;
                 pendingRevision = revision;
                 container.setAttribute("aria-busy", "true");
@@ -278,6 +281,7 @@
                 } catch (error) {
                     if (current()) status.textContent = error.message;
                 } finally {
+                    control.removeAttribute("aria-disabled");
                     for (const [button, disabled] of controls) button.disabled = disabled;
                     busy = false;
                     pendingRevision = null;
@@ -599,63 +603,112 @@
                 footer,
             );
             editor.append(footer, preview);
-            const fixture = element("textarea", "", "textarea textarea-bordered mt-2 w-full font-mono text-xs");
-            fixture.rows = 7;
-            fixture.value = fixtureJSON;
-            fixture.placeholder = JSON.stringify(
-                { inputs: { [mapping.input]: [{ field: "sample" }] }, expected: [] },
-                null,
-                2,
-            );
-            fixture.addEventListener("input", () => {
-                fixtureJSON = fixture.value;
-            });
-            const fixtureHelp = element(
-                "p",
-                "Offline fixture: supply synthetic inputs matching their contracts (row arrays, JSON objects/arrays, or CSV text as a JSON string) and optional expected output. No providers are called or samples retained. Successful output is shown here. Empty inputs check no row values; fixtures do not prove live delivery.",
-                "mt-2 text-xs text-base-content/70",
-            );
-            const fixtureOutput = element(
-                "pre",
-                "",
-                "mt-2 max-h-64 overflow-auto whitespace-pre-wrap break-all text-xs",
-            );
-            editor.append(fixtureHelp, fieldLabel("Fixture JSON (inputs and optional expected)", fixture));
-            button(
-                "Test fixture",
-                async () => {
-                    fixtureOutput.textContent = "";
-                    try {
-                        if (!source || !targets.length)
-                            throw new Error("Select source and destination shapes before testing fixture contracts.");
+            fixtureSQL.textContent = "Tests the current field mapping draft.";
+            clearFixtureResult();
+        };
+        const transform = context.step.transform || {};
+        const relations = Object.keys(transform.inputs || {});
+        const fixturePanel = element("div", "", "mt-4 space-y-2 border-t border-base-300 pt-3");
+        const fixtureSQL = element("p", "Tests the transform’s current SQL.", "text-xs");
+        const fixture = element("textarea", "", "textarea textarea-bordered mt-2 w-full font-mono text-xs");
+        fixture.rows = 7;
+        fixture.maxLength = 1 << 20;
+        fixture.autocomplete = "off";
+        fixture.spellcheck = false;
+        fixture.placeholder = JSON.stringify(
+            { inputs: Object.fromEntries(relations.map((name) => [name, [{ field: "sample" }]])), expected: [] },
+            null,
+            2,
+        );
+        fixture.addEventListener("input", changed);
+        const fixtureHelp = element(
+            "p",
+            "Use synthetic data. Successful output is visible here. A passing fixture covers only these inputs.",
+            "text-xs text-base-content/70",
+        );
+        const fixtureOutput = element("pre", "", "max-h-64 overflow-auto whitespace-pre-wrap break-all text-xs");
+        fixtureOutput.tabIndex = 0;
+        fixtureOutput.setAttribute("role", "region");
+        fixtureOutput.setAttribute("aria-label", "Fixture output");
+        fixtureOutput.hidden = true;
+        const fixtureStatus = element("p", "", "whitespace-pre-wrap break-words text-xs");
+        fixtureStatus.setAttribute("role", "status");
+        const clearFixtureResult = () => {
+            fixtureOutput.textContent = "";
+            fixtureOutput.hidden = true;
+            fixtureStatus.textContent = "";
+        };
+        fixture.setAttribute("aria-describedby", "builder-fixture-help");
+        fixtureHelp.id = "builder-fixture-help";
+        fixturePanel.append(
+            element("h4", "SQL fixture", "builder-inspector-section-title"),
+            fixtureSQL,
+            fixtureHelp,
+            fieldLabel("Fixture JSON (inputs and optional expected)", fixture),
+        );
+        button(
+            "Test fixture",
+            async () => {
+                clearFixtureResult();
+                fixtureStatus.textContent = "Running fixture…";
+                const request = {
+                    action: "fixture",
+                    step: context.step.slug,
+                    output_kind: transform.output_kind || "rows",
+                    fixture_json: fixture.value,
+                };
+                try {
+                    let result;
+                    let checkedContracts;
+                    if (mapping) {
+                        checkedContracts = sources.length > 0 || targets.length > 0;
                         const rendered = await post({ action: "render", mapping });
-                        let result;
-                        for (const target of targets)
-                            for (const inputShape of sources) {
+                        for (const target of targets.length ? targets : [{ shape: null }])
+                            for (const inputShape of sources.length ? sources : [null]) {
                                 if (!current()) return;
                                 result = await post({
-                                    action: "fixture",
+                                    ...request,
                                     sql: rendered.sql,
-                                    step: context.step.slug,
-                                    output_kind: context.step.transform.output_kind || "rows",
-                                    fixture_json: fixtureJSON,
                                     ...contractRequest(context, inputShape, target.shape),
                                 });
                             }
-                        if (!current()) return;
-                        fixtureOutput.textContent = result.output_json;
-                        status.textContent = result.asserted
-                            ? "Fixture contracts and expected output passed. This does not establish destination delivery."
-                            : "Fixture contracts passed and output is shown. No expected-output assertion was supplied.";
-                    } catch (error) {
-                        if (current()) fixtureOutput.textContent = error.message;
-                        throw error;
+                    } else {
+                        checkedContracts = Boolean(
+                            transform.input_contract ||
+                                transform.input_contract_ref ||
+                                transform.input_contracts ||
+                                transform.output_contract ||
+                                transform.output_contract_ref,
+                        );
+                        result = await post({
+                            ...request,
+                            sql: transform.sql,
+                            org: context.org,
+                            project: context.project,
+                            source: transform.input_contract,
+                            source_ref: transform.input_contract_ref,
+                            input_contracts: transform.input_contracts,
+                            destination: transform.output_contract,
+                            destination_ref: transform.output_contract_ref,
+                        });
                     }
-                },
-                editor,
-            );
-            editor.appendChild(fixtureOutput);
-        };
+                    if (!current()) return;
+                    fixtureOutput.textContent = result.output_json;
+                    fixtureOutput.hidden = false;
+                    fixtureStatus.textContent = result.asserted
+                        ? checkedContracts
+                            ? "Fixture contracts and expected output passed."
+                            : "Fixture expected output passed."
+                        : "Fixture passed. Add expected output to assert the result.";
+                } catch (error) {
+                    if (current()) fixtureStatus.textContent = error.message;
+                }
+            },
+            fixturePanel,
+            true,
+        );
+        fixturePanel.append(fixtureStatus, fixtureOutput);
+        container.append(fixturePanel);
         const openButton = button("Open mapping", async () => {
             status.textContent = "Loading mapping and exact contract shapes…";
             const input = await load();
