@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"net/url"
 	"slices"
+	"strconv"
 	"strings"
 
 	"github.com/Braidplane/braidplane-core/pkg/oauthflow"
@@ -79,13 +80,45 @@ func (d *Deployment) ValidateAuthorization(ctx context.Context, request Authoriz
 	if err != nil {
 		return Client{}, CodeBinding{}, err
 	}
-	if !slices.Contains(client.RedirectURIs, request.RedirectURI) {
+	if !slices.ContainsFunc(client.RedirectURIs, func(registered string) bool {
+		return matchesRegisteredRedirect(registered, request.RedirectURI)
+	}) {
 		return Client{}, CodeBinding{}, ErrInvalidRequest.Detail("redirect URI is not registered")
 	}
 	return client, CodeBinding{
 		issuer: d.issuer.String(), clientID: client.ID, redirectURI: request.RedirectURI,
 		resource: d.resource.String(), challenge: request.Challenge,
 	}, nil
+}
+
+func matchesRegisteredRedirect(registered, requested string) bool {
+	if registered == requested {
+		return true
+	}
+	base, ok := loopbackRedirectWithoutPort(registered)
+	if !ok {
+		return false
+	}
+	actual, ok := loopbackRedirectWithoutPort(requested)
+	return ok && actual == base
+}
+
+// Only literal HTTP loopback addresses may vary the port. Preserve every other URI byte.
+func loopbackRedirectWithoutPort(raw string) (string, bool) {
+	u, ok := webURL(raw)
+	if !ok || !strings.HasPrefix(raw, "http://") || !net.ParseIP(u.Hostname()).IsLoopback() {
+		return "", false
+	}
+	port := u.Port()
+	if port == "" {
+		return raw, !strings.HasSuffix(u.Host, ":")
+	}
+	number, err := strconv.ParseUint(port, 10, 16)
+	if err != nil || number == 0 {
+		return "", false
+	}
+	suffix, ok := strings.CutPrefix(raw, "http://"+u.Host)
+	return "http://" + strings.TrimSuffix(u.Host, ":"+port) + suffix, ok
 }
 
 // ValidateCodeExchange checks the binding loaded from trusted code storage.

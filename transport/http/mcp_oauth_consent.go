@@ -2,6 +2,7 @@ package http
 
 import (
 	"net/url"
+	"strings"
 	"time"
 
 	"github.com/gofiber/fiber/v3"
@@ -18,8 +19,10 @@ import (
 // NewMCPOAuthConsentHandler requires the issuer and browser login to share an origin.
 func NewMCPOAuthConsentHandler(tokens *mcpauthsvc.TokenService, store *session.Store,
 	render func(c fiber.Ctx, prompt model.MCPConsentPrompt, action, csrf string) error,
+	renderContinuation func(c fiber.Ctx, callback string) error,
 ) (fiber.Handler, error) {
-	if tokens == nil || tokens.Deployment() == nil || store == nil || store.Extractor.Source != extractors.SourceCookie || render == nil {
+	if tokens == nil || tokens.Deployment() == nil || store == nil || store.Extractor.Source != extractors.SourceCookie ||
+		render == nil || renderContinuation == nil {
 		return nil, xerror.Unexpected().Detail("MCP consent requires a browser session store and renderer")
 	}
 	_, issuer := tokens.Deployment().IssuerDiscovery()
@@ -34,7 +37,7 @@ func NewMCPOAuthConsentHandler(tokens *mcpauthsvc.TokenService, store *session.S
 		case fiber.MethodGet:
 			return mcpConsentPrompt(c, tokens, store, identity, endpoint.Path, render)
 		case fiber.MethodPost:
-			return mcpConsentDecision(c, tokens, store, identity)
+			return mcpConsentDecision(c, tokens, store, identity, endpoint, renderContinuation)
 		default:
 			return c.SendStatus(fiber.StatusMethodNotAllowed)
 		}
@@ -83,8 +86,16 @@ func mcpConsentPrompt(c fiber.Ctx, tokens *mcpauthsvc.TokenService, store *sessi
 	if !ok {
 		return mcpOAuthError(c, fiber.StatusBadRequest, mcpOAuthInvalidRequest)
 	}
+	request := mcpauthsvc.AuthorizationRequest{
+		ClientID: query.Get("client_id"), RedirectURI: query.Get("redirect_uri"), Resource: query.Get("resource"),
+		ResponseType: query.Get("response_type"), Challenge: query.Get("code_challenge"), ChallengeMethod: query.Get("code_challenge_method"),
+	}
 	if query.Get("scope") != "" {
-		return mcpOAuthError(c, fiber.StatusBadRequest, "invalid_scope")
+		callback, err := tokens.RejectUnsupportedUserScope(c.Context(), request, query.Get("state"))
+		if err != nil {
+			return mcpOAuthServiceError(c, err)
+		}
+		return mcpConsentRedirect(c, callback)
 	}
 	if identity.User == "" {
 		resume := make(url.Values)
@@ -99,10 +110,7 @@ func mcpConsentPrompt(c fiber.Ctx, tokens *mcpauthsvc.TokenService, store *sessi
 	if err != nil {
 		return mcpOAuthServiceError(c, err)
 	}
-	prompt, err := tokens.BeginUserConsent(c.Context(), mcpauthsvc.AuthorizationRequest{
-		ClientID: query.Get("client_id"), RedirectURI: query.Get("redirect_uri"), Resource: query.Get("resource"),
-		ResponseType: query.Get("response_type"), Challenge: query.Get("code_challenge"), ChallengeMethod: query.Get("code_challenge_method"),
-	}, query.Get("state"), identity)
+	prompt, err := tokens.BeginUserConsent(c.Context(), request, query.Get("state"), identity)
 	if xerror.Is(err, mcpauthsvc.ErrInvalidClient) {
 		return mcpOAuthError(c, fiber.StatusBadRequest, mcpOAuthInvalidClient)
 	}
@@ -113,7 +121,9 @@ func mcpConsentPrompt(c fiber.Ctx, tokens *mcpauthsvc.TokenService, store *sessi
 	return render(c, prompt, action, csrf)
 }
 
-func mcpConsentDecision(c fiber.Ctx, tokens *mcpauthsvc.TokenService, store *session.Store, identity mcpauthsvc.BrowserIdentity) error {
+func mcpConsentDecision(c fiber.Ctx, tokens *mcpauthsvc.TokenService, store *session.Store, identity mcpauthsvc.BrowserIdentity, endpoint *url.URL,
+	renderContinuation func(fiber.Ctx, string) error,
+) error {
 	if identity.User == "" {
 		return mcpOAuthError(c, fiber.StatusForbidden, mcpOAuthInvalidRequest)
 	}
@@ -143,6 +153,15 @@ func mcpConsentDecision(c fiber.Ctx, tokens *mcpauthsvc.TokenService, store *ses
 	callback, err := tokens.CompleteUserConsent(c.Context(), form.Get("consent_id"), identity, access)
 	if err != nil {
 		return mcpOAuthServiceError(c, err)
+	}
+	destination, err := url.Parse(callback)
+	if err != nil {
+		return mcpOAuthServiceError(c, err)
+	}
+	if !strings.EqualFold(destination.Scheme, endpoint.Scheme) || !strings.EqualFold(destination.Host, endpoint.Host) {
+		// Chromium applies the consent form's form-action policy to its redirects.
+		c.Type("html", "utf-8")
+		return renderContinuation(c, callback)
 	}
 	return mcpConsentRedirect(c, callback)
 }

@@ -63,7 +63,9 @@ evaluates the captured and current database facts under the same OPA policy.
 deployment's configured issuer and MCP resource. Authorization validates a
 pre-registered public client or fetches its Client ID Metadata Document. The
 code binding records the issuer, resource, client ID, exact redirect URI and
-S256 challenge. The code exchange checks that binding before issuance.
+S256 challenge. Registered HTTP redirects on literal loopback IP addresses
+allow the requested port to vary. The code exchange checks the actual
+redirect URI from the binding before issuance.
 
 Client metadata retrieval uses a dedicated, bounded HTTPS client. The dialer
 resolves and checks every address before dialing a vetted literal address.
@@ -127,7 +129,10 @@ transaction that consumes the prompt and issues the code. Refresh uses that
 same grant scope. Denial consumes
 the prompt and revokes its grant. Both responses send the stored `state` and
 the [issuer identifier](https://www.rfc-editor.org/rfc/rfc9207.html) to the
-registered callback.
+registered callback. A cross-origin consent submission shows a continuation
+link to that callback so the consent form can retain a same-origin CSP.
+An unsupported scope request goes to the verified callback with its state and
+the OAuth error.
 
 The optional operation adapter maps organization reads, project list and detail,
 and renaming projects through the existing handlers. Authorization checks the

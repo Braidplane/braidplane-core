@@ -53,10 +53,8 @@ func RegisterMCPMachineAdministrationRoutes(app *fiber.App, cfg MCPMachineAdmini
 	}
 	path := strings.TrimSuffix(base[0], "/") + "/:slug/api-keys/:api_key_slug/machine-clients"
 	clientPath := path + "/:client_id"
-	for _, route := range app.GetRoutes(true) {
-		if strings.EqualFold(strings.TrimSuffix(route.Path, "/"), path) || strings.EqualFold(strings.TrimSuffix(route.Path, "/"), clientPath) {
-			return xerror.Unexpected().Detail("MCP machine administration paths must be distinct")
-		}
+	if mcpMachineRouteConflict(app, fiber.MethodPost, path) || mcpMachineRouteConflict(app, fiber.MethodDelete, clientPath) {
+		return xerror.Unexpected().Detail("MCP machine administration paths overlap an existing route")
 	}
 	app.Post(path, func(c fiber.Ctx) error {
 		request, err := cfg.authorize(c, authorization.OperationRegisterMCPMachineClient, model.Update)
@@ -85,6 +83,26 @@ func RegisterMCPMachineAdministrationRoutes(app *fiber.App, cfg MCPMachineAdmini
 		return c.SendStatus(fiber.StatusNoContent)
 	})
 	return nil
+}
+
+func mcpMachineRouteConflict(app *fiber.App, method, path string) bool {
+	config := app.Config()
+	prefix, _, _ := strings.Cut(strings.ToLower(path), ":")
+	for _, route := range app.GetRoutes(true) {
+		if route.Method != method {
+			continue
+		}
+		if dynamic := strings.IndexAny(route.Path, ":*+\\"); dynamic >= 0 {
+			// Reserve the route's literal prefix when either pattern has parameters.
+			existing := strings.TrimSuffix(strings.ToLower(route.Path[:dynamic]), "/")
+			if strings.HasPrefix(prefix, existing) || strings.HasPrefix(existing, prefix) {
+				return true
+			}
+		} else if fiber.RoutePatternMatch(route.Path, path, config) {
+			return true
+		}
+	}
+	return false
 }
 
 func (cfg MCPMachineAdministrationConfig) authorize(c fiber.Ctx, operation string, action model.Action) (mcpauthsvc.MachineAdminRequest, error) {

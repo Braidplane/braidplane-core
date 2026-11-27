@@ -77,14 +77,18 @@ func RegisterMCPOAuthRoutes(app *fiber.App, cfg MCPOAuthRoutesConfig) error {
 func mcpOAuthRoutePaths(app *fiber.App, urls []string) ([]string, error) {
 	normalize := func(path string) string { return strings.ToLower(strings.TrimSuffix(path, "/")) }
 	occupied := make(map[string]bool)
-	for _, route := range app.GetRoutes(true) {
-		occupied[normalize(route.Path)] = true
-	}
+	routes := app.GetRoutes(true)
+	config := app.Config()
 	paths := make([]string, 0, len(urls))
 	for _, raw := range urls {
 		u, err := url.Parse(raw)
 		if err != nil || u.RawPath != "" || !mcpOAuthPathPattern.MatchString(u.Path) || occupied[normalize(u.Path)] {
 			return nil, xerror.Unexpected().Detail("MCP OAuth paths must be literal and distinct")
+		}
+		for _, route := range routes {
+			if fiber.RoutePatternMatch(u.Path, route.Path, config) {
+				return nil, xerror.Unexpected().Detail("MCP OAuth path overlaps an existing route")
+			}
 		}
 		paths = append(paths, u.Path)
 		occupied[normalize(u.Path)] = true

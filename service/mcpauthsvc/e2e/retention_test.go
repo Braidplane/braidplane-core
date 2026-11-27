@@ -143,12 +143,16 @@ FROM mcp_oauth_credentials c WHERE c.grant_id=g.grant_id AND c.credential_hash=$
 
 	assertCredential(usedCode, true)
 	assertCredential(original.RefreshToken, true)
+	_, err = tokens.AuthenticateUserAccessToken(t.Context(), rotated.AccessToken, resource, org)
+	require.NoError(t, err)
 	_, err = tokens.RotateUserRefreshToken(t.Context(), original.RefreshToken, clientID, resource)
 	require.ErrorIs(t, err, mcpauthsvc.ErrInvalidGrant)
 	_, err = tokens.AuthenticateUserAccessToken(t.Context(), rotated.AccessToken, resource, org)
 	require.ErrorIs(t, err, mcpauthsvc.ErrInvalidAccessToken)
 
 	assertCredential(accessFamily.AccessToken, true)
+	_, err = tokens.AuthenticateUserAccessToken(t.Context(), accessReplacement.AccessToken, resource, org)
+	require.NoError(t, err)
 	require.NoError(t, tokens.RevokeUserToken(t.Context(), accessFamily.AccessToken, clientID, resource))
 	_, err = tokens.AuthenticateUserAccessToken(t.Context(), accessReplacement.AccessToken, resource, org)
 	require.ErrorIs(t, err, mcpauthsvc.ErrInvalidAccessToken)

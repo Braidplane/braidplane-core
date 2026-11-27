@@ -19,16 +19,20 @@ func NewMCPDelegatedOperationAuth(tokens *mcpauthsvc.TokenService) (func(fiber.C
 	if tokens == nil || tokens.Deployment() == nil {
 		return nil, xerror.Unexpected().Detail("MCP operation authentication requires the deployment token service")
 	}
-	_, metadata := tokens.Deployment().ProtectedResourceDiscovery()
+	resourceMetadata, metadata := tokens.Deployment().ProtectedResourceDiscovery()
+	unauthorized := func(c fiber.Ctx) error {
+		c.Set(fiber.HeaderWWWAuthenticate, `Bearer resource_metadata="`+resourceMetadata+`"`)
+		return apierror.Unauthorized()
+	}
 	return func(c fiber.Ctx, next fiber.Handler) error {
 		c.Set(fiber.HeaderCacheControl, "private, no-store")
 		headers := c.Request().Header.PeekAll(fiber.HeaderAuthorization)
 		if len(headers) != 1 || len(headers[0]) > maxMCPOAuthAuthBytes {
-			return apierror.Unauthorized()
+			return unauthorized(c)
 		}
 		parts := strings.Fields(string(headers[0]))
 		if len(parts) != 2 || !strings.EqualFold(parts[0], "Bearer") {
-			return apierror.Unauthorized()
+			return unauthorized(c)
 		}
 		operation := routeOperation(c)
 		org, err := slug.New(c.Params("slug"))
@@ -37,7 +41,7 @@ func NewMCPDelegatedOperationAuth(tokens *mcpauthsvc.TokenService) (func(fiber.C
 		}
 		ctx, principal, err := tokens.AuthenticateDelegatedRequest(c.Context(), parts[1], metadata.Resource, org)
 		if xerror.Is(err, mcpauthsvc.ErrInvalidAccessToken) {
-			return apierror.Unauthorized()
+			return unauthorized(c)
 		}
 		if err != nil {
 			return apierror.InternalServerError()
@@ -46,7 +50,7 @@ func NewMCPDelegatedOperationAuth(tokens *mcpauthsvc.TokenService) (func(fiber.C
 			return apierror.Forbidden("operation", "delegated")
 		}
 		if _, authenticated := reqctx.GetAPIKeyPrincipal(c); authenticated {
-			return apierror.Unauthorized()
+			return unauthorized(c)
 		}
 		c.SetContext(ctx)
 		if principal.User != "" {

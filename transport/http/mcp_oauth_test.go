@@ -67,21 +67,24 @@ func TestMCPOAuthDiscoveryUsesConfiguredURLs(t *testing.T) {
 func TestMCPOAuthMountRequiresConsentLimiterAndLiteralDistinctPaths(t *testing.T) {
 	for _, tc := range []struct {
 		name string
-		edit func(*fiber.App, *MCPOAuthRoutesConfig)
+		edit func(*testing.T, *fiber.App, *MCPOAuthRoutesConfig)
 	}{
-		{"missing consent", func(_ *fiber.App, cfg *MCPOAuthRoutesConfig) { cfg.Authorize = nil }},
-		{"missing limiter", func(_ *fiber.App, cfg *MCPOAuthRoutesConfig) { cfg.AbuseLimiter = nil }},
-		{"route conflict", func(app *fiber.App, _ *MCPOAuthRoutesConfig) {
+		{"missing consent", func(_ *testing.T, _ *fiber.App, cfg *MCPOAuthRoutesConfig) { cfg.Authorize = nil }},
+		{"missing limiter", func(_ *testing.T, _ *fiber.App, cfg *MCPOAuthRoutesConfig) { cfg.AbuseLimiter = nil }},
+		{"route conflict", func(_ *testing.T, app *fiber.App, _ *MCPOAuthRoutesConfig) {
 			app.Post("/AUTH/token/", func(c fiber.Ctx) error { return c.SendStatus(nethttp.StatusNoContent) })
 		}},
-		{"parameter path", func(_ *fiber.App, cfg *MCPOAuthRoutesConfig) {
+		{"parameter route conflict", func(_ *testing.T, app *fiber.App, _ *MCPOAuthRoutesConfig) {
+			app.Post("/auth/:endpoint", func(c fiber.Ctx) error { return c.SendStatus(nethttp.StatusNoContent) })
+		}},
+		{"parameter path", func(t *testing.T, _ *fiber.App, cfg *MCPOAuthRoutesConfig) {
 			*cfg = oauthTestConfig(t, "https://issuer.example.test/:path")
 		}},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			app := fiber.New()
 			cfg := oauthTestConfig(t, oauthTestIssuer)
-			tc.edit(app, &cfg)
+			tc.edit(t, app, &cfg)
 			require.Error(t, RegisterMCPOAuthRoutes(app, cfg))
 			resp, err := app.Test(httptest.NewRequestWithContext(t.Context(), nethttp.MethodGet, "/.well-known/oauth-authorization-server/auth", nil))
 			require.NoError(t, err)

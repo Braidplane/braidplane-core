@@ -73,7 +73,10 @@ func TestDeploymentBindsAuthorizationAndCodeExchange(t *testing.T) {
 		{"missing resource", func(r *AuthorizationRequest) { r.Resource = "" }, ErrInvalidTarget},
 		{"wrong resource origin", func(r *AuthorizationRequest) { r.Resource = testIssuer }, ErrInvalidTarget},
 		{"resource query", func(r *AuthorizationRequest) { r.Resource = testResource + "?" }, ErrInvalidTarget},
-		{"wrong loopback port", func(r *AuthorizationRequest) { r.RedirectURI = "http://127.0.0.1:8124/callback" }, ErrInvalidRequest},
+		{"wrong loopback path", func(r *AuthorizationRequest) { r.RedirectURI = "http://127.0.0.1:8124/other" }, ErrInvalidRequest},
+		{"wrong loopback address", func(r *AuthorizationRequest) { r.RedirectURI = "http://127.0.0.2:8124/callback" }, ErrInvalidRequest},
+		{"invalid loopback port", func(r *AuthorizationRequest) { r.RedirectURI = "http://127.0.0.1:65536/callback" }, ErrInvalidRequest},
+		{"alias loopback host", func(r *AuthorizationRequest) { r.RedirectURI = "http://localhost:8124/callback" }, ErrInvalidRequest},
 		{"unregistered client", func(r *AuthorizationRequest) { r.ClientID = "other" }, ErrInvalidClient},
 		{"plain challenge", func(r *AuthorizationRequest) { r.ChallengeMethod = "plain" }, ErrInvalidRequest},
 		{"malformed challenge", func(r *AuthorizationRequest) { r.Challenge = strings.Repeat("?", 43) }, ErrInvalidRequest},
@@ -86,6 +89,13 @@ func TestDeploymentBindsAuthorizationAndCodeExchange(t *testing.T) {
 			require.ErrorIs(t, err, tc.want)
 		})
 	}
+
+	ephemeral := request
+	ephemeral.RedirectURI = "http://127.0.0.1:8124/callback"
+	_, ephemeralBinding, err := d.ValidateAuthorization(t.Context(), ephemeral)
+	require.NoError(t, err)
+	require.NoError(t, d.ValidateCodeExchange(ephemeralBinding, request.ClientID, ephemeral.RedirectURI, testResource, testVerifier))
+	require.ErrorIs(t, d.ValidateCodeExchange(ephemeralBinding, request.ClientID, testRedirect, testResource, testVerifier), ErrInvalidGrant)
 
 	require.ErrorIs(t, d.ValidateCodeExchange(binding, "other", testRedirect, testResource, testVerifier), ErrInvalidGrant)
 	require.ErrorIs(t, d.ValidateCodeExchange(binding, request.ClientID, testRedirect+"?x=1", testResource, testVerifier), ErrInvalidGrant)

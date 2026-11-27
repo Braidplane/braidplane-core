@@ -42,7 +42,7 @@ func (s *TokenService) BeginUserConsent(ctx context.Context, request Authorizati
 	if !browser.valid() {
 		return model.MCPConsentPrompt{}, ErrInvalidGrant
 	}
-	if len(state) > 2048 || strings.ContainsFunc(state, func(r rune) bool { return r < ' ' || r > '~' }) {
+	if !validConsentState(state) {
 		return model.MCPConsentPrompt{}, ErrInvalidRequest
 	}
 	client, binding, err := s.deployment.ValidateAuthorization(ctx, request)
@@ -106,10 +106,7 @@ func (s *TokenService) CompleteUserConsent(ctx context.Context, nonce string, br
 		if err != nil {
 			return "", invalidGrantIfMissing(err)
 		}
-		response := url.Values{"iss": {issuance.Issuer}}
-		if pending.ClientState != "" {
-			response.Set("state", pending.ClientState)
-		}
+		response := make(url.Values, 1)
 		if decision != ConsentDeny {
 			if decision == ConsentReadOnly {
 				err := mcpauth.NarrowUserGrantScopes(ctx, tx, pending.GrantID, authorization.ReadOnlyUserDelegationScopeKeys())
@@ -128,16 +125,40 @@ func (s *TokenService) CompleteUserConsent(ctx context.Context, nonce string, br
 			}
 			response.Set("error", "access_denied")
 		}
-		callback, err := url.Parse(pending.RedirectURI)
-		if err != nil {
-			return "", xerror.Unexpected().Detail("invalid stored redirect URI")
-		}
-		if callback.RawQuery != "" {
-			callback.RawQuery += "&"
-		}
-		callback.RawQuery += response.Encode()
-		return callback.String(), nil
+		return consentCallback(pending.RedirectURI, pending.ClientState, issuance.Issuer, response)
 	})
+}
+
+// RejectUnsupportedUserScope sends the error only to a verified client redirect.
+func (s *TokenService) RejectUnsupportedUserScope(ctx context.Context, request AuthorizationRequest, state string) (string, error) {
+	if !validConsentState(state) {
+		return "", ErrInvalidRequest
+	}
+	_, binding, err := s.deployment.ValidateAuthorization(ctx, request)
+	if err != nil {
+		return "", err
+	}
+	return consentCallback(binding.redirectURI, state, binding.issuer, url.Values{"error": {"invalid_scope"}})
+}
+
+func validConsentState(state string) bool {
+	return len(state) <= 2048 && !strings.ContainsFunc(state, func(r rune) bool { return r < ' ' || r > '~' })
+}
+
+func consentCallback(redirectURI, state, issuer string, response url.Values) (string, error) {
+	callback, err := url.Parse(redirectURI)
+	if err != nil {
+		return "", xerror.Unexpected().Detail("invalid verified redirect URI")
+	}
+	response.Set("iss", issuer)
+	if state != "" {
+		response.Set("state", state)
+	}
+	if callback.RawQuery != "" {
+		callback.RawQuery += "&"
+	}
+	callback.RawQuery += response.Encode()
+	return callback.String(), nil
 }
 
 func issueConsentCode(ctx context.Context, tx postgres.DBTX, pending mcpauth.PendingConsent) (string, error) {

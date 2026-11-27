@@ -2,6 +2,7 @@ package e2e
 
 import (
 	"encoding/json"
+	"html"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -67,6 +68,8 @@ VALUES (15,10,'worker','Worker','synthetic-machine','synthetic',13);
 	app.Post("/synthetic-select-second", func(c fiber.Ctx) error { return reqctx.SetActiveOrganizationSlug(c, store, "second") })
 	authorize, err := transport.NewMCPOAuthConsentHandler(service, store, func(c fiber.Ctx, prompt model.MCPConsentPrompt, action, csrf string) error {
 		return views.MCPConsentPage(prompt, action, csrf).Render(c.Context(), c.Response().BodyWriter())
+	}, func(c fiber.Ctx, callback string) error {
+		return views.MCPConsentContinuation(callback).Render(c.Context(), c.Response().BodyWriter())
 	})
 	require.NoError(t, err)
 	require.NoError(t, transport.RegisterMCPOAuthRoutes(app, transport.MCPOAuthRoutesConfig{
@@ -167,6 +170,14 @@ VALUES (15,10,'worker','Worker','synthetic-machine','synthetic',13);
 	callback := func(t *testing.T, resp browserResponse) url.Values {
 		t.Helper()
 		location := resp.header.Get("Location")
+		if location == "" {
+			require.Contains(t, resp.header.Get("Content-Security-Policy"), "form-action 'self'")
+			require.Equal(t, "no-referrer", resp.header.Get("Referrer-Policy"))
+			require.Equal(t, "no-store", resp.header.Get("Cache-Control"))
+			link := regexp.MustCompile(`id="mcp-consent-callback"[^>]* href="([^"]+)"`).FindStringSubmatch(resp.body)
+			require.Len(t, link, 2)
+			location = html.UnescapeString(link[1])
+		}
 		require.True(t, strings.HasPrefix(location, redirect+"&"), "callback %q", location)
 		uri, err := url.Parse(location)
 		require.NoError(t, err)
@@ -184,6 +195,16 @@ VALUES (15,10,'worker','Worker','synthetic-machine','synthetic',13);
 		require.Equal(t, "/auth/login", loginURL.Path)
 		require.Equal(t, promptPath, loginURL.Query().Get("return_to"))
 		resp = browser(t, http.MethodGet, promptPath+"&redirect_uri=https://untrusted.example.test", nil, nil, http.StatusBadRequest)
+		require.Empty(t, resp.header.Get("Location"))
+		badScope := browser(t, http.MethodGet, promptPath+"&scope=read", nil, nil, http.StatusSeeOther)
+		require.Equal(t, "invalid_scope", callback(t, badScope).Get("error"))
+		unregistered := url.Values{}
+		for key, value := range query {
+			unregistered[key] = value
+		}
+		unregistered.Set("scope", "read")
+		unregistered.Set("redirect_uri", "https://untrusted.example.test/callback")
+		resp = browser(t, http.MethodGet, authorizePath+"?"+unregistered.Encode(), nil, nil, http.StatusBadRequest)
 		require.Empty(t, resp.header.Get("Location"))
 
 		first := login(t)
@@ -216,13 +237,13 @@ VALUES (15,10,'worker','Worker','synthetic-machine','synthetic',13);
 		browser(t, http.MethodPost, "/synthetic-select-second", first, nil, http.StatusOK)
 		postConsent(first, consent, http.StatusBadRequest)
 		browser(t, http.MethodPost, "/synthetic-select-first", first, nil, http.StatusOK)
-		code := callback(t, postConsent(first, consent, http.StatusSeeOther)).Get("code")
+		code := callback(t, postConsent(first, consent, http.StatusOK)).Get("code")
 		require.NotEmpty(t, code)
 		postConsent(first, consent, http.StatusBadRequest)
 
 		denial := requestConsent(t, first)
 		denial.Set("decision", "deny")
-		denied := callback(t, postConsent(first, denial, http.StatusSeeOther))
+		denied := callback(t, postConsent(first, denial, http.StatusOK))
 		require.Equal(t, "access_denied", denied.Get("error"))
 		require.Empty(t, denied.Get("code"))
 		denial.Set("decision", "approve")

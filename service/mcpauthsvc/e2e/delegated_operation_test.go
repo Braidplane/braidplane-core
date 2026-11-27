@@ -163,6 +163,9 @@ VALUES (10,19,NULL,14,'resource','projects',11),(10,NULL,15,14,'resource','proje
 		data, err := io.ReadAll(resp.Body)
 		require.NoError(t, err)
 		require.Equal(t, wantStatus, resp.StatusCode, "%s %s: %s", method, path, data)
+		if wantStatus == http.StatusUnauthorized {
+			require.Equal(t, `Bearer resource_metadata="https://api.example.test/.well-known/oauth-protected-resource/mcp"`, resp.Header.Get("WWW-Authenticate"))
+		}
 		return string(data)
 	}
 	for _, subject := range []struct{ label, token string }{{"user", userToken}, {"machine", machineToken}} {

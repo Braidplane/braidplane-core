@@ -116,6 +116,11 @@ INSERT INTO api_keys (id,organization_id,slug,name,token_hash,token_prefix,role_
 		Tokens: tokens, Audit: audit, Sessions: store, Policy: policy, Admission: admissionsvc.New(txm, organizations.NewRepository()),
 		AbuseLimiter: httpsecurity.NewMemoryAbuseLimiter(), RequestLimit: 100, RequestWindow: time.Minute,
 	}
+	conflicting := fiber.New()
+	conflicting.Post("/oauth/organizations/:org/api-keys/:key/machine-clients", func(c fiber.Ctx) error {
+		return c.SendStatus(http.StatusNoContent)
+	})
+	require.Error(t, transport.RegisterMCPMachineAdministrationRoutes(conflicting, cfg))
 	require.NoError(t, transport.RegisterMCPMachineAdministrationRoutes(app, cfg))
 	require.Error(t, transport.RegisterMCPMachineAdministrationRoutes(app, cfg))
 	type browser struct {

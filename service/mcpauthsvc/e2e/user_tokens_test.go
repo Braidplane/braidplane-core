@@ -224,6 +224,10 @@ INSERT INTO organization_members (id,organization_id,user_id,role_id) VALUES (19
 		}
 		require.Len(t, issued, 1)
 		require.NotEqual(t, first.RefreshToken, issued[0].RefreshToken)
+		for _, pair := range []mcpauthsvc.TokenPair{first, issued[0]} {
+			_, err := svc.AuthenticateUserAccessToken(t.Context(), pair.AccessToken, resource, "first")
+			require.ErrorIs(t, err, mcpauthsvc.ErrInvalidAccessToken)
+		}
 		assertInactive(t, first, "first")
 		assertInactive(t, issued[0], "first")
 	})
