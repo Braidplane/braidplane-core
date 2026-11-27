@@ -16,6 +16,7 @@ import (
 	"github.com/Braidplane/braidplane-core/postgres/pipelineruns"
 	pipelinesrepo "github.com/Braidplane/braidplane-core/postgres/pipelines"
 	"github.com/Braidplane/braidplane-core/postgres/proofreceipts"
+	"github.com/Braidplane/braidplane-core/service/pipelineruntime"
 )
 
 type noopProofLinks struct{}
@@ -98,4 +99,44 @@ func TestSynchronousProofLinkFailureStopsBeforeExecution(t *testing.T) {
 	require.ErrorIs(t, err, failure)
 	require.True(t, created)
 	require.Zero(t, runtime.executeCalls)
+
+	// Trigger intake already owns a running row. The synchronous Proof check
+	// must link that row without trying to create a second attempt.
+	runSlug := slug.Slug("scheduled")
+	source := pipelinerun.NormalizeAttemptSource(pipelinerun.RunSourceSummary{Type: model.PipelineRunSourceTypeSchedule}, runSlug)
+	jobID := int64(123)
+	timeline := []byte(`{"status":"running"}`)
+	pinned := false
+	svc.runRepo = &fakeRunRepository{
+		findRunBySlugFn: func(context.Context, postgres.DBTX, slug.Slug, slug.Slug, slug.Slug, string) (*pipelineruns.PipelineRun, error) {
+			return &pipelineruns.PipelineRun{WorkerJobID: &jobID, PipelineSlug: "sync", RunSlug: runSlug.String(), Source: source, Status: "running", StartedAt: at, Timeline: timeline}, nil
+		},
+		completeRunFn: func(_ context.Context, _ postgres.DBTX, _, _, _ slug.Slug, run string, params *pipelineruns.CompleteRunParams) (*pipelineruns.PipelineRun, error) {
+			require.Equal(t, runSlug.String(), run)
+			require.Equal(t, "running", params.Status)
+			require.EqualValues(t, 42, params.PipelineVersionID)
+			require.JSONEq(t, string(timeline), string(params.Timeline))
+			pinned = true
+			return &pipelineruns.PipelineRun{}, nil
+		},
+	}
+	_, err = svc.executeResolvedVersion(t.Context(), "acme", defaultProjectSlug, "prod", &pipelinesrepo.PipelineVersion{
+		ID: 42, PipelineSlug: "sync", SpecHash: "hash", SpecJSONB: mustJSON(t, pipeline),
+	}, deployment, &runSlug, model.SystemEventActor(), source, nil, false, nil, pipelinerun.IncrementalRunOptions{}, nil)
+	require.ErrorIs(t, err, failure)
+	require.True(t, pinned)
+	require.Zero(t, runtime.executeCalls)
+
+	links := svc.proofLinks.(failingProofRunLinks)
+	links.err = nil
+	svc.proofLinks = links
+	runtime.executeFn = func(context.Context, pipelineruntime.RunRequest) (*pipelineruntime.RunOutcome, error) {
+		return nil, ErrExecutionControlRevision
+	}
+	_, err = svc.executeResolvedVersion(t.Context(), "acme", defaultProjectSlug, "prod", &pipelinesrepo.PipelineVersion{
+		ID: 42, PipelineSlug: "sync", SpecHash: "hash", SpecJSONB: mustJSON(t, pipeline),
+	}, deployment, &runSlug, model.SystemEventActor(), source, nil, false, nil, pipelinerun.IncrementalRunOptions{}, nil)
+	require.ErrorIs(t, err, ErrExecutionControlRevision)
+	require.ErrorIs(t, err, ErrPipelineExecutionNotStarted)
+	require.Equal(t, 1, runtime.executeCalls)
 }

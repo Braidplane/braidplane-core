@@ -113,6 +113,7 @@ func main() {
 	registerCompletionInspectionFixture(app)
 	registerNotificationFixture(app)
 	registerRecencyFixture(app)
+	registerExecutionControlFixture(app)
 	registerAttentionFixture(app)
 	registerIncrementalFixture(app)
 	registerBuilderReferenceFixture(app)
@@ -149,6 +150,9 @@ func handleAPI(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if firstPipelineEnabled && handleFirstPipelineAPI(w, r) {
+		return
+	}
+	if handleExecutionControlAPI(w, r) {
 		return
 	}
 	if recencyFixture && handleRecencyAPI(w, r) {

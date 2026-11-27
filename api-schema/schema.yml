@@ -7619,6 +7619,90 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
 
+  /organizations/{slug}/projects/{project_slug}/environments/{environment_slug}/pipelines/{pipeline_slug}/execution-control:
+    get:
+      summary: Inspect pipeline pause and drain
+      description: Returns exact attempt counts and up to 50 attempts per phase for this pipeline and environment.
+      tags: [pipelines]
+      operationId: getPipelineExecutionControl
+      parameters:
+        - $ref: '#/components/parameters/SlugParam'
+        - $ref: '#/components/parameters/ProjectSlugParam'
+        - $ref: '#/components/parameters/EnvironmentSlugParam'
+        - $ref: '#/components/parameters/PipelineSlugParam'
+      responses:
+        '200':
+          description: Pipeline execution state
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PipelineExecutionControl'
+        '400':
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Target unavailable
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+    put:
+      summary: Pause or explicitly resume pipeline execution
+      description: Uses the last observed revision. Repeating the effective state leaves the revision and audit history unchanged.
+      tags: [pipelines]
+      operationId: setPipelineExecutionControl
+      parameters:
+        - $ref: '#/components/parameters/SlugParam'
+        - $ref: '#/components/parameters/ProjectSlugParam'
+        - $ref: '#/components/parameters/EnvironmentSlugParam'
+        - $ref: '#/components/parameters/PipelineSlugParam'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PipelineExecutionControlUpdate'
+      responses:
+        '200':
+          description: Pipeline execution state
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PipelineExecutionControl'
+        '400':
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Target unavailable
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          description: Execution control revision changed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
   /organizations/{slug}/projects/{project_slug}/environments/{environment_slug}/pipelines/{pipeline_slug}/successful-run-recency:
     get:
       summary: Inspect successful-run recency
@@ -7982,7 +8066,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
         '409':
-          description: A run with this slug already exists in the project environment
+          description: Pipeline execution is paused or the run slug already exists in the project environment
           content:
             application/json:
               schema:
@@ -9261,6 +9345,12 @@ paths:
                 $ref: '#/components/schemas/ErrorResponse'
         '404':
           description: Run or retained checkpoint not found in the requested scope
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          description: Pipeline execution is paused
           content:
             application/json:
               schema:
@@ -19067,6 +19157,86 @@ components:
             $ref: '#/components/schemas/NotificationType'
       required: [successful_run_recency, notification_types]
 
+    PipelineExecutionControlUpdate:
+      type: object
+      required: [paused, expected_revision]
+      properties:
+        paused:
+          type: boolean
+        expected_revision:
+          type: integer
+          format: int64
+          minimum: 0
+    PipelineExecutionControl:
+      type: object
+      required: [paused, revision, drained, queued_count, active_count, finished_count, uncertain_count, attempts]
+      properties:
+        paused:
+          type: boolean
+        revision:
+          type: integer
+          format: int64
+        changed_at:
+          type: string
+          format: date-time
+        changed_by_type:
+          type: string
+        changed_by_slug:
+          type: string
+        drained:
+          type: boolean
+          description: Paused with zero active attempts. External effects may still have uncertain outcomes.
+        queued_count:
+          type: integer
+          format: int64
+          description: Queued attempts are held while paused. Automated arrivals can still add to this count.
+        active_count:
+          type: integer
+          format: int64
+        finished_count:
+          type: integer
+          format: int64
+          description: Attempts that ended since the current pause began.
+        uncertain_count:
+          type: integer
+          format: int64
+          description: Active and finished attempts in this view with uncertain write evidence, including attempts beyond the display limit.
+        attempts:
+          type: array
+          items:
+            $ref: '#/components/schemas/PipelineExecutionControlAttempt'
+    PipelineExecutionControlAttempt:
+      type: object
+      required: [run_slug, source_type, phase, status, started_at, has_worker_job, known_completed_write, outcome_uncertain]
+      properties:
+        run_slug:
+          type: string
+        source_type:
+          type: string
+        phase:
+          type: string
+          description: queued, active, or finished. A queued attempt is held when paused.
+        status:
+          type: string
+        started_at:
+          type: string
+          format: date-time
+        ended_at:
+          type: string
+          format: date-time
+        has_worker_job:
+          type: boolean
+          description: A queue job was recorded for this attempt. Its presence alone does not establish live ownership.
+        last_observed_at:
+          type: string
+          format: date-time
+          description: Last retained worker observation. An old or missing observation does not prove ownership ended.
+        known_completed_write:
+          type: boolean
+          description: The effect ledger records at least one successful write for the attempt's replay identity.
+        outcome_uncertain:
+          type: boolean
+          description: The run reports uncertainty or its effect ledger contains an in-progress write.
     SuccessfulRunRecencyUpdate:
       type: object
       description: Whole-second window, optimistic concurrency revision and enabled state.

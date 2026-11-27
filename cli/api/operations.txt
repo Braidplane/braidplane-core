@@ -194,6 +194,8 @@ createNotificationConnection
 connectNotificationConnection
 disconnectNotificationConnection
 getPipelineOperationalCapabilities
+getPipelineExecutionControl
+setPipelineExecutionControl
 getSuccessfulRunRecency
 updateSuccessfulRunRecency
 

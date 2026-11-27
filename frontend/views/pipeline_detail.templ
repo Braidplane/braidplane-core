@@ -23,6 +23,7 @@ templ PipelineDetailPageContent(orgSlug string, activeProjectSlug string, active
 		}(), pipelineSlug) {
 			<a class="btn btn-outline btn-sm" href={ templ.URL(entityBackHref(ctx, pipelineSelectionHrefWithFilters(orgSlug, activeProjectSlug, activeEnvironmentSlug, pipelineSlug, DefaultPipelineCatalogFilters()))) }>Back to catalog</a>
 			if pipeline != nil {
+				@PipelineExecutionControlLink(orgSlug, activeProjectSlug, activeEnvironmentSlug, pipelineSlug)
 				if RecencyInspectable(ctx) {
 					<a class="btn btn-outline btn-sm" href={ templ.URL(RecencyHref(orgSlug, activeProjectSlug, activeEnvironmentSlug, pipelineSlug)) }>Successful-run recency</a>
 				}

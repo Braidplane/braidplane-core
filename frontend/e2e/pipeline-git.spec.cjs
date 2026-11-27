@@ -1806,3 +1806,26 @@ test("connects a missing mapping input before enabling Open and New mapping", as
         await captureE2EEvidenceScreenshot(page, testInfo, "mapping-input-recovered.png", { fullPage: true });
     });
 });
+
+test("pauses a pipeline, inspects drain evidence, and explicitly resumes", async ({ page }) => {
+    await withSSRFixture(process.env.E2E_PIPELINE_GIT_FIXTURE_BIN, async (fixture) => {
+        expect((await page.request.get(`${fixture.url}/_test/session`)).ok()).toBe(true);
+        expect((await page.request.post(`${fixture.url}/_test/execution-control/ready`)).ok()).toBe(true);
+        await page.goto(`${fixture.url}/orgs/acme/projects/ops/pipelines/daily-sync?environment_slug=dev`);
+        await page.getByRole("link", { name: "Pause and drain", exact: true }).click();
+        await expect(page).toHaveURL(/\/daily-sync\/environments\/dev\/execution-control$/);
+        await page.getByRole("button", { name: "Pause execution", exact: true }).press("Enter");
+        await expect(page.getByRole("heading", { name: "Paused · draining active attempts" })).toBeVisible();
+        await expect(page.getByRole("row", { name: /waiting/ })).toContainText("Held");
+        await expect(page.getByRole("row", { name: /writing/ })).toContainText("Write outcome uncertain");
+
+        expect((await page.request.post(`${fixture.url}/_test/execution-control/drained`)).ok()).toBe(true);
+        await page.getByRole("link", { name: "Refresh status" }).click();
+        await expect(page.getByRole("heading", { name: "Paused · active attempts drained" })).toBeVisible();
+        await expect(page.getByRole("row", { name: /writing/ })).toContainText("Write outcome uncertain");
+        await page.getByRole("button", { name: "Resume execution", exact: true }).press("Enter");
+        await expect(page.getByRole("heading", { name: "Accepting execution" })).toBeVisible();
+        await expect(page.getByRole("row", { name: /waiting/ })).toContainText("Queued");
+        await expect(page).toHaveURL(/\/daily-sync\/environments\/dev\/execution-control$/);
+    });
+});

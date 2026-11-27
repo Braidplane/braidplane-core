@@ -41,7 +41,13 @@ func (w *pipelineTriggerRetryExecutionWorker) Work(
 	ctx context.Context,
 	job *river.Job[jobs.PipelineTriggerRetryExecutionArgs],
 ) error {
+	if job.JobRow != nil {
+		job.Args.WorkerJobID = job.ID
+	}
 	if err := w.service.ExecuteTriggerRetryAttempt(ctx, job.Args); err != nil {
+		if hold := snoozePausedPipeline(err); hold != nil {
+			return hold
+		}
 		return err
 	}
 	w.logger.InfoContext(

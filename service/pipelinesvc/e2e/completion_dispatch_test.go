@@ -165,6 +165,16 @@ func testCompletionDispatcherAdmission(t *testing.T, pool *pgxpool.Pool, org, pr
 	var status, sourceType string
 	require.NoError(t, pool.QueryRow(ctx, `SELECT status FROM pipeline_runs WHERE project_environment_id=$1 AND run_slug=$2`, env, child).Scan(&status))
 	require.Equal(t, "queued", status, "a substituted job must not claim the accepted run")
+	scope := pipelinesvc.ExecutionScope{Org: org, Project: project, Environment: environment, Pipeline: args.PipelineSlug}
+	actor := model.SystemEventActor()
+	pause, err := executor.SetExecutionControl(ctx, scope, 0, true, actor)
+	require.NoError(t, err)
+	require.True(t, pause.Paused)
+	require.ErrorIs(t, dispatcher.ExecuteQueuedPipelineRun(ctx, args), pipelinesvc.ErrExecutionPaused)
+	worker := consumer.NewPipelineRunExecutionWorker(dispatcher, nil)
+	require.ErrorAs(t, worker.Work(ctx, &river.Job[jobs.PipelineRunExecutionArgs]{Args: args}), &snooze)
+	_, err = executor.SetExecutionControl(ctx, scope, pause.Revision, false, actor)
+	require.NoError(t, err)
 	var revokedRaw []byte
 	require.NoError(t, pool.QueryRow(ctx, `SELECT execution_args FROM pipeline_completion_snapshots WHERE id=$1`, revokedID).Scan(&revokedRaw))
 	var revokedArgs jobs.PipelineRunExecutionArgs

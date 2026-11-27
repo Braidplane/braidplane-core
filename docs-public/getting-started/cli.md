@@ -132,3 +132,47 @@ Next, [get your first result with the CLI](first-result-cli.md).
 Use the CLI and application from the same release. See the
 [Alpha API contract](../api/alpha.md) before upgrading or
 generating a client for another version.
+
+## Pause and drain a pipeline
+
+Open **Pause and drain** from the pipeline page with the affected environment
+selected. The API exposes the same controls through GET and PUT on
+`/organizations/{slug}/projects/{project_slug}/environments/{environment_slug}/pipelines/{pipeline_slug}/execution-control`
+under the API base URL. Inspect requires pipeline read access. Pause and resume
+also require pipeline update access to the selected target.
+
+1. Inspect the target and use its current revision to pause. For example, use
+   revision `0` for a target that has never changed execution state.
+
+   ```sh
+   braidplane pipeline execution status orders --org acme --project etl --environment prod
+   braidplane pipeline execution pause orders --org acme --project etl --environment prod --expected-revision 0
+   ```
+
+2. Refresh status until the active count reaches zero while paused. Held attempts
+   have not started and can remain queued after active attempts drain. Manual
+   runs, backfills, and retained-input recovery return a conflict while paused.
+   Scheduled, verified webhook, completion, and automatic retry arrivals can
+   queue on the existing trigger policies. Webhook retention and retry deadlines
+   continue to apply while work waits. Older trigger jobs first appear in status
+   when a worker records their intake.
+3. Inspect the run links and write evidence. A completed write recorded in the
+   effect ledger still stands. An uncertain outcome can include a write that
+   reached the provider before the worker recorded confirmation. Verify the
+   provider's state before retrying. An old or missing worker observation is
+   insufficient to declare an attempt drained. If a synchronous recovery loses
+   its process and has no recorded queue job, automatic worker reconciliation
+   cannot settle its ownership. The attempt remains active in this view. Use run
+   history for attempts that finished before the pause.
+4. After correcting the issue, inspect status and use its current revision to
+   resume. Workers recheck held jobs after 30 seconds and use the existing
+   queue to pick up eligible attempts. A revision conflict requires a fresh
+   inspection before you submit again.
+
+   ```sh
+   braidplane pipeline execution resume orders --org acme --project etl --environment prod --expected-revision 1
+   ```
+
+The pause holds across restarts and deployment changes. Resuming does not create
+new attempts for existing jobs. Each environment and pipeline has its own
+control, independent of other tenants.

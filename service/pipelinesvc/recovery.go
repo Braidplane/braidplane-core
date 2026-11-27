@@ -93,6 +93,12 @@ func (s *service) RecoverRun(ctx context.Context, orgSlug, projectSlug, environm
 		return err
 	})
 	if outcome == nil {
+		if xerror.Is(runErr, ErrExecutionPaused) {
+			return nil, ErrExecutionPaused.With(runErr)
+		}
+		if xerror.Is(runErr, ErrExecutionControlRevision) {
+			return nil, ErrExecutionControlRevision.With(runErr)
+		}
 		return nil, runErr
 	}
 	run, err := runDetailFromOutcome(ctx, s.executionClock, outcome, version.SpecHash)

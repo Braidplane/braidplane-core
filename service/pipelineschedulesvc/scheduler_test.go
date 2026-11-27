@@ -2096,6 +2096,10 @@ func (e *recordingPipelineExecutor) AcceptQueuedRun(context.Context, slug.Slug, 
 	return nil
 }
 
+func (e *recordingPipelineExecutor) EnsureQueuedTriggerRun(context.Context, slug.Slug, slug.Slug, slug.Slug, slug.Slug, slug.Slug, pipelinerun.RunSourceSummary, time.Time, int64) error {
+	return nil
+}
+
 func (e *recordingPipelineExecutor) StartQueuedRun(context.Context, slug.Slug, slug.Slug, slug.Slug, slug.Slug, time.Time) error {
 	return nil
 }

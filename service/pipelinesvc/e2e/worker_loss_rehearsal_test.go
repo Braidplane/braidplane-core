@@ -177,6 +177,18 @@ func TestWorkerLossNativeCrashRehearsal(t *testing.T) {
 			t.Logf("SIGKILL cut=%s at=%s pid=%d; retained inputs present, original run running", cut, crashedAt[cut].Format(time.RFC3339Nano), command.Process.Pid)
 		}
 	}
+	control, _ := newCompletionTestExecutor(t, pool)
+	scope := pipelinesvc.ExecutionScope{Org: org, Project: project, Environment: environment, Pipeline: pipeline.Metadata.Slug}
+	actor := model.SystemEventActor()
+	paused, err := control.SetExecutionControl(ctx, scope, 0, true, actor)
+	require.NoError(t, err)
+	require.EqualValues(t, len(jobs), paused.ActiveCount)
+	for _, attempt := range paused.Attempts {
+		if attempt.RunSlug == "after-acceptance" {
+			require.True(t, attempt.OutcomeUncertain)
+			require.False(t, attempt.KnownCompletedWrite)
+		}
+	}
 	// The held acknowledgement belongs to a dead worker, so later retries can proceed.
 	releaseOnce.Do(func() { close(release) })
 	_, err = pool.Exec(ctx, `UPDATE worker_loss_rehearsal_source SET label='changed-after-crash'`)
@@ -215,6 +227,18 @@ func TestWorkerLossNativeCrashRehearsal(t *testing.T) {
 	}
 	runner := newNativeRepairRunner(ctx, t, pool, config, "recovery", false)
 	runStore := pipelineruntime.NewRunStore(txm, pool, clock.New(), testutil.FakeRunSucceededNotifier{}, pipelineruns.New())
+	drained, err := control.GetExecutionControl(ctx, scope)
+	require.NoError(t, err)
+	require.True(t, drained.Paused)
+	require.Zero(t, drained.ActiveCount)
+	require.Positive(t, drained.UncertainCount, "drained attempts can leave uncertain provider effects")
+	_, err = runner.Recover(ctx, pipelineruntime.ReplayRequest{
+		OrgSlug: org, ProjectSlug: project, EnvironmentSlug: environment, SourceRunSlug: "after-acceptance",
+		ReplayRunSlug: "held-repair", PipelineVersionID: *meta.CurrentVersionID,
+	})
+	require.ErrorIs(t, err, pipelineruns.ErrExecutionPaused)
+	_, err = control.SetExecutionControl(ctx, scope, drained.Revision, false, actor)
+	require.NoError(t, err)
 	for cut := range jobs {
 		original, err := runStore.Get(ctx, org, project, environment, cut)
 		require.NoError(t, err)

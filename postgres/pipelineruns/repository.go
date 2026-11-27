@@ -339,7 +339,7 @@ func (r *repository) CreateRun(
 		if xerror.Is(err, sql.ErrNoRows) {
 			return nil, ErrOrganizationNotFound.With(err)
 		}
-		return nil, err
+		return nil, mapRunWriteError(err)
 	}
 
 	if !row.Inserted {
@@ -372,7 +372,7 @@ func (r *repository) MarkRunRunning(
 		if xerror.Is(err, sql.ErrNoRows) {
 			return nil, ErrRunNotFound.With(err)
 		}
-		return nil, err
+		return nil, mapRunWriteError(err)
 	}
 	return toPipelineRun(row.PipelineRun, environmentSlug.String(), row.SourceWebhook), nil
 }
@@ -441,7 +441,7 @@ func (r *repository) CompleteRun(
 		if xerror.Is(err, sql.ErrNoRows) {
 			return nil, ErrRunNotFound.With(err)
 		}
-		return nil, err
+		return nil, mapRunWriteError(err)
 	}
 	return toPipelineRun(row.PipelineRun, environmentSlug.String(), row.SourceWebhook), nil
 }

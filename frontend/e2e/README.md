@@ -17,15 +17,15 @@ is outside that fixture's scope.
 
 ## Community coverage policy
 
-The critical profile retains 16 logical journeys / 26 executions. Chromium runs
-all 16. Firefox and WebKit each run owned query preview/save, Git
+The critical profile retains 17 logical journeys / 27 executions. Chromium runs
+all 17. Firefox and WebKit each run owned query preview/save, Git
 import/bind/deploy, successful-run inspection, Proof Reconnect and HTTP OAuth
 setup/reconnect. Auth, Google signup, persisted Builder save, acknowledgement
 authoring, secret HTTP headers/pagination, Proof discovery, Slack setup, the
-pending-progress navigation race, and role grant management run in Chromium.
+pending-progress navigation race, role grant management, and pipeline pause and drain run in Chromium.
 Auth and the real Builder mutation share seeded state and throttles.
 
-The full profile discovers 68 logical journeys / 178 executions. Chromium also
+The full profile discovers 69 logical journeys / 181 executions. Chromium also
 covers restricted-key setup and Stripe Connect OAuth consent and reconnection against a synthetic API.
 `alpha-inventory.json` owns retained cases, reasons and budgets. Broad UI state
 permutations belong in Vitest, Go or transport coverage when those layers can

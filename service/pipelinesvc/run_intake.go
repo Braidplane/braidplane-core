@@ -46,14 +46,34 @@ func (s *service) AcceptQueuedRun(ctx context.Context, org, project, environment
 	})
 }
 
+// EnsureQueuedTriggerRun makes pre-intake jobs visible before their first claim.
+func (s *service) EnsureQueuedTriggerRun(ctx context.Context, org, project, environment, pipeline, run slug.Slug, source pipelinerun.RunSourceSummary, at time.Time, jobID int64) error {
+	if jobID <= 0 {
+		return nil
+	}
+	prior, err := postgres.InRead(ctx, s.txm, func(ctx context.Context, db postgres.DBTX) (*pipelineruns.PipelineRun, error) {
+		return s.runRepo.FindRunBySlug(ctx, db, org, project, environment, run.String())
+	})
+	if xerror.Is(err, pipelineruns.ErrRunNotFound) {
+		return s.AcceptQueuedRun(ctx, org, project, environment, pipeline, run, source, at, jobID)
+	}
+	if err != nil {
+		return err
+	}
+	if prior.WorkerJobID == nil || *prior.WorkerJobID != jobID {
+		return xerror.InvalidInput(xerror.PipelineRun).Detail("trigger run job does not match retained intake")
+	}
+	return nil
+}
+
 func (s *service) StartQueuedRun(ctx context.Context, org, project, environment, run slug.Slug, at time.Time) error {
 	if at.IsZero() {
 		return xerror.InvalidInput(xerror.PipelineRun).Detail("worker start requires a recorded time")
 	}
 	return s.txm.RunInTx(ctx, func(ctx context.Context, db postgres.DBTX) error {
 		prior, err := s.runRepo.FindRunBySlug(ctx, db, org, project, environment, run.String())
-		// Older queue entries have no intake row; their first available fact remains runtime admission.
 		if xerror.Is(err, pipelineruns.ErrRunNotFound) {
+			// Without a River job, the runtime records and fences its own start.
 			return nil
 		}
 		if err != nil {

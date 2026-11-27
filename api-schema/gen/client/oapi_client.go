@@ -13905,6 +13905,59 @@ type PipelineDraftResponse struct {
 	Draft PipelineDraft `json:"draft"`
 }
 
+// PipelineExecutionControl defines model for PipelineExecutionControl.
+type PipelineExecutionControl struct {
+	ActiveCount   int64                             `json:"active_count"`
+	Attempts      []PipelineExecutionControlAttempt `json:"attempts"`
+	ChangedAt     *time.Time                        `json:"changed_at,omitempty"`
+	ChangedBySlug *string                           `json:"changed_by_slug,omitempty"`
+	ChangedByType *string                           `json:"changed_by_type,omitempty"`
+
+	// Drained Paused with zero active attempts. External effects may still have uncertain outcomes.
+	Drained bool `json:"drained"`
+
+	// FinishedCount Attempts that ended since the current pause began.
+	FinishedCount int64 `json:"finished_count"`
+	Paused        bool  `json:"paused"`
+
+	// QueuedCount Queued attempts are held while paused. Automated arrivals can still add to this count.
+	QueuedCount int64 `json:"queued_count"`
+	Revision    int64 `json:"revision"`
+
+	// UncertainCount Active and finished attempts in this view with uncertain write evidence, including attempts beyond the display limit.
+	UncertainCount int64 `json:"uncertain_count"`
+}
+
+// PipelineExecutionControlAttempt defines model for PipelineExecutionControlAttempt.
+type PipelineExecutionControlAttempt struct {
+	EndedAt *time.Time `json:"ended_at,omitempty"`
+
+	// HasWorkerJob A queue job was recorded for this attempt. Its presence alone does not establish live ownership.
+	HasWorkerJob bool `json:"has_worker_job"`
+
+	// KnownCompletedWrite The effect ledger records at least one successful write for the attempt's replay identity.
+	KnownCompletedWrite bool `json:"known_completed_write"`
+
+	// LastObservedAt Last retained worker observation. An old or missing observation does not prove ownership ended.
+	LastObservedAt *time.Time `json:"last_observed_at,omitempty"`
+
+	// OutcomeUncertain The run reports uncertainty or its effect ledger contains an in-progress write.
+	OutcomeUncertain bool `json:"outcome_uncertain"`
+
+	// Phase queued, active, or finished. A queued attempt is held when paused.
+	Phase      string    `json:"phase"`
+	RunSlug    string    `json:"run_slug"`
+	SourceType string    `json:"source_type"`
+	StartedAt  time.Time `json:"started_at"`
+	Status     string    `json:"status"`
+}
+
+// PipelineExecutionControlUpdate defines model for PipelineExecutionControlUpdate.
+type PipelineExecutionControlUpdate struct {
+	ExpectedRevision int64 `json:"expected_revision"`
+	Paused           bool  `json:"paused"`
+}
+
 // PipelineIncrementalSourceContract Optional source-step checkpoint contract for incremental execution. Only query steps can own source checkpoints; absence of this object means a full source read.
 type PipelineIncrementalSourceContract struct {
 	// CheckpointKind Checkpoint value shape used by the connector operation.
@@ -21230,6 +21283,9 @@ type ValidatePipelineJSONRequestBody = PipelineValidationRequest
 
 // ComparePipelineDeploymentJSONRequestBody defines body for ComparePipelineDeployment for application/json ContentType.
 type ComparePipelineDeploymentJSONRequestBody = PipelineSpec
+
+// SetPipelineExecutionControlJSONRequestBody defines body for SetPipelineExecutionControl for application/json ContentType.
+type SetPipelineExecutionControlJSONRequestBody = PipelineExecutionControlUpdate
 
 // UpdateSuccessfulRunRecencyJSONRequestBody defines body for UpdateSuccessfulRunRecency for application/json ContentType.
 type UpdateSuccessfulRunRecencyJSONRequestBody = SuccessfulRunRecencyUpdate
@@ -30672,6 +30728,31 @@ type ClientInterface interface {
 	// Corresponds with POST /organizations/{slug}/projects/{project_slug}/environments/{environment_slug}/pipelines/{pipeline_slug}/deployment:compare (the `ComparePipelineDeployment` operationId).
 	ComparePipelineDeployment(ctx context.Context, slug SlugParam, projectSlug ProjectSlugParam, environmentSlug EnvironmentSlugParam, pipelineSlug PipelineSlugParam, body ComparePipelineDeploymentJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
+	// GetPipelineExecutionControl Inspect pipeline pause and drain
+	//
+	// Returns exact attempt counts and up to 50 attempts per phase for this pipeline and environment.
+	//
+	// Corresponds with GET /organizations/{slug}/projects/{project_slug}/environments/{environment_slug}/pipelines/{pipeline_slug}/execution-control (the `GetPipelineExecutionControl` operationId).
+	GetPipelineExecutionControl(ctx context.Context, slug SlugParam, projectSlug ProjectSlugParam, environmentSlug EnvironmentSlugParam, pipelineSlug PipelineSlugParam, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// SetPipelineExecutionControlWithBody Pause or explicitly resume pipeline execution
+	//
+	// Uses the last observed revision. Repeating the effective state leaves the revision and audit history unchanged.
+	//
+	// Takes any type of body and a specified content type.
+	//
+	// Corresponds with PUT /organizations/{slug}/projects/{project_slug}/environments/{environment_slug}/pipelines/{pipeline_slug}/execution-control (the `SetPipelineExecutionControl` operationId).
+	SetPipelineExecutionControlWithBody(ctx context.Context, slug SlugParam, projectSlug ProjectSlugParam, environmentSlug EnvironmentSlugParam, pipelineSlug PipelineSlugParam, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// SetPipelineExecutionControl Pause or explicitly resume pipeline execution
+	//
+	// Uses the last observed revision. Repeating the effective state leaves the revision and audit history unchanged.
+	//
+	// Takes a body of the `application/json` content type.
+	//
+	// Corresponds with PUT /organizations/{slug}/projects/{project_slug}/environments/{environment_slug}/pipelines/{pipeline_slug}/execution-control (the `SetPipelineExecutionControl` operationId).
+	SetPipelineExecutionControl(ctx context.Context, slug SlugParam, projectSlug ProjectSlugParam, environmentSlug EnvironmentSlugParam, pipelineSlug PipelineSlugParam, body SetPipelineExecutionControlJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
 	// GetSuccessfulRunRecency Inspect successful-run recency
 	//
 	// Read current calculated state and the latest 20 immutable breach/recovery episodes, including disabled expectations. This is successful-run recency, not payload data freshness or an SLA.
@@ -35488,6 +35569,61 @@ func (c *Client) ComparePipelineDeploymentWithBody(ctx context.Context, slug Slu
 // Corresponds with POST /organizations/{slug}/projects/{project_slug}/environments/{environment_slug}/pipelines/{pipeline_slug}/deployment:compare (the `ComparePipelineDeployment` operationId).
 func (c *Client) ComparePipelineDeployment(ctx context.Context, slug SlugParam, projectSlug ProjectSlugParam, environmentSlug EnvironmentSlugParam, pipelineSlug PipelineSlugParam, body ComparePipelineDeploymentJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewComparePipelineDeploymentRequest(c.Server, slug, projectSlug, environmentSlug, pipelineSlug, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// GetPipelineExecutionControl Inspect pipeline pause and drain
+//
+// Returns exact attempt counts and up to 50 attempts per phase for this pipeline and environment.
+//
+// Corresponds with GET /organizations/{slug}/projects/{project_slug}/environments/{environment_slug}/pipelines/{pipeline_slug}/execution-control (the `GetPipelineExecutionControl` operationId).
+func (c *Client) GetPipelineExecutionControl(ctx context.Context, slug SlugParam, projectSlug ProjectSlugParam, environmentSlug EnvironmentSlugParam, pipelineSlug PipelineSlugParam, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewGetPipelineExecutionControlRequest(c.Server, slug, projectSlug, environmentSlug, pipelineSlug)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// SetPipelineExecutionControlWithBody Pause or explicitly resume pipeline execution
+//
+// Uses the last observed revision. Repeating the effective state leaves the revision and audit history unchanged.
+//
+// Takes any type of body and a specified content type.
+//
+// Corresponds with PUT /organizations/{slug}/projects/{project_slug}/environments/{environment_slug}/pipelines/{pipeline_slug}/execution-control (the `SetPipelineExecutionControl` operationId).
+func (c *Client) SetPipelineExecutionControlWithBody(ctx context.Context, slug SlugParam, projectSlug ProjectSlugParam, environmentSlug EnvironmentSlugParam, pipelineSlug PipelineSlugParam, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewSetPipelineExecutionControlRequestWithBody(c.Server, slug, projectSlug, environmentSlug, pipelineSlug, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// SetPipelineExecutionControl Pause or explicitly resume pipeline execution
+//
+// Uses the last observed revision. Repeating the effective state leaves the revision and audit history unchanged.
+//
+// Takes a body of the `application/json` content type.
+//
+// Corresponds with PUT /organizations/{slug}/projects/{project_slug}/environments/{environment_slug}/pipelines/{pipeline_slug}/execution-control (the `SetPipelineExecutionControl` operationId).
+func (c *Client) SetPipelineExecutionControl(ctx context.Context, slug SlugParam, projectSlug ProjectSlugParam, environmentSlug EnvironmentSlugParam, pipelineSlug PipelineSlugParam, body SetPipelineExecutionControlJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewSetPipelineExecutionControlRequest(c.Server, slug, projectSlug, environmentSlug, pipelineSlug, body)
 	if err != nil {
 		return nil, err
 	}
@@ -47713,6 +47849,129 @@ func NewComparePipelineDeploymentRequestWithBody(server string, slug SlugParam, 
 	return req, nil
 }
 
+// NewGetPipelineExecutionControlRequest constructs an http.Request for the GetPipelineExecutionControl method
+func NewGetPipelineExecutionControlRequest(server string, slug SlugParam, projectSlug ProjectSlugParam, environmentSlug EnvironmentSlugParam, pipelineSlug PipelineSlugParam) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "slug", slug, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: ""})
+	if err != nil {
+		return nil, err
+	}
+
+	var pathParam1 string
+
+	pathParam1, err = runtime.StyleParamWithOptions("simple", false, "project_slug", projectSlug, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: ""})
+	if err != nil {
+		return nil, err
+	}
+
+	var pathParam2 string
+
+	pathParam2, err = runtime.StyleParamWithOptions("simple", false, "environment_slug", environmentSlug, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: ""})
+	if err != nil {
+		return nil, err
+	}
+
+	var pathParam3 string
+
+	pathParam3, err = runtime.StyleParamWithOptions("simple", false, "pipeline_slug", pipelineSlug, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: ""})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/organizations/%s/projects/%s/environments/%s/pipelines/%s/execution-control", pathParam0, pathParam1, pathParam2, pathParam3)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodGet, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewSetPipelineExecutionControlRequest calls the generic SetPipelineExecutionControl builder with application/json body
+func NewSetPipelineExecutionControlRequest(server string, slug SlugParam, projectSlug ProjectSlugParam, environmentSlug EnvironmentSlugParam, pipelineSlug PipelineSlugParam, body SetPipelineExecutionControlJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewSetPipelineExecutionControlRequestWithBody(server, slug, projectSlug, environmentSlug, pipelineSlug, "application/json", bodyReader)
+}
+
+// NewSetPipelineExecutionControlRequestWithBody constructs an http.Request for the SetPipelineExecutionControl method, with any body, and a specified content type
+func NewSetPipelineExecutionControlRequestWithBody(server string, slug SlugParam, projectSlug ProjectSlugParam, environmentSlug EnvironmentSlugParam, pipelineSlug PipelineSlugParam, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "slug", slug, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: ""})
+	if err != nil {
+		return nil, err
+	}
+
+	var pathParam1 string
+
+	pathParam1, err = runtime.StyleParamWithOptions("simple", false, "project_slug", projectSlug, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: ""})
+	if err != nil {
+		return nil, err
+	}
+
+	var pathParam2 string
+
+	pathParam2, err = runtime.StyleParamWithOptions("simple", false, "environment_slug", environmentSlug, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: ""})
+	if err != nil {
+		return nil, err
+	}
+
+	var pathParam3 string
+
+	pathParam3, err = runtime.StyleParamWithOptions("simple", false, "pipeline_slug", pipelineSlug, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: ""})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/organizations/%s/projects/%s/environments/%s/pipelines/%s/execution-control", pathParam0, pathParam1, pathParam2, pathParam3)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPut, queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
 // NewGetSuccessfulRunRecencyRequest constructs an http.Request for the GetSuccessfulRunRecency method
 func NewGetSuccessfulRunRecencyRequest(server string, slug SlugParam, projectSlug ProjectSlugParam, environmentSlug EnvironmentSlugParam, pipelineSlug PipelineSlugParam) (*http.Request, error) {
 	var err error
@@ -54988,6 +55247,33 @@ type ClientWithResponsesInterface interface {
 	//
 	// Corresponds with POST /organizations/{slug}/projects/{project_slug}/environments/{environment_slug}/pipelines/{pipeline_slug}/deployment:compare (the `ComparePipelineDeployment` operationId).
 	ComparePipelineDeploymentWithResponse(ctx context.Context, slug SlugParam, projectSlug ProjectSlugParam, environmentSlug EnvironmentSlugParam, pipelineSlug PipelineSlugParam, body ComparePipelineDeploymentJSONRequestBody, reqEditors ...RequestEditorFn) (*ComparePipelineDeploymentResponse, error)
+
+	// GetPipelineExecutionControlWithResponse Inspect pipeline pause and drain
+	//
+	// Returns exact attempt counts and up to 50 attempts per phase for this pipeline and environment.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with GET /organizations/{slug}/projects/{project_slug}/environments/{environment_slug}/pipelines/{pipeline_slug}/execution-control (the `GetPipelineExecutionControl` operationId).
+	GetPipelineExecutionControlWithResponse(ctx context.Context, slug SlugParam, projectSlug ProjectSlugParam, environmentSlug EnvironmentSlugParam, pipelineSlug PipelineSlugParam, reqEditors ...RequestEditorFn) (*GetPipelineExecutionControlResponse, error)
+
+	// SetPipelineExecutionControlWithBodyWithResponse Pause or explicitly resume pipeline execution
+	//
+	// Uses the last observed revision. Repeating the effective state leaves the revision and audit history unchanged.
+	//
+	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with PUT /organizations/{slug}/projects/{project_slug}/environments/{environment_slug}/pipelines/{pipeline_slug}/execution-control (the `SetPipelineExecutionControl` operationId).
+	SetPipelineExecutionControlWithBodyWithResponse(ctx context.Context, slug SlugParam, projectSlug ProjectSlugParam, environmentSlug EnvironmentSlugParam, pipelineSlug PipelineSlugParam, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*SetPipelineExecutionControlResponse, error)
+
+	// SetPipelineExecutionControlWithResponse Pause or explicitly resume pipeline execution
+	//
+	// Uses the last observed revision. Repeating the effective state leaves the revision and audit history unchanged.
+	//
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with PUT /organizations/{slug}/projects/{project_slug}/environments/{environment_slug}/pipelines/{pipeline_slug}/execution-control (the `SetPipelineExecutionControl` operationId).
+	SetPipelineExecutionControlWithResponse(ctx context.Context, slug SlugParam, projectSlug ProjectSlugParam, environmentSlug EnvironmentSlugParam, pipelineSlug PipelineSlugParam, body SetPipelineExecutionControlJSONRequestBody, reqEditors ...RequestEditorFn) (*SetPipelineExecutionControlResponse, error)
 
 	// GetSuccessfulRunRecencyWithResponse Inspect successful-run recency
 	//
@@ -65263,6 +65549,137 @@ func (r ComparePipelineDeploymentResponse) ContentType() string {
 	return ""
 }
 
+type GetPipelineExecutionControlResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *PipelineExecutionControl
+	// JSON400 the response for an HTTP 400 `application/json` response
+	JSON400 *ErrorResponse
+	// JSON403 the response for an HTTP 403 `application/json` response
+	JSON403 *ErrorResponse
+	// JSON404 the response for an HTTP 404 `application/json` response
+	JSON404 *ErrorResponse
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r GetPipelineExecutionControlResponse) GetJSON200() *PipelineExecutionControl {
+	return r.JSON200
+}
+
+// GetJSON400 returns the response for an HTTP 400 `application/json` response
+func (r GetPipelineExecutionControlResponse) GetJSON400() *ErrorResponse {
+	return r.JSON400
+}
+
+// GetJSON403 returns the response for an HTTP 403 `application/json` response
+func (r GetPipelineExecutionControlResponse) GetJSON403() *ErrorResponse {
+	return r.JSON403
+}
+
+// GetJSON404 returns the response for an HTTP 404 `application/json` response
+func (r GetPipelineExecutionControlResponse) GetJSON404() *ErrorResponse {
+	return r.JSON404
+}
+
+// GetBody returns the raw response body bytes
+func (r GetPipelineExecutionControlResponse) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r GetPipelineExecutionControlResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r GetPipelineExecutionControlResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r GetPipelineExecutionControlResponse) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type SetPipelineExecutionControlResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *PipelineExecutionControl
+	// JSON400 the response for an HTTP 400 `application/json` response
+	JSON400 *ErrorResponse
+	// JSON403 the response for an HTTP 403 `application/json` response
+	JSON403 *ErrorResponse
+	// JSON404 the response for an HTTP 404 `application/json` response
+	JSON404 *ErrorResponse
+	// JSON409 the response for an HTTP 409 `application/json` response
+	JSON409 *ErrorResponse
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r SetPipelineExecutionControlResponse) GetJSON200() *PipelineExecutionControl {
+	return r.JSON200
+}
+
+// GetJSON400 returns the response for an HTTP 400 `application/json` response
+func (r SetPipelineExecutionControlResponse) GetJSON400() *ErrorResponse {
+	return r.JSON400
+}
+
+// GetJSON403 returns the response for an HTTP 403 `application/json` response
+func (r SetPipelineExecutionControlResponse) GetJSON403() *ErrorResponse {
+	return r.JSON403
+}
+
+// GetJSON404 returns the response for an HTTP 404 `application/json` response
+func (r SetPipelineExecutionControlResponse) GetJSON404() *ErrorResponse {
+	return r.JSON404
+}
+
+// GetJSON409 returns the response for an HTTP 409 `application/json` response
+func (r SetPipelineExecutionControlResponse) GetJSON409() *ErrorResponse {
+	return r.JSON409
+}
+
+// GetBody returns the raw response body bytes
+func (r SetPipelineExecutionControlResponse) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r SetPipelineExecutionControlResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r SetPipelineExecutionControlResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r SetPipelineExecutionControlResponse) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
 type GetSuccessfulRunRecencyResponse struct {
 	Body         []byte
 	HTTPResponse *http.Response
@@ -66834,6 +67251,8 @@ type RecoverPipelineRunResponse struct {
 	JSON403 *ErrorResponse
 	// JSON404 the response for an HTTP 404 `application/json` response
 	JSON404 *ErrorResponse
+	// JSON409 the response for an HTTP 409 `application/json` response
+	JSON409 *ErrorResponse
 }
 
 // GetJSON200 returns the response for an HTTP 200 `application/json` response
@@ -66854,6 +67273,11 @@ func (r RecoverPipelineRunResponse) GetJSON403() *ErrorResponse {
 // GetJSON404 returns the response for an HTTP 404 `application/json` response
 func (r RecoverPipelineRunResponse) GetJSON404() *ErrorResponse {
 	return r.JSON404
+}
+
+// GetJSON409 returns the response for an HTTP 409 `application/json` response
+func (r RecoverPipelineRunResponse) GetJSON409() *ErrorResponse {
+	return r.JSON409
 }
 
 // GetBody returns the raw response body bytes
@@ -73680,6 +74104,51 @@ func (c *ClientWithResponses) ComparePipelineDeploymentWithResponse(ctx context.
 		return nil, err
 	}
 	return ParseComparePipelineDeploymentResponse(rsp)
+}
+
+// GetPipelineExecutionControlWithResponse Inspect pipeline pause and drain
+//
+// Returns exact attempt counts and up to 50 attempts per phase for this pipeline and environment.
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with GET /organizations/{slug}/projects/{project_slug}/environments/{environment_slug}/pipelines/{pipeline_slug}/execution-control (the `GetPipelineExecutionControl` operationId).
+func (c *ClientWithResponses) GetPipelineExecutionControlWithResponse(ctx context.Context, slug SlugParam, projectSlug ProjectSlugParam, environmentSlug EnvironmentSlugParam, pipelineSlug PipelineSlugParam, reqEditors ...RequestEditorFn) (*GetPipelineExecutionControlResponse, error) {
+	rsp, err := c.GetPipelineExecutionControl(ctx, slug, projectSlug, environmentSlug, pipelineSlug, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseGetPipelineExecutionControlResponse(rsp)
+}
+
+// SetPipelineExecutionControlWithBodyWithResponse Pause or explicitly resume pipeline execution
+//
+// Uses the last observed revision. Repeating the effective state leaves the revision and audit history unchanged.
+//
+// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with PUT /organizations/{slug}/projects/{project_slug}/environments/{environment_slug}/pipelines/{pipeline_slug}/execution-control (the `SetPipelineExecutionControl` operationId).
+func (c *ClientWithResponses) SetPipelineExecutionControlWithBodyWithResponse(ctx context.Context, slug SlugParam, projectSlug ProjectSlugParam, environmentSlug EnvironmentSlugParam, pipelineSlug PipelineSlugParam, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*SetPipelineExecutionControlResponse, error) {
+	rsp, err := c.SetPipelineExecutionControlWithBody(ctx, slug, projectSlug, environmentSlug, pipelineSlug, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseSetPipelineExecutionControlResponse(rsp)
+}
+
+// SetPipelineExecutionControlWithResponse Pause or explicitly resume pipeline execution
+//
+// Uses the last observed revision. Repeating the effective state leaves the revision and audit history unchanged.
+//
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with PUT /organizations/{slug}/projects/{project_slug}/environments/{environment_slug}/pipelines/{pipeline_slug}/execution-control (the `SetPipelineExecutionControl` operationId).
+func (c *ClientWithResponses) SetPipelineExecutionControlWithResponse(ctx context.Context, slug SlugParam, projectSlug ProjectSlugParam, environmentSlug EnvironmentSlugParam, pipelineSlug PipelineSlugParam, body SetPipelineExecutionControlJSONRequestBody, reqEditors ...RequestEditorFn) (*SetPipelineExecutionControlResponse, error) {
+	rsp, err := c.SetPipelineExecutionControl(ctx, slug, projectSlug, environmentSlug, pipelineSlug, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseSetPipelineExecutionControlResponse(rsp)
 }
 
 // GetSuccessfulRunRecencyWithResponse Inspect successful-run recency
@@ -82382,6 +82851,107 @@ func ParseComparePipelineDeploymentResponse(rsp *http.Response) (*ComparePipelin
 	return response, nil
 }
 
+// ParseGetPipelineExecutionControlResponse parses an HTTP response from a GetPipelineExecutionControlWithResponse call
+func ParseGetPipelineExecutionControlResponse(rsp *http.Response) (*GetPipelineExecutionControlResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &GetPipelineExecutionControlResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest PipelineExecutionControl
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 400:
+		var dest ErrorResponse
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON400 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 403:
+		var dest ErrorResponse
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON403 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+		var dest ErrorResponse
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON404 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseSetPipelineExecutionControlResponse parses an HTTP response from a SetPipelineExecutionControlWithResponse call
+func ParseSetPipelineExecutionControlResponse(rsp *http.Response) (*SetPipelineExecutionControlResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &SetPipelineExecutionControlResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest PipelineExecutionControl
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 400:
+		var dest ErrorResponse
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON400 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 403:
+		var dest ErrorResponse
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON403 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+		var dest ErrorResponse
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON404 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 409:
+		var dest ErrorResponse
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON409 = &dest
+
+	}
+
+	return response, nil
+}
+
 // ParseGetSuccessfulRunRecencyResponse parses an HTTP response from a GetSuccessfulRunRecencyWithResponse call
 func ParseGetSuccessfulRunRecencyResponse(rsp *http.Response) (*GetSuccessfulRunRecencyResponse, error) {
 	bodyBytes, err := io.ReadAll(rsp.Body)
@@ -83716,6 +84286,13 @@ func ParseRecoverPipelineRunResponse(rsp *http.Response) (*RecoverPipelineRunRes
 			return nil, err
 		}
 		response.JSON404 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 409:
+		var dest ErrorResponse
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON409 = &dest
 
 	}
 

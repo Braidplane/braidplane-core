@@ -30,7 +30,13 @@ type pipelineWebhookDeliveryWorker struct {
 }
 
 func (w *pipelineWebhookDeliveryWorker) Work(ctx context.Context, job *river.Job[jobs.PipelineWebhookDeliveryArgs]) error {
+	if job.JobRow != nil {
+		job.Args.WorkerJobID = job.ID
+	}
 	if err := w.service.ExecuteDelivery(ctx, job.Args); err != nil {
+		if hold := snoozePausedPipeline(err); hold != nil {
+			return hold
+		}
 		return err
 	}
 	w.logger.InfoContext(ctx, "pipeline webhook delivery dispatched", slog.String("delivery_id", job.Args.DeliveryID))

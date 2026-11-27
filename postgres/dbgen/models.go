@@ -949,6 +949,18 @@ type PipelineDraft struct {
 	OrganizationID            int32
 }
 
+type PipelineExecutionControl struct {
+	ProjectID            int64
+	ProjectEnvironmentID int64
+	PipelineSlug         string
+	Paused               bool
+	Revision             int64
+	ChangedAt            pgtype.Timestamptz
+	PauseSnapshot        interface{}
+	ChangedByType        pgtype.Text
+	ChangedBySlug        pgtype.Text
+}
+
 type PipelineIncrementalCheckpoint struct {
 	ID                   int
 	ProjectID            int64
@@ -1077,6 +1089,7 @@ type PipelineRun struct {
 	DeploymentID                  pgtype.Int8
 	DeploymentRevision            pgtype.Int8
 	WorkerJobID                   pgtype.Int8
+	FinishedXid                   pgtype.Uint64
 }
 
 type PipelineRunLogicalClosure struct {

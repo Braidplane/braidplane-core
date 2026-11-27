@@ -806,7 +806,9 @@ func TestWorkerHostPipelineRetryJobRunsRetryAttempt(t *testing.T) { // Real Rive
 
 	calls, lastArgs := dispatcher.Snapshot()
 	require.Equal(t, 1, calls)
-	require.Equal(t, retryArgs, lastArgs)
+	expected := retryArgs
+	expected.WorkerJobID = queued.ID
+	require.Equal(t, expected, lastArgs)
 }
 
 func newWorkerE2EHarness(
