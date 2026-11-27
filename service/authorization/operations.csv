@@ -135,7 +135,7 @@ getODCSRevision,GET,/organizations/:slug/projects/:project_slug/contracts/:contr
 getODCSArtifact,GET,/organizations/:slug/projects/:project_slug/contracts/:contract_slug/revisions/:revision_slug/artifact,tenant,"session, PAT, API key",projects:read,,projects:read=contracts
 inspectODCSRevision,GET,/organizations/:slug/projects/:project_slug/contracts/:contract_slug/revisions/:revision_slug/inspection,tenant,"session, PAT, API key",projects:read,,projects:read=contracts
 listDataSourceRefs,GET,/organizations/:slug/projects/:project_slug/data-source-refs,tenant,"session, PAT, API key",datasources:read,,datasources:read=binding.projects
-listDriftImpactReports,GET,/organizations/:slug/projects/:project_slug/drift-impact-reports,tenant,"session, PAT, API key",pipelines:read datasources:read,,pipelines:read=projects datasources:read=organization
+listDriftImpactReports,GET,/organizations/:slug/projects/:project_slug/drift-impact-reports,tenant,"session, PAT, API key",pipelines:read datasources:read,Use the pipeline check only when the result is restricted to that pipeline,pipelines:read=projects pipelines:read@pipeline_filter=pipelines datasources:read=organization
 getDriftImpactReport,GET,/organizations/:slug/projects/:project_slug/drift-impact-reports/:report_slug,tenant,"session, PAT, API key",pipelines:read datasources:read,,pipelines:read=drift_impact_reports datasources:read=organization
 listProjectEnvironments,GET,/organizations/:slug/projects/:project_slug/environments,tenant,"session, PAT, API key",environments:read,,environments:read=projects
 disableProjectEnvironment,DELETE,/organizations/:slug/projects/:project_slug/environments/:environment_slug,tenant,"session, PAT, API key",environments:delete,,environments:delete=project_environments

@@ -512,7 +512,19 @@ func (s *server) ListDriftImpactReports(
 		return parseErr
 	}
 
-	if err := s.canOrg(c, orgSlug, model.Read, model.ResourcePipelines); err != nil {
+	pipelineTarget := routeAuthorizationTarget(c, model.ResourcePipelines)
+	var pipelineFilter *slug.Slug
+	var checkPurpose string
+	if params.PipelineSlug != nil {
+		pipeline, err := slug.New(*params.PipelineSlug)
+		if err != nil {
+			return apierror.ValidationFailed(fmt.Sprintf("Invalid pipeline slug: %v", err))
+		}
+		pipelineFilter = &pipeline
+		pipelineTarget = model.AuthorizationTarget{Kind: "pipelines", Slug: pipeline, ProjectSlug: projectSlug}
+		checkPurpose = "pipeline_filter"
+	}
+	if err := s.authorizeOrgTargetFor(c, orgSlug, model.Read, model.ResourcePipelines, pipelineTarget, false, checkPurpose); err != nil {
 		return err
 	}
 	if err := s.canOrg(c, orgSlug, model.Read, model.ResourceDataSources); err != nil {
@@ -527,15 +539,9 @@ func (s *server) ListDriftImpactReports(
 
 	limit := ptr.Value(params.Limit)
 	filters := pipelinesvc.DriftImpactReportFilters{
-		ProjectSlug: &projectSlug,
-		Limit:       int32(limit), // #nosec G115 -- limit is range-checked above before narrowing.
-	}
-	if params.PipelineSlug != nil {
-		pipelineSlug, err := slug.New(*params.PipelineSlug)
-		if err != nil {
-			return apierror.ValidationFailed(fmt.Sprintf("Invalid pipeline slug: %v", err))
-		}
-		filters.PipelineSlug = &pipelineSlug
+		ProjectSlug:  &projectSlug,
+		PipelineSlug: pipelineFilter,
+		Limit:        int32(limit), // #nosec G115 -- limit is range-checked above before narrowing.
 	}
 	if params.DataSourceSlug != nil {
 		dataSourceSlug, err := slug.New(*params.DataSourceSlug)

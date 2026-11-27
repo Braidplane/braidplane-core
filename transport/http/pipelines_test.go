@@ -1335,6 +1335,74 @@ func TestServer_PipelineValidationResults(t *testing.T) {
 	})
 }
 
+func TestDriftImpactReportListUsesPipelineFilterGrant(t *testing.T) {
+	for _, tc := range []struct {
+		name, org, filter string
+		sourceRead        bool
+		resolveError      bool
+		status            int
+	}{
+		{name: "granted pipeline", org: "acme", filter: "?pipeline_slug=daily", sourceRead: true, status: http.StatusOK},
+		{name: "other pipeline", org: "acme", filter: "?pipeline_slug=weekly", sourceRead: true, status: http.StatusForbidden},
+		{name: "no pipeline filter", org: "acme", sourceRead: true, status: http.StatusForbidden},
+		{name: "other organization", org: "other", filter: "?pipeline_slug=daily", sourceRead: true, status: http.StatusForbidden},
+		{name: "no source read grant", org: "acme", filter: "?pipeline_slug=daily", status: http.StatusForbidden},
+		{name: "authorization failure", org: "acme", filter: "?pipeline_slug=daily", resolveError: true, status: http.StatusInternalServerError},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			auth, err := authorization.New(nil, func(_ context.Context, org, user, key slug.Slug, target model.AuthorizationTarget) (model.AuthorizationFacts, error) {
+				require.Equal(t, slug.Slug("member"), user)
+				require.Empty(t, key)
+				if tc.resolveError {
+					return model.AuthorizationFacts{}, xerror.Unexpected()
+				}
+				if org != "acme" {
+					return model.AuthorizationFacts{}, nil
+				}
+				facts := model.AuthorizationFacts{Valid: true, OrganizationID: "1"}
+				switch target.Kind {
+				case "pipelines":
+					require.Equal(t, slug.Slug("primary"), target.ProjectSlug)
+					facts.TargetID = "pipelines:" + target.Slug.String()
+				case "projects":
+					require.Equal(t, slug.Slug("primary"), target.Slug)
+					facts.TargetID = "projects:primary"
+				default:
+					require.Empty(t, target)
+				}
+				facts.Bindings = []model.AuthorizationBinding{
+					{Scope: "resource", ScopeID: "pipelines:daily", Permissions: []string{"pipelines:read"}},
+				}
+				if tc.sourceRead {
+					facts.Bindings = append(facts.Bindings, model.AuthorizationBinding{
+						Scope: "organization", ScopeID: "1", Permissions: []string{"datasources:read"},
+					})
+				}
+				return facts, nil
+			})
+			require.NoError(t, err)
+			called := false
+			app, store := newTestApp(t, testServerConfig{
+				authService: fakeAuthService{CanFn: auth.Can},
+				pipelinesService: &fakePipelinesService{
+					ListDriftImpactReportsFn: func(_ context.Context, org slug.Slug, filters pipelinesvc.DriftImpactReportFilters) ([]*pipelinesvc.DriftImpactReport, error) {
+						called = true
+						require.Equal(t, slug.Slug("acme"), org)
+						require.Equal(t, slugPtr("primary"), filters.ProjectSlug)
+						require.Equal(t, slugPtr("daily"), filters.PipelineSlug)
+						return nil, nil
+					},
+				},
+			})
+			req := jsonRequest(t, http.MethodGet, "/organizations/"+tc.org+"/projects/primary/drift-impact-reports"+tc.filter, nil)
+			resp := authenticatedRequest(t, app, store, "member", req)
+			require.NoError(t, resp.Body.Close())
+			require.Equal(t, tc.status, resp.StatusCode)
+			require.Equal(t, tc.status == http.StatusOK, called)
+		})
+	}
+}
+
 func TestServer_DriftImpactReports(t *testing.T) {
 	t.Parallel()
 

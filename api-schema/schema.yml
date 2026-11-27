@@ -6349,7 +6349,11 @@ paths:
   /organizations/{slug}/projects/{project_slug}/drift-impact-reports:
     get:
       summary: List drift and impact reports
-      description: Lists persisted schema drift and contract impact reports for one project.
+      description: |
+        Lists persisted schema drift and contract impact reports for one project.
+        With pipeline_slug, the request requires pipelines:read on that pipeline.
+        Without it, the request requires pipelines:read on the project.
+        Both requests require organization-wide datasources:read.
       tags:
         - pipelines
       operationId: listDriftImpactReports
