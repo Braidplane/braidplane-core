@@ -86,6 +86,12 @@ var NotificationTypePipelineScheduledRunMissingLabel = i18n.Message{
 	Other:       "scheduled pipeline run missing",
 }
 
+var NotificationTypePipelineScheduledPreflightFailedLabel = i18n.Message{
+	ID:          "notification_type_pipeline_scheduled_preflight_failed_label",
+	Description: "Display label for failed scheduled preflight notifications.",
+	Other:       "scheduled preflight failed",
+}
+
 var NotificationTypePipelineFreshnessSLABreachedLabel = i18n.Message{
 	ID:          "notification_type_pipeline_freshness_sla_breached_label",
 	Description: "Display label for pipeline freshness SLA breach notifications.",

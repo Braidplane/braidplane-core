@@ -52,6 +52,27 @@ re-enabling, only occurrences after the new revision's update time are eligible.
 A missed occurrence within the active revision follows its `skip` or `fire_once`
 policy.
 
+Set `schedule.preflight_lead_time` in the API, or pass `--preflight-lead-time`
+when creating or updating a schedule with the CLI. The value is optional and
+accepts whole-minute durations from `1m` through `24h`. A daily 09:00 schedule
+with `1h` becomes eligible for preflight at 08:00, while `6h` makes it eligible
+at 03:00. Use a calendar cron expression so the dispatcher can calculate each
+occurrence in the schedule's timezone. Omit the lead time when updating the
+schedule to turn preflight off.
+
+Preflight refreshes the selected pipeline's source schema metadata and checks
+its contracts in the schedule's environment. Look in the schedule's History
+tab or use `pipeline trigger fire list` to see upcoming preflights and
+diagnostics for previous fires. The result includes the version checked.
+For `latest_deployed`, the check uses the version deployed when preflight
+starts, and the run uses the deployment current when execution starts. Preflight
+never executes the pipeline or blocks its scheduled run.
+
+To send failed preflights to email or Slack, create an alert policy, select
+**Scheduled preflight failed**, and attach the destination. The policy must
+explicitly select this notification type. Each failed occurrence can produce
+one warning, including when a schema refresh fails or the check times out.
+
 Schedule and webhook retries use the retry policy captured for the original
 execution. When `max_elapsed_seconds` is set, queue time, downtime and admission
 wait count toward that budget. A new attempt may start at the deadline, but an

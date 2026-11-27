@@ -12,6 +12,32 @@ import (
 	api "github.com/Braidplane/braidplane-core/api-schema/gen/client"
 )
 
+func TestScheduleHistoryShowsFailedPreflightBeforeFirstFire(t *testing.T) {
+	t.Parallel()
+
+	source := api.Slug("warehouse")
+	occurrence := time.Date(2026, time.June, 9, 9, 0, 0, 0, time.UTC)
+	selected := PipelineScheduleSelectedDetail{
+		Slug: "daily-customers",
+		Trigger: &api.PipelineTrigger{
+			Slug: "daily-customers", Type: api.PipelineTriggerTypeSchedule,
+		},
+		UpcomingPreflights: []api.PipelineSchedulePreflight{{
+			Status: api.PipelineSchedulePreflightStatusFailed, ScheduledFireAt: occurrence, PreflightAt: occurrence.Add(-time.Hour),
+			Diagnostics: []api.PipelineSchedulePreflightDiagnostic{{
+				Code: "SCHEMA_REFRESH_FAILED", DataSourceSlug: &source, Message: "Check database access.",
+			}},
+		}},
+	}
+	var output bytes.Buffer
+	ctx := WithEntityPageURL(t.Context(), "/?section=history")
+	require.NoError(t, PipelineScheduleDetailContent("acme", "ops", "prod", selected).Render(ctx, &output))
+	require.Contains(t, output.String(), "Upcoming preflights")
+	require.Contains(t, output.String(), "Preflight failed")
+	require.Contains(t, output.String(), "warehouse")
+	require.Contains(t, output.String(), "Check database access.")
+}
+
 func TestPipelineWebhookDeliveryHistoryRendersSafeDiagnosticsAndReplay(t *testing.T) {
 	t.Parallel()
 

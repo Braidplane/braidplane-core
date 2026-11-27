@@ -26,7 +26,7 @@ func TestNotificationTypeUsesPipelineContractNames(t *testing.T) {
 }
 
 func TestProducerBackedNotificationTypesIncludeSuccessfulRunRecency(t *testing.T) {
-	require.ElementsMatch(t, []NotificationType{NotificationTypePipelineRunSucceeded, NotificationTypePipelineRunFailed, NotificationTypePipelineRetryExhausted, NotificationTypePipelineScheduledRunDelayed, NotificationTypePipelineScheduledRunMissing, NotificationTypePipelineContractFailure, NotificationTypePipelineFreshnessSLABreached}, ProducerBackedNotificationTypes())
+	require.ElementsMatch(t, []NotificationType{NotificationTypePipelineRunSucceeded, NotificationTypePipelineRunFailed, NotificationTypePipelineRetryExhausted, NotificationTypePipelineScheduledRunDelayed, NotificationTypePipelineScheduledRunMissing, NotificationTypePipelineScheduledPreflightFailed, NotificationTypePipelineContractFailure, NotificationTypePipelineFreshnessSLABreached}, ProducerBackedNotificationTypes())
 }
 
 func TestScheduleNotificationSourceSupportsScopedPolicies(t *testing.T) {

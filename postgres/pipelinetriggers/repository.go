@@ -106,6 +106,10 @@ type Repository interface {
 		orgSlug, projectSlug, environmentSlug, triggerSlug slug.Slug,
 		req model.ListRequest,
 	) ([]ScheduleFireDiagnostic, error)
+	ClaimSchedulePreflight(context.Context, postgres.DBTX, ScheduleFireExecutionRef, time.Time) (bool, error)
+	LoadPendingSchedulePreflight(context.Context, postgres.DBTX, ScheduleFireExecutionRef) (*PendingSchedulePreflight, error)
+	SaveSchedulePreflight(context.Context, postgres.DBTX, ScheduleFireExecutionRef, SchedulePreflightProgress) error
+	ListUpcomingSchedulePreflights(context.Context, postgres.DBTX, slug.Slug, slug.Slug, slug.Slug, slug.Slug) ([]*model.PipelineSchedulePreflight, error)
 	RecordTriggerRetryAttempt(
 		ctx context.Context,
 		tx postgres.DBTX,

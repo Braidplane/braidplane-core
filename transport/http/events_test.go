@@ -721,7 +721,7 @@ func TestListAlertPolicySourceMetadata(t *testing.T) {
 
 	assert.Equal(t, http.StatusOK, resp.StatusCode)
 	assertResponse(t, resp, api.AlertPolicySourceMetadataResponse{
-		NotificationTypes: []api.NotificationType{api.NotificationTypePipelineRunSucceeded, api.NotificationTypePipelineRetryExhausted, api.NotificationTypePipelineContractFailure, api.NotificationTypePipelineRunFailed, api.NotificationTypePipelineScheduledRunDelayed, api.NotificationTypePipelineScheduledRunMissing, api.NotificationTypePipelineFreshnessSLABreached},
+		NotificationTypes: []api.NotificationType{api.NotificationTypePipelineRunSucceeded, api.NotificationTypePipelineRetryExhausted, api.NotificationTypePipelineContractFailure, api.NotificationTypePipelineRunFailed, api.NotificationTypePipelineScheduledRunDelayed, api.NotificationTypePipelineScheduledRunMissing, api.NotificationTypePipelineScheduledPreflightFailed, api.NotificationTypePipelineFreshnessSLABreached},
 		Sources: []api.AlertPolicySourceMetadata{{
 			SourceKind:    api.EventEntityTypeProject,
 			SourceActions: []api.EventAction{api.EventActionCreate, api.EventActionUpdate},

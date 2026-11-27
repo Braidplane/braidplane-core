@@ -49,3 +49,21 @@ func (PipelineScheduleFireExecutionArgs) InsertOpts() river.InsertOpts {
 		},
 	}
 }
+
+// PipelineSchedulePreflightArgs identifies the metadata check for one occurrence.
+type PipelineSchedulePreflightArgs struct {
+	OrganizationSlug slug.Slug `json:"organization_slug"`
+	ProjectSlug      slug.Slug `json:"project_slug"`
+	EnvironmentSlug  slug.Slug `json:"environment_slug"`
+	TriggerSlug      slug.Slug `json:"trigger_slug"`
+	TriggerRevision  int64     `json:"trigger_revision"`
+	ScheduledFireAt  time.Time `json:"scheduled_fire_at"`
+}
+
+func (PipelineSchedulePreflightArgs) Kind() string {
+	return "pipeline_schedule_preflight"
+}
+
+func (PipelineSchedulePreflightArgs) InsertOpts() river.InsertOpts {
+	return river.InsertOpts{Queue: PipelineScheduleQueue}
+}

@@ -28,6 +28,7 @@ type PipelineScheduleSelectedDetail struct {
 	Slug                                 string
 	Trigger                              *api.PipelineTrigger
 	Fires                                []api.PipelineScheduleFire
+	UpcomingPreflights                   []api.PipelineSchedulePreflight
 	FiresHasMore                         bool
 	FiresNextCursor                      string
 	FiresPrevCursor                      string

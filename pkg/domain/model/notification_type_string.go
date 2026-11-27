@@ -8,11 +8,11 @@ import (
 	"strings"
 )
 
-const _NotificationTypeName = "unknownpipeline.run_failedpipeline.retry_exhaustedpipeline.scheduled_run_delayedpipeline.scheduled_run_missingpipeline.freshness_sla_breachedpipeline.contract_failurepipeline.run_succeeded"
+const _NotificationTypeName = "unknownpipeline.run_failedpipeline.retry_exhaustedpipeline.scheduled_run_delayedpipeline.scheduled_run_missingpipeline.freshness_sla_breachedpipeline.contract_failurepipeline.run_succeededpipeline.scheduled_preflight_failed"
 
-var _NotificationTypeIndex = [...]uint8{0, 7, 26, 50, 80, 110, 141, 166, 188}
+var _NotificationTypeIndex = [...]uint8{0, 7, 26, 50, 80, 110, 141, 166, 188, 223}
 
-const _NotificationTypeLowerName = "unknownpipeline.run_failedpipeline.retry_exhaustedpipeline.scheduled_run_delayedpipeline.scheduled_run_missingpipeline.freshness_sla_breachedpipeline.contract_failurepipeline.run_succeeded"
+const _NotificationTypeLowerName = "unknownpipeline.run_failedpipeline.retry_exhaustedpipeline.scheduled_run_delayedpipeline.scheduled_run_missingpipeline.freshness_sla_breachedpipeline.contract_failurepipeline.run_succeededpipeline.scheduled_preflight_failed"
 
 func (i NotificationType) String() string {
 	if i < 0 || i >= NotificationType(len(_NotificationTypeIndex)-1) {
@@ -33,9 +33,10 @@ func _NotificationTypeNoOp() {
 	_ = x[NotificationTypePipelineFreshnessSLABreached-(5)]
 	_ = x[NotificationTypePipelineContractFailure-(6)]
 	_ = x[NotificationTypePipelineRunSucceeded-(7)]
+	_ = x[NotificationTypePipelineScheduledPreflightFailed-(8)]
 }
 
-var _NotificationTypeValues = []NotificationType{NotificationTypeUnknown, NotificationTypePipelineRunFailed, NotificationTypePipelineRetryExhausted, NotificationTypePipelineScheduledRunDelayed, NotificationTypePipelineScheduledRunMissing, NotificationTypePipelineFreshnessSLABreached, NotificationTypePipelineContractFailure, NotificationTypePipelineRunSucceeded}
+var _NotificationTypeValues = []NotificationType{NotificationTypeUnknown, NotificationTypePipelineRunFailed, NotificationTypePipelineRetryExhausted, NotificationTypePipelineScheduledRunDelayed, NotificationTypePipelineScheduledRunMissing, NotificationTypePipelineFreshnessSLABreached, NotificationTypePipelineContractFailure, NotificationTypePipelineRunSucceeded, NotificationTypePipelineScheduledPreflightFailed}
 
 var _NotificationTypeNameToValueMap = map[string]NotificationType{
 	_NotificationTypeName[0:7]:          NotificationTypeUnknown,
@@ -54,6 +55,8 @@ var _NotificationTypeNameToValueMap = map[string]NotificationType{
 	_NotificationTypeLowerName[141:166]: NotificationTypePipelineContractFailure,
 	_NotificationTypeName[166:188]:      NotificationTypePipelineRunSucceeded,
 	_NotificationTypeLowerName[166:188]: NotificationTypePipelineRunSucceeded,
+	_NotificationTypeName[188:223]:      NotificationTypePipelineScheduledPreflightFailed,
+	_NotificationTypeLowerName[188:223]: NotificationTypePipelineScheduledPreflightFailed,
 }
 
 var _NotificationTypeNames = []string{
@@ -65,6 +68,7 @@ var _NotificationTypeNames = []string{
 	_NotificationTypeName[110:141],
 	_NotificationTypeName[141:166],
 	_NotificationTypeName[166:188],
+	_NotificationTypeName[188:223],
 }
 
 // NotificationTypeString retrieves an enum value from the enum constants string name.

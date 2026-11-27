@@ -16,6 +16,7 @@ import (
 	"github.com/Braidplane/braidplane-core/pkg/slug"
 	"github.com/Braidplane/braidplane-core/pkg/xerror"
 	"github.com/Braidplane/braidplane-core/service/authorization"
+	"github.com/Braidplane/braidplane-core/service/pipelinetriggersvc"
 )
 
 func TestCreatePipelineTriggerMapsScheduleRequest(t *testing.T) {
@@ -24,6 +25,8 @@ func TestCreatePipelineTriggerMapsScheduleRequest(t *testing.T) {
 	runtimeInputKeys := []string{"tenant_id", "dry_run"}
 	triggerSlug := api.Slug("nightly-users")
 	trigger := testHTTPPipelineTrigger()
+	trigger.ScheduleConfig.PreflightLeadTime = 6 * time.Hour
+	leadTime := "6h"
 
 	app, store := newTestApp(t, testServerConfig{
 		pipelineTriggersService: &fakePipelineTriggersService{
@@ -42,6 +45,7 @@ func TestCreatePipelineTriggerMapsScheduleRequest(t *testing.T) {
 				assert.Equal(t, []string{"tenant_id", "dry_run"}, newTrigger.RuntimeInputKeys)
 				require.NotNil(t, newTrigger.ScheduleConfig)
 				assert.Equal(t, "0 2 * * *", newTrigger.ScheduleConfig.Cron)
+				assert.Equal(t, 6*time.Hour, newTrigger.ScheduleConfig.PreflightLeadTime)
 				assertUserEventActor(t, actor, must.Slug("alice"))
 				return trigger, nil
 			},
@@ -68,9 +72,10 @@ func TestCreatePipelineTriggerMapsScheduleRequest(t *testing.T) {
 			RuntimeInputKeys: runtimeInputKeys,
 			RetryPolicy:      testHTTPTriggerNoRetryPolicyAPI(),
 			Schedule: &api.PipelineTriggerScheduleConfig{
-				Cron:          "0 2 * * *",
-				Timezone:      "UTC",
-				MisfirePolicy: api.PipelineTriggerScheduleMisfirePolicySkip,
+				Cron:              "0 2 * * *",
+				Timezone:          "UTC",
+				MisfirePolicy:     api.PipelineTriggerScheduleMisfirePolicySkip,
+				PreflightLeadTime: &leadTime,
 			},
 		},
 	))
@@ -80,6 +85,8 @@ func TestCreatePipelineTriggerMapsScheduleRequest(t *testing.T) {
 	body := parseResponse[api.PipelineTriggerIssuanceResponse](t, resp).PipelineTrigger
 	assert.Equal(t, pipelineTriggerToAPI(trigger), body)
 	assert.Equal(t, "0 2 * * *", body.Schedule.Cron)
+	require.NotNil(t, body.Schedule.PreflightLeadTime)
+	assert.Equal(t, "6h0m0s", *body.Schedule.PreflightLeadTime)
 }
 
 func TestPipelineTriggerToAPIPreservesEmptyRuntimeInputKeys(t *testing.T) {
@@ -398,6 +405,16 @@ func TestListPipelineScheduleFiresMapsDiagnostics(t *testing.T) {
 			UpdatedAt: time.Date(2026, time.June, 7, 12, 1, 0, 0, time.UTC),
 		},
 	}
+	upcoming := &model.PipelineSchedulePreflight{
+		TriggerRevision: fire.TriggerRevision, PipelineSlug: fire.PipelineSlug,
+		ScheduledFireAt: fire.ScheduledFireAt.Add(24 * time.Hour), PreflightAt: fire.ScheduledFireAt.Add(23 * time.Hour),
+	}
+	fire.Preflight = &model.PipelineSchedulePreflight{
+		TriggerRevision: fire.TriggerRevision, PipelineSlug: fire.PipelineSlug,
+		ScheduledFireAt: fire.ScheduledFireAt, PreflightAt: fire.ScheduledFireAt.Add(-time.Hour),
+		CompletedAt: &fire.ScheduledFireAt,
+		Diagnostics: []model.PipelineSchedulePreflightDiagnostic{{Code: "SCHEMA_REFRESH_FAILED", Message: "Check source credentials"}},
+	}
 
 	app, store := newTestApp(t, testServerConfig{
 		pipelineTriggersService: &fakePipelineTriggersService{
@@ -405,7 +422,7 @@ func TestListPipelineScheduleFiresMapsDiagnostics(t *testing.T) {
 				_ context.Context,
 				orgSlug, projectSlug, environmentSlug, triggerSlug slug.Slug,
 				req model.ListRequest,
-			) (model.ListResponse[model.PipelineScheduleFire], error) {
+			) (pipelinetriggersvc.ScheduleFireList, error) {
 				assert.Equal(t, must.Slug("acme"), orgSlug)
 				assert.Equal(t, must.Slug("operations"), projectSlug)
 				assert.Equal(t, must.Slug("prod"), environmentSlug)
@@ -413,10 +430,11 @@ func TestListPipelineScheduleFiresMapsDiagnostics(t *testing.T) {
 				assert.Equal(t, 10, req.Limit)
 				assert.Equal(t, "prev-fire", req.Cursor)
 				assert.Equal(t, model.ListDirectionPrev, req.Direction)
-				return model.ListResponse[model.PipelineScheduleFire]{
-					Items:      []model.PipelineScheduleFire{fire},
-					HasMore:    true,
-					NextCursor: &nextCursor,
+				return pipelinetriggersvc.ScheduleFireList{
+					ListResponse: model.ListResponse[model.PipelineScheduleFire]{
+						Items: []model.PipelineScheduleFire{fire}, HasMore: true, NextCursor: &nextCursor,
+					},
+					UpcomingPreflights: []*model.PipelineSchedulePreflight{upcoming},
 				}, nil
 			},
 		},
@@ -439,9 +457,24 @@ func TestListPipelineScheduleFiresMapsDiagnostics(t *testing.T) {
 
 	require.Equal(t, http.StatusOK, resp.StatusCode)
 	assertResponse(t, resp, api.PipelineScheduleFireListResponse{
-		ScheduleFires: []api.PipelineScheduleFire{pipelineScheduleFireToAPI(&fire)},
-		HasMore:       true,
-		NextCursor:    &nextCursor,
+		ScheduleFires: []api.PipelineScheduleFire{{
+			FireSlug: fire.FireSlug.String(), TriggerSlug: fire.TriggerSlug.String(), TriggerRevision: fire.TriggerRevision,
+			PipelineSlug: fire.PipelineSlug.String(), ScheduledFireAt: fire.ScheduledFireAt, ActualFireAt: fire.ActualFireAt,
+			Status: api.PipelineScheduleFireStatusFailed, MisfireResult: api.PipelineScheduleFireMisfireResultFireOnce,
+			RunSlug: nullableSlug(fire.RunSlug), SourceEventSlug: nullableSlug(fire.SourceEventSlug), ErrorSummary: fire.ErrorSummary,
+			CreatedAt: fire.CreatedAt, UpdatedAt: fire.UpdatedAt,
+			Preflight: &api.PipelineSchedulePreflight{
+				TriggerRevision: fire.TriggerRevision, PipelineSlug: fire.PipelineSlug.String(), ScheduledFireAt: fire.ScheduledFireAt,
+				PreflightAt: fire.Preflight.PreflightAt, CompletedAt: fire.Preflight.CompletedAt, Status: api.PipelineSchedulePreflightStatusFailed,
+				Diagnostics: []api.PipelineSchedulePreflightDiagnostic{{Code: "SCHEMA_REFRESH_FAILED", Message: "Check source credentials"}},
+			},
+		}},
+		UpcomingPreflights: &[]api.PipelineSchedulePreflight{{
+			TriggerRevision: upcoming.TriggerRevision, PipelineSlug: upcoming.PipelineSlug.String(),
+			ScheduledFireAt: upcoming.ScheduledFireAt, PreflightAt: upcoming.PreflightAt,
+			Status: api.PipelineSchedulePreflightStatusPending, Diagnostics: []api.PipelineSchedulePreflightDiagnostic{},
+		}},
+		HasMore: true, NextCursor: &nextCursor,
 	})
 }
 

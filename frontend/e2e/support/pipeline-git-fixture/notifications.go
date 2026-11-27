@@ -114,7 +114,7 @@ func handleNotificationAPI(w http.ResponseWriter, r *http.Request) bool {
 		}
 	default:
 		if strings.HasSuffix(r.URL.Path, "/alert-policy-source-metadata") {
-			encode(map[string]any{"notification_types": []string{"pipeline.retry_exhausted", "pipeline.run_succeeded", "pipeline.contract_failure", "pipeline.run_failed", "pipeline.scheduled_run_delayed", "pipeline.scheduled_run_missing"}, "sources": []any{map[string]any{"source_kind": "pipeline", "source_actions": []string{"validate"}}, map[string]any{"source_kind": "pipeline_run", "source_actions": []string{"execute"}}}, "source_refs": []any{}})
+			encode(map[string]any{"notification_types": []string{"pipeline.retry_exhausted", "pipeline.run_succeeded", "pipeline.contract_failure", "pipeline.run_failed", "pipeline.scheduled_run_delayed", "pipeline.scheduled_run_missing", "pipeline.scheduled_preflight_failed"}, "sources": []any{map[string]any{"source_kind": "pipeline", "source_actions": []string{"validate"}}, map[string]any{"source_kind": "pipeline_run", "source_actions": []string{"execute"}}}, "source_refs": []any{}})
 			return true
 		}
 		return false

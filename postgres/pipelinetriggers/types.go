@@ -65,20 +65,21 @@ type UpdatePipelineTriggerParams struct {
 
 // DueScheduleTrigger is the scheduler-facing projection of one enabled schedule trigger.
 type DueScheduleTrigger struct {
-	OrgSlug             slug.Slug
-	ProjectSlug         slug.Slug
-	EnvironmentSlug     slug.Slug
-	TriggerSlug         slug.Slug
-	TriggerRevision     int64
-	Enabled             bool
-	PipelineSlug        slug.Slug
-	VersionPolicy       model.PipelineTriggerVersionPolicy
-	RuntimeInputKeys    []string
-	RetryPolicy         model.PipelineTriggerRetryPolicy
-	ScheduleConfig      model.PipelineTriggerScheduleConfig
-	TriggerCreatedAt    time.Time
-	TriggerUpdatedAt    time.Time
-	LastScheduledFireAt *time.Time
+	OrgSlug                   slug.Slug
+	ProjectSlug               slug.Slug
+	EnvironmentSlug           slug.Slug
+	TriggerSlug               slug.Slug
+	TriggerRevision           int64
+	Enabled                   bool
+	PipelineSlug              slug.Slug
+	VersionPolicy             model.PipelineTriggerVersionPolicy
+	RuntimeInputKeys          []string
+	RetryPolicy               model.PipelineTriggerRetryPolicy
+	ScheduleConfig            model.PipelineTriggerScheduleConfig
+	TriggerCreatedAt          time.Time
+	TriggerUpdatedAt          time.Time
+	LastScheduledFireAt       *time.Time
+	LastPreflightOccurrenceAt *time.Time
 }
 
 // ScheduleFireClaim contains the idempotency key for one scheduled trigger fire.
@@ -159,8 +160,26 @@ type ScheduleFireDiagnostic struct {
 	RunSlug         *slug.Slug
 	SourceEventSlug *slug.Slug
 	ErrorSummary    *string
+	Preflight       *model.PipelineSchedulePreflight
 	CreatedAt       time.Time
 	UpdatedAt       time.Time
+}
+
+// PendingSchedulePreflight retains the exact target and queued schema refreshes across worker retries.
+type PendingSchedulePreflight struct {
+	PipelineSlug     slug.Slug
+	VersionPolicy    model.PipelineTriggerVersionPolicy
+	VersionHash      *string
+	ResolutionDigest *string
+	SchemaRefreshes  map[slug.Slug]time.Time
+}
+
+type SchedulePreflightProgress struct {
+	VersionHash      *string
+	ResolutionDigest *string
+	SchemaRefreshes  map[slug.Slug]time.Time
+	Diagnostics      []model.PipelineSchedulePreflightDiagnostic
+	CompletedAt      *time.Time
 }
 
 // TriggerRetryAttemptRecord contains the durable retry decision to persist.

@@ -1099,6 +1099,19 @@ type PipelineScheduleFire struct {
 	UpdatedAt                pgtype.Timestamptz
 }
 
+type PipelineSchedulePreflight struct {
+	PipelineTriggerID   int64
+	TriggerRevision     int64
+	ScheduledFireAt     pgtype.Timestamptz
+	PreflightAt         pgtype.Timestamptz
+	PipelineSlug        string
+	PipelineVersionHash pgtype.Text
+	ResolutionDigest    pgtype.Text
+	SchemaRefreshes     []byte
+	Diagnostics         []byte
+	CompletedAt         pgtype.Timestamptz
+}
+
 type PipelineSinkEffect struct {
 	ID                   int
 	ProjectEnvironmentID int64
@@ -1137,42 +1150,43 @@ type PipelineSpec struct {
 }
 
 type PipelineTrigger struct {
-	ID                          int
-	ProjectID                   int64
-	ProjectEnvironmentID        int64
-	PipelineID                  int64
-	PipelineSlug                string
-	PinnedPipelineVersionID     pgtype.Int8
-	Slug                        slug.Slug
-	Name                        string
-	TriggerType                 string
-	Enabled                     bool
-	Revision                    int64
-	VersionPolicy               string
-	RuntimeInputKeys            []string
-	RetryEnabled                bool
-	RetryMaxAttempts            int32
-	RetryBackoffStrategy        string
-	RetryInitialDelaySeconds    int32
-	RetryMaxDelaySeconds        int32
-	RetryJitter                 bool
-	RetryableFailureKinds       []string
-	RetryMaxElapsedSeconds      pgtype.Int4
-	ScheduleCron                pgtype.Text
-	ScheduleTimezone            pgtype.Text
-	ScheduleMisfirePolicy       pgtype.Text
-	CreatedByActorType          string
-	CreatedByActorSlug          pgtype.Text
-	UpdatedByActorType          string
-	UpdatedByActorSlug          pgtype.Text
-	DisabledAt                  pgtype.Timestamptz
-	CreatedAt                   pgtype.Timestamptz
-	UpdatedAt                   pgtype.Timestamptz
-	ReceiverID                  pgtype.Text
-	WebhookVerificationStrategy pgtype.Text
-	WebhookInputMappings        []byte
-	CompletionConfig            []byte
-	CompletionEditorID          pgtype.Text
+	ID                           int
+	ProjectID                    int64
+	ProjectEnvironmentID         int64
+	PipelineID                   int64
+	PipelineSlug                 string
+	PinnedPipelineVersionID      pgtype.Int8
+	Slug                         slug.Slug
+	Name                         string
+	TriggerType                  string
+	Enabled                      bool
+	Revision                     int64
+	VersionPolicy                string
+	RuntimeInputKeys             []string
+	RetryEnabled                 bool
+	RetryMaxAttempts             int32
+	RetryBackoffStrategy         string
+	RetryInitialDelaySeconds     int32
+	RetryMaxDelaySeconds         int32
+	RetryJitter                  bool
+	RetryableFailureKinds        []string
+	RetryMaxElapsedSeconds       pgtype.Int4
+	ScheduleCron                 pgtype.Text
+	ScheduleTimezone             pgtype.Text
+	ScheduleMisfirePolicy        pgtype.Text
+	CreatedByActorType           string
+	CreatedByActorSlug           pgtype.Text
+	UpdatedByActorType           string
+	UpdatedByActorSlug           pgtype.Text
+	DisabledAt                   pgtype.Timestamptz
+	CreatedAt                    pgtype.Timestamptz
+	UpdatedAt                    pgtype.Timestamptz
+	ReceiverID                   pgtype.Text
+	WebhookVerificationStrategy  pgtype.Text
+	WebhookInputMappings         []byte
+	CompletionConfig             []byte
+	CompletionEditorID           pgtype.Text
+	SchedulePreflightLeadMinutes pgtype.Int4
 }
 
 type PipelineTriggerRetryAttempt struct {

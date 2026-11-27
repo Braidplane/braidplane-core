@@ -33,7 +33,7 @@ type Service interface {
 		ctx context.Context,
 		orgSlug, projectSlug, environmentSlug, triggerSlug slug.Slug,
 		req model.ListRequest,
-	) (model.ListResponse[model.PipelineScheduleFire], error)
+	) (ScheduleFireList, error)
 	ListPipelineRunTriggerRetryAttempts(
 		ctx context.Context,
 		orgSlug, projectSlug, environmentSlug, runSlug slug.Slug,
@@ -54,6 +54,11 @@ type Service interface {
 		orgSlug, projectSlug, environmentSlug, triggerSlug slug.Slug,
 		actor model.EventActor,
 	) (model.PipelineWebhookSecret, error)
+}
+
+type ScheduleFireList struct {
+	model.ListResponse[model.PipelineScheduleFire]
+	UpcomingPreflights []*model.PipelineSchedulePreflight
 }
 
 type CompletionExecutionValidator interface {

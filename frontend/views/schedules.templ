@@ -226,6 +226,12 @@ templ PipelineScheduleDetailPanelSlot(
 							<p class="text-xs uppercase tracking-wide text-base-content/60">Misfire policy</p>
 							<p class="mt-1 text-sm text-base-content">{ string(trigger.Schedule.MisfirePolicy) }</p>
 						</div>
+						if trigger.Schedule.PreflightLeadTime != nil {
+							<div>
+								<p class="text-xs uppercase tracking-wide text-base-content/60">Preflight lead time</p>
+								<p class="mt-1 text-sm text-base-content">{ *trigger.Schedule.PreflightLeadTime }</p>
+							</div>
+						}
 					} else if trigger.Webhook != nil {
 						<div>
 							<p class="text-xs uppercase tracking-wide text-base-content/60">Receiver ID</p>
@@ -259,6 +265,19 @@ templ PipelineScheduleDetailPanelSlot(
 				<p class="text-sm">Open an upstream run's Completion section to inspect its exact root, final attempt, persisted dispatch decision and accepted child. Waiting subscriptions do not create placeholder runs.</p>
 				<a class="link link-primary" href={ templ.URL(buildEnvironmentRunsListHrefWithProject(orgSlug, activeProjectSlug, environmentSlug, "", "", "", trigger.Completion.UpstreamPipelineSlug, "", "")) }>Inspect upstream runs</a>
 			} else if trigger.Type == api.PipelineTriggerTypeSchedule {
+				if len(selectedDetail.UpcomingPreflights) > 0 {
+					<div class="mt-4 space-y-2">
+						<h3 class="text-base font-semibold">Upcoming preflights</h3>
+						<ul class="divide-y divide-base-300">
+							for _, preflight := range selectedDetail.UpcomingPreflights {
+								<li class="py-2 text-sm">
+									<p>Scheduled run { formatRunTimestamp(preflight.ScheduledFireAt) }</p>
+									@schedulePreflightResult(preflight)
+								</li>
+							}
+						</ul>
+					</div>
+				}
 				<div class="mt-4 min-w-0 space-y-3">
 					<div class="flex flex-wrap items-start justify-between gap-3">
 						<div>
@@ -291,7 +310,7 @@ templ PipelineScheduleDetailPanelSlot(
 										<th>Misfire</th>
 										<th>Run</th>
 										<th>Source event</th>
-										<th>Error</th>
+										<th>Diagnostics</th>
 									</tr>
 								</thead>
 								<tbody>
@@ -316,6 +335,9 @@ templ PipelineScheduleDetailPanelSlot(
 													<span class="text-error">{ scheduleFireErrorLabel(fire) }</span>
 												} else {
 													<span class="text-base-content/60">{ scheduleFireErrorLabel(fire) }</span>
+												}
+												if fire.Preflight != nil {
+													@schedulePreflightResult(*fire.Preflight)
 												}
 											</td>
 										</tr>
@@ -517,4 +539,21 @@ templ PipelineScheduleDetailContent(orgSlug string, projectSlug string, environm
 	<div id="trigger-detail" class="min-w-0">
 		@PipelineScheduleDetailPanelSlot(orgSlug, projectSlug, environmentSlug, PipelineScheduleFilters{}, selected)
 	</div>
+}
+
+templ schedulePreflightResult(preflight api.PipelineSchedulePreflight) {
+	<p class="mt-1 text-xs">
+		Preflight { string(preflight.Status) } · { formatRunTimestamp(preflight.PreflightAt) }
+	</p>
+	for _, diagnostic := range preflight.Diagnostics {
+		<p class="mt-1 break-words text-xs text-error">
+			if diagnostic.DataSourceSlug != nil {
+				<span class="font-mono">{ *diagnostic.DataSourceSlug }</span>
+			}
+			if diagnostic.StepSlug != nil {
+				<span class="font-mono">{ *diagnostic.StepSlug }</span>
+			}
+			{ diagnostic.Message }
+		</p>
+	}
 }

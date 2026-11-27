@@ -13,11 +13,16 @@ import (
 // PipelineScheduleProducer enqueues scheduled fire execution for background workers.
 type PipelineScheduleProducer interface {
 	EnqueueRunFinalization(context.Context, postgres.DBTX, queue.JobArgs) (queue.QueuedJob, error)
+	EnqueueSchedulePreflight(context.Context, postgres.DBTX, jobs.PipelineSchedulePreflightArgs) (queue.QueuedJob, error)
 	EnqueueScheduleFireExecution(
 		ctx context.Context,
 		tx postgres.DBTX,
 		args jobs.PipelineScheduleFireExecutionArgs,
 	) (queue.QueuedJob, error)
+}
+
+func (p *pipelineScheduleProducer) EnqueueSchedulePreflight(ctx context.Context, tx postgres.DBTX, args jobs.PipelineSchedulePreflightArgs) (queue.QueuedJob, error) {
+	return p.enqueuer.EnqueueTx(ctx, tx, queue.EnqueueRequest{Args: args, Queue: p.queue})
 }
 
 type pipelineScheduleProducer struct {

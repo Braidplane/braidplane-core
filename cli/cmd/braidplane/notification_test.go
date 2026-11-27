@@ -197,7 +197,7 @@ func TestRunWithArgsNotificationListRejectsInvalidFlagsBeforeAPI(t *testing.T) {
 		{
 			name:        "NotificationType",
 			args:        []string{"--notification-type", "billing.failed"},
-			wantDetails: []string{"current producer-backed values are pipeline.retry_exhausted, pipeline.run_succeeded, pipeline.contract_failure, pipeline.run_failed, pipeline.scheduled_run_delayed and pipeline.scheduled_run_missing"},
+			wantDetails: []string{"current producer-backed values are pipeline.retry_exhausted, pipeline.run_succeeded, pipeline.contract_failure, pipeline.run_failed, pipeline.scheduled_run_delayed, pipeline.scheduled_run_missing and pipeline.scheduled_preflight_failed"},
 		},
 		{
 			name:        "SortBy",

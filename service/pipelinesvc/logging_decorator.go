@@ -1077,6 +1077,35 @@ func (_d ServiceWithLogging) RefreshDraftProposal(ctx context.Context, orgSlug s
 	return
 }
 
+// ResolveScheduledPreflight implements Service.
+func (_d ServiceWithLogging) ResolveScheduledPreflight(ctx context.Context, s1 slug.Slug, s2 slug.Slug, s3 slug.Slug, s4 slug.Slug, p1 model.PipelineTriggerVersionPolicy, sp1 *string, sp2 *string) (sp3 *ScheduledPreflightTarget, err error) {
+	_startedAt := time.Now()
+	_ctx := ctx
+	_ctx, _span := tracing.StartMethodSpan(_ctx, tracing.MethodSpan{
+		Layer:     "service",
+		Package:   "service/pipelinesvc",
+		Interface: "Service",
+		Method:    "ResolveScheduledPreflight",
+	})
+	defer _span.End()
+	defer func() {
+		if err != nil {
+			tracing.RecordError(_span, err)
+		}
+		logging.LogMethodCompletion(_ctx, _d._logger, logging.MethodCompletion{
+			Layer:       "service",
+			Package:     "service/pipelinesvc",
+			Interface:   "Service",
+			Method:      "ResolveScheduledPreflight",
+			StartedAt:   _startedAt,
+			CompletedAt: time.Now(),
+			Err:         err,
+		})
+	}()
+	sp3, err = _d._base.ResolveScheduledPreflight(_ctx, s1, s2, s3, s4, p1, sp1, sp2)
+	return
+}
+
 // RevalidatePipeline implements Service.
 func (_d ServiceWithLogging) RevalidatePipeline(ctx context.Context, orgSlug slug.Slug, projectSlug slug.Slug, environmentSlug slug.Slug, principal ValidationHistoryPrincipal, pipelineSlug slug.Slug, memberSlug slug.Slug) (pp1 *PipelineValidationResultRecord, err error) {
 	_startedAt := time.Now()
@@ -1306,5 +1335,34 @@ func (_d ServiceWithLogging) ValidateCompletionExecutionContext(ctx context.Cont
 		})
 	}()
 	err = _d._base.ValidateCompletionExecutionContext(_ctx, s1, s2, s3, pp1)
+	return
+}
+
+// ValidateScheduledPreflight implements Service.
+func (_d ServiceWithLogging) ValidateScheduledPreflight(ctx context.Context, s1 slug.Slug, s2 slug.Slug, pp1 *pipelinespec.Pipeline) (pp2 *model.PipelineSchedulePreflightDiagnostic, err error) {
+	_startedAt := time.Now()
+	_ctx := ctx
+	_ctx, _span := tracing.StartMethodSpan(_ctx, tracing.MethodSpan{
+		Layer:     "service",
+		Package:   "service/pipelinesvc",
+		Interface: "Service",
+		Method:    "ValidateScheduledPreflight",
+	})
+	defer _span.End()
+	defer func() {
+		if err != nil {
+			tracing.RecordError(_span, err)
+		}
+		logging.LogMethodCompletion(_ctx, _d._logger, logging.MethodCompletion{
+			Layer:       "service",
+			Package:     "service/pipelinesvc",
+			Interface:   "Service",
+			Method:      "ValidateScheduledPreflight",
+			StartedAt:   _startedAt,
+			CompletedAt: time.Now(),
+			Err:         err,
+		})
+	}()
+	pp2, err = _d._base.ValidateScheduledPreflight(_ctx, s1, s2, pp1)
 	return
 }

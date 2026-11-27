@@ -264,6 +264,9 @@ func (r *Router) loadPipelineScheduleSelectedDetail(
 	}
 
 	selected.Fires = fireList.ScheduleFires
+	if fireList.UpcomingPreflights != nil {
+		selected.UpcomingPreflights = *fireList.UpcomingPreflights
+	}
 	selected.FiresHasMore = fireList.HasMore
 	if fireList.NextCursor != nil {
 		selected.FiresNextCursor = *fireList.NextCursor

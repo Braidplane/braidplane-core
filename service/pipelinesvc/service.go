@@ -141,6 +141,8 @@ type Service interface {
 	AcceptCompletionRetryRun(context.Context, slug.Slug, slug.Slug, slug.Slug, *model.PipelineCompletionSnapshot, slug.Slug, pipelinerun.RunSourceSummary, time.Time) (jobs.PipelineRunExecutionArgs, error)
 	ExecuteCompletionPipelineRun(context.Context, jobs.PipelineRunExecutionArgs, CompletionAuthorityChecker) error
 	ValidateCompletionExecutionContext(context.Context, slug.Slug, slug.Slug, slug.Slug, *model.PipelineCompletionSnapshot) error
+	ResolveScheduledPreflight(context.Context, slug.Slug, slug.Slug, slug.Slug, slug.Slug, model.PipelineTriggerVersionPolicy, *string, *string) (*ScheduledPreflightTarget, error)
+	ValidateScheduledPreflight(context.Context, slug.Slug, slug.Slug, *pipelinespec.Pipeline) (*model.PipelineSchedulePreflightDiagnostic, error)
 	BootstrapCheckpoints(ctx context.Context, orgSlug, projectSlug, environmentSlug, pipelineSlug, requestSlug slug.Slug, confirmation *slug.Slug, actor model.EventActor, input map[string]any, seeds map[slug.Slug]json.RawMessage) error
 
 	RecoverRun(ctx context.Context, orgSlug, projectSlug, environmentSlug, sourceRunSlug slug.Slug, confirmation *slug.Slug, actor model.EventActor, source pipelinerun.RunSourceSummary) (*PipelineRunDetail, error)
@@ -3627,14 +3629,8 @@ func (s *service) executeResolvedVersion(
 		return nil, xerror.Wrapf("decode canonical pipeline version %s: %w", version.SpecHash, err)
 	}
 
-	if resolutionDigest == nil && s.dataSourceRefResolver != nil {
-		resolved, err := s.dataSourceRefResolver.ResolvePipelineDataSourceRefs(
-			ctx,
-			orgSlug,
-			projectSlug,
-			environmentSlug,
-			pipeline,
-		)
+	if resolutionDigest == nil {
+		pipeline, err = s.resolveExecutionDataSources(ctx, orgSlug, projectSlug, environmentSlug, pipeline)
 		if err != nil {
 			s.recordExecutionValidationFailure(
 				ctx,
@@ -3645,9 +3641,6 @@ func (s *service) executeResolvedVersion(
 				err,
 			)
 			return nil, err
-		}
-		if resolved != nil && resolved.Pipeline != nil {
-			pipeline = resolved.Pipeline
 		}
 	}
 	var eventInput *pipelinerun.EventInput

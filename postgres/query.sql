@@ -6724,8 +6724,8 @@ WITH matching_targets AS (
         AND ap.enabled
         AND ad.enabled
         AND ad.type IN ('email', 'slack')
-        AND (nr.notification_type <> 'pipeline.run_succeeded'
-            OR ap.notification_type = 'pipeline.run_succeeded')
+        AND (nr.notification_type NOT IN ('pipeline.run_succeeded', 'pipeline.scheduled_preflight_failed')
+            OR ap.notification_type = nr.notification_type)
         AND (
             ap.notification_type IS NULL
             OR ap.notification_type = nr.notification_type
@@ -6825,7 +6825,8 @@ JOIN alert_policies ap ON ap.organization_id = nr.organization_id
 WHERE o.slug = sqlc.arg('org_slug')
     AND nr.slug = sqlc.arg('record_slug')
     AND nd.slug = sqlc.arg('destination_slug')
-    AND (nr.notification_type <> 'pipeline.run_succeeded' OR ap.notification_type = 'pipeline.run_succeeded')
+    AND (nr.notification_type NOT IN ('pipeline.run_succeeded', 'pipeline.scheduled_preflight_failed')
+        OR ap.notification_type = nr.notification_type)
     AND (nd.type <> 'slack' OR (nd.enabled AND ap.enabled AND EXISTS (
         SELECT 1 FROM alert_policy_destinations binding
         WHERE binding.organization_id=o.id AND binding.destination_id=nd.id AND binding.alert_policy_id=ap.id
@@ -9171,6 +9172,7 @@ inserted AS (
         schedule_cron,
         schedule_timezone,
         schedule_misfire_policy,
+        schedule_preflight_lead_minutes,
         receiver_id,
         webhook_verification_strategy,
         webhook_input_mappings,
@@ -9207,6 +9209,7 @@ inserted AS (
         sqlc.narg('schedule_cron')::text,
         sqlc.narg('schedule_timezone')::text,
         sqlc.narg('schedule_misfire_policy')::text,
+        sqlc.narg('schedule_preflight_lead_minutes')::integer,
         sqlc.narg('receiver_id')::text,
         sqlc.narg('webhook_verification_strategy')::text,
         sqlc.narg('webhook_input_mappings')::jsonb,
@@ -9380,6 +9383,10 @@ updated AS (
         END,
         schedule_misfire_policy = CASE
             WHEN sqlc.arg('trigger_type') = 'schedule' THEN sqlc.narg('schedule_misfire_policy')::text
+            ELSE NULL
+        END,
+        schedule_preflight_lead_minutes = CASE
+            WHEN sqlc.arg('trigger_type') = 'schedule' THEN sqlc.narg('schedule_preflight_lead_minutes')::integer
             ELSE NULL
         END,
         receiver_id = CASE
@@ -9879,9 +9886,11 @@ SELECT
     pt.schedule_cron,
     pt.schedule_timezone,
     pt.schedule_misfire_policy,
+    pt.schedule_preflight_lead_minutes,
     pt.created_at AS trigger_created_at,
     pt.updated_at AS trigger_updated_at,
-    last_fire.scheduled_fire_at AS last_scheduled_fire_at
+    last_fire.scheduled_fire_at AS last_scheduled_fire_at,
+    last_preflight.scheduled_fire_at AS last_preflight_occurrence_at
 FROM pipeline_triggers pt
 JOIN project_environments pe ON pe.id = pt.project_environment_id
 JOIN projects p ON p.id = pe.project_id
@@ -9900,6 +9909,15 @@ LEFT JOIN LATERAL (
     ORDER BY psf.scheduled_fire_at DESC
     LIMIT 1
 ) last_fire ON true
+LEFT JOIN LATERAL (
+    SELECT pf.scheduled_fire_at
+    FROM pipeline_schedule_preflights pf
+    WHERE pf.pipeline_trigger_id = pt.id
+        AND pf.trigger_revision = pt.revision
+        AND pt.schedule_preflight_lead_minutes IS NOT NULL
+    ORDER BY pf.scheduled_fire_at DESC
+    LIMIT 1
+) last_preflight ON true
 WHERE pt.trigger_type = 'schedule'
     AND pt.enabled = true
     AND pt.schedule_cron IS NOT NULL
@@ -9908,6 +9926,104 @@ WHERE pt.trigger_type = 'schedule'
     AND e.deleted_at IS NULL
     AND pe.deleted_at IS NULL
 ORDER BY o.slug, p.slug, e.slug, pt.slug;
+
+-- name: ClaimSchedulePreflight :execrows
+INSERT INTO pipeline_schedule_preflights (
+    pipeline_trigger_id, trigger_revision, scheduled_fire_at, preflight_at, pipeline_slug
+)
+SELECT pt.id, pt.revision, sqlc.arg('scheduled_fire_at'), sqlc.arg('preflight_at'), ps.slug
+FROM pipeline_triggers pt
+JOIN project_environments pe ON pe.id = pt.project_environment_id
+JOIN projects p ON p.id = pe.project_id
+JOIN organizations o ON o.id = p.organization_id
+JOIN environments e ON e.id = pe.environment_id AND e.organization_id = o.id
+JOIN pipeline_specs ps ON ps.id = pt.pipeline_id AND ps.project_id = p.id AND ps.deleted_at IS NULL
+WHERE o.slug = sqlc.arg('org_slug')
+    AND p.slug = sqlc.arg('project_slug')
+    AND e.slug = sqlc.arg('environment_slug')
+    AND e.deleted_at IS NULL AND pe.deleted_at IS NULL
+    AND pt.slug = sqlc.arg('trigger_slug')
+    AND pt.revision = sqlc.arg('trigger_revision')
+    AND pt.trigger_type = 'schedule' AND pt.enabled
+    AND pt.schedule_preflight_lead_minutes IS NOT NULL
+ON CONFLICT (pipeline_trigger_id, trigger_revision, scheduled_fire_at) DO NOTHING;
+
+-- name: LoadPendingSchedulePreflight :one
+SELECT
+    pf.pipeline_slug,
+    pt.version_policy,
+    pinned.spec_hash AS pinned_version_hash,
+    pf.pipeline_version_hash,
+    pf.resolution_digest,
+    pf.schema_refreshes
+FROM pipeline_schedule_preflights pf
+JOIN pipeline_triggers pt ON pt.id = pf.pipeline_trigger_id AND pt.revision = pf.trigger_revision
+JOIN project_environments pe ON pe.id = pt.project_environment_id
+JOIN projects p ON p.id = pe.project_id
+JOIN organizations o ON o.id = p.organization_id
+JOIN environments e ON e.id = pe.environment_id AND e.organization_id = o.id
+JOIN pipeline_specs ps ON ps.id = pt.pipeline_id AND ps.project_id = p.id AND ps.deleted_at IS NULL
+LEFT JOIN pipeline_versions pinned ON pinned.id = pt.pinned_pipeline_version_id
+WHERE o.slug = sqlc.arg('org_slug')
+    AND p.slug = sqlc.arg('project_slug')
+    AND e.slug = sqlc.arg('environment_slug')
+    AND e.deleted_at IS NULL AND pe.deleted_at IS NULL
+    AND pt.slug = sqlc.arg('trigger_slug')
+    AND pf.trigger_revision = sqlc.arg('trigger_revision')
+    AND pf.scheduled_fire_at = sqlc.arg('scheduled_fire_at')
+    AND pt.trigger_type = 'schedule' AND pt.enabled
+    AND pt.schedule_preflight_lead_minutes IS NOT NULL
+    AND pf.completed_at IS NULL
+FOR UPDATE OF pf
+FOR SHARE OF pt;
+
+-- name: SaveSchedulePreflight :execrows
+UPDATE pipeline_schedule_preflights pf
+SET pipeline_version_hash = sqlc.narg('pipeline_version_hash'),
+    resolution_digest = sqlc.narg('resolution_digest'),
+    schema_refreshes = sqlc.narg('schema_refreshes'),
+    diagnostics = sqlc.arg('diagnostics'),
+    completed_at = sqlc.narg('completed_at')
+FROM pipeline_triggers pt
+JOIN project_environments pe ON pe.id = pt.project_environment_id
+JOIN projects p ON p.id = pe.project_id
+JOIN organizations o ON o.id = p.organization_id
+JOIN environments e ON e.id = pe.environment_id AND e.organization_id = o.id
+WHERE o.slug = sqlc.arg('org_slug')
+    AND p.slug = sqlc.arg('project_slug')
+    AND e.slug = sqlc.arg('environment_slug')
+    AND e.deleted_at IS NULL AND pe.deleted_at IS NULL
+    AND pt.slug = sqlc.arg('trigger_slug')
+    AND pt.enabled AND pt.trigger_type = 'schedule'
+    AND pf.pipeline_trigger_id = pt.id AND pf.trigger_revision = pt.revision
+    AND pf.trigger_revision = sqlc.arg('trigger_revision')
+    AND pf.scheduled_fire_at = sqlc.arg('scheduled_fire_at')
+    AND pf.completed_at IS NULL;
+
+-- name: ListUpcomingSchedulePreflights :many
+SELECT
+    pf.trigger_revision,
+    pf.pipeline_slug,
+    pf.scheduled_fire_at,
+    pf.preflight_at,
+    pf.pipeline_version_hash,
+    pf.diagnostics,
+    pf.completed_at
+FROM pipeline_schedule_preflights pf
+JOIN pipeline_triggers pt ON pt.id = pf.pipeline_trigger_id AND pt.revision = pf.trigger_revision
+JOIN project_environments pe ON pe.id = pt.project_environment_id
+JOIN projects p ON p.id = pe.project_id
+JOIN organizations o ON o.id = p.organization_id
+JOIN environments e ON e.id = pe.environment_id AND e.organization_id = o.id
+WHERE o.slug = sqlc.arg('org_slug')
+    AND p.slug = sqlc.arg('project_slug')
+    AND e.slug = sqlc.arg('environment_slug')
+    AND e.deleted_at IS NULL AND pe.deleted_at IS NULL
+    AND pt.slug = sqlc.arg('trigger_slug')
+    AND pt.enabled AND pt.trigger_type = 'schedule'
+    AND pf.scheduled_fire_at > NOW()
+ORDER BY pf.scheduled_fire_at ASC
+LIMIT 20;
 
 -- name: ClaimScheduleFire :one
 WITH target AS (
@@ -10130,7 +10246,12 @@ SELECT
     psf.source_event_slug,
     psf.error_summary,
     psf.created_at,
-    psf.updated_at
+    psf.updated_at,
+    pf.preflight_at,
+    pf.pipeline_version_hash AS preflight_version_hash,
+    pf.diagnostics AS preflight_diagnostics,
+    pf.completed_at AS preflight_completed_at,
+    (pf.preflight_at IS NOT NULL AND pf.completed_at IS NULL AND (NOT pt.enabled OR pt.revision <> pf.trigger_revision)) AS preflight_cancelled
 FROM pipeline_schedule_fires psf
 JOIN pipeline_triggers pt ON pt.id = psf.pipeline_trigger_id
     AND pt.project_environment_id = psf.project_environment_id
@@ -10139,6 +10260,9 @@ JOIN projects p ON p.id = pe.project_id
 JOIN organizations o ON o.id = p.organization_id
 JOIN environments e ON e.id = pe.environment_id
     AND e.organization_id = o.id
+LEFT JOIN pipeline_schedule_preflights pf ON pf.pipeline_trigger_id = psf.pipeline_trigger_id
+    AND pf.trigger_revision = psf.trigger_revision
+    AND pf.scheduled_fire_at = psf.scheduled_fire_at
 WHERE o.slug = sqlc.arg('org_slug')
     AND p.slug = sqlc.arg('project_slug')
     AND e.slug = sqlc.arg('environment_slug')

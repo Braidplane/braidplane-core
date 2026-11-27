@@ -7559,7 +7559,8 @@
           "pipeline.scheduled_run_missing",
           "pipeline.freshness_sla_breached",
           "pipeline.contract_failure",
-          "pipeline.run_succeeded"
+          "pipeline.run_succeeded",
+          "pipeline.scheduled_preflight_failed"
         ],
         "type": "string",
         "x-enum-varnames": [
@@ -7570,7 +7571,8 @@
           "NotificationTypePipelineScheduledRunMissing",
           "NotificationTypePipelineFreshnessSLABreached",
           "NotificationTypePipelineContractFailure",
-          "NotificationTypePipelineRunSucceeded"
+          "NotificationTypePipelineRunSucceeded",
+          "NotificationTypePipelineScheduledPreflightFailed"
         ]
       },
       "NullableSlug": {
@@ -13493,6 +13495,9 @@
           "pipeline_slug": {
             "$ref": "#/components/schemas/Slug"
           },
+          "preflight": {
+            "$ref": "#/components/schemas/PipelineSchedulePreflight"
+          },
           "run_slug": {
             "$ref": "#/components/schemas/NullableSlug"
           },
@@ -13556,6 +13561,13 @@
               "$ref": "#/components/schemas/PipelineScheduleFire"
             },
             "type": "array"
+          },
+          "upcoming_preflights": {
+            "description": "",
+            "items": {
+              "$ref": "#/components/schemas/PipelineSchedulePreflight"
+            },
+            "type": "array"
           }
         },
         "required": [
@@ -13595,6 +13607,81 @@
           "PipelineScheduleFireStatusFailed",
           "PipelineScheduleFireStatusSkipped"
         ]
+      },
+      "PipelineSchedulePreflight": {
+        "description": "",
+        "properties": {
+          "completed_at": {
+            "$ref": "#/components/schemas/Timestamp"
+          },
+          "diagnostics": {
+            "items": {
+              "$ref": "#/components/schemas/PipelineSchedulePreflightDiagnostic"
+            },
+            "type": "array"
+          },
+          "pipeline_slug": {
+            "$ref": "#/components/schemas/Slug"
+          },
+          "pipeline_version_hash": {
+            "type": "string"
+          },
+          "preflight_at": {
+            "$ref": "#/components/schemas/Timestamp"
+          },
+          "scheduled_fire_at": {
+            "$ref": "#/components/schemas/Timestamp"
+          },
+          "status": {
+            "enum": [
+              "pending",
+              "succeeded",
+              "failed",
+              "cancelled"
+            ],
+            "type": "string",
+            "x-enum-varnames": [
+              "PipelineSchedulePreflightStatusPending",
+              "PipelineSchedulePreflightStatusSucceeded",
+              "PipelineSchedulePreflightStatusFailed",
+              "PipelineSchedulePreflightStatusCancelled"
+            ]
+          },
+          "trigger_revision": {
+            "format": "int64",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "trigger_revision",
+          "pipeline_slug",
+          "scheduled_fire_at",
+          "preflight_at",
+          "status",
+          "diagnostics"
+        ],
+        "type": "object"
+      },
+      "PipelineSchedulePreflightDiagnostic": {
+        "properties": {
+          "code": {
+            "type": "string"
+          },
+          "data_source_slug": {
+            "$ref": "#/components/schemas/Slug"
+          },
+          "message": {
+            "type": "string"
+          },
+          "step_slug": {
+            "$ref": "#/components/schemas/Slug"
+          }
+        },
+        "required": [
+          "code",
+          "message"
+        ],
+        "type": "object"
       },
       "PipelineSchemaContract": {
         "description": "",
@@ -14730,6 +14817,12 @@
           },
           "misfire_policy": {
             "$ref": "#/components/schemas/PipelineTriggerScheduleMisfirePolicy"
+          },
+          "preflight_lead_time": {
+            "description": "",
+            "maxLength": 32,
+            "minLength": 1,
+            "type": "string"
           },
           "timezone": {
             "description": "",

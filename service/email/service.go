@@ -339,6 +339,8 @@ func localizedNotificationType(localizer i18n.Localizer, value model.Notificatio
 		return localizedOrEnum(localizer, i18n.NotificationTypePipelineScheduledRunDelayedLabel.ID, value.String())
 	case model.NotificationTypePipelineScheduledRunMissing:
 		return localizedOrEnum(localizer, i18n.NotificationTypePipelineScheduledRunMissingLabel.ID, value.String())
+	case model.NotificationTypePipelineScheduledPreflightFailed:
+		return localizedOrEnum(localizer, i18n.NotificationTypePipelineScheduledPreflightFailedLabel.ID, value.String())
 	case model.NotificationTypePipelineFreshnessSLABreached:
 		return localizedOrEnum(localizer, i18n.NotificationTypePipelineFreshnessSLABreachedLabel.ID, value.String())
 	case model.NotificationTypePipelineContractFailure:

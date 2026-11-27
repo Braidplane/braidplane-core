@@ -9,6 +9,7 @@ import (
 
 	api "github.com/Braidplane/braidplane-core/cli/apiclient"
 	pipelineruntimevars "github.com/Braidplane/braidplane-core/pkg/pipeline/runtime"
+	pipelineschedule "github.com/Braidplane/braidplane-core/pkg/pipeline/schedule"
 	"github.com/Braidplane/braidplane-core/pkg/slug"
 	"github.com/Braidplane/braidplane-core/pkg/xerror"
 )
@@ -215,6 +216,7 @@ type pipelineTriggerPayloadFlags struct {
 	Cron                     string   `help:"Five-field cron expression evaluated in the selected timezone. Schedule triggers only." name:"cron"`
 	Timezone                 string   `help:"IANA timezone used for schedule evaluation. Schedule triggers only." name:"timezone"`
 	MisfirePolicy            string   `help:"Misfire policy: skip or fire_once. Schedule triggers only." name:"misfire-policy"`
+	PreflightLeadTime        string   `help:"Time before the scheduled run to refresh schemas and validate, for example 1h or 6h. Schedule triggers only." name:"preflight-lead-time"`
 	WebhookInputMapping      []string `help:"Webhook input mapping as <json-pointer>=<runtime-input-key>. Repeat for multiple mappings. Webhook triggers only." name:"webhook-input-mapping"`
 	UpstreamPipeline         string   `help:"Upstream pipeline slug. Completion triggers only; no payload is transferred." name:"upstream-pipeline"`
 	CompletionCondition      string   `help:"Logical-root outcome: success or final_failure. Completion triggers only." name:"completion-condition"`
@@ -355,9 +357,14 @@ func pipelineTriggerTypeConfig(
 	triggerType api.PipelineTriggerType,
 	runtimeInputKeys []string,
 ) (*api.PipelineTriggerScheduleConfig, *api.PipelineWebhookConfigInput, error) {
+	if f.PreflightLeadTime != "" && triggerType != api.PipelineTriggerTypeSchedule {
+		return nil, nil, xerror.InvalidInput(xerror.PipelineTrigger).Detail("--preflight-lead-time is only available for schedule triggers")
+	}
+	hasScheduleFlags := strings.TrimSpace(f.Cron) != "" || strings.TrimSpace(f.Timezone) != "" ||
+		strings.TrimSpace(f.MisfirePolicy) != ""
 	switch triggerType {
 	case api.PipelineTriggerTypeCompletion:
-		if strings.TrimSpace(f.Cron) != "" || strings.TrimSpace(f.Timezone) != "" || strings.TrimSpace(f.MisfirePolicy) != "" || len(f.WebhookInputMapping) > 0 {
+		if hasScheduleFlags || len(f.WebhookInputMapping) > 0 {
 			return nil, nil, xerror.InvalidInput(xerror.PipelineTrigger).Detail("completion triggers must not set schedule or webhook flags")
 		}
 		return nil, nil, nil
@@ -375,13 +382,20 @@ func pipelineTriggerTypeConfig(
 			return nil, nil, xerror.InvalidInput(xerror.PipelineTrigger).
 				Detail("misfire-policy must be skip or fire_once")
 		}
-		return &api.PipelineTriggerScheduleConfig{
+		config := &api.PipelineTriggerScheduleConfig{
 			Cron:          strings.TrimSpace(f.Cron),
 			Timezone:      strings.TrimSpace(f.Timezone),
 			MisfirePolicy: misfirePolicy,
-		}, nil, nil
+		}
+		if f.PreflightLeadTime != "" {
+			if _, err := pipelineschedule.ParsePreflightLeadTime(f.PreflightLeadTime); err != nil {
+				return nil, nil, err
+			}
+			config.PreflightLeadTime = &f.PreflightLeadTime
+		}
+		return config, nil, nil
 	case api.PipelineTriggerTypeWebhook:
-		if strings.TrimSpace(f.Cron) != "" || strings.TrimSpace(f.Timezone) != "" || strings.TrimSpace(f.MisfirePolicy) != "" {
+		if hasScheduleFlags {
 			return nil, nil, xerror.InvalidInput(xerror.PipelineTrigger).
 				Detail("webhook triggers must not set --cron, --timezone, or --misfire-policy")
 		}

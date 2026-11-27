@@ -45,13 +45,14 @@ type (
 
 // DispatchResult summarizes one scheduler scan for worker diagnostics and tests.
 type DispatchResult struct {
-	Scanned         int
-	Claimed         int
-	Enqueued        int
-	SkippedInvalid  int
-	SkippedDisabled int
-	SkippedMisfire  int
-	AlreadyClaimed  int
+	Scanned            int
+	Claimed            int
+	Enqueued           int
+	SkippedInvalid     int
+	SkippedDisabled    int
+	SkippedMisfire     int
+	AlreadyClaimed     int
+	PreflightsEnqueued int
 }
 
 // Repository defines the persistence operations required by schedule dispatch.
@@ -63,6 +64,9 @@ type Repository interface {
 		ctx context.Context,
 		tx postgres.DBTX,
 	) ([]DueScheduleTrigger, error)
+	ClaimSchedulePreflight(context.Context, postgres.DBTX, ScheduleFireExecutionRef, time.Time) (bool, error)
+	LoadPendingSchedulePreflight(context.Context, postgres.DBTX, ScheduleFireExecutionRef) (*pipelinetriggers.PendingSchedulePreflight, error)
+	SaveSchedulePreflight(context.Context, postgres.DBTX, ScheduleFireExecutionRef, pipelinetriggers.SchedulePreflightProgress) error
 	ClaimScheduleFire(
 		ctx context.Context,
 		tx postgres.DBTX,
@@ -111,6 +115,7 @@ type Repository interface {
 // ScheduleFireProducer enqueues one claimed schedule fire into River.
 type ScheduleFireProducer interface {
 	EnqueueRunFinalization(context.Context, postgres.DBTX, queue.JobArgs) (queue.QueuedJob, error)
+	EnqueueSchedulePreflight(context.Context, postgres.DBTX, jobs.PipelineSchedulePreflightArgs) (queue.QueuedJob, error)
 	EnqueueScheduleFireExecution(
 		ctx context.Context,
 		tx postgres.DBTX,
@@ -160,13 +165,15 @@ type PipelineExecutor interface {
 
 // Service dispatches persisted schedule triggers into pipeline runs.
 type Service struct {
-	clock         clock.Clock
-	txm           postgres.TransactionManager
-	repo          Repository
-	executor      PipelineExecutor
-	producer      ScheduleFireProducer
-	retryProducer PipelineRetryProducer
-	notifier      NotificationProducer
+	clock              clock.Clock
+	txm                postgres.TransactionManager
+	repo               Repository
+	executor           PipelineExecutor
+	producer           ScheduleFireProducer
+	retryProducer      PipelineRetryProducer
+	notifier           NotificationProducer
+	preflightPipelines preflightPipelineService
+	preflightSources   preflightSourceService
 }
 
 // Option customizes optional scheduler integrations.
@@ -215,6 +222,7 @@ func (s *Service) DispatchDueSchedules(ctx context.Context, now time.Time) (Disp
 	}
 
 	var result DispatchResult
+	var triggers []DueScheduleTrigger
 	reconcileErr := s.executor.ReconcileInterruptedRuns(ctx, now)
 	err := s.txm.RunInTx(ctx, func(ctx context.Context, tx postgres.DBTX) error {
 		if err := s.repo.ReconcileLogicalRunFinalizationsForSystem(ctx, tx); err != nil {
@@ -249,7 +257,7 @@ func (s *Service) DispatchDueSchedules(ctx context.Context, now time.Time) (Disp
 				}
 			}
 		}
-		triggers, err := s.repo.ListDueScheduleTriggersForSystem(ctx, tx)
+		triggers, err = s.repo.ListDueScheduleTriggersForSystem(ctx, tx)
 		if err != nil {
 			return err
 		}
@@ -280,7 +288,9 @@ func (s *Service) DispatchDueSchedules(ctx context.Context, now time.Time) (Disp
 		}
 		return nil
 	})
-	return result, xerror.Join(err, reconcileErr)
+	preflights, preflightErr := s.dispatchSchedulePreflights(ctx, now, triggers)
+	result.PreflightsEnqueued = preflights
+	return result, xerror.Join(err, reconcileErr, preflightErr)
 }
 
 // ExecuteClaimedScheduleFire executes one already-claimed schedule fire and records completion.

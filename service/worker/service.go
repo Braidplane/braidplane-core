@@ -62,6 +62,7 @@ type pruneExpiredCustomerDataService interface {
 }
 
 type scheduleDispatchService interface {
+	consumer.SchedulePreflightExecutor
 	DispatchDueSchedules(ctx context.Context, now time.Time) (pipelineschedulesvc.DispatchResult, error)
 	ExecuteClaimedScheduleFire(ctx context.Context, args jobs.PipelineScheduleFireExecutionArgs) error
 	ExecuteTriggerRetryAttempt(ctx context.Context, args jobs.PipelineTriggerRetryExecutionArgs) error
@@ -262,6 +263,9 @@ func (s *Service) Register(workers *river.Workers) error {
 		consumer.NewPipelineScheduleFireExecutionWorker(s.scheduleDispatcher, s.logger),
 	); err != nil {
 		return xerror.Wrapf("register pipeline schedule fire execution worker: %w", err)
+	}
+	if err := river.AddWorkerSafely(workers, consumer.NewPipelineSchedulePreflightWorker(s.scheduleDispatcher)); err != nil {
+		return xerror.Wrapf("register pipeline schedule preflight worker: %w", err)
 	}
 	if err := river.AddWorkerSafely(workers, consumer.NewPipelineWebhookDeliveryWorker(s.pipelineWebhookExecutor, s.logger)); err != nil {
 		return xerror.Wrapf("register pipeline webhook delivery worker: %w", err)

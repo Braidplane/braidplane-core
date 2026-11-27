@@ -1216,6 +1216,7 @@ func Run(cfg *backendconfig.Config, mode Mode, createDistribution DistributionFa
 		pipelineScheduleProducer,
 		pipelineRetryProducer,
 		pipelineschedulesvc.WithNotificationProducer(notificationCandidateProducer),
+		pipelineschedulesvc.WithPreflightServices(pipelinesService, datasourcesService),
 	)
 	retentionService := retentionsvc.New(
 		txm,

@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"math"
+	"time"
 
 	"github.com/jackc/pgx/v5/pgtype"
 
@@ -114,27 +115,30 @@ func (r *repository) CreatePipelineTrigger(
 		return nil, err
 	}
 	row, err := dbgen.New(tx).CreatePipelineTrigger(ctx, dbgen.CreatePipelineTriggerParams{
-		ProjectSlug:                 projectSlug,
-		EnvironmentSlug:             environmentSlug,
-		PipelineSlug:                params.PipelineSlug,
-		PinnedVersionHash:           optionalString(params.VersionPolicy.PinnedVersionHash),
-		OrgSlug:                     orgSlug,
-		TriggerSlug:                 params.Slug,
-		Name:                        params.Name,
-		TriggerType:                 params.Type.String(),
-		Enabled:                     params.Enabled,
-		VersionPolicy:               params.VersionPolicy.Mode.String(),
-		RuntimeInputKeys:            params.RuntimeInputKeys,
-		RetryEnabled:                params.RetryPolicy.Enabled,
-		RetryMaxAttempts:            retryMaxAttempts,
-		RetryBackoffStrategy:        params.RetryPolicy.BackoffStrategy.String(),
-		RetryInitialDelaySeconds:    retryInitialDelay,
-		RetryMaxDelaySeconds:        retryMaxDelay,
-		RetryableFailureKinds:       retryFailureKindStrings(params.RetryPolicy.RetryableFailureKinds),
-		RetryMaxElapsedSeconds:      retryMaxElapsed,
-		ScheduleCron:                scheduleCron(params.ScheduleConfig),
-		ScheduleTimezone:            scheduleTimezone(params.ScheduleConfig),
-		ScheduleMisfirePolicy:       scheduleMisfirePolicy(params.ScheduleConfig),
+		ProjectSlug:              projectSlug,
+		EnvironmentSlug:          environmentSlug,
+		PipelineSlug:             params.PipelineSlug,
+		PinnedVersionHash:        optionalString(params.VersionPolicy.PinnedVersionHash),
+		OrgSlug:                  orgSlug,
+		TriggerSlug:              params.Slug,
+		Name:                     params.Name,
+		TriggerType:              params.Type.String(),
+		Enabled:                  params.Enabled,
+		VersionPolicy:            params.VersionPolicy.Mode.String(),
+		RuntimeInputKeys:         params.RuntimeInputKeys,
+		RetryEnabled:             params.RetryPolicy.Enabled,
+		RetryMaxAttempts:         retryMaxAttempts,
+		RetryBackoffStrategy:     params.RetryPolicy.BackoffStrategy.String(),
+		RetryInitialDelaySeconds: retryInitialDelay,
+		RetryMaxDelaySeconds:     retryMaxDelay,
+		RetryableFailureKinds:    retryFailureKindStrings(params.RetryPolicy.RetryableFailureKinds),
+		RetryMaxElapsedSeconds:   retryMaxElapsed,
+		ScheduleCron:             scheduleCron(params.ScheduleConfig),
+		ScheduleTimezone:         scheduleTimezone(params.ScheduleConfig),
+		ScheduleMisfirePolicy:    scheduleMisfirePolicy(params.ScheduleConfig),
+
+		SchedulePreflightLeadMinutes: schedulePreflightLeadMinutes(params.ScheduleConfig),
+
 		ReceiverID:                  webhookReceiverID(params.WebhookConfig),
 		WebhookVerificationStrategy: webhookStrategy(params.WebhookConfig),
 		WebhookInputMappings:        webhookInputMappings,
@@ -232,27 +236,30 @@ func (r *repository) UpdatePipelineTrigger(
 		return nil, err
 	}
 	row, err := dbgen.New(tx).UpdatePipelineTrigger(ctx, dbgen.UpdatePipelineTriggerParams{
-		PipelineSlug:                params.PipelineSlug,
-		PinnedVersionHash:           optionalString(params.VersionPolicy.PinnedVersionHash),
-		OrgSlug:                     orgSlug,
-		ProjectSlug:                 projectSlug,
-		EnvironmentSlug:             environmentSlug,
-		TriggerSlug:                 triggerSlug,
-		VersionPolicy:               pgtype.Text{String: params.VersionPolicy.Mode.String(), Valid: true},
-		Name:                        params.Name,
-		TriggerType:                 params.Type.String(),
-		Enabled:                     params.Enabled,
-		RuntimeInputKeys:            params.RuntimeInputKeys,
-		RetryEnabled:                params.RetryPolicy.Enabled,
-		RetryMaxAttempts:            retryMaxAttempts,
-		RetryBackoffStrategy:        params.RetryPolicy.BackoffStrategy.String(),
-		RetryInitialDelaySeconds:    retryInitialDelay,
-		RetryMaxDelaySeconds:        retryMaxDelay,
-		RetryableFailureKinds:       retryFailureKindStrings(params.RetryPolicy.RetryableFailureKinds),
-		RetryMaxElapsedSeconds:      retryMaxElapsed,
-		ScheduleCron:                scheduleCron(params.ScheduleConfig),
-		ScheduleTimezone:            scheduleTimezone(params.ScheduleConfig),
-		ScheduleMisfirePolicy:       scheduleMisfirePolicy(params.ScheduleConfig),
+		PipelineSlug:             params.PipelineSlug,
+		PinnedVersionHash:        optionalString(params.VersionPolicy.PinnedVersionHash),
+		OrgSlug:                  orgSlug,
+		ProjectSlug:              projectSlug,
+		EnvironmentSlug:          environmentSlug,
+		TriggerSlug:              triggerSlug,
+		VersionPolicy:            pgtype.Text{String: params.VersionPolicy.Mode.String(), Valid: true},
+		Name:                     params.Name,
+		TriggerType:              params.Type.String(),
+		Enabled:                  params.Enabled,
+		RuntimeInputKeys:         params.RuntimeInputKeys,
+		RetryEnabled:             params.RetryPolicy.Enabled,
+		RetryMaxAttempts:         retryMaxAttempts,
+		RetryBackoffStrategy:     params.RetryPolicy.BackoffStrategy.String(),
+		RetryInitialDelaySeconds: retryInitialDelay,
+		RetryMaxDelaySeconds:     retryMaxDelay,
+		RetryableFailureKinds:    retryFailureKindStrings(params.RetryPolicy.RetryableFailureKinds),
+		RetryMaxElapsedSeconds:   retryMaxElapsed,
+		ScheduleCron:             scheduleCron(params.ScheduleConfig),
+		ScheduleTimezone:         scheduleTimezone(params.ScheduleConfig),
+		ScheduleMisfirePolicy:    scheduleMisfirePolicy(params.ScheduleConfig),
+
+		SchedulePreflightLeadMinutes: schedulePreflightLeadMinutes(params.ScheduleConfig),
+
 		ReceiverID:                  webhookReceiverID(params.WebhookConfig),
 		WebhookVerificationStrategy: webhookStrategy(params.WebhookConfig),
 		WebhookInputMappings:        webhookInputMappings,
@@ -294,26 +301,29 @@ func (r *repository) DeletePipelineTrigger(
 // It delegates enum, nullable, and schedule conversion to triggerFromFields.
 func triggerFromCreateRow(row dbgen.CreatePipelineTriggerRow) (*PipelineTrigger, error) {
 	return triggerFromFields(triggerFields{
-		Slug:                        row.Slug,
-		Name:                        row.Name,
-		TriggerType:                 row.TriggerType,
-		Enabled:                     row.Enabled,
-		Revision:                    row.Revision,
-		EnvironmentSlug:             row.EnvironmentSlug,
-		PipelineSlug:                row.PipelineSlug_2,
-		VersionPolicy:               row.VersionPolicy,
-		PinnedVersionHash:           row.PinnedVersionHash,
-		RuntimeInputKeys:            row.RuntimeInputKeys,
-		RetryEnabled:                row.RetryEnabled,
-		RetryMaxAttempts:            row.RetryMaxAttempts,
-		RetryBackoffStrategy:        row.RetryBackoffStrategy,
-		RetryInitialDelaySeconds:    row.RetryInitialDelaySeconds,
-		RetryMaxDelaySeconds:        row.RetryMaxDelaySeconds,
-		RetryableFailureKinds:       row.RetryableFailureKinds,
-		RetryMaxElapsedSeconds:      row.RetryMaxElapsedSeconds,
-		ScheduleCron:                row.ScheduleCron,
-		ScheduleTimezone:            row.ScheduleTimezone,
-		ScheduleMisfirePolicy:       row.ScheduleMisfirePolicy,
+		Slug:                     row.Slug,
+		Name:                     row.Name,
+		TriggerType:              row.TriggerType,
+		Enabled:                  row.Enabled,
+		Revision:                 row.Revision,
+		EnvironmentSlug:          row.EnvironmentSlug,
+		PipelineSlug:             row.PipelineSlug_2,
+		VersionPolicy:            row.VersionPolicy,
+		PinnedVersionHash:        row.PinnedVersionHash,
+		RuntimeInputKeys:         row.RuntimeInputKeys,
+		RetryEnabled:             row.RetryEnabled,
+		RetryMaxAttempts:         row.RetryMaxAttempts,
+		RetryBackoffStrategy:     row.RetryBackoffStrategy,
+		RetryInitialDelaySeconds: row.RetryInitialDelaySeconds,
+		RetryMaxDelaySeconds:     row.RetryMaxDelaySeconds,
+		RetryableFailureKinds:    row.RetryableFailureKinds,
+		RetryMaxElapsedSeconds:   row.RetryMaxElapsedSeconds,
+		ScheduleCron:             row.ScheduleCron,
+		ScheduleTimezone:         row.ScheduleTimezone,
+		ScheduleMisfirePolicy:    row.ScheduleMisfirePolicy,
+
+		SchedulePreflightLeadMinutes: row.SchedulePreflightLeadMinutes,
+
 		ReceiverID:                  row.ReceiverID,
 		WebhookVerificationStrategy: row.WebhookVerificationStrategy,
 		WebhookInputMappings:        row.WebhookInputMappings,
@@ -333,26 +343,29 @@ func triggerFromCreateRow(row dbgen.CreatePipelineTriggerRow) (*PipelineTrigger,
 // It delegates enum, nullable, and schedule conversion to triggerFromFields.
 func triggerFromFindRow(row dbgen.FindPipelineTriggerBySlugRow) (*PipelineTrigger, error) {
 	return triggerFromFields(triggerFields{
-		Slug:                        row.Slug,
-		Name:                        row.Name,
-		TriggerType:                 row.TriggerType,
-		Enabled:                     row.Enabled,
-		Revision:                    row.Revision,
-		EnvironmentSlug:             row.EnvironmentSlug,
-		PipelineSlug:                row.PipelineSlug_2,
-		VersionPolicy:               row.VersionPolicy,
-		PinnedVersionHash:           row.PinnedVersionHash,
-		RuntimeInputKeys:            row.RuntimeInputKeys,
-		RetryEnabled:                row.RetryEnabled,
-		RetryMaxAttempts:            row.RetryMaxAttempts,
-		RetryBackoffStrategy:        row.RetryBackoffStrategy,
-		RetryInitialDelaySeconds:    row.RetryInitialDelaySeconds,
-		RetryMaxDelaySeconds:        row.RetryMaxDelaySeconds,
-		RetryableFailureKinds:       row.RetryableFailureKinds,
-		RetryMaxElapsedSeconds:      row.RetryMaxElapsedSeconds,
-		ScheduleCron:                row.ScheduleCron,
-		ScheduleTimezone:            row.ScheduleTimezone,
-		ScheduleMisfirePolicy:       row.ScheduleMisfirePolicy,
+		Slug:                     row.Slug,
+		Name:                     row.Name,
+		TriggerType:              row.TriggerType,
+		Enabled:                  row.Enabled,
+		Revision:                 row.Revision,
+		EnvironmentSlug:          row.EnvironmentSlug,
+		PipelineSlug:             row.PipelineSlug_2,
+		VersionPolicy:            row.VersionPolicy,
+		PinnedVersionHash:        row.PinnedVersionHash,
+		RuntimeInputKeys:         row.RuntimeInputKeys,
+		RetryEnabled:             row.RetryEnabled,
+		RetryMaxAttempts:         row.RetryMaxAttempts,
+		RetryBackoffStrategy:     row.RetryBackoffStrategy,
+		RetryInitialDelaySeconds: row.RetryInitialDelaySeconds,
+		RetryMaxDelaySeconds:     row.RetryMaxDelaySeconds,
+		RetryableFailureKinds:    row.RetryableFailureKinds,
+		RetryMaxElapsedSeconds:   row.RetryMaxElapsedSeconds,
+		ScheduleCron:             row.ScheduleCron,
+		ScheduleTimezone:         row.ScheduleTimezone,
+		ScheduleMisfirePolicy:    row.ScheduleMisfirePolicy,
+
+		SchedulePreflightLeadMinutes: row.SchedulePreflightLeadMinutes,
+
 		ReceiverID:                  row.ReceiverID,
 		WebhookVerificationStrategy: row.WebhookVerificationStrategy,
 		WebhookInputMappings:        row.WebhookInputMappings,
@@ -372,26 +385,29 @@ func triggerFromFindRow(row dbgen.FindPipelineTriggerBySlugRow) (*PipelineTrigge
 // It delegates enum, nullable, and schedule conversion to triggerFromFields.
 func triggerFromListRow(row dbgen.ListPipelineTriggersRow) (*PipelineTrigger, error) {
 	return triggerFromFields(triggerFields{
-		Slug:                        row.Slug,
-		Name:                        row.Name,
-		TriggerType:                 row.TriggerType,
-		Enabled:                     row.Enabled,
-		Revision:                    row.Revision,
-		EnvironmentSlug:             row.EnvironmentSlug,
-		PipelineSlug:                row.PipelineSlug_2,
-		VersionPolicy:               row.VersionPolicy,
-		PinnedVersionHash:           row.PinnedVersionHash,
-		RuntimeInputKeys:            row.RuntimeInputKeys,
-		RetryEnabled:                row.RetryEnabled,
-		RetryMaxAttempts:            row.RetryMaxAttempts,
-		RetryBackoffStrategy:        row.RetryBackoffStrategy,
-		RetryInitialDelaySeconds:    row.RetryInitialDelaySeconds,
-		RetryMaxDelaySeconds:        row.RetryMaxDelaySeconds,
-		RetryableFailureKinds:       row.RetryableFailureKinds,
-		RetryMaxElapsedSeconds:      row.RetryMaxElapsedSeconds,
-		ScheduleCron:                row.ScheduleCron,
-		ScheduleTimezone:            row.ScheduleTimezone,
-		ScheduleMisfirePolicy:       row.ScheduleMisfirePolicy,
+		Slug:                     row.Slug,
+		Name:                     row.Name,
+		TriggerType:              row.TriggerType,
+		Enabled:                  row.Enabled,
+		Revision:                 row.Revision,
+		EnvironmentSlug:          row.EnvironmentSlug,
+		PipelineSlug:             row.PipelineSlug_2,
+		VersionPolicy:            row.VersionPolicy,
+		PinnedVersionHash:        row.PinnedVersionHash,
+		RuntimeInputKeys:         row.RuntimeInputKeys,
+		RetryEnabled:             row.RetryEnabled,
+		RetryMaxAttempts:         row.RetryMaxAttempts,
+		RetryBackoffStrategy:     row.RetryBackoffStrategy,
+		RetryInitialDelaySeconds: row.RetryInitialDelaySeconds,
+		RetryMaxDelaySeconds:     row.RetryMaxDelaySeconds,
+		RetryableFailureKinds:    row.RetryableFailureKinds,
+		RetryMaxElapsedSeconds:   row.RetryMaxElapsedSeconds,
+		ScheduleCron:             row.ScheduleCron,
+		ScheduleTimezone:         row.ScheduleTimezone,
+		ScheduleMisfirePolicy:    row.ScheduleMisfirePolicy,
+
+		SchedulePreflightLeadMinutes: row.SchedulePreflightLeadMinutes,
+
 		ReceiverID:                  row.ReceiverID,
 		WebhookVerificationStrategy: row.WebhookVerificationStrategy,
 		WebhookInputMappings:        row.WebhookInputMappings,
@@ -411,26 +427,29 @@ func triggerFromListRow(row dbgen.ListPipelineTriggersRow) (*PipelineTrigger, er
 // It delegates enum, nullable, and schedule conversion to triggerFromFields.
 func triggerFromUpdateRow(row dbgen.UpdatePipelineTriggerRow) (*PipelineTrigger, error) {
 	return triggerFromFields(triggerFields{
-		Slug:                        row.Slug,
-		Name:                        row.Name,
-		TriggerType:                 row.TriggerType,
-		Enabled:                     row.Enabled,
-		Revision:                    row.Revision,
-		EnvironmentSlug:             row.EnvironmentSlug,
-		PipelineSlug:                row.PipelineSlug_2,
-		VersionPolicy:               row.VersionPolicy,
-		PinnedVersionHash:           row.PinnedVersionHash,
-		RuntimeInputKeys:            row.RuntimeInputKeys,
-		RetryEnabled:                row.RetryEnabled,
-		RetryMaxAttempts:            row.RetryMaxAttempts,
-		RetryBackoffStrategy:        row.RetryBackoffStrategy,
-		RetryInitialDelaySeconds:    row.RetryInitialDelaySeconds,
-		RetryMaxDelaySeconds:        row.RetryMaxDelaySeconds,
-		RetryableFailureKinds:       row.RetryableFailureKinds,
-		RetryMaxElapsedSeconds:      row.RetryMaxElapsedSeconds,
-		ScheduleCron:                row.ScheduleCron,
-		ScheduleTimezone:            row.ScheduleTimezone,
-		ScheduleMisfirePolicy:       row.ScheduleMisfirePolicy,
+		Slug:                     row.Slug,
+		Name:                     row.Name,
+		TriggerType:              row.TriggerType,
+		Enabled:                  row.Enabled,
+		Revision:                 row.Revision,
+		EnvironmentSlug:          row.EnvironmentSlug,
+		PipelineSlug:             row.PipelineSlug_2,
+		VersionPolicy:            row.VersionPolicy,
+		PinnedVersionHash:        row.PinnedVersionHash,
+		RuntimeInputKeys:         row.RuntimeInputKeys,
+		RetryEnabled:             row.RetryEnabled,
+		RetryMaxAttempts:         row.RetryMaxAttempts,
+		RetryBackoffStrategy:     row.RetryBackoffStrategy,
+		RetryInitialDelaySeconds: row.RetryInitialDelaySeconds,
+		RetryMaxDelaySeconds:     row.RetryMaxDelaySeconds,
+		RetryableFailureKinds:    row.RetryableFailureKinds,
+		RetryMaxElapsedSeconds:   row.RetryMaxElapsedSeconds,
+		ScheduleCron:             row.ScheduleCron,
+		ScheduleTimezone:         row.ScheduleTimezone,
+		ScheduleMisfirePolicy:    row.ScheduleMisfirePolicy,
+
+		SchedulePreflightLeadMinutes: row.SchedulePreflightLeadMinutes,
+
 		ReceiverID:                  row.ReceiverID,
 		WebhookVerificationStrategy: row.WebhookVerificationStrategy,
 		WebhookInputMappings:        row.WebhookInputMappings,
@@ -447,26 +466,29 @@ func triggerFromUpdateRow(row dbgen.UpdatePipelineTriggerRow) (*PipelineTrigger,
 }
 
 type triggerFields struct {
-	Slug                        slug.Slug
-	Name                        string
-	TriggerType                 string
-	Enabled                     bool
-	Revision                    int64
-	EnvironmentSlug             slug.Slug
-	PipelineSlug                slug.Slug
-	VersionPolicy               string
-	PinnedVersionHash           pgtype.Text
-	RuntimeInputKeys            []string
-	RetryEnabled                bool
-	RetryMaxAttempts            int32
-	RetryBackoffStrategy        string
-	RetryInitialDelaySeconds    int32
-	RetryMaxDelaySeconds        int32
-	RetryableFailureKinds       []string
-	RetryMaxElapsedSeconds      pgtype.Int4
-	ScheduleCron                pgtype.Text
-	ScheduleTimezone            pgtype.Text
-	ScheduleMisfirePolicy       pgtype.Text
+	Slug                     slug.Slug
+	Name                     string
+	TriggerType              string
+	Enabled                  bool
+	Revision                 int64
+	EnvironmentSlug          slug.Slug
+	PipelineSlug             slug.Slug
+	VersionPolicy            string
+	PinnedVersionHash        pgtype.Text
+	RuntimeInputKeys         []string
+	RetryEnabled             bool
+	RetryMaxAttempts         int32
+	RetryBackoffStrategy     string
+	RetryInitialDelaySeconds int32
+	RetryMaxDelaySeconds     int32
+	RetryableFailureKinds    []string
+	RetryMaxElapsedSeconds   pgtype.Int4
+	ScheduleCron             pgtype.Text
+	ScheduleTimezone         pgtype.Text
+	ScheduleMisfirePolicy    pgtype.Text
+
+	SchedulePreflightLeadMinutes pgtype.Int4
+
 	ReceiverID                  pgtype.Text
 	WebhookVerificationStrategy pgtype.Text
 	CompletionConfig            []byte
@@ -543,9 +565,10 @@ func triggerFromFields(fields triggerFields) (*PipelineTrigger, error) {
 			return nil, xerror.Unexpected().With(err)
 		}
 		trigger.ScheduleConfig = &model.PipelineTriggerScheduleConfig{
-			Cron:          fields.ScheduleCron.String,
-			Timezone:      fields.ScheduleTimezone.String,
-			MisfirePolicy: misfirePolicy,
+			Cron:              fields.ScheduleCron.String,
+			Timezone:          fields.ScheduleTimezone.String,
+			MisfirePolicy:     misfirePolicy,
+			PreflightLeadTime: time.Duration(fields.SchedulePreflightLeadMinutes.Int32) * time.Minute,
 		}
 	}
 	if triggerType == model.PipelineTriggerTypeWebhook {
@@ -736,6 +759,14 @@ func scheduleMisfirePolicy(config *model.PipelineTriggerScheduleConfig) pgtype.T
 		return pgtype.Text{}
 	}
 	return pgtype.Text{String: config.MisfirePolicy.String(), Valid: true}
+}
+
+func schedulePreflightLeadMinutes(config *model.PipelineTriggerScheduleConfig) pgtype.Int4 {
+	if config == nil || config.PreflightLeadTime == 0 {
+		return pgtype.Int4{}
+	}
+	// #nosec G115 -- the full time.Duration range in minutes fits in int32.
+	return pgtype.Int4{Int32: int32(config.PreflightLeadTime / time.Minute), Valid: true}
 }
 
 func completionConfigJSON(config *model.PipelineTriggerCompletionConfig) ([]byte, error) {

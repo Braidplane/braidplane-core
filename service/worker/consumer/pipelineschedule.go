@@ -9,6 +9,7 @@ import (
 
 	"github.com/Braidplane/braidplane-core/pkg/clock"
 	"github.com/Braidplane/braidplane-core/pkg/logging"
+	"github.com/Braidplane/braidplane-core/pkg/xerror"
 	"github.com/Braidplane/braidplane-core/service/pipelineschedulesvc"
 	"github.com/Braidplane/braidplane-core/service/worker/jobs"
 )
@@ -71,7 +72,32 @@ func (w *pipelineScheduleDispatchWorker) Work(
 		slog.Int("skipped_invalid", result.SkippedInvalid),
 		slog.Int("skipped_misfire", result.SkippedMisfire),
 		slog.Int("already_claimed", result.AlreadyClaimed),
+		slog.Int("preflights_enqueued", result.PreflightsEnqueued),
 	)
+	return nil
+}
+
+type SchedulePreflightExecutor interface {
+	ExecuteSchedulePreflight(context.Context, jobs.PipelineSchedulePreflightArgs) (bool, error)
+}
+
+func NewPipelineSchedulePreflightWorker(service SchedulePreflightExecutor) river.Worker[jobs.PipelineSchedulePreflightArgs] {
+	return &pipelineSchedulePreflightWorker{service: service}
+}
+
+type pipelineSchedulePreflightWorker struct {
+	river.WorkerDefaults[jobs.PipelineSchedulePreflightArgs]
+	service SchedulePreflightExecutor
+}
+
+func (w *pipelineSchedulePreflightWorker) Work(ctx context.Context, job *river.Job[jobs.PipelineSchedulePreflightArgs]) error {
+	waiting, err := w.service.ExecuteSchedulePreflight(ctx, job.Args)
+	if err != nil {
+		return err
+	}
+	if waiting {
+		return xerror.Wrapf("wait for scheduled preflight schema refresh: %w", river.JobSnooze(15*time.Second))
+	}
 	return nil
 }
 

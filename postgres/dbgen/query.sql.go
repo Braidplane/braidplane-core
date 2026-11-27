@@ -1954,6 +1954,54 @@ func (q *Queries) ClaimScheduleFire(ctx context.Context, arg ClaimScheduleFirePa
 	return i, err
 }
 
+const claimSchedulePreflight = `-- name: ClaimSchedulePreflight :execrows
+INSERT INTO pipeline_schedule_preflights (
+    pipeline_trigger_id, trigger_revision, scheduled_fire_at, preflight_at, pipeline_slug
+)
+SELECT pt.id, pt.revision, $1, $2, ps.slug
+FROM pipeline_triggers pt
+JOIN project_environments pe ON pe.id = pt.project_environment_id
+JOIN projects p ON p.id = pe.project_id
+JOIN organizations o ON o.id = p.organization_id
+JOIN environments e ON e.id = pe.environment_id AND e.organization_id = o.id
+JOIN pipeline_specs ps ON ps.id = pt.pipeline_id AND ps.project_id = p.id AND ps.deleted_at IS NULL
+WHERE o.slug = $3
+    AND p.slug = $4
+    AND e.slug = $5
+    AND e.deleted_at IS NULL AND pe.deleted_at IS NULL
+    AND pt.slug = $6
+    AND pt.revision = $7
+    AND pt.trigger_type = 'schedule' AND pt.enabled
+    AND pt.schedule_preflight_lead_minutes IS NOT NULL
+ON CONFLICT (pipeline_trigger_id, trigger_revision, scheduled_fire_at) DO NOTHING
+`
+
+type ClaimSchedulePreflightParams struct {
+	ScheduledFireAt pgtype.Timestamptz
+	PreflightAt     pgtype.Timestamptz
+	OrgSlug         slug.Slug
+	ProjectSlug     slug.Slug
+	EnvironmentSlug slug.Slug
+	TriggerSlug     slug.Slug
+	TriggerRevision int64
+}
+
+func (q *Queries) ClaimSchedulePreflight(ctx context.Context, arg ClaimSchedulePreflightParams) (int64, error) {
+	result, err := q.db.Exec(ctx, claimSchedulePreflight,
+		arg.ScheduledFireAt,
+		arg.PreflightAt,
+		arg.OrgSlug,
+		arg.ProjectSlug,
+		arg.EnvironmentSlug,
+		arg.TriggerSlug,
+		arg.TriggerRevision,
+	)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
 const claimedProposalAuthorization = `-- name: ClaimedProposalAuthorization :one
 SELECT claimed_proposal_authorization($1::uuid,$2::uuid)::jsonb AS facts
 `
@@ -5979,6 +6027,7 @@ inserted AS (
         schedule_cron,
         schedule_timezone,
         schedule_misfire_policy,
+        schedule_preflight_lead_minutes,
         receiver_id,
         webhook_verification_strategy,
         webhook_input_mappings,
@@ -6015,22 +6064,23 @@ inserted AS (
         $20::text,
         $21::text,
         $22::text,
-        $23::text,
+        $23::integer,
         $24::text,
-        $25::jsonb,
+        $25::text,
         $26::jsonb,
-        $27,
-        $28::text,
-        $29,
-        $30::text,
+        $27::jsonb,
+        $28,
+        $29::text,
+        $30,
+        $31::text,
         CASE WHEN $10 THEN NULL ELSE NOW() END
     FROM target
     WHERE $6 <> 'pinned'
         OR target.pinned_pipeline_version_id IS NOT NULL
-    RETURNING id, project_id, project_environment_id, pipeline_id, pipeline_slug, pinned_pipeline_version_id, slug, name, trigger_type, enabled, revision, version_policy, runtime_input_keys, retry_enabled, retry_max_attempts, retry_backoff_strategy, retry_initial_delay_seconds, retry_max_delay_seconds, retry_jitter, retryable_failure_kinds, retry_max_elapsed_seconds, schedule_cron, schedule_timezone, schedule_misfire_policy, created_by_actor_type, created_by_actor_slug, updated_by_actor_type, updated_by_actor_slug, disabled_at, created_at, updated_at, receiver_id, webhook_verification_strategy, webhook_input_mappings, completion_config, completion_editor_id
+    RETURNING id, project_id, project_environment_id, pipeline_id, pipeline_slug, pinned_pipeline_version_id, slug, name, trigger_type, enabled, revision, version_policy, runtime_input_keys, retry_enabled, retry_max_attempts, retry_backoff_strategy, retry_initial_delay_seconds, retry_max_delay_seconds, retry_jitter, retryable_failure_kinds, retry_max_elapsed_seconds, schedule_cron, schedule_timezone, schedule_misfire_policy, created_by_actor_type, created_by_actor_slug, updated_by_actor_type, updated_by_actor_slug, disabled_at, created_at, updated_at, receiver_id, webhook_verification_strategy, webhook_input_mappings, completion_config, completion_editor_id, schedule_preflight_lead_minutes
 )
 SELECT
-    inserted.id, inserted.project_id, inserted.project_environment_id, inserted.pipeline_id, inserted.pipeline_slug, inserted.pinned_pipeline_version_id, inserted.slug, inserted.name, inserted.trigger_type, inserted.enabled, inserted.revision, inserted.version_policy, inserted.runtime_input_keys, inserted.retry_enabled, inserted.retry_max_attempts, inserted.retry_backoff_strategy, inserted.retry_initial_delay_seconds, inserted.retry_max_delay_seconds, inserted.retry_jitter, inserted.retryable_failure_kinds, inserted.retry_max_elapsed_seconds, inserted.schedule_cron, inserted.schedule_timezone, inserted.schedule_misfire_policy, inserted.created_by_actor_type, inserted.created_by_actor_slug, inserted.updated_by_actor_type, inserted.updated_by_actor_slug, inserted.disabled_at, inserted.created_at, inserted.updated_at, inserted.receiver_id, inserted.webhook_verification_strategy, inserted.webhook_input_mappings, inserted.completion_config, inserted.completion_editor_id,
+    inserted.id, inserted.project_id, inserted.project_environment_id, inserted.pipeline_id, inserted.pipeline_slug, inserted.pinned_pipeline_version_id, inserted.slug, inserted.name, inserted.trigger_type, inserted.enabled, inserted.revision, inserted.version_policy, inserted.runtime_input_keys, inserted.retry_enabled, inserted.retry_max_attempts, inserted.retry_backoff_strategy, inserted.retry_initial_delay_seconds, inserted.retry_max_delay_seconds, inserted.retry_jitter, inserted.retryable_failure_kinds, inserted.retry_max_elapsed_seconds, inserted.schedule_cron, inserted.schedule_timezone, inserted.schedule_misfire_policy, inserted.created_by_actor_type, inserted.created_by_actor_slug, inserted.updated_by_actor_type, inserted.updated_by_actor_slug, inserted.disabled_at, inserted.created_at, inserted.updated_at, inserted.receiver_id, inserted.webhook_verification_strategy, inserted.webhook_input_mappings, inserted.completion_config, inserted.completion_editor_id, inserted.schedule_preflight_lead_minutes,
     e.slug AS environment_slug,
     ps.slug AS pipeline_slug,
     pinned.spec_hash AS pinned_version_hash,
@@ -6043,79 +6093,81 @@ LEFT JOIN pipeline_versions pinned ON pinned.id = inserted.pinned_pipeline_versi
 `
 
 type CreatePipelineTriggerParams struct {
-	ProjectSlug                 slug.Slug
-	EnvironmentSlug             slug.Slug
-	PipelineSlug                slug.Slug
-	PinnedVersionHash           pgtype.Text
-	OrgSlug                     slug.Slug
-	VersionPolicy               string
-	TriggerSlug                 slug.Slug
-	Name                        string
-	TriggerType                 string
-	Enabled                     bool
-	RuntimeInputKeys            []string
-	RetryEnabled                bool
-	RetryMaxAttempts            int32
-	RetryBackoffStrategy        string
-	RetryInitialDelaySeconds    int32
-	RetryMaxDelaySeconds        int32
-	RetryJitter                 bool
-	RetryableFailureKinds       []string
-	RetryMaxElapsedSeconds      pgtype.Int4
-	ScheduleCron                pgtype.Text
-	ScheduleTimezone            pgtype.Text
-	ScheduleMisfirePolicy       pgtype.Text
-	ReceiverID                  pgtype.Text
-	WebhookVerificationStrategy pgtype.Text
-	WebhookInputMappings        []byte
-	CompletionConfig            []byte
-	CreatedByActorType          string
-	CreatedByActorSlug          pgtype.Text
-	UpdatedByActorType          string
-	UpdatedByActorSlug          pgtype.Text
+	ProjectSlug                  slug.Slug
+	EnvironmentSlug              slug.Slug
+	PipelineSlug                 slug.Slug
+	PinnedVersionHash            pgtype.Text
+	OrgSlug                      slug.Slug
+	VersionPolicy                string
+	TriggerSlug                  slug.Slug
+	Name                         string
+	TriggerType                  string
+	Enabled                      bool
+	RuntimeInputKeys             []string
+	RetryEnabled                 bool
+	RetryMaxAttempts             int32
+	RetryBackoffStrategy         string
+	RetryInitialDelaySeconds     int32
+	RetryMaxDelaySeconds         int32
+	RetryJitter                  bool
+	RetryableFailureKinds        []string
+	RetryMaxElapsedSeconds       pgtype.Int4
+	ScheduleCron                 pgtype.Text
+	ScheduleTimezone             pgtype.Text
+	ScheduleMisfirePolicy        pgtype.Text
+	SchedulePreflightLeadMinutes pgtype.Int4
+	ReceiverID                   pgtype.Text
+	WebhookVerificationStrategy  pgtype.Text
+	WebhookInputMappings         []byte
+	CompletionConfig             []byte
+	CreatedByActorType           string
+	CreatedByActorSlug           pgtype.Text
+	UpdatedByActorType           string
+	UpdatedByActorSlug           pgtype.Text
 }
 
 type CreatePipelineTriggerRow struct {
-	ID                          int
-	ProjectID                   int64
-	ProjectEnvironmentID        int64
-	PipelineID                  int64
-	PipelineSlug                string
-	PinnedPipelineVersionID     pgtype.Int8
-	Slug                        slug.Slug
-	Name                        string
-	TriggerType                 string
-	Enabled                     bool
-	Revision                    int64
-	VersionPolicy               string
-	RuntimeInputKeys            []string
-	RetryEnabled                bool
-	RetryMaxAttempts            int32
-	RetryBackoffStrategy        string
-	RetryInitialDelaySeconds    int32
-	RetryMaxDelaySeconds        int32
-	RetryJitter                 bool
-	RetryableFailureKinds       []string
-	RetryMaxElapsedSeconds      pgtype.Int4
-	ScheduleCron                pgtype.Text
-	ScheduleTimezone            pgtype.Text
-	ScheduleMisfirePolicy       pgtype.Text
-	CreatedByActorType          string
-	CreatedByActorSlug          pgtype.Text
-	UpdatedByActorType          string
-	UpdatedByActorSlug          pgtype.Text
-	DisabledAt                  pgtype.Timestamptz
-	CreatedAt                   pgtype.Timestamptz
-	UpdatedAt                   pgtype.Timestamptz
-	ReceiverID                  pgtype.Text
-	WebhookVerificationStrategy pgtype.Text
-	WebhookInputMappings        []byte
-	CompletionConfig            []byte
-	CompletionEditorID          pgtype.Text
-	EnvironmentSlug             slug.Slug
-	PipelineSlug_2              slug.Slug
-	PinnedVersionHash           pgtype.Text
-	EnabledKeyVersions          []int32
+	ID                           int
+	ProjectID                    int64
+	ProjectEnvironmentID         int64
+	PipelineID                   int64
+	PipelineSlug                 string
+	PinnedPipelineVersionID      pgtype.Int8
+	Slug                         slug.Slug
+	Name                         string
+	TriggerType                  string
+	Enabled                      bool
+	Revision                     int64
+	VersionPolicy                string
+	RuntimeInputKeys             []string
+	RetryEnabled                 bool
+	RetryMaxAttempts             int32
+	RetryBackoffStrategy         string
+	RetryInitialDelaySeconds     int32
+	RetryMaxDelaySeconds         int32
+	RetryJitter                  bool
+	RetryableFailureKinds        []string
+	RetryMaxElapsedSeconds       pgtype.Int4
+	ScheduleCron                 pgtype.Text
+	ScheduleTimezone             pgtype.Text
+	ScheduleMisfirePolicy        pgtype.Text
+	CreatedByActorType           string
+	CreatedByActorSlug           pgtype.Text
+	UpdatedByActorType           string
+	UpdatedByActorSlug           pgtype.Text
+	DisabledAt                   pgtype.Timestamptz
+	CreatedAt                    pgtype.Timestamptz
+	UpdatedAt                    pgtype.Timestamptz
+	ReceiverID                   pgtype.Text
+	WebhookVerificationStrategy  pgtype.Text
+	WebhookInputMappings         []byte
+	CompletionConfig             []byte
+	CompletionEditorID           pgtype.Text
+	SchedulePreflightLeadMinutes pgtype.Int4
+	EnvironmentSlug              slug.Slug
+	PipelineSlug_2               slug.Slug
+	PinnedVersionHash            pgtype.Text
+	EnabledKeyVersions           []int32
 }
 
 func (q *Queries) CreatePipelineTrigger(ctx context.Context, arg CreatePipelineTriggerParams) (CreatePipelineTriggerRow, error) {
@@ -6142,6 +6194,7 @@ func (q *Queries) CreatePipelineTrigger(ctx context.Context, arg CreatePipelineT
 		arg.ScheduleCron,
 		arg.ScheduleTimezone,
 		arg.ScheduleMisfirePolicy,
+		arg.SchedulePreflightLeadMinutes,
 		arg.ReceiverID,
 		arg.WebhookVerificationStrategy,
 		arg.WebhookInputMappings,
@@ -6189,6 +6242,7 @@ func (q *Queries) CreatePipelineTrigger(ctx context.Context, arg CreatePipelineT
 		&i.WebhookInputMappings,
 		&i.CompletionConfig,
 		&i.CompletionEditorID,
+		&i.SchedulePreflightLeadMinutes,
 		&i.EnvironmentSlug,
 		&i.PipelineSlug_2,
 		&i.PinnedVersionHash,
@@ -11684,7 +11738,8 @@ JOIN alert_policies ap ON ap.organization_id = nr.organization_id
 WHERE o.slug = $2
     AND nr.slug = $3
     AND nd.slug = $4
-    AND (nr.notification_type <> 'pipeline.run_succeeded' OR ap.notification_type = 'pipeline.run_succeeded')
+    AND (nr.notification_type NOT IN ('pipeline.run_succeeded', 'pipeline.scheduled_preflight_failed')
+        OR ap.notification_type = nr.notification_type)
     AND (nd.type <> 'slack' OR (nd.enabled AND ap.enabled AND EXISTS (
         SELECT 1 FROM alert_policy_destinations binding
         WHERE binding.organization_id=o.id AND binding.destination_id=nd.id AND binding.alert_policy_id=ap.id
@@ -13494,7 +13549,7 @@ func (q *Queries) FindPipelineSpecDeletedAtForUpdate(ctx context.Context, arg Fi
 
 const findPipelineTriggerBySlug = `-- name: FindPipelineTriggerBySlug :one
 SELECT
-    pt.id, pt.project_id, pt.project_environment_id, pt.pipeline_id, pt.pipeline_slug, pt.pinned_pipeline_version_id, pt.slug, pt.name, pt.trigger_type, pt.enabled, pt.revision, pt.version_policy, pt.runtime_input_keys, pt.retry_enabled, pt.retry_max_attempts, pt.retry_backoff_strategy, pt.retry_initial_delay_seconds, pt.retry_max_delay_seconds, pt.retry_jitter, pt.retryable_failure_kinds, pt.retry_max_elapsed_seconds, pt.schedule_cron, pt.schedule_timezone, pt.schedule_misfire_policy, pt.created_by_actor_type, pt.created_by_actor_slug, pt.updated_by_actor_type, pt.updated_by_actor_slug, pt.disabled_at, pt.created_at, pt.updated_at, pt.receiver_id, pt.webhook_verification_strategy, pt.webhook_input_mappings, pt.completion_config, pt.completion_editor_id,
+    pt.id, pt.project_id, pt.project_environment_id, pt.pipeline_id, pt.pipeline_slug, pt.pinned_pipeline_version_id, pt.slug, pt.name, pt.trigger_type, pt.enabled, pt.revision, pt.version_policy, pt.runtime_input_keys, pt.retry_enabled, pt.retry_max_attempts, pt.retry_backoff_strategy, pt.retry_initial_delay_seconds, pt.retry_max_delay_seconds, pt.retry_jitter, pt.retryable_failure_kinds, pt.retry_max_elapsed_seconds, pt.schedule_cron, pt.schedule_timezone, pt.schedule_misfire_policy, pt.created_by_actor_type, pt.created_by_actor_slug, pt.updated_by_actor_type, pt.updated_by_actor_slug, pt.disabled_at, pt.created_at, pt.updated_at, pt.receiver_id, pt.webhook_verification_strategy, pt.webhook_input_mappings, pt.completion_config, pt.completion_editor_id, pt.schedule_preflight_lead_minutes,
     e.slug AS environment_slug,
     ps.slug AS pipeline_slug,
     pinned.spec_hash AS pinned_version_hash,
@@ -13525,46 +13580,47 @@ type FindPipelineTriggerBySlugParams struct {
 }
 
 type FindPipelineTriggerBySlugRow struct {
-	ID                          int
-	ProjectID                   int64
-	ProjectEnvironmentID        int64
-	PipelineID                  int64
-	PipelineSlug                string
-	PinnedPipelineVersionID     pgtype.Int8
-	Slug                        slug.Slug
-	Name                        string
-	TriggerType                 string
-	Enabled                     bool
-	Revision                    int64
-	VersionPolicy               string
-	RuntimeInputKeys            []string
-	RetryEnabled                bool
-	RetryMaxAttempts            int32
-	RetryBackoffStrategy        string
-	RetryInitialDelaySeconds    int32
-	RetryMaxDelaySeconds        int32
-	RetryJitter                 bool
-	RetryableFailureKinds       []string
-	RetryMaxElapsedSeconds      pgtype.Int4
-	ScheduleCron                pgtype.Text
-	ScheduleTimezone            pgtype.Text
-	ScheduleMisfirePolicy       pgtype.Text
-	CreatedByActorType          string
-	CreatedByActorSlug          pgtype.Text
-	UpdatedByActorType          string
-	UpdatedByActorSlug          pgtype.Text
-	DisabledAt                  pgtype.Timestamptz
-	CreatedAt                   pgtype.Timestamptz
-	UpdatedAt                   pgtype.Timestamptz
-	ReceiverID                  pgtype.Text
-	WebhookVerificationStrategy pgtype.Text
-	WebhookInputMappings        []byte
-	CompletionConfig            []byte
-	CompletionEditorID          pgtype.Text
-	EnvironmentSlug             slug.Slug
-	PipelineSlug_2              slug.Slug
-	PinnedVersionHash           pgtype.Text
-	EnabledKeyVersions          []int32
+	ID                           int
+	ProjectID                    int64
+	ProjectEnvironmentID         int64
+	PipelineID                   int64
+	PipelineSlug                 string
+	PinnedPipelineVersionID      pgtype.Int8
+	Slug                         slug.Slug
+	Name                         string
+	TriggerType                  string
+	Enabled                      bool
+	Revision                     int64
+	VersionPolicy                string
+	RuntimeInputKeys             []string
+	RetryEnabled                 bool
+	RetryMaxAttempts             int32
+	RetryBackoffStrategy         string
+	RetryInitialDelaySeconds     int32
+	RetryMaxDelaySeconds         int32
+	RetryJitter                  bool
+	RetryableFailureKinds        []string
+	RetryMaxElapsedSeconds       pgtype.Int4
+	ScheduleCron                 pgtype.Text
+	ScheduleTimezone             pgtype.Text
+	ScheduleMisfirePolicy        pgtype.Text
+	CreatedByActorType           string
+	CreatedByActorSlug           pgtype.Text
+	UpdatedByActorType           string
+	UpdatedByActorSlug           pgtype.Text
+	DisabledAt                   pgtype.Timestamptz
+	CreatedAt                    pgtype.Timestamptz
+	UpdatedAt                    pgtype.Timestamptz
+	ReceiverID                   pgtype.Text
+	WebhookVerificationStrategy  pgtype.Text
+	WebhookInputMappings         []byte
+	CompletionConfig             []byte
+	CompletionEditorID           pgtype.Text
+	SchedulePreflightLeadMinutes pgtype.Int4
+	EnvironmentSlug              slug.Slug
+	PipelineSlug_2               slug.Slug
+	PinnedVersionHash            pgtype.Text
+	EnabledKeyVersions           []int32
 }
 
 func (q *Queries) FindPipelineTriggerBySlug(ctx context.Context, arg FindPipelineTriggerBySlugParams) (FindPipelineTriggerBySlugRow, error) {
@@ -13612,6 +13668,7 @@ func (q *Queries) FindPipelineTriggerBySlug(ctx context.Context, arg FindPipelin
 		&i.WebhookInputMappings,
 		&i.CompletionConfig,
 		&i.CompletionEditorID,
+		&i.SchedulePreflightLeadMinutes,
 		&i.EnvironmentSlug,
 		&i.PipelineSlug_2,
 		&i.PinnedVersionHash,
@@ -19099,9 +19156,11 @@ SELECT
     pt.schedule_cron,
     pt.schedule_timezone,
     pt.schedule_misfire_policy,
+    pt.schedule_preflight_lead_minutes,
     pt.created_at AS trigger_created_at,
     pt.updated_at AS trigger_updated_at,
-    last_fire.scheduled_fire_at AS last_scheduled_fire_at
+    last_fire.scheduled_fire_at AS last_scheduled_fire_at,
+    last_preflight.scheduled_fire_at AS last_preflight_occurrence_at
 FROM pipeline_triggers pt
 JOIN project_environments pe ON pe.id = pt.project_environment_id
 JOIN projects p ON p.id = pe.project_id
@@ -19120,6 +19179,15 @@ LEFT JOIN LATERAL (
     ORDER BY psf.scheduled_fire_at DESC
     LIMIT 1
 ) last_fire ON true
+LEFT JOIN LATERAL (
+    SELECT pf.scheduled_fire_at
+    FROM pipeline_schedule_preflights pf
+    WHERE pf.pipeline_trigger_id = pt.id
+        AND pf.trigger_revision = pt.revision
+        AND pt.schedule_preflight_lead_minutes IS NOT NULL
+    ORDER BY pf.scheduled_fire_at DESC
+    LIMIT 1
+) last_preflight ON true
 WHERE pt.trigger_type = 'schedule'
     AND pt.enabled = true
     AND pt.schedule_cron IS NOT NULL
@@ -19131,30 +19199,32 @@ ORDER BY o.slug, p.slug, e.slug, pt.slug
 `
 
 type ListDueScheduleTriggersRow struct {
-	OrgSlug                  slug.Slug
-	ProjectSlug              slug.Slug
-	EnvironmentSlug          slug.Slug
-	TriggerSlug              slug.Slug
-	TriggerRevision          int64
-	Enabled                  bool
-	PipelineSlug             slug.Slug
-	VersionPolicy            string
-	PinnedVersionHash        pgtype.Text
-	RuntimeInputKeys         []string
-	RetryEnabled             bool
-	RetryMaxAttempts         int32
-	RetryBackoffStrategy     string
-	RetryInitialDelaySeconds int32
-	RetryMaxDelaySeconds     int32
-	RetryJitter              bool
-	RetryableFailureKinds    []string
-	RetryMaxElapsedSeconds   pgtype.Int4
-	ScheduleCron             pgtype.Text
-	ScheduleTimezone         pgtype.Text
-	ScheduleMisfirePolicy    pgtype.Text
-	TriggerCreatedAt         pgtype.Timestamptz
-	TriggerUpdatedAt         pgtype.Timestamptz
-	LastScheduledFireAt      pgtype.Timestamptz
+	OrgSlug                      slug.Slug
+	ProjectSlug                  slug.Slug
+	EnvironmentSlug              slug.Slug
+	TriggerSlug                  slug.Slug
+	TriggerRevision              int64
+	Enabled                      bool
+	PipelineSlug                 slug.Slug
+	VersionPolicy                string
+	PinnedVersionHash            pgtype.Text
+	RuntimeInputKeys             []string
+	RetryEnabled                 bool
+	RetryMaxAttempts             int32
+	RetryBackoffStrategy         string
+	RetryInitialDelaySeconds     int32
+	RetryMaxDelaySeconds         int32
+	RetryJitter                  bool
+	RetryableFailureKinds        []string
+	RetryMaxElapsedSeconds       pgtype.Int4
+	ScheduleCron                 pgtype.Text
+	ScheduleTimezone             pgtype.Text
+	ScheduleMisfirePolicy        pgtype.Text
+	SchedulePreflightLeadMinutes pgtype.Int4
+	TriggerCreatedAt             pgtype.Timestamptz
+	TriggerUpdatedAt             pgtype.Timestamptz
+	LastScheduledFireAt          pgtype.Timestamptz
+	LastPreflightOccurrenceAt    pgtype.Timestamptz
 }
 
 func (q *Queries) ListDueScheduleTriggers(ctx context.Context) ([]ListDueScheduleTriggersRow, error) {
@@ -19188,9 +19258,11 @@ func (q *Queries) ListDueScheduleTriggers(ctx context.Context) ([]ListDueSchedul
 			&i.ScheduleCron,
 			&i.ScheduleTimezone,
 			&i.ScheduleMisfirePolicy,
+			&i.SchedulePreflightLeadMinutes,
 			&i.TriggerCreatedAt,
 			&i.TriggerUpdatedAt,
 			&i.LastScheduledFireAt,
+			&i.LastPreflightOccurrenceAt,
 		); err != nil {
 			return nil, err
 		}
@@ -19903,8 +19975,8 @@ WITH matching_targets AS (
         AND ap.enabled
         AND ad.enabled
         AND ad.type IN ('email', 'slack')
-        AND (nr.notification_type <> 'pipeline.run_succeeded'
-            OR ap.notification_type = 'pipeline.run_succeeded')
+        AND (nr.notification_type NOT IN ('pipeline.run_succeeded', 'pipeline.scheduled_preflight_failed')
+            OR ap.notification_type = nr.notification_type)
         AND (
             ap.notification_type IS NULL
             OR ap.notification_type = nr.notification_type
@@ -22103,7 +22175,7 @@ func (q *Queries) ListPipelineSpecsByProject(ctx context.Context, arg ListPipeli
 
 const listPipelineTriggers = `-- name: ListPipelineTriggers :many
 SELECT
-    pt.id, pt.project_id, pt.project_environment_id, pt.pipeline_id, pt.pipeline_slug, pt.pinned_pipeline_version_id, pt.slug, pt.name, pt.trigger_type, pt.enabled, pt.revision, pt.version_policy, pt.runtime_input_keys, pt.retry_enabled, pt.retry_max_attempts, pt.retry_backoff_strategy, pt.retry_initial_delay_seconds, pt.retry_max_delay_seconds, pt.retry_jitter, pt.retryable_failure_kinds, pt.retry_max_elapsed_seconds, pt.schedule_cron, pt.schedule_timezone, pt.schedule_misfire_policy, pt.created_by_actor_type, pt.created_by_actor_slug, pt.updated_by_actor_type, pt.updated_by_actor_slug, pt.disabled_at, pt.created_at, pt.updated_at, pt.receiver_id, pt.webhook_verification_strategy, pt.webhook_input_mappings, pt.completion_config, pt.completion_editor_id,
+    pt.id, pt.project_id, pt.project_environment_id, pt.pipeline_id, pt.pipeline_slug, pt.pinned_pipeline_version_id, pt.slug, pt.name, pt.trigger_type, pt.enabled, pt.revision, pt.version_policy, pt.runtime_input_keys, pt.retry_enabled, pt.retry_max_attempts, pt.retry_backoff_strategy, pt.retry_initial_delay_seconds, pt.retry_max_delay_seconds, pt.retry_jitter, pt.retryable_failure_kinds, pt.retry_max_elapsed_seconds, pt.schedule_cron, pt.schedule_timezone, pt.schedule_misfire_policy, pt.created_by_actor_type, pt.created_by_actor_slug, pt.updated_by_actor_type, pt.updated_by_actor_slug, pt.disabled_at, pt.created_at, pt.updated_at, pt.receiver_id, pt.webhook_verification_strategy, pt.webhook_input_mappings, pt.completion_config, pt.completion_editor_id, pt.schedule_preflight_lead_minutes,
     e.slug AS environment_slug,
     ps.slug AS pipeline_slug,
     pinned.spec_hash AS pinned_version_hash,
@@ -22169,46 +22241,47 @@ type ListPipelineTriggersParams struct {
 }
 
 type ListPipelineTriggersRow struct {
-	ID                          int
-	ProjectID                   int64
-	ProjectEnvironmentID        int64
-	PipelineID                  int64
-	PipelineSlug                string
-	PinnedPipelineVersionID     pgtype.Int8
-	Slug                        slug.Slug
-	Name                        string
-	TriggerType                 string
-	Enabled                     bool
-	Revision                    int64
-	VersionPolicy               string
-	RuntimeInputKeys            []string
-	RetryEnabled                bool
-	RetryMaxAttempts            int32
-	RetryBackoffStrategy        string
-	RetryInitialDelaySeconds    int32
-	RetryMaxDelaySeconds        int32
-	RetryJitter                 bool
-	RetryableFailureKinds       []string
-	RetryMaxElapsedSeconds      pgtype.Int4
-	ScheduleCron                pgtype.Text
-	ScheduleTimezone            pgtype.Text
-	ScheduleMisfirePolicy       pgtype.Text
-	CreatedByActorType          string
-	CreatedByActorSlug          pgtype.Text
-	UpdatedByActorType          string
-	UpdatedByActorSlug          pgtype.Text
-	DisabledAt                  pgtype.Timestamptz
-	CreatedAt                   pgtype.Timestamptz
-	UpdatedAt                   pgtype.Timestamptz
-	ReceiverID                  pgtype.Text
-	WebhookVerificationStrategy pgtype.Text
-	WebhookInputMappings        []byte
-	CompletionConfig            []byte
-	CompletionEditorID          pgtype.Text
-	EnvironmentSlug             slug.Slug
-	PipelineSlug_2              slug.Slug
-	PinnedVersionHash           pgtype.Text
-	EnabledKeyVersions          []int32
+	ID                           int
+	ProjectID                    int64
+	ProjectEnvironmentID         int64
+	PipelineID                   int64
+	PipelineSlug                 string
+	PinnedPipelineVersionID      pgtype.Int8
+	Slug                         slug.Slug
+	Name                         string
+	TriggerType                  string
+	Enabled                      bool
+	Revision                     int64
+	VersionPolicy                string
+	RuntimeInputKeys             []string
+	RetryEnabled                 bool
+	RetryMaxAttempts             int32
+	RetryBackoffStrategy         string
+	RetryInitialDelaySeconds     int32
+	RetryMaxDelaySeconds         int32
+	RetryJitter                  bool
+	RetryableFailureKinds        []string
+	RetryMaxElapsedSeconds       pgtype.Int4
+	ScheduleCron                 pgtype.Text
+	ScheduleTimezone             pgtype.Text
+	ScheduleMisfirePolicy        pgtype.Text
+	CreatedByActorType           string
+	CreatedByActorSlug           pgtype.Text
+	UpdatedByActorType           string
+	UpdatedByActorSlug           pgtype.Text
+	DisabledAt                   pgtype.Timestamptz
+	CreatedAt                    pgtype.Timestamptz
+	UpdatedAt                    pgtype.Timestamptz
+	ReceiverID                   pgtype.Text
+	WebhookVerificationStrategy  pgtype.Text
+	WebhookInputMappings         []byte
+	CompletionConfig             []byte
+	CompletionEditorID           pgtype.Text
+	SchedulePreflightLeadMinutes pgtype.Int4
+	EnvironmentSlug              slug.Slug
+	PipelineSlug_2               slug.Slug
+	PinnedVersionHash            pgtype.Text
+	EnabledKeyVersions           []int32
 }
 
 func (q *Queries) ListPipelineTriggers(ctx context.Context, arg ListPipelineTriggersParams) ([]ListPipelineTriggersRow, error) {
@@ -22265,6 +22338,7 @@ func (q *Queries) ListPipelineTriggers(ctx context.Context, arg ListPipelineTrig
 			&i.WebhookInputMappings,
 			&i.CompletionConfig,
 			&i.CompletionEditorID,
+			&i.SchedulePreflightLeadMinutes,
 			&i.EnvironmentSlug,
 			&i.PipelineSlug_2,
 			&i.PinnedVersionHash,
@@ -24425,7 +24499,12 @@ SELECT
     psf.source_event_slug,
     psf.error_summary,
     psf.created_at,
-    psf.updated_at
+    psf.updated_at,
+    pf.preflight_at,
+    pf.pipeline_version_hash AS preflight_version_hash,
+    pf.diagnostics AS preflight_diagnostics,
+    pf.completed_at AS preflight_completed_at,
+    (pf.preflight_at IS NOT NULL AND pf.completed_at IS NULL AND (NOT pt.enabled OR pt.revision <> pf.trigger_revision)) AS preflight_cancelled
 FROM pipeline_schedule_fires psf
 JOIN pipeline_triggers pt ON pt.id = psf.pipeline_trigger_id
     AND pt.project_environment_id = psf.project_environment_id
@@ -24434,6 +24513,9 @@ JOIN projects p ON p.id = pe.project_id
 JOIN organizations o ON o.id = p.organization_id
 JOIN environments e ON e.id = pe.environment_id
     AND e.organization_id = o.id
+LEFT JOIN pipeline_schedule_preflights pf ON pf.pipeline_trigger_id = psf.pipeline_trigger_id
+    AND pf.trigger_revision = psf.trigger_revision
+    AND pf.scheduled_fire_at = psf.scheduled_fire_at
 WHERE o.slug = $1
     AND p.slug = $2
     AND e.slug = $3
@@ -24487,19 +24569,24 @@ type ListScheduleFiresForTriggerParams struct {
 }
 
 type ListScheduleFiresForTriggerRow struct {
-	FireSlug        string
-	TriggerSlug     slug.Slug
-	TriggerRevision int64
-	PipelineSlug    string
-	ScheduledFireAt pgtype.Timestamptz
-	ActualFireAt    pgtype.Timestamptz
-	Status          string
-	MisfireResult   string
-	RunSlug         pgtype.Text
-	SourceEventSlug pgtype.Text
-	ErrorSummary    pgtype.Text
-	CreatedAt       pgtype.Timestamptz
-	UpdatedAt       pgtype.Timestamptz
+	FireSlug             string
+	TriggerSlug          slug.Slug
+	TriggerRevision      int64
+	PipelineSlug         string
+	ScheduledFireAt      pgtype.Timestamptz
+	ActualFireAt         pgtype.Timestamptz
+	Status               string
+	MisfireResult        string
+	RunSlug              pgtype.Text
+	SourceEventSlug      pgtype.Text
+	ErrorSummary         pgtype.Text
+	CreatedAt            pgtype.Timestamptz
+	UpdatedAt            pgtype.Timestamptz
+	PreflightAt          pgtype.Timestamptz
+	PreflightVersionHash pgtype.Text
+	PreflightDiagnostics []byte
+	PreflightCompletedAt pgtype.Timestamptz
+	PreflightCancelled   pgtype.Bool
 }
 
 func (q *Queries) ListScheduleFiresForTrigger(ctx context.Context, arg ListScheduleFiresForTriggerParams) ([]ListScheduleFiresForTriggerRow, error) {
@@ -24534,6 +24621,11 @@ func (q *Queries) ListScheduleFiresForTrigger(ctx context.Context, arg ListSched
 			&i.ErrorSummary,
 			&i.CreatedAt,
 			&i.UpdatedAt,
+			&i.PreflightAt,
+			&i.PreflightVersionHash,
+			&i.PreflightDiagnostics,
+			&i.PreflightCompletedAt,
+			&i.PreflightCancelled,
 		); err != nil {
 			return nil, err
 		}
@@ -24698,6 +24790,82 @@ func (q *Queries) ListTriggerRetryAttemptsForRun(ctx context.Context, arg ListTr
 			&i.ErrorSummary,
 			&i.CreatedAt,
 			&i.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listUpcomingSchedulePreflights = `-- name: ListUpcomingSchedulePreflights :many
+SELECT
+    pf.trigger_revision,
+    pf.pipeline_slug,
+    pf.scheduled_fire_at,
+    pf.preflight_at,
+    pf.pipeline_version_hash,
+    pf.diagnostics,
+    pf.completed_at
+FROM pipeline_schedule_preflights pf
+JOIN pipeline_triggers pt ON pt.id = pf.pipeline_trigger_id AND pt.revision = pf.trigger_revision
+JOIN project_environments pe ON pe.id = pt.project_environment_id
+JOIN projects p ON p.id = pe.project_id
+JOIN organizations o ON o.id = p.organization_id
+JOIN environments e ON e.id = pe.environment_id AND e.organization_id = o.id
+WHERE o.slug = $1
+    AND p.slug = $2
+    AND e.slug = $3
+    AND e.deleted_at IS NULL AND pe.deleted_at IS NULL
+    AND pt.slug = $4
+    AND pt.enabled AND pt.trigger_type = 'schedule'
+    AND pf.scheduled_fire_at > NOW()
+ORDER BY pf.scheduled_fire_at ASC
+LIMIT 20
+`
+
+type ListUpcomingSchedulePreflightsParams struct {
+	OrgSlug         slug.Slug
+	ProjectSlug     slug.Slug
+	EnvironmentSlug slug.Slug
+	TriggerSlug     slug.Slug
+}
+
+type ListUpcomingSchedulePreflightsRow struct {
+	TriggerRevision     int64
+	PipelineSlug        string
+	ScheduledFireAt     pgtype.Timestamptz
+	PreflightAt         pgtype.Timestamptz
+	PipelineVersionHash pgtype.Text
+	Diagnostics         []byte
+	CompletedAt         pgtype.Timestamptz
+}
+
+func (q *Queries) ListUpcomingSchedulePreflights(ctx context.Context, arg ListUpcomingSchedulePreflightsParams) ([]ListUpcomingSchedulePreflightsRow, error) {
+	rows, err := q.db.Query(ctx, listUpcomingSchedulePreflights,
+		arg.OrgSlug,
+		arg.ProjectSlug,
+		arg.EnvironmentSlug,
+		arg.TriggerSlug,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ListUpcomingSchedulePreflightsRow
+	for rows.Next() {
+		var i ListUpcomingSchedulePreflightsRow
+		if err := rows.Scan(
+			&i.TriggerRevision,
+			&i.PipelineSlug,
+			&i.ScheduledFireAt,
+			&i.PreflightAt,
+			&i.PipelineVersionHash,
+			&i.Diagnostics,
+			&i.CompletedAt,
 		); err != nil {
 			return nil, err
 		}
@@ -25012,6 +25180,75 @@ func (q *Queries) LoadClaimedScheduleFire(ctx context.Context, arg LoadClaimedSc
 		&i.ActualFireAt,
 		&i.MisfireResult,
 		&i.TriggerCreatedAt,
+	)
+	return i, err
+}
+
+const loadPendingSchedulePreflight = `-- name: LoadPendingSchedulePreflight :one
+SELECT
+    pf.pipeline_slug,
+    pt.version_policy,
+    pinned.spec_hash AS pinned_version_hash,
+    pf.pipeline_version_hash,
+    pf.resolution_digest,
+    pf.schema_refreshes
+FROM pipeline_schedule_preflights pf
+JOIN pipeline_triggers pt ON pt.id = pf.pipeline_trigger_id AND pt.revision = pf.trigger_revision
+JOIN project_environments pe ON pe.id = pt.project_environment_id
+JOIN projects p ON p.id = pe.project_id
+JOIN organizations o ON o.id = p.organization_id
+JOIN environments e ON e.id = pe.environment_id AND e.organization_id = o.id
+JOIN pipeline_specs ps ON ps.id = pt.pipeline_id AND ps.project_id = p.id AND ps.deleted_at IS NULL
+LEFT JOIN pipeline_versions pinned ON pinned.id = pt.pinned_pipeline_version_id
+WHERE o.slug = $1
+    AND p.slug = $2
+    AND e.slug = $3
+    AND e.deleted_at IS NULL AND pe.deleted_at IS NULL
+    AND pt.slug = $4
+    AND pf.trigger_revision = $5
+    AND pf.scheduled_fire_at = $6
+    AND pt.trigger_type = 'schedule' AND pt.enabled
+    AND pt.schedule_preflight_lead_minutes IS NOT NULL
+    AND pf.completed_at IS NULL
+FOR UPDATE OF pf
+FOR SHARE OF pt
+`
+
+type LoadPendingSchedulePreflightParams struct {
+	OrgSlug         slug.Slug
+	ProjectSlug     slug.Slug
+	EnvironmentSlug slug.Slug
+	TriggerSlug     slug.Slug
+	TriggerRevision int64
+	ScheduledFireAt pgtype.Timestamptz
+}
+
+type LoadPendingSchedulePreflightRow struct {
+	PipelineSlug        string
+	VersionPolicy       string
+	PinnedVersionHash   pgtype.Text
+	PipelineVersionHash pgtype.Text
+	ResolutionDigest    pgtype.Text
+	SchemaRefreshes     []byte
+}
+
+func (q *Queries) LoadPendingSchedulePreflight(ctx context.Context, arg LoadPendingSchedulePreflightParams) (LoadPendingSchedulePreflightRow, error) {
+	row := q.db.QueryRow(ctx, loadPendingSchedulePreflight,
+		arg.OrgSlug,
+		arg.ProjectSlug,
+		arg.EnvironmentSlug,
+		arg.TriggerSlug,
+		arg.TriggerRevision,
+		arg.ScheduledFireAt,
+	)
+	var i LoadPendingSchedulePreflightRow
+	err := row.Scan(
+		&i.PipelineSlug,
+		&i.VersionPolicy,
+		&i.PinnedVersionHash,
+		&i.PipelineVersionHash,
+		&i.ResolutionDigest,
+		&i.SchemaRefreshes,
 	)
 	return i, err
 }
@@ -30892,6 +31129,64 @@ func (q *Queries) SaveProofObservationPolicy(ctx context.Context, arg SaveProofO
 	return i, err
 }
 
+const saveSchedulePreflight = `-- name: SaveSchedulePreflight :execrows
+UPDATE pipeline_schedule_preflights pf
+SET pipeline_version_hash = $1,
+    resolution_digest = $2,
+    schema_refreshes = $3,
+    diagnostics = $4,
+    completed_at = $5
+FROM pipeline_triggers pt
+JOIN project_environments pe ON pe.id = pt.project_environment_id
+JOIN projects p ON p.id = pe.project_id
+JOIN organizations o ON o.id = p.organization_id
+JOIN environments e ON e.id = pe.environment_id AND e.organization_id = o.id
+WHERE o.slug = $6
+    AND p.slug = $7
+    AND e.slug = $8
+    AND e.deleted_at IS NULL AND pe.deleted_at IS NULL
+    AND pt.slug = $9
+    AND pt.enabled AND pt.trigger_type = 'schedule'
+    AND pf.pipeline_trigger_id = pt.id AND pf.trigger_revision = pt.revision
+    AND pf.trigger_revision = $10
+    AND pf.scheduled_fire_at = $11
+    AND pf.completed_at IS NULL
+`
+
+type SaveSchedulePreflightParams struct {
+	PipelineVersionHash pgtype.Text
+	ResolutionDigest    pgtype.Text
+	SchemaRefreshes     []byte
+	Diagnostics         []byte
+	CompletedAt         pgtype.Timestamptz
+	OrgSlug             slug.Slug
+	ProjectSlug         slug.Slug
+	EnvironmentSlug     slug.Slug
+	TriggerSlug         slug.Slug
+	TriggerRevision     int64
+	ScheduledFireAt     pgtype.Timestamptz
+}
+
+func (q *Queries) SaveSchedulePreflight(ctx context.Context, arg SaveSchedulePreflightParams) (int64, error) {
+	result, err := q.db.Exec(ctx, saveSchedulePreflight,
+		arg.PipelineVersionHash,
+		arg.ResolutionDigest,
+		arg.SchemaRefreshes,
+		arg.Diagnostics,
+		arg.CompletedAt,
+		arg.OrgSlug,
+		arg.ProjectSlug,
+		arg.EnvironmentSlug,
+		arg.TriggerSlug,
+		arg.TriggerRevision,
+		arg.ScheduledFireAt,
+	)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
 const sealRetainedFile = `-- name: SealRetainedFile :one
 SELECT seal_retained_file($1::uuid, $2::uuid, $3::text, $4::bigint, $5::text)::boolean
 `
@@ -32382,20 +32677,24 @@ updated AS (
             WHEN $10 = 'schedule' THEN $23::text
             ELSE NULL
         END,
-        receiver_id = CASE
-            WHEN $10 = 'webhook' THEN $24::text
+        schedule_preflight_lead_minutes = CASE
+            WHEN $10 = 'schedule' THEN $24::integer
             ELSE NULL
         END,
-        webhook_verification_strategy = CASE
+        receiver_id = CASE
             WHEN $10 = 'webhook' THEN $25::text
             ELSE NULL
         END,
-        webhook_input_mappings = CASE
-            WHEN $10 = 'webhook' THEN $26::jsonb
+        webhook_verification_strategy = CASE
+            WHEN $10 = 'webhook' THEN $26::text
             ELSE NULL
         END,
-        updated_by_actor_type = $27,
-        updated_by_actor_slug = $28::text,
+        webhook_input_mappings = CASE
+            WHEN $10 = 'webhook' THEN $27::jsonb
+            ELSE NULL
+        END,
+        updated_by_actor_type = $28,
+        updated_by_actor_slug = $29::text,
         disabled_at = CASE
             WHEN pt.enabled AND NOT $11 THEN NOW()
             WHEN $11 THEN NULL
@@ -32404,10 +32703,10 @@ updated AS (
         updated_at = NOW()
     FROM target
     WHERE pt.id = target.trigger_id
-    RETURNING pt.id, pt.project_id, pt.project_environment_id, pt.pipeline_id, pt.pipeline_slug, pt.pinned_pipeline_version_id, pt.slug, pt.name, pt.trigger_type, pt.enabled, pt.revision, pt.version_policy, pt.runtime_input_keys, pt.retry_enabled, pt.retry_max_attempts, pt.retry_backoff_strategy, pt.retry_initial_delay_seconds, pt.retry_max_delay_seconds, pt.retry_jitter, pt.retryable_failure_kinds, pt.retry_max_elapsed_seconds, pt.schedule_cron, pt.schedule_timezone, pt.schedule_misfire_policy, pt.created_by_actor_type, pt.created_by_actor_slug, pt.updated_by_actor_type, pt.updated_by_actor_slug, pt.disabled_at, pt.created_at, pt.updated_at, pt.receiver_id, pt.webhook_verification_strategy, pt.webhook_input_mappings, pt.completion_config, pt.completion_editor_id
+    RETURNING pt.id, pt.project_id, pt.project_environment_id, pt.pipeline_id, pt.pipeline_slug, pt.pinned_pipeline_version_id, pt.slug, pt.name, pt.trigger_type, pt.enabled, pt.revision, pt.version_policy, pt.runtime_input_keys, pt.retry_enabled, pt.retry_max_attempts, pt.retry_backoff_strategy, pt.retry_initial_delay_seconds, pt.retry_max_delay_seconds, pt.retry_jitter, pt.retryable_failure_kinds, pt.retry_max_elapsed_seconds, pt.schedule_cron, pt.schedule_timezone, pt.schedule_misfire_policy, pt.created_by_actor_type, pt.created_by_actor_slug, pt.updated_by_actor_type, pt.updated_by_actor_slug, pt.disabled_at, pt.created_at, pt.updated_at, pt.receiver_id, pt.webhook_verification_strategy, pt.webhook_input_mappings, pt.completion_config, pt.completion_editor_id, pt.schedule_preflight_lead_minutes
 )
 SELECT
-    updated.id, updated.project_id, updated.project_environment_id, updated.pipeline_id, updated.pipeline_slug, updated.pinned_pipeline_version_id, updated.slug, updated.name, updated.trigger_type, updated.enabled, updated.revision, updated.version_policy, updated.runtime_input_keys, updated.retry_enabled, updated.retry_max_attempts, updated.retry_backoff_strategy, updated.retry_initial_delay_seconds, updated.retry_max_delay_seconds, updated.retry_jitter, updated.retryable_failure_kinds, updated.retry_max_elapsed_seconds, updated.schedule_cron, updated.schedule_timezone, updated.schedule_misfire_policy, updated.created_by_actor_type, updated.created_by_actor_slug, updated.updated_by_actor_type, updated.updated_by_actor_slug, updated.disabled_at, updated.created_at, updated.updated_at, updated.receiver_id, updated.webhook_verification_strategy, updated.webhook_input_mappings, updated.completion_config, updated.completion_editor_id,
+    updated.id, updated.project_id, updated.project_environment_id, updated.pipeline_id, updated.pipeline_slug, updated.pinned_pipeline_version_id, updated.slug, updated.name, updated.trigger_type, updated.enabled, updated.revision, updated.version_policy, updated.runtime_input_keys, updated.retry_enabled, updated.retry_max_attempts, updated.retry_backoff_strategy, updated.retry_initial_delay_seconds, updated.retry_max_delay_seconds, updated.retry_jitter, updated.retryable_failure_kinds, updated.retry_max_elapsed_seconds, updated.schedule_cron, updated.schedule_timezone, updated.schedule_misfire_policy, updated.created_by_actor_type, updated.created_by_actor_slug, updated.updated_by_actor_type, updated.updated_by_actor_slug, updated.disabled_at, updated.created_at, updated.updated_at, updated.receiver_id, updated.webhook_verification_strategy, updated.webhook_input_mappings, updated.completion_config, updated.completion_editor_id, updated.schedule_preflight_lead_minutes,
     e.slug AS environment_slug,
     ps.slug AS pipeline_slug,
     pinned.spec_hash AS pinned_version_hash,
@@ -32420,77 +32719,79 @@ LEFT JOIN pipeline_versions pinned ON pinned.id = updated.pinned_pipeline_versio
 `
 
 type UpdatePipelineTriggerParams struct {
-	PipelineSlug                slug.Slug
-	PinnedVersionHash           pgtype.Text
-	OrgSlug                     slug.Slug
-	ProjectSlug                 slug.Slug
-	EnvironmentSlug             slug.Slug
-	TriggerSlug                 slug.Slug
-	VersionPolicy               pgtype.Text
-	CompletionConfig            []byte
-	Name                        string
-	TriggerType                 string
-	Enabled                     bool
-	RuntimeInputKeys            []string
-	RetryEnabled                bool
-	RetryMaxAttempts            int32
-	RetryBackoffStrategy        string
-	RetryInitialDelaySeconds    int32
-	RetryMaxDelaySeconds        int32
-	RetryJitter                 bool
-	RetryableFailureKinds       []string
-	RetryMaxElapsedSeconds      pgtype.Int4
-	ScheduleCron                pgtype.Text
-	ScheduleTimezone            pgtype.Text
-	ScheduleMisfirePolicy       pgtype.Text
-	ReceiverID                  pgtype.Text
-	WebhookVerificationStrategy pgtype.Text
-	WebhookInputMappings        []byte
-	UpdatedByActorType          string
-	UpdatedByActorSlug          pgtype.Text
+	PipelineSlug                 slug.Slug
+	PinnedVersionHash            pgtype.Text
+	OrgSlug                      slug.Slug
+	ProjectSlug                  slug.Slug
+	EnvironmentSlug              slug.Slug
+	TriggerSlug                  slug.Slug
+	VersionPolicy                pgtype.Text
+	CompletionConfig             []byte
+	Name                         string
+	TriggerType                  string
+	Enabled                      bool
+	RuntimeInputKeys             []string
+	RetryEnabled                 bool
+	RetryMaxAttempts             int32
+	RetryBackoffStrategy         string
+	RetryInitialDelaySeconds     int32
+	RetryMaxDelaySeconds         int32
+	RetryJitter                  bool
+	RetryableFailureKinds        []string
+	RetryMaxElapsedSeconds       pgtype.Int4
+	ScheduleCron                 pgtype.Text
+	ScheduleTimezone             pgtype.Text
+	ScheduleMisfirePolicy        pgtype.Text
+	SchedulePreflightLeadMinutes pgtype.Int4
+	ReceiverID                   pgtype.Text
+	WebhookVerificationStrategy  pgtype.Text
+	WebhookInputMappings         []byte
+	UpdatedByActorType           string
+	UpdatedByActorSlug           pgtype.Text
 }
 
 type UpdatePipelineTriggerRow struct {
-	ID                          int
-	ProjectID                   int64
-	ProjectEnvironmentID        int64
-	PipelineID                  int64
-	PipelineSlug                string
-	PinnedPipelineVersionID     pgtype.Int8
-	Slug                        slug.Slug
-	Name                        string
-	TriggerType                 string
-	Enabled                     bool
-	Revision                    int64
-	VersionPolicy               string
-	RuntimeInputKeys            []string
-	RetryEnabled                bool
-	RetryMaxAttempts            int32
-	RetryBackoffStrategy        string
-	RetryInitialDelaySeconds    int32
-	RetryMaxDelaySeconds        int32
-	RetryJitter                 bool
-	RetryableFailureKinds       []string
-	RetryMaxElapsedSeconds      pgtype.Int4
-	ScheduleCron                pgtype.Text
-	ScheduleTimezone            pgtype.Text
-	ScheduleMisfirePolicy       pgtype.Text
-	CreatedByActorType          string
-	CreatedByActorSlug          pgtype.Text
-	UpdatedByActorType          string
-	UpdatedByActorSlug          pgtype.Text
-	DisabledAt                  pgtype.Timestamptz
-	CreatedAt                   pgtype.Timestamptz
-	UpdatedAt                   pgtype.Timestamptz
-	ReceiverID                  pgtype.Text
-	WebhookVerificationStrategy pgtype.Text
-	WebhookInputMappings        []byte
-	CompletionConfig            []byte
-	CompletionEditorID          pgtype.Text
-	EnvironmentSlug             slug.Slug
-	PipelineSlug_2              slug.Slug
-	PinnedVersionHash           pgtype.Text
-	EnabledKeyVersions          []int32
+	ID                           int
+	ProjectID                    int64
+	ProjectEnvironmentID         int64
+	PipelineID                   int64
+	PipelineSlug                 string
+	PinnedPipelineVersionID      pgtype.Int8
+	Slug                         slug.Slug
+	Name                         string
+	TriggerType                  string
+	Enabled                      bool
+	Revision                     int64
+	VersionPolicy                string
+	RuntimeInputKeys             []string
+	RetryEnabled                 bool
+	RetryMaxAttempts             int32
+	RetryBackoffStrategy         string
+	RetryInitialDelaySeconds     int32
+	RetryMaxDelaySeconds         int32
+	RetryJitter                  bool
+	RetryableFailureKinds        []string
+	RetryMaxElapsedSeconds       pgtype.Int4
+	ScheduleCron                 pgtype.Text
+	ScheduleTimezone             pgtype.Text
+	ScheduleMisfirePolicy        pgtype.Text
+	CreatedByActorType           string
+	CreatedByActorSlug           pgtype.Text
+	UpdatedByActorType           string
+	UpdatedByActorSlug           pgtype.Text
+	DisabledAt                   pgtype.Timestamptz
+	CreatedAt                    pgtype.Timestamptz
+	UpdatedAt                    pgtype.Timestamptz
+	ReceiverID                   pgtype.Text
+	WebhookVerificationStrategy  pgtype.Text
+	WebhookInputMappings         []byte
+	CompletionConfig             []byte
+	CompletionEditorID           pgtype.Text
+	SchedulePreflightLeadMinutes pgtype.Int4
+	EnvironmentSlug              slug.Slug
+	PipelineSlug_2               slug.Slug
+	PinnedVersionHash            pgtype.Text
+	EnabledKeyVersions           []int32
 }
 
 func (q *Queries) UpdatePipelineTrigger(ctx context.Context, arg UpdatePipelineTriggerParams) (UpdatePipelineTriggerRow, error) {
@@ -32518,6 +32819,7 @@ func (q *Queries) UpdatePipelineTrigger(ctx context.Context, arg UpdatePipelineT
 		arg.ScheduleCron,
 		arg.ScheduleTimezone,
 		arg.ScheduleMisfirePolicy,
+		arg.SchedulePreflightLeadMinutes,
 		arg.ReceiverID,
 		arg.WebhookVerificationStrategy,
 		arg.WebhookInputMappings,
@@ -32562,6 +32864,7 @@ func (q *Queries) UpdatePipelineTrigger(ctx context.Context, arg UpdatePipelineT
 		&i.WebhookInputMappings,
 		&i.CompletionConfig,
 		&i.CompletionEditorID,
+		&i.SchedulePreflightLeadMinutes,
 		&i.EnvironmentSlug,
 		&i.PipelineSlug_2,
 		&i.PinnedVersionHash,
