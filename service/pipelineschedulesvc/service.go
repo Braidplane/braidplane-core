@@ -17,6 +17,7 @@ import (
 	"github.com/Braidplane/braidplane-core/pkg/xerror"
 	"github.com/Braidplane/braidplane-core/postgres"
 	"github.com/Braidplane/braidplane-core/postgres/pipelinetriggers"
+	"github.com/Braidplane/braidplane-core/service/internal/triggerretry"
 	"github.com/Braidplane/braidplane-core/service/notificationsvc"
 	"github.com/Braidplane/braidplane-core/service/pipelinesvc"
 	"github.com/Braidplane/braidplane-core/service/worker/jobs"
@@ -171,6 +172,7 @@ type Service struct {
 	executor           PipelineExecutor
 	producer           ScheduleFireProducer
 	retryProducer      PipelineRetryProducer
+	retryRandom        func(int64) int64
 	notifier           NotificationProducer
 	preflightPipelines preflightPipelineService
 	preflightSources   preflightSourceService
@@ -833,6 +835,7 @@ type RetryDecisionInput struct {
 	ExecutionError          error
 	BaseAt                  time.Time
 	ElapsedBaseAt           time.Time
+	RetryRandom             func(int64) int64
 }
 
 // recordRetryDecisionInTx stores retry state and enqueues queued attempts in the caller transaction.
@@ -844,6 +847,7 @@ func (s *Service) recordRetryDecisionInTx(
 	if input.FailedRun == nil {
 		return notificationsvc.CreateCandidateParams{}, false, nil
 	}
+	input.RetryRandom = s.retryRandom
 	record, shouldEnqueue, err := BuildRetryAttempt(input)
 	if err != nil {
 		return notificationsvc.CreateCandidateParams{}, false, err
@@ -1041,7 +1045,9 @@ func BuildRetryAttempt(input RetryDecisionInput) (TriggerRetryAttemptRecord, boo
 		shouldEnqueue = false
 	}
 
-	scheduledAt := retryScheduledAt(input.BaseAt, input.RetryPolicy, nextAttemptNumber)
+	policy := input.RetryPolicy
+	policy.Jitter = policy.Jitter && shouldEnqueue
+	scheduledAt := retryDecisionBaseAt(input.BaseAt).Add(triggerretry.Delay(policy, nextAttemptNumber, input.RetryRandom))
 	elapsedBaseAt := retryDecisionBaseAt(input.ElapsedBaseAt, failed.StartedAt)
 	if shouldEnqueue && retryMaxElapsedExceeded(elapsedBaseAt, scheduledAt, input.RetryPolicy) {
 		status = model.PipelineTriggerRetryAttemptStatusExhausted
@@ -1119,43 +1125,6 @@ func retryElapsedBaseAt(source pipelinerun.RunSourceSummary, candidates ...time.
 		candidates = append([]time.Time{source.Schedule.ActualFireAt}, candidates...)
 	}
 	return retryDecisionBaseAt(candidates...)
-}
-
-// retryScheduledAt applies the captured backoff policy from the retry base timestamp.
-func retryScheduledAt(
-	baseAt time.Time,
-	policy model.PipelineTriggerRetryPolicy,
-	attemptNumber int,
-) time.Time {
-	if baseAt.IsZero() {
-		baseAt = time.Now().UTC()
-	}
-	delay := retryDelay(policy, attemptNumber)
-	return baseAt.Add(delay)
-}
-
-// retryDelay computes the deterministic delay for an attempt.
-func retryDelay(policy model.PipelineTriggerRetryPolicy, attemptNumber int) time.Duration {
-	switch policy.BackoffStrategy {
-	case model.PipelineTriggerBackoffStrategyFixed:
-		return time.Duration(policy.InitialDelaySeconds) * time.Second
-	case model.PipelineTriggerBackoffStrategyExponential:
-		delaySeconds := policy.InitialDelaySeconds
-		maxInt := int(^uint(0) >> 1)
-		for i := 2; i < attemptNumber; i++ {
-			if delaySeconds > maxInt/2 {
-				delaySeconds = maxInt
-				break
-			}
-			delaySeconds *= 2
-		}
-		if policy.MaxDelaySeconds > 0 && delaySeconds > policy.MaxDelaySeconds {
-			delaySeconds = policy.MaxDelaySeconds
-		}
-		return time.Duration(delaySeconds) * time.Second
-	default:
-		return 0
-	}
 }
 
 // retryMaxElapsedExceeded reports whether the next scheduled retry violates max elapsed time.

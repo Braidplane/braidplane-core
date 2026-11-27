@@ -29,12 +29,13 @@ type CompletionRunExecutor interface {
 }
 
 type CompletionDispatcher struct {
-	enabled  bool
-	txm      postgres.TransactionManager
-	repo     pipelinetriggers.Repository
-	checker  pipelinesvc.CompletionAuthorityChecker
-	executor CompletionRunExecutor
-	producer producer.PipelineRunProducer
+	enabled     bool
+	txm         postgres.TransactionManager
+	repo        pipelinetriggers.Repository
+	checker     pipelinesvc.CompletionAuthorityChecker
+	executor    CompletionRunExecutor
+	producer    producer.PipelineRunProducer
+	retryRandom func(int64) int64
 }
 
 func NewCompletionDispatcher(enabled bool, txm postgres.TransactionManager, repo pipelinetriggers.Repository, checker pipelinesvc.CompletionAuthorityChecker, executor CompletionRunExecutor, producer producer.PipelineRunProducer) (*CompletionDispatcher, error) {

@@ -62,7 +62,7 @@ func (s *CompletionDispatcher) finalizeAttempt(ctx context.Context, ref pipeline
 			TriggerSlug: snapshot.TriggerSlug, TriggerRevision: snapshot.TriggerRevision, PipelineSlug: snapshot.PipelineSlug,
 			VersionPolicy:           model.PipelineTriggerVersionPolicy{Mode: model.PipelineTriggerVersionPolicyModePinned, PinnedVersionHash: &snapshot.VersionHash},
 			PipelineVersionSpecHash: snapshot.VersionHash, RuntimeInputKeys: []string{}, RetryPolicy: snapshot.RetryPolicy,
-			FailedRun: failed, BaseAt: baseAt, ElapsedBaseAt: root.Metadata.StartedAt,
+			FailedRun: failed, BaseAt: baseAt, ElapsedBaseAt: root.Metadata.StartedAt, RetryRandom: s.retryRandom,
 		})
 		if err != nil {
 			return err

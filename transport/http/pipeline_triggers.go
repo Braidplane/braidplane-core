@@ -448,6 +448,7 @@ func pipelineTriggerRetryPolicyFromAPI(value api.PipelineTriggerRetryPolicy) (mo
 		BackoffStrategy:       strategy,
 		InitialDelaySeconds:   value.InitialDelaySeconds,
 		MaxDelaySeconds:       value.MaxDelaySeconds,
+		Jitter:                value.Jitter != nil && *value.Jitter,
 		RetryableFailureKinds: kinds,
 		MaxElapsedSeconds:     value.MaxElapsedSeconds,
 	}, nil
@@ -558,6 +559,7 @@ func pipelineTriggerRetryPolicyToAPI(value model.PipelineTriggerRetryPolicy) api
 		BackoffStrategy:       api.PipelineTriggerBackoffStrategy(value.BackoffStrategy.String()),
 		InitialDelaySeconds:   value.InitialDelaySeconds,
 		MaxDelaySeconds:       value.MaxDelaySeconds,
+		Jitter:                &value.Jitter,
 		RetryableFailureKinds: pipelineTriggerRetryFailureKindsToAPI(value.RetryableFailureKinds),
 		MaxElapsedSeconds:     value.MaxElapsedSeconds,
 	}

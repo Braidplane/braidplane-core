@@ -154,19 +154,26 @@ func TestCreatePipelineTriggerReturnsForbiddenWhenUnauthorized(t *testing.T) {
 
 func TestCreatePipelineWebhookTriggerMapsSafeConfigAndOneTimeSecret(t *testing.T) {
 	t.Parallel()
+	policy := testHTTPTriggerNoRetryPolicyAPI()
+	policy.BackoffStrategy = api.PipelineTriggerBackoffStrategyFixed
+	policy.InitialDelaySeconds = 10
+	policy.MaxDelaySeconds = 10
+	policy.Jitter = new(true)
 	app, store := newTestApp(t, testServerConfig{pipelineTriggersService: &fakePipelineTriggersService{
 		CreatePipelineTriggerFn: func(_ context.Context, _, _, environment slug.Slug, input model.NewPipelineTrigger, _ model.EventActor) (*model.PipelineTrigger, error) {
 			require.Equal(t, model.PipelineTriggerTypeWebhook, input.Type)
+			require.True(t, input.RetryPolicy.Jitter)
 			require.Equal(t, []model.PipelineWebhookInputMapping{{JSONPointer: "/tenant/id", RuntimeInputKey: "tenant_id"}}, input.WebhookConfig.InputMappings)
 			return &model.PipelineTrigger{Slug: must.Slug("customer-event"), Name: input.Name, Type: input.Type, EnvironmentSlug: environment, PipelineSlug: input.PipelineSlug, VersionPolicy: input.VersionPolicy, RuntimeInputKeys: input.RuntimeInputKeys, RetryPolicy: input.RetryPolicy, WebhookConfig: &model.PipelineTriggerWebhookConfig{ReceiverID: "abcdefghijklmnopqrstuvwxyz0123456789ABCDEFG", VerificationStrategy: "hmac_sha256", InputMappings: input.WebhookConfig.InputMappings, EnabledKeyVersions: []int{1}, SecretConfigured: true}, WebhookSecret: &model.PipelineWebhookSecret{KeyVersion: 1, Value: "one-time-secret"}}, nil
 		},
 	}, authService: fakeAuthService{CanFn: func(_ context.Context, input authorization.Input) (bool, error) { return true, nil }}})
-	body := map[string]any{"name": "Customer event", "type": "webhook", "enabled": false, "pipeline_slug": "sync-users", "version_policy": testHTTPTriggerLatestPolicyAPI(), "runtime_input_keys": []string{"tenant_id"}, "retry_policy": testHTTPTriggerNoRetryPolicyAPI(), "webhook": map[string]any{"input_mappings": []map[string]string{{"json_pointer": "/tenant/id", "runtime_input_key": "tenant_id"}}}}
+	body := map[string]any{"name": "Customer event", "type": "webhook", "enabled": false, "pipeline_slug": "sync-users", "version_policy": testHTTPTriggerLatestPolicyAPI(), "runtime_input_keys": []string{"tenant_id"}, "retry_policy": policy, "webhook": map[string]any{"input_mappings": []map[string]string{{"json_pointer": "/tenant/id", "runtime_input_key": "tenant_id"}}}}
 	resp := authenticatedRequest(t, app, store, must.Slug("alice"), jsonRequest(t, http.MethodPost, "/organizations/acme/projects/operations/environments/prod/pipeline-triggers", body))
 	defer func() { require.NoError(t, resp.Body.Close()) }()
 	require.Equal(t, http.StatusCreated, resp.StatusCode)
 	require.Equal(t, "no-store", resp.Header.Get("Cache-Control"))
 	got := parseResponse[api.PipelineTriggerIssuanceResponse](t, resp)
+	require.Equal(t, new(true), got.PipelineTrigger.RetryPolicy.Jitter)
 	require.NotNil(t, got.PipelineTrigger.Webhook)
 	require.Equal(t, "abcdefghijklmnopqrstuvwxyz0123456789ABCDEFG", got.PipelineTrigger.Webhook.ReceiverId)
 	require.Equal(t, api.PipelineWebhookVerificationStrategyHmacSha256, got.PipelineTrigger.Webhook.VerificationStrategy)

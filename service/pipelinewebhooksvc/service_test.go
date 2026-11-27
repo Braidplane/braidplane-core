@@ -288,40 +288,60 @@ func TestAcceptHidesMissingWebhookSecretAsVerificationFailure(t *testing.T) {
 func TestExecuteDeliveryKeepsEnvelopeForRetryableFailure(t *testing.T) {
 	t.Parallel()
 
-	now := time.Date(2026, 8, 21, 12, 0, 0, 0, time.UTC)
-	cipher, err := crypto.NewAES256(make([]byte, 32))
-	require.NoError(t, err)
-	envelope, err := json.Marshal(executionEnvelope{EventInput: json.RawMessage(`{"event":{}}`), RuntimeInput: map[string]any{}})
-	require.NoError(t, err)
-	encrypted, err := cipher.Encrypt(envelope)
-	require.NoError(t, err)
-	receiver := webhookReceiver()
-	receiver.RetryPolicy = model.PipelineTriggerRetryPolicy{
-		Enabled: true, MaxAttempts: 3, BackoffStrategy: model.PipelineTriggerBackoffStrategyFixed,
-		InitialDelaySeconds: 30, RetryableFailureKinds: []model.PipelineTriggerRetryFailureKind{model.PipelineTriggerRetryFailureKindDataSource},
-	}
-	repo := &fakeWebhookRepository{delivery: pipelinewebhooks.Delivery{
-		DatabaseID: 42,
-		ReceiverID: "receiver-opaque", DeliveryID: "delivery-1", PayloadDigest: strings.Repeat("a", 64),
-		PayloadSizeBytes: 12, RunSlug: slug.FromString("webhook-run"), EncryptedEnvelope: encrypted,
-		EnvelopeExpiresAt: now.Add(time.Hour), ReceivedAt: now, Receiver: receiver,
-	}}
-	failureKind := model.PipelineTriggerRetryFailureKindDataSource.String()
-	executor := &retryingPipelineExecutor{run: &pipelinesvc.PipelineRunDetail{Metadata: pipelinesvc.PipelineRunMetadata{
-		Status: "failed", FailureKind: &failureKind, PipelineVersionSpecHash: strings.Repeat("b", 64),
-	}}}
-	producer := &fakeWebhookProducer{}
-	svc := newWebhookService(t, now, repo, fakeSecretResolver{secret: []byte("unused")}, producer, executor)
+	for _, tc := range []struct {
+		name   string
+		jitter bool
+		delay  time.Duration
+		draws  int
+	}{
+		{name: "disabled", delay: 30 * time.Second},
+		{name: "enabled", jitter: true, delay: 15 * time.Second, draws: 1},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			now := time.Date(2026, 8, 21, 12, 0, 0, 0, time.UTC)
+			cipher, err := crypto.NewAES256(make([]byte, 32))
+			require.NoError(t, err)
+			envelope, err := json.Marshal(executionEnvelope{EventInput: json.RawMessage(`{"event":{}}`), RuntimeInput: map[string]any{}})
+			require.NoError(t, err)
+			encrypted, err := cipher.Encrypt(envelope)
+			require.NoError(t, err)
+			receiver := webhookReceiver()
+			receiver.RetryPolicy = model.PipelineTriggerRetryPolicy{
+				Enabled: true, MaxAttempts: 3, BackoffStrategy: model.PipelineTriggerBackoffStrategyFixed,
+				InitialDelaySeconds: 30, MaxDelaySeconds: 30, Jitter: tc.jitter,
+				RetryableFailureKinds: []model.PipelineTriggerRetryFailureKind{model.PipelineTriggerRetryFailureKindDataSource},
+			}
+			repo := &fakeWebhookRepository{delivery: pipelinewebhooks.Delivery{
+				DatabaseID: 42,
+				ReceiverID: "receiver-opaque", DeliveryID: "delivery-1", PayloadDigest: strings.Repeat("a", 64),
+				PayloadSizeBytes: 12, RunSlug: slug.FromString("webhook-run"), EncryptedEnvelope: encrypted,
+				EnvelopeExpiresAt: now.Add(time.Hour), ReceivedAt: now, Receiver: receiver,
+			}}
+			failureKind := model.PipelineTriggerRetryFailureKindDataSource.String()
+			executor := &retryingPipelineExecutor{run: &pipelinesvc.PipelineRunDetail{Metadata: pipelinesvc.PipelineRunMetadata{
+				Status: "failed", FailureKind: &failureKind, PipelineVersionSpecHash: strings.Repeat("b", 64),
+			}}}
+			producer := &fakeWebhookProducer{}
+			svc := newWebhookService(t, now, repo, fakeSecretResolver{secret: []byte("unused")}, producer, executor)
 
-	err = svc.ExecuteDelivery(t.Context(), jobs.PipelineWebhookDeliveryArgs{ReceiverID: "receiver-opaque", DeliveryID: "delivery-1", RunAttempt: 1})
-	require.NoError(t, err)
-	require.Equal(t, strings.Repeat("b", 64), repo.retryVersionHash)
-	require.Equal(t, 2, repo.retryAttempt)
-	require.Equal(t, now.Add(30*time.Second), repo.nextRetryAt)
-	require.Equal(t, 1, producer.calls)
-	require.Equal(t, 2, producer.jobs[0].RunAttempt)
-	require.Equal(t, now.Add(30*time.Second), producer.jobs[0].ScheduledAt)
-	require.Empty(t, repo.completed.Status)
+			draws := 0
+			svc.retryRandom = func(int64) int64 {
+				draws++
+				return 0
+			}
+			args := jobs.PipelineWebhookDeliveryArgs{ReceiverID: "receiver-opaque", DeliveryID: "delivery-1", RunAttempt: 1}
+			require.NoError(t, svc.ExecuteDelivery(t.Context(), args))
+			require.NoError(t, svc.ExecuteDelivery(t.Context(), args))
+			require.Equal(t, tc.draws, draws)
+			require.Equal(t, strings.Repeat("b", 64), repo.retryVersionHash)
+			require.Equal(t, 2, repo.retryAttempt)
+			require.Equal(t, now.Add(tc.delay), repo.nextRetryAt)
+			require.Equal(t, 1, producer.calls)
+			require.Equal(t, 2, producer.jobs[0].RunAttempt)
+			require.Equal(t, now.Add(tc.delay), producer.jobs[0].ScheduledAt)
+			require.Empty(t, repo.completed.Status)
+		})
+	}
 }
 
 func TestRetryDecisionDoesNotScheduleBeforeFailure(t *testing.T) {
@@ -335,13 +355,39 @@ func TestRetryDecisionDoesNotScheduleBeforeFailure(t *testing.T) {
 		RetryableFailureKinds: []model.PipelineTriggerRetryFailureKind{model.PipelineTriggerRetryFailureKindDataSource},
 	}
 
-	scheduledAt, _, retry := retryDecision(
+	scheduledAt, _, retry := (&Service{}).retryDecision(
 		pipelinewebhooks.Delivery{ReceivedAt: now.Add(-5 * time.Minute), Receiver: receiver},
 		model.PipelineTriggerRetryFailureKindDataSource.String(), 1, now.Add(-2*time.Minute), now,
 	)
 
 	require.True(t, retry)
 	require.Equal(t, now, scheduledAt)
+}
+
+func TestWebhookJitterChecksElapsedCapAgainstChosenTime(t *testing.T) {
+	t.Parallel()
+
+	receivedAt := time.Date(2026, 8, 21, 12, 0, 0, 0, time.UTC)
+	startedAt := receivedAt.Add(20 * time.Second)
+	receiver := webhookReceiver()
+	receiver.RetryPolicy = model.PipelineTriggerRetryPolicy{
+		Enabled: true, MaxAttempts: 3, BackoffStrategy: model.PipelineTriggerBackoffStrategyExponential,
+		InitialDelaySeconds: 10, MaxDelaySeconds: 20, Jitter: true, MaxElapsedSeconds: new(30),
+		RetryableFailureKinds: []model.PipelineTriggerRetryFailureKind{model.PipelineTriggerRetryFailureKindDataSource},
+	}
+	delivery := pipelinewebhooks.Delivery{ReceivedAt: receivedAt, Receiver: receiver}
+	svc := &Service{retryRandom: func(int64) int64 { return 0 }}
+	failureKind := model.PipelineTriggerRetryFailureKindDataSource.String()
+
+	at, _, retry := svc.retryDecision(delivery, failureKind, 2, startedAt, startedAt)
+	require.True(t, retry)
+	require.Equal(t, receivedAt.Add(30*time.Second), at)
+
+	svc.retryRandom = func(n int64) int64 { return n - 1 }
+	at, reason, retry := svc.retryDecision(delivery, failureKind, 2, startedAt, startedAt)
+	require.False(t, retry)
+	require.Equal(t, "max_elapsed_exhausted", reason)
+	require.True(t, at.IsZero())
 }
 
 func TestDeliveryDiagnosticsFailClosedAndReplayExplicitly(t *testing.T) {
@@ -548,9 +594,12 @@ func (f *fakeWebhookRepository) Expire(context.Context, postgres.DBTX, string, s
 	return f.expireErr
 }
 
-func (f *fakeWebhookRepository) Load(context.Context, postgres.DBTX, string, string, int, time.Time) (pipelinewebhooks.Delivery, error) {
+func (f *fakeWebhookRepository) Load(_ context.Context, _ postgres.DBTX, _, _ string, attempt int, _ time.Time) (pipelinewebhooks.Delivery, error) {
 	f.loadCalls++
 	f.loadAfterExpire = f.expired
+	if f.retryAttempt != 0 && f.retryAttempt != attempt {
+		return pipelinewebhooks.Delivery{}, pipelinewebhooks.ErrDeliveryNotFound
+	}
 	return f.delivery, nil
 }
 

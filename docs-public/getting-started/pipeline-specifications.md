@@ -73,8 +73,13 @@ To send failed preflights to email or Slack, create an alert policy, select
 explicitly select this notification type. Each failed occurrence can produce
 one warning, including when a schema refresh fails or the check times out.
 
-Schedule and webhook retries use the retry policy captured for the original
-execution. When `max_elapsed_seconds` is set, queue time, downtime and admission
+Schedule, webhook and completion retries use the retry policy captured for the
+original execution. Set `jitter` to `true` in the retry policy or pass
+`--retry-jitter` in the CLI to spread retries between half and all of the
+calculated fixed or exponential delay, after applying `max_delay_seconds`.
+Each queued retry keeps its chosen dispatch time across redeliveries.
+
+When `max_elapsed_seconds` is set, queue time, downtime and admission
 wait count toward that budget. A new attempt may start at the deadline, but an
 attempt starting after it is refused with `max_elapsed_exhausted`. Attempts that
 already executed can still finish recording their result after the deadline.

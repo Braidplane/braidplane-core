@@ -360,7 +360,10 @@ func testSuccessfulCompletionRuntime(ctx context.Context, t *testing.T, pool *pg
 
 	input.RetryPolicy = model.PipelineTriggerRetryPolicy{
 		Enabled: true, MaxAttempts: 3,
-		BackoffStrategy:       model.PipelineTriggerBackoffStrategyNone,
+		BackoffStrategy:       model.PipelineTriggerBackoffStrategyFixed,
+		InitialDelaySeconds:   1,
+		MaxDelaySeconds:       1,
+		Jitter:                true,
 		RetryableFailureKinds: []model.PipelineTriggerRetryFailureKind{model.PipelineTriggerRetryFailureKindDataSource, model.PipelineTriggerRetryFailureKindPlatform},
 	}
 	trigger, err = checker.CreatePipelineTrigger(ctx, org, project, environment, input, model.UserEventActor(actorSlug))
@@ -410,9 +413,13 @@ func testSuccessfulCompletionRuntime(ctx context.Context, t *testing.T, pool *pg
 	require.NoError(t, err)
 	require.NoError(t, stale.Dispatch(ctx), "a candidate listed before another dispatcher committed must not accept the retry again")
 	var retryRaw []byte
-	require.NoError(t, pool.QueryRow(ctx, `SELECT retry.completion_execution_args FROM pipeline_trigger_retry_attempts retry JOIN project_environments pe ON pe.id=retry.project_environment_id JOIN projects p ON p.id=pe.project_id JOIN organizations o ON o.id=p.organization_id WHERE o.slug=$1 AND retry.root_run_slug=$2 AND retry.attempt_number=2`, org, initial.RunSlug).Scan(&retryRaw))
+	var retryAt time.Time
+	var retryJitter bool
+	require.NoError(t, pool.QueryRow(ctx, `SELECT retry.completion_execution_args,retry.scheduled_at,retry.retry_jitter FROM pipeline_trigger_retry_attempts retry JOIN project_environments pe ON pe.id=retry.project_environment_id JOIN projects p ON p.id=pe.project_id JOIN organizations o ON o.id=p.organization_id WHERE o.slug=$1 AND retry.root_run_slug=$2 AND retry.attempt_number=2`, org, initial.RunSlug).Scan(&retryRaw, &retryAt, &retryJitter))
 	var retry jobs.PipelineRunExecutionArgs
 	require.NoError(t, json.Unmarshal(retryRaw, &retry))
+	require.True(t, retryJitter)
+	require.True(t, retryAt.Equal(retry.ScheduledAt))
 	require.Equal(t, initial.CompletionSnapshotID, retry.CompletionSnapshotID)
 	require.Equal(t, initial.RunSlug, retry.Source.RootRunSlug)
 	require.Equal(t, &initial.RunSlug, retry.Source.RetryOfRunSlug)
@@ -432,7 +439,9 @@ func testSuccessfulCompletionRuntime(ctx context.Context, t *testing.T, pool *pg
 	exec(`DELETE FROM river_job WHERE args->>'organization_slug'=$1 AND args->>'run_slug'=$2`, org, retry.RunSlug)
 	require.NoError(t, dispatcher.Dispatch(ctx))
 	var retryJobID int64
-	require.NoError(t, pool.QueryRow(ctx, `SELECT id FROM river_job WHERE args->>'organization_slug'=$1 AND args->>'run_slug'=$2`, org, retry.RunSlug).Scan(&retryJobID))
+	var repairedAt time.Time
+	require.NoError(t, pool.QueryRow(ctx, `SELECT id,scheduled_at FROM river_job WHERE args->>'organization_slug'=$1 AND args->>'run_slug'=$2`, org, retry.RunSlug).Scan(&retryJobID, &repairedAt))
+	require.True(t, retryAt.Equal(repairedAt))
 	retryStarted := make(chan struct{})
 	releaseRetry := make(chan struct{})
 	retryWorker := &completionRuntimeWorker{dispatcher: dispatcher, completed: make(chan error, 1), entered: retryStarted, release: releaseRetry}
