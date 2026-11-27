@@ -16,20 +16,28 @@ for developers and data teams who move and combine data across databases, APIs,
 CRMs and file stores. For example, join order records with customer data and
 write the result to S3. Work through the web interface, CLI or API.
 
-**Latest non-prerelease:** [Core v0.2.0](https://github.com/Braidplane/braidplane-core/releases/tag/v0.2.0) (Alpha).
-Tags ending in `-rc.N` are release candidates. Before installing, check
-[what v0.2.0 covers and what remains for v1.0](docs-public/core-stability.md).
+**[Get your first result in the UI](docs-public/getting-started/first-result.md).**
+Connect one supported data source, save a query and run it before setting up a
+pipeline or Git repository. You’ll need a Braidplane account with permission to
+add a data source, save a query and run it. You’ll also need credentials for a
+source your instance can reach. If you need an instance, [run Community Core
+locally](#run-locally) and create a local account.
 
-[Try the hosted Alpha](https://app.staging.braidplane.com/auth/signup). The free
-30-day trial starts with the first successful test of a saved data source you
-provide. It includes three active logical pipelines and one queued or running
-pipeline run at a time. No card is required and there is no automatic charge.
-[Hosted trial terms](https://docs.braidplane.com/legal/self-service-alpha-v1/terms/)
+You can [explore the settlement example below](#settlement-example) without an
+account or data source. The screenshots show the pipeline and its completed run
+with sample data.
+
+Community Core is in Alpha. See the [latest non-prerelease on GitHub](https://github.com/Braidplane/braidplane-core/releases/latest).
+Tags ending in `-rc.N` are release candidates. The
+[Core stability guide](docs-public/core-stability.md) describes what was
+verified for v0.2.0 and what remains for v1.0.
 
 [How it works](docs-public/getting-started/overview.md) ·
 [Run locally](#run-locally) ·
 [Pipeline examples](docs-public/examples/index.md) ·
 [Connector capabilities](docs-public/connectors/index.md)
+
+## Settlement example
 
 [![Seven steps on the builder canvas. Two paths meet at compare-settlement, then split toward write-comparisons and write-totals.](docs-public/getting-started/images/product-pipeline-builder.png)](docs-public/getting-started/images/product-pipeline-builder.png)
 
