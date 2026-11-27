@@ -245,10 +245,13 @@ func TestService_AuthenticatePropagatesAPIKeyManagementCapability(t *testing.T) 
 		eventtest.NewProducer(&fakeAPIKeyEventRecorder{}),
 	)
 
-	principal, err := svc.Authenticate(context.Background(), "token")
+	const rawToken = "xto_AQIDBAUGBwgJCgsMDQ4PEBESExQVFhcYGRobHB0eHyA"
+	const tokenHash = "bdca6f456b983529611927e6d6e3eeef5d3e3e9d4938833a77eed52ded20613f"
+	principal, err := svc.Authenticate(context.Background(), " \t"+rawToken+"\n")
 
 	require.NoError(t, err)
 	require.NotNil(t, principal)
+	require.Equal(t, tokenHash, repo.findTokenHash)
 	require.True(t, principal.CanManageAPIKeys)
 	require.True(t, repo.markUsedCalled)
 }
@@ -286,7 +289,8 @@ func TestService_CreateAPIKeyEmitsCreateEventWithoutTokenMetadata(t *testing.T) 
 		model.NewAPIKey{Name: "Deploy key", Slug: apiKeySlug, Role: "viewer"},
 	)
 	require.NoError(t, err)
-	require.NotEmpty(t, key.Token)
+	require.Regexp(t, "^xto_[A-Za-z0-9_-]{43}$", key.Token)
+	require.Equal(t, key.Token[:12], key.TokenPrefix)
 	require.Len(t, events.calls, 1)
 
 	got := events.calls[0]
@@ -457,7 +461,8 @@ func TestService_RotateAPIKeyEmitsRotateEventWithoutTokenMetadata(t *testing.T) 
 
 	key, err := svc.RotateAPIKey(context.Background(), orgSlug, apiKeySlug, model.UserEventActor(actorSlug), nil)
 	require.NoError(t, err)
-	require.NotEmpty(t, key.Token)
+	require.Regexp(t, "^xto_[A-Za-z0-9_-]{43}$", key.Token)
+	require.Equal(t, key.Token[:12], key.TokenPrefix)
 	require.True(t, repo.rotateCalled)
 	require.Len(t, events.calls, 1)
 
@@ -688,6 +693,7 @@ func TestService_APIKeyMutationsCheckLockedTargetRole(t *testing.T) {
 type fakeAPIKeysRepository struct {
 	principal           *apikeys.Principal
 	findErr             error
+	findTokenHash       string
 	markUsedErr         error
 	markUsedCalled      bool
 	createFn            func(context.Context, postgres.DBTX, apikeys.CreateParams) (*apikeys.APIKey, error)
@@ -804,10 +810,11 @@ func (f *fakeAPIKeysRepository) Rotate(
 }
 
 func (f *fakeAPIKeysRepository) FindActivePrincipalByTokenHash(
-	context.Context,
-	postgres.DBTX,
-	string,
+	_ context.Context,
+	_ postgres.DBTX,
+	tokenHash string,
 ) (*apikeys.Principal, error) {
+	f.findTokenHash = tokenHash
 	if f.findErr != nil {
 		return nil, f.findErr
 	}

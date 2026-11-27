@@ -5,6 +5,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/Braidplane/braidplane-core/pkg/crypto"
 	"github.com/Braidplane/braidplane-core/pkg/domain/model"
 	"github.com/Braidplane/braidplane-core/pkg/slug"
 	"github.com/Braidplane/braidplane-core/pkg/validate"
@@ -72,7 +73,7 @@ func (s *service) CreatePersonalAccessToken(
 		return nil, xerror.InvalidInput(xerror.Slug).With(err)
 	}
 
-	token, tokenHash, safePrefix, err := generateToken()
+	token, tokenHash, safePrefix, err := crypto.GenerateBearerToken(TokenPrefix)
 	if err != nil {
 		return nil, xerror.Wrapf("generate personal access token: %w", err)
 	}
@@ -216,7 +217,7 @@ func (s *service) RotatePersonalAccessToken(
 	ctx context.Context,
 	userSlug, patSlug slug.Slug,
 ) (*model.PersonalAccessTokenWithToken, error) {
-	token, tokenHash, safePrefix, err := generateToken()
+	token, tokenHash, safePrefix, err := crypto.GenerateBearerToken(TokenPrefix)
 	if err != nil {
 		return nil, xerror.Wrapf("generate personal access token: %w", err)
 	}
@@ -253,7 +254,7 @@ func (s *service) Authenticate(ctx context.Context, token string) (*model.UserPr
 
 	var ret *model.UserPrincipal
 	err := s.txm.RunInTx(ctx, func(ctx context.Context, tx postgres.DBTX) error {
-		principal, err := s.patsRepo.FindActivePrincipalByTokenHash(ctx, tx, hashToken(token))
+		principal, err := s.patsRepo.FindActivePrincipalByTokenHash(ctx, tx, crypto.HashBearerToken(token))
 		if err != nil {
 			if xerror.Is(err, pats.ErrNotFound) {
 				return ErrInvalidToken
