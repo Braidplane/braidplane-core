@@ -40,6 +40,9 @@ func (c Config) Validate() error {
 		return xerror.ValidationFailed().Detail("Stripe OAuth mode must be test or live")
 	}
 	key, ok := strings.CutPrefix(c.DeveloperKey, "sk_"+c.Mode+"_")
+	if !ok {
+		key, ok = strings.CutPrefix(c.DeveloperKey, "rk_"+c.Mode+"_")
+	}
 	if !ok || !developerKey.MatchString(key) {
 		return xerror.ValidationFailed().Detail("Stripe OAuth requires the app developer secret key matching its mode")
 	}
