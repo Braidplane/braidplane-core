@@ -31,6 +31,7 @@ Public user guides live under `docs-public/` with separate MkDocs navigation.
 - [Deployment resolutions and attempt snapshots](DEPLOYMENT_RESOLUTIONS.md)
 - [Community product design](DESIGN_SYSTEM.md)
 - [Incremental Operator Controls](INCREMENTAL_OPERATIONS.md)
+- [Database change capture experiment](cdc-experiment/README.md)
 - [Native file streaming](NATIVE_FILE_STREAMING.md)
 - [SQL result streaming](SQL_RESULT_STREAMING.md)
 - [Large SQL transfer and recovery qualification](LARGE_SQL_RECOVERY_QUALIFICATION.md)
