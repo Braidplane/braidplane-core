@@ -11,6 +11,7 @@ WITH preflight AS (
     SELECT pr.id, pwd.id AS delivery_id,
         COALESCE(job.kind = 'pipeline_webhook_delivery'
             AND job.state IN ('available', 'pending', 'retryable', 'running', 'scheduled')
+            AND job.attempt < job.max_attempts
             AND job.args->>'receiver_id' = pwd.receiver_id
             AND job.args->>'delivery_id' = pwd.delivery_id
             AND job.args->>'run_attempt' = pwd.attempt_number::text

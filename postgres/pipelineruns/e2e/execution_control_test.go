@@ -296,9 +296,16 @@ func TestWebhookPreflightResetReturnsRunToPauseFence(t *testing.T) {
 	require.NoError(t, pool.QueryRow(ctx, `SELECT status FROM pipeline_webhook_deliveries WHERE receiver_id='pause-receiver' AND delivery_id='preflight'`).Scan(&state))
 	require.Equal(t, "running", state)
 
-	// Recreate the old split preflight state without a retained River job.
-	_, err = pool.Exec(ctx, `UPDATE pipeline_runs SET timeline = timeline - 'revision'
-		WHERE project_environment_id=$1 AND run_slug='webhook-run'`, env)
+	// Recreate the old split preflight state with a job on its final attempt.
+	_, err = pool.Exec(ctx, `WITH exhausted AS (
+		INSERT INTO river_job (kind, queue, args, state, attempt, max_attempts, attempted_at)
+		VALUES ('pipeline_webhook_delivery', 'pipeline_webhook',
+			'{"receiver_id":"pause-receiver","delivery_id":"preflight","run_attempt":1}'::jsonb,
+			'running', 1, 1, now())
+		RETURNING id
+	)
+	UPDATE pipeline_runs SET timeline = timeline - 'revision', worker_job_id = exhausted.id
+		FROM exhausted WHERE project_environment_id=$1 AND run_slug='webhook-run'`, env)
 	require.NoError(t, err)
 	_, err = pool.Exec(ctx, `UPDATE pipeline_webhook_deliveries SET status='accepted', decision_reason='execution_preflight_retry'
 		WHERE receiver_id='pause-receiver' AND delivery_id='preflight'`)
