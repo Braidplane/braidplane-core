@@ -14,6 +14,7 @@ import (
 	"github.com/Braidplane/braidplane-core/pkg/domain/model"
 	"github.com/Braidplane/braidplane-core/pkg/slug"
 	"github.com/Braidplane/braidplane-core/pkg/testutil/fakes"
+	"github.com/Braidplane/braidplane-core/postgres"
 )
 
 func TestCanRejectsMismatchedPrincipalBeforeResolution(t *testing.T) {
@@ -26,6 +27,95 @@ func TestCanRejectsMismatchedPrincipalBeforeResolution(t *testing.T) {
 	allowed, err := svc.Can(t.Context(), Input{OrgSlug: &org, Operation: "listAPIKeys", APIKeySlug: "machine", Source: SourceSession, Resource: model.ResourceAPIKeys, Action: model.Read})
 	require.NoError(t, err)
 	require.False(t, allowed)
+}
+
+func TestCanRejectsUnverifiedDelegatedSources(t *testing.T) {
+	org := slug.Slug("tenant")
+	svc, err := New(nil, func(context.Context, slug.Slug, slug.Slug, slug.Slug, model.AuthorizationTarget) (model.AuthorizationFacts, error) {
+		t.Fatal("an unverified principal reached persistence")
+		return model.AuthorizationFacts{}, nil
+	})
+	require.NoError(t, err)
+	for _, input := range []Input{
+		{Source: SourceDelegatedUser, UserSlug: "member"},
+		{Source: SourceDelegatedMachine, APIKeySlug: "machine"},
+	} {
+		input.OrgSlug, input.Operation = &org, "listProjects"
+		input.Resource, input.Action = model.ResourceProjects, model.Read
+		allowed, err := svc.Can(t.Context(), input)
+		require.NoError(t, err)
+		require.False(t, allowed)
+	}
+}
+
+func TestCanRequiresDelegatedTenantPrincipalAndMappedOperation(t *testing.T) {
+	org, other := slug.Slug("tenant"), slug.Slug("other")
+	const principalID = "member:1"
+	facts := model.AuthorizationFacts{
+		Valid: true, OrganizationID: "1", PrincipalID: principalID, TargetID: "projects:2",
+		Bindings: []model.AuthorizationBinding{{Scope: "resource", ScopeID: "projects:2", Permissions: []string{"projects:read"}}},
+	}
+	svc, err := New(nil, func(context.Context, slug.Slug, slug.Slug, slug.Slug, model.AuthorizationTarget) (model.AuthorizationFacts, error) {
+		return facts, nil
+	})
+	require.NoError(t, err)
+	principal := DelegatedPrincipal{Organization: org, User: "member", PrincipalID: principalID}
+	withScopes := func(keys []string) context.Context {
+		return WithDelegatedPrincipal(t.Context(), principal, keys, func(context.Context, postgres.DBTX) error { return nil })
+	}
+	ctx := withScopes(DelegationScopeKeys(SourceDelegatedUser))
+	valid := Input{
+		OrgSlug: &org, UserSlug: "member", Source: SourceDelegatedUser, Operation: "getProject", Resource: model.ResourceProjects,
+		Action: model.Read, Target: model.AuthorizationTarget{Kind: "projects", Slug: "visible"},
+	}
+	check := func(input Input, want bool) {
+		t.Helper()
+		allowed, err := svc.Can(ctx, input)
+		require.NoError(t, err)
+		require.Equal(t, want, allowed)
+	}
+	check(valid, true)
+	active := ctx
+	ctx = withScopes(nil)
+	check(valid, false)
+	ctx = withScopes([]string{"getProject:outdated"})
+	check(valid, false)
+	ctx = active
+	for _, edit := range []func(*Input){
+		func(in *Input) { in.OrgSlug = &other },
+		func(in *Input) { in.OrgSlug = nil },
+		func(in *Input) { in.UserSlug = "other" },
+		func(in *Input) { in.Source = SourceSession },
+		func(in *Input) { in.Source, in.UserSlug, in.APIKeySlug = SourceDelegatedMachine, "", "machine" },
+		func(in *Input) { in.Operation = "unmapped" },
+		func(in *Input) { in.Operation, in.Action = "deleteProject", model.Delete },
+		func(in *Input) { in.Operation, in.Action = "updateProject", model.Update },
+		func(in *Input) { in.Target = model.AuthorizationTarget{} },
+	} {
+		invalid := valid
+		edit(&invalid)
+		check(invalid, false)
+	}
+	facts.PrincipalID = "member:2"
+	check(valid, false)
+}
+
+func TestDelegationScopeKeyIsStableAcrossSelectorOrderAndChangesWithAuthority(t *testing.T) {
+	const id = "exampleAction"
+	base := operation{
+		class: "tenant", route: "POST /organizations/:slug/projects/:project_slug/example",
+		selectors: parseSelectors("projects:update=projects|project_environments projects:read=projects"),
+	}
+	key := delegationScopeKey(SourceDelegatedUser, id, base)
+	reordered := base
+	reordered.selectors = parseSelectors("projects:read=projects projects:update=project_environments|projects")
+	require.Equal(t, key, delegationScopeKey(SourceDelegatedUser, id, reordered))
+	reordered.selectors = parseSelectors("projects:read=projects projects:update=project_environments|projects|organization")
+	require.NotEqual(t, key, delegationScopeKey(SourceDelegatedUser, id, reordered))
+	reordered = base
+	reordered.route = "PUT /organizations/:slug/projects/:project_slug/example"
+	require.NotEqual(t, key, delegationScopeKey(SourceDelegatedUser, id, reordered))
+	require.NotEqual(t, key, delegationScopeKey(SourceDelegatedMachine, id, base))
 }
 
 func TestCanRequiresMappedSourceAndPermission(t *testing.T) {

@@ -28,6 +28,7 @@ const DailyCronSchedule = "CRON_TZ=UTC 0 0 * * *"
 type Result struct {
 	WishlistRegistrations int64
 	AbuseControlBuckets   int64
+	MCPOAuthRowsDeleted   int64
 	QueryExecutions       int64
 	ReplayCheckpoints     int64
 	PipelineRuns          int64
@@ -148,6 +149,18 @@ func (s *service) PruneExpiredCustomerData(ctx context.Context, execution Mainte
 			return xerror.Wrapf("delete expired abuse-control buckets: %w", err)
 		}
 		result.AbuseControlBuckets = deleted
+		// Prune in parent-to-child order, matching token and approval transactions.
+		for _, prune := range []func(context.Context, postgres.DBTX) (int64, error){
+			s.repo.DeleteExpiredMCPOAuthMachineClients,
+			s.repo.DeleteInactiveMCPOAuthGrants,
+			s.repo.DeleteExpiredMCPOAuthTransientRecords,
+		} {
+			deleted, err := prune(ctx, tx)
+			if err != nil {
+				return xerror.Wrapf("delete expired or revoked MCP OAuth records: %w", err)
+			}
+			result.MCPOAuthRowsDeleted += deleted
+		}
 		return nil
 	}); err != nil {
 		return Result{}, err

@@ -1,0 +1,52 @@
+package views
+
+import "github.com/Braidplane/braidplane-core/pkg/domain/model"
+
+templ MCPConsentPage(prompt model.MCPConsentPrompt, action, csrf string) {
+	<!DOCTYPE html>
+	<html lang="en" data-theme="control-room">
+		<head>
+			<meta charset="utf-8"/>
+			<meta name="viewport" content="width=device-width, initial-scale=1"/>
+			<title>Authorize MCP access | Braidplane</title>
+			<link rel="stylesheet" href={ versionedAssetPath("/assets/css/app.css") }/>
+		</head>
+		<body class="min-h-screen bg-base-200 px-4 py-12">
+			<main class="mx-auto max-w-xl space-y-5 rounded-lg border border-base-300 bg-base-100 p-6 text-base-content">
+				<h1 class="text-2xl font-semibold">Authorize MCP access</h1>
+				<p class="break-words">{ prompt.ClientName } is requesting access on your behalf.</p>
+				<dl class="space-y-3 break-words text-sm">
+					<div><dt class="font-semibold">Client ID</dt><dd>{ prompt.ClientID }</dd></div>
+					<div><dt class="font-semibold">Callback origin</dt><dd>{ prompt.RedirectOrigin }</dd></div>
+					<div><dt class="font-semibold">MCP resource</dt><dd>{ prompt.Resource }</dd></div>
+					<div><dt class="font-semibold">Account</dt><dd>{ prompt.User.String() }</dd></div>
+					<div>
+						<dt class="font-semibold">Access scope</dt>
+						if prompt.Organization == "" {
+							<dd>Account only</dd>
+						} else {
+							<dd>Organization { prompt.Organization.String() }</dd>
+						}
+					</div>
+				</dl>
+				if len(prompt.Operations) > 0 {
+					<section aria-labelledby="delegation-operations">
+						<h2 id="delegation-operations" class="text-sm font-semibold">Allowed actions</h2>
+						<p class="text-sm">Your permissions in this organization still apply.</p>
+						<ul class="mt-2 list-disc space-y-1 pl-5 text-sm">
+							for _, action := range prompt.Operations {
+								<li>{ action }</li>
+							}
+						</ul>
+					</section>
+				}
+				<form method="post" action={ templ.SafeURL(action) } class="flex flex-wrap gap-3">
+					<input type="hidden" name="_csrf" value={ csrf }/>
+					<input type="hidden" name="consent_id" value={ prompt.ID }/>
+					<button type="submit" name="decision" value="deny" class="btn btn-outline">Deny</button>
+					<button type="submit" name="decision" value="approve" class="btn btn-primary">Allow access</button>
+				</form>
+			</main>
+		</body>
+	</html>
+}

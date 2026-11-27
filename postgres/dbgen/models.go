@@ -77,6 +77,41 @@ type AccountDeletionRequest struct {
 	FailureCode pgtype.Text
 }
 
+type ActiveMcpOauthMachineClient struct {
+	Issuer             string
+	Audience           string
+	ClientID           string
+	ClientSecretHash   string
+	ApiKeyID           int64
+	ApiKeySlug         string
+	OrganizationSlug   string
+	ExpiresAt          interface{}
+	OperationScopeKeys []string
+}
+
+type ActiveMcpOauthMachineGrant struct {
+	GrantID            int64
+	Issuer             string
+	Audience           string
+	ClientID           string
+	ApiKeyID           int64
+	ApiKeySlug         string
+	OrganizationSlug   string
+	OperationScopeKeys []string
+}
+
+type ActiveMcpOauthUserGrant struct {
+	GrantID            int64
+	Issuer             string
+	Audience           string
+	ClientID           string
+	UserSlug           string
+	OrganizationSlug   string
+	UserID             int32
+	MemberID           int32
+	OperationScopeKeys []string
+}
+
 type ActivePipelineProposalAuthority struct {
 	OrgSlug                   string
 	ProjectSlug               string
@@ -524,6 +559,52 @@ type InstanceAdminAudit struct {
 	NewRole          string
 	OperatorIdentity string
 	OccurredAt       pgtype.Timestamptz
+}
+
+type McpOauthCredential struct {
+	CredentialHash string
+	GrantID        int64
+	Kind           string
+	RedirectUri    string
+	Challenge      string
+	ExpiresAt      pgtype.Timestamptz
+	UsedAt         pgtype.Timestamptz
+}
+
+type McpOauthGrant struct {
+	GrantID               int64
+	Issuer                string
+	Audience              string
+	ClientID              string
+	UserID                pgtype.Int4
+	MemberID              pgtype.Int4
+	MachineClientID       pgtype.Text
+	AuthenticationVersion pgtype.Int8
+	OperationScopeKeys    []string
+	ExpiresAt             pgtype.Timestamptz
+	RevokedAt             pgtype.Timestamptz
+}
+
+type McpOauthMachineClient struct {
+	Issuer             string
+	Audience           string
+	ClientID           string
+	ClientSecretHash   string
+	ApiKeyID           int64
+	ApiKeyTokenHash    string
+	OperationScopeKeys []string
+	ExpiresAt          pgtype.Timestamptz
+	RevokedAt          pgtype.Timestamptz
+}
+
+type McpOauthPendingConsent struct {
+	NonceHash   string
+	GrantID     int64
+	SessionHash string
+	RedirectUri string
+	Challenge   string
+	ClientState string
+	ExpiresAt   pgtype.Timestamptz
 }
 
 type NotificationConnection struct {

@@ -18,7 +18,7 @@ var effectivePolicy = sync.OnceValues(func() (rego.PreparedEvalQuery, error) {
 // EffectivePermissions enumerates the same Core rules used by Can in a single database snapshot.
 func (s *service) EffectivePermissions(ctx context.Context, input Input) ([]model.RolePermission, error) {
 	permissions := []model.RolePermission{}
-	if !input.Source.matchesPrincipal(input) || input.Source == SourceQueuedMember || s.resolve == nil || input.OrgSlug == nil || *input.OrgSlug == "" || (input.UserSlug == "") == (input.APIKeySlug == "") {
+	if !input.Source.matchesPrincipal(input) || input.Source.delegated() || DelegatedSource(ctx) != "" || input.Source == SourceQueuedMember || s.resolve == nil || input.OrgSlug == nil || *input.OrgSlug == "" || (input.UserSlug == "") == (input.APIKeySlug == "") {
 		return permissions, nil
 	}
 	facts, err := s.resolve(ctx, *input.OrgSlug, input.UserSlug, input.APIKeySlug, input.Target)

@@ -16,7 +16,7 @@ declineMyMemberInvitation,POST,/member-invitations/:slug/:invitation_slug/declin
 listOrganizations,GET,/organizations,pre-tenant,"session, PAT",organizations:read,,organizations:read=none
 createOrganization,POST,/organizations,pre-tenant,"session, PAT",organizations:create,,organizations:create=none
 deleteOrganization,DELETE,/organizations/:slug,tenant,"session, PAT, API key",organizations:delete,,organizations:delete=organization
-getOrganization,GET,/organizations/:slug,tenant,"session, PAT, API key",organizations:read,,organizations:read=organization
+getOrganization,GET,/organizations/:slug,tenant,"session, PAT, API key, delegated user, delegated machine",organizations:read,,organizations:read=organization
 updateOrganization,PUT,/organizations/:slug,tenant,"session, PAT, API key",organizations:update,,organizations:update=organization
 listAlertDeliveryAttempts,GET,/organizations/:slug/alert-delivery-attempts,tenant,"session, PAT, API key",notifications:read,,notifications:read=organization
 listAlertDestinations,GET,/organizations/:slug/alert-destinations,tenant,"session, PAT, API key",alert_destinations:read,,alert_destinations:read=organization
@@ -118,11 +118,11 @@ listNotificationDeliveryAttempts,GET,/organizations/:slug/notifications/:notific
 resolveNotification,POST,/organizations/:slug/notifications/:notification_slug/resolve,tenant,"session, PAT, API key",notifications:update,,notifications:update=notifications
 getPipelineOperationalCapabilities,GET,/organizations/:slug/pipeline-operational-capabilities,tenant,"session, PAT, API key",pipelines:read,,pipelines:read=organization
 formatPipelineSpec,POST,/organizations/:slug/pipeline-spec\:format,tenant,"session, PAT, API key",pipelines:read,,pipelines:read=organization
-listProjects,GET,/organizations/:slug/projects,tenant,"session, PAT, API key",projects:read,,projects:read=organization
+listProjects,GET,/organizations/:slug/projects,tenant,"session, PAT, API key, delegated user, delegated machine",projects:read,,projects:read=organization
 createProject,POST,/organizations/:slug/projects,tenant,"session, PAT, API key",projects:create,,projects:create=organization
 deleteProject,DELETE,/organizations/:slug/projects/:project_slug,tenant,"session, PAT, API key",projects:delete,,projects:delete=projects
-getProject,GET,/organizations/:slug/projects/:project_slug,tenant,"session, PAT, API key",projects:read,,projects:read=projects
-updateProject,PUT,/organizations/:slug/projects/:project_slug,tenant,"session, PAT, API key",projects:update,,projects:update=projects
+getProject,GET,/organizations/:slug/projects/:project_slug,tenant,"session, PAT, API key, delegated user, delegated machine",projects:read,,projects:read=projects
+updateProject,PUT,/organizations/:slug/projects/:project_slug,tenant,"session, PAT, API key, delegated user, delegated machine",projects:update,,projects:update=projects
 listODCSContracts,GET,/organizations/:slug/projects/:project_slug/contracts,tenant,"session, PAT, API key",projects:read,,projects:read=projects
 createODCSContract,POST,/organizations/:slug/projects/:project_slug/contracts,tenant,"session, PAT, API key",projects:create,,projects:create=projects
 importODCSArtifacts,POST,/organizations/:slug/projects/:project_slug/contracts/import,tenant,"session, PAT, API key",projects:create,,projects:create=projects

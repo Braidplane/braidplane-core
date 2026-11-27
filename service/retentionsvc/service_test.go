@@ -56,6 +56,7 @@ func TestPruneExpiredCustomerDataDeletesOrganizationScopedRecordsAtPolicyCutoffs
 			Slug:     org,
 			Settings: []byte(`{"retention":{"query_execution_retention_days":2,"replay_checkpoint_retention_days":3,"run_history_retention_days":4,"event_log_retention_days":5}}`),
 		}},
+		mcpRowsDeleted: [3]int64{1, 2, 3},
 	}
 	svc := New(testutil.FakeTransactionManager{}, repo, repo, fixedClock{now: now})
 	execution := MaintenanceExecution{SourceJobID: 41, Attempt: 1, StartedAt: now.Add(-time.Minute)}
@@ -63,7 +64,7 @@ func TestPruneExpiredCustomerDataDeletesOrganizationScopedRecordsAtPolicyCutoffs
 	result, err := svc.PruneExpiredCustomerData(t.Context(), execution)
 
 	require.NoError(t, err)
-	require.Equal(t, Result{WishlistRegistrations: 5, AbuseControlBuckets: 6, QueryExecutions: 1, ReplayCheckpoints: 2, PipelineRuns: 3, Events: 4}, result)
+	require.Equal(t, Result{WishlistRegistrations: 5, AbuseControlBuckets: 6, MCPOAuthRowsDeleted: 6, QueryExecutions: 1, ReplayCheckpoints: 2, PipelineRuns: 3, Events: 4}, result)
 	require.Equal(t, []time.Time{now.AddDate(0, -wishlistRetentionMonths, 0)}, repo.wishlistRegistrations)
 	require.Equal(t, []time.Time{now.Add(-abuseControlRetention)}, repo.abuseControlBuckets)
 	require.Equal(t, []retentionDeleteCall{{org: org, cutoff: now.AddDate(0, 0, -2)}}, repo.queryExecutions)
@@ -352,6 +353,7 @@ type recordingRetentionRepository struct {
 	events                []retentionDeleteCall
 	wishlistRegistrations []time.Time
 	abuseControlBuckets   []time.Time
+	mcpRowsDeleted        [3]int64
 }
 
 func (r *recordingRetentionRepository) ListOrganizationSettings(context.Context, postgres.DBTX) ([]retention.OrganizationSettings, error) {
@@ -433,6 +435,18 @@ func (r *recordingRetentionRepository) DeleteAbuseControlBucketsBefore(
 		return 0, r.deleteAbuseError
 	}
 	return 6, nil
+}
+
+func (r *recordingRetentionRepository) DeleteExpiredMCPOAuthMachineClients(context.Context, postgres.DBTX) (int64, error) {
+	return r.mcpRowsDeleted[0], nil
+}
+
+func (r *recordingRetentionRepository) DeleteInactiveMCPOAuthGrants(context.Context, postgres.DBTX) (int64, error) {
+	return r.mcpRowsDeleted[1], nil
+}
+
+func (r *recordingRetentionRepository) DeleteExpiredMCPOAuthTransientRecords(context.Context, postgres.DBTX) (int64, error) {
+	return r.mcpRowsDeleted[2], nil
 }
 
 func (r *recordingRetentionRepository) DeleteExpired(

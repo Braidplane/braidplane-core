@@ -14,17 +14,25 @@ import (
 type Source string
 
 const (
-	SourceSession      Source = "session"
-	SourcePAT          Source = "PAT"
-	SourceManagingPAT  Source = "management-enabled PAT"
-	SourceAPIKey       Source = "API key"
-	SourceQueuedMember Source = "queued member"
+	SourceSession          Source = "session"
+	SourcePAT              Source = "PAT"
+	SourceManagingPAT      Source = "management-enabled PAT"
+	SourceAPIKey           Source = "API key"
+	SourceQueuedMember     Source = "queued member"
+	SourceDelegatedUser    Source = "delegated user"
+	SourceDelegatedMachine Source = "delegated machine"
+)
+
+const (
+	OperationRegisterMCPMachineClient   = "registerMCPMachineClient"
+	OperationDisconnectMCPMachineClient = "disconnectMCPMachineClient"
 )
 
 type operation struct {
 	class     string
 	sources   []string
 	selectors map[string][]string
+	route     string
 }
 
 //go:embed operations.csv
@@ -37,9 +45,11 @@ var operationRoutes, operationRules = func() (map[string]string, map[string]oper
 	}
 	routes := make(map[string]string, len(rows)-1)
 	rules := map[string]operation{
-		"instanceUserAdministration":    {"global", []string{"session", "PAT"}, parseSelectors("users:read=none users:update=none")},
-		"authorizeQueuedProposalUpdate": {"tenant", []string{"queued member"}, parseSelectors("pipelines:update=pipelines")},
-		"authorizeQueuedProposalCreate": {"tenant", []string{"queued member"}, parseSelectors("pipelines:create=projects")},
+		"instanceUserAdministration":        {class: "global", sources: []string{"session", "PAT"}, selectors: parseSelectors("users:read=none users:update=none")},
+		"authorizeQueuedProposalUpdate":     {class: "tenant", sources: []string{"queued member"}, selectors: parseSelectors("pipelines:update=pipelines")},
+		"authorizeQueuedProposalCreate":     {class: "tenant", sources: []string{"queued member"}, selectors: parseSelectors("pipelines:create=projects")},
+		OperationRegisterMCPMachineClient:   {class: "tenant", sources: []string{string(SourceSession)}, selectors: parseSelectors("api_keys:update=api_keys")},
+		OperationDisconnectMCPMachineClient: {class: "tenant", sources: []string{string(SourceSession)}, selectors: parseSelectors("api_keys:delete=api_keys")},
 	}
 	for _, row := range rows[1:] {
 		id, route := row[0], row[1]+" "+row[2]
@@ -60,7 +70,7 @@ var operationRoutes, operationRules = func() (map[string]string, map[string]oper
 				panic("unlisted authorization permission: " + id + " " + permission)
 			}
 		}
-		rules[id] = operation{row[3], strings.Split(row[4], ", "), selectors}
+		rules[id] = operation{class: row[3], sources: strings.Split(row[4], ", "), selectors: selectors, route: route}
 	}
 	return routes, rules
 }()
@@ -71,9 +81,9 @@ func OperationForRoute(method, path string) string {
 
 func (source Source) matchesPrincipal(input Input) bool {
 	switch source {
-	case SourceAPIKey:
+	case SourceAPIKey, SourceDelegatedMachine:
 		return input.APIKeySlug != "" && input.UserSlug == ""
-	case SourceSession, SourcePAT, SourceManagingPAT, SourceQueuedMember:
+	case SourceSession, SourcePAT, SourceManagingPAT, SourceQueuedMember, SourceDelegatedUser:
 		return input.UserSlug != "" && input.APIKeySlug == ""
 	default:
 		return false
