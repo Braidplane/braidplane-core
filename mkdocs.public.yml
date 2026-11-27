@@ -58,6 +58,7 @@ nav:
       - Install the CLI: getting-started/cli.md
       - CLI tutorial: getting-started/first-result-cli.md
       - Pipeline specifications: getting-started/pipeline-specifications.md
+      - ODCS support and enforcement: getting-started/odcs-support.md
   - Connectors:
       - Connector directory: connectors/index.md
       - Support levels: connectors/support-levels.md

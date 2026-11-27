@@ -466,6 +466,9 @@ validation reports unsupported syntax before the spec is committed. The
 
 ## Contracts
 
+To use a project catalog revision in place of an inline contract, see
+[ODCS support and enforcement](odcs-support.md).
+
 Contracts describe the payload crossing a step boundary. Declare an upstream
 `output_contract`, a downstream `input_contract`, or both when you want both
 sides documented and checked.

@@ -168,7 +168,7 @@ func TestResolvePipelineContractsRejectsUnavailableOrUnsupportedObjects(t *testi
 				pipeline.Steps[0].Query.OutputContractRef.SchemaObjectID = "absent"
 			}
 			if name == "digest mismatch" {
-				revision.Digest = "invalid"
+				revision.Digest = "sha256:" + strings.Repeat("0", 64)
 			}
 			if name == "inline and ref" {
 				pipeline.Steps[0].Query.OutputContract = &payload.Contract{}
@@ -179,7 +179,9 @@ func TestResolvePipelineContractsRejectsUnavailableOrUnsupportedObjects(t *testi
 				}
 				return revision, nil
 			}}}
-			_, _, err = store.ResolvePipelineContracts(context.Background(), "acme", "default", pipeline)
+			resolved, pins, err := store.ResolvePipelineContracts(context.Background(), "acme", "default", pipeline)
+			require.Nil(t, resolved)
+			require.Nil(t, pins)
 			if name == "digest mismatch" {
 				require.ErrorIs(t, err, xerror.Unexpected())
 			} else {
@@ -204,9 +206,12 @@ func TestPipelineFromVersionRequiresExactCompletePins(t *testing.T) {
 	pin := model.PinnedODCSPort{StepSlug: "fetch", Port: "output", ContractSlug: "orders", RevisionSlug: "v1", SchemaObjectID: "order", Digest: revision.Digest, Shape: conversion.Shape, CompilerID: conversion.CompilerID}
 	_, err = pipelineFromVersion(&pipelinesrepo.PipelineVersion{SpecJSONB: specJSON, ResolvedContracts: mustJSON(t, []model.PinnedODCSPort{pin})})
 	require.NoError(t, err)
-	for _, name := range []string{"revision", "digest", "duplicate", "facet", "compiler", "missing compiler"} {
+	for _, name := range []string{"contract", "revision", "object", "digest", "duplicate", "facet", "compiler", "missing compiler"} {
 		t.Run(name, func(t *testing.T) {
 			changed := pin
+			if name == "contract" {
+				changed.ContractSlug = "other-orders"
+			}
 			if name == "compiler" {
 				changed.CompilerID = "unsupported/future"
 			}
@@ -215,6 +220,9 @@ func TestPipelineFromVersionRequiresExactCompletePins(t *testing.T) {
 			}
 			if name == "revision" {
 				changed.RevisionSlug = "v2"
+			}
+			if name == "object" {
+				changed.SchemaObjectID = "other-order"
 			}
 			if name == "digest" {
 				changed.Digest = "invalid"
