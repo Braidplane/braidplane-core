@@ -41,5 +41,16 @@ reviews:
       instructions: >
         Prioritize correctness, tenant isolation, HTTP authorization, typed errors,
         and the dependency boundaries in doc/PACKAGE_BOUNDARIES.md.
+    - path: "README.md"
+      instructions: >
+        Apply doc/DOCUMENTATION.md#reviewing-reader-paths. Flag the specific line
+        that gives a stale release claim or misleads a signed-out reader about
+        the next action. Request evidence for changed external claims.
+    - path: "docs-public/getting-started/**/*.md"
+      instructions: >
+        Apply doc/DOCUMENTATION.md#reviewing-reader-paths. Flag the specific line
+        where a first-time reader would get stuck or misread the result. Check
+        prerequisites, sample output and recovery. Request evidence for changed
+        external claims.
 chat:
   auto_reply: false
