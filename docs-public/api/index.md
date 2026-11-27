@@ -14,6 +14,9 @@ Use the policy and OpenAPI document from the same release as your application.
 
 See the [authorization matrix](authorization-matrix.md) for route permissions, accepted principals and target selection.
 
+For catalog admission, pipeline mappings and the meaning of contract evidence,
+see [ODCS support and enforcement](../getting-started/odcs-support.md).
+
 ## Base URL
 
 Use your installation's HTTPS origin with the `/api` prefix, for example
