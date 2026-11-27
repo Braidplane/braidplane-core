@@ -1,0 +1,8 @@
+{
+  "name": "supplier",
+  "representation": "rows",
+  "fields": [
+    {"name": "item_code", "type": "string", "required": true},
+    {"name": "price", "type": "string", "required": true}
+  ]
+}

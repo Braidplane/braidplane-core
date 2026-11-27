@@ -138,6 +138,54 @@ func TestBuilderMappingRejectsMalformedRequests(t *testing.T) {
 	}
 }
 
+func TestBuilderMappingFixtureUsesNamedContractsAndSafeStepDiagnostics(t *testing.T) {
+	t.Parallel()
+	app := fiber.New()
+	app.Post("/builder/mapping", (&Router{}).handleBuilderMapping)
+	for _, test := range []struct {
+		fixture string
+		code    string
+	}{
+		{`{"inputs":{"supplier":[{"item_code":"CHAIR-42"}]},"expected":[{"sku":"CHAIR-42"}]}`, ""},
+		{`{"inputs":{"supplier":[{"wrong_field":"sample-canary"}]}}`, "TRANSFORM_FIXTURE_INPUT_CONTRACT_FAILED"},
+		{`{"inputs":{"supplier":[{"item_code":"sample-canary"}]},"unknown-canary":true}`, "TRANSFORM_FIXTURE_INVALID"},
+	} {
+		body, err := json.Marshal(builderMappingRequest{
+			Action: "fixture", Step: "map-products", SQL: "SELECT item_code AS sku FROM supplier WHERE item_code IS NOT NULL",
+			InputContracts: map[string]*pipelinespec.InputContractAttachment{
+				"supplier": {Contract: &payload.Contract{Fields: []payload.ContractField{
+					{Name: "item_code", Type: model.ContractFieldTypeValueString, Required: true},
+				}}},
+			},
+			FixtureJSON: test.fixture,
+		})
+		require.NoError(t, err)
+		request := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/builder/mapping", bytes.NewReader(body))
+		response, err := app.Test(request)
+		require.NoError(t, err)
+		raw, err := io.ReadAll(response.Body)
+		require.NoError(t, err)
+		require.NoError(t, response.Body.Close())
+		require.Equal(t, "no-store", response.Header.Get("Cache-Control"))
+		if test.code == "" {
+			require.Equal(t, http.StatusOK, response.StatusCode)
+			require.Contains(t, string(raw), "CHAIR-42")
+			continue
+		}
+		require.Equal(t, http.StatusUnprocessableEntity, response.StatusCode)
+		require.NotContains(t, string(raw), "canary")
+		var result struct {
+			Diagnostics []map[string]string `json:"diagnostics"`
+			OutputJSON  string              `json:"output_json"`
+		}
+		require.NoError(t, json.Unmarshal(raw, &result))
+		require.Empty(t, result.OutputJSON)
+		require.Len(t, result.Diagnostics, 1)
+		require.Equal(t, test.code, result.Diagnostics[0]["code"])
+		require.Equal(t, "map-products", result.Diagnostics[0]["step"])
+	}
+}
+
 func TestBuilderMappingContractDenialDoesNotFallBackToBrowserShape(t *testing.T) {
 	t.Parallel()
 	var calls atomic.Int32

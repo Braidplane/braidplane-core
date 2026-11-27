@@ -1,0 +1,8 @@
+{
+  "name": "catalog",
+  "representation": "rows",
+  "fields": [
+    {"name": "sku", "type": "string", "required": true},
+    {"name": "unit_price", "type": "decimal", "precision": 18, "scale": 2, "required": true}
+  ]
+}

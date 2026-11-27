@@ -1413,6 +1413,7 @@ test("authors supplier field mapping and catches a fixture regression before sav
             schema_object_id: "product",
             representation: "rows",
         };
+        const authoredSQL = "SELECT item_code AS sku FROM input WHERE price IS NOT NULL";
         const steps = [
             {
                 kind: "query",
@@ -1437,7 +1438,7 @@ test("authors supplier field mapping and catches a fixture regression before sav
                 slug: "normalize",
                 transform: {
                     inputs: { input: "fetch" },
-                    sql: "SELECT * FROM input",
+                    sql: authoredSQL,
                     output_kind: "rows",
                     output_contract_ref: reference,
                 },
@@ -1466,10 +1467,23 @@ test("authors supplier field mapping and catches a fixture regression before sav
         await page.locator("#builder-edit-mapping-btn").click();
         const editor = page.getByRole("region", { name: "Field mapping", exact: true });
         await expect(editor).not.toHaveAttribute("aria-busy", "true");
+        const sample = {
+            inputs: { input: [{ item_code: "CHAIR-42", description: "Oak chair", price: "249.90" }] },
+            expected: [{ sku: "CHAIR-42", name: "Oak chair", unit_price: 249.9, currency: "PLN" }],
+        };
+        const sampleEditor = editor.getByLabel("Fixture JSON (inputs and optional expected)", { exact: true });
+        await expect(editor).toContainText("Tests the transform’s current SQL");
+        await sampleEditor.fill(JSON.stringify(sample));
+        const testFixture = editor.getByRole("button", { name: "Test fixture", exact: true });
+        await testFixture.focus();
+        await testFixture.press("Enter");
+        await expect(editor).toContainText("normalize: name: TRANSFORM_FIXTURE_OUTPUT_CONTRACT_FAILED");
+        await expect(testFixture).toBeFocused();
+        await expect(editor.getByRole("region", { name: "Fixture output", exact: true })).toBeHidden();
         await editor.getByRole("button", { name: "New mapping", exact: true }).click();
         await expect(editor).toContainText("sha256:products-v1");
         await expect(editor).toContainText("Unmapped: sku, name, unit_price, currency");
-        await expect(page.locator("#builder-field-transform-sql")).toHaveValue("SELECT * FROM input");
+        await expect(page.locator("#builder-field-transform-sql")).toHaveValue(authoredSQL);
         for (const [name, source] of [
             ["sku", "item_code"],
             ["name", "description"],
@@ -1499,11 +1513,6 @@ test("authors supplier field mapping and catches a fixture regression before sav
             await editor.locator("fieldset").first().scrollIntoViewIfNeeded();
             await captureE2EEvidenceScreenshot(page, testInfo, `field-mapping-editor-${width}.png`, { fullPage: true });
         }
-        const sample = {
-            inputs: { input: [{ item_code: "CHAIR-42", description: "Oak chair", price: "249.90" }] },
-            expected: [{ sku: "CHAIR-42", name: "Oak chair", unit_price: 249.9, currency: "PLN" }],
-        };
-        const sampleEditor = editor.getByLabel("Fixture JSON (inputs and optional expected)", { exact: true });
         await sampleEditor.fill(JSON.stringify(sample));
         await editor.getByRole("button", { name: "Test fixture", exact: true }).click();
         await expect(editor).toContainText("Fixture contracts and expected output passed");

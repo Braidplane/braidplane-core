@@ -1,0 +1,6 @@
+{
+  "inputs": {
+    "input": [{"item_code": "CHAIR-42", "price": "249.90"}]
+  },
+  "expected": [{"sku": "CHAIR-42", "unit_price": 249.90}]
+}
