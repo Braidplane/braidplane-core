@@ -40,9 +40,6 @@ class BackupDatabaseTest(unittest.TestCase):
         installation = root / 'installation'
         prepare(installation, release_path, 'app.customer.test', '127.0.0.1',
                 'mail.customer.test:587', 'owner@customer.test', tls.certs)
-        grants = (installation / 'execution-grants.sql').read_text()
-        old_grants = grants[:grants.index('    public.begin_retained_file(')].rstrip().removesuffix(',')
-        (installation / 'execution-grants.sql').write_text(old_grants + '\nTO :"executor_role";\nCOMMIT;\n')
         (installation / '.installed-release.json').write_text(json.dumps(release))
         _, values = read_inputs(installation)
         command = ['docker', 'compose', '--project-name', values['BRAIDPLANE_PROJECT_NAME'],
@@ -55,13 +52,17 @@ class BackupDatabaseTest(unittest.TestCase):
             return result
         self.addCleanup(compose, 'down', '--volumes')
         compose('up', '--detach', '--no-deps', '--wait', '--wait-timeout', '90', 'database')
-        catalog = (ROOT / 'postgres/migrations/000001_core.up.sql').read_bytes()
-        compose('exec', '-T', 'database', 'psql', '-U', 'braidplane_operator', '-d', 'braidplane',
-                '-v', 'ON_ERROR_STOP=1', input=b'SET ROLE braidplane_migrator;\n' + catalog +
-                b'\nCREATE TABLE public.core_schema_migrations(version bigint, dirty boolean); '
-                b'INSERT INTO public.core_schema_migrations VALUES (1, false); '
-                b'CREATE TABLE public.recovery_oracle(id integer PRIMARY KEY, value text); '
-                b"INSERT INTO public.recovery_oracle VALUES (1, 'frozen-before-backup');")
+        def psql(sql):
+            compose('exec', '-T', 'database', 'psql', '-U', 'braidplane_operator', '-d', 'braidplane',
+                    '-v', 'ON_ERROR_STOP=1', input=b'SET ROLE braidplane_migrator;\n' + sql)
+        migrations = sorted((ROOT / 'postgres/migrations').glob('*.up.sql'))
+        for migration in migrations:
+            psql(migration.read_bytes())
+        schema_version = int(migrations[-1].name.split('_', 1)[0])
+        psql(b'CREATE TABLE public.core_schema_migrations(version bigint, dirty boolean); ' +
+             f'INSERT INTO public.core_schema_migrations VALUES ({schema_version}, false); '.encode() +
+             b'CREATE TABLE public.recovery_oracle(id integer PRIMARY KEY, value text); '
+             b"INSERT INTO public.recovery_oracle VALUES (1, 'frozen-before-backup');")
         # Independent grant application is required before the backup; dump uses the migrator login.
         compose('run', '--rm', '--no-deps', '-T', 'grants')
         destination = root / 'backup'
@@ -85,7 +86,7 @@ class BackupDatabaseTest(unittest.TestCase):
         with patch('scripts.installation.restore_probe.subprocess.run', side_effect=observe_cleanup):
             result = probe(destination)
         self.assertEqual(inspected, [b'1|frozen-before-backup\n'])
-        self.assertEqual(result['schema_version'], '1')
+        self.assertEqual(result['schema_version'], str(schema_version))
         self.assertEqual(json.loads((installation / '.installed-release.json').read_text()), release)
         print('PASS: real Compose backup, recovered configuration bytes, isolated restore/grants, frozen oracle and one post-backup record lost; elapsed_seconds=', result['elapsed_seconds'])
 
@@ -172,7 +173,7 @@ class BackupDatabaseTest(unittest.TestCase):
         dirty = compose('exec', '-T', 'database', 'psql', '-U', 'braidplane_operator', '-d', 'braidplane',
                         '-At', '-c', 'SELECT dirty FROM public.core_schema_migrations').stdout.strip()
         self.assertEqual(dirty, b't')
-        self.assertEqual(probe(upgrade_backup)['schema_version'], '1')
+        self.assertEqual(probe(upgrade_backup)['schema_version'], str(schema_version))
         running = json.loads(compose('ps', '--format', 'json', '--status', 'running').stdout)
         self.assertEqual(running['Service'], 'database')
         print('PASS: injected migration failure retains dirty fence/journal and old release, blocks startup, and preserves a restorable clean pre-migration backup')

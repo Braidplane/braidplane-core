@@ -185,8 +185,37 @@ Each time below runs from the backup command to the first verified HTTPS respons
 | 22:08:41–22:08:57 (16 s) | The second local backup verified. Omitting the dump from its receiver copy made verification exit 1. The copy stayed partial. The first copy reverified with writer-stop time 22:07:39.268666 UTC. The synthetic operator inbox received the failed attempt and prior recovery point. With an idle fixture, original database healthy and all application roles stopped, the operator resumed the same installation. HTTPS login and subsequent synthetic session creation returned HTTP 200. |
 
 The receiver was a protected directory on the same host and the inbox was a
-local Mailpit fixture. The rehearsal still needs an off-host copy, an alert from the site scheduler,
-a drain with active work, and a check of the next scheduled run's destination commit.
+local Mailpit fixture.
+
+### Tagged rehearsal on 2026-11-27
+
+The Linux ARM64 bundle for `v0.4.0-rc.3` (Core revision
+`3378e5dcb4c78f1be0c7308a14e6782cbe04fbe2`) ran with synthetic data. The signed
+archive and its internal checksums verified. The API, worker and executor used
+the local profile to reach the private Git fixture.
+
+Ingress returned HTTP 503 from 10:18:20 to 10:18:45 UTC (25 s). The operator
+route stayed available during drain, the schedule was disabled, and a new run
+request through normal ingress was rejected. The active run wrote its expected
+Git output. Pipeline, execution and runnable River counts reached zero before backup.
+The local receiver copy verified and its isolated restore probe passed on schema
+9. The original roles restarted and sign-in passed.
+
+After ingress reopened, the 10:21 UTC occurrence finished on its pinned spec.
+The run `fire-first-after-resume-20261127t102100z` produced `[{"result":42}]` on
+the synthetic `main` branch at commit `b3467debd73c2f528743b57724872618d23f12c9`.
+The operator verified the file at that commit.
+
+An isolated cron daemon started the failed-copy window at 10:24 UTC. The
+receiver rejected a staged copy with no dump. The scheduler sent an alert to
+the test operator inbox while the application roles were stopped. The alert
+identified the failure and the previous verified local copy, whose writers
+stopped at 10:18:31 UTC. The operator resumed the original installation under
+the fixture's recovery limit. Ingress was closed from 10:24:00 to 10:24:27 UTC
+(27 s), and sign-in passed after resumption.
+
+Both receiver copies stayed on the rehearsal host. Verification on a separate
+recovery host and delivery through a site's operator alert route remain open.
 
 ## If an upgrade fails
 
