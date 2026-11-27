@@ -42,9 +42,10 @@ No private checkout, Task, Go, npm or personal secret store is needed.
 Provide a customer DNS hostname, a host IPv4 bind address, SMTP endpoint and
 sender address. Provision `ca.pem`, `database.pem`, `database.key`, `edge.pem`
 and `edge.key` in a protected certificate directory. Certificates must chain to
-the supplied CA; the database certificate must cover `database`, and the edge
-certificate must cover the customer application hostname. Install customer trust
-in browsers separately. Keep CA signing keys out of the installation directory.
+the supplied CA. Include `database` in the database certificate's DNS SAN and
+the customer application hostname in the edge certificate's DNS SAN. Install
+customer trust in browsers separately. Keep CA signing keys out of the
+installation directory.
 
 Run from the extracted tools directory and replace the example values with your
 customer's settings:
@@ -116,6 +117,211 @@ backup restoration before upgrading. Use the lifecycle commands for upgrades;
 editing `release.json` after the first attempt is rejected. Retain the original
 tools archive, protected installation directory and database until you have
 verified recovery.
+
+## Renew edge and database TLS certificates
+
+Renew both server certificates before expiry using the CA already in
+`certificates/ca.pem`. Put the application DNS hostname in the edge leaf's
+DNS subject alternative name (SAN). Put `database` in the database leaf's
+DNS SAN. The bundled PostgreSQL clients connect to that name with
+`verify-full`. Keep the CA signing key in the existing signing system.
+Use your CA's renewal schedule and alert on the expiry of both live leaves.
+Use OpenSSL 3.0 or newer for the checks below.
+
+Use a maintenance window. Pause new pipeline starts, including scheduled and
+webhook-triggered runs, and wait for active runs to finish. Coordinate with
+other operators so no backup, upgrade or restore overlaps the window. The
+stock bundle needs two targeted container recreations, one at a time.
+
+| Service | Action and impact |
+| --- | --- |
+| `edge` | Recreate Caddy to read the new bind-mounted files. The bundled Caddyfile disables its reload API. HTTPS drops while the single edge is replaced. |
+| `database` | Recreate PostgreSQL to remount the certificate and copy the new key into its runtime path. Existing database sessions disconnect, and database-dependent requests can fail until clients reconnect. |
+| `api`, `worker`, `executor`, `frontend` | Leave these services running with the existing CA. Verify that each recovers after PostgreSQL returns. |
+
+### Validate and retain the certificate pairs
+
+Set `INSTALLATION` to the absolute path of the running installation and
+`HOST` to its application DNS hostname. Set `STAGED` and `PREVIOUS` to new
+absolute paths outside the installation. Create `STAGED` and
+`$STAGED/certificates` with mode 0700. In `$STAGED/certificates`, place `edge.pem`,
+`edge.key`, `database.pem` and `database.key`. Copy the installed `ca.pem` into
+that directory and copy the installed `release.json` into `$STAGED`. Set both
+staged keys to mode 0600.
+
+From the extracted tools directory on the Docker host, validate the staged
+certificates. Preflight checks trust, hostnames, key pairs and at least one
+day of remaining validity. Record each staged leaf's serial, fingerprint and
+expiry to compare with the live endpoints.
+
+```sh
+show_leaf() {
+  openssl x509 -in "$1" -noout -serial -enddate -ext subjectAltName &&
+  openssl x509 -in "$1" -noout -sha256 -fingerprint
+}
+
+(
+  set -e
+  cmp "$STAGED/certificates/ca.pem" "$INSTALLATION/certificates/ca.pem"
+  python3 -m scripts.installation.preflight "$STAGED" "$HOST"
+  for name in edge database; do
+    show_leaf "$STAGED/certificates/$name.pem"
+  done
+)
+```
+
+Stop if any check fails. Confirm the printed DNS SANs and that both leaves
+expire later than the certificates in service. In the same shell, save the
+installed pairs before replacing them.
+
+```sh
+(
+  set -e
+  umask 077
+  mkdir -m 700 "$PREVIOUS"
+  for name in edge database; do
+    cp "$INSTALLATION/certificates/$name.pem" "$PREVIOUS/$name.pem"
+    cp "$INSTALLATION/certificates/$name.key" "$PREVIOUS/$name.key"
+  done
+)
+```
+
+Continue once all four files are saved. Start from a shell without Compose
+or installation environment overrides. Set `PROJECT` to the existing Compose
+project name recorded as `BRAIDPLANE_PROJECT_NAME` in `release.env`.
+Define the helpers and confirm that `dc ps` shows the intended installation.
+
+```sh
+dc() {
+  docker compose --project-name "$PROJECT" --env-file "$INSTALLATION/release.env" \
+    -f "$INSTALLATION/compose.json" "$@"
+}
+
+replace_pair() (
+  name=$1
+  from=$2
+  certs="$INSTALLATION/certificates"
+  install -m 0644 "$from/$name.pem" "$certs/.$name.pem.new" &&
+  install -m 0600 "$from/$name.key" "$certs/.$name.key.new" &&
+  mv -f "$certs/.$name.pem.new" "$certs/$name.pem" &&
+  mv -f "$certs/.$name.key.new" "$certs/$name.key"
+)
+```
+
+### Recreate and verify one service at a time
+
+Record the live leaf identities before you start. Probe HTTPS and PostgreSQL
+repeatedly during the window to measure the time from the last successful
+probe to the first successful probe after each interruption.
+
+Apply the edge pair first. Continue after the live leaf matches the staged
+fingerprint, serial, hostname and expiry and HTTPS works with the existing CA.
+Use `/readyz` to check application readiness over HTTPS. Run the checks from
+a client that can resolve and reach the app hostname.
+
+```sh
+replace_pair edge "$STAGED/certificates" &&
+  dc up -d --no-deps --force-recreate --pull never --wait --wait-timeout 180 edge
+```
+
+```sh
+(
+  set -e
+  edge_leaf=$(mktemp)
+  trap 'rm -f "$edge_leaf"' EXIT
+  openssl s_client -connect "$HOST:443" -servername "$HOST" \
+    -verify_hostname "$HOST" -verify_return_error \
+    -no-CApath -no-CAstore \
+    -CAfile "$INSTALLATION/certificates/ca.pem" </dev/null >"$edge_leaf"
+  show_leaf "$edge_leaf"
+  status=$(curl --fail --silent --show-error --output /dev/null \
+    --write-out '%{http_code}' --cacert "$INSTALLATION/certificates/ca.pem" \
+    "https://$HOST/readyz")
+  test "$status" = 200
+)
+```
+
+Apply the database pair after the edge checks pass. Use the existing project
+and volume. A PostgreSQL reload alone does not copy the key into its runtime
+path. The container recreation also remounts the replacement files at their
+existing paths.
+
+```sh
+replace_pair database "$STAGED/certificates" &&
+  dc up -d --no-deps --force-recreate --pull never --wait --wait-timeout 180 database
+```
+
+From the installation's private network, check the new live leaf with the
+existing CA. The one-shot command below uses the image and CA mount of the
+`grants` service and overrides its entrypoint to inspect TLS. It applies no
+grants or migrations.
+
+```sh
+(
+  set -e
+  database_leaf=$(mktemp)
+  trap 'rm -f "$database_leaf"' EXIT
+  dc run --rm --no-deps -T --entrypoint openssl grants s_client \
+    -starttls postgres -connect database:5432 -servername database \
+    -verify_hostname database -verify_return_error \
+    -no-CApath -no-CAstore \
+    -CAfile /etc/braidplane/ca.pem </dev/null >"$database_leaf"
+  show_leaf "$database_leaf"
+)
+```
+
+Compare the live database certificate to the staged record. Check
+`dc ps` and verify authenticated HTTPS access again. If a pipeline source
+pins the database container's IP, confirm the configured address still
+matches. Start a known database-backed pipeline using a fresh run ID.
+Wait for it to succeed and compare its recorded version, step results and
+expected output to a known result before resuming normal work.
+
+If a file replacement fails, a service fails to come back, or the served leaf
+differs from the staged leaf, stop the sequence and inspect the change and
+the service's Compose logs. Roll back only if the previous leaf and key are
+still valid and trusted. Run `replace_pair edge "$PREVIOUS"` or
+`replace_pair database "$PREVIOUS"`, then repeat the recreation and endpoint
+checks for that service against the saved leaf. Resume work after both
+endpoints and the pipeline check pass. Retain the previous pairs securely
+until you close the maintenance window.
+
+### Tagged rehearsal
+
+On 27 November 2026, Core `v0.4.0-rc.3-linux-arm64` (`3378e5dc`) ran in the
+disposable `core-237-local` project on OrbStack's Linux ARM64 daemon. The full
+single-host bundle used Caddy 2.11.9, PostgreSQL 18.6, Docker Engine 29.8.2
+and Compose 5.5.0. Caddy published HTTPS on loopback port 36044. PostgreSQL
+used a private network and a dedicated volume.
+
+Both endpoints negotiated TLS 1.3. OpenSSL verified both live leaves against
+the original fixture CA, and their fingerprints matched the staged leaves.
+Both expiries moved from 11 December 2026 to 25 February 2027 at 10:13 UTC.
+The `app.core-237.test` leaf changed
+from serial `5C95` to `5C97`. The `database` leaf changed from `5C96` to
+`5C98`.
+
+| Change | Observed interruption |
+| --- | --- |
+| Edge recreation | 0.40 s between successful authenticated HTTPS probes around one refused connection |
+| Database recreation | 0.60 s between successful PostgreSQL TLS probes and 1.62 s between successful authenticated HTTPS probes around seven HTTP 500 responses |
+
+The probes targeted 200 ms intervals. These gaps bracket the observed
+interruptions on this host. Compose returned after 1.02 s for the edge and
+6.97 s for PostgreSQL, including its readiness wait. Only those two containers
+were recreated. API, worker, executor and frontend kept their container IDs
+and start times.
+
+After renewal, the HTTPS login page returned 200 and authenticated HTTPS
+recovered. The tagged CLI run `renewal-after` succeeded on the same pipeline
+version as `renewal-baseline`. Its query returned one row only if the
+PostgreSQL session used TLS. A separate `verify-full` query read the expected
+value `42`. The synthetic spec was seeded from a local Git commit. Deployment
+and execution used the tagged application.
+
+The same fixture then served both saved leaves after rollback. Both renewed
+leaves were reapplied and verified. HTTPS readiness returned 200, and
+`renewal-reapplied` succeeded on the same pipeline version.
 
 ## First administrator and sign-in
 
