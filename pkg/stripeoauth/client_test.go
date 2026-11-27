@@ -141,7 +141,7 @@ func TestConfigRejectsMismatches(t *testing.T) {
 	for _, change := range []func(*Config){
 		func(c *Config) { c.Mode = "sandbox" },
 		func(c *Config) { c.DeveloperKey = "sk_live_fixture" },
-		func(c *Config) { c.DeveloperKey = "rk_test_fixture" },
+		func(c *Config) { c.DeveloperKey = "rk_live_fixture" },
 		func(c *Config) { c.InstallURL = "https://example.invalid/oauth/v2/authorize?client_id=ca_123" },
 		func(c *Config) { c.InstallURL = "https://marketplace.stripe.com/other?client_id=ca_123" },
 		func(c *Config) {
@@ -160,5 +160,13 @@ func TestConfigRejectsMismatches(t *testing.T) {
 		c := fixtureConfig("test")
 		change(&c)
 		require.Error(t, c.Validate())
+	}
+}
+
+func TestConfigAcceptsRestrictedDeveloperKeys(t *testing.T) {
+	for _, mode := range []string{"test", "live"} {
+		cfg := fixtureConfig(mode)
+		cfg.DeveloperKey = "rk_" + mode + "_fixture"
+		require.NoError(t, cfg.Validate())
 	}
 }
