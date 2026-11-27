@@ -8,6 +8,7 @@ import (
 	api "github.com/Braidplane/braidplane-core/api-schema/gen/server"
 	"github.com/Braidplane/braidplane-core/pkg/apierror"
 	"github.com/Braidplane/braidplane-core/pkg/domain/model"
+	pipelineschedule "github.com/Braidplane/braidplane-core/pkg/pipeline/schedule"
 	"github.com/Braidplane/braidplane-core/pkg/ptr"
 	"github.com/Braidplane/braidplane-core/pkg/slug"
 	"github.com/Braidplane/braidplane-core/pkg/xerror"
@@ -182,11 +183,20 @@ func (s *server) ListPipelineScheduleFires(
 	for i := range response.Items {
 		items[i] = pipelineScheduleFireToAPI(&response.Items[i])
 	}
+	var preflights *[]api.PipelineSchedulePreflight
+	if len(response.UpcomingPreflights) > 0 {
+		upcoming := make([]api.PipelineSchedulePreflight, len(response.UpcomingPreflights))
+		for i, preflight := range response.UpcomingPreflights {
+			upcoming[i] = *pipelineSchedulePreflightToAPI(preflight)
+		}
+		preflights = &upcoming
+	}
 	return c.JSON(api.PipelineScheduleFireListResponse{
-		ScheduleFires: items,
-		HasMore:       response.HasMore,
-		NextCursor:    response.NextCursor,
-		PrevCursor:    response.PrevCursor,
+		ScheduleFires:      items,
+		UpcomingPreflights: preflights,
+		HasMore:            response.HasMore,
+		NextCursor:         response.NextCursor,
+		PrevCursor:         response.PrevCursor,
 	})
 }
 
@@ -466,11 +476,18 @@ func pipelineTriggerScheduleConfigFromAPI(
 		return nil, xerror.InvalidInput(xerror.PipelineTrigger).
 			Detailf("unsupported pipeline trigger schedule misfire_policy %q", value.MisfirePolicy)
 	}
-	return &model.PipelineTriggerScheduleConfig{
+	config := &model.PipelineTriggerScheduleConfig{
 		Cron:          value.Cron,
 		Timezone:      value.Timezone,
 		MisfirePolicy: misfirePolicy,
-	}, nil
+	}
+	if value.PreflightLeadTime != nil {
+		config.PreflightLeadTime, err = pipelineschedule.ParsePreflightLeadTime(*value.PreflightLeadTime)
+		if err != nil {
+			return nil, err
+		}
+	}
+	return config, nil
 }
 
 func pipelineTriggerWebhookConfigFromAPI(value *api.PipelineWebhookConfigInput) *model.PipelineTriggerWebhookConfig {
@@ -562,11 +579,16 @@ func pipelineTriggerScheduleConfigToAPI(
 	if value == nil {
 		return nil
 	}
-	return &api.PipelineTriggerScheduleConfig{
+	config := &api.PipelineTriggerScheduleConfig{
 		Cron:          value.Cron,
 		Timezone:      value.Timezone,
 		MisfirePolicy: api.PipelineTriggerScheduleMisfirePolicy(value.MisfirePolicy.String()),
 	}
+	if value.PreflightLeadTime != 0 {
+		leadTime := value.PreflightLeadTime.String()
+		config.PreflightLeadTime = &leadTime
+	}
+	return config
 }
 
 // pipelineScheduleFireToAPI converts a service schedule-fire diagnostic into the API shape.
@@ -586,8 +608,37 @@ func pipelineScheduleFireToAPI(fire *model.PipelineScheduleFire) api.PipelineSch
 		RunSlug:         nullableSlug(fire.RunSlug),
 		SourceEventSlug: nullableSlug(fire.SourceEventSlug),
 		ErrorSummary:    fire.ErrorSummary,
+		Preflight:       pipelineSchedulePreflightToAPI(fire.Preflight),
 		CreatedAt:       fire.CreatedAt,
 		UpdatedAt:       fire.UpdatedAt,
+	}
+}
+
+func pipelineSchedulePreflightToAPI(preflight *model.PipelineSchedulePreflight) *api.PipelineSchedulePreflight {
+	if preflight == nil {
+		return nil
+	}
+	status := api.PipelineSchedulePreflightStatusPending
+	if preflight.Cancelled {
+		status = api.PipelineSchedulePreflightStatusCancelled
+	} else if preflight.CompletedAt != nil {
+		status = api.PipelineSchedulePreflightStatusSucceeded
+		if len(preflight.Diagnostics) > 0 {
+			status = api.PipelineSchedulePreflightStatusFailed
+		}
+	}
+	diagnostics := make([]api.PipelineSchedulePreflightDiagnostic, len(preflight.Diagnostics))
+	for i, diagnostic := range preflight.Diagnostics {
+		diagnostics[i] = api.PipelineSchedulePreflightDiagnostic{
+			Code: diagnostic.Code, Message: diagnostic.Message,
+			DataSourceSlug: nullableSlug(diagnostic.DataSourceSlug), StepSlug: diagnostic.StepSlug,
+		}
+	}
+	return &api.PipelineSchedulePreflight{
+		TriggerRevision: preflight.TriggerRevision, PipelineSlug: preflight.PipelineSlug.String(),
+		ScheduledFireAt: preflight.ScheduledFireAt, PreflightAt: preflight.PreflightAt,
+		CompletedAt: preflight.CompletedAt, PipelineVersionHash: preflight.VersionHash,
+		Status: status, Diagnostics: diagnostics,
 	}
 }
 

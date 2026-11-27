@@ -216,12 +216,20 @@ func (s *service) ListPipelineScheduleFires(
 	ctx context.Context,
 	orgSlug, projectSlug, environmentSlug, triggerSlug slug.Slug,
 	req model.ListRequest,
-) (model.ListResponse[model.PipelineScheduleFire], error) {
+) (ScheduleFireList, error) {
 	normalized, _ := model.PrepareListQuery(req, model.ListSortScheduledAt)
 	var fires []model.PipelineScheduleFire
+	var preflights []*model.PipelineSchedulePreflight
 	err := s.txm.RunRead(ctx, func(ctx context.Context, db postgres.DBTX) error {
-		if _, err := s.repo.FindPipelineTriggerBySlug(ctx, db, orgSlug, projectSlug, environmentSlug, triggerSlug); err != nil {
+		trigger, err := s.repo.FindPipelineTriggerBySlug(ctx, db, orgSlug, projectSlug, environmentSlug, triggerSlug)
+		if err != nil {
 			return err
+		}
+		if trigger != nil && trigger.Enabled && trigger.ScheduleConfig != nil && trigger.ScheduleConfig.PreflightLeadTime != 0 {
+			preflights, err = s.repo.ListUpcomingSchedulePreflights(ctx, db, orgSlug, projectSlug, environmentSlug, triggerSlug)
+			if err != nil {
+				return err
+			}
 		}
 		repoFires, err := s.repo.ListScheduleFiresForTrigger(ctx, db, orgSlug, projectSlug, environmentSlug, triggerSlug, normalized)
 		if err != nil {
@@ -234,7 +242,7 @@ func (s *service) ListPipelineScheduleFires(
 		return nil
 	})
 	if err != nil {
-		return model.ListResponse[model.PipelineScheduleFire]{}, err
+		return ScheduleFireList{}, err
 	}
 
 	fires, hasMore := model.FinalizePage(fires, normalized)
@@ -246,11 +254,11 @@ func (s *service) ListPipelineScheduleFires(
 			return item.ScheduledFireAt.Format(time.RFC3339Nano), item.FireSlug.String()
 		},
 	)
-	return model.ListResponse[model.PipelineScheduleFire]{
-		Items:      fires,
-		HasMore:    hasMore,
-		NextCursor: nextCursor,
-		PrevCursor: prevCursor,
+	return ScheduleFireList{
+		ListResponse: model.ListResponse[model.PipelineScheduleFire]{
+			Items: fires, HasMore: hasMore, NextCursor: nextCursor, PrevCursor: prevCursor,
+		},
+		UpcomingPreflights: preflights,
 	}, nil
 }
 
@@ -664,7 +672,14 @@ func validateScheduleConfig(config *model.PipelineTriggerScheduleConfig) error {
 	if config == nil {
 		return nil
 	}
-	schedule, err := pipelineschedule.ParseCron(config.Cron)
+	parse := pipelineschedule.ParseCron
+	if config.PreflightLeadTime != 0 {
+		if !pipelineschedule.ValidPreflightLeadTime(config.PreflightLeadTime) {
+			return ErrInvalidPipelineTriggerInput.With(pipelineschedule.ErrInvalidPreflightLeadTime)
+		}
+		parse = pipelineschedule.ParsePreflightCron
+	}
+	schedule, err := parse(config.Cron)
 	if err != nil {
 		return ErrInvalidPipelineTriggerInput.Detailf("schedule cron is invalid: %w", err)
 	}
@@ -731,11 +746,8 @@ func toModelTrigger(trigger *pipelinetriggers.PipelineTrigger) *model.PipelineTr
 		result.CompletionConfig = &config
 	}
 	if trigger.ScheduleConfig != nil {
-		result.ScheduleConfig = &model.PipelineTriggerScheduleConfig{
-			Cron:          trigger.ScheduleConfig.Cron,
-			Timezone:      trigger.ScheduleConfig.Timezone,
-			MisfirePolicy: trigger.ScheduleConfig.MisfirePolicy,
-		}
+		schedule := *trigger.ScheduleConfig
+		result.ScheduleConfig = &schedule
 	}
 	if trigger.WebhookConfig != nil {
 		result.WebhookConfig = &model.PipelineTriggerWebhookConfig{
@@ -763,6 +775,7 @@ func toModelScheduleFire(fire pipelinetriggers.ScheduleFireDiagnostic) model.Pip
 		RunSlug:         ptrSlugCopy(fire.RunSlug),
 		SourceEventSlug: ptrSlugCopy(fire.SourceEventSlug),
 		ErrorSummary:    ptrStringCopy(fire.ErrorSummary),
+		Preflight:       fire.Preflight,
 		Timestamps: model.Timestamps{
 			CreatedAt: fire.CreatedAt,
 			UpdatedAt: fire.UpdatedAt,

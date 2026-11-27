@@ -1599,7 +1599,7 @@ type fakePipelineTriggersService struct {
 	CreatePipelineTriggerFn               func(context.Context, slug.Slug, slug.Slug, slug.Slug, model.NewPipelineTrigger, model.EventActor) (*model.PipelineTrigger, error)
 	GetPipelineTriggerFn                  func(context.Context, slug.Slug, slug.Slug, slug.Slug, slug.Slug) (*model.PipelineTrigger, error)
 	ListPipelineTriggersFn                func(context.Context, slug.Slug, slug.Slug, slug.Slug, model.ListRequest) (model.ListResponse[model.PipelineTrigger], error)
-	ListPipelineScheduleFiresFn           func(context.Context, slug.Slug, slug.Slug, slug.Slug, slug.Slug, model.ListRequest) (model.ListResponse[model.PipelineScheduleFire], error)
+	ListPipelineScheduleFiresFn           func(context.Context, slug.Slug, slug.Slug, slug.Slug, slug.Slug, model.ListRequest) (pipelinetriggersvc.ScheduleFireList, error)
 	ListPipelineRunTriggerRetryAttemptsFn func(context.Context, slug.Slug, slug.Slug, slug.Slug, slug.Slug) ([]model.PipelineTriggerRetryAttempt, error)
 	UpdatePipelineTriggerFn               func(context.Context, slug.Slug, slug.Slug, slug.Slug, slug.Slug, model.UpdatePipelineTrigger, model.EventActor) (*model.PipelineTrigger, error)
 	DeletePipelineTriggerFn               func(context.Context, slug.Slug, slug.Slug, slug.Slug, slug.Slug, model.EventActor) error
@@ -1643,11 +1643,11 @@ func (f *fakePipelineTriggersService) ListPipelineScheduleFires(
 	ctx context.Context,
 	orgSlug, projectSlug, environmentSlug, triggerSlug slug.Slug,
 	req model.ListRequest,
-) (model.ListResponse[model.PipelineScheduleFire], error) {
+) (pipelinetriggersvc.ScheduleFireList, error) {
 	if f.ListPipelineScheduleFiresFn != nil {
 		return f.ListPipelineScheduleFiresFn(ctx, orgSlug, projectSlug, environmentSlug, triggerSlug, req)
 	}
-	return model.ListResponse[model.PipelineScheduleFire]{Items: []model.PipelineScheduleFire{}}, nil
+	return pipelinetriggersvc.ScheduleFireList{}, nil
 }
 
 func (f *fakePipelineTriggersService) ListPipelineRunTriggerRetryAttempts(
@@ -2299,6 +2299,8 @@ type fakeAuthService struct {
 }
 
 type fakePipelinesService struct {
+	pipelinesvc.Service
+
 	GetRunProgressFn       func(context.Context, slug.Slug, slug.Slug, slug.Slug, string, int64, int) (*pipelinesvc.RunProgress, error)
 	GetRunCompletionFn     func(context.Context, slug.Slug, slug.Slug, slug.Slug, slug.Slug) (*model.PipelineRunCompletion, error)
 	BootstrapCheckpointsFn func(context.Context, slug.Slug, slug.Slug, slug.Slug, slug.Slug, slug.Slug, *slug.Slug, model.EventActor, map[string]any, map[slug.Slug]json.RawMessage) error

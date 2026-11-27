@@ -509,7 +509,7 @@ func runCLIForAlertTest(t *testing.T, serverURL string, args []string) (string, 
 }
 
 func TestProducerBackedAlertPolicyCreateAndDisable(t *testing.T) {
-	for _, kind := range []string{"pipeline.run_succeeded", "pipeline.run_failed", "pipeline.scheduled_run_delayed", "pipeline.scheduled_run_missing"} {
+	for _, kind := range []string{"pipeline.run_succeeded", "pipeline.run_failed", "pipeline.scheduled_run_delayed", "pipeline.scheduled_run_missing", "pipeline.scheduled_preflight_failed"} {
 		t.Run(kind, func(t *testing.T) {
 			for _, update := range []bool{false, true} {
 				t.Run(map[bool]string{false: "create", true: "disable"}[update], func(t *testing.T) {

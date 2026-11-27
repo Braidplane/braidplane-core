@@ -43,18 +43,19 @@ const (
 type NotificationType int
 
 const (
-	NotificationTypeUnknown                      NotificationType = iota // unknown
-	NotificationTypePipelineRunFailed                                    // pipeline.run_failed
-	NotificationTypePipelineRetryExhausted                               // pipeline.retry_exhausted
-	NotificationTypePipelineScheduledRunDelayed                          // pipeline.scheduled_run_delayed
-	NotificationTypePipelineScheduledRunMissing                          // pipeline.scheduled_run_missing
-	NotificationTypePipelineFreshnessSLABreached                         // pipeline.freshness_sla_breached
-	NotificationTypePipelineContractFailure                              // pipeline.contract_failure
-	NotificationTypePipelineRunSucceeded                                 // pipeline.run_succeeded
+	NotificationTypeUnknown                          NotificationType = iota // unknown
+	NotificationTypePipelineRunFailed                                        // pipeline.run_failed
+	NotificationTypePipelineRetryExhausted                                   // pipeline.retry_exhausted
+	NotificationTypePipelineScheduledRunDelayed                              // pipeline.scheduled_run_delayed
+	NotificationTypePipelineScheduledRunMissing                              // pipeline.scheduled_run_missing
+	NotificationTypePipelineFreshnessSLABreached                             // pipeline.freshness_sla_breached
+	NotificationTypePipelineContractFailure                                  // pipeline.contract_failure
+	NotificationTypePipelineRunSucceeded                                     // pipeline.run_succeeded
+	NotificationTypePipelineScheduledPreflightFailed                         // pipeline.scheduled_preflight_failed
 )
 
 func ProducerBackedNotificationTypes() []NotificationType {
-	return []NotificationType{NotificationTypePipelineRunSucceeded, NotificationTypePipelineRetryExhausted, NotificationTypePipelineContractFailure, NotificationTypePipelineRunFailed, NotificationTypePipelineScheduledRunDelayed, NotificationTypePipelineScheduledRunMissing, NotificationTypePipelineFreshnessSLABreached}
+	return []NotificationType{NotificationTypePipelineRunSucceeded, NotificationTypePipelineRetryExhausted, NotificationTypePipelineContractFailure, NotificationTypePipelineRunFailed, NotificationTypePipelineScheduledRunDelayed, NotificationTypePipelineScheduledRunMissing, NotificationTypePipelineScheduledPreflightFailed, NotificationTypePipelineFreshnessSLABreached}
 }
 
 type NotificationLifecycleState int

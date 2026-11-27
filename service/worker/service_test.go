@@ -737,6 +737,10 @@ func (*recordingNotificationDeliveryService) DeliverNotification(
 	return nil
 }
 
+func (*recordingScheduleDispatcher) ExecuteSchedulePreflight(context.Context, jobs.PipelineSchedulePreflightArgs) (bool, error) {
+	return false, nil
+}
+
 type recordingScheduleDispatcher struct{}
 
 func (*recordingScheduleDispatcher) DispatchDueSchedules(

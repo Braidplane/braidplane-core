@@ -878,6 +878,19 @@ func TestDeletePipelineWebhookTriggerDoesNotDeleteWhenRevocationFails(t *testing
 	require.False(t, repo.deleteCalled)
 }
 
+func TestSchedulePreflightRequiresCalendarOccurrences(t *testing.T) {
+	t.Parallel()
+
+	config := &model.PipelineTriggerScheduleConfig{
+		Cron: "@every 30s", Timezone: "UTC", MisfirePolicy: model.PipelineTriggerScheduleMisfirePolicySkip,
+	}
+	require.NoError(t, validateScheduleConfig(config))
+	config.PreflightLeadTime = time.Hour
+	require.ErrorContains(t, validateScheduleConfig(config), "preflight requires a calendar cron expression")
+	config.Cron = "@daily"
+	require.NoError(t, validateScheduleConfig(config))
+}
+
 func newTestService(repo *fakeTriggerRepository) Service {
 	return newTestServiceWithSecrets(repo, fakeWebhookSecrets{})
 }
@@ -913,6 +926,7 @@ func (f fakeWebhookSecrets) RevokePipelineWebhookSecrets(ctx context.Context, pa
 }
 
 type fakeTriggerRepository struct {
+	pipelinetriggers.Repository
 	topologyLocks             int
 	snapshot                  *model.PipelineCompletionSnapshot
 	refusalReason             string

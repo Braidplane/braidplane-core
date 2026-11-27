@@ -2934,6 +2934,7 @@ func TestRunWithArgsPipelineTriggerCommands(t *testing.T) {
 				"--cron", "0 7 * * *",
 				"--timezone", "UTC",
 				"--misfire-policy", "fire_once",
+				"--preflight-lead-time", "6h",
 				"--retry-enabled",
 				"--retry-max-attempts", "3",
 				"--retry-backoff", "fixed",
@@ -2977,6 +2978,8 @@ func TestRunWithArgsPipelineTriggerCommands(t *testing.T) {
 				require.Equal(t, "0 7 * * *", state.createBody.Schedule.Cron)
 				require.Equal(t, "UTC", state.createBody.Schedule.Timezone)
 				require.Equal(t, api.PipelineTriggerScheduleMisfirePolicyFireOnce, state.createBody.Schedule.MisfirePolicy)
+				require.NotNil(t, state.createBody.Schedule.PreflightLeadTime)
+				require.Equal(t, "6h", *state.createBody.Schedule.PreflightLeadTime)
 				require.True(t, state.createBody.RetryPolicy.Enabled)
 				require.Equal(t, 3, state.createBody.RetryPolicy.MaxAttempts)
 				require.Equal(t, api.PipelineTriggerBackoffStrategyFixed, state.createBody.RetryPolicy.BackoffStrategy)
@@ -3385,6 +3388,15 @@ func TestRunWithArgsPipelineTriggerCreateRejectsInvalidInputsBeforeAPIRequest(t 
 				"--version-policy", "latest_deployed",
 			},
 			errContains: "webhook triggers must not set --cron, --timezone, or --misfire-policy",
+		},
+		{
+			name: "RejectsSubMinutePreflightLeadTime",
+			extraArgs: []string{
+				"--enabled",
+				"--version-policy", "latest_deployed",
+				"--preflight-lead-time", "30s",
+			},
+			errContains: "preflight lead time must be a whole-minute duration from 1m through 24h",
 		},
 	}
 

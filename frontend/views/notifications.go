@@ -125,6 +125,7 @@ func allNotificationTypeOptions() []notificationFilterOption {
 		{Label: "Pipeline retry exhausted", Value: string(api.NotificationTypePipelineRetryExhausted)},
 		{Label: "Scheduled run delayed", Value: string(api.NotificationTypePipelineScheduledRunDelayed)},
 		{Label: "Scheduled run missing", Value: string(api.NotificationTypePipelineScheduledRunMissing)},
+		{Label: "Scheduled preflight failed", Value: string(api.NotificationTypePipelineScheduledPreflightFailed)},
 		{Label: "Successful-run recency breached", Value: string(api.NotificationTypePipelineFreshnessSLABreached)},
 		{Label: "Pipeline contract failure", Value: string(api.NotificationTypePipelineContractFailure)},
 	}

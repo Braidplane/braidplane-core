@@ -1616,6 +1616,8 @@ func newDueScheduleTrigger(
 }
 
 type recordingScheduleRepository struct {
+	Repository
+	preflightClaims            map[ScheduleFireExecutionRef]time.Time
 	pending                    []pipelinetriggers.PendingRunFinalization
 	delayedFires               []pipelinetriggers.DelayedScheduleFire
 	triggers                   []DueScheduleTrigger
@@ -1779,6 +1781,7 @@ func (r *recordingScheduleRepository) CompleteTriggerRetryAttempt(
 }
 
 type recordingScheduleFireProducer struct {
+	preflights    []jobs.PipelineSchedulePreflightArgs
 	finalizations []queue.JobArgs
 	calls         []scheduleFireProducerCall
 	queued        queue.QueuedJob

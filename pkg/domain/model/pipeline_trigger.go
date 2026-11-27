@@ -130,9 +130,10 @@ type PipelineTriggerRetryPolicy struct {
 
 // PipelineTriggerScheduleConfig is the persisted schedule configuration.
 type PipelineTriggerScheduleConfig struct {
-	Cron          string                               `validate:"required,min=1,max=255"`
-	Timezone      string                               `validate:"required,min=1,max=64"`
-	MisfirePolicy PipelineTriggerScheduleMisfirePolicy `validate:"required"`
+	Cron              string                               `validate:"required,min=1,max=255"`
+	Timezone          string                               `validate:"required,min=1,max=64"`
+	MisfirePolicy     PipelineTriggerScheduleMisfirePolicy `validate:"required"`
+	PreflightLeadTime time.Duration
 }
 
 type PipelineWebhookInputMapping struct {
@@ -217,7 +218,27 @@ type PipelineScheduleFire struct {
 	RunSlug         *slug.Slug
 	SourceEventSlug *slug.Slug
 	ErrorSummary    *string
+	Preflight       *PipelineSchedulePreflight
 	Timestamps
+}
+
+// PipelineSchedulePreflight is a metadata check for one schedule revision and occurrence.
+type PipelineSchedulePreflight struct {
+	TriggerRevision int64
+	PipelineSlug    slug.Slug
+	ScheduledFireAt time.Time
+	PreflightAt     time.Time
+	CompletedAt     *time.Time
+	Cancelled       bool
+	VersionHash     *string
+	Diagnostics     []PipelineSchedulePreflightDiagnostic
+}
+
+type PipelineSchedulePreflightDiagnostic struct {
+	Code           string     `json:"code"`
+	Message        string     `json:"message"`
+	DataSourceSlug *slug.Slug `json:"data_source_slug,omitempty"`
+	StepSlug       *string    `json:"step_slug,omitempty"`
 }
 
 // PipelineTriggerRetryAttempt is an operator-safe diagnostic for one trigger retry decision or execution.

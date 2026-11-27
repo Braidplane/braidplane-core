@@ -68,13 +68,15 @@ func (r *repository) ListDueScheduleTriggersForSystem(
 				MaxElapsedSeconds:     optionalIntValue(row.RetryMaxElapsedSeconds),
 			},
 			ScheduleConfig: model.PipelineTriggerScheduleConfig{
-				Cron:          row.ScheduleCron.String,
-				Timezone:      row.ScheduleTimezone.String,
-				MisfirePolicy: misfirePolicy,
+				Cron:              row.ScheduleCron.String,
+				Timezone:          row.ScheduleTimezone.String,
+				MisfirePolicy:     misfirePolicy,
+				PreflightLeadTime: time.Duration(row.SchedulePreflightLeadMinutes.Int32) * time.Minute,
 			},
-			TriggerCreatedAt:    row.TriggerCreatedAt.Time,
-			TriggerUpdatedAt:    row.TriggerUpdatedAt.Time,
-			LastScheduledFireAt: postgres.FromNullableTimestamptz(row.LastScheduledFireAt),
+			TriggerCreatedAt:          row.TriggerCreatedAt.Time,
+			TriggerUpdatedAt:          row.TriggerUpdatedAt.Time,
+			LastScheduledFireAt:       postgres.FromNullableTimestamptz(row.LastScheduledFireAt),
+			LastPreflightOccurrenceAt: postgres.FromNullableTimestamptz(row.LastPreflightOccurrenceAt),
 		})
 	}
 	return triggers, nil
@@ -293,7 +295,16 @@ func scheduleFireDiagnosticFromRow(row dbgen.ListScheduleFiresForTriggerRow) (Sc
 	if err != nil {
 		return ScheduleFireDiagnostic{}, xerror.Unexpected().With(err)
 	}
+	var preflight *model.PipelineSchedulePreflight
+	if row.PreflightAt.Valid {
+		preflight, err = schedulePreflightFromRow(row.TriggerRevision, row.PipelineSlug, row.ScheduledFireAt, row.PreflightAt, row.PreflightCompletedAt, row.PreflightVersionHash, row.PreflightDiagnostics)
+		if err != nil {
+			return ScheduleFireDiagnostic{}, err
+		}
+		preflight.Cancelled = row.PreflightCancelled.Bool
+	}
 	return ScheduleFireDiagnostic{
+		Preflight:       preflight,
 		FireSlug:        slug.FromString(row.FireSlug),
 		TriggerSlug:     row.TriggerSlug,
 		TriggerRevision: row.TriggerRevision,

@@ -19612,6 +19612,12 @@ components:
           example: Europe/Warsaw
         misfire_policy:
           $ref: '#/components/schemas/PipelineTriggerScheduleMisfirePolicy'
+        preflight_lead_time:
+          type: string
+          minLength: 1
+          maxLength: 32
+          description: Optional duration in whole minutes from 1m through 24h. Requires a calendar cron expression. A preflight refreshes source schema metadata and validates the scheduled pipeline before it runs.
+          example: 6h
       required:
         - cron
         - timezone
@@ -19957,6 +19963,46 @@ components:
         - pipeline_triggers
         - has_more
 
+    PipelineSchedulePreflight:
+      type: object
+      description: Metadata validation for one schedule revision and occurrence.
+      required: [trigger_revision, pipeline_slug, scheduled_fire_at, preflight_at, status, diagnostics]
+      properties:
+        trigger_revision:
+          type: integer
+          format: int64
+        pipeline_slug:
+          $ref: '#/components/schemas/Slug'
+        scheduled_fire_at:
+          $ref: '#/components/schemas/Timestamp'
+        preflight_at:
+          $ref: '#/components/schemas/Timestamp'
+        completed_at:
+          $ref: '#/components/schemas/Timestamp'
+        pipeline_version_hash:
+          type: string
+        status:
+          type: string
+          enum: [pending, succeeded, failed, cancelled]
+          x-enum-varnames: [PipelineSchedulePreflightStatusPending, PipelineSchedulePreflightStatusSucceeded, PipelineSchedulePreflightStatusFailed, PipelineSchedulePreflightStatusCancelled]
+        diagnostics:
+          type: array
+          items:
+            $ref: '#/components/schemas/PipelineSchedulePreflightDiagnostic'
+
+    PipelineSchedulePreflightDiagnostic:
+      type: object
+      required: [code, message]
+      properties:
+        code:
+          type: string
+        message:
+          type: string
+        data_source_slug:
+          $ref: '#/components/schemas/Slug'
+        step_slug:
+          $ref: '#/components/schemas/Slug'
+
     PipelineScheduleFire:
       type: object
       description: Operator-safe diagnostic record for one persisted schedule fire.
@@ -19992,6 +20038,8 @@ components:
           maxLength: 1000
           description: Safe error summary captured for failed scheduled fires.
           example: Pipeline version was unavailable at dispatch time.
+        preflight:
+          $ref: '#/components/schemas/PipelineSchedulePreflight'
         created_at:
           $ref: '#/components/schemas/Timestamp'
         updated_at:
@@ -20019,6 +20067,11 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/PipelineScheduleFire'
+        upcoming_preflights:
+          type: array
+          description: Preflights for the next 20 upcoming occurrences with a check, ordered by scheduled time.
+          items:
+            $ref: '#/components/schemas/PipelineSchedulePreflight'
         has_more:
           type: boolean
         next_cursor:
@@ -22654,6 +22707,7 @@ components:
         - pipeline.freshness_sla_breached
         - pipeline.contract_failure
         - pipeline.run_succeeded
+        - pipeline.scheduled_preflight_failed
       x-enum-varnames:
         - NotificationTypeUnknown
         - NotificationTypePipelineRunFailed
@@ -22663,6 +22717,7 @@ components:
         - NotificationTypePipelineFreshnessSLABreached
         - NotificationTypePipelineContractFailure
         - NotificationTypePipelineRunSucceeded
+        - NotificationTypePipelineScheduledPreflightFailed
       example: pipeline.retry_exhausted
 
     NotificationSeverity:

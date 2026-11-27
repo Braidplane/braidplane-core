@@ -51,6 +51,7 @@ import (
 	"github.com/Braidplane/braidplane-core/service/admissionsvc"
 	"github.com/Braidplane/braidplane-core/service/credentialssvc"
 	"github.com/Braidplane/braidplane-core/service/datasourcerefssvc"
+	"github.com/Braidplane/braidplane-core/service/datasourcessvc"
 	"github.com/Braidplane/braidplane-core/service/environmentssvc"
 	"github.com/Braidplane/braidplane-core/service/eventssvc"
 	"github.com/Braidplane/braidplane-core/service/memberssvc"
@@ -414,7 +415,7 @@ func TestService_TriggerRetryAttemptRetriesFailedRunTwice(t *testing.T) { // Sch
 			{},
 		},
 	}
-	pipelineSvc := newScheduleE2EPipelineServiceWithQueryExecutor(t, pool, txm, store, eventProducer, queryExecutor)
+	pipelineSvc := newScheduleE2EPipelineServiceWithQueryExecutor(t, pool, txm, store, eventProducer, queryExecutor, &fakes.DataSourceService{})
 	triggerSvc := pipelinetriggersvc.New(false, txm, pipelinetriggers.NewRepository(), scheduleCompletionValidator{}, eventProducer, scheduleWebhookSecrets{})
 	enqueueClient, err := queue.NewEnqueueOnly(pool)
 	require.NoError(t, err)
@@ -1419,6 +1420,7 @@ func newScheduleE2EPipelineService(
 		store,
 		eventProducer,
 		&scheduleE2EQueryExecutor{},
+		&fakes.DataSourceService{},
 	)
 }
 
@@ -1444,6 +1446,7 @@ func newScheduleE2EPipelineServiceWithQueryExecutor(
 	store pipelinesvc.PipelineStore,
 	eventProducer workerproducer.EventProducer,
 	queryExecutor scheduleE2EQueryExecutorPort,
+	sources datasourcessvc.Service,
 ) pipelinesvc.Service {
 	t.Helper()
 
@@ -1460,7 +1463,7 @@ func newScheduleE2EPipelineServiceWithQueryExecutor(
 		queryExecutor,
 		allowAuthorizationService{},
 		&fakes.AdmissionService{},
-		&fakes.DataSourceService{},
+		sources,
 		&fakes.ProjectsService{},
 		scheduleE2EGitSourceResolver{},
 		clock.New(),

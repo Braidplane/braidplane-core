@@ -1564,6 +1564,10 @@ func (p fixedRetryPolicy) NextRetry(*rivertype.JobRow) time.Time {
 	return time.Now().Add(p.delay)
 }
 
+func (noopScheduleDispatcher) ExecuteSchedulePreflight(context.Context, jobs.PipelineSchedulePreflightArgs) (bool, error) {
+	return false, nil
+}
+
 type noopScheduleDispatcher struct{}
 
 func (noopScheduleDispatcher) DispatchDueSchedules(
@@ -1614,6 +1618,10 @@ func (noopSchemaImportExecutor) ExecuteQueuedSchemaImport(
 	return &datasourcessvc.SchemaImportResult{Skipped: true}, nil
 }
 
+func (*recordingWorkerE2EScheduleDispatcher) ExecuteSchedulePreflight(context.Context, jobs.PipelineSchedulePreflightArgs) (bool, error) {
+	return false, nil
+}
+
 type recordingWorkerE2EScheduleDispatcher struct {
 	mu      sync.Mutex
 	calls   int
@@ -1653,6 +1661,10 @@ func (d *recordingWorkerE2EScheduleDispatcher) Snapshot() (int, time.Time) {
 	return d.calls, d.lastNow
 }
 
+func (*recordingWorkerE2ERetryDispatcher) ExecuteSchedulePreflight(context.Context, jobs.PipelineSchedulePreflightArgs) (bool, error) {
+	return false, nil
+}
+
 type recordingWorkerE2ERetryDispatcher struct {
 	mu       sync.Mutex
 	calls    int
@@ -1690,6 +1702,10 @@ func (d *recordingWorkerE2ERetryDispatcher) Snapshot() (int, jobs.PipelineTrigge
 	defer d.mu.Unlock()
 
 	return d.calls, d.lastArgs
+}
+
+func (*handoffWorkerE2EScheduleService) ExecuteSchedulePreflight(context.Context, jobs.PipelineSchedulePreflightArgs) (bool, error) {
+	return false, nil
 }
 
 type handoffWorkerE2EScheduleService struct {

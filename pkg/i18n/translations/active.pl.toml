@@ -56,6 +56,10 @@ other = "opóźnione zaplanowane uruchomienie potoku"
 description = "Display label for missing scheduled pipeline run notifications."
 other = "brak zaplanowanego uruchomienia potoku"
 
+[notification_type_pipeline_scheduled_preflight_failed_label]
+description = "Display label for failed scheduled preflight notifications."
+other = "błąd kontroli przed zaplanowanym uruchomieniem"
+
 [notification_type_pipeline_freshness_sla_breached_label]
 description = "Display label for pipeline freshness SLA breach notifications."
 other = "naruszenie SLA świeżości potoku"

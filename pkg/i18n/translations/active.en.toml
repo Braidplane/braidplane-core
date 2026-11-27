@@ -54,6 +54,10 @@ other = "scheduled pipeline run delayed"
 description = "Display label for missing scheduled pipeline run notifications."
 other = "scheduled pipeline run missing"
 
+[notification_type_pipeline_scheduled_preflight_failed_label]
+description = "Display label for failed scheduled preflight notifications."
+other = "scheduled preflight failed"
+
 [notification_type_pipeline_freshness_sla_breached_label]
 description = "Display label for pipeline freshness SLA breach notifications."
 other = "pipeline freshness SLA breached"

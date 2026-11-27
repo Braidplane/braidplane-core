@@ -84,7 +84,7 @@ func (c *listNotificationsCommand) params() (api.ListNotificationsParams, error)
 	if c.NotificationType != "" {
 		notificationType := api.NotificationType(c.NotificationType)
 		if !notificationType.Valid() || notificationType == api.NotificationTypeUnknown {
-			return params, xerror.ValidationFailed().Detail("notification-type must be a supported API enum value; current producer-backed values are pipeline.retry_exhausted, pipeline.run_succeeded, pipeline.contract_failure, pipeline.run_failed, pipeline.scheduled_run_delayed and pipeline.scheduled_run_missing")
+			return params, xerror.ValidationFailed().Detail("notification-type must be a supported API enum value; current producer-backed values are pipeline.retry_exhausted, pipeline.run_succeeded, pipeline.contract_failure, pipeline.run_failed, pipeline.scheduled_run_delayed, pipeline.scheduled_run_missing and pipeline.scheduled_preflight_failed")
 		}
 		params.NotificationType = &notificationType
 	}

@@ -2109,14 +2109,15 @@ func (e NotificationSeverity) Valid() bool {
 
 // Defines values for NotificationType.
 const (
-	NotificationTypePipelineContractFailure      NotificationType = "pipeline.contract_failure"
-	NotificationTypePipelineFreshnessSLABreached NotificationType = "pipeline.freshness_sla_breached"
-	NotificationTypePipelineRetryExhausted       NotificationType = "pipeline.retry_exhausted"
-	NotificationTypePipelineRunFailed            NotificationType = "pipeline.run_failed"
-	NotificationTypePipelineRunSucceeded         NotificationType = "pipeline.run_succeeded"
-	NotificationTypePipelineScheduledRunDelayed  NotificationType = "pipeline.scheduled_run_delayed"
-	NotificationTypePipelineScheduledRunMissing  NotificationType = "pipeline.scheduled_run_missing"
-	NotificationTypeUnknown                      NotificationType = "unknown"
+	NotificationTypePipelineContractFailure          NotificationType = "pipeline.contract_failure"
+	NotificationTypePipelineFreshnessSLABreached     NotificationType = "pipeline.freshness_sla_breached"
+	NotificationTypePipelineRetryExhausted           NotificationType = "pipeline.retry_exhausted"
+	NotificationTypePipelineRunFailed                NotificationType = "pipeline.run_failed"
+	NotificationTypePipelineRunSucceeded             NotificationType = "pipeline.run_succeeded"
+	NotificationTypePipelineScheduledPreflightFailed NotificationType = "pipeline.scheduled_preflight_failed"
+	NotificationTypePipelineScheduledRunDelayed      NotificationType = "pipeline.scheduled_run_delayed"
+	NotificationTypePipelineScheduledRunMissing      NotificationType = "pipeline.scheduled_run_missing"
+	NotificationTypeUnknown                          NotificationType = "unknown"
 )
 
 // Valid indicates whether the value is a known member of the NotificationType enum.
@@ -2131,6 +2132,8 @@ func (e NotificationType) Valid() bool {
 	case NotificationTypePipelineRunFailed:
 		return true
 	case NotificationTypePipelineRunSucceeded:
+		return true
+	case NotificationTypePipelineScheduledPreflightFailed:
 		return true
 	case NotificationTypePipelineScheduledRunDelayed:
 		return true
@@ -4051,6 +4054,30 @@ func (e PipelineScheduleFireStatus) Valid() bool {
 	case PipelineScheduleFireStatusSkipped:
 		return true
 	case PipelineScheduleFireStatusSucceeded:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for PipelineSchedulePreflightStatus.
+const (
+	PipelineSchedulePreflightStatusCancelled PipelineSchedulePreflightStatus = "cancelled"
+	PipelineSchedulePreflightStatusFailed    PipelineSchedulePreflightStatus = "failed"
+	PipelineSchedulePreflightStatusPending   PipelineSchedulePreflightStatus = "pending"
+	PipelineSchedulePreflightStatusSucceeded PipelineSchedulePreflightStatus = "succeeded"
+)
+
+// Valid indicates whether the value is a known member of the PipelineSchedulePreflightStatus enum.
+func (e PipelineSchedulePreflightStatus) Valid() bool {
+	switch e {
+	case PipelineSchedulePreflightStatusCancelled:
+		return true
+	case PipelineSchedulePreflightStatusFailed:
+		return true
+	case PipelineSchedulePreflightStatusPending:
+		return true
+	case PipelineSchedulePreflightStatusSucceeded:
 		return true
 	default:
 		return false
@@ -11580,6 +11607,7 @@ type PipelineScheduleFire struct {
 	FireSlug        Slug                              `json:"fire_slug"`
 	MisfireResult   PipelineScheduleFireMisfireResult `json:"misfire_result"`
 	PipelineSlug    Slug                              `json:"pipeline_slug"`
+	Preflight       *PipelineSchedulePreflight        `json:"preflight,omitempty"`
 	RunSlug         *NullableSlug                     `json:"run_slug"`
 	ScheduledFireAt Timestamp                         `json:"scheduled_fire_at"`
 	SourceEventSlug *NullableSlug                     `json:"source_event_slug"`
@@ -11591,10 +11619,11 @@ type PipelineScheduleFire struct {
 
 // PipelineScheduleFireListResponse defines model for PipelineScheduleFireListResponse.
 type PipelineScheduleFireListResponse struct {
-	HasMore       bool                   `json:"has_more"`
-	NextCursor    *string                `json:"next_cursor,omitempty"`
-	PrevCursor    *string                `json:"prev_cursor,omitempty"`
-	ScheduleFires []PipelineScheduleFire `json:"schedule_fires"`
+	HasMore            bool                         `json:"has_more"`
+	NextCursor         *string                      `json:"next_cursor,omitempty"`
+	PrevCursor         *string                      `json:"prev_cursor,omitempty"`
+	ScheduleFires      []PipelineScheduleFire       `json:"schedule_fires"`
+	UpcomingPreflights *[]PipelineSchedulePreflight `json:"upcoming_preflights,omitempty"`
 }
 
 // PipelineScheduleFireMisfireResult defines model for PipelineScheduleFireMisfireResult.
@@ -11602,6 +11631,29 @@ type PipelineScheduleFireMisfireResult string
 
 // PipelineScheduleFireStatus defines model for PipelineScheduleFireStatus.
 type PipelineScheduleFireStatus string
+
+// PipelineSchedulePreflight defines model for PipelineSchedulePreflight.
+type PipelineSchedulePreflight struct {
+	CompletedAt         *Timestamp                            `json:"completed_at,omitempty"`
+	Diagnostics         []PipelineSchedulePreflightDiagnostic `json:"diagnostics"`
+	PipelineSlug        Slug                                  `json:"pipeline_slug"`
+	PipelineVersionHash *string                               `json:"pipeline_version_hash,omitempty"`
+	PreflightAt         Timestamp                             `json:"preflight_at"`
+	ScheduledFireAt     Timestamp                             `json:"scheduled_fire_at"`
+	Status              PipelineSchedulePreflightStatus       `json:"status"`
+	TriggerRevision     int64                                 `json:"trigger_revision"`
+}
+
+// PipelineSchedulePreflightStatus defines model for PipelineSchedulePreflight.Status.
+type PipelineSchedulePreflightStatus string
+
+// PipelineSchedulePreflightDiagnostic defines model for PipelineSchedulePreflightDiagnostic.
+type PipelineSchedulePreflightDiagnostic struct {
+	Code           string `json:"code"`
+	DataSourceSlug *Slug  `json:"data_source_slug,omitempty"`
+	Message        string `json:"message"`
+	StepSlug       *Slug  `json:"step_slug,omitempty"`
+}
 
 // PipelineSchemaContract defines model for PipelineSchemaContract.
 type PipelineSchemaContract struct {
@@ -11942,9 +11994,10 @@ type PipelineTriggerRetryPolicy struct {
 
 // PipelineTriggerScheduleConfig defines model for PipelineTriggerScheduleConfig.
 type PipelineTriggerScheduleConfig struct {
-	Cron          string                               `json:"cron"`
-	MisfirePolicy PipelineTriggerScheduleMisfirePolicy `json:"misfire_policy"`
-	Timezone      string                               `json:"timezone"`
+	Cron              string                               `json:"cron"`
+	MisfirePolicy     PipelineTriggerScheduleMisfirePolicy `json:"misfire_policy"`
+	PreflightLeadTime *string                              `json:"preflight_lead_time,omitempty"`
+	Timezone          string                               `json:"timezone"`
 }
 
 // PipelineTriggerScheduleMisfirePolicy defines model for PipelineTriggerScheduleMisfirePolicy.

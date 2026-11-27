@@ -2166,14 +2166,15 @@ func (e NotificationSeverity) Valid() bool {
 
 // Defines values for NotificationType.
 const (
-	NotificationTypePipelineContractFailure      NotificationType = "pipeline.contract_failure"
-	NotificationTypePipelineFreshnessSLABreached NotificationType = "pipeline.freshness_sla_breached"
-	NotificationTypePipelineRetryExhausted       NotificationType = "pipeline.retry_exhausted"
-	NotificationTypePipelineRunFailed            NotificationType = "pipeline.run_failed"
-	NotificationTypePipelineRunSucceeded         NotificationType = "pipeline.run_succeeded"
-	NotificationTypePipelineScheduledRunDelayed  NotificationType = "pipeline.scheduled_run_delayed"
-	NotificationTypePipelineScheduledRunMissing  NotificationType = "pipeline.scheduled_run_missing"
-	NotificationTypeUnknown                      NotificationType = "unknown"
+	NotificationTypePipelineContractFailure          NotificationType = "pipeline.contract_failure"
+	NotificationTypePipelineFreshnessSLABreached     NotificationType = "pipeline.freshness_sla_breached"
+	NotificationTypePipelineRetryExhausted           NotificationType = "pipeline.retry_exhausted"
+	NotificationTypePipelineRunFailed                NotificationType = "pipeline.run_failed"
+	NotificationTypePipelineRunSucceeded             NotificationType = "pipeline.run_succeeded"
+	NotificationTypePipelineScheduledPreflightFailed NotificationType = "pipeline.scheduled_preflight_failed"
+	NotificationTypePipelineScheduledRunDelayed      NotificationType = "pipeline.scheduled_run_delayed"
+	NotificationTypePipelineScheduledRunMissing      NotificationType = "pipeline.scheduled_run_missing"
+	NotificationTypeUnknown                          NotificationType = "unknown"
 )
 
 // Valid indicates whether the value is a known member of the NotificationType enum.
@@ -2188,6 +2189,8 @@ func (e NotificationType) Valid() bool {
 	case NotificationTypePipelineRunFailed:
 		return true
 	case NotificationTypePipelineRunSucceeded:
+		return true
+	case NotificationTypePipelineScheduledPreflightFailed:
 		return true
 	case NotificationTypePipelineScheduledRunDelayed:
 		return true
@@ -4108,6 +4111,30 @@ func (e PipelineScheduleFireStatus) Valid() bool {
 	case PipelineScheduleFireStatusSkipped:
 		return true
 	case PipelineScheduleFireStatusSucceeded:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for PipelineSchedulePreflightStatus.
+const (
+	PipelineSchedulePreflightStatusCancelled PipelineSchedulePreflightStatus = "cancelled"
+	PipelineSchedulePreflightStatusFailed    PipelineSchedulePreflightStatus = "failed"
+	PipelineSchedulePreflightStatusPending   PipelineSchedulePreflightStatus = "pending"
+	PipelineSchedulePreflightStatusSucceeded PipelineSchedulePreflightStatus = "succeeded"
+)
+
+// Valid indicates whether the value is a known member of the PipelineSchedulePreflightStatus enum.
+func (e PipelineSchedulePreflightStatus) Valid() bool {
+	switch e {
+	case PipelineSchedulePreflightStatusCancelled:
+		return true
+	case PipelineSchedulePreflightStatusFailed:
+		return true
+	case PipelineSchedulePreflightStatusPending:
+		return true
+	case PipelineSchedulePreflightStatusSucceeded:
 		return true
 	default:
 		return false
@@ -15740,8 +15767,11 @@ type PipelineScheduleFire struct {
 	// PipelineSlug URL-friendly identifier
 	//
 	// Example: acme-corp
-	PipelineSlug Slug          `json:"pipeline_slug"`
-	RunSlug      *NullableSlug `json:"run_slug"`
+	PipelineSlug Slug `json:"pipeline_slug"`
+
+	// Preflight Metadata validation for one schedule revision and occurrence.
+	Preflight *PipelineSchedulePreflight `json:"preflight,omitempty"`
+	RunSlug   *NullableSlug              `json:"run_slug"`
 
 	// ScheduledFireAt Example: 2025-10-04T12:34:56Z
 	ScheduledFireAt Timestamp     `json:"scheduled_fire_at"`
@@ -15776,6 +15806,9 @@ type PipelineScheduleFireListResponse struct {
 	// PrevCursor Cursor for fetching the previous page
 	PrevCursor    *string                `json:"prev_cursor,omitempty"`
 	ScheduleFires []PipelineScheduleFire `json:"schedule_fires"`
+
+	// UpcomingPreflights Preflights for the next 20 upcoming occurrences with a check, ordered by scheduled time.
+	UpcomingPreflights *[]PipelineSchedulePreflight `json:"upcoming_preflights,omitempty"`
 }
 
 // PipelineScheduleFireMisfireResult Misfire handling result for one persisted scheduled fire, including skipped fires that did not create a run.
@@ -15787,6 +15820,46 @@ type PipelineScheduleFireMisfireResult string
 //
 // Example: succeeded
 type PipelineScheduleFireStatus string
+
+// PipelineSchedulePreflight Metadata validation for one schedule revision and occurrence.
+type PipelineSchedulePreflight struct {
+	// CompletedAt Example: 2025-10-04T12:34:56Z
+	CompletedAt *Timestamp                            `json:"completed_at,omitempty"`
+	Diagnostics []PipelineSchedulePreflightDiagnostic `json:"diagnostics"`
+
+	// PipelineSlug URL-friendly identifier
+	//
+	// Example: acme-corp
+	PipelineSlug        Slug    `json:"pipeline_slug"`
+	PipelineVersionHash *string `json:"pipeline_version_hash,omitempty"`
+
+	// PreflightAt Example: 2025-10-04T12:34:56Z
+	PreflightAt Timestamp `json:"preflight_at"`
+
+	// ScheduledFireAt Example: 2025-10-04T12:34:56Z
+	ScheduledFireAt Timestamp                       `json:"scheduled_fire_at"`
+	Status          PipelineSchedulePreflightStatus `json:"status"`
+	TriggerRevision int64                           `json:"trigger_revision"`
+}
+
+// PipelineSchedulePreflightStatus defines model for PipelineSchedulePreflight.Status.
+type PipelineSchedulePreflightStatus string
+
+// PipelineSchedulePreflightDiagnostic defines model for PipelineSchedulePreflightDiagnostic.
+type PipelineSchedulePreflightDiagnostic struct {
+	Code string `json:"code"`
+
+	// DataSourceSlug URL-friendly identifier
+	//
+	// Example: acme-corp
+	DataSourceSlug *Slug  `json:"data_source_slug,omitempty"`
+	Message        string `json:"message"`
+
+	// StepSlug URL-friendly identifier
+	//
+	// Example: acme-corp
+	StepSlug *Slug `json:"step_slug,omitempty"`
+}
 
 // PipelineSchemaContract Optional structural contract for runtime validation and diagnostics.
 type PipelineSchemaContract struct {
@@ -16430,6 +16503,11 @@ type PipelineTriggerScheduleConfig struct {
 	//
 	// Example: fire_once
 	MisfirePolicy PipelineTriggerScheduleMisfirePolicy `json:"misfire_policy"`
+
+	// PreflightLeadTime Optional duration in whole minutes from 1m through 24h. Requires a calendar cron expression. A preflight refreshes source schema metadata and validates the scheduled pipeline before it runs.
+	//
+	// Example: 6h
+	PreflightLeadTime *string `json:"preflight_lead_time,omitempty"`
 
 	// Timezone IANA timezone used for schedule evaluation.
 	//
