@@ -118,6 +118,10 @@ to that resource, follows the idempotent OAuth response, and requires client
 proof for machine tokens. The module requires an authorization handler and
 the shared abuse limiter before it can register. These protocol endpoints sit
 outside the product OpenAPI routes. Application mounting stays disabled.
+Register OAuth and machine administration before any mounted sub-apps that
+could shadow their paths. Earlier middleware for those paths must fall through.
+Registration checks explicit method routes for conflicts. Verify endpoint
+reachability when adding the runtime mounts.
 
 Browser consent uses the issuer's same-origin Core login and requires a
 cookie session and CSRF proof. The prompt shows the client, redirect origin,
