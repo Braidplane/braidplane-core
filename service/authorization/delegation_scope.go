@@ -39,6 +39,23 @@ func DelegationScopeKeys(source Source) []string {
 	return slices.Sorted(maps.Values(delegatedScopeKeys[source]))
 }
 
+// ReadOnlyUserDelegationScopeKeys returns reviewed reads at their current mapping revision.
+func ReadOnlyUserDelegationScopeKeys() []string {
+	var keys []string
+	for _, operationID := range []string{"getOrganization", "getProject", "listProjects"} {
+		op := operationRules[operationID]
+		key := delegatedScopeKeys[SourceDelegatedUser][operationID]
+		if key != "" && strings.HasPrefix(op.route, "GET ") && len(op.selectors) > 0 &&
+			!slices.ContainsFunc(slices.Collect(maps.Keys(op.selectors)), func(check string) bool {
+				permission, _, _ := strings.Cut(check, "@")
+				return !strings.HasSuffix(permission, ":read")
+			}) {
+			keys = append(keys, key)
+		}
+	}
+	return keys
+}
+
 // DelegationScopeDescriptions describes the operation mappings offered during consent.
 func DelegationScopeDescriptions(keys []string) []string {
 	var descriptions []string

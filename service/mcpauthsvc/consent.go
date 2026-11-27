@@ -3,6 +3,7 @@ package mcpauthsvc
 import (
 	"context"
 	"net/url"
+	"slices"
 	"strings"
 	"time"
 
@@ -16,6 +17,14 @@ import (
 )
 
 const consentLifetime = 5 * 60
+
+type ConsentDecision string
+
+const (
+	ConsentDeny      ConsentDecision = "deny"
+	ConsentReadOnly  ConsentDecision = "read_only"
+	ConsentReadWrite ConsentDecision = "read_write"
+)
 
 type BrowserIdentity struct {
 	User, Organization    slug.Slug
@@ -63,17 +72,30 @@ func (s *TokenService) BeginUserConsent(ctx context.Context, request Authorizati
 		}, oauthflow.HashState(nonce), oauthflow.HashState(browser.SessionID), consentLifetime); err != nil {
 			return model.MCPConsentPrompt{}, err
 		}
+		readScopeKeys := authorization.ReadOnlyUserDelegationScopeKeys()
+		var reads, changes []string
+		for _, key := range scopeKeys {
+			if slices.Contains(readScopeKeys, key) {
+				reads = append(reads, key)
+			} else {
+				changes = append(changes, key)
+			}
+		}
 		return model.MCPConsentPrompt{
 			ID: nonce, ClientID: client.ID, ClientName: client.Name, RedirectOrigin: redirect.Scheme + "://" + redirect.Host,
 			Resource: binding.resource, User: browser.User, Organization: browser.Organization,
-			Operations: authorization.DelegationScopeDescriptions(scopeKeys),
+			ReadOperations:   authorization.DelegationScopeDescriptions(reads),
+			ChangeOperations: authorization.DelegationScopeDescriptions(changes),
 		}, nil
 	})
 }
 
 // CompleteUserConsent consumes the prompt and issues a code in the same transaction.
 // The browser boundary must validate CSRF before calling it.
-func (s *TokenService) CompleteUserConsent(ctx context.Context, nonce string, browser BrowserIdentity, approve bool) (string, error) {
+func (s *TokenService) CompleteUserConsent(ctx context.Context, nonce string, browser BrowserIdentity, decision ConsentDecision) (string, error) {
+	if decision != ConsentDeny && decision != ConsentReadOnly && decision != ConsentReadWrite {
+		return "", ErrInvalidRequest
+	}
 	if !browser.valid() || !validBase64URL32(nonce) {
 		return "", ErrInvalidGrant
 	}
@@ -88,7 +110,13 @@ func (s *TokenService) CompleteUserConsent(ctx context.Context, nonce string, br
 		if pending.ClientState != "" {
 			response.Set("state", pending.ClientState)
 		}
-		if approve {
+		if decision != ConsentDeny {
+			if decision == ConsentReadOnly {
+				err := mcpauth.NarrowUserGrantScopes(ctx, tx, pending.GrantID, authorization.ReadOnlyUserDelegationScopeKeys())
+				if err != nil {
+					return "", invalidGrantIfMissing(err)
+				}
+			}
 			code, err := issueConsentCode(ctx, tx, pending)
 			if err != nil {
 				return "", invalidGrantIfMissing(err)

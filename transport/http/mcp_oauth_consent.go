@@ -118,9 +118,19 @@ func mcpConsentDecision(c fiber.Ctx, tokens *mcpauthsvc.TokenService, store *ses
 		return mcpOAuthError(c, fiber.StatusForbidden, mcpOAuthInvalidRequest)
 	}
 	form, ok := mcpOAuthForm(c)
-	decision := form.Get("decision")
-	if !ok || len(form) != 3 || form.Get("consent_id") == "" || !form.Has(httpsecurity.CSRFFormField) ||
-		c.Get(httpsecurity.CSRFHeader) != "" || (decision != "approve" && decision != "deny") {
+	if !ok || len(form) != 4 || form.Get("consent_id") == "" || !form.Has(httpsecurity.CSRFFormField) ||
+		c.Get(httpsecurity.CSRFHeader) != "" {
+		return mcpOAuthError(c, fiber.StatusBadRequest, mcpOAuthInvalidRequest)
+	}
+	access := mcpauthsvc.ConsentDecision(form.Get("access"))
+	if access != mcpauthsvc.ConsentReadOnly && access != mcpauthsvc.ConsentReadWrite {
+		return mcpOAuthError(c, fiber.StatusBadRequest, mcpOAuthInvalidRequest)
+	}
+	switch form.Get("decision") {
+	case "approve":
+	case "deny":
+		access = mcpauthsvc.ConsentDeny
+	default:
 		return mcpOAuthError(c, fiber.StatusBadRequest, mcpOAuthInvalidRequest)
 	}
 	valid, err := httpsecurity.ValidateCSRFToken(c, store)
@@ -130,7 +140,7 @@ func mcpConsentDecision(c fiber.Ctx, tokens *mcpauthsvc.TokenService, store *ses
 	if !valid {
 		return mcpOAuthError(c, fiber.StatusForbidden, mcpOAuthInvalidRequest)
 	}
-	callback, err := tokens.CompleteUserConsent(c.Context(), form.Get("consent_id"), identity, decision == "approve")
+	callback, err := tokens.CompleteUserConsent(c.Context(), form.Get("consent_id"), identity, access)
 	if err != nil {
 		return mcpOAuthServiceError(c, err)
 	}

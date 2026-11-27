@@ -22,6 +22,7 @@ import (
 	"github.com/Braidplane/braidplane-core/pkg/reqctx"
 	"github.com/Braidplane/braidplane-core/pkg/testutil/e2edb"
 	"github.com/Braidplane/braidplane-core/postgres"
+	"github.com/Braidplane/braidplane-core/service/authorization"
 	"github.com/Braidplane/braidplane-core/service/mcpauthsvc"
 	transport "github.com/Braidplane/braidplane-core/transport/http"
 )
@@ -152,8 +153,10 @@ VALUES (15,10,'worker','Worker','synthetic-machine','synthetic',13);
 		require.Contains(t, body, "https://console.example.test")
 		require.Contains(t, body, "Organization first")
 		require.Contains(t, body, "Rename projects")
+		require.Contains(t, body, "Read and make changes")
+		require.Regexp(t, `name="access" value="read_only" checked`, body)
 		require.NotContains(t, body, "Delete revoked API key records after separate approval")
-		result := url.Values{"decision": {"approve"}}
+		result := url.Values{"decision": {"approve"}, "access": {"read_only"}}
 		for _, name := range []string{httpsecurity.CSRFFormField, "consent_id"} {
 			match := regexp.MustCompile(`name="` + name + `" value="([A-Za-z0-9_-]+)"`).FindStringSubmatch(body)
 			require.Len(t, match, 2)
@@ -194,6 +197,13 @@ VALUES (15,10,'worker','Worker','synthetic-machine','synthetic',13);
 			return resp
 		}
 		postConsent(nil, consent, http.StatusForbidden)
+		consent.Del("access")
+		postConsent(first, consent, http.StatusBadRequest)
+		consent.Set("access", "all")
+		postConsent(first, consent, http.StatusBadRequest)
+		consent["access"] = []string{"read_only", "read_write"}
+		postConsent(first, consent, http.StatusBadRequest)
+		consent.Set("access", "read_only")
 		csrf := consent.Get(httpsecurity.CSRFFormField)
 		consent.Set(httpsecurity.CSRFFormField, "invalid")
 		postConsent(first, consent, http.StatusForbidden)
@@ -234,6 +244,10 @@ VALUES (15,10,'worker','Worker','synthetic-machine','synthetic',13);
 		require.Equal(t, "invalid_grant", post(t, tokenPath, form, nil, http.StatusBadRequest).Error)
 		form.Set("code_verifier", verifier)
 		pair := post(t, tokenPath, form, nil, http.StatusOK)
+		delegatedContext, _, err := service.AuthenticateDelegatedRequest(t.Context(), pair.AccessToken, resource, "first")
+		require.NoError(t, err)
+		require.True(t, authorization.DelegatedOperationInScope(delegatedContext, "getProject"))
+		require.False(t, authorization.DelegatedOperationInScope(delegatedContext, "updateProject"))
 		refreshForm := url.Values{
 			"grant_type": {"refresh_token"}, resourceForm: {resource}, "client_id": {clientID}, "refresh_token": {pair.RefreshToken},
 		}

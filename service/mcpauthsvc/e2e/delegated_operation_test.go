@@ -99,7 +99,7 @@ VALUES (10,19,NULL,14,'resource','projects',11),(10,NULL,15,14,'resource','proje
 	require.NoError(t, err)
 	tokens, err := mcpauthsvc.NewTokenService(deployment, txm)
 	require.NoError(t, err)
-	issueUserToken := func(t *testing.T, org slug.Slug) mcpauthsvc.TokenPair {
+	issueUserToken := func(t *testing.T, org slug.Slug, decision mcpauthsvc.ConsentDecision) mcpauthsvc.TokenPair {
 		t.Helper()
 		browser := mcpauthsvc.BrowserIdentity{User: "member", Organization: org, SessionID: "synthetic-session", AuthenticationVersion: 1}
 		prompt, err := tokens.BeginUserConsent(t.Context(), mcpauthsvc.AuthorizationRequest{
@@ -108,9 +108,10 @@ VALUES (10,19,NULL,14,'resource','projects',11),(10,NULL,15,14,'resource','proje
 		}, "", browser)
 		require.NoError(t, err)
 		if org == "" {
-			require.Empty(t, prompt.Operations)
+			require.Empty(t, prompt.ReadOperations)
+			require.Empty(t, prompt.ChangeOperations)
 		}
-		callback, err := tokens.CompleteUserConsent(t.Context(), prompt.ID, browser, true)
+		callback, err := tokens.CompleteUserConsent(t.Context(), prompt.ID, browser, decision)
 		require.NoError(t, err)
 		uri, err := url.Parse(callback)
 		require.NoError(t, err)
@@ -120,7 +121,7 @@ VALUES (10,19,NULL,14,'resource','projects',11),(10,NULL,15,14,'resource','proje
 		require.NoError(t, err)
 		return pair
 	}
-	userToken, accountToken := issueUserToken(t, "first").AccessToken, issueUserToken(t, "").AccessToken
+	userToken, accountToken := issueUserToken(t, "first", mcpauthsvc.ConsentReadWrite).AccessToken, issueUserToken(t, "", mcpauthsvc.ConsentReadOnly).AccessToken
 	machine, err := tokens.RegisterMachineClient(t.Context(), "first", "worker")
 	require.NoError(t, err)
 	machineTokens, err := tokens.IssueMachineTokens(t.Context(), machine.MachineClientCredentials, resource)
@@ -180,8 +181,17 @@ VALUES (10,19,NULL,14,'resource','projects',11),(10,NULL,15,14,'resource','proje
 	request(t, http.MethodGet, first+projectPath, accountToken, "", http.StatusUnauthorized)
 	request(t, http.MethodGet, first+projectPath, "", "", http.StatusUnauthorized)
 	request(t, http.MethodGet, first+projectPath, machineTokens.RefreshToken, "", http.StatusUnauthorized)
+	t.Run("read-only consent cannot rename before or after refresh", func(t *testing.T) {
+		grant := issueUserToken(t, "first", mcpauthsvc.ConsentReadOnly)
+		rotated, err := tokens.RotateUserRefreshToken(t.Context(), grant.RefreshToken, clientID, resource)
+		require.NoError(t, err)
+		for _, token := range []string{grant.AccessToken, rotated.AccessToken} {
+			request(t, http.MethodGet, first+projectPath, token, "", http.StatusOK)
+			request(t, http.MethodPut, first+projectPath, token, `{"name":"Unapproved rename"}`, http.StatusForbidden)
+		}
+	})
 	t.Run("existing user grants retain their scope through refresh", func(t *testing.T) {
-		olderGrant := issueUserToken(t, "first")
+		olderGrant := issueUserToken(t, "first", mcpauthsvc.ConsentReadWrite)
 		changed, err := db.Exec(t.Context(), `UPDATE mcp_oauth_grants g SET operation_scope_keys =
 ARRAY(SELECT k FROM unnest(g.operation_scope_keys) k WHERE k LIKE 'getProject:%') || ARRAY['updateProject:old-mapping']
 FROM mcp_oauth_credentials c WHERE g.grant_id=c.grant_id AND c.credential_hash=$1`, oauthflow.HashState(olderGrant.AccessToken))
@@ -236,7 +246,7 @@ ARRAY(SELECT k FROM unnest(operation_scope_keys) k WHERE k LIKE 'getProject:%') 
 	}
 	require.Contains(t, request(t, http.MethodPut, first+projectPath, userToken, `{"name":"Must remain unchanged"}`, http.StatusForbidden), "MCP_DELEGATION_CHANGED")
 	request(t, http.MethodGet, first+projectPath, userToken, "", http.StatusUnauthorized)
-	changedScope := issueUserToken(t, "first")
+	changedScope := issueUserToken(t, "first", mcpauthsvc.ConsentReadWrite)
 	admission.afterWriteCheck = func(ctx context.Context) error {
 		_, err := db.Exec(ctx, `UPDATE mcp_oauth_grants g SET operation_scope_keys='{}'
 FROM mcp_oauth_credentials c WHERE g.grant_id=c.grant_id AND c.credential_hash=$1`, oauthflow.HashState(changedScope.AccessToken))

@@ -1,6 +1,10 @@
 package views
 
-import "github.com/Braidplane/braidplane-core/pkg/domain/model"
+import (
+	"strings"
+
+	"github.com/Braidplane/braidplane-core/pkg/domain/model"
+)
 
 templ MCPConsentPage(prompt model.MCPConsentPrompt, action, csrf string) {
 	<!DOCTYPE html>
@@ -29,22 +33,32 @@ templ MCPConsentPage(prompt model.MCPConsentPrompt, action, csrf string) {
 						}
 					</div>
 				</dl>
-				if len(prompt.Operations) > 0 {
-					<section aria-labelledby="delegation-operations">
-						<h2 id="delegation-operations" class="text-sm font-semibold">Allowed actions</h2>
-						<p class="text-sm">Your permissions in this organization still apply.</p>
-						<ul class="mt-2 list-disc space-y-1 pl-5 text-sm">
-							for _, action := range prompt.Operations {
-								<li>{ action }</li>
-							}
-						</ul>
-					</section>
-				}
-				<form method="post" action={ templ.SafeURL(action) } class="flex flex-wrap gap-3">
+				<form method="post" action={ templ.SafeURL(action) } class="space-y-4">
 					<input type="hidden" name="_csrf" value={ csrf }/>
 					<input type="hidden" name="consent_id" value={ prompt.ID }/>
+					if len(prompt.ChangeOperations) > 0 {
+						<fieldset class="space-y-3">
+							<legend class="text-sm font-semibold">Allowed actions</legend>
+							<p class="text-sm">Your permissions in this organization still apply.</p>
+							<label class="flex items-start gap-3">
+								<input type="radio" class="radio radio-sm" name="access" value="read_only" checked/>
+								<span>Read only<span class="block text-sm">{ strings.Join(prompt.ReadOperations, ", ") }</span></span>
+							</label>
+							<label class="flex items-start gap-3">
+								<input type="radio" class="radio radio-sm" name="access" value="read_write"/>
+								<span>Read and make changes<span class="block text-sm">Also allows { strings.Join(prompt.ChangeOperations, ", ") }</span></span>
+							</label>
+						</fieldset>
+					} else {
+						<input type="hidden" name="access" value="read_only"/>
+						if len(prompt.ReadOperations) > 0 {
+							<p class="text-sm">Read only. { strings.Join(prompt.ReadOperations, ", ") }</p>
+						}
+					}
+					<div class="flex flex-wrap gap-3">
 					<button type="submit" name="decision" value="deny" class="btn btn-outline">Deny</button>
 					<button type="submit" name="decision" value="approve" class="btn btn-primary">Allow access</button>
+					</div>
 				</form>
 			</main>
 		</body>

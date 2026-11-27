@@ -57,7 +57,7 @@ VALUES (15,10,'worker','Worker','synthetic-worker','synthetic',13,NULL);
 		return prompt.ID
 	}
 	approve := func(nonce string) string {
-		callback, err := tokens.CompleteUserConsent(t.Context(), nonce, browser, true)
+		callback, err := tokens.CompleteUserConsent(t.Context(), nonce, browser, mcpauthsvc.ConsentReadOnly)
 		require.NoError(t, err)
 		uri, err := url.Parse(callback)
 		require.NoError(t, err)

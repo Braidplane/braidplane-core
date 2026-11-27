@@ -73,7 +73,7 @@ The [MCP authorization specification](https://modelcontextprotocol.io/specificat
 and [Client ID Metadata Document draft](https://datatracker.ietf.org/doc/html/draft-ietf-oauth-client-id-metadata-document-03)
 describe these protocol boundaries.
 
-Migration 10 stores user and machine grants and hashes of opaque codes, access
+The MCP OAuth migration stores user and machine grants and hashes of opaque codes, access
 tokens, refresh tokens and machine client secrets. A user grant pins a
 verified user or a specific membership and the user's authentication version.
 A user grant with no membership can authenticate only for operations with no
@@ -121,8 +121,10 @@ Browser consent uses the issuer's same-origin Core login and requires a
 cookie session and CSRF proof. The prompt shows the client, redirect origin,
 resource, account and selected organization. The server keeps the exact
 redirect, `state` and PKCE challenge in a five-minute record bound to the
-browser session, user, authentication version and membership. Approval
-consumes the prompt and writes the code in one transaction. Denial consumes
+browser session, user, authentication version and membership. Read-only consent is selected by default. The member can explicitly allow
+mapped changes. Read-only approval narrows the frozen grant in the same
+transaction that consumes the prompt and issues the code. Refresh uses that
+same grant scope. Denial consumes
 the prompt and revokes its grant. Both responses send the stored `state` and
 the [issuer identifier](https://www.rfc-editor.org/rfc/rfc9207.html) to the
 registered callback.

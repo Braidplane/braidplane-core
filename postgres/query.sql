@@ -13973,6 +13973,15 @@ USING eligible
 WHERE p.nonce_hash = eligible.nonce_hash AND p.expires_at > clock_timestamp()
 RETURNING p.grant_id, p.redirect_uri, p.challenge, p.client_state;
 
+-- name: NarrowMCPOAuthUserGrantScopes :execrows
+UPDATE mcp_oauth_grants g SET operation_scope_keys = ARRAY(
+    SELECT key FROM unnest(g.operation_scope_keys) WITH ORDINALITY AS existing(key, position)
+    WHERE key = ANY(sqlc.arg('allowed_scope_keys')::text[])
+    ORDER BY position
+)
+WHERE g.grant_id = sqlc.arg('grant_id') AND g.machine_client_id IS NULL
+    AND g.revoked_at IS NULL AND g.expires_at > clock_timestamp();
+
 -- name: DeleteExpiredMCPOAuthMachineClients :execrows
 DELETE FROM mcp_oauth_machine_clients WHERE expires_at <= statement_timestamp();
 

@@ -58,7 +58,7 @@ INSERT INTO organization_members (id,organization_id,user_id,role_id) VALUES (19
 		requestConsent.Organization = org
 		prompt, err := svc.BeginUserConsent(t.Context(), authorization, "", requestConsent)
 		require.NoError(t, err)
-		callback, err := svc.CompleteUserConsent(t.Context(), prompt.ID, requestConsent, true)
+		callback, err := svc.CompleteUserConsent(t.Context(), prompt.ID, requestConsent, mcpauthsvc.ConsentReadOnly)
 		require.NoError(t, err)
 		uri, err := url.Parse(callback)
 		require.NoError(t, err)
@@ -150,7 +150,7 @@ INSERT INTO organization_members (id,organization_id,user_id,role_id) VALUES (19
 		prompt, err := svc.BeginUserConsent(t.Context(), authorization, "", consent)
 		require.NoError(t, err)
 		exec(t, "ALTER TABLE mcp_oauth_credentials ADD CONSTRAINT fixture_reject_code CHECK (kind <> 'code') NOT VALID")
-		callback, err := svc.CompleteUserConsent(t.Context(), prompt.ID, consent, true)
+		callback, err := svc.CompleteUserConsent(t.Context(), prompt.ID, consent, mcpauthsvc.ConsentReadOnly)
 		exec(t, "ALTER TABLE mcp_oauth_credentials DROP CONSTRAINT fixture_reject_code")
 		require.Error(t, err)
 		require.Empty(t, callback)
@@ -163,7 +163,7 @@ INSERT INTO organization_members (id,organization_id,user_id,role_id) VALUES (19
 		for range 2 {
 			go func() {
 				<-start
-				location, err := svc.CompleteUserConsent(t.Context(), prompt.ID, consent, true)
+				location, err := svc.CompleteUserConsent(t.Context(), prompt.ID, consent, mcpauthsvc.ConsentReadOnly)
 				results <- outcome{callback: location, err: err}
 			}()
 		}

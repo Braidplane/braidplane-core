@@ -27,3 +27,16 @@ func ConsumePendingConsent(ctx context.Context, tx postgres.DBTX, issuance Issua
 	})
 	return PendingConsent{GrantID: row.GrantID, RedirectURI: row.RedirectUri, Challenge: row.Challenge, ClientState: row.ClientState}, mapError(err)
 }
+
+func NarrowUserGrantScopes(ctx context.Context, tx postgres.DBTX, grantID int64, allowed []string) error {
+	count, err := dbgen.New(tx).NarrowMCPOAuthUserGrantScopes(ctx, dbgen.NarrowMCPOAuthUserGrantScopesParams{
+		GrantID: grantID, AllowedScopeKeys: allowed,
+	})
+	if err != nil {
+		return mapError(err)
+	}
+	if count == 0 {
+		return ErrNotFound
+	}
+	return nil
+}

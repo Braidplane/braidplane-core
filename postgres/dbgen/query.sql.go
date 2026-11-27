@@ -28095,6 +28095,29 @@ func (q *Queries) MarkTriggerRetryAttemptRunning(ctx context.Context, arg MarkTr
 	return result.RowsAffected(), nil
 }
 
+const narrowMCPOAuthUserGrantScopes = `-- name: NarrowMCPOAuthUserGrantScopes :execrows
+UPDATE mcp_oauth_grants g SET operation_scope_keys = ARRAY(
+    SELECT key FROM unnest(g.operation_scope_keys) WITH ORDINALITY AS existing(key, position)
+    WHERE key = ANY($1::text[])
+    ORDER BY position
+)
+WHERE g.grant_id = $2 AND g.machine_client_id IS NULL
+    AND g.revoked_at IS NULL AND g.expires_at > clock_timestamp()
+`
+
+type NarrowMCPOAuthUserGrantScopesParams struct {
+	AllowedScopeKeys []string
+	GrantID          int64
+}
+
+func (q *Queries) NarrowMCPOAuthUserGrantScopes(ctx context.Context, arg NarrowMCPOAuthUserGrantScopesParams) (int64, error) {
+	result, err := q.db.Exec(ctx, narrowMCPOAuthUserGrantScopes, arg.AllowedScopeKeys, arg.GrantID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
 const observePipelineRunWorker = `-- name: ObservePipelineRunWorker :execrows
 UPDATE pipeline_runs pr
 SET timeline = jsonb_set(pr.timeline, '{worker_observed_at}', to_jsonb(GREATEST(
