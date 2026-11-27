@@ -30458,6 +30458,9 @@ type ClientInterface interface {
 	// ListDriftImpactReports List drift and impact reports
 	//
 	// Lists persisted schema drift and contract impact reports for one project.
+	// With pipeline_slug, the request requires pipelines:read on that pipeline.
+	// Without it, the request requires pipelines:read on the project.
+	// Both requests require organization-wide datasources:read.
 	//
 	// Corresponds with GET /organizations/{slug}/projects/{project_slug}/drift-impact-reports (the `ListDriftImpactReports` operationId).
 	ListDriftImpactReports(ctx context.Context, slug SlugParam, projectSlug ProjectSlugParam, params *ListDriftImpactReportsParams, reqEditors ...RequestEditorFn) (*http.Response, error)
@@ -35011,6 +35014,9 @@ func (c *Client) ListDataSourceRefs(ctx context.Context, slug SlugParam, project
 // ListDriftImpactReports List drift and impact reports
 //
 // Lists persisted schema drift and contract impact reports for one project.
+// With pipeline_slug, the request requires pipelines:read on that pipeline.
+// Without it, the request requires pipelines:read on the project.
+// Both requests require organization-wide datasources:read.
 //
 // Corresponds with GET /organizations/{slug}/projects/{project_slug}/drift-impact-reports (the `ListDriftImpactReports` operationId).
 func (c *Client) ListDriftImpactReports(ctx context.Context, slug SlugParam, projectSlug ProjectSlugParam, params *ListDriftImpactReportsParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
@@ -54735,6 +54741,9 @@ type ClientWithResponsesInterface interface {
 	// ListDriftImpactReportsWithResponse List drift and impact reports
 	//
 	// Lists persisted schema drift and contract impact reports for one project.
+	// With pipeline_slug, the request requires pipelines:read on that pipeline.
+	// Without it, the request requires pipelines:read on the project.
+	// Both requests require organization-wide datasources:read.
 	//
 	// Returns a wrapper object for the known response body format(s).
 	//
@@ -73263,6 +73272,9 @@ func (c *ClientWithResponses) ListDataSourceRefsWithResponse(ctx context.Context
 // ListDriftImpactReportsWithResponse List drift and impact reports
 //
 // Lists persisted schema drift and contract impact reports for one project.
+// With pipeline_slug, the request requires pipelines:read on that pipeline.
+// Without it, the request requires pipelines:read on the project.
+// Both requests require organization-wide datasources:read.
 //
 // Returns a wrapper object for the known response body format(s).
 //

@@ -1,4 +1,4 @@
-method,route,principal,backend operations or local action (excludes shared page chrome)
+method,route,principal,backend operation IDs and local actions (excludes shared page chrome)
 ANY,/privacy,retired,404
 ANY,/pricing,retired,404
 ANY,/solutions,retired,404
@@ -6,7 +6,7 @@ ANY,/solutions/*,retired,404
 ANY,/robots.txt,retired,404
 ANY,/sitemap.xml,retired,404
 ANY,/orgs/:slug/projects/:projectSlug/settlement-review,retired,404
-GET,/,public,redirect to login
+GET,/,public,local: redirect to login
 GET,/auth/session-status,session,getUsersProfile
 ANY,/roadmap,retired,404
 ANY,/wishlist,retired,404
@@ -18,22 +18,22 @@ POST,/auth/login,public,"createSession, getAuthenticationMethods"
 POST,/auth/mfa,public,verifySessionMFA
 GET,/auth/signup,public,getAuthenticationMethods
 POST,/auth/signup,public,"createUser, getAuthenticationMethods"
-GET,/auth/forgot-password,public,local form or presentation
+GET,/auth/forgot-password,public,local: render password recovery form
 POST,/auth/forgot-password,public,requestPasswordReset
-GET,/auth/reset-password,public,local form or presentation
+GET,/auth/reset-password,public,local: render password reset form
 POST,/auth/reset-password,public,resetPassword
 POST,/auth/resend-verification,public,resendVerificationEmail
-GET,/auth/error,public,local form or presentation
-GET,/verify-email,public,local form or presentation
+GET,/auth/error,public,local: render authentication error
+GET,/verify-email,public,local: render email verification form
 POST,/verify-email,public,verifyEmail
-POST,/auth/logout,session cookie,local session destruction
-GET,/account,session,self profile and personal tokens
+POST,/auth/logout,session cookie,local: destroy current session
+GET,/account,session,"getUsersProfile, listMyMemberInvitations, listPersonalAccessTokens"
 POST,/account/deletion,session,requestAccountDeletion
 POST,/account/profile,session,"listEvents, listMyMemberInvitations, listPersonalAccessTokens, listProjectEnvironments, listProjects, patchUsersProfile"
 POST,/account/security,session,"listEvents, listMyMemberInvitations, listPersonalAccessTokens, listProjectEnvironments, listProjects, patchUsersProfile"
 POST,/account/security/password,session,"listEvents, listProjectEnvironments, listProjects, updateUserPassword"
 POST,/account/security/personal-access-tokens,session,"createPersonalAccessToken, listEvents, listMyMemberInvitations, listPersonalAccessTokens, listProjectEnvironments, listProjects"
-POST,/account/security/personal-access-tokens/:patSlug/update,session,"listEvents, listMyMemberInvitations, listPersonalAccessTokens, listProjectEnvironments, listProjects, updatePersonalAccessTokenWithBody"
+POST,/account/security/personal-access-tokens/:patSlug/update,session,"listEvents, listMyMemberInvitations, listPersonalAccessTokens, listProjectEnvironments, listProjects, updatePersonalAccessToken"
 POST,/account/security/personal-access-tokens/:patSlug/rotate,session,"listEvents, listMyMemberInvitations, listPersonalAccessTokens, listProjectEnvironments, listProjects, rotatePersonalAccessToken"
 POST,/account/security/personal-access-tokens/:patSlug/revoke,session,"deletePersonalAccessToken, listEvents, listMyMemberInvitations, listPersonalAccessTokens, listProjectEnvironments, listProjects"
 POST,/account/security/personal-access-tokens/:patSlug/delete,session,"deleteRevokedPersonalAccessToken, listEvents, listMyMemberInvitations, listPersonalAccessTokens, listProjectEnvironments, listProjects"
@@ -42,26 +42,26 @@ POST,/account/member-invitations/:slug/:invitationSlug/decline,session,"declineM
 GET,/member-invitations/accept,session,listEvents
 POST,/member-invitations/accept,session,"acceptMemberInvitation, listEvents"
 POST,/member-invitations/decline,session,"declineMemberInvitation, listEvents"
-GET,/workspace,session,membership-backed organization selection
-POST,/workspace,session,membership-backed organization selection
-POST,/organizations/:slug/switch,session,membership-backed organization selection
+GET,/workspace,session,"getUsersProfile, listOrganizations, local: select a returned membership in the current session"
+POST,/workspace,session,"createOrganization, getUsersProfile, listOrganizations, local: select a returned membership or newly created organization in the current session"
+POST,/organizations/:slug/switch,session,"listOrganizations, local: select a returned membership in the current session"
 GET,/dashboard,"session, workspace","getQueryExecutionSummary, listDataSourceBindings, listDataSourceRefs, listDataSources, listEvents, listPipelineDeployments, listPipelineRuns, listPipelines, listProjectEnvironments, listProjects, listQueries"
 GET,/builder,"session, workspace","getPipeline, listEvents, listProjectEnvironments, listProjects"
 GET,/builder/schema,"session, workspace",getDataSource
-POST,/builder/mapping,"session, workspace",validate submitted shape or inspectODCSRevision when a retained contract is selected
+POST,/builder/mapping,"session, workspace","inspectODCSRevision, local: inspect or transform submitted SQL and shapes"
 GET,/builder/run-evidence,"session, workspace","getPipelineRun, getPipelineVersion, listPipelineRuns"
-POST,/builder/export,"session, workspace",serialize and validate submitted pipeline
+POST,/builder/export,"session, workspace",local: serialize and validate submitted pipeline
 POST,/builder/validate,"session, workspace",validatePipeline
-POST,/builder/import,"session, workspace",parse submitted pipeline
+POST,/builder/import,"session, workspace",local: parse submitted pipeline
 GET,/orgs/:slug/projects/:projectSlug/contracts,"session, workspace","getODCSRevision, inspectODCSRevision, listEvents, listODCSContracts, listODCSRevisions, listProjectEnvironments, listProjects, previewODCSRevisionImpact"
-GET,/orgs/:slug/projects/:projectSlug/pipelines/:pipelineSlug/environments/:environmentSlug/recency,"session, workspace","getSuccessfulRunRecency, listEvents, listProjectEnvironments, listProjects, updateSuccessfulRunRecency"
-POST,/orgs/:slug/projects/:projectSlug/pipelines/:pipelineSlug/environments/:environmentSlug/recency,"session, workspace","getSuccessfulRunRecency, listEvents, listProjectEnvironments, listProjects, updateSuccessfulRunRecency"
+GET,/orgs/:slug/projects/:projectSlug/pipelines/:pipelineSlug/environments/:environmentSlug/recency,"session, workspace","getEffectivePermissions, getSuccessfulRunRecency, listEvents, listProjectEnvironments, listProjects"
+POST,/orgs/:slug/projects/:projectSlug/pipelines/:pipelineSlug/environments/:environmentSlug/recency,"session, workspace","getEffectivePermissions, getSuccessfulRunRecency, listEvents, listProjectEnvironments, listProjects, updateSuccessfulRunRecency"
 GET,/orgs/:slug/projects/:projectSlug/pipelines,"session, workspace","getPipeline, listEvents, listPipelineDeployments, listPipelineRuns, listPipelineValidationResults, listPipelines, listProjectEnvironments, listProjects"
-GET,/orgs/:slug/projects/:projectSlug/pipeline-sync,"session, workspace","getProject, listEvents, listProjectEnvironments, listProjects, reconcilePipelines"
-POST,/orgs/:slug/projects/:projectSlug/pipeline-sync,"session, workspace","getProject, listEvents, listProjectEnvironments, listProjects, reconcilePipelines"
+GET,/orgs/:slug/projects/:projectSlug/pipeline-sync,"session, workspace","getEffectivePermissions, getProject, listEvents, listProjectEnvironments, listProjects"
+POST,/orgs/:slug/projects/:projectSlug/pipeline-sync,"session, workspace","getEffectivePermissions, getProject, listEvents, listProjectEnvironments, listProjects, reconcilePipelines"
 GET,/orgs/:slug/projects/:projectSlug/pipelines/:pipelineSlug/bindings,"session, workspace","getPipelineVersion, listDataSourceBindings, listDataSourceRefs, listDataSources, listEvents, listPipelineValidationResults, listProjectEnvironments, listProjects"
-GET,/orgs/:slug/projects/:projectSlug/pipelines/:pipelineSlug/deploy,"session, workspace","compilePipelineVersion, deployPipeline, getPipelineCompiledPlan, getPipelineDeployment, getPipelineVersion, listEvents, listProjectEnvironments, listProjects"
-POST,/orgs/:slug/projects/:projectSlug/pipelines/:pipelineSlug/deploy,"session, workspace","compilePipelineVersion, deployPipeline, getPipelineCompiledPlan, getPipelineDeployment, getPipelineVersion, listEvents, listProjectEnvironments, listProjects"
+GET,/orgs/:slug/projects/:projectSlug/pipelines/:pipelineSlug/deploy,"session, workspace","getEffectivePermissions, getPipelineCompiledPlan, getPipelineDeployment, getPipelineVersion, listEvents, listProjectEnvironments, listProjects"
+POST,/orgs/:slug/projects/:projectSlug/pipelines/:pipelineSlug/deploy,"session, workspace","compilePipelineVersion, deployPipeline, getEffectivePermissions, getPipelineCompiledPlan, getPipelineDeployment, getPipelineVersion, listEvents, listProjectEnvironments, listProjects"
 GET,/orgs/:slug/projects/:projectSlug/schedules,"session, workspace","getPipelineDeployment, getPipelineTrigger, listEvents, listPipelineScheduleFires, listPipelineTriggers, listPipelineWebhookDeliveries, listProjectEnvironments, listProjects"
 GET,/orgs/:slug/projects/:projectSlug/schedules/:triggerSlug,"session, workspace","getPipelineDeployment, getPipelineTrigger, listEvents, listPipelineScheduleFires, listPipelineWebhookDeliveries, listProjectEnvironments, listProjects"
 POST,/orgs/:slug/projects/:projectSlug/schedules/:triggerSlug/deliveries/:deliveryID/replay,"session, workspace",replayPipelineWebhookDelivery
@@ -120,13 +120,13 @@ POST,/orgs/:slug/projects/:projectSlug/runs/:runSlug/recover,"session, workspace
 GET,/orgs/:slug/projects/:projectSlug/runs,"session, workspace","getPipelineRun, listEvents, listPipelineRuns, listProjectEnvironments, listProjects"
 GET,/orgs/:slug/projects/:projectSlug/runs/:runSlug,"session, workspace","getDataSource, getPipeline, getPipelineRun, getPipelineRunCompletion, getPipelineRunConnected, getPipelineRunProgress, getPipelineVersion, getQuery, listEvents, listPipelineRunTriggerRetryAttempts, listPipelineTriggers, listProjectEnvironments, listProjects"
 GET,/orgs/:slug/data-sources/:dsSlug/queries/:querySlug,"session, workspace","getQuery, listEvents, listProjectEnvironments, listProjects"
-GET,/orgs/:slug/data-sources/:dsSlug/queries/:querySlug/pipeline,"session, workspace","createPipelineProposal, getProject, getQuery, listEvents, listProjectEnvironments, listProjects"
-POST,/orgs/:slug/data-sources/:dsSlug/queries/:querySlug/pipeline,"session, workspace","createPipelineProposal, getProject, getQuery, listEvents, listProjectEnvironments, listProjects"
-GET,/orgs/:slug/projects/:projectSlug/pipeline-creations/:creationSlug,"session, workspace","createPipelineProposal, getPipelineCreationProposal, getPipelineVersion, listEvents, listProjectEnvironments, listProjects"
+GET,/orgs/:slug/data-sources/:dsSlug/queries/:querySlug/pipeline,"session, workspace","getEffectivePermissions, getProject, getQuery, listEvents, listProjectEnvironments, listProjects"
+POST,/orgs/:slug/data-sources/:dsSlug/queries/:querySlug/pipeline,"session, workspace","createPipelineProposal, getEffectivePermissions, getProject, getQuery, listEvents, listProjectEnvironments, listProjects"
+GET,/orgs/:slug/projects/:projectSlug/pipeline-creations/:creationSlug,"session, workspace","getEffectivePermissions, getPipelineCreationProposal, getPipelineVersion, listEvents, listProjectEnvironments, listProjects"
 GET,/orgs/:slug/projects/:projectSlug/pipeline-creations,"session, workspace","listEvents, listPipelineCreationProposals, listProjectEnvironments, listProjects"
 POST,/orgs/:slug/projects/:projectSlug/pipeline-creations,"session, workspace",createPipelineProposal
-POST,/orgs/:slug/projects/:projectSlug/pipeline-creations/:creationSlug,"session, workspace","createPipelineProposal, getPipelineCreationProposal, getPipelineVersion, listEvents, listProjectEnvironments, listProjects"
-GET,/organizations,"session, workspace",listEvents
+POST,/orgs/:slug/projects/:projectSlug/pipeline-creations/:creationSlug,"session, workspace","createPipelineProposal, getEffectivePermissions, getPipelineCreationProposal, getPipelineVersion, listEvents, listProjectEnvironments, listProjects"
+GET,/organizations,"session, workspace","listOrganizations, listEvents"
 GET,/organizations/:slug/members,"session, workspace","listEvents, listMemberInvitations, listMembers, listProjectEnvironments, listProjects"
 GET,/organizations/:slug/grants,"session, workspace","getOrganization, listEvents, listProjectEnvironments, listProjects, listRoleGrants, listRoles"
 GET,/organizations/:slug/roles,"session, workspace","getOrganization, listEvents, listProjectEnvironments, listRolePermissionCatalog, listProjects, listRoles"
@@ -152,7 +152,7 @@ POST,/orgs/:slug/data-sources/:dsSlug/provider-repository,"session, workspace",s
 POST,/orgs/:slug/data-sources/:dsSlug/http/oauth,"session, workspace",connectDataSourceHTTPOAuth
 POST,/orgs/:slug/data-sources/:dsSlug/hubspot/oauth,"session, workspace","getDataSource, startProviderConnectorInstall"
 POST,/orgs/:slug/data-sources/:dsSlug/bigquery/oauth,"session, workspace","getDataSource, startProviderConnectorInstall"
-POST,/orgs/:slug/data-sources/parse-uri,"session, workspace",parse submitted connection URI
+POST,/orgs/:slug/data-sources/parse-uri,"session, workspace",local: parse submitted connection URI
 POST,/orgs/:slug/data-sources/test-connection,"session, workspace","getOrganizationGitHubAppConnection, listDataSources, listEvents, listOrganizationGitLabRepositories, listProjectEnvironments, listProjects, testDataSourceConnection"
 POST,/orgs/:slug/data-sources/:dsSlug/test-connection,"session, workspace","getDataSource, testStoredDataSourceConnection"
 POST,/orgs/:slug/data-sources/:dsSlug/update,"session, workspace","getDataSource, updateDataSource"
@@ -214,4 +214,4 @@ POST,/organizations/:slug/security/api-keys/:apiKeySlug/rotate,"session, workspa
 POST,/organizations/:slug/security/api-keys/:apiKeySlug/revoke,"session, workspace","deleteAPIKey, getOrganization, listAPIKeys, listEvents, listProjectEnvironments, listProjects, listRoles"
 POST,/organizations/:slug/security/api-keys/:apiKeySlug/delete,"session, workspace","deleteRevokedAPIKey, getOrganization, listAPIKeys, listEvents, listProjectEnvironments, listProjects, listRoles"
 POST,/organizations,"session, workspace","createOrganization, listEvents"
-GET,/organizations/:slug/datasources/new,"session, workspace",local form or presentation
+GET,/organizations/:slug/datasources/new,"session, workspace",local: render data source form
