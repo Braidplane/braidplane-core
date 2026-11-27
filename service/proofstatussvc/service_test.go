@@ -11,6 +11,7 @@ import (
 
 	"github.com/Braidplane/braidplane-core/pkg/domain/model"
 	"github.com/Braidplane/braidplane-core/pkg/gitprovider"
+	pipelinediff "github.com/Braidplane/braidplane-core/pkg/pipeline/diff"
 	"github.com/Braidplane/braidplane-core/pkg/repostore"
 	"github.com/Braidplane/braidplane-core/pkg/slug"
 	"github.com/Braidplane/braidplane-core/pkg/testutil"
@@ -36,6 +37,59 @@ func TestPublishUsesOnlySanitizedAggregateAndExactHead(t *testing.T) {
 	require.NotContains(t, client.check.Summary, "secret schema name")
 	require.Contains(t, client.check.Summary, "1 passed")
 	require.Equal(t, "https://app.example.test/orgs/acme/projects/data/environments/staging/proof-receipts/proof-1", client.check.DetailsURL)
+}
+
+func TestDeployedCompatibilityPublicationRemainsAdvisoryAndRefreshes(t *testing.T) {
+	t.Parallel()
+	head := strings.Repeat("a", 40)
+	client := &fakeClient{proposal: gitprovider.ProposalRef{State: gitprovider.ProposalStateOpen, RepositoryID: "42", HeadSHA: head}}
+	locker := &fakeLocker{disabled: true}
+	svc := testServiceWithLocker(client, locker)
+	queued := &recordingPublicationQueue{}
+	svc.publication = queued
+	receipt := model.ProofReceipt{
+		ID: "proof-1", RetainUntil: time.Now().Add(time.Hour), AggregateVerdict: model.ProofVerdictFailed,
+		Candidate: model.ProofCandidateIdentity{OrganizationSlug: "acme", ProjectSlug: "data", EnvironmentSlug: "staging", RepositoryID: "42", ChangeRequestID: "7", HeadSHA: head, PipelinePath: "pipelines/orders.yaml"},
+		Claims:    []model.ProofClaim{{Identity: model.ProofClaimIdentity{SemanticPath: model.ProofDeployedCompatibilityPath}, Verdict: model.ProofVerdictFailed, Description: "private claim"}},
+		DeployedCompatibility: &model.ProofDeployedCompatibility{
+			PipelineSlug: "orders", DeploymentRevision: 42, BaselineSpecHash: "baseline-hash",
+			Impact: &pipelinediff.CheckResult{Severity: pipelinediff.SeverityBreaking, Findings: []pipelinediff.Finding{{Severity: pipelinediff.SeverityBreaking, Message: `"output_contract.old_email" removed`}}},
+		},
+	}
+	svc.receipts = fakeReceiptReader{receipt}
+	require.NoError(t, svc.Publish(t.Context(), receipt))
+	require.Empty(t, client.check.HeadSHA)
+	require.Empty(t, queued.receipts)
+
+	locker.disabled = false
+	require.NoError(t, svc.Publish(t.Context(), receipt))
+	require.Len(t, queued.receipts, 1)
+	require.Equal(t, head, client.check.HeadSHA)
+	require.Equal(t, "neutral", client.check.Conclusion)
+	for _, evidence := range []string{"compatibility (static, advisory) is failed", head, "pipelines/orders.yaml", "data / staging", "Deployment revision 42", "baseline-hash", "[breaking]", "output_contract.old_email"} {
+		require.Contains(t, client.check.Summary, evidence)
+	}
+	require.NotContains(t, client.check.Summary, "private claim")
+	checkID := client.check.ExternalID
+
+	receipt.Claims[0].Verdict = model.ProofVerdictStale
+	receipt.AggregateVerdict = model.ProofVerdictStale
+	svc.receipts = fakeReceiptReader{receipt}
+	again, err := svc.Refresh(t.Context(), "acme", "data", "staging", receipt.ID)
+	require.NoError(t, err)
+	require.True(t, again)
+	require.Contains(t, client.check.Summary, "compatibility (static, advisory) is stale")
+	require.Equal(t, checkID, client.check.ExternalID)
+	candidateInAnotherEnvironment := receipt
+	candidateInAnotherEnvironment.Candidate.EnvironmentSlug = "prod"
+	require.NotEqual(t, checkID, proofCheckID(candidateInAnotherEnvironment))
+
+	client.proposal.HeadSHA = strings.Repeat("b", 40)
+	again, err = svc.Refresh(t.Context(), "acme", "data", "staging", receipt.ID)
+	require.NoError(t, err)
+	require.False(t, again)
+	require.True(t, client.check.ExistingOnly)
+	require.Contains(t, client.check.Summary, "compatibility (static, advisory) is superseded")
 }
 
 type gitlabAuth struct{}

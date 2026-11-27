@@ -54,7 +54,7 @@ func TestSharedConfigurationLifecycleAndTenantScope(t *testing.T) {
 	svc, err := proofconfigsvc.New(txm, proofconfig.New(), repositories{}, eventtest.NewProducer(nil))
 	require.NoError(t, err)
 	actor := model.UserEventActor("reviewer")
-	target := proofconfig.Target{Project: "etl", Environment: "staging", Ref: "refs/heads/main", Path: "pipelines/contacts.yaml"}
+	target := proofconfig.Target{Project: "etl", Environment: "staging", Ref: "refs/heads/main", Path: "pipelines/contacts.yaml", CompareDeployed: true}
 	settings := proofconfigsvc.Settings{Enabled: true, PublishChecks: true, ExpectedRepositoryID: "42", Targets: []proofconfigsvc.Target{proofconfigsvc.Target(target)}}
 	configuration, err := svc.Set(t.Context(), org, "github", actor, settings)
 	require.NoError(t, err)

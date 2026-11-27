@@ -60,6 +60,21 @@ func TestCompileProducesDeterministicFreshAndStalePreviewClaims(t *testing.T) {
 	}
 }
 
+func TestCompileRejectsReuseOfInactiveDeployedCompatibilityReceipt(t *testing.T) {
+	t.Parallel()
+	repo := &fakeReceiptRepository{
+		targetErr: proofreceipts.ErrCandidateNotFound,
+		stored: &proofreceipts.Receipt{Value: model.ProofReceipt{
+			Candidate:             model.ProofCandidateIdentity{CompilerVersion: LiveCompilerVersion},
+			DeployedCompatibility: &model.ProofDeployedCompatibility{PipelineSlug: "orders"},
+		}},
+	}
+	svc, err := New(testutil.FakeTransactionManager{}, repo, validPipelineValidator{}, bindingResolver{}, schemaReader{}, deploymentReader{}, emptySecretResolver{}, noContractValidator{}, fixedClock{})
+	require.NoError(t, err)
+	_, err = svc.Compile(t.Context(), "acme", "candidate-1")
+	require.ErrorIs(t, err, proofreceipts.ErrCandidateNotFound)
+}
+
 func TestSecretRedactorReplacesLongerRuntimeSecretsFirst(t *testing.T) {
 	t.Parallel()
 	redact := secretRedactor([]model.RuntimeSecretValue{{Value: "token"}, {Value: "token-suffix"}})
@@ -90,7 +105,7 @@ func TestStaticFailuresStayCausal(t *testing.T) {
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			validation := &pipelinesvc.PipelineValidationResult{Diagnostics: []pipelinesvc.PipelineValidationDiagnostic{{Code: tc.code, Field: tc.field, StepSlug: &tc.step, Message: "private-provider-token"}}}
-			claims := compileClaims(pipeline, validation, bindings, nil, nil, "candidate", "evidence", now)
+			claims := compileClaims(pipeline, validation, bindings, nil, "candidate", "evidence", now)
 			for _, claim := range claims {
 				switch claim.Identity.SemanticPath {
 				case "/validation":
@@ -127,7 +142,7 @@ func TestInvalidPipelineDoesNotDisproveCachedFields(t *testing.T) {
 		{"unlinked", []schemaObservation{{DataSourceSlug: "crm", ExpiresAt: now.Add(time.Hour)}}, model.ProofVerdictInconclusive, "proof.cached_observation_unlinked"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			claims := compileClaims(pipeline, &pipelinesvc.PipelineValidationResult{}, bindings, tc.observations, nil, "candidate", "evidence", now)
+			claims := compileClaims(pipeline, &pipelinesvc.PipelineValidationResult{}, bindings, tc.observations, "candidate", "evidence", now)
 			for _, claim := range claims {
 				if claim.Identity.Family == model.ProofClaimFamilyFieldsTypes {
 					require.Equal(t, tc.verdict, claim.Verdict)
@@ -269,15 +284,20 @@ func (r deploymentReader) FindDeployment(context.Context, postgres.DBTX, slug.Sl
 	return r.deployment, nil
 }
 
+func (deploymentReader) FindVersionBySpecHash(context.Context, postgres.DBTX, slug.Slug, slug.Slug, slug.Slug, string) (*pipelinesrepo.PipelineVersion, error) {
+	return nil, pipelinesrepo.ErrPipelineVersionNotFound
+}
+
 type fakeReceiptRepository struct {
-	target   *proofreceipts.CandidateTarget
-	created  []proofreceipts.CreateReceiptParams
-	stored   *proofreceipts.Receipt
-	listed   []*proofreceipts.Receipt
-	listFn   func(model.ListRequest) []*proofreceipts.Receipt
-	listReq  model.ListRequest
-	links    []proofreceipts.LifecycleLink
-	linksErr error
+	target    *proofreceipts.CandidateTarget
+	targetErr error
+	created   []proofreceipts.CreateReceiptParams
+	stored    *proofreceipts.Receipt
+	listed    []*proofreceipts.Receipt
+	listFn    func(model.ListRequest) []*proofreceipts.Receipt
+	listReq   model.ListRequest
+	links     []proofreceipts.LifecycleLink
+	linksErr  error
 }
 
 func (r *fakeReceiptRepository) List(_ context.Context, _ postgres.DBTX, _, _, _ slug.Slug, req model.ListRequest) ([]*proofreceipts.Receipt, error) {
@@ -296,7 +316,7 @@ func (r *fakeReceiptRepository) FindLatestForCandidate(context.Context, postgres
 }
 
 func (r *fakeReceiptRepository) FindCandidateTarget(context.Context, postgres.DBTX, slug.Slug, slug.Slug) (*proofreceipts.CandidateTarget, error) {
-	return r.target, nil
+	return r.target, r.targetErr
 }
 func (r *fakeReceiptRepository) LockTarget(context.Context, postgres.DBTX, string) error { return nil }
 func (r *fakeReceiptRepository) CreateEvidence(_ context.Context, _ postgres.DBTX, _ *proofreceipts.CandidateTarget, params proofreceipts.EvidenceParams) (*proofreceipts.Evidence, error) {

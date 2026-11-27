@@ -9,6 +9,7 @@ import (
 	"strings"
 	"time"
 
+	pipelinediff "github.com/Braidplane/braidplane-core/pkg/pipeline/diff"
 	// internal/redaction is a runtime-neutral shared helper permitted by internal_boundary.
 	"github.com/Braidplane/braidplane-core/pkg/redaction"
 	"github.com/Braidplane/braidplane-core/pkg/slug"
@@ -16,6 +17,8 @@ import (
 )
 
 const ProofReceiptSchemaVersion = 1
+
+const ProofDeployedCompatibilityPath = "/deployment/compatibility"
 
 // ProofClaimFamily is the bounded vocabulary of promises Braidplane can evaluate.
 type ProofClaimFamily int
@@ -165,15 +168,37 @@ type ProofLifecycleLink struct {
 
 // ProofReceipt is the immutable, tenant-scoped product receipt contract.
 type ProofReceipt struct {
-	Operational         *ProofOperationalCapture `json:"operational,omitempty"`
-	SchemaVersion       int                      `json:"schema_version"`
-	ID                  slug.Slug                `json:"id"`
-	Candidate           ProofCandidateIdentity   `json:"candidate"`
-	Claims              []ProofClaim             `json:"claims"`
-	AggregateVerdict    ProofVerdict             `json:"aggregate_verdict"`
-	SupersedesReceiptID *slug.Slug               `json:"supersedes_receipt_id"`
-	CreatedAt           time.Time                `json:"created_at"`
-	RetainUntil         time.Time                `json:"retain_until"`
+	DeployedCompatibility *ProofDeployedCompatibility `json:"deployed_compatibility,omitempty"`
+	Operational           *ProofOperationalCapture    `json:"operational,omitempty"`
+	SchemaVersion         int                         `json:"schema_version"`
+	ID                    slug.Slug                   `json:"id"`
+	Candidate             ProofCandidateIdentity      `json:"candidate"`
+	Claims                []ProofClaim                `json:"claims"`
+	AggregateVerdict      ProofVerdict                `json:"aggregate_verdict"`
+	SupersedesReceiptID   *slug.Slug                  `json:"supersedes_receipt_id"`
+	CreatedAt             time.Time                   `json:"created_at"`
+	RetainUntil           time.Time                   `json:"retain_until"`
+}
+
+// ProofDeployedCompatibility binds redacted findings to the observed deployment.
+type ProofDeployedCompatibility struct {
+	PipelineSlug       slug.Slug                 `json:"pipeline_slug"`
+	DeploymentRevision int64                     `json:"deployment_revision,omitempty"`
+	BaselineSpecHash   string                    `json:"baseline_spec_hash,omitempty"`
+	DeployedAt         time.Time                 `json:"deployed_at,omitzero"`
+	Impact             *pipelinediff.CheckResult `json:"impact,omitempty"`
+}
+
+func (r ProofReceipt) DeployedCompatibilityVerdict() ProofVerdict {
+	if r.AggregateVerdict == ProofVerdictSuperseded {
+		return ProofVerdictSuperseded
+	}
+	for _, claim := range r.Claims {
+		if claim.Identity.SemanticPath == ProofDeployedCompatibilityPath {
+			return claim.Verdict
+		}
+	}
+	return ProofVerdictUnknown
 }
 
 // NewProofReceipt redacts every string before validating a persistence-ready receipt.

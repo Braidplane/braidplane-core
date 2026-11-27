@@ -97,6 +97,23 @@ func TestExactSourceVerifierClassifiesCloneFailures(t *testing.T) {
 	}
 }
 
+func TestExactSourceVerifierClassifiesUnreadablePipelineEntries(t *testing.T) {
+	t.Parallel()
+	head := "0123456789abcdef0123456789abcdef01234567"
+	for _, tc := range []struct {
+		readErr, want error
+	}{
+		{repostore.ErrInvalidPath, gitprovider.ErrChangePathMissing},
+		{xerror.ExecutionResponseSizeExceeded(), ErrSourceTooLarge},
+	} {
+		verifier := exactSourceVerifierForTest(head)
+		verifier.remote = fixedRemoteGit{store: fixedRepoStore{readErr: tc.readErr}}
+		verifier.head = func(context.Context, string) *string { return &head }
+		_, err := verifier.VerifySource(t.Context(), validMapping(), validChange(head))
+		require.ErrorIs(t, err, tc.want)
+	}
+}
+
 func exactSourceVerifierForTest(head string) *exactSourceVerifier {
 	return &exactSourceVerifier{
 		auth: fixedGitAuth{auth: &datasourcessvc.GitDataSourceAuth{Provider: "github"}},
@@ -154,10 +171,13 @@ func (fixedRemoteGit) PushRemote(context.Context, string, string, []string, repo
 	return xerror.Unexpected().Detail("unexpected push")
 }
 
-type fixedRepoStore struct{ content []byte }
+type fixedRepoStore struct {
+	content []byte
+	readErr error
+}
 
 func (f fixedRepoStore) ReadFile(context.Context, string, int64) ([]byte, error) {
-	return f.content, nil
+	return f.content, f.readErr
 }
 
 func (fixedRepoStore) WriteFile(context.Context, string, []byte, string) error {

@@ -8,6 +8,7 @@ import (
 )
 
 type Mapping struct {
+	CompareDeployed        bool
 	ID                     int64
 	OrganizationSlug       slug.Slug
 	ProjectSlug            slug.Slug
@@ -67,6 +68,7 @@ type CreateCandidateParams struct {
 }
 
 type CreateMappingParams struct {
+	CompareDeployed        bool
 	OrganizationSlug       slug.Slug
 	ProjectSlug            slug.Slug
 	EnvironmentSlug        slug.Slug

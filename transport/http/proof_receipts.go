@@ -133,6 +133,7 @@ func toAPIProofReceipt(detail *proofreceiptsvc.ReceiptDetail) api.ProofReceipt {
 	}
 
 	return api.ProofReceipt{
+		DeployedCompatibility:       toAPIProofDeployedCompatibility(*receipt),
 		OperationalAdmissionEnabled: detail.OperationalAdmissionEnabled,
 		SchemaVersion:               api.ProofReceiptSchemaVersion(receipt.SchemaVersion), Id: api.Slug(receipt.ID),
 		Operational: operational, OperationalEvidenceStatus: availability, OperationalCurrentVerdict: currentVerdict,
@@ -140,6 +141,32 @@ func toAPIProofReceipt(detail *proofreceiptsvc.ReceiptDetail) api.ProofReceipt {
 		Claims:    claims, AggregateVerdict: api.ProofVerdict(receipt.AggregateVerdict.String()), SupersedesReceiptId: supersedes,
 		CreatedAt: receipt.CreatedAt, RetainUntil: receipt.RetainUntil, LifecycleLinks: links,
 	}
+}
+
+func toAPIProofDeployedCompatibility(receipt model.ProofReceipt) *api.ProofDeployedCompatibility {
+	comparison := receipt.DeployedCompatibility
+	if comparison == nil {
+		return nil
+	}
+	result := &api.ProofDeployedCompatibility{
+		PipelineSlug: comparison.PipelineSlug.String(),
+		Verdict:      api.ProofVerdict(receipt.DeployedCompatibilityVerdict().String()),
+		Findings:     []api.PipelineComparisonFinding{},
+	}
+	if comparison.DeploymentRevision > 0 {
+		result.DeploymentRevision = new(comparison.DeploymentRevision)
+		result.BaselineSpecHash = new(comparison.BaselineSpecHash)
+	}
+	if comparison.Impact != nil {
+		result.Severity = new(api.PipelineComparisonSeverity(comparison.Impact.Severity.String()))
+		for _, finding := range comparison.Impact.Findings {
+			result.Findings = append(result.Findings, api.PipelineComparisonFinding{
+				Severity: api.PipelineComparisonSeverity(finding.Severity.String()),
+				Message:  finding.Message,
+			})
+		}
+	}
+	return result
 }
 
 func toAPIProofCandidateIdentity(candidate model.ProofCandidateIdentity) api.ProofCandidateIdentity {

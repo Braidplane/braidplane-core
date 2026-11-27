@@ -143,11 +143,19 @@ func (s *Service) Process(ctx context.Context, event gitprovider.VerifiedChangeE
 		return mappings[i].ID < mappings[j].ID
 	})
 	compileTargets := make([]slug.Slug, 0, len(mappings))
+	var invalidSources []error
 	for _, mapping := range mappings {
 		change := event.Change(mapping.PipelinePath)
 		switch event.Action {
 		case gitprovider.ChangeActionUpsert:
 			candidate, err := s.candidates.IngestTarget(ctx, mapping, model.ExternalEventActor(), change)
+			if xerror.Is(err, gitprovider.ErrChangePathMissing) {
+				continue
+			}
+			if xerror.Is(err, proofcandidatesvc.ErrParseFailed) || xerror.Is(err, proofcandidatesvc.ErrSourceTooLarge) {
+				invalidSources = append(invalidSources, err)
+				continue
+			}
 			if err != nil {
 				return err
 			}
@@ -173,5 +181,5 @@ func (s *Service) Process(ctx context.Context, event gitprovider.VerifiedChangeE
 			}
 		}
 	}
-	return xerror.Join(compileErrs...)
+	return xerror.Join(append(compileErrs, invalidSources...)...)
 }

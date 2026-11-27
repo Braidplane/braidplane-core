@@ -88,6 +88,7 @@ type PipelineVersion struct {
 
 // PipelineDeployment stores the deployed immutable version for one project environment.
 type PipelineDeployment struct {
+	PipelineSourcePath       string
 	Revision                 int64
 	CurrentResolutionDigest  *string
 	PreviousResolutionDigest *string

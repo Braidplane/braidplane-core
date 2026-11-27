@@ -83,7 +83,7 @@ func (s *service) Refresh(ctx context.Context, org, project, environment, receip
 func (s *service) Publish(ctx context.Context, receipt model.ProofReceipt) error {
 	// A provider re-request can recover a receipt compiled while publishing was
 	// disabled. Queue monitoring before provider I/O so permission loss cannot lose it.
-	if s.enabled && receipt.Candidate.CompilerVersion == proofreceiptsvc.LiveCompilerVersion {
+	if s.enabled && (receipt.Candidate.CompilerVersion == proofreceiptsvc.LiveCompilerVersion || receipt.DeployedCompatibility != nil) {
 		_, err := postgres.InTx(ctx, s.txm, func(ctx context.Context, tx postgres.DBTX) (struct{}, error) {
 			allowed, err := s.locker.PublicationEnabled(ctx, tx, receipt.Candidate.OrganizationSlug, receipt.ID)
 			if err != nil || !allowed {
@@ -185,6 +185,9 @@ func (s *service) publishLocked(ctx context.Context, publisher gitprovider.Proof
 		summary += " Evidence expires no later than " + expires.UTC().Format(time.RFC3339) + "."
 	}
 	summary += " Snapshot only; current authorization and freshness are shown in the protected Proof view."
+	if receipt.DeployedCompatibility != nil {
+		summary += deployedCompatibilitySummary(receipt)
+	}
 	details := fmt.Sprintf("%s/orgs/%s/projects/%s/environments/%s/proof-receipts/%s", s.baseURL,
 		receipt.Candidate.OrganizationSlug, receipt.Candidate.ProjectSlug, receipt.Candidate.EnvironmentSlug, receipt.ID)
 	if err := publisher.PublishProofCheck(ctx, gitprovider.ProofCheck{
@@ -202,7 +205,40 @@ func (s *service) publishLocked(ctx context.Context, publisher gitprovider.Proof
 }
 
 func proofCheckID(receipt model.ProofReceipt) string {
-	identity := strings.Join([]string{receipt.Candidate.RepositoryID, receipt.Candidate.ChangeRequestID, receipt.Candidate.HeadSHA, receipt.Candidate.PipelinePath}, "\x00")
-	sum := sha256.Sum256([]byte(identity))
+	candidate := receipt.Candidate
+	identity := []string{candidate.RepositoryID, candidate.ChangeRequestID, candidate.HeadSHA, candidate.PipelinePath}
+	if receipt.DeployedCompatibility != nil {
+		identity = append(identity, candidate.OrganizationSlug.String(), candidate.ProjectSlug.String(), candidate.EnvironmentSlug.String())
+	}
+	sum := sha256.Sum256([]byte(strings.Join(identity, "\x00")))
 	return "proof-check-" + hex.EncodeToString(sum[:16])
+}
+
+func deployedCompatibilitySummary(receipt model.ProofReceipt) string {
+	candidate, comparison := receipt.Candidate, receipt.DeployedCompatibility
+	verdict := receipt.DeployedCompatibilityVerdict()
+	var summary strings.Builder
+	fmt.Fprintf(&summary, "\n\nDeployed compatibility (static, advisory) is %s.\n\n", verdict)
+	// An indented block renders paths and findings as literal text in both providers.
+	fmt.Fprintf(&summary, "    Head %s\n    Path %q\n    Target %s / %s\n", candidate.HeadSHA, candidate.PipelinePath, candidate.ProjectSlug, candidate.EnvironmentSlug)
+	if comparison.DeploymentRevision > 0 {
+		fmt.Fprintf(&summary, "    Deployment revision %d\n    Baseline spec hash %s\n", comparison.DeploymentRevision, comparison.BaselineSpecHash)
+	}
+	if verdict == model.ProofVerdictStale {
+		summary.WriteString("    The target deployment changed.\n")
+	}
+	if comparison.Impact == nil {
+		summary.WriteString("    The deployed baseline was unavailable.")
+		return summary.String()
+	}
+	fmt.Fprintf(&summary, "    Severity %s\n", comparison.Impact.Severity)
+	for _, finding := range comparison.Impact.Findings {
+		line := fmt.Sprintf("    [%s] %s\n", finding.Severity, finding.Message)
+		if summary.Len()+len(line) > 8_000 {
+			summary.WriteString("    See the Proof receipt for all redacted findings.")
+			break
+		}
+		summary.WriteString(line)
+	}
+	return summary.String()
 }

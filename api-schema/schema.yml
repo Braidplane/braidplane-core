@@ -17722,7 +17722,7 @@ components:
 
     ProofVerdict:
       type: string
-      description: Clause or aggregate result. Superseded is derived when a later immutable receipt points to this receipt.
+      description: Clause or aggregate result. Superseded identifies a historical assessment.
       enum:
         - passed
         - failed
@@ -17779,6 +17779,9 @@ components:
           type: string
           minLength: 1
           maxLength: 1024
+        compare_deployed:
+          type: boolean
+          description: Compare the exact change head with the deployed version for this target. Defaults to false.
     ProofTargetContext:
       type: object
       required: [project_slug, environment_slug, target_ref, pipeline_directory]
@@ -18183,6 +18186,28 @@ components:
         - record_digest
         - expires_at
 
+    ProofDeployedCompatibility:
+      type: object
+      additionalProperties: false
+      required: [pipeline_slug, verdict, findings]
+      properties:
+        pipeline_slug:
+          $ref: '#/components/schemas/Slug'
+        verdict:
+          $ref: '#/components/schemas/ProofVerdict'
+        deployment_revision:
+          type: integer
+          format: int64
+          minimum: 1
+        baseline_spec_hash:
+          type: string
+        severity:
+          $ref: '#/components/schemas/PipelineComparisonSeverity'
+        findings:
+          type: array
+          items:
+            $ref: '#/components/schemas/PipelineComparisonFinding'
+
     ProofReceipt:
       type: object
       description: Immutable, tenant-scoped, sanitized informational Braidplane Proof receipt.
@@ -18199,6 +18224,8 @@ components:
           description: Current supporting evidence availability; captured claims stay historical.
         operational_current_verdict:
           $ref: '#/components/schemas/ProofVerdict'
+        deployed_compatibility:
+          $ref: '#/components/schemas/ProofDeployedCompatibility'
         schema_version:
           type: integer
           enum: [1]

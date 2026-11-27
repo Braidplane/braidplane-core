@@ -93,8 +93,11 @@ func (v *exactSourceVerifier) VerifySource(
 	}
 	source, err := store.ReadFile(ctx, change.PipelinePath, maxSourceBytes+1)
 	if err != nil {
-		if xerror.Is(err, repostore.ErrFileNotFound) {
+		if xerror.Is(err, repostore.ErrFileNotFound) || xerror.Is(err, repostore.ErrInvalidPath) {
 			return nil, gitprovider.ErrChangePathMissing
+		}
+		if xerror.Is(err, xerror.ExecutionResponseSizeExceeded()) {
+			return nil, ErrSourceTooLarge.With(err)
 		}
 		return nil, gitprovider.ErrChangeUnavailable.With(err)
 	}

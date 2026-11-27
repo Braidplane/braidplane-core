@@ -97,7 +97,12 @@ func (*repository) FindLatestForCandidate(ctx context.Context, db postgres.DBTX,
 		}
 		return nil, xerror.Unexpected().With(err)
 	}
-	return decodeReceipt(row.Receipt, row.Superseded)
+	receipt, err := decodeReceipt(row.Receipt, row.Superseded)
+	if err != nil {
+		return nil, err
+	}
+	receipt.Key, receipt.EvidenceID = row.ReceiptKey, row.EvidenceID
+	return receipt, nil
 }
 
 func (*repository) FindCandidateTarget(ctx context.Context, db postgres.DBTX, orgSlug, candidateSlug slug.Slug) (*CandidateTarget, error) {
@@ -116,7 +121,8 @@ func (*repository) FindCandidateTarget(ctx context.Context, db postgres.DBTX, or
 		supersedesCandidateID = &value
 	}
 	return &CandidateTarget{
-		OrganizationID: row.OrganizationID, ProjectID: row.ProjectID,
+		CompareDeployed: row.CompareDeployed,
+		OrganizationID:  row.OrganizationID, ProjectID: row.ProjectID,
 		ProjectEnvironmentID: row.ProjectEnvironmentID, MappingID: row.MappingID, CandidateID: row.ID,
 		SupersedesCandidateID: supersedesCandidateID,
 		CandidateSlug:         row.Slug, OrganizationSlug: row.OrganizationSlug, ProjectSlug: row.ProjectSlug,
@@ -211,7 +217,7 @@ func (*repository) FindBySlug(ctx context.Context, db postgres.DBTX, orgSlug, pr
 		}
 		return nil, xerror.Unexpected().With(err)
 	}
-	return decodeReceipt(row.Receipt, row.Superseded)
+	return decodeReceipt(row.Receipt, row.Superseded.Bool)
 }
 
 func (*repository) List(ctx context.Context, db postgres.DBTX, orgSlug, projectSlug, environmentSlug slug.Slug, req model.ListRequest) ([]*Receipt, error) {
@@ -229,7 +235,7 @@ func (*repository) List(ctx context.Context, db postgres.DBTX, orgSlug, projectS
 	}
 	receipts := make([]*Receipt, 0, len(rows))
 	for _, row := range rows {
-		receipt, err := decodeReceipt(row.Receipt, row.Superseded)
+		receipt, err := decodeReceipt(row.Receipt, row.Superseded.Bool)
 		if err != nil {
 			return nil, err
 		}

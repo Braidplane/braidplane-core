@@ -12300,6 +12300,7 @@ type ProjectRepositorySetupStatus string
 
 // ProofAssessmentTarget defines model for ProofAssessmentTarget.
 type ProofAssessmentTarget struct {
+	CompareDeployed *bool  `json:"compare_deployed,omitempty"`
 	EnvironmentSlug Slug   `json:"environment_slug"`
 	PipelinePath    string `json:"pipeline_path"`
 	ProjectSlug     Slug   `json:"project_slug"`
@@ -12345,6 +12346,16 @@ type ProofClaimIdentity struct {
 	Family              ProofClaimFamily `json:"family"`
 	PipelineVersionHash string           `json:"pipeline_version_hash"`
 	SemanticPath        string           `json:"semantic_path"`
+}
+
+// ProofDeployedCompatibility defines model for ProofDeployedCompatibility.
+type ProofDeployedCompatibility struct {
+	BaselineSpecHash   *string                     `json:"baseline_spec_hash,omitempty"`
+	DeploymentRevision *int64                      `json:"deployment_revision,omitempty"`
+	Findings           []PipelineComparisonFinding `json:"findings"`
+	PipelineSlug       Slug                        `json:"pipeline_slug"`
+	Severity           *PipelineComparisonSeverity `json:"severity,omitempty"`
+	Verdict            ProofVerdict                `json:"verdict"`
 }
 
 // ProofDiagnostic defines model for ProofDiagnostic.
@@ -12433,6 +12444,7 @@ type ProofReceipt struct {
 	Candidate                   ProofCandidateIdentity                 `json:"candidate"`
 	Claims                      []ProofClaim                           `json:"claims"`
 	CreatedAt                   time.Time                              `json:"created_at"`
+	DeployedCompatibility       *ProofDeployedCompatibility            `json:"deployed_compatibility,omitempty"`
 	Id                          Slug                                   `json:"id"`
 	LifecycleLinks              []ProofLifecycleLink                   `json:"lifecycle_links"`
 	Operational                 *ProofOperationalCapture               `json:"operational,omitempty"`

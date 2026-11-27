@@ -81,6 +81,29 @@ func TestProcessPublishesCompiledReceiptOnlyWhenEnabled(t *testing.T) {
 	require.Len(t, publisher.receipts, 1)
 }
 
+func TestProcessAssessesValidTargetsDespiteInvalidPipelineSources(t *testing.T) {
+	t.Parallel()
+	resolver := &fakeMappingResolver{mappings: []proofrepo.Mapping{
+		webhookMapping("acme", "pipelines/a-malformed.yaml"),
+		webhookMapping("acme", "pipelines/b-valid.yaml"),
+		webhookMapping("acme", "pipelines/c-oversized.yaml"),
+	}}
+	candidates := &fakeCandidates{errors: map[string]error{
+		"pipelines/a-malformed.yaml": proofcandidatesvc.ErrParseFailed,
+		"pipelines/c-oversized.yaml": proofcandidatesvc.ErrSourceTooLarge,
+	}}
+	compiler, publisher := &fakeCompiler{}, &recordingStatusPublisher{}
+	svc, err := New(testutil.FakeTransactionManager{}, resolver, resolver, candidates, compiler, &fakeDeliveryProducer{}, githubBinding("acme"), publisher, true)
+	require.NoError(t, err)
+
+	err = svc.Process(t.Context(), webhookEvent(gitprovider.ChangeActionUpsert))
+	require.ErrorIs(t, err, proofcandidatesvc.ErrParseFailed)
+	require.ErrorIs(t, err, proofcandidatesvc.ErrSourceTooLarge)
+	require.Len(t, candidates.ingested, 3)
+	require.Equal(t, []slug.Slug{"candidate-2"}, compiler.candidates)
+	require.Len(t, publisher.receipts, 1)
+}
+
 func TestProcessAttemptsEveryPublicationBeforeReturningFailures(t *testing.T) {
 	t.Parallel()
 	publishErr := xerror.Unexpected().Detail("publish failed")
@@ -248,10 +271,14 @@ type candidateCall struct {
 type fakeCandidates struct {
 	ingested []candidateCall
 	closed   []candidateCall
+	errors   map[string]error
 }
 
 func (c *fakeCandidates) Ingest(_ context.Context, organization slug.Slug, _ model.EventActor, change gitprovider.VerifiedChange) (*proofcandidatesvc.Result, error) {
 	c.ingested = append(c.ingested, candidateCall{organization: organization, change: change})
+	if err := c.errors[change.PipelinePath]; err != nil {
+		return nil, err
+	}
 	return &proofcandidatesvc.Result{CandidateSlug: slug.Slug("candidate-" + strconv.Itoa(len(c.ingested)))}, nil
 }
 

@@ -9,6 +9,7 @@ import (
 )
 
 type CandidateTarget struct {
+	CompareDeployed        bool
 	OrganizationID         int32
 	ProjectID              int64
 	ProjectEnvironmentID   int64
@@ -62,6 +63,8 @@ type CreateReceiptParams struct {
 type Receipt struct {
 	Value      model.ProofReceipt
 	Superseded bool
+	Key        string
+	EvidenceID int64
 }
 
 type LifecycleLink struct {

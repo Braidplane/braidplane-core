@@ -1397,6 +1397,7 @@ type ProofChangeCandidateMapping struct {
 	PipelinePath         string
 	CreatedAt            pgtype.Timestamptz
 	DisabledAt           pgtype.Timestamptz
+	CompareDeployed      bool
 }
 
 type ProofEvidence struct {

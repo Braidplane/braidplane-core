@@ -42,8 +42,9 @@ data-source and pipeline management permissions can enable assessments:
    Git data source.
 3. Check repository readiness. Open **Assessment targets**, then enter the
    repository-relative pipeline paths for the intended project/environment
-   targets. Leave unused targets empty; each selected target must match the
-   project's configured repository and tracked ref.
+   targets. To compare a path against the deployed version, enter it in
+   **Pipeline paths with deployed compatibility enabled**. List each path once.
+   Each selected target must match the project's configured repository and tracked ref.
 4. Select **Enable Proof assessments**. In **Publication options**, optionally
    select informational GitHub checks or GitLab notes.
 5. Save the configuration. Resolve setup warnings before expecting assessments.
@@ -54,6 +55,9 @@ data-source and pipeline management permissions can enable assessments:
 
 *Proof configuration with synthetic data, captured locally on 6 October 2026.
 Assessments are disabled in this example.*
+
+Saving a changed target list replaces its mappings. The new settings take
+effect on the next verified change event. Earlier receipts stay in history.
 
 Assessment enablement, Git publication, and live connector evidence are separate
 controls. Live evidence needs deployment enablement, an environment policy,
@@ -74,6 +78,11 @@ Existing receipts remain subject to access and retention rules.
 2. Open the relevant history entry. In **Overview**, confirm the evaluated head
    commit, source path, runtime target, and target ref. Check the verdict,
    recorded evidence scope, freshness, and any supersession warning.
+   When deployed compatibility is enabled for the path, the overview and any
+   Git publication show the observed deployment revision, baseline spec hash,
+   and redacted static findings. An unavailable baseline yields **Unverified**.
+   Deployment changes make the comparison **Stale**. Re-run Proof to compare
+   with the current deployment. The comparison is advisory.
 3. Open **Claims and evidence** to compare required and actual evidence for
    each claim. Read diagnostics and remediation; expand **Evidence details**
    only when more detail is useful.

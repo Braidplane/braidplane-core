@@ -74,9 +74,13 @@ templ ProofReceiptPageContent(shell AuthenticatedShellData, receipt *api.ProofRe
 					<div class="alert alert-info mt-4 py-2 text-sm"><span>This result supersedes an earlier immutable receipt.</span></div>
 				}
 				if receipt.AggregateVerdict == api.ProofVerdictSuperseded {
-					<div class="alert alert-warning mt-4 py-2 text-sm"><span>A later immutable receipt supersedes this result.</span></div>
+					<div class="alert alert-warning mt-4 py-2 text-sm"><span>This receipt is historical and no longer represents the current assessment.</span></div>
 				}
-			</section> @ProofReceiptLifecycle(receipt, false)
+			</section>
+			if receipt.DeployedCompatibility != nil {
+				@ProofDeployedCompatibility(receipt.DeployedCompatibility)
+			}
+			@ProofReceiptLifecycle(receipt, false)
 		}
 		if section == "claims" {
 			@ProofReceiptClaims(receipt)
@@ -104,6 +108,42 @@ templ ProofReceiptPageContent(shell AuthenticatedShellData, receipt *api.ProofRe
 			@ProofReceiptLifecycle(receipt, true)
 		}
 	}
+}
+
+templ ProofDeployedCompatibility(comparison *api.ProofDeployedCompatibility) {
+	<section class="mt-4 border-b border-base-300 pb-5" aria-labelledby="proof-deployed-compatibility-heading">
+		<div class="flex flex-wrap items-center gap-3">
+			<h3 id="proof-deployed-compatibility-heading" class="text-base font-semibold text-base-content">Deployed compatibility</h3>
+			<span class={ ProofVerdictBadgeClass(comparison.Verdict) }>{ ProofVerdictLabel(comparison.Verdict) }</span>
+		</div>
+		<p class="mt-1 text-sm text-base-content/70">Advisory comparison of the pipeline at this change head with the deployed specification.</p>
+		<dl class="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+			@ProofDefinition("Pipeline", comparison.PipelineSlug)
+			if comparison.DeploymentRevision != nil && comparison.BaselineSpecHash != nil {
+				@ProofDefinition("Deployment revision", fmt.Sprint(*comparison.DeploymentRevision))
+				@ProofDefinition("Baseline spec hash", *comparison.BaselineSpecHash)
+			}
+			if comparison.Severity != nil {
+				@ProofDefinition("Severity", string(*comparison.Severity))
+			}
+		</dl>
+		if comparison.Verdict == api.ProofVerdictStale {
+			<p class="mt-3 text-sm">The target deployment changed. Re-run Proof for a current comparison.</p>
+		} else if comparison.Verdict == api.ProofVerdictSuperseded {
+			<p class="mt-3 text-sm">This comparison is historical. Open the latest assessment for current evidence.</p>
+		} else if comparison.Severity == nil {
+			<p class="mt-3 text-sm">The deployed baseline is unavailable.</p>
+		}
+		if len(comparison.Findings) > 0 {
+			<ul class="mt-3 list-disc space-y-1 pl-5 text-sm" aria-label="Redacted compatibility findings">
+				for _, finding := range comparison.Findings {
+					<li class="break-words"><span class="font-medium">{ string(finding.Severity) }</span> · { finding.Message }</li>
+				}
+			</ul>
+		} else if comparison.Severity != nil {
+			<p class="mt-3 text-sm">No semantic changes found.</p>
+		}
+	</section>
 }
 
 templ ProofIdentity(label string, value string) {
