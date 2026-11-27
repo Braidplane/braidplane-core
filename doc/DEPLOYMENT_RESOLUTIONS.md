@@ -78,8 +78,10 @@ Deployment selection leaves the execution hold in place.
 
 When upgrading to the pause feature, drain active runs and stop Core API and
 worker processes before applying migrations 13 and 14. The index build and
-webhook intake repair in migration 14 can block writes to the run table. Start
-the upgraded processes after both migrations finish.
+webhook intake repair in migration 14 can block writes to the run table. The
+repair requeues unadmitted webhook runs with a runnable job and records a
+terminal failure for the rest. Start the upgraded processes after both
+migrations finish.
 
 Authorization, validation, worker authority checks and redaction remain mandatory.
 The expand migration and executor capability grants must precede upgraded worker

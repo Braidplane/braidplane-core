@@ -2,6 +2,8 @@ package e2e
 
 import (
 	"context"
+	"os"
+	"strings"
 	"testing"
 	"time"
 
@@ -293,4 +295,23 @@ func TestWebhookPreflightResetReturnsRunToPauseFence(t *testing.T) {
 	require.ErrorIs(t, webhooks.ResetPreflight(ctx, pool, "pause-receiver", "preflight", 1), pipelinewebhooks.ErrDeliveryNotFound)
 	require.NoError(t, pool.QueryRow(ctx, `SELECT status FROM pipeline_webhook_deliveries WHERE receiver_id='pause-receiver' AND delivery_id='preflight'`).Scan(&state))
 	require.Equal(t, "running", state)
+
+	// Recreate the old split preflight state without a retained River job.
+	_, err = pool.Exec(ctx, `UPDATE pipeline_runs SET timeline = timeline - 'revision'
+		WHERE project_environment_id=$1 AND run_slug='webhook-run'`, env)
+	require.NoError(t, err)
+	_, err = pool.Exec(ctx, `UPDATE pipeline_webhook_deliveries SET status='accepted', decision_reason='execution_preflight_retry'
+		WHERE receiver_id='pause-receiver' AND delivery_id='preflight'`)
+	require.NoError(t, err)
+	migration, err := os.ReadFile("../../migrations/000014_pipeline_execution_pause_indexes.up.sql")
+	require.NoError(t, err)
+	_, repair, found := strings.Cut(string(migration), "WITH preflight AS (")
+	require.True(t, found)
+	_, err = pool.Exec(ctx, "WITH preflight AS ("+repair)
+	require.NoError(t, err)
+	run, err = runs.FindRunBySlug(ctx, pool, scope.Org, scope.Project, scope.Environment, "webhook-run")
+	require.NoError(t, err)
+	require.Equal(t, "failed", run.Status)
+	require.NoError(t, pool.QueryRow(ctx, `SELECT status FROM pipeline_webhook_deliveries WHERE receiver_id='pause-receiver' AND delivery_id='preflight'`).Scan(&state))
+	require.Equal(t, "failed", state)
 }

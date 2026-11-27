@@ -54,6 +54,8 @@ func TestTriggerIntakeRecordsOnlyAvailableFactsAndStartsOnce(t *testing.T) {
 	require.Len(t, timeline.Events, 1)
 	require.Equal(t, "run_queued", timeline.Events[0].Type)
 	require.Zero(t, timeline.Revision)
+	require.NoError(t, svc.EnsureQueuedTriggerRun(t.Context(), "acme", "etl", "staging", "orders", "attempt", source, at, 42))
+	require.Error(t, svc.EnsureQueuedTriggerRun(t.Context(), "acme", "etl", "staging", "orders", "attempt", source, at, 43))
 	require.NoError(t, svc.AcceptQueuedRun(t.Context(), "acme", "etl", "staging", "orders", "attempt", source, at.Add(time.Hour), 42))
 	require.Error(t, svc.AcceptQueuedRun(t.Context(), "acme", "etl", "staging", "orders", "attempt", source, at, 43))
 	require.NoError(t, svc.StartQueuedRun(t.Context(), "acme", "etl", "staging", "attempt", at.Add(time.Second)))
