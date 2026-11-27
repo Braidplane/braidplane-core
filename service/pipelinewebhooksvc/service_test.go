@@ -211,8 +211,13 @@ func TestExecuteDeliveryUsesVerifiedEventAndCompletesDelivery(t *testing.T) {
 	executor := &fakePipelineExecutor{}
 	svc := newWebhookService(t, now, repo, fakeSecretResolver{secret: []byte("unused")}, &fakeWebhookProducer{}, executor)
 
-	err = svc.ExecuteDelivery(t.Context(), jobs.PipelineWebhookDeliveryArgs{ReceiverID: "receiver-opaque", DeliveryID: "delivery-1", RunAttempt: 1})
-	require.NoError(t, err)
+	args := jobs.PipelineWebhookDeliveryArgs{ReceiverID: "receiver-opaque", DeliveryID: "delivery-1", RunAttempt: 1}
+	executor.startErr = pipelinesvc.ErrExecutionPaused
+	require.ErrorIs(t, svc.ExecuteDelivery(t.Context(), args), pipelinesvc.ErrExecutionPaused)
+	require.Zero(t, executor.latestCalls)
+	require.Empty(t, repo.completed.Status)
+	executor.startErr = nil
+	require.NoError(t, svc.ExecuteDelivery(t.Context(), args))
 	require.Equal(t, 1, executor.latestCalls)
 	require.JSONEq(t, string(body), string(executor.eventInput))
 	require.Equal(t, map[string]any{"customer": "c-17"}, executor.runtimeInput)
@@ -642,6 +647,7 @@ func (f *fakeWebhookRepository) Replay(context.Context, postgres.DBTX, slug.Slug
 }
 
 type fakePipelineExecutor struct {
+	startErr     error
 	queued       []pipelinerun.RunSourceSummary
 	queuedAt     time.Time
 	queuedJobID  int64
@@ -803,11 +809,19 @@ func (f *fakePipelineExecutor) AcceptQueuedRun(_ context.Context, _, _, _, _, _ 
 	return nil
 }
 
-func (f *fakePipelineExecutor) StartQueuedRun(context.Context, slug.Slug, slug.Slug, slug.Slug, slug.Slug, time.Time) error {
+func (f *fakePipelineExecutor) EnsureQueuedTriggerRun(context.Context, slug.Slug, slug.Slug, slug.Slug, slug.Slug, slug.Slug, pipelinerun.RunSourceSummary, time.Time, int64) error {
 	return nil
 }
 
+func (f *fakePipelineExecutor) StartQueuedRun(context.Context, slug.Slug, slug.Slug, slug.Slug, slug.Slug, time.Time) error {
+	return f.startErr
+}
+
 func (f *retryingPipelineExecutor) AcceptQueuedRun(context.Context, slug.Slug, slug.Slug, slug.Slug, slug.Slug, slug.Slug, pipelinerun.RunSourceSummary, time.Time, int64) error {
+	return nil
+}
+
+func (f *retryingPipelineExecutor) EnsureQueuedTriggerRun(context.Context, slug.Slug, slug.Slug, slug.Slug, slug.Slug, slug.Slug, pipelinerun.RunSourceSummary, time.Time, int64) error {
 	return nil
 }
 

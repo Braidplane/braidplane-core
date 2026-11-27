@@ -790,3 +790,6 @@ In a data source’s query library, **Check pipeline usage** checks the saved
 operations on the current page against organization pipelines and their
 environment bindings. The check uses current canonical specs. Older deployed versions can still use these items. These read-only checks report unknown usage when they
 cannot resolve the relevant specs or metadata. Cleanup findings are informational.
+
+For an incident involving writes, [pause and drain the pipeline in the affected
+environment](cli.md#pause-and-drain-a-pipeline) before selecting a recovery.

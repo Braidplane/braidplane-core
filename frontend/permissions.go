@@ -43,6 +43,9 @@ func (r *Router) resolvePagePermissions(c fiber.Ctx, org string) views.Organizat
 		kind, id = "pipelines", c.Params("pipelineSlug")
 		if env != "" {
 			kind = "deployed_pipelines"
+			if strings.HasSuffix(c.Route().Path, "/execution-control") {
+				kind = "deployment_targets"
+			}
 			params.EnvironmentSlug = &env
 		}
 	case c.Params("runSlug") != "":

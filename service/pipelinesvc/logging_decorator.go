@@ -265,6 +265,35 @@ func (_d ServiceWithLogging) Deploy(ctx context.Context, orgSlug slug.Slug, proj
 	return
 }
 
+// EnsureQueuedTriggerRun implements Service.
+func (_d ServiceWithLogging) EnsureQueuedTriggerRun(ctx context.Context, s1 slug.Slug, s2 slug.Slug, s3 slug.Slug, s4 slug.Slug, s5 slug.Slug, r1 pipelinerun.RunSourceSummary, t1 time.Time, i1 int64) (err error) {
+	_startedAt := time.Now()
+	_ctx := ctx
+	_ctx, _span := tracing.StartMethodSpan(_ctx, tracing.MethodSpan{
+		Layer:     "service",
+		Package:   "service/pipelinesvc",
+		Interface: "Service",
+		Method:    "EnsureQueuedTriggerRun",
+	})
+	defer _span.End()
+	defer func() {
+		if err != nil {
+			tracing.RecordError(_span, err)
+		}
+		logging.LogMethodCompletion(_ctx, _d._logger, logging.MethodCompletion{
+			Layer:       "service",
+			Package:     "service/pipelinesvc",
+			Interface:   "Service",
+			Method:      "EnsureQueuedTriggerRun",
+			StartedAt:   _startedAt,
+			CompletedAt: time.Now(),
+			Err:         err,
+		})
+	}()
+	err = _d._base.EnsureQueuedTriggerRun(_ctx, s1, s2, s3, s4, s5, r1, t1, i1)
+	return
+}
+
 // Execute implements Service.
 func (_d ServiceWithLogging) Execute(ctx context.Context, orgSlug slug.Slug, projectSlug slug.Slug, environmentSlug slug.Slug, pipelineSlug slug.Slug, runSlug *slug.Slug, protectedEnvironmentConfirmation *slug.Slug, actor model.EventActor, source pipelinerun.RunSourceSummary, runtimeInput map[string]any) (pp1 *PipelineRunDetail, err error) {
 	_startedAt := time.Now()
@@ -581,6 +610,35 @@ func (_d ServiceWithLogging) GetDriftImpactReport(ctx context.Context, orgSlug s
 		})
 	}()
 	dp1, err = _d._base.GetDriftImpactReport(_ctx, orgSlug, projectSlug, reportSlug)
+	return
+}
+
+// GetExecutionControl implements Service.
+func (_d ServiceWithLogging) GetExecutionControl(ctx context.Context, e1 ExecutionScope) (ep1 *ExecutionControl, err error) {
+	_startedAt := time.Now()
+	_ctx := ctx
+	_ctx, _span := tracing.StartMethodSpan(_ctx, tracing.MethodSpan{
+		Layer:     "service",
+		Package:   "service/pipelinesvc",
+		Interface: "Service",
+		Method:    "GetExecutionControl",
+	})
+	defer _span.End()
+	defer func() {
+		if err != nil {
+			tracing.RecordError(_span, err)
+		}
+		logging.LogMethodCompletion(_ctx, _d._logger, logging.MethodCompletion{
+			Layer:       "service",
+			Package:     "service/pipelinesvc",
+			Interface:   "Service",
+			Method:      "GetExecutionControl",
+			StartedAt:   _startedAt,
+			CompletedAt: time.Now(),
+			Err:         err,
+		})
+	}()
+	ep1, err = _d._base.GetExecutionControl(_ctx, e1)
 	return
 }
 
@@ -1161,6 +1219,35 @@ func (_d ServiceWithLogging) SaveDraft(ctx context.Context, orgSlug slug.Slug, p
 		})
 	}()
 	pp1, err = _d._base.SaveDraft(_ctx, orgSlug, projectSlug, pipelineSlug, memberSlug, actor, pipeline, expectedSpecHash)
+	return
+}
+
+// SetExecutionControl implements Service.
+func (_d ServiceWithLogging) SetExecutionControl(ctx context.Context, e1 ExecutionScope, i1 int64, b1 bool, e2 model.EventActor) (ep1 *ExecutionControl, err error) {
+	_startedAt := time.Now()
+	_ctx := ctx
+	_ctx, _span := tracing.StartMethodSpan(_ctx, tracing.MethodSpan{
+		Layer:     "service",
+		Package:   "service/pipelinesvc",
+		Interface: "Service",
+		Method:    "SetExecutionControl",
+	})
+	defer _span.End()
+	defer func() {
+		if err != nil {
+			tracing.RecordError(_span, err)
+		}
+		logging.LogMethodCompletion(_ctx, _d._logger, logging.MethodCompletion{
+			Layer:       "service",
+			Package:     "service/pipelinesvc",
+			Interface:   "Service",
+			Method:      "SetExecutionControl",
+			StartedAt:   _startedAt,
+			CompletedAt: time.Now(),
+			Err:         err,
+		})
+	}()
+	ep1, err = _d._base.SetExecutionControl(_ctx, e1, i1, b1, e2)
 	return
 }
 

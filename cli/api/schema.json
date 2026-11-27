@@ -10229,6 +10229,137 @@
         ],
         "type": "object"
       },
+      "PipelineExecutionControl": {
+        "properties": {
+          "active_count": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "attempts": {
+            "items": {
+              "$ref": "#/components/schemas/PipelineExecutionControlAttempt"
+            },
+            "type": "array"
+          },
+          "changed_at": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "changed_by_slug": {
+            "type": "string"
+          },
+          "changed_by_type": {
+            "type": "string"
+          },
+          "drained": {
+            "description": "",
+            "type": "boolean"
+          },
+          "finished_count": {
+            "description": "",
+            "format": "int64",
+            "type": "integer"
+          },
+          "paused": {
+            "type": "boolean"
+          },
+          "queued_count": {
+            "description": "",
+            "format": "int64",
+            "type": "integer"
+          },
+          "revision": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "uncertain_count": {
+            "description": "",
+            "format": "int64",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "paused",
+          "revision",
+          "drained",
+          "queued_count",
+          "active_count",
+          "finished_count",
+          "uncertain_count",
+          "attempts"
+        ],
+        "type": "object"
+      },
+      "PipelineExecutionControlAttempt": {
+        "properties": {
+          "ended_at": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "has_worker_job": {
+            "description": "",
+            "type": "boolean"
+          },
+          "known_completed_write": {
+            "description": "",
+            "type": "boolean"
+          },
+          "last_observed_at": {
+            "description": "",
+            "format": "date-time",
+            "type": "string"
+          },
+          "outcome_uncertain": {
+            "description": "",
+            "type": "boolean"
+          },
+          "phase": {
+            "description": "",
+            "type": "string"
+          },
+          "run_slug": {
+            "type": "string"
+          },
+          "source_type": {
+            "type": "string"
+          },
+          "started_at": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "status": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "run_slug",
+          "source_type",
+          "phase",
+          "status",
+          "started_at",
+          "has_worker_job",
+          "known_completed_write",
+          "outcome_uncertain"
+        ],
+        "type": "object"
+      },
+      "PipelineExecutionControlUpdate": {
+        "properties": {
+          "expected_revision": {
+            "format": "int64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "paused": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "paused",
+          "expected_revision"
+        ],
+        "type": "object"
+      },
       "PipelineIncrementalSourceContract": {
         "description": "",
         "properties": {
@@ -28047,6 +28178,148 @@
         }
       }
     },
+    "/organizations/{slug}/projects/{project_slug}/environments/{environment_slug}/pipelines/{pipeline_slug}/execution-control": {
+      "get": {
+        "description": "",
+        "operationId": "getPipelineExecutionControl",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/SlugParam"
+          },
+          {
+            "$ref": "#/components/parameters/ProjectSlugParam"
+          },
+          {
+            "$ref": "#/components/parameters/EnvironmentSlugParam"
+          },
+          {
+            "$ref": "#/components/parameters/PipelineSlugParam"
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PipelineExecutionControl"
+                }
+              }
+            },
+            "description": ""
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": ""
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": ""
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": ""
+          }
+        }
+      },
+      "put": {
+        "description": "",
+        "operationId": "setPipelineExecutionControl",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/SlugParam"
+          },
+          {
+            "$ref": "#/components/parameters/ProjectSlugParam"
+          },
+          {
+            "$ref": "#/components/parameters/EnvironmentSlugParam"
+          },
+          {
+            "$ref": "#/components/parameters/PipelineSlugParam"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PipelineExecutionControlUpdate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PipelineExecutionControl"
+                }
+              }
+            },
+            "description": ""
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": ""
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": ""
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": ""
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": ""
+          }
+        }
+      }
+    },
     "/organizations/{slug}/projects/{project_slug}/environments/{environment_slug}/pipelines/{pipeline_slug}/successful-run-recency": {
       "get": {
         "description": "",
@@ -29122,6 +29395,16 @@
             "description": ""
           },
           "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": ""
+          },
+          "409": {
             "content": {
               "application/json": {
                 "schema": {

@@ -58,6 +58,7 @@ type Producer interface {
 type PipelineExecutor interface {
 	FailUnadmittedRun(context.Context, slug.Slug, slug.Slug, slug.Slug, slug.Slug) error
 	AcceptQueuedRun(context.Context, slug.Slug, slug.Slug, slug.Slug, slug.Slug, slug.Slug, pipelinerun.RunSourceSummary, time.Time, int64) error
+	EnsureQueuedTriggerRun(context.Context, slug.Slug, slug.Slug, slug.Slug, slug.Slug, slug.Slug, pipelinerun.RunSourceSummary, time.Time, int64) error
 	StartQueuedRun(context.Context, slug.Slug, slug.Slug, slug.Slug, slug.Slug, time.Time) error
 	ExecuteVerifiedEvent(context.Context, slug.Slug, slug.Slug, slug.Slug, slug.Slug, *slug.Slug, model.EventActor, pipelinerun.RunSourceSummary, map[string]any, json.RawMessage) (*pipelinesvc.PipelineRunDetail, error)
 	ExecuteVerifiedEventVersion(context.Context, slug.Slug, slug.Slug, slug.Slug, slug.Slug, string, *slug.Slug, model.EventActor, pipelinerun.RunSourceSummary, map[string]any, json.RawMessage) (*pipelinesvc.PipelineRunDetail, error)
@@ -392,6 +393,16 @@ func (s *Service) ExecuteDelivery(ctx context.Context, args jobs.PipelineWebhook
 	if err != nil {
 		return xerror.Wrapf("derive pipeline webhook attempt run slug: %w", err)
 	}
+	var source pipelinerun.RunSourceSummary
+	if !delivery.Resuming {
+		source, err = webhookRunSource(delivery, args.RunAttempt)
+		if err != nil {
+			return err
+		}
+		if err := s.executor.EnsureQueuedTriggerRun(ctx, delivery.Receiver.OrgSlug, delivery.Receiver.ProjectSlug, delivery.Receiver.EnvironmentSlug, delivery.Receiver.PipelineSlug, runSlug, source, delivery.ReceivedAt, args.WorkerJobID); err != nil {
+			return err
+		}
+	}
 	if err := s.txm.RunInTx(ctx, func(ctx context.Context, tx postgres.DBTX) error {
 		if err := s.repo.MarkRunning(ctx, tx, args.ReceiverID, args.DeliveryID, args.RunAttempt, now); err != nil {
 			return err
@@ -429,10 +440,6 @@ func (s *Service) ExecuteDelivery(ctx context.Context, args jobs.PipelineWebhook
 		var envelope executionEnvelope
 		if err := json.Unmarshal(plaintext, &envelope); err != nil || len(envelope.EventInput) == 0 {
 			return s.complete(ctx, args, "failed", "platform", "execution_envelope_invalid", now, delivery.EnvelopeExpiresAt)
-		}
-		source, sourceErr := webhookRunSource(delivery, args.RunAttempt)
-		if sourceErr != nil {
-			return sourceErr
 		}
 		switch {
 		case args.RunAttempt > 1 && delivery.PipelineVersionSpecHash != "":

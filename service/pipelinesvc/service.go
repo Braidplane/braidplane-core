@@ -132,7 +132,10 @@ const (
 
 // Service exposes pipelines operations
 type Service interface {
+	GetExecutionControl(context.Context, ExecutionScope) (*ExecutionControl, error)
+	SetExecutionControl(context.Context, ExecutionScope, int64, bool, model.EventActor) (*ExecutionControl, error)
 	AcceptQueuedRun(context.Context, slug.Slug, slug.Slug, slug.Slug, slug.Slug, slug.Slug, pipelinerun.RunSourceSummary, time.Time, int64) error
+	EnsureQueuedTriggerRun(context.Context, slug.Slug, slug.Slug, slug.Slug, slug.Slug, slug.Slug, pipelinerun.RunSourceSummary, time.Time, int64) error
 	StartQueuedRun(context.Context, slug.Slug, slug.Slug, slug.Slug, slug.Slug, time.Time) error
 	ReconcileInterruptedRuns(context.Context, time.Time) error
 	FailUnadmittedRun(context.Context, slug.Slug, slug.Slug, slug.Slug, slug.Slug) error
@@ -3669,10 +3672,40 @@ func (s *service) executeResolvedVersion(
 			}
 			source = pipelinerun.NormalizeAttemptSource(source, acceptedSlug)
 			if err := s.txm.RunInTx(ctx, func(ctx context.Context, tx postgres.DBTX) error {
+				if runSlug != nil && (source.Type == model.PipelineRunSourceTypeSchedule || source.Type == model.PipelineRunSourceTypeWebhook) {
+					prior, err := s.runRepo.FindRunBySlug(ctx, tx, orgSlug, projectSlug, environmentSlug, acceptedSlug.String())
+					if err == nil {
+						// The trigger already claimed this run. Pin its selected version for the Proof link.
+						if prior.Status != pipelineRunStatusRunning || prior.WorkerJobID == nil || prior.PipelineSlug != pipeline.Metadata.Slug.String() ||
+							prior.Source.Type != source.Type || prior.Source.RootRunSlug != source.RootRunSlug || prior.Source.AttemptNumber != source.AttemptNumber {
+							return pipelineruns.ErrRunAlreadyExists.Detail(acceptedSlug.String())
+						}
+						_, err := s.runRepo.CompleteRun(ctx, tx, orgSlug, projectSlug, environmentSlug, acceptedSlug.String(), &pipelineruns.CompleteRunParams{
+							PipelineSlug: prior.PipelineSlug, PipelineVersionID: version.ID,
+							DeploymentID: &deployment.ID, DeploymentRevision: &deployment.Revision, DeploymentResolutionDigest: resolutionDigest,
+							Status: pipelineRunStatusRunning, StartedAt: prior.StartedAt, Timeline: prior.Timeline, Incremental: prior.Incremental,
+						})
+						if err != nil {
+							return err
+						}
+						proofLink, err = s.proofLinks.LinkRun(ctx, tx, orgSlug, projectSlug, environmentSlug, acceptedSlug,
+							deployment.ID, deploymentLinkIdentifier(pipeline.Metadata.Slug, deployment), acceptedAt)
+						if xerror.Is(err, proofreceipts.ErrLifecycleLinkNotFound) {
+							return nil
+						}
+						return err
+					}
+					if !xerror.Is(err, pipelineruns.ErrRunNotFound) {
+						return err
+					}
+				}
 				_, link, err := s.createQueuedRun(ctx, tx, orgSlug, projectSlug, environmentSlug, pipeline.Metadata.Slug,
 					acceptedSlug, version.ID, source, acceptedAt, deployment, incremental)
+				if err != nil {
+					return err
+				}
 				proofLink = link
-				return err
+				return s.StartQueuedRun(ctx, orgSlug, projectSlug, environmentSlug, acceptedSlug, acceptedAt)
 			}); err != nil {
 				return nil, err
 			}
@@ -3722,6 +3755,14 @@ func (s *service) executeResolvedVersion(
 		return err
 	})
 	if runErr != nil && runOutcome == nil {
+		if xerror.Is(runErr, ErrExecutionPaused) {
+			runtimeStarted = false
+			return nil, ErrExecutionPaused.With(runErr)
+		}
+		if xerror.Is(runErr, ErrExecutionControlRevision) {
+			runtimeStarted = false
+			return nil, ErrExecutionControlRevision.With(runErr)
+		}
 		if accepted {
 			if err := s.completeQueuedRunFailure(ctx, jobs.PipelineRunExecutionArgs{
 				OrganizationSlug: orgSlug, ProjectSlug: projectSlug, EnvironmentSlug: environmentSlug,

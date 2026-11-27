@@ -33,6 +33,9 @@ func TestTriggerIntakeRecordsOnlyAvailableFactsAndStartsOnce(t *testing.T) {
 			return row, nil
 		},
 		findRunBySlugFn: func(context.Context, postgres.DBTX, slug.Slug, slug.Slug, slug.Slug, string) (*pipelineruns.PipelineRun, error) {
+			if row == nil {
+				return nil, pipelineruns.ErrRunNotFound
+			}
 			return row, nil
 		},
 		markRunRunningFn: func(_ context.Context, _ postgres.DBTX, _, _, _, _ slug.Slug, _ string, at time.Time, raw json.RawMessage) (*pipelineruns.PipelineRun, error) {
@@ -45,7 +48,7 @@ func TestTriggerIntakeRecordsOnlyAvailableFactsAndStartsOnce(t *testing.T) {
 	}
 	svc := &service{runRepo: repo, txm: &recordingPipelineGitTxManager{}}
 	source := pipelinerun.RunSourceSummary{Type: model.PipelineRunSourceTypeSchedule}
-	require.NoError(t, svc.AcceptQueuedRun(t.Context(), "acme", "etl", "staging", "orders", "attempt", source, at, 42))
+	require.NoError(t, svc.EnsureQueuedTriggerRun(t.Context(), "acme", "etl", "staging", "orders", "attempt", source, at, 42))
 	var timeline pipelinerun.RunTimeline
 	require.NoError(t, json.Unmarshal(row.Timeline, &timeline))
 	require.Len(t, timeline.Events, 1)

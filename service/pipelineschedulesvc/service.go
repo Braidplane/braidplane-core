@@ -141,6 +141,7 @@ type PipelineExecutor interface {
 	FailUnadmittedRun(context.Context, slug.Slug, slug.Slug, slug.Slug, slug.Slug) error
 	ReconcileInterruptedRuns(context.Context, time.Time) error
 	AcceptQueuedRun(context.Context, slug.Slug, slug.Slug, slug.Slug, slug.Slug, slug.Slug, pipelinerun.RunSourceSummary, time.Time, int64) error
+	EnsureQueuedTriggerRun(context.Context, slug.Slug, slug.Slug, slug.Slug, slug.Slug, slug.Slug, pipelinerun.RunSourceSummary, time.Time, int64) error
 	StartQueuedRun(context.Context, slug.Slug, slug.Slug, slug.Slug, slug.Slug, time.Time) error
 	GetRun(context.Context, slug.Slug, slug.Slug, slug.Slug, string) (*pipelinesvc.PipelineRunDetail, error)
 	Execute(
@@ -327,6 +328,10 @@ func (s *Service) ExecuteClaimedScheduleFire(
 		return nil
 	}
 	if !fire.Resuming {
+		at := s.clock.Now().UTC()
+		if err := s.executor.EnsureQueuedTriggerRun(ctx, fire.Claim.OrgSlug, fire.Claim.ProjectSlug, fire.Claim.EnvironmentSlug, fire.Trigger.PipelineSlug, fire.FireSlug, s.runSource(fire.Trigger, fire.Claim, fire.FireSlug), fire.Claim.ActualFireAt, args.WorkerJobID); err != nil {
+			return err
+		}
 		if err := s.txm.RunInTx(ctx, func(ctx context.Context, tx postgres.DBTX) error {
 			err := s.repo.MarkScheduleFireRunning(ctx, tx, ScheduleFireExecutionRef{
 				OrgSlug:         fire.Claim.OrgSlug,
@@ -339,7 +344,7 @@ func (s *Service) ExecuteClaimedScheduleFire(
 			if err != nil {
 				return err
 			}
-			return s.executor.StartQueuedRun(ctx, fire.Claim.OrgSlug, fire.Claim.ProjectSlug, fire.Claim.EnvironmentSlug, fire.FireSlug, time.Now().UTC())
+			return s.executor.StartQueuedRun(ctx, fire.Claim.OrgSlug, fire.Claim.ProjectSlug, fire.Claim.EnvironmentSlug, fire.FireSlug, at)
 		}); err != nil {
 			if xerror.Is(err, pipelinetriggers.ErrPipelineTriggerNotFound) {
 				return nil
@@ -415,6 +420,10 @@ func (s *Service) ExecuteTriggerRetryAttempt(
 		return nil
 	}
 	if attempt.Status != model.PipelineTriggerRetryAttemptStatusRunning {
+		at := s.clock.Now().UTC()
+		if err := s.executor.EnsureQueuedTriggerRun(ctx, attempt.OrgSlug, attempt.ProjectSlug, attempt.EnvironmentSlug, attempt.PipelineSlug, attempt.RunSlug, attempt.Source, attempt.ScheduledAt, args.WorkerJobID); err != nil {
+			return err
+		}
 		if err := s.txm.RunInTx(ctx, func(ctx context.Context, tx postgres.DBTX) error {
 			err := s.repo.MarkTriggerRetryAttemptRunning(
 				ctx,
@@ -427,7 +436,7 @@ func (s *Service) ExecuteTriggerRetryAttempt(
 			if err != nil {
 				return err
 			}
-			return s.executor.StartQueuedRun(ctx, attempt.OrgSlug, attempt.ProjectSlug, attempt.EnvironmentSlug, attempt.RunSlug, s.clock.Now().UTC())
+			return s.executor.StartQueuedRun(ctx, attempt.OrgSlug, attempt.ProjectSlug, attempt.EnvironmentSlug, attempt.RunSlug, at)
 		}); err != nil {
 			if xerror.Is(err, pipelinetriggers.ErrPipelineTriggerNotFound) {
 				return nil

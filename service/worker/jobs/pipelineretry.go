@@ -13,6 +13,7 @@ const PipelineRetryQueue = "pipeline_retry"
 
 // PipelineTriggerRetryExecutionArgs is the durable River payload for one trigger retry attempt.
 type PipelineTriggerRetryExecutionArgs struct {
+	WorkerJobID      int64     `json:"-"`
 	FinalizeOnly     bool      `json:"finalize_only,omitempty" river:"unique"`
 	OrganizationSlug slug.Slug `json:"organization_slug" river:"unique"`
 	ProjectSlug      slug.Slug `json:"project_slug" river:"unique"`

@@ -19,6 +19,7 @@ import (
 
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/riverqueue/river"
 	"github.com/stretchr/testify/require"
 
 	"github.com/Braidplane/braidplane-core/pkg/clock"
@@ -65,6 +66,7 @@ import (
 	"github.com/Braidplane/braidplane-core/service/queriessvc"
 	"github.com/Braidplane/braidplane-core/service/rolessvc"
 	"github.com/Braidplane/braidplane-core/service/userssvc"
+	"github.com/Braidplane/braidplane-core/service/worker/consumer"
 	"github.com/Braidplane/braidplane-core/service/worker/jobs"
 	workerproducer "github.com/Braidplane/braidplane-core/service/worker/producer"
 )
@@ -163,6 +165,14 @@ func TestService_DispatchDueScheduleEnqueuesFireThenExecutionCreatesRunEventAndC
 	require.Zero(t, fireCount, "candidate enqueue failure rolls back the skipped fire claim")
 	require.NoError(t, pool.QueryRow(ctx, `SELECT count(*) FROM river_job WHERE kind='notification_candidate' AND args->>'organization_slug'=$1`, orgSlug.String()).Scan(&candidateCount))
 	require.Zero(t, candidateCount, "candidate jobs roll back with source state")
+	scope := pipelinesvc.ExecutionScope{Org: orgSlug, Project: projectSlug, Environment: environmentSlug, Pipeline: pipelineSlug}
+	actor := model.UserEventActor(userSlug)
+	paused, err := pipelineSvc.SetExecutionControl(ctx, scope, 0, true, actor)
+	require.NoError(t, err)
+	require.True(t, paused.Paused)
+	repeated, err := pipelineSvc.SetExecutionControl(ctx, scope, 0, true, actor)
+	require.NoError(t, err)
+	require.Equal(t, paused.ChangedAt, repeated.ChangedAt)
 	result, err := scheduleSvc.DispatchDueSchedules(ctx, now)
 	require.NoError(t, err)
 	require.Equal(t, pipelineschedulesvc.DispatchResult{Scanned: 1, Claimed: 1, Enqueued: 1}, result)
@@ -194,8 +204,27 @@ func TestService_DispatchDueScheduleEnqueuesFireThenExecutionCreatesRunEventAndC
 	require.Equal(t, "queued", runs.Items[0].Status)
 	require.Empty(t, runs.Items[0].PipelineVersionSpecHash)
 
-	err = scheduleSvc.ExecuteClaimedScheduleFire(ctx, executionArgs)
+	held, err := pipelineSvc.GetExecutionControl(ctx, scope)
 	require.NoError(t, err)
+	require.EqualValues(t, 1, held.QueuedCount)
+	require.Zero(t, held.ActiveCount)
+	worker := consumer.NewPipelineScheduleFireExecutionWorker(scheduleSvc, nil)
+	var snooze *river.JobSnoozeError
+	require.ErrorAs(t, worker.Work(ctx, &river.Job[jobs.PipelineScheduleFireExecutionArgs]{Args: executionArgs}), &snooze)
+	// The second dispatcher has no in-memory state from the first attempt.
+	restarted := pipelineschedulesvc.New(txm, pipelinetriggers.NewRepository(), pipelineSvc, scheduleProducer, nil)
+	require.ErrorIs(t, restarted.ExecuteClaimedScheduleFire(ctx, executionArgs), pipelinesvc.ErrExecutionPaused)
+	resumed, err := pipelineSvc.SetExecutionControl(ctx, scope, held.Revision, false, actor)
+	require.NoError(t, err)
+	require.False(t, resumed.Paused)
+	require.NoError(t, restarted.ExecuteClaimedScheduleFire(ctx, executionArgs))
+	require.NoError(t, restarted.ExecuteClaimedScheduleFire(ctx, executionArgs))
+	var auditCount int
+	require.NoError(t, pool.QueryRow(ctx, `SELECT count(*) FROM events e JOIN organizations o ON o.id=e.organization_id
+		WHERE o.slug=$1 AND e.actor_slug=$2 AND e.event_class='security_audit'
+		  AND e.metadata->>'environment_slug'=$3 AND e.metadata->>'operation' IN ('execution_paused','execution_resumed')`,
+		orgSlug, userSlug, environmentSlug).Scan(&auditCount))
+	require.Equal(t, 2, auditCount)
 
 	runs, err = pipelineSvc.ListRuns(ctx, orgSlug, projectSlug, environmentSlug, nil, model.ListRequest{Limit: 10})
 	require.NoError(t, err)
@@ -564,6 +593,19 @@ func TestService_TriggerRetryAttemptRetriesFailedRunTwice(t *testing.T) { // Sch
 	}
 	requireTriggerRetryExecutionJob(t, pool, retryQueue, retryArgs)
 
+	scope := pipelinesvc.ExecutionScope{Org: orgSlug, Project: projectSlug, Environment: environmentSlug, Pipeline: pipelineSlug}
+	actor := model.UserEventActor(userSlug)
+	pause, err := pipelineSvc.SetExecutionControl(ctx, scope, 0, true, actor)
+	require.NoError(t, err)
+	require.True(t, pause.Paused)
+	require.Len(t, pause.Attempts, 1)
+	require.Equal(t, attempt.runSlug, pause.Attempts[0].RunSlug)
+	worker := consumer.NewPipelineTriggerRetryExecutionWorker(scheduleSvc, nil)
+	var snooze *river.JobSnoozeError
+	require.ErrorAs(t, worker.Work(ctx, &river.Job[jobs.PipelineTriggerRetryExecutionArgs]{Args: retryArgs}), &snooze)
+	require.Equal(t, 1, queryExecutor.Snapshot(), "a held retry must not reach the query executor")
+	_, err = pipelineSvc.SetExecutionControl(ctx, scope, pause.Revision, false, actor)
+	require.NoError(t, err)
 	err = scheduleSvc.ExecuteTriggerRetryAttempt(ctx, retryArgs)
 	require.NoError(t, err)
 	require.Equal(t, 2, queryExecutor.Snapshot())

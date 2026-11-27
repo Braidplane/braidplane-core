@@ -27,6 +27,7 @@ func (PipelineScheduleDispatchArgs) InsertOpts() river.InsertOpts {
 
 // PipelineScheduleFireExecutionArgs is the durable River payload for executing one claimed scheduled fire.
 type PipelineScheduleFireExecutionArgs struct {
+	WorkerJobID      int64     `json:"-"`
 	FinalizeOnly     bool      `json:"finalize_only,omitempty" river:"unique"`
 	OrganizationSlug slug.Slug `json:"organization_slug" river:"unique"`
 	ProjectSlug      slug.Slug `json:"project_slug" river:"unique"`

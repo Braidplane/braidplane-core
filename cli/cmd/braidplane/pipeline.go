@@ -26,6 +26,7 @@ const unavailablePipelineRunSourceLabel = "unavailable"
 
 type pipelineCommand struct {
 	Mapping      pipelineMappingCommand              `cmd:"" help:"Inspect and author SQL field mappings locally without publishing or running a pipeline."`
+	Execution    pipelineExecutionControlCommand     `cmd:"" help:"Pause, inspect, and resume execution for one environment."`
 	Recency      pipelineRecencyCommand              `cmd:"" help:"Inspect and configure successful-run recency for one environment."`
 	Capabilities pipelineCapabilitiesCommand         `cmd:"" help:"Discover available operational features and notification selectors."`
 	Bootstrap    bootstrapPipelineCheckpointsCommand `cmd:"" help:"Seed initial incremental checkpoints without running a pipeline."`

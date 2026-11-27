@@ -70,7 +70,7 @@ func routeAuthorizationTarget(c fiber.Ctx, resource model.Resource) model.Author
 		}
 	case model.ResourcePipelines:
 		if c.Params("pipeline_slug") != "" && env != "" {
-			if strings.HasSuffix(path, "deploy") || strings.HasSuffix(path, "revalidate") || strings.HasSuffix(path, "/deployment") {
+			if strings.HasSuffix(path, "deploy") || strings.HasSuffix(path, "revalidate") || strings.HasSuffix(path, "/deployment") || strings.HasSuffix(path, "/execution-control") {
 				return object("deployment_targets", "pipeline_slug")
 			}
 			return object("deployed_pipelines", "pipeline_slug")

@@ -72,7 +72,15 @@ checkpoints remain committed. Recovery keeps the original effect/replay identity
 and idempotency key and uses the existing sink ledger. Selecting a prior version
 or resolution neither undoes effects nor makes an unsafe retry safe.
 
-Resolution selection and execution are available without a rollout control.
+Use [pause and drain](../docs-public/getting-started/cli.md#pause-and-drain-a-pipeline)
+to hold execution for the selected pipeline and environment during an incident.
+Deployment selection leaves the execution hold in place.
+
+When upgrading to the pause feature, drain active runs and stop Core API and
+worker processes before applying migrations 13 and 14. The index build and
+webhook intake repair in migration 14 can block writes to the run table. Start
+the upgraded processes after both migrations finish.
+
 Authorization, validation, worker authority checks and redaction remain mandatory.
 The expand migration and executor capability grants must precede upgraded worker
 startup. Supported flat and rich readers remain available through retained-version

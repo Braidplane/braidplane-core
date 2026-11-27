@@ -13904,6 +13904,59 @@ type PipelineDraftResponse struct {
 	Draft PipelineDraft `json:"draft"`
 }
 
+// PipelineExecutionControl defines model for PipelineExecutionControl.
+type PipelineExecutionControl struct {
+	ActiveCount   int64                             `json:"active_count"`
+	Attempts      []PipelineExecutionControlAttempt `json:"attempts"`
+	ChangedAt     *time.Time                        `json:"changed_at,omitempty"`
+	ChangedBySlug *string                           `json:"changed_by_slug,omitempty"`
+	ChangedByType *string                           `json:"changed_by_type,omitempty"`
+
+	// Drained Paused with zero active attempts. External effects may still have uncertain outcomes.
+	Drained bool `json:"drained"`
+
+	// FinishedCount Attempts that ended since the current pause began.
+	FinishedCount int64 `json:"finished_count"`
+	Paused        bool  `json:"paused"`
+
+	// QueuedCount Queued attempts are held while paused. Automated arrivals can still add to this count.
+	QueuedCount int64 `json:"queued_count"`
+	Revision    int64 `json:"revision"`
+
+	// UncertainCount Active and finished attempts in this view with uncertain write evidence, including attempts beyond the display limit.
+	UncertainCount int64 `json:"uncertain_count"`
+}
+
+// PipelineExecutionControlAttempt defines model for PipelineExecutionControlAttempt.
+type PipelineExecutionControlAttempt struct {
+	EndedAt *time.Time `json:"ended_at,omitempty"`
+
+	// HasWorkerJob A queue job was recorded for this attempt. Its presence alone does not establish live ownership.
+	HasWorkerJob bool `json:"has_worker_job"`
+
+	// KnownCompletedWrite The effect ledger records at least one successful write for the attempt's replay identity.
+	KnownCompletedWrite bool `json:"known_completed_write"`
+
+	// LastObservedAt Last retained worker observation. An old or missing observation does not prove ownership ended.
+	LastObservedAt *time.Time `json:"last_observed_at,omitempty"`
+
+	// OutcomeUncertain The run reports uncertainty or its effect ledger contains an in-progress write.
+	OutcomeUncertain bool `json:"outcome_uncertain"`
+
+	// Phase queued, active, or finished. A queued attempt is held when paused.
+	Phase      string    `json:"phase"`
+	RunSlug    string    `json:"run_slug"`
+	SourceType string    `json:"source_type"`
+	StartedAt  time.Time `json:"started_at"`
+	Status     string    `json:"status"`
+}
+
+// PipelineExecutionControlUpdate defines model for PipelineExecutionControlUpdate.
+type PipelineExecutionControlUpdate struct {
+	ExpectedRevision int64 `json:"expected_revision"`
+	Paused           bool  `json:"paused"`
+}
+
 // PipelineIncrementalSourceContract Optional source-step checkpoint contract for incremental execution. Only query steps can own source checkpoints; absence of this object means a full source read.
 type PipelineIncrementalSourceContract struct {
 	// CheckpointKind Checkpoint value shape used by the connector operation.
@@ -21229,6 +21282,9 @@ type ValidatePipelineJSONRequestBody = PipelineValidationRequest
 
 // ComparePipelineDeploymentJSONRequestBody defines body for ComparePipelineDeployment for application/json ContentType.
 type ComparePipelineDeploymentJSONRequestBody = PipelineSpec
+
+// SetPipelineExecutionControlJSONRequestBody defines body for SetPipelineExecutionControl for application/json ContentType.
+type SetPipelineExecutionControlJSONRequestBody = PipelineExecutionControlUpdate
 
 // UpdateSuccessfulRunRecencyJSONRequestBody defines body for UpdateSuccessfulRunRecency for application/json ContentType.
 type UpdateSuccessfulRunRecencyJSONRequestBody = SuccessfulRunRecencyUpdate
@@ -29415,6 +29471,12 @@ type ServerInterface interface {
 	// ComparePipelineDeployment Compare a candidate against the deployed pipeline version
 	// (POST /organizations/{slug}/projects/{project_slug}/environments/{environment_slug}/pipelines/{pipeline_slug}/deployment:compare)
 	ComparePipelineDeployment(c fiber.Ctx, slug SlugParam, projectSlug ProjectSlugParam, environmentSlug EnvironmentSlugParam, pipelineSlug PipelineSlugParam) error
+	// GetPipelineExecutionControl Inspect pipeline pause and drain
+	// (GET /organizations/{slug}/projects/{project_slug}/environments/{environment_slug}/pipelines/{pipeline_slug}/execution-control)
+	GetPipelineExecutionControl(c fiber.Ctx, slug SlugParam, projectSlug ProjectSlugParam, environmentSlug EnvironmentSlugParam, pipelineSlug PipelineSlugParam) error
+	// SetPipelineExecutionControl Pause or explicitly resume pipeline execution
+	// (PUT /organizations/{slug}/projects/{project_slug}/environments/{environment_slug}/pipelines/{pipeline_slug}/execution-control)
+	SetPipelineExecutionControl(c fiber.Ctx, slug SlugParam, projectSlug ProjectSlugParam, environmentSlug EnvironmentSlugParam, pipelineSlug PipelineSlugParam) error
 	// GetSuccessfulRunRecency Inspect successful-run recency
 	// (GET /organizations/{slug}/projects/{project_slug}/environments/{environment_slug}/pipelines/{pipeline_slug}/successful-run-recency)
 	GetSuccessfulRunRecency(c fiber.Ctx, slug SlugParam, projectSlug ProjectSlugParam, environmentSlug EnvironmentSlugParam, pipelineSlug PipelineSlugParam) error
@@ -37192,6 +37254,112 @@ func (siw *ServerInterfaceWrapper) ComparePipelineDeployment(c fiber.Ctx) error 
 	return handler(c)
 }
 
+// GetPipelineExecutionControl operation middleware
+func (siw *ServerInterfaceWrapper) GetPipelineExecutionControl(c fiber.Ctx) error {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "slug" -------------
+	var slug SlugParam
+
+	err = runtime.BindStyledParameterWithOptions("simple", "slug", c.Params("slug"), &slug, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: ""})
+	if err != nil {
+		return fiber.NewError(fiber.StatusBadRequest, fmt.Errorf("Invalid format for parameter slug: %w", err).Error())
+	}
+
+	// ------------- Path parameter "project_slug" -------------
+	var projectSlug ProjectSlugParam
+
+	err = runtime.BindStyledParameterWithOptions("simple", "project_slug", c.Params("project_slug"), &projectSlug, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: ""})
+	if err != nil {
+		return fiber.NewError(fiber.StatusBadRequest, fmt.Errorf("Invalid format for parameter project_slug: %w", err).Error())
+	}
+
+	// ------------- Path parameter "environment_slug" -------------
+	var environmentSlug EnvironmentSlugParam
+
+	err = runtime.BindStyledParameterWithOptions("simple", "environment_slug", c.Params("environment_slug"), &environmentSlug, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: ""})
+	if err != nil {
+		return fiber.NewError(fiber.StatusBadRequest, fmt.Errorf("Invalid format for parameter environment_slug: %w", err).Error())
+	}
+
+	// ------------- Path parameter "pipeline_slug" -------------
+	var pipelineSlug PipelineSlugParam
+
+	err = runtime.BindStyledParameterWithOptions("simple", "pipeline_slug", c.Params("pipeline_slug"), &pipelineSlug, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: ""})
+	if err != nil {
+		return fiber.NewError(fiber.StatusBadRequest, fmt.Errorf("Invalid format for parameter pipeline_slug: %w", err).Error())
+	}
+
+	handler := func(c fiber.Ctx) error {
+		return siw.Handler.GetPipelineExecutionControl(c, slug, projectSlug, environmentSlug, pipelineSlug)
+	}
+
+	for i := len(siw.HandlerMiddlewares) - 1; i >= 0; i-- {
+		m := siw.HandlerMiddlewares[i]
+		next := handler
+		handler = func(c fiber.Ctx) error {
+			return m(c, next)
+		}
+	}
+
+	return handler(c)
+}
+
+// SetPipelineExecutionControl operation middleware
+func (siw *ServerInterfaceWrapper) SetPipelineExecutionControl(c fiber.Ctx) error {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "slug" -------------
+	var slug SlugParam
+
+	err = runtime.BindStyledParameterWithOptions("simple", "slug", c.Params("slug"), &slug, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: ""})
+	if err != nil {
+		return fiber.NewError(fiber.StatusBadRequest, fmt.Errorf("Invalid format for parameter slug: %w", err).Error())
+	}
+
+	// ------------- Path parameter "project_slug" -------------
+	var projectSlug ProjectSlugParam
+
+	err = runtime.BindStyledParameterWithOptions("simple", "project_slug", c.Params("project_slug"), &projectSlug, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: ""})
+	if err != nil {
+		return fiber.NewError(fiber.StatusBadRequest, fmt.Errorf("Invalid format for parameter project_slug: %w", err).Error())
+	}
+
+	// ------------- Path parameter "environment_slug" -------------
+	var environmentSlug EnvironmentSlugParam
+
+	err = runtime.BindStyledParameterWithOptions("simple", "environment_slug", c.Params("environment_slug"), &environmentSlug, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: ""})
+	if err != nil {
+		return fiber.NewError(fiber.StatusBadRequest, fmt.Errorf("Invalid format for parameter environment_slug: %w", err).Error())
+	}
+
+	// ------------- Path parameter "pipeline_slug" -------------
+	var pipelineSlug PipelineSlugParam
+
+	err = runtime.BindStyledParameterWithOptions("simple", "pipeline_slug", c.Params("pipeline_slug"), &pipelineSlug, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: ""})
+	if err != nil {
+		return fiber.NewError(fiber.StatusBadRequest, fmt.Errorf("Invalid format for parameter pipeline_slug: %w", err).Error())
+	}
+
+	handler := func(c fiber.Ctx) error {
+		return siw.Handler.SetPipelineExecutionControl(c, slug, projectSlug, environmentSlug, pipelineSlug)
+	}
+
+	for i := len(siw.HandlerMiddlewares) - 1; i >= 0; i-- {
+		m := siw.HandlerMiddlewares[i]
+		next := handler
+		handler = func(c fiber.Ctx) error {
+			return m(c, next)
+		}
+	}
+
+	return handler(c)
+}
+
 // GetSuccessfulRunRecency operation middleware
 func (siw *ServerInterfaceWrapper) GetSuccessfulRunRecency(c fiber.Ctx) error {
 
@@ -41701,6 +41869,10 @@ func RegisterHandlersWithOptions(router fiber.Router, si ServerInterface, option
 	router.Get(options.BaseURL+"/organizations/:slug/projects/:project_slug/environments/:environment_slug/pipelines/:pipeline_slug/deployment", wrapper.GetPipelineDeployment)
 
 	router.Post(options.BaseURL+"/organizations/:slug/projects/:project_slug/environments/:environment_slug/pipelines/:pipeline_slug/deployment\\:compare", wrapper.ComparePipelineDeployment)
+
+	router.Get(options.BaseURL+"/organizations/:slug/projects/:project_slug/environments/:environment_slug/pipelines/:pipeline_slug/execution-control", wrapper.GetPipelineExecutionControl)
+
+	router.Put(options.BaseURL+"/organizations/:slug/projects/:project_slug/environments/:environment_slug/pipelines/:pipeline_slug/execution-control", wrapper.SetPipelineExecutionControl)
 
 	router.Get(options.BaseURL+"/organizations/:slug/projects/:project_slug/environments/:environment_slug/pipelines/:pipeline_slug/successful-run-recency", wrapper.GetSuccessfulRunRecency)
 
@@ -48563,6 +48735,110 @@ func (response ComparePipelineDeployment404JSONResponse) VisitComparePipelineDep
 	return ctx.JSON(&response)
 }
 
+type GetPipelineExecutionControlRequestObject struct {
+	Slug            SlugParam            `json:"slug"`
+	ProjectSlug     ProjectSlugParam     `json:"project_slug"`
+	EnvironmentSlug EnvironmentSlugParam `json:"environment_slug"`
+	PipelineSlug    PipelineSlugParam    `json:"pipeline_slug"`
+}
+
+type GetPipelineExecutionControlResponseObject interface {
+	VisitGetPipelineExecutionControlResponse(ctx fiber.Ctx) error
+}
+
+type GetPipelineExecutionControl200JSONResponse PipelineExecutionControl
+
+func (response GetPipelineExecutionControl200JSONResponse) VisitGetPipelineExecutionControlResponse(ctx fiber.Ctx) error {
+	ctx.Response().Header.Set("Content-Type", "application/json")
+	ctx.Status(200)
+
+	return ctx.JSON(&response)
+}
+
+type GetPipelineExecutionControl400JSONResponse ErrorResponse
+
+func (response GetPipelineExecutionControl400JSONResponse) VisitGetPipelineExecutionControlResponse(ctx fiber.Ctx) error {
+	ctx.Response().Header.Set("Content-Type", "application/json")
+	ctx.Status(400)
+
+	return ctx.JSON(&response)
+}
+
+type GetPipelineExecutionControl403JSONResponse ErrorResponse
+
+func (response GetPipelineExecutionControl403JSONResponse) VisitGetPipelineExecutionControlResponse(ctx fiber.Ctx) error {
+	ctx.Response().Header.Set("Content-Type", "application/json")
+	ctx.Status(403)
+
+	return ctx.JSON(&response)
+}
+
+type GetPipelineExecutionControl404JSONResponse ErrorResponse
+
+func (response GetPipelineExecutionControl404JSONResponse) VisitGetPipelineExecutionControlResponse(ctx fiber.Ctx) error {
+	ctx.Response().Header.Set("Content-Type", "application/json")
+	ctx.Status(404)
+
+	return ctx.JSON(&response)
+}
+
+type SetPipelineExecutionControlRequestObject struct {
+	Slug            SlugParam            `json:"slug"`
+	ProjectSlug     ProjectSlugParam     `json:"project_slug"`
+	EnvironmentSlug EnvironmentSlugParam `json:"environment_slug"`
+	PipelineSlug    PipelineSlugParam    `json:"pipeline_slug"`
+	Body            *SetPipelineExecutionControlJSONRequestBody
+}
+
+type SetPipelineExecutionControlResponseObject interface {
+	VisitSetPipelineExecutionControlResponse(ctx fiber.Ctx) error
+}
+
+type SetPipelineExecutionControl200JSONResponse PipelineExecutionControl
+
+func (response SetPipelineExecutionControl200JSONResponse) VisitSetPipelineExecutionControlResponse(ctx fiber.Ctx) error {
+	ctx.Response().Header.Set("Content-Type", "application/json")
+	ctx.Status(200)
+
+	return ctx.JSON(&response)
+}
+
+type SetPipelineExecutionControl400JSONResponse ErrorResponse
+
+func (response SetPipelineExecutionControl400JSONResponse) VisitSetPipelineExecutionControlResponse(ctx fiber.Ctx) error {
+	ctx.Response().Header.Set("Content-Type", "application/json")
+	ctx.Status(400)
+
+	return ctx.JSON(&response)
+}
+
+type SetPipelineExecutionControl403JSONResponse ErrorResponse
+
+func (response SetPipelineExecutionControl403JSONResponse) VisitSetPipelineExecutionControlResponse(ctx fiber.Ctx) error {
+	ctx.Response().Header.Set("Content-Type", "application/json")
+	ctx.Status(403)
+
+	return ctx.JSON(&response)
+}
+
+type SetPipelineExecutionControl404JSONResponse ErrorResponse
+
+func (response SetPipelineExecutionControl404JSONResponse) VisitSetPipelineExecutionControlResponse(ctx fiber.Ctx) error {
+	ctx.Response().Header.Set("Content-Type", "application/json")
+	ctx.Status(404)
+
+	return ctx.JSON(&response)
+}
+
+type SetPipelineExecutionControl409JSONResponse ErrorResponse
+
+func (response SetPipelineExecutionControl409JSONResponse) VisitSetPipelineExecutionControlResponse(ctx fiber.Ctx) error {
+	ctx.Response().Header.Set("Content-Type", "application/json")
+	ctx.Status(409)
+
+	return ctx.JSON(&response)
+}
+
 type GetSuccessfulRunRecencyRequestObject struct {
 	Slug            SlugParam            `json:"slug"`
 	ProjectSlug     ProjectSlugParam     `json:"project_slug"`
@@ -49915,6 +50191,15 @@ type RecoverPipelineRun404JSONResponse ErrorResponse
 func (response RecoverPipelineRun404JSONResponse) VisitRecoverPipelineRunResponse(ctx fiber.Ctx) error {
 	ctx.Response().Header.Set("Content-Type", "application/json")
 	ctx.Status(404)
+
+	return ctx.JSON(&response)
+}
+
+type RecoverPipelineRun409JSONResponse ErrorResponse
+
+func (response RecoverPipelineRun409JSONResponse) VisitRecoverPipelineRunResponse(ctx fiber.Ctx) error {
+	ctx.Response().Header.Set("Content-Type", "application/json")
+	ctx.Status(409)
 
 	return ctx.JSON(&response)
 }
@@ -53055,6 +53340,12 @@ type StrictServerInterface interface {
 	// ComparePipelineDeployment Compare a candidate against the deployed pipeline version
 	// (POST /organizations/{slug}/projects/{project_slug}/environments/{environment_slug}/pipelines/{pipeline_slug}/deployment:compare)
 	ComparePipelineDeployment(ctx context.Context, request ComparePipelineDeploymentRequestObject) (ComparePipelineDeploymentResponseObject, error)
+	// GetPipelineExecutionControl Inspect pipeline pause and drain
+	// (GET /organizations/{slug}/projects/{project_slug}/environments/{environment_slug}/pipelines/{pipeline_slug}/execution-control)
+	GetPipelineExecutionControl(ctx context.Context, request GetPipelineExecutionControlRequestObject) (GetPipelineExecutionControlResponseObject, error)
+	// SetPipelineExecutionControl Pause or explicitly resume pipeline execution
+	// (PUT /organizations/{slug}/projects/{project_slug}/environments/{environment_slug}/pipelines/{pipeline_slug}/execution-control)
+	SetPipelineExecutionControl(ctx context.Context, request SetPipelineExecutionControlRequestObject) (SetPipelineExecutionControlResponseObject, error)
 	// GetSuccessfulRunRecency Inspect successful-run recency
 	// (GET /organizations/{slug}/projects/{project_slug}/environments/{environment_slug}/pipelines/{pipeline_slug}/successful-run-recency)
 	GetSuccessfulRunRecency(ctx context.Context, request GetSuccessfulRunRecencyRequestObject) (GetSuccessfulRunRecencyResponseObject, error)
@@ -58590,6 +58881,80 @@ func (sh *strictHandler) ComparePipelineDeployment(ctx fiber.Ctx, slug SlugParam
 		return err
 	} else if validResponse, ok := response.(ComparePipelineDeploymentResponseObject); ok {
 		if err := validResponse.VisitComparePipelineDeploymentResponse(ctx); err != nil {
+			return err
+		}
+	} else if response != nil {
+		return fmt.Errorf("unexpected response type: %T", response)
+	}
+	return nil
+}
+
+// GetPipelineExecutionControl operation middleware
+func (sh *strictHandler) GetPipelineExecutionControl(ctx fiber.Ctx, slug SlugParam, projectSlug ProjectSlugParam, environmentSlug EnvironmentSlugParam, pipelineSlug PipelineSlugParam) error {
+	var request GetPipelineExecutionControlRequestObject
+
+	request.Slug = slug
+	request.ProjectSlug = projectSlug
+	request.EnvironmentSlug = environmentSlug
+	request.PipelineSlug = pipelineSlug
+
+	handler := func(ctx fiber.Ctx, request interface{}) (interface{}, error) {
+		return sh.ssi.GetPipelineExecutionControl(ctx.Context(), request.(GetPipelineExecutionControlRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "GetPipelineExecutionControl")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		return err
+	} else if validResponse, ok := response.(GetPipelineExecutionControlResponseObject); ok {
+		if err := validResponse.VisitGetPipelineExecutionControlResponse(ctx); err != nil {
+			return err
+		}
+	} else if response != nil {
+		return fmt.Errorf("unexpected response type: %T", response)
+	}
+	return nil
+}
+
+// SetPipelineExecutionControl operation middleware
+func (sh *strictHandler) SetPipelineExecutionControl(ctx fiber.Ctx, slug SlugParam, projectSlug ProjectSlugParam, environmentSlug EnvironmentSlugParam, pipelineSlug PipelineSlugParam) error {
+	var request SetPipelineExecutionControlRequestObject
+
+	request.Slug = slug
+	request.ProjectSlug = projectSlug
+	request.EnvironmentSlug = environmentSlug
+	request.PipelineSlug = pipelineSlug
+
+	var body SetPipelineExecutionControlJSONRequestBody
+	var err error
+	// The validation middleware stores the value a kin-openapi validator
+	// validated in the Fiber context. Bind that value, matching member
+	// names exactly, so the handler receives what was validated instead
+	// of a second, case-insensitive decode.
+	if v := ctx.Locals(validatedBodyLocalsKey); v == nil || runtime.BindJSONValue(v, &body) != nil {
+		err = ctx.Bind().Body(&body)
+	}
+	if err != nil {
+		return fiber.NewError(fiber.StatusBadRequest, err.Error())
+	}
+	request.Body = &body
+
+	handler := func(ctx fiber.Ctx, request interface{}) (interface{}, error) {
+		return sh.ssi.SetPipelineExecutionControl(ctx.Context(), request.(SetPipelineExecutionControlRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "SetPipelineExecutionControl")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		return err
+	} else if validResponse, ok := response.(SetPipelineExecutionControlResponseObject); ok {
+		if err := validResponse.VisitSetPipelineExecutionControlResponse(ctx); err != nil {
 			return err
 		}
 	} else if response != nil {

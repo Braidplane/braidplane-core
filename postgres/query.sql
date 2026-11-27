@@ -9713,11 +9713,39 @@ WHERE receiver_id = sqlc.arg('receiver_id')
     AND encrypted_envelope IS NOT NULL;
 
 -- name: ResetPipelineWebhookPreflight :execrows
-UPDATE pipeline_webhook_deliveries
+-- An unadmitted delivery and its run must become claimable together.
+WITH target AS (
+    SELECT id, project_environment_id, pipeline_slug, attempt_number
+    FROM pipeline_webhook_deliveries
+    WHERE receiver_id = sqlc.arg('receiver_id') AND delivery_id = sqlc.arg('delivery_id')
+        AND attempt_number = sqlc.arg('attempt_number') AND status = 'running'
+    FOR UPDATE
+), intake AS (
+    SELECT pr.id, pr.status
+    FROM pipeline_runs pr
+    JOIN target t ON pr.source_webhook_delivery_id = t.id
+        AND pr.project_environment_id = t.project_environment_id AND pr.pipeline_slug = t.pipeline_slug
+        AND pr.source_attempt_number = t.attempt_number
+    FOR UPDATE OF pr
+), requeued AS (
+    UPDATE pipeline_runs pr
+    SET status = 'queued',
+        timeline = jsonb_set(jsonb_set(pr.timeline, '{status}', '"queued"'), '{events}',
+            jsonb_path_query_array(pr.timeline, '$.events[*] ? (@.type != "run_started")'))
+    FROM intake i
+    WHERE pr.id = i.id AND pr.status = 'running'
+        AND COALESCE((pr.timeline->>'revision')::bigint, 0) = 0
+        AND NOT (pr.timeline ? 'structural_checks')
+    RETURNING pr.id
+)
+UPDATE pipeline_webhook_deliveries pwd
 SET status = 'accepted', started_at = NULL,
     decision_reason = 'execution_preflight_retry', updated_at = NOW()
-WHERE receiver_id = sqlc.arg('receiver_id') AND delivery_id = sqlc.arg('delivery_id')
-    AND attempt_number = sqlc.arg('attempt_number') AND status = 'running';
+FROM target t
+WHERE pwd.id = t.id AND NOT EXISTS (
+    SELECT 1 FROM intake i WHERE i.status <> 'queued'
+        AND NOT EXISTS (SELECT 1 FROM requeued r WHERE r.id = i.id)
+);
 
 -- name: CompletePipelineWebhookDelivery :execrows
 UPDATE pipeline_webhook_deliveries
@@ -13999,3 +14027,91 @@ WITH consent AS (
     RETURNING 1
 )
 SELECT ((SELECT count(*) FROM consent) + (SELECT count(*) FROM unused_codes))::bigint;
+
+-- name: EnsurePipelineExecutionControl :exec
+INSERT INTO pipeline_execution_controls (project_id, project_environment_id, pipeline_slug)
+SELECT p.id, pe.id, ps.slug
+FROM organizations o
+JOIN projects p ON p.organization_id = o.id
+JOIN project_environments pe ON pe.project_id = p.id AND pe.deleted_at IS NULL
+JOIN environments e ON e.id = pe.environment_id AND e.organization_id = o.id AND e.deleted_at IS NULL
+JOIN pipeline_specs ps ON ps.project_id = p.id AND ps.deleted_at IS NULL
+WHERE o.slug = sqlc.arg('org_slug') AND p.slug = sqlc.arg('project_slug')
+    AND e.slug = sqlc.arg('environment_slug') AND ps.slug = sqlc.arg('pipeline_slug')
+ON CONFLICT DO NOTHING;
+
+-- name: SetPipelineExecutionControl :execrows
+UPDATE pipeline_execution_controls ctl
+SET paused = sqlc.arg('paused')::boolean, revision = ctl.revision + 1,
+    changed_at = clock_timestamp(), changed_by_type = sqlc.arg('actor_type'),
+    pause_snapshot = CASE WHEN sqlc.arg('paused')::boolean THEN pg_current_snapshot() END,
+    changed_by_slug = sqlc.narg('actor_slug')
+FROM organizations o
+JOIN projects p ON p.organization_id = o.id
+JOIN project_environments pe ON pe.project_id = p.id AND pe.deleted_at IS NULL
+JOIN environments e ON e.id = pe.environment_id AND e.organization_id = o.id AND e.deleted_at IS NULL
+JOIN pipeline_specs ps ON ps.project_id = p.id AND ps.deleted_at IS NULL
+WHERE o.slug = sqlc.arg('org_slug') AND p.slug = sqlc.arg('project_slug')
+    AND e.slug = sqlc.arg('environment_slug') AND ps.slug = sqlc.arg('pipeline_slug')
+    AND ctl.project_environment_id = pe.id AND ctl.pipeline_slug = ps.slug
+    AND ctl.revision = sqlc.arg('expected_revision') AND ctl.paused <> sqlc.arg('paused')::boolean;
+
+-- name: InspectPipelineExecutionControl :one
+WITH scope AS (
+    SELECT pe.id AS environment_id, ps.slug AS pipeline_slug
+    FROM organizations o
+    JOIN projects p ON p.organization_id = o.id
+    JOIN project_environments pe ON pe.project_id = p.id AND pe.deleted_at IS NULL
+    JOIN environments e ON e.id = pe.environment_id AND e.organization_id = o.id AND e.deleted_at IS NULL
+    JOIN pipeline_specs ps ON ps.project_id = p.id AND ps.deleted_at IS NULL
+    WHERE o.slug = sqlc.arg('org_slug') AND p.slug = sqlc.arg('project_slug')
+        AND e.slug = sqlc.arg('environment_slug') AND ps.slug = sqlc.arg('pipeline_slug')
+), target AS (
+    SELECT scope.*, COALESCE(ctl.paused, false)::boolean AS paused,
+        COALESCE(ctl.revision, 0)::bigint AS revision, ctl.changed_at, ctl.changed_by_type, ctl.changed_by_slug, ctl.pause_snapshot
+    FROM scope
+    LEFT JOIN pipeline_execution_controls ctl
+        ON ctl.project_environment_id = scope.environment_id AND ctl.pipeline_slug = scope.pipeline_slug
+), attempts AS (
+    SELECT pr.id, pr.run_slug, pr.source_type, pr.status, pr.started_at, pr.ended_at, pr.worker_job_id,
+        pr.timeline, COALESCE(NULLIF(pr.timeline->>'sink_replay_identity', ''), pr.replay_of_run_slug, pr.run_slug) AS effect_identity,
+        CASE WHEN pr.status = 'queued' THEN 'queued' WHEN pr.status = 'running' THEN 'active' ELSE 'finished' END AS phase
+    FROM target t
+    JOIN pipeline_runs pr ON pr.project_environment_id = t.environment_id AND pr.pipeline_slug = t.pipeline_slug
+    WHERE pr.status IN ('queued', 'running') OR (t.paused AND pr.finished_xid >= pg_snapshot_xmin(t.pause_snapshot)
+        AND NOT pg_visible_in_snapshot(pr.finished_xid, t.pause_snapshot))
+), evidence AS (
+    SELECT a.*,
+        CASE WHEN a.phase = 'queued' THEN false ELSE
+            COALESCE(a.timeline->'failure'->'outcome_uncertain' = 'true'::jsonb, false)
+                OR EXISTS (SELECT 1 FROM pipeline_sink_effects se
+                    WHERE se.project_environment_id = t.environment_id AND se.run_slug = a.effect_identity
+                        AND se.state = 'in_progress')
+        END AS outcome_uncertain
+    FROM attempts a CROSS JOIN target t
+), counts AS (
+    SELECT count(*) FILTER (WHERE phase = 'queued') AS queued_count,
+        count(*) FILTER (WHERE phase = 'active') AS active_count,
+        count(*) FILTER (WHERE phase = 'finished') AS finished_count,
+        count(*) FILTER (WHERE outcome_uncertain) AS uncertain_count
+    FROM evidence
+), visible AS (
+    SELECT a.*, row_number() OVER (PARTITION BY phase ORDER BY outcome_uncertain DESC, started_at DESC, id DESC) AS position
+    FROM evidence a
+)
+SELECT t.paused, t.revision, t.changed_at, t.changed_by_type, t.changed_by_slug,
+    c.queued_count, c.active_count, c.finished_count, c.uncertain_count,
+    COALESCE((
+        SELECT jsonb_agg(jsonb_build_object(
+            'run_slug', a.run_slug, 'source_type', a.source_type,
+            'phase', a.phase, 'status', a.status, 'started_at', a.started_at,
+            'ended_at', a.ended_at, 'last_observed_at', a.timeline->'worker_observed_at',
+            'has_worker_job', a.worker_job_id IS NOT NULL,
+            'outcome_uncertain', a.outcome_uncertain,
+            'known_completed_write', a.phase <> 'queued' AND EXISTS (SELECT 1 FROM pipeline_sink_effects se
+                WHERE se.project_environment_id = t.environment_id AND se.run_slug = a.effect_identity
+                    AND se.state = 'succeeded')
+        ) ORDER BY array_position(ARRAY['active', 'queued', 'finished'], a.phase), a.position)
+        FROM visible a WHERE a.position <= 50
+    ), '[]'::jsonb)::jsonb AS attempts
+FROM target t CROSS JOIN counts c;

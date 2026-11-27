@@ -9,6 +9,7 @@ import (
 
 // PipelineWebhookDeliveryArgs identifies one encrypted accepted delivery.
 type PipelineWebhookDeliveryArgs struct {
+	WorkerJobID  int64     `json:"-"`
 	FinalizeOnly bool      `json:"finalize_only,omitempty" river:"unique"`
 	ReceiverID   string    `json:"receiver_id" river:"unique"`
 	DeliveryID   string    `json:"delivery_id" river:"unique"`

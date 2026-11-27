@@ -129,7 +129,13 @@ func (w *pipelineScheduleFireExecutionWorker) Work(
 	ctx context.Context,
 	job *river.Job[jobs.PipelineScheduleFireExecutionArgs],
 ) error {
+	if job.JobRow != nil {
+		job.Args.WorkerJobID = job.ID
+	}
 	if err := w.service.ExecuteClaimedScheduleFire(ctx, job.Args); err != nil {
+		if hold := snoozePausedPipeline(err); hold != nil {
+			return hold
+		}
 		w.logger.ErrorContext(ctx, "pipeline schedule fire execution job failed", logging.ErrorAttr(err))
 		return err
 	}

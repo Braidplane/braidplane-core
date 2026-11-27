@@ -1,0 +1,112 @@
+package views
+
+import (
+	"fmt"
+	"strconv"
+
+	api "github.com/Braidplane/braidplane-core/api-schema/gen/client"
+	"github.com/Braidplane/braidplane-core/pkg/ptr"
+)
+
+templ PipelineExecutionControlLink(org string, project string, environment string, pipeline string) {
+	if project != "" && environment != "" {
+		<a class="btn btn-outline btn-sm" href={ templ.URL(PipelineExecutionControlHref(org, project, environment, pipeline)) }>Pause and drain</a>
+	}
+}
+
+templ PipelineExecutionControlPage(shell AuthenticatedShellData, org string, project string, environment string, pipeline string, state *api.PipelineExecutionControl, canUpdate bool, message string) {
+	@AuthenticatedShell(shell, pipelineExecutionControlContent(org, project, environment, pipeline, state, canUpdate, message))
+}
+
+templ pipelineExecutionControlContent(org string, project string, environment string, pipeline string, state *api.PipelineExecutionControl, canUpdate bool, message string) {
+	{{ href := PipelineExecutionControlHref(org, project, environment, pipeline) }}
+	<div class="min-w-0 space-y-6">
+		@EntityDetailHeader("Pause and drain", pipeline+" · "+environment) {
+			<a class="btn btn-outline btn-sm" href={ templ.URL(pipelineDetailHrefWithEnvironment(org, project, environment, pipeline)) }>Back to pipeline</a>
+			<a class="btn btn-outline btn-sm" href={ templ.URL(href) }>Refresh status</a>
+		}
+		if message != "" {
+			<div class="alert alert-error" role="alert">{ message }</div>
+		}
+		if state != nil {
+			<section class="space-y-3" aria-labelledby="execution-state">
+				<h2 id="execution-state" class="text-lg font-semibold">
+					if state.Drained {
+						Paused · active attempts drained
+					} else if state.Paused {
+						Paused · draining active attempts
+					} else {
+						Accepting execution
+					}
+				</h2>
+				if state.ChangedAt != nil {
+					<p class="text-sm">Changed { RecencyTime(state.ChangedAt) } by { ptr.Value(state.ChangedByType) } { ptr.Value(state.ChangedBySlug) }.</p>
+				}
+				<p class="text-sm">Pause blocks new manual runs, backfills, and recovery. Automated arrivals can queue, and queued attempts wait for resume. Attempts already active can still write. Check uncertain effects with the provider before retrying.</p>
+				if canUpdate {
+					<form method="post" action={ templ.URL(href) }>
+						<input type="hidden" name="expected_revision" value={ fmt.Sprint(state.Revision) }/>
+						<button class="btn btn-primary btn-sm" type="submit" name="paused" value={ strconv.FormatBool(!state.Paused) }>
+							if state.Paused {
+								Resume execution
+							} else {
+								Pause execution
+							}
+						</button>
+					</form>
+				}
+			</section>
+			<section class="space-y-3" aria-labelledby="execution-attempts">
+				<h2 id="execution-attempts" class="text-lg font-semibold">Attempts</h2>
+				<dl class="flex flex-wrap gap-4 text-sm">
+					<div><dt>Active</dt><dd>{ fmt.Sprint(state.ActiveCount) }</dd></div>
+					<div><dt>{ executionAttemptPhase("queued", state.Paused) }</dt><dd>{ fmt.Sprint(state.QueuedCount) }</dd></div>
+					if state.Paused {
+						<div><dt>Finished during pause</dt><dd>{ fmt.Sprint(state.FinishedCount) }</dd></div>
+					}
+					<div><dt>Attempts with uncertain writes</dt><dd>{ fmt.Sprint(state.UncertainCount) }</dd></div>
+				</dl>
+				if int64(len(state.Attempts)) < state.QueuedCount+state.ActiveCount+state.FinishedCount {
+					<p class="text-sm">Showing up to 50 attempts per phase.</p>
+				}
+				if len(state.Attempts) > 0 {
+					<div class="overflow-x-auto">
+						<table class="table table-sm">
+							<thead><tr><th scope="col">Run</th><th scope="col">Phase</th><th scope="col">Status</th><th scope="col">Write evidence</th></tr></thead>
+							<tbody>
+								for _, attempt := range state.Attempts {
+									<tr>
+										<th scope="row"><a class="link" href={ templ.URL(buildEnvironmentRunDetailHref(org, project, environment, attempt.RunSlug)) }>{ attempt.RunSlug }</a></th>
+										<td>{ executionAttemptPhase(attempt.Phase, state.Paused) }</td>
+										<td>
+											<div>{ attempt.Status } · { attempt.SourceType }</div>
+											if attempt.Phase == "active" {
+												<div class="text-xs">Last worker observation { RecencyTime(attempt.LastObservedAt) }</div>
+												if !attempt.HasWorkerJob {
+													<div class="text-xs">Queue ownership evidence unavailable</div>
+												}
+											}
+										</td>
+										<td>
+											if attempt.KnownCompletedWrite {
+												<div>Completed write recorded</div>
+											}
+											if attempt.OutcomeUncertain {
+												<div>Write outcome uncertain</div>
+											}
+											if !attempt.KnownCompletedWrite && !attempt.OutcomeUncertain {
+												<span>No confirmed or uncertain write recorded</span>
+											}
+										</td>
+									</tr>
+								}
+							</tbody>
+						</table>
+					</div>
+				} else {
+					<p class="text-sm">No attempts to show.</p>
+				}
+			</section>
+		}
+	</div>
+}

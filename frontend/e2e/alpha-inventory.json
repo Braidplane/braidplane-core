@@ -4,13 +4,13 @@
     "product": {
       "budgets": {
         "critical": {
-          "logical": 16,
-          "executions": 26,
+          "logical": 17,
+          "executions": 27,
           "runner_seconds": 240
         },
         "full": {
-          "logical": 68,
-          "executions": 178,
+          "logical": 69,
+          "executions": 181,
           "runner_seconds": 660
         }
       },
@@ -259,6 +259,13 @@
           "tier": "extended",
           "cross_browser": false,
           "reason": "Broader Builder/repository interaction, consent/retry navigation and responsive form behavior; lower layers do not prove these browser handoffs."
+        },
+        {
+          "file": "pipeline-git.spec.cjs",
+          "title": "pauses a pipeline, inspects drain evidence, and explicitly resumes",
+          "tier": "critical",
+          "cross_browser": false,
+          "reason": "Keyboard submission must send the intended action and CSRF token. Reloading drain evidence must preserve the exact environment before explicit resume."
         },
         {
           "file": "pipeline-git.spec.cjs",

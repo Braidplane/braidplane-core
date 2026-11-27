@@ -350,7 +350,10 @@ func optionalText(value string) pgtype.Text {
 }
 
 func (r *repository) ResetPreflight(ctx context.Context, tx postgres.DBTX, receiver, delivery string, attempt int) error {
-	rows, err := dbgen.New(tx).ResetPipelineWebhookPreflight(ctx, dbgen.ResetPipelineWebhookPreflightParams{ReceiverID: receiver, DeliveryID: delivery, AttemptNumber: int32(attempt)}) //nolint:gosec // source attempts are bounded to 1..10
+	rows, err := dbgen.New(tx).ResetPipelineWebhookPreflight(ctx, dbgen.ResetPipelineWebhookPreflightParams{
+		ReceiverID: postgres.ToText(receiver), DeliveryID: postgres.ToText(delivery),
+		AttemptNumber: pgtype.Int4{Int32: int32(attempt), Valid: true}, //nolint:gosec // source attempts are bounded to 1..10
+	})
 	if err != nil {
 		return xerror.Unexpected().With(err)
 	}

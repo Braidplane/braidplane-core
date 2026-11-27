@@ -43,6 +43,9 @@ func (w *pipelineRunExecutionWorker) Work(
 	job *river.Job[jobs.PipelineRunExecutionArgs],
 ) error {
 	if err := w.service.ExecuteQueuedPipelineRun(ctx, job.Args); err != nil {
+		if hold := snoozePausedPipeline(err); hold != nil {
+			return hold
+		}
 		w.logger.ErrorContext(
 			ctx,
 			"pipeline run execution job failed",

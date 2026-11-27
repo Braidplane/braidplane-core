@@ -54,6 +54,8 @@ POST,/builder/export,"session, workspace",local: serialize and validate submitte
 POST,/builder/validate,"session, workspace",validatePipeline
 POST,/builder/import,"session, workspace",local: parse submitted pipeline
 GET,/orgs/:slug/projects/:projectSlug/contracts,"session, workspace","getODCSRevision, inspectODCSRevision, listEvents, listODCSContracts, listODCSRevisions, listProjectEnvironments, listProjects, previewODCSRevisionImpact"
+GET,/orgs/:slug/projects/:projectSlug/pipelines/:pipelineSlug/environments/:environmentSlug/execution-control,"session, workspace","getEffectivePermissions, getPipelineExecutionControl, listEvents, listProjectEnvironments, listProjects"
+POST,/orgs/:slug/projects/:projectSlug/pipelines/:pipelineSlug/environments/:environmentSlug/execution-control,"session, workspace","getEffectivePermissions, getPipelineExecutionControl, listEvents, listProjectEnvironments, listProjects, setPipelineExecutionControl"
 GET,/orgs/:slug/projects/:projectSlug/pipelines/:pipelineSlug/environments/:environmentSlug/recency,"session, workspace","getEffectivePermissions, getSuccessfulRunRecency, listEvents, listProjectEnvironments, listProjects"
 POST,/orgs/:slug/projects/:projectSlug/pipelines/:pipelineSlug/environments/:environmentSlug/recency,"session, workspace","getEffectivePermissions, getSuccessfulRunRecency, listEvents, listProjectEnvironments, listProjects, updateSuccessfulRunRecency"
 GET,/orgs/:slug/projects/:projectSlug/pipelines,"session, workspace","getPipeline, listEvents, listPipelineDeployments, listPipelineRuns, listPipelineValidationResults, listPipelines, listProjectEnvironments, listProjects"
