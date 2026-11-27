@@ -86,12 +86,17 @@ func (r *Router) handleProofConfigurationSave(c fiber.Ctx) error {
 	settings := api.DataSourceProofSettings{Enabled: c.FormValue("enabled") == "on", PublishChecks: c.FormValue("publish_checks") == "on", ExpectedRepositoryId: c.FormValue("expected_repository_id"), Targets: []api.ProofAssessmentTarget{}}
 	for _, target := range current.JSON200.AvailableTargets {
 		key := target.ProjectSlug + ":" + target.EnvironmentSlug
-		for _, line := range strings.Split(c.FormValue("paths:"+key), "\n") {
-			pipelinePath := strings.TrimSpace(line)
-			if pipelinePath == "" {
-				continue
+		for _, field := range []string{"paths:", "compatibility-paths:"} {
+			for _, line := range strings.Split(c.FormValue(field+key), "\n") {
+				pipelinePath := strings.TrimSpace(line)
+				if pipelinePath == "" {
+					continue
+				}
+				settings.Targets = append(settings.Targets, api.ProofAssessmentTarget{
+					ProjectSlug: target.ProjectSlug, EnvironmentSlug: target.EnvironmentSlug, TargetRef: c.FormValue("ref:" + key),
+					PipelinePath: pipelinePath, CompareDeployed: new(field == "compatibility-paths:"),
+				})
 			}
-			settings.Targets = append(settings.Targets, api.ProofAssessmentTarget{ProjectSlug: target.ProjectSlug, EnvironmentSlug: target.EnvironmentSlug, TargetRef: c.FormValue("ref:" + key), PipelinePath: pipelinePath})
 		}
 	}
 	response, err := r.apiClient.SetDataSourceProofConfigurationWithResponse(c.Context(), org.String(), ds.String(), settings, frontendRequestEditor(c.Context(), c.Get(fiber.HeaderCookie)))

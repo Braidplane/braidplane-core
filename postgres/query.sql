@@ -9012,6 +9012,7 @@ SELECT
     pd.*,
     p.slug AS project_slug,
     e.slug AS environment_slug,
+    COALESCE(current_version.source_path, '')::text AS pipeline_source_path,
     current_version.spec_hash AS current_version_spec_hash,
     previous_version.spec_hash AS previous_version_spec_hash
 FROM pipeline_deployments pd
@@ -10853,6 +10854,7 @@ LIMIT sqlc.arg('limit_count');
 -- name: FindProofCandidateReceiptTarget :one
 SELECT
     c.*,
+    settings.compare_deployed,
     m.organization_id,
     m.project_id,
     m.project_environment_id,
@@ -10867,6 +10869,8 @@ SELECT
 FROM proof_change_candidates c
 JOIN active_proof_candidate_mappings m ON m.id = c.mapping_id
     AND m.organization_id = c.organization_id
+JOIN proof_change_candidate_mappings settings ON settings.id = m.id
+    AND settings.organization_id = m.organization_id
 JOIN organizations o ON o.id = m.organization_id
 JOIN projects p ON p.id = m.project_id
     AND p.organization_id = o.id
@@ -10877,7 +10881,16 @@ JOIN environments e ON e.id = pe.environment_id
 JOIN data_sources ds ON ds.id = m.data_source_id
     AND ds.organization_id = o.id
 WHERE o.slug = sqlc.arg('org_slug')
-    AND c.slug = sqlc.arg('candidate_slug');
+    AND c.slug = sqlc.arg('candidate_slug')
+    AND (NOT settings.compare_deployed OR (
+        c.closed_at IS NULL AND NOT EXISTS (
+            SELECT 1 FROM proof_change_candidates newer
+            WHERE newer.organization_id = c.organization_id
+                AND newer.mapping_id = c.mapping_id
+                AND newer.change_request_id = c.change_request_id
+                AND (newer.created_at, newer.id) > (c.created_at, c.id)
+        )
+    ));
 
 -- name: LockProofReceiptTarget :exec
 SELECT pg_advisory_xact_lock(hashtextextended(sqlc.arg('target_key'), 0));
@@ -11009,12 +11022,21 @@ WHERE existing.receipt_key = sqlc.arg('receipt_key')
 LIMIT 1;
 
 -- name: FindProofReceiptBySlug :one
-SELECT r.*, EXISTS (
+SELECT r.*, (EXISTS (
     SELECT 1 FROM proof_receipts newer
     WHERE newer.organization_id = r.organization_id
         AND newer.supersedes_receipt_id = r.id
-) AS superseded
+) OR (r.receipt ? 'deployed_compatibility' AND (
+    m.disabled_at IS NOT NULL OR candidate.closed_at IS NOT NULL OR EXISTS (
+        SELECT 1 FROM proof_change_candidates newer_candidate
+        WHERE newer_candidate.organization_id = candidate.organization_id
+            AND newer_candidate.mapping_id = candidate.mapping_id
+            AND newer_candidate.change_request_id = candidate.change_request_id
+            AND (newer_candidate.created_at, newer_candidate.id) > (candidate.created_at, candidate.id)
+    )
+))) AS superseded
 FROM proof_receipts r
+JOIN proof_change_candidates candidate ON candidate.organization_id = r.organization_id AND candidate.id = r.candidate_id
 JOIN proof_change_candidate_mappings m ON m.id = r.mapping_id
     AND m.organization_id = r.organization_id
     AND m.project_id = r.project_id
@@ -11033,12 +11055,25 @@ WHERE LEAST(r.retain_until, r.created_at + interval '168 hours') > statement_tim
     AND r.slug = sqlc.arg('receipt_slug');
 
 -- name: ListProofReceipts :many
-SELECT r.*, EXISTS (
+SELECT r.*, (EXISTS (
     SELECT 1 FROM proof_receipts newer
     WHERE newer.organization_id = r.organization_id
         AND newer.supersedes_receipt_id = r.id
-) AS superseded
+) OR (r.receipt ? 'deployed_compatibility' AND (
+    m.disabled_at IS NOT NULL OR candidate.closed_at IS NOT NULL OR EXISTS (
+        SELECT 1 FROM proof_change_candidates newer_candidate
+        WHERE newer_candidate.organization_id = candidate.organization_id
+            AND newer_candidate.mapping_id = candidate.mapping_id
+            AND newer_candidate.change_request_id = candidate.change_request_id
+            AND (newer_candidate.created_at, newer_candidate.id) > (candidate.created_at, candidate.id)
+    )
+))) AS superseded
 FROM proof_receipts r
+JOIN proof_change_candidates candidate ON candidate.organization_id = r.organization_id AND candidate.id = r.candidate_id
+JOIN proof_change_candidate_mappings m ON m.id = r.mapping_id
+    AND m.organization_id = r.organization_id
+    AND m.project_id = r.project_id
+    AND m.project_environment_id = r.project_environment_id
 JOIN organizations o ON o.id = r.organization_id
 JOIN projects p ON p.id = r.project_id
     AND p.organization_id = o.id
@@ -11069,7 +11104,7 @@ ORDER BY
 LIMIT sqlc.arg('limit_count');
 
 -- name: FindLatestProofReceiptForCandidate :one
-SELECT r.receipt, FALSE AS superseded
+SELECT r.receipt, r.receipt_key, r.evidence_id, FALSE AS superseded
 FROM proof_receipts r
 JOIN proof_change_candidates c ON c.id = r.candidate_id AND c.organization_id = r.organization_id
 JOIN organizations o ON o.id = r.organization_id
@@ -11143,7 +11178,8 @@ INSERT INTO proof_change_candidate_mappings (
     provider_connection_id,
     repository_id,
     target_ref,
-    pipeline_path
+    pipeline_path,
+    compare_deployed
 )
 SELECT
     organization.id,
@@ -11154,7 +11190,8 @@ SELECT
     sqlc.arg('provider_connection_id'),
     sqlc.arg('repository_id'),
     sqlc.arg('target_ref'),
-    sqlc.arg('pipeline_path')
+    sqlc.arg('pipeline_path'),
+    sqlc.arg('compare_deployed')
 FROM organizations organization
 JOIN projects project ON project.organization_id = organization.id
 JOIN data_sources data_source
@@ -11192,7 +11229,8 @@ SELECT
     mapping.provider_connection_id,
     mapping.repository_id,
     mapping.target_ref,
-    mapping.pipeline_path
+    mapping.pipeline_path,
+    mapping.compare_deployed
 FROM proof_change_candidate_mappings mapping
 JOIN organizations organization ON organization.id = mapping.organization_id
 JOIN projects project
@@ -11243,7 +11281,8 @@ SELECT
     mapping.provider_connection_id,
     mapping.repository_id,
     mapping.target_ref,
-    mapping.pipeline_path
+    mapping.pipeline_path,
+    mapping.compare_deployed
 FROM proof_change_candidate_mappings mapping
 JOIN organizations organization ON organization.id = mapping.organization_id
 JOIN projects project
@@ -12228,7 +12267,7 @@ WHERE organization.slug=sqlc.arg('org_slug') AND ds.deleted_at IS NULL
 ORDER BY ds.name, ds.slug;
 
 -- name: ListDataSourceProofTargets :many
-SELECT project.slug AS project_slug, environment.slug AS environment_slug, mapping.target_ref, mapping.pipeline_path
+SELECT project.slug AS project_slug, environment.slug AS environment_slug, mapping.target_ref, mapping.pipeline_path, mapping.compare_deployed
 FROM proof_change_candidate_mappings mapping
 JOIN organizations organization ON organization.id=mapping.organization_id
 JOIN data_sources ds ON ds.organization_id=mapping.organization_id AND ds.id=mapping.data_source_id

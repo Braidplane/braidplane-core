@@ -68,6 +68,31 @@ func TestProofReceiptContentShowsNoLifecycleEvidence(t *testing.T) {
 	var out bytes.Buffer
 	require.NoError(t, ProofReceiptPageContent(AuthenticatedShellData{}, receipt, "").Render(context.Background(), &out))
 	require.Contains(t, out.String(), "No deployment or run records reference this receipt yet.")
+	require.NotContains(t, out.String(), "Deployed compatibility")
+}
+
+func TestProofReceiptShowsDeployedCompatibilityEvidence(t *testing.T) {
+	t.Parallel()
+	receipt := &api.ProofReceipt{
+		Candidate: api.ProofCandidateIdentity{HeadSha: "exact-commit", PipelinePath: "pipelines/orders.yaml", ProjectSlug: "ops", EnvironmentSlug: "prod"},
+		DeployedCompatibility: &api.ProofDeployedCompatibility{
+			PipelineSlug: "orders", Verdict: api.ProofVerdictStale,
+			DeploymentRevision: new(int64(42)), BaselineSpecHash: new("baseline-hash"), Severity: new(api.PipelineComparisonSeverityBreaking),
+			Findings: []api.PipelineComparisonFinding{{Severity: api.PipelineComparisonSeverityBreaking, Message: "required field <old_email> removed"}},
+		},
+	}
+	var out bytes.Buffer
+	require.NoError(t, ProofReceiptPageContent(AuthenticatedShellData{}, receipt, "").Render(t.Context(), &out))
+	for _, text := range []string{"exact-commit", "pipelines/orders.yaml", "ops", "prod", "Deployed compatibility", "Deployment revision", "42", "baseline-hash", "stale", "breaking", "&lt;old_email&gt; removed"} {
+		require.Contains(t, out.String(), text)
+	}
+	require.NotContains(t, out.String(), "<old_email>")
+
+	receipt.DeployedCompatibility = &api.ProofDeployedCompatibility{PipelineSlug: "orders", Verdict: api.ProofVerdictUnverified}
+	out.Reset()
+	require.NoError(t, ProofReceiptPageContent(AuthenticatedShellData{}, receipt, "").Render(t.Context(), &out))
+	require.Contains(t, out.String(), "The deployed baseline is unavailable.")
+	require.Contains(t, out.String(), "unverified")
 }
 
 func TestProofFreshnessLabel(t *testing.T) {

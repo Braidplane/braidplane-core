@@ -1317,6 +1317,7 @@ func toDeploymentFromUpsertRow(row dbgen.UpsertPipelineDeploymentRow) *PipelineD
 
 func toDeploymentFromFindRow(row dbgen.FindPipelineDeploymentRow) *PipelineDeployment {
 	return &PipelineDeployment{
+		PipelineSourcePath:       row.PipelineSourcePath,
 		Revision:                 row.Revision,
 		CurrentResolutionDigest:  nullableText(row.CurrentResolutionDigest),
 		PreviousResolutionDigest: nullableText(row.PreviousResolutionDigest),

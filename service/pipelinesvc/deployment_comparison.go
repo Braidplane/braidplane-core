@@ -6,9 +6,11 @@ import (
 	"time"
 
 	pipelinediff "github.com/Braidplane/braidplane-core/pkg/pipeline/diff"
+	pipelinespec "github.com/Braidplane/braidplane-core/pkg/pipeline/spec"
 	pipelinevalidate "github.com/Braidplane/braidplane-core/pkg/pipeline/validate"
 	"github.com/Braidplane/braidplane-core/pkg/slug"
 	"github.com/Braidplane/braidplane-core/pkg/xerror"
+	pipelinesrepo "github.com/Braidplane/braidplane-core/postgres/pipelines"
 )
 
 // PipelineDeploymentComparison identifies the observed baseline and its semantic impact.
@@ -48,7 +50,22 @@ func (s *service) CompareDeployment(
 	if err != nil {
 		return nil, err
 	}
-	if version.ID != deployment.CurrentVersionID || version.SpecHash != deployment.CurrentVersionSpecHash {
+	impact, err := CheckDeployedVersion(deployment, version, candidate)
+	if err != nil {
+		return nil, err
+	}
+	return &PipelineDeploymentComparison{
+		DeploymentRevision: deployment.Revision,
+		DeployedAt:         deployment.DeployedAt,
+		BaselineSpecHash:   version.SpecHash,
+		CandidateSpecHash:  *candidateHash,
+		Impact:             impact,
+	}, nil
+}
+
+// CheckDeployedVersion compares a parsed candidate with the deployment's exact immutable version.
+func CheckDeployedVersion(deployment *pipelinesrepo.PipelineDeployment, version *pipelinesrepo.PipelineVersion, candidate *pipelinespec.Pipeline) (*pipelinediff.CheckResult, error) {
+	if version == nil || version.ID != deployment.CurrentVersionID || version.SpecHash != deployment.CurrentVersionSpecHash {
 		return nil, ErrPipelineVersionNotFound
 	}
 	baseline, err := pipelineFromJSON(version.SpecJSONB)
@@ -56,11 +73,5 @@ func (s *service) CompareDeployment(
 		return nil, xerror.Unexpected().Detail("could not decode the deployed pipeline version")
 	}
 
-	return &PipelineDeploymentComparison{
-		DeploymentRevision: deployment.Revision,
-		DeployedAt:         deployment.DeployedAt,
-		BaselineSpecHash:   version.SpecHash,
-		CandidateSpecHash:  *candidateHash,
-		Impact:             pipelinediff.CheckRedacted(pipelinediff.Diff(baseline, candidate)),
-	}, nil
+	return pipelinediff.CheckRedacted(pipelinediff.Diff(baseline, candidate)), nil
 }

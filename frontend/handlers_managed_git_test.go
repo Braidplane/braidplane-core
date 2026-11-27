@@ -82,8 +82,9 @@ func TestProofSaveForwardsExplicitTargetsAndRepositoryConfirmation(t *testing.T)
 			Enabled  bool   `json:"enabled"`
 			Expected string `json:"expected_repository_id"`
 			Targets  []struct {
-				Ref  string `json:"target_ref"`
-				Path string `json:"pipeline_path"`
+				Ref             string `json:"target_ref"`
+				Path            string `json:"pipeline_path"`
+				CompareDeployed bool   `json:"compare_deployed"`
 			} `json:"targets"`
 		}
 		assert.NoError(t, json.NewDecoder(r.Body).Decode(&body))
@@ -93,6 +94,8 @@ func TestProofSaveForwardsExplicitTargetsAndRepositoryConfirmation(t *testing.T)
 		assert.Equal(t, "refs/heads/release", body.Targets[0].Ref)
 		assert.Equal(t, "pipelines/a.yml", body.Targets[0].Path)
 		assert.Equal(t, "pipelines/b.yml", body.Targets[1].Path)
+		assert.False(t, body.Targets[0].CompareDeployed)
+		assert.True(t, body.Targets[1].CompareDeployed)
 		_, _ = io.WriteString(w, `{}`)
 	}))
 	defer backend.Close()
@@ -100,7 +103,7 @@ func TestProofSaveForwardsExplicitTargetsAndRepositoryConfirmation(t *testing.T)
 	require.NoError(t, err)
 	app := fiber.New()
 	app.Post("/organizations/:slug/:dsSlug", router.handleProofConfigurationSave)
-	request := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/organizations/acme/repo", strings.NewReader("enabled=on&expected_repository_id=confirmed-repository&ref:project:prod=refs/heads/release&paths:project:prod=+pipelines/a.yml+%0A%0A+pipelines/b.yml&return_to=organization"))
+	request := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/organizations/acme/repo", strings.NewReader("enabled=on&expected_repository_id=confirmed-repository&ref:project:prod=refs/heads/release&paths:project:prod=+pipelines/a.yml+%0A&compatibility-paths:project:prod=+pipelines/b.yml&return_to=organization"))
 	request.Header.Set("Content-Type", fiber.MIMEApplicationForm)
 	response, err := app.Test(request)
 	require.NoError(t, err)

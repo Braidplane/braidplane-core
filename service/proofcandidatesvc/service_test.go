@@ -118,6 +118,96 @@ func TestIngestSpecHashMatchesPipelineVersionEncoding(t *testing.T) {
 	}
 }
 
+func TestDeployedCompatibilityHandlesReturningHead(t *testing.T) {
+	t.Parallel()
+	target := mapping()
+	target.CompareDeployed = true
+	repo := newFakeRepo(target)
+	svc, err := New(testutil.FakeTransactionManager{}, repo, staticSource{data: []byte(validPipeline)}, eventtest.NewProducer(nil))
+	require.NoError(t, err)
+	ingest := func(head string) *Result {
+		t.Helper()
+		result, err := svc.Ingest(t.Context(), "acme", model.ExternalEventActor(), change(head))
+		require.NoError(t, err)
+		return result
+	}
+	first := ingest("a")
+	second := ingest("b")
+	returned := ingest("a")
+	require.Equal(t, first.HeadSHA, returned.HeadSHA)
+	require.NotEqual(t, first.CandidateSlug, returned.CandidateSlug)
+	require.Equal(t, &second.CandidateSlug, returned.SupersedesCandidateSlug)
+	replay := ingest("a")
+	require.True(t, replay.Replay)
+	require.Equal(t, returned.CandidateSlug, replay.CandidateSlug)
+}
+
+func TestDeployedCompatibilityRetiresHeadWhenNewHeadHasNoPipeline(t *testing.T) {
+	t.Parallel()
+	target := mapping()
+	target.CompareDeployed = true
+	repo := newFakeRepo(target)
+	svc, err := New(testutil.FakeTransactionManager{}, repo, staticSource{data: []byte(validPipeline)}, eventtest.NewProducer(nil))
+	require.NoError(t, err)
+	first, err := svc.Ingest(t.Context(), "acme", model.ExternalEventActor(), change("a"))
+	require.NoError(t, err)
+	svc.(*service).sources = staticSource{err: gitprovider.ErrChangePathMissing}
+	_, err = svc.Ingest(t.Context(), "acme", model.ExternalEventActor(), change("b"))
+	require.ErrorIs(t, err, gitprovider.ErrChangePathMissing)
+	require.NotNil(t, repo.byKey[first.CandidateKey].ClosedAt)
+}
+
+func TestDeployedCompatibilityRetriesWhenAnotherHeadCommitsDuringVerification(t *testing.T) {
+	t.Parallel()
+	target := mapping()
+	target.CompareDeployed = true
+	repo := newFakeRepo(target)
+	source := staticSource{data: []byte(validPipeline)}
+	newer, err := New(testutil.FakeTransactionManager{}, repo, source, eventtest.NewProducer(nil))
+	require.NoError(t, err)
+	actor := model.ExternalEventActor()
+	source.onVerify = func() {
+		_, err := newer.Ingest(t.Context(), "acme", actor, change("b"))
+		require.NoError(t, err)
+	}
+	older, err := New(testutil.FakeTransactionManager{}, repo, source, eventtest.NewProducer(nil))
+	require.NoError(t, err)
+	_, err = older.Ingest(t.Context(), "acme", actor, change("a"))
+	require.ErrorIs(t, err, gitprovider.ErrChangeUnavailable)
+	require.Len(t, repo.byKey, 1)
+	latest, err := repo.FindLatest(t.Context(), nil, "acme", target.ID, change("b").ChangeRequestID)
+	require.NoError(t, err)
+	require.Equal(t, change("b").HeadSHA, latest.HeadSHA)
+}
+
+func TestMissingPathCannotRetireAReopenedCompatibilityCandidate(t *testing.T) {
+	t.Parallel()
+	target := mapping()
+	target.CompareDeployed = true
+	repo := newFakeRepo(target)
+	actor := model.ExternalEventActor()
+	available, err := New(testutil.FakeTransactionManager{}, repo, staticSource{data: []byte(validPipeline)}, eventtest.NewProducer(nil))
+	require.NoError(t, err)
+	first, err := available.Ingest(t.Context(), "acme", actor, change("a"))
+	require.NoError(t, err)
+	missing, err := New(testutil.FakeTransactionManager{}, repo, staticSource{
+		err: gitprovider.ErrChangePathMissing,
+		onVerify: func() {
+			require.NoError(t, available.Close(t.Context(), "acme", actor, change("a")))
+			reopened, err := available.Ingest(t.Context(), "acme", actor, change("a"))
+			require.NoError(t, err)
+			require.NotEqual(t, first.CandidateSlug, reopened.CandidateSlug)
+		},
+	}, eventtest.NewProducer(nil))
+	require.NoError(t, err)
+	_, err = missing.Ingest(t.Context(), "acme", actor, change("b"))
+	require.ErrorIs(t, err, gitprovider.ErrChangePathMissing)
+	latest, err := repo.FindLatest(t.Context(), nil, "acme", target.ID, change("a").ChangeRequestID)
+	require.NoError(t, err)
+	require.Equal(t, first.HeadSHA, latest.HeadSHA)
+	require.Nil(t, latest.ClosedAt)
+}
+
 func selectedMetadata(metadata map[string]any, keys ...string) map[string]any {
 	selected := make(map[string]any, len(keys))
 	for _, key := range keys {
@@ -300,11 +390,15 @@ func change(fill string) gitprovider.VerifiedChange {
 }
 
 type staticSource struct {
-	data []byte
-	err  error
+	data     []byte
+	err      error
+	onVerify func()
 }
 
 func (s staticSource) VerifySource(context.Context, proofrepo.Mapping, gitprovider.VerifiedChange) ([]byte, error) {
+	if s.onVerify != nil {
+		s.onVerify()
+	}
 	return append([]byte(nil), s.data...), s.err
 }
 

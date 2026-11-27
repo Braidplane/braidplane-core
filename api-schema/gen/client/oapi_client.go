@@ -17090,6 +17090,9 @@ type ProjectRepositorySetupStatus string
 
 // ProofAssessmentTarget defines model for ProofAssessmentTarget.
 type ProofAssessmentTarget struct {
+	// CompareDeployed Compare the exact change head with the deployed version for this target. Defaults to false.
+	CompareDeployed *bool `json:"compare_deployed,omitempty"`
+
 	// EnvironmentSlug URL-friendly identifier
 	//
 	// Example: acme-corp
@@ -17163,7 +17166,7 @@ type ProofClaim struct {
 	// RequiredEvidenceLevel How directly a Proof claim was evaluated; levels are not interchangeable.
 	RequiredEvidenceLevel ProofEvidenceLevel `json:"required_evidence_level"`
 
-	// Verdict Clause or aggregate result. Superseded is derived when a later immutable receipt points to this receipt.
+	// Verdict Clause or aggregate result. Superseded identifies a historical assessment.
 	Verdict ProofVerdict `json:"verdict"`
 }
 
@@ -17176,6 +17179,22 @@ type ProofClaimIdentity struct {
 	Family              ProofClaimFamily `json:"family"`
 	PipelineVersionHash string           `json:"pipeline_version_hash"`
 	SemanticPath        string           `json:"semantic_path"`
+}
+
+// ProofDeployedCompatibility defines model for ProofDeployedCompatibility.
+type ProofDeployedCompatibility struct {
+	BaselineSpecHash   *string                     `json:"baseline_spec_hash,omitempty"`
+	DeploymentRevision *int64                      `json:"deployment_revision,omitempty"`
+	Findings           []PipelineComparisonFinding `json:"findings"`
+
+	// PipelineSlug URL-friendly identifier
+	//
+	// Example: acme-corp
+	PipelineSlug Slug                        `json:"pipeline_slug"`
+	Severity     *PipelineComparisonSeverity `json:"severity,omitempty"`
+
+	// Verdict Clause or aggregate result. Superseded identifies a historical assessment.
+	Verdict ProofVerdict `json:"verdict"`
 }
 
 // ProofDiagnostic Sanitized operator-facing diagnostic safe for a protected receipt.
@@ -17469,13 +17488,14 @@ type ProofPostgresTargetConnectorType string
 
 // ProofReceipt Immutable, tenant-scoped, sanitized informational Braidplane Proof receipt.
 type ProofReceipt struct {
-	// AggregateVerdict Clause or aggregate result. Superseded is derived when a later immutable receipt points to this receipt.
+	// AggregateVerdict Clause or aggregate result. Superseded identifies a historical assessment.
 	AggregateVerdict ProofVerdict `json:"aggregate_verdict"`
 
 	// Candidate Exact tenant, target, Git candidate, compiled pipeline, binding, capability, compiler, and policy identity.
-	Candidate ProofCandidateIdentity `json:"candidate"`
-	Claims    []ProofClaim           `json:"claims"`
-	CreatedAt time.Time              `json:"created_at"`
+	Candidate             ProofCandidateIdentity      `json:"candidate"`
+	Claims                []ProofClaim                `json:"claims"`
+	CreatedAt             time.Time                   `json:"created_at"`
+	DeployedCompatibility *ProofDeployedCompatibility `json:"deployed_compatibility,omitempty"`
 
 	// Id URL-friendly identifier
 	//
@@ -17489,7 +17509,7 @@ type ProofReceipt struct {
 	// OperationalAdmissionEnabled Operational structural admission is supported. Separate from the immutable captured receipt; permissions remain mandatory.
 	OperationalAdmissionEnabled *bool `json:"operational_admission_enabled,omitempty"`
 
-	// OperationalCurrentVerdict Clause or aggregate result. Superseded is derived when a later immutable receipt points to this receipt.
+	// OperationalCurrentVerdict Clause or aggregate result. Superseded identifies a historical assessment.
 	OperationalCurrentVerdict *ProofVerdict `json:"operational_current_verdict,omitempty"`
 
 	// OperationalEvidenceStatus Current supporting evidence availability; captured claims stay historical.
@@ -17540,7 +17560,7 @@ type ProofTargetContext struct {
 	TargetRef   string `json:"target_ref"`
 }
 
-// ProofVerdict Clause or aggregate result. Superseded is derived when a later immutable receipt points to this receipt.
+// ProofVerdict Clause or aggregate result. Superseded identifies a historical assessment.
 type ProofVerdict string
 
 // ProofWorksheetTarget defines model for ProofWorksheetTarget.

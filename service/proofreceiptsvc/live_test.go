@@ -135,7 +135,7 @@ func TestWorkspaceLiveMetadataProducesValidReceiptWithStaticCapabilityClaims(t *
 				}
 				claims := compileClaims(&pipelinespec.Pipeline{Steps: []pipelinespec.Step{step}}, validation,
 					[]model.ResolvedPipelineDataSourceRef{{RefSlug: "workspace-ref", DataSourceSlug: "workspace", DataSourceType: model.DataSourceTypeGoogleWorkspace}},
-					nil, nil, fixture.Candidate.SpecHash, fixture.Candidate.SpecHash, now)
+					nil, fixture.Candidate.SpecHash, fixture.Candidate.SpecHash, now)
 				_, _, _, _, livePath := selectedStep(step, model.DataSourceTypeGoogleWorkspace)
 				level := model.ProofEvidenceLevelLiveReadOnly
 				claims = append(claims, model.ProofClaim{

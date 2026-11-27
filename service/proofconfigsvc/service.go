@@ -30,6 +30,7 @@ type Configuration struct {
 type Target struct {
 	Project, Environment slug.Slug
 	Ref, Path            string
+	CompareDeployed      bool
 }
 
 type Settings struct {
@@ -231,6 +232,7 @@ func validateTargets(targets []proofconfig.Target, contexts []proofconfig.Target
 	}
 	seen := make(map[proofconfig.Target]bool, len(targets))
 	for _, target := range targets {
+		target.CompareDeployed = false
 		if seen[target] {
 			return ErrConfiguration.Detail("Assessment targets must be unique.")
 		}

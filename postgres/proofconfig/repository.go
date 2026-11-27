@@ -27,6 +27,7 @@ type Source struct {
 type Target struct {
 	Project, Environment slug.Slug
 	Ref, Path            string
+	CompareDeployed      bool
 }
 
 type TargetContext struct {
@@ -69,7 +70,7 @@ func (*Repository) Targets(ctx context.Context, db postgres.DBTX, org, ds slug.S
 	}
 	result := make([]Target, 0, len(rows))
 	for _, row := range rows {
-		result = append(result, Target{Project: row.ProjectSlug, Environment: row.EnvironmentSlug, Ref: row.TargetRef, Path: row.PipelinePath})
+		result = append(result, Target{Project: row.ProjectSlug, Environment: row.EnvironmentSlug, Ref: row.TargetRef, Path: row.PipelinePath, CompareDeployed: row.CompareDeployed})
 	}
 	return result, nil
 }
@@ -105,6 +106,7 @@ func (*Repository) CreateTarget(ctx context.Context, db postgres.DBTX, org slug.
 	_, err := dbgen.New(db).CreateProofChangeCandidateMapping(ctx, dbgen.CreateProofChangeCandidateMappingParams{
 		OrgSlug: org, ProjectSlug: target.Project, EnvironmentSlug: target.Environment, ProviderConnectionSlug: source.Slug,
 		Provider: source.Provider, ProviderConnectionID: source.ConnectionID, RepositoryID: source.RepositoryID, TargetRef: target.Ref, PipelinePath: target.Path,
+		CompareDeployed: target.CompareDeployed,
 	})
 	return mapError(err)
 }

@@ -3,6 +3,7 @@ package http
 import (
 	api "github.com/Braidplane/braidplane-core/api-schema/gen/server"
 	"github.com/Braidplane/braidplane-core/pkg/domain/model"
+	"github.com/Braidplane/braidplane-core/pkg/ptr"
 	"github.com/Braidplane/braidplane-core/pkg/slug"
 	"github.com/Braidplane/braidplane-core/service/proofconfigsvc"
 	"github.com/gofiber/fiber/v3"
@@ -63,7 +64,7 @@ func (s *server) SetDataSourceProofConfiguration(c fiber.Ctx, orgParam api.SlugP
 		if err != nil {
 			return fiber.ErrBadRequest
 		}
-		settings.Targets = append(settings.Targets, proofconfigsvc.Target{Project: project, Environment: environment, Ref: target.TargetRef, Path: target.PipelinePath})
+		settings.Targets = append(settings.Targets, proofconfigsvc.Target{Project: project, Environment: environment, Ref: target.TargetRef, Path: target.PipelinePath, CompareDeployed: ptr.Value(target.CompareDeployed)})
 	}
 	configuration, err := s.proofConfigurationService.Set(c.Context(), org, ds, s.eventActor(c), settings)
 	if err != nil {
@@ -96,7 +97,7 @@ func proofConfigurationResponse(configuration proofconfigsvc.Configuration) api.
 	result := api.DataSourceProofConfiguration{DataSourceSlug: source.Slug.String(), Name: source.Name, Provider: source.Provider, RepositoryId: source.RepositoryID, Enabled: source.Enabled, PublishChecks: source.PublishChecks, Status: configuration.Status, Targets: []api.ProofAssessmentTarget{}, AvailableTargets: []api.ProofTargetContext{}}
 	result.WebhookSetupRequired = source.Provider == "gitlab" && source.Enabled && !source.WebhookReady
 	for _, target := range configuration.Targets {
-		result.Targets = append(result.Targets, api.ProofAssessmentTarget{ProjectSlug: target.Project.String(), EnvironmentSlug: target.Environment.String(), TargetRef: target.Ref, PipelinePath: target.Path})
+		result.Targets = append(result.Targets, api.ProofAssessmentTarget{ProjectSlug: target.Project.String(), EnvironmentSlug: target.Environment.String(), TargetRef: target.Ref, PipelinePath: target.Path, CompareDeployed: new(target.CompareDeployed)})
 	}
 	for _, target := range configuration.Contexts {
 		result.AvailableTargets = append(result.AvailableTargets, api.ProofTargetContext{ProjectSlug: target.Project.String(), EnvironmentSlug: target.Environment.String(), TargetRef: target.Ref, PipelineDirectory: target.Directory})

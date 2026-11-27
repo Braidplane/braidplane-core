@@ -277,8 +277,7 @@ func observationClaim(evidence *proofevidencesvc.ReceiptObservation, now time.Ti
 	return claim, nil
 }
 
-// Compile preserves admitted live receipts for provider re-requests. Live dispatch
-// and receipt upgrades require explicit authorization and CompileObserved.
+// Compile handles provider re-requests without dispatching live observations.
 func (s *LiveCompiler) Compile(ctx context.Context, org, candidate slug.Slug) (*proofreceipts.Receipt, error) {
 	return s.base.Compile(ctx, org, candidate)
 }

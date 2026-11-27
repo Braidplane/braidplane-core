@@ -5,6 +5,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
+	"strconv"
 	"strings"
 
 	"github.com/Braidplane/braidplane-core/pkg/domain/model"
@@ -86,25 +87,45 @@ func (s *service) ingest(ctx context.Context, organizationSlug slug.Slug, actor 
 	}
 	lookup := mappingLookup(organizationSlug, change)
 	lookup.MappingID = mappingID
+	var prior *proofrepo.Candidate
 	mapping, err := postgres.InRead(ctx, s.txm, func(ctx context.Context, db postgres.DBTX) (*proofrepo.Mapping, error) {
-		return resolveOneMapping(ctx, s.repo, db, lookup)
+		target, err := resolveOneMapping(ctx, s.repo, db, lookup)
+		if err != nil || !target.CompareDeployed {
+			return target, err
+		}
+		prior, err = s.repo.FindLatest(ctx, db, organizationSlug, target.ID, change.ChangeRequestID)
+		if xerror.Is(err, proofrepo.ErrCandidateNotFound) {
+			err = nil
+		}
+		return target, err
 	})
 	if err != nil {
 		return nil, err
 	}
+	retirePriorHead := func(cause error) error {
+		if prior != nil && prior.HeadSHA != change.HeadSHA && prior.ClosedAt == nil {
+			if err := s.close(ctx, organizationSlug, actor, change, mapping.ID, prior.ID); err != nil {
+				return err
+			}
+		}
+		return cause
+	}
 	source, err := s.sources.VerifySource(ctx, *mapping, change)
 	if err != nil {
+		if xerror.Is(err, gitprovider.ErrChangePathMissing) || xerror.Is(err, ErrSourceTooLarge) {
+			return nil, retirePriorHead(err)
+		}
 		return nil, err
 	}
 	if len(source) == 0 {
-		return nil, ErrParseFailed.Detail("pipeline source is empty")
+		return nil, retirePriorHead(ErrParseFailed.Detail("pipeline source is empty"))
 	}
 	if len(source) > maxSourceBytes {
-		return nil, ErrSourceTooLarge
+		return nil, retirePriorHead(ErrSourceTooLarge)
 	}
 	pipeline, err := pipelinevalidate.Load(change.PipelinePath, source)
 	if err != nil {
-		return nil, ErrParseFailed.With(err)
+		return nil, retirePriorHead(ErrParseFailed.With(err))
 	}
 	// Match pipeline-version identity; editor formatting must not change its bytes or step order.
 	canonical, err := json.Marshal(pipeline)
@@ -117,8 +138,6 @@ func (s *service) ingest(ctx context.Context, organizationSlug slug.Slug, actor 
 	if err != nil {
 		return nil, err
 	}
-	candidateSlug := slug.Slug("proof-candidate-" + strings.TrimPrefix(candidateKey, "sha256:")[:32])
-
 	return postgres.InTx(ctx, s.txm, func(ctx context.Context, tx postgres.DBTX) (*Result, error) {
 		if err := s.repo.LockSource(ctx, tx, mapping.OrganizationSlug, mapping.ProviderConnectionSlug); err != nil {
 			return nil, err
@@ -131,6 +150,25 @@ func (s *service) ingest(ctx context.Context, organizationSlug slug.Slug, actor 
 			locked.ProjectSlug != mapping.ProjectSlug || locked.EnvironmentSlug != mapping.EnvironmentSlug ||
 			locked.ProviderConnectionSlug != mapping.ProviderConnectionSlug {
 			return nil, ErrMappingAmbiguous.Detail("proof candidate mapping changed during ingestion")
+		}
+		var latest *proofrepo.Candidate
+		if locked.CompareDeployed {
+			latest, err = s.repo.FindLatest(ctx, tx, locked.OrganizationSlug, locked.ID, change.ChangeRequestID)
+			if err != nil && !xerror.Is(err, proofrepo.ErrCandidateNotFound) {
+				return nil, err
+			}
+			// Retry source verification if another delivery committed while it was in flight.
+			if !sameCandidateState(prior, latest) {
+				return nil, gitprovider.ErrChangeUnavailable.Detail("Proof candidate changed during source verification")
+			}
+			if latest != nil {
+				if latest.ClosedAt == nil && latest.HeadSHA == change.HeadSHA && latest.SourceRef == change.SourceRef && latest.SourceSHA256 == sourceHash && latest.SpecHash == specHash {
+					candidateKey = latest.CandidateKey
+				} else {
+					// Returning or reopening a head starts a new assessment.
+					candidateKey = digest([]byte(candidateKey + ":" + strconv.FormatInt(latest.ID, 10)))
+				}
+			}
 		}
 		existing, err := s.repo.FindByKey(ctx, tx, locked.OrganizationSlug, candidateKey)
 		if err == nil {
@@ -163,16 +201,18 @@ func (s *service) ingest(ctx context.Context, organizationSlug slug.Slug, actor 
 		if !xerror.Is(err, proofrepo.ErrCandidateNotFound) {
 			return nil, err
 		}
-		latest, err := s.repo.FindLatest(ctx, tx, locked.OrganizationSlug, locked.ID, change.ChangeRequestID)
-		if err != nil && !xerror.Is(err, proofrepo.ErrCandidateNotFound) {
-			return nil, err
+		if !locked.CompareDeployed {
+			latest, err = s.repo.FindLatest(ctx, tx, locked.OrganizationSlug, locked.ID, change.ChangeRequestID)
+			if err != nil && !xerror.Is(err, proofrepo.ErrCandidateNotFound) {
+				return nil, err
+			}
 		}
 		var supersedes *int64
 		if latest != nil {
 			supersedes = &latest.ID
 		}
 		created, err := s.repo.Create(ctx, tx, locked.OrganizationSlug, proofrepo.CreateCandidateParams{
-			MappingID: locked.ID, Slug: candidateSlug, CandidateKey: candidateKey,
+			MappingID: locked.ID, Slug: slug.Slug("proof-candidate-" + strings.TrimPrefix(candidateKey, "sha256:")[:32]), CandidateKey: candidateKey,
 			ChangeRequestID: change.ChangeRequestID, SourceRef: change.SourceRef,
 			HeadSHA: change.HeadSHA, SourceSHA256: sourceHash, SpecHash: specHash,
 			CanonicalSpec: canonical, SupersedesCandidateID: supersedes,
@@ -189,23 +229,36 @@ func (s *service) ingest(ctx context.Context, organizationSlug slug.Slug, actor 
 	})
 }
 
+func sameCandidateState(prior, latest *proofrepo.Candidate) bool {
+	if prior == nil || latest == nil {
+		return prior == latest
+	}
+	if prior.ID != latest.ID {
+		return false
+	}
+	if prior.ClosedAt == nil || latest.ClosedAt == nil {
+		return prior.ClosedAt == latest.ClosedAt
+	}
+	return prior.ClosedAt.Equal(*latest.ClosedAt)
+}
+
 func (s *service) Close(
 	ctx context.Context,
 	organizationSlug slug.Slug,
 	actor model.EventActor,
 	change gitprovider.VerifiedChange,
 ) error {
-	return s.close(ctx, organizationSlug, actor, change, 0)
+	return s.close(ctx, organizationSlug, actor, change, 0, 0)
 }
 
 func (s *service) CloseTarget(ctx context.Context, target proofrepo.Mapping, actor model.EventActor, change gitprovider.VerifiedChange) error {
 	if target.ID <= 0 {
 		return ErrMappingNotFound
 	}
-	return s.close(ctx, target.OrganizationSlug, actor, change, target.ID)
+	return s.close(ctx, target.OrganizationSlug, actor, change, target.ID, 0)
 }
 
-func (s *service) close(ctx context.Context, organizationSlug slug.Slug, actor model.EventActor, change gitprovider.VerifiedChange, mappingID int64) error {
+func (s *service) close(ctx context.Context, organizationSlug slug.Slug, actor model.EventActor, change gitprovider.VerifiedChange, mappingID, priorID int64) error {
 	if _, err := slug.New(organizationSlug.String()); err != nil {
 		return xerror.InvalidInput(xerror.OrganizationSlug).With(err)
 	}
@@ -226,14 +279,19 @@ func (s *service) close(ctx context.Context, organizationSlug slug.Slug, actor m
 			}
 			return err
 		}
-		if latest.HeadSHA != change.HeadSHA {
+		if priorID != 0 {
+			// A missing or invalid file retires only the candidate seen before reading the new head.
+			if latest.ID != priorID {
+				return nil
+			}
+		} else if latest.HeadSHA != change.HeadSHA {
 			return gitprovider.ErrChangeStale
 		}
 		if latest.ClosedAt != nil {
 			return nil
 		}
 		candidate, err := s.repo.CloseLatest(
-			ctx, tx, mapping.OrganizationSlug, mapping.ID, change.ChangeRequestID, change.HeadSHA,
+			ctx, tx, mapping.OrganizationSlug, mapping.ID, change.ChangeRequestID, latest.HeadSHA,
 		)
 		if err != nil {
 			return err

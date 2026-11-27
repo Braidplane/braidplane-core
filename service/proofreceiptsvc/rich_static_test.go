@@ -120,7 +120,7 @@ func TestUnsupportedProjectionDoesNotMaskInvalidCandidateDiagnostics(t *testing.
 	for _, code := range []string{"PIPELINE_INVALID_INPUT", "ODCS_SCHEMA_INVALID", "ODCS_OBJECT_NOT_FOUND", "ODCS_REFERENCE_UNAVAILABLE", "ODCS_VARIABLE_UNRESOLVED", "ODCS_MAPPING_INVALID", "ODCS_PROJECTION_LIMIT_EXCEEDED", "DATA_SOURCE_BINDING_NOT_FOUND", "DATA_SOURCE_REF_INCOMPATIBLE"} {
 		t.Run(code, func(t *testing.T) {
 			validation := &pipelinesvc.PipelineValidationResult{Diagnostics: []pipelinesvc.PipelineValidationDiagnostic{{Code: "ODCS_TYPE_UNSUPPORTED"}, {Code: code}}}
-			claims := compileClaims(&pipelinespec.Pipeline{}, validation, nil, nil, nil, "candidate", "evidence", time.Now())
+			claims := compileClaims(&pipelinespec.Pipeline{}, validation, nil, nil, "candidate", "evidence", time.Now())
 			claim := odcsClaim(t, claims, "/validation")
 			require.Equal(t, model.ProofVerdictFailed, claim.Verdict)
 			require.Equal(t, "proof.validation_failed", claim.Diagnostics[1].Code)

@@ -15926,6 +15926,10 @@
       "ProofAssessmentTarget": {
         "additionalProperties": false,
         "properties": {
+          "compare_deployed": {
+            "description": "",
+            "type": "boolean"
+          },
           "environment_slug": {
             "$ref": "#/components/schemas/Slug"
           },
@@ -16147,6 +16151,40 @@
           "family",
           "pipeline_version_hash",
           "semantic_path"
+        ],
+        "type": "object"
+      },
+      "ProofDeployedCompatibility": {
+        "additionalProperties": false,
+        "properties": {
+          "baseline_spec_hash": {
+            "type": "string"
+          },
+          "deployment_revision": {
+            "format": "int64",
+            "minimum": 1,
+            "type": "integer"
+          },
+          "findings": {
+            "items": {
+              "$ref": "#/components/schemas/PipelineComparisonFinding"
+            },
+            "type": "array"
+          },
+          "pipeline_slug": {
+            "$ref": "#/components/schemas/Slug"
+          },
+          "severity": {
+            "$ref": "#/components/schemas/PipelineComparisonSeverity"
+          },
+          "verdict": {
+            "$ref": "#/components/schemas/ProofVerdict"
+          }
+        },
+        "required": [
+          "pipeline_slug",
+          "verdict",
+          "findings"
         ],
         "type": "object"
       },
@@ -16486,6 +16524,9 @@
           "created_at": {
             "format": "date-time",
             "type": "string"
+          },
+          "deployed_compatibility": {
+            "$ref": "#/components/schemas/ProofDeployedCompatibility"
           },
           "id": {
             "$ref": "#/components/schemas/Slug"

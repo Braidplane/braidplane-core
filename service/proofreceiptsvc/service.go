@@ -50,6 +50,7 @@ type BindingResolver interface {
 
 type DeploymentReader interface {
 	FindDeployment(context.Context, postgres.DBTX, slug.Slug, slug.Slug, slug.Slug, slug.Slug) (*pipelinesrepo.PipelineDeployment, error)
+	FindVersionBySpecHash(context.Context, postgres.DBTX, slug.Slug, slug.Slug, slug.Slug, string) (*pipelinesrepo.PipelineVersion, error)
 }
 
 type SchemaReader interface {
@@ -121,10 +122,29 @@ func (s *Compiler) Compile(ctx context.Context, orgSlug, candidateSlug slug.Slug
 	if err != nil && !xerror.Is(err, proofreceipts.ErrReceiptNotFound) {
 		return nil, err
 	}
-	// A provider re-request has no live-observation authority. Retain the admitted
-	// receipt; publication revalidates its freshness without downgrading it to static.
+	// Preserve admitted live evidence unless a changed deployment needs a new static comparison.
 	if latest != nil && latest.Value.Candidate.CompilerVersion == LiveCompilerVersion {
-		return latest, nil
+		comparison := latest.Value.DeployedCompatibility
+		target, err := postgres.InRead(ctx, s.txm, func(ctx context.Context, db postgres.DBTX) (*proofreceipts.CandidateTarget, error) {
+			return s.repo.FindCandidateTarget(ctx, db, orgSlug, candidateSlug)
+		})
+		if err != nil {
+			return nil, err
+		}
+		if !target.CompareDeployed && comparison == nil {
+			return latest, nil
+		}
+		if target.CompareDeployed && comparison != nil {
+			deployment, err := postgres.InRead(ctx, s.txm, func(ctx context.Context, db postgres.DBTX) (*pipelinesrepo.PipelineDeployment, error) {
+				return s.findDeployment(ctx, db, orgSlug, target.ProjectSlug, target.EnvironmentSlug, comparison.PipelineSlug, target.PipelinePath)
+			})
+			if err != nil && !xerror.Is(err, pipelinesrepo.ErrPipelineDeploymentNotFound) {
+				return nil, err
+			}
+			if matchesCompatibilityDeployment(comparison, deployment) {
+				return latest, nil
+			}
+		}
 	}
 	return s.compile(ctx, orgSlug, candidateSlug, nil)
 }
@@ -164,10 +184,11 @@ func (s *Compiler) compile(ctx context.Context, orgSlug, candidateSlug slug.Slug
 	if err != nil {
 		return nil, err
 	}
-	observations, deployment, err := s.readEvidenceState(ctx, target, pipeline.Metadata.Slug, resolved.Resolutions)
+	state, err := s.readEvidenceState(ctx, target, pipeline, resolved.Resolutions)
 	if err != nil {
 		return nil, err
 	}
+	observations, deployment := state.Observations, state.Deployment
 	bindingFingerprint, err := proofidentity.BindingFingerprint(resolved.Resolutions)
 	if err != nil {
 		return nil, err
@@ -198,7 +219,8 @@ func (s *Compiler) compile(ctx context.Context, orgSlug, candidateSlug slug.Slug
 		Diagnostics           []pipelinesvc.PipelineValidationDiagnostic
 		Observations          []schemaObservation
 		DeploymentSpecHash    string
-	}{CompilerVersion, contractInputs, target.SpecHash, bindingFingerprint, capabilityFingerprint, validation.Valid, validation.Diagnostics, observations, deploymentSpecHash(deployment)})
+		DeployedCompatibility *model.ProofDeployedCompatibility `json:",omitempty"`
+	}{CompilerVersion, contractInputs, target.SpecHash, bindingFingerprint, capabilityFingerprint, validation.Valid, validation.Diagnostics, observations, deploymentSpecHash(deployment), state.Compatibility})
 	if err != nil {
 		return nil, err
 	}
@@ -212,7 +234,13 @@ func (s *Compiler) compile(ctx context.Context, orgSlug, candidateSlug slug.Slug
 			return nil, err
 		}
 	}
-	claims := compileClaims(pipeline, validation, resolved.Resolutions, observations, deployment, target.SpecHash, evidenceDigest, now)
+	claims := compileClaims(pipeline, validation, resolved.Resolutions, observations, target.SpecHash, evidenceDigest, now)
+	ref := model.ProofEvidenceReference{Kind: model.ProofEvidenceReferenceKindValidation, Digest: evidenceDigest}
+	if state.Compatibility == nil {
+		claims = append(claims, deploymentClaim(deployment, validation, target.SpecHash, ref, now))
+	} else {
+		claims = append(claims, compatibilityClaim(state.Compatibility, target.SpecHash, ref, now))
+	}
 	claims, err = appendODCSClaims(claims, contractInputs, resolved.Resolutions, observations, target.SpecHash, evidenceDigest, now, secretRedactor(secrets))
 	if err != nil {
 		return nil, err
@@ -229,14 +257,6 @@ func (s *Compiler) compile(ctx context.Context, orgSlug, candidateSlug slug.Slug
 	if err != nil {
 		return nil, err
 	}
-	receiptSlug := slug.Slug("proof-" + strings.TrimPrefix(receiptKey, "sha256:")[:32])
-	draft := model.ProofReceipt{
-		SchemaVersion: model.ProofReceiptSchemaVersion,
-		ID:            receiptSlug,
-		Candidate:     identity,
-		Claims:        claims, CreatedAt: now, RetainUntil: now.Add(retentionPeriod),
-	}
-
 	return postgres.InTx(ctx, s.txm, func(ctx context.Context, tx postgres.DBTX) (*proofreceipts.Receipt, error) {
 		// Retention audits reference the organization; do not hold source/organization
 		// row locks while waiting for cleanup's tenant lock.
@@ -257,6 +277,15 @@ func (s *Compiler) compile(ctx context.Context, orgSlug, candidateSlug slug.Slug
 		if current.MappingID != target.MappingID {
 			return nil, proofreceipts.ErrReceiptNotFound
 		}
+		if state.Compatibility != nil {
+			deployment, err := s.findDeployment(ctx, tx, target.OrganizationSlug, target.ProjectSlug, target.EnvironmentSlug, pipeline.Metadata.Slug, target.PipelinePath)
+			if err != nil && !xerror.Is(err, pipelinesrepo.ErrPipelineDeploymentNotFound) {
+				return nil, err
+			}
+			if !matchesCompatibilityDeployment(state.Compatibility, deployment) {
+				return nil, xerror.ExecutionUnavailable().Detail("target deployment changed during Proof compilation")
+			}
+		}
 		if live != nil {
 			refreshed, err := live.compiler.evaluateCurrent(ctx, identity, target.CandidateSlug, live.jobs)
 			if err != nil {
@@ -269,11 +298,6 @@ func (s *Compiler) compile(ctx context.Context, orgSlug, candidateSlug slug.Slug
 			after, err := digestJSON(refreshed)
 			if err != nil || before != after {
 				return nil, proofevidence.ErrAuthorizationDenied
-			}
-		}
-		if live != nil {
-			if err := live.compiler.audit(ctx, live.actor, observationAudit{scope: live.scope, action: model.EventActionExecute, accepted: true, receiptSlug: receiptSlug}); err != nil {
-				return nil, err
 			}
 		}
 		expiresAt := latestExpiry(observations)
@@ -289,6 +313,38 @@ func (s *Compiler) compile(ctx context.Context, orgSlug, candidateSlug slug.Slug
 		})
 		if err != nil {
 			return nil, err
+		}
+		createdAt := now
+		if state.Compatibility != nil {
+			prior, err := s.repo.FindLatestForCandidate(ctx, tx, orgSlug, candidateSlug)
+			if err != nil && !xerror.Is(err, proofreceipts.ErrReceiptNotFound) {
+				return nil, err
+			}
+			if prior != nil {
+				if prior.EvidenceID == evidence.ID && prior.Value.Candidate == identity {
+					receiptKey = prior.Key
+				} else {
+					// Repeated evidence can supersede an intervening deployment assessment.
+					receiptKey, err = digestJSON([2]string{receiptKey, prior.Value.ID.String()})
+					if err != nil {
+						return nil, err
+					}
+				}
+			}
+			createdAt = s.clock.Now().UTC()
+		}
+		receiptSlug := slug.Slug("proof-" + strings.TrimPrefix(receiptKey, "sha256:")[:32])
+		draft := model.ProofReceipt{
+			DeployedCompatibility: state.Compatibility,
+			SchemaVersion:         model.ProofReceiptSchemaVersion,
+			ID:                    receiptSlug,
+			Candidate:             identity,
+			Claims:                claims, CreatedAt: createdAt, RetainUntil: createdAt.Add(retentionPeriod),
+		}
+		if live != nil {
+			if err := live.compiler.audit(ctx, live.actor, observationAudit{scope: live.scope, action: model.EventActionExecute, accepted: true, receiptSlug: receiptSlug}); err != nil {
+				return nil, err
+			}
 		}
 		latest, err := s.repo.FindLatest(ctx, tx, target, receiptKey)
 		if xerror.Is(err, proofreceipts.ErrReceiptNotFound) {
@@ -398,16 +454,29 @@ func (s *Compiler) projectReceipt(ctx context.Context, db postgres.DBTX, orgSlug
 	}
 	receipt := stored.Value
 	receipt.Claims = slices.Clone(receipt.Claims)
-	expired := false
+	compatibilityStale := false
+	if comparison := receipt.DeployedCompatibility; comparison != nil {
+		deployment, err := s.findDeployment(ctx, db, orgSlug, projectSlug, environmentSlug, comparison.PipelineSlug, receipt.Candidate.PipelinePath)
+		if err != nil && !xerror.Is(err, pipelinesrepo.ErrPipelineDeploymentNotFound) {
+			return nil, err
+		}
+		compatibilityStale = !matchesCompatibilityDeployment(comparison, deployment)
+	}
+	verdictChanged := false
 	for i := range receipt.Claims {
 		claim := &receipt.Claims[i]
+		if compatibilityStale && claim.Identity.SemanticPath == model.ProofDeployedCompatibilityPath {
+			claim.Verdict = model.ProofVerdictStale
+			claim.Diagnostics = []model.ProofDiagnostic{{Code: "proof.deployed_compatibility_stale", Summary: "The target deployment changed after this comparison.", Remediation: "Re-run Proof against the current deployment.", Retryable: true}}
+			verdictChanged = true
+		}
 		if claim.ActualEvidenceLevel != nil && *claim.ActualEvidenceLevel == model.ProofEvidenceLevelLiveReadOnly && (claim.ExpiresAt == nil || !claim.ExpiresAt.After(s.clock.Now())) {
 			claim.Verdict = model.ProofVerdictStale
-			expired = true
+			verdictChanged = true
 			claim.Diagnostics = []model.ProofDiagnostic{{Code: "proof.live_observation_stale", Summary: "live observation has expired", Remediation: "authorize a new observation and compile a new receipt", Retryable: true}}
 		}
 	}
-	if expired {
+	if verdictChanged {
 		receipt.AggregateVerdict = model.AggregateProofVerdict(receipt.Claims)
 	}
 	if stored.Superseded {
@@ -434,12 +503,13 @@ type schemaObservation struct {
 }
 
 type evidenceState struct {
-	Observations []schemaObservation
-	Deployment   *pipelinesrepo.PipelineDeployment
+	Observations  []schemaObservation
+	Deployment    *pipelinesrepo.PipelineDeployment
+	Compatibility *model.ProofDeployedCompatibility
 }
 
-func (s *Compiler) readEvidenceState(ctx context.Context, target *proofreceipts.CandidateTarget, pipelineSlug slug.Slug, resolutions []model.ResolvedPipelineDataSourceRef) ([]schemaObservation, *pipelinesrepo.PipelineDeployment, error) {
-	state, err := postgres.InRead(ctx, s.txm, func(ctx context.Context, db postgres.DBTX) (evidenceState, error) {
+func (s *Compiler) readEvidenceState(ctx context.Context, target *proofreceipts.CandidateTarget, pipeline *pipelinespec.Pipeline, resolutions []model.ResolvedPipelineDataSourceRef) (evidenceState, error) {
+	return postgres.InRead(ctx, s.txm, func(ctx context.Context, db postgres.DBTX) (evidenceState, error) {
 		seen := map[slug.Slug]struct{}{}
 		observations := make([]schemaObservation, 0, len(resolutions))
 		for _, resolution := range resolutions {
@@ -464,13 +534,21 @@ func (s *Compiler) readEvidenceState(ctx context.Context, target *proofreceipts.
 			})
 		}
 		sort.Slice(observations, func(i, j int) bool { return observations[i].DataSourceSlug < observations[j].DataSourceSlug })
-		deployment, err := s.deployments.FindDeployment(ctx, db, target.OrganizationSlug, target.ProjectSlug, target.EnvironmentSlug, pipelineSlug)
+		var path string
+		if target.CompareDeployed {
+			path = target.PipelinePath
+		}
+		deployment, err := s.findDeployment(ctx, db, target.OrganizationSlug, target.ProjectSlug, target.EnvironmentSlug, pipeline.Metadata.Slug, path)
 		if err != nil && !xerror.Is(err, pipelinesrepo.ErrPipelineDeploymentNotFound) {
 			return evidenceState{}, err
 		}
-		return evidenceState{Observations: observations, Deployment: deployment}, nil
+		state := evidenceState{Observations: observations, Deployment: deployment}
+		if !target.CompareDeployed {
+			return state, nil
+		}
+		state.Compatibility, err = s.readDeployedCompatibility(ctx, db, target, pipeline, deployment)
+		return state, err
 	})
-	return state.Observations, state.Deployment, err
 }
 
 func digestJSON(value any) (string, error) {
@@ -518,7 +596,7 @@ func secretRedactor(secrets []model.RuntimeSecretValue) func(string) string {
 	}
 }
 
-func compileClaims(pipeline *pipelinespec.Pipeline, validation *pipelinesvc.PipelineValidationResult, resolutions []model.ResolvedPipelineDataSourceRef, observations []schemaObservation, deployment *pipelinesrepo.PipelineDeployment, specHash, evidenceDigest string, now time.Time) []model.ProofClaim {
+func compileClaims(pipeline *pipelinespec.Pipeline, validation *pipelinesvc.PipelineValidationResult, resolutions []model.ResolvedPipelineDataSourceRef, observations []schemaObservation, specHash, evidenceDigest string, now time.Time) []model.ProofClaim {
 	staticLevel := model.ProofEvidenceLevelStatic
 	ref := model.ProofEvidenceReference{Kind: model.ProofEvidenceReferenceKindValidation, Digest: evidenceDigest}
 	resolvedRefs := make(map[slug.Slug]model.ResolvedPipelineDataSourceRef, len(resolutions))
@@ -578,7 +656,6 @@ func compileClaims(pipeline *pipelinespec.Pipeline, validation *pipelinesvc.Pipe
 		claim.Diagnostics = validationDiagnostics(validation.Diagnostics)
 		claims = append(claims, claim)
 	}
-	claims = append(claims, deploymentClaim(deployment, validation, specHash, ref, now))
 	sort.Slice(claims, func(i, j int) bool {
 		if claims[i].Identity.Family == claims[j].Identity.Family {
 			return claims[i].Identity.SemanticPath < claims[j].Identity.SemanticPath

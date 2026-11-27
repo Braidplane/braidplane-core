@@ -2,13 +2,14 @@ package views
 
 import (
 	api "github.com/Braidplane/braidplane-core/api-schema/gen/client"
+	"github.com/Braidplane/braidplane-core/pkg/ptr"
 	"strings"
 )
 
-func proofConfiguredPaths(configuration api.DataSourceProofConfiguration, context api.ProofTargetContext) string {
+func proofConfiguredPaths(configuration api.DataSourceProofConfiguration, context api.ProofTargetContext, compareDeployed bool) string {
 	paths := []string{}
 	for _, target := range configuration.Targets {
-		if target.ProjectSlug == context.ProjectSlug && target.EnvironmentSlug == context.EnvironmentSlug {
+		if target.ProjectSlug == context.ProjectSlug && target.EnvironmentSlug == context.EnvironmentSlug && ptr.Value(target.CompareDeployed) == compareDeployed {
 			paths = append(paths, target.PipelinePath)
 		}
 	}
@@ -74,13 +75,15 @@ templ ProofDataSourceForm(org, selected string, configuration api.DataSourceProo
 						if len(configuration.AvailableTargets)>0 {
 							<div class="border-t border-base-300 pt-4">
 								<h3 class="text-sm font-semibold">Assessment targets</h3>
-								<p id={ "proof-paths-help-" + string(configuration.DataSourceSlug) } class="mt-1 text-xs text-base-content/60">Enter one repository-relative pipeline path per line for each target you want assessed. Leave unused targets empty.</p>
+								<p id={ "proof-paths-help-" + string(configuration.DataSourceSlug) } class="mt-1 text-xs text-base-content/60">Enter one repository-relative pipeline path per line. List each path in one field only.</p>
 								for _,target:=range configuration.AvailableTargets {
 									<div class="mt-4 min-w-0">
 										<label class="block text-sm font-medium" for={ "paths-" + string(configuration.DataSourceSlug) + "-" + string(target.ProjectSlug) + "-" + string(target.EnvironmentSlug) }>{ string(target.ProjectSlug) } / { string(target.EnvironmentSlug) }</label>
 										<p class="mt-1 break-all text-xs text-base-content/60">{ target.TargetRef } · { target.PipelineDirectory }</p>
 										<input type="hidden" name={ "ref:" + string(target.ProjectSlug) + ":" + string(target.EnvironmentSlug) } value={ target.TargetRef }/>
-										<textarea id={ "paths-" + string(configuration.DataSourceSlug) + "-" + string(target.ProjectSlug) + "-" + string(target.EnvironmentSlug) } name={ "paths:" + string(target.ProjectSlug) + ":" + string(target.EnvironmentSlug) } aria-describedby={ "proof-paths-help-" + string(configuration.DataSourceSlug) } class="textarea textarea-bordered mt-2 w-full font-mono text-xs" rows="3" placeholder={ target.PipelineDirectory + "/pipeline.yaml" }>{ proofConfiguredPaths(configuration,target) }</textarea>
+										<textarea id={ "paths-" + string(configuration.DataSourceSlug) + "-" + string(target.ProjectSlug) + "-" + string(target.EnvironmentSlug) } name={ "paths:" + string(target.ProjectSlug) + ":" + string(target.EnvironmentSlug) } aria-describedby={ "proof-paths-help-" + string(configuration.DataSourceSlug) } class="textarea textarea-bordered mt-2 w-full font-mono text-xs" rows="3" placeholder={ target.PipelineDirectory + "/pipeline.yaml" }>{ proofConfiguredPaths(configuration,target,false) }</textarea>
+										<label class="mt-2 block text-sm" for={ "compatibility-paths-" + string(configuration.DataSourceSlug) + "-" + string(target.ProjectSlug) + "-" + string(target.EnvironmentSlug) }>Pipeline paths with deployed compatibility enabled</label>
+										<textarea id={ "compatibility-paths-" + string(configuration.DataSourceSlug) + "-" + string(target.ProjectSlug) + "-" + string(target.EnvironmentSlug) } name={ "compatibility-paths:" + string(target.ProjectSlug) + ":" + string(target.EnvironmentSlug) } aria-describedby={ "proof-paths-help-" + string(configuration.DataSourceSlug) } class="textarea textarea-bordered mt-2 w-full font-mono text-xs" rows="3">{ proofConfiguredPaths(configuration,target,true) }</textarea>
 										<a class="link mt-1 inline-block text-xs" href={ templ.URL("/orgs/" + org + "/projects/" + string(target.ProjectSlug) + "/proof-receipts?environment_slug=" + string(target.EnvironmentSlug)) }>Receipt history</a>
 									</div>
 								}

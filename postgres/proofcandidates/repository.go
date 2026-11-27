@@ -78,7 +78,7 @@ func (*repository) ResolveWebhookMappings(ctx context.Context, db postgres.DBTX,
 	for i, row := range rows {
 		out[i] = mapping(row.ID, row.OrganizationSlug, row.ProjectSlug, row.EnvironmentSlug,
 			row.ProviderConnectionSlug, row.Provider, row.ProviderConnectionID, row.RepositoryID,
-			row.TargetRef, row.PipelinePath)
+			row.TargetRef, row.PipelinePath, row.CompareDeployed)
 	}
 	return out, nil
 }
@@ -119,6 +119,7 @@ func (*repository) CreateMapping(ctx context.Context, db postgres.DBTX, params C
 		EnvironmentSlug: params.EnvironmentSlug, ProviderConnectionSlug: params.ProviderConnectionSlug,
 		Provider: params.Provider, ProviderConnectionID: params.ProviderConnectionID,
 		RepositoryID: params.RepositoryID, TargetRef: params.TargetRef, PipelinePath: params.PipelinePath,
+		CompareDeployed: params.CompareDeployed,
 	})
 	if xerror.Is(err, pgx.ErrNoRows) {
 		return 0, ErrMappingTargetNotFound.With(err)
@@ -138,14 +139,15 @@ func (*repository) ResolveMappings(ctx context.Context, db postgres.DBTX, lookup
 	for i, row := range rows {
 		out[i] = mapping(row.ID, row.OrganizationSlug, row.ProjectSlug, row.EnvironmentSlug,
 			row.ProviderConnectionSlug, row.Provider, row.ProviderConnectionID, row.RepositoryID,
-			row.TargetRef, row.PipelinePath)
+			row.TargetRef, row.PipelinePath, row.CompareDeployed)
 	}
 	return out, nil
 }
 
-func mapping(id int64, organizationSlug, projectSlug, environmentSlug, providerConnectionSlug slug.Slug, provider, providerConnectionID, repositoryID, targetRef, pipelinePath string) Mapping {
+func mapping(id int64, organizationSlug, projectSlug, environmentSlug, providerConnectionSlug slug.Slug, provider, providerConnectionID, repositoryID, targetRef, pipelinePath string, compareDeployed bool) Mapping {
 	return Mapping{
-		ID: id, OrganizationSlug: organizationSlug, ProjectSlug: projectSlug,
+		CompareDeployed: compareDeployed,
+		ID:              id, OrganizationSlug: organizationSlug, ProjectSlug: projectSlug,
 		EnvironmentSlug: environmentSlug, ProviderConnectionSlug: providerConnectionSlug,
 		Provider: provider, ProviderConnectionID: providerConnectionID, RepositoryID: repositoryID,
 		TargetRef: targetRef, PipelinePath: pipelinePath,

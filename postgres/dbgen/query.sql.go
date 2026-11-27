@@ -6766,7 +6766,8 @@ INSERT INTO proof_change_candidate_mappings (
     provider_connection_id,
     repository_id,
     target_ref,
-    pipeline_path
+    pipeline_path,
+    compare_deployed
 )
 SELECT
     organization.id,
@@ -6777,7 +6778,8 @@ SELECT
     $2,
     $3,
     $4,
-    $5
+    $5,
+    $6
 FROM organizations organization
 JOIN projects project ON project.organization_id = organization.id
 JOIN data_sources data_source
@@ -6791,12 +6793,12 @@ JOIN project_environments project_environment
     ON project_environment.project_id = project.id
     AND project_environment.environment_id = environment.id
     AND project_environment.deleted_at IS NULL
-WHERE organization.slug = $6
-    AND project.slug = $7
+WHERE organization.slug = $7
+    AND project.slug = $8
     AND project.pipeline_backend_data_source_id = data_source.id
     AND data_source.type = $1
-    AND data_source.slug = $8
-    AND environment.slug = $9
+    AND data_source.slug = $9
+    AND environment.slug = $10
     AND 'refs/heads/' || project.pipeline_backend_tracked_branch = $4
     AND LEFT(
         $5,
@@ -6811,6 +6813,7 @@ type CreateProofChangeCandidateMappingParams struct {
 	RepositoryID           string
 	TargetRef              string
 	PipelinePath           string
+	CompareDeployed        bool
 	OrgSlug                slug.Slug
 	ProjectSlug            slug.Slug
 	ProviderConnectionSlug slug.Slug
@@ -6827,6 +6830,7 @@ func (q *Queries) CreateProofChangeCandidateMapping(ctx context.Context, arg Cre
 		arg.RepositoryID,
 		arg.TargetRef,
 		arg.PipelinePath,
+		arg.CompareDeployed,
 		arg.OrgSlug,
 		arg.ProjectSlug,
 		arg.ProviderConnectionSlug,
@@ -11445,7 +11449,7 @@ func (q *Queries) FindLatestProofChangeCandidate(ctx context.Context, arg FindLa
 }
 
 const findLatestProofReceiptForCandidate = `-- name: FindLatestProofReceiptForCandidate :one
-SELECT r.receipt, FALSE AS superseded
+SELECT r.receipt, r.receipt_key, r.evidence_id, FALSE AS superseded
 FROM proof_receipts r
 JOIN proof_change_candidates c ON c.id = r.candidate_id AND c.organization_id = r.organization_id
 JOIN organizations o ON o.id = r.organization_id
@@ -11463,13 +11467,20 @@ type FindLatestProofReceiptForCandidateParams struct {
 
 type FindLatestProofReceiptForCandidateRow struct {
 	Receipt    []byte
+	ReceiptKey string
+	EvidenceID int64
 	Superseded bool
 }
 
 func (q *Queries) FindLatestProofReceiptForCandidate(ctx context.Context, arg FindLatestProofReceiptForCandidateParams) (FindLatestProofReceiptForCandidateRow, error) {
 	row := q.db.QueryRow(ctx, findLatestProofReceiptForCandidate, arg.OrgSlug, arg.CandidateSlug)
 	var i FindLatestProofReceiptForCandidateRow
-	err := row.Scan(&i.Receipt, &i.Superseded)
+	err := row.Scan(
+		&i.Receipt,
+		&i.ReceiptKey,
+		&i.EvidenceID,
+		&i.Superseded,
+	)
 	return i, err
 }
 
@@ -12948,6 +12959,7 @@ SELECT
     pd.id, pd.project_environment_id, pd.pipeline_slug, pd.current_version_id, pd.previous_version_id, pd.deployed_by_actor_type, pd.deployed_by_actor_slug, pd.deployed_at, pd.updated_at, pd.project_id, pd.revision, pd.current_resolution_digest, pd.previous_resolution_digest,
     p.slug AS project_slug,
     e.slug AS environment_slug,
+    COALESCE(current_version.source_path, '')::text AS pipeline_source_path,
     current_version.spec_hash AS current_version_spec_hash,
     previous_version.spec_hash AS previous_version_spec_hash
 FROM pipeline_deployments pd
@@ -12992,6 +13004,7 @@ type FindPipelineDeploymentRow struct {
 	PreviousResolutionDigest pgtype.Text
 	ProjectSlug              slug.Slug
 	EnvironmentSlug          slug.Slug
+	PipelineSourcePath       string
 	CurrentVersionSpecHash   string
 	PreviousVersionSpecHash  pgtype.Text
 }
@@ -13020,6 +13033,7 @@ func (q *Queries) FindPipelineDeployment(ctx context.Context, arg FindPipelineDe
 		&i.PreviousResolutionDigest,
 		&i.ProjectSlug,
 		&i.EnvironmentSlug,
+		&i.PipelineSourcePath,
 		&i.CurrentVersionSpecHash,
 		&i.PreviousVersionSpecHash,
 	)
@@ -14201,6 +14215,7 @@ func (q *Queries) FindProjectForRepositorySetup(ctx context.Context, arg FindPro
 const findProofCandidateReceiptTarget = `-- name: FindProofCandidateReceiptTarget :one
 SELECT
     c.id, c.organization_id, c.mapping_id, c.slug, c.candidate_key, c.change_request_id, c.source_ref, c.head_sha, c.source_sha256, c.spec_hash, c.canonical_spec, c.supersedes_candidate_id, c.closed_at, c.created_at,
+    settings.compare_deployed,
     m.organization_id,
     m.project_id,
     m.project_environment_id,
@@ -14215,6 +14230,8 @@ SELECT
 FROM proof_change_candidates c
 JOIN active_proof_candidate_mappings m ON m.id = c.mapping_id
     AND m.organization_id = c.organization_id
+JOIN proof_change_candidate_mappings settings ON settings.id = m.id
+    AND settings.organization_id = m.organization_id
 JOIN organizations o ON o.id = m.organization_id
 JOIN projects p ON p.id = m.project_id
     AND p.organization_id = o.id
@@ -14226,6 +14243,15 @@ JOIN data_sources ds ON ds.id = m.data_source_id
     AND ds.organization_id = o.id
 WHERE o.slug = $1
     AND c.slug = $2
+    AND (NOT settings.compare_deployed OR (
+        c.closed_at IS NULL AND NOT EXISTS (
+            SELECT 1 FROM proof_change_candidates newer
+            WHERE newer.organization_id = c.organization_id
+                AND newer.mapping_id = c.mapping_id
+                AND newer.change_request_id = c.change_request_id
+                AND (newer.created_at, newer.id) > (c.created_at, c.id)
+        )
+    ))
 `
 
 type FindProofCandidateReceiptTargetParams struct {
@@ -14248,6 +14274,7 @@ type FindProofCandidateReceiptTargetRow struct {
 	SupersedesCandidateID  pgtype.Int8
 	ClosedAt               pgtype.Timestamptz
 	CreatedAt              pgtype.Timestamptz
+	CompareDeployed        bool
 	OrganizationID_2       int32
 	ProjectID              int64
 	ProjectEnvironmentID   int64
@@ -14279,6 +14306,7 @@ func (q *Queries) FindProofCandidateReceiptTarget(ctx context.Context, arg FindP
 		&i.SupersedesCandidateID,
 		&i.ClosedAt,
 		&i.CreatedAt,
+		&i.CompareDeployed,
 		&i.OrganizationID_2,
 		&i.ProjectID,
 		&i.ProjectEnvironmentID,
@@ -14581,12 +14609,21 @@ func (q *Queries) FindProofOperationalRun(ctx context.Context, arg FindProofOper
 }
 
 const findProofReceiptBySlug = `-- name: FindProofReceiptBySlug :one
-SELECT r.id, r.organization_id, r.project_id, r.project_environment_id, r.mapping_id, r.candidate_id, r.evidence_id, r.slug, r.receipt_key, r.spec_hash, r.binding_fingerprint, r.capability_fingerprint, r.compiler_version, r.policy_version, r.aggregate_verdict, r.receipt, r.supersedes_receipt_id, r.created_at, r.retain_until, EXISTS (
+SELECT r.id, r.organization_id, r.project_id, r.project_environment_id, r.mapping_id, r.candidate_id, r.evidence_id, r.slug, r.receipt_key, r.spec_hash, r.binding_fingerprint, r.capability_fingerprint, r.compiler_version, r.policy_version, r.aggregate_verdict, r.receipt, r.supersedes_receipt_id, r.created_at, r.retain_until, (EXISTS (
     SELECT 1 FROM proof_receipts newer
     WHERE newer.organization_id = r.organization_id
         AND newer.supersedes_receipt_id = r.id
-) AS superseded
+) OR (r.receipt ? 'deployed_compatibility' AND (
+    m.disabled_at IS NOT NULL OR candidate.closed_at IS NOT NULL OR EXISTS (
+        SELECT 1 FROM proof_change_candidates newer_candidate
+        WHERE newer_candidate.organization_id = candidate.organization_id
+            AND newer_candidate.mapping_id = candidate.mapping_id
+            AND newer_candidate.change_request_id = candidate.change_request_id
+            AND (newer_candidate.created_at, newer_candidate.id) > (candidate.created_at, candidate.id)
+    )
+))) AS superseded
 FROM proof_receipts r
+JOIN proof_change_candidates candidate ON candidate.organization_id = r.organization_id AND candidate.id = r.candidate_id
 JOIN proof_change_candidate_mappings m ON m.id = r.mapping_id
     AND m.organization_id = r.organization_id
     AND m.project_id = r.project_id
@@ -14632,7 +14669,7 @@ type FindProofReceiptBySlugRow struct {
 	SupersedesReceiptID   pgtype.Int8
 	CreatedAt             pgtype.Timestamptz
 	RetainUntil           pgtype.Timestamptz
-	Superseded            bool
+	Superseded            pgtype.Bool
 }
 
 func (q *Queries) FindProofReceiptBySlug(ctx context.Context, arg FindProofReceiptBySlugParams) (FindProofReceiptBySlugRow, error) {
@@ -18546,7 +18583,7 @@ func (q *Queries) ListDataSourceProofTargetContexts(ctx context.Context, arg Lis
 }
 
 const listDataSourceProofTargets = `-- name: ListDataSourceProofTargets :many
-SELECT project.slug AS project_slug, environment.slug AS environment_slug, mapping.target_ref, mapping.pipeline_path
+SELECT project.slug AS project_slug, environment.slug AS environment_slug, mapping.target_ref, mapping.pipeline_path, mapping.compare_deployed
 FROM proof_change_candidate_mappings mapping
 JOIN organizations organization ON organization.id=mapping.organization_id
 JOIN data_sources ds ON ds.organization_id=mapping.organization_id AND ds.id=mapping.data_source_id
@@ -18567,6 +18604,7 @@ type ListDataSourceProofTargetsRow struct {
 	EnvironmentSlug slug.Slug
 	TargetRef       string
 	PipelinePath    string
+	CompareDeployed bool
 }
 
 func (q *Queries) ListDataSourceProofTargets(ctx context.Context, arg ListDataSourceProofTargetsParams) ([]ListDataSourceProofTargetsRow, error) {
@@ -18583,6 +18621,7 @@ func (q *Queries) ListDataSourceProofTargets(ctx context.Context, arg ListDataSo
 			&i.EnvironmentSlug,
 			&i.TargetRef,
 			&i.PipelinePath,
+			&i.CompareDeployed,
 		); err != nil {
 			return nil, err
 		}
@@ -23253,12 +23292,25 @@ func (q *Queries) ListProofReceiptMaintenanceOrganizations(ctx context.Context, 
 }
 
 const listProofReceipts = `-- name: ListProofReceipts :many
-SELECT r.id, r.organization_id, r.project_id, r.project_environment_id, r.mapping_id, r.candidate_id, r.evidence_id, r.slug, r.receipt_key, r.spec_hash, r.binding_fingerprint, r.capability_fingerprint, r.compiler_version, r.policy_version, r.aggregate_verdict, r.receipt, r.supersedes_receipt_id, r.created_at, r.retain_until, EXISTS (
+SELECT r.id, r.organization_id, r.project_id, r.project_environment_id, r.mapping_id, r.candidate_id, r.evidence_id, r.slug, r.receipt_key, r.spec_hash, r.binding_fingerprint, r.capability_fingerprint, r.compiler_version, r.policy_version, r.aggregate_verdict, r.receipt, r.supersedes_receipt_id, r.created_at, r.retain_until, (EXISTS (
     SELECT 1 FROM proof_receipts newer
     WHERE newer.organization_id = r.organization_id
         AND newer.supersedes_receipt_id = r.id
-) AS superseded
+) OR (r.receipt ? 'deployed_compatibility' AND (
+    m.disabled_at IS NOT NULL OR candidate.closed_at IS NOT NULL OR EXISTS (
+        SELECT 1 FROM proof_change_candidates newer_candidate
+        WHERE newer_candidate.organization_id = candidate.organization_id
+            AND newer_candidate.mapping_id = candidate.mapping_id
+            AND newer_candidate.change_request_id = candidate.change_request_id
+            AND (newer_candidate.created_at, newer_candidate.id) > (candidate.created_at, candidate.id)
+    )
+))) AS superseded
 FROM proof_receipts r
+JOIN proof_change_candidates candidate ON candidate.organization_id = r.organization_id AND candidate.id = r.candidate_id
+JOIN proof_change_candidate_mappings m ON m.id = r.mapping_id
+    AND m.organization_id = r.organization_id
+    AND m.project_id = r.project_id
+    AND m.project_environment_id = r.project_environment_id
 JOIN organizations o ON o.id = r.organization_id
 JOIN projects p ON p.id = r.project_id
     AND p.organization_id = o.id
@@ -23319,7 +23371,7 @@ type ListProofReceiptsRow struct {
 	SupersedesReceiptID   pgtype.Int8
 	CreatedAt             pgtype.Timestamptz
 	RetainUntil           pgtype.Timestamptz
-	Superseded            bool
+	Superseded            pgtype.Bool
 }
 
 func (q *Queries) ListProofReceipts(ctx context.Context, arg ListProofReceiptsParams) ([]ListProofReceiptsRow, error) {
@@ -30018,7 +30070,8 @@ SELECT
     mapping.provider_connection_id,
     mapping.repository_id,
     mapping.target_ref,
-    mapping.pipeline_path
+    mapping.pipeline_path,
+    mapping.compare_deployed
 FROM proof_change_candidate_mappings mapping
 JOIN organizations organization ON organization.id = mapping.organization_id
 JOIN projects project
@@ -30074,6 +30127,7 @@ type ResolveProofChangeCandidateMappingsRow struct {
 	RepositoryID           string
 	TargetRef              string
 	PipelinePath           string
+	CompareDeployed        bool
 }
 
 // ponytail: one mapping-row lock serializes candidate writes; use a keyed
@@ -30106,6 +30160,7 @@ func (q *Queries) ResolveProofChangeCandidateMappings(ctx context.Context, arg R
 			&i.RepositoryID,
 			&i.TargetRef,
 			&i.PipelinePath,
+			&i.CompareDeployed,
 		); err != nil {
 			return nil, err
 		}
@@ -30128,7 +30183,8 @@ SELECT
     mapping.provider_connection_id,
     mapping.repository_id,
     mapping.target_ref,
-    mapping.pipeline_path
+    mapping.pipeline_path,
+    mapping.compare_deployed
 FROM proof_change_candidate_mappings mapping
 JOIN organizations organization ON organization.id = mapping.organization_id
 JOIN projects project
@@ -30178,6 +30234,7 @@ type ResolveProofChangeWebhookMappingsRow struct {
 	RepositoryID           string
 	TargetRef              string
 	PipelinePath           string
+	CompareDeployed        bool
 }
 
 // Pre-tenant webhook intake derives tenancy from the verified provider
@@ -30209,6 +30266,7 @@ func (q *Queries) ResolveProofChangeWebhookMappings(ctx context.Context, arg Res
 			&i.RepositoryID,
 			&i.TargetRef,
 			&i.PipelinePath,
+			&i.CompareDeployed,
 		); err != nil {
 			return nil, err
 		}
