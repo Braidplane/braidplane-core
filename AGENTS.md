@@ -35,6 +35,7 @@ Add `release:security` only for an approved public security release. See
   setup and `doc/QUALITY_GATES.md` for checks matched to the change.
 - Follow [the documentation contract](doc/DOCUMENTATION.md#reviewing-reader-paths)
   for user-facing docs and for changes to the release or access rules they rely on.
+- Before implementation, use the [Braidplane design skill](.agents/skills/braidplane-design/SKILL.md).
 - `Taskfile.yml` lists build, test, lint and generation commands. Go and Node
   tasks use pinned toolchain wrappers; the CLI lives in `cli/` within the root Go module.
 - Check for a more specific `AGENTS.md` in the directories being changed.

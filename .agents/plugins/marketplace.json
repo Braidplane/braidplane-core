@@ -1,0 +1,27 @@
+{
+  "name": "braidplane-core",
+  "interface": {
+    "displayName": "Braidplane Core"
+  },
+  "plugins": [
+    {
+      "name": "egm",
+      "source": {
+        "source": "url",
+        "url": "https://github.com/google/elephant-goldfish-model.git",
+        "sha": "46933754e63c0424daa9c270d7e0734245d79560"
+      },
+      "policy": {
+        "installation": "AVAILABLE",
+        "authentication": "ON_USE",
+        "products": [
+          "CODEX"
+        ]
+      },
+      "category": "Productivity",
+      "interface": {
+        "displayName": "Elephant-Goldfish Model"
+      }
+    }
+  ]
+}

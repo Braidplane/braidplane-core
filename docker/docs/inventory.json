@@ -12,6 +12,7 @@
     "build"
   ],
   "contextual_markdown": {
+    ".agents/skills/braidplane-design/SKILL.md": "Core pre-implementation design and review workflow. Local links and anchors remain checked.",
     "api-schema/bruno/README.md": "Core API test ownership, fixture setup and acceptance boundaries beside its owning collections. Local links and anchors remain checked.",
     "api-schema/bruno/TEST_GUIDE.md": "Imported API test execution and assertion reference beside the owning collections. Local links and anchors remain checked.",
     ".github/PULL_REQUEST_TEMPLATE.md": "GitHub contribution template, consumed in the public PR flow. Local links and anchors remain checked.",
