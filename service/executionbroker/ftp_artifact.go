@@ -8,11 +8,13 @@ import (
 	"net"
 	"net/textproto"
 	"path"
+	"reflect"
 	"strings"
 	"time"
 
 	"github.com/Braidplane/braidplane-core/pkg/connector/result"
 	"github.com/Braidplane/braidplane-core/pkg/domain/model"
+	"github.com/Braidplane/braidplane-core/pkg/jsonvalue"
 	"github.com/Braidplane/braidplane-core/pkg/slug"
 	"github.com/Braidplane/braidplane-core/pkg/uuid"
 	"github.com/Braidplane/braidplane-core/pkg/xerror"
@@ -152,7 +154,7 @@ func (b *Broker) processFTPArtifact(ctx context.Context, request requestrepo.Req
 	if err != nil || !sameArtifactStatement(statement, req.StatementJSON) {
 		return fail(artifactBindingRefused)
 	}
-	stmt, err := remotefile.DecodeStatement(req.StatementJSON)
+	stmt, err := remotefile.DecodeStatement(statement)
 	if err != nil || stmt.Format != filedata.QueryFormatCSV {
 		return fail(artifactBindingRefused)
 	}
@@ -335,6 +337,6 @@ func artifactReadDispatchError(err error) string {
 }
 
 func sameArtifactStatement(a, b []byte) bool {
-	var left, right bytes.Buffer
-	return json.Compact(&left, a) == nil && json.Compact(&right, b) == nil && bytes.Equal(left.Bytes(), right.Bytes())
+	var left, right map[string]any
+	return jsonvalue.Unmarshal(a, &left) == nil && jsonvalue.Unmarshal(b, &right) == nil && reflect.DeepEqual(left, right)
 }
