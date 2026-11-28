@@ -21,6 +21,10 @@ Use `egm-brainstorm` when the concept is unsettled,
 for the full independent review. The bundle includes the personas and rubrics.
 Follow the applicable repository instructions for source, tools, and approvals.
 
+`egm-draft` keeps its interactive section approvals. For unattended work,
+draft from the agreed issue scope and flag decisions that still need owner
+approval. Run the full `egm-review` in either case before implementation.
+
 For Goldfish stages, use native reviewers that do not inherit parent turns.
 Give them the design, persona, rubric and selected repository sources. Run
 reviewers directly when nesting is unavailable. Verify their completion and
