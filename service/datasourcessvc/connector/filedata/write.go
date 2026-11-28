@@ -31,6 +31,9 @@ func encodeCSVContent(content any, opts ParseCSVOptions, artifact bool) ([]byte,
 		)
 	}
 
+	if artifact && opts.MaxRows > 0 && len(rows) > opts.MaxRows {
+		return nil, 0, xerror.ExecutionRowLimitExceeded()
+	}
 	headers := make([]string, 0)
 	headerSet := map[string]struct{}{}
 	objectRows := make([]map[string]any, 0, len(rows))
@@ -112,6 +115,9 @@ func encodeCSVContent(content any, opts ParseCSVOptions, artifact bool) ([]byte,
 		return nil, 0, xerror.Unexpected().With(err)
 	}
 
+	if artifact && !validCSVText(buffer.Bytes()) {
+		return nil, 0, xerror.InvalidInput(xerror.Query).WithPublicDetail("CSV content must be valid UTF-8 text.")
+	}
 	return buffer.Bytes(), len(objectRows), nil
 }
 

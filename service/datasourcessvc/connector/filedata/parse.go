@@ -25,9 +25,7 @@ func ParseCSV(content []byte, opts ParseCSVOptions) (*result.FileResult, error) 
 	}
 
 	// encoding/csv accepts arbitrary bytes inside a field.
-	if !utf8.Valid(content) || bytes.ContainsFunc(content, func(r rune) bool {
-		return (r < ' ' && r != '\t' && r != '\r' && r != '\n') || r == '\x7f'
-	}) {
+	if !validCSVText(content) {
 		return nil, xerror.InvalidInput(xerror.Query).WithPublicDetail("CSV content must be valid UTF-8 text.")
 	}
 	reader := csv.NewReader(bytes.NewReader(content))
@@ -244,4 +242,10 @@ func isLikelyHeadless(row []string) bool {
 		}
 	}
 	return true
+}
+
+func validCSVText(content []byte) bool {
+	return utf8.Valid(content) && !bytes.ContainsFunc(content, func(r rune) bool {
+		return (r < ' ' && r != '\t' && r != '\r' && r != '\n') || r == '\x7f'
+	})
 }

@@ -42,4 +42,9 @@ func TestArtifactCSVPreservesEmptySingleColumnRecord(t *testing.T) {
 	require.Equal(t, []map[string]any{{"id": ""}, {"id": "102"}}, parsed.Rows)
 	_, _, err = PrepareArtifactCSV(Config{}, "reserved", "orders.csv", uuid.New(), 100, []any{map[string]any{" ": "102"}}, options)
 	require.Error(t, err)
+	options.MaxRows = 1
+	_, _, err = PrepareArtifactCSV(Config{}, "reserved", "orders.csv", uuid.New(), 100, content, options)
+	require.ErrorIs(t, err, xerror.ExecutionRowLimitExceeded())
+	_, _, err = PrepareArtifactCSV(Config{}, "reserved", "orders.csv", uuid.New(), 100, []any{map[string]any{"id": "a\x00b"}}, options)
+	require.Error(t, err)
 }

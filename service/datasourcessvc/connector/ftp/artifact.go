@@ -125,6 +125,10 @@ func (c *Connector) FetchArtifactCSV(ctx context.Context, evidence ArtifactEvide
 		return nil, ErrArtifactChanged
 	}
 	options.MaxBytes = maxBytes
+	if options.HasHeader == nil {
+		hasHeader := true
+		options.HasHeader = &hasHeader
+	}
 	return filedata.ParseCSV(body.Bytes(), options)
 }
 

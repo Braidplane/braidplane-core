@@ -38,8 +38,8 @@ const (
 
 var errFTPArtifactSubmissionRefused = xerror.New(xerror.KindInvalidInput, "FTP_ARTIFACT_SUBMISSION_REFUSED", "FTP artifact submission refused")
 
-// FTPArtifactError identifies a completed broker outcome. Transport errors
-// while waiting on the broker never become an FTPArtifactError.
+// FTPArtifactError describes a local refusal or a completed broker outcome.
+// RetryableRead identifies only completed transient provider failures.
 type FTPArtifactError string
 
 func (e FTPArtifactError) Error() string { return string(e) }

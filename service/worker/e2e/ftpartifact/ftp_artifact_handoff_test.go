@@ -39,14 +39,21 @@ import (
 
 type loseArtifactCommitReply struct {
 	postgres.TransactionManager
-	lose atomic.Bool
+	lose       atomic.Bool
+	unresolved atomic.Bool
 }
 
 type artifactTransactionKey struct{}
 
 func (txm *loseArtifactCommitReply) RunInTx(ctx context.Context, f func(context.Context, postgres.DBTX) error) error {
 	outermost := ctx.Value(artifactTransactionKey{}) == nil
-	err := txm.TransactionManager.RunInTx(context.WithValue(ctx, artifactTransactionKey{}, true), f)
+	err := txm.TransactionManager.RunInTx(context.WithValue(ctx, artifactTransactionKey{}, true), func(ctx context.Context, tx postgres.DBTX) error {
+		err := f(ctx, tx)
+		if err == nil && outermost && txm.unresolved.Swap(false) {
+			return xerror.Unexpected().Detail("fixture withheld the transaction outcome")
+		}
+		return err
+	})
 	if err == nil && outermost && txm.lose.Swap(false) {
 		return xerror.New(xerror.KindInternal, "FIXTURE_COMMIT_REPLY_LOST", "fixture simulated loss of transaction commit response")
 	}
@@ -78,6 +85,23 @@ func (a *artifactAdmissionGate) WithOperation(ctx context.Context, _, _ slug.Slu
 		}
 	}
 	return execute(ctx)
+}
+
+// The fixture can expire the caller's wait after the broker worker reaches admission.
+type artifactCallerDeadline struct {
+	context.Context
+	elapsed chan struct{}
+}
+
+func (ctx artifactCallerDeadline) Done() <-chan struct{} { return ctx.elapsed }
+
+func (ctx artifactCallerDeadline) Err() error {
+	select {
+	case <-ctx.elapsed:
+		return context.DeadlineExceeded
+	default:
+		return nil
+	}
 }
 
 func TestFTPArtifactHandoff(t *testing.T) {
@@ -267,6 +291,9 @@ func TestFTPArtifactHandoff(t *testing.T) {
 			require.True(t, rolledBack)
 			require.Zero(t, providerConnections.Load())
 
+			apiTx.unresolved.Store(true)
+			require.ErrorIs(t, api.PublishFTPArtifact(ctx, req), executionbroker.ErrAmbiguousExecution)
+			require.Zero(t, providerConnections.Load())
 			beforePublish := proxy.renames.Load()
 			apiTx.lose.Store(true)
 			publishErr := api.PublishFTPArtifact(ctx, req)
@@ -320,16 +347,31 @@ func TestFTPArtifactHandoff(t *testing.T) {
 			require.ErrorAs(t, err, &typed)
 			require.True(t, typed.RetryableRead())
 
-			shortWaitAPI, err := executionbroker.New(txm, cipher, dispatcher, 500*time.Millisecond, nil, nil, testutil.FakeOperationAdmission{})
-			require.NoError(t, err)
 			readGate := &artifactGate{entered: make(chan struct{}), release: make(chan struct{})}
 			admission.next.Store(readGate)
-			rows, err = shortWaitAPI.ReadFTPArtifact(ctx, req)
+			waitCtx := artifactCallerDeadline{Context: ctx, elapsed: make(chan struct{})}
+			waitResult := make(chan error, 1)
+			go func(ctx context.Context) { //nolint:contextcheck // The controlled fixture deadline inherits the enclosing test context.
+				_, err := api.ReadFTPArtifact(ctx, req)
+				waitResult <- err
+			}(waitCtx)
+			select {
+			case <-readGate.entered:
+			case <-ctx.Done():
+				close(waitCtx.elapsed)
+				close(readGate.release)
+				t.Fatal("verified read did not reach the executor")
+			}
+			close(waitCtx.elapsed)
+			select {
+			case err := <-waitResult:
+				require.ErrorIs(t, err, context.DeadlineExceeded)
+				require.NotErrorAs(t, err, &typed)
+			case <-ctx.Done():
+				t.Fatal("broker did not return the caller's timeout")
+			}
 			close(readGate.release)
-			admission.next.CompareAndSwap(readGate, nil)
-			require.Nil(t, rows)
-			require.ErrorIs(t, err, context.DeadlineExceeded)
-			require.NotErrorAs(t, err, &typed)
+
 			providerCalls := providerConnections.Load()
 			require.EqualValues(t, 3, providerCalls)
 
@@ -410,6 +452,36 @@ func TestFTPArtifactHandoff(t *testing.T) {
 				}, 3*time.Second, 25*time.Millisecond)
 				require.Equal(t, providerCalls, providerConnections.Load())
 			}
+
+			duplicate := req
+			duplicate.DeliveryID, duplicate.PublishRequestID = uuid.New(), uuid.New()
+			duplicate.ArtifactEvidence, err = api.PrepareFTPArtifact(ctx, duplicate)
+			require.NoError(t, err)
+			seedIntent(duplicate, "duplicate-waiter")
+			publishGate := &artifactGate{entered: make(chan struct{}), release: make(chan struct{})}
+			admission.next.Store(publishGate)
+			published := make(chan error, 1)
+			go func() { published <- api.PublishFTPArtifact(ctx, duplicate) }()
+			select {
+			case <-publishGate.entered:
+			case <-ctx.Done():
+				close(publishGate.release)
+				t.Fatal("publication did not reach the executor")
+			}
+			duplicateAPI, err := executionbroker.New(txm, cipher, dispatcher, 200*time.Millisecond, nil, nil, testutil.FakeOperationAdmission{})
+			require.NoError(t, err)
+			require.ErrorIs(t, duplicateAPI.PublishFTPArtifact(ctx, duplicate), executionbroker.ErrAmbiguousExecution)
+			var requestStillLive bool
+			require.NoError(t, pool.QueryRow(ctx, `SELECT state='running' AND cancel_requested_at IS NULL FROM execution_requests WHERE id=$1`, duplicate.PublishRequestID).Scan(&requestStillLive))
+			require.True(t, requestStillLive)
+			close(publishGate.release)
+			select {
+			case err := <-published:
+				require.NoError(t, err)
+			case <-ctx.Done():
+				t.Fatal("original publication did not finish")
+			}
+			providerCalls++
 
 			uncertain := req
 			uncertain.DeliveryID, uncertain.PublishRequestID = uuid.New(), uuid.New()

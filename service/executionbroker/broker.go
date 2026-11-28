@@ -980,6 +980,8 @@ func (b *Broker) submitAndWait(
 		QueueCapacity:    admission.QueueCapacity,
 		QueueDeadlineAt:  queueDeadline,
 	}
+	canCancel := true
+	commitAttempted := false
 	err = b.txm.RunInTx(waitCtx, func(ctx context.Context, tx postgres.DBTX) error {
 		if publishing {
 			marked, err := requestrepo.New().MarkFTPArtifactSubmitted(ctx, tx, artifact.DeliveryID, req, artifact.ProjectEnvironmentID)
@@ -1024,7 +1026,11 @@ func (b *Broker) submitAndWait(
 		if err := b.recordCredentialHandoff(ctx, slug.Slug(organizationSlug), id, kind, payload); err != nil {
 			return err
 		}
-		return b.dispatcher.Dispatch(ctx, tx, id)
+		if err := b.dispatcher.Dispatch(ctx, tx, id); err != nil {
+			return err
+		}
+		commitAttempted = true
+		return nil
 	})
 	if err != nil && publishing {
 		// A commit error does not prove that the transaction rolled back. Only
@@ -1034,10 +1040,13 @@ func (b *Broker) submitAndWait(
 			return requestrepo.New().FTPArtifactSubmissionCommitted(ctx, db, artifact.DeliveryID, req, artifact.ProjectEnvironmentID)
 		})
 		cancel()
-		if probeErr != nil {
-			return encryptedResponse{}, ErrAmbiguousExecution.With(probeErr)
+		if probeErr != nil || (!committed && commitAttempted) {
+			recordBrokerOutcome(kind, "ambiguous", startedAt)
+			return encryptedResponse{}, ErrAmbiguousExecution.With(xerror.Join(err, probeErr))
 		}
 		if committed {
+			// Joining a request submitted by someone else carries no right to cancel it.
+			canCancel = commitAttempted
 			err = nil
 		}
 	}
@@ -1092,6 +1101,10 @@ func (b *Broker) submitAndWait(
 				return response, responseErr
 			}
 		}
+	}
+	if !canCancel {
+		recordBrokerOutcome(kind, "ambiguous", startedAt)
+		return encryptedResponse{}, ErrAmbiguousExecution.With(waitErr)
 	}
 	cancelledBeforeExecution, cancelErr := b.cancel(ctx, id)
 	if cancelErr != nil {
