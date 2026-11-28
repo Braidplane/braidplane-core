@@ -271,6 +271,11 @@ func newCancellationFTP(t *testing.T, setupCtx context.Context, stall string) (*
 					wait(command + "-data")
 					if command == "RETR" {
 						_, _ = io.WriteString(data, "fixture")
+						if stall == "RETR-size-final" {
+							// The client closes the data channel after recognizing the byte cap.
+							_, _ = io.Copy(io.Discard, data)
+							wait("RETR-size-final")
+						}
 					}
 				}
 				_ = data.Close()

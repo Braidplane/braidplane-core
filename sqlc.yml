@@ -11,6 +11,10 @@ sql:
         out: "postgres/dbgen"
         sql_package: "pgx/v5"
         overrides:
+          - column: "pipeline_artifact_deliveries.id"
+            go_type:
+              import: "github.com/jackc/pgx/v5/pgtype"
+              type: "UUID"
           - column: "proof_change_candidate_mappings.id"
             go_type:
               type: "int64"

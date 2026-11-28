@@ -34,6 +34,8 @@ type ParseCSVOptions struct {
 	HasHeader *bool
 	MaxRows   int
 	MaxBytes  int64
+	// MaxResultBytes bounds row materialization using a lower bound on JSON size.
+	MaxResultBytes int64
 }
 
 // ParseJSONOptions controls how JSON content is parsed.

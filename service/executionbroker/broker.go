@@ -247,6 +247,7 @@ func (b *Broker) ExecuteConnector(
 }
 
 type encryptedResponse struct {
+	FTPArtifact               *ftpArtifactResponse           `json:"ftp_artifact,omitempty"`
 	HubSpotUpsertProgress     *crm.UpsertBatchError          `json:"hubspot_upsert_progress,omitempty"`
 	WriteReconciled           bool                           `json:"write_reconciled,omitempty"`
 	WritePrepared             bool                           `json:"write_prepared,omitempty"`
@@ -931,7 +932,7 @@ func (b *Broker) submitAndWait(
 		return encryptedResponse{}, xerror.Wrapf("encrypt execution request: %w", err)
 	}
 	admission := requestAdmission{}
-	if kind == kindQuery || kind == kindPrepareS3Write {
+	if kind == kindQuery || kind == kindPrepareS3Write || isFTPArtifactKind(kind) {
 		if err := json.Unmarshal(plaintext, &admission); err != nil {
 			recordBrokerOutcome(kind, "error", startedAt)
 			return encryptedResponse{}, xerror.Wrapf("decode execution admission: %w", err)
@@ -966,15 +967,36 @@ func (b *Broker) submitAndWait(
 		queueDeadline = &value
 	}
 	id := uuid.New()
+	artifact, publishing := payload.(FTPArtifactRequest)
+	publishing = publishing && kind == kindFTPArtifactPublish
+	if publishing {
+		id = artifact.PublishRequestID
+	}
+	req := requestrepo.Request{
+		ID: id, OrganizationSlug: organizationSlug, Kind: kind,
+		RequestCiphertext: ciphertext, DeadlineAt: deadline,
+		DataSourceSlug:   admission.DataSourceSlug,
+		ConcurrencyLimit: admission.ConcurrencyLimit,
+		QueueCapacity:    admission.QueueCapacity,
+		QueueDeadlineAt:  queueDeadline,
+	}
+	var submissionToken uuid.UUID
+	if publishing {
+		submissionToken = uuid.New()
+	}
+	canCancel := true
+	commitAttempted := false
 	err = b.txm.RunInTx(waitCtx, func(ctx context.Context, tx postgres.DBTX) error {
-		if err := b.repo.Create(ctx, tx, requestrepo.Request{
-			ID: id, OrganizationSlug: organizationSlug, Kind: kind,
-			RequestCiphertext: ciphertext, DeadlineAt: deadline,
-			DataSourceSlug:   admission.DataSourceSlug,
-			ConcurrencyLimit: admission.ConcurrencyLimit,
-			QueueCapacity:    admission.QueueCapacity,
-			QueueDeadlineAt:  queueDeadline,
-		}, retainUntil); err != nil {
+		if publishing {
+			marked, err := requestrepo.New().MarkFTPArtifactSubmitted(ctx, tx, artifact.DeliveryID, req, artifact.ProjectEnvironmentID, submissionToken)
+			if err != nil {
+				return err
+			}
+			if !marked {
+				return errFTPArtifactSubmissionRefused
+			}
+		}
+		if err := b.repo.Create(ctx, tx, req, retainUntil); err != nil {
 			return err
 		}
 		if user := executiondelivery.InitiatingUser(ctx); user != "" {
@@ -1008,8 +1030,31 @@ func (b *Broker) submitAndWait(
 		if err := b.recordCredentialHandoff(ctx, slug.Slug(organizationSlug), id, kind, payload); err != nil {
 			return err
 		}
-		return b.dispatcher.Dispatch(ctx, tx, id)
+		if err := b.dispatcher.Dispatch(ctx, tx, id); err != nil {
+			return err
+		}
+		commitAttempted = true
+		return nil
 	})
+	if err != nil && publishing {
+		// A commit error does not prove that the transaction rolled back. Only
+		// the scoped durable marker can authorize waiting on the original UUID.
+		probeCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), cancelGracePeriod)
+		committedToken, probeErr := postgres.InRead(probeCtx, b.txm, func(ctx context.Context, db postgres.DBTX) (uuid.UUID, error) {
+			return requestrepo.New().FTPArtifactSubmissionToken(ctx, db, artifact.DeliveryID, req, artifact.ProjectEnvironmentID)
+		})
+		cancel()
+		committed := committedToken != uuid.Nil
+		if probeErr != nil || (!committed && commitAttempted) {
+			recordBrokerOutcome(kind, "ambiguous", startedAt)
+			return encryptedResponse{}, ErrAmbiguousExecution.With(xerror.Join(err, probeErr))
+		}
+		if committed {
+			// Joining a request submitted by someone else carries no right to cancel it.
+			canCancel = committedToken == submissionToken
+			err = nil
+		}
+	}
 	if err != nil {
 		if kind == kindQuery && xerror.Is(err, xerror.ExecutionConcurrencyLimitExceeded()) {
 			metrics.RecordConnectorAdmission("rejected")
@@ -1061,6 +1106,10 @@ func (b *Broker) submitAndWait(
 				return response, responseErr
 			}
 		}
+	}
+	if !canCancel {
+		recordBrokerOutcome(kind, "ambiguous", startedAt)
+		return encryptedResponse{}, ErrAmbiguousExecution.With(waitErr)
 	}
 	cancelledBeforeExecution, cancelErr := b.cancel(ctx, id)
 	if cancelErr != nil {
@@ -1124,7 +1173,7 @@ func contextOutcome(err error) string {
 
 func executionMayHaveExternalSideEffects(kind string) bool {
 	switch kind {
-	case "connection_test", "schema_introspection", "transform", "git_source_snapshot", "git_branch_list", kindPrepareS3Write:
+	case "connection_test", "schema_introspection", "transform", "git_source_snapshot", "git_branch_list", kindPrepareS3Write, kindFTPArtifactPrepare, kindFTPArtifactRead:
 		return false
 	default:
 		return true
@@ -1236,6 +1285,8 @@ func responseError(response encryptedResponse) error {
 
 func responseErrorCause(response encryptedResponse) error {
 	switch response.ErrorCode {
+	case artifactReadUnavailable, artifactReadChanged, artifactReadTransient, artifactBindingRefused, artifactPublishUncertain:
+		return FTPArtifactError(response.ErrorCode)
 	case "sink_effect_unknown":
 		return writegate.ErrOutcomeUnknown
 	case "sink_preparation_failed":
@@ -1428,6 +1479,8 @@ func (b *Broker) processClaimed(ctx context.Context, request requestrepo.Request
 	execCtx = executiondelivery.WithRequest(execCtx, id)
 	execute := func(execCtx context.Context) error {
 		switch request.Kind {
+		case kindFTPArtifactPrepare, kindFTPArtifactPublish, kindFTPArtifactRead:
+			response, succeeded = b.processFTPArtifact(execCtx, request, plaintext)
 		case kindProofMetadata:
 			response, succeeded = processProofMetadata(execCtx, request.OrganizationSlug, plaintext, authorityTime)
 		case kindConnectionTest:
@@ -1674,7 +1727,7 @@ func (b *Broker) processClaimed(ctx context.Context, request requestrepo.Request
 		OrganizationSlug slug.Slug `json:"organization_slug"`
 		DataSourceSlug   slug.Slug `json:"data_source_slug"`
 	}
-	if request.Kind == kindQuery || request.Kind == kindPrepareS3Write || request.Kind == kindConnectionTest || request.Kind == kindSchema {
+	if request.Kind == kindQuery || request.Kind == kindPrepareS3Write || request.Kind == kindConnectionTest || request.Kind == kindSchema || isFTPArtifactKind(request.Kind) {
 		if err := json.Unmarshal(plaintext, &identity); err != nil {
 			return b.finish(ctx, id, claimToken, encryptedResponse{ErrorCode: errorCodeInvalidRequest}, false)
 		}
