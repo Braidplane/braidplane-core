@@ -797,6 +797,7 @@ type PipelineArtifactDelivery struct {
 	Sha256                     string
 	PublishRequestID           pgtype.UUID
 	SubmittedAt                pgtype.Timestamptz
+	SubmissionToken            pgtype.UUID
 	PermitSpentAt              pgtype.Timestamptz
 	ConfirmedAt                pgtype.Timestamptz
 }

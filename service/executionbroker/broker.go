@@ -980,11 +980,15 @@ func (b *Broker) submitAndWait(
 		QueueCapacity:    admission.QueueCapacity,
 		QueueDeadlineAt:  queueDeadline,
 	}
+	var submissionToken uuid.UUID
+	if publishing {
+		submissionToken = uuid.New()
+	}
 	canCancel := true
 	commitAttempted := false
 	err = b.txm.RunInTx(waitCtx, func(ctx context.Context, tx postgres.DBTX) error {
 		if publishing {
-			marked, err := requestrepo.New().MarkFTPArtifactSubmitted(ctx, tx, artifact.DeliveryID, req, artifact.ProjectEnvironmentID)
+			marked, err := requestrepo.New().MarkFTPArtifactSubmitted(ctx, tx, artifact.DeliveryID, req, artifact.ProjectEnvironmentID, submissionToken)
 			if err != nil {
 				return err
 			}
@@ -1036,17 +1040,18 @@ func (b *Broker) submitAndWait(
 		// A commit error does not prove that the transaction rolled back. Only
 		// the scoped durable marker can authorize waiting on the original UUID.
 		probeCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), cancelGracePeriod)
-		committed, probeErr := postgres.InRead(probeCtx, b.txm, func(ctx context.Context, db postgres.DBTX) (bool, error) {
-			return requestrepo.New().FTPArtifactSubmissionCommitted(ctx, db, artifact.DeliveryID, req, artifact.ProjectEnvironmentID)
+		committedToken, probeErr := postgres.InRead(probeCtx, b.txm, func(ctx context.Context, db postgres.DBTX) (uuid.UUID, error) {
+			return requestrepo.New().FTPArtifactSubmissionToken(ctx, db, artifact.DeliveryID, req, artifact.ProjectEnvironmentID)
 		})
 		cancel()
+		committed := committedToken != uuid.Nil
 		if probeErr != nil || (!committed && commitAttempted) {
 			recordBrokerOutcome(kind, "ambiguous", startedAt)
 			return encryptedResponse{}, ErrAmbiguousExecution.With(xerror.Join(err, probeErr))
 		}
 		if committed {
 			// Joining a request submitted by someone else carries no right to cancel it.
-			canCancel = commitAttempted
+			canCancel = committedToken == submissionToken
 			err = nil
 		}
 	}

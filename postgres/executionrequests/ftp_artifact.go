@@ -12,13 +12,14 @@ import (
 	"github.com/Braidplane/braidplane-core/postgres/dbgen"
 )
 
-func (Repository) MarkFTPArtifactSubmitted(ctx context.Context, tx postgres.DBTX, deliveryID uuid.UUID, request Request, projectEnvironmentID int64) (bool, error) {
+func (Repository) MarkFTPArtifactSubmitted(ctx context.Context, tx postgres.DBTX, deliveryID uuid.UUID, request Request, projectEnvironmentID int64, submissionToken uuid.UUID) (bool, error) {
 	ok, err := dbgen.New(tx).MarkFTPArtifactSubmitted(ctx, dbgen.MarkFTPArtifactSubmittedParams{
 		DeliveryID:           pgtype.UUID{Bytes: deliveryID.UUID, Valid: true},
 		RequestID:            pgtype.UUID{Bytes: request.ID.UUID, Valid: true},
 		OrgSlug:              request.OrganizationSlug,
 		SourceSlug:           request.DataSourceSlug,
 		ProjectEnvironmentID: projectEnvironmentID,
+		SubmissionToken:      pgtype.UUID{Bytes: submissionToken.UUID, Valid: true},
 	})
 	if err != nil {
 		return false, xerror.Unexpected().With(err)
@@ -63,14 +64,15 @@ func (Repository) SpendFTPArtifactPermit(ctx context.Context, tx postgres.DBTX, 
 	return ok, nil
 }
 
-func (Repository) FTPArtifactSubmissionCommitted(ctx context.Context, db postgres.DBTX, deliveryID uuid.UUID, request Request, projectEnvironmentID int64) (bool, error) {
-	return dbgen.New(db).FTPArtifactSubmissionCommitted(ctx, dbgen.FTPArtifactSubmissionCommittedParams{
+func (Repository) FTPArtifactSubmissionToken(ctx context.Context, db postgres.DBTX, deliveryID uuid.UUID, request Request, projectEnvironmentID int64) (uuid.UUID, error) {
+	token, err := dbgen.New(db).FTPArtifactSubmissionToken(ctx, dbgen.FTPArtifactSubmissionTokenParams{
 		DeliveryID:           pgtype.UUID{Bytes: deliveryID.UUID, Valid: true},
 		RequestID:            pgtype.UUID{Bytes: request.ID.UUID, Valid: true},
 		OrgSlug:              request.OrganizationSlug,
 		SourceSlug:           request.DataSourceSlug,
 		ProjectEnvironmentID: projectEnvironmentID,
 	})
+	return uuid.UUID{UUID: token.Bytes}, err
 }
 
 func (Repository) CheckFTPArtifactRead(ctx context.Context, db postgres.DBTX, permit FTPArtifactPermit, environmentID, queryID int64, queryRevision time.Time) (bool, error) {

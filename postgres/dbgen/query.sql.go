@@ -10593,18 +10593,18 @@ func (q *Queries) ExpireProofObservationJobs(ctx context.Context, arg ExpireProo
 	return items, nil
 }
 
-const fTPArtifactSubmissionCommitted = `-- name: FTPArtifactSubmissionCommitted :one
-SELECT EXISTS (
-    SELECT 1 FROM pipeline_artifact_deliveries AS d
+const fTPArtifactSubmissionToken = `-- name: FTPArtifactSubmissionToken :one
+SELECT COALESCE((
+    SELECT d.submission_token FROM pipeline_artifact_deliveries AS d
     JOIN organizations AS org ON org.id = d.organization_id
     JOIN data_sources AS source ON source.id = d.data_source_id AND source.organization_id = org.id
     WHERE d.id = $1::uuid AND d.publish_request_id = $2::uuid
       AND org.slug = $3::text AND source.slug = $4::text AND d.submitted_at IS NOT NULL
       AND d.project_environment_id = $5::bigint
-)::boolean
+), '00000000-0000-0000-0000-000000000000'::uuid)::uuid
 `
 
-type FTPArtifactSubmissionCommittedParams struct {
+type FTPArtifactSubmissionTokenParams struct {
 	DeliveryID           pgtype.UUID
 	RequestID            pgtype.UUID
 	OrgSlug              string
@@ -10612,15 +10612,15 @@ type FTPArtifactSubmissionCommittedParams struct {
 	ProjectEnvironmentID int64
 }
 
-func (q *Queries) FTPArtifactSubmissionCommitted(ctx context.Context, arg FTPArtifactSubmissionCommittedParams) (bool, error) {
-	row := q.db.QueryRow(ctx, fTPArtifactSubmissionCommitted,
+func (q *Queries) FTPArtifactSubmissionToken(ctx context.Context, arg FTPArtifactSubmissionTokenParams) (pgtype.UUID, error) {
+	row := q.db.QueryRow(ctx, fTPArtifactSubmissionToken,
 		arg.DeliveryID,
 		arg.RequestID,
 		arg.OrgSlug,
 		arg.SourceSlug,
 		arg.ProjectEnvironmentID,
 	)
-	var column_1 bool
+	var column_1 pgtype.UUID
 	err := row.Scan(&column_1)
 	return column_1, err
 }
@@ -11876,7 +11876,7 @@ func (q *Queries) FindEventBySlug(ctx context.Context, arg FindEventBySlugParams
 }
 
 const findFTPArtifactIntent = `-- name: FindFTPArtifactIntent :one
-SELECT d.id, d.organization_id, d.project_id, d.project_environment_id, d.producer_attempt_slug, d.sink_step_slug, d.effect_key, d.producer_version_id, d.deployment_id, d.deployment_resolution_digest, d.write_query_id, d.write_query_updated_at, d.data_source_id, d.source_config_digest, d.credential_id, d.credential_updated_at, d.final_path, d.staging_path, d.size_bytes, d.sha256, d.publish_request_id, d.submitted_at, d.permit_spent_at, d.confirmed_at FROM pipeline_artifact_deliveries AS d
+SELECT d.id, d.organization_id, d.project_id, d.project_environment_id, d.producer_attempt_slug, d.sink_step_slug, d.effect_key, d.producer_version_id, d.deployment_id, d.deployment_resolution_digest, d.write_query_id, d.write_query_updated_at, d.data_source_id, d.source_config_digest, d.credential_id, d.credential_updated_at, d.final_path, d.staging_path, d.size_bytes, d.sha256, d.publish_request_id, d.submitted_at, d.submission_token, d.permit_spent_at, d.confirmed_at FROM pipeline_artifact_deliveries AS d
 JOIN organizations AS org ON org.id = d.organization_id
 WHERE d.id = $1::uuid AND org.slug = $2::text
     AND d.project_environment_id = $3::bigint
@@ -11914,6 +11914,7 @@ func (q *Queries) FindFTPArtifactIntent(ctx context.Context, arg FindFTPArtifact
 		&i.Sha256,
 		&i.PublishRequestID,
 		&i.SubmittedAt,
+		&i.SubmissionToken,
 		&i.PermitSpentAt,
 		&i.ConfirmedAt,
 	)
@@ -27971,7 +27972,8 @@ func (q *Queries) MarkDataSourceTestSuccess(ctx context.Context, arg MarkDataSou
 const markFTPArtifactSubmitted = `-- name: MarkFTPArtifactSubmitted :one
 SELECT public.mark_ftp_artifact_submitted(
     $1::uuid, $2::uuid,
-    $3::text, $4::text, $5::bigint
+    $3::text, $4::text, $5::bigint,
+    $6::uuid
 )::boolean
 `
 
@@ -27981,6 +27983,7 @@ type MarkFTPArtifactSubmittedParams struct {
 	OrgSlug              string
 	SourceSlug           string
 	ProjectEnvironmentID int64
+	SubmissionToken      pgtype.UUID
 }
 
 func (q *Queries) MarkFTPArtifactSubmitted(ctx context.Context, arg MarkFTPArtifactSubmittedParams) (bool, error) {
@@ -27990,6 +27993,7 @@ func (q *Queries) MarkFTPArtifactSubmitted(ctx context.Context, arg MarkFTPArtif
 		arg.OrgSlug,
 		arg.SourceSlug,
 		arg.ProjectEnvironmentID,
+		arg.SubmissionToken,
 	)
 	var column_1 bool
 	err := row.Scan(&column_1)

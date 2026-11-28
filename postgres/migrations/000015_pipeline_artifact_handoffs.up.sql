@@ -21,9 +21,11 @@ CREATE TABLE public.pipeline_artifact_deliveries (
     sha256 text NOT NULL CHECK (sha256 ~ '^[0-9a-f]{64}$'),
     publish_request_id uuid NOT NULL UNIQUE,
     submitted_at timestamptz,
+    submission_token uuid,
     permit_spent_at timestamptz,
     confirmed_at timestamptz,
     CHECK (final_path <> staging_path),
+    CHECK ((submitted_at IS NULL) = (submission_token IS NULL)),
     CHECK (permit_spent_at IS NULL OR submitted_at IS NOT NULL),
     CHECK (confirmed_at IS NULL OR permit_spent_at IS NOT NULL),
     UNIQUE (organization_id, project_environment_id, id),
@@ -39,14 +41,14 @@ CREATE TABLE public.pipeline_artifact_deliveries (
 -- The intent update is the submission lock. Call before creating the envelope
 -- and River job, in the same transaction. Keep the marker after envelope expiry.
 CREATE FUNCTION public.mark_ftp_artifact_submitted(
-    delivery_id uuid, request_id uuid, org_slug text, source_slug text, project_env_id bigint
+    delivery_id uuid, request_id uuid, org_slug text, source_slug text, project_env_id bigint, submit_token uuid
 ) RETURNS boolean
     LANGUAGE sql
     SET search_path TO 'pg_catalog', 'public'
     AS $$
     WITH marked AS (
         UPDATE public.pipeline_artifact_deliveries AS d
-        SET submitted_at = clock_timestamp()
+        SET submitted_at = clock_timestamp(), submission_token = submit_token
         FROM public.organizations AS org, public.data_sources AS source,
              public.pipeline_sink_effects AS effect
         WHERE d.id = delivery_id AND d.publish_request_id = request_id
@@ -121,7 +123,7 @@ END;
 $$;
 
 REVOKE ALL ON TABLE public.pipeline_artifact_deliveries FROM PUBLIC;
-REVOKE ALL ON FUNCTION public.mark_ftp_artifact_submitted(uuid, uuid, text, text, bigint) FROM PUBLIC;
+REVOKE ALL ON FUNCTION public.mark_ftp_artifact_submitted(uuid, uuid, text, text, bigint, uuid) FROM PUBLIC;
 REVOKE ALL ON FUNCTION public.spend_ftp_artifact_permit(uuid, uuid, uuid, text, text, jsonb, text, text, timestamptz, jsonb, text, text, bigint, text) FROM PUBLIC;
 
 -- A late artifact acknowledgement must never become a usable response.
@@ -295,9 +297,10 @@ CREATE FUNCTION public.reject_ftp_artifact_intent_rewrite() RETURNS trigger
     SET search_path TO 'pg_catalog', 'public'
     AS $$
 BEGIN
-    IF (to_jsonb(OLD) - ARRAY['submitted_at', 'permit_spent_at', 'confirmed_at'])
-       IS DISTINCT FROM (to_jsonb(NEW) - ARRAY['submitted_at', 'permit_spent_at', 'confirmed_at'])
+    IF (to_jsonb(OLD) - ARRAY['submitted_at', 'submission_token', 'permit_spent_at', 'confirmed_at'])
+       IS DISTINCT FROM (to_jsonb(NEW) - ARRAY['submitted_at', 'submission_token', 'permit_spent_at', 'confirmed_at'])
        OR (OLD.submitted_at IS NOT NULL AND OLD.submitted_at IS DISTINCT FROM NEW.submitted_at)
+       OR (OLD.submission_token IS NOT NULL AND OLD.submission_token IS DISTINCT FROM NEW.submission_token)
        OR (OLD.permit_spent_at IS NOT NULL AND OLD.permit_spent_at IS DISTINCT FROM NEW.permit_spent_at)
        OR (OLD.confirmed_at IS NOT NULL AND OLD.confirmed_at IS DISTINCT FROM NEW.confirmed_at) THEN
         RAISE EXCEPTION 'FTP artifact intent cannot be rewritten';

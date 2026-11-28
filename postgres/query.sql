@@ -14119,7 +14119,8 @@ FROM target t CROSS JOIN counts c;
 -- name: MarkFTPArtifactSubmitted :one
 SELECT public.mark_ftp_artifact_submitted(
     sqlc.arg(delivery_id)::uuid, sqlc.arg(request_id)::uuid,
-    sqlc.arg(org_slug)::text, sqlc.arg(source_slug)::text, sqlc.arg(project_environment_id)::bigint
+    sqlc.arg(org_slug)::text, sqlc.arg(source_slug)::text, sqlc.arg(project_environment_id)::bigint,
+    sqlc.arg(submission_token)::uuid
 )::boolean;
 
 -- name: SpendFTPArtifactPermit :one
@@ -14136,15 +14137,15 @@ SELECT public.confirm_ftp_artifact_delivery(
     sqlc.arg(org_slug)::text, sqlc.arg(project_environment_id)::bigint
 )::boolean;
 
--- name: FTPArtifactSubmissionCommitted :one
-SELECT EXISTS (
-    SELECT 1 FROM pipeline_artifact_deliveries AS d
+-- name: FTPArtifactSubmissionToken :one
+SELECT COALESCE((
+    SELECT d.submission_token FROM pipeline_artifact_deliveries AS d
     JOIN organizations AS org ON org.id = d.organization_id
     JOIN data_sources AS source ON source.id = d.data_source_id AND source.organization_id = org.id
     WHERE d.id = sqlc.arg(delivery_id)::uuid AND d.publish_request_id = sqlc.arg(request_id)::uuid
       AND org.slug = sqlc.arg(org_slug)::text AND source.slug = sqlc.arg(source_slug)::text AND d.submitted_at IS NOT NULL
       AND d.project_environment_id = sqlc.arg(project_environment_id)::bigint
-)::boolean;
+), '00000000-0000-0000-0000-000000000000'::uuid)::uuid;
 
 -- name: CheckFTPArtifactRead :one
 SELECT public.check_ftp_artifact_read(
