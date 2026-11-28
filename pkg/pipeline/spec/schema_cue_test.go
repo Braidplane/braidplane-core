@@ -15,6 +15,20 @@ import (
 // CUE vet subprocesses are intentionally serialized to avoid CI runner CPU contention.
 func TestPipelineSpecCUESchemaValidationBoundaries(t *testing.T) {
 	validSpecs := map[string]string{
+		"AcceptsArtifactProducerDeclaration": `{
+  "metadata":{"slug":"orders","name":"Orders"},
+  "steps":[
+    {"kind":"query","slug":"orders","query":{"data_source_ref":"db","operation_type":"sql","operation_ref":"orders"}},
+    {"kind":"sink","slug":"deliver","sink":{"artifact_delivery":true,"input":"orders","data_source_ref":"ftp","operation_type":"ftp","operation_ref":"publish","idempotency_class":"unsafe","config":{"path":"reserved/orders.csv"}}}
+  ]
+}`,
+		"AcceptsArtifactConsumerDeclaration": `{
+  "metadata":{"slug":"reconcile","name":"Reconcile"},
+  "steps":[
+    {"kind":"query","slug":"delivered","query":{"artifact_input":true,"data_source_ref":"ftp","operation_type":"ftp","operation_ref":"read"}},
+    {"kind":"sink","slug":"record","sink":{"input":"delivered","data_source_ref":"db","operation_type":"sql","operation_ref":"record","idempotency_class":"unsafe"}}
+  ]
+}`,
 		"AcceptsImmutableODCSContractRefs": `{
   "metadata": {"slug": "odcs-contract-refs", "name": "ODCS contract refs"},
   "steps": [{

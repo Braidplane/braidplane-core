@@ -44,6 +44,13 @@ func (s *service) RecoverRun(ctx context.Context, orgSlug, projectSlug, environm
 	if version.ID != original.Metadata.PipelineVersionID {
 		return nil, xerror.InvalidInput(xerror.PipelineRun).Detail("recovery version does not match the original run")
 	}
+	pipeline, err := pipelineFromJSON(version.SpecJSONB)
+	if err != nil {
+		return nil, err
+	}
+	if pipeline.UsesArtifactHandoff() {
+		return nil, xerror.ReplayUnsafe().WithPublicDetail("Artifact pipelines do not support generic recovery.")
+	}
 	source.EnvironmentSlug = environmentSlug
 	source.Summary = "Operator sink recovery"
 	source, err = validateRunSourceSummary(source)

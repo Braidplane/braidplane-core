@@ -13,25 +13,37 @@ import (
 	"github.com/riverqueue/river"
 	"github.com/stretchr/testify/require"
 
+	"github.com/Braidplane/braidplane-core/pkg/clock"
+	"github.com/Braidplane/braidplane-core/pkg/connector/result"
 	"github.com/Braidplane/braidplane-core/pkg/connector/transportsecurity"
+	"github.com/Braidplane/braidplane-core/pkg/contractplan"
 	"github.com/Braidplane/braidplane-core/pkg/crypto"
+	"github.com/Braidplane/braidplane-core/pkg/deploymentplan"
 	"github.com/Braidplane/braidplane-core/pkg/depsports"
 	"github.com/Braidplane/braidplane-core/pkg/domain/model"
 	"github.com/Braidplane/braidplane-core/pkg/executiondelivery"
+	pipelinerun "github.com/Braidplane/braidplane-core/pkg/pipeline/run"
+	pipelinespec "github.com/Braidplane/braidplane-core/pkg/pipeline/spec"
 	"github.com/Braidplane/braidplane-core/pkg/queue"
 	"github.com/Braidplane/braidplane-core/pkg/slug"
 	"github.com/Braidplane/braidplane-core/pkg/testutil"
 	"github.com/Braidplane/braidplane-core/pkg/testutil/e2edb"
+	"github.com/Braidplane/braidplane-core/pkg/testutil/fakes"
 	"github.com/Braidplane/braidplane-core/pkg/uuid"
 	"github.com/Braidplane/braidplane-core/pkg/xerror"
 	"github.com/Braidplane/braidplane-core/postgres"
+	credentialsrepo "github.com/Braidplane/braidplane-core/postgres/credentials"
 	"github.com/Braidplane/braidplane-core/postgres/dbgen"
 	"github.com/Braidplane/braidplane-core/postgres/pipelinesinkeffects"
+	"github.com/Braidplane/braidplane-core/service/credentialssvc"
+	"github.com/Braidplane/braidplane-core/service/datasourcessvc"
 	"github.com/Braidplane/braidplane-core/service/datasourcessvc/connector"
 	"github.com/Braidplane/braidplane-core/service/datasourcessvc/connector/filedata"
 	"github.com/Braidplane/braidplane-core/service/datasourcessvc/connector/ftp"
 	"github.com/Braidplane/braidplane-core/service/datasourcessvc/connector/types"
 	"github.com/Braidplane/braidplane-core/service/executionbroker"
+	"github.com/Braidplane/braidplane-core/service/pipelineruntime"
+	"github.com/Braidplane/braidplane-core/service/pipelinesvc"
 	"github.com/Braidplane/braidplane-core/service/queriessvc"
 	"github.com/Braidplane/braidplane-core/service/worker/consumer"
 	"github.com/Braidplane/braidplane-core/service/worker/jobs"
@@ -131,11 +143,22 @@ func TestFTPArtifactHandoff(t *testing.T) {
 	require.NoError(t, err)
 	const write = `{"operation":"write","format":"csv","path":"orders.csv"}`
 	const read = `{"operation":"read","format":"csv","path":"orders.csv"}`
+	writeData, err := json.Marshal(map[string]any{"statement": write, "row_limit": 10})
+	require.NoError(t, err)
+	readData, err := json.Marshal(map[string]any{"statement": read, "row_limit": 10})
+	require.NoError(t, err)
 	for _, mode := range []string{"poller", "river"} {
 		t.Run(mode, func(t *testing.T) {
 			ctx, cancel := context.WithCancel(ctx)
 			defer cancel()
 			org := slug.Slug("artifact-" + mode)
+			credentialCipher, err := crypto.NewCredentialKeyring("fixture", map[string][]byte{"fixture": make([]byte, 32)}, nil)
+			require.NoError(t, err)
+			credentialJSON := []byte(`{"username":"braidplane","password":"braidplanepass"}`)
+			encryptedCredential, err := credentialCipher.Seal(crypto.CredentialScope{
+				Tenant: org.String(), Resource: "ftp-credential", Purpose: "static-secret", SchemaVersion: 1,
+			}, credentialJSON)
+			require.NoError(t, err)
 			var projectID, envID, writeID, readID, versionID int64
 			var credRevision, writeRevision, readRevision time.Time
 			require.NoError(t, pool.QueryRow(ctx, `
@@ -145,7 +168,7 @@ func TestFTPArtifactHandoff(t *testing.T) {
 				scope AS (INSERT INTO project_environments (organization_id,project_id,environment_id)
 					SELECT org.id,project.id,env.id FROM org,project,env RETURNING id),
 				cred AS (INSERT INTO credentials (organization_id,slug,kind,credential_type,status,encrypted_payload)
-					SELECT id,'ftp-credential','static_secret','ftp','active',decode('00','hex') FROM org RETURNING id,organization_id,updated_at),
+					SELECT id,'ftp-credential','static_secret','ftp','active',$5 FROM org RETURNING id,organization_id,updated_at),
 				source AS (INSERT INTO data_sources (organization_id,credential_id,slug,name,type,config,is_active)
 					SELECT organization_id,id,'ftp-source','FTP','ftp',$2,true FROM cred RETURNING id),
 				w AS (INSERT INTO queries (data_source_id,slug,name,data)
@@ -159,7 +182,7 @@ func TestFTPArtifactHandoff(t *testing.T) {
 					SELECT project_id,slug,'{}','synthetic-version' FROM spec RETURNING id)
 				SELECT project.id,scope.id,cred.updated_at,w.id,w.updated_at,r.id,r.updated_at,v.id
 				FROM project,scope,cred,w,r,v
-			`, org, config, write, read).Scan(&projectID, &envID, &credRevision, &writeID, &writeRevision, &readID, &readRevision, &versionID))
+			`, org, config, writeData, readData, encryptedCredential).Scan(&projectID, &envID, &credRevision, &writeID, &writeRevision, &readID, &readRevision, &versionID))
 
 			txm := postgres.NewTransactionManager(pool)
 			apiTx := &loseArtifactCommitReply{TransactionManager: txm}
@@ -236,13 +259,13 @@ func TestFTPArtifactHandoff(t *testing.T) {
 			req := executionbroker.FTPArtifactRequest{
 				ConnectorExecutionRequest: queriessvc.ConnectorExecutionRequest{
 					OrganizationSlug: org, DataSourceSlug: "ftp-source", DataSourceType: model.DataSourceTypeFTP,
-					PinnedConfigDigest: digest, ConfigJSON: config, CredentialsJSON: []byte(`{"username":"braidplane","password":"braidplanepass"}`),
-					CredentialReference: "ftp-credential/" + credRevision.Format(time.RFC3339Nano), StatementJSON: json.RawMessage(write),
+					PinnedConfigDigest: digest, ConfigJSON: config, CredentialsJSON: credentialJSON,
+					CredentialReference: "ftp-credential/" + credRevision.UTC().Format(time.RFC3339Nano), StatementJSON: json.RawMessage(write),
 					SinkExecution: true, ConcurrencyLimit: 1, ConcurrencyQueueLimit: 4, ConcurrencyQueueTimeout: 4 * time.Second,
 					Limits: types.ExecutionLimits{MaxResultRows: 10, MaxFileBytes: 1024, MaxResponseBytes: 1024},
 				},
 				ArtifactEvidence: ftp.ArtifactEvidence{DeliveryID: uuid.New()}, Directory: "nested", Content: json.RawMessage(`[{"id":"102"}]`),
-				PublishRequestID: uuid.New(), ProjectEnvironmentID: envID,
+				PublishRequestID: uuid.New(), ProjectEnvironmentID: envID, SavedQueryData: writeData,
 			}
 			evidence, err := api.PrepareFTPArtifact(ctx, req)
 			require.NoError(t, err)
@@ -271,7 +294,7 @@ func TestFTPArtifactHandoff(t *testing.T) {
 						OrgSlug:          org.String(), ProjectEnvironmentID: envID, AttemptSlug: runSlug, SinkStepSlug: "sink", EffectKey: "effect",
 						SourceSlug: "ftp-source", ExpectedConfig: config, CredentialSlug: "ftp-credential",
 						CredentialRevision: pgtype.Timestamptz{Time: credRevision, Valid: true}, WriteQueryID: writeID,
-						WriteQueryRevision: pgtype.Timestamptz{Time: writeRevision, Valid: true}, Statement: []byte(write),
+						WriteQueryRevision: pgtype.Timestamptz{Time: writeRevision, Valid: true}, Statement: writeData,
 						ConfigDigest: digest, FinalPath: evidence.FinalPath, StagingPath: evidence.StagingPath, SizeBytes: evidence.SizeBytes, Sha256: evidence.SHA256,
 					})
 					if err == nil && !created {
@@ -357,7 +380,7 @@ func TestFTPArtifactHandoff(t *testing.T) {
 			require.True(t, confirmed)
 			_, err = pool.Exec(ctx, `UPDATE pipeline_runs SET status='succeeded' WHERE project_environment_id=$1 AND run_slug='produce'`, envID)
 			require.NoError(t, err)
-			req.SinkExecution, req.Content = false, nil
+			req.SinkExecution, req.Content, req.SavedQueryData = false, nil, readData
 			req.StatementJSON, req.ReadQueryID, req.ReadQueryUpdatedAt = json.RawMessage(read), readID, readRevision
 			rows, err := api.ReadFTPArtifact(ctx, req)
 			require.NoError(t, err)
@@ -431,7 +454,7 @@ func TestFTPArtifactHandoff(t *testing.T) {
 			}
 			_, err = pool.Exec(ctx, `DELETE FROM execution_requests WHERE id=$1`, req.PublishRequestID)
 			require.NoError(t, err)
-			req.SinkExecution, req.Content, req.StatementJSON = true, json.RawMessage(`[{"id":"102"}]`), json.RawMessage(write)
+			req.SinkExecution, req.Content, req.StatementJSON, req.SavedQueryData = true, json.RawMessage(`[{"id":"102"}]`), json.RawMessage(write), writeData
 			require.Error(t, api.PublishFTPArtifact(ctx, req))
 			require.Equal(t, providerCalls, providerConnections.Load())
 
@@ -562,6 +585,81 @@ func TestFTPArtifactHandoff(t *testing.T) {
 			rows, err = direct.FetchArtifactCSV(ctx, uncertain.ArtifactEvidence, 1024, filedata.ParseCSVOptions{})
 			require.NoError(t, err)
 			require.Equal(t, []map[string]any{{"id": "102"}}, rows.Rows)
+
+			// Exercise the producer against the real broker in both delivery modes.
+			credentials, err := credentialssvc.New(txm, credentialsrepo.New(), credentialCipher, credentialssvc.ProviderRegistry{}, clock.New(), true)
+			require.NoError(t, err)
+			sources := &fakes.DataSourceService{FindBySlugFn: func(_ context.Context, o, source slug.Slug) (*datasourcessvc.DataSource, error) {
+				require.Equal(t, org, o)
+				require.Equal(t, slug.Slug("ftp-source"), source)
+				return &datasourcessvc.DataSource{
+					Slug: source, Type: model.DataSourceTypeFTP, Config: config, IsActive: true,
+					Credential: &credentialssvc.CredentialMetadata{Kind: credentialssvc.CredentialKindStaticSecret, Status: credentialssvc.CredentialStatusActive},
+				}, nil
+			}}
+			queries, err := queriessvc.NewWithExecutionLimits(txm, nil, sources, api, credentials, clock.New(), queriessvc.ExecutionLimits{
+				QueryTimeout: 8 * time.Second, ConnectorTimeout: 5 * time.Second, MaxResultRows: 10, MaxFileBytes: 1024, MaxResponseBytes: 1024,
+				ConnectorConcurrencyPerDataSource: 1, HTTPTimeout: time.Second, HTTPMaxRequestBytes: 1024, HTTPMaxResponseBytes: 1024, HTTPMaxRedirects: 1, HTTPRetryAttempts: 1,
+			}, nil)
+			require.NoError(t, err)
+			resolver := queries.(interface {
+				ResolveFTPArtifactWrite(context.Context, slug.Slug, slug.Slug, contractplan.OperationContent) (queriessvc.ConnectorExecutionRequest, error)
+			})
+			producerCtx := deploymentplan.WithStep(deploymentplan.WithDispatch(ctx, org, []deploymentplan.Target{
+				{Step: "sink", Role: "sink", DataSource: "ftp-source", ConfigDigest: digest, BindingRevision: "fixture-binding"},
+			}), "sink")
+			for _, dropReply := range []bool{false, true} {
+				attempt := "producer-confirmed"
+				if dropReply {
+					attempt = "producer-uncertain"
+				}
+				_, err := pool.Exec(ctx, `
+					INSERT INTO pipeline_runs (project_id,project_environment_id,pipeline_version_id,pipeline_version_spec_hash,api_version,
+						pipeline_slug,run_slug,source_environment_slug,status,duration_ms,step_slug,timeline,deployment_id,deployment_resolution_digest)
+					VALUES ($1,$2,$3,'synthetic-version','v1','orders',$4,'test','running',0,'sink','{}',9,'resolution')
+				`, projectID, envID, versionID, attempt)
+				require.NoError(t, err)
+				qualify := func(context.Context, slug.Slug, slug.Slug, slug.Slug, slug.Slug) (pipelinesvc.QualifiedFTPStorage, error) {
+					return pipelinesvc.QualifiedFTPStorage{
+						Organization: org, Project: "orders", Environment: "test", Source: "ftp-source", EnvironmentID: envID,
+						BindingRevision: "fixture-binding", ConfigDigest: digest, CredentialReference: req.CredentialReference, Directory: "nested",
+					}, nil
+				}
+				produce := pipelinesvc.NewFTPArtifactProducer(txm, pipelinesinkeffects.New(), resolver, api, qualify)
+				sink := pipelineruntime.NewSinkRuntimeWithArtifactProducer(nil, nil, produce)
+				input := &pipelineruntime.SinkRuntimeInput{
+					ArtifactDelivery: true, OrgSlug: org, ProjectSlug: "orders", EnvironmentSlug: "test",
+					RunSource: pipelinerun.RunSourceSummary{Type: model.PipelineRunSourceTypeManual, Entrypoint: model.PipelineRunSourceEntrypointUI},
+					RunSlug:   attempt, ReplayIdentity: attempt, SinkStepSlug: "sink", ExclusiveEffectClaim: true,
+					SinkBackend: model.SinkBackendFTP, SinkDataSourceSlug: "ftp-source", SinkOperationRef: "publish",
+					SinkConfig: map[string]any{"path": "nested/orders.csv"}, BindingRevision: "fixture-binding",
+					OperationRevision: writeRevision.Format(time.RFC3339Nano), OperationSnapshot: &contractplan.OperationContent{Data: writeData},
+					IdempotencyClass: pipelinespec.SinkIdempotencyClassUnsafe, IdempotencyKey: "effect",
+					SourceResult: pipelinerun.NewStepResult(result.NewSQLResult("postgres", &result.SQLResult{
+						Rows: []map[string]any{{"id": "102"}}, RowCount: 1, ColumnNames: []string{"id"},
+					}, 0, nil)),
+				}
+				before := proxy.renames.Load()
+				proxy.dropNextRename.Store(dropReply)
+				err = sink.Execute(producerCtx, input)
+				if dropReply {
+					require.ErrorContains(t, err, "artifact_publication_uncertain")
+					require.Equal(t, "unknown", input.DeliveryOutcome)
+				} else {
+					require.NoError(t, err)
+					require.Equal(t, "confirmed", input.DeliveryOutcome)
+				}
+				require.Error(t, sink.Execute(producerCtx, input))
+				require.Equal(t, before+1, proxy.renames.Load())
+				var confirmed, succeeded bool
+				require.NoError(t, pool.QueryRow(ctx, `SELECT d.confirmed_at IS NOT NULL, e.state='succeeded'
+					FROM pipeline_artifact_deliveries d JOIN pipeline_sink_effects e
+					  ON (e.project_environment_id,e.run_slug,e.sink_step_slug,e.idempotency_key)=
+					     (d.project_environment_id,d.producer_attempt_slug,d.sink_step_slug,d.effect_key)
+					WHERE d.project_environment_id=$1 AND d.producer_attempt_slug=$2`, envID, attempt).Scan(&confirmed, &succeeded))
+				require.Equal(t, !dropReply, confirmed)
+				require.Equal(t, confirmed, succeeded)
+			}
 		})
 	}
 }

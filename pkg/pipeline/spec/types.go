@@ -89,6 +89,7 @@ func (input *StepInput) UnmarshalYAML(value *yaml.Node) error {
 
 // SinkSpec configures pipeline output delivery for kind=sink steps.
 type SinkSpec struct {
+	ArtifactDelivery bool                 `json:"artifact_delivery,omitempty" yaml:"artifact_delivery,omitempty"`
 	EmptyInputPolicy string               `json:"empty_input_policy,omitempty" yaml:"empty_input_policy,omitempty" validate:"omitempty,oneof=skip reject"`
 	Input            *StepInput           `json:"input,omitempty"            yaml:"input,omitempty"            validate:"omitempty"`
 	InputContract    *payload.Contract    `json:"input_contract,omitempty"   yaml:"input_contract,omitempty"   validate:"-"`
@@ -170,6 +171,7 @@ type IncrementalSourceContract struct {
 // $steps.<step-slug>.<field> (e.g. $steps.fetch-users.rows). References are
 // resolved at runtime by the Runner before the operation is executed.
 type QueryRef struct {
+	ArtifactInput     bool                       `json:"artifact_input,omitempty" yaml:"artifact_input,omitempty"`
 	DataSourceSlug    slug.Slug                  `json:"data_source_ref"            yaml:"data_source_ref"            validate:"required,slug"`
 	OperationType     string                     `json:"operation_type"             yaml:"operation_type"             validate:"required"`
 	OperationRef      slug.Slug                  `json:"operation_ref,omitempty"    yaml:"operation_ref,omitempty"    validate:"omitempty,slug"`
@@ -178,6 +180,19 @@ type QueryRef struct {
 	OutputContractRef *ODCSContractRef           `json:"output_contract_ref,omitempty" yaml:"output_contract_ref,omitempty" validate:"-"`
 	Parameters        map[string]any             `json:"parameters,omitempty"       yaml:"parameters,omitempty"`
 	Incremental       *IncrementalSourceContract `json:"incremental,omitempty"      yaml:"incremental,omitempty"      validate:"-"`
+}
+
+// UsesArtifactHandoff identifies declarations that require the artifact activation barrier.
+func (p *Pipeline) UsesArtifactHandoff() bool {
+	if p == nil {
+		return false
+	}
+	for _, step := range p.Steps {
+		if step.Query != nil && step.Query.ArtifactInput || step.Sink != nil && step.Sink.ArtifactDelivery {
+			return true
+		}
+	}
+	return false
 }
 
 // UsesContractComposition identifies syntax gated at authoring and execution admission.

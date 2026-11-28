@@ -433,6 +433,9 @@ func saveDraft(
 	if pipeline == nil {
 		return xerror.InvalidRequired(xerror.Pipeline)
 	}
+	if pipeline.UsesArtifactHandoff() {
+		return errArtifactHandoffDisabled
+	}
 
 	specJSON, err := json.Marshal(pipeline)
 	if err != nil {
@@ -657,6 +660,9 @@ func prepareGitDraftPublish(
 	pipeline, err := pipelinevalidate.Load(pipelineSlug.String()+".pipeline.json", draft.SpecJSONB)
 	if err != nil {
 		return nil, xerror.Wrapf("validate pipeline draft %s before queue publish: %w", pipelineSlug, err)
+	}
+	if pipeline.UsesArtifactHandoff() {
+		return nil, errArtifactHandoffDisabled
 	}
 	if pipeline.Metadata.Slug != pipelineSlug {
 		return nil, xerror.InvalidInput(xerror.Pipeline).Detailf(
@@ -1168,6 +1174,11 @@ func (s *pipelineStore) ReconcileFromGit(
 				)
 				continue
 			}
+		}
+
+		if pipeline.UsesArtifactHandoff() {
+			result.addFailure(pipelinePath, pipelineSlug, "validate", errArtifactHandoffDisabled)
+			continue
 		}
 
 		resolved, pins, resolveErr := s.resolvePipelineContracts(ctx, orgSlug, projectSlug, pipeline, true)
