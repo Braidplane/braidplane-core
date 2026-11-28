@@ -69,9 +69,15 @@ class InstallationDatabaseTest(unittest.TestCase):
             "read_retained_file(uuid,uuid,text,uuid)",
             "read_retained_file_chunk(uuid,uuid,text,uuid,integer)",
             "discard_retained_file(uuid,uuid,text)",
+            "spend_ftp_artifact_permit(uuid,uuid,uuid,text,text,jsonb,text,text,timestamptz,jsonb,text,text,bigint,text)",
+            "check_ftp_artifact_read(uuid,uuid,uuid,bigint,bigint,timestamptz,jsonb,text,text,bigint,text)",
         ):
             result = self.psql("SELECT has_function_privilege('braidplane_executor', 'public." + capability + "', 'EXECUTE');")
             self.assertEqual(result.stdout.strip(), "t", capability)
+        submit = self.psql("SELECT has_function_privilege('braidplane_executor', 'public.mark_ftp_artifact_submitted(uuid,uuid,text,text,bigint,uuid)', 'EXECUTE');")
+        self.assertEqual(submit.stdout.strip(), "f")
+        intent = self.psql("SELECT has_table_privilege('braidplane_executor', 'public.pipeline_artifact_deliveries', 'SELECT');")
+        self.assertEqual(intent.stdout.strip(), "f")
         self.psql("SET ROLE braidplane_migrator; CREATE FUNCTION public.fixture_future_capability() RETURNS int LANGUAGE sql AS 'SELECT 1';")
         denied = self.psql("SET ROLE braidplane_executor; SELECT public.fixture_future_capability();", check=False)
         self.assertNotEqual(denied.returncode, 0)

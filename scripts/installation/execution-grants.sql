@@ -51,6 +51,8 @@ GRANT EXECUTE ON FUNCTION
     public.seal_retained_file(uuid, uuid, text, bigint, text),
     public.read_retained_file(uuid, uuid, text, uuid),
     public.read_retained_file_chunk(uuid, uuid, text, uuid, integer),
-    public.discard_retained_file(uuid, uuid, text)
+    public.discard_retained_file(uuid, uuid, text),
+    public.spend_ftp_artifact_permit(uuid, uuid, uuid, text, text, jsonb, text, text, timestamptz, jsonb, text, text, bigint, text),
+    public.check_ftp_artifact_read(uuid, uuid, uuid, bigint, bigint, timestamptz, jsonb, text, text, bigint, text)
 TO :"executor_role";
 COMMIT;

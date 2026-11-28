@@ -3,6 +3,7 @@ package ftp_e2e
 import (
 	"bytes"
 	"context"
+	"strings"
 	"testing"
 	"time"
 
@@ -51,6 +52,15 @@ func TestFTPArtifactHandoff(t *testing.T) {
 	changed := evidence
 	changed.SHA256 = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
 	rows, err = conn.FetchArtifactCSV(ctx, changed, 1024, opts)
+	require.ErrorIs(t, err, ftpconnector.ErrArtifactChanged)
+	require.Nil(t, rows)
+
+	_, err = executeFTP(ctx, conn, map[string]any{
+		"operation": "write", "path": strings.TrimPrefix(evidence.FinalPath, "/"), "format": "csv",
+		"content": "id\n102\n103\n104\n",
+	}, nil)
+	require.NoError(t, err)
+	rows, err = conn.FetchArtifactCSV(ctx, evidence, 1024, opts)
 	require.ErrorIs(t, err, ftpconnector.ErrArtifactChanged)
 	require.Nil(t, rows)
 

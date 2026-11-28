@@ -37,11 +37,11 @@ func ParseCSV(content []byte, opts ParseCSVOptions) (*result.FileResult, error) 
 		reader.Comma = runes[0]
 	}
 
-	records, err := reader.ReadAll()
-	if err != nil {
+	first, err := reader.Read()
+	if err != nil && !xerror.Is(err, io.EOF) {
 		return nil, xerror.Unexpected().With(err)
 	}
-	if len(records) == 0 {
+	if xerror.Is(err, io.EOF) {
 		return &result.FileResult{
 			Rows:        []map[string]any{},
 			ColumnNames: []string{},
@@ -54,7 +54,27 @@ func ParseCSV(content []byte, opts ParseCSVOptions) (*result.FileResult, error) 
 	if opts.HasHeader != nil {
 		hasHeader = *opts.HasHeader
 	} else {
-		hasHeader = !isLikelyHeadless(records[0])
+		hasHeader = !isLikelyHeadless(first)
+	}
+
+	records := [][]string{first}
+	dataRows := 1
+	if hasHeader {
+		dataRows = 0
+	}
+	for {
+		record, err := reader.Read()
+		if xerror.Is(err, io.EOF) {
+			break
+		}
+		if err != nil {
+			return nil, xerror.Unexpected().With(err)
+		}
+		if opts.MaxRows > 0 && dataRows >= opts.MaxRows {
+			return nil, xerror.ExecutionRowLimitExceeded().Detailf("file content contains more than %d rows", opts.MaxRows)
+		}
+		records = append(records, record)
+		dataRows++
 	}
 
 	startDataRow := 0
@@ -87,12 +107,6 @@ func ParseCSV(content []byte, opts ParseCSVOptions) (*result.FileResult, error) 
 
 	rows := make([]map[string]any, 0, len(records)-startDataRow)
 	for i := startDataRow; i < len(records); i++ {
-		if opts.MaxRows > 0 && len(rows) >= opts.MaxRows {
-			return nil, xerror.ExecutionRowLimitExceeded().Detailf(
-				"file content contains more than %d rows",
-				opts.MaxRows,
-			)
-		}
 
 		record := records[i]
 		row := make(map[string]any, len(headers)+1)

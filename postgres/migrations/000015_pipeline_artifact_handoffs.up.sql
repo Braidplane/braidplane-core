@@ -244,6 +244,21 @@ CREATE OR REPLACE FUNCTION public.check_connector_dispatch(request_id uuid, expe
             AND request.cancel_requested_at IS NULL AND request.deadline_at > clock_timestamp()
             AND request.lease_expires_at > clock_timestamp()
             AND organization.slug = organization_slug AND source.slug = data_source_slug
+            AND (request.kind <> 'ftp_artifact_publish' OR EXISTS (
+                SELECT 1 FROM public.pipeline_artifact_deliveries AS delivery
+                JOIN public.project_environments AS pe ON pe.id = delivery.project_environment_id
+                JOIN public.environments AS env ON env.id = pe.environment_id
+                JOIN public.pipeline_runs AS run ON run.project_environment_id = pe.id
+                    AND run.run_slug = delivery.producer_attempt_slug AND run.project_id = delivery.project_id
+                JOIN public.queries AS q ON q.id = delivery.write_query_id AND q.data_source_id = source.id
+                WHERE delivery.publish_request_id = request.id AND delivery.organization_id = organization.id
+                    AND delivery.data_source_id = source.id AND delivery.permit_spent_at IS NOT NULL
+                    AND delivery.credential_id = credential.id AND delivery.credential_updated_at = credential.updated_at
+                    AND pe.deleted_at IS NULL AND env.deleted_at IS NULL AND NOT env.protected
+                    AND run.status = 'running' AND run.pipeline_version_id = delivery.producer_version_id
+                    AND run.deployment_id = delivery.deployment_id AND run.deployment_resolution_digest = delivery.deployment_resolution_digest
+                    AND q.deleted_at IS NULL AND q.updated_at = delivery.write_query_updated_at
+            ))
             AND source.type = data_source_type AND source.deleted_at IS NULL AND source.is_active
             AND (expected_config IS NULL OR source.config = expected_config)
             AND (NOT source.read_only OR admitted_read_only)

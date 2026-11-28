@@ -17,6 +17,7 @@ import (
 	"github.com/Braidplane/braidplane-core/pkg/crypto"
 	"github.com/Braidplane/braidplane-core/pkg/depsports"
 	"github.com/Braidplane/braidplane-core/pkg/domain/model"
+	"github.com/Braidplane/braidplane-core/pkg/executiondelivery"
 	"github.com/Braidplane/braidplane-core/pkg/queue"
 	"github.com/Braidplane/braidplane-core/pkg/slug"
 	"github.com/Braidplane/braidplane-core/pkg/testutil"
@@ -72,9 +73,10 @@ type artifactAdmissionGate struct {
 }
 
 type artifactGate struct {
-	entered chan struct{}
-	release chan struct{}
-	once    sync.Once
+	entered   chan struct{}
+	release   chan struct{}
+	requestID uuid.UUID
+	once      sync.Once
 }
 
 func (g *artifactGate) unblock() {
@@ -83,6 +85,7 @@ func (g *artifactGate) unblock() {
 
 func (a *artifactAdmissionGate) WithOperation(ctx context.Context, _, _ slug.Slug, execute func(context.Context) error) error {
 	if gate := a.next.Swap(nil); gate != nil {
+		gate.requestID, _ = executiondelivery.Request(ctx)
 		close(gate.entered)
 		select {
 		case <-gate.release:
@@ -164,6 +167,7 @@ func TestFTPArtifactHandoff(t *testing.T) {
 			var providerConnections atomic.Int64
 			var failTransport atomic.Bool
 			var stallTransport atomic.Bool
+			var protectAfterPermit atomic.Bool
 			admission := &artifactAdmissionGate{}
 			base := connector.NewConnectorWithTracing(connector.NewConnectorWithTransportPolicy(connector.NewConnector, true))
 			executor, err := executionbroker.New(executorTx, cipher, executionbroker.NewPollerDispatcher(), 8*time.Second, func(ctx context.Context, kind model.DataSourceType, cfg, cred []byte) (connector.Connector, error) {
@@ -174,6 +178,12 @@ func TestFTPArtifactHandoff(t *testing.T) {
 				if stallTransport.Swap(false) {
 					<-ctx.Done()
 					return nil, ctx.Err()
+				}
+				if protectAfterPermit.Swap(false) {
+					_, err := pool.Exec(ctx, `UPDATE environments SET protected=true WHERE id=(SELECT environment_id FROM project_environments WHERE id=$1)`, envID)
+					if err != nil {
+						return nil, xerror.Unexpected().With(err)
+					}
 				}
 				conn, err := base(ctx, kind, cfg, cred)
 				if err != nil {
@@ -395,6 +405,11 @@ func TestFTPArtifactHandoff(t *testing.T) {
 				t.Fatal("broker did not return the caller's timeout")
 			}
 			readGate.unblock()
+			require.Eventually(t, func() bool {
+				var state string
+				err := pool.QueryRow(ctx, `SELECT state FROM execution_requests WHERE id=$1`, readGate.requestID).Scan(&state)
+				return err == nil && state == "ambiguous"
+			}, 3*time.Second, 25*time.Millisecond)
 
 			providerCalls := providerConnections.Load()
 			require.EqualValues(t, 4, providerCalls)
@@ -507,6 +522,19 @@ func TestFTPArtifactHandoff(t *testing.T) {
 			case <-ctx.Done():
 				t.Fatal("original publication did not finish")
 			}
+			providerCalls++
+
+			protected := req
+			protected.DeliveryID, protected.PublishRequestID = uuid.New(), uuid.New()
+			protected.ArtifactEvidence, err = api.PrepareFTPArtifact(ctx, protected)
+			require.NoError(t, err)
+			seedIntent(protected, "protected-before-rename")
+			renamesBeforeProtection := proxy.renames.Load()
+			protectAfterPermit.Store(true)
+			require.ErrorContains(t, api.PublishFTPArtifact(ctx, protected), "artifact_publication_uncertain")
+			require.Equal(t, renamesBeforeProtection, proxy.renames.Load())
+			_, err = pool.Exec(ctx, `UPDATE environments SET protected=false WHERE id=(SELECT environment_id FROM project_environments WHERE id=$1)`, envID)
+			require.NoError(t, err)
 			providerCalls++
 
 			uncertain := req

@@ -81,6 +81,7 @@ func (c *Connector) PublishArtifact(ctx context.Context, evidence ArtifactEviden
 	defer func() { retErr = xerror.Join(retErr, finish()) }()
 	// A successful directory listing distinguishes existing names from a
 	// refusal to inspect the namespace. Exclusivity is a site prerequisite.
+	// shortcut: inspect the full qualified directory, replace with a bounded exact-name probe before high-volume rollout.
 	names, err := c.conn.NameList(path.Dir(evidence.FinalPath))
 	if err != nil {
 		return xerror.ExecutionFailed().With(err)
@@ -117,7 +118,10 @@ func (c *Connector) FetchArtifactCSV(ctx context.Context, evidence ArtifactEvide
 		return nil, filestream.ErrUnavailable
 	}
 	var body bytes.Buffer
-	metadata, err := (ftpProvider{connector: c}).ReadFileTo(ctx, evidence.FinalPath, min(maxBytes, evidence.SizeBytes+1), &body)
+	metadata, err := (ftpProvider{connector: c}).ReadFileTo(ctx, evidence.FinalPath, max(1, evidence.SizeBytes), &body)
+	if xerror.Is(err, xerror.ExecutionResponseSizeExceeded()) {
+		return nil, ErrArtifactChanged
+	}
 	if err != nil {
 		return nil, err
 	}
