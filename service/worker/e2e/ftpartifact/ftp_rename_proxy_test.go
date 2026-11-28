@@ -76,7 +76,8 @@ func (p *ftpRenameProxy) forward(ctx context.Context, client net.Conn, providerA
 		if err != nil {
 			break
 		}
-		if strings.HasPrefix(line, "250 ") && renaming.Swap(false) {
+		terminal := len(line) >= 4 && line[3] == ' ' && line[0] >= '2' && line[0] <= '5'
+		if terminal && renaming.Swap(false) && strings.HasPrefix(line, "250 ") {
 			p.renames.Add(1)
 			if p.dropNextRename.Swap(false) {
 				break
