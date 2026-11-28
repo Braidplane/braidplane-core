@@ -51,7 +51,7 @@ func TestFTPArtifactHandoff(t *testing.T) {
 	changed := evidence
 	changed.SHA256 = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
 	rows, err = conn.FetchArtifactCSV(ctx, changed, 1024, opts)
-	require.Error(t, err)
+	require.ErrorIs(t, err, ftpconnector.ErrArtifactChanged)
 	require.Nil(t, rows)
 
 	short, full := prepare()

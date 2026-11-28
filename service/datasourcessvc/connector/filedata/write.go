@@ -5,6 +5,7 @@ import (
 	"encoding/csv"
 	"fmt"
 	"sort"
+	"strings"
 
 	"github.com/Braidplane/braidplane-core/pkg/xerror"
 )
@@ -14,6 +15,15 @@ import (
 // Raw CSV strings are handled by the caller before invoking this function.
 // Returns the encoded bytes, the number of written rows, and any error.
 func EncodeCSVContent(content any, opts ParseCSVOptions) ([]byte, int, error) {
+	return encodeCSVContent(content, opts, false)
+}
+
+// EncodeArtifactCSV preserves records that the standard reader would discard as blank lines.
+func EncodeArtifactCSV(content any, opts ParseCSVOptions) ([]byte, int, error) {
+	return encodeCSVContent(content, opts, true)
+}
+
+func encodeCSVContent(content any, opts ParseCSVOptions, artifact bool) ([]byte, int, error) {
 	rows, ok := content.([]any)
 	if !ok {
 		return nil, 0, xerror.Unexpected().Detail(
@@ -56,7 +66,17 @@ func EncodeCSVContent(content any, opts ParseCSVOptions) ([]byte, int, error) {
 	if opts.HasHeader != nil {
 		hasHeader = *opts.HasHeader
 	}
+	if artifact && len(headers) == 0 && len(objectRows) > 0 {
+		return nil, 0, xerror.InvalidInput(xerror.Query).Detail("CSV artifact rows require at least one column")
+	}
 	if hasHeader {
+		if artifact {
+			for _, header := range headers {
+				if strings.TrimSpace(header) == "" {
+					return nil, 0, xerror.InvalidInput(xerror.Query).Detail("CSV artifact header contains a blank column name")
+				}
+			}
+		}
 		if err := writer.Write(headers); err != nil {
 			return nil, 0, xerror.Unexpected().With(err)
 		}
@@ -71,6 +91,16 @@ func EncodeCSVContent(content any, opts ParseCSVOptions) ([]byte, int, error) {
 				continue
 			}
 			record[i] = fmt.Sprint(value)
+		}
+		if artifact && len(record) == 1 && record[0] == "" {
+			writer.Flush()
+			if err := writer.Error(); err != nil {
+				return nil, 0, xerror.Unexpected().With(err)
+			}
+			if _, err := buffer.Write([]byte{'"', '"', '\n'}); err != nil {
+				return nil, 0, err
+			}
+			continue
 		}
 		if err := writer.Write(record); err != nil {
 			return nil, 0, xerror.Unexpected().With(err)

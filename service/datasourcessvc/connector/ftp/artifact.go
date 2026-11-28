@@ -48,7 +48,7 @@ func PrepareArtifactCSV(config Config, directory, filename string, id uuid.UUID,
 		return ArtifactEvidence{}, nil, err
 	}
 	options.MaxBytes = min(limit, MaxArtifactBytes)
-	body, _, err := filedata.EncodeCSVContent(content, options)
+	body, _, err := filedata.EncodeArtifactCSV(content, options)
 	if err != nil {
 		return ArtifactEvidence{}, nil, err
 	}

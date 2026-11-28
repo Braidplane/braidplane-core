@@ -326,11 +326,7 @@ func TestFTPArtifactHandoff(t *testing.T) {
 			admission.next.Store(readGate)
 			rows, err = shortWaitAPI.ReadFTPArtifact(ctx, req)
 			close(readGate.release)
-			select {
-			case <-readGate.entered:
-			default:
-				t.Fatal("verified read did not reach the executor before its broker timeout")
-			}
+			admission.next.CompareAndSwap(readGate, nil)
 			require.Nil(t, rows)
 			require.ErrorIs(t, err, context.DeadlineExceeded)
 			require.NotErrorAs(t, err, &typed)

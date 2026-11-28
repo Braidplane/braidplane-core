@@ -31,3 +31,15 @@ func TestPrepareArtifactCSV(t *testing.T) {
 	_, _, err = prepare(id, "../reserved", 100)
 	require.Error(t, err)
 }
+
+func TestArtifactCSVPreservesEmptySingleColumnRecord(t *testing.T) {
+	options := filedata.ParseCSVOptions{}
+	content := []any{map[string]any{"id": ""}, map[string]any{"id": "102"}}
+	_, body, err := PrepareArtifactCSV(Config{}, "reserved", "orders.csv", uuid.New(), 100, content, options)
+	require.NoError(t, err)
+	parsed, err := filedata.ParseCSV(body, options)
+	require.NoError(t, err)
+	require.Equal(t, []map[string]any{{"id": ""}, {"id": "102"}}, parsed.Rows)
+	_, _, err = PrepareArtifactCSV(Config{}, "reserved", "orders.csv", uuid.New(), 100, []any{map[string]any{" ": "102"}}, options)
+	require.Error(t, err)
+}

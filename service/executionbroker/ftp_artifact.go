@@ -195,12 +195,18 @@ func artifactAuthority(request requestrepo.Request, req FTPArtifactRequest) (req
 func (b *Broker) checkFTPArtifactDispatch(ctx context.Context, authority requestrepo.FTPArtifactPermit, read *FTPArtifactRequest) error {
 	return b.txm.RunRead(postgres.WithoutTransaction(ctx), func(ctx context.Context, db postgres.DBTX) error {
 		allowed, err := b.repo.CheckDispatch(ctx, db, authority.DispatchAuthority)
-		if err != nil || !allowed {
+		if err != nil {
+			return err
+		}
+		if !allowed {
 			return FTPArtifactError(artifactBindingRefused)
 		}
 		if read != nil {
 			allowed, err = requestrepo.New().CheckFTPArtifactRead(ctx, db, authority, read.ProjectEnvironmentID, read.ReadQueryID, read.ReadQueryUpdatedAt)
-			if err != nil || !allowed {
+			if err != nil {
+				return err
+			}
+			if !allowed {
 				return FTPArtifactError(artifactBindingRefused)
 			}
 		}
@@ -254,8 +260,11 @@ func (b *Broker) publishFTPArtifact(ctx context.Context, request requestrepo.Req
 
 func (b *Broker) readFTPArtifact(ctx context.Context, request requestrepo.Request, req FTPArtifactRequest, options filedata.ParseCSVOptions) (encryptedResponse, bool) {
 	authority, err := artifactAuthority(request, req)
-	if err != nil || b.checkFTPArtifactDispatch(ctx, authority, &req) != nil {
+	if err != nil {
 		return encryptedResponse{ErrorCode: artifactBindingRefused}, false
+	}
+	if err := b.checkFTPArtifactDispatch(ctx, authority, &req); err != nil {
+		return encryptedResponse{ErrorCode: artifactReadDispatchError(err)}, false
 	}
 	conn, closeConn, err := b.openFTPArtifact(ctx, req)
 	if err != nil {
@@ -266,8 +275,8 @@ func (b *Broker) readFTPArtifact(ctx context.Context, request requestrepo.Reques
 	if err != nil {
 		return encryptedResponse{ErrorCode: artifactReadError(ctx, err)}, false
 	}
-	if b.checkFTPArtifactDispatch(ctx, authority, &req) != nil {
-		return encryptedResponse{ErrorCode: artifactBindingRefused}, false
+	if err := b.checkFTPArtifactDispatch(ctx, authority, &req); err != nil {
+		return encryptedResponse{ErrorCode: artifactReadDispatchError(err)}, false
 	}
 	encoded, err := json.Marshal(rows)
 	if err != nil || int64(len(encoded)) > req.Limits.MaxResponseBytes {
@@ -285,4 +294,12 @@ func artifactReadError(ctx context.Context, err error) string {
 		return artifactReadTransient
 	}
 	return artifactReadUnavailable
+}
+
+func artifactReadDispatchError(err error) string {
+	if xerror.Is(err, FTPArtifactError(artifactBindingRefused)) {
+		return artifactBindingRefused
+	}
+	// Infrastructure failure does not prove that the FTP provider completed a transient read.
+	return errorCodeQueryFailed
 }
