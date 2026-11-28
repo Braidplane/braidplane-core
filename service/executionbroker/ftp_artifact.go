@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"io"
 	"net"
+	"net/textproto"
 	"path"
 	"strings"
 	"time"
@@ -245,12 +246,14 @@ func (b *Broker) publishFTPArtifact(ctx context.Context, request requestrepo.Req
 	if !spent {
 		return encryptedResponse{ErrorCode: artifactBindingRefused}, false
 	}
-	conn, closeConn, err := b.openFTPArtifact(ctx, req)
+	providerCtx, cancel := artifactProviderContext(ctx, req.Limits.ConnectorTimeout)
+	defer cancel()
+	conn, closeConn, err := b.openFTPArtifact(providerCtx, req)
 	if err != nil {
 		return encryptedResponse{ErrorCode: artifactPublishUncertain}, false
 	}
 	defer closeConn()
-	if err := conn.PublishArtifact(ctx, req.ArtifactEvidence, bytes.NewReader(body), func(ctx context.Context) error {
+	if err := conn.PublishArtifact(providerCtx, req.ArtifactEvidence, bytes.NewReader(body), func(ctx context.Context) error {
 		return b.checkFTPArtifactDispatch(ctx, authority, nil)
 	}); err != nil {
 		return encryptedResponse{ErrorCode: artifactPublishUncertain}, false
@@ -266,12 +269,14 @@ func (b *Broker) readFTPArtifact(ctx context.Context, request requestrepo.Reques
 	if err := b.checkFTPArtifactDispatch(ctx, authority, &req); err != nil {
 		return encryptedResponse{ErrorCode: artifactReadDispatchError(err)}, false
 	}
-	conn, closeConn, err := b.openFTPArtifact(ctx, req)
+	providerCtx, cancel := artifactProviderContext(ctx, req.Limits.ConnectorTimeout)
+	defer cancel()
+	conn, closeConn, err := b.openFTPArtifact(providerCtx, req)
 	if err != nil {
 		return encryptedResponse{ErrorCode: artifactReadError(ctx, err)}, false
 	}
 	defer closeConn()
-	rows, err := conn.FetchArtifactCSV(ctx, req.ArtifactEvidence, req.Limits.MaxFileBytes, options)
+	rows, err := conn.FetchArtifactCSV(providerCtx, req.ArtifactEvidence, req.Limits.MaxFileBytes, options)
 	if err != nil {
 		return encryptedResponse{ErrorCode: artifactReadError(ctx, err)}, false
 	}
@@ -285,12 +290,22 @@ func (b *Broker) readFTPArtifact(ctx context.Context, request requestrepo.Reques
 	return encryptedResponse{FTPArtifact: &ftpArtifactResponse{Rows: rows}}, true
 }
 
+func artifactProviderContext(ctx context.Context, timeout time.Duration) (context.Context, context.CancelFunc) {
+	if timeout <= 0 {
+		return context.WithCancel(ctx)
+	}
+	return context.WithTimeout(ctx, timeout)
+}
+
 func artifactReadError(ctx context.Context, err error) string {
 	if xerror.Is(err, ftp.ErrArtifactChanged) {
 		return artifactReadChanged
 	}
 	var transport net.Error
-	if ctx.Err() == nil && (xerror.As(err, &transport) || xerror.Is(err, io.EOF) || xerror.Is(err, io.ErrUnexpectedEOF)) {
+	var reply *textproto.Error
+	transferAborted := xerror.As(err, &reply) && reply.Code == 426
+	if ctx.Err() == nil && (transferAborted || xerror.As(err, &transport) ||
+		xerror.Is(err, io.EOF) || xerror.Is(err, io.ErrUnexpectedEOF) || xerror.Is(err, context.DeadlineExceeded)) {
 		return artifactReadTransient
 	}
 	return artifactReadUnavailable

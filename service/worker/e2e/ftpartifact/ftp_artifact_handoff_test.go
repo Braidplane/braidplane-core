@@ -3,8 +3,8 @@ package ftpartifact
 import (
 	"context"
 	"encoding/json"
-	"io"
-	"net"
+	"net/textproto"
+	"sync"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -74,6 +74,11 @@ type artifactAdmissionGate struct {
 type artifactGate struct {
 	entered chan struct{}
 	release chan struct{}
+	once    sync.Once
+}
+
+func (g *artifactGate) unblock() {
+	g.once.Do(func() { close(g.release) })
 }
 
 func (a *artifactAdmissionGate) WithOperation(ctx context.Context, _, _ slug.Slug, execute func(context.Context) error) error {
@@ -158,12 +163,17 @@ func TestFTPArtifactHandoff(t *testing.T) {
 			executorTx := &loseArtifactCommitReply{TransactionManager: txm}
 			var providerConnections atomic.Int64
 			var failTransport atomic.Bool
+			var stallTransport atomic.Bool
 			admission := &artifactAdmissionGate{}
 			base := connector.NewConnectorWithTracing(connector.NewConnectorWithTransportPolicy(connector.NewConnector, true))
 			executor, err := executionbroker.New(executorTx, cipher, executionbroker.NewPollerDispatcher(), 8*time.Second, func(ctx context.Context, kind model.DataSourceType, cfg, cred []byte) (connector.Connector, error) {
 				providerConnections.Add(1)
 				if failTransport.Swap(false) {
-					return nil, &net.OpError{Op: "read", Net: "tcp", Err: io.ErrUnexpectedEOF}
+					return nil, &textproto.Error{Code: 426, Msg: "fixture transfer aborted"}
+				}
+				if stallTransport.Swap(false) {
+					<-ctx.Done()
+					return nil, ctx.Err()
 				}
 				conn, err := base(ctx, kind, cfg, cred)
 				if err != nil {
@@ -273,11 +283,16 @@ func TestFTPArtifactHandoff(t *testing.T) {
 			require.NoError(t, err)
 			_, err = executor.Process(ctx, unknownID)
 			require.NoError(t, err)
+			var rejectedCiphertext []byte
 			require.Eventually(t, func() bool {
 				var state string
-				err := pool.QueryRow(ctx, `SELECT state FROM execution_requests WHERE id=$1`, unknownID).Scan(&state)
+				err := pool.QueryRow(ctx, `SELECT state,result_ciphertext FROM execution_requests WHERE id=$1`, unknownID).Scan(&state, &rejectedCiphertext)
 				return err == nil && state == "failed"
 			}, time.Second, 25*time.Millisecond)
+			rejectedPlaintext, err := cipher.Decrypt(rejectedCiphertext)
+			require.NoError(t, err)
+			require.JSONEq(t, `{"error_code":"invalid_request"}`, string(rejectedPlaintext))
+			clear(rejectedPlaintext)
 			require.Zero(t, providerConnections.Load())
 
 			rollbackDispatch.Store(true)
@@ -347,7 +362,16 @@ func TestFTPArtifactHandoff(t *testing.T) {
 			require.ErrorAs(t, err, &typed)
 			require.True(t, typed.RetryableRead())
 
+			stallTransport.Store(true)
+			timedRead := req
+			timedRead.Limits.ConnectorTimeout = 100 * time.Millisecond
+			rows, err = api.ReadFTPArtifact(ctx, timedRead)
+			require.Nil(t, rows)
+			require.ErrorAs(t, err, &typed)
+			require.True(t, typed.RetryableRead())
+
 			readGate := &artifactGate{entered: make(chan struct{}), release: make(chan struct{})}
+			defer readGate.unblock()
 			admission.next.Store(readGate)
 			waitCtx := artifactCallerDeadline{Context: ctx, elapsed: make(chan struct{})}
 			waitResult := make(chan error, 1)
@@ -359,7 +383,7 @@ func TestFTPArtifactHandoff(t *testing.T) {
 			case <-readGate.entered:
 			case <-ctx.Done():
 				close(waitCtx.elapsed)
-				close(readGate.release)
+				readGate.unblock()
 				t.Fatal("verified read did not reach the executor")
 			}
 			close(waitCtx.elapsed)
@@ -370,10 +394,10 @@ func TestFTPArtifactHandoff(t *testing.T) {
 			case <-ctx.Done():
 				t.Fatal("broker did not return the caller's timeout")
 			}
-			close(readGate.release)
+			readGate.unblock()
 
 			providerCalls := providerConnections.Load()
-			require.EqualValues(t, 3, providerCalls)
+			require.EqualValues(t, 4, providerCalls)
 
 			var encrypted bool
 			require.NoError(t, pool.QueryRow(ctx, `SELECT position($2::bytea IN request_ciphertext)=0 AND position($2::bytea IN result_ciphertext)=0
@@ -403,6 +427,7 @@ func TestFTPArtifactHandoff(t *testing.T) {
 				require.NoError(t, err)
 				seedIntent(failed, failure)
 				gate := &artifactGate{entered: make(chan struct{}), release: make(chan struct{})}
+				defer gate.unblock()
 				admission.next.Store(gate)
 				callCtx, cancelCall := context.WithCancel(ctx)
 				published := make(chan error, 1)
@@ -418,7 +443,7 @@ func TestFTPArtifactHandoff(t *testing.T) {
 					cancelCall()
 				case "permit-commit-reply":
 					executorTx.lose.Store(true)
-					close(gate.release)
+					gate.unblock()
 				case "lease-expiry":
 					_, err = pool.Exec(ctx, `UPDATE execution_requests SET lease_expires_at=clock_timestamp()-interval '1 second' WHERE id=$1`, failed.PublishRequestID)
 					require.NoError(t, err)
@@ -437,7 +462,7 @@ func TestFTPArtifactHandoff(t *testing.T) {
 				}
 				cancelCall()
 				if failure != "permit-commit-reply" {
-					close(gate.release)
+					gate.unblock()
 				}
 				require.Eventually(t, func() bool {
 					var state string
@@ -459,13 +484,14 @@ func TestFTPArtifactHandoff(t *testing.T) {
 			require.NoError(t, err)
 			seedIntent(duplicate, "duplicate-waiter")
 			publishGate := &artifactGate{entered: make(chan struct{}), release: make(chan struct{})}
+			defer publishGate.unblock()
 			admission.next.Store(publishGate)
 			published := make(chan error, 1)
 			go func() { published <- api.PublishFTPArtifact(ctx, duplicate) }()
 			select {
 			case <-publishGate.entered:
 			case <-ctx.Done():
-				close(publishGate.release)
+				publishGate.unblock()
 				t.Fatal("publication did not reach the executor")
 			}
 			duplicateAPI, err := executionbroker.New(txm, cipher, dispatcher, 200*time.Millisecond, nil, nil, testutil.FakeOperationAdmission{})
@@ -474,7 +500,7 @@ func TestFTPArtifactHandoff(t *testing.T) {
 			var requestStillLive bool
 			require.NoError(t, pool.QueryRow(ctx, `SELECT state='running' AND cancel_requested_at IS NULL FROM execution_requests WHERE id=$1`, duplicate.PublishRequestID).Scan(&requestStillLive))
 			require.True(t, requestStillLive)
-			close(publishGate.release)
+			publishGate.unblock()
 			select {
 			case err := <-published:
 				require.NoError(t, err)
