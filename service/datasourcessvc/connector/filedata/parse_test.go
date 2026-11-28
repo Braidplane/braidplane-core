@@ -172,3 +172,12 @@ func TestParseJSON_Invalid(t *testing.T) {
 	require.Error(t, err)
 	require.ErrorContains(t, err, "parse JSON content")
 }
+
+func TestParseCSV_BoundsRepeatedKeysByResultBytes(t *testing.T) {
+	body := []byte("first_long_header,second_long_header\n,\n,\n")
+	_, err := ParseCSV(body, ParseCSVOptions{MaxBytes: 100, MaxResultBytes: 70})
+	require.ErrorIs(t, err, xerror.ExecutionResponseSizeExceeded())
+	result, err := ParseCSV(body, ParseCSVOptions{MaxBytes: 100, MaxResultBytes: 100})
+	require.NoError(t, err)
+	require.Len(t, result.Rows, 2)
+}

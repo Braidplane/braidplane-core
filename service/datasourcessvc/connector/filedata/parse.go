@@ -57,6 +57,16 @@ func ParseCSV(content []byte, opts ParseCSVOptions) (*result.FileResult, error) 
 		hasHeader = !isLikelyHeadless(first)
 	}
 
+	// Every output row repeats its keys, even when the input values are empty.
+	minimumRowBytes := 2 + 5*int64(len(first)) // Braces, quotes and colon.
+	if hasHeader {
+		for _, key := range first {
+			minimumRowBytes += int64(len(key))
+		}
+	}
+	if opts.MaxResultBytes > 0 && !hasHeader && minimumRowBytes > opts.MaxResultBytes {
+		return nil, xerror.ExecutionResponseSizeExceeded()
+	}
 	records := [][]string{first}
 	dataRows := 1
 	if hasHeader {
@@ -72,6 +82,9 @@ func ParseCSV(content []byte, opts ParseCSVOptions) (*result.FileResult, error) 
 		}
 		if opts.MaxRows > 0 && dataRows >= opts.MaxRows {
 			return nil, xerror.ExecutionRowLimitExceeded().Detailf("file content contains more than %d rows", opts.MaxRows)
+		}
+		if opts.MaxResultBytes > 0 && int64(dataRows+1) > opts.MaxResultBytes/minimumRowBytes {
+			return nil, xerror.ExecutionResponseSizeExceeded()
 		}
 		records = append(records, record)
 		dataRows++

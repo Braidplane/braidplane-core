@@ -276,6 +276,7 @@ func (b *Broker) readFTPArtifact(ctx context.Context, request requestrepo.Reques
 		return encryptedResponse{ErrorCode: artifactReadError(ctx, err)}, false
 	}
 	defer closeConn()
+	options.MaxResultBytes = req.Limits.MaxResponseBytes
 	rows, err := conn.FetchArtifactCSV(providerCtx, req.ArtifactEvidence, req.Limits.MaxFileBytes, options)
 	if err != nil {
 		return encryptedResponse{ErrorCode: artifactReadError(ctx, err)}, false
@@ -300,6 +301,9 @@ func artifactProviderContext(ctx context.Context, timeout time.Duration) (contex
 func artifactReadError(ctx context.Context, err error) string {
 	if xerror.Is(err, ftp.ErrArtifactChanged) {
 		return artifactReadChanged
+	}
+	if xerror.Is(err, xerror.ExecutionResponseSizeExceeded()) {
+		return errorCodeResponseSize
 	}
 	var transport net.Error
 	var reply *textproto.Error

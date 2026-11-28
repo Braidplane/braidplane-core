@@ -19,7 +19,7 @@ func (p ftpProvider) ReadFileTo(ctx context.Context, target string, maxBytes int
 	}
 	defer func() {
 		if err := finish(); err != nil {
-			metadata, retErr = nil, xerror.ExecutionFailed().With(err)
+			metadata, retErr = nil, xerror.ExecutionFailed().With(xerror.Join(retErr, err))
 		}
 	}()
 	response, err := p.connector.conn.Retr(target)

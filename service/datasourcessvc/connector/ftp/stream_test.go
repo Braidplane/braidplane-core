@@ -7,6 +7,8 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/require"
+
+	"github.com/Braidplane/braidplane-core/pkg/xerror"
 )
 
 func TestStreamingReadCancellationInterruptsBlockedData(t *testing.T) {
@@ -33,4 +35,30 @@ func TestStreamingReadCancellationInterruptsBlockedData(t *testing.T) {
 		t.Fatal("cancellation did not interrupt the FTP stream")
 	}
 	require.Error(t, connector.TestConnection(t.Context()))
+}
+
+func TestStreamingReadPreservesSizeErrorWhenFinalReplyStalls(t *testing.T) {
+	connector, reached, release := newCancellationFTP(t, t.Context(), "RETR-size-final")
+	defer func() { _ = connector.Close() }()
+	defer release()
+	ctx, cancel := context.WithCancel(t.Context())
+	defer cancel()
+	done := make(chan error, 1)
+	go func() {
+		_, err := (ftpProvider{connector}).ReadFileTo(ctx, "/fixture", 1, io.Discard)
+		done <- err
+	}()
+	select {
+	case <-reached:
+	case <-time.After(3 * time.Second):
+		t.Fatal("stream did not reach the FTP final reply stall")
+	}
+	cancel()
+	select {
+	case err := <-done:
+		require.ErrorIs(t, err, xerror.ExecutionResponseSizeExceeded())
+		require.ErrorIs(t, err, context.Canceled)
+	case <-time.After(time.Second):
+		t.Fatal("cancellation did not interrupt the FTP final reply")
+	}
 }
