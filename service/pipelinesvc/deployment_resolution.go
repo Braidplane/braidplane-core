@@ -31,6 +31,9 @@ func (s *service) resolveDeployment(ctx context.Context, db postgres.DBTX, org, 
 		if err != nil {
 			return "", err
 		}
+		if pipeline.UsesArtifactHandoff() {
+			return "", errArtifactHandoffDisabled
+		}
 		if pipeline.UsesContractComposition() {
 			return "", deploymentplan.ErrInvalid
 		}
@@ -77,6 +80,9 @@ func (s *service) resolveDeployment(ctx context.Context, db postgres.DBTX, org, 
 	portable, err := compiled.RuntimePipeline()
 	if err != nil {
 		return "", err
+	}
+	if portable.UsesArtifactHandoff() {
+		return "", errArtifactHandoffDisabled
 	}
 	if err := pipelinevalidate.Validate(portable); err != nil {
 		return "", err
@@ -233,13 +239,16 @@ func (s *service) executionPipeline(ctx context.Context, org, project, environme
 		if err != nil {
 			return nil, nil, err
 		}
+		if resolution.Pipeline.UsesArtifactHandoff() {
+			return nil, nil, deploymentplan.ErrInvalid
+		}
 		return resolution.Pipeline, raw, nil
 	}
 	pipeline, err := pipelineFromVersion(version)
 	if err != nil {
 		return nil, nil, err
 	}
-	if pipeline.UsesContractComposition() {
+	if pipeline.UsesContractComposition() || pipeline.UsesArtifactHandoff() {
 		return nil, nil, deploymentplan.ErrInvalid
 	}
 	return pipeline, nil, nil

@@ -44,3 +44,8 @@ func ConfirmFTPArtifactDelivery(ctx context.Context, tx postgres.DBTX, org slug.
 	}
 	return ok, nil
 }
+
+// FindFTPArtifactWriteQuery looks up the current ID of the pinned saved operation.
+func FindFTPArtifactWriteQuery(ctx context.Context, db postgres.DBTX, org, source, query slug.Slug) (dbgen.Query, error) {
+	return dbgen.New(db).FindQueryBySlug(ctx, dbgen.FindQueryBySlugParams{OrgSlug: org, DataSourceSlug: source, QuerySlug: query})
+}

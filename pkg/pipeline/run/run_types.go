@@ -50,6 +50,14 @@ type RunSourceSummary struct {
 	Webhook         *RunSourceWebhookSummary          `json:"webhook,omitempty"`
 }
 
+// AllowsArtifactProduction limits publication to a standalone manual or API attempt.
+func (source RunSourceSummary) AllowsArtifactProduction(runSlug string) bool {
+	return runSlug != "" && source.AttemptNumber >= 0 && source.AttemptNumber <= 1 && source.RetryOfRunSlug == nil &&
+		(source.RootRunSlug == "" || source.RootRunSlug.String() == runSlug) &&
+		(source.Type == model.PipelineRunSourceTypeManual && source.Entrypoint == model.PipelineRunSourceEntrypointUI ||
+			source.Type == model.PipelineRunSourceTypeAPI && source.Entrypoint == model.PipelineRunSourceEntrypointAPI)
+}
+
 // RunSourceWebhookSummary stores safe webhook delivery context without payload values.
 type RunSourceWebhookSummary struct {
 	DeliveryRecordID   int64     `json:"-"`

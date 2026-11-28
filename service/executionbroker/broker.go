@@ -1047,7 +1047,7 @@ func (b *Broker) submitAndWait(
 		committed := committedToken != uuid.Nil
 		if probeErr != nil || (!committed && commitAttempted) {
 			recordBrokerOutcome(kind, "ambiguous", startedAt)
-			return encryptedResponse{}, ErrAmbiguousExecution.With(xerror.Join(err, probeErr))
+			return encryptedResponse{}, ErrFTPArtifactSubmissionUnknown.With(ErrAmbiguousExecution.With(xerror.Join(err, probeErr)))
 		}
 		if committed {
 			// Joining a request submitted by someone else carries no right to cancel it.

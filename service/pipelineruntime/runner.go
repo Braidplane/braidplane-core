@@ -160,6 +160,10 @@ type SinkRuntime interface {
 
 // SinkRuntimeInput contains the resolved output passed to sink runtime.
 type SinkRuntimeInput struct {
+	ArtifactDelivery       bool
+	RunSource              pipelinerun.RunSourceSummary
+	OperationRevision      string
+	BindingRevision        string
 	ExclusiveEffectClaim   bool
 	OperationSnapshot      *contractplan.OperationContent
 	OrgSlug                slug.Slug
@@ -1087,6 +1091,9 @@ func (r *Runner) Replay(
 		return nil, ErrReplayRunNotFound.WithPublicDetail("Retained repair inputs are unavailable or incomplete. Reconcile provider effects before starting a new evaluation, which reads sources again.")
 	}
 
+	if checkpoint.Pipeline.UsesArtifactHandoff() {
+		return nil, ErrReplayUnsafe.WithPublicDetail("Artifact pipelines do not support generic recovery.")
+	}
 	if req.FromStep != "" && req.FromStep != string(checkpoint.StepSlug) {
 		return nil, ErrReplayStepNotFound.Detailf("%s", req.FromStep)
 	}
@@ -1305,6 +1312,9 @@ func (r *Runner) Run(
 	}
 	if req.Pipeline == nil {
 		return nil, ErrNilPipeline
+	}
+	if req.Pipeline.UsesArtifactHandoff() {
+		return nil, xerror.InvalidInput(xerror.Pipeline).Detail("artifact handoff is not enabled")
 	}
 	if r.executor == nil {
 		return nil, ErrQueryExecutorNotProvided
@@ -2123,7 +2133,17 @@ func (r *Runner) Run(
 			var sinkRuntimeInput *SinkRuntimeInput
 			sinkDSSlug := sinkDataSourceSlugForStep(step)
 			var operationSnapshot *contractplan.OperationContent
+			var operationRevision, bindingRevision string
+			if step.Sink.ArtifactDelivery && deployment != nil {
+				for _, target := range deployment.Targets {
+					if target.Step == step.Slug && target.Role == "sink" && target.DataSource == sinkDSSlug {
+						bindingRevision = target.BindingRevision
+						break
+					}
+				}
+			}
 			if op, ok := operations[step.Slug]; ok {
+				operationRevision = op.Revision
 				var content contractplan.OperationContent
 				if err := json.Unmarshal(op.Content, &content); err != nil {
 					return nil, contractplan.ErrInvalid.With(err)
@@ -2214,6 +2234,10 @@ func (r *Runner) Run(
 					}
 					if execErr == nil {
 						sinkRuntimeInput = &SinkRuntimeInput{
+							ArtifactDelivery:       step.Sink.ArtifactDelivery,
+							RunSource:              req.Source,
+							OperationRevision:      operationRevision,
+							BindingRevision:        bindingRevision,
 							ExclusiveEffectClaim:   true,
 							OperationSnapshot:      operationSnapshot,
 							OrgSlug:                req.OrgSlug,

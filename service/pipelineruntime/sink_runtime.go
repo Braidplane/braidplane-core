@@ -48,9 +48,19 @@ type sinkQueryExecutor interface {
 	) (*result.ExecutionResult, error)
 }
 
+// ArtifactProducer receives a validated sink input and an exclusive effect identity.
+type ArtifactProducer func(context.Context, *SinkRuntimeInput, []map[string]any, pipelinerun.SinkEffectAttempt) error
+
+// NewSinkRuntimeWithArtifactProducer assembles the dormant producer path for
+// isolated verification. Product runners still refuse artifact declarations.
+func NewSinkRuntimeWithArtifactProducer(queryExec sinkQueryExecutor, ledger pipelinerun.SinkEffectLedger, producer ArtifactProducer) SinkRuntime {
+	return &sinkRuntime{queryExecutor: queryExec, effectLedger: ledger, artifactProducer: producer}
+}
+
 type sinkRuntime struct {
-	queryExecutor sinkQueryExecutor
-	effectLedger  pipelinerun.SinkEffectLedger
+	artifactProducer ArtifactProducer
+	queryExecutor    sinkQueryExecutor
+	effectLedger     pipelinerun.SinkEffectLedger
 }
 
 type fileWriteSinkConfig struct {
@@ -113,6 +123,9 @@ func (s *sinkRuntime) Execute(ctx context.Context, input *SinkRuntimeInput) erro
 		return xerror.InvalidInput(xerror.PipelineRun).Detail("sink dispatch requires an owning run")
 	}
 	ctx = sinkbinding.WithSinkExecution(ctx)
+	if input.ArtifactDelivery {
+		return s.executeArtifactSink(ctx, input)
+	}
 
 	if err := validateReservedSinkConfigBindings(input.SinkConfig); err != nil {
 		return err
@@ -1489,4 +1502,26 @@ func sinkDeliveryOutcome(input *SinkRuntimeInput) string {
 		return "failed"
 	}
 	return input.DeliveryOutcome
+}
+
+func (s *sinkRuntime) executeArtifactSink(ctx context.Context, input *SinkRuntimeInput) error {
+	if s.artifactProducer == nil || !input.RunSource.AllowsArtifactProduction(input.RunSlug) ||
+		!input.ExclusiveEffectClaim || input.RunSlug != input.ReplayIdentity ||
+		input.IdempotencyKey == "" || input.SinkBackend != model.SinkBackendFTP || input.SinkDataSourceReadOnly ||
+		input.IdempotencyClass != pipelinespec.SinkIdempotencyClassUnsafe {
+		return errSinkNotConfigured.Detail("artifact delivery requires an exclusive FTP sink attempt")
+	}
+	payload, ok := input.SourceResult.Payload()
+	if !ok || payload == nil || payload.Representation != model.ContractRepresentationRows {
+		return errSinkNotConfigured.Detail("artifact delivery requires row input")
+	}
+	if payload.RowCount == 0 {
+		if input.EmptyInputPolicy == "skip" {
+			input.ReplayDecision, input.DeliveryOutcome = "skip_empty_input", "no_op"
+			return nil
+		}
+		return errSinkNotConfigured.Detail("artifact delivery input has zero rows")
+	}
+	input.ReplayDecision = "claim_artifact_effect"
+	return s.artifactProducer(ctx, input, payload.Rows, sinkEffectAttempt(input))
 }

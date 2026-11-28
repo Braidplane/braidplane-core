@@ -864,6 +864,9 @@ func (s *service) Validate(
 	orgSlug, projectSlug, environmentSlug, memberSlug slug.Slug,
 	pipeline *pipelinespec.Pipeline,
 ) (*PipelineValidationResult, error) {
+	if pipeline.UsesArtifactHandoff() {
+		return &PipelineValidationResult{Valid: false, Diagnostics: []PipelineValidationDiagnostic{pipelineValidationDiagnosticFromPipelineError(errArtifactHandoffDisabled, pipeline)}}, nil
+	}
 	if err := pipelinevalidate.Validate(pipeline); err != nil {
 		return &PipelineValidationResult{
 			Valid: false,
@@ -1919,6 +1922,9 @@ func (s *service) AuthorizeProposalPublish(
 	if err != nil {
 		return ErrPipelineProposalAuthorityDenied.With(err)
 	}
+	if pipeline.UsesArtifactHandoff() {
+		return ErrPipelineProposalAuthorityDenied.With(errArtifactHandoffDisabled)
+	}
 	content, err := renderPipelineSource(strings.TrimSpace(*spec.SourcePath), pipeline)
 	if err != nil {
 		return ErrPipelineProposalAuthorityDenied.With(err)
@@ -2135,6 +2141,9 @@ func (s *service) Deploy(
 	}
 	if err != nil {
 		return nil, err
+	}
+	if versionPipeline.UsesArtifactHandoff() {
+		return nil, errArtifactHandoffDisabled
 	}
 	if err := pipelinevalidate.Validate(versionPipeline); err != nil {
 		return nil, xerror.Wrapf("invalid deployment pipeline: %w", err)

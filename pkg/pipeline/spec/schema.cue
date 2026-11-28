@@ -348,6 +348,7 @@ import (
 	slug:  #Slug
 	name?: string
 	query: {
+		artifact_input?: bool
 		data_source_ref: #Slug
 		operation_type:   #QueryOperationType
 		parameters?: [string]: #ParameterValue
@@ -416,6 +417,7 @@ import (
 	slug:  #Slug
 	name?: string
 	sink: {
+		artifact_delivery?: bool
 		input:            #StepInput
 		input_contract?:  #SchemaContract
 		input_contract_ref?: #ODCSContractRef

@@ -37,6 +37,9 @@ const (
 	artifactPublishUncertain = "artifact_publication_uncertain"
 )
 
+// ErrFTPArtifactSubmissionUnknown means the submission transaction may have committed.
+var ErrFTPArtifactSubmissionUnknown = xerror.New(xerror.KindInternal, "FTP_ARTIFACT_SUBMISSION_UNKNOWN", "FTP artifact submission outcome is unknown")
+
 var errFTPArtifactSubmissionRefused = xerror.New(xerror.KindInvalidInput, "FTP_ARTIFACT_SUBMISSION_REFUSED", "FTP artifact submission refused")
 
 // FTPArtifactError describes a local refusal or a completed broker outcome.
@@ -44,6 +47,9 @@ var errFTPArtifactSubmissionRefused = xerror.New(xerror.KindInvalidInput, "FTP_A
 type FTPArtifactError string
 
 func (e FTPArtifactError) Error() string { return string(e) }
+
+// PublicationUncertain reports that the executor could not prove the outcome after dispatch.
+func (e FTPArtifactError) PublicationUncertain() bool { return e == artifactPublishUncertain }
 
 func (e FTPArtifactError) RetryableRead() bool { return e == artifactReadTransient }
 
@@ -57,6 +63,7 @@ type FTPArtifactRequest struct {
 	queriessvc.ConnectorExecutionRequest
 	ftp.ArtifactEvidence
 	Directory            string
+	SavedQueryData       json.RawMessage `json:"artifact_saved_query_data,omitempty"`
 	Content              json.RawMessage `json:"artifact_content,omitempty"`
 	PublishRequestID     uuid.UUID
 	ProjectEnvironmentID int64
@@ -141,6 +148,10 @@ func (b *Broker) processFTPArtifact(ctx context.Context, request requestrepo.Req
 	if err := json.Unmarshal(req.ConfigJSON, &cfg); err != nil || cfg.ValidateBasePath() != nil {
 		return fail(artifactBindingRefused)
 	}
+	statement, err := queriessvc.ExtractQueryStatement(req.SavedQueryData)
+	if err != nil || !sameArtifactStatement(statement, req.StatementJSON) {
+		return fail(artifactBindingRefused)
+	}
 	stmt, err := remotefile.DecodeStatement(req.StatementJSON)
 	if err != nil || stmt.Format != filedata.QueryFormatCSV {
 		return fail(artifactBindingRefused)
@@ -183,7 +194,7 @@ func artifactAuthority(request requestrepo.Request, req FTPArtifactRequest) (req
 		return requestrepo.FTPArtifactPermit{}, FTPArtifactError(artifactBindingRefused)
 	}
 	return requestrepo.FTPArtifactPermit{
-		DeliveryID: req.DeliveryID, ConfigDigest: req.PinnedConfigDigest, Statement: req.StatementJSON,
+		DeliveryID: req.DeliveryID, ConfigDigest: req.PinnedConfigDigest, Statement: req.SavedQueryData,
 		FinalPath: req.FinalPath, StagingPath: req.StagingPath, SizeBytes: req.SizeBytes, SHA256: req.SHA256,
 		DispatchAuthority: requestrepo.DispatchAuthority{
 			RequestID: request.ID, ClaimToken: request.ClaimToken, Organization: request.OrganizationSlug,
@@ -321,4 +332,9 @@ func artifactReadDispatchError(err error) string {
 	}
 	// Infrastructure failure does not prove that the FTP provider completed a transient read.
 	return errorCodeQueryFailed
+}
+
+func sameArtifactStatement(a, b []byte) bool {
+	var left, right bytes.Buffer
+	return json.Compact(&left, a) == nil && json.Compact(&right, b) == nil && bytes.Equal(left.Bytes(), right.Bytes())
 }

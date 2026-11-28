@@ -3,6 +3,7 @@ package validate
 import (
 	"encoding/json"
 	"fmt"
+	"regexp"
 	"sort"
 	"strings"
 	"time"
@@ -53,11 +54,59 @@ func validate(p *pipelinespec.Pipeline, requireConnected bool) error {
 	if err := pipelineruntime.ValidatePipelineExecution(p); err != nil {
 		return err
 	}
+	if err := validateArtifactRoles(p.Steps); err != nil {
+		return err
+	}
 	if err := validateSteps(p.Steps); err != nil {
 		return xerror.Wrapf("validate steps: %w", err)
 	}
 	if err := validateStepInputs(p, requireConnected); err != nil {
 		return err
+	}
+	return nil
+}
+
+var ftpArtifactTemplate = regexp.MustCompile(`^([a-zA-Z0-9_][a-zA-Z0-9_.-]*/)+[a-zA-Z0-9_][a-zA-Z0-9_.-]*\.csv$`)
+
+// validateArtifactRoles checks what can be proved from the spec alone.
+func validateArtifactRoles(steps []pipelinespec.Step) error {
+	producers, consumers, sinks, queries := 0, 0, 0, 0
+	var incremental, eventInput bool
+	for _, step := range steps {
+		eventInput = eventInput || step.Input != nil
+		if step.Sink != nil {
+			sinks++
+			if step.Sink.ArtifactDelivery {
+				producers++
+				sink := step.Sink
+				name, ok := sink.Config["path"].(string)
+				format, hasFormat := sink.Config["format"]
+				allowedFields := 1
+				if hasFormat {
+					allowedFields++
+				}
+				if sink.OperationType != pipelinespec.OperationTypeFTP || sink.OperationRef == "" || len(sink.OperationInline) != 0 ||
+					sink.IdempotencyClass != pipelinespec.SinkIdempotencyClassUnsafe ||
+					!ok || !ftpArtifactTemplate.MatchString(name) ||
+					hasFormat && format != "csv" || len(sink.Config) != allowedFields {
+					return xerror.InvalidInput(xerror.Pipeline).Detail("artifact delivery requires a saved FTP operation and literal relative CSV path without overwrite")
+				}
+			}
+		}
+		if step.Query != nil {
+			queries++
+			incremental = incremental || step.Query.Incremental != nil
+			if step.Query.ArtifactInput {
+				consumers++
+				query := step.Query
+				if query.OperationType != pipelinespec.OperationTypeFTP || query.OperationRef == "" || len(query.OperationInline) != 0 || len(query.Parameters) != 0 || query.Incremental != nil {
+					return xerror.InvalidInput(xerror.Pipeline).Detail("artifact input requires a saved FTP operation without parameters or incremental input")
+				}
+			}
+		}
+	}
+	if producers > 1 || consumers > 1 || producers > 0 && (consumers > 0 || sinks != 1 || incremental) || consumers > 0 && (queries != 1 || sinks != 1 || eventInput) {
+		return xerror.InvalidInput(xerror.Pipeline).Detail("artifact pipelines require one artifact role and one terminal sink")
 	}
 	return nil
 }
