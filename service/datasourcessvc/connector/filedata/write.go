@@ -42,7 +42,7 @@ func EncodeCSVContent(content any, opts ParseCSVOptions) ([]byte, int, error) {
 
 	sort.Strings(headers)
 
-	var buffer bytes.Buffer
+	buffer := csvWriteBuffer{maxBytes: opts.MaxBytes}
 	writer := csv.NewWriter(&buffer)
 	if opts.Delimiter != "" {
 		runes := []rune(opts.Delimiter)
@@ -83,6 +83,19 @@ func EncodeCSVContent(content any, opts ParseCSVOptions) ([]byte, int, error) {
 	}
 
 	return buffer.Bytes(), len(objectRows), nil
+}
+
+type csvWriteBuffer struct {
+	bytes.Buffer
+	maxBytes int64
+}
+
+func (b *csvWriteBuffer) Write(p []byte) (int, error) {
+	if b.maxBytes > 0 && int64(len(p)) > b.maxBytes-int64(b.Len()) {
+		return 0, xerror.ExecutionResponseSizeExceeded()
+	}
+	n, _ := b.Buffer.Write(p)
+	return n, nil
 }
 
 // EstimateWrittenRows returns the number of rows in content if it is a slice, or 0 otherwise.

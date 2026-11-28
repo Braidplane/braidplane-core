@@ -55,6 +55,8 @@ func (b *Broker) recordCredentialHandoff(ctx context.Context, org slug.Slug, req
 		if reference == "" {
 			reference = request.CredentialVersion
 		}
+	case FTPArtifactRequest:
+		source, reference = request.DataSourceSlug, request.CredentialReference
 	case proofevidencesvc.ExecutionRequest:
 		source, reference = request.Request.CredentialDataSourceSlug, request.Request.CredentialVersion
 	case datasourcessvc.ConnectionTestRequest:

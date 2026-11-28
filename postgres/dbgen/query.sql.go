@@ -1615,6 +1615,47 @@ func (q *Queries) CheckConnectorDispatch(ctx context.Context, arg CheckConnector
 	return allowed, err
 }
 
+const checkFTPArtifactRead = `-- name: CheckFTPArtifactRead :one
+SELECT public.check_ftp_artifact_read(
+    $1::uuid, $2::uuid, $3::uuid, $4::bigint,
+    $5::bigint, $6::timestamptz, $7::jsonb,
+    $8::text, $9::text, $10::bigint, $11::text
+)::boolean
+`
+
+type CheckFTPArtifactReadParams struct {
+	RequestID            pgtype.UUID
+	Claim                pgtype.UUID
+	ReceiptID            pgtype.UUID
+	ProjectEnvironmentID int64
+	QueryID              int64
+	QueryUpdatedAt       pgtype.Timestamptz
+	Statement            []byte
+	ConfigDigest         string
+	Target               string
+	SizeBytes            int64
+	Sha256               string
+}
+
+func (q *Queries) CheckFTPArtifactRead(ctx context.Context, arg CheckFTPArtifactReadParams) (bool, error) {
+	row := q.db.QueryRow(ctx, checkFTPArtifactRead,
+		arg.RequestID,
+		arg.Claim,
+		arg.ReceiptID,
+		arg.ProjectEnvironmentID,
+		arg.QueryID,
+		arg.QueryUpdatedAt,
+		arg.Statement,
+		arg.ConfigDigest,
+		arg.Target,
+		arg.SizeBytes,
+		arg.Sha256,
+	)
+	var column_1 bool
+	err := row.Scan(&column_1)
+	return column_1, err
+}
+
 const checkMCPOAuthMachineAdminSession = `-- name: CheckMCPOAuthMachineAdminSession :one
 SELECT u.id FROM users u
 JOIN organization_members m ON m.user_id = u.id
@@ -2799,6 +2840,32 @@ func (q *Queries) CompleteTriggerRetryAttempt(ctx context.Context, arg CompleteT
 		return 0, err
 	}
 	return result.RowsAffected(), nil
+}
+
+const confirmFTPArtifactDelivery = `-- name: ConfirmFTPArtifactDelivery :one
+SELECT public.confirm_ftp_artifact_delivery(
+    $1::uuid, $2::uuid,
+    $3::text, $4::bigint
+)::boolean
+`
+
+type ConfirmFTPArtifactDeliveryParams struct {
+	DeliveryID           pgtype.UUID
+	RequestID            pgtype.UUID
+	OrgSlug              string
+	ProjectEnvironmentID int64
+}
+
+func (q *Queries) ConfirmFTPArtifactDelivery(ctx context.Context, arg ConfirmFTPArtifactDeliveryParams) (bool, error) {
+	row := q.db.QueryRow(ctx, confirmFTPArtifactDelivery,
+		arg.DeliveryID,
+		arg.RequestID,
+		arg.OrgSlug,
+		arg.ProjectEnvironmentID,
+	)
+	var column_1 bool
+	err := row.Scan(&column_1)
+	return column_1, err
 }
 
 const consumeGitHubAppInstallIntent = `-- name: ConsumeGitHubAppInstallIntent :one
@@ -4061,6 +4128,92 @@ func (q *Queries) CreateEvent(ctx context.Context, arg CreateEventParams) (Event
 		&i.SchemaVersion,
 	)
 	return i, err
+}
+
+const createFTPArtifactIntent = `-- name: CreateFTPArtifactIntent :execrows
+INSERT INTO pipeline_artifact_deliveries (
+    id, organization_id, project_id, project_environment_id, producer_attempt_slug, sink_step_slug, effect_key,
+    producer_version_id, deployment_id, deployment_resolution_digest, write_query_id, write_query_updated_at,
+    data_source_id, source_config_digest, credential_id, credential_updated_at, final_path, staging_path,
+    size_bytes, sha256, publish_request_id
+)
+SELECT $1::uuid, org.id, pe.project_id, pe.id, run.run_slug, effect.sink_step_slug, effect.idempotency_key,
+    run.pipeline_version_id, run.deployment_id, run.deployment_resolution_digest, q.id, q.updated_at,
+    source.id, $2::text, credential.id, credential.updated_at, $3::text,
+    $4::text, $5::bigint, $6::text, $7::uuid
+FROM organizations AS org
+JOIN project_environments AS pe ON pe.organization_id = org.id
+JOIN environments AS env ON env.organization_id = org.id AND env.id = pe.environment_id
+JOIN pipeline_runs AS run ON run.project_id = pe.project_id AND run.project_environment_id = pe.id
+JOIN pipeline_sink_effects AS effect ON effect.project_environment_id = pe.id AND effect.run_slug = run.run_slug
+JOIN data_sources AS source ON source.organization_id = org.id
+JOIN credentials AS credential ON credential.id = source.credential_id AND credential.organization_id = org.id
+JOIN queries AS q ON q.data_source_id = source.id
+WHERE org.slug = $8::text AND pe.id = $9::bigint
+    AND pe.deleted_at IS NULL AND env.deleted_at IS NULL AND NOT env.protected
+    AND run.run_slug = $10::text AND run.status = 'running'
+    AND run.source_attempt_number = 1 AND (run.source_root_run_slug IS NULL OR run.source_root_run_slug = run.run_slug)
+    AND run.replay_of_run_slug IS NULL AND run.pipeline_version_id IS NOT NULL AND run.deployment_id IS NOT NULL
+    AND run.deployment_resolution_digest IS NOT NULL
+    AND effect.sink_step_slug = $11::text AND effect.idempotency_key = $12::text
+    AND effect.state = 'in_progress'
+    AND source.slug = $13::text AND source.type = 'ftp' AND source.is_active
+    AND source.deleted_at IS NULL AND NOT source.read_only AND source.config = $14::jsonb
+    AND credential.slug = $15::text AND credential.updated_at = $16::timestamptz
+    AND credential.kind = 'static_secret' AND credential.status = 'active'
+    AND q.id = $17::bigint AND q.updated_at = $18::timestamptz
+    AND q.deleted_at IS NULL AND q.data = $19::jsonb
+ON CONFLICT DO NOTHING
+`
+
+type CreateFTPArtifactIntentParams struct {
+	DeliveryID           pgtype.UUID
+	ConfigDigest         string
+	FinalPath            string
+	StagingPath          string
+	SizeBytes            int64
+	Sha256               string
+	PublishRequestID     pgtype.UUID
+	OrgSlug              string
+	ProjectEnvironmentID int64
+	AttemptSlug          string
+	SinkStepSlug         string
+	EffectKey            string
+	SourceSlug           string
+	ExpectedConfig       []byte
+	CredentialSlug       string
+	CredentialRevision   pgtype.Timestamptz
+	WriteQueryID         int64
+	WriteQueryRevision   pgtype.Timestamptz
+	Statement            []byte
+}
+
+func (q *Queries) CreateFTPArtifactIntent(ctx context.Context, arg CreateFTPArtifactIntentParams) (int64, error) {
+	result, err := q.db.Exec(ctx, createFTPArtifactIntent,
+		arg.DeliveryID,
+		arg.ConfigDigest,
+		arg.FinalPath,
+		arg.StagingPath,
+		arg.SizeBytes,
+		arg.Sha256,
+		arg.PublishRequestID,
+		arg.OrgSlug,
+		arg.ProjectEnvironmentID,
+		arg.AttemptSlug,
+		arg.SinkStepSlug,
+		arg.EffectKey,
+		arg.SourceSlug,
+		arg.ExpectedConfig,
+		arg.CredentialSlug,
+		arg.CredentialRevision,
+		arg.WriteQueryID,
+		arg.WriteQueryRevision,
+		arg.Statement,
+	)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
 }
 
 const createGitHubAppInstallIntent = `-- name: CreateGitHubAppInstallIntent :one
@@ -10440,6 +10593,38 @@ func (q *Queries) ExpireProofObservationJobs(ctx context.Context, arg ExpireProo
 	return items, nil
 }
 
+const fTPArtifactSubmissionCommitted = `-- name: FTPArtifactSubmissionCommitted :one
+SELECT EXISTS (
+    SELECT 1 FROM pipeline_artifact_deliveries AS d
+    JOIN organizations AS org ON org.id = d.organization_id
+    JOIN data_sources AS source ON source.id = d.data_source_id AND source.organization_id = org.id
+    WHERE d.id = $1::uuid AND d.publish_request_id = $2::uuid
+      AND org.slug = $3::text AND source.slug = $4::text AND d.submitted_at IS NOT NULL
+      AND d.project_environment_id = $5::bigint
+)::boolean
+`
+
+type FTPArtifactSubmissionCommittedParams struct {
+	DeliveryID           pgtype.UUID
+	RequestID            pgtype.UUID
+	OrgSlug              string
+	SourceSlug           string
+	ProjectEnvironmentID int64
+}
+
+func (q *Queries) FTPArtifactSubmissionCommitted(ctx context.Context, arg FTPArtifactSubmissionCommittedParams) (bool, error) {
+	row := q.db.QueryRow(ctx, fTPArtifactSubmissionCommitted,
+		arg.DeliveryID,
+		arg.RequestID,
+		arg.OrgSlug,
+		arg.SourceSlug,
+		arg.ProjectEnvironmentID,
+	)
+	var column_1 bool
+	err := row.Scan(&column_1)
+	return column_1, err
+}
+
 const failAccountDeletionRequest = `-- name: FailAccountDeletionRequest :exec
 UPDATE account_deletion_requests SET state = 'failed', failure_code = 'deletion_failed'
 WHERE slug = $1 AND state <> 'completed'
@@ -11686,6 +11871,51 @@ func (q *Queries) FindEventBySlug(ctx context.Context, arg FindEventBySlugParams
 		&i.EventClass,
 		&i.RequestID,
 		&i.SchemaVersion,
+	)
+	return i, err
+}
+
+const findFTPArtifactIntent = `-- name: FindFTPArtifactIntent :one
+SELECT d.id, d.organization_id, d.project_id, d.project_environment_id, d.producer_attempt_slug, d.sink_step_slug, d.effect_key, d.producer_version_id, d.deployment_id, d.deployment_resolution_digest, d.write_query_id, d.write_query_updated_at, d.data_source_id, d.source_config_digest, d.credential_id, d.credential_updated_at, d.final_path, d.staging_path, d.size_bytes, d.sha256, d.publish_request_id, d.submitted_at, d.permit_spent_at, d.confirmed_at FROM pipeline_artifact_deliveries AS d
+JOIN organizations AS org ON org.id = d.organization_id
+WHERE d.id = $1::uuid AND org.slug = $2::text
+    AND d.project_environment_id = $3::bigint
+`
+
+type FindFTPArtifactIntentParams struct {
+	DeliveryID           pgtype.UUID
+	OrgSlug              string
+	ProjectEnvironmentID int64
+}
+
+func (q *Queries) FindFTPArtifactIntent(ctx context.Context, arg FindFTPArtifactIntentParams) (PipelineArtifactDelivery, error) {
+	row := q.db.QueryRow(ctx, findFTPArtifactIntent, arg.DeliveryID, arg.OrgSlug, arg.ProjectEnvironmentID)
+	var i PipelineArtifactDelivery
+	err := row.Scan(
+		&i.ID,
+		&i.OrganizationID,
+		&i.ProjectID,
+		&i.ProjectEnvironmentID,
+		&i.ProducerAttemptSlug,
+		&i.SinkStepSlug,
+		&i.EffectKey,
+		&i.ProducerVersionID,
+		&i.DeploymentID,
+		&i.DeploymentResolutionDigest,
+		&i.WriteQueryID,
+		&i.WriteQueryUpdatedAt,
+		&i.DataSourceID,
+		&i.SourceConfigDigest,
+		&i.CredentialID,
+		&i.CredentialUpdatedAt,
+		&i.FinalPath,
+		&i.StagingPath,
+		&i.SizeBytes,
+		&i.Sha256,
+		&i.PublishRequestID,
+		&i.SubmittedAt,
+		&i.PermitSpentAt,
+		&i.ConfirmedAt,
 	)
 	return i, err
 }
@@ -27738,6 +27968,34 @@ func (q *Queries) MarkDataSourceTestSuccess(ctx context.Context, arg MarkDataSou
 	return i, err
 }
 
+const markFTPArtifactSubmitted = `-- name: MarkFTPArtifactSubmitted :one
+SELECT public.mark_ftp_artifact_submitted(
+    $1::uuid, $2::uuid,
+    $3::text, $4::text, $5::bigint
+)::boolean
+`
+
+type MarkFTPArtifactSubmittedParams struct {
+	DeliveryID           pgtype.UUID
+	RequestID            pgtype.UUID
+	OrgSlug              string
+	SourceSlug           string
+	ProjectEnvironmentID int64
+}
+
+func (q *Queries) MarkFTPArtifactSubmitted(ctx context.Context, arg MarkFTPArtifactSubmittedParams) (bool, error) {
+	row := q.db.QueryRow(ctx, markFTPArtifactSubmitted,
+		arg.DeliveryID,
+		arg.RequestID,
+		arg.OrgSlug,
+		arg.SourceSlug,
+		arg.ProjectEnvironmentID,
+	)
+	var column_1 bool
+	err := row.Scan(&column_1)
+	return column_1, err
+}
+
 const markPersonalAccessTokenUsed = `-- name: MarkPersonalAccessTokenUsed :execrows
 UPDATE personal_access_tokens pat
 SET
@@ -32301,6 +32559,54 @@ func (q *Queries) SnowflakeWIFReady(ctx context.Context, arg SnowflakeWIFReadyPa
 	var ready bool
 	err := row.Scan(&ready)
 	return ready, err
+}
+
+const spendFTPArtifactPermit = `-- name: SpendFTPArtifactPermit :one
+SELECT public.spend_ftp_artifact_permit(
+    $1::uuid, $2::uuid, $3::uuid,
+    $4::text, $5::text, $6::jsonb,
+    $7::text, $8::text, $9::timestamptz,
+    $10::jsonb, $11::text, $12::text, $13::bigint, $14::text
+)::boolean
+`
+
+type SpendFTPArtifactPermitParams struct {
+	DeliveryID         pgtype.UUID
+	RequestID          pgtype.UUID
+	Claim              pgtype.UUID
+	OrgSlug            string
+	SourceSlug         string
+	ExpectedConfig     []byte
+	ConfigDigest       string
+	CredentialSlug     string
+	CredentialRevision pgtype.Timestamptz
+	Statement          []byte
+	Target             string
+	Staging            string
+	SizeBytes          int64
+	Sha256             string
+}
+
+func (q *Queries) SpendFTPArtifactPermit(ctx context.Context, arg SpendFTPArtifactPermitParams) (bool, error) {
+	row := q.db.QueryRow(ctx, spendFTPArtifactPermit,
+		arg.DeliveryID,
+		arg.RequestID,
+		arg.Claim,
+		arg.OrgSlug,
+		arg.SourceSlug,
+		arg.ExpectedConfig,
+		arg.ConfigDigest,
+		arg.CredentialSlug,
+		arg.CredentialRevision,
+		arg.Statement,
+		arg.Target,
+		arg.Staging,
+		arg.SizeBytes,
+		arg.Sha256,
+	)
+	var column_1 bool
+	err := row.Scan(&column_1)
+	return column_1, err
 }
 
 const startDataSourceSchemaImport = `-- name: StartDataSourceSchemaImport :one

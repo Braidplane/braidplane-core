@@ -774,6 +774,33 @@ type PersonalAccessToken struct {
 	CanManagePersonalAccessTokens bool
 }
 
+type PipelineArtifactDelivery struct {
+	ID                         pgtype.UUID
+	OrganizationID             int32
+	ProjectID                  int64
+	ProjectEnvironmentID       int64
+	ProducerAttemptSlug        string
+	SinkStepSlug               string
+	EffectKey                  string
+	ProducerVersionID          int64
+	DeploymentID               int64
+	DeploymentResolutionDigest string
+	WriteQueryID               int64
+	WriteQueryUpdatedAt        pgtype.Timestamptz
+	DataSourceID               int64
+	SourceConfigDigest         string
+	CredentialID               int64
+	CredentialUpdatedAt        pgtype.Timestamptz
+	FinalPath                  string
+	StagingPath                string
+	SizeBytes                  int64
+	Sha256                     string
+	PublishRequestID           pgtype.UUID
+	SubmittedAt                pgtype.Timestamptz
+	PermitSpentAt              pgtype.Timestamptz
+	ConfirmedAt                pgtype.Timestamptz
+}
+
 type PipelineCheckpoint struct {
 	ID                         int
 	ProjectEnvironmentID       int64

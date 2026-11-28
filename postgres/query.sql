@@ -14115,3 +14115,81 @@ SELECT t.paused, t.revision, t.changed_at, t.changed_by_type, t.changed_by_slug,
         FROM visible a WHERE a.position <= 50
     ), '[]'::jsonb)::jsonb AS attempts
 FROM target t CROSS JOIN counts c;
+
+-- name: MarkFTPArtifactSubmitted :one
+SELECT public.mark_ftp_artifact_submitted(
+    sqlc.arg(delivery_id)::uuid, sqlc.arg(request_id)::uuid,
+    sqlc.arg(org_slug)::text, sqlc.arg(source_slug)::text, sqlc.arg(project_environment_id)::bigint
+)::boolean;
+
+-- name: SpendFTPArtifactPermit :one
+SELECT public.spend_ftp_artifact_permit(
+    sqlc.arg(delivery_id)::uuid, sqlc.arg(request_id)::uuid, sqlc.arg(claim)::uuid,
+    sqlc.arg(org_slug)::text, sqlc.arg(source_slug)::text, sqlc.arg(expected_config)::jsonb,
+    sqlc.arg(config_digest)::text, sqlc.arg(credential_slug)::text, sqlc.arg(credential_revision)::timestamptz,
+    sqlc.arg(statement)::jsonb, sqlc.arg(target)::text, sqlc.arg(staging)::text, sqlc.arg(size_bytes)::bigint, sqlc.arg(sha256)::text
+)::boolean;
+
+-- name: ConfirmFTPArtifactDelivery :one
+SELECT public.confirm_ftp_artifact_delivery(
+    sqlc.arg(delivery_id)::uuid, sqlc.arg(request_id)::uuid,
+    sqlc.arg(org_slug)::text, sqlc.arg(project_environment_id)::bigint
+)::boolean;
+
+-- name: FTPArtifactSubmissionCommitted :one
+SELECT EXISTS (
+    SELECT 1 FROM pipeline_artifact_deliveries AS d
+    JOIN organizations AS org ON org.id = d.organization_id
+    JOIN data_sources AS source ON source.id = d.data_source_id AND source.organization_id = org.id
+    WHERE d.id = sqlc.arg(delivery_id)::uuid AND d.publish_request_id = sqlc.arg(request_id)::uuid
+      AND org.slug = sqlc.arg(org_slug)::text AND source.slug = sqlc.arg(source_slug)::text AND d.submitted_at IS NOT NULL
+      AND d.project_environment_id = sqlc.arg(project_environment_id)::bigint
+)::boolean;
+
+-- name: CheckFTPArtifactRead :one
+SELECT public.check_ftp_artifact_read(
+    sqlc.arg(request_id)::uuid, sqlc.arg(claim)::uuid, sqlc.arg(receipt_id)::uuid, sqlc.arg(project_environment_id)::bigint,
+    sqlc.arg(query_id)::bigint, sqlc.arg(query_updated_at)::timestamptz, sqlc.arg(statement)::jsonb,
+    sqlc.arg(config_digest)::text, sqlc.arg(target)::text, sqlc.arg(size_bytes)::bigint, sqlc.arg(sha256)::text
+)::boolean;
+
+-- name: CreateFTPArtifactIntent :execrows
+INSERT INTO pipeline_artifact_deliveries (
+    id, organization_id, project_id, project_environment_id, producer_attempt_slug, sink_step_slug, effect_key,
+    producer_version_id, deployment_id, deployment_resolution_digest, write_query_id, write_query_updated_at,
+    data_source_id, source_config_digest, credential_id, credential_updated_at, final_path, staging_path,
+    size_bytes, sha256, publish_request_id
+)
+SELECT sqlc.arg(delivery_id)::uuid, org.id, pe.project_id, pe.id, run.run_slug, effect.sink_step_slug, effect.idempotency_key,
+    run.pipeline_version_id, run.deployment_id, run.deployment_resolution_digest, q.id, q.updated_at,
+    source.id, sqlc.arg(config_digest)::text, credential.id, credential.updated_at, sqlc.arg(final_path)::text,
+    sqlc.arg(staging_path)::text, sqlc.arg(size_bytes)::bigint, sqlc.arg(sha256)::text, sqlc.arg(publish_request_id)::uuid
+FROM organizations AS org
+JOIN project_environments AS pe ON pe.organization_id = org.id
+JOIN environments AS env ON env.organization_id = org.id AND env.id = pe.environment_id
+JOIN pipeline_runs AS run ON run.project_id = pe.project_id AND run.project_environment_id = pe.id
+JOIN pipeline_sink_effects AS effect ON effect.project_environment_id = pe.id AND effect.run_slug = run.run_slug
+JOIN data_sources AS source ON source.organization_id = org.id
+JOIN credentials AS credential ON credential.id = source.credential_id AND credential.organization_id = org.id
+JOIN queries AS q ON q.data_source_id = source.id
+WHERE org.slug = sqlc.arg(org_slug)::text AND pe.id = sqlc.arg(project_environment_id)::bigint
+    AND pe.deleted_at IS NULL AND env.deleted_at IS NULL AND NOT env.protected
+    AND run.run_slug = sqlc.arg(attempt_slug)::text AND run.status = 'running'
+    AND run.source_attempt_number = 1 AND (run.source_root_run_slug IS NULL OR run.source_root_run_slug = run.run_slug)
+    AND run.replay_of_run_slug IS NULL AND run.pipeline_version_id IS NOT NULL AND run.deployment_id IS NOT NULL
+    AND run.deployment_resolution_digest IS NOT NULL
+    AND effect.sink_step_slug = sqlc.arg(sink_step_slug)::text AND effect.idempotency_key = sqlc.arg(effect_key)::text
+    AND effect.state = 'in_progress'
+    AND source.slug = sqlc.arg(source_slug)::text AND source.type = 'ftp' AND source.is_active
+    AND source.deleted_at IS NULL AND NOT source.read_only AND source.config = sqlc.arg(expected_config)::jsonb
+    AND credential.slug = sqlc.arg(credential_slug)::text AND credential.updated_at = sqlc.arg(credential_revision)::timestamptz
+    AND credential.kind = 'static_secret' AND credential.status = 'active'
+    AND q.id = sqlc.arg(write_query_id)::bigint AND q.updated_at = sqlc.arg(write_query_revision)::timestamptz
+    AND q.deleted_at IS NULL AND q.data = sqlc.arg(statement)::jsonb
+ON CONFLICT DO NOTHING;
+
+-- name: FindFTPArtifactIntent :one
+SELECT d.* FROM pipeline_artifact_deliveries AS d
+JOIN organizations AS org ON org.id = d.organization_id
+WHERE d.id = sqlc.arg(delivery_id)::uuid AND org.slug = sqlc.arg(org_slug)::text
+    AND d.project_environment_id = sqlc.arg(project_environment_id)::bigint;
