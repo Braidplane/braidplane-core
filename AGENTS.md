@@ -47,9 +47,9 @@ Add `release:security` only for an approved public security release. See
 - For tests or acceptance that need the local application, run `task dev` and
   follow `COMMUNITY_BUILD.md#run-locally` for ports, retained data and keys.
   Use distinct Compose project names and ports for concurrent worktrees.
-- For generated code, change the source and run the appropriate generator;
-  review and include its output. Use disposable core-only databases for
-  migration and SQL generation checks.
+- For API or generated-code changes, use the
+  [Core generated-code skill](.agents/skills/core-generated-code/SKILL.md).
+- Use disposable Core-only databases for migration checks.
 
 Complete requested local changes and relevant checks without repeated approval
 requests. Reuse passing evidence when its inputs are unchanged. Source
